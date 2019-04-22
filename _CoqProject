@@ -1,0 +1,4 @@
+-Q theories cap_machine
+-arg -w -arg -several-object-files
+theories/rules.v
+theories/lang.v

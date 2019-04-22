@@ -1,0 +1,99 @@
+DIGEST 5c6b53a6edb8f2334e063160af12cf1a
+Fgen_reg
+R33:36 iris.algebra.auth <> <> lib
+R38:41 iris.algebra.gmap <> <> lib
+R43:47 iris.algebra.agree <> <> lib
+R90:92 iris.base_logic.lib.own <> <> lib
+R130:136 iris.proofmode.tactics <> <> lib
+def 152:160 <> gen_regUR
+R177:185 stdpp.countable <> Countable class
+R187:187 gen_reg <> L var
+R192:197 iris.algebra.cmra <> ucmraT rec
+R204:209 iris.algebra.gmap <> gmapUR canonstruc
+R214:219 iris.algebra.agree <> agreeR canonstruc
+R222:229 iris.algebra.ofe <> leibnizC syndef
+R231:231 gen_reg <> V var
+R211:211 gen_reg <> L var
+def 247:256 <> to_gen_reg
+R266:274 stdpp.countable <> Countable class
+R276:276 gen_reg <> L var
+R289:293 Coq.Unicode.Utf8_core <> ::type_scope:x_'→'_x not
+R294:302 gen_reg <> gen_regUR def
+R306:306 gen_reg <> V var
+R304:304 gen_reg <> L var
+R281:284 stdpp.gmap <> gmap rec
+R288:288 gen_reg <> V var
+R286:286 gen_reg <> L var
+R313:316 stdpp.base <> fmap def
+R319:321 Coq.Unicode.Utf8_core <> :::'λ'_x_'..'_x_','_x not
+R323:324 Coq.Unicode.Utf8_core <> :::'λ'_x_'..'_x_','_x not
+R325:332 iris.algebra.agree <> to_agree def
+R336:338 Coq.ssr.ssreflect <> ::core_scope:x_':'_x not
+R339:346 iris.algebra.ofe <> leibnizC syndef
+R348:348 gen_reg <> V var
+R335:335 gen_reg <> v var
+constr 417:423 <> GenRegG
+rec 360:367 <> gen_regG
+proj 429:439 <> gen_reg_inG
+proj 478:489 <> gen_reg_name
+R388:396 iris.base_logic.lib.iprop <> gFunctors def
+R401:409 stdpp.countable <> Countable class
+R411:411 gen_reg <> L var
+R444:446 iris.base_logic.lib.own <> inG class
+R452:456 iris.algebra.auth <> authR canonstruc
+R459:467 gen_reg <> gen_regUR def
+R471:471 gen_reg <> V var
+R469:469 gen_reg <> L var
+R448:449 gen_reg <> Σ var
+R493:497 iris.base_logic.lib.iprop <> gname def
+R512:523 gen_reg <> gen_reg_name meth
+R512:523 gen_reg <> gen_reg_name meth
+sec 563:577 <> reg_definitions
+R592:600 stdpp.countable <> Countable class
+R610:617 gen_reg <> gen_regG class
+R619:619 gen_reg <> L var
+def 642:652 <> gen_reg_ctx
+R660:663 stdpp.gmap <> gmap rec
+R667:667 gen_reg <> reg_definitions.V var
+R665:665 gen_reg <> reg_definitions.L var
+R672:676 iris.base_logic.lib.iprop iProp_solution iProp syndef
+R678:679 gen_reg <> reg_definitions.Σ var
+R688:690 iris.base_logic.lib.own <> own def
+R711:715 iris.algebra.auth <> :::'●'_x not
+R729:729 iris.algebra.auth <> :::'●'_x not
+R716:725 gen_reg <> to_gen_reg def
+R727:728 gen_reg <> σ var
+R693:704 gen_reg <> gen_reg_name meth
+R706:707 gen_reg <> reg_definitions.rG var
+def 747:760 <> mapsto_reg_def
+R767:767 gen_reg <> reg_definitions.L var
+R775:776 stdpp.numbers <> Qp rec
+R783:783 gen_reg <> reg_definitions.V var
+R788:792 iris.base_logic.lib.iprop iProp_solution iProp syndef
+R794:795 gen_reg <> reg_definitions.Σ var
+R804:806 iris.base_logic.lib.own <> own def
+R827:830 iris.algebra.auth <> :::'◯'_x not
+R831:833 stdpp.base <> ::stdpp_scope:'{['_x_':='_x_']}' not
+R835:838 stdpp.base <> ::stdpp_scope:'{['_x_':='_x_']}' not
+R864:866 stdpp.base <> ::stdpp_scope:'{['_x_':='_x_']}' not
+R834:834 gen_reg <> l var
+R839:846 iris.algebra.agree <> to_agree def
+R850:852 Coq.ssr.ssreflect <> ::core_scope:x_':'_x not
+R853:860 iris.algebra.ofe <> leibnizC syndef
+R862:862 gen_reg <> reg_definitions.V var
+R849:849 gen_reg <> v var
+R809:820 gen_reg <> gen_reg_name meth
+R822:823 gen_reg <> reg_definitions.rG var
+def 883:896 <> mapsto_reg_aux
+R900:903 stdpp.base <> seal rec
+R907:920 gen_reg <> mapsto_reg_def def
+def 954:963 <> mapsto_reg
+R984:989 stdpp.base <> unseal proj
+R968:981 gen_reg <> mapsto_reg_aux def
+def 1006:1018 <> mapsto_reg_eq
+R1033:1035 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1023:1032 gen_reg <> mapsto_reg def
+R1037:1050 gen_reg <> mapsto_reg_def def
+R1071:1077 stdpp.base <> seal_eq proj
+R1055:1068 gen_reg <> mapsto_reg_aux def
+R1086:1100 gen_reg reg_definitions <> sec
