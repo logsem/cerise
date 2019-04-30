@@ -1,6 +1,6 @@
 From iris.algebra Require Import base.
 From iris.program_logic Require Import language.
-From stdpp Require Import gmap fin_maps.
+From stdpp Require Import gmap fin_maps list.
 
 Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 
@@ -9,13 +9,49 @@ Ltac inv H := inversion H; clear H; subst.
 Module cap_lang.
 
   Definition RegNum: nat := 31.
+  Definition MemNum: Z := 2000000. 
 
   (*Hypothesis RegNum_not_zero: RegNum > O.*)
 
-  Definition Addr: Type := Z.
+  Inductive Addr: Type :=
+  | A (z : Z) (fin: Z.leb z MemNum = true). 
+  
+  Instance addr_eq_dec: EqDecision Addr.
+    intros x y. destruct x,y. destruct (Z_eq_dec z z0).
+    - left. simplify_eq.
+      assert (forall (b: bool) (n m: Z) (P1 P2: Z.leb n m = b), P1 = P2).
+      { intros. apply eq_proofs_unicity.
+        intros; destruct x; destruct y; auto. }
+        by rewrite (H true z0 MemNum fin fin0).
+    - right. inversion 1. simplify_eq. 
+  Defined.
 
-  Definition addr_eq_dec: forall (x y: Addr), {x = y} + {x <> y} := Z_eq_dec.
+  Definition z_to_addr (z : Z) : option Addr.
+  Proof. 
+    destruct (Z_le_dec z MemNum).
+    - apply (Z.leb_le z MemNum) in l.
+      exact (Some (A z l)).
+    - exact None. 
+  Defined. 
 
+  Instance addr_countable : Countable Addr.
+  Proof. 
+    refine {| encode r := encode match r with
+                          | A z fin => z
+                          end ;
+              decode n := match (decode n) with
+                          | Some z => z_to_addr z
+                          | None => None
+                          end ;
+              decode_encode := _ |}. 
+    intro r. destruct r; auto. 
+    rewrite decode_encode.
+    unfold z_to_addr.
+    destruct (Z_le_dec z MemNum).
+    - do 2 f_equal. apply eq_proofs_unicity. decide equality.
+    - exfalso. by apply (Z.leb_le z MemNum) in fin. 
+  Qed.
+      
   Inductive Perm: Type :=
   | O
   | RO
@@ -30,7 +66,7 @@ Module cap_lang.
   | Global
   | Local.
 
-  (* None = infinity bound *)
+  (* None = MemNum bound *)
   Definition Cap: Type :=
     (Perm * Locality) * Addr * option Addr * Addr.
 
@@ -77,7 +113,8 @@ Module cap_lang.
     destruct (nat_le_dec n RegNum).
     - do 2 f_equal. apply eq_proofs_unicity. decide equality.
     - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
-  Qed. 
+  Qed.
+
   
   Definition Reg := gmap RegName Word.
 
@@ -170,15 +207,56 @@ Module cap_lang.
 
   Axiom decodePermPair: Z -> (Perm * Locality).
 
+  Definition le_lt_addr : Addr → Addr → Addr → Prop :=
+    λ a1 a2 a3, match a1,a2,a3 with
+                | A z1 fin1, A z2 fin2, A z3 fin3 => (z1 <= z2 < z3)%Z
+                end.
+  Definition le_addr : Addr → Addr → Prop :=
+    λ a1 a2, match a1,a2 with
+             | A z1 fin1, A z2 fin2 => (z1 <= z2)%Z
+             end.
+  Definition lt_addr : Addr → Addr → Prop :=
+    λ a1 a2, match a1,a2 with
+             | A z1 fin1, A z2 fin2 => (z1 < z2)%Z
+             end.
+  Definition leb_addr : Addr → Addr → bool :=
+    λ a1 a2, match a1,a2 with
+             | A z1 _, A z2 _ => Z.leb z1 z2
+             end.
+  Definition ltb_addr : Addr → Addr → bool :=
+    λ a1 a2, match a1,a2 with
+             | A z1 _, A z2 _ => Z.ltb z1 z2
+             end.
+  Definition eqb_addr : Addr → Addr → bool :=
+    λ a1 a2, match a1,a2 with
+             | A z1 _,A z2 _ => Z.eqb z1 z2
+             end.
+  Definition za : Addr. Proof. refine (A 0%Z _); eauto. Defined.  
+  Definition special_a : Addr. Proof. refine (A (-42)%Z _); eauto. Defined.
+  Definition top : Addr. Proof. refine (A MemNum _); eauto. Defined. 
+  Delimit Scope Addr_scope with a.
+  Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
+  Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
+  Notation "a1 <=? a2" := (leb_addr a1 a2): Addr_scope.
+  Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
+  Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
+  Notation "0" := (za) : Addr_scope.
+  Notation "- 42" := (special_a) : Addr_scope.
+
+  Instance Addr_le_dec : RelDecision le_addr. 
+  Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
+  Instance Addr_lt_dec : RelDecision lt_addr. 
+  Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
+  
   Inductive isCorrectPC: Word -> Prop :=
   | isCorrectPC_intro:
-      forall p g b e a,
-        (b <= a < e)%Z ->
+      forall p g (b e a : Addr),
+        (b <= a < e)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
         isCorrectPC (inr ((p, g), b, (Some e), a))
   | isCorrectPC_intro_infinity:
-      forall p g b a,
-        (b <= a)%Z ->
+      forall p g (b a : Addr),
+        (b <= a)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
         isCorrectPC (inr ((p, g), b, None, a)).
 
@@ -220,8 +298,8 @@ Module cap_lang.
     match c with
     | (_, b, e, a) =>
       match e with
-      | None => Z.leb b a
-      | Some e => Z.leb b a && Z.leb a e
+      | None => (b <=? a)%a
+      | Some e => (b <=? a)%a && (a <=? e)%a
       end
     end.
 
@@ -233,10 +311,24 @@ Module cap_lang.
   (* Definition update_mem (ϕ: ExecConf) (a: Addr) (w: Word): ExecConf := *)
   (*   (reg ϕ, fun x => if addr_eq_dec x a then w else mem ϕ x). *)
 
+  Definition incr_addr : Addr → Z → option Addr.
+  Proof.
+    destruct 1. intros z'. 
+    destruct (Z.leb (z + z')%Z MemNum) eqn:Hlt.
+    - refine (Some (A (z + z')%Z _)).
+      by apply Z.leb_le; apply Z.leb_le. 
+    - exact None. 
+  Defined.
+  Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
+    
   Definition updatePC (φ: ExecConf): Conf :=
     match RegLocate (reg φ) PC with
     | inr ((p, g), b, e, a) =>
-      let φ' := (update_reg φ PC (inr ((p, g), b, e, (a + 1)%Z))) in (Executable, φ')
+      match (a + 1)%a with
+      | Some a' => let φ' := (update_reg φ PC (inr ((p, g), b, e, a'))) in
+                   (Executable, φ')
+      | None => (Failed, φ)
+      end
     | _ => (Failed, φ)  
     end.
 
@@ -245,6 +337,12 @@ Module cap_lang.
     | Local => true
     | _ => false
     end.
+
+  Definition isLocalWord (w : Word): bool :=
+    match w with
+    | inl _ => false
+    | inr ((_,l),_,_,_) => isLocal l
+    end. 
 
   Definition LocalityFlowsTo (l1 l2: Locality): bool :=
     match l1 with
@@ -291,10 +389,10 @@ Module cap_lang.
   Definition PermPairFlowsTo (pg1 pg2: Perm * Locality): bool :=
     PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
-  Definition isWithin (n1 n2 b: Z) (e: option Z): bool :=
+  Definition isWithin (n1 n2 b: Addr) (e: option Addr): bool :=
     match e with
-    | None => Z.leb 0 b && Z.leb b n1 && (Z.leb 0 n2 || (Z.eqb n2 (-42)))
-    | Some e => Z.leb 0 b && Z.leb b n1 && Z.leb 0 n2 && Z.leb n2 e
+    | None => ((0 <=? b) && (b <=? n1) && (0 <=? n2) || (n2 =? -42))%a
+    | Some e => ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a
     end.
 
   Definition exec (i: instr) (φ: ExecConf): Conf :=
@@ -343,8 +441,11 @@ Module cap_lang.
       | inr ((p, g), b, e, a) =>
         match p with
         | E => (Failed, φ)
-        | _ => let c := ((p, g), b, e, (a + n)%Z) in
-              updatePC (update_reg φ dst (inr c))
+        | _ => match (a + n)%a with
+               | Some a' => let c := ((p, g), b, e, a') in
+                            updatePC (update_reg φ dst (inr c))
+               | None => (Failed, φ)
+               end
         end
       end
     | Lea dst (inr r) =>
@@ -355,9 +456,12 @@ Module cap_lang.
         | E => (Failed, φ)
         | _ => match RegLocate (reg φ) r with
               | inr _ => (Failed, φ)
-              | inl n =>
-                let c := ((p, g), b, e, (a + n)%Z) in
-                updatePC (update_reg φ dst (inr c))
+              | inl n => match (a + n)%a with
+                         | Some a' =>
+                           let c := ((p, g), b, e, a') in
+                           updatePC (update_reg φ dst (inr c))
+                         | None => (Failed, φ)
+                         end
               end
         end
       end
@@ -453,9 +557,14 @@ Module cap_lang.
           | inl n1 =>
             match RegLocate (reg φ) r2 with
             | inr _ => (Failed, φ)
-            | inl n2 => if isWithin n1 n2 b e then 
-                         updatePC (update_reg φ dst (inr ((p, g), n1, if Z.eqb n2 (-42)%Z then None else Some n2, a)))
-                       else (Failed, φ)
+            | inl n2 =>
+              match z_to_addr n1, z_to_addr n2 with
+              | Some a1, Some a2 =>
+                if isWithin a1 a2 b e then 
+                  updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                else (Failed, φ)
+              | _,_ => (Failed, φ)
+              end 
             end
           end
         end
@@ -469,9 +578,14 @@ Module cap_lang.
         | _ =>
           match RegLocate (reg φ) r2 with
           | inr _ => (Failed, φ)
-          | inl n2 => if isWithin n1 n2 b e then 
-                       updatePC (update_reg φ dst (inr ((p, g), n1, if Z.eqb n2 (-42)%Z then None else Some n2, a)))
+          | inl n2 =>
+            match z_to_addr n1, z_to_addr n2 with
+            | Some a1, Some a2 =>
+              if isWithin a1 a2 b e then 
+                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
                      else (Failed, φ)
+            | _,_ => (Failed, φ)
+            end
           end
         end
       end
@@ -485,9 +599,13 @@ Module cap_lang.
           match RegLocate (reg φ) r1 with
           | inr _ => (Failed, φ)
           | inl n1 =>
-            if isWithin n1 n2 b e then 
-              updatePC (update_reg φ dst (inr ((p, g), n1, if Z.eqb n2 (-42)%Z then None else Some n2, a)))
-            else (Failed, φ)
+            match z_to_addr n1, z_to_addr n2 with
+            | Some a1, Some a2 =>
+              if isWithin a1 a2 b e then 
+                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+              else (Failed, φ)
+            | _,_ => (Failed, φ)
+            end
           end
         end
       end
@@ -498,20 +616,30 @@ Module cap_lang.
         match p with
         | E => (Failed, φ)
         | _ =>
-          if isWithin n1 n2 b e then 
-            updatePC (update_reg φ dst (inr ((p, g), n1, if Z.eqb n2 (-42)%Z then None else Some n2, a)))
-          else (Failed, φ)
+          match z_to_addr n1, z_to_addr n2 with
+          | Some a1, Some a2 => 
+            if isWithin a1 a2 b e then 
+              updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? -42)%a then None else Some a2, a)))
+            else (Failed, φ)
+          | _,_ => (Failed, φ)
+          end
         end
       end
     | GetA dst r =>
       match RegLocate (reg φ) r with
       | inl _ => (Failed, φ)
-      | inr (_, _, _, a) => updatePC (update_reg φ dst (inl a))
+      | inr (_, _, _, a) =>
+        match a with
+        | A a' _ => updatePC (update_reg φ dst (inl a'))
+        end
       end
     | GetB dst r =>
       match RegLocate (reg φ) r with
       | inl _ => (Failed, φ)
-      | inr (_, b, _, _) => updatePC (update_reg φ dst (inl b))
+      | inr (_, b, _, _) =>
+        match b with
+        | A b' _ => updatePC (update_reg φ dst (inl b'))
+        end
       end
     | GetE dst r =>
       match RegLocate (reg φ) r with
@@ -519,7 +647,10 @@ Module cap_lang.
       | inr (_, _, e, _) =>
         match e with
         | None => updatePC (update_reg φ dst (inl (-42)%Z))
-        | Some e => updatePC (update_reg φ dst (inl e))
+        | Some e =>
+          match e with
+          | A e' _ => updatePC (update_reg φ dst (inl e'))
+          end
         end
       end
     | GetP dst r =>
@@ -560,17 +691,17 @@ Module cap_lang.
       inv H.
     - destruct c as ((((p & g) & b) & e) & a).
       case_eq (match p with RX | RWX | RWLX => true | _ => false end); intros.
-      + destruct (Z_le_dec b a).
-        * destruct e.
-          { destruct (Z_lt_dec a a0).
-            - left. econstructor; eauto.
+      + destruct (Addr_le_dec b a).
+        * destruct e. 
+          { destruct (Addr_lt_dec a a0).
+            - left. destruct a,a0,b. simpl in *. econstructor; simpl; eauto. 
               destruct p; simpl in H; try congruence; auto.
-            - right. red; intros. inv H0.
+            - right. destruct a,a0,b. simpl in *. red; intros. inv H0.
               destruct H3. congruence. }
-          { left. econstructor; eauto.
+          { left. destruct a,b. simpl in *. econstructor; eauto.
             destruct p; simpl in H; try congruence; auto. }
-        * right. red; intros; inv H0.
-          { destruct H3. elim n; eauto. }
+        * right. destruct a,b. simpl in *. red; intros; inv H0. 
+          { destruct e0. destruct H3. elim n; eauto. }
           { elim n; auto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
   Qed.
