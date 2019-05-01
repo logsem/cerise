@@ -51,7 +51,7 @@ Section fundamental.
       destruct (decide (isCorrectPC (inr ((RX,g),b,e,a)))). 
       + (* Correct PC *)
         iDestruct (extract_r (<[PC:=inr (RX, g, b, e, a)]> r) PC (inr (RX, g, b, e, a))
-                     with "[Hmtr]") as "[HPC HPCmap]";
+                     with "[Hmreg]") as "[HPC HPCmap]";
           first by apply (lookup_insert r PC). iFrame.
         
         iAssert (∃ w, a ↦ₐ w)%I as (w) "Ha".  { admit. } (* this should come from the read/write conditions *)
@@ -70,10 +70,10 @@ Section fundamental.
           iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0".
           { admit. }
           iApply (wp_load_success dst src _ _ _ _ a); eauto.
-          Focus 3. iFrame.
+          Focus 4. iFrame.
           iNext. iIntros "[HPC Hdst]".
           iSpecialize ("HPCmap" with "HPC"). rewrite insert_insert. 
-          iApply ("IH" with "[Hreg] [HPCmap] [Hmta]"); eauto.  
+          iApply ("IH" with "[Hreg] [HPCmap]"); eauto.  
           
   Abort. 
           
