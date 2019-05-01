@@ -1,0 +1,7 @@
+*.glob
+*.v.d
+*.vo
+*.vo.aux
+.*.aux
+*.bak
+.[ln]ia.cache
