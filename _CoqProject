@@ -2,3 +2,4 @@
 -arg -w -arg -several-object-files
 theories/rules.v
 theories/lang.v
+theories/logrel.v
