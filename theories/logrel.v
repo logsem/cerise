@@ -50,13 +50,6 @@ Section logrel.
   Definition registers_mapsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
-  (* Definition remaining_mapsto (r : Reg) (m : Mem) : iProp Σ := *)
-    
-
-  (* Definition configuration_mapsto_init (reg : Reg) : iProp Σ := *)
-  (*   (∀ (r : RegName), *)
-  (*       (⌜reg !! r = None⌝ ∗ own (gen_heap_name reg_gen_regG) (Excl (cmra_car r))))%I.  *)
-
   (* capability conditions *)
   Definition read_cond b e (g : Locality) (γ : gname) (interp : D) : iProp Σ := 
     match g with
@@ -100,6 +93,9 @@ Section logrel.
     (registers_mapsto conf.1 -∗ WP Executable {{ λne v, True }})%I.
 
   (* TODO: have two of the following, one for public and one for private FWs *)
+  (* For public future worlds, all "keys" to cancellable invariants should be *)
+  (* discarded, for private future worlds, we wish to keep them. Since keys are *)
+  (* non duplicable, this could be done via □ in the former. *)
   Definition interp_expr (interp : D) : D :=
     λne w, (□ ∀ r m, interp_reg interp r -∗
                                 interp_conf (update_reg (r,m) PC w))%I.
