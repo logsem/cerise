@@ -27,15 +27,15 @@ Module cap_lang.
   Defined.
 
   Definition z_to_addr (z : Z) : option Addr.
-  Proof. 
+  Proof.
     destruct (Z_le_dec z MemNum).
     - apply (Z.leb_le z MemNum) in l.
       exact (Some (A z l)).
     - exact None. 
-  Defined. 
+  Defined.
 
   Instance addr_countable : Countable Addr.
-  Proof. 
+  Proof.
     refine {| encode r := encode match r with
                           | A z fin => z
                           end ;
@@ -114,7 +114,6 @@ Module cap_lang.
     - do 2 f_equal. apply eq_proofs_unicity. decide equality.
     - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
   Qed.
-
   
   Definition Reg := gmap RegName Word.
 
@@ -857,7 +856,7 @@ Definition is_atomic (e : expr) (φ : state) : Prop :=
   match e,φ with
   | Halted,_ => True
   | Failed,_ => True
-  | Executable,φ => ¬isCorrectPC (RegLocate (reg φ) PC) ∨
+  | Executable, φ => ¬isCorrectPC (RegLocate (reg φ) PC) ∨
                 (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
                       = Some w ∧ decode w = Halt) ∨
                 (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
@@ -871,7 +870,7 @@ Definition is_atomic (e : expr) (φ : state) : Prop :=
    idea: change the definition of expr so that the executable flag connects a PC 
    value to the state. *)
 Global Instance is_atomic_correct s (e : expr) :
-  (forall φ, is_atomic e φ) ->  Atomic s e.
+  (forall φ, is_atomic e φ) -> Atomic s e.
   Proof.
     intros Hσ; apply strongly_atomic_atomic.
     rewrite /Atomic. intros; simpl in *. destruct H.
@@ -882,17 +881,13 @@ Global Instance is_atomic_correct s (e : expr) :
         tauto. 
       + destruct H0.
         * destruct H0 as [w [Hs Hd]]. 
-          inversion H; eauto.
-          rewrite H3 in Hs. simpl in Hs. inversion Hs.
-          rewrite H8 in H5. rewrite Hd in H5.
-          rewrite <- H5 in H6. simpl in H6.  
-          destruct H6. simpl. eauto.
+          inv H; eauto.
+          rewrite H3 in Hs; inv Hs.
+          rewrite Hd; simpl; eauto.
         * destruct H0 as [w [Hs Hd]]. 
-          inversion H; eauto.
-          rewrite H3 in Hs. simpl in Hs. inversion Hs.
-          rewrite H8 in H5. rewrite Hd in H5.
-          rewrite <- H5 in H6. simpl in H6.  
-          destruct H6. simpl. eauto.
+          inv H; eauto.
+          rewrite H3 in Hs; inv Hs.
+          rewrite Hd; simpl; eauto.
     - destruct Hσ. rewrite /Atomic. intros; simpl in *.
       inversion H.
     - destruct Hσ. rewrite /Atomic. intros; simpl in *.
