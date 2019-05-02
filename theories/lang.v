@@ -62,6 +62,10 @@ Module cap_lang.
   | RWX
   | RWLX.
 
+  Lemma perm_eq_dec:
+    forall (p1 p2: Perm), {p1 = p2} + {p1 <> p2}.
+  Proof. destruct p1; destruct p2; auto. Qed.
+
   Inductive Locality: Type :=
   | Global
   | Local.

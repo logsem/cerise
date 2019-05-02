@@ -269,7 +269,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_store_fail1 dst src pc_p pc_g pc_b pc_e pc_a w p g b e a :
-     cap_lang.decode w = Store dst (inr src) →
+     cap_lang.decode w = Store dst src →
 
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
      (writeAllowed p = false ∨ withinBounds ((p, g), b, e, a) = false) →
@@ -295,28 +295,237 @@ Section cap_lang_rules.
        iExists [], Failed, (r,m), [].
        iPureIntro.
        constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Store dst (inr src))
+       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Store dst src)
                               (Failed,_));
          eauto; simpl; try congruence.
        rewrite Hdst. destruct HnwaHnwb as [Hnwa | Hnwb].
        + rewrite Hnwa; simpl; auto.
+         destruct src; auto.
        + simpl in Hnwb. rewrite Hnwb.
          rewrite andb_comm; simpl; auto.
+         destruct src; auto.
      - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
        iModIntro. 
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite Hdst. destruct HnwaHnwb as [Hnwa | Hnwb].
-       + rewrite Hnwa; simpl.
-         iFrame. iModIntro. iNext.
-         iApply fupd_frame_l. iFrame.
-         iApply wp_value. by iApply "Hφ".
+       + rewrite Hnwa; simpl. destruct src; simpl.
+         * iFrame. iModIntro. iNext.
+           iApply fupd_frame_l. iFrame.         
+           iApply wp_value. by iApply "Hφ".
+         * iFrame. iModIntro. iNext.
+           iApply fupd_frame_l. iFrame.         
+           iApply wp_value. by iApply "Hφ".
        + simpl in Hnwb. rewrite Hnwb.
          rewrite andb_comm; simpl.
-         iFrame. iModIntro. iNext.
+         destruct src; simpl.
+         * iFrame. iModIntro. iNext.
+           iApply fupd_frame_l. iFrame.
+           iApply wp_value. by iApply "Hφ".
+         * iFrame. iModIntro. iNext.
+           iApply fupd_frame_l. iFrame.
+           iApply wp_value. by iApply "Hφ".
+   Qed.
+
+   Lemma wp_store_fail2 dst src pc_p pc_g pc_b pc_e pc_a w n:
+     cap_lang.decode w = Store dst src →
+
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+
+     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+            ∗ pc_a ↦ₐ w
+            ∗ dst ↦ᵣ inl n}}}
+       Executable
+       {{{ RET FailedV; True }}}.
+   Proof.
+     intros Hinstr Hvpc.
+     iIntros (φ) "(HPC & Hpc_a & Hdst) Hφ".
+     iApply wp_lift_step_fupd; eauto.
+     iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
+     iDestruct "Hσ1" as "[Hr Hm]".
+     iDestruct (@gen_heap_valid with "Hr HPC") as %?;
+     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
+     iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
+     option_locate_mr m r.
+     iApply fupd_frame_l. iSplit.
+     - rewrite /reducible.
+       iExists [], Failed, (r,m), [].
+       iPureIntro.
+       constructor.
+       eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Store dst src)
+                              (Failed,_));
+         eauto; simpl; try congruence.
+         destruct src; simpl; by rewrite Hdst.
+     - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
+       iModIntro. 
+       iIntros (e1 σ2 efs Hstep).
+       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+       rewrite Hdst /=.
+       destruct src; simpl.
+       + iFrame. iModIntro. iNext.
+         iApply fupd_frame_l. iFrame.
+         iApply wp_value. by iApply "Hφ".
+       + iFrame. iModIntro. iNext.
          iApply fupd_frame_l. iFrame.
          iApply wp_value. by iApply "Hφ".
    Qed.
+
+   Lemma wp_store_fail3 dst src pc_p pc_g pc_b pc_e pc_a w p g b e a p' g' b' e' a':
+     cap_lang.decode w = Store dst (inr src) →
+
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+     writeAllowed p = true ->
+     withinBounds ((p, g), b, e, a) = true →
+     isLocal g' = true ->
+     p <> RWLX ->
+     p <> RWL ->
+
+     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+            ∗ pc_a ↦ₐ w
+            ∗ dst ↦ᵣ inr ((p,g),b,e,a)
+            ∗ src ↦ᵣ inr ((p',g'),b',e',a') }}}
+       Executable
+       {{{ RET FailedV; True }}}.
+   Proof.
+     intros Hinstr Hvpc Hwa Hwb Hloc Hnrwlx Hnrwl;
+     (iIntros (φ) "(HPC & Hpc_a & Hdst & Hsrc) Hφ";
+      iApply wp_lift_step_fupd; eauto;
+      iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+      iDestruct "Hσ1" as "[Hr Hm]";
+      iDestruct (@gen_heap_valid with "Hr HPC") as %?;
+      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
+      iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
+      iDestruct (@gen_heap_valid with "Hr Hsrc") as %?;
+      option_locate_mr m r).
+     iApply fupd_frame_l.
+     iSplit.
+     - rewrite /reducible.
+       iExists [], Failed, (r,m), [].
+       iPureIntro.
+       constructor.
+       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Store dst (inr src))
+                              (Failed,_));
+         eauto; simpl; try congruence.
+       rewrite Hdst. rewrite Hwa. simpl in Hwb. rewrite Hwb. simpl.
+       rewrite Hsrc. rewrite Hloc.
+       destruct p; try congruence.
+     - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
+       iModIntro. 
+       iIntros (e1 σ2 efs Hstep).
+       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+       rewrite Hdst. rewrite Hwa. simpl in Hwb. rewrite Hwb. simpl.
+       rewrite Hsrc. rewrite Hloc.
+       assert (X: match p with
+                    | RWL | RWLX =>
+                        updatePC (update_mem (r, m) a (inr (p', g', b', e', a')))
+                    | _ => (Failed, (r, m))
+                    end = (Failed, (r, m))) by (destruct p; congruence).
+       repeat rewrite X.
+       iFrame. iModIntro. iNext.
+       iApply fupd_frame_l. iFrame.
+       iApply wp_value. by iApply "Hφ".
+   Qed.
+
+   Lemma wp_lea_fail1 dst pc_p pc_g pc_b pc_e pc_a w p g b e a n:
+     cap_lang.decode w = Lea dst (inl n) →
+
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+     (p = E \/ (a + n)%a = None) ->
+
+     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+            ∗ pc_a ↦ₐ w
+            ∗ dst ↦ᵣ inr ((p,g),b,e,a) }}}
+       Executable
+       {{{ RET FailedV; True }}}.
+   Proof.
+     intros Hinstr Hvpc HpHa;
+     (iIntros (φ) "(HPC & Hpc_a & Hdst) Hφ";
+      iApply wp_lift_step_fupd; eauto;
+      iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
+      iDestruct "Hσ1" as "[Hr Hm]";
+      iDestruct (@gen_heap_valid with "Hr HPC") as %?;
+      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
+      iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
+      option_locate_mr m r).
+     iApply fupd_frame_l.
+     iSplit.
+     - rewrite /reducible.
+       iExists [], Failed, (r,m), [].
+       iPureIntro.
+       constructor.
+       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Lea dst (inl n))
+                              (Failed,_));
+         eauto; simpl; try congruence.
+       rewrite Hdst. destruct (perm_eq_dec p E).
+       + subst p; auto.
+       + destruct HpHa as [Hp | Ha]; try congruence.
+         rewrite Ha. destruct p; auto.
+     - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
+       iModIntro. 
+       iIntros (e1 σ2 efs Hstep).
+       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+       rewrite Hdst. assert (X:match p with
+                              | E => (Failed, (r, m))
+                              | _ =>
+                                match (a + n)%a with
+                                | Some a' =>
+                                  updatePC (update_reg (r, m) dst (inr (p, g, b, e, a')))
+                                | None => (Failed, (r, m))
+                                end
+                              end = (Failed, (r, m))).
+       { destruct (perm_eq_dec p E).
+         - subst p; auto.
+         - destruct HpHa as [Hp | Ha]; try congruence.
+           rewrite Ha. destruct p; auto. }
+       repeat rewrite X.
+       iFrame. iModIntro. iNext.
+       iApply fupd_frame_l. iFrame.         
+       iApply wp_value. by iApply "Hφ".
+   Qed.
+
+   Lemma wp_lea_fail2 dst src pc_p pc_g pc_b pc_e pc_a w n:
+     cap_lang.decode w = Lea dst src →
+
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+
+     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+            ∗ pc_a ↦ₐ w
+            ∗ dst ↦ᵣ inl n}}}
+       Executable
+       {{{ RET FailedV; True }}}.
+   Proof.
+     intros Hinstr Hvpc.
+     iIntros (φ) "(HPC & Hpc_a & Hdst) Hφ".
+     iApply wp_lift_step_fupd; eauto.
+     iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
+     iDestruct "Hσ1" as "[Hr Hm]".
+     iDestruct (@gen_heap_valid with "Hr HPC") as %?;
+     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
+     iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
+     option_locate_mr m r.
+     iApply fupd_frame_l. iSplit.
+     - rewrite /reducible.
+       iExists [], Failed, (r,m), [].
+       iPureIntro.
+       constructor.
+       eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Lea dst src)
+                              (Failed,_));
+         eauto; simpl; try congruence.
+         destruct src; simpl; by rewrite Hdst.
+     - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
+       iModIntro. 
+       iIntros (e1 σ2 efs Hstep).
+       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+       rewrite Hdst /=.
+       destruct src; simpl.
+       + iFrame. iModIntro. iNext.
+         iApply fupd_frame_l. iFrame.
+         iApply wp_value. by iApply "Hφ".
+       + iFrame. iModIntro. iNext.
+         iApply fupd_frame_l. iFrame.
+         iApply wp_value. by iApply "Hφ".
+   Qed.
+
 
  (* --------------------------------------------------------------------------------- *)
  (* -------------------------------- SUCCESS RULES ---------------------------------- *)
