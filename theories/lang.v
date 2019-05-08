@@ -15,7 +15,14 @@ Module cap_lang.
 
   Inductive Addr: Type :=
   | A (z : Z) (fin: Z.leb z MemNum = true). 
-  
+
+  Definition z_of (a: Addr): Z :=
+    match a with
+    | A z _ => z
+    end.
+
+  Coercion z_of: Addr >-> Z.
+
   Instance addr_eq_dec: EqDecision Addr.
     intros x y. destruct x,y. destruct (Z_eq_dec z z0).
     - left. simplify_eq.
@@ -36,9 +43,7 @@ Module cap_lang.
 
   Instance addr_countable : Countable Addr.
   Proof.
-    refine {| encode r := encode match r with
-                          | A z fin => z
-                          end ;
+    refine {| encode r := encode (z_of r) ;
               decode n := match (decode n) with
                           | Some z => z_to_addr z
                           | None => None
@@ -46,7 +51,7 @@ Module cap_lang.
               decode_encode := _ |}. 
     intro r. destruct r; auto. 
     rewrite decode_encode.
-    unfold z_to_addr.
+    unfold z_to_addr. simpl.
     destruct (Z_le_dec z MemNum).
     - do 2 f_equal. apply eq_proofs_unicity. decide equality.
     - exfalso. by apply (Z.leb_le z MemNum) in fin. 
@@ -211,32 +216,20 @@ Module cap_lang.
   Axiom decodePermPair: Z -> (Perm * Locality).
 
   Definition le_lt_addr : Addr → Addr → Addr → Prop :=
-    λ a1 a2 a3, match a1,a2,a3 with
-                | A z1 fin1, A z2 fin2, A z3 fin3 => (z1 <= z2 < z3)%Z
-                end.
+    λ a1 a2 a3, (a1 <= a2 < a3)%Z.
   Definition le_addr : Addr → Addr → Prop :=
-    λ a1 a2, match a1,a2 with
-             | A z1 fin1, A z2 fin2 => (z1 <= z2)%Z
-             end.
+    λ a1 a2, (a1 <= a2)%Z.
   Definition lt_addr : Addr → Addr → Prop :=
-    λ a1 a2, match a1,a2 with
-             | A z1 fin1, A z2 fin2 => (z1 < z2)%Z
-             end.
+    λ a1 a2, (a1 < a2)%Z.
   Definition leb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _, A z2 _ => Z.leb z1 z2
-             end.
+    λ a1 a2, Z.leb a1 a2.
   Definition ltb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _, A z2 _ => Z.ltb z1 z2
-             end.
+    λ a1 a2, Z.ltb a1 a2.
   Definition eqb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _,A z2 _ => Z.eqb z1 z2
-             end.
-  Definition za : Addr. Proof. refine (A 0%Z _); eauto. Defined.  
-  Definition special_a : Addr. Proof. refine (A (-42)%Z _); eauto. Defined.
-  Definition top : Addr. Proof. refine (A MemNum _); eauto. Defined. 
+    λ a1 a2, Z.eqb a1 a2.
+  Definition za : Addr := A 0%Z eq_refl.
+  Definition special_a : Addr := A (-42)%Z eq_refl.
+  Definition top : Addr := A MemNum eq_refl.
   Delimit Scope Addr_scope with a.
   Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
   Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
@@ -697,13 +690,13 @@ Module cap_lang.
       + destruct (Addr_le_dec b a).
         * destruct e. 
           { destruct (Addr_lt_dec a a0).
-            - left. destruct a,a0,b. simpl in *. econstructor; simpl; eauto. 
+            - left. econstructor; simpl; eauto. split; auto.
               destruct p; simpl in H; try congruence; auto.
-            - right. destruct a,a0,b. simpl in *. red; intros. inv H0.
+            - right. red; intros. inv H0.
               destruct H3. congruence. }
-          { left. destruct a,b. simpl in *. econstructor; eauto.
+          { left. econstructor; eauto.
             destruct p; simpl in H; try congruence; auto. }
-        * right. destruct a,b. simpl in *. red; intros; inv H0. 
+        * right. red; intros; inv H0. 
           { destruct e0. destruct H3. elim n; eauto. }
           { elim n; auto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
