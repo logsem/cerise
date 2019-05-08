@@ -1,56 +1,12 @@
 From iris.algebra Require Import base.
 From iris.program_logic Require Import language.
 From stdpp Require Import gmap fin_maps list.
+From cap_machine Require Export addr_reg.
 
-Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 
 Ltac inv H := inversion H; clear H; subst.
 
 Module cap_lang.
-
-  Definition RegNum: nat := 31.
-  Definition MemNum: Z := 2000000. 
-
-  (*Hypothesis RegNum_not_zero: RegNum > O.*)
-
-  Inductive Addr: Type :=
-  | A (z : Z) (fin: Z.leb z MemNum = true). 
-  
-  Instance addr_eq_dec: EqDecision Addr.
-    intros x y. destruct x,y. destruct (Z_eq_dec z z0).
-    - left. simplify_eq.
-      assert (forall (b: bool) (n m: Z) (P1 P2: Z.leb n m = b), P1 = P2).
-      { intros. apply eq_proofs_unicity.
-        intros; destruct x; destruct y; auto. }
-        by rewrite (H true z0 MemNum fin fin0).
-    - right. inversion 1. simplify_eq. 
-  Defined.
-
-  Definition z_to_addr (z : Z) : option Addr.
-  Proof. 
-    destruct (Z_le_dec z MemNum).
-    - apply (Z.leb_le z MemNum) in l.
-      exact (Some (A z l)).
-    - exact None. 
-  Defined. 
-
-  Instance addr_countable : Countable Addr.
-  Proof. 
-    refine {| encode r := encode match r with
-                          | A z fin => z
-                          end ;
-              decode n := match (decode n) with
-                          | Some z => z_to_addr z
-                          | None => None
-                          end ;
-              decode_encode := _ |}. 
-    intro r. destruct r; auto. 
-    rewrite decode_encode.
-    unfold z_to_addr.
-    destruct (Z_le_dec z MemNum).
-    - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-    - exfalso. by apply (Z.leb_le z MemNum) in fin. 
-  Qed.
       
   Inductive Perm: Type :=
   | O
@@ -71,50 +27,6 @@ Module cap_lang.
     (Perm * Locality) * Addr * option Addr * Addr.
 
   Definition Word := (Z + Cap)%type.
-
-  Inductive RegName: Type :=
-  | PC
-  | R (n: nat) (fin: n <=? RegNum = true).
-
-  Instance reg_eq_dec : EqDecision RegName.
-  Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
-    destruct (nat_eq_dec n n0).
-    + subst n0. left.
-      assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
-      { intros. apply eq_proofs_unicity.
-        intros; destruct x; destruct y; auto. }
-      rewrite (H _ _ _ fin fin0). reflexivity.
-    + right. congruence.
-  Defined.
-
-  Definition n_to_regname (n : nat) : option RegName.
-  Proof. 
-    destruct (nat_le_dec n RegNum).
-    - apply (Nat.leb_le n RegNum) in l.
-      exact (Some (R n l)).
-    - exact None. 
-  Defined. 
-
-  Instance reg_countable : Countable RegName.
-  Proof. 
-    refine {| encode r := encode match r with
-                          | PC => inl ()
-                          | R n fin => inr n
-                          end ;
-              decode n := match (decode n) with
-                          | Some (inl ()) => Some PC
-                          | Some (inr n) => n_to_regname n
-                          | None => None
-                          end ;
-              decode_encode := _ |}. 
-    intro r. destruct r; auto. 
-    rewrite decode_encode.
-    unfold n_to_regname.
-    destruct (nat_le_dec n RegNum).
-    - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-    - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
-  Qed.
-
   
   Definition Reg := gmap RegName Word.
 
@@ -136,25 +48,6 @@ Module cap_lang.
   Notation "reg !r! r" := (RegLocate reg r) (at level 20). 
   
   Definition ExecConf := (Reg * Mem)%type.
-
-  (* Definition MemSeg := Addr option Word. *)
-
-  (* Definition disjoint_memseg: Disjoint MemSeg := fun ms1 ms2 => forall a w1 w2, ms1 a = Some w1 -> ms2 a = Some w2 -> False. *)
-
-  (* Definition union_memseg (ms1 ms2: MemSeg): MemSeg := *)
-  (*   fun a => match ms1 a with *)
-  (*         | Some w1 => Some w1 *)
-  (*         | None => match ms2 a with *)
-  (*                  | Some w2 => Some w2 *)
-  (*                  | None => None *)
-  (*                  end *)
-  (*         end. *)
-
-  (* Definition coerce_memseg_to_mem (ms: MemSeg) (H: forall a, ms a <> None): Mem := *)
-  (*   fun a => match ms a as o return (ms a = o → Word) with *)
-  (*         | Some w => λ _ : ms a = Some w, w *)
-  (*         | None => λ H0 : ms a = None, False_rect Word (H a H0) *)
-  (*         end eq_refl. *)
 
   Inductive ConfFlag : Type :=
   | Executable
@@ -206,47 +99,6 @@ Module cap_lang.
   (*Axiom encodePermPair: (Perm * Locality) -> Z.*)
 
   Axiom decodePermPair: Z -> (Perm * Locality).
-
-  Definition le_lt_addr : Addr → Addr → Addr → Prop :=
-    λ a1 a2 a3, match a1,a2,a3 with
-                | A z1 fin1, A z2 fin2, A z3 fin3 => (z1 <= z2 < z3)%Z
-                end.
-  Definition le_addr : Addr → Addr → Prop :=
-    λ a1 a2, match a1,a2 with
-             | A z1 fin1, A z2 fin2 => (z1 <= z2)%Z
-             end.
-  Definition lt_addr : Addr → Addr → Prop :=
-    λ a1 a2, match a1,a2 with
-             | A z1 fin1, A z2 fin2 => (z1 < z2)%Z
-             end.
-  Definition leb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _, A z2 _ => Z.leb z1 z2
-             end.
-  Definition ltb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _, A z2 _ => Z.ltb z1 z2
-             end.
-  Definition eqb_addr : Addr → Addr → bool :=
-    λ a1 a2, match a1,a2 with
-             | A z1 _,A z2 _ => Z.eqb z1 z2
-             end.
-  Definition za : Addr. Proof. refine (A 0%Z _); eauto. Defined.  
-  Definition special_a : Addr. Proof. refine (A (-42)%Z _); eauto. Defined.
-  Definition top : Addr. Proof. refine (A MemNum _); eauto. Defined. 
-  Delimit Scope Addr_scope with a.
-  Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
-  Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
-  Notation "a1 <=? a2" := (leb_addr a1 a2): Addr_scope.
-  Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
-  Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
-  Notation "0" := (za) : Addr_scope.
-  Notation "- 42" := (special_a) : Addr_scope.
-
-  Instance Addr_le_dec : RelDecision le_addr. 
-  Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
-  Instance Addr_lt_dec : RelDecision lt_addr. 
-  Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
   
   Inductive isCorrectPC: Word -> Prop :=
   | isCorrectPC_intro:
@@ -306,21 +158,6 @@ Module cap_lang.
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
   Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
 
-  (* (fun x => if reg_eq_dec x r then w else reg ϕ x , mem ϕ). *)
-
-  (* Definition update_mem (ϕ: ExecConf) (a: Addr) (w: Word): ExecConf := *)
-  (*   (reg ϕ, fun x => if addr_eq_dec x a then w else mem ϕ x). *)
-
-  Definition incr_addr : Addr → Z → option Addr.
-  Proof.
-    destruct 1. intros z'. 
-    destruct (Z.leb (z + z')%Z MemNum) eqn:Hlt.
-    - refine (Some (A (z + z')%Z _)).
-      by apply Z.leb_le; apply Z.leb_le. 
-    - exact None. 
-  Defined.
-  Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
-    
   Definition updatePC (φ: ExecConf): Conf :=
     match RegLocate (reg φ) PC with
     | inr ((p, g), b, e, a) =>
@@ -441,7 +278,7 @@ Module cap_lang.
       | inr ((p, g), b, e, a) =>
         match p with
         | E => (Failed, φ)
-        | _ => match (a + n)%a with
+        | _ => match (a + (Z.to_nat n))%a with
                | Some a' => let c := ((p, g), b, e, a') in
                             updatePC (update_reg φ dst (inr c))
                | None => (Failed, φ)
@@ -456,7 +293,7 @@ Module cap_lang.
         | E => (Failed, φ)
         | _ => match RegLocate (reg φ) r with
               | inr _ => (Failed, φ)
-              | inl n => match (a + n)%a with
+              | inl n => match (a + (Z.to_nat n))%a with
                          | Some a' =>
                            let c := ((p, g), b, e, a') in
                            updatePC (update_reg φ dst (inr c))

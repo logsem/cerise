@@ -1,6 +1,6 @@
 From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
-From iris.program_logic Require Import lifting.
+From iris.program_logic Require Import weakestpre adequacy lifting.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, inG Σ frac.fracR}.
@@ -35,46 +35,90 @@ Section fundamental.
     iDestruct (big_sepM_insert_acc (λ r i, r ↦ᵣ i)%I reg r w) as "Hupdate"; eauto.
     iSpecialize ("Hmap" with "[Hw]"); eauto. 
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
-  Qed.    
+  Qed.
   
+  (* Lemma extract_read_cond p g b e a γ : *)
+  (*   isCorrectPC (inr ((p,g),b,e,a)) -> *)
+  (*   read_cond b e g γ interp -∗ *)
+  (*   WP Halted {{ λne _, True }}%I.  *)
+  (* Proof. *)
+  (*   iIntros (Hvpc) "#Hrc /=". *)
+  (*   destruct g.  *)
+  (*   - iDestruct "Hrc" as (b' e') "#[Hin Hinv]". *)
+  (*     rewrite /inv_cap. *)
+  (*     iApply fupd_wp.  *)
+  (*     iInv (logN.@(b', e')) as (ws) "[Hregion Hvalid]". *)
+  (* Abort. *)
+    
+    
   Theorem fundamental (perm : Perm) b e g γ (a : Addr) :
-    (perm = RX ∧ read_cond b e g γ interp) ∨
-    (perm = RWX ∧ read_cond b e g γ interp ∧
-     write_cond b e g γ interp (λne w, ⌜isLocalWord w = false⌝%I)) ∨
-    (perm = RWLX ∧ read_cond b e g γ interp ∧
-     write_cond b e g γ interp (λne w, True%I)) →
+    (⌜perm = RX⌝ ∧ read_cond b e g γ interp)%I ∨
+    (⌜perm = RWX⌝ ∧ read_cond b e g γ interp ∧
+     write_cond b e g γ interp (λne w, ⌜isLocalWord w = false⌝))%I ∨
+    (⌜perm = RWLX⌝ ∧ read_cond b e g γ interp ∧
+     write_cond b e g γ interp (λne w, True%I))%I -∗
     ⟦ inr ((perm,g),b,e,a) ⟧ₑ.
   Proof.
-    intros [[-> Hrc] | [(Hrwx & Hrc & Hwc) | (Hwlx & Hrc & Hwc)]].
-    - iIntros (r). iAlways. iIntros (m) "Hreg Hmreg /=".
-      iLöb as "IH" forall (a).
-      destruct (decide (isCorrectPC (inr ((RX,g),b,e,a)))). 
-      + (* Correct PC *)
-        iDestruct (extract_r (<[PC:=inr (RX, g, b, e, a)]> r) PC (inr (RX, g, b, e, a))
-                     with "[Hmreg]") as "[HPC HPCmap]";
-          first by apply (lookup_insert r PC). iFrame.
-        
-        iAssert (∃ w, a ↦ₐ w)%I as (w) "Ha".  { admit. } (* this should come from the read/write conditions *)
-        destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
-        * admit. (* Jmp *)
-        * admit. (* Jnz *)
-        * admit. (* Mov *)
-        * (* Load *)
-          iAssert (∃ w, dst ↦ᵣ w)%I as (wdst) "Hdst". (* these come from the reg interp relation *)
-          { admit. }
-          iAssert (∃ w, src ↦ᵣ w)%I as (wsrc) "Hsrc".
-          { admit. }
-          destruct wsrc eqn:Hsrc.
-          { admit. }
-          destruct c. do 3 destruct p.
-          iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0".
-          { admit. }
-          iApply (wp_load_success dst src _ _ _ _ a); eauto.
-          Focus 4. iFrame.
-          iNext. iIntros "[HPC Hdst]".
-          iSpecialize ("HPCmap" with "HPC"). rewrite insert_insert. 
-          iApply ("IH" with "[Hreg] [HPCmap]"); eauto.  
-          
-  Abort. 
-          
+    iIntros "[#[-> Hrc] | [#(Hrwx & Hrc & Hwc) | #(Hwlx & Hrc & Hwc)]]".
+    - destruct g.
+      + iIntros (r). iIntros (m) "Hreg Hmreg /=".
+        iLöb as "IH" forall (a).
+        destruct (decide (isCorrectPC (inr ((RX,Global),b,e,a)))). 
+        { (* Correct PC *)
+          (* iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC *)
+          (*                      (inr (RX, Global, b, e, a)) *)
+          (*              with "[Hmreg]") as "[HPC HPCmap]"; *)
+          (*   first by apply (lookup_insert r PC). iFrame. *)
+          iDestruct "Hrc" as (b' e') "#[Hin Hinv]".
+          iApply fupd_wp.
+          iInv (logN.@(b', e')) as (ws) "HregionHvalid" "Hcls".
+          iDestruct (extract_from_region _ _ a with "HregionHvalid")
+            as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
+            [admit|].
+          iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC
+                               (inr (RX, Global, b, e, a))
+                       with "[Hmreg]") as "[HPC HPCmap]";
+            first by apply (lookup_insert r PC). iFrame.
+          destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
+          - admit. (* Jmp *)
+          - admit. (* Jnz *)
+          - admit. (* Mov *)
+          - (* Load *)
+            (* these come from the reg interp relation *)
+            iAssert (∃ w, dst ↦ᵣ w)%I as (wdst) "Hdst"; [admit|].
+            iAssert (∃ w, src ↦ᵣ w)%I as (wsrc) "Hsrc"; [admit|].
+            destruct wsrc eqn:Hsrc; [admit|].
+            destruct c. do 3 destruct p.
+            iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0"; [admit|].
+            
+            iApply wp_load_success; eauto.
+            + admit.
+            + admit.
+            + admit.
+            + iFrame.
+              (* STUCK: How can we get the resources from a wand under a fupd *)
+              (* is this even possible.... *)
+              admit.
+          - admit. (* Store *)
+          - admit. (* Lt *)
+          - admit. (* Add *)
+          - admit. (* Sub *)
+          - admit. (* Lea *)
+          - admit. (* Restrict *)
+          - admit. (* Subseg *)
+          - admit. (* IsPtr *)
+          - admit. (* GetL *)
+          - admit. (* GetP *)
+          - admit. (* GetB *)
+          - admit. (* GetE *)
+          - admit. (* GetA *)
+          - admit. (* Fail *)
+          - admit. (* Halt *)
+        }
+        { (* Incorrect PC *) admit. }
+      + (* Local *) admit.
+    - admit.
+    - admit. 
+  Admitted. 
+  
 End fundamental. 

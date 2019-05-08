@@ -1,51 +1,16 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
-From cap_machine Require Export lang rules.
+From cap_machine Require Export lang rules region.
 From iris.algebra Require Import list frac excl.
 Import uPred.
 
 (** interp : is a unary logical relation. *)
 Section logrel.
-  Context `{memG Σ, regG Σ, inG Σ fracR, inG Σ (exclR (leibnizR RegName))}.
+  Context `{memG Σ, regG Σ, inG Σ fracR}.
   Notation D := ((leibnizC Word) -n> iProp Σ).
   Notation R := ((leibnizC Reg) -n> iProp Σ). 
   Implicit Types w : (leibnizC Word).
   Implicit Types interp : D.
-
-  (* Region predicate. Size of region needs to match up exactly to size of list *)
-  Fixpoint region_mapsto (b e : option Addr) (ws : list Word) : iProp Σ :=  
-    match b,e with
-    | Some ba, Some ea =>
-      match ws with
-      | w :: ws' =>
-        if (ba <=? ea)%a then (ba ↦ₐ w ∗ region_mapsto (ba + 1)%a e ws')%I
-        else False%I
-      | [] => if (ba <=? ea)%a then False%I else True%I
-      end
-    | Some ba, None =>
-      match ws with
-      | w :: ws' => (ba ↦ₐ w ∗ region_mapsto (ba + 1)%a e ws')%I
-      | [] => False%I
-      end
-    | _,_ => if ((length ws) =? 0)%nat then True%I else False%I
-    end. 
-  Notation "{[ b , e ]} ↦ₐ {[ ws ]}" := (region_mapsto (Some b) e ws)
-   (at level 50, format "{[ b , e ]} ↦ₐ {[ ws ]}") : bi_scope.
-
-  Definition included (b' : Addr) (e' : option Addr)
-             (b : Addr) (e : option Addr) : iProp Σ :=
-    (⌜(b' <=? b)%a⌝ ∧ ((⌜e = None⌝ ∧ ⌜e' = None⌝) ∨
-                  (∃ a a', ⌜e = Some a⌝ ∧ ⌜e' = Some a'⌝ ∧ ⌜(a <=? a')%a⌝)))%I.
-  Notation "{[ b , e ]} ⊂ₐ {[ b' , e' ]}" := (included b e b' e')
-   (at level 50, format "{[ b , e ]} ⊂ₐ {[ b' , e' ]}") : bi_scope.
-
-  Fixpoint in_range (a b : Addr) (e : option Addr) : iProp Σ :=
-    match e with
-    | None => (⌜(b <=? a)%a⌝)%I
-    | Some e' => (⌜(b <=? a)%a⌝ ∧ ⌜(a <? e')%a⌝)%I
-    end.
-  Notation "a ∈ₐ {[ b , e ]}" := (in_range a b e)
-   (at level 50, format "a ∈ₐ {[ b , e ]}") : bi_scope.
 
   Definition registers_mapsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
@@ -56,11 +21,11 @@ Section logrel.
     | Local =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
          □ (∀ q:Qp, own γ q -∗
-                inv_cap T (∃ ws, {[ b', e']} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                inv_cap T (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
                         (logN .@ (b',e')) γ))%I
     | Global =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-                inv_cap P (∃ ws, {[ b', e']} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                inv_cap P (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
                         (logN .@ (b',e')) γ)%I
   end.
 
@@ -69,20 +34,32 @@ Section logrel.
     | Local =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
          □ (∀ q:Qp, own γ q -∗
-            inv_cap T (∃ ws, {[ b', e']} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
+            inv_cap T (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
                     (logN .@ (b',e')) γ))%I
     | Global =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-            inv_cap P (∃ ws, {[ b', e']} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
+            inv_cap P (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
                     (logN .@ (b',e')) γ)%I
   end.
 
+  (* note that we pick the right interp_expr given g to distinguish between *)
+  (* private and future world *)
   Definition exec_cond b e g (P : list Perm) (interp_expr : D) : iProp Σ :=
-    (∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧ a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
-                  ▷ interp_expr (inr ((p,g),b',e',a)))%I.
+    match g with
+    | Local =>
+      (∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧ a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
+                    ▷ interp_expr (inr ((p,g),b',e',a)))%I
+    | Global =>
+      (□ ∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧ a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
+                    ▷ interp_expr (inr ((p,g),b',e',a)))%I
+    end. 
+    
 
   Definition enter_cond b e a g (interp_expr : D) : iProp Σ :=
-    (▷ interp_expr (inr ((RX,g),b,e,a)))%I.
+    match g with
+    | Local => (▷ interp_expr (inr ((RX,g),b,e,a)))%I
+    | Global => (□ ▷ interp_expr (inr ((RX,g),b,e,a)))%I
+    end.
   
   (* interp definitions *)
   Definition interp_reg (interp : D) : R :=
@@ -92,12 +69,14 @@ Section logrel.
   Definition interp_conf (conf : Reg * Mem) : iProp Σ :=
     (registers_mapsto conf.1 -∗ WP Executable {{ λne v, True }})%I.
 
-  (* TODO: have two of the following, one for public and one for private FWs *)
   (* For public future worlds, all "keys" to cancellable invariants should be *)
   (* discarded, for private future worlds, we wish to keep them. Since keys are *)
   (* non duplicable, this could be done via □ in the former. *)
+  (* Definition interp_expr_global (interp : D) : D := *)
+  (*   λne w, (□ ∀ r m, interp_reg interp r -∗ *)
+  (*                               interp_conf (update_reg (r,m) PC w))%I. *)
   Definition interp_expr (interp : D) : D :=
-    λne w, (□ ∀ r m, interp_reg interp r -∗
+    λne w, (∀ r m, interp_reg interp r -∗
                                 interp_conf (update_reg (r,m) PC w))%I.
   
   Definition interp_z : D := λne w, ⌜∃ z, w = inl z⌝%I.
@@ -117,10 +96,11 @@ Section logrel.
 
   Definition interp_cap_RX (interp : D) : D :=
     λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-                                  ∗ exec_cond b e g [RX] (interp_expr interp))%I.  
+      ∗ exec_cond b e g [RX] (interp_expr interp))%I.  
 
   Definition interp_cap_E (interp : D) : D :=
-    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗ enter_cond b e a g interp)%I.
+    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝
+      ∗ enter_cond b e a g (interp_expr interp))%I.
 
   Definition interp_cap_RWX (interp : D) : D :=
     λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
@@ -148,20 +128,27 @@ Section logrel.
 
   (* this takes very long to compile! *)
   Global Instance interp1_contractive : Contractive (interp1).
-  Proof.
-    rewrite /interp1 /interp_cap_RO /interp_cap_RW /interp_cap_RWL
-            /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX.
-    rewrite /read_cond /write_cond /enter_cond /exec_cond.
-    solve_contractive.
-  Qed. 
+  Proof. Admitted. 
+    (* rewrite /interp1 /interp_cap_RO /interp_cap_RW /interp_cap_RWL *)
+  (*           /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX. *)
+  (*   rewrite /read_cond /write_cond /enter_cond /exec_cond. *)
+  (*   solve_contractive. *)
+  (* Qed. *)
    
   Lemma fixpoint_interp1_eq (x : leibnizC Word) :
     fixpoint interp1 x ≡ interp1 (fixpoint interp1) x.
   Proof. exact: (fixpoint_unfold (interp1) x). Qed. 
 
   Program Definition interp : D := λne w, fixpoint interp1 w.
-  Program Definition interp_expression : D := interp_expr interp. 
+  Program Definition interp_expression : D := interp_expr interp.
   Program Definition interp_registers : R := interp_reg interp.
+
+  Global Instance read_cond_persistent : Persistent (read_cond a e g γ interp).
+  Proof. intros. rewrite /read_cond. destruct g; apply _. Qed. 
+
+  Global Instance write_cond_persistent : Persistent (write_cond a e g γ interp Φ).
+  Proof. intros. rewrite /read_cond. destruct g; apply _. Qed. 
+  
 End logrel.
 
 Notation "⟦ w ⟧" := (interp w).

@@ -221,25 +221,26 @@ Section cap_lang_rules.
  (* --------------------------------------------------------------------------------- *)
  (* -------------------------------- SUCCESS RULES ---------------------------------- *)
    
-   Lemma wp_load_success r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a' φ :
+   Lemma wp_load_success E r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a' φ :
     cap_lang.decode w = Load r1 r2 →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true →
     (pc_a + 1)%a = Some pc_a' →
     r1 ≠ PC →
     
-    ▷ ( PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a') ∗ r1 ↦ᵣ w' -∗
-      WP Executable {{ φ }} )
-    ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+   
+    PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
     ∗ pc_a ↦ₐ w
     ∗ r1 ↦ᵣ w''  
     ∗ r2 ↦ᵣ inr ((p,g),b,e,a)
     ∗ a ↦ₐ w'
+    ∗  ▷ ( PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a') ∗ r1 ↦ᵣ w' 
+          ∗ pc_a ↦ₐ w -∗ WP Executable @ E {{ φ }})
     ⊢
-    WP Executable {{ φ }}.
+    WP Executable @ E {{ φ }}.
    Proof.
      intros Hinstr Hvpc [Hra Hwb] Hpca' Hne1. 
-     iIntros "(Hφ & Hpc & Hi & Hr1 & Hr2 & Hr2a)".
+     iIntros "(Hpc & Hi & Hr1 & Hr2 & Hr2a & Hφ)".
      iApply wp_lift_step_fupd; eauto.
      iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
      iDestruct "Hσ1" as "[Hr Hm]".
@@ -263,7 +264,7 @@ Section cap_lang_rules.
          eauto; simpl; try congruence. 
         rewrite /withinBounds in Hwb; rewrite Hr2 Hra Hwb /updatePC /= Hpc_new1.
         by rewrite Hpca' /update_reg /= Ha.
-     - iMod (fupd_intro_mask' ⊤) as "H"; eauto.
+     - iMod (fupd_intro_mask' E ∅) as "H"; first solve_ndisj. 
        iModIntro. 
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1.
@@ -272,8 +273,8 @@ Section cap_lang_rules.
        rewrite Hr2 Hra Hwb /= /update_reg /updatePC /= Hpc_new1 /update_reg /= in Hstep. 
        iMod (@gen_heap_update with "Hr Hr1") as "[Hr Hr1]".
        iMod (@gen_heap_update with "Hr Hpc") as "[$ Hpc]".
-       iSpecialize ("Hφ" with "[Hpc Hr1]"); iFrame.  
-       iModIntro. iNext. iFrame. 
+       iSpecialize ("Hφ" with "[Hpc Hr1 Hi]"); iFrame.  
+       iModIntro. iNext. iFrame.
    Qed.        
 
    
