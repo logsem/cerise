@@ -22,9 +22,9 @@ Section examples.
       {{{ RET HaltedV; r1 ↦ᵣ w2 }}}.
   Proof.
     intros Hil Hih Hvpc Hpca1 Hvpc' [Hra Hwb] Hne.
-    iIntros (φ) "(Hpc & Hpca & Hpca' & Hr1 & Hr2) Hφ".
-    iApply (wp_load_success _ _ _ _ _ _ pc_a); eauto. iFrame.
-    iNext. iIntros "[Hpc Hr1]".
+    iIntros (φ) "(Hpc & Hpca & Hpca' & Hr1 & Hr2 & Ha) Hφ".
+    iApply (wp_load_success _ _ _ _ _ _ _ pc_a); eauto. iFrame.
+    iNext. iIntros "(Hpc & Hr1 & Hpc_a1)".
     iApply (wp_halt _ _ _ _ pc_a1 with "[Hpc Hpca']"); eauto; first iFrame.
     iNext. iIntros "[Hpc Hpca']".
     iApply "Hφ". iFrame. 

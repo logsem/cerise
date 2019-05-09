@@ -7,7 +7,7 @@ From cap_machine Require Export addr_reg.
 Ltac inv H := inversion H; clear H; subst.
 
 Module cap_lang.
-      
+  
   Inductive Perm: Type :=
   | O
   | RO
@@ -17,6 +17,10 @@ Module cap_lang.
   | E
   | RWX
   | RWLX.
+
+  Lemma perm_eq_dec:
+    forall (p1 p2: Perm), {p1 = p2} + {p1 <> p2}.
+  Proof. destruct p1; destruct p2; auto. Qed.
 
   Inductive Locality: Type :=
   | Global
@@ -278,7 +282,7 @@ Module cap_lang.
       | inr ((p, g), b, e, a) =>
         match p with
         | E => (Failed, φ)
-        | _ => match (a + (Z.to_nat n))%a with
+        | _ => match (a + n)%a with
                | Some a' => let c := ((p, g), b, e, a') in
                             updatePC (update_reg φ dst (inr c))
                | None => (Failed, φ)
@@ -293,7 +297,7 @@ Module cap_lang.
         | E => (Failed, φ)
         | _ => match RegLocate (reg φ) r with
               | inr _ => (Failed, φ)
-              | inl n => match (a + (Z.to_nat n))%a with
+              | inl n => match (a + n)%a with
                          | Some a' =>
                            let c := ((p, g), b, e, a') in
                            updatePC (update_reg φ dst (inr c))
@@ -531,13 +535,13 @@ Module cap_lang.
       + destruct (Addr_le_dec b a).
         * destruct e. 
           { destruct (Addr_lt_dec a a0).
-            - left. destruct a,a0,b. simpl in *. econstructor; simpl; eauto. 
+            - left. econstructor; simpl; eauto. split; auto.
               destruct p; simpl in H; try congruence; auto.
-            - right. destruct a,a0,b. simpl in *. red; intros. inv H0.
+            - right. red; intros. inv H0.
               destruct H3. congruence. }
-          { left. destruct a,b. simpl in *. econstructor; eauto.
+          { left. econstructor; eauto.
             destruct p; simpl in H; try congruence; auto. }
-        * right. destruct a,b. simpl in *. red; intros; inv H0. 
+        * right. red; intros; inv H0. 
           { destruct e0. destruct H3. elim n; eauto. }
           { elim n; auto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
@@ -559,52 +563,6 @@ Module cap_lang.
   Proof.
     intros; split; inv H; inv H0; auto; try congruence.
   Qed.
-
-  (* Actually nsteps from stdpp *)
-  (* Inductive starN {A: Type} {B : Type} (step: A -> B -> A -> B -> Prop): nat -> A -> B -> A -> B -> Prop := *)
-  (* | starN_refl: *)
-  (*     forall (s: A) (σ : B), starN step 0 s σ s σ *)
-  (* | starN_step: *)
-  (*     forall n s1 s2 s3 σ σ' σ'', *)
-  (*       step s1 σ s2 σ' -> *)
-  (*       starN step n s2 σ' s3 σ'' -> *)
-  (*       starN step (S n) s1 σ s3 σ''. *)
-
-  (* Lemma starN_step_deterministic: *)
-  (*   forall n c1 c2 c2' σ1 σ2 σ2', *)
-  (*     starN step n c1 σ1 c2 σ2 -> *)
-  (*     starN step n c1 σ1 c2' σ2'-> *)
-  (*     c2 = c2' ∧ σ2 = σ2'. *)
-  (* Proof. *)
-  (*   induction 1; intros; split. *)
-  (*   - inv H; auto. *)
-  (*   - inv H; auto.  *)
-  (*   - inv H1. generalize (step_deterministic _ _ _ _ _ _ H H3). *)
-  (*     intros [? ->]; subst s4. eapply IHstarN; eauto. *)
-  (*   - inv H1. generalize (step_deterministic _ _ _ _ _ _ H H3). *)
-  (*     intros [? ->]; subst s4. eapply IHstarN; eauto. *)
-  (* Qed. *)
-
-  (* Lemma starN_halted: *)
-  (*   forall n c m σ σ', *)
-  (*     starN step n c σ (Halted m) σ' -> *)
-  (*     forall n' c' σ'', starN step n' c σ c' σ'' -> *)
-  (*              (n' <= n)%nat /\ starN step (n - n')%nat c' σ'' (Halted m) σ'. *)
-  (* Proof. *)
-  (*   induction n; intros. *)
-  (*   - inv H0. *)
-  (*     + split; auto. *)
-  (*     + inv H. inv H1. *)
-  (*   - inv H. inv H0. *)
-  (*     + split; try lia. *)
-  (*       econstructor; eauto. *)
-  (*     + assert (s0 = s2) by (eapply step_deterministic; eauto); subst s0. *)
-  (*       assert (σ'0 = σ'1) by (eapply step_deterministic; eauto); subst σ'0. *)
-  (*     generalize (IHn _ _ _ _ H3 _ _ _ H1). *)
-  (*     intros [A B]. split; try omega. *)
-  (*     replace (S n - S n0) with (n - n0) by omega. *)
-  (*     assumption. *)
-  (* Qed. *)
 
   Inductive val: Type :=
   | HaltedV: val
@@ -694,7 +652,7 @@ Definition is_atomic (e : expr) (φ : state) : Prop :=
   match e,φ with
   | Halted,_ => True
   | Failed,_ => True
-  | Executable,φ => ¬isCorrectPC (RegLocate (reg φ) PC) ∨
+  | Executable, φ => ¬isCorrectPC (RegLocate (reg φ) PC) ∨
                 (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
                       = Some w ∧ decode w = Halt) ∨
                 (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
@@ -708,7 +666,7 @@ Definition is_atomic (e : expr) (φ : state) : Prop :=
    idea: change the definition of expr so that the executable flag connects a PC 
    value to the state. *)
 Global Instance is_atomic_correct s (e : expr) :
-  (forall φ, is_atomic e φ) ->  Atomic s e.
+  (forall φ, is_atomic e φ) -> Atomic s e.
   Proof.
     intros Hσ; apply strongly_atomic_atomic.
     rewrite /Atomic. intros; simpl in *. destruct H.
@@ -719,17 +677,13 @@ Global Instance is_atomic_correct s (e : expr) :
         tauto. 
       + destruct H0.
         * destruct H0 as [w [Hs Hd]]. 
-          inversion H; eauto.
-          rewrite H3 in Hs. simpl in Hs. inversion Hs.
-          rewrite H8 in H5. rewrite Hd in H5.
-          rewrite <- H5 in H6. simpl in H6.  
-          destruct H6. simpl. eauto.
+          inv H; eauto.
+          rewrite H3 in Hs; inv Hs.
+          rewrite Hd; simpl; eauto.
         * destruct H0 as [w [Hs Hd]]. 
-          inversion H; eauto.
-          rewrite H3 in Hs. simpl in Hs. inversion Hs.
-          rewrite H8 in H5. rewrite Hd in H5.
-          rewrite <- H5 in H6. simpl in H6.  
-          destruct H6. simpl. eauto.
+          inv H; eauto.
+          rewrite H3 in Hs; inv Hs.
+          rewrite Hd; simpl; eauto.
     - destruct Hσ. rewrite /Atomic. intros; simpl in *.
       inversion H.
     - destruct Hσ. rewrite /Atomic. intros; simpl in *.

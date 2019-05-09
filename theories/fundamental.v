@@ -74,7 +74,7 @@ Section fundamental.
           iInv (logN.@(b', e')) as (ws) "HregionHvalid" "Hcls".
           iDestruct (extract_from_region _ _ a with "HregionHvalid")
             as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
-            [admit|].
+            [admit|admit|admit|].
           iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC
                                (inr (RX, Global, b, e, a))
                        with "[Hmreg]") as "[HPC HPCmap]";

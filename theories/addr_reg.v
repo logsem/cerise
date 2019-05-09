@@ -7,7 +7,14 @@ Definition MemNum: Z := 2000000.
 (* ------------------------------------ ADDR -------------------------------------------*)
 
 Inductive Addr: Type :=
-| A (z : Z) (fin: Z.leb z MemNum = true). 
+| A (z : Z) (fin: Z.leb z MemNum = true).
+
+Definition z_of (a: Addr): Z :=
+    match a with
+    | A z _ => z
+    end.
+
+Coercion z_of: Addr >-> Z.
 
 Instance addr_eq_dec: EqDecision Addr.
 intros x y. destruct x,y. destruct (Z_eq_dec z z0).
@@ -46,65 +53,43 @@ Proof.
 Qed.
 
 Definition le_lt_addr : Addr → Addr → Addr → Prop :=
-  λ a1 a2 a3, match a1,a2,a3 with
-              | A z1 fin1, A z2 fin2, A z3 fin3 => (z1 <= z2 < z3)%Z
-              end.
+  λ a1 a2 a3, (a1 <= a2 < a3)%Z.
 Definition le_addr : Addr → Addr → Prop :=
-  λ a1 a2, match a1,a2 with
-           | A z1 fin1, A z2 fin2 => (z1 <= z2)%Z
-           end.
+  λ a1 a2, (a1 <= a2)%Z.
 Definition lt_addr : Addr → Addr → Prop :=
-  λ a1 a2, match a1,a2 with
-           | A z1 fin1, A z2 fin2 => (z1 < z2)%Z
-           end.
+  λ a1 a2, (a1 < a2)%Z.
 Definition leb_addr : Addr → Addr → bool :=
-  λ a1 a2, match a1,a2 with
-           | A z1 _, A z2 _ => Z.leb z1 z2
-           end.
+  λ a1 a2, Z.leb a1 a2.
 Definition ltb_addr : Addr → Addr → bool :=
-  λ a1 a2, match a1,a2 with
-           | A z1 _, A z2 _ => Z.ltb z1 z2
-           end.
+  λ a1 a2, Z.ltb a1 a2.
 Definition eqb_addr : Addr → Addr → bool :=
-  λ a1 a2, match a1,a2 with
-           | A z1 _,A z2 _ => Z.eqb z1 z2
-           end.
-Definition za : Addr. Proof. refine (A 0%Z _); eauto. Defined.  
-Definition special_a : Addr. Proof. refine (A (-42)%Z _); eauto. Defined.
-Definition top_a : Addr. Proof. refine (A MemNum _); eauto. Defined. 
+  λ a1 a2, Z.eqb a1 a2.
+Definition za : Addr := A 0%Z eq_refl.
+Definition special_a : Addr := A (-42)%Z eq_refl.
+Definition top : Addr := A MemNum eq_refl.
 Delimit Scope Addr_scope with a.
 Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
-Notation "a1 < a2" := (lt_addr a1 a2) : Addr_scope. 
 Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
 Notation "a1 <=? a2" := (leb_addr a1 a2): Addr_scope.
 Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
 Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
 Notation "0" := (za) : Addr_scope.
-Notation "- 42" := (special_a) : Addr_scope.  
+Notation "- 42" := (special_a) : Addr_scope.
 
 Instance Addr_le_dec : RelDecision le_addr. 
 Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
 Instance Addr_lt_dec : RelDecision lt_addr. 
-Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
+Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.             
 
-
-Definition incr_addr : Addr → nat → option Addr.
-Proof.
-  destruct 1. intros z'. 
-  destruct (Z.leb (z + (Z_of_nat' z'))%Z MemNum) eqn:Hlt.
-  - by refine (Some (A (z + (Z_of_nat' z'))%Z _)).
-  - exact None. 
-Defined.
-Notation "a1 + n" := (incr_addr a1 n): Addr_scope.
-
-Definition incr_addr_force : Addr → nat → Addr.
-Proof.
-  destruct 1. intros z'. 
-  destruct (Z.leb (z + (Z_of_nat' z'))%Z MemNum) eqn:Hlt.
-  - by refine (A (z + (Z_of_nat' z'))%Z _).
-  - exact top_a%a.
-Defined.
-Notation "a1 ++ n" := (incr_addr_force a1 n): Addr_scope.
+Definition incr_addr : Addr → Z → option Addr.
+  Proof.
+    destruct 1. intros z'. 
+    destruct (Z.leb (z + z')%Z MemNum) eqn:Hlt.
+    - refine (Some (A (z + z')%Z _)).
+      by apply Z.leb_le; apply Z.leb_le. 
+    - exact None. 
+  Defined.
+  Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
 Lemma Zpred_minus z : (Z.pred z = z - 1)%Z.
 Proof. eauto. Qed. 
@@ -125,50 +110,6 @@ Proof. split; omega. Qed.
 Lemma Z_leq_succ z z' : (Z.succ z ≤ Z.succ z' → z ≤ z')%Z.
 Proof. intros. omega. Qed. 
 
-Definition decr_addr : Addr → nat → option Addr.
-Proof.
-  destruct 1. intros z'.
-  destruct (Z.leb 0%Z (z - (Z_of_nat' z'))) eqn:Hlt.
-  - refine (Some (A (z - (Z_of_nat' z'))%Z _)).
-    apply Z.leb_le. induction z'; simpl in *. 
-    + rewrite <- Zminus_0_l_reverse. by apply Z.leb_le.
-    + rewrite Zpos_P_of_succ_nat. rewrite <- Zminus_succ_r.  
-      rewrite Zpred_minus.
-      apply Z_minus_plus_leq.
-      assert (MemNum + 1 = Z.succ MemNum)%Z; eauto.
-      rewrite H. apply Z.le_le_succ_r.
-      apply IHz'. apply Z.leb_le. apply Z_plus_minus_leq.
-      rewrite Zpos_P_of_succ_nat in Hlt. apply Z.leb_le in Hlt. 
-      apply Z_plus_minus_leq in Hlt. 
-      assert (∀ z, 0 + z = z)%Z; intros; eauto.
-      rewrite H0. rewrite H0 in Hlt. apply Z.le_le_succ_r in Hlt.
-      apply Z_leq_succ in Hlt. done.
-  - exact None. 
-Defined.
-Notation "a1 - n" := (incr_addr a1 n): Addr_scope.
-
-Definition decr_addr_force : Addr → nat → Addr.
-Proof.
-  destruct 1. intros z'.
-  destruct (Z.leb 0%Z (z - (Z_of_nat' z'))) eqn:Hlt.
-  - refine (A (z - (Z_of_nat' z'))%Z _).
-    apply Z.leb_le. induction z'; simpl in *. 
-    + rewrite <- Zminus_0_l_reverse. by apply Z.leb_le.
-    + rewrite Zpos_P_of_succ_nat. rewrite <- Zminus_succ_r.  
-      rewrite Zpred_minus.
-      apply Z_minus_plus_leq.
-      assert (MemNum + 1 = Z.succ MemNum)%Z; eauto.
-      rewrite H. apply Z.le_le_succ_r.
-      apply IHz'. apply Z.leb_le. apply Z_plus_minus_leq.
-      rewrite Zpos_P_of_succ_nat in Hlt. apply Z.leb_le in Hlt. 
-      apply Z_plus_minus_leq in Hlt. 
-      assert (∀ z, 0 + z = z)%Z; intros; eauto.
-      rewrite H0. rewrite H0 in Hlt. apply Z.le_le_succ_r in Hlt.
-      apply Z_leq_succ in Hlt. done.
-  - exact 0%a.
-Defined.
-Notation "a1 -- n" := (decr_addr_force a1 n) (at level 20): Addr_scope.
-
 Definition region_size : Addr → Addr → nat :=
   λ b e, match b, e with
          | A ba _, A ea _ => S (Z.abs_nat (ea - ba))
@@ -177,19 +118,8 @@ Definition region_size : Addr → Addr → nat :=
 Definition get_addr_from_option_addr : option Addr → Addr :=
   λ e_opt, match e_opt with
            | Some e => e
-           | None => top_a%a
+           | None => top%a
            end.
-
-Lemma addr_lt_trans a1 a2 a3 : (a1 < a2 → a2 < a3 → a1 < a3)%a.
-Proof. destruct a1,a2,a3. unfold lt_addr. intros Hlt1 Hlt2.
-       apply (Z.lt_trans z z0 z1); eauto.
-Qed.
-
-(* These are not exacty correct: should be ≤. *)
-Lemma region_size_minus b a : region_size b (a -- 1)%a = (region_size b a) - 1.
-Proof. Admitted. 
-Lemma region_size_plus a e : region_size (a ++ 1)%a e = (region_size a e) - 1. 
-Proof. Admitted. 
 
 (* ------------------------------------ REG --------------------------------------------*)
 
