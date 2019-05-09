@@ -573,7 +573,7 @@ Module cap_lang.
   (* TODO: change to co-inductive list in the Seq case *)
   Inductive expr: Type :=
   | Instr (c : ConfFlag) 
-  | Seq (e : expr) (e : expr).
+  | Seq (e : expr).
   Definition state : Type := ExecConf.
 
   Definition of_val (v: val): expr :=
@@ -592,7 +592,7 @@ Module cap_lang.
       | Failed => Some FailedV
       | NextI => Some NextIV
       end
-    | Seq _ _ => None
+    | Seq _ => None
     end.
 
   Lemma of_to_val:
@@ -610,22 +610,22 @@ Module cap_lang.
 
   (** Evaluation context *)
   Inductive ectx_item :=
-  | SeqCtx (e2 : expr). 
+  | SeqCtx. 
 
   Notation ectx := (list ectx_item).
 
   Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
     match Ki with
-    | SeqCtx e2 => Seq e e2
+    | SeqCtx => Seq e
     end.
 
   
   Inductive prim_step: expr -> state -> list Empty_set -> expr -> state -> list expr -> Prop :=
   | PS_no_fork_instr σ e' σ' :
       step (Executable, σ) (e', σ') → prim_step (Instr Executable) σ [] (Instr e') σ' []
-  | PS_no_fork_seq e σ : prim_step (Seq (Instr NextI) e) σ [] e σ []
-  | PS_no_fork_halt e σ : prim_step (Seq (Instr Halted) e) σ [] (Instr Halted) σ []
-  | PS_no_fork_fail e σ : prim_step (Seq (Instr Failed) e) σ [] (Instr Failed) σ []. 
+  | PS_no_fork_seq σ : prim_step (Seq (Instr NextI)) σ [] (Seq (Instr Executable)) σ []
+  | PS_no_fork_halt σ : prim_step (Seq (Instr Halted)) σ [] (Instr Halted) σ []
+  | PS_no_fork_fail σ : prim_step (Seq (Instr Failed)) σ [] (Instr Failed) σ []. 
 
   Lemma val_stuck:
     forall e σ o e' σ' efs,

@@ -67,7 +67,7 @@ Section logrel.
               ⌜is_Some (reg !! r)⌝ ∧ interp (reg !r! r))%I. 
 
   Definition interp_conf (conf : Reg * Mem) : iProp Σ :=
-    (∀ e, registers_mapsto conf.1 -∗ WP e {{ λne v, ∃ r, registers_mapsto r }})%I.
+    (registers_mapsto conf.1 -∗ WP Seq (Instr Executable) {{ λne v, ∃ r, registers_mapsto r }})%I.
 
   (* For public future worlds, all "keys" to cancellable invariants should be *)
   (* discarded, for private future worlds, we wish to keep them. Since keys are *)
