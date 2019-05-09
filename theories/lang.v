@@ -7,7 +7,7 @@ From cap_machine Require Export addr_reg.
 Ltac inv H := inversion H; clear H; subst.
 
 Module cap_lang.
-  
+
   Inductive Perm: Type :=
   | O
   | RO
