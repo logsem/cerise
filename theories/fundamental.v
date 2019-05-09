@@ -36,20 +36,6 @@ Section fundamental.
     iSpecialize ("Hmap" with "[Hw]"); eauto. 
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
-  
-  (* Lemma extract_read_cond p g b e a γ : *)
-  (*   isCorrectPC (inr ((p,g),b,e,a)) -> *)
-  (*   read_cond b e g γ interp -∗ *)
-  (*   WP Halted {{ λne _, True }}%I.  *)
-  (* Proof. *)
-  (*   iIntros (Hvpc) "#Hrc /=". *)
-  (*   destruct g.  *)
-  (*   - iDestruct "Hrc" as (b' e') "#[Hin Hinv]". *)
-  (*     rewrite /inv_cap. *)
-  (*     iApply fupd_wp.  *)
-  (*     iInv (logN.@(b', e')) as (ws) "[Hregion Hvalid]". *)
-  (* Abort. *)
-    
     
   Theorem fundamental (perm : Perm) b e g γ (a : Addr) :
     (⌜perm = RX⌝ ∧ read_cond b e g γ interp)%I ∨
@@ -58,11 +44,22 @@ Section fundamental.
     (⌜perm = RWLX⌝ ∧ read_cond b e g γ interp ∧
      write_cond b e g γ interp (λne w, True%I))%I -∗
     ⟦ inr ((perm,g),b,e,a) ⟧ₑ.
-  Proof.
+  Proof. 
     iIntros "[#[-> Hrc] | [#(Hrwx & Hrc & Hwc) | #(Hwlx & Hrc & Hwc)]]".
     - destruct g.
-      + iIntros (r). iIntros (m) "Hreg Hmreg /=".
-        iLöb as "IH" forall (a).
+      + iIntros (r m) "Hreg". iIntros (p) "Hmreg /=".
+        iLöb as "IH" forall (p).
+                            (* iInduction p as [| p ] "IHp". *)
+                            destruct p. {
+          destruct c. { admit. }
+                      { iApply wp_value. auto. }
+                      { iApply wp_value. auto.  }
+                      { iApply wp_value.  auto. }
+        }
+        { iApply (wp_bind (fill [SeqCtx _])). 
+          
+          iApply "IH". 
+        }
         destruct (decide (isCorrectPC (inr ((RX,Global),b,e,a)))). 
         { (* Correct PC *)
           (* iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC *)
@@ -70,7 +67,8 @@ Section fundamental.
           (*              with "[Hmreg]") as "[HPC HPCmap]"; *)
           (*   first by apply (lookup_insert r PC). iFrame. *)
           iDestruct "Hrc" as (b' e') "#[Hin Hinv]".
-          iApply fupd_wp.
+          (* iApply fupd_wp. *)
+          iApply (wp_bind (fill [SeqCtx _])). 
           iInv (logN.@(b', e')) as (ws) "HregionHvalid" "Hcls".
           iDestruct (extract_from_region _ _ a with "HregionHvalid")
             as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
@@ -88,14 +86,20 @@ Section fundamental.
             iAssert (∃ w, dst ↦ᵣ w)%I as (wdst) "Hdst"; [admit|].
             iAssert (∃ w, src ↦ᵣ w)%I as (wsrc) "Hsrc"; [admit|].
             destruct wsrc eqn:Hsrc; [admit|].
-            destruct c. do 3 destruct p.
+            destruct c. do 3 destruct p0.
             iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0"; [admit|].
             
-            iApply wp_load_success; eauto.
+            iApply (wp_load_success with "[HPC Hdst Hsrc Ha Ha0]"); eauto.
             + admit.
             + admit.
             + admit.
             + iFrame.
+            + iNext. iIntros "(HPC & Hdst & Ha) /=".
+              iApply wp_pure_step_later; eauto.
+              destruct p.
+              {  }
+              
+              iApply "Hcls". iNext. 
               (* STUCK: How can we get the resources from a wand under a fupd *)
               (* is this even possible.... *)
               admit.
@@ -114,8 +118,9 @@ Section fundamental.
           - admit. (* GetA *)
           - admit. (* Fail *)
           - admit. (* Halt *)
-        }
+        } 
         { (* Incorrect PC *) admit. }
+        { iApply (wp_pure_step_later _ _ (Seq (Instr Failed) _)). }
       + (* Local *) admit.
     - admit.
     - admit. 
