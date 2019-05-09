@@ -700,85 +700,25 @@ Definition is_atomic (e : expr) : Prop :=
   | _ => False
   end.
 
+Ltac flatten :=
+  repeat match goal with
+         | |- context [ if ?b then ?X else ?Y ] => destruct b
+         | |- context [ match ?t with _ => _ end ] => destruct t
+         end.
+
 Lemma updatePC_atomic φ :
   ∃ φ', updatePC φ = (Failed,φ') ∨ (updatePC φ = (NextI,φ')) ∨
         (updatePC φ = (Halted,φ')).
 Proof.
-  rewrite /updatePC; destruct (reg φ !r! PC); eauto. 
-  destruct c. do 3 destruct p. destruct (a + 1)%a.
-  - by exists (update_reg φ PC (inr (p, l, a0, o, a1))); right; left. 
-  - by exists φ; left. 
+  rewrite /updatePC; flatten; eauto.
 Qed.
 
 Lemma instr_atomic i φ :
   ∃ φ', (exec i φ = (Failed, φ')) ∨ (exec i φ = (NextI, φ')) ∨
         (exec i φ = (Halted, φ')).   
 Proof.
-  destruct i; simpl; eauto.
-  - destruct (nonZero (reg φ !r! r2));[|apply updatePC_atomic].
-    by exists (update_reg φ PC (updatePcPerm (reg φ !r! r1))); right; left. 
-  - destruct src; apply updatePC_atomic. 
-  - destruct (reg φ !r! src); eauto.
-    destruct c,p,p,p,(readAllowed p); simpl; eauto.
-    destruct o.
-    + destruct ((a0 <=? a)%a && (a <=? a1)%a); eauto. apply updatePC_atomic.
-    + destruct ((a0 <=? a)%a); eauto. apply updatePC_atomic.
-  - destruct src,(reg φ !r! dst);eauto.
-    + destruct c,p,p,p,(writeAllowed p); simpl; eauto.
-      destruct o;
-        [destruct ((a0 <=? a)%a && (a <=? a1)%a); eauto; apply updatePC_atomic|
-         destruct ((a0 <=? a)%a); eauto; apply updatePC_atomic].
-    + destruct c,p,p,p,(writeAllowed p); simpl; eauto.
-      destruct o;
-        [destruct ((a0 <=? a)%a && (a <=? a1)%a),(reg φ !r! r);eauto|
-         destruct ((a0 <=? a)%a),(reg φ !r! r); eauto]; try apply updatePC_atomic. 
-      * destruct c,p,p0,p,p,(isLocal l0); eauto; apply updatePC_atomic. 
-      * destruct c,p0,p0,p0,(isLocal l0); eauto; try apply updatePC_atomic. 
-        destruct p; eauto; apply updatePC_atomic. 
-  - destruct r1,r2; first apply updatePC_atomic;
-      destruct (reg φ !r! r); eauto; try apply updatePC_atomic. 
-    destruct (reg φ !r! r0); eauto; apply updatePC_atomic. 
-  - destruct r1,r2; first apply updatePC_atomic;
-      destruct (reg φ !r! r); eauto; try apply updatePC_atomic. 
-    destruct (reg φ !r! r0); eauto; apply updatePC_atomic. 
-  - destruct r1,r2; first apply updatePC_atomic;
-      destruct (reg φ !r! r); eauto; try apply updatePC_atomic. 
-    destruct (reg φ !r! r0); eauto; apply updatePC_atomic.
-  - destruct r,(reg φ !r! dst); eauto.
-    + destruct c,p,p,p,p,((a + z)%a); eauto; apply updatePC_atomic. 
-    + destruct c,p,p,p,p,(reg φ !r! r); eauto;
-      destruct (a + z)%a; eauto; apply updatePC_atomic. 
-  - destruct r,(reg φ !r! dst); eauto.
-    + destruct c,p,p,(PermPairFlowsTo (decodePermPair z) p);
-        eauto; apply updatePC_atomic. 
-    + destruct c,p,p,(reg φ !r! r); eauto.
-      destruct (PermPairFlowsTo (decodePermPair z) p);
-        eauto; apply updatePC_atomic. 
-  - destruct r1,r2,(reg φ !r! dst); eauto. 
-    + destruct c,p,p,p,p,(z_to_addr z),(z_to_addr z0); eauto;
-        destruct (isWithin a1 a2 a0 o); eauto; apply updatePC_atomic. 
-    + destruct c,p,p,p,p,(z_to_addr z),(reg φ !r! r); eauto;
-        destruct (z_to_addr z0); eauto;
-          destruct (isWithin a1 a2 a0 o); eauto; apply updatePC_atomic. 
-    + destruct c,p,p,p,p,(reg φ !r! r); eauto; destruct (z_to_addr z0); eauto;
-        destruct (z_to_addr z); eauto;
-          destruct (isWithin a1 a2 a0 o); eauto; apply updatePC_atomic. 
-    + destruct c,p,p,p,p,(reg φ !r! r),(reg φ !r! r0); eauto;
-        destruct (z_to_addr z0); eauto; destruct (z_to_addr z); eauto;
-          destruct (isWithin a2 a1 a0 o); eauto; apply updatePC_atomic. 
-  - destruct (reg φ !r! r); apply updatePC_atomic.
-  - destruct (reg φ !r! r); eauto. destruct c,p,p,p.
-    apply updatePC_atomic.
-  - destruct (reg φ !r! r); eauto. destruct c,p,p,p.
-    apply updatePC_atomic.
-  - destruct (reg φ !r! r); eauto. destruct c,p,p,p,a0.
-    apply updatePC_atomic.
-  - destruct (reg φ !r! r); eauto. destruct c,p,p,p,o; last apply updatePC_atomic.
-    destruct a1; apply updatePC_atomic.
-  - destruct (reg φ !r! r); eauto. destruct c,p,p,p,a.
-    apply updatePC_atomic.
-Qed.  
-
+  unfold exec; flatten; eauto; try (eapply updatePC_atomic; eauto).
+Qed.
 
 Global Instance is_atomic_correct s (e : expr) : is_atomic e → Atomic s e.
 Proof.
