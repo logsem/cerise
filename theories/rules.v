@@ -1403,16 +1403,16 @@ Section cap_lang_rules.
                                 (match goal with
                                 | H : head_step _ _ _ _ _ _ |- _ => inversion H end).
  
-  Global Instance pure_seq_failed (e2 : cap_lang.expr) :
-    PureExec True 1 (Seq (Instr Failed) e2) (Instr Failed).
+  Global Instance pure_seq_failed :
+    PureExec True 1 (Seq (Instr Failed)) (Instr Failed).
   Proof. by solve_exec_pure. Qed.
 
-  Global Instance pure_seq_halted (e2 : cap_lang.expr) :
-    PureExec True 1 (Seq (Instr Halted) e2) (Instr Halted).
+  Global Instance pure_seq_halted :
+    PureExec True 1 (Seq (Instr Halted)) (Instr Halted).
   Proof. by solve_exec_pure. Qed.
 
-  Global Instance pure_seq_done (e2 : cap_lang.expr) :
-    PureExec True 1 (Seq (Instr NextI) e2) e2.
+  Global Instance pure_seq_done :
+    PureExec True 1 (Seq (Instr NextI)) (Seq (Instr Executable)).
   Proof. by solve_exec_pure. Qed. 
   
 End cap_lang_rules. 
