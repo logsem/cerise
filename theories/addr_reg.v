@@ -80,15 +80,23 @@ Definition le_lt_addr : Addr → Addr → Addr → Prop :=
   Global Instance Addr_lt_dec : RelDecision lt_addr. 
   Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.             
 
-Definition incr_addr : Addr → Z → option Addr.
-  Proof.
-    destruct 1. intros z'. 
-    destruct (Z.leb (z + z')%Z MemNum) eqn:Hlt.
-    - refine (Some (A (z + z')%Z _)).
-      by apply Z.leb_le; apply Z.leb_le. 
-    - exact None. 
-  Defined.
-  Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
+Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
+  if (Z_le_dec (a + z)%Z MemNum) then Some (A (a + z)%Z _) else None.
+Next Obligation.
+  intros. apply Z.leb_le; auto.
+Defined.
+Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
+
+Lemma incr_addr_neg:
+  forall a z,
+    (z <= 0)%Z ->
+    exists a', (a + z)%a = Some a'.
+Proof.
+  intros; unfold incr_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum); eauto.
+  destruct a. generalize (proj1 (Z.leb_le _ _) fin).
+  intros. elim n. simpl. omega.
+Qed.
 
 Lemma Zpred_minus z : (Z.pred z = z - 1)%Z.
 Proof. eauto. Qed. 
