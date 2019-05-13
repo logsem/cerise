@@ -26,7 +26,21 @@ Section region.
   Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ := 
     ([∗ list] k↦y1;y2 ∈ (region_addrs b e (region_size b e));take (region_size b e) ws,
                                                              y1 ↦ₐ y2)%I. 
-  
+
+  Lemma extract_from_region' b e a al ws φ :  
+    (b <= a ∧ a <= e)%a →
+    (a + -1)%a = Some al →
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)  ⊣⊢
+     (∃ w, region_mapsto b al (take (region_size b al) ws)
+        ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w) 
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ match (a + 1)%a with
+          | Some ah => region_mapsto ah e (drop (region_size b a) ws)
+                      ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w)
+          | None => True
+          end))%I.
+  Proof. Admitted. 
+
   Lemma extract_from_region b e a al ah ws φ :  
     (b <= a ∧ a <= e)%a →
     (a + (Zneg 1))%a = Some al →

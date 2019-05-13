@@ -78,11 +78,12 @@ Section fundamental.
             iAssert (∃ w, dst ↦ᵣ w)%I as (wdst) "Hdst";
             [admit|].
             iAssert (∃ w, src ↦ᵣ w)%I as (wsrc) "Hsrc"; [admit|].
-            destruct wsrc eqn:Hsrc; [admit|].
-            destruct c. do 3 destruct p.
-            iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0"; [admit|].
+            destruct wsrc eqn:Hsrc.
+            { (*iApply wp_load_fail2; eauto.*) admit. }
+            destruct c as ((((psrc, lsrc), bsrc), esrc), asrc).
+            iAssert (∃ w, asrc ↦ₐ w)%I as (wa0) "Hasrc"; [admit|].
             
-            iApply (wp_load_success with "[HPC Hdst Hsrc Ha Ha0]"); eauto.
+            iApply (wp_load_success with "[HPC Hdst Hsrc Ha Hasrc]"); eauto.
             + admit.
             + admit.
             + admit.
@@ -96,8 +97,9 @@ Section fundamental.
                                 (λ _ : valC cap_lang, ∃ r0 : Reg, registers_mapsto r0) v
                                 -∗ ∃ r0 : Reg, registers_mapsto r0)%I as "Htrivial".
               { iIntros (_) "Hreg". iFrame. } iFrame. 
-              iApply "Hcls". iNext. admit. 
-           - admit. (* Store *)
+              iApply "Hcls". iNext.
+              iExists (drop (region_size b' a) ws). iFrame.
+          - admit. (* Store *)
           - admit. (* Lt *)
           - admit. (* Add *)
           - admit. (* Sub *)
