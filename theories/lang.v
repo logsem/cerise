@@ -28,7 +28,7 @@ Module cap_lang.
 
   (* None = MemNum bound *)
   Definition Cap: Type :=
-    (Perm * Locality) * Addr * option Addr * Addr.
+    (Perm * Locality) * Addr * Addr * Addr.
 
   Definition Word := (Z + Cap)%type.
   
@@ -110,12 +110,12 @@ Module cap_lang.
       forall p g (b e a : Addr),
         (b <= a < e)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, (Some e), a))
+        isCorrectPC (inr ((p, g), b, e, a))
   | isCorrectPC_intro_infinity:
       forall p g (b a : Addr),
         (b <= a)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, None, a)).
+        isCorrectPC (inr ((p, g), b, top, a)).
 
   Definition reg (ϕ: ExecConf) := fst ϕ.
 
@@ -153,11 +153,7 @@ Module cap_lang.
 
   Definition withinBounds (c: Cap): bool :=
     match c with
-    | (_, b, e, a) =>
-      match e with
-      | None => (b <=? a)%a
-      | Some e => (b <=? a)%a && (a <=? e)%a
-      end
+    | (_, b, e, a) => (b <=? a)%a && (a <=? e)%a
     end.
 
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
@@ -231,12 +227,9 @@ Module cap_lang.
   Definition PermPairFlowsTo (pg1 pg2: Perm * Locality): bool :=
     PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
-  Definition isWithin (n1 n2 b: Addr) (e: option Addr): bool :=
-    match e with
-    | None => ((0 <=? b) && (b <=? n1) && (0 <=? n2) || (n2 =? -42))%a
-    | Some e => ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a
-    end.
-
+  Definition isWithin (n1 n2 b e: Addr) : bool :=
+    ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a.
+    
   Definition exec (i: instr) (φ: ExecConf): Conf :=
     match i with
     | Fail => (Failed, φ)
@@ -403,7 +396,7 @@ Module cap_lang.
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then 
-                  updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                  updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end 
@@ -424,7 +417,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
                      else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -444,7 +437,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
               else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -461,7 +454,7 @@ Module cap_lang.
           match z_to_addr n1, z_to_addr n2 with
           | Some a1, Some a2 => 
             if isWithin a1 a2 b e then 
-              updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? -42)%a then None else Some a2, a)))
+              updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? -42)%a then top else a2, a)))
             else (Failed, φ)
           | _,_ => (Failed, φ)
           end
@@ -488,11 +481,7 @@ Module cap_lang.
       | inl _ => (Failed, φ)
       | inr (_, _, e, _) =>
         match e with
-        | None => updatePC (update_reg φ dst (inl (-42)%Z))
-        | Some e =>
-          match e with
-          | A e' _ => updatePC (update_reg φ dst (inl e'))
-          end
+        | A e' _ => updatePC (update_reg φ dst (inl e'))
         end
       end
     | GetP dst r =>
@@ -534,16 +523,18 @@ Module cap_lang.
     - destruct c as ((((p & g) & b) & e) & a).
       case_eq (match p with RX | RWX | RWLX => true | _ => false end); intros.
       + destruct (Addr_le_dec b a).
-        * destruct e. 
-          { destruct (Addr_lt_dec a a0).
-            - left. econstructor; simpl; eauto. split; auto.
-              destruct p; simpl in H; try congruence; auto.
-            - right. red; intros. inv H0.
-              destruct H3. congruence. }
-          { left. econstructor; eauto.
-            destruct p; simpl in H; try congruence; auto. }
+        * destruct (Addr_lt_dec a e).
+            { left. econstructor; simpl; eauto. split; auto.
+              destruct p; simpl in H; try congruence; auto. }
+            { destruct (decide (e = top)). 
+              - simplify_eq. 
+                apply top_not_le_eq in n.
+                left. constructor 2; eauto. 
+                destruct p; simpl in H; try congruence; auto.
+              - right. red; intros. inv H0; destruct H3; congruence. 
+            }
         * right. red; intros; inv H0. 
-          { destruct e0. destruct H3. elim n; eauto. }
+          { destruct e. destruct H3. elim n; eauto. }
           { elim n; auto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
   Qed.

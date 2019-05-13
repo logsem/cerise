@@ -16,17 +16,12 @@ Section region.
     ([∗ list] k↦y1;y2 ∈ (region_addrs b e (region_size b e));ws, y1 ↦ₐ y2)%I. 
   
 
-  Definition included (b' : Addr) (e' : option Addr)
-             (b : Addr) (e : option Addr) : iProp Σ :=
-    (⌜(b' <=? b)%a⌝ ∧ ((⌜e = None⌝ ∧ ⌜e' = None⌝) ∨
-                  (∃ a a', ⌜e = Some a⌝ ∧ ⌜e' = Some a'⌝ ∧ ⌜(a <=? a')%a⌝)))%I.
+  Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
+    (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
   
 
-  Fixpoint in_range (a b : Addr) (e : option Addr) : iProp Σ :=
-    match e with
-    | None => (⌜(b <=? a)%a⌝)%I
-    | Some e' => (⌜(b <=? a)%a⌝ ∧ ⌜(a <? e')%a⌝)%I
-    end.
+  Fixpoint in_range (a b e : Addr) : iProp Σ :=
+    (⌜(b <= a)%a⌝ ∧ ⌜(a < e)%a⌝)%I.
 
   Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ := 
     ([∗ list] k↦y1;y2 ∈ (region_addrs b e (region_size b e));take (region_size b e) ws,
@@ -62,6 +57,28 @@ Section region.
         ∗ (∃ w, a ↦ₐ w ∗ φ w) 
         ∗ (∃ ws2, region_mapsto ah e ws2 ∗ ([∗ list] w ∈ ws2, φ w))))%I.
   Proof. Admitted.
+
+  Lemma in_range_is_correctPC p l b e a b' e' :
+    isCorrectPC (inr ((p,l),b,e,a)) →
+    (b' <= b)%a ∧ (e <= e')%a →
+    (b' <= a)%a ∧ (a <= e')%a. 
+  Proof.
+    intros Hvpc [Hb He]. 
+    inversion Hvpc; simplify_eq. 
+    - destruct H3; rewrite /leb_addr in Hb;
+      rewrite /le_addr. split.
+      + apply (Z.le_trans b' b a); eauto.
+      + simpl in He.
+        apply (Z.le_trans a e e'); eauto.
+        by apply Z.lt_le_incl. 
+    - simpl in He.
+      apply top_le_eq in He. 
+      split.
+      + apply (Z.le_trans b' b a); eauto.
+      + rewrite He.
+        destruct a. rewrite /le_addr. simpl. 
+        by apply Z.leb_le. 
+  Qed. 
   
 End region.
 

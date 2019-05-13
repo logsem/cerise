@@ -16,7 +16,7 @@ Definition z_of (a: Addr): Z :=
 
 Coercion z_of: Addr >-> Z.
 
-Instance addr_eq_dec: EqDecision Addr.
+Global Instance addr_eq_dec: EqDecision Addr.
 intros x y. destruct x,y. destruct (Z_eq_dec z z0).
 - left. simplify_eq.
   assert (forall (b: bool) (n m: Z) (P1 P2: Z.leb n m = b), P1 = P2).
@@ -34,7 +34,7 @@ Proof.
   - exact None. 
 Defined.
 
-Instance addr_countable : Countable Addr.
+Global Instance addr_countable : Countable Addr.
 Proof.
   refine {| encode r := encode (z_of r) ;
             decode n := match (decode n) with
@@ -69,14 +69,15 @@ Definition le_lt_addr : Addr → Addr → Addr → Prop :=
   Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
   Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
   Notation "a1 <=? a2" := (leb_addr a1 a2): Addr_scope.
+  Notation "a1 < a2" := (lt_addr a1 a2): Addr_scope.
   Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
   Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
   Notation "0" := (za) : Addr_scope.
   Notation "- 42" := (special_a) : Addr_scope.
 
-  Instance Addr_le_dec : RelDecision le_addr. 
+  Global Instance Addr_le_dec : RelDecision le_addr. 
   Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
-  Instance Addr_lt_dec : RelDecision lt_addr. 
+  Global Instance Addr_lt_dec : RelDecision lt_addr. 
   Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.             
 
 Definition incr_addr : Addr → Z → option Addr.
@@ -119,13 +120,37 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
            | None => top%a
            end.
 
+Lemma top_le_eq e' : (top <= e')%a → e' = top.
+Proof.
+  intros Htop. destruct e'.
+  unfold le_addr in Htop.
+  simpl in *. unfold top.
+  assert (z <= MemNum)%Z. 
+  by apply Z.leb_le.
+  assert (z = MemNum)%Z. 
+  apply Z.le_antisymm; eauto.
+  simplify_eq. f_equal. apply eq_proofs_unicity. decide equality.
+Qed.
+
+Lemma top_not_le_eq a : ¬ (a < top)%a → a = top.
+Proof.
+  intros Hf. destruct a.
+  apply Znot_lt_ge in Hf.
+  assert (z <= MemNum)%Z. 
+    by apply Z.leb_le.
+  apply Z.ge_le_iff in Hf. 
+  apply Z.le_antisymm in Hf; eauto.
+  simpl in Hf. simplify_eq.
+  f_equal. apply eq_proofs_unicity. decide equality.
+Qed.
+
 (* ------------------------------------ REG --------------------------------------------*)
 
  Inductive RegName: Type :=
   | PC
   | R (n: nat) (fin: n <=? RegNum = true).
 
-  Instance reg_eq_dec : EqDecision RegName.
+  Global Instance reg_eq_dec : EqDecision RegName.
   Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
     destruct (nat_eq_dec n n0).
     + subst n0. left.
@@ -144,7 +169,7 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
     - exact None. 
   Defined. 
 
-  Instance reg_countable : Countable RegName.
+  Global Instance reg_countable : Countable RegName.
   Proof. 
     refine {| encode r := encode match r with
                           | PC => inl ()
@@ -162,4 +187,4 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
     destruct (nat_le_dec n RegNum).
     - do 2 f_equal. apply eq_proofs_unicity. decide equality.
     - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
-  Qed.
+  Defined.

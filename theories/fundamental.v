@@ -47,7 +47,8 @@ Section fundamental.
   Proof. 
     iIntros "[#[-> Hrc] | [#(Hrwx & Hrc & Hwc) | #(Hwlx & Hrc & Hwc)]]".
     - destruct g.
-      + iIntros (r m) "Hreg". iIntros "Hmreg /=".
+      + (* Global *)
+        iIntros (r m) "Hreg". iIntros "Hmreg /=".
         iLöb as "IH". 
         iApply (wp_bind (fill [SeqCtx])).
         destruct (decide (isCorrectPC (inr ((RX,Global),b,e,a)))). 
@@ -56,11 +57,12 @@ Section fundamental.
           (*                      (inr (RX, Global, b, e, a)) *)
           (*              with "[Hmreg]") as "[HPC HPCmap]"; *)
           (*   first by apply (lookup_insert r PC). iFrame. *)
-          iDestruct "Hrc" as (b' e') "#[Hin Hinv]".
+          iDestruct "Hrc" as (b' e') "#[[% %] Hinv]".
           iInv (logN.@(b', e')) as (ws) "HregionHvalid" "Hcls".
           iDestruct (extract_from_region _ _ a with "HregionHvalid")
-            as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
-            [admit|admit|admit|].
+            as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)".
+          { apply (in_range_is_correctPC RX Global b e); auto. }
+          { admit. } { admit. } (* a + -1 and a + 1 are some addresses *)
           iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC
                                (inr (RX, Global, b, e, a))
                        with "[Hmreg]") as "[HPC HPCmap]";
@@ -108,19 +110,12 @@ Section fundamental.
           - admit. (* Fail *)
           - admit. (* Halt *)
         } 
-        { (* Incorrect PC *) admit. } }
-        iIntros (v) "_ /=".
-        destruct v.
-        * iApply wp_pure_step_later; eauto.  
-          iNext. iApply wp_value. 
-          admit.
-        * iApply wp_pure_step_later; eauto.  
-          iNext. iApply wp_value. 
-          admit.
-        * iApply wp_pure_step_later; eauto. 
-          iNext.
-          
-
+        { (* Incorrect PC *) admit. }
+      + (* Local *)
+        admit.
+    - (* read and write condition, non local *) admit. 
+    - (* read and write condition, permit local *) admit. 
+Admitted. 
           
       
 End fundamental. 

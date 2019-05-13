@@ -16,16 +16,16 @@ Section logrel.
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
   (* capability conditions *)
-  Definition read_cond b e (g : Locality) (γ : gname) (interp : D) : iProp Σ := 
+  Definition read_cond (b e : Addr) (g : Locality) (γ : gname) (interp : D) : iProp Σ := 
     match g with
     | Local =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
          □ (∀ q:Qp, own γ q -∗
-                inv_cap T (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                inv_cap T (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
                         (logN .@ (b',e')) γ))%I
     | Global =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-                inv_cap P (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                inv_cap P (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
                         (logN .@ (b',e')) γ)%I
   end.
 
@@ -34,11 +34,11 @@ Section logrel.
     | Local =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
          □ (∀ q:Qp, own γ q -∗
-            inv_cap T (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
+            inv_cap T (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
                     (logN .@ (b',e')) γ))%I
     | Global =>
       (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-            inv_cap P (∃ ws, {[ b', (get_addr_from_option_addr e') ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
+            inv_cap P (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
                     (logN .@ (b',e')) γ)%I
   end.
 
@@ -47,11 +47,13 @@ Section logrel.
   Definition exec_cond b e g (P : list Perm) (interp_expr : D) : iProp Σ :=
     match g with
     | Local =>
-      (∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧ a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
-                    ▷ interp_expr (inr ((p,g),b',e',a)))%I
+      (∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧
+                    a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
+                    ▷ interp_expr (inr ((p,g),b', e',a)))%I
     | Global =>
-      (□ ∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧ a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
-                    ▷ interp_expr (inr ((p,g),b',e',a)))%I
+      (□ ∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧
+                      a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
+                    ▷ interp_expr (inr ((p,g),b', e',a)))%I
     end. 
     
 
@@ -84,7 +86,8 @@ Section logrel.
   Definition interp_cap_O : D := λne w, True%I.
 
   Definition interp_cap_RO (interp : D) : D :=
-    λne w, (∃ g b e a γ, ⌜w = inr ((RO,g),b,e,a)⌝ ∗ read_cond b e g γ interp)%I.
+    λne w, (∃ g b e a γ, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
+                                  read_cond b e g γ interp)%I.
 
   Definition interp_cap_RW (interp : D) : D :=
     λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
