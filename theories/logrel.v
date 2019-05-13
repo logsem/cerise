@@ -18,32 +18,21 @@ Section logrel.
   (* capability conditions *)
   Definition read_cond (b e : Addr) (g : Locality) (γ : gname) (interp : D) : iProp Σ := 
     match g with
-    | Local =>
-      (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-         □ (∀ q:Qp, own γ q -∗
-                inv_cap T (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
-                        (logN .@ (b',e')) γ))%I
-    | Global =>
-      (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-                inv_cap P (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
-                        (logN .@ (b',e')) γ)%I
+    | Local => inv_cap T (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                        (logN .@ (b,e)) γ
+    | Global => inv_cap P (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
+                        (logN .@ (b,e)) γ
   end.
 
   Definition write_cond b e (g : Locality) (γ : gname) (interp : D) φ : iProp Σ := 
     match g with
-    | Local =>
-      (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-         □ (∀ q:Qp, own γ q -∗
-            inv_cap T (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
-                    (logN .@ (b',e')) γ))%I
-    | Global =>
-      (∃ b' e', {[ b, e ]} ⊂ₐ {[ b', e' ]} ∧
-            inv_cap P (∃ ws, {[ b', e' ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I
-                    (logN .@ (b',e')) γ)%I
+    | Local => inv_cap T (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I (logN .@ (b,e)) γ
+    | Global => inv_cap P (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I (logN .@ (b,e)) γ
   end.
 
-  (* note that we pick the right interp_expr given g to distinguish between *)
-  (* private and future world *)
+  (* we distinguish between private and public future world by discarding all inv keys *)
+  (* in the public future world case. In other words, public future worlds may not     *)
+  (* depend on currently available temporary invariants *)
   Definition exec_cond b e g (P : list Perm) (interp_expr : D) : iProp Σ :=
     match g with
     | Local =>
@@ -56,11 +45,10 @@ Section logrel.
                     ▷ interp_expr (inr ((p,g),b', e',a)))%I
     end. 
     
-
   Definition enter_cond b e a g (interp_expr : D) : iProp Σ :=
     match g with
     | Local => (▷ interp_expr (inr ((RX,g),b,e,a)))%I
-    | Global => (□ ▷ interp_expr (inr ((RX,g),b,e,a)))%I
+    | Global => (□ ▷ interp_expr (inr ((RX,g),b,e,a)))%I 
     end.
   
   (* interp definitions *)
@@ -71,15 +59,16 @@ Section logrel.
   Definition interp_conf (conf : Reg * Mem) : iProp Σ :=
     (registers_mapsto conf.1 -∗ WP Seq (Instr Executable) {{ λne v, ∃ r, registers_mapsto r }})%I.
 
-  (* For public future worlds, all "keys" to cancellable invariants should be *)
-  (* discarded, for private future worlds, we wish to keep them. Since keys are *)
-  (* non duplicable, this could be done via □ in the former. *)
-  (* Definition interp_expr_global (interp : D) : D := *)
-  (*   λne w, (□ ∀ r m, interp_reg interp r -∗ *)
-  (*                               interp_conf (update_reg (r,m) PC w))%I. *)
+  (* a PC is in the expression relation if we can execute the configuration with that PC.
+     If the permission of the PC is local, the relation requires a key to use the 
+     local region. *)
   Definition interp_expr (interp : D) : D :=
     λne w, (∀ r m, interp_reg interp r -∗
-                                interp_conf (update_reg (r,m) PC w))%I.
+             ∃ p g b e a, ⌜w = (inr ((p,g),b,e,a))⌝ ∧
+               match g with
+               | Local => ∃ γ, own γ 1%Qp -∗ interp_conf (update_reg (r,m) PC w)
+               | Global => interp_conf (update_reg (r,m) PC w)
+               end)%I. 
   
   Definition interp_z : D := λne w, ⌜∃ z, w = inl z⌝%I.
   
@@ -131,11 +120,11 @@ Section logrel.
 
   (* this takes very long to compile! *)
   Global Instance interp1_contractive : Contractive (interp1).
-  Proof. Admitted. 
+  Proof. Admitted.
     (* rewrite /interp1 /interp_cap_RO /interp_cap_RW /interp_cap_RWL *)
-  (*           /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX. *)
-  (*   rewrite /read_cond /write_cond /enter_cond /exec_cond. *)
-  (*   solve_contractive. *)
+    (*         /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX. *)
+    (* rewrite /read_cond /write_cond /enter_cond /exec_cond. *)
+    (* solve_contractive. *)
   (* Qed. *)
    
   Lemma fixpoint_interp1_eq (x : leibnizC Word) :
