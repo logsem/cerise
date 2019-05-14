@@ -27,6 +27,18 @@ Section region.
     ([∗ list] k↦y1;y2 ∈ (region_addrs b e (region_size b e));take (region_size b e) ws,
                                                              y1 ↦ₐ y2)%I. 
 
+  Lemma extract_from_region b e a ws φ : 
+    (b <= a ∧ a <= e)%a →
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+     (∃ al w ah, (⌜(a + (-1) = Some al)%a⌝ ∨ ⌜a = al⌝)%I ∧
+                 (⌜(a + 1 = Some ah)%a⌝ ∨ ⌜a = ah⌝)
+        ∗ region_mapsto b al (take (region_size b al) ws)
+        ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w) 
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ region_mapsto ah e (drop (region_size b a) ws)
+        ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w))%I.
+  Proof. Admitted.  
+  
   Lemma extract_from_region' b e a al ws φ :  
     (b <= a ∧ a <= e)%a →
     (a + -1)%a = Some al →
@@ -41,17 +53,17 @@ Section region.
           end))%I.
   Proof. Admitted. 
 
-  Lemma extract_from_region b e a al ah ws φ :  
-    (b <= a ∧ a <= e)%a →
-    (a + (Zneg 1))%a = Some al →
-    (a + (Zpos 1))%a = Some ah →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)  ⊣⊢
-     (∃ w, region_mapsto b al (take (region_size b al) ws)
-        ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w) 
-        ∗ a ↦ₐ w ∗ φ w
-        ∗ region_mapsto ah e (drop (region_size b a) ws)
-        ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w)))%I.
-  Proof. Admitted. 
+  (* Lemma extract_from_region b e a al ah ws φ :   *)
+  (*   (b <= a ∧ a <= e)%a → *)
+  (*   (a + (Zneg 1))%a = Some al → *)
+  (*   (a + (Zpos 1))%a = Some ah → *)
+  (*   (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)  ⊣⊢ *)
+  (*    (∃ w, region_mapsto b al (take (region_size b al) ws) *)
+  (*       ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w)  *)
+  (*       ∗ a ↦ₐ w ∗ φ w *)
+  (*       ∗ region_mapsto ah e (drop (region_size b a) ws) *)
+  (*       ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w)))%I. *)
+  (* Proof. Admitted.  *)
 
   Lemma extract_from_listmap ws w n (φ : Word → iProp Σ) :
     n ≤ length ws →

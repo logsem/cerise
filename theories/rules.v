@@ -133,16 +133,6 @@ Section cap_lang_rules.
  (* --------------------------------------------------------------------------------- *)
  (* -------------------------------- SUCCESS RULES ---------------------------------- *)
 
-  (* Lemma wp_load E l q v : *)
-  (* {{{ ▷ l ↦{q} v }}} Load (Loc l) @ E {{{ RET v; l ↦{q} v }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto. *)
-  (*   iIntros (σ1 ???) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?. *)
-  (*   iSplit; first by eauto. *)
-  (*   iNext; iIntros (v2 σ2 efs Hstep); inv_head_step. *)
-  (*   iModIntro; iSplit=> //. iFrame. by iApply "HΦ". *)
-  (* Qed. *)
-
   Lemma wp_load_success E r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a' :
     cap_lang.decode w = Load r1 r2 →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →

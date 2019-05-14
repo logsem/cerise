@@ -1,6 +1,7 @@
 From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
+From stdpp Require Import base. 
 
 Section fundamental.
   Context `{memG Σ, regG Σ, inG Σ frac.fracR}.
@@ -42,6 +43,7 @@ Section fundamental.
     by apply (Qp_not_plus_q_ge_1 q). 
   Qed.
 
+  Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl). 
 
   Lemma fundamental_RX_global b e γ (a : Addr) :
     (read_cond b e Global γ interp -∗
@@ -55,14 +57,13 @@ Section fundamental.
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr ((RX,Global),b,e,a)))). 
     - (* Correct PC *)
-      iInv (logN.@(b, e)) as (ws) "HregionHvalid" "Hcls".
-      destruct (incr_addr_neg a (-1) ltac:(omega)) as [a1 X].
-      iDestruct (extract_from_region _ _ a with "HregionHvalid")
-        as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)".
+      assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
-      { exact X. }
-      { admit. } (* a + -1 and a + 1 are some addresses *)
+      iInv (logN.@(b, e)) as (ws) "HregionHvalid" "Hcls".     
+      iDestruct (extract_from_region _ _ a with "HregionHvalid")
+       as (al w ah) "(Hal & Hah & Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
+        auto. 
       iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC
                            (inr (RX, Global, b, e, a))
                    with "[Hmreg]") as "[HPC HPCmap]";
@@ -94,7 +95,8 @@ Section fundamental.
                                 -∗ ∃ r0 : Reg, registers_mapsto r0)%I as "Htrivial".
           { iIntros (_) "Hreg". iFrame. } iFrame. 
           iApply "Hcls". iNext.
-          iExists (drop (region_size b a) ws). iFrame.
+          iExists (ws). iApply (extract_from_region _ _ a); auto. 
+          iExists al, w, ah. iFrame.
       + admit. (* Store *)
       + admit. (* Lt *)
       + admit. (* Add *)
