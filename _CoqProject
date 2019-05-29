@@ -5,3 +5,4 @@ theories/lang.v
 theories/logrel.v
 theories/region.v
 theories/addr_reg.v
+theories/sts.v

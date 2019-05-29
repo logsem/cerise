@@ -108,11 +108,11 @@ Section region.
   
 End region.
 
-Global Notation "{[ b , e ]} ↦ₐ {[ ws ]}" := (region_mapsto b e ws)
-            (at level 50, format "{[ b , e ]} ↦ₐ {[ ws ]}") : bi_scope.
+Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
 
-Global Notation "{[ b , e ]} ⊂ₐ {[ b' , e' ]}" := (included b e b' e')
-            (at level 50, format "{[ b , e ]} ⊂ₐ {[ b' , e' ]}") : bi_scope.
+Global Notation "[[ b , e ]] ⊂ₐ [[ b' , e' ]]" := (included b e b' e')
+            (at level 50, format "[[ b , e ]] ⊂ₐ [[ b' , e' ]]") : bi_scope.
 
-Global Notation "a ∈ₐ {[ b , e ]}" := (in_range a b e)
-            (at level 50, format "a ∈ₐ {[ b , e ]}") : bi_scope.
+Global Notation "a ∈ₐ [[ b , e ]]" := (in_range a b e)
+            (at level 50, format "a ∈ₐ [[ b , e ]]") : bi_scope.

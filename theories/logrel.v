@@ -1,12 +1,12 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
-From cap_machine Require Export lang rules region.
+From cap_machine Require Export lang rules region sts.
 From iris.algebra Require Import list frac excl.
 Import uPred.
 
 (** interp : is a unary logical relation. *)
 Section logrel.
-  Context `{memG Σ, regG Σ, inG Σ fracR}.
+  Context `{memG Σ, regG Σ, STSG Σ}.
   Notation D := ((leibnizC Word) -n> iProp Σ).
   Notation R := ((leibnizC Reg) -n> iProp Σ). 
   Implicit Types w : (leibnizC Word).
@@ -15,94 +15,76 @@ Section logrel.
   Definition registers_mapsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
-  (* capability conditions *)
-  Definition read_cond (b e : Addr) (g : Locality) (γ : gname) (interp : D) : iProp Σ := 
-    match g with
-    | Local => inv_cap T (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
-                        (logN .@ (b,e)) γ
-    | Global => inv_cap P (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, interp w)%I
-                        (logN .@ (b,e)) γ
-  end.
+  Definition read_only_cond b e ws (interp : D) := 
+    ([[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, interp w)%I.
 
-  Definition write_cond b e (g : Locality) (γ : gname) (interp : D) φ : iProp Σ := 
-    match g with
-    | Local => inv_cap T (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I (logN .@ (b,e)) γ
-    | Global => inv_cap P (∃ ws, {[ b, e ]} ↦ₐ {[ ws ]} ∗ [∗ list] w ∈ ws, φ w ∗ interp w)%I (logN .@ (b,e)) γ
-  end.
+  Definition read_write_cond b e (interp : D) := 
+    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, (interp w ∗ ⌜isLocalWord w = false⌝))%I.
 
-  (* we distinguish between private and public future world by discarding all inv keys *)
-  (* in the public future world case. In other words, public future worlds may not     *)
-  (* depend on currently available temporary invariants *)
+  Definition read_write_local_cond b e (interp : D) := 
+    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, interp w)%I. 
+  
   Definition exec_cond b e g (P : list Perm) (interp_expr : D) : iProp Σ :=
-    match g with
-    | Local =>
-      (∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧
-                    a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
-                    ▷ interp_expr (inr ((p,g),b', e',a)))%I
-    | Global =>
-      (□ ∀ a b' e' p, {[ b', e' ]} ⊂ₐ {[ b, e ]} ∧
-                      a ∈ₐ {[ b' , e' ]} ∧ ⌜In p P⌝ ∧
-                    ▷ interp_expr (inr ((p,g),b', e',a)))%I
-    end. 
+    (∀ a b' e' p, [[ b', e' ]] ⊂ₐ [[ b, e ]] ∧
+                  a ∈ₐ [[ b' , e' ]] ∧
+                  (⌜In p P⌝ → ▷ interp_expr (inr ((p,g),b', e',a))))%I. 
     
   Definition enter_cond b e a g (interp_expr : D) : iProp Σ :=
-    match g with
-    | Local => (▷ interp_expr (inr ((RX,g),b,e,a)))%I
-    | Global => (□ ▷ interp_expr (inr ((RX,g),b,e,a)))%I 
-    end.
+    (▷ interp_expr (inr ((RX,g),b,e,a)))%I. 
   
   (* interp definitions *)
   Definition interp_reg (interp : D) : R :=
-    λne (reg : leibnizC Reg), (∀ (r : RegName), ⌜r ≠ PC⌝ →
-              ⌜is_Some (reg !! r)⌝ ∧ interp (reg !r! r))%I. 
+    λne (reg : leibnizC Reg), (∀ (r : RegName),
+              ⌜is_Some (reg !! r)⌝ ∧ (⌜r ≠ PC⌝ → interp (reg !r! r)))%I. 
 
-  Definition interp_conf (conf : Reg * Mem) : iProp Σ :=
-    (registers_mapsto conf.1 -∗ WP Seq (Instr Executable) {{ λne v, ∃ r, registers_mapsto r }})%I.
+  Definition interp_conf (conf : Reg * Mem) fs fr : iProp Σ :=
+    (WP Seq (Instr Executable) {{ λne v, ∃ r fs' fr', registers_mapsto r ∗
+                                ⌜related_sts fs fs' fr fr'⌝ ∗ sts_full fs' fr' }})%I.
 
-  (* a PC is in the expression relation if we can execute the configuration with that PC.
-     If the permission of the PC is local, the relation requires a key to use the 
-     local region. *)
+  (* Public future world relation is baked into the definition of interp. 
+     After execution, the given state of the STS must respect the future world relation
+     given by related_sts. Internally (i.e. when proving WP), the STS may go through 
+     arbitrary change: that is it may go through private state transitions *)
   Definition interp_expr (interp : D) : D :=
-    λne w, (∀ r m, interp_reg interp r -∗
-             ∃ p g b e a, ⌜w = (inr ((p,g),b,e,a))⌝ ∧
-               match g with
-               | Local => ∃ γ, own γ 1%Qp -∗ interp_conf (update_reg (r,m) PC w)
-               | Global => interp_conf (update_reg (r,m) PC w)
-               end)%I. 
-  
+    λne w, (∀ r m fs fr, interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r)
+                                    ∗ sts_full fs fr →
+                  ∃ p g b e a, ⌜w = (inr ((p,g),b,e,a))⌝ ∧
+                               interp_conf (update_reg (r,m) PC w) fs fr)%I. 
+              
   Definition interp_z : D := λne w, ⌜∃ z, w = inl z⌝%I.
   
   Definition interp_cap_O : D := λne w, True%I.
 
   Definition interp_cap_RO (interp : D) : D :=
-    λne w, (∃ g b e a γ, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
-                                  read_cond b e g γ interp)%I.
-
+    λne w, (∃ g b e a ws, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_only_cond b e ws interp))%I.
+  
   Definition interp_cap_RW (interp : D) : D :=
-    λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-                          ∗ write_cond b e g γ interp (λne w, ⌜isLocalWord w = false⌝))%I.
+    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_write_cond b e interp))%I.
 
   Definition interp_cap_RWL (interp : D) : D :=
-    λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-                                    ∗ write_cond b e g γ interp (λne w, True))%I.
-
+    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_write_local_cond b e interp))%I.
+           
   Definition interp_cap_RX (interp : D) : D :=
-    λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-      ∗ exec_cond b e g [RX] (interp_expr interp))%I.  
+    λne w, (∃ p g b e a ws, ⌜w = inr ((p,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_only_cond b e ws interp)            
+            ∗ □ exec_cond b e g [RX] (interp_expr interp))%I.  
 
   Definition interp_cap_E (interp : D) : D :=
     λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝
-      ∗ enter_cond b e a g (interp_expr interp))%I.
+            ∗ □ enter_cond b e a g (interp_expr interp))%I.
 
   Definition interp_cap_RWX (interp : D) : D :=
-    λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-                          ∗ write_cond b e g γ interp (λne w, ⌜isLocalWord w = false⌝)
-                          ∗ exec_cond b e g [RWX;RX] (interp_expr interp))%I.
+    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_write_cond b e interp)
+            ∗ □ exec_cond b e g [RWX;RX] (interp_expr interp))%I.
 
   Definition interp_cap_RWLX (interp : D) : D :=
-    λne w, (∃ p g b e a γ, ⌜w = inr ((p,g),b,e,a)⌝ ∗ read_cond b e g γ interp
-                          ∗ write_cond b e g γ interp (λne w, True)
-                          ∗ exec_cond b e g [RWX;RX;RWLX] (interp_expr interp))%I.
+    λne w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
+            inv (logN .@ (b,e)) (read_write_local_cond b e interp)  
+            ∗ □ exec_cond b e g [RWX;RX;RWLX] (interp_expr interp))%I.
   
   Definition interp1 (interp : D) : D :=
     λne w,
@@ -122,9 +104,9 @@ Section logrel.
   Global Instance interp1_contractive : Contractive (interp1).
   Proof. Admitted.
     (* rewrite /interp1 /interp_cap_RO /interp_cap_RW /interp_cap_RWL *)
-    (*         /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX. *)
-    (* rewrite /read_cond /write_cond /enter_cond /exec_cond. *)
-    (* solve_contractive. *)
+  (*           /interp_cap_RX /interp_cap_E /interp_cap_RWX /interp_cap_RWLX. *)
+  (*   rewrite /read_only_cond /read_write_cond /read_write_local_cond /enter_cond /exec_cond. *)
+  (*   solve_contractive. *)
   (* Qed. *)
    
   Lemma fixpoint_interp1_eq (x : leibnizC Word) :
@@ -135,11 +117,32 @@ Section logrel.
   Program Definition interp_expression : D := interp_expr interp.
   Program Definition interp_registers : R := interp_reg interp.
 
-  Global Instance read_cond_persistent : Persistent (read_cond a e g γ interp).
-  Proof. intros. rewrite /read_cond. destruct g; apply _. Qed. 
+  Global Instance interp_persistent : Persistent (interp w).
+  Proof. intros. destruct w; simpl; rewrite fixpoint_interp1_eq; simpl. 
+         apply _.
+         destruct c,p,p,p,p; repeat (apply exist_persistent; intros); try apply _;
+           destruct x0; try apply _. 
+  Qed. 
 
-  Global Instance write_cond_persistent : Persistent (write_cond a e g γ interp Φ).
-  Proof. intros. rewrite /read_cond. destruct g; apply _. Qed. 
+  Lemma read_allowed_inv p g b e a :
+    readAllowed p → (interp (inr ((p,g),b,e,a)) →
+                     (∃ ws, inv (logN .@ (b,e)) (read_only_cond b e ws interp)) ∨
+                     inv (logN .@ (b,e)) (read_write_cond b e interp) ∨
+                     inv (logN .@ (b,e)) (read_write_local_cond b e interp))%I.
+  Proof.
+    iIntros (Ra) "Hinterp".
+    rewrite /interp. cbn.
+    destruct p; cbn; try contradiction; rewrite fixpoint_interp1_eq /=;
+     [iDestruct "Hinterp" as (g0 b0 e0 a0 ws) "[% Hinterpr]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% Hinterprw]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% Hinterprwl]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0 ws) "[% [Hinterpr Hinterpe]]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [Hinterprw Hinterpe]]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [Hinterprwl Hinterpe]]" ];
+    inversion H2; subst;
+      [iLeft|iRight;iLeft|iRight;iRight|iLeft|iRight;iLeft|iRight;iRight]; 
+      try iExists ws; iFrame. 
+  Qed.
   
 End logrel.
 

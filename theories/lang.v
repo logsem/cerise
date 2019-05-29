@@ -87,13 +87,13 @@ Module cap_lang.
 
   Axiom encode: instr -> Word.
 
-  Hypothesis decode_encode_inv:
+  Global Axiom decode_encode_inv:
     forall i, decode (encode i) = i.
 
-  Hypothesis decode_cap_fail:
+  Global Axiom decode_cap_fail:
     forall c, decode (inr c) = Fail.
 
-  Hypothesis encode_decode_not_fail:
+  Global Axiom encode_decode_not_fail:
     forall w, decode w <> Fail ->
          encode (decode w) = w.
 
@@ -139,6 +139,20 @@ Module cap_lang.
     | _ => false
     end.
 
+  Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a : 
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a).
+  Proof.
+    intros. inversion H; subst. 
+    - destruct H2. apply andb_prop_intro. split. 
+      + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
+      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; omega.
+    - apply andb_prop_intro. split. 
+      + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
+      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
+        destruct pc_a; simpl. by apply Z.leb_le.
+  Qed. 
+        
   Definition updatePcPerm (w: Word): Word :=
     match w with
     | inr ((E, g), b, e, a) => inr ((RX, g), b, e, a)
