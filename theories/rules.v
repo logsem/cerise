@@ -818,7 +818,7 @@ Section cap_lang_rules.
       ~ isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
       {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) }}}
         Instr Executable @ E
-        {{{ RET FailedV; True }}}.
+        {{{ RET FailedV; PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) }}}.
   Proof.
     intros until 0. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
@@ -840,7 +840,7 @@ Section cap_lang_rules.
       iIntros (e1 σ2 efs Hstep).
       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
       iFrame. iNext.
-      iModIntro. iSplitR; auto. by iApply "Hϕ".
+      iModIntro. iSplitR; auto. iApply "Hϕ". iFrame. 
   Qed.
 
    Lemma wp_load_fail1 E r1 r2 pc_p pc_g pc_b pc_e pc_a w p g b e a :

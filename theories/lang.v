@@ -151,6 +151,14 @@ Module cap_lang.
       + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
       + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
         destruct pc_a; simpl. by apply Z.leb_le.
+  Qed.
+
+  Lemma not_isCorrectPC_perm p g b e a :
+    p ≠ RX ∧ p ≠ RWX ∧ p ≠ RWLX → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+  Proof.
+    intros (Hrx & Hrwx & Hrwlx).
+    intros Hvpc. inversion Hvpc;
+      destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
   Qed. 
         
   Definition updatePcPerm (w: Word): Word :=
