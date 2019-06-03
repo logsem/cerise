@@ -348,7 +348,7 @@ Section region.
       + simpl in H1. eapply IHl; eauto.
   Qed.
 
-  Lemma extract_from_region' b e a ws φ : 
+  Lemma extract_from_region b e a ws φ : 
     let al := (get_addr_from_option_addr (a + (-1))%a) in
     let n := length (region_addrs b al) in
     (b <= a ∧ a <= e)%a →
@@ -399,52 +399,7 @@ Section region.
         iDestruct "AB" as "%".
         rewrite H4. auto.
   Qed.
-
-
-  Lemma extract_from_region b e a ws φ : 
-    (b <= a ∧ a <= e)%a →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
-     (∃ al w ah, (⌜(a + (-1) = Some al)%a⌝ ∨ ⌜a = al⌝)%I ∧
-                 (⌜(a + 1 = Some ah)%a⌝ ∨ ⌜a = ah⌝)
-        ∗ region_mapsto b al (take (region_size b al) ws)
-        ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w) 
-        ∗ a ↦ₐ w ∗ φ w
-        ∗ region_mapsto ah e (drop (region_size b a) ws)
-        ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w))%I.
-  Proof.
-  Admitted.
     
-  (* Lemma extract_from_region b e a al ah ws φ :   *)
-  (*   (b <= a ∧ a <= e)%a → *)
-  (*   (a + (Zneg 1))%a = Some al → *)
-  (*   (a + (Zpos 1))%a = Some ah → *)
-  (*   (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)  ⊣⊢ *)
-  (*    (∃ w, region_mapsto b al (take (region_size b al) ws) *)
-  (*       ∗ ([∗ list] w ∈ (take (region_size b al) ws), φ w)  *)
-  (*       ∗ a ↦ₐ w ∗ φ w *)
-  (*       ∗ region_mapsto ah e (drop (region_size b a) ws) *)
-  (*       ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w)))%I. *)
-  (* Proof. Admitted.  *)
-
-  Lemma extract_from_listmap ws w n (φ : Word → iProp Σ) :
-    n ≤ length ws →
-    ws !! n = Some w →
-    (([∗ list] w ∈ ws, φ w) ⊣⊢
-       ([∗ list] w ∈ take (n - 1) ws, φ w)
-        ∗ φ w
-        ∗ ([∗ list] w ∈ drop n ws, φ w))%I.
-  Proof. Admitted. 
-
-  Lemma extract_from_region_exists b e a al ah φ :
-    (b <= a ∧ a <= e)%a →
-    (a + (Zneg 1))%a = Some al →
-    (a + (Zpos 1))%a = Some ah →
-    ((∃ ws, region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
-     ((∃ ws1, region_mapsto b al ws1 ∗ ([∗ list] w ∈ ws1, φ w)) 
-        ∗ (∃ w, a ↦ₐ w ∗ φ w) 
-        ∗ (∃ ws2, region_mapsto ah e ws2 ∗ ([∗ list] w ∈ ws2, φ w))))%I.
-  Proof. Admitted.
-
   Lemma in_range_is_correctPC p l b e a b' e' :
     isCorrectPC (inr ((p,l),b,e,a)) →
     (b' <= b)%a ∧ (e <= e')%a →

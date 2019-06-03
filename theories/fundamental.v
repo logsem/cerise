@@ -79,9 +79,7 @@ Section fundamental.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iInv (logN.@(b, e)) as "Hregion" "Hcls".      
-      iDestruct (extract_from_region _ _ a with "Hregion")
-        as (al w ah) "(Hal & Hah & Hregionl & Hvalidl & >Ha & #Hva & Hregionh & Hvalidh)";
-        auto.
+      iDestruct (extract_from_region _ _ a with "Hregion") as (w) "(Heqws & Hregionl & Hvalidl & >Ha & #Hva & Hh)"; auto.
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
         first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
@@ -96,8 +94,8 @@ Section fundamental.
           iApply wp_pure_step_later; auto.
           iApply wp_value.
           iDestruct (extract_from_region _ _ a with
-               "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-          { iExists al,w,ah. iFrame. iExact "Hva". }
+               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+          { iExists w. iFrame. iExact "Hva". }
           iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite insert_insert.
@@ -118,8 +116,8 @@ Section fundamental.
             iNext. iIntros "[HPC [Ha Hsrc]] /=".
             iApply wp_pure_step_later; auto. iApply wp_value.
             iDestruct (extract_from_region _ _ a with
-                 "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-            { iExists al,w,ah. iFrame. iExact "Hva". }
+               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+            { iExists w. iFrame. iExact "Hva". }
             iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
             apply lookup_insert. rewrite delete_insert_delete. iFrame.
             rewrite -delete_insert_ne; auto.
@@ -142,17 +140,17 @@ Section fundamental.
               iApply wp_pure_step_later; auto.
               iApply wp_value.
               iDestruct (extract_from_region _ _ a with
-                 "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-            { iExists al,w,ah. iFrame. iExact "Hva". }
-            iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
-            apply lookup_insert. rewrite delete_insert_delete. iFrame.
-            rewrite -delete_insert_ne; auto.
-            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-            apply lookup_insert. rewrite delete_insert_delete. iFrame.
-            iExists _,fs,fr. iFrame.
-            iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-            { iPureIntro. apply related_sts_refl. }
-            iFrame "#". iApply "Hcls". iNext. iFrame. 
+               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              { iExists w. iFrame. iExact "Hva". }
+              iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
+              apply lookup_insert. rewrite delete_insert_delete. iFrame.
+              rewrite -delete_insert_ne; auto.
+              iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+              apply lookup_insert. rewrite delete_insert_delete. iFrame.
+              iExists _,fs,fr. iFrame.
+              iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+              { iPureIntro. apply related_sts_refl. }
+              iFrame "#". iApply "Hcls". iNext. iFrame. 
           }
           (* readAllowed p && withinBounds ((p,l),a2,a1,a0) *)
           apply (not_false_is_true (_ && _)),Is_true_eq_left,andb_prop_elim in n0
@@ -183,8 +181,8 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 iApply wp_value.
                 iDestruct (extract_from_region _ _ a with
-                  "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-                { iExists al,w,ah. iFrame. iExact "Hva". }
+                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                { iExists w. iFrame. iExact "Hva". }
                 iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
                 rewrite -delete_insert_ne; auto.
@@ -209,8 +207,8 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 iApply wp_value.
                 iDestruct (extract_from_region _ _ a with
-                  "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-                { iExists al,w,ah. iFrame. iExact "Hva". }
+                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                { iExists w. iFrame. iExact "Hva". }
                 iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
                 rewrite -delete_insert_ne; auto.
@@ -230,8 +228,8 @@ Section fundamental.
               iApply wp_pure_step_later; auto.
               (* recontruct regions *)
               iDestruct (extract_from_region _ _ a with
-                "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-              { iExists al,w,ah. iFrame. iExact "Hva". }
+                             "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              { iExists w. iFrame. iExact "Hva". }
               (* We want to apply the IH on the updated r, however the PC has now 
                  changed region entirely! We have four cases: either the permission 
                  of the updated PC is valid: i.e. RX (IH), RWX (second lemma), 
@@ -350,47 +348,38 @@ Section fundamental.
           { iDestruct "Hro" as (ws0) "Hinv0".
             (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hro_cond" "Hcls'";[admit|].
-            iDestruct (extract_from_region _ _ a0 with "Hro_cond")
-            as (a0l w0 a0h)
-            "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hro_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iApply (extract_from_region _ _ a0);
               first (split; by apply Z.leb_le,Is_true_eq_true).
-            iFrame. iExists a0l, _, a0h. iFrame. iExact "Hva0".
+            iFrame. iExists _. iFrame. iExact "Hva0".
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hrw_cond" "Hcls'";[admit|].
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond". 
-            iDestruct (extract_from_region _ _ a0 with "Hrw_cond")
-            as (a0l w0 a0h)
-     "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iDestruct (extract_from_region _ _ a0 with
-                "[Ha0l Ha0h Hregion0l Hvalid0l Hregion0h Hvalid0h Ha0]") as "Hregion0".
+                "[Heqws Hregion0l Hvalid0l Hh0 Ha0]") as "Hregion0".
             { split; apply Z.leb_le,Is_true_eq_true; eauto. }
-            { iExists a0l,_,a0h. iFrame. iFrame "#". }
+            { iExists _. iFrame. iFrame "#". }
             iExists ws0. iFrame.
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hrw_cond" "Hcls'";[admit|].
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond". 
-            iDestruct (extract_from_region _ _ a0 with "Hrw_cond")
-            as (a0l w0 a0h)
-            "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iDestruct (extract_from_region _ _ a0 with
-                "[Ha0l Ha0h Hregion0l Hvalid0l Hregion0h Hvalid0h Ha0]") as "Hregion0".
+                "[Heqws Hregion0l Hvalid0l Hh0 Ha0]") as "Hregion0".
             { split; apply Z.leb_le,Is_true_eq_true; eauto. }
-            { iExists a0l,_,a0h. iFrame. iFrame "#". }
+            { iExists _. iFrame. iFrame "#". }
             iExists ws0. iFrame. }
         * iDestruct (extract_lookup_reg r dst with "Hreg") as "%".
           destruct H2 as [wdst Hsomedst]. 
@@ -409,10 +398,8 @@ Section fundamental.
               iFrame "#".
               iApply "Hcls".
               iDestruct (extract_from_region _ _ a with
-                  "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-              iExists _,_,_. iFrame. iDestruct "Hah" as "%".
-              destruct H2 as [Hcontr | ->]; try congruence.
-              iFrame "#". iRight. done. }
+                  "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              iExists _. iFrame. rewrite Ha'. iFrame. iExact "Hva". }
             (* if PC can be incremented, load succeeds ==> apply IH *)
             iApply (wp_load_success_fromPC with "[HPC Hdst Ha]"); eauto.
             iFrame.
@@ -443,8 +430,8 @@ Section fundamental.
             (* reestablish invariants *)
             iApply "Hcls"; iFrame.
             iDestruct (extract_from_region _ _ a with
-                 "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-            iExists _,_,_; rewrite Ha'; iFrame. iExact "Hva".
+                           "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+            iExists _. iFrame. rewrite Ha'. iFrame. iExact "Hva". 
         * iDestruct (extract_lookup_reg r src with "Hreg") as "%".
           destruct H2 as [wsrc Hsomesrc].
           assert ((delete PC r !! src) = Some wsrc) as Hsomesrc'.
@@ -457,8 +444,8 @@ Section fundamental.
             iNext. iIntros "[HPC [Ha Hsrc]] /=".
             iApply wp_pure_step_later; auto. iApply wp_value.
             iDestruct (extract_from_region _ _ a with
-                 "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-            { iExists al,w,ah. iFrame. iExact "Hva". }
+                           "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+            { iExists _. iFrame. iExact "Hva". }
             iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
             apply lookup_insert. rewrite delete_insert_delete. iFrame.
             rewrite -delete_insert_ne; auto.
@@ -481,17 +468,17 @@ Section fundamental.
               iApply wp_pure_step_later; auto.
               iApply wp_value.
               iDestruct (extract_from_region _ _ a with
-                 "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-            { iExists al,w,ah. iFrame. iExact "Hva". }
-            iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
-            apply lookup_insert. rewrite delete_insert_delete. iFrame.
-            rewrite -delete_insert_ne; auto.
-            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-            apply lookup_insert. rewrite delete_insert_delete. iFrame.
-            iExists _,fs,fr. iFrame.
-            iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-            { iPureIntro. apply related_sts_refl. }
-            iFrame "#". iApply "Hcls". iNext. iFrame. 
+                             "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              { iExists _. iFrame. iExact "Hva". }
+              iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=".
+              apply lookup_insert. rewrite delete_insert_delete. iFrame.
+              rewrite -delete_insert_ne; auto.
+              iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+              apply lookup_insert. rewrite delete_insert_delete. iFrame.
+              iExists _,fs,fr. iFrame.
+              iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+              { iPureIntro. apply related_sts_refl. }
+              iFrame "#". iApply "Hcls". iNext. iFrame. 
           }
           (* readAllowed p && withinBounds ((p,l),a2,a1,a0) *)
           apply (not_false_is_true (_ && _)),Is_true_eq_left,andb_prop_elim in n1
@@ -525,8 +512,8 @@ Section fundamental.
                    { iPureIntro. apply related_sts_refl. }
                    iFrame "#". iApply "Hcls".
                    iDestruct (extract_from_region _ _ a with
-                  "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-                   iExists _,_,_; rewrite Ha'; iFrame "∗ #". iFrame.
+                                  "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                   iExists _. rewrite Ha'. iFrame "∗ #". iFrame. 
                    iApply "Hcls'". iFrame.
                  - iDestruct (extract_lookup_reg r dst with "Hreg") as "%".
                    destruct H2 as [wdst Hsomedst].
@@ -546,8 +533,8 @@ Section fundamental.
                    { iPureIntro. apply related_sts_refl. }
                    iFrame "#". iApply "Hcls".
                    iDestruct (extract_from_region _ _ a with
-                  "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-                   iExists _,_,_; rewrite Ha'; iFrame "∗ #". iFrame.
+                                  "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                   iExists _. rewrite Ha'. iFrame "∗ #". iFrame. 
                    iApply "Hcls'". iFrame.
             }
             (* two successful steps: loading to a fresh dst, and loading to src *)
@@ -582,8 +569,8 @@ Section fundamental.
               (* reestablish invariants *)
               iApply "Hcls"; iFrame.
               iDestruct (extract_from_region _ _ a with
-                "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-              iExists _,_,_; rewrite Ha'; iFrame. iExact "Hva". iFrame. 
+                             "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              iExists _. rewrite Ha'. iFrame. iExact "Hva". iFrame. 
               iApply "Hcls'". iFrame. 
             - iDestruct (extract_lookup_reg r dst with "Hreg") as "%".
               destruct H2 as [wdst Hsomedst].
@@ -634,8 +621,8 @@ Section fundamental.
               (* reestablish invariants *)
               iApply "Hcls"; iFrame.
               iDestruct (extract_from_region _ _ a with
-                "[Hal Hah Hregionl Hvalidl Hregionh Hvalidh Ha]") as "Hregion"; eauto.
-              iExists _,_,_; rewrite Ha'; iFrame. iExact "Hva". iFrame. 
+                             "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+              iExists _. rewrite Ha'. iFrame. iExact "Hva". iFrame. 
               iApply "Hcls'". iFrame. 
           }              
           (* Now the final step is to open the invariant for each possible condition *)
@@ -644,47 +631,38 @@ Section fundamental.
           { iDestruct "Hro" as (ws0) "Hinv0".
             (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hro_cond" "Hcls'";[admit|].
-            iDestruct (extract_from_region _ _ a0 with "Hro_cond")
-            as (a0l w0 a0h)
-            "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hro_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iApply (extract_from_region _ _ a0);
               first (split; by apply Z.leb_le,Is_true_eq_true).
-            iFrame. iExists a0l, _, a0h. iFrame. iExact "Hva0".
+            iFrame. iExists _. iFrame. iExact "Hva0".
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hrw_cond" "Hcls'";[admit|].
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond". 
-            iDestruct (extract_from_region _ _ a0 with "Hrw_cond")
-            as (a0l w0 a0h)
-     "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iDestruct (extract_from_region _ _ a0 with
-                "[Ha0l Ha0h Hregion0l Hvalid0l Hregion0h Hvalid0h Ha0]") as "Hregion0".
+                "[Heqws Hregion0l Hvalid0l Hh0 Ha0]") as "Hregion0".
             { split; apply Z.leb_le,Is_true_eq_true; eauto. }
-            { iExists a0l,_,a0h. iFrame. iFrame "#". }
+            { iExists _. iFrame. iFrame "#". }
             iExists ws0. iFrame.
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
             iInv (logN.@(a2, a1)) as "Hrw_cond" "Hcls'";[admit|].
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond". 
-            iDestruct (extract_from_region _ _ a0 with "Hrw_cond")
-            as (a0l w0 a0h)
-            "(Ha0l & Ha0h & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hregion0h & Hvalid0h)";
-              first (split; by apply Z.leb_le,Is_true_eq_true).
+            iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep".
             iExists w0. iFrame "Ha0 #". iIntros "Ha0".
             iApply "Hcls'". iNext.
             iDestruct (extract_from_region _ _ a0 with
-                "[Ha0l Ha0h Hregion0l Hvalid0l Hregion0h Hvalid0h Ha0]") as "Hregion0".
+                "[Heqws Hregion0l Hvalid0l Hh0 Ha0]") as "Hregion0".
             { split; apply Z.leb_le,Is_true_eq_true; eauto. }
-            { iExists a0l,_,a0h. iFrame. iFrame "#". }
+            { iExists _. iFrame. iFrame "#". }
             iExists ws0. iFrame. }
       + admit. (* Store *)
       + admit. (* Lt *)
@@ -718,7 +696,6 @@ Section fundamental.
     - iDestruct "Hinv" as (ws) "Hinv". by iApply fundamental_RX. 
     - (* read and write condition, non local *) admit. 
     - (* read and write condition, permit local *) admit. 
-Admitted. 
-          
-      
+  Admitted.
+
 End fundamental. 
