@@ -281,8 +281,6 @@ Section region.
     { simpl. auto. }
   Qed.
 
-
-
   (*Fixpoint region_addrs (b e : Addr) (n : nat) {struct n} : list Addr :=
     if (b <=? e)%a && ((region_size b e) =? n)%nat then
       match n with
@@ -303,6 +301,106 @@ Section region.
   (* Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ :=  *)
   (*   ([∗ list] k↦y1;y2 ∈ (region_addrs b e);take (region_size b e) ws, y1 ↦ₐ y2)%I.  *)
 
+  Lemma mapsto_decomposition:
+    forall l1 l2 ws1 ws2,
+      length l1 = length ws1 ->
+      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↦ₐ y2)%I ⊣⊢
+      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ y2)%I.
+  Proof.
+    induction l1; intros.
+    - iSplit; iIntros "A".
+      + simpl. destruct ws1; simpl in H1; try congruence.
+        simpl. auto.
+      + simpl. destruct ws1; simpl in H1; try congruence.
+        simpl. iDestruct "A" as "[A B]". auto.
+    - iSplit; iIntros "A".
+      + destruct ws1; simpl in H1; try congruence. inv H1.
+        simpl. iDestruct "A" as "[A B]".
+        iFrame. 
+        iApply IHl1; auto.
+      + destruct ws1; simpl in H1; try congruence. inv H1.
+        simpl. iDestruct "A" as "[A B]".
+        iFrame. 
+  Qed.
+
+  Lemma mapsto_length:
+    forall l ws,
+      ([∗ list] k ↦ y1;y2 ∈ l;ws, y1 ↦ₐ y2)%I -∗
+      ⌜length l = length ws⌝.
+  Proof.
+    induction l; intros.
+    - destruct ws; auto.
+    - destruct ws; simpl; auto.
+      iIntros "[A B]". iDestruct (IHl ws with "B") as "%".
+      iPureIntro. auto.
+  Qed.
+
+  Lemma drop_S:
+    forall A l n (a: A) l',
+      drop n l = a::l' ->
+      drop (S n) l = l'.
+  Proof.
+    induction l; intros.
+    - rewrite drop_nil in H1. inv H1.
+    - simpl. destruct n.
+      + rewrite drop_0 in H1. inv H1.
+        reflexivity.
+      + simpl in H1. eapply IHl; eauto.
+  Qed.
+
+  Lemma extract_from_region' b e a ws φ : 
+    let al := (get_addr_from_option_addr (a + (-1))%a) in
+    let n := length (region_addrs b al) in
+    (b <= a ∧ a <= e)%a →
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+     (∃ w,
+        ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
+        ∗ region_mapsto b al (take n ws)
+        ∗ ([∗ list] w ∈ (take n ws), φ w) 
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ match (a + 1)%a with
+          | Some ah => region_mapsto ah e (drop (S n) ws) ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I
+          | None => ⌜drop (S n) ws = nil⌝
+          end)%I.
+  Proof.
+    intros. iSplit.
+    - iIntros "[A B]". unfold region_mapsto.
+      iDestruct (mapsto_length with "A") as "%".
+      generalize (region_addrs_decomposition _ _ _ H1); intro HRA. rewrite HRA.
+      assert (Hlnws: n = length (take n ws)).
+      { rewrite take_length. rewrite Min.min_l; auto.
+        rewrite <- H2. rewrite HRA. rewrite app_length.
+        unfold n. unfold al. omega. }
+      generalize (take_drop n ws). intros HWS.
+      rewrite <- HWS. simpl.
+      iDestruct "B" as "[HB1 HB2]".
+      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      case_eq (drop n ws); intros.
+      + auto.
+      + iDestruct "HA2" as "[HA2 HA3]".
+        iDestruct "HB2" as "[HB2 HB3]".
+        generalize (drop_S _ _ _ _ _ H3). intros Hdws.
+        rewrite <- H3. rewrite HWS. rewrite Hdws.
+        iExists w. iFrame. rewrite <- H3. rewrite HWS.
+        destruct (a + 1)%a; auto; iFrame; auto.
+        iSplit; auto. iDestruct (mapsto_length with "HA3") as "%".
+        destruct l; simpl in H4; auto.
+    - iIntros "A". iDestruct "A" as (w) "[% [A1 [B1 [A2 [B2 AB]]]]]".
+      unfold region_mapsto. generalize (region_addrs_decomposition _ _ _ H1); intro HRA. rewrite HRA.
+      case_eq (a + 1)%a; intros; rewrite H3 in HRA.
+      + iDestruct "AB" as "[A3 B3]".
+        iSplitL "A1 A2 A3".
+        * rewrite H2. iFrame.
+          rewrite <- H2. iFrame.
+        * rewrite H2. iFrame.
+          rewrite <- H2. iFrame.
+      + rewrite H2. iFrame.
+        rewrite <- H2. iFrame.
+        iDestruct "AB" as "%".
+        rewrite H4. auto.
+  Qed.
+
+
   Lemma extract_from_region b e a ws φ : 
     (b <= a ∧ a <= e)%a →
     (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
@@ -313,7 +411,8 @@ Section region.
         ∗ a ↦ₐ w ∗ φ w
         ∗ region_mapsto ah e (drop (region_size b a) ws)
         ∗ ([∗ list] w ∈ (drop (region_size b a) ws), φ w))%I.
-  Proof. Admitted.
+  Proof.
+  Admitted.
     
   (* Lemma extract_from_region b e a al ah ws φ :   *)
   (*   (b <= a ∧ a <= e)%a → *)
