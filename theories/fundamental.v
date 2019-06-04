@@ -677,14 +677,54 @@ Section fundamental.
       + admit. (* GetB *)
       + admit. (* GetE *)
       + admit. (* GetA *)
-      + admit. (* Fail *)
-      + admit. (* Halt *)   
-    - (* Incorrect PC *) admit.
+      + (* Fail *)
+        iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iApply wp_value.
+        iDestruct (extract_from_region _ _ a with
+                       "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+        { iExists w. iFrame. iExact "Hva". }
+        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+        apply lookup_insert. rewrite delete_insert_delete. iFrame.
+        rewrite insert_insert.
+        iExists (<[PC:=inr (RX, g, b, e, a)]> r),fs,fr. iFrame.
+        iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+        { iPureIntro. apply related_sts_refl. }
+        iFrame "#". iApply "Hcls". iNext. iFrame.
+      + (* Halt *)
+        iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iApply wp_value.
+        iDestruct (extract_from_region _ _ a with
+                       "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+        { iExists w. iFrame. iExact "Hva". }
+        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+        apply lookup_insert. rewrite delete_insert_delete. iFrame.
+        rewrite insert_insert.
+        iExists (<[PC:=inr (RX, g, b, e, a)]> r),fs,fr. iFrame.
+        iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+        { iPureIntro. apply related_sts_refl. }
+        iFrame "#". iApply "Hcls". iNext. iFrame.
+   - (* Not correct PC *)
+     iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
+        first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
+      iApply (wp_notCorrectPC with "HPC"); eauto.
+      iNext. iIntros "HPC /=".
+      iApply wp_pure_step_later; auto.
+      iApply wp_value.
+      iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+      apply lookup_insert. rewrite delete_insert_delete. iFrame.
+      rewrite insert_insert.
+      iExists (<[PC:=inr (RX, g, b, e, a)]> r),fs,fr. iFrame.
+      iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+      { iPureIntro. apply related_sts_refl. }
+      iFrame "#".
   }
   { admit. }
   { admit. }
-  Admitted.
-  
+  Admitted.  
   
   Theorem fundamental (perm : Perm) b e g (a : Addr) :
     (⌜perm = RX⌝ ∧ ∃ ws, (inv (logN .@ (b,e)) (read_only_cond b e ws interp)%I)) ∨
