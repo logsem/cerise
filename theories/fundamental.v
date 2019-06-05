@@ -81,9 +81,44 @@ Section fundamental.
       iInv (logN.@(b, e)) as "Hregion" "Hcls".      
       iDestruct (extract_from_region _ _ a with "Hregion") as (w) "(Heqws & Hregionl & Hvalidl & >Ha & #Hva & Hh)"; auto.
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
-        first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
+        first apply (lookup_insert _ _ (inr (RX, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
-      + admit. (* Jmp *)
+      + (* Jmp *)
+        rewrite delete_insert_delete.
+        destruct (reg_eq_dec PC r0).
+        * subst r0.
+          iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; iFrame.
+          iNext. iIntros "[HPC Ha] /=".
+          iApply wp_pure_step_later; auto.
+          (* reconstruct regions *)
+          iDestruct (extract_from_region _ _ a with
+                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+          { iExists w. iFrame. iExact "Hva". }
+          iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+          (* apply IH *)
+          iApply ("IH" $! _ _ _ _ _ _ _ ws with "Hreg Hmap Hsts").
+          iFrame "Hinv". 
+          (* reestablish invariants *)
+          iApply "Hcls"; iFrame; iApply "Hcls'"; iFrame.
+        * iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
+          destruct H2 as [wsrc Hsomesrc].
+          iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hsrc Hmap]"; eauto.
+          rewrite (lookup_delete_ne r PC r0); eauto.
+          iApply (wp_jmp_success with "[HPC Ha Hsrc]"); eauto; iFrame.
+          iNext. iIntros "[HPC [Ha Hsrc]] /=".
+          iApply wp_pure_step_later; auto.
+          (* reconstruct regions *)
+          iDestruct (extract_from_region _ _ a with
+                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+          { iExists w. iFrame. iExact "Hva". }
+          iDestruct ((big_sepM_delete _ _ r0) with "[Hsrc Hmap]") as "Hmap /=";
+            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+          rewrite -delete_insert_ne; auto.
+          iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+          destruct (updatePcPerm wsrc) eqn:Heq; (* Same story as Load PC src*)
+          admit.
       + admit. (* Jnz *)
       + admit. (* Mov *)
       + (* Load *)

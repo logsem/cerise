@@ -359,8 +359,89 @@ Section cap_lang_rules.
        iSpecialize ("Hφ" with "[Hpc Hi Hr1]"); iFrame.  
        iModIntro. done. 
   Qed.
-  
-   Lemma wp_jmp_success E pc_p pc_g pc_b pc_e pc_a w r g b e a:
+
+  Lemma wp_jmp_success E pc_p pc_g pc_b pc_e pc_a w r w':
+     cap_lang.decode w = Jmp r →
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+     
+     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ r ↦ᵣ w' }}}
+       Instr Executable @ E
+       {{{ RET NextIV;
+           PC ↦ᵣ updatePcPerm w'
+           ∗ pc_a ↦ₐ w
+           ∗ r ↦ᵣ w' }}}.
+  Proof.
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr0 Hm]".
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
+    iDestruct (@gen_heap_valid with "Hr0 Hr") as %?.
+    option_locate_mr m r0.
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      iExists [], (Instr _), (<[PC:=updatePcPerm w']> r0, m),[].
+      iPureIntro.
+      constructor.
+      apply (step_exec_instr (r0,m) pc_p pc_g pc_b pc_e pc_a (Jmp r)
+                             (cap_lang.NextI,_)); eauto; simpl; try congruence.
+        by rewrite Hr /updatePcPerm /update_reg /=.
+    - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
+      iModIntro. iNext.
+      iIntros (e1 σ2 efs Hstep).
+      inv_head_step_advanced m r0 HPC Hpc_a Hinstr Hstep HPC.
+      rewrite Hr /=.
+      inv_head_step.
+      rewrite /update_reg /= in Hstep.
+      iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
+      iSpecialize ("Hφ" with "[HPC Hpc_a Hr]"); iFrame.
+      iModIntro. done.
+  Qed.
+
+  Lemma wp_jmp_successPC E pc_p pc_g pc_b pc_e pc_a w:
+     cap_lang.decode w = Jmp PC →
+     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+     
+     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+           ∗ ▷ pc_a ↦ₐ w }}}
+       Instr Executable @ E
+       {{{ RET NextIV;
+           PC ↦ᵣ updatePcPerm (inr ((pc_p,pc_g),pc_b,pc_e,pc_a))
+           ∗ pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr0 Hm]".
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
+    option_locate_mr m r.
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      iExists [], (Instr _), (<[PC:=updatePcPerm (inr ((pc_p,pc_g),pc_b,pc_e,pc_a))]> r, m),[].
+      iPureIntro.
+      constructor.
+      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Jmp PC)
+                             (cap_lang.NextI,_)); eauto; simpl; try congruence.
+        by rewrite HPC /updatePcPerm /update_reg /=.
+    - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
+      iModIntro. iNext.
+      iIntros (e1 σ2 efs Hstep).
+      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      rewrite HPC /=.
+      inv_head_step.
+      rewrite /update_reg /= in Hstep.
+      iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
+      iSpecialize ("Hφ" with "[HPC Hpc_a]"); iFrame.
+      iModIntro. done.
+  Qed.
+
+  (*Lemma wp_jmp_success E pc_p pc_g pc_b pc_e pc_a w r g b e a:
      cap_lang.decode w = Jmp r →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      
@@ -370,7 +451,7 @@ Section cap_lang_rules.
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ inr ((RX,g),b,e,a) }}}.
-   Proof.
+  Proof.
      iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr) Hφ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
      iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
@@ -398,7 +479,7 @@ Section cap_lang_rules.
        iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
        iSpecialize ("Hφ" with "[HPC]"); iFrame.
        iModIntro. done.
-   Qed.
+  Qed.*)
    
    Lemma wp_subseg_success E pc_p pc_g pc_b pc_e pc_a pc_a' w dst r1 r2 p g b e a n1 n2 a1 a2:
      cap_lang.decode w = Subseg dst (inr r1) (inr r2) →
@@ -950,7 +1031,7 @@ Section cap_lang_rules.
       iModIntro. iSplitR; auto. iApply "Hϕ". iFrame. 
   Qed.
 
-   Lemma wp_load_fail1 E r1 r2 pc_p pc_g pc_b pc_e pc_a w p g b e a :
+  Lemma wp_load_fail1 E r1 r2 pc_p pc_g pc_b pc_e pc_a w p g b e a :
     cap_lang.decode w = Load r1 r2 →
 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ∧
