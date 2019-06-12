@@ -709,7 +709,33 @@ Section fundamental.
       + (* IsPtr *)
         rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
-        * subst dst. (* Fail, PC points to integer at the end *) admit.
+        * subst dst.
+          iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
+          destruct H2 as [wr0 Hsomer0].
+          iAssert ((if reg_eq_dec PC r0 then ▷ PC ↦ᵣ inr (RX, g, b, e, a) else ▷ PC ↦ᵣ inr (RX, g, b, e, a) ∗ ▷ r0 ↦ᵣ wr0) ∗ (if reg_eq_dec PC r0 then [∗ map] k↦y ∈ delete PC r, k ↦ᵣ y else [∗ map] k↦y ∈ delete r0 (delete PC r), k ↦ᵣ y))%I with "[HPC Hmap]" as "[H Hmap]".
+          { destruct (reg_eq_dec PC r0); iFrame.
+            iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto.
+            rewrite (lookup_delete_ne _ PC r0); eauto. iFrame. }
+          iApply (wp_IsPtr_fail_PC with "[Ha H]"); eauto; iFrame.
+          iNext. iIntros "(H & Ha)".
+          iApply wp_pure_step_later; auto.
+          iAssert ([∗ map] k↦y ∈ <[PC:=inl (if reg_eq_dec PC r0 then 1%Z else match wr0 with inl _ => 0%Z | _ => 1%Z end)]> (if reg_eq_dec PC r0 then r else (<[r0:=wr0]> r)), k ↦ᵣ y)%I with "[H Hmap]" as "Hmap".
+          { destruct (reg_eq_dec PC r0).
+            - iDestruct ((big_sepM_delete _ _ PC) with "[H Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. iFrame.
+            - iDestruct "H" as "[H1 H2]".
+              iDestruct ((big_sepM_delete _ _ r0) with "[H2 Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+              rewrite -delete_insert_ne; auto.
+              iDestruct ((big_sepM_delete _ _ PC) with "[H1 Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. iFrame. }
+          iApply wp_value. iExists _,fs,fr. iFrame. 
+          iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+          { iPureIntro. apply related_sts_refl. } iFrame "#".
+          iApply "Hcls".
+          iDestruct (extract_from_region _ _ a with
+                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+          iExists _. iFrame "∗ #".
         * case_eq (a + 1)%a; intros.
           { destruct (reg_eq_dec PC r0).
             - subst r0.
@@ -828,7 +854,53 @@ Section fundamental.
               iFrame "Hinv". 
               (* reestablish invariants *)
               iApply "Hcls"; iFrame. }
-          { admit. (* Fail, cannot increment PC *) }
+          { iDestruct (extract_lookup_reg r dst with "Hreg") as "%".
+            destruct H3 as [wdst Hsomedst].
+            iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
+            destruct H3 as [wr0 Hsomer0].
+            iAssert ((if reg_eq_dec r0 dst then ▷ r0 ↦ᵣ wr0 else if reg_eq_dec r0 PC then ▷ dst ↦ᵣ wdst else ▷ r0 ↦ᵣ wr0 ∗ ▷ dst ↦ᵣ wdst) ∗ (if reg_eq_dec r0 dst then [∗ map] k↦y ∈ delete r0 (delete PC r), k ↦ᵣ y else if reg_eq_dec r0 PC then [∗ map] k↦y ∈ delete dst (delete PC r), k ↦ᵣ y else [∗ map] k↦y ∈ delete dst (delete r0 (delete PC r)), k ↦ᵣ y))%I with "[Hmap]" as "[H Hmap]".
+          { destruct (reg_eq_dec r0 dst).
+            - subst r0. iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hr0 Hmap]"; eauto.
+              rewrite (lookup_delete_ne _ PC dst); eauto. iFrame.
+            - destruct (reg_eq_dec r0 PC).
+              + subst r0. iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hr0 Hmap]"; eauto.
+                rewrite (lookup_delete_ne _ PC dst); eauto. iFrame.
+              + iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto.
+                rewrite (lookup_delete_ne _ PC r0); eauto. iFrame.
+                iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; eauto.
+                rewrite (lookup_delete_ne _ r0 dst); eauto. rewrite (lookup_delete_ne _ PC dst); eauto. iFrame. }
+          iApply (wp_IsPtr_fail with "[Ha HPC H]"); eauto; iFrame.
+          iNext. iIntros "(HPC & Ha & H)".
+          iApply wp_pure_step_later; auto.
+          iAssert ([∗ map] k↦y ∈ (<[PC:=inr (RX, g, b, e, a)]> (if reg_eq_dec r0 dst then <[r0:=inl match wr0 with inl _ => 0%Z | inr _ => 1%Z end]> r else (if reg_eq_dec r0 PC then <[dst:=inl 1%Z]> r else <[r0:= wr0]> (<[dst:=inl match wr0 with inl _ => 0%Z | inr _ => 1%Z end]> r)))), k ↦ᵣ y)%I with "[H HPC Hmap]" as "Hmap".
+          { destruct (reg_eq_dec r0 dst).
+            - subst dst. iDestruct ((big_sepM_delete _ _ r0) with "[H Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. 
+              rewrite -delete_insert_ne; auto.
+              iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto.
+            - destruct (reg_eq_dec r0 PC).
+              + subst r0. iDestruct ((big_sepM_delete _ _ dst) with "[H Hmap]") as "Hmap /=";
+                            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                rewrite -delete_insert_ne; auto.
+                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto.
+              + iDestruct "H" as "[H1 H2]".
+                iDestruct ((big_sepM_delete _ _ dst) with "[H2 Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                repeat rewrite -delete_insert_ne; auto.
+                iDestruct ((big_sepM_delete _ _ r0) with "[H1 Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. 
+                rewrite -delete_insert_ne; auto.
+                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto. }
+          iApply wp_value. iExists _,fs,fr. iFrame. 
+          iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
+          { iPureIntro. apply related_sts_refl. } iFrame "#".
+          iApply "Hcls".
+          iDestruct (extract_from_region _ _ a with
+                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+          iExists _. rewrite H2. iFrame "∗ #". }
       + admit. (* GetL *)
       + admit. (* GetP *)
       + admit. (* GetB *)
