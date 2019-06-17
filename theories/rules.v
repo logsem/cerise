@@ -737,7 +737,79 @@ Section cap_lang_rules.
          iModIntro. done. }
    Qed.
 
-   Lemma wp_store_success_local_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w dst src w'
+  Lemma wp_GetL_success E dst src pc_p pc_g pc_b pc_e pc_a w wdst wsrc pc_a':
+    cap_lang.decode w = GetL dst src →
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    (pc_a + 1)%a = Some pc_a' ->
+    PC <> dst ->
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+          ∗ pc_a ↦ₐ w
+          ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc)
+          ∗ (if reg_eq_dec src dst then emp else dst ↦ᵣ wdst) }}}
+      Instr Executable @ E
+    {{{ RET if reg_eq_dec PC src then NextIV else match wsrc with inr _ => NextIV | _ => FailedV end;
+        PC ↦ᵣ (if reg_eq_dec PC src then inr ((pc_p,pc_g),pc_b,pc_e,pc_a') else match wsrc with inr _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a') | inl _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a) end)
+           ∗ pc_a ↦ₐ w
+           ∗ (if reg_eq_dec PC src then emp else if reg_eq_dec src dst then emp else src ↦ᵣ wsrc)
+           ∗ dst ↦ᵣ if reg_eq_dec PC src then inl (encodeLoc pc_g) else match wsrc with | inr ((_,g'),_,_,_) => inl (encodeLoc g') | _ => if reg_eq_dec src dst then wsrc else wdst end }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpca' Hne ϕ) "(HPC & Hpc_a & Hsrc & Hdst) Hϕ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1". destruct σ1.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr HPC") as %?.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iAssert (⌜if reg_eq_dec PC src then True else r !! src = Some wsrc⌝)%I with "[Hr Hsrc]" as %?.
+    { destruct (reg_eq_dec PC src).
+      - auto.
+      - iDestruct (@gen_heap_valid with "Hr Hsrc") as %?. auto. }
+    iAssert (⌜if reg_eq_dec src dst then True else r !! dst = Some wdst⌝)%I with "[Hr Hdst]" as %?.
+    { destruct (reg_eq_dec src dst).
+      - auto.
+      - iDestruct (@gen_heap_valid with "Hr Hdst") as %?. auto. } rename H4 into X4.
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      unfold head_reducible. iExists [], (Instr _), _, [].
+      iPureIntro. constructor.
+      eapply (step_exec_instr (r, m) pc_p pc_g pc_b pc_e pc_a (GetL dst src) (exec (GetL dst src) (r, m))); eauto.
+      + simpl. unfold RegLocate. rewrite H1. auto.
+      + unfold RegLocate. rewrite H1. auto.
+      + simpl. unfold MemLocate; rewrite H2; auto.
+    - iModIntro. iNext. iIntros (e1 σ2 efs Hstep).
+      inv Hstep. inv H4.
+      + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
+      + clear H9. unfold RegLocate in H8; rewrite H1 in H8. inv H8.
+        unfold MemLocate. rewrite H2. rewrite Hinstr.
+        rewrite /exec /RegLocate.
+        destruct (reg_eq_dec PC src).
+        * subst src. rewrite H1.
+          destruct (reg_eq_dec PC dst); try contradiction.
+          rewrite /update_reg /updatePC /RegLocate /= lookup_insert_ne; auto.
+          rewrite H1 Hpca' /=.
+          iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
+          iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+          iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
+        * rewrite H3. destruct wsrc.
+          { simpl. iFrame. destruct (reg_eq_dec src dst).
+            - subst src. 
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
+            - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
+          { simpl. destruct c. destruct p0. destruct p0. destruct p0.
+            rewrite /update_reg /updatePC /RegLocate /= lookup_insert_ne; auto.
+            rewrite H1 Hpca' /=.
+            destruct (reg_eq_dec src dst).
+            - subst src.
+              iMod (@gen_heap_update with "Hr Hsrc") as "[Hr Hsrc]".
+              iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc]"); iFrame. auto.
+            - iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
+              iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
+  Qed.
+              
+  Lemma wp_store_success_local_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w dst src w'
          p g b e a p' g' b' e' a' :
      cap_lang.decode w = Store dst (inr src) →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -1073,6 +1145,125 @@ Section cap_lang_rules.
       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
       iFrame. iNext.
       iModIntro. iSplitR; auto. iApply "Hϕ". iFrame. 
+  Qed.
+
+  Lemma wp_GetL_failPC E src pc_p pc_g pc_b pc_e pc_a w wsrc:
+    cap_lang.decode w = GetL PC src →
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+          ∗ pc_a ↦ₐ w
+          ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc) }}}
+      Instr Executable @ E
+    {{{ RET FailedV;
+        PC ↦ᵣ (if reg_eq_dec PC src then inl (encodeLoc pc_g) else match wsrc with inr ((_,g'),_,_,_) => inl (encodeLoc g') | inl _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a) end)
+           ∗ pc_a ↦ₐ w
+           ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc) }}}.
+  Proof.
+    iIntros (Hinstr Hvpc ϕ) "(HPC & Hpc_a & Hsrc) Hϕ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1". destruct σ1.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr HPC") as %?.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iAssert (⌜if reg_eq_dec PC src then True else r !! src = Some wsrc⌝)%I with "[Hr Hsrc]" as %?.
+    { destruct (reg_eq_dec PC src).
+      - auto.
+      - iDestruct (@gen_heap_valid with "Hr Hsrc") as %?. auto. }
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      unfold head_reducible. iExists [], (Instr _), _, [].
+      iPureIntro. constructor.
+      eapply (step_exec_instr (r, m) pc_p pc_g pc_b pc_e pc_a (GetL PC src) (exec (GetL PC src) (r, m))); eauto.
+      + simpl. unfold RegLocate. rewrite H1. auto.
+      + unfold RegLocate. rewrite H1. auto.
+      + simpl. unfold MemLocate; rewrite H2; auto.
+    - iModIntro. iNext. iIntros (e1 σ2 efs Hstep).
+      inv Hstep. inv H4.
+      + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
+      + clear H9. rewrite /RegLocate H1 in H8. inv H8.
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
+        destruct (reg_eq_dec PC src).
+        * subst src. rewrite H1.
+          rewrite /update_reg /updatePC /RegLocate /= lookup_insert; auto.
+          iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+          iSpecialize ("Hϕ" with "[HPC Hpc_a]"); iFrame. auto.
+        * rewrite H3. destruct wsrc.
+          { simpl. iFrame.
+            iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc ]"); iFrame. auto. }
+          { simpl. destruct c, p0, p0, p0.
+            rewrite /update_reg /updatePC /RegLocate /= lookup_insert; auto.
+              iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc]"); iFrame. auto. }
+  Qed.
+
+Lemma wp_GetL_fail E dst src pc_p pc_g pc_b pc_e pc_a w wdst wsrc:
+    cap_lang.decode w = GetL dst src →
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    (pc_a + 1)%a = None ->
+    PC <> dst ->
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+          ∗ pc_a ↦ₐ w
+          ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc)
+          ∗ (if reg_eq_dec src dst then emp else dst ↦ᵣ wdst) }}}
+      Instr Executable @ E
+    {{{ RET FailedV;
+        PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+           ∗ pc_a ↦ₐ w
+           ∗ (if reg_eq_dec PC src then emp else if reg_eq_dec src dst then emp else src ↦ᵣ wsrc)
+           ∗ dst ↦ᵣ if reg_eq_dec PC src then inl (encodeLoc pc_g) else match wsrc with | inr ((_,g'),_,_,_) => inl (encodeLoc g') | _ => if reg_eq_dec src dst then wsrc else wdst end }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpca' Hne ϕ) "(HPC & Hpc_a & Hsrc & Hdst) Hϕ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1". destruct σ1.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr HPC") as %?.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iAssert (⌜if reg_eq_dec PC src then True else r !! src = Some wsrc⌝)%I with "[Hr Hsrc]" as %?.
+    { destruct (reg_eq_dec PC src).
+      - auto.
+      - iDestruct (@gen_heap_valid with "Hr Hsrc") as %?. auto. }
+    iAssert (⌜if reg_eq_dec src dst then True else r !! dst = Some wdst⌝)%I with "[Hr Hdst]" as %?.
+    { destruct (reg_eq_dec src dst).
+      - auto.
+      - iDestruct (@gen_heap_valid with "Hr Hdst") as %?. auto. } rename H4 into X4.
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      unfold head_reducible. iExists [], (Instr _), _, [].
+      iPureIntro. constructor.
+      eapply (step_exec_instr (r, m) pc_p pc_g pc_b pc_e pc_a (GetL dst src) (exec (GetL dst src) (r, m))); eauto.
+      + simpl. unfold RegLocate. rewrite H1. auto.
+      + unfold RegLocate. rewrite H1. auto.
+      + simpl. unfold MemLocate; rewrite H2; auto.
+    - iModIntro. iNext. iIntros (e1 σ2 efs Hstep).
+      inv Hstep. inv H4.
+      + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
+      + clear H9. rewrite /RegLocate H1 in H8. inv H8.
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        destruct (reg_eq_dec PC src).
+        * subst src. rewrite H1.
+          destruct (reg_eq_dec PC dst); try contradiction.
+          rewrite /update_reg /updatePC /RegLocate /= lookup_insert_ne; auto.
+          rewrite H1 Hpca' /=.
+          iMod (@gen_heap_update with "Hr Hdst") as "[$ Hdst]".
+          iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
+        * rewrite H3. destruct wsrc.
+          { simpl. iFrame. destruct (reg_eq_dec src dst).
+            - subst src. 
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
+            - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
+          { simpl. destruct c, p0, p0, p0.
+            rewrite /update_reg /updatePC /RegLocate /= lookup_insert_ne; auto.
+            rewrite H1 Hpca' /=.
+            destruct (reg_eq_dec src dst).
+            - subst src.
+              iMod (@gen_heap_update with "Hr Hsrc") as "[$ Hsrc]".
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc]"); iFrame. auto.
+            - iMod (@gen_heap_update with "Hr Hdst") as "[$ Hdst]".
+              iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
   Qed.
 
   Lemma wp_load_fail1 E r1 r2 pc_p pc_g pc_b pc_e pc_a w p g b e a :
