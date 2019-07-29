@@ -38,7 +38,7 @@ Section logrel.
               ⌜is_Some (reg !! r)⌝ ∧ (⌜r ≠ PC⌝ → interp (reg !r! r)))%I. 
 
   Definition interp_conf (conf : Reg * Mem) fs fr : iProp Σ :=
-    (WP Seq (Instr Executable) {{ λne v, ∃ r fs' fr', registers_mapsto r ∗
+    (WP Seq (Instr Executable) {{ λne v, ∃ reg fs' fr', registers_mapsto reg ∗ (∀ r, ⌜is_Some (reg !! r)⌝)%I ∗
                                 ⌜related_sts fs fs' fr fr'⌝ ∗ sts_full fs' fr' }})%I.
 
   (* Public future world relation is baked into the definition of interp. 
