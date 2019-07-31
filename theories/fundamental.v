@@ -808,7 +808,10 @@ Section fundamental.
             { iExists _. iFrame. iFrame "#". }
             iExists ws0. iFrame. }
       + admit. (* Store *)
-      + admit. (* Lt *)
+      + rewrite delete_insert_delete.
+        
+
+        admit. (* Lt *)
       + admit. (* Add *)
       + admit. (* Sub *)
       + admit. (* Lea *)
