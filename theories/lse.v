@@ -1275,39 +1275,39 @@ Section wbcf.
      apply He2'. apply He1'. done.
    Qed. 
 
-   Lemma interp_weak w stsf stsf' E E' :
-     (related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗
-     ⌜E ⊆ E'⌝ -∗
-     na_own logrel_nais E -∗
-     ⟦ w ⟧ E stsf -∗
-     ⟦ w ⟧ E' stsf')%I.
-   Proof.
-     iIntros "#Hrelated % Hna /=".
-     iLöb as "IH" forall (w).
-     iIntros "Hw".
-     destruct w.
-     - do 2 rewrite fixpoint_interp1_eq /=.
-       iPureIntro. exists z; auto.
-     - destruct c,p,p,p,p; do 2 (rewrite fixpoint_interp1_eq /=); auto. 
-       + rewrite /read_only_cond.
-         iDestruct "Hw" as (g b e a3 ws Heq Hsub) "#Hinv".
-         inversion Heq; subst.
-         iExists _,_,_,_,ws; iSplit;[eauto|].
-         iSplit.
-         { iPureIntro. apply subseteq_trans with E; auto. }
-         admit.
-         Admitted. 
+   (* Lemma interp_weak w stsf stsf' E E' : *)
+   (*   (related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗ *)
+   (*   ⌜E ⊆ E'⌝ -∗ *)
+   (*   na_own logrel_nais E -∗ *)
+   (*   ⟦ w ⟧ E stsf -∗ *)
+   (*   ⟦ w ⟧ E' stsf')%I. *)
+   (* Proof. *)
+   (*   iIntros "#Hrelated % Hna /=". *)
+   (*   iLöb as "IH" forall (w). *)
+   (*   iIntros "Hw". *)
+   (*   destruct w. *)
+   (*   - do 2 rewrite fixpoint_interp1_eq /=. *)
+   (*     iPureIntro. exists z; auto. *)
+   (*   - destruct c,p,p,p,p; do 2 (rewrite fixpoint_interp1_eq /=); auto.  *)
+   (*     + rewrite /read_only_cond. *)
+   (*       iDestruct "Hw" as (g b e a3 ws Heq Hsub) "#Hinv". *)
+   (*       inversion Heq; subst. *)
+   (*       iExists _,_,_,_,ws; iSplit;[eauto|]. *)
+   (*       iSplit. *)
+   (*       { iPureIntro. apply subseteq_trans with E; auto. } *)
+   (*       admit. *)
+   (*       Admitted.  *)
 
          
    
-   Lemma read_only_cond_weak b e ws stsf E interp stsf' E' :
-     ((read_only_cond b e ws stsf E interp) -∗
-     related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗
-     ⌜E ⊆ E'⌝ -∗
-     (read_only_cond b e ws stsf' E' interp))%I.
-   Proof.
-     iIntros "[Hreg Hregv] #Hrelated % /=".
-     iFrame. do 2 (rewrite -big_sepL_later). iNext.
+   (* Lemma read_only_cond_weak b e ws stsf E interp stsf' E' : *)
+   (*   ((read_only_cond b e ws stsf E interp) -∗ *)
+   (*   related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗ *)
+   (*   ⌜E ⊆ E'⌝ -∗ *)
+   (*   (read_only_cond b e ws stsf' E' interp))%I. *)
+   (* Proof. *)
+   (*   iIntros "[Hreg Hregv] #Hrelated % /=". *)
+   (*   iFrame. do 2 (rewrite -big_sepL_later). iNext. *)
      
 
   (* We want to show encapsulation of local state, by showing that an arbitrary adv 
