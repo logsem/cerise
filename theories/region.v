@@ -178,7 +178,7 @@ Section region.
     destruct (Z_le_dec b e); try omega.
     assert (X: length (region_addrs b (get_addr_from_option_addr (a + -1)%a)) <= region_size b e).
     { unfold region_addrs. destruct (Z_le_dec b (get_addr_from_option_addr (a + -1)%a)).
-      - rewrite region_addrs_aux_length. unfold region_size.
+      - rewrite region_addrs_aux_length. unfold region_size. 
         apply le_n_S. apply Zabs_nat_le; split.
         + omega.
         + destruct a; destruct b; destruct e; unfold incr_addr; unfold le_addr in *; simpl in *.
@@ -200,7 +200,7 @@ Section region.
         destruct (Z_le_dec (z0 + -1)%Z MemNum); try omega.
         simpl. destruct H1.
         assert ((z + S (Z.abs_nat (z0 + -1 - z)))%Z = z0).
-        { simpl in l0. Lia.lia. }
+        { simpl in l0. Lia.lia. } 
         destruct (Z_le_dec (z + S (Z.abs_nat (z0 + -1 - z)))%Z MemNum); try omega.
         simpl. apply z_of_eq; auto.
       - simpl. destruct b; destruct a; unfold le_addr in *; unfold incr_addr in *; simpl in *.
@@ -295,8 +295,8 @@ Section region.
   Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
     (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
   
-  Fixpoint in_range (a b e : Addr) : iProp Σ :=
-    (⌜(b <= a)%a⌝ ∧ ⌜(a < e)%a⌝)%I.
+  Fixpoint in_range (a b e : Addr) : Prop :=
+    (b <= a)%a ∧ (a < e)%a. 
 
   (* Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ :=  *)
   (*   ([∗ list] k↦y1;y2 ∈ (region_addrs b e);take (region_size b e) ws, y1 ↦ₐ y2)%I.  *)
@@ -420,7 +420,19 @@ Section region.
       + rewrite He.
         destruct a. rewrite /le_addr. simpl. 
         by apply Z.leb_le. 
-  Qed. 
+  Qed.
+
+  (* The following takes a capability and defines the proposition of points-to's of its region *)
+  Definition mem_region_conf (c : Cap) (mem : Mem) : iProp Σ := 
+    match c with
+    | ((p,g),b,e,a) => ([∗ list] a_i ∈ (region_addrs b e), a_i ↦ₐ (mem !m! a_i))%I
+    end.
+
+  Definition mem_region_list (c : Cap) (ws : list Word) : iProp Σ := 
+    match c with
+    | ((p,g),b,e,a) => region_mapsto b e ws
+    end. 
+    
   
 End region.
 

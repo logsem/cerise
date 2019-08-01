@@ -159,6 +159,28 @@ Module cap_lang.
     intros (Hrx & Hrwx & Hrwlx).
     intros Hvpc. inversion Hvpc;
       destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
+  Qed.
+
+  Lemma isCorrectPC_bounds p g b e (a0 a1 a2 : Addr) :
+    isCorrectPC (inr (p, g, b, e, a0)) →
+    isCorrectPC (inr (p, g, b, e, a2)) →
+    (a0 ≤ a1 < a2)%Z → isCorrectPC (inr (p, g, b, e, a1)).
+  Proof.   
+    intros Hvpc0 Hvpc2 [Hle Hlt].
+    inversion Hvpc0.
+    - subst; econstructor; auto.
+      inversion Hvpc2; subst.
+      + destruct H1 as [Hb He]. destruct H2 as [Hb2 He2]. split.
+        { apply Z.le_trans with a0; auto. }
+        { apply Z.lt_trans with a2; auto. }
+      + destruct H1 as [Hb He]. split.
+        { apply Z.le_trans with a0; auto. }
+        { apply Z.lt_le_trans with a2; auto. destruct a2; simpl. by apply Z.leb_le. }
+    - subst. apply isCorrectPC_intro_infinity; auto. 
+      inversion Hvpc2; subst.
+      + destruct H2 as [Hb2 He2].
+        apply Z.le_trans with a0; auto.
+      + apply Z.le_trans with a0; auto.
   Qed. 
         
   Definition updatePcPerm (w: Word): Word :=

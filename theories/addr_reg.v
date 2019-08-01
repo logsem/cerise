@@ -29,6 +29,15 @@ Proof.
     by rewrite (H true z0 MemNum fin fin0).
 Qed.
 
+Lemma neq_z_of :
+  forall a1 a2,
+    a1 ≠ a2 → (z_of a1) ≠ (z_of a2).
+Proof.
+  intros.
+  unfold not. intros Heq. apply (z_of_eq a1 a2) in Heq.
+  contradiction.
+Qed. 
+
 Global Instance addr_eq_dec: EqDecision Addr.
 intros x y. destruct x,y. destruct (Z_eq_dec z z0).
 - left. eapply z_of_eq; eauto.
@@ -41,7 +50,7 @@ Proof.
   - apply (Z.leb_le z MemNum) in l.
     exact (Some (A z l)).
   - exact None. 
-Defined.
+Defined. 
 
 Global Instance addr_countable : Countable Addr.
 Proof.
@@ -178,6 +187,8 @@ Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
          rewrite (H _ _ _ fin fin0). reflexivity.
        + right. congruence.
 Defined.
+
+Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.   
 
 Program Definition n_to_regname (n : nat) : option RegName :=
   if (nat_le_dec n RegNum) then Some (R n _) else None.
