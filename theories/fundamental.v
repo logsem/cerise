@@ -759,18 +759,7 @@ Section fundamental.
               iApply wp_pure_step_later; auto.
               iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iApply wp_value. iExists _,fs,fr. iFrame.
-              iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-              { iPureIntro. apply related_sts_refl. } iFrame "#".
-              iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=_]> r !! r0)⌝)%I as "HA".
-              { iIntros. destruct (reg_eq_dec PC r0).
-                - subst r0. rewrite lookup_insert; eauto.
-                - rewrite lookup_insert_ne; auto.
-                  iApply extract_lookup_reg; eauto. }
-              iFrame. iApply "Hcls".
-              iDestruct (extract_from_region _ _ a with
-                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-              iExists _. iFrame "∗ #". }
+              iApply wp_value. iNext. iIntros. congruence. }
           { destruct (reg_eq_dec PC r0).
             - subst r0. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto.
               + iFrame.
@@ -778,19 +767,8 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-            - iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-              destruct H2 as [wr0 Hsomer0].
+                iApply wp_value. iNext. iIntros. discriminate a0.
+            - destruct (H3 r0) as [wr0 Hsomer0].
               iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
               rewrite lookup_delete_ne; eauto.
               destruct wr0.
@@ -806,18 +784,7 @@ Section fundamental.
                   rewrite -delete_insert_ne; auto.
                   iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                     [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  iApply wp_value. iExists _,fs,fr. iFrame.
-                  iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                  { iPureIntro. apply related_sts_refl. } iFrame "#".
-                  iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z0]> r) !! r1)⌝)%I as "HA".
-                  { iIntros. destruct (reg_eq_dec PC r1).
-                    - subst r1. rewrite lookup_insert; eauto.
-                    - rewrite lookup_insert_ne; auto.
-                      destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                  iFrame. iApply "Hcls".
-                  iDestruct (extract_from_region _ _ a with
-                                 "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                  iExists _. iFrame "∗ #".
+                  iApply wp_value. iNext. iIntros. discriminate a0.
               + iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr0]"); eauto; iFrame.
                 iNext. iIntros "(HPC & Ha & Hr0)".
                 iApply wp_pure_step_later; auto.
@@ -826,17 +793,7 @@ Section fundamental.
                 rewrite -delete_insert_ne; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inr c]> r) !! r1)⌝)%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1); [subst r1; rewrite lookup_insert; eauto|].
-                  rewrite lookup_insert_ne; auto.
-                  destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #". }
+                iApply wp_value. iNext. iIntros. discriminate. }
           { destruct (reg_eq_dec PC r0).
             - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
               + iFrame.
@@ -844,19 +801,8 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-            - iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-              destruct H2 as [wr0 Hsomer0].
+                iApply wp_value. iNext. iIntros. discriminate.
+            - destruct (H3 r0) as [wr0 Hsomer0].
               iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
               rewrite lookup_delete_ne; eauto.
               destruct wr0.
@@ -872,18 +818,7 @@ Section fundamental.
                   rewrite -delete_insert_ne; auto.
                   iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                     [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  iApply wp_value. iExists _,fs,fr. iFrame.
-                  iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                  { iPureIntro. apply related_sts_refl. } iFrame "#".
-                  iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z0]> r) !! r1)⌝)%I as "HA".
-                  { iIntros. destruct (reg_eq_dec PC r1).
-                    - subst r1. rewrite lookup_insert; eauto.
-                    - rewrite lookup_insert_ne; auto.
-                      destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                  iFrame. iApply "Hcls".
-                  iDestruct (extract_from_region _ _ a with
-                                 "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                  iExists _. iFrame "∗ #".
+                  iApply wp_value. iNext; iIntros; discriminate.
               + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
                 iNext. iIntros "(HPC & Ha & Hr0)".
                 iApply wp_pure_step_later; auto.
@@ -892,17 +827,7 @@ Section fundamental.
                 rewrite -delete_insert_ne; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inr c]> r) !! r1)⌝)%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1); [subst r1; rewrite lookup_insert; eauto|].
-                  rewrite lookup_insert_ne; auto.
-                  destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #". }
+                iApply wp_value. iNext; iIntros; discriminate. }
           { destruct (reg_eq_dec PC r0).
             - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
               + iFrame.
@@ -910,38 +835,16 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
+                iApply wp_value. iNext; iIntros; discriminate.
             - destruct (reg_eq_dec PC r1).
               + subst r1. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto; iFrame.
                 iNext. iIntros "(HPC & Ha)".
                 iApply wp_pure_step_later; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r1)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1).
-                  - subst r1. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-              + iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-                destruct H2 as [wr0 Hsomer0].
-                iDestruct (extract_lookup_reg r r1 with "Hreg") as "%".
-                destruct H2 as [wr1 Hsomer1].
+                iApply wp_value. iNext; iIntros; discriminate.
+              + destruct (H3 r0) as [wr0 Hsomer0].
+                destruct (H3 r1) as [wr1 Hsomer1].
                 iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
                 rewrite lookup_delete_ne; eauto.
                 destruct (reg_eq_dec r0 r1).
@@ -959,17 +862,16 @@ Section fundamental.
                     repeat rewrite -delete_insert_ne; auto.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    iApply wp_value. iExists _,fs,fr. iFrame.
-                    iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                    { iPureIntro. apply related_sts_refl. } iFrame "#".
-                    iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z]> r) !! r1)⌝)%I as "HA".
-                    { iIntros. destruct (reg_eq_dec PC r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                      destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                    iFrame. iApply "Hcls".
-                    iDestruct (extract_from_region _ _ a with
-                                   "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                    iExists _. iFrame "∗ #". }
-                  { (*fail case*) admit. }
+                    iApply wp_value. iNext; iIntros; discriminate. } 
+                  { iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
+                    iNext. iIntros "(HPC & Ha & Hr0)".
+                    iApply wp_pure_step_later; auto.
+                    iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    repeat rewrite -delete_insert_ne; auto.
+                    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    iApply wp_value. iNext; iIntros; discriminate. } 
                 * iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]".
                   repeat rewrite lookup_delete_ne; eauto.
                   destruct wr0.
@@ -992,17 +894,7 @@ Section fundamental.
                         repeat rewrite -delete_insert_ne; auto.
                         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                        iApply wp_value. iExists _,fs,fr. iFrame.
-                        iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                        { iPureIntro. apply related_sts_refl. } iFrame "#".
-                        iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z]> (<[r1:=inl z0]> r)) !! r2)⌝))%I as "HA".
-                        { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                          destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                          destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                        iFrame. iApply "Hcls".
-                        iDestruct (extract_from_region _ _ a with
-                                       "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                        iExists _. iFrame "∗ #".
+                        iApply wp_value. iNext; iIntros; discriminate.
                     - iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
                       iNext. iIntros "(HPC & Ha & Hr1)".
                       iApply wp_pure_step_later; auto.
@@ -1014,17 +906,7 @@ Section fundamental.
                       repeat rewrite -delete_insert_ne; auto.
                       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      iApply wp_value. iExists _,fs,fr. iFrame.
-                      iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                      { iPureIntro. apply related_sts_refl. } iFrame "#".
-                      iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inl z]> (<[r1:=inr c]> r)) !! r2)⌝))%I as "HA".
-                      { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                        destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                        destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                      iFrame. iApply "Hcls".
-                      iDestruct (extract_from_region _ _ a with
-                                     "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                      iExists _. iFrame "∗ #". }
+                      iApply wp_value. iNext; iIntros; discriminate. }
                   { iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
                     iNext. iIntros "(HPC & Ha & Hr0)".
                     iApply wp_pure_step_later; auto.
@@ -1036,20 +918,9 @@ Section fundamental.
                     repeat rewrite -delete_insert_ne; auto.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    iApply wp_value. iExists _,fs,fr. iFrame.
-                    iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                    { iPureIntro. apply related_sts_refl. } iFrame "#".
-                    iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=_]> (<[r1:=_]> r)) !! r2)⌝))%I as "HA".
-                    { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                      destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                      destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                    iFrame. iApply "Hcls".
-                    iDestruct (extract_from_region _ _ a with
-                                   "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                    iExists _. iFrame "∗ #". } }
+                    iApply wp_value. iNext; iIntros; discriminate. } }
         * case_eq (a+1)%a; intros; [|(*fail case, can't increment PC*) admit].
-          iDestruct (extract_lookup_reg r dst with "Hreg") as "%".
-          destruct H3 as [wdst Hsomedst].
+          destruct (H3 dst) as [wdst Hsomedst].
           iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]".
           rewrite lookup_delete_ne; eauto.
           destruct r1; destruct r2.
@@ -1064,302 +935,54 @@ Section fundamental.
               rewrite -delete_insert_ne; auto.
               iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-              { iPureIntro. apply related_sts_refl. } iFrame "#".
               iDestruct (extract_from_region _ _ a with
                              "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-              iExists _. iFrame "∗ #". rewrite H2. auto.
-              iAssert (interp_registers (<[dst:=match cap_lang.decode w with
+              iExists _. iFrame "∗ #". rewrite H4. auto.
+              iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                    | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                    | cap_lang.Add _ _ _ => inl (z + z0)%Z
                                    | Sub _ _ _ => inl (z - z0)%Z
                                    | _ => inl 0%Z
-                                   end]> r))
-                        as "Hreg'".
-              { iIntros (r0). iDestruct ("Hreg" $! (r0)) as "[% Hv]".
-                destruct H3 as [c Hsome].
-                iSplit; auto.
-                - iPureIntro.
+                                   end]> r)))%I
+                        as "[Hfull' Hreg']".
+              { iSplitR.
+                - iIntros (r0). 
+                  destruct (H3 r0) as [c Hsome].
+                  iPureIntro.
                   destruct (decide (dst = r0)); simplify_eq;
                     [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto.
-                - iIntros (Hnepc) "/=".
+                - iIntros (r0 Hnepc) "/=".
+                  destruct (H3 r0) as [c Hsome].
                   destruct (decide (dst = r0)); simplify_eq.
                   + rewrite /RegLocate lookup_insert. repeat rewrite (fixpoint_interp1_eq).
                     destruct (cap_lang.decode w); simpl; eauto.
-                  + rewrite /RegLocate lookup_insert_ne; auto. iApply "Hv". auto. }
-              iApply ("IH" with "[Hreg'] [Hmap] [Hsts]").
+                  + rewrite /RegLocate lookup_insert_ne; auto.
+                    iDestruct ("Hreg" $! (r0)) as "Hv". iApply "Hv". auto. }
+              iNext. iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hregion Hcls Hown]").
+              -- iApply "Hfull'".
               -- iApply "Hreg'".
               -- eauto.
               -- eauto.
-              -- iFrame "Hinv". iApply "Hcls".
-                 iFrame "∗ #". }
-          {
-
-
-
-
-
-            destruct (reg_eq_dec PC r0).
+              -- (* Pas compris *) admit.
+              -- admit.
+              -- admit. }
+          { destruct (reg_eq_dec PC r0).
             - subst r0. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto.
               + iFrame.
               + iNext. iIntros "(HPC & Ha)".
                 iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-            - iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-              destruct H2 as [wr0 Hsomer0].
-              iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
-              rewrite lookup_delete_ne; eauto.
-              destruct wr0.
-              + iApply (wp_add_sub_lt_success with "[Ha HPC Hr0]"); eauto.
-                * destruct (reg_eq_dec PC PC); auto; congruence.
-                * iFrame. auto.
-                * iNext. destruct (reg_eq_dec PC PC); try congruence.
-                  destruct (reg_eq_dec r0 PC); try congruence.
-                  iIntros "(_ & Ha & _ & Hr0 & HPC)".
-                  iApply wp_pure_step_later; auto.
-                  iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  rewrite -delete_insert_ne; auto.
-                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  iApply wp_value. iExists _,fs,fr. iFrame.
-                  iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                  { iPureIntro. apply related_sts_refl. } iFrame "#".
-                  iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z0]> r) !! r1)⌝)%I as "HA".
-                  { iIntros. destruct (reg_eq_dec PC r1).
-                    - subst r1. rewrite lookup_insert; eauto.
-                    - rewrite lookup_insert_ne; auto.
-                      destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                  iFrame. iApply "Hcls".
-                  iDestruct (extract_from_region _ _ a with
-                                 "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                  iExists _. iFrame "∗ #".
-              + iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr0]"); eauto; iFrame.
-                iNext. iIntros "(HPC & Ha & Hr0)".
-                iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                rewrite -delete_insert_ne; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inr c]> r) !! r1)⌝)%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1); [subst r1; rewrite lookup_insert; eauto|].
-                  rewrite lookup_insert_ne; auto.
-                  destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #". }
-          { destruct (reg_eq_dec PC r0).
-            - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
-              + iFrame.
-              + iNext. iIntros "(HPC & Ha)".
-                iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-            - iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-              destruct H2 as [wr0 Hsomer0].
-              iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
-              rewrite lookup_delete_ne; eauto.
-              destruct wr0.
-              + iApply (wp_add_sub_lt_success with "[Ha HPC Hr0]"); eauto.
-                * destruct (reg_eq_dec PC PC); auto; congruence.
-                * iFrame. auto.
-                * iNext. destruct (reg_eq_dec PC PC); try congruence.
-                  destruct (reg_eq_dec r0 PC); try congruence.
-                  iIntros "(_ & Ha & Hr0 & _ & HPC)".
-                  iApply wp_pure_step_later; auto.
-                  iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  rewrite -delete_insert_ne; auto.
-                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  iApply wp_value. iExists _,fs,fr. iFrame.
-                  iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                  { iPureIntro. apply related_sts_refl. } iFrame "#".
-                  iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z0]> r) !! r1)⌝)%I as "HA".
-                  { iIntros. destruct (reg_eq_dec PC r1).
-                    - subst r1. rewrite lookup_insert; eauto.
-                    - rewrite lookup_insert_ne; auto.
-                      destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                  iFrame. iApply "Hcls".
-                  iDestruct (extract_from_region _ _ a with
-                                 "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                  iExists _. iFrame "∗ #".
-              + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
-                iNext. iIntros "(HPC & Ha & Hr0)".
-                iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                rewrite -delete_insert_ne; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert (∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inr c]> r) !! r1)⌝)%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1); [subst r1; rewrite lookup_insert; eauto|].
-                  rewrite lookup_insert_ne; auto.
-                  destruct (reg_eq_dec r0 r1); [subst r1; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto; iApply extract_lookup_reg; eauto]. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #". }
-          { destruct (reg_eq_dec PC r0).
-            - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
-              + iFrame.
-              + iNext. iIntros "(HPC & Ha)".
-                iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r0).
-                  - subst r0. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-            - destruct (reg_eq_dec PC r1).
-              + subst r1. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto; iFrame.
-                iNext. iIntros "(HPC & Ha)".
-                iApply wp_pure_step_later; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iApply wp_value. iExists _,fs,fr. iFrame.
-                iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                { iPureIntro. apply related_sts_refl. } iFrame "#".
-                iAssert ((∀ r1 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r1)⌝))%I as "HA".
-                { iIntros. destruct (reg_eq_dec PC r1).
-                  - subst r1. rewrite lookup_insert; eauto.
-                  - rewrite lookup_insert_ne; auto. iApply extract_lookup_reg; eauto. }
-                iFrame. iApply "Hcls".
-                iDestruct (extract_from_region _ _ a with
-                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                iExists _. iFrame "∗ #".
-              + iDestruct (extract_lookup_reg r r0 with "Hreg") as "%".
-                destruct H2 as [wr0 Hsomer0].
-                iDestruct (extract_lookup_reg r r1 with "Hreg") as "%".
-                destruct H2 as [wr1 Hsomer1].
-                iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
-                rewrite lookup_delete_ne; eauto.
-                destruct (reg_eq_dec r0 r1).
-                * subst r1.
-                  (* r0 = r1 case *) admit.
-                * iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]".
-                  repeat rewrite lookup_delete_ne; eauto.
-                  destruct wr0.
-                  { destruct wr1.
-                    - iApply (wp_add_sub_lt_success with "[Ha HPC Hr0 Hr1]"); eauto.
-                      + destruct (reg_eq_dec PC PC); auto; congruence.
-                      + iFrame. destruct (reg_eq_dec r0 PC); try congruence.
-                        destruct (reg_eq_dec r1 PC); try congruence.
-                        destruct (reg_eq_dec PC PC); auto; congruence.
-                      + simpl. destruct (reg_eq_dec r0 PC); try congruence.
-                        destruct (reg_eq_dec r1 PC); try congruence.
-                        destruct (reg_eq_dec PC PC); try congruence.
-                        iNext. iIntros "(_ & Ha & Hr0 & Hr1 & HPC)".
-                        iApply wp_pure_step_later; auto.
-                        iDestruct ((big_sepM_delete _ _ r1) with "[Hr1 Hmap]") as "Hmap /=";
-                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                        rewrite -delete_insert_ne; auto.
-                        iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                        repeat rewrite -delete_insert_ne; auto.
-                        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                        iApply wp_value. iExists _,fs,fr. iFrame.
-                        iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                        { iPureIntro. apply related_sts_refl. } iFrame "#".
-                        iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=inl z]> (<[r1:=inl z0]> r)) !! r2)⌝))%I as "HA".
-                        { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                          destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                          destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                        iFrame. iApply "Hcls".
-                        iDestruct (extract_from_region _ _ a with
-                                       "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                        iExists _. iFrame "∗ #".
-                    - iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
-                      iNext. iIntros "(HPC & Ha & Hr1)".
-                      iApply wp_pure_step_later; auto.
-                      iDestruct ((big_sepM_delete _ _ r1) with "[Hr1 Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      rewrite -delete_insert_ne; auto.
-                      iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      repeat rewrite -delete_insert_ne; auto.
-                      iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      iApply wp_value. iExists _,fs,fr. iFrame.
-                      iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                      { iPureIntro. apply related_sts_refl. } iFrame "#".
-                      iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> (<[r0:=inl z]> (<[r1:=inr c]> r)) !! r2)⌝))%I as "HA".
-                      { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                        destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                        destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                      iFrame. iApply "Hcls".
-                      iDestruct (extract_from_region _ _ a with
-                                     "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                      iExists _. iFrame "∗ #". }
-                  { iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
-                    iNext. iIntros "(HPC & Ha & Hr0)".
-                    iApply wp_pure_step_later; auto.
-                    iDestruct ((big_sepM_delete _ _ r1) with "[Hr1 Hmap]") as "Hmap /=";
-                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    rewrite -delete_insert_ne; auto.
-                    iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    repeat rewrite -delete_insert_ne; auto.
-                    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    iApply wp_value. iExists _,fs,fr. iFrame.
-                    iAssert (⌜related_sts fs fs fr fr⌝)%I as "#Hrefl". 
-                    { iPureIntro. apply related_sts_refl. } iFrame "#".
-                    iAssert ((∀ r2 : RegName, ⌜is_Some (<[PC:=_]> (<[r0:=_]> (<[r1:=_]> r)) !! r2)⌝))%I as "HA".
-                    { iIntros. destruct (reg_eq_dec PC r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                      destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                      destruct (reg_eq_dec r1 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto]. iApply extract_lookup_reg; eauto. }
-                    iFrame. iApply "Hcls".
-                    iDestruct (extract_from_region _ _ a with
-                                   "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-                    iExists _. iFrame "∗ #". } }
-
-
-
-
-
-
-
-        admit. (* Lt *)
+                iApply wp_value. iNext; iIntros; discriminate.
+            - destruct (H3 r0) as [wr0 Hsomer0].
+              destruct (reg_eq_dec dst r0).
+              + subst r0. destruct wdst.
+                * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst]"); eauto.
+                  -- destruct (reg_eq_dec dst PC); eauto; congruence.
+                  -- simpl. admit.
+                  -- admit.
+                * admit.
+              + admit. }
+          { admit. }
+          { admit. }
       + admit. (* Add *)
       + admit. (* Sub *)
       + admit. (* Lea *)
