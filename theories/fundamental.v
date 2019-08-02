@@ -752,8 +752,7 @@ Section fundamental.
         * subst dst.
           destruct r1; destruct r2.
           { iApply (wp_add_sub_lt_success with "[Ha HPC]"); eauto.
-            - destruct (reg_eq_dec PC PC); auto; congruence.
-            - iFrame. auto.
+            - destruct (reg_eq_dec PC PC); auto; try congruence. iFrame. eauto.
             - iNext. destruct (reg_eq_dec PC PC); try congruence.
               iIntros "(_ & Ha & _ & _ & HPC)".
               iApply wp_pure_step_later; auto.
@@ -773,8 +772,8 @@ Section fundamental.
               rewrite lookup_delete_ne; eauto.
               destruct wr0.
               + iApply (wp_add_sub_lt_success with "[Ha HPC Hr0]"); eauto.
-                * destruct (reg_eq_dec PC PC); auto; congruence.
-                * iFrame. auto.
+                * destruct (reg_eq_dec PC PC); auto; try congruence.
+                  destruct (reg_eq_dec r0 PC); iFrame; eauto.
                 * iNext. destruct (reg_eq_dec PC PC); try congruence.
                   destruct (reg_eq_dec r0 PC); try congruence.
                   iIntros "(_ & Ha & _ & Hr0 & HPC)".
@@ -807,8 +806,8 @@ Section fundamental.
               rewrite lookup_delete_ne; eauto.
               destruct wr0.
               + iApply (wp_add_sub_lt_success with "[Ha HPC Hr0]"); eauto.
-                * destruct (reg_eq_dec PC PC); auto; congruence.
-                * iFrame. auto.
+                * destruct (reg_eq_dec PC PC); auto; try congruence.
+                  destruct (reg_eq_dec r0 PC); iFrame; eauto.
                 * iNext. destruct (reg_eq_dec PC PC); try congruence.
                   destruct (reg_eq_dec r0 PC); try congruence.
                   iIntros "(_ & Ha & Hr0 & _ & HPC)".
@@ -850,9 +849,8 @@ Section fundamental.
                 destruct (reg_eq_dec r0 r1).
                 * subst r1. destruct wr0.
                   { iApply (wp_add_sub_lt_success_same with "[Ha HPC Hr0]"); eauto.
-                    - destruct (reg_eq_dec PC PC); auto; congruence.
-                    - iFrame. destruct (reg_eq_dec r0 PC); try congruence.
-                      destruct (reg_eq_dec PC PC); try congruence. auto.
+                    - destruct (reg_eq_dec PC PC); auto; try congruence.
+                      destruct (reg_eq_dec r0 PC); iFrame; eauto.
                     - iNext. destruct (reg_eq_dec r0 PC); try congruence.
                       destruct (reg_eq_dec PC PC); try congruence.
                     iIntros "(_ & Ha & Hr0 & HPC)".
@@ -877,10 +875,9 @@ Section fundamental.
                   destruct wr0.
                   { destruct wr1.
                     - iApply (wp_add_sub_lt_success with "[Ha HPC Hr0 Hr1]"); eauto.
-                      + destruct (reg_eq_dec PC PC); auto; congruence.
-                      + iFrame. destruct (reg_eq_dec r0 PC); try congruence.
-                        destruct (reg_eq_dec r1 PC); try congruence.
-                        destruct (reg_eq_dec PC PC); auto; congruence.
+                      + destruct (reg_eq_dec PC PC); auto; try congruence.
+                        destruct (reg_eq_dec r0 PC); iFrame; eauto.
+                        destruct (reg_eq_dec r1 PC); auto.
                       + simpl. destruct (reg_eq_dec r0 PC); try congruence.
                         destruct (reg_eq_dec r1 PC); try congruence.
                         destruct (reg_eq_dec PC PC); try congruence.
@@ -919,17 +916,14 @@ Section fundamental.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iApply wp_value. iNext; iIntros; discriminate. } }
-        * case_eq (a+1)%a; intros; [|(*fail case, can't increment PC*) admit].
-          destruct (H3 dst) as [wdst Hsomedst].
+        * destruct (H3 dst) as [wdst Hsomedst].
           iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]".
           rewrite lookup_delete_ne; eauto.
           destruct r1; destruct r2.
           { iApply (wp_add_sub_lt_success with "[Ha Hdst HPC]"); eauto.
-            - destruct (reg_eq_dec dst PC); eauto.
-            - iFrame. destruct (reg_eq_dec dst PC); try congruence; auto.
+            - destruct (reg_eq_dec dst PC); eauto; iFrame; eauto.
             - iNext. destruct (reg_eq_dec dst PC); try congruence.
               iIntros "(HPC & Ha & _ & _ & Hdst)".
-              iApply wp_pure_step_later; auto.
               iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
               rewrite -delete_insert_ne; auto.
@@ -937,7 +931,7 @@ Section fundamental.
                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
               iDestruct (extract_from_region _ _ a with
                              "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
-              iExists _. iFrame "∗ #". rewrite H4. auto.
+              iExists _. iFrame "∗ #".
               iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                    | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                    | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -958,14 +952,9 @@ Section fundamental.
                     destruct (cap_lang.decode w); simpl; eauto.
                   + rewrite /RegLocate lookup_insert_ne; auto.
                     iDestruct ("Hreg" $! (r0)) as "Hv". iApply "Hv". auto. }
-              iNext. iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hregion Hcls Hown]").
-              -- iApply "Hfull'".
-              -- iApply "Hreg'".
-              -- eauto.
-              -- eauto.
-              -- (* Pas compris *) admit.
-              -- admit.
-              -- admit. }
+              destruct (a+1)%a.
+              -- (* apply IH stuff *) admit.
+              -- iApply wp_pure_step_later; auto. iNext. iApply wp_value. iIntros. discriminate. }
           { destruct (reg_eq_dec PC r0).
             - subst r0. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto.
               + iFrame.
@@ -976,13 +965,174 @@ Section fundamental.
               destruct (reg_eq_dec dst r0).
               + subst r0. destruct wdst.
                 * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst]"); eauto.
-                  -- destruct (reg_eq_dec dst PC); eauto; congruence.
-                  -- simpl. admit.
-                  -- admit.
-                * admit.
-              + admit. }
-          { admit. }
-          { admit. }
+                  -- destruct (reg_eq_dec dst PC); eauto; try congruence.
+                     iFrame. destruct (reg_eq_dec dst dst); eauto; try congruence.
+                  -- simpl. iNext. destruct (reg_eq_dec dst PC); try congruence.
+                     iIntros "(HPC & Ha & _ & _ & Hdst)".
+                     destruct (a+1)%a.
+                     ++ (* IH *)admit.
+                     ++ iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext. iIntros. discriminate.
+                * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hdst]"); eauto; iFrame.
+                  iNext. iIntros "(HPC & Ha & Hdst)". iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value. iIntros; discriminate.
+              + iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+                repeat rewrite lookup_delete_ne; eauto.
+                destruct wr0.
+                * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst Hr0]"); eauto.
+                  -- destruct (reg_eq_dec dst PC); eauto; try congruence.
+                     iFrame. destruct (reg_eq_dec r0 dst); eauto; try congruence.
+                  -- simpl. iNext. destruct (reg_eq_dec dst PC); try congruence.
+                     destruct (reg_eq_dec r0 dst); try congruence.
+                     iIntros "(HPC & Ha & _ & Hr0 & Hdst)".
+                     destruct (a+1)%a.
+                     ++ (* IH *)admit.
+                     ++ iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext. iIntros. discriminate.
+                * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hdst Hr0]"); eauto; iFrame.
+                  iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value. iIntros; discriminate. }
+          { destruct (reg_eq_dec PC r0).
+            - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
+              + iFrame.
+              + iNext. iIntros "(HPC & Ha)".
+                iApply wp_pure_step_later; auto.
+                iApply wp_value. iNext; iIntros; discriminate.
+            - destruct (H3 r0) as [wr0 Hsomer0].
+              destruct (reg_eq_dec dst r0).
+              + subst r0. destruct wdst.
+                * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst]"); eauto.
+                  -- destruct (reg_eq_dec dst PC); eauto; try congruence.
+                     iFrame. destruct (reg_eq_dec dst dst); eauto; try congruence.
+                  -- simpl. iNext. destruct (reg_eq_dec dst PC); try congruence.
+                     iIntros "(HPC & Ha & _ & _ & Hdst)".
+                     destruct (a+1)%a.
+                     ++ (* IH *)admit.
+                     ++ iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext. iIntros. discriminate.
+                * iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst]"); eauto; iFrame.
+                  iNext. iIntros "(HPC & Ha & Hdst)". iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value. iIntros; discriminate.
+              + iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+                repeat rewrite lookup_delete_ne; eauto.
+                destruct wr0.
+                * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst Hr0]"); eauto.
+                  -- destruct (reg_eq_dec dst PC); eauto; try congruence.
+                     iFrame. destruct (reg_eq_dec r0 dst); eauto; try congruence.
+                  -- simpl. iNext. destruct (reg_eq_dec dst PC); try congruence.
+                     destruct (reg_eq_dec r0 dst); try congruence.
+                     iIntros "(HPC & Ha & _ & Hr0 & Hdst)".
+                     destruct (a+1)%a.
+                     ++ (* IH *)admit.
+                     ++ iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext. iIntros. discriminate.
+                * iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst Hr0]"); eauto; iFrame.
+                  iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value. iIntros; discriminate. }
+          { destruct (reg_eq_dec PC r0).
+            - subst r0. iApply (wp_add_sub_lt_PC_fail1 with "[Ha HPC]"); eauto.
+              + iFrame.
+              + iNext. iIntros "(HPC & Ha)".
+                iApply wp_pure_step_later; auto.
+                iApply wp_value. iNext; iIntros; discriminate.
+            - destruct (reg_eq_dec PC r1).
+              + subst r1. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto.
+                * iFrame.
+                * iNext. iIntros "(HPC & Ha)".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value. iNext; iIntros; discriminate.
+              + destruct (H3 r0) as [wr0 Hsomer0].
+                destruct (H3 r1) as [wr1 Hsomer1].
+                destruct (reg_eq_dec dst r0).
+                * subst r0. destruct (reg_eq_dec dst r1).
+                  { subst r1. destruct wdst.
+                    - iApply (wp_add_sub_lt_success_same with "[Ha HPC Hdst]"); eauto.
+                      + simpl; iFrame. destruct (reg_eq_dec dst dst); auto; congruence.
+                      + iNext. destruct (reg_eq_dec dst PC); try congruence.
+                        iIntros "(HPC & Ha & _ & Hdst)".
+                        destruct (a+1)%a.
+                        * (* IH stuff *)admit.
+                        * iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate.
+                    - iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst]"); eauto; iFrame.
+                      iNext. iIntros "(HPC & Ha & Hdst)". iApply wp_pure_step_later; auto.
+                      iApply wp_value; eauto. iNext; iIntros; discriminate. }
+                  { iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]".
+                    repeat rewrite lookup_delete_ne; eauto.
+                    destruct wdst.
+                    - destruct wr1.
+                      + iApply (wp_add_sub_lt_success with "[Ha HPC Hdst Hr1]"); eauto.
+                        * iFrame. destruct (reg_eq_dec dst dst); try congruence; auto.
+                        * iNext. destruct (reg_eq_dec dst PC); try congruence.
+                          destruct (reg_eq_dec r1 dst); try congruence.
+                          iIntros "(HPC & Ha & _ & Hr1 & Hdst)".
+                          destruct (a+1)%a.
+                          { (* IH stuff *) admit. }
+                          { iApply wp_pure_step_later; auto.
+                            iApply wp_value; auto. iNext; iIntros; discriminate. }
+                      + iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
+                        iNext. iIntros "(HPC & Ha & Hr1)". iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext; iIntros; discriminate.
+                    - iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst]"); eauto; iFrame.
+                      iNext. iIntros "(HPC & Ha & Hdst)". iApply wp_pure_step_later; auto.
+                      iApply wp_value; eauto. iNext; iIntros; discriminate. }
+                * iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+                  repeat rewrite lookup_delete_ne; eauto.
+                  destruct (reg_eq_dec dst r1).
+                  { subst r1. destruct wdst.
+                    - destruct wr0.
+                      + iApply (wp_add_sub_lt_success with "[Ha HPC Hdst Hr0]"); eauto.
+                        * simpl; iFrame. destruct (reg_eq_dec r0 dst); auto; try congruence.
+                          destruct (reg_eq_dec dst dst); auto; congruence.
+                        * iNext. destruct (reg_eq_dec dst PC); try congruence.
+                          destruct (reg_eq_dec r0 dst); try congruence.
+                          iIntros "(HPC & Ha & Hr0 & _ & Hdst)".
+                          destruct (a+1)%a.
+                          { (* IH stuff *) admit. }
+                          { iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
+                      + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
+                        iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext; iIntros; discriminate.
+                    - iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hdst]"); eauto; iFrame.
+                      iNext. iIntros "(HPC & Ha & Hdst)". iApply wp_pure_step_later; auto.
+                      iApply wp_value; eauto. iNext; iIntros; discriminate. }
+                  { destruct (reg_eq_dec r0 r1).
+                    - subst r1. destruct wr0.
+                      + iApply (wp_add_sub_lt_success_same with "[Ha HPC Hdst Hr0]"); eauto.
+                        * simpl; iFrame. destruct (reg_eq_dec r0 dst); auto; try congruence.
+                          destruct (reg_eq_dec dst PC); auto; congruence.
+                        * iNext. destruct (reg_eq_dec dst PC); try congruence.
+                          destruct (reg_eq_dec r0 dst); try congruence.
+                          iIntros "(HPC & Ha & Hr0 & Hdst)".
+                          destruct (a+1)%a.
+                          { (* IH stuff *) admit. }
+                          { iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
+                      + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
+                        iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext; iIntros; discriminate.
+                    - iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]".
+                      repeat rewrite lookup_delete_ne; eauto.
+                      destruct wr0.
+                      + destruct wr1.
+                        * iApply (wp_add_sub_lt_success with "[Ha HPC Hdst Hr0 Hr1]"); eauto.
+                          { simpl; iFrame. destruct (reg_eq_dec r0 dst); auto; try congruence.
+                            destruct (reg_eq_dec r1 dst); destruct (reg_eq_dec dst PC); try congruence; auto. }
+                          { iNext. destruct (reg_eq_dec dst PC); try congruence.
+                            destruct (reg_eq_dec r0 dst); try congruence.
+                            destruct (reg_eq_dec r1 dst); try congruence.
+                            iIntros "(HPC & Ha & Hr0 & Hr1 & Hdst)".
+                            destruct (a+1)%a.
+                            - (* IH stuff *) admit.
+                            - iApply wp_pure_step_later; auto.
+                              iNext. iApply wp_value; auto. iIntros; discriminate. }
+                        * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
+                          iNext. iIntros "(HPC & Ha & Hr1)". iApply wp_pure_step_later; auto.
+                          iApply wp_value; eauto. iNext; iIntros; discriminate.
+                      + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
+                        iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
+                        iApply wp_value; eauto. iNext; iIntros; discriminate. } }
       + admit. (* Add *)
       + admit. (* Sub *)
       + admit. (* Lea *)
