@@ -3186,8 +3186,12 @@ Section fundamental.
                     { iFrame. }
                     iApply wp_pure_step_later; auto. rewrite (insert_id _ r0); auto.
                     iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto. }
-                  { (* Forgot rule again *) admit. }
-                * (* Forgot rule again *) admit.
+                  { iApply (wp_lea_failPCreg1' with "[HPC Ha Hr0]"); eauto; iFrame.
+                    iNext. iIntros.  iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                * iApply (wp_lea_failPCreg1 with "[HPC Ha Hr0]"); eauto; iFrame.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
               + iApply (wp_lea_failPC5 with "[HPC Ha Hr0]"); eauto; iFrame.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -3246,8 +3250,9 @@ Section fundamental.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate.
                 * destruct (reg_eq_dec dst r0).
-                  { subst r0.
-                    (* Missing corresponding rule, src is dst and points to cap *) admit. }
+                  { subst r0. iApply (wp_lea_fail7 with "[HPC Ha Hdst]"); eauto; iFrame.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
                   { iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
                     repeat rewrite lookup_delete_ne; eauto.
                     destruct wr0.
