@@ -34,7 +34,7 @@ Section fundamental.
 
   Lemma interp_cap_preserved E fs fr_pub fr_priv p l a2 a1 a0 a3 (Hne: p <> cap_lang.E):
     (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a0)) -∗
-                                                     (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a3)).
+    (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a3)).
   Proof.
     repeat rewrite fixpoint_interp1_eq. simpl. iIntros "HA".
     destruct p; auto.

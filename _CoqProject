@@ -1,8 +1,14 @@
 -Q theories cap_machine
 -arg -w -arg -several-object-files
-theories/rules.v
+theories/addr_reg.v
 theories/lang.v
+theories/rules_base.v
+theories/rules_Get.v
+theories/rules_Load.v
+theories/rules_AddSubLt.v
+theories/rules_Lea.v
+theories/rules_Mov.v
+theories/rules.v
 theories/logrel.v
 theories/region.v
-theories/addr_reg.v
 theories/sts.v
