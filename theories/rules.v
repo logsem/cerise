@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_base rules_Get rules_Load rules_AddSubLt rules_Lea rules_Mov.
+From cap_machine Require Export rules_base rules_Get rules_Load rules_AddSubLt rules_Lea rules_Mov rules_Restrict.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
@@ -794,56 +794,7 @@ Section cap_lang_rules.
        iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
        iSpecialize ("Hφ" with "[HPC Hr2 Hpc_a]"); iFrame.
          by iModIntro. 
-   Qed.          
-     
-
-   Lemma wp_restrict_success_z E pc_p pc_g pc_b pc_e pc_a pc_a' w dst p g b e a z p' g' :
-     cap_lang.decode w = Restrict dst (inl z) →
-     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
-     (pc_a + 1)%a = Some pc_a' →
-     decodePermPair z = (p',g') →
-     PermPairFlowsTo (p',g') (p,g) = true →
-     dst ≠ PC →
-     
-     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr ((p,g),b,e,a) }}}
-       Instr Executable @ E
-     {{{ RET NextIV; PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
-                        ∗ pc_a ↦ₐ w
-                        ∗ dst ↦ᵣ inr ((p',g'),b,e,a) }}}.
-   Proof. 
-     iIntros (Hinstr Hvpc Hpc_a' Hdcp Hflow Hne ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
-     iApply wp_lift_atomic_head_step_no_fork; auto.
-     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
-     iDestruct "Hσ1" as "[Hr Hm]".
-     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
-     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
-     iDestruct (@gen_heap_valid with "Hr Hdst") as %?.
-     option_locate_mr m r.
-     assert (∀ w, <[dst:=w]> r !r! PC = (inr (pc_p, pc_g, pc_b, pc_e, pc_a)))
-       as Hpc_new1.
-     {intros. rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-     iApply fupd_frame_l.
-     iSplit.
-     - rewrite /reducible.
-       iExists [], (Instr _), (_, m),[].
-       iPureIntro.
-       constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inl z))
-                              (cap_lang.NextI,_)); eauto; simpl; try congruence.
-       by rewrite Hdst Hdcp Hflow /updatePC /= Hpc_new1 Hpc_a' /update_reg /=. 
-     - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
-       iModIntro. iNext.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r0 HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst Hdcp Hflow /updatePC /= Hpc_new1 Hpc_a' /update_reg /=. 
-       inv_head_step.
-       iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
-       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
-       iSpecialize ("Hφ" with "[HPC Hdst Hpc_a]"); iFrame.
-       iModIntro. done.
-  Qed.
+   Qed.
    
    Lemma wp_subseg_success E pc_p pc_g pc_b pc_e pc_a pc_a' w dst r1 r2 p g b e a n1 n2 a1 a2:
      cap_lang.decode w = Subseg dst (inr r1) (inr r2) →
@@ -1448,86 +1399,6 @@ Section cap_lang_rules.
                     | _ => (Failed, (r, m))
                     end = (Failed, (r, m))) by (destruct p; congruence).
        repeat rewrite X.
-       iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
-   Qed.
-
-   Lemma wp_restrict_fail1 E dst src pc_p pc_g pc_b pc_e pc_a w n:
-     cap_lang.decode w = Restrict dst src →
-
-     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
-
-     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-            ∗ pc_a ↦ₐ w
-            ∗ dst ↦ᵣ inl n }}}
-       Instr Executable @ E
-       {{{ RET FailedV; True }}}.
-   Proof.
-     intros Hinstr Hvpc;
-     (iIntros (φ) "(HPC & Hpc_a & Hdst) Hφ";
-      iApply wp_lift_atomic_head_step_no_fork; auto;
-      iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
-      iDestruct "Hσ1" as "[Hr Hm]";
-      iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-      iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
-      option_locate_mr m r).
-     iApply fupd_frame_l.
-     iSplit.
-     - rewrite /reducible.
-       iExists [],(Instr Failed), (r, m), [].
-       iPureIntro.
-       constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst src)
-                              (Failed,_));
-         eauto; simpl; try congruence.
-       rewrite Hdst. destruct src; auto.
-     - iModIntro.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst.
-       assert (X: match src with | inl _ | _ => (Failed, (r, m)) end = (Failed, (r, m))) by (destruct src; auto).
-       rewrite X.
-       iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
-   Qed.
-
-   Lemma wp_restrict_fail2 E dst src pc_p pc_g pc_b pc_e pc_a w permPair b e a x:
-     cap_lang.decode w = Restrict dst (inr src) →
-
-     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
-
-     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-            ∗ pc_a ↦ₐ w
-            ∗ dst ↦ᵣ inr (permPair, b, e, a)
-            ∗ src ↦ᵣ inr x }}}
-       Instr Executable @ E
-       {{{ RET FailedV; True }}}.
-   Proof.
-     intros Hinstr Hvpc;
-     (iIntros (φ) "(HPC & Hpc_a & Hdst & Hsrc) Hφ";
-      iApply wp_lift_atomic_head_step_no_fork; auto;
-      iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
-      iDestruct "Hσ1" as "[Hr Hm]";
-      iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-      iDestruct (@gen_heap_valid with "Hr Hdst") as %?;
-      iDestruct (@gen_heap_valid with "Hr Hsrc") as %?;
-      option_locate_mr m r).
-     iApply fupd_frame_l.
-     iSplit.
-     - rewrite /reducible.
-       iExists [],(Instr Failed), (r, m), [].
-       iPureIntro.
-       constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inr src))
-                              (Failed,_));
-         eauto; simpl; try congruence.
-       rewrite Hdst. rewrite Hsrc. auto.
-     - iModIntro.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst. rewrite Hsrc.
        iFrame. iNext. iModIntro.
        iSplitR; auto. by iApply "Hφ".
    Qed.

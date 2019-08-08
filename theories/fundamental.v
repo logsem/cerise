@@ -248,6 +248,9 @@ Section fundamental.
                     exists wr2. rewrite -Hsomer2. eapply lookup_insert_ne; eauto. }
                 { iIntros (r2 HnePC). destruct (reg_eq_dec dst r2).
                   - subst r2. rewrite /RegLocate lookup_insert.
+                    repeat rewrite fixpoint_interp1_eq.
+                    iExists RX,g,b,e,a,ws. iSplitR; auto.
+                    rewrite /interp. iSplitR; auto.
                     (* PC is in the logical relation *) admit.
                   - rewrite /RegLocate lookup_insert_ne.
                     iApply "Hreg"; auto. auto. }
@@ -3300,7 +3303,165 @@ Section fundamental.
                     - iApply (wp_lea_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
                       iNext. iApply wp_value; auto. iIntros; discriminate. } }
-      + admit. (* Restrict *)
+      + (* Restrict *)
+        rewrite delete_insert_delete.
+        destruct (reg_eq_dec PC dst).
+        * subst dst. destruct r0.
+          { case_eq (PermPairFlowsTo (decodePermPair z) (RX, g)); intros.
+            * case_eq (a + 1)%a; intros.
+              { iApply (wp_restrict_success_z_PC with "[HPC Ha]"); eauto; iFrame.
+                iNext. iIntros "(HPC & Ha)".
+                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                iDestruct (extract_from_region _ _ a with
+                               "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                { iExists _. rewrite H5. iFrame "∗ #". }
+                iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
+                { iFrame. }
+                iApply wp_pure_step_later; auto.
+                case_eq (decodePermPair z); intros.
+                destruct p; admit.
+                (* case analysis on the kind of permission, fail if not RX/RWX/RWLX *)
+                (* iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.*) }
+              { iApply (wp_restrict_failPC1' with "[HPC Ha]"); eauto; iFrame.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
+                iNext. iApply wp_value; auto. iIntros; discriminate. }
+            * iApply (wp_restrict_failPC1 with "[HPC Ha]"); eauto; iFrame.
+              iNext. iIntros. iApply wp_pure_step_later; auto.
+              iNext. iApply wp_value; auto. iIntros; discriminate. }
+          { destruct (H3 r0) as [wr0 Hsomer0].
+            destruct (reg_eq_dec PC r0).
+            - subst r0. iApply (wp_restrict_fail6 with "[HPC Ha]"); eauto; iFrame.
+              iNext. iIntros. iApply wp_pure_step_later; auto.
+              iNext. iApply wp_value; auto. iIntros; discriminate.
+            - iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+              repeat rewrite lookup_delete_ne; eauto.
+              destruct wr0.
+              + case_eq (PermPairFlowsTo (decodePermPair z) (RX, g)); intros.
+                * case_eq (a + 1)%a; intros.
+                  { iApply (wp_restrict_success_reg_PC with "[HPC Ha Hr0]"); eauto; iFrame.
+                    iNext. iIntros "(HPC & Ha & Hr0)".
+                    iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    rewrite -delete_insert_ne; auto.
+                    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    iDestruct (extract_from_region _ _ a with
+                                   "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                    { iExists _. rewrite H5. iFrame "∗ #". }
+                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
+                    { iFrame. }
+                    iApply wp_pure_step_later; auto. rewrite (insert_id _ r0); auto.
+                    case_eq (decodePermPair z); intros.
+                    destruct p; admit.
+                    (* case analysis on the kind of permission, fail if not RX/RWX/RWLX *)
+                    (* iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.*) }
+                  { iApply (wp_restrict_failPCreg1' with "[HPC Ha Hr0]"); eauto; iFrame.
+                    iNext. iIntros.  iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                * iApply (wp_restrict_failPCreg1 with "[HPC Ha Hr0]"); eauto; iFrame.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
+              + iApply (wp_restrict_failPC5 with "[HPC Ha Hr0]"); eauto; iFrame.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
+                iNext. iApply wp_value; auto. iIntros; discriminate. }
+        * destruct (H3 dst) as [wdst Hsomedst].
+          iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; eauto.
+          rewrite lookup_delete_ne; eauto.
+          destruct wdst.
+          { iApply (wp_restrict_fail2 with "[HPC Ha Hdst]"); eauto; iFrame.
+            iNext. iIntros. iApply wp_pure_step_later; auto.
+            iNext. iApply wp_value; auto. iIntros; discriminate. }
+          { destruct c, p, p, p.
+            - destruct r0.
+              + case_eq (PermPairFlowsTo (decodePermPair z) (p, l)); intros.
+                * case_eq (a + 1)%a; intros.
+                  { iApply (wp_restrict_success_z with "[HPC Ha Hdst]"); eauto; iFrame.
+                    iNext. iIntros "(HPC & Ha & Hdst)".
+                    iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    repeat rewrite -delete_insert_ne; auto.
+                    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                    iDestruct (extract_from_region _ _ a with
+                                   "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                    { iExists _. rewrite H5; iFrame "∗ #". }
+                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
+                    { iFrame. }
+                    iApply wp_pure_step_later; auto.
+                    iAssert ((interp_registers _ _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> r)))%I
+                      as "[Hfull' Hreg']".
+                    { iSplitL.
+                      - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                      - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
+                        + subst r2. rewrite /RegLocate lookup_insert.
+                          iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
+                          simpl. admit. (* need to do a case analysis *)
+                        + rewrite /RegLocate lookup_insert_ne; auto.
+                          iApply "Hreg"; auto. }
+                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); auto. }
+                  { iApply (wp_restrict_fail1' with "[HPC Ha Hdst]"); eauto; iFrame.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                * iApply (wp_restrict_fail1 with "[HPC Ha Hdst]"); eauto; iFrame.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
+              + destruct (H3 r0) as [wr0 Hsomer0].
+                destruct (reg_eq_dec PC r0).
+                * subst r0. iApply (wp_restrict_fail6 with "[HPC Ha]"); eauto; iFrame.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
+                * destruct (reg_eq_dec dst r0).
+                  { subst r0. iApply (wp_restrict_fail7 with "[HPC Ha Hdst]"); eauto; iFrame.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                  { iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+                    repeat rewrite lookup_delete_ne; eauto.
+                    destruct wr0.
+                    - case_eq (PermPairFlowsTo (decodePermPair z) (p, l)); intros.
+                      * case_eq (a + 1)%a; intros.
+                        { revert H4; intro H4.
+                          iApply (wp_restrict_success_reg with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                          iNext. iIntros "(HPC & Ha & Hr0 & Hdst)".
+                          iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                          repeat rewrite -delete_insert_ne; auto.
+                          iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                          repeat rewrite -delete_insert_ne; auto.
+                          iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                          iDestruct (extract_from_region _ _ a with
+                                         "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
+                          { iExists _. rewrite H5; iFrame "∗ #". }
+                          iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
+                          { iFrame. }
+                          iApply wp_pure_step_later; auto.
+                          iAssert ((interp_registers _ _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> (<[r0:=inl z]> r))))%I
+                            as "[Hfull' Hreg']".
+                          { iSplitL.
+                            - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                              destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                            - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
+                              + subst r2. rewrite /RegLocate lookup_insert.
+                                iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
+                                simpl. admit. (* case analysis again *)
+                              + rewrite /RegLocate lookup_insert_ne; auto.
+                                destruct (reg_eq_dec r0 r2).
+                                * subst r2; rewrite lookup_insert. simpl.
+                                  repeat rewrite fixpoint_interp1_eq. simpl. eauto.
+                                * rewrite lookup_insert_ne; auto.
+                                  iApply "Hreg"; auto. }
+                          iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); auto. }
+                        { iApply (wp_restrict_fail4' with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate. }
+                      * iApply (wp_restrict_fail4 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                        iNext. iIntros. iApply wp_pure_step_later; auto.
+                        iNext. iApply wp_value; auto. iIntros; discriminate.
+                    - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. } }
       + admit. (* Subseg *)
       + (* IsPtr *)
         rewrite delete_insert_delete.

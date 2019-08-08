@@ -8,6 +8,7 @@ theories/rules_Load.v
 theories/rules_AddSubLt.v
 theories/rules_Lea.v
 theories/rules_Mov.v
+theories/rules_Restrict.v
 theories/rules.v
 theories/logrel.v
 theories/region.v
