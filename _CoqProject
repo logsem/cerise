@@ -9,7 +9,9 @@ theories/rules_AddSubLt.v
 theories/rules_Lea.v
 theories/rules_Mov.v
 theories/rules_Restrict.v
+theories/rules_IsPtr.v
 theories/rules.v
 theories/logrel.v
 theories/region.v
 theories/sts.v
+theories/invariant_weak.v

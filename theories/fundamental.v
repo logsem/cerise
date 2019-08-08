@@ -62,13 +62,13 @@ Section fundamental.
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
   Lemma fundamental_RX stsf E r b e g (a : Addr) ws :
-    (na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp) →
+    (na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp) →
      ⟦ inr ((RX,g),b,e,a) ⟧ₑ stsf E r)%I
   with fundamental_RWX stsf E r b e g (a : Addr) :
-    (na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp) →
+    (na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp) →
      ⟦ inr ((RWX,g),b,e,a) ⟧ₑ stsf E r)%I
   with fundamental_RWLX stsf E r b e g (a : Addr) :
-    (na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp) →
+    (na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp) →
      ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ stsf E r)%I. 
   Proof.
   { destruct stsf as [fs [fr_pub fr_priv] ].
@@ -87,7 +87,8 @@ Section fundamental.
         unfold le_addr; omega. }
       iAssert (⌜↑logN.@(b, e) ⊆ E⌝)%I as %Hbe.
       { iPureIntro. by apply Hreach. }
-      iMod (na_inv_open _ _ _ (logN.@(b, e)) with "Hinv Hown") as "(Hregion & Hown & Hcls)"; auto. 
+      iMod ("Hinv" $! ⊤ E _ Hbe with "Hown") as "[[Hregion Hown] Hcls]". 
+      (* iMod (na_inv_open _ _ _ (logN.@(b, e)) with "Hinv Hown") as "(Hregion & Hown & Hcls)"; auto. *) 
       (* iDestruct (extract_from_region _ _ a with "Hregion") *)
 (*         as (al w ah) "(Hal & Hah & Hregionl & Hvalidl & >Ha & #Hva & Hregionh & Hvalidh)"; *)
 (*         auto. *)
@@ -112,7 +113,7 @@ Section fundamental.
           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
           (* reestablish invariant *)
           iNext. iMod ("Hcls" with "[$Hbe Hbev $Hown]") as "Hown".
-          { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+          { iNext. rewrite -big_sepL_later. iNext. iFrame. }
           (* apply IH *)
           iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg Hmap Hsts Hown");
             iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto]. 
@@ -350,7 +351,7 @@ Section fundamental.
                   iNext. iIntros "(HPC & Ha & Hdst & Hr0)".
                   iApply wp_pure_step_later; auto.
                   iApply wp_value. iNext; iIntros; discriminate. }
-      + (* Load *) admit.
+      + (* Load *) admit. 
         (* destruct (decide (PC = dst)),(decide (PC = src)); simplify_eq. 
         * (* Load PC PC ==> fail *)
           iApply (wp_load_fail3 with "[HPC Ha]"); eauto; iFrame. 
@@ -611,12 +612,18 @@ Section fundamental.
           (* each condition is similar, but with some subtle differences for closing *)
           { iDestruct "Hro" as (ws0) "Hinv0".
             (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hinv0 Hown")
-              as "(Hro_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hinv0" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hro_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hinv0 Hown") *)
+            (*   as "(Hro_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct (extract_from_region _ _ a0 with "Hro_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep". iFrame "Hsts".
@@ -637,12 +644,18 @@ Section fundamental.
             iModIntro. iFrame. 
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrw Hown")
-              as "(Hrw_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hrw" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hrw_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrw Hown") *)
+            (*   as "(Hrw_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond".
             iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
@@ -655,7 +668,7 @@ Section fundamental.
               first (split; by apply Z.leb_le,Is_true_eq_true).
             { iFrame. iExists _. iFrame "∗ #". }
             iMod ("Hcls'" with "[$Hown Hregion Hvalid]") as "Hown".
-            { iNext. iExists _. iFrame. do 2 rewrite -big_sepL_later. iFrame. }
+            { iNext. iExists _. iFrame. iApply big_sepL_later. iFrame. }
             iMod ("Hcls" with "[$Hown Hregionl Hvalidl Hh Ha Heqws]") as "Hown".
             { iDestruct (extract_from_region _ _ a
                          with "[Hregionl Hvalidl Hh Ha Heqws]")
@@ -665,12 +678,18 @@ Section fundamental.
             iModIntro. iFrame.
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrwl Hown")
-              as "(Hrwl_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hrwl" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hrwl_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrwl Hown") *)
+            (*   as "(Hrwl_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct "Hrwl_cond" as (ws0) "Hrwl_cond".
             iDestruct (extract_from_region _ _ a0 with "Hrwl_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
@@ -683,7 +702,7 @@ Section fundamental.
               first (split; by apply Z.leb_le,Is_true_eq_true).
             { iFrame. iExists _. iFrame "∗ #". }
             iMod ("Hcls'" with "[$Hown Hregion Hvalid]") as "Hown".
-            { iNext. iExists _. iFrame. do 2 rewrite -big_sepL_later. iFrame. }
+            { iNext. iExists _. iFrame. iApply big_sepL_later. iFrame. }
             iMod ("Hcls" with "[$Hown Hregionl Hvalidl Hh Ha Heqws]") as "Hown".
             { iDestruct (extract_from_region _ _ a
                          with "[Hregionl Hvalidl Hh Ha Heqws]")
@@ -906,12 +925,18 @@ Section fundamental.
           (* each condition is similar, but with some subtle differences for closing *)
           { iDestruct "Hro" as (ws0) "Hinv0".
             (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hinv0 Hown")
-              as "(Hro_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hinv0" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hro_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hinv0 Hown") *)
+            (*   as "(Hro_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct (extract_from_region _ _ a0 with "Hro_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
             iApply "Hstep". iFrame "Hsts".
@@ -932,12 +957,18 @@ Section fundamental.
             iModIntro. iFrame. 
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrw Hown")
-              as "(Hrw_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hrw" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hrw_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrw Hown") *)
+            (*   as "(Hrw_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct "Hrw_cond" as (ws0) "Hrw_cond".
             iDestruct (extract_from_region _ _ a0 with "Hrw_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #[Hva0 Hnl] & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
@@ -950,7 +981,7 @@ Section fundamental.
               first (split; by apply Z.leb_le,Is_true_eq_true).
             { iFrame. iExists _. iFrame "∗ #". }
             iMod ("Hcls'" with "[$Hown Hregion Hvalid]") as "Hown".
-            { iNext. iExists _. iFrame. do 2 rewrite -big_sepL_later. iFrame. }
+            { iNext. iExists _. iFrame. iApply big_sepL_later. iFrame. }
             iMod ("Hcls" with "[$Hown Hregionl Hvalidl Hh Ha Heqws]") as "Hown".
             { iDestruct (extract_from_region _ _ a
                          with "[Hregionl Hvalidl Hh Ha Heqws]")
@@ -960,12 +991,18 @@ Section fundamental.
             iModIntro. iFrame.
           }
           { (* open the invariant to access a0 ↦ₐ _ *)
-            iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrwl Hown")
-              as "(Hrwl_cond & Hown & Hcls')"; auto.
+            assert (↑logN.@(a2, a1) ⊆ (E ∖ ↑logN.@(b, e))) as Ha2a1.
             { apply namespace_subseteq_difference; auto.
               rewrite /namespace_subseteq_difference.
-              by apply ndot_ne_disjoint. 
+                by apply ndot_ne_disjoint.
             }
+            iMod ("Hrwl" $! ⊤ _ _ Ha2a1 with "Hown") as "[[Hrwl_cond Hown] Hcls']". 
+            (* iMod (na_inv_open _ _ _ (logN.@(a2, a1)) with "Hrwl Hown") *)
+            (*   as "(Hrwl_cond & Hown & Hcls')"; auto. *)
+            (* { apply namespace_subseteq_difference; auto. *)
+            (*   rewrite /namespace_subseteq_difference. *)
+            (*   by apply ndot_ne_disjoint.  *)
+            (* } *)
             rewrite /read_only_cond.
             iDestruct "Hrwl_cond" as (ws0) "Hrwl_cond".
             iDestruct (extract_from_region _ _ a0 with "Hrwl_cond") as (w0) "(Heqws' & Hregion0l & Hvalid0l & >Ha0 & #Hva0 & Hh0)"; first (split; by apply Z.leb_le,Is_true_eq_true).
@@ -978,7 +1015,7 @@ Section fundamental.
               first (split; by apply Z.leb_le,Is_true_eq_true).
             { iFrame. iExists _. iFrame "∗ #". }
             iMod ("Hcls'" with "[$Hown Hregion Hvalid]") as "Hown".
-            { iNext. iExists _. iFrame. do 2 rewrite -big_sepL_later. iFrame. }
+            { iNext. iExists _. iFrame. iApply big_sepL_later. iFrame. }
             iMod ("Hcls" with "[$Hown Hregionl Hvalidl Hh Ha Heqws]") as "Hown".
             { iDestruct (extract_from_region _ _ a
                          with "[Hregionl Hvalidl Hh Ha Heqws]")
@@ -986,9 +1023,9 @@ Section fundamental.
               { iExists _. iFrame. iFrame "∗ #". }
             } 
             iModIntro. iFrame.
-          }*)
+          } *)
       + admit. (* Store *)
-      + (* Lt *) admit.
+      + (* Lt *) admit. 
         (* rewrite delete_insert_delete.
         destruct (reg_eq_dec dst PC).
         * subst dst.
@@ -1706,7 +1743,7 @@ Section fundamental.
                       + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
                         iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
                         iApply wp_value; eauto. iNext; iIntros; discriminate. } } *)
-      + (* Add *) admit.
+      + (* Add *) admit. 
         (* rewrite delete_insert_delete.
         destruct (reg_eq_dec dst PC).
         * subst dst.
@@ -3524,7 +3561,7 @@ Section fundamental.
                   auto. }
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3609,7 +3646,7 @@ Section fundamental.
 
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3740,7 +3777,7 @@ Section fundamental.
                   + rewrite lookup_insert_ne; auto. }
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3788,7 +3825,7 @@ Section fundamental.
                           iApply "Hv"; auto. } }
                 (* reestablish invariant *)
                 iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-                { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+                { iNext. rewrite -big_sepL_later. iNext. iFrame. }
                 (* apply IH *)
                 iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                   iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3856,7 +3893,7 @@ Section fundamental.
               }
               (* reestablish invariant *)
                 iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-                { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+                { iNext. rewrite -big_sepL_later. iNext. iFrame. }
                 (* apply IH *)
                 iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                   iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3905,7 +3942,7 @@ Section fundamental.
                           iApply "Hv"; auto. } }
                 (* reestablish invariant *)
                 iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-                { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+                { iNext. rewrite -big_sepL_later. iNext. iFrame. }
                 (* apply IH *)
                 iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                   iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -3969,7 +4006,7 @@ Section fundamental.
                   + rewrite lookup_insert_ne; auto. }
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4020,7 +4057,7 @@ Section fundamental.
                           iApply "Hv"; auto. } }
                 (* reestablish invariant *)
                 iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-                { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+                { iNext. rewrite -big_sepL_later. iNext. iFrame. }
                 (* apply IH *)
                 iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                   iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4084,7 +4121,7 @@ Section fundamental.
                   + rewrite lookup_insert_ne; auto. }
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4131,7 +4168,7 @@ Section fundamental.
                           iApply "Hv"; auto. } }
                (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4195,7 +4232,7 @@ Section fundamental.
                   + rewrite lookup_insert_ne; auto. }
               (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4243,7 +4280,7 @@ Section fundamental.
                           iApply "Hv"; auto. } }
                 (* reestablish invariant *)
               iNext. iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
               (* apply IH *)
               iApply ("IH" $! _ _ _ _ _ _ _ ws with "[] Hreg' Hmap Hsts Hown");
                 iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto].
@@ -4265,7 +4302,7 @@ Section fundamental.
                        "[Heqws Hregionl Hvalidl Hh Ha]") as "[Hbe Hregion]"; eauto.
         { iExists w. iFrame. iExact "Hva". }
         iMod ("Hcls" with "[$Hbe Hregion $Hown]") as "Hown".
-              { iNext. rewrite /read_only_cond -big_sepL_later. iNext. iFrame. }
+              { iNext. rewrite -big_sepL_later. iNext. iFrame. }
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
@@ -4295,11 +4332,11 @@ Section fundamental.
   
 
   Theorem fundamental (perm : Perm) b e g (a : Addr) stsf E r :
-    (⌜perm = RX⌝ ∧ ∃ ws, (na_inv logrel_nais (logN .@ (b,e))
+    (⌜perm = RX⌝ ∧ ∃ ws, (na_abstract_inv logrel_nais (logN .@ (b,e))
                                  (read_only_cond b e ws stsf E interp)%I)) ∨
-    (⌜perm = RWX⌝ ∧ (na_inv logrel_nais (logN .@ (b,e))
+    (⌜perm = RWX⌝ ∧ (na_abstract_inv logrel_nais (logN .@ (b,e))
                                  (read_write_cond b e stsf E interp)%I)) ∨
-    (⌜perm = RWLX⌝ ∧ (na_inv logrel_nais (logN .@ (b,e))
+    (⌜perm = RWLX⌝ ∧ (na_abstract_inv logrel_nais (logN .@ (b,e))
                                  (read_write_local_cond b e stsf E interp)%I)) -∗
     ⟦ inr ((perm,g),b,e,a) ⟧ₑ stsf E r.
   Proof. 

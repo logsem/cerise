@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_base rules_Get rules_Load rules_AddSubLt rules_Lea rules_Mov rules_Restrict.
+From cap_machine Require Export rules_base rules_Get rules_Load rules_AddSubLt rules_Lea rules_Mov rules_IsPtr rules_Restrict.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
