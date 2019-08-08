@@ -12,3 +12,4 @@ theories/rules.v
 theories/logrel.v
 theories/region.v
 theories/sts.v
+theories/invariant_weak.v

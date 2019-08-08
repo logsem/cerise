@@ -1,6 +1,6 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
-From iris.base_logic Require Export invariants na_invariants.
+From cap_machine Require Export invariant_weak.
 From cap_machine Require Export lang rules region sts.
 From iris.algebra Require Import list frac excl.
 Import uPred.
@@ -126,25 +126,25 @@ Section logrel.
   Program Definition interp_cap_RO (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ g b e a ws, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp))%I.
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp))%I.
   Solve Obligations with solve_proper.
   
   Program Definition interp_cap_RW (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp))%I.
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp))%I.
   Solve Obligations with solve_proper.
   
   Program Definition interp_cap_RWL (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp))%I.
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp))%I.
   Solve Obligations with solve_proper.
            
   Program Definition interp_cap_RX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a ws, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)
             ∗ ∀ E' r, □ exec_cond b e g RX stsf (interp_expr (interp) E' r))%I.  
   Solve Obligations with solve_proper.
   
@@ -156,14 +156,14 @@ Section logrel.
   Program Definition interp_cap_RWX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp)
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp)
             ∗ ∀ E' r, □ exec_cond b e g RWX stsf (interp_expr interp E' r))%I.
   Solve Obligations with solve_proper.
   
   Program Definition interp_cap_RWLX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)   
+            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)   
             ∗ ∀ E' r, □ exec_cond b e g RWLX stsf (interp_expr interp E' r))%I.
   Solve Obligations with solve_proper.
   
@@ -191,17 +191,17 @@ Section logrel.
   Global Instance interp_cap_RO_contractive :
     Contractive (interp_cap_RO).
   Proof. solve_proper_prepare.
-         rewrite /na_inv. 
+         rewrite /na_abstract_inv. 
          solve_contractive. Qed. 
   Global Instance interp_cap_RW_contractive :
     Contractive (interp_cap_RW).
   Proof. solve_proper_prepare.
-         rewrite /na_inv.
+         rewrite /na_abstract_inv.
          solve_contractive. Qed. 
   Global Instance interp_cap_RWL_contractive :
     Contractive (interp_cap_RWL).
   Proof. solve_proper_prepare.
-         rewrite /na_inv.
+         rewrite /na_abstract_inv.
          solve_contractive. Qed. 
   Global Instance exec_cond_contractive b e g pl s E r:
     Contractive (λ interp, exec_cond b e g pl s (interp_expr interp E r)).
@@ -227,7 +227,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne; [auto|]).
     apply sep_ne. 
-    - rewrite /na_inv. 
+    - rewrite /na_abstract_inv. 
       solve_contractive. 
     - do 2 (f_equiv; intros; rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive. 
@@ -250,7 +250,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne;[auto|]).
     apply sep_ne.
-    - rewrite /na_inv. solve_contractive.  
+    - rewrite /na_abstract_inv. solve_contractive.  
     - do 2 (f_equiv;rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive.
   Qed.
@@ -262,7 +262,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne;[auto|]).
     apply sep_ne.
-    - rewrite /na_inv. 
+    - rewrite /na_abstract_inv. 
       solve_contractive.
     - do 2 (f_equiv; rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive. 
@@ -308,9 +308,9 @@ Section logrel.
 
   Lemma read_allowed_inv p g b e a E stsf :
     readAllowed p → (interp E stsf (inr ((p,g),b,e,a)) →
-      ((∃ ws, na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)) ∨
-      na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp) ∨
-      na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)) ∧
+      ((∃ ws, na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)) ∨
+      na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp) ∨
+      na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)) ∧
       ⌜↑logN.@(b,e) ⊆ E⌝ )%I.
   Proof.
     iIntros (Ra) "Hinterp".
