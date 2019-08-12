@@ -42,49 +42,47 @@ Section logrel.
   
   (* -------------------------------------------------------------------------------- *)
   
-  Definition related_sts_l fs fs' fr_pub fr_pub' fr_priv fr_priv' g : iProp Σ :=
+  Definition related_sts_l stsf stsf' g : iProp Σ :=
     (match g with
-    | Global => ⌜related_sts fs fs' fr_priv fr_priv'⌝
-    | Local => ⌜related_sts fs fs' fr_pub fr_pub'⌝
+    | Global => ⌜related_sts stsf.1 stsf'.1 stsf.2.2 stsf'.2.2⌝
+    | Local => ⌜related_sts stsf.1 stsf'.1 stsf.2.1 stsf'.2.1⌝
     end)%I. 
   
   Definition registers_mapsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
-  Definition read_only_cond b e ws stsf E (interp : NS -n> D) := 
-    ([[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, ▷ interp E stsf w)%I.
+  Definition read_only_cond b e ws (interp : NS -n> D) := 
+    ([[ b, e ]] ↦ₐ [[ ws ]] ∗ ∀ stsf E, [∗ list] w ∈ ws, ▷ interp E stsf w)%I.
   Global Instance read_only_cond_ne n :
-    Proper ((=) ==> (=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) read_only_cond. 
+    Proper ((=) ==> (=) ==> (=) ==> dist n ==> dist n) read_only_cond. 
   Proof. unfold read_only_cond. solve_proper. Qed.
   
-  Definition read_write_cond b e stsf E (interp : NS -n> D) := 
-    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, ▷ (interp E stsf w
+  Definition read_write_cond b e (interp : NS -n> D) := 
+    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ ∀ stsf E, [∗ list] w ∈ ws, ▷ (interp E stsf w
                                                           ∗ ⌜isLocalWord w = false⌝))%I.
   Global Instance read_write_cond_ne n :
-    Proper ((=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) read_write_cond. 
+    Proper ((=) ==> (=) ==> dist n ==> dist n) read_write_cond. 
   Proof. unfold read_write_cond. solve_proper. Qed. 
 
-  Definition read_write_local_cond b e stsf E (interp : NS -n> D) := 
-    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ [∗ list] w ∈ ws, ▷ interp E stsf w)%I. 
+  Definition read_write_local_cond b e (interp : NS -n> D) := 
+    (∃ ws, [[ b, e ]] ↦ₐ [[ ws ]] ∗ ∀ stsf E, [∗ list] w ∈ ws, ▷ interp E stsf w)%I. 
   Global Instance read_write_local_cond_ne n :
-    Proper ((=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) read_write_local_cond. 
+    Proper ((=) ==> (=) ==> dist n ==> dist n) read_write_local_cond. 
   Proof. unfold read_write_local_cond. solve_proper. Qed. 
   
   Definition exec_cond b e g p (stsf : STS)
              (interp_expr : D) : iProp Σ :=
-    (∀ a fs' fr_pub' fr_priv', 
-                  ⌜a ∈ₐ [[ b , e ]]⌝ →
-                  related_sts_l stsf.1 fs' stsf.2.1 fr_pub' stsf.2.2 fr_priv' g →
-                  ▷ interp_expr (fs',(fr_pub',fr_priv')) (inr ((p,g),b, e,a)))%I.
+    (∀ a stsf', ⌜a ∈ₐ [[ b , e ]]⌝ →
+                related_sts_l stsf stsf' g →
+                ▷ interp_expr stsf' (inr ((p,g),b, e,a)))%I.
   Global Instance exec_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) exec_cond. 
   Proof. unfold exec_cond. solve_proper. Qed. 
     
   Definition enter_cond b e a g (stsf : STS)
              (interp_expr : D) : iProp Σ :=
-    (∀ fs' fr_pub' fr_priv',
-      related_sts_l stsf.1 fs' stsf.2.1 fr_pub' stsf.2.2 fr_priv' g →
-      ▷ interp_expr (fs',(fr_pub',fr_priv')) (inr ((RX,g),b,e,a)))%I.
+    (∀ stsf', related_sts_l stsf stsf' g →
+              ▷ interp_expr stsf' (inr ((RX,g),b,e,a)))%I.
   Global Instance enter_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond. 
   Proof. unfold enter_cond. solve_proper. Qed.
@@ -126,25 +124,25 @@ Section logrel.
   Program Definition interp_cap_RO (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ g b e a ws, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp))%I.
-  Solve Obligations with solve_proper.
+            na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws interp))%I.
+  (* Solve Obligations with solve_proper. *)
   
   Program Definition interp_cap_RW (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp))%I.
-  Solve Obligations with solve_proper.
+            na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e interp))%I.
+  (* Solve Obligations with solve_proper. *)
   
   Program Definition interp_cap_RWL (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp))%I.
-  Solve Obligations with solve_proper.
+            na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e  interp))%I.
+  (* Solve Obligations with solve_proper. *)
            
   Program Definition interp_cap_RX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a ws, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)
+            na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws interp)
             ∗ ∀ E' r, □ exec_cond b e g RX stsf (interp_expr (interp) E' r))%I.  
   Solve Obligations with solve_proper.
   
@@ -156,14 +154,14 @@ Section logrel.
   Program Definition interp_cap_RWX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp)
+            na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e interp)
             ∗ ∀ E' r, □ exec_cond b e g RWX stsf (interp_expr interp E' r))%I.
   Solve Obligations with solve_proper.
   
   Program Definition interp_cap_RWLX (interp : NS -n> D) : (NS -n> D) :=
     λne E stsf w, (∃ p g b e a, ⌜w = inr ((p,g),b,e,a)⌝ ∗
             ⌜↑logN.@(b,e) ⊆ E⌝ ∗
-            na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)   
+            na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e interp)
             ∗ ∀ E' r, □ exec_cond b e g RWLX stsf (interp_expr interp E' r))%I.
   Solve Obligations with solve_proper.
   
@@ -191,17 +189,17 @@ Section logrel.
   Global Instance interp_cap_RO_contractive :
     Contractive (interp_cap_RO).
   Proof. solve_proper_prepare.
-         rewrite /na_abstract_inv. 
+         rewrite /na_inv. 
          solve_contractive. Qed. 
   Global Instance interp_cap_RW_contractive :
     Contractive (interp_cap_RW).
   Proof. solve_proper_prepare.
-         rewrite /na_abstract_inv.
+         rewrite /na_inv.
          solve_contractive. Qed. 
   Global Instance interp_cap_RWL_contractive :
     Contractive (interp_cap_RWL).
   Proof. solve_proper_prepare.
-         rewrite /na_abstract_inv.
+         rewrite /na_inv.
          solve_contractive. Qed. 
   Global Instance exec_cond_contractive b e g pl s E r:
     Contractive (λ interp, exec_cond b e g pl s (interp_expr interp E r)).
@@ -227,7 +225,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne; [auto|]).
     apply sep_ne. 
-    - rewrite /na_abstract_inv. 
+    - rewrite /na_inv. 
       solve_contractive. 
     - do 2 (f_equiv; intros; rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive. 
@@ -250,7 +248,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne;[auto|]).
     apply sep_ne.
-    - rewrite /na_abstract_inv. solve_contractive.  
+    - rewrite /na_inv. solve_contractive.  
     - do 2 (f_equiv;rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive.
   Qed.
@@ -262,7 +260,7 @@ Section logrel.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     do 2 (apply sep_ne;[auto|]).
     apply sep_ne.
-    - rewrite /na_abstract_inv. 
+    - rewrite /na_inv. 
       solve_contractive.
     - do 2 (f_equiv; rewrite /pointwise_relation; intros).
       f_equiv. by apply exec_cond_contractive. 
@@ -274,9 +272,15 @@ Section logrel.
     solve_proper_prepare.
     destruct x2;[auto|].
     destruct c,p,p,p,p; first auto.
-    - by apply interp_cap_RO_contractive.
-    - by apply interp_cap_RW_contractive.
-    - by apply interp_cap_RWL_contractive.
+    - solve_proper_prepare.
+      rewrite /na_inv. 
+      solve_contractive.
+    - solve_proper_prepare.
+      rewrite /na_inv. 
+      solve_contractive.
+    - solve_proper_prepare.
+      rewrite /na_inv. 
+      solve_contractive.
     - by apply interp_cap_RX_contractive.    
     - rewrite /interp_cap_E.
       solve_proper_prepare.
@@ -308,21 +312,21 @@ Section logrel.
 
   Lemma read_allowed_inv p g b e a E stsf :
     readAllowed p → (interp E stsf (inr ((p,g),b,e,a)) →
-      ((∃ ws, na_abstract_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws stsf E interp)) ∨
-      na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e stsf E interp) ∨
-      na_abstract_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e stsf E interp)) ∧
+      ((∃ ws, na_inv logrel_nais (logN .@ (b,e)) (read_only_cond b e ws interp)) ∨
+      na_inv logrel_nais (logN .@ (b,e)) (read_write_cond b e interp) ∨
+      na_inv logrel_nais (logN .@ (b,e)) (read_write_local_cond b e interp)) ∧
       ⌜↑logN.@(b,e) ⊆ E⌝ )%I.
   Proof.
     iIntros (Ra) "Hinterp".
     rewrite /interp. cbn.
     destruct p; cbn; try contradiction; rewrite fixpoint_interp1_eq /=;
-     [iDestruct "Hinterp" as (g0 b0 e0 a0 ws) "[% [% Hinterpr] ]" |
-      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% Hinterprw] ]" |
-      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% Hinterprwl] ]" |
-      iDestruct "Hinterp" as (p g0 b0 e0 a0 ws) "[% [% [Hinterpr Hinterpe]]]" | 
-      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% [Hinterprw Hinterpe]]]" |
-      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% [Hinterprwl Hinterpe]]]" ];
-    inversion H3; subst; iSplit; auto.
+     [iDestruct "Hinterp" as (g0 b0 e0 a0 ws) "[% [% Hinterp] ]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% Hinterp] ]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% Hinterp] ]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0 ws) "[% [% [Hinterp Hinterpe]]]" | 
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% [Hinterp Hinterpe]]]" |
+      iDestruct "Hinterp" as (p g0 b0 e0 a0) "[% [% [Hinterp Hinterpe]]]" ];
+    inversion H3; subst; iSplit; auto. 
   Qed.
   
 End logrel.
