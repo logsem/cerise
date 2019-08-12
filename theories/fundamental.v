@@ -59,6 +59,29 @@ Section fundamental.
       iExists RWLX, g, b, e, a3. iFrame; auto.
   Qed.
 
+  Lemma PermPairFlows_interp_preserved E fs fr_pub fr_priv p p' l l' a2 a1 a0:
+    PermPairFlowsTo (p', l') (p, l) = true ->
+    (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a0)) -∗
+    (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p', l', a2, a1, a0)).
+  Proof.
+    intros. iIntros "HA".
+    destruct (andb_true_eq _ _ ltac:(symmetry in H3; exact H3)).
+    simpl in H4. repeat rewrite fixpoint_interp1_eq.
+    destruct p; destruct p'; simpl in H4; try congruence; simpl; match goal with | H: PermPairFlowsTo (O, _) (_, _) = _ |- _ => auto | _ => idtac end.
+    - iDestruct "HA" as (g b e a ws) "[% [HB HC]]".
+      inv H6. iExists l', b, e, a, ws. iFrame. auto.
+    - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
+      inv H6. iExists l', b, e, a.
+      admit.
+    - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
+      inv H6. iExists RW,l',b,e,a.
+      iFrame. auto.
+    - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
+      inv H6. iExists l',b,e,a.
+      admit.
+    - admit.
+  Admitted.      
+  
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
   Lemma fundamental_RX stsf E r b e g (a : Addr) ws :
@@ -178,12 +201,52 @@ Section fundamental.
                   iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=".
                   apply lookup_insert. rewrite delete_insert_delete. iFrame.
                   rewrite -delete_insert_ne; auto.
-                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-                  apply lookup_insert. rewrite delete_insert_delete. iFrame.
                   iMod ("Hcls" with "[Hregion Hown]") as "Hcls'".
                   { iFrame. }
                   iApply wp_pure_step_later; auto.
-                  (* PC is updated with a random capability*) admit.
+                  destruct p.
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
+                    iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                    iNext. iIntros "HPC /=".
+                    iApply wp_pure_step_later; auto.
+                    iApply wp_value.
+                    iNext. iIntros. discriminate. }
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
+                    iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                    iNext. iIntros "HPC /=".
+                    iApply wp_pure_step_later; auto.
+                    iApply wp_value.
+                    iNext. iIntros. discriminate. }
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
+                    iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                    iNext. iIntros "HPC /=".
+                    iApply wp_pure_step_later; auto.
+                    iApply wp_value.
+                    iNext. iIntros. discriminate. }
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
+                    iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                    iNext. iIntros "HPC /=".
+                    iApply wp_pure_step_later; auto.
+                    iApply wp_value.
+                    iNext. iIntros. discriminate. }
+                  { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+                    apply lookup_insert. rewrite delete_insert_delete. iFrame.
+                    rewrite (insert_id r r0); auto.
+                    iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); eauto; admit. }
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
+                    iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                    iNext. iIntros "HPC /=".
+                    iApply wp_pure_step_later; auto.
+                    iApply wp_value.
+                    iNext. iIntros. discriminate. }
+                  { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+                    apply lookup_insert. rewrite delete_insert_delete. iFrame.
+                    rewrite (insert_id r r0); auto.
+                    iNext. (* use fundamental_RWX in some way ? *) admit. }
+                  { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+                    apply lookup_insert. rewrite delete_insert_delete. iFrame.
+                    rewrite (insert_id r r0); auto.
+                    iNext. (* use fundamental_RWLX in some way ? *) admit. }
                 * iApply (wp_move_fail_reg_toPC with "[HPC Ha Hr0]"); eauto; iFrame.
                   iNext. iIntros "(HPC & Ha & Hr0)".
                   iApply wp_pure_step_later; auto.
@@ -249,9 +312,8 @@ Section fundamental.
                     exists wr2. rewrite -Hsomer2. eapply lookup_insert_ne; eauto. }
                 { iIntros (r2 HnePC). destruct (reg_eq_dec dst r2).
                   - subst r2. rewrite /RegLocate lookup_insert.
-                    repeat rewrite fixpoint_interp1_eq.
-                    iExists RX,g,b,e,a,ws. iSplitR; auto.
-                    rewrite /interp. iSplitR; auto.
+                    rewrite (fixpoint_interp1_eq _ _ (inr (RX, g, b, e, a))) /=.
+                    iExists RX,g,b,e,a,ws. do 2 (iSplitR; auto).
                     (* PC is in the logical relation *) admit.
                   - rewrite /RegLocate lookup_insert_ne.
                     iApply "Hreg"; auto. auto. }
@@ -3348,18 +3410,36 @@ Section fundamental.
             * case_eq (a + 1)%a; intros.
               { iApply (wp_restrict_success_z_PC with "[HPC Ha]"); eauto; iFrame.
                 iNext. iIntros "(HPC & Ha)".
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                 iDestruct (extract_from_region _ _ a with
                                "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
                 { iExists _. rewrite H5. iFrame "∗ #". }
                 iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                 { iFrame. }
                 iApply wp_pure_step_later; auto.
-                case_eq (decodePermPair z); intros.
-                destruct p; admit.
-                (* case analysis on the kind of permission, fail if not RX/RWX/RWLX *)
-                (* iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.*) }
+                case_eq (decodePermPair z); intros. rewrite H6 in H4.
+                destruct (andb_true_eq _ _ ltac:(symmetry in H4; exact H4)).
+                simpl in H7. destruct p; simpl in H7; try congruence.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate.
+                - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                  iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate. }
               { iApply (wp_restrict_failPC1' with "[HPC Ha]"); eauto; iFrame.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -3378,21 +3458,40 @@ Section fundamental.
                 * case_eq (a + 1)%a; intros.
                   { iApply (wp_restrict_success_reg_PC with "[HPC Ha Hr0]"); eauto; iFrame.
                     iNext. iIntros "(HPC & Ha & Hr0)".
-                    iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                    rewrite -delete_insert_ne; auto.
-                    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iDestruct (extract_from_region _ _ a with
                                    "[Heqws Hregionl Hvalidl Hh Ha]") as "Hregion"; eauto.
                     { iExists _. rewrite H5. iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. }
-                    iApply wp_pure_step_later; auto. rewrite (insert_id _ r0); auto.
-                    case_eq (decodePermPair z); intros.
-                    destruct p; admit.
-                    (* case analysis on the kind of permission, fail if not RX/RWX/RWLX *)
-                    (* iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.*) }
+                    iApply wp_pure_step_later; auto. 
+                    case_eq (decodePermPair z); intros. rewrite H6 in H4.
+                    destruct (andb_true_eq _ _ ltac:(symmetry in H4; exact H4)).
+                    simpl in H7. destruct p; simpl in H7; try congruence.
+                    - iNext. iApply (wp_bind (fill [SeqCtx])).
+                      iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                      iNext. iIntros "HPC /=".
+                      iApply wp_pure_step_later; auto.
+                      iApply wp_value.
+                      iNext. iIntros. discriminate.
+                    - iNext. iApply (wp_bind (fill [SeqCtx])).
+                      iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                      iNext. iIntros "HPC /=".
+                      iApply wp_pure_step_later; auto.
+                      iApply wp_value.
+                      iNext. iIntros. discriminate.
+                    - iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                      rewrite -delete_insert_ne; auto.
+                      iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                      rewrite (insert_id _ r0); auto.
+                      iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); auto.
+                    - iNext. iApply (wp_bind (fill [SeqCtx])).
+                      iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                      iNext. iIntros "HPC /=".
+                      iApply wp_pure_step_later; auto.
+                      iApply wp_value.
+                      iNext. iIntros. discriminate. }
                   { iApply (wp_restrict_failPCreg1' with "[HPC Ha Hr0]"); eauto; iFrame.
                     iNext. iIntros.  iApply wp_pure_step_later; auto.
                     iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -3433,7 +3532,10 @@ Section fundamental.
                       - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
                         + subst r2. rewrite /RegLocate lookup_insert.
                           iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
-                          simpl. admit. (* need to do a case analysis *)
+                          simpl. rewrite (fixpoint_interp1_eq _ _ (inr (decodePermPair z, a2, a1, a0))) /=.
+                          
+
+                          admit. (* need to do a case analysis *)
                         + rewrite /RegLocate lookup_insert_ne; auto.
                           iApply "Hreg"; auto. }
                     iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); auto. }
@@ -4319,12 +4421,12 @@ Section fundamental.
         iFrame. 
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-        first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
-      iApply (wp_notCorrectPC with "HPC"); eauto.
-      iNext. iIntros "HPC /=".
-      iApply wp_pure_step_later; auto.
-      iApply wp_value.
-      iNext. iIntros (Hcontr); inversion Hcontr. 
+       first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
+     iApply (wp_notCorrectPC with "HPC"); eauto.
+     iNext. iIntros "HPC /=".
+     iApply wp_pure_step_later; auto.
+     iApply wp_value.
+     iNext. iIntros (Hcontr); inversion Hcontr. 
   }
   { admit. }
   { admit. }
