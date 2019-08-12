@@ -399,6 +399,59 @@ Section region.
         iDestruct "AB" as "%".
         rewrite H4. auto.
   Qed.
+
+  Lemma extract_from_region' b e a ws φ `{!∀ x, Persistent (φ x)}: 
+    let al := (get_addr_from_option_addr (a + (-1))%a) in
+    let n := length (region_addrs b al) in
+    (b <= a ∧ a <= e)%a →
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+     (∃ w,
+        ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
+        ∗ region_mapsto b al (take n ws)
+        ∗ ([∗ list] w ∈ ws, φ w) 
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ match (a + 1)%a with
+          | Some ah => region_mapsto ah e (drop (S n) ws) 
+          | None => ⌜drop (S n) ws = nil⌝
+          end)%I.
+  Proof.
+    intros. iSplit.
+    - iIntros "[A #B]". unfold region_mapsto.
+      iDestruct (mapsto_length with "A") as "%".
+      generalize (region_addrs_decomposition _ _ _ H2); intro HRA. rewrite HRA.
+      assert (Hlnws: n = length (take n ws)).
+      { rewrite take_length. rewrite Min.min_l; auto.
+        rewrite <- H3. rewrite HRA. rewrite app_length.
+        unfold n. unfold al. omega. }
+      generalize (take_drop n ws). intros HWS.
+      rewrite <- HWS. simpl.
+      iDestruct (big_sepL_app with "B") as "#[HB1 HB2]".
+      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      case_eq (drop n ws); intros.
+      + auto.
+      + iDestruct "HA2" as "[HA2 HA3]".
+        simpl. 
+        iDestruct "HB2" as "#[HB2 HB3]".
+        generalize (drop_S _ _ _ _ _ H4). intros Hdws.
+        rewrite <- H4. rewrite HWS. rewrite Hdws.
+        iExists w. iFrame. rewrite <- H4. rewrite HWS.
+        destruct (a + 1)%a; auto; iFrame; auto.
+        iSplit; auto. iDestruct (mapsto_length with "HA3") as "%".
+        destruct l; simpl in H4; auto.
+    - iIntros "A". iDestruct "A" as (w) "[% [A1 [#B1 [A2 [#B2 AB]]]]]".
+      unfold region_mapsto. generalize (region_addrs_decomposition _ _ _ H2); intro HRA. rewrite HRA.
+      case_eq (a + 1)%a; intros; rewrite H4 in HRA.
+      + iFrame "#". rewrite <- HRA.
+        iCombine "A2 AB" as "AB". 
+        iDestruct (big_sepL2_app _ (region_addrs b al) (a :: region_addrs a0 e)
+                                 (take n ws) (w :: drop (S n) ws) 
+                     with "[$A1] [$AB]") as "AB".
+        rewrite -H3 -HRA. iFrame. 
+      + rewrite H3. iFrame.
+        rewrite <- H3. iFrame.
+        iDestruct "AB" as "%".
+        rewrite H5. auto.
+  Qed.
     
   Lemma in_range_is_correctPC p l b e a b' e' :
     isCorrectPC (inr ((p,l),b,e,a)) →

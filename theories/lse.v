@@ -3,7 +3,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 
-Section wbcf.
+Section lse.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ}.
 
   (* --------------------------------------------------------------------------------- *)
@@ -1274,40 +1274,6 @@ Section wbcf.
      specialize He2' with x. 
      apply He2'. apply He1'. done.
    Qed. 
-
-   (* Lemma interp_weak w stsf stsf' E E' : *)
-   (*   (related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗ *)
-   (*   ⌜E ⊆ E'⌝ -∗ *)
-   (*   na_own logrel_nais E -∗ *)
-   (*   ⟦ w ⟧ E stsf -∗ *)
-   (*   ⟦ w ⟧ E' stsf')%I. *)
-   (* Proof. *)
-   (*   iIntros "#Hrelated % Hna /=". *)
-   (*   iLöb as "IH" forall (w). *)
-   (*   iIntros "Hw". *)
-   (*   destruct w. *)
-   (*   - do 2 rewrite fixpoint_interp1_eq /=. *)
-   (*     iPureIntro. exists z; auto. *)
-   (*   - destruct c,p,p,p,p; do 2 (rewrite fixpoint_interp1_eq /=); auto.  *)
-   (*     + rewrite /read_only_cond. *)
-   (*       iDestruct "Hw" as (g b e a3 ws Heq Hsub) "#Hinv". *)
-   (*       inversion Heq; subst. *)
-   (*       iExists _,_,_,_,ws; iSplit;[eauto|]. *)
-   (*       iSplit. *)
-   (*       { iPureIntro. apply subseteq_trans with E; auto. } *)
-   (*       admit. *)
-   (*       Admitted.  *)
-
-         
-   
-   (* Lemma read_only_cond_weak b e ws stsf E interp stsf' E' : *)
-   (*   ((read_only_cond b e ws stsf E interp) -∗ *)
-   (*   related_sts_l stsf.1 stsf'.1 stsf.2.1 stsf'.2.1 stsf.2.2 stsf'.2.2 Local -∗ *)
-   (*   ⌜E ⊆ E'⌝ -∗ *)
-   (*   (read_only_cond b e ws stsf' E' interp))%I. *)
-   (* Proof. *)
-   (*   iIntros "[Hreg Hregv] #Hrelated % /=". *)
-   (*   iFrame. do 2 (rewrite -big_sepL_later). iNext. *)
      
 
   (* We want to show encapsulation of local state, by showing that an arbitrary adv 
@@ -1328,8 +1294,8 @@ Section wbcf.
       ∗ na_own logrel_nais ⊤
       (* adv *)
       ∗ r_t30 ↦ᵣ inr ((E,Global),b,e,a)
-      ∗ (∀ E stsf, (∃ ws : list Word, na_inv logrel_nais
-                             (logN.@(b, e)) (read_only_cond b e ws stsf E interp)))
+      ∗ (∃ ws : list Word, na_inv logrel_nais
+                             (logN.@(b, e)) (read_only_cond b e ws interp))
       (* trusted *)
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a0)
       ∗ f2 r_t30
@@ -1433,9 +1399,10 @@ Section wbcf.
     iDestruct "Hf2" as "[Hi Hf2]".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_restrict_success_z _ _ _ _ _ a22 a23 _ r_t0 RWLX Local a120 a150 a121
-        local_e E Local with "[Hi HPC Hrt0]"); eauto; try addr_succ;
-      [apply restrict_r_z| |apply epp_local_e| |];
+        local_e with "[Hi HPC Hrt0]"); eauto; try addr_succ;
+      [apply restrict_r_z| | | |];
       first (apply isCorrectPC_bounds with a0 a110; eauto; split; done).
+    { rewrite epp_local_e /=. auto. }
     iFrame. iNext. iIntros "(HPC & _ & Hrt0)"; iSimpl.
     iApply wp_pure_step_later;auto;iNext.
     iDestruct "Hf2" as "[Hi Hf2]".
@@ -1553,7 +1520,7 @@ Section wbcf.
     { rewrite /r /registers_mapsto (insert_insert _ PC).
       iApply (big_sepM_insert_2 with "[HPC]"); first iFrame.
       iApply (big_sepM_insert_2 with "[Hr_stk]"); first iFrame.
-      iApply (big_sepM_insert_2 with "[Hrt0]"); first iFrame.
+      iApply (big_sepM_insert_2 with "[Hrt0]"); first (rewrite epp_local_e;iFrame).
       iApply (big_sepM_insert_2 with "[Hr1]"); first iFrame.
       assert ((list_difference all_registers [PC; r_stk; r_t0; r_t30]) =
               [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12;
@@ -1613,11 +1580,15 @@ Section wbcf.
       as "#Hlocal".
     { iNext. iFrame. }
     iMod (na_inv_alloc logrel_nais ⊤ (logN.@(a129, a150))
-      (∃ ws0 : list Word,
-        [[a129,a150]]↦ₐ[[ws0]] ∗ ([∗ list] w ∈ ws0, ▷ (((fixpoint interp1) ⊤) stsf) w))%I
+     (∃ ws0 : list Word,
+       [[a129,a150]]↦ₐ[[ws0]]
+       ∗ (∀ (stsf0 : prodC (leibnizC STS_states)
+                       (prodC (leibnizC STS_rels) (leibnizC STS_rels))) 
+            (E0 : leibnizC coPset),
+            [∗ list] w ∈ ws0, ▷ (((fixpoint interp1) E0) stsf0) w))%I
                                       with "[Hstack_adv]")
       as "#Hstack_adv".
-    { iNext. iExists _. iFrame.
+    { iNext. iExists _. iFrame. iIntros (stsf' E'). 
       iApply region_addrs_zeroes_valid. }
     iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (((fixpoint interp1) ⊤) stsf) (r !r! r1))%I
       with "[-Hs Hmaps Hvalid Hna Hφ Hflag]" as "Hreg".
@@ -1634,30 +1605,13 @@ Section wbcf.
         assert (r !! r_stk = Some (inr (RWLX, Local, a129, a150, a128))) as Hr_stk; auto. 
         rewrite /RegLocate Hr_stk fixpoint_interp1_eq /=.
         iIntros (_). iExists _,_,_,_,_. do 2 (iSplitR; [eauto|]).
-        iSplit; auto. 
-        (* iFrame "#".  *)
+        iFrame "#". 
         iIntros (E' r').
         rewrite /exec_cond.          
         iAlways.
-        iIntros (a' fs' fr_pub' fr_priv') "#Ha #Hfuture".
-        iNext. rewrite /interp_expr /interp_conf /=.
-        iExists _,_,_. do 3 (iSplit; [eauto|]). 
-        iIntros "((#Hfull & #Hfullv) & Hmaps & Hsts_full & Hna & %) /=".
-        iExists _,_,_,_,_. iSplit;[eauto|].
-        (* After putting the region in invariant, we don't know what it may contain
-           at a later date. We are in trouble as we would need to do the whole FTLR again.
-           A possible solution is to generalize FTLR to hold for some future world and 
-           superset(?) of invariants. *)
-        (* Currently it is not quite possible to apply the fundamental theorem, as the 
-           invariant captures a former state of the world. *)
-        (* Another possible solution is to generalize the invariant to hold for all stsf
-           and E, but this seems pretty inconsistent with what is needed for multiple 
-           calls. *)
-        
-        (* iApply fundamental. *)
-      (* iRight. iRight. iSplit; auto. *)
-
-        admit. 
+        iIntros (a' stsf') "#Ha #Hfuture".
+        iNext. iApply fundamental.
+        iRight. iRight. iSplit; auto. 
       - (* continuation *)
         iIntros (_). 
         assert (r !! r_t0 = Some (inr (E, Local, a120, a150, a121))) as Hr_t0; auto. 
@@ -1666,7 +1620,8 @@ Section wbcf.
         iExists _,_,_,_,_. iSplit;[eauto|].
         iIntros (E' r'). iAlways.
         rewrite /enter_cond. 
-        iIntros (fs' fr_pub' fr_priv') "Hrelated".
+        iIntros (stsf') "Hrelated".
+        destruct stsf' as [fs' [fr_pub' fr_priv'] ].
         iNext. simpl.
         iExists _,_,_. do 3 (iSplit; [eauto|]).
         iClear "Hrelated". 
@@ -1930,11 +1885,10 @@ Section wbcf.
         iExists _,_,_,_,_. iSplit; [eauto|].
         iIntros (E' r').
         iAlways. rewrite /enter_cond.
-        iIntros (fs' fr_pub' fr_priv') "_".
+        iIntros (stsf') "_".
+        destruct stsf' as [fs' [fr_pub' fr_priv'] ].
         iNext. iApply fundamental.
-        iLeft. iSplit; [auto|].
-        iSpecialize ("Hadv" $! E' (fs', (fr_pub', fr_priv'))). 
-        simpl. iSimpl in "Hadv". auto.
+        iLeft. iSplit; auto. 
       - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
         assert (r !r! r1 = inl 0%Z) as Hr1.
         { rewrite /RegLocate.
@@ -1960,4 +1914,9 @@ Section wbcf.
     iIntros (v) "Htest".
     iApply "Hφ". 
     iIntros "_"; iFrame. 
-    
+  Qed. 
+
+
+End lse.
+
+ 
