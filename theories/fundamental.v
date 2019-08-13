@@ -61,26 +61,58 @@ Section fundamental.
 
   Lemma PermPairFlows_interp_preserved E fs fr_pub fr_priv p p' l l' a2 a1 a0:
     PermPairFlowsTo (p', l') (p, l) = true ->
-    (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a0)) -∗
+    na_own logrel_nais E -∗
+    (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p, l, a2, a1, a0)) ={⊤}=∗
     (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) (inr (p', l', a2, a1, a0)).
   Proof.
-    intros. iIntros "HA".
+    intros. iIntros "Hown HA".
     destruct (andb_true_eq _ _ ltac:(symmetry in H3; exact H3)).
     simpl in H4. repeat rewrite fixpoint_interp1_eq.
     destruct p; destruct p'; simpl in H4; try congruence; simpl; match goal with | H: PermPairFlowsTo (O, _) (_, _) = _ |- _ => auto | _ => idtac end.
     - iDestruct "HA" as (g b e a ws) "[% [HB HC]]".
       inv H6. iExists l', b, e, a, ws. iFrame. auto.
-    - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
+    - iDestruct "HA" as (p g b e a) "[% [% #Hinv]]".
       inv H6. iExists l', b, e, a.
-      admit.
+      iMod (na_inv_open _ _ _ (logN.@(b, e)) with "Hinv Hown") as "(Hregion & Hown & Hcls)"; auto.
+      iDestruct "Hregion" as (ws) "Hregion".
+      iExists ws. iAssert (⌜↑logN.@(b, e) ⊆ E⌝)%I as "HA". iPureIntro; auto.
+      iFrame. iAssert (|={⊤}=> na_inv logrel_nais (logN.@(b, e)) (read_only_cond b e ws (fixpoint interp1)))%I with "[Hregion Hown Hcls]" as "HA".
+      { iApply (na_inv_alloc). iNext. rewrite /read_only_cond.
+        iDestruct "Hregion" as "(Hbe & Hstsf)".
+        iFrame. iIntros. iDestruct ("Hstsf" $! stsf E0) as "Hstsf".
+        iDestruct (big_sepL_later with "Hstsf") as "Hstsf".
+        iApply big_sepL_later. iNext.
+        iDestruct (big_sepL_sepL with "Hstsf") as "[Hstsf1 Hstsf2]".
+        iFrame. }
+      iMod "HA" as "HA". iModIntro. iFrame. auto.
     - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
       inv H6. iExists RW,l',b,e,a.
       iFrame. auto.
-    - iDestruct "HA" as (p g b e a) "[% [HB HC]]".
-      inv H6. iExists l',b,e,a.
+    - iDestruct "HA" as (p g b e a) "[% [% #Hinv]]".
+      inv H6. iExists l', b, e, a.
+      iMod (na_inv_open _ _ _ (logN.@(b, e)) with "Hinv Hown") as "(Hregion & Hown & Hcls)"; auto.
+      iDestruct "Hregion" as (ws) "Hregion".
+      iExists ws. iAssert (⌜↑logN.@(b, e) ⊆ E⌝)%I as "HA". iPureIntro; auto.
+      iFrame. iAssert (|={⊤}=> na_inv logrel_nais (logN.@(b, e)) (read_only_cond b e ws (fixpoint interp1)))%I with "[Hregion Hown Hcls]" as "HA".
+      { iApply (na_inv_alloc). iNext. rewrite /read_only_cond.
+        iDestruct "Hregion" as "(Hbe & Hstsf)".
+        iFrame. }
+      iMod "HA" as "HA". iModIntro. iFrame. auto.
+    - iDestruct "HA" as (p g b e a) "[% [% #Hinv]]".
+      inv H6. iExists RW, l', b, e, a.
+      iMod (na_inv_open _ _ _ (logN.@(b, e)) with "Hinv Hown") as "(Hregion & Hown & Hcls)"; auto.
+      iDestruct "Hregion" as (ws) "Hregion".
+      iAssert (⌜↑logN.@(b, e) ⊆ E⌝)%I as "HA". iPureIntro; auto.
+      iFrame. iAssert (|={⊤}=> na_inv logrel_nais (logN.@(b, e)) (read_write_cond b e (fixpoint interp1)))%I with "[Hregion Hown Hcls]" as "HA".
+      { iApply (na_inv_alloc). iNext. rewrite /read_write_cond.
+        iExists ws. iDestruct "Hregion" as "(Hbe & Hstsf)". iFrame.
+        iIntros. iDestruct ("Hstsf" $! stsf E0) as "Hstsf".
+        iDestruct (big_sepL_later with "Hstsf") as "Hstsf".
+        iApply big_sepL_later.
+        iNext. iApply big_sepL_sepL. iSplitL "Hstsf"; auto.
+        (* Not proveable *) admit. }
       admit.
-    - admit.
-  Admitted.      
+  Admitted.     
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
@@ -212,8 +244,6 @@ Section fundamental.
                   iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=".
                   apply lookup_insert. rewrite delete_insert_delete. iFrame.
                   rewrite -delete_insert_ne; auto.
-                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-                  apply lookup_insert. rewrite delete_insert_delete. iFrame.
                   iMod ("Hcls" with "[Heqws Hregionl Hh Ha $Hown]") as "Hcls'".
                   { iNext.
                     iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
@@ -223,9 +253,8 @@ Section fundamental.
                     iIntros (stsf' E'). rewrite -big_sepL_later. auto. 
                   }
                   iApply wp_pure_step_later; auto.
-                  destruct p; admit.
-(* TODO FIX PROOF
-                  { iNext. iApply (wp_bind (fill [SeqCtx])). simpl.
+                  destruct p.
+                  { iNext. iApply (wp_bind (fill [SeqCtx])).
                     iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
                     iNext. iIntros "HPC /=".
                     iApply wp_pure_step_later; auto.
@@ -266,7 +295,7 @@ Section fundamental.
                   { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                     apply lookup_insert. rewrite delete_insert_delete. iFrame.
                     rewrite (insert_id r r0); auto.
-                    iNext. (* use fundamental_RWLX in some way ? *) admit. }*)
+                    iNext. (* use fundamental_RWLX in some way ? *) admit. }
                 * iApply (wp_move_fail_reg_toPC with "[HPC Ha Hr0]"); eauto; iFrame.
                   iNext. iIntros "(HPC & Ha & Hr0)".
                   iApply wp_pure_step_later; auto.
@@ -3483,8 +3512,6 @@ Section fundamental.
             * case_eq (a + 1)%a; intros.
               { iApply (wp_restrict_success_z_PC with "[HPC Ha]"); eauto; iFrame.
                 iNext. iIntros "(HPC & Ha)".
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                 iMod ("Hcls" with "[Hown Heqws Hregionl Hh Ha]") as "Hcls'".
                 { iFrame. iNext.  
                   iDestruct (extract_from_region' _ _ a _
@@ -3497,9 +3524,8 @@ Section fundamental.
                 iApply wp_pure_step_later; auto.
                 case_eq (decodePermPair z); intros. rewrite H6 in H4.
                 destruct (andb_true_eq _ _ ltac:(symmetry in H4; exact H4)).
-                simpl in H7. destruct p; simpl in H7; try congruence; admit.
-                (* TODO FIX PROOF
-                  - iNext. iApply (wp_bind (fill [SeqCtx])).
+                simpl in H7. destruct p; simpl in H7; try congruence.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
                   iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
                   iNext. iIntros "HPC /=".
                   iApply wp_pure_step_later; auto.
@@ -3519,7 +3545,7 @@ Section fundamental.
                   iNext. iIntros "HPC /=".
                   iApply wp_pure_step_later; auto.
                   iApply wp_value.
-                  iNext. iIntros. discriminate.*) }
+                  iNext. iIntros. discriminate. }
               { iApply (wp_restrict_failPC1' with "[HPC Ha]"); eauto; iFrame.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
