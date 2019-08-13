@@ -30,22 +30,20 @@ Class logrel_na_invs Σ :=
 (** interp : is a unary logical relation. *)
 Section logrel.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ}.
-  Notation STS := (prodC (leibnizC STS_states) (prodC (leibnizC STS_rels)
-                                                      (leibnizC STS_rels))).
+  Notation STS := (prodC (leibnizC STS_states) (leibnizC STS_rels)).
   Notation D := (STS -n> (leibnizC Word) -n> iProp Σ).
   Notation R := ((leibnizC Reg) -n> iProp Σ).
   Notation NS := (leibnizC coPset).  
   Implicit Types w : (leibnizC Word).
   Implicit Types interp : (NS -n> D). 
-  Implicit Types stsf : (prodC (leibnizC STS_states) (prodC (leibnizC STS_rels)
-                                                      (leibnizC STS_rels))).
+  Implicit Types stsf : (prodC (leibnizC STS_states) (leibnizC STS_rels)).
   
   (* -------------------------------------------------------------------------------- *)
   
   Definition related_sts_l stsf stsf' g : iProp Σ :=
     (match g with
-    | Global => ⌜related_sts stsf.1 stsf'.1 stsf.2.2 stsf'.2.2⌝
-    | Local => ⌜related_sts stsf.1 stsf'.1 stsf.2.1 stsf'.2.1⌝
+    | Global => ⌜related_sts_priv stsf.1 stsf'.1 stsf.2 stsf'.2⌝
+    | Local => ⌜related_sts_pub stsf.1 stsf'.1 stsf.2 stsf'.2⌝
     end)%I. 
   
   Definition registers_mapsto (r : Reg) : iProp Σ :=
@@ -93,12 +91,12 @@ Section logrel.
    λne (reg : leibnizC Reg), (full_map reg ∧ 
        ∀ (r : RegName), (⌜r ≠ PC⌝ → interp E stsf (reg !r! r)))%I.
 
-  Definition interp_conf fs fr_priv E : iProp Σ :=
+  Definition interp_conf fs fr E : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ →
-              ∃ r fs' fr_pub' fr_priv', full_map r ∧ registers_mapsto r
-                                      ∗ ⌜related_sts fs fs' fr_priv fr_priv'⌝
+              ∃ r fs' fr', full_map r ∧ registers_mapsto r
+                                      ∗ ⌜related_sts_priv fs fs' fr fr'⌝
                                       ∗ na_own logrel_nais E                           
-                                      ∗ sts_full fs' fr_pub' fr_priv' }})%I.
+                                      ∗ sts_full fs' fr' }})%I.
 
   Definition get_namespace (w : Word) : option namespace :=
     match w with
@@ -106,15 +104,14 @@ Section logrel.
     | inr ((_,_),b,e,_) => Some (logN.@(b, e))
     end. 
   Program Definition interp_expr (interp : NS -n> D) (E : coPset) r : D :=
-    (λne stsf w, ∃ fs fr_pub fr_priv, ⌜fs = stsf.1⌝
-                         ∧ ⌜fr_pub = stsf.2.1⌝
-                         ∧ ⌜fr_priv = stsf.2.2⌝ ∧
+    (λne stsf w, ∃ fs fr, ⌜fs = stsf.1⌝
+                         ∧ ⌜fr = stsf.2⌝ ∧
                      (interp_reg interp stsf E r ∗ registers_mapsto (<[PC:=w]> r)
-                      ∗ sts_full fs fr_pub fr_priv
+                      ∗ sts_full fs fr
                       ∗ na_own logrel_nais E
-                      ∗ (⌜∀ ns, get_namespace w = Some ns → ↑ns ⊆ E⌝) →
+                      ∗ (⌜∀ ns, get_namespace w = Some ns → ↑ns ⊆ E⌝) -∗
                   ∃ p g b e a, ⌜w = (inr ((p,g),b,e,a))⌝ ∧
-                               interp_conf fs fr_priv E))%I.
+                               interp_conf fs fr E))%I.
   Solve Obligations with solve_proper.  
 
   Definition interp_z : (NS -n> D) := λne E stsf w, ⌜∃ z, w = inl z⌝%I.
