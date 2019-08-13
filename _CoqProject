@@ -13,5 +13,6 @@ theories/rules_IsPtr.v
 theories/rules.v
 theories/logrel.v
 theories/region.v
+theories/monotone.v
 theories/sts.v
 theories/invariant_weak.v
