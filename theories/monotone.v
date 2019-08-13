@@ -76,16 +76,7 @@ Section monotone.
       iSplit; [eauto|].
       iSplit.
       { iPureIntro. apply subseteq_trans with E; auto. }
-      (* read_condition monotone wrt public future world *)
       iFrame "#". 
-      (* rewrite /read_only_cond /=. *)
-      (* iIntros (stsf'' E'' Hrelated' Hsub').  *)
-      (* iSpecialize ("Hv" $! stsf'' E'').  *)
-      (* destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.   *)
-      (* assert (related_sts s s'' fr_pub fr_pub'') as Hrelated''. *)
-      (* { apply related_sts_trans with s' fr_pub'; auto. } *)
-      (* iApply "Hv"; auto. *)
-      (* iPureIntro. apply subseteq_trans with E'; auto.     *)
     - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a4 ws Heq) "[% #Hv] /=". 
       inversion Heq; subst.
       iApply fixpoint_interp1_eq.
@@ -93,15 +84,7 @@ Section monotone.
       iSplit; [eauto|].
       iSplit.
       { iPureIntro. apply subseteq_trans with E; auto. }
-      (* read_condition monotone wrt public future world *)
       iFrame "#". 
-      (* iIntros (stsf'' E'' Hrelated' Hsub').  *)
-      (* iSpecialize ("Hv" $! stsf'' E'').  *)
-      (* destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.   *)
-      (* assert (related_sts s s'' fr_pub fr_pub'') as Hrelated''. *)
-      (* { apply related_sts_trans with s' fr_pub'; auto. } *)
-      (* iApply "Hv"; auto. *)
-      (* iPureIntro. apply subseteq_trans with E'; auto.     *)
     - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a4 ws Heq) "[% #Hv] /=". 
       inversion Heq; subst.
       iApply fixpoint_interp1_eq.
@@ -109,15 +92,7 @@ Section monotone.
       iSplit; [eauto|].
       iSplit.
       { iPureIntro. apply subseteq_trans with E; auto. }
-      (* read_condition monotone wrt public future world *)
       iFrame "#". 
-      (* iIntros (stsf'' E'' Hrelated' Hsub').  *)
-      (* iSpecialize ("Hv" $! stsf'' E'').  *)
-      (* destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.   *)
-      (* assert (related_sts s s'' fr_pub fr_pub'') as Hrelated''. *)
-      (* { apply related_sts_trans with s' fr_pub'; auto. } *)
-      (* iApply "Hv"; auto. *)
-      (* iPureIntro. apply subseteq_trans with E'; auto. *)
     - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a4 a5 ws Heq) "[% #[Hv Hexec]] /=".
       inversion Heq; subst.
       iApply fixpoint_interp1_eq.
@@ -134,6 +109,9 @@ Section monotone.
         iSpecialize ("Hexec" $! E'' r a stsf'' Ha). 
         iApply "Hexec".
         iDestruct "Hrelated" as %Hrelated''.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.  
+        iApply (sts_full_rel_pub_priv s fr_pub fr_priv s'' fr_pub'' fr_priv''); eauto. 
+        
         iPureIntro.
         destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.  
         admit.
@@ -144,9 +122,68 @@ Section monotone.
         iPureIntro.
         destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.  
         apply related_sts_trans with s' fr_pub'; auto.           
-    - admit.
-    - admit.
-    - admit.
+    - iDestruct (fixpoint_interp1_eq with "Hinterp") as (p g b e a2 Heq) "#Hexec /=".
+      inversion Heq; subst.
+      iApply fixpoint_interp1_eq.
+      iExists _,_,_,_,_. iSplit;[auto|].
+      iIntros (E0 r). iAlways.
+      iIntros (stsf'').
+      rewrite /related_sts_l. destruct g.
+      + iIntros (Hrelated'').
+        iApply "Hexec". 
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]. 
+        simpl in *.
+        apply related_sts_trans with s' fr_priv'; auto. 
+        admit. 
+      + iIntros (Hrelated'').
+        iApply "Hexec". 
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]. 
+        simpl in *.
+        apply related_sts_trans with s' fr_pub'; auto. 
+    - iDestruct (fixpoint_interp1_eq with "Hinterp") as (p g b e a2 Heq Hsub')
+                                                          "#(Hinv & Hexec) /=".
+      inversion Heq; subst.
+      iApply fixpoint_interp1_eq.
+      iExists _,_,_,_,_. iSplit;[auto|]. iFrame "#".
+      iSplit.
+      { iPureIntro. apply subseteq_trans with E;auto. }
+      iIntros (E0 r). iAlways.
+      iIntros (a stsf'' Ha) "Hrelated".
+      rewrite /related_sts_l. destruct g.
+      + rewrite /exec_cond /=. 
+        iApply "Hexec"; auto.
+        iDestruct "Hrelated" as %Hrelated''.
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.  
+        admit.
+      + iApply "Hexec"; auto.
+        iDestruct "Hrelated" as %Hrelated''.
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.
+        apply related_sts_trans with s' fr_pub'; auto.
+    - iDestruct (fixpoint_interp1_eq with "Hinterp") as (p g b e a2 Heq Hsub')
+                                                          "#(Hinv & Hexec) /=".
+      inversion Heq; subst.
+      iApply fixpoint_interp1_eq.
+      iExists _,_,_,_,_. iSplit;[auto|]. iFrame "#".
+      iSplit.
+      { iPureIntro. apply subseteq_trans with E;auto. }
+      iIntros (E0 r). iAlways.
+      iIntros (a stsf'' Ha) "Hrelated".
+      rewrite /related_sts_l. destruct g.
+      + rewrite /exec_cond /=. 
+        iApply "Hexec"; auto.
+        iDestruct "Hrelated" as %Hrelated''.
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.  
+        admit.
+      + iApply "Hexec"; auto.
+        iDestruct "Hrelated" as %Hrelated''.
+        iPureIntro.
+        destruct stsf'' as [s'' [fr_pub'' fr_priv''] ]; simpl in *.
+        apply related_sts_trans with s' fr_pub'; auto.
   Admitted. 
 
 
