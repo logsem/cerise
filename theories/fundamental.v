@@ -689,7 +689,8 @@ Section fundamental.
                   - subst r2. rewrite /RegLocate lookup_insert.
                     rewrite (fixpoint_interp1_eq _ _ (inr (RX, g, b, e, a))) /=.
                     iExists RX,g,b,e,a,ws. do 2 (iSplitR; auto).
-                    (* PC is in the logical relation *) admit.
+                    iFrame "#". iIntros. iModIntro.
+                    (* PC is in the logical relation, not sure how to prove *) admit.
                   - rewrite /RegLocate lookup_insert_ne.
                     iApply "Hreg"; auto. auto. }
                 { eauto. }
@@ -1487,7 +1488,39 @@ Section fundamental.
             } 
             iModIntro. iFrame.
           }
-      + admit. (* Store *)
+      + (* Store *)
+        rewrite delete_insert_delete.
+        destruct (reg_eq_dec dst PC).
+        * subst dst. assert (writeAllowed RX = false) by reflexivity.
+          iApply (wp_store_fail1' with "[HPC Ha]"); eauto; iFrame.
+          iNext. iIntros. iApply wp_pure_step_later; auto.
+          iNext. iApply wp_value. iIntros. discriminate.
+        * destruct (H3 dst) as [wdst Hsomedst].
+          iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; [rewrite lookup_delete_ne; eauto|].
+          destruct wdst.
+          { iApply (wp_store_fail2 with "[HPC Hdst Ha]"); eauto; iFrame.
+            iNext. iIntros. iApply wp_pure_step_later; auto.
+            iNext. iApply wp_value. iIntros. discriminate. }
+          { destruct c,p,p,p. 
+            case_eq (writeAllowed p); intros.
+            - case_eq (withinBounds (p, l, a2, a1, a0)); intros.
+              + destruct src.
+                * (* need to get a0 ↦ₐ _ and stuff, todo later *)
+                  (* take the points to earlier, to factorize *)
+                  admit.
+                * destruct (reg_eq_dec r0 PC).
+                  { subst r0. (* need to get a0 ↦ₐ _, todo later *) admit. }
+                  { destruct (reg_eq_dec dst r0).
+                    - subst r0. (* same thing *) admit.
+                    - destruct (H3 r0) as [wr0 Hsomer0].
+                      iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; [repeat rewrite lookup_delete_ne; eauto|].
+                      (* same thing, todo *) admit. }
+              + iApply (wp_store_fail1 with "[HPC Hdst Ha]"); eauto; iFrame.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
+                iNext. iApply wp_value. iIntros. discriminate.
+            - iApply (wp_store_fail1 with "[HPC Hdst Ha]"); eauto; iFrame.
+              iNext. iIntros. iApply wp_pure_step_later; auto.
+              iNext. iApply wp_value. iIntros. discriminate. }
       + (* Lt *) admit. 
         (* rewrite delete_insert_delete.
         destruct (reg_eq_dec dst PC).

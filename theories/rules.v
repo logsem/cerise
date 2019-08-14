@@ -592,6 +592,59 @@ Section cap_lang_rules.
           iSplitR; auto. by iApply "Hφ".
   Qed.
 
+  Lemma wp_store_fail1' E src pc_p pc_g pc_b pc_e pc_a w:
+    cap_lang.decode w = Store PC src →
+
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    (writeAllowed pc_p = false ∨ withinBounds ((pc_p,pc_g),pc_b,pc_e,pc_a) = false) →
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+           ∗ pc_a ↦ₐ w }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    intros Hinstr Hvpc HnwaHnwb;
+      (iIntros (φ) "(HPC & Hpc_a) Hφ";
+       iApply wp_lift_atomic_head_step_no_fork; auto;
+       iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+       iDestruct "Hσ1" as "[Hr Hm]";
+       iDestruct (@gen_heap_valid with "Hr HPC") as %?;
+       iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
+       option_locate_mr m r).
+    iApply fupd_frame_l.
+    iSplit.
+    - rewrite /reducible.
+      iExists [],(Instr Failed), (r,m), [].
+      iPureIntro.
+      constructor.
+      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Store PC src)
+                             (Failed,_));
+        eauto; simpl; try congruence.
+      rewrite HPC. destruct HnwaHnwb as [Hnwa | Hnwb].
+      + rewrite Hnwa; simpl; auto.
+        destruct src; auto.
+      + simpl in Hnwb. rewrite Hnwb.
+        rewrite andb_comm; simpl; auto.
+        destruct src; auto.
+    - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
+      iModIntro.
+      iIntros (e1 σ2 efs Hstep).
+      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      rewrite HPC. destruct HnwaHnwb as [Hnwa | Hnwb].
+      + rewrite Hnwa; simpl. destruct src; simpl.
+        * iFrame. iNext. iModIntro.
+          iSplitR; auto. by iApply "Hφ".
+        * iFrame. iNext. iModIntro. 
+          iSplitR; auto. by iApply "Hφ".
+      + simpl in Hnwb. rewrite Hnwb.
+        rewrite andb_comm; simpl.
+        destruct src; simpl.
+        * iFrame. iNext. iModIntro. 
+          iSplitR; auto. by iApply "Hφ".
+        * iFrame. iNext. iModIntro.
+          iSplitR; auto. by iApply "Hφ".
+  Qed.
+  
   Lemma wp_store_fail2 E dst src pc_p pc_g pc_b pc_e pc_a w n:
     cap_lang.decode w = Store dst src →
 
