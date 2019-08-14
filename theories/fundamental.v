@@ -122,7 +122,7 @@ Section fundamental.
     - iDestruct "HA" as (p g b e a ws) "[% [HA [Hinv HB]]]".
       inv H6. iExists RX,l',b,e,a,ws.
       iModIntro. iFrame.
-  Admitted.     
+  Admitted.
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
@@ -265,7 +265,7 @@ Section fundamental.
             simpl. iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
             apply lookup_insert. rewrite delete_insert_delete. iFrame.
             iApply wp_pure_step_later; auto. iNext.
-            iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+            iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                          "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
             { iExists w. iFrame. iFrame "#". }
             iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
@@ -278,7 +278,7 @@ Section fundamental.
             iApply (wp_jnz_success_jmpPC2 with "[HPC Hr1 Ha]"); eauto; iFrame.
             iNext. iIntros "(HPC & Ha & Hr1)".
             iApply wp_pure_step_later; auto. iNext.
-            iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+            iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                          "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
             { iExists w. iFrame. auto. }
             iDestruct ((big_sepM_delete _ _ r1) with "[Hr1 Hmap]") as "Hmap /=";
@@ -353,7 +353,7 @@ Section fundamental.
               iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
               apply lookup_insert. rewrite delete_insert_delete. iFrame.
               rewrite (insert_id r r2); auto.
-              iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+              iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                              "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
               { iExists w. iFrame. iFrame "#". }
               iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
@@ -368,7 +368,7 @@ Section fundamental.
                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                 rewrite -delete_insert_ne; auto.
                 rewrite (insert_id r r2); auto.
-                iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+                iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                                "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
                 { iExists w. iFrame. iFrame "#". }
                 iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
@@ -435,7 +435,7 @@ Section fundamental.
                 iDestruct ((big_sepM_delete _ _ r2) with "[Hr2 Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                 rewrite -delete_insert_ne; auto. rewrite (insert_id r r2); auto.
-                iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+                iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                                "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
                 { iExists w. iFrame. iFrame "#". }
                 iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
@@ -497,7 +497,7 @@ Section fundamental.
               iDestruct ((big_sepM_delete _ _ r2) with "[Hr2 Hmap]") as "Hmap /=";
                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
               rewrite -delete_insert_ne; auto. rewrite (insert_id r r2); auto.
-              iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, (fr_pub, fr_priv))) with
+              iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
                              "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
               { iExists w. rewrite H5. iFrame. iFrame "#". }
               iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
