@@ -1512,7 +1512,7 @@ Section lse.
                      (create_gmap_default
                 (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (inl 0%Z)))))).
     iAssert (interp_expression ⊤ r stsf (inr (RX, Global, b, e, a)))
-      as (fs' fr_pub' fr_priv') "(-> & -> & -> & Hvalid)". 
+      as (fs' fr') "(-> & -> & Hvalid)". 
     { iApply fundamental. iLeft. iSplit; auto. }
     (* We have all the resources of r *)
     iAssert (registers_mapsto (<[PC:=inr (RX, Global, b, e, a)]> r))
@@ -1621,7 +1621,7 @@ Section lse.
         iIntros (E' r'). iAlways.
         rewrite /enter_cond. 
         iIntros (stsf') "Hrelated".
-        destruct stsf' as [fs' [fr_pub' fr_priv'] ].
+        destruct stsf' as [fs' fr' ].
         iNext. simpl.
         iExists _,_,_. do 3 (iSplit; [eauto|]).
         iClear "Hrelated". 
@@ -1830,7 +1830,7 @@ Section lse.
                            (<[r_t1  := inr (pc_p, pc_g, pc_b, pc_e, a89)]>
                            (<[r_t30 := inl 0%Z]>
                            (<[r_stk := inr (RWLX, Local, a120, a150, a119)]> r')))). 
-        iExists r'',fs',fr_pub',fr_priv'.
+        iExists r'',fs',fr'.
         iFrame. iSplit;[|iSplit].
         + iDestruct "Hfull'" as %Hfull'.
           iPureIntro.
@@ -1877,7 +1877,7 @@ Section lse.
           { repeat (rewrite lookup_delete_ne; auto). by rewrite lookup_insert. }
           iFrame. repeat rewrite (delete_commute _ r_t30 _).  
           rewrite delete_insert_delete. iFrame. 
-        + iPureIntro. apply related_sts_refl. 
+        + iPureIntro. apply related_sts_priv_refl. 
       - rewrite Hr_t30. 
         assert (r !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto. 
         rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq /=.
@@ -1886,7 +1886,7 @@ Section lse.
         iIntros (E' r').
         iAlways. rewrite /enter_cond.
         iIntros (stsf') "_".
-        destruct stsf' as [fs' [fr_pub' fr_priv'] ].
+        destruct stsf' as [fs' fr' ].
         iNext. iApply fundamental.
         iLeft. iSplit; auto. 
       - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
