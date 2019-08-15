@@ -3862,7 +3862,7 @@ Section fundamental.
                 iMod ("Hcls" with "[Hown Heqws Hregionl Hh Ha]") as "Hcls'".
                 { iFrame. iNext.  
                   iDestruct (extract_from_region' _ _ a _
-                                                  (((fixpoint interp1) E) (fs, fr))) with
+                                                  (((fixpoint interp1) E) (fs, fr)) with
                                  "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto. 
                   { iExists _. rewrite H5; iFrame "∗ #". }
                   iDestruct "Hregion" as "[Hregion _]". iFrame. 
@@ -4045,7 +4045,137 @@ Section fundamental.
                     - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
                       iNext. iApply wp_value; auto. iIntros; discriminate. } }
-      + admit. (* Subseg *)
+      + (* Subseg *)
+        rewrite delete_insert_delete.
+        destruct (reg_eq_dec PC dst).
+        * subst dst. destruct r1.
+          { case_eq (z_to_addr z); intros.
+            - destruct r2.
+              + case_eq (z_to_addr z0); intros.
+                * case_eq (isWithin a0 a1 b e); intros.
+                  { case_eq (a+1)%a; intros.
+                    - (* success case *) admit.
+                    - (* fail, can't increase PC *) admit. }
+                  { (* fail, not within *) admit. }
+                * (* fail, can't convert z0 to addr *) admit.
+              + destruct (reg_eq_dec PC r0).
+                * subst r0. (* fail, r0 = PC points to cap *) admit.
+                * destruct (H3 r0) as [wr0 Hsomer0].
+                  iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC r0); eauto|].
+                  destruct wr0.
+                  { case_eq (z_to_addr z0); intros.
+                    - case_eq (isWithin a0 a1 b e); intros.
+                      + case_eq (a+1)%a; intros.
+                        * (* success case *) admit.
+                        * (* fail, can't increase PC *) admit.
+                      + (* fail, not within *) admit.
+                    - (* fail, can't convert z0 to addr *) admit. }
+                  { (* fail, r0 points to cap *) admit. }
+            - (* fail, can't convert z to addr *) admit. }
+          { destruct (reg_eq_dec PC r0).
+            - (* fail, r0 = PC points to cap *) admit.
+            - destruct (H3 r0) as [wr0 Hsomer0].
+              iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC r0); eauto|].
+              destruct wr0.
+              + case_eq (z_to_addr z); intros.
+                * destruct r2.
+                  { case_eq (z_to_addr z0); intros.
+                    - case_eq (isWithin a0 a1 b e); intros.
+                      + case_eq (a+1)%a; intros.
+                        * (* success case *) admit.
+                        * (* fail, can't increase PC *) admit.
+                      + (* fail, not within *) admit. 
+                    - (* fail, can't convert z0 to addr *) admit. }
+                  { destruct (reg_eq_dec PC r1).
+                    - (* fail, r1 = PC points to cap *) admit.
+                    - destruct (reg_eq_dec r0 r1).
+                      + subst r1. case_eq (isWithin a0 a0 b e); intros.
+                        * case_eq (a+1)%a; intros.
+                          { (* success case *) admit. }
+                          { (* fail, can't increment PC *) admit. }
+                        * (* fail, not within *) admit.
+                      + destruct (H3 r1) as [wr1 Hsomer1].
+                        iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
+                        destruct wr1.
+                        * case_eq (z_to_addr z0); intros.
+                          { case_eq (isWithin a0 a1 b e); intros.
+                            - case_eq (a+1)%a; intros.
+                              + (* success case *) admit.
+                              + (* fail, can't increment PC *) admit.
+                            - (* fail, not within *) admit. }
+                          { (* fail, can't convert z0 *) admit. }
+                        * (* fail, r1 points to cap *) admit. }
+                * (* fail, can't convert z to addr *) admit.
+              + (* fail, r0 points to cap *) admit. }
+        * destruct (H3 dst) as [wdst Hsomedst].
+          iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC dst); eauto|].
+          destruct wdst.
+          { (* fail, wdst is an integer *) admit. }
+          { destruct c,p,p,p. destruct r1.
+            - case_eq (z_to_addr z); intros.
+              + destruct r2.
+                * case_eq (z_to_addr z0); intros.
+                  { case_eq (isWithin a3 a4 a2 a1); intros.
+                    - case_eq (a+1)%a; intros.
+                      + (* success case *) admit.
+                      + (* fail case, can't increment PC *) admit.
+                    - (* fail case, not within *) admit. }
+                  { (* fail case, can't convert z0 *) admit. }
+                * destruct (reg_eq_dec PC r0).
+                  { subst r0. (* fail case, r0 = PC points to cap *) admit. }
+                  { destruct (reg_eq_dec dst r0).
+                    - subst r0. (* fail case, r0 = dst points to cap *) admit.
+                    - destruct (H3 r0) as [wr0 Hsomer0].
+                      iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
+                      destruct wr0.
+                      + case_eq (z_to_addr z0); intros.
+                        * case_eq (isWithin a3 a4 a2 a1); intros.
+                          { case_eq (a+1)%a; intros.
+                            - (* success case *) admit.
+                            - (* fail case, can't increment PC *) admit. }
+                          { (* fail case, not within *) admit. }
+                        * (* fail case, can't convert z0 *) admit.
+                      + (* fail case, r0 points to cap *) admit. }
+              + (* fail case, can't convert z *) admit.
+            - destruct (reg_eq_dec PC r0).
+              + subst r0. (* fail case, r0 = PC points to cap *) admit.
+              + destruct (reg_eq_dec dst r0).
+                * subst r0. (* fail case, r0 = dst points to cap *) admit.
+                * destruct (H3 r0) as [wr0 Hsomer0].
+                  iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
+                  destruct wr0.
+                  { case_eq (z_to_addr z); intros.
+                    - destruct r2.
+                      + case_eq (z_to_addr z0); intros.
+                        * case_eq (isWithin a3 a4 a2 a1); intros.
+                          { case_eq (a+1)%a; intros.
+                            - (* success case *) admit.
+                            - (* fail case, can't increment PC *) admit. }
+                          { (* fail case, not within *) admit. }
+                        * (* fail case, can't convert z0 *) admit.
+                      + destruct (reg_eq_dec PC r1).
+                        * subst r1. (* fail case, r1 = PC points to cap *) admit.
+                        * destruct (reg_eq_dec dst r1).
+                          { subst r1. (* failse case, r1 = dst points to cap *) admit. }
+                          { destruct (reg_eq_dec r0 r1).
+                            - subst r1. case_eq (isWithin a3 a3 a2 a1); intros.
+                              + case_eq (a+1)%a; intros.
+                                * (* success case *) admit.
+                                * (* fail case, can't increment PC *) admit.
+                              + (* fail case, not within *) admit.
+                            - destruct (H3 r1) as [wr1 Hsomer1].
+                              iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
+                              destruct wr1.
+                              + case_eq (z_to_addr z0); intros.
+                                * case_eq (isWithin a3 a4 a2 a1); intros.
+                                  { case_eq (a+1)%a; intros.
+                                    - (* success case *) admit.
+                                    - (* fail case, can't increment PC *) admit. }
+                                  { (* fail case, not within *) admit. }
+                                * (* fail case, can't convert z0 *) admit.
+                              + (* fail case, r1 points to cap *) admit. }
+                    - (* fail case, can't convert z *) admit. }
+                  { (* fail case, r0 points to cap *) admit. } }
       + (* IsPtr *)
         rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
