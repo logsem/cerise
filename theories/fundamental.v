@@ -1488,8 +1488,8 @@ Section fundamental.
             } 
             iModIntro. iFrame.
           }
-      + (* Store *)
-        rewrite delete_insert_delete.
+      + (* Store *) admit.
+        (* rewrite delete_insert_delete.
         destruct (reg_eq_dec dst PC).
         * subst dst. assert (writeAllowed RX = false) by reflexivity.
           iApply (wp_store_fail1' with "[HPC Ha]"); eauto; iFrame.
@@ -1520,7 +1520,7 @@ Section fundamental.
                 iNext. iApply wp_value. iIntros. discriminate.
             - iApply (wp_store_fail1 with "[HPC Hdst Ha]"); eauto; iFrame.
               iNext. iIntros. iApply wp_pure_step_later; auto.
-              iNext. iApply wp_value. iIntros. discriminate. }
+              iNext. iApply wp_value. iIntros. discriminate. }*)
       + (* Lt *) admit. 
         (* rewrite delete_insert_delete.
         destruct (reg_eq_dec dst PC).
@@ -3675,8 +3675,8 @@ Section fundamental.
                       + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
                         iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
                         iApply wp_value; eauto. iNext; iIntros; discriminate. } } *)
-      + (* Lea *)
-        rewrite delete_insert_delete.
+      + (* Lea *) admit.
+        (* rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
         * subst dst. destruct r0.
           { case_eq (a + z)%a; intros.
@@ -3850,9 +3850,9 @@ Section fundamental.
                         iNext. iApply wp_value; auto. iIntros; discriminate.
                     - iApply (wp_lea_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
-                      iNext. iApply wp_value; auto. iIntros; discriminate. } }
-      + (* Restrict *)
-        rewrite delete_insert_delete.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. } } *)
+      + (* Restrict *) admit.
+        (* rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
         * subst dst. destruct r0.
           { case_eq (PermPairFlowsTo (decodePermPair z) (RX, g)); intros.
@@ -4044,7 +4044,7 @@ Section fundamental.
                         iNext. iApply wp_value; auto. iIntros; discriminate.
                     - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
-                      iNext. iApply wp_value; auto. iIntros; discriminate. } }
+                      iNext. iApply wp_value; auto. iIntros; discriminate. } } *)
       + (* Subseg *)
         rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
@@ -4056,10 +4056,17 @@ Section fundamental.
                   { case_eq (a+1)%a; intros.
                     - (* success case *) admit.
                     - (* fail, can't increase PC *) admit. }
-                  { (* fail, not within *) admit. }
-                * (* fail, can't convert z0 to addr *) admit.
+                  { iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha]"); iFrame; try (iSplitR; auto).
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                * iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha]"); iFrame; auto.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
               + destruct (reg_eq_dec PC r0).
-                * subst r0. (* fail, r0 = PC points to cap *) admit.
+                * subst r0.
+                  iApply (wp_subseg_fail_pc2 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
                 * destruct (H3 r0) as [wr0 Hsomer0].
                   iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC r0); eauto|].
                   destruct wr0.
@@ -4068,12 +4075,22 @@ Section fundamental.
                       + case_eq (a+1)%a; intros.
                         * (* success case *) admit.
                         * (* fail, can't increase PC *) admit.
-                      + (* fail, not within *) admit.
-                    - (* fail, can't convert z0 to addr *) admit. }
-                  { (* fail, r0 points to cap *) admit. }
-            - (* fail, can't convert z to addr *) admit. }
+                      + iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0]"); iFrame; try (iSplitR; auto).
+                        iNext. iIntros. iApply wp_pure_step_later; auto.
+                        iNext. iApply wp_value; auto. iIntros; discriminate.
+                    - iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr0]"); iFrame; auto.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. }
+                  { iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr0]"); iFrame; auto.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+            - iApply (wp_subseg_fail_convert1 _ _ _ _ _ _ _ _ _ _ _ Hi i H4 with "[HPC Ha]"); iFrame; auto.
+              iNext. iIntros. iApply wp_pure_step_later; auto.
+              iNext. iApply wp_value; auto. iIntros; discriminate. }
           { destruct (reg_eq_dec PC r0).
-            - (* fail, r0 = PC points to cap *) admit.
+            - subst r0. iApply (wp_subseg_fail_pc1 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+              iNext. iIntros. iApply wp_pure_step_later; auto.
+              iNext. iApply wp_value; auto. iIntros; discriminate.
             - destruct (H3 r0) as [wr0 Hsomer0].
               iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC r0); eauto|].
               destruct wr0.
@@ -4084,16 +4101,24 @@ Section fundamental.
                       + case_eq (a+1)%a; intros.
                         * (* success case *) admit.
                         * (* fail, can't increase PC *) admit.
-                      + (* fail, not within *) admit. 
-                    - (* fail, can't convert z0 to addr *) admit. }
+                      + iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0]"); iFrame; try (iSplitR; auto).
+                        iNext. iIntros. iApply wp_pure_step_later; auto.
+                        iNext. iApply wp_value; auto. iIntros; discriminate.
+                    - iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr0]"); iFrame; auto.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. }
                   { destruct (reg_eq_dec PC r1).
-                    - (* fail, r1 = PC points to cap *) admit.
+                    - subst r1. iApply (wp_subseg_fail_pc2 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate.
                     - destruct (reg_eq_dec r0 r1).
                       + subst r1. case_eq (isWithin a0 a0 b e); intros.
                         * case_eq (a+1)%a; intros.
                           { (* success case *) admit. }
                           { (* fail, can't increment PC *) admit. }
-                        * (* fail, not within *) admit.
+                        * iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H4 H5 with "[HPC Ha Hr0]"); iFrame; try (iSplitR; auto). destruct (reg_eq_dec r0 r0); try congruence. auto.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate.
                       + destruct (H3 r1) as [wr1 Hsomer1].
                         iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
                         destruct wr1.
@@ -4102,15 +4127,27 @@ Section fundamental.
                             - case_eq (a+1)%a; intros.
                               + (* success case *) admit.
                               + (* fail, can't increment PC *) admit.
-                            - (* fail, not within *) admit. }
-                          { (* fail, can't convert z0 *) admit. }
-                        * (* fail, r1 points to cap *) admit. }
-                * (* fail, can't convert z to addr *) admit.
-              + (* fail, r0 points to cap *) admit. }
+                            - iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0 Hr1]"); iFrame; try (iSplitL; auto). destruct (reg_eq_dec r0 r1); try congruence; auto.
+                              iNext. iIntros. iApply wp_pure_step_later; auto.
+                              iNext. iApply wp_value; auto. iIntros; discriminate. }
+                          { iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr1]"); iFrame; auto.
+                            iNext. iIntros. iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
+                        * iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr1]"); iFrame; auto.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate. }
+                * iApply (wp_subseg_fail_convert1 _ _ _ _ _ _ _ _ _ _ _ Hi i H4 with "[HPC Ha Hr0]"); iFrame; auto.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
+              + iApply (wp_subseg_fail_reg1_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr0]"); iFrame; auto.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
+                iNext. iApply wp_value; auto. iIntros; discriminate. }
         * destruct (H3 dst) as [wdst Hsomedst].
           iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; eauto; [rewrite (lookup_delete_ne _ PC dst); eauto|].
           destruct wdst.
-          { (* fail, wdst is an integer *) admit. }
+          { iApply (wp_subseg_fail_dst_z _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hdst]"); iFrame.
+            iNext. iIntros. iApply wp_pure_step_later; auto.
+            iNext. iApply wp_value; auto. iIntros; discriminate. }
           { destruct c,p,p,p. destruct r1.
             - case_eq (z_to_addr z); intros.
               + destruct r2.
@@ -4119,12 +4156,20 @@ Section fundamental.
                     - case_eq (a+1)%a; intros.
                       + (* success case *) admit.
                       + (* fail case, can't increment PC *) admit.
-                    - (* fail case, not within *) admit. }
-                  { (* fail case, can't convert z0 *) admit. }
+                    - iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hdst]"); iFrame; try (repeat iSplitR; auto). destruct (reg_eq_dec PC dst); try congruence; auto.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. }
+                  { iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha]"); iFrame; auto.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
                 * destruct (reg_eq_dec PC r0).
-                  { subst r0. (* fail case, r0 = PC points to cap *) admit. }
+                  { subst r0. iApply (wp_subseg_fail_pc2 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. }
                   { destruct (reg_eq_dec dst r0).
-                    - subst r0. (* fail case, r0 = dst points to cap *) admit.
+                    - subst r0. iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hdst]"); iFrame; auto.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate.
                     - destruct (H3 r0) as [wr0 Hsomer0].
                       iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
                       destruct wr0.
@@ -4133,14 +4178,24 @@ Section fundamental.
                           { case_eq (a+1)%a; intros.
                             - (* success case *) admit.
                             - (* fail case, can't increment PC *) admit. }
-                          { (* fail case, not within *) admit. }
-                        * (* fail case, can't convert z0 *) admit.
-                      + (* fail case, r0 points to cap *) admit. }
+                          { iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0 Hdst]"); iFrame; try (repeat iSplitR; auto). destruct (reg_eq_dec PC dst); try congruence; auto.
+                            iNext. iIntros. iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
+                        * iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr0]"); iFrame; auto.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate.
+                      + iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr0]"); iFrame; auto.
+                        iNext. iIntros. iApply wp_pure_step_later; auto.
+                        iNext. iApply wp_value; auto. iIntros; discriminate. }
               + (* fail case, can't convert z *) admit.
             - destruct (reg_eq_dec PC r0).
-              + subst r0. (* fail case, r0 = PC points to cap *) admit.
+              + subst r0. iApply (wp_subseg_fail_pc1 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
+                iNext. iApply wp_value; auto. iIntros; discriminate.
               + destruct (reg_eq_dec dst r0).
-                * subst r0. (* fail case, r0 = dst points to cap *) admit.
+                * subst r0. iApply (wp_subseg_fail_reg1_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hdst]"); iFrame; auto.
+                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
                 * destruct (H3 r0) as [wr0 Hsomer0].
                   iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
                   destruct wr0.
@@ -4151,18 +4206,29 @@ Section fundamental.
                           { case_eq (a+1)%a; intros.
                             - (* success case *) admit.
                             - (* fail case, can't increment PC *) admit. }
-                          { (* fail case, not within *) admit. }
-                        * (* fail case, can't convert z0 *) admit.
+                          { iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0 Hdst]"); iFrame; try (repeat iSplitR; auto). destruct (reg_eq_dec PC dst); try congruence; auto.
+                            iNext. iIntros. iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
+                        * iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr0]"); iFrame; auto.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate.
                       + destruct (reg_eq_dec PC r1).
-                        * subst r1. (* fail case, r1 = PC points to cap *) admit.
+                        * subst r1. iApply (wp_subseg_fail_pc2 _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha]"); iFrame.
+                          iNext. iIntros. iApply wp_pure_step_later; auto.
+                          iNext. iApply wp_value; auto. iIntros; discriminate.
                         * destruct (reg_eq_dec dst r1).
-                          { subst r1. (* failse case, r1 = dst points to cap *) admit. }
+                          { subst r1. iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hdst]"); iFrame; auto.
+                            iNext. iIntros. iApply wp_pure_step_later; auto.
+                            iNext. iApply wp_value; auto. iIntros; discriminate. }
                           { destruct (reg_eq_dec r0 r1).
                             - subst r1. case_eq (isWithin a3 a3 a2 a1); intros.
                               + case_eq (a+1)%a; intros.
                                 * (* success case *) admit.
                                 * (* fail case, can't increment PC *) admit.
-                              + (* fail case, not within *) admit.
+                              + iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H4 H5 with "[HPC Ha Hr0 Hdst]"); iFrame; try (repeat iSplitR; auto). destruct (reg_eq_dec r0 r0); try congruence; auto.
+                                destruct (reg_eq_dec PC dst); try congruence; auto.
+                                iNext. iIntros. iApply wp_pure_step_later; auto.
+                                iNext. iApply wp_value; auto. iIntros; discriminate.
                             - destruct (H3 r1) as [wr1 Hsomer1].
                               iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]"; eauto; [repeat rewrite lookup_delete_ne; eauto|].
                               destruct wr1.
@@ -4171,11 +4237,22 @@ Section fundamental.
                                   { case_eq (a+1)%a; intros.
                                     - (* success case *) admit.
                                     - (* fail case, can't increment PC *) admit. }
-                                  { (* fail case, not within *) admit. }
-                                * (* fail case, can't convert z0 *) admit.
-                              + (* fail case, r1 points to cap *) admit. }
-                    - (* fail case, can't convert z *) admit. }
-                  { (* fail case, r0 points to cap *) admit. } }
+                                  { iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi i H4 H5 H6 with "[HPC Ha Hr0 Hr1 Hdst]"); iFrame. iSplitL "Hr1". destruct (reg_eq_dec r0 r1); try congruence; auto.
+                                    destruct (reg_eq_dec PC dst); try congruence; auto.
+                                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                                    iNext. iApply wp_value; auto. iIntros; discriminate. }
+                                * iApply (wp_subseg_fail_convert2 _ _ _ _ _ _ _ _ _ _ _ Hi i H5 with "[HPC Ha Hr0 Hr1]"); iFrame; auto.
+                                  iNext. iIntros. iApply wp_pure_step_later; auto.
+                                  iNext. iApply wp_value; auto. iIntros; discriminate.
+                              + iApply (wp_subseg_fail_reg2_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr1]"); iFrame; auto.
+                                iNext. iIntros. iApply wp_pure_step_later; auto.
+                                iNext. iApply wp_value; auto. iIntros; discriminate. }
+                    - iApply (wp_subseg_fail_convert1 _ _ _ _ _ _ _ _ _ _ _ Hi i H4 with "[HPC Ha Hr0]"); iFrame; auto.
+                      iNext. iIntros. iApply wp_pure_step_later; auto.
+                      iNext. iApply wp_value; auto. iIntros; discriminate. }
+                  { iApply (wp_subseg_fail_reg1_cap _ _ _ _ _ _ _ _ _ _ _ Hi i with "[HPC Ha Hr0]"); iFrame; auto.
+                    iNext. iIntros. iApply wp_pure_step_later; auto.
+                    iNext. iApply wp_value; auto. iIntros; discriminate. } }
       + (* IsPtr *)
         rewrite delete_insert_delete.
         destruct (reg_eq_dec PC dst).
