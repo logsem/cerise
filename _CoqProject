@@ -17,5 +17,16 @@ theories/rules.v
 theories/logrel.v
 theories/region.v
 theories/monotone.v
+theories/Get.v
+theories/Load.v
+theories/Store.v
+theories/AddSubLt.v
+theories/Lea.v
+theories/Mov.v
+theories/Restrict.v
+theories/IsPtr.v
+theories/Jmp.v
+theories/Jnz.v
+theories/Subseg.v
 theories/sts.v
 theories/invariant_weak.v
