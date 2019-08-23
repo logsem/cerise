@@ -10,75 +10,85 @@ Section fundamental.
   Implicit Types w : (leibnizC Word).
   Implicit Types interp : D.
 
-  Lemma RX_Add_Sub_Lt_case:
+  Lemma RWX_Add_Sub_Lt_case:
     ∀ (E0 : coPset) (r : leibnizC Reg) (a : Addr) (g : Locality) (fs : leibnizC STS_states) (fr : leibnizC STS_rels) 
       (b e : Addr) (ws : list Word) (w : Word) (dst : RegName) (r1 r2: Z + RegName)
       (Hreach : ∀ ns : namespace, Some (logN.@(b, e)) = Some ns → ↑ns ⊆ E0)
       (H3 : ∀ x : RegName, (λ x0 : RegName, is_Some (r !! x0)) x)
-      (i : isCorrectPC (inr (RX, g, b, e, a)))
+      (i : isCorrectPC (inr (RWX, g, b, e, a)))
       (Hbae : (b <= a)%a ∧ (a <= e)%a)
       (Hbe : ↑logN.@(b, e) ⊆ E0)
       (Hi : cap_lang.decode w = cap_lang.Add dst r1 r2 \/ cap_lang.decode w = Sub dst r1 r2 \/ cap_lang.decode w = Lt dst r1 r2),
-      □ ▷ ▷ ((interp E0) (fs, fr)) w
-        -∗ □ ▷ ([∗ list] w0 ∈ ws, ▷ ((interp E0) (fs, fr)) w0)
-        -∗ □ ▷ (∀ (stsf : prodC (leibnizC STS_states) (leibnizC STS_rels)) (E1 : leibnizC coPset), [∗ list] w0 ∈ ws, ▷ 
-                                                                                                                       ((interp E1) stsf) w0)
-        -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (((fixpoint interp1) E0) (fs, fr)) (r !r! r0))
-        -∗ □ na_inv logrel_nais (logN.@(b, e))
-        ([[b,e]]↦ₐ[[ws]]
-                ∗ (∀ (stsf : prodC (leibnizC STS_states) (leibnizC STS_rels)) (E1 : leibnizC coPset), [∗ list] w0 ∈ ws, ▷ 
-                                                                                                                          ((interp E1) stsf) w0))
-        -∗ □ ▷ (∀ (a0 : leibnizC Reg) (a1 : Addr) (a2 : Locality) (a3 : leibnizC STS_states) 
-                  (a4 : leibnizC STS_rels) (a5 a6 : Addr) (a7 : list Word), full_map a0
-                                                                                     -∗ (∀ r0 : RegName, 
-                                                                                            ⌜r0 ≠ PC⌝
-                                                                                            → (((fixpoint interp1) E0) (a3, a4))
-                                                                                                (a0 !r! r0))
-                                                                                     -∗ registers_mapsto
-                                                                                     (<[PC:=
-                                                                                          inr (RX, a2, a5, a6, a1)]> a0)
-                                                                                     -∗ sts_full a3 a4
-                                                                                     -∗ na_own logrel_nais E0
-                                                                                     -∗ 
-                                                                                     □ 
-                                                                                     na_inv logrel_nais
-                                                                                     (logN.@(a5, a6))
-                                                                                     ([[a5,a6]]↦ₐ[[a7]]
-                                                                                               ∗ 
-                                                                                               (∀ (stsf : 
-                                                                                                     prodC 
-                                                                                                       (leibnizC STS_states)
-                                                                                                       (leibnizC STS_rels)) 
-                                                                                                  (E1 : 
-                                                                                                     leibnizC coPset), [∗ list] w0 ∈ a7, ▷ 
-                                                                                                                                           ((interp E1) stsf) w0))
-                                                                                     -∗ 
-                                                                                     □ ⌜
-                                                                                     ∀ ns : namespace, 
-                                                                                       Some (logN.@(a5, a6)) =
-                                                                                       Some ns → 
-                                                                                       ↑ns ⊆ E0⌝ -∗ 
-                                                                                        ⟦ [a3, a4, E0] ⟧ₒ)
-        -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=inr (RX, g, b, e, a)]> r), k ↦ᵣ y)
-        -∗ PC ↦ᵣ inr (RX, g, b, e, a)
-        -∗ ▷ match (a + 1)%a with
-             | Some ah =>
-               [[ah,e]]↦ₐ[[drop (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a)))) ws]]
-             | None => ⌜drop (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a)))) ws = []⌝
-             end
-        -∗ a ↦ₐ w
-        -∗ ▷ ([[b,get_addr_from_option_addr (a + -1)%a]]↦ₐ[[take
-                                                              (length
-                                                                 (region_addrs b
-                                                                               (get_addr_from_option_addr
-                                                                                  (a + -1)%a))) ws]])
-        -∗ ▷ ⌜ws =
+      □ ▷ ▷ ⌜isLocalWord w = false⌝
+                                  -∗ □ ▷ ▷ ((interp E0) (fs, fr)) w
+                                  -∗ □ ▷ ▷ ([∗ list] w0 ∈ ws, ⌜isLocalWord w0 = false⌝)
+                                  -∗ □ ▷ ▷ ([∗ list] w0 ∈ ws, ((interp E0) (fs, fr)) w0)
+                                  -∗ □ ▷ ([∗ list] w0 ∈ ws, ▷ (((interp E0) (fs, fr)) w0 ∗ ⌜isLocalWord w0 = false⌝))
+                                  -∗ □ ▷ (∀ (stsf : prodC (leibnizC STS_states) (leibnizC STS_rels)) (E1 : leibnizC coPset), [∗ list] w0 ∈ ws, ▷ 
+                                                                                                                                                 (((interp E1) stsf) w0 ∗ ⌜isLocalWord w0 = false⌝))
+                                  -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (((fixpoint interp1) E0) (fs, fr)) (r !r! r0))
+                                  -∗ □ na_inv logrel_nais (logN.@(b, e))
+                                  (∃ ws0 : list Word, [[b,e]]↦ₐ[[ws0]]
+                                                             ∗ (∀ (stsf : prodC (leibnizC STS_states) (leibnizC STS_rels)) 
+                                                                  (E1 : leibnizC coPset), [∗ list] w0 ∈ ws0, ▷ 
+                                                                                                               (((interp E1) stsf) w0 ∗ ⌜isLocalWord w0 = false⌝)))
+                                  -∗ □ ▷ (∀ (a0 : leibnizC Reg) (a1 : Addr) (a2 : Locality) (a3 : leibnizC STS_states) 
+                                            (a4 : leibnizC STS_rels) (a5 a6 : Addr), full_map a0
+                                                                                              -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝
+                                                                                                                  → 
+                                                                                                                  (((fixpoint interp1) E0)
+                                                                                                                     (a3, a4)) 
+                                                                                                                    (a0 !r! r0))
+                                                                                              -∗ registers_mapsto
+                                                                                              (<[PC:=inr (RWX, a2, a5, a6, a1)]> a0)
+                                                                                              -∗ sts_full a3 a4
+                                                                                              -∗ na_own logrel_nais E0
+                                                                                              -∗ □ na_inv logrel_nais
+                                                                                              (logN.@(a5, a6))
+                                                                                              (∃ ws0 : list Word, 
+                                                                                                  [[a5,a6]]↦ₐ[[ws0]]
+                                                                                                           ∗ 
+                                                                                                           (∀ (stsf : 
+                                                                                                                 prodC 
+                                                                                                                   (leibnizC STS_states)
+                                                                                                                   (leibnizC STS_rels)) 
+                                                                                                              (E1 : 
+                                                                                                                 leibnizC coPset), [∗ list] w0 ∈ ws0, ▷ 
+                                                                                                                                                        (((interp E1) stsf) w0
+                                                                                                                                                                            ∗ ⌜
+                                                                                                                                                                            isLocalWord w0 = false⌝)))
+                                                                                              -∗ □ ⌜∀ ns : namespace, 
+                                            Some (logN.@(a5, a6)) = Some ns
+                                            → ↑ns ⊆ E0⌝ -∗ 
+                                               ⟦ [a3, a4, E0] ⟧ₒ)
+                                  -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=inr (RWX, g, b, e, a)]> r), k ↦ᵣ y)
+                                  -∗ PC ↦ᵣ inr (RWX, g, b, e, a)
+                                  -∗ ▷ match (a + 1)%a with
+                                       | Some ah =>
+                                         [[ah,e]]↦ₐ[[drop
+                                                       (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a))))
+                                                       ws]]
+                                       | None =>
+                                         ⌜drop (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a)))) ws = []⌝
+                                       end
+                                  -∗ a ↦ₐ w
+                                  -∗ ▷ ([[b,get_addr_from_option_addr (a + -1)%a]]↦ₐ[[take
+                                                                                        (length
+                                                                                           (region_addrs b
+                                                                                                         (get_addr_from_option_addr
+                                                                                                            (a + -1)%a))) ws]])
+                                  -∗ ▷ ⌜ws =
       take (length (region_addrs b (get_addr_from_option_addr (a + -1)%a))) ws ++
-           w :: drop (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a)))) ws⌝
-           -∗ (▷ ([[b,e]]↦ₐ[[ws]]
-                         ∗ (∀ (stsf : prodC (leibnizC STS_states) (leibnizC STS_rels)) 
-                              (E1 : leibnizC coPset), [∗ list] w0 ∈ ws, ▷ ((interp E1) stsf) w0))
-                 ∗ na_own logrel_nais (E0 ∖ ↑logN.@(b, e)) ={⊤}=∗ na_own logrel_nais E0)
+           w
+           :: drop (S (length (region_addrs b (get_addr_from_option_addr (a + -1)%a))))
+           ws⌝
+           -∗ (▷ (∃ ws0 : list Word, [[b,e]]↦ₐ[[ws0]]
+                                            ∗ (∀ (stsf : prodC (leibnizC STS_states)
+                                                               (leibnizC STS_rels)) 
+                                                 (E1 : leibnizC coPset), [∗ list] w0 ∈ ws0, ▷ 
+                                                                                              (((interp E1) stsf) w0 ∗ ⌜isLocalWord w0 = false⌝)))
+                 ∗ na_own logrel_nais (E0 ∖ ↑logN.@(b, e)) ={⊤}=∗ 
+                                                               na_own logrel_nais E0)
            -∗ na_own logrel_nais (E0 ∖ ↑logN.@(b, e))
            -∗ sts_full fs fr
            -∗ WP Instr Executable
@@ -91,7 +101,7 @@ Section fundamental.
                                               ∗ na_own logrel_nais E0 ∗ sts_full fs' fr' }} }}.
   Proof.
     intros E r a g fs fr b e ws w. intros.
-    iIntros "#Hva #Hval' #Hval #Hreg #Hinv #IH".
+    iIntros "#Hva2 #Hva1 #Hval2 #Hval1 #Hval' #Hval #Hreg #Hinv #IH".
     iIntros "Hmap HPC Hh Ha Hregionl Heqws Hcls Hown Hsts".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec dst PC).
@@ -305,7 +315,8 @@ Section fundamental.
           destruct (a+1)%a.
           -- iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
              { iFrame. iNext. iDestruct "Hregion" as "[H1 H2]".
-               iFrame. iIntros. rewrite -big_sepL_later. iNext.
+               iFrame. iIntros. iExists ws. iFrame.
+               iIntros. rewrite -big_sepL_later. iNext.
                iApply "Hval". }
              simpl. 
              iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
@@ -336,7 +347,8 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iFrame. iIntros. iExists ws. iFrame. iIntros.
+                      rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -387,7 +399,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -444,7 +456,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -495,7 +507,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iExists ws. iFrame. iIntros.  rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -559,7 +571,7 @@ Section fundamental.
                       { iExists _. rewrite H4; iFrame "∗ #". }
                       iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                       { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                        iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                        iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                       iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                              | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
                                                              | cap_lang.Add _ _ _ => inl (z + z)%Z
@@ -610,7 +622,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                                | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -670,7 +682,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                                | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -727,7 +739,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:= match cap_lang.decode w with
                                                                 | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
                                                                 | cap_lang.Add _ _ _ => inl (z + z)%Z
@@ -787,7 +799,7 @@ Section fundamental.
                           { iExists _. rewrite H4; iFrame "∗ #". }
                           iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                           { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                            iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                            iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                           iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                  | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                                  | cap_lang.Add _ _ _ => inl (z + z0)%Z

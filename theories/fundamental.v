@@ -1,4 +1,4 @@
-From cap_machine Require Export logrel monotone Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Store Restrict Subseg.
+From cap_machine Require Export logrel monotone Jmp Jnz Get Get2 AddSubLt AddSubLt2 IsPtr Lea Load Mov Store Restrict Subseg.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
@@ -214,7 +214,8 @@ Section fundamental.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
   }
-  { destruct stsf as [fs fr].
+  { clear fundamental_RWX.
+    destruct stsf as [fs fr].
     iIntros "#Hinv /=". iExists fs,fr.
     repeat (iSplit;auto). 
     iIntros "[[Hfull Hreg] [Hmreg [Hsts [Hown #Hreach]]]]".
@@ -248,108 +249,33 @@ Section fundamental.
         first apply (lookup_insert _ _ (inr (RWX, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
-        rewrite delete_insert_delete.
-        destruct (reg_eq_dec PC r0).
-        * subst r0.
-          iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; iFrame.
-          iNext. iIntros "[HPC Ha] /=".
-          iApply wp_pure_step_later; auto.
-          (* reconstruct regions *)
-          iNext.
-          iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
-                         "[Heqws Hregionl Hh Ha]") as "[Hbe Hbev]"; eauto.
-          { iExists w. iFrame. iFrame "#". }
-          iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-          (* reestablish invariant *)
-          iMod ("Hcls" with "[Hbe Hbev $Hown]") as "Hown".
-          { iNext. iExists ws. iFrame. iIntros (stsf' E'). rewrite -big_sepL_later. iNext. auto. }
-          (* apply IH *)
-          iApply ("IH" $! _ _ _ _ _ _ _ with "[] Hreg Hmap Hsts Hown");
-            iFrame "#"; [iPureIntro;eauto|iAlways;iPureIntro;eauto]. 
-        * destruct (H3 r0) as [wsrc Hsomesrc].
-          iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hsrc Hmap]"; eauto.
-          rewrite (lookup_delete_ne r PC r0); eauto.
-          iApply (wp_jmp_success with "[HPC Ha Hsrc]"); eauto; iFrame.
-          iNext. iIntros "[HPC [Ha Hsrc]] /=".
-          iApply wp_pure_step_later; auto. iNext. 
-          (* reconstruct regions *)
-          iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
-                         "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-          { iExists w. iFrame. auto. }
-          iDestruct ((big_sepM_delete _ _ r0) with "[Hsrc Hmap]") as "Hmap /=";
-            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-          rewrite -delete_insert_ne; auto.
-          iMod ("Hcls" with "[Hregion $Hown]") as "Hcls'".
-          { iNext. iExists ws. iDestruct "Hregion" as "[$ _]". 
-            iIntros (stsf' E'). rewrite -big_sepL_later. auto. }
-          destruct (updatePcPerm wsrc) eqn:Heq.
-          { iApply (wp_bind (fill [SeqCtx])).
-            iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (inl _) |- _ => inv H end|].
-            iNext. iIntros "HPC /=".
-            iApply wp_pure_step_later; auto.
-            iApply wp_value.
-            iNext. iIntros. discriminate. }
-          { destruct c,p,p,p.
-            destruct p.
-            - iApply (wp_bind (fill [SeqCtx])).
-              iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-              iNext. iIntros "HPC /=".
-              iApply wp_pure_step_later; auto.
-              iApply wp_value.
-              iNext. iIntros. discriminate.
-            - iApply (wp_bind (fill [SeqCtx])).
-              iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-              iNext. iIntros "HPC /=".
-              iApply wp_pure_step_later; auto.
-              iApply wp_value.
-              iNext. iIntros. discriminate.
-            - iApply (wp_bind (fill [SeqCtx])).
-              iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-              iNext. iIntros "HPC /=".
-              iApply wp_pure_step_later; auto.
-              iApply wp_value.
-              iNext. iIntros. discriminate.
-            - iApply (wp_bind (fill [SeqCtx])).
-              iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-              iNext. iIntros "HPC /=".
-              iApply wp_pure_step_later; auto.
-              iApply wp_value.
-              iNext. iIntros. discriminate.
-            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-              apply lookup_insert. rewrite delete_insert_delete. iFrame.
-              rewrite (insert_id r r0); auto.
-              (* use fundamental_RX in some way ? *) admit.
-            - iApply (wp_bind (fill [SeqCtx])).
-              iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-              iNext. iIntros "HPC /=".
-              iApply wp_pure_step_later; auto.
-              iApply wp_value.
-              iNext. iIntros. discriminate.
-            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-              apply lookup_insert. rewrite delete_insert_delete. iFrame.
-              rewrite (insert_id r r0); auto.
-              iApply ("IH" with "[] [] [Hmap] [Hsts] [Hcls']"); eauto; admit.
-            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-              apply lookup_insert. rewrite delete_insert_delete. iFrame.
-              rewrite (insert_id r r0); auto.
-              (* use fundamental_RWLX in some way ? *) admit. }
+        iApply (RWX_Jmp_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
       + (* Jnz *) admit.
       + (* Mov *) admit.
       + (* Load *) admit.
       + (* Store *) admit.
-      + (* Lt *) admit.
-      + (* Add *) admit.
-      + (* Sub *) admit.
-      + (* Lea *) admit.
+      + (* Lt *)
+        iApply (RWX_Add_Sub_Lt_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* Add *)
+        iApply (RWX_Add_Sub_Lt_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* Sub *)
+        iApply (RWX_Add_Sub_Lt_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* Lea *)
+        iApply (RWX_Lea_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
       + (* Restrict *) admit.
       + (* Subseg *) admit.
-      + (* IsPtr *) admit.
-      + (* GetL *) admit.
-      + (* GetP *) admit.
-      + (* GetB *) admit.
-      + (* GetE *) admit.
-      + (* GetA *) admit.
+      + (* IsPtr *)
+        iApply (RWX_IsPtr_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* GetL *) 
+        iApply (RWX_GetL_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* GetP *)
+        iApply (RWX_GetP_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* GetB *)
+        iApply (RWX_GetB_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* GetE *)
+        iApply (RWX_GetE_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
+      + (* GetA *)
+        iApply (RWX_GetA_case with "[] [] [] [] [] [] [] [] [] [Hmap] [HPC] [Hh] [Ha] [Hregionl] [Heqws] [Hcls] [Hown] [Hsts]"); eauto.
       + (* Fail *) 
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -390,7 +316,6 @@ Section fundamental.
      iNext. iIntros (Hcontr); inversion Hcontr. }
   { admit. }
   Admitted.
-  
 
   Theorem fundamental (perm : Perm) b e g (a : Addr) stsf E r :
     (⌜perm = RX⌝ ∧ ∃ ws, (na_inv logrel_nais (logN .@ (b,e))

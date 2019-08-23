@@ -18,9 +18,11 @@ theories/logrel.v
 theories/region.v
 theories/monotone.v
 theories/Get.v
+theories/Get2.v
 theories/Load.v
 theories/Store.v
 theories/AddSubLt.v
+theories/AddSubLt2.v
 theories/Lea.v
 theories/Mov.v
 theories/Restrict.v
