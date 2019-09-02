@@ -5,7 +5,7 @@ From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -77,13 +77,13 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
-  Lemma wp_add_sub_lt_success_same E dst pc_p pc_g pc_b pc_e pc_a w wdst x n1:
+  Lemma wp_add_sub_lt_success_same E dst pc_p pc_g pc_b pc_e pc_a w wdst x n1 pc_p' :
     cap_lang.decode w = cap_lang.Add dst x x \/ cap_lang.decode w = Sub dst x x \/ cap_lang.decode w = Lt dst x x →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
     
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w
+           ∗ pc_a ↦ₐ[pc_p'] w
            ∗ match x with
              | inl m => ⌜m = n1⌝
              | inr r1 => r1 ↦ᵣ inl n1
@@ -96,7 +96,7 @@ Section cap_lang_rules.
       Instr Executable @ E
       {{{ RET (if reg_eq_dec dst PC then FailedV else match (pc_a + 1)%a with None => FailedV | Some _ => NextIV end);
           (if reg_eq_dec dst PC then emp else PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e, match (pc_a + 1)%a with None => pc_a | Some pc_a' => pc_a' end))
-            ∗ pc_a ↦ₐ w
+            ∗ pc_a ↦ₐ[pc_p'] w
             ∗ match x with
               | inl m => ⌜m = n1⌝
               | inr r1 => if reg_eq_dec r1 dst then emp else r1 ↦ᵣ inl n1
@@ -109,12 +109,16 @@ Section cap_lang_rules.
                       end)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc ϕ) "(HPC & Hpc_a & Hx & Hdst) Hϕ".
+    iIntros (Hinstr Hfl Hvpc ϕ) "(HPC & Hpc_a & Hx & Hdst) Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1". destruct σ1.
     iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O) as Ho.
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
-    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?; auto. 
     iAssert (⌜match x with inl m => m = n1 | inr r1 => r !! r1 = Some (inl n1) end⌝)%I with "[Hr Hx]" as %?.
     { destruct x; auto.
       iDestruct (@gen_heap_valid with "Hr Hx") as %?. auto. }
@@ -223,13 +227,13 @@ Section cap_lang_rules.
                   iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst Hx]"); iFrame; auto. }
   Qed.
 
-  Lemma wp_add_sub_lt_success E dst pc_p pc_g pc_b pc_e pc_a w wdst x y n1 n2:
+  Lemma wp_add_sub_lt_success E dst pc_p pc_g pc_b pc_e pc_a w wdst x y n1 n2 pc_p' :
     cap_lang.decode w = cap_lang.Add dst x y \/ cap_lang.decode w = Sub dst x y \/ cap_lang.decode w = Lt dst x y →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
     
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w
+           ∗ pc_a ↦ₐ[pc_p'] w
            ∗ match x with
              | inl m => ⌜m = n1⌝
              | inr r1 => r1 ↦ᵣ inl n1
@@ -248,7 +252,7 @@ Section cap_lang_rules.
       Instr Executable @ E
       {{{ RET (if reg_eq_dec dst PC then FailedV else match (pc_a+1)%a with | None => FailedV | Some _ => NextIV end);
           (if reg_eq_dec dst PC then emp else PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,match (pc_a+1)%a with None => pc_a | Some pc_a' => pc_a' end))
-            ∗ pc_a ↦ₐ w
+            ∗ pc_a ↦ₐ[pc_p'] w
             ∗ match x with
               | inl m => ⌜m = n1⌝
               | inr r1 => if reg_eq_dec r1 dst then emp else r1 ↦ᵣ inl n1
@@ -265,12 +269,16 @@ Section cap_lang_rules.
                       end)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc ϕ) "(HPC & Hpc_a & Hx & Hy & Hdst) Hϕ".
+    iIntros (Hinstr Hfl Hvpc ϕ) "(HPC & Hpc_a & Hx & Hy & Hdst) Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1". destruct σ1.
     iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O) as Ho.
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
-    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?.
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?; auto. 
     iAssert (⌜match x with inl m => m = n1 | inr r1 => r !! r1 = Some (inl n1) end⌝)%I with "[Hr Hx]" as %?.
     { destruct x; auto.
       iDestruct (@gen_heap_valid with "Hr Hx") as %?. auto. }
@@ -499,29 +507,32 @@ Section cap_lang_rules.
                     iSpecialize ("Hϕ" with "[HPC Hpc_a Hx Hy Hdst]"); iFrame; auto. }
   Qed.  
 
-  Lemma wp_add_sub_lt_fail1 E dst r1 pc_p pc_g pc_b pc_e pc_a w x y:
+  Lemma wp_add_sub_lt_fail1 E dst r1 pc_p pc_g pc_b pc_e pc_a w x y pc_p' :
     cap_lang.decode w = cap_lang.Add dst (inr r1) y \/ cap_lang.decode w = Sub dst (inr r1) y \/ cap_lang.decode w = Lt dst (inr r1) y →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
 
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w
+           ∗ pc_a ↦ₐ[pc_p'] w
            ∗ r1 ↦ᵣ inr x }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ pc_a ↦ₐ w
+             ∗ pc_a ↦ₐ[pc_p'] w
              ∗ r1 ↦ᵣ inr x }}}.
   Proof.
-    intros Hinstr Hvpc;
+    intros Hinstr Hfl Hvpc;
       (iIntros (φ) "(HPC & Hpc_a & Hr1) Hφ";
        iApply wp_lift_atomic_head_step_no_fork; auto;
        iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
        iDestruct "Hσ1" as "[Hr Hm]";
        iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-                                                      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-                                                                                                       iDestruct (@gen_heap_valid with "Hr Hr1") as %?;
-                                                                                                                                                      option_locate_mr m r).
+       iDestruct (@gen_heap_valid with "Hr Hr1") as %?;
+       iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?;
+       option_locate_mr m r).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iApply fupd_frame_l.
     iSplit.
     - rewrite /reducible.
@@ -560,29 +571,32 @@ Section cap_lang_rules.
         iSplitR; auto. by (iApply "Hφ"; iFrame).
   Qed.
 
-  Lemma wp_add_sub_lt_fail2 E dst r2 pc_p pc_g pc_b pc_e pc_a w x y:
+  Lemma wp_add_sub_lt_fail2 E dst r2 pc_p pc_g pc_b pc_e pc_a w x y pc_p' :
     cap_lang.decode w = cap_lang.Add dst x (inr r2) \/ cap_lang.decode w = Sub dst x (inr r2) \/ cap_lang.decode w = Lt dst x (inr r2) →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
 
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w
+           ∗ pc_a ↦ₐ[pc_p'] w
            ∗ r2 ↦ᵣ inr y }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ pc_a ↦ₐ w
+             ∗ pc_a ↦ₐ[pc_p'] w
              ∗ r2 ↦ᵣ inr y }}}.
   Proof.
-    intros Hinstr Hvpc;
+    intros Hinstr Hfl Hvpc;
       (iIntros (φ) "(HPC & Hpc_a & Hr2) Hφ";
        iApply wp_lift_atomic_head_step_no_fork; auto;
        iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
        iDestruct "Hσ1" as "[Hr Hm]";
        iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-                                                      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-                                                                                                       iDestruct (@gen_heap_valid with "Hr Hr2") as %?;
-                                                                                                                                                      option_locate_mr m r).
+       iDestruct (@gen_heap_valid with "Hr Hr2") as %?;
+       iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?;
+       option_locate_mr m r).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iApply fupd_frame_l.
     iSplit.
     - rewrite /reducible.
@@ -637,26 +651,29 @@ Section cap_lang_rules.
         iSplitR; auto. by (iApply "Hφ"; iFrame).
   Qed.
 
-  Lemma wp_add_sub_lt_PC_fail1 E dst pc_p pc_g pc_b pc_e pc_a w y:
+  Lemma wp_add_sub_lt_PC_fail1 E dst pc_p pc_g pc_b pc_e pc_a w y pc_p' :
     cap_lang.decode w = cap_lang.Add dst (inr PC) y \/ cap_lang.decode w = Sub dst (inr PC) y \/ cap_lang.decode w = Lt dst (inr PC) y →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
 
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w }}}
+           ∗ pc_a ↦ₐ[pc_p'] w }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ pc_a ↦ₐ w }}}.
+             ∗ pc_a ↦ₐ[pc_p'] w }}}.
   Proof.
-    intros Hinstr Hvpc;
+    intros Hinstr Hfl Hvpc;
       (iIntros (φ) "(HPC & Hpc_a) Hφ";
        iApply wp_lift_atomic_head_step_no_fork; auto;
        iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
        iDestruct "Hσ1" as "[Hr Hm]";
        iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-                                                      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-                                                                                                       option_locate_mr m r).
+       iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?;
+       option_locate_mr m r).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iApply fupd_frame_l.
     iSplit.
     - rewrite /reducible.
@@ -695,26 +712,29 @@ Section cap_lang_rules.
         iSplitR; auto. by (iApply "Hφ"; iFrame).
   Qed.
 
-  Lemma wp_add_sub_lt_PC_fail2 E dst pc_p pc_g pc_b pc_e pc_a w x:
+  Lemma wp_add_sub_lt_PC_fail2 E dst pc_p pc_g pc_b pc_e pc_a w x pc_p' :
     cap_lang.decode w = cap_lang.Add dst x (inr PC) \/ cap_lang.decode w = Sub dst x (inr PC) \/ cap_lang.decode w = Lt dst x (inr PC) →
 
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
 
     {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-           ∗ pc_a ↦ₐ w }}}
+           ∗ pc_a ↦ₐ[pc_p'] w }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ pc_a ↦ₐ w }}}.
+             ∗ pc_a ↦ₐ[pc_p'] w }}}.
   Proof.
-    intros Hinstr Hvpc;
+    intros Hinstr Hfl Hvpc;
       (iIntros (φ) "(HPC & Hpc_a) Hφ";
        iApply wp_lift_atomic_head_step_no_fork; auto;
        iIntros (σ1 l1 l2 n') "Hσ1 /="; destruct σ1; simpl;
        iDestruct "Hσ1" as "[Hr Hm]";
        iDestruct (@gen_heap_valid with "Hr HPC") as %?;
-                                                      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?;
-                                                                                                       option_locate_mr m r).
+       iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?;
+       option_locate_mr m r).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
     iApply fupd_frame_l.
     iSplit.
     - rewrite /reducible.

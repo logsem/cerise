@@ -1,13 +1,14 @@
-From cap_machine Require Export lang.
+From cap_machine Require Export lang mono_ref.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
-From iris.algebra Require Import frac.
+From iris.algebra Require Import frac auth.
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
   mem_invG : invG Σ;
-  mem_gen_memG :> gen_heapG Addr Word Σ; }.
+  mem_gen_memG :> gen_heapG Addr Word Σ;
+  cap_γ : gname; }.
 
 (* CMRA for registers *)
 Class regG Σ := RegG {
@@ -23,27 +24,163 @@ Instance memG_irisG `{memG Σ, regG Σ} : irisG cap_lang Σ := {
 }.
 Global Opaque iris_invG.
 
-(* Points to predicates *)
+(* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
   (at level 20, q at level 50, format "r  ↦ᵣ{ q }  w") : bi_scope.
 Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r 1 w) (at level 20) : bi_scope.
 
+(* Points to predicates for memory *)
 Notation "a ↦ₐ { q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ { q }  w") : bi_scope.
 Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a 1 w) (at level 20) : bi_scope.
 
-(* temporary and permanent invariants *)
-Inductive inv_kind := T | P. 
+(* capabilities. We use the monotone monoid to construct a pointer which may only 
+   update according to its permission *)
+Section Capabilities. 
+  
+  Definition PermFlows : Perm → Perm → Prop := λ p1 p2, PermFlowsTo p1 p2 = true.
+  Definition LeastPermUpd (w : Word) : Perm :=
+    match w with
+    | inl _ => RW
+    | inr ((_,Global),_,_,_) => RW
+    | _ => RWL
+    end.
+  
+  Lemma PermFlows_refl : ∀ p, PermFlows p p.
+  Proof.
+    rewrite /PermFlows /PermFlowsTo.
+    destruct p; auto. 
+  Qed.
+
+  Lemma PermFlows_trans P1 P2 P3 :
+    PermFlows P1 P2 → PermFlows P2 P3 → PermFlows P1 P3.
+  Proof.
+    intros Hp1 Hp2. rewrite /PermFlows /PermFlowsTo.
+    destruct P1,P3,P2; simpl; auto; contradiction. 
+  Qed. 
+
+  Inductive CapR : relation (Word * Perm) :=
+  | P_res w p1 p2 : PermFlows p1 p2 → CapR (w,p2) (w,p1)
+  | W_upd w1 w2 p : PermFlows (LeastPermUpd w2) p → CapR (w1,p) (w2,p).
+
+  Definition PerP := λ p1 p2, PermFlows p2 p1.
+  Lemma PerP_refl : ∀ p, PerP p p.
+  Proof. apply PermFlows_refl. Qed.
+  Lemma PerP_trans : ∀ P1 P2 P3, PerP P1 P2 → PerP P2 P3 → PerP P1 P3.
+  Proof.
+    intros p1 p2 p3. rewrite /PerP /PermFlows /PermFlowsTo;
+    intros Hp1 Hp2.
+    destruct p1,p2,p3; simpl; auto.
+  Qed. 
+    
+  Definition CapR_rtc := rtc CapR.
+
+  Instance WordPerm_Equiv : Equiv (leibnizO (Word * Perm)).
+  Proof. apply _. Defined. 
+
+  Instance WordPerm_Dist : Dist (leibnizO (Word * Perm)).
+  Proof. apply _. Defined. 
+
+  Global Instance CapR_rtc_ProperPreOrder : monocmra.ProperPreOrder CapR_rtc.
+  Proof. split; apply _. Defined.
+
+  Instance PermFlows_Equiv : Equiv (leibnizO Perm).
+  Proof. apply _. Defined.
+
+  Instance PermFlows_Dist : Dist (leibnizO Perm).
+  Proof. apply _. Defined. 
+
+  Global Instance PerP_ProperPreOrder : monocmra.ProperPreOrder PerP.
+  Proof.
+    split; [|apply _]. 
+    split; intro;[rewrite /Reflexive;apply PerP_refl|rewrite /Transitive;apply PerP_trans]. 
+  Defined.
+
+  Global Instance PermFlows_ProperPreOrder : monocmra.ProperPreOrder PermFlows.
+  Proof.
+    split; [|apply _]. 
+    split; intro;[rewrite /Reflexive;apply PerP_refl|rewrite /Transitive;apply PermFlows_trans]. 
+  Defined. 
+  
+  Context `{MonRefG (leibnizO _) CapR_rtc Σ, !memG Σ}.
+  Notation A := (leibnizO (Word * Perm)). 
+  
+  Definition MonRefMapsto_def l γ (v : A) :=
+    (Exact (A:=A) CapR_rtc γ v ∗ atleast (A:=A) CapR_rtc γ v
+           ∗ (l ↦ₐ v.1 ∨ ⌜v.2 = O⌝))%I.
+  (* if the permission is O, we do not have ownership of the location *)
+  Definition MonRefMapsto_aux l γ v : seal (MonRefMapsto_def l γ v).
+  Proof. by eexists. Qed.
+  Definition MonRefMapsto l γ v : iProp Σ := (MonRefMapsto_aux l γ v).(unseal).
+  Definition MonRefMapsto_eq l γ v :
+    MonRefMapsto l γ v = MonRefMapsto_def l γ v :=
+    (MonRefMapsto_aux l γ v).(seal_eq).
+
+  Lemma MonRefAlloc l v p :
+    l ↦ₐ v ==∗ ∃ γ, MonRefMapsto l γ (v,p).
+  Proof.
+    iIntros "Hl".
+    iMod (MonRef_alloc (A:=A)) as (γ) "[HE Hal]"; eauto.
+    iModIntro. iExists _.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def. iFrame.
+  Qed.
+
+  Lemma MonRefDealloc l γ v p :
+    MonRefMapsto l γ (v,p) -∗
+                 (l ↦ₐ v ∨ ⌜p = O⌝) ∗
+       ∃ P, P ∗ (P -∗ ∀ w, ⌜CapR_rtc (v,p) w⌝ -∗
+                       (l ↦ₐ w.1 ∨ ⌜w.2 = O⌝) ==∗ MonRefMapsto l γ w).
+  Proof.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def.
+    iIntros "(HE & Ha & Hl)".
+    iFrame. 
+    iDestruct (MonRef_related (A:=A) with "HE Ha") as %Hab.
+    iExists (Exact (A:=A) CapR_rtc γ (v,p) ∗
+                   atleast (A:=A) CapR_rtc γ (v,p))%I; iFrame.
+    iIntros "[HE Ha]". iIntros ([w p'] Hcap) "Hl /=".
+    rewrite MonRefMapsto_eq /MonRefMapsto_def; iFrame.
+    iMod (MonRef_update (A:=A) CapR_rtc γ (v,p) with "HE") as "[$ $]"; eauto.
+  Qed.
+
+  Lemma snap_shot l γ v : MonRefMapsto l γ v ==∗ atleast (A:=A) CapR_rtc γ v.
+  Proof.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def atleast_eq /atleast_def.
+    iIntros "(HE & Hal & Hl)"; eauto.
+  Qed.
+
+  Lemma recall l γ v w :
+    atleast (A:=A) CapR_rtc γ w -∗ MonRefMapsto l γ v -∗ ⌜CapR_rtc w v⌝.
+  Proof.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def.
+    iIntros "Hal (HE & Hal' & Hl)".
+    iDestruct (MonRef_related with "HE Hal") as "?"; eauto.
+  Qed.
+
+  Instance Exact_Timeless : Timeless (Exact (A:=A) CapR_rtc γ v).
+  Proof. apply _. Qed.
+
+  Instance atleast_Timeless : Timeless (atleast (A:=A) CapR_rtc γ v).
+  Proof.
+    intros. rewrite (atleast_eq (A:=A) CapR_rtc γ v). apply _. Qed.          
+
+  Global Instance MonRefMapsto_Timeless : Timeless (MonRefMapsto l γ v).
+  Proof.
+    intros.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def.
+    apply _. 
+  Qed. 
+    
+End Capabilities.
+
+(* Points to predicates for memory *)
+Notation "a ↦ₐ [ p ] w" := (MonRefMapsto a cap_γ (w,p))
+  (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+
 Definition logN : namespace := nroot .@ "logN".
 
-Definition inv_cap `{memG Σ, regG Σ, inG Σ fracR} (t : inv_kind) iP (ι : namespace) (γ : gname) :=
-  match t with
-  | T => inv ι (iP ∨ (own γ 1%Qp))%I
-  | P => inv ι iP
-  end.
-
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, regG Σ, MonRefG (leibnizO _) CapR_rtc Σ,
+           MonPerm: MonRefG (leibnizO _) PermFlows Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -52,8 +189,13 @@ Section cap_lang_rules.
   Implicit Types v : cap_lang.val. 
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
-  Implicit Types ms : gmap Addr Word. 
+  Implicit Types ms : gmap Addr Word.
+  Notation A := (leibnizO (Word * Perm)).
+  Notation P := (leibnizO Perm). 
 
+  Definition atleast_p γ p := atleast (A:=P) PermFlows γ p.
+  Definition Exact_p γ p := Exact (A:=P) PermFlows γ p. 
+  
   Lemma locate_ne_reg reg r1 r2 w w' :
     r1 ≠ r2 → reg !r! r1 = w → <[r2:=w']> reg !r! r1 = w.
   Proof.
@@ -73,8 +215,55 @@ Section cap_lang_rules.
   Proof.
     intros. rewrite /MemLocate.
     rewrite lookup_partial_alter_ne; eauto.
+  Qed.
+
+  Lemma gen_heap_valid_cap
+        (σ : gmap Addr Word) (a : Addr) (w : Word) (p : Perm) :
+    p ≠ O →
+    gen_heap_ctx σ -∗ a ↦ₐ[p] w -∗ ⌜σ !! a = Some w⌝.
+  Proof.
+    rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
+    iIntros (Hne) "Hσ (Hex & Hal & [Ha | %])"; [|contradiction].
+    iApply (gen_heap_valid with "Hσ Ha"). 
+  Qed.
+
+  Lemma cap_restrict (a : Addr) (w : Word) (p p' : Perm) :
+    PermFlows p' p →
+    a ↦ₐ[p] w ==∗ a ↦ₐ[p'] w.
+  Proof.
+    do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
+    iIntros (Hf) "(Hex & Hal & Ha)".
+    iFrame.
+    iMod (MonRef_update (A:=A) with "Hex") as "[HE HFr']"; eauto.
+    right with (w,p');[|left].
+    constructor; auto.
+    iFrame.
+    iDestruct "Ha" as "[Ha | %]".
+    - iLeft. by iFrame.
+    - rewrite H2 in Hf. destruct p'; inversion Hf.
+      by iRight. 
+  Qed.
+  
+  Lemma perm_restrict (p p' : Perm) (γ : gname) :
+    PermFlows p p' →
+    Exact_p γ p ==∗ Exact_p γ p' ∗ atleast_p γ p'.
+  Proof. 
+    iIntros (Hfl) "Hp".
+    iMod (MonRef_update (A:=P) with "Hp") as "[HE HFr']"; eauto.
   Qed. 
 
+  Lemma gen_heap_update_cap (σ : gmap Addr Word) (a : Addr) (p : Perm) (w w' : Word) :
+    p ≠ O →
+    PermFlows (LeastPermUpd w') p →
+    gen_heap_ctx σ -∗ a ↦ₐ[p] w ==∗ gen_heap_ctx (<[a:=w']> σ) ∗ a ↦ₐ[p] w'.
+  Proof.
+    do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
+    iIntros (Ho Hf) "Hσ (Hex & Hal & [Ha | %])"; [|contradiction].
+    iMod (MonRef_update (A:=A) with "Hex") as "[$ $]"; eauto.
+    { right with (w',p); [|left]. by constructor. }
+    by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
+  Qed. 
+    
   Ltac inv_head_step :=
     repeat match goal with
            | _ => progress simplify_map_eq/= (* simplify memory stuff *)

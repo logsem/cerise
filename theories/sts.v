@@ -1,4 +1,4 @@
-From iris.algebra Require Import auth agree gmap.
+From iris.algebra Require Import auth agree gmap excl.
 From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import tactics.
 Import uPred.
@@ -6,10 +6,10 @@ Import uPred.
 
 (** The CMRA for the heap of STS.
     We register the state and the transition relation. *)
-Definition sts_stateUR := authUR (gmapUR positive (exclR (leibnizC positive))).
+Definition sts_stateUR := authUR (gmapUR positive (exclR (leibnizO positive))).
 
 Definition sts_relUR :=
-  authUR (gmapUR positive (agreeR (leibnizC ((positive → positive → Prop) * (positive → positive → Prop))))).
+  authUR (gmapUR positive (agreeR (leibnizO ((positive → positive → Prop) * (positive → positive → Prop))))).
 
 Definition STS_states : Type := gmap positive positive.
 Definition STS_rels : Type := gmap positive ((positive → positive → Prop) * (positive → positive → Prop)).
@@ -136,6 +136,19 @@ Section STS.
     intros; simplify_eq; eauto using rtc_refl.
   Qed.
 
+  Lemma related_sts_pub_priv fs fr gs gr :
+    related_sts_pub fs gs fr gr → related_sts_priv fs gs fr gr.
+  Proof.
+    rewrite /related_sts_pub /related_sts_priv. 
+    intros [Hf1 [Hf2 Hf3]].
+    repeat (split; auto);
+      specialize (Hf3 i x y r1 r2 r1' r2' H1 H2 H3 H4) as (Hr1 & Hr2 & Hrtc); auto.
+    inversion Hrtc.
+    - left.
+    - right with y0; auto.
+      apply rtc_or_intro. apply H6.
+  Qed. 
+
   Lemma related_sts_pub_trans fs fr gs gr hs hr :
     related_sts_pub fs gs fr gr → related_sts_pub gs hs gr hr →
     related_sts_pub fs hs fr hr.
@@ -206,10 +219,10 @@ Section STS.
   Proof.
     rewrite /sts_full /sts_rel.
     iIntros "[% [_ H1]] H2".
-    iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_valid_discrete;
+    iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_both_valid;
       iPureIntro.
     specialize (Hv i).
-    revert HR; rewrite /= left_id singleton_included;
+    revert HR. rewrite /= singleton_included;
       intros [z [Hz HR]]; revert HR; rewrite Some_included_total; intros HR.
     rewrite lookup_fmap in Hz, Hv.
     destruct (fr !! i) eqn:Heq; rewrite Heq /= in Hz, Hv; last by inversion Hz.
@@ -217,8 +230,8 @@ Section STS.
     revert HR; rewrite -Hu; intros HR%to_agree_included%leibniz_equiv;
       simplify_eq.
     inversion Hz as [? ? Hz'|]; simplify_eq.
-    revert Hz'; rewrite -Hu; intros Hz'%to_agree_inj%leibniz_equiv; simplify_eq.
-    by eauto.
+    revert Hz'; rewrite -Hu. intros Hz'%(to_agree_inj (A:=leibnizO _) p _)%leibniz_equiv. 
+    by rewrite Hz'.  
   Qed.
       
   Lemma sts_full_state fs fr i a :
@@ -226,10 +239,10 @@ Section STS.
   Proof.
     rewrite /sts_full /sts_state.
     iIntros "[% [H1 _]] H2".
-    iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_valid_discrete;
+    iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_both_valid;
       iPureIntro.
     specialize (Hv i).
-    revert HR; rewrite /= left_id singleton_included;
+    revert HR; rewrite /= singleton_included;
       intros [z [Hz HR]].
     rewrite lookup_fmap in Hz Hv.
     destruct (fs !! i) eqn:Heq; rewrite Heq /= in Hz Hv; last by inversion Hz.

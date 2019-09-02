@@ -1,6 +1,50 @@
 From iris.base_logic Require Export invariants na_invariants.
 From iris.proofmode Require Import tactics.
 
+Section range_inv.
+  Context `{!invG Σ}.
+
+  Definition range_inv N P Q : iProp Σ :=
+    (□ (∀ E, ⌜↑N ⊆ E⌝ ={E,E ∖ ↑N}=∗ (▷ P) ∗ (▷ Q ={E ∖ ↑N, E}=∗ True)))%I.
+
+  Lemma range_inv_alloc N E P Q : □ (Q -∗ P) ∗ ▷ P ={E}=∗ range_inv N P Q.
+  Proof.
+    iIntros "[#HQP HI]".
+    iMod (inv_alloc N _ P with "HI") as "#Hinv".
+    iModIntro. iAlways.
+    iIntros (E' Hsub).
+    iInv N as "HI" "Hcls".
+    iFrame. iModIntro. iIntros "Q".
+    iApply "Hcls".
+    iApply "HQP". iFrame. 
+  Qed.
+
+  Lemma range_inv_tighten_r N P Q Q' :
+    □ (Q' -∗ Q) -∗ range_inv N P Q -∗ range_inv N P Q'.
+  Proof.
+    iIntros "#HQQ' #Hinv".
+    iAlways. iIntros (E Hsub).
+    iMod ("Hinv" $! E Hsub) as "[HP Hcls]".
+    iModIntro. iFrame.
+    iIntros "HQ'".
+    iApply "Hcls".
+    iApply "HQQ'".
+    iFrame. 
+  Qed.
+
+  Lemma range_inv_tighten_l N P P' Q :
+    □ (P -∗ P') -∗ range_inv N P Q -∗ range_inv N P' Q.
+  Proof.
+    iIntros "#HPP' #Hinv".
+    iAlways. iIntros (E Hsub).
+    iMod ("Hinv" $! E Hsub) as "[HP Hcls]".
+    iModIntro. iFrame.
+    iApply "HPP'".
+    iFrame. 
+  Qed.
+
+End range_inv.
+
 Section abstract_inv.
   Context `{!invG Σ}.
 

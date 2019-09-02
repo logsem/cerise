@@ -452,6 +452,71 @@ Section region.
         iDestruct "AB" as "%".
         rewrite H5. auto.
   Qed.
+
+  Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
+    let al := (get_addr_from_option_addr (a + (-1))%a) in
+    (b <= a ∧ a <= e)%a →
+    (([∗ list] a' ∈ (region_addrs b e), φ a') →
+     φ a)%I.
+  Proof.
+    iIntros (al Ha) "#Hreg".
+    generalize (region_addrs_decomposition _ _ _ Ha); intro HRA. rewrite HRA.
+    iDestruct (big_sepL_app with "Hreg") as "[Hlo Hhi] /=".
+    iDestruct "Hhi" as "[$ _]".
+  Qed.
+
+  Lemma extract_from_region_inv_2 b e a ws (φ : Addr → Word → iProp Σ)
+        `{!∀ x y, Persistent (φ x y)}:
+    let al := (get_addr_from_option_addr (a + (-1))%a) in
+    let n := length (region_addrs b al) in
+    (b <= a ∧ a <= e)%a →
+    (([∗ list] a';w' ∈ (region_addrs b e);ws, φ a' w') →
+     ∃ w, φ a w ∗ ⌜ws = (take n ws) ++ w :: (drop (S n) ws)⌝)%I.
+  Proof.
+    iIntros (al n Ha) "#Hreg".
+    iDestruct (big_sepL2_length with "Hreg") as %Hlen.
+    generalize (region_addrs_decomposition _ _ _ Ha); intro HRA. rewrite HRA.
+    assert (Hlnws: n = length (take n ws)).
+    { rewrite take_length. rewrite Min.min_l; auto.
+      rewrite <- Hlen. rewrite HRA. rewrite app_length.
+      unfold n. unfold al. omega. }
+    generalize (take_drop n ws). intros HWS.
+    rewrite <- HWS.
+    case_eq (a + 1)%a. 
+    - intros a' Ha'; rewrite Ha' in HRA.
+      iDestruct (big_sepL2_app_inv_l _ (region_addrs b al) (a :: region_addrs a' e)
+                   with "Hreg") as (l1 l2 Hws2) "[Hl1 Hl2]".
+      destruct l2; auto. 
+      simpl. iDestruct "Hl2" as "[Ha Hl2]". 
+      iExists w. iFrame "#".
+      iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
+      iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
+      iPureIntro.
+      assert (take n (take n ws ++ drop n ws) = take n ws) as ->.
+      { rewrite take_app_alt; auto. }
+      assert (drop n ws = w :: l2) as Heql2.
+      { apply app_inj_1 in Hws2 as [_ Heq]; auto.
+          by rewrite -Hlnws. }
+      rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence. 
+    - intros Ha'; rewrite Ha' in HRA.
+      iDestruct (big_sepL2_app_inv_l _ (region_addrs b al) ([a])
+                   with "Hreg") as (l1 l2 Hws2) "[Hl1 Hl2]".
+      destruct l2; auto. 
+      simpl. iDestruct "Hl2" as "[Ha Hl2]". 
+      iExists w. iFrame "#".
+      iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
+      iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
+      iPureIntro.
+      assert (take n (take n ws ++ drop n ws) = take n ws) as ->.
+      { rewrite take_app_alt; auto. }
+      simpl in *.
+      assert (l2 = []) as Hl2nil; first (destruct l2; auto; inversion Hlenl2).
+      rewrite Hl2nil in Hws2. 
+      assert (drop n ws = [w]) as Heql2.
+      { apply app_inj_1 in Hws2 as [_ Heq]; auto.
+          by rewrite -Hlnws. }
+      rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence. 
+  Qed.  
     
   Lemma in_range_is_correctPC p l b e a b' e' :
     isCorrectPC (inr ((p,l),b,e,a)) →
