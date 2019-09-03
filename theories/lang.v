@@ -440,7 +440,7 @@ Module cap_lang.
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then 
-                  updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
+                  updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end 
@@ -461,7 +461,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
                      else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -481,7 +481,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then top else a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
               else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -498,7 +498,7 @@ Module cap_lang.
           match z_to_addr n1, z_to_addr n2 with
           | Some a1, Some a2 => 
             if isWithin a1 a2 b e then 
-              updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? -42)%a then top else a2, a)))
+              updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
             else (Failed, φ)
           | _,_ => (Failed, φ)
           end
