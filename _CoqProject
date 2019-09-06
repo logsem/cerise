@@ -1,5 +1,6 @@
 -Q theories cap_machine
 -arg -w -arg -several-object-files
+theories/monocmra.v
 theories/addr_reg.v
 theories/lang.v
 theories/rules_base.v
@@ -17,6 +18,7 @@ theories/rules.v
 theories/logrel.v
 theories/region.v
 theories/monotone.v
+theories/mono_ref.v
 theories/Get.v
 theories/Get2.v
 theories/Load.v
