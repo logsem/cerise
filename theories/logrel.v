@@ -1,6 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
-From cap_machine Require Export lang rules region.
+From cap_machine.rules Require Export rules. 
+From cap_machine Require Export lang region.
 From iris.algebra Require Import list frac excl.
 From iris.base_logic Require Export invariants na_invariants.
 Import uPred.
@@ -35,9 +36,8 @@ Section logrel.
             World: MonRefG (leibnizO _) RelW Σ}.
   Notation D := ((leibnizO Word) -n> iProp Σ).
   Notation R := ((leibnizO Reg) -n> iProp Σ).
-  Notation NS := (leibnizO coPset).
   Implicit Types w : (leibnizO Word).
-  Implicit Types interp : (NS -n> D).
+  Implicit Types interp : (D).
   
   Notation WORLD_S := (leibnizO ((STS_states * STS_rels) * bool)).
   Implicit Types M : WORLD_S. 
@@ -62,113 +62,101 @@ Section logrel.
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
   Definition full_map (reg : Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! r)⌝)%I.
-  Definition interp_reg (interp : NS -n> D) E : R :=
+  Definition interp_reg (interp : D) : R :=
    λne (reg : leibnizO Reg), (full_map reg ∧ 
-       ∀ (r : RegName), (⌜r ≠ PC⌝ → interp E (reg !r! r)))%I.
+       ∀ (r : RegName), (⌜r ≠ PC⌝ → interp (reg !r! r)))%I.
 
-  Definition interp_conf fs fr E : iProp Σ :=
+  Definition interp_conf fs fr : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ →
               ∃ r fs' fr', full_map r ∧ registers_mapsto r
                                       ∗ ⌜related_sts_priv fs fs' fr fr'⌝
-                                      ∗ na_own logrel_nais E                           
+                                      ∗ na_own logrel_nais ⊤                           
                                       ∗ sts_full fs' fr' }})%I.
 
-  Definition namespace_incl (w : Word) (E : coPset) : Prop :=
-    match w with
-    | inl _ => False
-    | inr ((_,_),b,e,_) => ∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E
-    end. 
-  Program Definition interp_expr (interp : NS -n> D) M E r : D :=
+  Program Definition interp_expr (interp : D) M r : D :=
     (λne w, ∃ fs fr, ⌜fs = M.1.1⌝
                      ∧ ⌜fr = M.1.2⌝ ∧
-                     (interp_reg interp E r ∗ registers_mapsto (<[PC:=w]> r)
+                     (interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r)
                       ∗ Exact_w wγ M
                       ∗ sts_full fs fr
-                      ∗ na_own logrel_nais E
-                      ∗ ⌜namespace_incl w E⌝ -∗
+                      ∗ na_own logrel_nais ⊤ -∗
                   ∃ p g b e a, ⌜w = (inr ((p,g),b,e,a))⌝ ∧
-                               interp_conf fs fr E))%I.
+                               interp_conf fs fr))%I.
 
   (* condition definitions *)
-  Definition read_write_cond l p (interp : NS -n> D) : iProp Σ :=
-    na_inv logrel_nais (logN.@l) (∃ w, l ↦ₐ[p] w ∗ ∀ E, ▷ interp E w)%I.
+  Definition read_write_cond l p (interp : D) : iProp Σ :=
+    na_inv logrel_nais (logN.@l) (∃ w, l ↦ₐ[p] w ∗ ▷ interp w)%I.
   Global Instance read_write_cond_ne n :
     Proper ((=) ==> (=) ==> dist n ==> dist n) read_write_cond.
   Proof. unfold read_write_cond. solve_proper. Qed.
 
-  Definition exec_cond b e g p (interp : NS -n> D) : iProp Σ :=
-    (∀ a W E r, ⌜a ∈ₐ [[ b , e ]]⌝ →
-            ▷ interp_expr interp (W_toM g W) E r (inr ((p,g),b, e,a)))%I.
+  Definition exec_cond b e g p (interp : D) : iProp Σ :=
+    (∀ a W r, ⌜a ∈ₐ [[ b , e ]]⌝ →
+            ▷ interp_expr interp (W_toM g W) r (inr ((p,g),b, e,a)))%I.
   Global Instance exec_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) exec_cond. 
   Proof. unfold exec_cond. solve_proper. Qed. 
     
-  Definition enter_cond b e a g (interp : NS -n> D) : iProp Σ :=
-    (∀ W E r, ▷ interp_expr interp (W_toM g W) E r (inr ((RX,g),b,e,a)))%I.
+  Definition enter_cond b e a g (interp : D) : iProp Σ :=
+    (∀ W r, ▷ interp_expr interp (W_toM g W) r (inr ((RX,g),b,e,a)))%I.
   Global Instance enter_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond. 
   Proof. unfold enter_cond. solve_proper. Qed.  
   
   (* interp definitions *)
-  Definition interp_z : (NS -n> D) := λne E w, ⌜∃ z, w = inl z⌝%I.
+  Definition interp_z : D := λne w, ⌜∃ z, w = inl z⌝%I.
   
-  Definition interp_cap_O : (NS -n> D) := λne E w, True%I.
+  Definition interp_cap_O : D := λne w, True%I.
 
-  Program Definition interp_cap_RO (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RO (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RO,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RO p⌝ ∗
             [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))%I.
   
-  Program Definition interp_cap_RW (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RW,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RW (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RW,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RW p⌝ ∗
             [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))%I.
   
-  Program Definition interp_cap_RWL (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RWL,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RWL (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RWL,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RWL p⌝ ∗
             [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))%I.
 
-  Program Definition interp_cap_RX (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RX,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RX (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RX,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RX p⌝ ∗
             ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)) 
             ∗ □ exec_cond b e g RX interp)%I.  
 
-  Program Definition interp_cap_E (interp : NS -n> D) : (NS -n> D) :=
-    λne _ w, (∃ g b e a, ⌜w = inr ((E,g),b,e,a)⌝
+  Program Definition interp_cap_E (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((E,g),b,e,a)⌝
             ∗ □ enter_cond b e a g interp)%I.
   
-  Program Definition interp_cap_RWX (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RWX,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RWX (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RWX,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RWX p⌝ ∗
             ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)) 
             ∗ □ exec_cond b e g RWX interp)%I.
   
-  Program Definition interp_cap_RWLX (interp : NS -n> D) : (NS -n> D) :=
-    λne E w, (∃ g b e a, ⌜w = inr ((RWLX,g),b,e,a)⌝ ∗
-            ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ ∗
+  Program Definition interp_cap_RWLX (interp : D) : D :=
+    λne w, (∃ g b e a, ⌜w = inr ((RWLX,g),b,e,a)⌝ ∗
             ∃ p, ⌜PermFlows RWLX p⌝ ∗
             ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)) 
             ∗ □ exec_cond b e g RWLX interp)%I.
   
-  Program Definition interp1 (interp : NS -n> D) : (NS -n> D) :=
-    (λne E w,
+  Program Definition interp1 (interp : D) : D :=
+    (λne w,
     match w return _ with
-    | inl _ => interp_z E w
-    | inr ((O, g), b, e, a) => interp_cap_O E w
-    | inr ((RO, g), b, e, a) => interp_cap_RO interp E w
-    | inr ((RW, g), b, e, a) => interp_cap_RW interp E w
-    | inr ((RWL, g), b, e, a) => interp_cap_RWL interp E w
-    | inr ((RX, g), b, e, a) => interp_cap_RX interp E w
-    | inr ((E, g), b, e, a) => interp_cap_E interp E w
-    | inr ((RWLX, g), b, e, a) => interp_cap_RWLX interp E w
-    | inr ((RWX, g), b, e, a) => interp_cap_RWX interp E w
+    | inl _ => interp_z w
+    | inr ((O, g), b, e, a) => interp_cap_O w
+    | inr ((RO, g), b, e, a) => interp_cap_RO interp w
+    | inr ((RW, g), b, e, a) => interp_cap_RW interp w
+    | inr ((RWL, g), b, e, a) => interp_cap_RWL interp w
+    | inr ((RX, g), b, e, a) => interp_cap_RX interp w
+    | inr ((E, g), b, e, a) => interp_cap_E interp w
+    | inr ((RWLX, g), b, e, a) => interp_cap_RWLX interp w
+    | inr ((RWX, g), b, e, a) => interp_cap_RWX interp w
     end)%I.
 
   (* Global Instance interp_expr_contractive : *)
@@ -181,7 +169,7 @@ Section logrel.
     Contractive (interp_cap_RO).
   Proof. solve_proper_prepare.
          repeat (apply exist_ne; rewrite /pointwise_relation;intros).
-         do 2 (apply sep_ne;auto).
+         repeat (apply sep_ne;auto).
          apply exist_ne; rewrite /pointwise_relation;intros.
          apply sep_ne; auto. 
          rewrite /read_write_cond. solve_contractive. 
@@ -190,7 +178,7 @@ Section logrel.
     Contractive (interp_cap_RW).
   Proof. solve_proper_prepare.
          repeat (apply exist_ne; rewrite /pointwise_relation;intros).
-         do 2 (apply sep_ne;auto).
+         repeat (apply sep_ne;auto).
          apply exist_ne; rewrite /pointwise_relation;intros.
          apply sep_ne; auto.
          rewrite /read_write_cond. solve_contractive.
@@ -199,7 +187,7 @@ Section logrel.
     Contractive (interp_cap_RWL).
   Proof. solve_proper_prepare.
          repeat (apply exist_ne; rewrite /pointwise_relation;intros).
-         do 2 (apply sep_ne;auto).
+         repeat (apply sep_ne;auto).
          apply exist_ne; rewrite /pointwise_relation;intros.
          apply sep_ne; auto.
          rewrite /read_write_cond. solve_contractive. 
@@ -220,7 +208,7 @@ Section logrel.
     rewrite /interp_cap_RX.
     solve_proper_prepare. 
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
-    do 2 (apply sep_ne; [auto|]).
+    repeat (apply sep_ne; [auto|]).
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     apply sep_ne;[auto|].
     apply sep_ne. 
@@ -244,7 +232,7 @@ Section logrel.
     rewrite /interp_cap_RWX.
     solve_proper_prepare.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
-    do 2 (apply sep_ne;[auto|]).
+    repeat (apply sep_ne;[auto|]).
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     apply sep_ne;[auto|].
     apply sep_ne. 
@@ -258,7 +246,7 @@ Section logrel.
     rewrite /interp_cap_RWLX.
     solve_proper_prepare.
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
-    do 2 (apply sep_ne;[auto|]).
+    repeat (apply sep_ne;[auto|]).
     repeat (apply exist_ne; rewrite /pointwise_relation; intros).
     apply sep_ne;[auto|].
     apply sep_ne. 
@@ -271,7 +259,7 @@ Section logrel.
     Contractive (interp1).
   Proof.
     solve_proper_prepare.
-    destruct x1;[auto|].
+    destruct x0;[auto|].
     destruct c,p,p,p,p; first auto.
     - solve_proper_prepare.
       rewrite /read_write_cond. solve_contractive. 
@@ -291,39 +279,38 @@ Section logrel.
   Qed. 
 
   
-  Lemma fixpoint_interp1_eq (E : NS) (x : leibnizO Word) :
-    fixpoint (interp1) E x ≡ interp1 (fixpoint (interp1)) E x. 
-  Proof. exact: (fixpoint_unfold (interp1) E x). Qed.
+  Lemma fixpoint_interp1_eq (x : leibnizO Word) :
+    fixpoint (interp1) x ≡ interp1 (fixpoint (interp1)) x. 
+  Proof. exact: (fixpoint_unfold (interp1) x). Qed.
     
-  Program Definition interp : (NS -n> D) :=
-    λne E w, (fixpoint (interp1)) E w.
-  Program Definition interp_expression M E r : D := interp_expr interp M E r.
-  Program Definition interp_registers E : R := interp_reg interp E.
+  Program Definition interp : D :=
+    λne w, (fixpoint (interp1)) w.
+  Program Definition interp_expression M r : D := interp_expr interp M r.
+  Program Definition interp_registers : R := interp_reg interp.
 
-  Global Instance interp_persistent : Persistent (interp E' w).
+  Global Instance interp_persistent : Persistent (interp w).
   Proof. intros. destruct w; simpl; rewrite fixpoint_interp1_eq; simpl. 
          apply _. 
          destruct c,p,p,p,p; repeat (apply exist_persistent; intros); try apply _.
   Qed. 
 
-  Lemma read_allowed_inv (a' a b e: Addr) p g E :
+  Lemma read_allowed_inv (a' a b e: Addr) p g :
     (b ≤ a' ∧ a' ≤ e)%Z →
-    readAllowed p → (interp E (inr ((p,g),b,e,a)) →
-      (∃ p', ⌜PermFlows p p'⌝ ∗ (read_write_cond a' p' interp)) ∧
-      ⌜∀ (a' : Addr), (b ≤ a' ∧ a' ≤ e)%Z → ↑logN.@a' ⊆ E⌝ )%I.
+    readAllowed p → (interp (inr ((p,g),b,e,a)) →
+      (∃ p', ⌜PermFlows p p'⌝ ∗ (read_write_cond a' p' interp)))%I.
   Proof.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn.
     destruct p; cbn; try contradiction; rewrite fixpoint_interp1_eq /=; 
-     [iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp] ]" |
-      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp] ]" |
-      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp] ]" |
-      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp]]" | 
-      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp]]" |
-      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% [% Hinterp]]" ];
+     [iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" |
+      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" |
+      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" |
+      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" | 
+      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" |
+      iDestruct "Hinterp" as (g0 b0 e0 a0) "[% Hinterp]" ];
     iDestruct "Hinterp" as (p) "[Hleast Hinterp]";
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]"); 
-    inversion H3; subst; iSplit;auto; iExists _; iFrame; 
+    inversion H3; subst; iExists _; iFrame; 
       try (iDestruct (extract_from_region_inv_2 with "Hinterp") as (w) "[Hinv _]";
            eauto); 
       try (iDestruct (extract_from_region_inv with "Hinterp") as "Hinv"; eauto). 
@@ -331,7 +318,7 @@ Section logrel.
   
 End logrel.
 
-Notation "⟦ w ⟧" := (λ E, interp E w).
-Notation "⟦ w ⟧ₑ" := (λ M E r, interp_expression M E r w).
-Notation "⟦ r ⟧ᵣ" := (λ E, interp_registers E r).
-Notation "⟦ [ s , r , E ] ⟧ₒ" := (interp_conf s r E). 
+Notation "⟦ w ⟧" := (interp w).
+Notation "⟦ w ⟧ₑ" := (λ M r, interp_expression M r w).
+Notation "⟦ r ⟧ᵣ" := (interp_registers r).
+Notation "⟦ [ s , r ] ⟧ₒ" := (interp_conf s r). 

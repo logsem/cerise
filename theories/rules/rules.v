@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_base
+From cap_machine.rules Require Export rules_base
      rules_Get rules_Load rules_AddSubLt
      rules_Lea rules_Mov rules_IsPtr
      rules_Restrict rules_Jmp rules_Jnz
@@ -805,7 +805,7 @@ Section cap_lang_rules.
   (* ------------------------------- DERIVED MACRO RULES ----------------------------- *)
 
   (* ------------------------------------ STACK -------------------------------------- *)
-  Lemma wp_push_success_z Ep r r_stk pc_p pc_g pc_b pc_e pc_a pc_a1 pc_a2 w w' z wa
+  (*Lemma wp_push_success_z Ep r r_stk pc_p pc_g pc_b pc_e pc_a pc_a1 pc_a2 w w' z wa
     g b e a a' φ :
     cap_lang.decode w = Lea r_stk (inl 1%Z) →
     cap_lang.decode w' = Store r_stk (inr r) →
@@ -846,7 +846,7 @@ Section cap_lang_rules.
     iNext. iIntros "(HPC & Hpc_a1 & Hr & Hr_stk & Ha') /=".
     iApply wp_pure_step_later; auto. iNext.
     iApply "Hφ". iFrame. 
-  Qed. 
+  Qed. *)
  
     
     

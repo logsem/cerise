@@ -1,4 +1,4 @@
-From cap_machine Require Export logrel monotone.
+From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
@@ -14,18 +14,17 @@ Section fundamental.
   Implicit Types interp : D.
 
   Lemma RX_Load_case:
-    ∀ E0 r a g M fs fr b e p' w dst src
+    ∀ r a g M fs fr b e p' w dst src
       (* RWX case *)
-      (fundamental_RWX : ∀ b e g a M E r,
+      (fundamental_RWX : ∀ b e g a M r,
           ((∃ p, ⌜PermFlows RWX p⌝ ∧
                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
-           ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M E r)%I)
+           ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M r)%I)
       (* (* RWLX case *) *)
-      (fundamental_RWLX : ∀ b e g a M E r,
+      (fundamental_RWLX : ∀ b e g a M r,
           ((∃ p, ⌜PermFlows RWLX p⌝ ∧
                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
-           ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M E r)%I)
-      (Hreach : ∀ a' : Addr, (b <= a')%a ∧ (a' <= e)%a → ↑logN.@a' ⊆ E0)
+           ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M r)%I)
       (H3 : ∀ x : RegName, (λ x0 : RegName, is_Some (r !! x0)) x)
       (i : isCorrectPC (inr (RX, g, b, e, a)))
       (Hbae : (b <= a)%a ∧ (a <= e)%a)
@@ -34,52 +33,31 @@ Section fundamental.
       (Heq : fs = M.1.1 ∧ fr = M.1.2),
       □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
             full_map a0
-         -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → ((fixpoint interp1) E0) (a0 !r! r0))
+         -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r0))
          -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
          -∗ Exact_w wγ a7
          -∗ sts_full a3 a4
-         -∗ na_own logrel_nais E0
+         -∗ na_own logrel_nais ⊤
          -∗ ⌜a7.1.1 = a3⌝
          → ⌜a7.1.2 = a4⌝
          → □ (∃ p : Perm, ⌜PermFlows RX p⌝
                            ∧ ([∗ list] a8 ∈ region_addrs a5 a6, 
                               na_inv logrel_nais (logN.@a8)
-                                     (∃ w0 : leibnizO Word,
-                                          a8 ↦ₐ[p] w0
-                                        ∗ (∀ E1, ▷ (interp E1) w0))))
-         -∗ □ ⌜∀ a' : Addr, (a5 ≤ a')%Z ∧ (a' ≤ a6)%Z → ↑logN.@a' ⊆ E0⌝
-         -∗ ⟦ [a3, a4, E0] ⟧ₒ)
-      (* □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7, *)
-      (*         full_map a0 *)
-      (*      -∗ (∀ r0, ⌜r0 ≠ PC⌝ → ((fixpoint interp1) E0) (a0 !r! r0)) *)
-      (*      -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0) *)
-      (*      -∗ Exact_w wγ a7 *)
-      (*      -∗ sts_full a3 a4 *)
-      (*      -∗ na_own logrel_nais E0 *)
-      (*      -∗ ⌜a7.1.1 = a3⌝ *)
-      (*      -∗ ⌜a7.1.2 = a4⌝ *)
-      (*      -∗ □ (∃ p, ⌜PermFlows RX p⌝ *)
-      (*                 ∧ ([∗ list] a7 ∈ region_addrs a5 a6,  *)
-      (*                    na_inv logrel_nais (logN.@a7) *)
-      (*                           (∃ w0 : leibnizO Word, *)
-      (*                               a7 ↦ₐ[p] w0 *)
-      (*                             ∗ (∀ E1, ▷ (interp E1) w0)))) *)
-      (*      -∗ □ ⌜∀ a' : Addr, (a5 ≤ a')%Z ∧ (a' ≤ a6)%Z → ↑logN.@a' ⊆ E0⌝ *)
-      (*      -∗ ⟦ [a3, a4, E0] ⟧ₒ) *)
+                                     (∃ w0 : leibnizO Word, a8 ↦ₐ[p] w0 ∗ ▷ interp w0)))
+         -∗ ⟦ [a3, a4] ⟧ₒ)
         -∗ □ ([∗ list] a0 ∈ region_addrs b e, na_inv logrel_nais (logN.@a0)
-                    (∃ w0, a0 ↦ₐ[p'] w0 ∗ (∀ E1, ▷ (interp E1) w0)))
-        -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → ((fixpoint interp1) E0) (r !r! r0))
+                    (∃ w0, a0 ↦ₐ[p'] w0 ∗ ▷ interp w0))
+        -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (r !r! r0))
         -∗ □ na_inv logrel_nais (logN.@a)
-              (∃ w0 : leibnizO Word, a ↦ₐ[p'] w0 ∗ (∀ E1, ▷ (interp E1) w0))
-        -∗ □ ▷ (∀ E1, ▷ (interp E1) w)
-        -∗ □ ▷ ▷ (interp E0) w
+              (∃ w0 : leibnizO Word, a ↦ₐ[p'] w0 ∗ ▷ interp w0)
+        -∗ □ ▷ ▷ interp w
         -∗ Exact_w wγ M
         -∗ sts_full fs fr
         -∗ a ↦ₐ[p'] w
-        -∗ na_own logrel_nais (E0 ∖ ↑logN.@a)
-        -∗ (▷ (∃ w0, a ↦ₐ[p'] w0 ∗ (∀ E1, ▷ (interp E1) w0))
-              ∗ na_own logrel_nais (E0 ∖ ↑logN.@a)
-            ={⊤}=∗ na_own logrel_nais E0)
+        -∗ na_own logrel_nais (⊤ ∖ ↑logN.@a)
+        -∗ (▷ (∃ w0, a ↦ₐ[p'] w0 ∗ ▷ interp w0)
+              ∗ na_own logrel_nais (⊤ ∖ ↑logN.@a)
+            ={⊤}=∗ na_own logrel_nais ⊤)
         -∗ PC ↦ᵣ inr (RX, g, b, e, a)
         -∗ ([∗ map] k↦y ∈ delete PC
                     (<[PC:=inr (RX, g, b, e, a)]> r), 
@@ -89,11 +67,11 @@ Section fundamental.
                     {{ v0, ⌜v0 = HaltedV⌝ → ∃ r0 fs' fr',
                            full_map r0 ∧ registers_mapsto r0
                            ∗ ⌜related_sts_priv fs fs' fr fr'⌝
-                           ∗ na_own logrel_nais E0
+                           ∗ na_own logrel_nais ⊤
                            ∗ sts_full fs' fr' }} }}.
   Proof.
-    intros E0 r a g M fs fr b e p' w. intros.
-    iIntros "#IH #Hinv #Hreg #Hinva #Hval #Hval'". 
+    intros r a g M fs fr b e p' w. intros.
+    iIntros "#IH #Hinv #Hreg #Hinva #Hval". 
     iIntros "HM Hsts Ha Hown Hcls HPC Hmap".
     destruct (decide (PC = dst)),(decide (PC = src)); simplify_eq. 
     * (* Load PC PC ==> fail *)
@@ -159,9 +137,9 @@ Section fundamental.
       rewrite /read_write_cond. 
       iAssert ((∃ w' p'', ▷ ( a0 ↦ₐ[p''] w'
                                ∗ a ↦ₐ[p'] w
-               ={⊤}=∗ na_own logrel_nais E0)
+               ={⊤}=∗ na_own logrel_nais ⊤)
                             ∗ ▷ a0 ↦ₐ[p''] w'
-                            ∗ ▷ ▷ ⟦ w' ⟧ E0 ∗ ⌜PermFlows p p''⌝
+                            ∗ ▷ ▷ ⟦ w' ⟧ ∗ ⌜PermFlows p p''⌝
                (* ∗ (∃ E', ⌜get_namespace w' = Some E'⌝ ∧ ⌜↑E' ⊆ E⌝)*))
         ∗ sts_full fs fr
         -∗ WP Instr Executable
@@ -171,7 +149,7 @@ Section fundamental.
                        full_map r0
                        ∧ registers_mapsto r0
                                           ∗ ⌜related_sts_priv fs fs' fr fr'⌝
-                                          ∗ na_own logrel_nais E0
+                                          ∗ na_own logrel_nais ⊤
                                           ∗ sts_full fs' fr' }} }} )%I
         with "[Ha HPC Hsrc Hmap HM]" as "Hstep".
       {
@@ -235,7 +213,7 @@ Section fundamental.
             iNext. iApply wp_value. iFrame. done.
           }
           (* The new register state is valid *)
-          iAssert (interp_registers _ (<[src:=inr (p, l, a2, a1, a0)]> r)) as "[Hfull' Hreg']".
+          iAssert (interp_registers (<[src:=inr (p, l, a2, a1, a0)]> r)) as "[Hfull' Hreg']".
           { iSplitL.
             { iIntros (r0). iPureIntro.
               destruct (decide (src = r0)); simplify_eq;
@@ -291,8 +269,8 @@ Section fundamental.
                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
             (* apply IH *)
             iNext.
-            rewrite (fixpoint_interp1_eq _ (inr (RX, l0, a5, a4, a3))) /=.
-            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & % & Hw0)".
+            rewrite (fixpoint_interp1_eq (inr (RX, l0, a5, a4, a3))) /=.
+            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & Hw0)".
             iDestruct "Hw0" as (p0 Hfp0) "[Hb0e0 Hexec]".   
             inversion H5;subst.
             iMod ("Hcls'" with "[$Ha0 $Ha]") as "Hown".
@@ -309,8 +287,8 @@ Section fundamental.
                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
             iNext.
-            rewrite (fixpoint_interp1_eq _ (inr (RWX, l0, a5, a4, a3))) /=.
-            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & % & Hw0)".
+            rewrite (fixpoint_interp1_eq (inr (RWX, l0, a5, a4, a3))) /=.
+            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & Hw0)".
             iDestruct "Hw0" as (p0 Hfp0) "[Hb0e0 Hexec]".   
             inversion H5;subst.
             iMod ("Hcls'" with "[$Ha0 $Ha]") as "Hown".
@@ -329,7 +307,6 @@ Section fundamental.
             iDestruct ("Hexpr" 
                          with "[Hfull' Hreg' Hmap Hsts Hown HM]")
               as (p1 g1 b1 e1 a3) "[% Ho]"; iFrame "∗ #".
-            iPureIntro. auto. 
           }
           { (* new PC is RWLX, apply fundamental_RWLX *)
             iClear "Hfail".
@@ -338,9 +315,9 @@ Section fundamental.
                  rewrite -delete_insert_ne; auto;
                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-            rewrite (fixpoint_interp1_eq _ (inr (RWLX, l0, a5, a4, a3))).
+            rewrite (fixpoint_interp1_eq (inr (RWLX, l0, a5, a4, a3))).
             iNext.
-            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & % & Hw0)".
+            iDestruct "Hw0" as (g0 b0 e0 a7) "(% & Hw0)".
             iDestruct "Hw0" as (p0 Hfp0) "[Hb0e0 Hexec]".   
             inversion H5;subst.
             iMod ("Hcls'" with "[$Ha0 $Ha]") as "Hown".
@@ -357,11 +334,9 @@ Section fundamental.
             iDestruct ("Hexpr" 
                          with "[Hfull' Hreg' Hmap Hsts Hown HM]")
               as (p1 g1 b1 e1 a3) "[% Ho]"; iFrame "∗ #".
-            iPureIntro. auto. 
           }
       }
-      iDestruct "Hconds" as "[Hinv0 %]".
-      iDestruct "Hinv0" as (p'' Hp'') "Hinv0". 
+      iDestruct "Hconds" as (p'' Hp'') "Hinv0".
       (* assert (↑logN.@a0 ⊆ (E ∖ ↑logN.@a)) as Ha2a1. *)
       (* { apply subseteq_difference_r.  *)
       (*   apply ndot_ne_disjoint; auto. *)
@@ -369,18 +344,16 @@ Section fundamental.
       (* } *)
       iMod (na_inv_open with "Hinv0 Hown") as "(Ha0 & Hown' & Hcls')"; auto.
       { apply subseteq_difference_r. 
-        apply ndot_ne_disjoint; auto. 
-        apply H4. split; apply Z.leb_le; auto. }
-      iDestruct "Ha0" as (ws0) "[Ha0 #Hva0]".           
-      iDestruct ("Hva0" $! _) as "Hva0'". 
+        apply ndot_ne_disjoint; auto. done. }
+      iDestruct "Ha0" as (ws0) "[Ha0 #Hva0]".
       iApply "Hstep". iFrame "Hsts".
-      iExists ws0. iExists _. iFrame "Ha0 Hva0'".
+      iExists ws0. iExists _. iFrame "Ha0 Hva0".
       iSplit;[|auto]. 
       iNext. iIntros "[Ha0 Ha]".
       iMod ("Hcls'" with "[Hown' Ha0]") as "Hown";iFrame "∗ #". 
-      { iNext. iExists _. iFrame. iIntros (E0'). iNext. auto. }
+      { iNext. iExists _. iFrame. iNext. auto. }
       iMod ("Hcls" with "[Hown Ha]") as "Hown"; iFrame "∗ #".
-      { iNext. iExists _. iFrame. iIntros (E0'). iNext. auto. }
+      { iNext. iExists _. iFrame. iNext. auto. }
       iModIntro; done. 
     * destruct (H3 dst) as [wdst Hsomedst].
       rewrite delete_insert_delete.
@@ -408,7 +381,7 @@ Section fundamental.
                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
         (* apply IH *)
-        iAssert (▷ interp_registers _ (<[dst:=w]> r))%I
+        iAssert (▷ interp_registers (<[dst:=w]> r))%I
           as "[Hfull Hreg']".
         { iNext. iSplitL.
           { iIntros (r0). iPureIntro.
@@ -458,16 +431,16 @@ Section fundamental.
         as [Hra Hwb]. apply andb_prop in Hwb as [Hle Hge].
       rewrite /leb_addr in Hle,Hge. 
       (* the contents of src is valid *)
-      iAssert ((fixpoint interp1) _ (inr (p, l, a2, a1, a0))) as "#Hvsrc".
+      iAssert ((fixpoint interp1) (inr (p, l, a2, a1, a0))) as "#Hvsrc".
       { apply reg_eq_sym in n0. iDestruct ("Hreg" $! src n0) as "Hvsrc".
         rewrite /RegLocate Hsomesrc /=. by iApply "Hvsrc". }
       iDestruct (read_allowed_inv a0 with "Hvsrc") as "Hconds"; auto; 
         first (split; by apply Z.leb_le).      
       (* Each condition in Hconds take a step in similar fashion *)
       iAssert ((∃ w' p'', ▷ ((if (a0 =? a)%a then emp else a0 ↦ₐ[p''] w') ∗ a ↦ₐ[p'] w
-               ={⊤}=∗ na_own logrel_nais E0)
+               ={⊤}=∗ na_own logrel_nais ⊤)
                             ∗ (if (a0 =? a)%a then emp else ▷ a0 ↦ₐ[p''] w')
-                            ∗ ▷ ▷ ⟦ w' ⟧ E0 ∗ ⌜PermFlows p p''⌝
+                            ∗ ▷ ▷ ⟦ w' ⟧ ∗ ⌜PermFlows p p''⌝
                (* ∗ (∃ E', ⌜get_namespace w' = Some E'⌝ ∧ ⌜↑E' ⊆ E⌝)*))
         ∗ sts_full fs fr
         -∗ WP Instr Executable
@@ -477,7 +450,7 @@ Section fundamental.
                        full_map r0
                        ∧ registers_mapsto r0
                                           ∗ ⌜related_sts_priv fs fs' fr fr'⌝
-                                          ∗ na_own logrel_nais E0
+                                          ∗ na_own logrel_nais ⊤
                                           ∗ sts_full fs' fr' }} }} )%I
         with "[Ha HPC Hsrc Hmap HM]" as "Hstep".
       { iIntros "[Hcls' Hsts]".
@@ -532,7 +505,7 @@ Section fundamental.
           (* apply IH *)
           (* we will apply the IH on an updated register state *)
           (* we can only prove the following once we have taken a step *)
-          iAssert (▷ interp_registers _ (<[dst:=if (a0 =? a)%a then w else w0]> r))%I as "[Hfull' Hreg']".
+          iAssert (▷ interp_registers (<[dst:=if (a0 =? a)%a then w else w0]> r))%I as "[Hfull' Hreg']".
           { iNext. iSplitR.
             - iIntros (r0).
               iPureIntro.
@@ -544,7 +517,7 @@ Section fundamental.
               destruct (H3 r0) as [c Hsome]. 
               destruct (decide (dst = r0)); simplify_eq.
               + rewrite /RegLocate lookup_insert.
-                destruct (a0 =? a)%a; [iApply "Hval'"|iApply "Hw0"]. 
+                destruct (a0 =? a)%a; [iApply "Hval"|iApply "Hw0"]. 
               + rewrite /RegLocate lookup_insert_ne; auto. 
                 rewrite Hsome. iApply "Hv"; auto.  
           }
@@ -581,7 +554,7 @@ Section fundamental.
           (* apply IH *)
           (* we will apply the IH on an updated register state *)
           (* we can only prove the following once we have taken a step *)
-          iAssert (▷ interp_registers _ (<[src:=inr (p, l, a2, a1, a0)]>
+          iAssert (▷ interp_registers (<[src:=inr (p, l, a2, a1, a0)]>
                                          (<[dst:=if (a0 =? a)%a then w else w0]> r)))%I
                     as "[Hfull' Hreg']".
           { iNext. iSplitR.
@@ -617,12 +590,11 @@ Section fundamental.
         iFrame "#". iSplitL.
         - iNext. iIntros "[_ Ha]". 
           iMod ("Hcls" with "[Hown Ha]") as "Hown"; iFrame "∗ #".
-          { iNext. iExists _. iFrame. iIntros (E0'). iNext. auto. }
+          { iNext. iExists _. iFrame. iNext. auto. }
           iModIntro; done.
         - iPureIntro. apply PermFlows_refl. 
       }
-      iDestruct "Hconds" as "[Hinv0 %]".
-      iDestruct "Hinv0" as (p'' Hp'') "Hinv0". 
+      iDestruct "Hconds" as (p'' Hp'') "Hinv0". 
       (* assert (↑logN.@a0 ⊆ (E ∖ ↑logN.@a)) as Ha2a1. *)
       (* { apply subseteq_difference_r.  *)
       (*   apply ndot_ne_disjoint; auto. *)
@@ -630,20 +602,18 @@ Section fundamental.
       (* } *)
       iMod (na_inv_open with "Hinv0 Hown") as "(Ha0 & Hown' & Hcls')"; auto.
       { apply subseteq_difference_r. 
-        apply ndot_ne_disjoint; auto. 
-        apply H4. split; apply Z.leb_le; auto. }
+        apply ndot_ne_disjoint; auto. done. }
       iDestruct "Ha0" as (ws0) "[Ha0 #Hva0]".           
-      iDestruct ("Hva0" $! _) as "Hva0'". 
       iApply "Hstep". iFrame "Hsts".
       iExists ws0. iExists _.
       destruct (a0 =? a)%a eqn:Ha0; [apply Z.eqb_eq,z_of_eq in Ha0;congruence|]. 
-      iFrame "Ha0 Hva0'".
+      iFrame "Ha0 Hva0".
       iSplit;[|auto]. 
       iNext. iIntros "[Ha0 Ha]".
       iMod ("Hcls'" with "[Hown' Ha0]") as "Hown";iFrame "∗ #". 
-      { iNext. iExists _. iFrame. iIntros (E0'). iNext. auto. }
+      { iNext. iExists _. iFrame. iNext. auto. }
       iMod ("Hcls" with "[Hown Ha]") as "Hown"; iFrame "∗ #".
-      { iNext. iExists _. iFrame. iIntros (E0'). iNext. auto. }
+      { iNext. iExists _. iFrame. iNext. auto. }
       iModIntro; done.
       Unshelve. exact 0. 
   Qed. 
