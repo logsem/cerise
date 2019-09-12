@@ -4,10 +4,8 @@ From iris.proofmode Require Import tactics.
 Section monotone.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            MonPerm: MonRefG (leibnizO _) PermFlows Σ}.
+            World: MonRefG (leibnizO _) RelW Σ}.
   Implicit Types w : (leibnizO Word).
-  Notation STS := (prodO (leibnizO STS_states) (leibnizO STS_rels)).
-  Implicit Types stsf : (STS).
 
   Lemma subseteq_trans (E1 E2 E3 : coPset) :
      E1 ⊆ E2 → E2 ⊆ E3 → E1 ⊆ E3.
@@ -25,11 +23,11 @@ Section monotone.
      Value relation is monotone wrt public future world.
    *)
 
-  Lemma interp_monotone_list ws E E' stsf stsf' :
-          (□ ∀ a, (((fixpoint interp1) E) stsf a
-                -∗ (((fixpoint interp1) E') stsf' a)))
-         -∗ ([∗ list] w ∈ ws, (((fixpoint interp1) E) stsf w))
-         -∗ ([∗ list] w ∈ ws, (((fixpoint interp1) E') stsf' w)). 
+  Lemma interp_monotone_list ws E E' :
+          (□ ∀ a, (((fixpoint interp1) E) a
+                -∗ (((fixpoint interp1) E') a)))
+         -∗ ([∗ list] w ∈ ws, (((fixpoint interp1) E) w))
+         -∗ ([∗ list] w ∈ ws, (((fixpoint interp1) E') w)). 
   Proof.
     iIntros "#Hmono Hws".
     iInduction ws as [_ | w ] "IH".
@@ -39,14 +37,36 @@ Section monotone.
       + iApply "Hmono". iFrame.
       + iApply "IH". iFrame.
   Qed. 
-     
- Lemma interp_monotone_public w stsf1 E stsf2 E' (* E'' *) :
-    (⌜related_sts_pub stsf1.1 stsf2.1 stsf1.2 stsf2.2⌝ -∗
-      ⌜E ⊆ E'⌝ -∗
-      ⟦ w ⟧ E stsf1 -∗ ⟦ w ⟧ E' stsf2)%I. 
+
+  (* Lemma read_write_cond_monotone_public s s' fr fr' a p E : *)
+  (*   ⌜related_sts_pub s s' fr fr'⌝ -∗ *)
+  (*    ⌜↑(logN.@a) ⊆ E⌝ -∗ *)
+  (*    na_own logrel_nais E -∗ *)
+  (*    read_write_cond a p (fixpoint interp1) ={⊤}=∗ *)
+  (*    na_own logrel_nais E ∗ *)
+  (*    read_write_cond a p (fixpoint interp1). *)
+  (* Proof. *)
+  (*   iIntros (Hrelated Hsub) "Hna Hrw_cond".  *)
+  (*   iDestruct "Hrw_cond" as (γ) "[Hγ Hinv]". *)
+  (*   iMod (na_inv_open with "Hinv Hna") as "[Hcond [Hna Hcls]]"; auto.  *)
+  (*   iDestruct (bi.later_exist with "Hcond") as (w) "Hcond". *)
+  (*   iDestruct (bi.later_exist with "Hcond") as (W) "(>Ha & >Hex & Hval)". *)
+  (*   iDestruct (MonRef_related with "Hex Hγ") as %Hrelated'. *)
+  (*   destruct W as [s'' fr''].  *)
+  (*   rewrite /PrivRelW /= in Hrelated'.  *)
+  (*   rewrite /read_write_cond. *)
+  (*   iApply fupd_frame_r. *)
+  (*   iApply bi.sep_exist_l. *)
+  (*   iExists γ.  *)
+  (*   iMod (MonRef_update with "Hex").  *)
+  (*   iFrame "Hinv". *)
+    
+    
+ Lemma interp_monotone_public w E E' (* E'' *) :
+      (⌜E ⊆ E'⌝ -∗
+      ⟦ w ⟧ E -∗ ⟦ w ⟧ E')%I. 
   Proof.
-    iIntros (Hrelated).
-    destruct stsf1 as [s fr],stsf2 as [s' fr']; simpl.  
+    (* destruct stsf1 as [s fr],stsf2 as [s' fr']; simpl.   *)
     iLöb as "IH" forall (w).
     iIntros (Hsub).
     iIntros "Hinterp".  
@@ -92,44 +112,11 @@ Section monotone.
       { iPureIntro. intros a' Ha'. specialize (H3 a' Ha').
         apply subseteq_trans with E; auto. }
       iExists γ. iFrame "#".
-      iIntros (E'' r).
-      iAlways.
-      iIntros (a stsf'' Ha) "Hrelated".
-      rewrite /related_sts_l. destruct b.
-      + rewrite /exec_cond /=. 
-        iSpecialize ("Hexec" $! E'' r a stsf'' Ha).
-        iApply "Hexec".
-        iDestruct "Hrelated" as %Hrelated''.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        iPureIntro.
-        apply related_sts_pub_priv_trans with s' fr'; auto. 
-      + rewrite /exec_cond /=. 
-        iSpecialize ("Hexec" $! E'' r a stsf'' Ha). 
-        iApply "Hexec".
-        iDestruct "Hrelated" as %Hrelated''.
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        apply related_sts_pub_trans with s' fr'; auto.           
     - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a2 Heq) "#Hexec /=".
       inversion Heq; subst.
       iApply fixpoint_interp1_eq.
-      iExists _,_,_,_. iSplit;[auto|].
-      iIntros (E0 r). iAlways.
-      iIntros (stsf'').
-      rewrite /related_sts_l. destruct g.
-      + iIntros (Hrelated'').
-        iApply "Hexec". 
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']. 
-        simpl in *.
-        apply related_sts_pub_priv_trans with s' fr'; auto. 
-      + iIntros (Hrelated'').
-        iApply "Hexec". 
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']. 
-        simpl in *.
-        apply related_sts_pub_trans with s' fr'; auto. 
-    - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a2 Heq Hsub')
+      iExists _,_,_,_. iSplit;auto. 
+      - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a2 Heq Hsub')
                                                           "#Hinv /=".
       iDestruct "Hinv" as (γ) "#[Hleast [Hinv Hexec]]". 
       inversion Heq; subst.
@@ -140,20 +127,6 @@ Section monotone.
         apply subseteq_trans with E;auto. }
       iExists γ. 
       iFrame "#". 
-      iIntros (E0 r). iAlways.
-      iIntros (a stsf'' Ha) "Hrelated".
-      rewrite /related_sts_l. destruct g.
-      + rewrite /exec_cond /=. 
-        iApply "Hexec"; auto.
-        iDestruct "Hrelated" as %Hrelated''.
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        apply related_sts_pub_priv_trans with s' fr'; auto. 
-      + iApply "Hexec"; auto.
-        iDestruct "Hrelated" as %Hrelated''.
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        apply related_sts_pub_trans with s' fr'; auto. 
     - iDestruct (fixpoint_interp1_eq with "Hinterp") as (g b e a2 Heq Hsub')
                                                           "#Hinv /=".
       iDestruct "Hinv" as (γ) "(#Hleast & Hinv & Hexec)". 
@@ -164,28 +137,13 @@ Section monotone.
       { iPureIntro. intros a' Ha'. specialize (Hsub' a' Ha').
         apply subseteq_trans with E;auto. }
       iExists γ. iFrame "#". 
-      iIntros (E0 r). iAlways.
-      iIntros (a stsf'' Ha) "Hrelated".
-      rewrite /related_sts_l. destruct g.
-      + rewrite /exec_cond /=. 
-        iApply "Hexec"; auto.
-        iDestruct "Hrelated" as %Hrelated''.
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        apply related_sts_pub_priv_trans with s' fr'; auto. 
-      + iApply "Hexec"; auto.
-        iDestruct "Hrelated" as %Hrelated''.
-        iPureIntro.
-        destruct stsf'' as [s'' fr'']; simpl in *.  
-        apply related_sts_pub_trans with s' fr'; auto. 
   Qed. 
 
-  Lemma interp_reg_monotone_public r stsf1 E stsf2 E' :
-     (⌜related_sts_pub stsf1.1 stsf2.1 stsf1.2 stsf2.2⌝ -∗
-       ⌜E ⊆ E'⌝ -∗
-       ⟦ r ⟧ᵣ E stsf1 -∗ ⟦ r ⟧ᵣ E' stsf2)%I.
+  Lemma interp_reg_monotone_public r E E' :
+       (⌜E ⊆ E'⌝ -∗
+       ⟦ r ⟧ᵣ E -∗ ⟦ r ⟧ᵣ E')%I.
   Proof.
-    iIntros (Hrelated Hsub) "[$ #Hreg]".
+    iIntros (Hsub) "[$ #Hreg]".
     iIntros (r0 Hnpc).
     iSpecialize ("Hreg" $! r0 Hnpc).
     iApply interp_monotone_public; eauto. 

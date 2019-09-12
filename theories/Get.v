@@ -11,7 +11,7 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
-
+(*
   Lemma RX_getL_case:
     ∀ E0 r a g fs fr b e p' w dst r0
       (* RWX case *)
@@ -929,6 +929,6 @@ Section fundamental.
         iNext. iIntros (Hcontr); inversion Hcontr. 
     }
   Qed. 
-  
+  *)
    
 End fundamental.

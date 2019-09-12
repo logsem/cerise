@@ -1,4 +1,4 @@
-From cap_machine Require Export lang mono_ref.
+From cap_machine Require Export lang mono_ref sts.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
@@ -172,6 +172,39 @@ Section Capabilities.
     
 End Capabilities.
 
+Section World.
+  Local Definition STS : Type := (STS_states * STS_rels).
+
+  Inductive RelW : (STS * bool) → (STS * bool) -> Prop :=
+  | RelW_pr (W1 W2 : STS) : related_sts_priv W1.1 W2.1 W1.2 W2.2
+                            -> RelW (W1,true) (W2,true)
+  | RelW_pu (W1 W2 : STS) : related_sts_pub W1.1 W2.1 W1.2 W2.2
+                            -> RelW (W1,false) (W2,false)
+  | RelW_pu_to_pr (W1 W2 : STS) : related_sts_priv W1.1 W2.1 W1.2 W2.2
+                              → RelW (W1,false) (W2,true). 
+
+  Instance PrivRelW_Equiv : Equiv (leibnizO (STS * bool)).
+  Proof. apply _. Defined.
+
+  Instance PrivRelW_Dist : Dist (leibnizO (STS * bool)).
+  Proof. apply _. Defined. 
+
+  Global Instance PrivRelW_ProperPreOrder : monocmra.ProperPreOrder RelW.
+  Proof.
+    split; [|apply _]. 
+    split; intro.
+    - destruct x. destruct b.
+      + apply RelW_pr. apply related_sts_priv_refl.
+      + apply RelW_pu. apply related_sts_pub_refl. 
+    - intros y z. destruct x,y,z; inversion 1; inversion 1.
+      + constructor. apply related_sts_priv_trans with s0.1 s0.2; auto. 
+      + constructor. apply related_sts_pub_trans with s0.1 s0.2; auto.
+      + subst. constructor. apply related_sts_pub_priv_trans with s0.1 s0.2; auto.
+      + subst. constructor. apply related_sts_priv_trans with s0.1 s0.2; auto.
+  Defined.
+
+End World. 
+  
 (* Points to predicates for memory *)
 Notation "a ↦ₐ [ p ] w" := (MonRefMapsto a cap_γ (w,p))
   (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
@@ -180,7 +213,7 @@ Definition logN : namespace := nroot .@ "logN".
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRefG (leibnizO _) CapR_rtc Σ,
-           MonPerm: MonRefG (leibnizO _) PermFlows Σ}.
+            World: MonRefG (leibnizO _) RelW Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -191,11 +224,45 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
   Notation A := (leibnizO (Word * Perm)).
-  Notation P := (leibnizO Perm). 
+  Notation P := (leibnizO Perm).
+  Notation WORLD_S := (leibnizO ((STS_states * STS_rels) * bool)).
+  Implicit Types M : WORLD_S. 
+  Implicit Types W : (STS_states * STS_rels). 
 
-  Definition atleast_p γ p := atleast (A:=P) PermFlows γ p.
-  Definition Exact_p γ p := Exact (A:=P) PermFlows γ p. 
-  
+  (* Definition atleast_p γ p := atleast (A:=P) PermFlows γ p. *)
+  (* Definition Exact_p γ p := Exact (A:=P) PermFlows γ p. *)
+
+  (* --------------------------- WORLD REL MONOID ----------------------------------- *)
+  Definition atleast_w γ M := atleast (A:=WORLD_S) RelW γ M.
+  Definition Exact_w γ M := Exact (A:=WORLD_S) RelW γ M.
+
+  Lemma RelW_private M W γ :
+    atleast_w γ M -∗ Exact_w γ (W,true) -∗ ⌜related_sts_priv M.1.1 W.1 M.1.2 W.2⌝.
+  Proof.
+    rewrite /atleast_w /Exact_w. 
+    iIntros "#HM HW".
+    iDestruct (MonRef_related (A:=WORLD_S) with "HW HM") as %Hrel.
+      by inversion Hrel; subst.
+  Qed.
+
+  Lemma RelW_public M W γ :
+    atleast_w γ M -∗ Exact_w γ (W,false) -∗ ⌜related_sts_pub M.1.1 W.1 M.1.2 W.2⌝.
+  Proof.
+    rewrite /atleast_w /Exact_w. 
+    iIntros "#HM HW".
+    iDestruct (MonRef_related (A:=WORLD_S) with "HW HM") as %Hrel.
+      by inversion Hrel; subst.
+  Qed.
+
+  Lemma RelW_public_to_private M W γ :
+    Exact_w γ (W,false) ==∗ Exact_w γ (W,true) ∗ atleast_w γ (W,true).
+  Proof.
+    iIntros "HW".
+    iMod (MonRef_update (A:=WORLD_S) with "HW"); auto. 
+    constructor. apply related_sts_priv_refl.
+  Qed. 
+
+  (* ----------------------------- LOCATΕ LEMMAS ----------------------------------- *)
   Lemma locate_ne_reg reg r1 r2 w w' :
     r1 ≠ r2 → reg !r! r1 = w → <[r2:=w']> reg !r! r1 = w.
   Proof.
@@ -216,7 +283,9 @@ Section cap_lang_rules.
     intros. rewrite /MemLocate.
     rewrite lookup_partial_alter_ne; eauto.
   Qed.
+  
 
+  (* --------------------------- CAPABILITY PREDICATE ------------------------------- *)
   Lemma gen_heap_valid_cap
         (σ : gmap Addr Word) (a : Addr) (w : Word) (p : Perm) :
     p ≠ O →
@@ -243,14 +312,6 @@ Section cap_lang_rules.
     - rewrite H2 in Hf. destruct p'; inversion Hf.
       by iRight. 
   Qed.
-  
-  Lemma perm_restrict (p p' : Perm) (γ : gname) :
-    PermFlows p p' →
-    Exact_p γ p ==∗ Exact_p γ p' ∗ atleast_p γ p'.
-  Proof. 
-    iIntros (Hfl) "Hp".
-    iMod (MonRef_update (A:=P) with "Hp") as "[HE HFr']"; eauto.
-  Qed. 
 
   Lemma gen_heap_update_cap (σ : gmap Addr Word) (a : Addr) (p : Perm) (w w' : Word) :
     p ≠ O →
@@ -263,7 +324,10 @@ Section cap_lang_rules.
     { right with (w',p); [|left]. by constructor. }
     by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
   Qed. 
-    
+
+
+  (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
+  
   Ltac inv_head_step :=
     repeat match goal with
            | _ => progress simplify_map_eq/= (* simplify memory stuff *)

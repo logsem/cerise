@@ -11,7 +11,7 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
-
+(*
   Lemma interp_cap_preserved E fs fr p l a2 a1 a0 a3 (Hne: p <> cap_lang.E):
     (((fixpoint interp1) E) (fs, fr)) (inr (p, l, a2, a1, a0)) -∗
     (((fixpoint interp1) E) (fs, fr)) (inr (p, l, a2, a1, a3)).
@@ -525,5 +525,6 @@ Section fundamental.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate. } }
   Qed.*)
+*)
 
 End fundamental.
