@@ -83,7 +83,7 @@ Section cap_lang_rules.
 
 (* --------------------------------------------------------------------------------- *)
  (* -------------------------------- SUCCESS RULES ---------------------------------- *)
-              
+
   Lemma wp_store_success_local_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w dst src w'
          p g b e a p' g' b' e' a' pc_p' p'' :
     cap_lang.decode w = Store dst (inr src) →
@@ -109,7 +109,7 @@ Section cap_lang_rules.
               ∗ a ↦ₐ[p''] inr ((p',g'),b',e',a') }}}.
    Proof.
      iIntros (Hinstr Hfl Hfl' Hvpc Hpca' [Hwa Hwb] [Hlocal Hp] Hne ϕ) "(>HPC & >Hpc_a & >Hsrc & >Hdst & >Ha) Hϕ".
-     iApply wp_lift_atomic_head_step_no_fork; auto.
+     iApply wp_lift_atomic_head_step_no_fork_determ; auto. simpl.
      iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
      iDestruct "Hσ1" as "[Hr Hm]".
      assert (p'' ≠ O) as Hp''. 
@@ -124,12 +124,10 @@ Section cap_lang_rules.
      iDestruct (@gen_heap_valid with "Hr Hdst") as %?.
      iDestruct (@gen_heap_valid_cap with "Hm Ha") as %?; auto. 
      option_locate_mr m r.
-     iApply fupd_frame_l.
+     iModIntro.
+     iExists [],(Instr _),(updatePC (update_mem (r,m) a (RegLocate r src))).2,[].
      iSplit.
-     - rewrite /reducible.
-       iExists [], (Instr _),(updatePC (update_mem (r,m) a (RegLocate r src))).2, [].
-       iPureIntro.
-       constructor.
+     - iPureIntro. econstructor 1.
        apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a
                               (Store dst (inr src))
                               (NextI,_)); eauto; simpl; try congruence.
@@ -137,18 +135,13 @@ Section cap_lang_rules.
        rewrite Hdst Hwa Hwb /= Hsrc Hlocal.
        destruct Hp as [Hp | Hp]; try contradiction;
          by rewrite Hp /updatePC /update_mem /= HPC Hpca'.
-     - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
-       iModIntro. iNext.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst Hwa Hwb /= Hsrc Hlocal.
-       destruct Hp as [Hp | Hp]; try contradiction; 
-       rewrite Hp /updatePC /update_mem /= HPC /update_reg /= Hpca'; 
-       (iMod (@gen_heap_update_cap with "Hm Ha") as "[$ Ha]"; first auto; 
-        [rewrite /LeastPermUpd /PermFlows; destruct g';
-         apply PermFlows_trans with p; auto; rewrite Hp; auto|]; 
-        iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
-        iSpecialize ("Hϕ" with "[HPC Ha Hpc_a Hsrc Hdst]"); iFrame; eauto).
+     - iNext. rewrite /updatePC /update_mem /= HPC /update_reg /= Hpca' /=.
+       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+       iMod (@gen_heap_update_cap with "Hm Ha") as "[$ Ha]"; auto.
+       rewrite Hsrc. rewrite /LeastPermUpd /PermFlows; destruct g';
+         apply PermFlows_trans with p; auto. destruct Hp as [Hp | Hp]; rewrite Hp; auto.
+       rewrite Hsrc. 
+       iSpecialize ("Hϕ" with "[HPC Ha Hpc_a Hsrc Hdst]"); iFrame; eauto.
    Qed.
 
    Lemma wp_store_success_z_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w dst src w'
