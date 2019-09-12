@@ -1,10 +1,10 @@
-From cap_machine Require Export logrel monotone.
+From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ,
+   Context `{memG Σ, regG Σ, STSG Σ,
             logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
   Notation D := ((leibnizO Word) -n> iProp Σ).
@@ -12,14 +12,14 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
 (*
-  Lemma RWX_Add_Sub_Lt_case:
+  Lemma RX_Add_Sub_Lt_case:
     ∀ E0 r a g fs fr b e p' w dst r1 r2
       (* RWX case *)
-      (fundamental_RX : ∀ stsf E r b e g a,
-          ((∃ p, ⌜PermFlows RX p⌝ ∧
+      (fundamental_RWX : ∀ stsf E r b e g a,
+          ((∃ p, ⌜PermFlows RWX p⌝ ∧
                  ([∗ list] a ∈ (region_addrs b e), na_inv logrel_nais (logN .@ a)
                                       (read_write_cond a p interp))) →
-           ⟦ inr ((RX,g),b,e,a) ⟧ₑ stsf E r)%I)
+           ⟦ inr ((RWX,g),b,e,a) ⟧ₑ stsf E r)%I)
       (* RWLX case *)
       (fundamental_RWLX : ∀ stsf E r b e g a,
           ((∃ p, ⌜PermFlows RWLX p⌝ ∧
@@ -28,17 +28,17 @@ Section fundamental.
            ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ stsf E r)%I)
       (Hreach : ∀ a' : Addr, (b <= a')%a ∧ (a' <= e)%a → ↑logN.@a' ⊆ E0)
       (H3 : ∀ x : RegName, (λ x0 : RegName, is_Some (r !! x0)) x)
-      (i : isCorrectPC (inr (RWX, g, b, e, a)))
+      (i : isCorrectPC (inr (RX, g, b, e, a)))
       (Hbae : (b <= a)%a ∧ (a <= e)%a)
-      (Hfp : PermFlows RWX p')
+      (Hfp : PermFlows RX p')
       (Hi : cap_lang.decode w = cap_lang.Add dst r1 r2 \/ cap_lang.decode w = Sub dst r1 r2 \/ cap_lang.decode w = Lt dst r1 r2),
       □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,
               full_map a0
            -∗ (∀ r0, ⌜r0 ≠ PC⌝ → (((fixpoint interp1) E0) (a3, a4)) (a0 !r! r0))
-           -∗ registers_mapsto (<[PC:=inr (RWX, a2, a5, a6, a1)]> a0)
+           -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
            -∗ sts_full a3 a4
            -∗ na_own logrel_nais E0
-           -∗ □ (∃ p, ⌜PermFlows RWX p⌝
+           -∗ □ (∃ p, ⌜PermFlows RX p⌝
                       ∧ ([∗ list] a7 ∈ region_addrs a5 a6, 
                          na_inv logrel_nais (logN.@a7)
                                 (∃ w0 : leibnizO Word,
@@ -59,9 +59,9 @@ Section fundamental.
         -∗ (▷ (∃ w0, a ↦ₐ[p'] w0 ∗ (∀ stsf E1, ▷ ((interp E1) stsf) w0))
               ∗ na_own logrel_nais (E0 ∖ ↑logN.@a)
             ={⊤}=∗ na_own logrel_nais E0)
-        -∗ PC ↦ᵣ inr (RWX, g, b, e, a)
+        -∗ PC ↦ᵣ inr (RX, g, b, e, a)
         -∗ ([∗ map] k↦y ∈ delete PC
-                    (<[PC:=inr (RWX, g, b, e, a)]> r), 
+                    (<[PC:=inr (RX, g, b, e, a)]> r), 
             k ↦ᵣ y)
         -∗ WP Instr Executable
            {{ v, WP fill [SeqCtx] (of_val v)
@@ -286,8 +286,7 @@ Section fundamental.
           destruct (a+1)%a.
           -- iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
              { iFrame. iNext. iDestruct "Hregion" as "[H1 H2]".
-               iFrame. iIntros. iExists ws. iFrame.
-               iIntros. rewrite -big_sepL_later. iNext.
+               iFrame. iIntros. rewrite -big_sepL_later. iNext.
                iApply "Hval". }
              simpl. 
              iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
@@ -318,8 +317,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. iExists ws. iFrame. iIntros.
-                      rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -370,7 +368,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -427,7 +425,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -478,7 +476,7 @@ Section fundamental.
                     { iExists _. rewrite H4; iFrame "∗ #". }
                     iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                     { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iExists ws. iFrame. iIntros.  rewrite -big_sepL_later. iNext. auto. }
+                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                     iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                            | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                            | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -542,7 +540,7 @@ Section fundamental.
                       { iExists _. rewrite H4; iFrame "∗ #". }
                       iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                       { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                        iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                        iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                       iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                              | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
                                                              | cap_lang.Add _ _ _ => inl (z + z)%Z
@@ -593,7 +591,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                                | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -653,7 +651,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
                                                                | cap_lang.Add _ _ _ => inl (z0 + z)%Z
@@ -710,7 +708,7 @@ Section fundamental.
                         { iExists _. rewrite H4; iFrame "∗ #". }
                         iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                         { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                         iAssert ((interp_registers _ _ (<[dst:= match cap_lang.decode w with
                                                                 | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
                                                                 | cap_lang.Add _ _ _ => inl (z + z)%Z
@@ -770,7 +768,7 @@ Section fundamental.
                           { iExists _. rewrite H4; iFrame "∗ #". }
                           iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
                           { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                            iNext. iExists ws. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
+                            iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
                           iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
                                                                  | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
                                                                  | cap_lang.Add _ _ _ => inl (z + z0)%Z
@@ -811,8 +809,7 @@ Section fundamental.
       Unshelve. exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
       exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
   Qed.*)
-  Admitted. 
-
+    Admitted. 
 *)
 
 End fundamental.

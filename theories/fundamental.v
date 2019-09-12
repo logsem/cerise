@@ -1,4 +1,5 @@
-From cap_machine Require Export logrel monotone Jmp Jnz Get Get2 AddSubLt AddSubLt2 IsPtr Lea Load Mov Store Restrict Subseg.
+From cap_machine Require Export logrel.
+From cap_machine.ftlr Require Export Jmp Jnz Get Get2 AddSubLt AddSubLt2 IsPtr Lea Load Mov Store Restrict Subseg.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
@@ -45,28 +46,28 @@ Section fundamental.
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
-  Lemma fundamental_RX M E r b e g (a : Addr) :
+  Lemma fundamental_RX M r b e g (a : Addr) :
     ((∃ p, ⌜PermFlows RX p⌝ ∧
     ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)))   →
-     ⟦ inr ((RX,g),b,e,a) ⟧ₑ M E r)%I
-  with fundamental_RWX M E r b e g (a : Addr) :
+     ⟦ inr ((RX,g),b,e,a) ⟧ₑ M r)%I
+  with fundamental_RWX M r b e g (a : Addr) :
     ((∃ p, ⌜PermFlows RWX p⌝ ∧
     ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
-     ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M E r)%I
-  with fundamental_RWLX M E r b e g (a : Addr) :
+     ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M r)%I
+  with fundamental_RWLX M r b e g (a : Addr) :
     ((∃ p, ⌜PermFlows RWLX p⌝ ∧
     ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
-     ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M E r)%I. 
+     ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M r)%I. 
   Proof.
   { clear fundamental_RX.
     destruct (get_world_destruct M) as [fs [fr [Heqs Heqr] ] ].    
     iIntros "#Hinv /=". iExists fs,fr.
     repeat (iSplit;auto). 
-    iIntros "[[Hfull Hreg] [Hmreg [HM [Hsts [Hown #Hreach]]]]]".
+    iIntros "[[Hfull Hreg] [Hmreg [HM [Hsts Hown]]]]".
     iExists _,_,_,_,_; iSplit; eauto; simpl.
-    iRevert (Heqs Heqr) "Hinv Hreach".    
+    iRevert (Heqs Heqr) "Hinv".    
     iLöb as "IH" forall (r a g fs fr b e M).
-    iIntros (Heqs Heqr) "#Hinv %". rename a0 into Hreach. 
+    iIntros (Heqs Heqr) "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr ((RX,g),b,e,a)))). 
@@ -74,14 +75,11 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
-      iAssert (⌜↑logN.@a ⊆ E⌝)%I as %Hbe.
-      { iPureIntro. by apply Hreach. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
       iDestruct (extract_from_region_inv _ _ a with "Hinv") as "Hinva"; auto. 
       iMod (na_inv_open _ _ _ (logN.@a) with "Hinva Hown") as "(Ha & Hown & Hcls)"; auto. 
       rewrite /read_write_cond.
       iDestruct "Ha" as (w) "[>Ha #Hval]".
-      iDestruct ("Hval" $! E) as "Hval'".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
         first apply (lookup_insert _ _ (inr (RX, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
@@ -95,7 +93,7 @@ Section fundamental.
       (* iApply (RX_Mov_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *)
         admit. 
       + (* Load *)
-        iApply (RX_Load_case with "[] [] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (RX_Load_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Store *)
       (* iApply (RX_Store_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *)
         admit. 
@@ -161,11 +159,11 @@ Section fundamental.
     destruct (get_world_destruct M) as [fs [fr [Heqs Heqr] ] ].    
     iIntros "#Hinv /=". iExists fs,fr.
     repeat (iSplit;auto). 
-    iIntros "[[Hfull Hreg] [Hmreg [HM [Hsts [Hown #Hreach]]]]]".
+    iIntros "[[Hfull Hreg] [Hmreg [HM [Hsts Hown]]]]".
     iExists _,_,_,_,_; iSplit; eauto; simpl.
-    iRevert (Heqs Heqr) "Hinv Hreach".    
+    iRevert (Heqs Heqr) "Hinv".    
     iLöb as "IH" forall (r a g fs fr b e M).
-    iIntros (Heqs Heqr) "#Hinv %". rename a0 into Hreach. 
+    iIntros (Heqs Heqr) "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr ((RWX,g),b,e,a)))). 
@@ -173,15 +171,12 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
-      iAssert (⌜↑logN.@a ⊆ E⌝)%I as %Hbe.
-      { iPureIntro. by apply Hreach. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
       iDestruct (extract_from_region_inv _ _ a with "Hinv") as "Hinva"; auto. 
       iMod (na_inv_open _ _ _ (logN.@a) with "Hinva Hown") as "(Ha & Hown & Hcls)"; auto. 
 (* ======= *)
       rewrite /read_write_cond.
       iDestruct "Ha" as (w) "[>Ha #Hval]".
-      iDestruct ("Hval" $! E) as "Hval'".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
         first apply (lookup_insert _ _ (inr (RWX, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
@@ -247,11 +242,11 @@ Section fundamental.
   { admit. }
   Admitted.
 
-  Theorem fundamental (perm : Perm) b e g (a : Addr) stsf E r :
+  Theorem fundamental (perm : Perm) b e g (a : Addr) stsf r :
     (⌜perm = RX ∨ perm = RWX ∨ perm = RWLX⌝) -∗
     (∃ p, ⌜PermFlows perm p⌝ ∧
           ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) -∗
-    ⟦ inr ((perm,g),b,e,a) ⟧ₑ stsf E r.
+    ⟦ inr ((perm,g),b,e,a) ⟧ₑ stsf r.
   Proof.
     iIntros ([-> | [-> | ->] ]) "Hp". 
     - by iApply fundamental_RX.

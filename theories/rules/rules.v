@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_base
+From cap_machine.rules Require Export rules_base
      rules_Get rules_Load rules_AddSubLt
      rules_Lea rules_Mov rules_IsPtr
      rules_Restrict rules_Jmp rules_Jnz
