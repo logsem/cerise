@@ -462,7 +462,7 @@ Section cap_lang_rules.
         Instr Executable @ E
         {{{ RET FailedV; PC ↦ᵣ w }}}.
   Proof.
-    intros until 0. intros Hnpc.
+    intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
