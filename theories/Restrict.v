@@ -11,7 +11,7 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
-
+(*
   Lemma PermPairFlows_interp_preserved E fs fr p p' l l' b e a:
     PermPairFlowsTo (p', l') (p, l) = true →
     (b <= a)%a ∧ (a <= e)%a →
@@ -312,5 +312,6 @@ Section fundamental.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate. } } *)
   Admitted.
+*)
 
 End fundamental.

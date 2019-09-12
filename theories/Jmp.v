@@ -11,7 +11,7 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
-
+(*
   Lemma RX_jmp_case:
     ∀ E0 r a g fs fr b e p' w r0
       (* RWX case *)
@@ -299,7 +299,7 @@ Section fundamental.
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
           (* use fundamental_RWLX in some way ? *) admit. }
-  Admitted. 
+  Admitted. *)
 
   
 End fundamental.

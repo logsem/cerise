@@ -41,16 +41,14 @@ Section definitionsS.
      Any two of these conjuncts are ok on their own but not all three!
      But, it works with program!!!!!!!!!!! *)
   Program Definition sts_full `{STSG Σ} (fs : STS_states) (fr : STS_rels) : iProp Σ
-    := (⌜dom (gset positive) fs = dom (gset positive) fr⌝
+    := ((* ⌜dom (gset positive) fs = dom (gset positive) fr⌝ *)
         (* ∗ ⌜sts_subset fr⌝ *)
-        ∗ own (A := sts_stateUR) sts_state_name (● (Excl <$> fs))
+        own (A := sts_stateUR) sts_state_name (● (Excl <$> fs))
         ∗ own (A := sts_relUR) sts_rel_name (● (to_agree <$> fr)))%I.
 
   Definition related_sts_pub (fs gs : STS_states) (fr gr : STS_rels) : Prop :=
     dom (gset positive) fs ⊆ dom (gset positive) gs ∧
     dom (gset positive) fr ⊆ dom (gset positive) gr ∧
-    (* (∀ i (r r' : positive → positive → Prop), fr !! i = None → gr !! i = Some (r,r') → *)
-    (*                                           (∀ a b, r a b → r' a b)) ∧ *)
     ∀ i x y r1 r2 r1' r2', fs !! i = Some x → gs !! i = Some y →
                            fr !! i = Some (r1,r2) → gr !! i = Some (r1',r2') →
                            r1 = r1' ∧ r2 = r2' ∧ rtc r1 x y.
@@ -58,8 +56,6 @@ Section definitionsS.
   Definition related_sts_priv (fs gs : STS_states) (fr gr : STS_rels) : Prop :=
     dom (gset positive) fs ⊆ dom (gset positive) gs ∧
     dom (gset positive) fr ⊆ dom (gset positive) gr ∧
-    (* (∀ i (r r' : positive → positive → Prop), fr !! i = None → gr !! i = Some (r,r') → *)
-    (*                                           (∀ a b, r a b → r' a b)) ∧ *)
     ∀ i x y r1 r2 r1' r2', fs !! i = Some x → gs !! i = Some y →
                            fr !! i = Some (r1,r2) → gr !! i = Some (r1',r2') →
                            r1 = r1' ∧ r2 = r2' ∧ (rtc (λ x y, (r1 x y ∨ r2 x y)) x y).
@@ -218,7 +214,8 @@ Section STS.
     sts_full fs fr -∗ sts_rel i R P -∗ ⌜fr !! i = Some (convert_rel R,convert_rel P)⌝.
   Proof.
     rewrite /sts_full /sts_rel.
-    iIntros "[% [_ H1]] H2".
+    (* iIntros "[% [_ H1]] H2". *)
+    iIntros "[_ H1] H2".
     iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_both_valid;
       iPureIntro.
     specialize (Hv i).
@@ -238,7 +235,8 @@ Section STS.
     sts_full fs fr -∗ sts_state i a -∗ ⌜fs !! i = Some (encode a)⌝.
   Proof.
     rewrite /sts_full /sts_state.
-    iIntros "[% [H1 _]] H2".
+    (* iIntros "[% [H1 _]] H2". *)
+    iIntros "[H1 _] H2". 
     iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_both_valid;
       iPureIntro.
     specialize (Hv i).
@@ -258,38 +256,42 @@ Section STS.
                   ∗ sts_state i a ∗ sts_rel i R P.
   Proof.
     rewrite /sts_full /sts_rel /sts_state.
-    iIntros "[Hd [H1 H2]]".
-    iDestruct "Hd" as %Hd.
+    (* iIntros "[Hd [H1 H2]]". *)
+    (* iDestruct "Hd" as %Hd. *)
+    iIntros "[H1 H2]".
+    assert (fresh (dom (gset positive) fs ∪ dom (gset positive) fr) ∉
+                    (dom (gset positive) fs ∪ dom (gset positive) fr)).
+    { apply is_fresh. }
+    apply not_elem_of_union in H1 as [Hfs Hfr]. 
     iMod (own_update
             (A := sts_stateUR)
             _ _
             (● (Excl <$>
-                <[fresh (dom (gset positive) fs) := encode a]> fs)
-            ⋅ ◯ {[fresh (dom (gset positive) fs) := Excl (encode a)]})
+                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := encode a]> fs)
+            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := Excl (encode a)]})
             with "H1") as "[H1 Hs]".
     { apply auth_update_alloc.
       rewrite fmap_insert /=.
       apply: alloc_singleton_local_update; last done.
       apply (not_elem_of_dom (D := gset positive)).
       rewrite dom_fmap.
-      apply is_fresh. }
+      auto. }
     iMod (own_update
             (A := sts_relUR)
             _ _
             (● (to_agree <$>
-                <[fresh (dom (gset positive) fs) := (convert_rel R,convert_rel P)]> fr)
-            ⋅ ◯ {[fresh (dom (gset positive) fs) := to_agree (convert_rel R,convert_rel P)]})
+                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := (convert_rel R,convert_rel P)]> fr)
+            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := to_agree (convert_rel R,convert_rel P)]})
             with "H2") as "[H2 Hr]".
     { apply auth_update_alloc.
       rewrite fmap_insert /=.
       apply: alloc_singleton_local_update; last done.
       apply (not_elem_of_dom (D := gset positive)).
-      rewrite dom_fmap Hd.
-      apply is_fresh. }
+      rewrite dom_fmap.
+      auto. }
     iModIntro.
     iExists _; iFrame.
-    repeat iSplit; iPureIntro;
-      rewrite ?dom_insert_L ?Hd; by try apply is_fresh.
+    repeat iSplit; auto. 
   Qed.
 
   Lemma sts_update fs fr i a b :
@@ -299,8 +301,7 @@ Section STS.
     iIntros "Hsf Hi".
     iDestruct (sts_full_state with "Hsf Hi") as %Hfs.
     rewrite /sts_full /sts_rel /sts_state.
-    iDestruct "Hsf" as "[Hd [H1 H2]]".
-    iDestruct "Hd" as %Hd.
+    iDestruct "Hsf" as "[H1 H2]".
     iCombine "H1" "Hi" as "H1".
     iMod (own_update (A := sts_stateUR)
             _ _
@@ -311,9 +312,15 @@ Section STS.
       apply: singleton_local_update; eauto.
       rewrite lookup_fmap Hfs //=.
       by apply exclusive_local_update. }
-    rewrite fmap_insert dom_insert_L subseteq_union_1_L;
+    rewrite fmap_insert (* dom_insert_L *) (* subseteq_union_1_L *);
       first by iModIntro; iFrame.
-    apply elem_of_subseteq_singleton, elem_of_dom; eauto.
   Qed.
+
+  Lemma sts_full_related fs fr gs gr :
+    related_sts_priv fs gs fr gr ->
+    sts_full fs fr ==∗ sts_full gs gr.
+  Proof.
+    iIntros (Hrel) "Hfull".
+    Admitted. 
 
 End STS.
