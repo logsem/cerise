@@ -4,61 +4,52 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
 
 Section fundamental.
-   Context `{memG Σ, regG Σ, STSG Σ,
-            logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
+            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
+            World: MonRefG (leibnizO _) RelW Σ}.
   Notation D := ((leibnizO Word) -n> iProp Σ).
   Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
+  Implicit Types r : (leibnizO Reg). 
   Implicit Types interp : D.
-(*
+  Notation WORLD_S := (leibnizO ((STS_states * STS_rels) * bool)).
+  Implicit Types M : WORLD_S. 
+
   Lemma RX_Add_Sub_Lt_case:
-    ∀ E0 r a g fs fr b e p' w dst r1 r2
-      (* RWX case *)
-      (fundamental_RWX : ∀ stsf E r b e g a,
-          ((∃ p, ⌜PermFlows RWX p⌝ ∧
-                 ([∗ list] a ∈ (region_addrs b e), na_inv logrel_nais (logN .@ a)
-                                      (read_write_cond a p interp))) →
-           ⟦ inr ((RWX,g),b,e,a) ⟧ₑ stsf E r)%I)
-      (* RWLX case *)
-      (fundamental_RWLX : ∀ stsf E r b e g a,
-          ((∃ p, ⌜PermFlows RWLX p⌝ ∧
-                 ([∗ list] a ∈ (region_addrs b e), na_inv logrel_nais (logN .@ a)
-                                      (read_write_cond a p interp))) →
-           ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ stsf E r)%I)
-      (Hreach : ∀ a' : Addr, (b <= a')%a ∧ (a' <= e)%a → ↑logN.@a' ⊆ E0)
+    ∀ r a g M fs fr b e p' w dst (r1 r2: Z + RegName)
       (H3 : ∀ x : RegName, (λ x0 : RegName, is_Some (r !! x0)) x)
       (i : isCorrectPC (inr (RX, g, b, e, a)))
       (Hbae : (b <= a)%a ∧ (a <= e)%a)
       (Hfp : PermFlows RX p')
-      (Hi : cap_lang.decode w = cap_lang.Add dst r1 r2 \/ cap_lang.decode w = Sub dst r1 r2 \/ cap_lang.decode w = Lt dst r1 r2),
-      □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,
-              full_map a0
-           -∗ (∀ r0, ⌜r0 ≠ PC⌝ → (((fixpoint interp1) E0) (a3, a4)) (a0 !r! r0))
-           -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
-           -∗ sts_full a3 a4
-           -∗ na_own logrel_nais E0
-           -∗ □ (∃ p, ⌜PermFlows RX p⌝
-                      ∧ ([∗ list] a7 ∈ region_addrs a5 a6, 
-                         na_inv logrel_nais (logN.@a7)
-                                (∃ w0 : leibnizO Word,
-                                    a7 ↦ₐ[p] w0
-                                  ∗ (∀ stsf E1, ▷ ((interp E1) stsf) w0))))
-           -∗ □ ⌜∀ a' : Addr, (a5 ≤ a')%Z ∧ (a' ≤ a6)%Z → ↑logN.@a' ⊆ E0⌝
-           -∗ ⟦ [a3, a4, E0] ⟧ₒ)
+      (Hi : cap_lang.decode w = cap_lang.Add dst r1 r2 \/ cap_lang.decode w = Sub dst r1 r2 \/ cap_lang.decode w = Lt dst r1 r2)
+      (Heq : fs = M.1.1 ∧ fr = M.1.2),
+      □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
+            full_map a0
+         -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r0))
+         -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
+         -∗ Exact_w wγ a7
+         -∗ sts_full a3 a4
+         -∗ na_own logrel_nais ⊤
+         -∗ ⌜a7.1.1 = a3⌝
+         → ⌜a7.1.2 = a4⌝
+         → □ (∃ p : Perm, ⌜PermFlows RX p⌝
+                           ∧ ([∗ list] a8 ∈ region_addrs a5 a6, 
+                              na_inv logrel_nais (logN.@a8)
+                                     (∃ w0 : leibnizO Word, a8 ↦ₐ[p] w0 ∗ ▷ interp w0)))
+         -∗ ⟦ [a3, a4] ⟧ₒ)
         -∗ □ ([∗ list] a0 ∈ region_addrs b e, na_inv logrel_nais (logN.@a0)
-                    (∃ w0, a0 ↦ₐ[p'] w0 ∗ (∀ stsf E1, ▷ ((interp E1) stsf) w0)))
-        -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (((fixpoint interp1) E0) (fs, fr)) (r !r! r0))
+                    (∃ w0, a0 ↦ₐ[p'] w0 ∗ ▷ interp w0))
+        -∗ □ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (r !r! r0))
         -∗ □ na_inv logrel_nais (logN.@a)
-              (∃ w0 : leibnizO Word, a ↦ₐ[p'] w0 ∗ (∀ stsf E1, ▷ ((interp E1) stsf) w0))
-        -∗ □ ▷ (∀ stsf E1, ▷ ((interp E1) stsf) w)
-        -∗ □ ▷ ▷ ((interp E0) (fs, fr)) w
+              (∃ w0 : leibnizO Word, a ↦ₐ[p'] w0 ∗ ▷ interp w0)
+        -∗ □ ▷ ▷ interp w
+        -∗ Exact_w wγ M
         -∗ sts_full fs fr
         -∗ a ↦ₐ[p'] w
-        -∗ na_own logrel_nais (E0 ∖ ↑logN.@a)
-        -∗ (▷ (∃ w0, a ↦ₐ[p'] w0 ∗ (∀ stsf E1, ▷ ((interp E1) stsf) w0))
-              ∗ na_own logrel_nais (E0 ∖ ↑logN.@a)
-            ={⊤}=∗ na_own logrel_nais E0)
+        -∗ na_own logrel_nais (⊤ ∖ ↑logN.@a)
+        -∗ (▷ (∃ w0, a ↦ₐ[p'] w0 ∗ ▷ interp w0)
+              ∗ na_own logrel_nais (⊤ ∖ ↑logN.@a)
+            ={⊤}=∗ na_own logrel_nais ⊤)
         -∗ PC ↦ᵣ inr (RX, g, b, e, a)
         -∗ ([∗ map] k↦y ∈ delete PC
                     (<[PC:=inr (RX, g, b, e, a)]> r), 
@@ -68,13 +59,14 @@ Section fundamental.
                     {{ v0, ⌜v0 = HaltedV⌝ → ∃ r0 fs' fr',
                            full_map r0 ∧ registers_mapsto r0
                            ∗ ⌜related_sts_priv fs fs' fr fr'⌝
-                           ∗ na_own logrel_nais E0
+                           ∗ na_own logrel_nais ⊤
                            ∗ sts_full fs' fr' }} }}.
   Proof.
-    intros E0 r a g fs fr b e p' w. intros.
-    iIntros "#IH #Hinv #Hreg #Hinva #Hval #Hval'".
-    iIntros "Hsts Ha Hown Hcls HPC Hmap".
-    (* rewrite delete_insert_delete.
+    intros r a g M fs fr b e p' w. intros.
+    iIntros "#IH #Hinv #Hreg #Hinva #Hval". 
+    iIntros "HM Hsts Ha Hown Hcls HPC Hmap".
+    destruct Heq as [Heq1 Heq2].
+    rewrite delete_insert_delete.
     destruct (reg_eq_dec dst PC).
     * subst dst.
       destruct r1; destruct r2.
@@ -243,8 +235,7 @@ Section fundamental.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                 iApply wp_value. iNext; iIntros; discriminate. } }
-    * rewrite -big_sepL_later.
-      destruct (H3 dst) as [wdst Hsomedst].
+    * destruct (H3 dst) as [wdst Hsomedst].
       iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]".
       rewrite lookup_delete_ne; eauto.
       destruct r1; destruct r2.
@@ -260,15 +251,12 @@ Section fundamental.
           assert (PureExec True 1 (Seq (cap_lang.of_val match (a + 1)%a with | Some _ => NextIV | None => FailedV end)) match (a + 1)%a with | Some _ => Seq (Instr Executable) | None => Instr Failed end).
           { destruct (a+1)%a; auto. apply pure_seq_done. apply pure_seq_failed. }
           iApply (wp_pure_step_later); auto. iNext.
-          iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
-                         "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-          { iExists _. iFrame. iFrame "∗ #". }
-          iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                 | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
-                                                 | cap_lang.Add _ _ _ => inl (z + z0)%Z
-                                                 | Sub _ _ _ => inl (z - z0)%Z
-                                                 | _ => inl 0%Z
-                                                 end]> r)))%I
+          iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                             | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
+                                             | cap_lang.Add _ _ _ => inl (z + z0)%Z
+                                             | Sub _ _ _ => inl (z - z0)%Z
+                                             | _ => inl 0%Z
+                                             end]> r)))%I
             as "[Hfull' Hreg']".
           { iSplitR.
             - iIntros (r0). 
@@ -284,12 +272,10 @@ Section fundamental.
               + rewrite /RegLocate lookup_insert_ne; auto.
                 iDestruct ("Hreg" $! (r0)) as "Hv". iApply "Hv". auto. }
           destruct (a+1)%a.
-          -- iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-             { iFrame. iNext. iDestruct "Hregion" as "[H1 H2]".
-               iFrame. iIntros. rewrite -big_sepL_later. iNext.
-               iApply "Hval". }
+          -- iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+             { iFrame. iNext. iExists w. iFrame. iNext. auto. }
              simpl. 
-             iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+             iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
           -- iApply wp_value. iIntros. discriminate. }
       { destruct (reg_eq_dec PC r0).
         - subst r0. iApply (wp_add_sub_lt_PC_fail2 with "[Ha HPC]"); eauto.
@@ -312,18 +298,14 @@ Section fundamental.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iApply wp_pure_step_later; auto. iNext.
-                    iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                   "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                    { iExists _. rewrite H4; iFrame "∗ #". }
-                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                    { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                    iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                           | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
-                                                           | cap_lang.Add _ _ _ => inl (z + z0)%Z
-                                                           | Sub _ _ _ => inl (z - z0)%Z
-                                                           | _ => inl 0%Z
-                                                           end]> r)))%I
+                    iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                    { iFrame. iNext. iExists w. iFrame. auto. } 
+                    iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                       | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
+                                                       | cap_lang.Add _ _ _ => inl (z + z0)%Z
+                                                       | Sub _ _ _ => inl (z - z0)%Z
+                                                       | _ => inl 0%Z
+                                                       end]> r)))%I
                       as "[Hfull' Hreg']".
                     { iSplitR.
                       - iIntros (r0). 
@@ -338,7 +320,7 @@ Section fundamental.
                           destruct (cap_lang.decode w); simpl; eauto.
                         + rewrite /RegLocate lookup_insert_ne; auto.
                           iDestruct ("Hreg" $! (r0)) as "Hv". iApply "Hv". auto. }
-                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                  ++ iApply wp_pure_step_later; auto.
                     iApply wp_value; eauto. iNext. iIntros. discriminate.
             * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hdst]"); eauto; iFrame.
@@ -363,18 +345,14 @@ Section fundamental.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iApply wp_pure_step_later; auto. iNext.
-                    iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr)) with
-                                   "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                    { iExists _. rewrite H4; iFrame "∗ #". }
-                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                    { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                    iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                           | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
-                                                           | cap_lang.Add _ _ _ => inl (z + z0)%Z
-                                                           | Sub _ _ _ => inl (z - z0)%Z
-                                                           | _ => inl 0%Z
-                                                           end]> (<[r0:=inl z0]> r))))%I
+                    iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                    { iFrame. iNext. iExists w. iFrame; auto. }
+                    iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                       | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
+                                                       | cap_lang.Add _ _ _ => inl (z + z0)%Z
+                                                       | Sub _ _ _ => inl (z - z0)%Z
+                                                       | _ => inl 0%Z
+                                                       end]> (<[r0:=inl z0]> r))))%I
                       as "[Hfull' Hreg']".
                     { iSplitR.
                       - iIntros (r1).
@@ -393,7 +371,7 @@ Section fundamental.
                           destruct (reg_eq_dec r0 r1); simplify_eq.
                           * rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                           * rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                  ++ iApply wp_pure_step_later; auto.
                     iApply wp_value; eauto. iNext. iIntros. discriminate.
             * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hdst Hr0]"); eauto; iFrame.
@@ -420,18 +398,14 @@ Section fundamental.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iApply wp_pure_step_later; auto. iNext.
-                    iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                   "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                    { iExists _. rewrite H4; iFrame "∗ #". }
-                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                    { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                    iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                           | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
-                                                           | cap_lang.Add _ _ _ => inl (z0 + z)%Z
-                                                           | Sub _ _ _ => inl (z0 - z)%Z
-                                                           | _ => inl 0%Z
-                                                           end]> r)))%I
+                    iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                    { iFrame. iNext. iExists w; iFrame; auto. }
+                    iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                       | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
+                                                       | cap_lang.Add _ _ _ => inl (z0 + z)%Z
+                                                       | Sub _ _ _ => inl (z0 - z)%Z
+                                                       | _ => inl 0%Z
+                                                       end]> r)))%I
                       as "[Hfull' Hreg']".
                     { iSplitR.
                       - iIntros (r0). 
@@ -446,7 +420,7 @@ Section fundamental.
                           destruct (cap_lang.decode w); simpl; eauto.
                         + rewrite /RegLocate lookup_insert_ne; auto.
                           iApply "Hreg". auto. }
-                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                  ++ iApply wp_pure_step_later; auto.
                     iApply wp_value; eauto. iNext. iIntros. discriminate.
             * iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst]"); eauto; iFrame.
@@ -471,18 +445,14 @@ Section fundamental.
                     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                     iApply wp_pure_step_later; auto. iNext.
-                    iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                   "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                    { iExists _. rewrite H4; iFrame "∗ #". }
-                    iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                    { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                      iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                    iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                           | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
-                                                           | cap_lang.Add _ _ _ => inl (z0 + z)%Z
-                                                           | Sub _ _ _ => inl (z0 - z)%Z
-                                                           | _ => inl 0%Z
-                                                           end]> (<[r0:=inl z0]> r))))%I
+                    iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                    { iFrame. iNext. iExists w. iFrame. auto. }
+                    iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                       | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
+                                                       | cap_lang.Add _ _ _ => inl (z0 + z)%Z
+                                                       | Sub _ _ _ => inl (z0 - z)%Z
+                                                       | _ => inl 0%Z
+                                                       end]> (<[r0:=inl z0]> r))))%I
                       as "[Hfull' Hreg']".
                     { iSplitR.
                       - iIntros (r1).
@@ -501,7 +471,7 @@ Section fundamental.
                           destruct (reg_eq_dec r0 r1); simplify_eq.
                           * rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                           * rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                    iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                  ++ iApply wp_pure_step_later; auto.
                     iApply wp_value; eauto. iNext. iIntros. discriminate.
             * iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst Hr0]"); eauto; iFrame.
@@ -535,18 +505,14 @@ Section fundamental.
                       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                       iApply wp_pure_step_later; auto. iNext.
-                      iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                     "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                      { iExists _. rewrite H4; iFrame "∗ #". }
-                      iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                      { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                        iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                      iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                             | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
-                                                             | cap_lang.Add _ _ _ => inl (z + z)%Z
-                                                             | Sub _ _ _ => inl (z - z)%Z
-                                                             | _ => inl 0%Z
-                                                             end]> r)))%I
+                      iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                      { iFrame. iNext. iExists w. iFrame. auto. }
+                      iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                         | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
+                                                         | cap_lang.Add _ _ _ => inl (z + z)%Z
+                                                         | Sub _ _ _ => inl (z - z)%Z
+                                                         | _ => inl 0%Z
+                                                         end]> r)))%I
                         as "[Hfull' Hreg']".
                       { iSplitR.
                         - iIntros (r1).
@@ -561,7 +527,7 @@ Section fundamental.
                             destruct (cap_lang.decode w); simpl; eauto.
                           + rewrite /RegLocate lookup_insert_ne; auto.
                             iApply "Hreg". auto. }
-                      iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                      iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                     * iApply wp_pure_step_later; auto.
                       iNext. iApply wp_value; auto. iIntros; discriminate.
                 - iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hdst]"); eauto; iFrame.
@@ -586,18 +552,14 @@ Section fundamental.
                         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                         iApply wp_pure_step_later; auto. iNext.
-                        iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                       "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                        { iExists _. rewrite H4; iFrame "∗ #". }
-                        iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                        { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                        iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                               | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
-                                                               | cap_lang.Add _ _ _ => inl (z + z0)%Z
-                                                               | Sub _ _ _ => inl (z - z0)%Z
-                                                               | _ => inl 0%Z
-                                                               end]> (<[r1:=inl z0]> r))))%I
+                        iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                        { iFrame. iNext. iExists w. iFrame. auto. }
+                        iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                           | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
+                                                           | cap_lang.Add _ _ _ => inl (z + z0)%Z
+                                                           | Sub _ _ _ => inl (z - z0)%Z
+                                                           | _ => inl 0%Z
+                                                           end]> (<[r1:=inl z0]> r))))%I
                           as "[Hfull' Hreg']".
                         { iSplitR.
                           - iIntros (r2).
@@ -616,7 +578,7 @@ Section fundamental.
                               destruct (reg_eq_dec r1 r2); simplify_eq.
                               * rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                               * rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto. }
+                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto. }
                       { iApply wp_pure_step_later; auto.
                         iApply wp_value; auto. iNext; iIntros; discriminate. }
                   + iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
@@ -646,18 +608,14 @@ Section fundamental.
                         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                         iApply wp_pure_step_later; auto. iNext.
-                        iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                       "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                        { iExists _. rewrite H4; iFrame "∗ #". }
-                        iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                        { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                        iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                               | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
-                                                               | cap_lang.Add _ _ _ => inl (z0 + z)%Z
-                                                               | Sub _ _ _ => inl (z0 - z)%Z
-                                                               | _ => inl 0%Z
-                                                               end]> (<[r0:=inl z0]> r))))%I
+                        iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                        { iFrame. iNext. iExists w. iFrame. auto. }
+                        iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                           | Lt _ _ _ => inl (Z.b2z (z0 <? z)%Z)
+                                                           | cap_lang.Add _ _ _ => inl (z0 + z)%Z
+                                                           | Sub _ _ _ => inl (z0 - z)%Z
+                                                           | _ => inl 0%Z
+                                                           end]> (<[r0:=inl z0]> r))))%I
                           as "[Hfull' Hreg']".
                         { iSplitR.
                           - iIntros (r1).
@@ -676,7 +634,7 @@ Section fundamental.
                               destruct (reg_eq_dec r0 r1); simplify_eq.
                               * rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                               * rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto. }
+                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto. }
                       { iApply wp_pure_step_later; auto.
                         iNext. iApply wp_value; auto. iIntros; discriminate. }
                   + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
@@ -703,18 +661,14 @@ Section fundamental.
                         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                         iApply wp_pure_step_later; auto. iNext.
-                        iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                       "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                        { iExists _. rewrite H4; iFrame "∗ #". }
-                        iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                        { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                          iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                        iAssert ((interp_registers _ _ (<[dst:= match cap_lang.decode w with
-                                                                | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
-                                                                | cap_lang.Add _ _ _ => inl (z + z)%Z
-                                                                | Sub _ _ _ => inl (z - z)%Z
-                                                                | _ => inl 0%Z
-                                                                end]> (<[r0:=inl z]> r))))%I
+                        iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                        { iFrame. iNext. iExists w. iFrame. auto. }
+                        iAssert ((interp_registers (<[dst:= match cap_lang.decode w with
+                                                            | Lt _ _ _ => inl (Z.b2z (z <? z)%Z)
+                                                            | cap_lang.Add _ _ _ => inl (z + z)%Z
+                                                            | Sub _ _ _ => inl (z - z)%Z
+                                                            | _ => inl 0%Z
+                                                            end]> (<[r0:=inl z]> r))))%I
                           as "[Hfull' Hreg']".
                         { iSplitR.
                           - iIntros (r1).
@@ -733,7 +687,7 @@ Section fundamental.
                               destruct (reg_eq_dec r0 r1); simplify_eq.
                               * rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                               * rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto. }
+                        iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto. }
                       { iApply wp_pure_step_later; auto.
                         iNext. iApply wp_value; auto. iIntros; discriminate. }
                   + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
@@ -763,18 +717,14 @@ Section fundamental.
                           iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                             [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
                           iApply wp_pure_step_later; auto. iNext.
-                          iDestruct (extract_from_region' _ _ a _ (((fixpoint interp1) E) (fs, fr))with
-                                         "[Heqws Hregionl Hh Ha]") as "Hregion"; eauto.
-                          { iExists _. rewrite H4; iFrame "∗ #". }
-                          iMod ("Hcls" with "[Hown Hregion]") as "Hcls'".
-                          { iFrame. iDestruct "Hregion" as "[H1 H2]".
-                            iNext. iFrame. iIntros. rewrite -big_sepL_later. iNext. auto. }
-                          iAssert ((interp_registers _ _ (<[dst:=match cap_lang.decode w with
-                                                                 | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
-                                                                 | cap_lang.Add _ _ _ => inl (z + z0)%Z
-                                                                 | Sub _ _ _ => inl (z - z0)%Z
-                                                                 | _ => inl 0%Z
-                                                                 end]> (<[r0:=inl z]> (<[r1:=inl z0]> r)))))%I
+                          iMod ("Hcls" with "[Hown Ha]") as "Hcls'".
+                          { iFrame. iNext. iExists w. iFrame. auto. }
+                          iAssert ((interp_registers (<[dst:=match cap_lang.decode w with
+                                                             | Lt _ _ _ => inl (Z.b2z (z <? z0)%Z)
+                                                             | cap_lang.Add _ _ _ => inl (z + z0)%Z
+                                                             | Sub _ _ _ => inl (z - z0)%Z
+                                                             | _ => inl 0%Z
+                                                             end]> (<[r0:=inl z]> (<[r1:=inl z0]> r)))))%I
                             as "[Hfull' Hreg']".
                           { iSplitR.
                             - iIntros (r2).
@@ -797,7 +747,7 @@ Section fundamental.
                                 * rewrite lookup_insert_ne; auto. destruct (reg_eq_dec r1 r2); simplify_eq.
                                   -- rewrite lookup_insert. repeat rewrite (fixpoint_interp1_eq). simpl; eauto.
                                   -- rewrite lookup_insert_ne; auto. iApply "Hreg". auto. }
-                          iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [Hsts] [Hcls']"); eauto.
+                          iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); eauto.
                         - iApply wp_pure_step_later; auto.
                           iNext. iApply wp_value; auto. iIntros; discriminate. }
                     * iApply (wp_add_sub_lt_fail2 with "[Ha HPC Hr1]"); eauto; iFrame.
@@ -808,8 +758,6 @@ Section fundamental.
                     iApply wp_value; eauto. iNext; iIntros; discriminate. } }
       Unshelve. exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
       exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
-  Qed.*)
-    Admitted. 
-*)
+  Qed.
 
 End fundamental.
