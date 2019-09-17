@@ -1,5 +1,5 @@
 From stdpp Require Import gmap fin_maps list.
-From cap_machine Require Export addr_reg lang.
+From cap_machine Require Export addr_reg lang region.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 
@@ -483,4 +483,349 @@ Require Import Eqdep_dec List.
          repeat (destruct n;
                    first (simpl;do 2 f_equal;apply eq_proofs_unicity;decide equality)).
          simpl in *. inversion fin.
+   Qed.
+
+
+   (* Lemmas for dealing with increasing list of addresses *)
+   Lemma incr_list_lt (a : list Addr) (a0 an : Addr) :
+    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    a !! 0 = Some a0 → list.last a = Some an → (a0 ≤ an)%Z.
+  Proof.
+    generalize a0 an. induction a as [_ | a al IHa ]; intros a0' an' Hcond Hfirst Hlast;
+     first inversion Hfirst.  
+    simpl in Hfirst. inversion Hfirst. subst.
+    destruct al as [_ | hd tl ].
+    - inversion Hlast. omega.
+    - assert ((a0' :: hd :: tl) !! 0 = Some a0') as Ha0; auto.
+      assert ((a0' :: hd :: tl) !! 1 = Some hd) as Ha; auto.
+      apply Hcond with 0 a0' hd in Ha0 as Hnext; auto. 
+      assert ((hd :: tl) !! 0 = Some hd) as Ha'; auto.
+      assert (list.last (hd :: tl) = Some an').
+      { simpl. destruct tl; auto. }
+      apply IHa with hd an' in Ha'; auto.
+      + assert (a0' ≤ hd)%Z.
+        {  rewrite /incr_addr in Hnext.
+           destruct (Z_le_dec (a0' + 1)%Z MemNum); inversion Hnext. simpl. omega. }
+        apply Z.le_trans with hd; auto. 
+      + intros i ai aj Hai Haj. 
+        apply Hcond with (i + 1); by rewrite Nat.add_1_r.
+  Qed. 
+
+  Lemma last_drop_lt {A : Type} (l : list A) (i : nat) (a : A) :
+    i < (length l) → list.last l = Some a → list.last (drop i l) = Some a.
+  Proof.
+    generalize i. induction l.
+    - intros i' Hlen Hlast. inversion Hlast. 
+    - intros i' Hlen Hlast. destruct i'.
+      + simpl. apply Hlast.
+      + simpl; simpl in Hlen. apply IHl; first omega.
+        assert (0 < length l) as Hl; first lia.
+        destruct l; simpl in Hl; first by apply Nat.lt_irrefl in Hl. auto.
+  Qed. 
+  
+  Lemma incr_list_le_middle (a : list Addr) i (ai an : Addr) :
+    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    a !! i = Some ai → list.last a = Some an → (ai ≤ an)%Z.
+  Proof.
+    generalize ai. destruct i;
+                     intros ai' Hcond Hi' Hlast.
+    - apply incr_list_lt with a; auto. 
+    - rewrite -Nat.add_1_r in Hi'.
+      assert ((drop (i + 1) a) !! 0 = Some ai') as Ha.
+      { rewrite -(Nat.add_0_r (i + 1)) in Hi'.
+        rewrite -Hi'. apply (lookup_drop a (i + 1) 0). }
+      apply incr_list_lt with _ _ an in Ha; auto.
+      + intros i0 ai0 aj Hd Hd'. 
+        rewrite (lookup_drop) /= in Hd. rewrite (lookup_drop) /= in Hd'.
+        apply Hcond with (i + 1 + i0); auto.
+        rewrite Nat.add_assoc in Hd'. done.
+      + assert (is_Some (a !! (i + 1))) as Hsome; eauto. 
+        apply lookup_lt_is_Some_1 in Hsome as Hlength. 
+        apply last_drop_lt; auto. 
+  Qed.
+
+   Lemma incr_list_lt_middle (a : list Addr) i (ai an : Addr) :
+    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    a !! i = Some ai → list.last a = Some an → (ai ≠ an)%Z → (ai < an)%Z.
+   Proof.
+     intros Hreg Ha Hj Hne.
+     assert (ai ≤ an)%Z as Hinc; first (apply incr_list_le_middle with a i; auto).
+     apply Z.lt_eq_cases in Hinc as [Hlt | Heq]; auto.
+     apply neq_z_of in Hne. congruence. 
+  Qed.
+
+  Lemma incr_list_lt_succ (a : list Addr) (a0 a1 : Addr) (i : nat) :
+    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    a !! i = Some a0 → a !! (S i) = Some a1 → (a0 < a1)%Z.
+  Proof.
+    intros Hcond Hi Hsi.
+    specialize Hcond with i a0 a1; simpl in Hcond. 
+    apply Hcond in Hi; try rewrite Nat.add_1_r; auto.
+    rewrite /incr_addr in Hi.
+    destruct (Z_le_dec (a0 + 1)%Z MemNum); inversion Hi. simpl. omega.
+  Qed.
+
+  Lemma next_lt (a a' : Addr) : 
+    (a + 1)%a = Some a' → (a < a')%Z.
+  Proof.
+    rewrite /incr_addr. intros Ha'.
+    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
+    simpl. lia.
+  Qed.
+
+  Lemma addr_next_le (a e e' : Addr) :
+    (a ≤ e)%Z → (e + 1)%a = Some e' → ∃ a', (a + 1)%a = Some a'.
+  Proof.
+    intros Ha He.
+    assert (e < e')%Z as Hlt.
+    { rewrite /incr_addr in He.
+      destruct (Z_le_dec (e + 1)%Z MemNum); inversion He. simpl. omega. }
+    assert (a < e')%a; [apply Z.le_lt_trans with e; auto|].
+    assert (a < MemNum)%Z.
+    { apply Z.lt_le_trans with e'; destruct e'; auto. simpl.
+        by apply Z.leb_le. }
+    destruct (a + 1)%a eqn:Hnone.
+    - exists a161; done.
+    - apply incr_addr_one_none in Hnone.
+      rewrite Hnone in H0. inversion H0.
+  Qed.
+    
+  Lemma addr_next_lt_gt_contr (a e a' : Addr) :
+    (a < e)%Z → (a + 1)%a = Some a' → (e < a')%Z → False.
+  Proof.
+    intros Hlta Ha' Hlta'.
+    rewrite /incr_addr in Ha'.
+    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
+    rewrite -H0 in Hlta'. 
+    simpl in *. lia.
+  Qed.
+
+  Lemma addr_next_lt (a e a' : Addr) :
+    (a < e)%Z → (a + 1)%a = Some a' → (a' ≤ e)%Z.
+  Proof.
+    intros Ha Ha'.
+    apply Znot_gt_le. rewrite /not.
+    intros Hlt. apply Z.gt_lt in Hlt. 
+    apply addr_next_lt_gt_contr with a e a'; auto.
+  Qed. 
+    
+  Lemma addr_abs_next (a e a' : Addr) :
+    (a + 1)%a = Some a' → (a < e)%Z → (Z.abs_nat (e - a) - 1) = (Z.abs_nat (e - a')).
+  Proof.
+    intros Ha' Hlt.
+    rewrite /incr_addr in Ha'.
+    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
+    destruct a'. inversion H0; simpl.
+    rewrite Z.sub_add_distr. lia.
+  Qed.
+
+  Lemma addr_unique a a' fin fin' :
+    a = a' → A a fin = A a' fin'.
+  Proof.
+    intros ->. f_equal. apply eq_proofs_unicity. decide equality.
+  Qed. 
+  
+  Lemma incr_addr_trans (a1 a2 a3 : Addr) (z1 z2 : Z) :
+    (a1 + z1)%a = Some a2 → (a2 + z2)%a = Some a3 →
+    (a1 + (z1 + z2))%a = Some a3.
+  Proof.
+    rewrite /incr_addr. 
+    intros Ha1 Ha2. 
+    destruct (Z_le_dec (a1 + z1)%Z MemNum); inversion Ha1.
+    destruct (Z_le_dec (a2 + z2)%Z MemNum); inversion Ha2.
+    destruct a2,a3. simpl in *.
+    inversion H0. inversion H1.  
+    rewrite -H2 in H3. subst.
+    destruct (Z_le_dec (a1 + (z1 + z2))%Z MemNum).
+    - f_equal. apply addr_unique. lia.
+    - exfalso. clear fin l l0 H0 H1 Ha2 Ha1.
+      apply Z.leb_nle in n. 
+      rewrite Z.add_assoc in n.
+      congruence.
+  Qed. 
+
+  Lemma addr_add_assoc (a a' : Addr) (z1 z2 : Z) :
+    (a + z1)%a = Some a' →
+    (a + (z1 + z2))%a = (a' + z2)%a.
+  Proof.
+    intros Ha'.
+    assert ((z_of a) + z1 = z_of a')%Z as Haz'.
+    { rewrite /incr_addr in Ha'.
+      by destruct (Z_le_dec (a + z1)%Z MemNum); inversion Ha'. } 
+    rewrite /incr_addr.
+    destruct (Z_le_dec (a + (z1 + z2))%Z MemNum),(Z_le_dec (a' + z2)%Z MemNum); auto. 
+    - f_equal. apply addr_unique. lia. 
+    - rewrite -Haz' in n.
+      exfalso.  
+      by rewrite Z.add_assoc in l.
+    - exfalso. 
+      rewrite -Haz' in l.
+        by rewrite Z.add_assoc in n.
+  Qed. 
+
+  Lemma addr_add_0 (a : Addr) :
+    (a + 0)%a = Some a.
+  Proof.
+    rewrite /incr_addr.
+    destruct a; simpl.
+    destruct (Z_le_dec (z + 0)%Z MemNum).
+    - f_equal. apply addr_unique. lia.
+    - rewrite Z.add_0_r in n.
+      exfalso. 
+      apply (Z.leb_le z MemNum) in fin.
+      contradiction.
+  Qed.
+
+  Lemma region_addrs_aux_next_head a (a0 a1 : Addr) n :
+    ((region_addrs_aux (get_addr_from_option_addr a) n) !! 0) = Some a0 →
+    ((region_addrs_aux (get_addr_from_option_addr a) n) !! (1)) = Some a1 →
+    (get_addr_from_option_addr (a0 + 1)%a = a1).
+  Proof.
+    rewrite /region_addrs_aux.
+    intros Ha0 Ha1. 
+    destruct n; inversion Ha0.
+    destruct n; inversion Ha1.
+    simpl in *.
+    rewrite H0 in Ha1.
+    rewrite -H1 in Ha1.
+    inversion Ha1.
+    destruct (a0 + 1)%a; simpl; auto; inversion Ha1.
+  Qed. 
+    
+  Lemma region_addrs_aux_next a n i ai aj : 
+    ((region_addrs_aux a n) !! i) = Some ai → ((region_addrs_aux a n) !! (i + 1)) = Some aj →
+    get_addr_from_option_addr (ai + 1)%a = aj. 
+  Proof.
+    intros Hai Haj.
+    assert (i + 1 < n).
+    { rewrite -(region_addrs_aux_length n a).
+      apply lookup_lt_is_Some_1. eauto. }
+    assert (i < n).
+    { rewrite -(region_addrs_aux_length n a).
+      apply lookup_lt_is_Some_1. eauto. }
+    assert (strings.length (region_addrs_aux a i) = i).
+    { apply region_addrs_aux_length. }
+    assert (strings.length (region_addrs_aux a (i + 1)) = (i + 1)).
+    { apply region_addrs_aux_length. }
+    rewrite (region_addrs_aux_decomposition n a i) in Hai; last lia.
+    rewrite lookup_app_r in Hai; last lia.
+    rewrite H1 in Hai. rewrite Nat.sub_diag in Hai.
+    rewrite (region_addrs_aux_decomposition n a i) in Haj; last lia.
+    rewrite lookup_app_r in Haj; last lia.
+    rewrite H1 in Haj. rewrite minus_plus in Haj.
+    apply (region_addrs_aux_next_head (a + i)%a ai aj (n - i)); auto. 
+  Qed.
+
+  Lemma region_addrs_lt_top a n i ai :
+    ((z_of a) + (Z.of_nat i) < MemNum)%Z → region_addrs_aux a n !! i = Some ai → ai ≠ top.
+  Proof.
+    intros Ha Hai.
+    assert (length (region_addrs_aux a n) = n) as Hlen.
+    { apply region_addrs_aux_length. }
+    assert (length (region_addrs_aux a i) = i) as Hleni.
+    { apply region_addrs_aux_length. }
+    assert (i < n) as Hi. 
+    { rewrite -Hlen. by apply lookup_lt_Some with ai. }
+    rewrite (region_addrs_aux_decomposition n a i) in Hai; last lia.
+    rewrite lookup_app_r in Hai; last lia. 
+    rewrite Hleni Nat.sub_diag in Hai.
+    destruct (a + i)%a eqn:Hai'.
+    - rewrite /= /region_addrs_aux in Hai.
+      destruct (n - i); inversion Hai.
+      rewrite H0 in Hai'.
+      rewrite /incr_addr in Hai'.
+      destruct (Z_le_dec (a + i)%Z MemNum); inversion Hai'.
+      rewrite /top /not. intros Hcontr. inversion Hcontr. lia. 
+    - rewrite /incr_addr in Hai'.
+      destruct (Z_le_dec (a + i)%Z MemNum); inversion Hai'; lia.
+  Qed. 
+    
+
+  Definition region_addrs_aux_singleton (a : Addr) :
+    [a] = region_addrs_aux a 1. Proof. done. Qed. 
+
+  Definition region_addrs_zeroes (b e : Addr) : list Word :=
+    if Z_le_dec b e then (repeat (inl 0%Z) (region_size b e)) else nil.
+
+  Lemma region_size_split (a b e a' : Addr) :
+     (b ≤ a < e)%Z →
+     (a + 1)%Z = a' →
+     region_size b e - region_size b a = region_size a' e.
+   Proof.
+     intros Hbe Ha'.
+     rewrite /region_size. 
+     rewrite -Ha' /=.
+     lia. 
+   Qed.
+
+   Lemma incr_addr_of_z (a a' : Addr) :
+     (a + 1)%a = Some a' →
+     (a + 1)%Z = a'.
+   Proof. 
+     intros Ha'. rewrite /incr_addr in Ha'.
+       by destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
    Qed. 
+
+   Lemma get_addr_from_option_addr_next (a b a' : Addr) :
+     (a + 1)%a = Some a' →
+     (b ≤ a)%Z →
+     (get_addr_from_option_addr (b + region_size b a)%a = a')%a.
+   Proof.
+     intros Hasome' Hle.
+     apply incr_addr_of_z in Hasome' as Ha'.
+     rewrite /region_size.
+     assert (b ≤ a')%Z.
+     { assert (a < a')%Z; first by apply next_lt. lia. }     
+     assert (b + S (Z.abs_nat (a - b)) = a')%Z; first lia.
+     (* assert ((b + S (Z.abs_nat (a - b)))%a = Some a'). *)
+     destruct a'. rewrite /incr_addr.
+     destruct (Z_le_dec (b + S (Z.abs_nat (a - b)))%Z MemNum).
+     - f_equal. by apply addr_unique.
+     - rewrite H0 /= in n.
+       apply Z.leb_nle in n. congruence.
+   Qed. 
+     
+   Lemma region_addrs_aux_contiguous a n i ai aj :
+     region_addrs_aux a n !! i = Some ai
+     → (a + n + 1 < MemNum)%Z
+     → region_addrs_aux a n !! (i + 1) = Some aj → (ai + 1)%a = Some aj.
+   Proof.
+     intros Hai Haj Hlast.
+     apply (region_addrs_aux_next a n i ai aj) in Hai as Hnext; auto.
+      destruct (ai + 1)%a; simpl in Hnext.
+     - congruence.
+     - assert (i < n).
+       { rewrite -(region_addrs_aux_length n a).
+         apply lookup_lt_is_Some_1. eauto. }
+       assert (aj ≠ top)%a.
+       { apply (region_addrs_lt_top a n (i + 1) aj); [|done].
+         rewrite Nat.add_comm /=.
+         apply Z.lt_trans with (a + n + 1)%Z; [lia|done].          
+       } congruence.
+   Qed.
+
+    Lemma big_sepL2_app'
+         (PROP : bi) (A B : Type) (Φ : nat → A → B → PROP) (l1 l2 : list A) 
+         (l1' l2' : list B) :
+     (length l1) = (length l1') → 
+    (([∗ list] k↦y1;y2 ∈ l1;l1', Φ k y1 y2)
+       ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (strings.length l1 + k) y1 y2))%I
+    ≡ ([∗ list] k↦y1;y2 ∈ (l1 ++ l2);(l1' ++ l2'), Φ k y1 y2)%I.
+   Proof.
+     intros Hlenl1.
+     iSplit.
+     - iIntros "[Hl1 Hl2]". iApply (big_sepL2_app with "Hl1 Hl2").
+     - iIntros "Happ".
+       iAssert (∃ l0' l0'' : list A,
+         ⌜(l1 ++ l2) = l0' ++ l0''⌝
+         ∧ ([∗ list] k↦y1;y2 ∈ l0';l1', Φ k y1 y2)
+             ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (strings.length l1' + k) y1 y2))%I
+                       with "[Happ]" as (l0' l0'') "(% & Happl0' & Happl0'')".
+       { by iApply (big_sepL2_app_inv_r with "Happ"). }
+       iDestruct (big_sepL2_length with "Happl0'") as %Hlen1.
+       iDestruct (big_sepL2_length with "Happl0''") as %Hlen2.
+       rewrite -Hlenl1 in Hlen1.
+       assert (l1 = l0' ∧ l2 = l0'') as [Heq1 Heq2]; first by apply app_inj_1.
+       simplify_eq; rewrite Hlenl1. 
+       iFrame.
+   Qed.        
