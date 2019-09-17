@@ -389,4 +389,38 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
+  Lemma cap_lang_determ:
+    forall e1 σ1 κ κ' e2 e2' σ2 σ2' efs efs',
+      cap_lang.prim_step e1 σ1 κ e2 σ2 efs ->
+      cap_lang.prim_step e1 σ1 κ' e2' σ2' efs' ->
+      κ = κ' /\ e2 = e2' /\ σ2 = σ2' /\ efs = efs'.
+  Proof.
+    intros. inv H2; inv H3; auto.
+    inv H2; inv H4; auto; try congruence.
+    rewrite H7 in H6; inv H6. auto.
+  Qed.
+
+  Lemma wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
+    to_val e1 = None →
+    (∀ (σ1:cap_lang.state) κ κs n, state_interp σ1 (κ ++ κs) n ={E}=∗
+     ∃ κ e2 (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
+      (▷ |==> (state_interp σ2 κs n ∗ from_option Φ False (to_val e2))))
+      ⊢ WP e1 @ s; E {{ Φ }}.
+  Proof.
+    iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 κ κs n)  "Hσ1 /=".
+    iMod ("H" $! σ1 κ κs n with "[Hσ1]") as "H"; auto.
+    iDestruct "H" as (κ' e2 σ2 efs) "[H1 H2]".
+    iModIntro. iSplit.
+    - rewrite /head_reducible /=. 
+      iExists κ', e2, σ2, efs. auto.
+    - iNext. iIntros (? ? ?) "H".
+      iDestruct "H" as %?.
+      iDestruct "H1" as %?.
+      destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ H4 H3) as [Heq1 [Heq2 [Heq3 Heq4]]].
+      subst a; subst a0; subst a1.
+      iMod "H2". iModIntro. iFrame.
+      inv H3; auto.
+  Qed.
+
 End cap_lang_rules.

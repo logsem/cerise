@@ -98,29 +98,29 @@ Section fundamental.
       (* iApply (RX_Store_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *)
         admit. 
       + (* Lt *)
-        (* iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
+        iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Add *)
-        (* iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
+        iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Sub *)
-        (* iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
+        iApply (RX_Add_Sub_Lt_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Lea *)
-        (* iApply (RX_Lea_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
+        iApply (RX_Lea_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Restrict *)
         (* iApply (RX_Restrict_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
       + (* Subseg *)
         (* iApply (RX_Subseg_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
       + (* IsPtr *) 
-        (* iApply (RX_IsPtr_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
+        iApply (RX_IsPtr_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetL *)
-        (* iApply (RX_getL_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.   *) admit. 
+        iApply (RX_getL_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetP *)
-        (* iApply (RX_getP_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
+        iApply (RX_getP_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetB *)
-        (* iApply (RX_getB_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.   *) admit. 
+        iApply (RX_getB_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetE *)
-        (* iApply (RX_getE_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
+        iApply (RX_getE_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetA *)
-        (* iApply (RX_getA_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
+        iApply (RX_getA_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
