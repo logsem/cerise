@@ -93,7 +93,7 @@ Section fundamental.
       (* iApply (RX_Mov_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *)
         admit. 
       + (* Load *)
-        iApply (RX_Load_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (RX_Load_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. 
       + (* Store *)
       (* iApply (RX_Store_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *)
         admit. 

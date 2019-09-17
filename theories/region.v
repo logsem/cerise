@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 (*Require Import Coq.Program.Wf.*)
 
 Section region.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
 
   (* Not usable without proving some sort of rewriting rule, and can't manage to prove it *)
   (* Program Fixpoint region_addrs (b e: Addr) { measure (Z.to_nat (e - b)%Z) }: list Addr := *)
@@ -289,8 +289,8 @@ Section region.
       end
     else [].*)
 
-  Definition region_mapsto (b e : Addr) (ws : list Word) : iProp Σ :=
-    ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↦ₐ y2)%I. 
+  Definition region_mapsto (b e : Addr) (p : Perm) (ws : list Word) : iProp Σ :=
+    ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↦ₐ[p] y2)%I. 
   
   Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
     (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
@@ -302,10 +302,10 @@ Section region.
   (*   ([∗ list] k↦y1;y2 ∈ (region_addrs b e);take (region_size b e) ws, y1 ↦ₐ y2)%I.  *)
 
   Lemma mapsto_decomposition:
-    forall l1 l2 ws1 ws2,
+    forall l1 l2 p ws1 ws2,
       length l1 = length ws1 ->
-      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↦ₐ y2)%I ⊣⊢
-      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ y2)%I.
+      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↦ₐ[p] y2)%I ⊣⊢
+      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ[p] y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ[p] y2)%I.
   Proof.
     induction l1; intros.
     - iSplit; iIntros "A".
@@ -324,14 +324,14 @@ Section region.
   Qed.
 
   Lemma mapsto_length:
-    forall l ws,
-      ([∗ list] k ↦ y1;y2 ∈ l;ws, y1 ↦ₐ y2)%I -∗
+    forall l p ws,
+      ([∗ list] k ↦ y1;y2 ∈ l;ws, y1 ↦ₐ[p] y2)%I -∗
       ⌜length l = length ws⌝.
   Proof.
     induction l; intros.
     - destruct ws; auto.
     - destruct ws; simpl; auto.
-      iIntros "[A B]". iDestruct (IHl ws with "B") as "%".
+      iIntros "[A B]". iDestruct (IHl p ws with "B") as "%".
       iPureIntro. auto.
   Qed.
 
@@ -348,18 +348,18 @@ Section region.
       + simpl in H1. eapply IHl; eauto.
   Qed.
 
-  Lemma extract_from_region b e a ws φ : 
+  Lemma extract_from_region b e p a ws φ : 
     let al := (get_addr_from_option_addr (a + (-1))%a) in
     let n := length (region_addrs b al) in
     (b <= a ∧ a <= e)%a →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b al (take n ws)
+        ∗ region_mapsto b al p (take n ws)
         ∗ ([∗ list] w ∈ (take n ws), φ w) 
-        ∗ a ↦ₐ w ∗ φ w
+        ∗ a ↦ₐ[p] w ∗ φ w
         ∗ match (a + 1)%a with
-          | Some ah => region_mapsto ah e (drop (S n) ws) ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I
+          | Some ah => region_mapsto ah e p (drop (S n) ws) ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I
           | None => ⌜drop (S n) ws = nil⌝
           end)%I.
   Proof.
@@ -374,7 +374,7 @@ Section region.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
-      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      iDestruct (mapsto_decomposition _ _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
       case_eq (drop n ws); intros.
       + auto.
       + iDestruct "HA2" as "[HA2 HA3]".
@@ -400,18 +400,18 @@ Section region.
         rewrite H4. auto.
   Qed.
 
-  Lemma extract_from_region' b e a ws φ `{!∀ x, Persistent (φ x)}: 
+  Lemma extract_from_region' b e a p ws φ `{!∀ x, Persistent (φ x)}: 
     let al := (get_addr_from_option_addr (a + (-1))%a) in
     let n := length (region_addrs b al) in
     (b <= a ∧ a <= e)%a →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b al (take n ws)
+        ∗ region_mapsto b al p (take n ws)
         ∗ ([∗ list] w ∈ ws, φ w) 
-        ∗ a ↦ₐ w ∗ φ w
+        ∗ a ↦ₐ[p] w ∗ φ w
         ∗ match (a + 1)%a with
-          | Some ah => region_mapsto ah e (drop (S n) ws) 
+          | Some ah => region_mapsto ah e p (drop (S n) ws) 
           | None => ⌜drop (S n) ws = nil⌝
           end)%I.
   Proof.
@@ -426,7 +426,7 @@ Section region.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct (big_sepL_app with "B") as "#[HB1 HB2]".
-      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      iDestruct (mapsto_decomposition _ _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
       case_eq (drop n ws); intros.
       + auto.
       + iDestruct "HA2" as "[HA2 HA3]".
@@ -540,22 +540,22 @@ Section region.
         by apply Z.leb_le. 
   Qed.
 
-  (* The following takes a capability and defines the proposition of points-to's of its region *)
-  Definition mem_region_conf (c : Cap) (mem : Mem) : iProp Σ := 
-    match c with
-    | ((p,g),b,e,a) => ([∗ list] a_i ∈ (region_addrs b e), a_i ↦ₐ (mem !m! a_i))%I
-    end.
+  (* (* The following takes a capability and defines the proposition of points-to's of its region *) *)
+  (* Definition mem_region_conf (c : Cap) (mem : Mem) : iProp Σ :=  *)
+  (*   match c with *)
+  (*   | ((p,g),b,e,a) => ([∗ list] a_i ∈ (region_addrs b e), a_i ↦ₐ (mem !m! a_i))%I *)
+  (*   end. *)
 
-  Definition mem_region_list (c : Cap) (ws : list Word) : iProp Σ := 
-    match c with
-    | ((p,g),b,e,a) => region_mapsto b e ws
-    end. 
+  (* Definition mem_region_list (c : Cap) (ws : list Word) : iProp Σ :=  *)
+  (*   match c with *)
+  (*   | ((p,g),b,e,a) => region_mapsto b e ws *)
+  (*   end.  *)
     
   
 End region.
 
-Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
-            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
+Global Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]") : bi_scope.
 
 Global Notation "[[ b , e ]] ⊂ₐ [[ b' , e' ]]" := (included b e b' e')
             (at level 50, format "[[ b , e ]] ⊂ₐ [[ b' , e' ]]") : bi_scope.
