@@ -1336,13 +1336,52 @@ Section lse.
      (* iPureIntro. eauto. *)
    Qed. *)
 
-   Lemma region_addrs_zeroes_valid (a b : Addr) :
-     ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[RWLX] y2)
-     ={⊤}=∗ [∗ list] a0 ∈ region_addrs a b, read_write_cond a0 RWLX (fixpoint interp1).
+   Lemma region_addrs_zeroes_trans_aux (a b : Addr) p n :
+     ([∗ list] y1;y2 ∈ region_addrs_aux a n;repeat (inl 0%Z) n, y1 ↦ₐ[p] y2)
+       -∗ [∗ list] y1 ∈ region_addrs_aux a n, y1 ↦ₐ[p] inl 0%Z.
    Proof.
-     iIntros "Hreg".
-     Admitted. 
-   
+     iInduction (n) as [n | n] "IHn" forall (a); first auto. 
+     iIntros "Hlist". 
+     iDestruct "Hlist" as "[Ha Hlist]".
+     iFrame.
+     iApply "IHn". iFrame.
+   Qed.
+
+   Lemma region_addrs_zeroes_trans (a b : Addr) p :
+     ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
+       -∗ [∗ list] a0 ∈ region_addrs a b, a0 ↦ₐ[p] (inl 0%Z).
+   Proof.
+     iIntros "Hlist".
+     rewrite /region_addrs /region_addrs_zeroes.
+     destruct (Z_le_dec a b); last done. 
+     iApply region_addrs_zeroes_trans_aux; auto.
+   Qed. 
+
+   Lemma region_addrs_zeroes_valid_aux (a b : Addr) p n :
+     ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
+       -∗ ([∗ list] x ∈ region_addrs_aux a n,
+           |={⊤}=> read_write_cond x p (fixpoint interp1)).
+   Proof. 
+     iInduction (n) as [n | n] "IHn" forall (a); first auto. 
+     iIntros "Hlist".
+     iDestruct "Hlist" as "[Ha Hlist]".
+     iSplitL "Ha".
+     - iApply na_inv_alloc.
+       iNext. iExists (inl 0%Z). iFrame.
+       iNext. rewrite fixpoint_interp1_eq /=. eauto.  
+     - iApply "IHn". iFrame.
+   Qed.      
+     
+   Lemma region_addrs_zeroes_valid (a b : Addr) p :
+     ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
+     ={⊤}=∗ [∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1).
+   Proof.
+     iIntros "Hlist".
+     iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
+     iApply big_sepL_fupd. rewrite /region_addrs. 
+     destruct (Z_le_dec a b); last done.
+     iApply region_addrs_zeroes_valid_aux; auto. 
+   Qed. 
        
   Ltac wp_push_z Hstack a_lo a_hi b e a_cur a_next φ push1 push2 push3 ws prog ptrn :=
     match goal with
