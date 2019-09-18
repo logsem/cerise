@@ -14,8 +14,8 @@ theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules/rules.v
-theories/examples/addr_reg.v
-Theories/examples/stack_macros.v
+theories/examples/addr_reg_sample.v
+theories/examples/stack_macros.v
 theories/lang.v
 theories/logrel.v
 theories/region.v
