@@ -110,12 +110,13 @@ Module cap_lang.
       forall p g (b e a : Addr),
         (b <= a < e)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, e, a))
-  | isCorrectPC_intro_infinity:
+        isCorrectPC (inr ((p, g), b, e, a)).
+  (* doesn't make sense anymore with finite memory *)
+  (*| isCorrectPC_intro_infinity:
       forall p g (b a : Addr),
         (b <= a)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, top, a)).
+        isCorrectPC (inr ((p, g), b, top, a)).*)
 
   Definition reg (ϕ: ExecConf) := fst ϕ.
 
@@ -143,14 +144,14 @@ Module cap_lang.
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a).
   Proof.
-    intros. inversion H; subst. 
+    intros. inversion H; subst.
     - destruct H2. apply andb_prop_intro. split. 
       + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
       + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; omega.
-    - apply andb_prop_intro. split. 
+    (*- apply andb_prop_intro. split. 
       + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
       + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
-        destruct pc_a; simpl. by apply Z.leb_le.
+        destruct pc_a; simpl. by apply Z.leb_le.*)
   Qed.
 
   Lemma not_isCorrectPC_perm p g b e a :
@@ -173,15 +174,15 @@ Module cap_lang.
       + destruct H1 as [Hb He]. destruct H2 as [Hb2 He2]. split.
         { apply Z.le_trans with a0; auto. }
         { apply Z.lt_trans with a2; auto. }
-      + destruct H1 as [Hb He]. split.
+      (* + destruct H1 as [Hb He]. split.
         { apply Z.le_trans with a0; auto. }
         { apply Z.lt_le_trans with a2; auto. destruct a2; simpl. by apply Z.leb_le. }
     - subst. apply isCorrectPC_intro_infinity; auto. 
       inversion Hvpc2; subst.
       + destruct H2 as [Hb2 He2].
         apply Z.le_trans with a0; auto.
-      + apply Z.le_trans with a0; auto.
-  Qed. 
+      + apply Z.le_trans with a0; auto.*)
+  Qed.
         
   Definition updatePcPerm (w: Word): Word :=
     match w with
@@ -570,16 +571,10 @@ Module cap_lang.
         * destruct (Addr_lt_dec a e).
             { left. econstructor; simpl; eauto. split; auto.
               destruct p; simpl in H; try congruence; auto. }
-            { destruct (decide (e = top)). 
-              - simplify_eq. 
-                apply top_not_le_eq in n.
-                left. constructor 2; eauto. 
-                destruct p; simpl in H; try congruence; auto.
-              - right. red; intros. inv H0; destruct H3; congruence. 
-            }
+            { right. red; intro. inv H0.
+              apply n. destruct H3. exact H1. }
         * right. red; intros; inv H0. 
           { destruct e. destruct H3. elim n; eauto. }
-          { elim n; auto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
   Qed.
   

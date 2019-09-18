@@ -531,13 +531,13 @@ Section region.
       + simpl in He.
         apply (Z.le_trans a e e'); eauto.
         by apply Z.lt_le_incl. 
-    - simpl in He.
+    (*- simpl in He.
       apply top_le_eq in He. 
       split.
       + apply (Z.le_trans b' b a); eauto.
       + rewrite He.
         destruct a. rewrite /le_addr. simpl. 
-        by apply Z.leb_le. 
+        by apply Z.leb_le. *)
   Qed.
 
   (* (* The following takes a capability and defines the proposition of points-to's of its region *) *)

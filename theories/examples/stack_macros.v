@@ -734,7 +734,7 @@ Section stack_macros.
     iApply (mclear_iter_spec a9 a10 a11 a12 a13 a14 b_r e_r b_r e_r' _
                         0 p p' g b e r_t4 r_t1 r_t5 r_t6 r_t2 r_t3 _ p_r p_r' g_r
               with "[-]"); auto.
-    - repeat split;[iCorrectPC 10|iCorrectPC 11|iCorrectPC 12|iCorrectPC 13|iCorrectPC 14|iCorrectPC 15].
+    - split; [|(split; [|(split; [|(split; [|split])])])]; [iCorrectPC 10|iCorrectPC 11|iCorrectPC 12|iCorrectPC 13|iCorrectPC 14|iCorrectPC 15].
     - repeat split;[apply Hnext with 10; auto|apply Hnext with 11; auto|apply Hnext with 12; auto|
                     apply Hnext with 13; auto|apply Hnext with 14; auto].
     - rewrite Z.add_0_r. intros Hle.
