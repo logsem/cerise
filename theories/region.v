@@ -295,7 +295,7 @@ Section region.
   Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
     (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
   
-  Fixpoint in_range (a b e : Addr) : Prop :=
+  Definition in_range (a b e : Addr) : Prop :=
     (b <= a)%a ∧ (a < e)%a. 
 
   (* Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ :=  *)

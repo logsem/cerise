@@ -48,7 +48,7 @@ Section fundamental.
 
   Lemma fundamental_RX M r b e g (a : Addr) :
     ((∃ p, ⌜PermFlows RX p⌝ ∧
-    ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)))   →
+    ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
      ⟦ inr ((RX,g),b,e,a) ⟧ₑ M r)%I
   with fundamental_RWX M r b e g (a : Addr) :
     ((∃ p, ⌜PermFlows RWX p⌝ ∧
@@ -106,7 +106,7 @@ Section fundamental.
       + (* Lea *)
         iApply (RX_Lea_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Restrict *)
-        (* iApply (RX_Restrict_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *) admit. 
+        iApply (RX_Restrict_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Subseg *)
         (* iApply (RX_Subseg_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
       + (* IsPtr *) 
