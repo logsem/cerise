@@ -13,6 +13,24 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : D.
 
+  Lemma locality_eq_dec:
+    forall (l1 l2: Locality), {l1 = l2} + {l1 <> l2}.
+  Proof.
+    destruct l1, l2; auto.
+  Qed.
+
+  Lemma exec_global_same_local p b e a junk ϕ:
+    (junk
+     ∗ PC ↦ᵣ inr (p, Global, b, e, a) -∗
+     WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ϕ }})%I -∗
+    (junk
+     ∗ PC ↦ᵣ inr (p, Local, b, e, a) -∗
+     WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ϕ }})%I.
+  Proof.
+    (* Is that what we want ?
+       Maybe we also need that perm flows from one to the other *)
+  Admitted.
+
   Lemma PermPairFlows_interp_preserved p p' l l' b e a:
     PermPairFlowsTo (p', l') (p, l) = true →
     (fixpoint interp1) (inr (p, l, b, e, a)) -∗
@@ -64,8 +82,18 @@ Section fundamental.
       iExists p. iSplitR; inv H5; auto.
       iDestruct "HA" as "[HA #HB]".
       iFrame. iModIntro. rewrite /exec_cond /=.
-      (* either l' = g, or l' = Local and g = Global *)
-      (* provable i think but annoying *) admit.
+      destruct (locality_eq_dec l' g).
+      + subst l'. auto.
+      + destruct l', g; simpl in H4; try congruence.
+        iIntros. iSpecialize ("HB" $! a W r a0).
+        iNext. iDestruct "HB" as (fs fr) "[% [% H]]".
+        iExists fs, fr. iSplitR; [rewrite H5; iPureIntro; reflexivity|].
+        iSplitR; [rewrite H7; iPureIntro; reflexivity|].
+        iIntros "[A [B [C [D E]]]]". simpl.
+        iDestruct (RelW_public_to_private with "C") as "C"; eauto.
+        iExists _, _, _, _, _. iSplitR; eauto.
+        rewrite /interp_conf. iMod "C".
+        admit. (* same stuff *)
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -82,19 +110,29 @@ Section fundamental.
         { rewrite H5. destruct l'; destruct g; reflexivity. }
         assert ((W_toM l' W).1.2 = fr).
         { rewrite H7. destruct l'; destruct g; reflexivity. }
-        rewrite H8; rewrite H9. assert ({l' = g} + {l' <> g}).
-        { destruct l', g; auto. } destruct H10.
+        rewrite H8; rewrite H9. destruct (locality_eq_dec l' g).
         * subst l'. iDestruct ("HB" with "[A B C]") as "HC"; iFrame.
           iDestruct "HC" as (p' g' b e a) "[HC HD]". iFrame.
         * destruct l', g; simpl in H4; try congruence.
           simpl. iDestruct "C" as "[C1 [C2 C3]]".
           iMod (RelW_public_to_private with "C1") as "[C1 C1']"; eauto.
-          apply (W, false). rewrite /registers_mapsto.
+          rewrite /registers_mapsto.
           iDestruct ((big_sepM_delete _ _ PC) with "B") as "[HPC Hmap]".
           rewrite lookup_insert. reflexivity.
           rewrite delete_insert_delete.
-          (* need to update the PC mapsto, but don't see how to do that ? *)
-          admit.
+          iAssert (emp ∗ PC ↦ᵣ inr (RX, Global, b', e', a') -∗ WP Seq (Instr Executable)
+                {{ v, ⌜v = HaltedV⌝
+                      → ∃ (r0 : Reg) (fs' : STS_states) (fr' : STS_rels),
+                          full_map r0
+                          ∧ ([∗ map] r1↦w ∈ r0, r1 ↦ᵣ w)
+                              ∗ ⌜related_sts_priv fs fs' fr fr'⌝ ∗ na_own logrel_nais ⊤ ∗ sts_full fs' fr' }})%I with "[A Hmap C1 C2 C3]" as "H".
+          { iIntros "[_ HPC]". iDestruct ("HB" with "[A Hmap HPC C1 C2 C3]") as "H"; iFrame.
+            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+              [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+              iFrame.
+            - iDestruct "H" as (p' g' b e a) "[% H]". auto. }
+          iDestruct (exec_global_same_local with "H") as "H'".
+          iApply "H'". iFrame.
       + iNext. rewrite /interp_expr /=. iExists _, _.
         do 2 (iSplitR; eauto). iIntros "HA". iClear "HB".
         iExists _, _, _, _, _. iSplitR; auto.
