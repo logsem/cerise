@@ -15,11 +15,10 @@ Section fundamental.
 
   Lemma PermPairFlows_interp_preserved p p' l l' b e a:
     PermPairFlowsTo (p', l') (p, l) = true →
-    (b <= a)%a ∧ (a < e)%a →
     (fixpoint interp1) (inr (p, l, b, e, a)) -∗
     (fixpoint interp1) (inr (p', l', b, e, a)).
   Proof.
-    intros Hp Hbounds. iIntros "HA".
+    intros Hp. iIntros "HA".
     destruct (andb_true_eq _ _ ltac:(symmetry in Hp; exact Hp)).
     simpl in H3, H4. repeat rewrite fixpoint_interp1_eq.
     destruct p; destruct p'; simpl in H3; try congruence; simpl; auto.
@@ -65,14 +64,51 @@ Section fundamental.
       iExists p. iSplitR; inv H5; auto.
       iDestruct "HA" as "[HA #HB]".
       iFrame. iModIntro. rewrite /exec_cond /=.
+      (* either l' = g, or l' = Local and g = Global *)
       (* provable i think but annoying *) admit.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
       inv H5. iDestruct "HA" as "[HA #HB]".
       iModIntro. rewrite /exec_cond /enter_cond.
-      iIntros. iSpecialize ("HB" $! a' W r Hbounds).
-      iNext. (* still the same thing *) admit.
+      iIntros. destruct (decide (in_range a' b' e')).
+      + iSpecialize ("HB" $! a' W r i). iNext.
+        rewrite /interp_expr /=. iExists _, _.
+        do 2 (iSplitR; eauto). iIntros "HA".
+        iExists _, _, _, _, _. iSplitR; auto.
+        rewrite /interp_conf. iDestruct "HB" as (fs fr) "[% [% HB]]".
+        iDestruct "HA" as "[A [B C]]".
+        assert ((W_toM l' W).1.1 = fs).
+        { rewrite H5. destruct l'; destruct g; reflexivity. }
+        assert ((W_toM l' W).1.2 = fr).
+        { rewrite H7. destruct l'; destruct g; reflexivity. }
+        rewrite H8; rewrite H9. assert ({l' = g} + {l' <> g}).
+        { destruct l', g; auto. } destruct H10.
+        * subst l'. iDestruct ("HB" with "[A B C]") as "HC"; iFrame.
+          iDestruct "HC" as (p' g' b e a) "[HC HD]". iFrame.
+        * destruct l', g; simpl in H4; try congruence.
+          simpl. iDestruct "C" as "[C1 [C2 C3]]".
+          iMod (RelW_public_to_private with "C1") as "[C1 C1']"; eauto.
+          apply (W, false). rewrite /registers_mapsto.
+          iDestruct ((big_sepM_delete _ _ PC) with "B") as "[HPC Hmap]".
+          rewrite lookup_insert. reflexivity.
+          rewrite delete_insert_delete.
+          (* need to update the PC mapsto, but don't see how to do that ? *)
+          admit.
+      + iNext. rewrite /interp_expr /=. iExists _, _.
+        do 2 (iSplitR; eauto). iIntros "HA". iClear "HB".
+        iExists _, _, _, _, _. iSplitR; auto.
+        iDestruct "HA" as "[A [B C]]".
+        rewrite /registers_mapsto. rewrite /interp_conf.
+        iDestruct ((big_sepM_delete _ _ PC) with "B") as "[HPC Hmap]".
+        rewrite lookup_insert. reflexivity.
+        rewrite delete_insert_delete.
+        iApply (wp_bind (fill [SeqCtx])).
+        iApply (wp_notCorrectPC with "HPC").
+        red; intros. apply n. inv H5. apply H9.
+        iNext. iIntros "HPC".
+        iApply wp_pure_step_later; auto. iNext.
+        iApply wp_value. iIntros "%". inv a.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as "#HA". iModIntro.
@@ -105,8 +141,7 @@ Section fundamental.
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% [HA #HB]]".
       inv H5. iModIntro. rewrite /exec_cond /enter_cond.
-      iIntros. iSpecialize ("HB" $! a' W r Hbounds).
-      iNext. admit. (* Same as the case before *)
+      iIntros. admit. (* Same as the case before *)
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -145,8 +180,7 @@ Section fundamental.
       iDestruct "HA" as (p) "[% HA]".
       iDestruct "HA" as "[HA #HB]". iModIntro.
       rewrite /exec_cond /enter_cond.
-      inv H5. iIntros. iSpecialize ("HB" $! a' W r Hbounds).
-      iNext. admit. (* Same as the case before *)
+      inv H5. iIntros. admit. (* Same as the case before *)
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -286,9 +320,33 @@ Section fundamental.
                 { iFrame. iNext. iExists _. iFrame. auto. }
                 iApply wp_pure_step_later; auto. rewrite (insert_id _ r0); auto.
                 case_eq (decodePermPair z); intros.
-                destruct p; admit.
-                (* case analysis on the kind of permission, fail if RX does not flow to p *)
-                (* iApply ("IH" with "[] [] [Hmap] [HM] [Hsts] [Hcls']"); auto.*) }
+                destruct (andb_true_eq _ _ ltac:(symmetry in H4; exact H4)).
+                rewrite H6 in H7; simpl in H7. destruct p; simpl in H7; try congruence.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
+                  erewrite lookup_insert; eauto.
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
+                  erewrite lookup_insert; eauto.
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate.
+                - iApply ("IH" with "[] [] [Hmap] [HM] [Hsts] [Hcls']"); auto.
+                - iNext. iApply (wp_bind (fill [SeqCtx])).
+                  iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
+                  erewrite lookup_insert; eauto.
+                  iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
+                  iNext. iIntros "HPC /=".
+                  iApply wp_pure_step_later; auto.
+                  iApply wp_value.
+                  iNext. iIntros. discriminate. }
               { iApply (wp_restrict_failPCreg1' with "[HPC Ha Hr0]"); eauto; iFrame.
                 iNext. iIntros.  iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -326,8 +384,7 @@ Section fundamental.
                   - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
                     + subst r2. rewrite /RegLocate lookup_insert.
                       iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
-                      simpl. destruct (decodePermPair z). iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ H4).
-                      admit. auto.
+                      simpl. destruct (decodePermPair z). iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ H4); auto.
                     + rewrite /RegLocate lookup_insert_ne; auto.
                       iApply "Hreg"; auto. }
                 iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); auto. }
@@ -375,7 +432,6 @@ Section fundamental.
                             iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
                             simpl. destruct (decodePermPair z).
                             iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ H4); auto.
-                            admit. 
                           + rewrite /RegLocate lookup_insert_ne; auto.
                             destruct (reg_eq_dec r0 r2).
                             * subst r2; rewrite lookup_insert. simpl.
@@ -392,6 +448,6 @@ Section fundamental.
                 - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate. } }
-  Admitted.
+  Qed.
 
 End fundamental.
