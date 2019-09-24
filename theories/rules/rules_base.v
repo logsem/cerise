@@ -254,13 +254,13 @@ Section cap_lang_rules.
       by inversion Hrel; subst.
   Qed.
 
-  Lemma RelW_public_to_private M W γ :
+  Lemma RelW_public_to_private W γ :
     Exact_w γ (W,false) ==∗ Exact_w γ (W,true) ∗ atleast_w γ (W,true).
   Proof.
     iIntros "HW".
     iMod (MonRef_update (A:=WORLD_S) with "HW"); auto. 
     constructor. apply related_sts_priv_refl.
-  Qed. 
+  Qed.
 
   (* ----------------------------- LOCATΕ LEMMAS ----------------------------------- *)
   Lemma locate_ne_reg reg r1 r2 w w' :
