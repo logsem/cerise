@@ -117,6 +117,123 @@ Section fundamental.
       eapply Z.le_trans; eauto.
   Qed.
 
+  Lemma within_in_range:
+    forall a b b' e e',
+      (b <= b')%a ->
+      (e' <= e)%a ->
+      in_range a b' e' ->
+      in_range a b e.
+  Proof.
+    intros. destruct H5. unfold in_range.
+    unfold le_addr in *. unfold lt_addr in *.
+    lia.
+  Qed.
+
+  Lemma subseg_interp_preserved:
+    forall p l b b' e e' a,
+      p <> E ->
+      (b <= b')%a ->
+      (e' <= e)%a ->
+      (fixpoint interp1) (inr (p, l, b, e, a)) -∗
+      (fixpoint interp1) (inr (p, l, b', e', a)).
+  Proof.
+    intros. iIntros "Hinterp".
+    repeat (rewrite fixpoint_interp1_eq).
+    destruct p; simpl; auto; try congruence.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% H]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      destruct (Z_le_dec b' e').
+      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+        iDestruct (big_sepL_app with "H") as "[H1 H2]".
+        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+        auto.
+      + replace (region_addrs b' e') with (nil: list Addr).
+        rewrite big_sepL_nil. auto.
+        unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% H]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      destruct (Z_le_dec b' e').
+      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+        iDestruct (big_sepL_app with "H") as "[H1 H2]".
+        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+        auto.
+      + replace (region_addrs b' e') with (nil: list Addr).
+        rewrite big_sepL_nil. auto.
+        unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% H]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      destruct (Z_le_dec b' e').
+      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+        iDestruct (big_sepL_app with "H") as "[H1 H2]".
+        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+        auto.
+      + replace (region_addrs b' e') with (nil: list Addr).
+        rewrite big_sepL_nil. auto.
+        unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% [H H']]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      iSplitL "H".
+      + destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+      + iDestruct "H'" as "#H". iModIntro.
+        rewrite /exec_cond.
+        iIntros. iDestruct ("H" $! a W r ltac:(eapply (within_in_range a bx b' ex e'); eauto)) as "HH".
+        iNext. iClear "H". rewrite /interp_expr /=.
+        rewrite /interp_conf.
+        (* exec_cond preservation for RX *)
+        admit.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% [H H']]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      iSplitL "H".
+      + destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+      + iDestruct "H'" as "#H". iModIntro.
+        rewrite /exec_cond. (* same thing with RWX *) admit.
+    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
+      iDestruct "H" as (p) "[% [H H']]".
+      inv H6. iExists gx, b', e', ax.
+      iSplitR; auto.
+      iExists p. iSplitR; auto.
+      iSplitL "H".
+      + destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+      + iDestruct "H'" as "#H". iModIntro.
+        rewrite /exec_cond. (* same thing with RLWX *) admit.
+  Admitted.
+
   Lemma RX_Subseg_case:
     ∀ r a g M fs fr b e p' w dst (r1 r2: Z + RegName)
       (* RWX case *)
@@ -328,8 +445,35 @@ Section fundamental.
                 - destruct (reg_eq_dec r0 r1).
                   + subst r1. case_eq (isWithin a0 a0 b e); intros.
                     * case_eq (a+1)%a; intros.
-                      { (* Subseg PC (inr r0) (inr r0) success *) admit. }
-                      { (* fail, can't increment PC *) admit. }
+                      { iApply (wp_subseg_success_pc_same with "[HPC Ha Hr0]"); eauto; iFrame.
+                        rewrite H6 /=. iNext. iIntros "[HPC [Ha Hr0]]".
+                        iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                        rewrite <- delete_insert_ne; auto.
+                        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                        iMod ("Hcls" with "[Ha Hown]") as "Hcls'"; auto.
+                        { iFrame. iNext. iExists _. iFrame. auto. }
+                        iApply wp_pure_step_later; auto.
+                        iApply ("IH" $! (<[r0:=inl z]> r) _ _ _ _ a0 a0 with "[] [] [Hmap] [HM] [Hsts] [Hcls']"); auto.
+                        { iIntros (x). iPureIntro. destruct (reg_eq_dec r0 x).
+                          - subst x; rewrite lookup_insert. eauto.
+                          - rewrite lookup_insert_ne; auto. }
+                        { iIntros (r1) "%". destruct (reg_eq_dec r0 r1).
+                          - subst r0. rewrite /RegLocate lookup_insert.
+                            repeat (rewrite fixpoint_interp1_eq). simpl; eauto.
+                          - rewrite /RegLocate lookup_insert_ne; auto.
+                            iApply "Hreg". auto. }
+                        iNext. iModIntro. iExists p'; iSplitR; auto.
+                        generalize (isWithin_implies _ _ _ _ H5). intros [A B].
+                        rewrite (isWithin_region_addrs_decomposition a0 a0 b e); auto.
+                        iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
+                        iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
+                        iFrame "#". repeat (split; auto). unfold le_addr; lia. }
+                      { iApply (wp_subseg_success_pc_same with "[HPC Ha Hr0]"); eauto; iFrame.
+                        rewrite H6 /=. iNext. iIntros "[HPC [Ha Hr0]]".
+                        iApply wp_pure_step_later; auto.
+                        iApply wp_value. iNext. iIntros "%". discriminate. }
                     * iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi _ i H4 H4 H5 with "[HPC Ha Hr0]"); iFrame; try (iSplitR; auto). destruct (reg_eq_dec r0 r0); try congruence. auto.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
                       iNext. iApply wp_value; auto. iIntros; discriminate.
@@ -431,7 +575,9 @@ Section fundamental.
                       { iIntros (x) "%".
                         destruct (reg_eq_dec dst x).
                         - subst x. rewrite /RegLocate lookup_insert.
-                          (* need some lemma *) admit.
+                          iDestruct ("Hreg" $! dst a6) as "Hdst".
+                          rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
+                          iApply (subseg_interp_preserved with "Hdst"); eauto.
                         - rewrite /RegLocate lookup_insert_ne; auto.
                           iApply "Hreg". auto. }
                   + destruct (perm_eq_dec p E).
@@ -490,7 +636,9 @@ Section fundamental.
                       { iIntros (x) "%".
                         destruct (reg_eq_dec dst x).
                         - subst x. rewrite /RegLocate lookup_insert.
-                          (* need some lemma *) admit.
+                          iDestruct ("Hreg" $! dst a6) as "Hdst".
+                          rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
+                          iApply (subseg_interp_preserved with "Hdst"); eauto.
                         - rewrite /RegLocate lookup_insert_ne; auto.
                           destruct (reg_eq_dec r0 x).
                           + subst x. rewrite lookup_insert.
@@ -561,7 +709,9 @@ Section fundamental.
                             { iIntros (x) "%".
                               destruct (reg_eq_dec dst x).
                               - subst x. rewrite /RegLocate lookup_insert.
-                                (* need some lemma *) admit.
+                                iDestruct ("Hreg" $! dst a6) as "Hdst".
+                                rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
+                                iApply (subseg_interp_preserved with "Hdst"); eauto.
                               - rewrite /RegLocate lookup_insert_ne; auto.
                                 destruct (reg_eq_dec r0 x).
                                 + subst x. rewrite lookup_insert.
@@ -597,8 +747,46 @@ Section fundamental.
                               { subst p. iApply (wp_subseg_fail_dst_E with "[HPC Ha Hdst]"); eauto; iFrame.
                                 iNext. iIntros. simpl. iApply wp_pure_step_later; eauto.
                                 iApply wp_value. iNext. iIntros "%". discriminate. }
-                              { (* Subseg dst (inr r0) (inr r0) success case *) admit. }
-                            * (* fail case, can't increment PC *) admit.
+                              { iApply (wp_subseg_success_same with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                                rewrite H6 /=. iNext. iIntros "[HPC [Ha [Hr0 Hdst]]]".
+                                iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                                repeat rewrite <- delete_insert_ne; auto.
+                                iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                                repeat rewrite <- delete_insert_ne; auto.
+                                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                                iMod ("Hcls" with "[Ha Hown]") as "Hcls'"; auto.
+                                { iFrame. iNext. iExists _. iFrame. auto. }
+                                iApply wp_pure_step_later; auto.
+                                iApply ("IH" $! (<[dst:=inr (p, l, a3, a3, a0)]> (<[r0:=inl z]> r)) with "[] [] [Hmap] [HM] [Hsts] [Hcls']"); auto.
+                                { iIntros (x). iPureIntro. destruct (reg_eq_dec dst x).
+                                  - subst x. rewrite lookup_insert. eauto.
+                                  - rewrite lookup_insert_ne; auto.
+                                    destruct (reg_eq_dec r0 x).
+                                    + subst x; rewrite lookup_insert. eauto.
+                                    + rewrite lookup_insert_ne; auto. }
+                                { iIntros (x) "%". destruct (reg_eq_dec dst x).
+                                  - subst x. rewrite /RegLocate lookup_insert.
+                                    iDestruct ("Hreg" $! dst a5) as "Hdst".
+                                    rewrite Hsomedst. apply isWithin_implies in H5. destruct H5.
+                                    iApply (subseg_interp_preserved with "Hdst"); eauto.
+                                  - rewrite /RegLocate lookup_insert_ne; auto.
+                                    destruct (reg_eq_dec r0 x).
+                                    + subst r0. rewrite /RegLocate lookup_insert.
+                                      repeat (rewrite fixpoint_interp1_eq). simpl; eauto.
+                                    + rewrite /RegLocate lookup_insert_ne; auto.
+                                      iApply "Hreg". auto. } }
+                            * destruct (perm_eq_dec p E).
+                              { subst p. iApply (wp_subseg_fail_dst_E with "[HPC Ha Hdst]"); eauto; iFrame.
+                                iNext. iIntros. simpl. iApply wp_pure_step_later; eauto.
+                                iApply wp_value. iNext. iIntros "%". discriminate. }
+                              { iApply (wp_subseg_success_same with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
+                                rewrite H6 /=. iNext. iIntros "[HPC [Ha [Hr0 Hdst]]]".
+                                iApply wp_pure_step_later; auto.
+                                iApply wp_value. iNext. iIntros "%".
+                                discriminate. }
                           + iApply (wp_subseg_fail_notwithin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hi _ i H4 H4 H5 with "[HPC Ha Hr0 Hdst]"); iFrame; try (repeat iSplitR; auto). destruct (reg_eq_dec r0 r0); try congruence; auto.
                             destruct (reg_eq_dec PC dst); try congruence; auto.
                             iNext. iIntros. iApply wp_pure_step_later; auto.
@@ -643,7 +831,9 @@ Section fundamental.
                                     { iIntros (x) "%".
                                       destruct (reg_eq_dec dst x).
                                       - subst x. rewrite /RegLocate lookup_insert.
-                                        (* need some lemma *) admit.
+                                        iDestruct ("Hreg" $! dst a6) as "Hdst".
+                                        rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
+                                        iApply (subseg_interp_preserved with "Hdst"); eauto.
                                       - rewrite /RegLocate lookup_insert_ne; auto.
                                         destruct (reg_eq_dec r0 x).
                                         + subst x. rewrite lookup_insert.
@@ -678,6 +868,8 @@ Section fundamental.
               { iApply (wp_subseg_fail_reg1_cap _ _ _ _ _ _ _ _ _ _ _ _ Hi _ i with "[HPC Ha Hr0]"); iFrame; auto.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. } }
-  Admitted.
+      Unshelve.
+      assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption.
+  Qed.
 
 End fundamental.
