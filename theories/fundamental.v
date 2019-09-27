@@ -91,7 +91,6 @@ Section fundamental.
         admit. 
       + (* Mov *)
         iApply (RX_Mov_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
-        admit. 
       + (* Load *)
         iApply (RX_Load_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. 
       + (* Store *)
