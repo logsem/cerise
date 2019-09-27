@@ -909,6 +909,51 @@ Section stack_macros.
        apply IHl. rewrite lookup_insert_ne in H5; auto.
    Qed.
 
+   Lemma big_sepL2_to_big_sepL_r {A B : Type} (φ : B → iProp Σ) (l1 : list A) l2 :
+     length l1 = length l2 →
+     (([∗ list] _;y2 ∈ l1;l2, φ y2) ∗-∗
+     ([∗ list] y ∈ l2, φ y))%I. 
+   Proof.
+     iIntros (Hlen). 
+     iSplit. 
+     - iIntros "Hl2". iRevert (Hlen). 
+       iInduction (l2) as [ | y2] "IHn" forall (l1); iIntros (Hlen). 
+       + done.
+       + destruct l1;[by iApply bi.False_elim|]. 
+         iDestruct "Hl2" as "[$ Hl2]". 
+         iApply ("IHn" with "Hl2"). auto. 
+     - iIntros "Hl2". 
+       iRevert (Hlen). 
+       iInduction (l2) as [ | y2] "IHn" forall (l1); iIntros (Hlen). 
+       + destruct l1; inversion Hlen. done.
+       + iDestruct "Hl2" as "[Hy2 Hl2]".
+         destruct l1; inversion Hlen. 
+         iDestruct ("IHn" $! l1 with "Hl2") as "Hl2".
+         iFrame. iApply "Hl2". auto. 
+   Qed.
+
+   Lemma region_addrs_zeroes_valid_aux n : 
+     ([∗ list] y ∈ repeat (inl 0%Z) n, ▷ (fixpoint interp1) y)%I.
+   Proof. 
+     iInduction (n) as [n | n] "IHn".
+     - done.
+     - simpl. iSplit; last iFrame "#".
+       rewrite fixpoint_interp1_eq. iNext.
+       eauto.
+   Qed. 
+     
+   Lemma region_addrs_zeroes_valid (a b : Addr) :
+     ([∗ list] _;y2 ∈ region_addrs a b; region_addrs_zeroes a b,
+                                        ▷ (fixpoint interp1) y2)%I.
+   Proof.
+     rewrite /region_addrs /region_addrs_zeroes.
+     destruct (Z_le_dec a b); last done. 
+     iApply (big_sepL2_to_big_sepL_r _ _ (repeat (inl 0%Z) (region_size a b))).
+     - rewrite region_addrs_aux_length.
+       rewrite repeat_length. done.
+     - iApply region_addrs_zeroes_valid_aux.
+   Qed. 
+     
    Lemma region_addrs_zeroes_trans_aux (a b : Addr) p n :
      ([∗ list] y1;y2 ∈ region_addrs_aux a n;repeat (inl 0%Z) n, y1 ↦ₐ[p] y2)
        -∗ [∗ list] y1 ∈ region_addrs_aux a n, y1 ↦ₐ[p] inl 0%Z.
@@ -929,8 +974,8 @@ Section stack_macros.
      destruct (Z_le_dec a b); last done. 
      iApply region_addrs_zeroes_trans_aux; auto.
    Qed. 
-
-   Lemma region_addrs_zeroes_valid_aux E (a b : Addr) p n :
+   
+   Lemma region_addrs_zeroes_alloc_aux E (a b : Addr) p n :
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
        -∗ ([∗ list] x ∈ region_addrs_aux a n,
            |={E}=> read_write_cond x p (fixpoint interp1)).
@@ -945,7 +990,7 @@ Section stack_macros.
      - iApply "IHn". iFrame.
    Qed.      
      
-   Lemma region_addrs_zeroes_valid E (a b : Addr) p :
+   Lemma region_addrs_zeroes_alloc E (a b : Addr) p :
      ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
      ={E}=∗ [∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1).
    Proof.
@@ -953,7 +998,7 @@ Section stack_macros.
      iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
      iApply big_sepL_fupd. rewrite /region_addrs. 
      destruct (Z_le_dec a b); last done.
-     iApply region_addrs_zeroes_valid_aux; auto. 
+     iApply region_addrs_zeroes_alloc_aux; auto. 
    Qed. 
 
    (* opening a list of invariants all at once *)
@@ -994,7 +1039,7 @@ Section stack_macros.
      subst. rewrite /incr_addr in Hai.
      destruct (Z_le_dec (A z fin + i)%Z MemNum); inversion Hai. 
      destruct i; try contradiction; omega.
-   Qed. 
+   Qed.
    
    Lemma list_names_disj a i n :
      a ≠ addr_reg.top → (i > 0)%Z →
@@ -1154,6 +1199,31 @@ Section stack_macros.
        + iModIntro.
          iIntros "[Hna HP] /=".
          by rewrite difference_empty_L. 
-   Qed. 
+   Qed.
 
+   (* -------------------- SUPPLEMENTAL LEMMAS ABOUT REGIONS -------------------------- *)
+   
+   Lemma region_addrs_exists {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
+     (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
+      (∃ (ws : list B), [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
+   Proof.
+     iSplit. 
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn". 
+       + iExists []. done.
+       + iDestruct "Ha" as "[Ha0 Ha]".
+         iDestruct "Ha0" as (w0) "Ha0". 
+         iDestruct ("IHn" with "Ha") as (ws) "Ha'".
+         iExists (w0 :: ws). iFrame.
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn". 
+       + done. 
+       + iDestruct "Ha" as (ws) "Ha".
+         destruct ws;[by iApply bi.False_elim|]. 
+         iDestruct "Ha" as "[Ha0 Ha]". 
+         iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto. 
+         iFrame. eauto.        
+   Qed.
+         
+         
 End stack_macros. 
