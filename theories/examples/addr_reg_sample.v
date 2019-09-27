@@ -320,7 +320,37 @@ Require Import Eqdep_dec List.
          simpl in *. inversion fin.
    Qed.
 
+   Lemma all_registers_NoDup :
+     NoDup all_registers.
+   Proof.
+     rewrite /all_registers.
+     repeat (
+     apply NoDup_cons;
+      first (rewrite /not; intros Hcontr; apply elem_of_list_In in Hcontr;
+         repeat (apply elem_of_cons in Hcontr as [Hcontr | Hcontr];[inversion Hcontr|]);
+         inversion Hcontr)).
+     apply NoDup_nil.
+   Qed.
 
+   Lemma NoDup_list_difference {A : Type} `{EqDecision A} (l1 l2 : list A) :
+     NoDup l1 → NoDup (list_difference l1 l2).
+   Proof.
+     intros Hdup.
+     revert l2. induction l1; intros l2.
+     - apply NoDup_nil.
+     - simpl. destruct (decide_rel elem_of a l2).
+       + apply IHl1.
+           by apply NoDup_cons_iff in Hdup as [Ha Hdup].
+       + apply NoDup_cons_iff in Hdup as [Ha Hdup].
+         apply NoDup_cons. 
+         * rewrite /not. rewrite /not in Ha. intros Hcontr.
+           apply elem_of_list_In in Hcontr. 
+           apply elem_of_list_difference in Hcontr as [Hal1 _].
+           apply elem_of_list_In in Hal1. 
+             by apply Ha in Hal1.
+         * by apply IHl1. 
+   Qed. 
+   
    (* Lemmas for dealing with increasing list of addresses *)
    Lemma incr_list_lt (a : list Addr) (a0 an : Addr) :
     (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
