@@ -19,24 +19,36 @@ Section fundamental.
     destruct l1, l2; auto.
   Qed.
 
-  Lemma exec_global_same_local p b e a junk ϕ:
-    (junk
-     ∗ PC ↦ᵣ inr (p, Global, b, e, a) -∗
-     WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ϕ }})%I -∗
-    (junk
-     ∗ PC ↦ᵣ inr (p, Local, b, e, a) -∗
-     WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ϕ }})%I.
-  Proof.
-    (* Is that what we want ?
-       Maybe we also need that perm flows from one to the other *)
-  Admitted.
-
-  Lemma PermPairFlows_interp_preserved p p' l l' b e a:
+  Lemma PermPairFlows_interp_preserved p p' l l' b e a
+    (* RWX case *)
+    (fundamental_RWX : ∀ b e g a M r,
+        ((∃ p, ⌜PermFlows RWX p⌝ ∧
+               ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
+         ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M r)%I)
+    (* (* RWLX case *) *)
+    (fundamental_RWLX : ∀ b e g a M r,
+        ((∃ p, ⌜PermFlows RWLX p⌝ ∧
+               ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
+         ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M r)%I):
     PermPairFlowsTo (p', l') (p, l) = true →
+    □ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
+            full_map a0
+         -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r0))
+         -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
+         -∗ Exact_w wγ a7
+         -∗ sts_full a3 a4
+         -∗ na_own logrel_nais ⊤
+         -∗ ⌜a7.1.1 = a3⌝
+         → ⌜a7.1.2 = a4⌝
+         → □ (∃ p : Perm, ⌜PermFlows RX p⌝
+                           ∧ ([∗ list] a8 ∈ region_addrs a5 a6, 
+                              na_inv logrel_nais (logN.@a8)
+                                     (∃ w0 : leibnizO Word, a8 ↦ₐ[p] w0 ∗ ▷ interp w0)))
+         -∗ ⟦ [a3, a4] ⟧ₒ) -∗
     (fixpoint interp1) (inr (p, l, b, e, a)) -∗
     (fixpoint interp1) (inr (p', l', b, e, a)).
   Proof.
-    intros Hp. iIntros "HA".
+    intros Hp. iIntros "#IH HA".
     destruct (andb_true_eq _ _ ltac:(symmetry in Hp; exact Hp)).
     simpl in H3, H4. repeat rewrite fixpoint_interp1_eq.
     destruct p; destruct p'; simpl in H3; try congruence; simpl; auto.
@@ -80,8 +92,8 @@ Section fundamental.
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
-      iDestruct "HA" as "[HA #HB]".
-      iFrame. iModIntro. rewrite /exec_cond /=.
+      iDestruct "HA" as "[#HA #HB]".
+      iFrame "#". iModIntro. rewrite /exec_cond /=.
       destruct (locality_eq_dec l' g).
       + subst l'. auto.
       + destruct l', g; simpl in H4; try congruence.
@@ -92,20 +104,21 @@ Section fundamental.
         iIntros "[A [B [C [D E]]]]". simpl.
         iDestruct (RelW_public_to_private with "C") as "C"; eauto.
         iExists _, _, _, _, _. iSplitR; eauto.
-        rewrite /interp_conf. iMod "C".
-        admit. (* same stuff *)
+        rewrite /interp_conf. iMod "C" as "[C1 C2]".
+        iDestruct "A" as "[A1 A2]".
+        iApply ("IH" with "[A1] [A2] [B] [C1] [D] [E]"); auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
-      inv H5. iDestruct "HA" as "[HA #HB]".
+      inv H5. iDestruct "HA" as "[#HA #HB]".
       iModIntro. rewrite /exec_cond /enter_cond.
       iIntros. destruct (decide (in_range a' b' e')).
       + iSpecialize ("HB" $! a' W r i). iNext.
         rewrite /interp_expr /=. iExists _, _.
-        do 2 (iSplitR; eauto). iIntros "HA".
+        do 2 (iSplitR; eauto). iIntros "A".
         iExists _, _, _, _, _. iSplitR; auto.
         rewrite /interp_conf. iDestruct "HB" as (fs fr) "[% [% HB]]".
-        iDestruct "HA" as "[A [B C]]".
+        iDestruct "A" as "[A [B C]]".
         assert ((W_toM l' W).1.1 = fs).
         { rewrite H5. destruct l'; destruct g; reflexivity. }
         assert ((W_toM l' W).1.2 = fr).
@@ -120,23 +133,14 @@ Section fundamental.
           iDestruct ((big_sepM_delete _ _ PC) with "B") as "[HPC Hmap]".
           rewrite lookup_insert. reflexivity.
           rewrite delete_insert_delete.
-          iAssert (emp ∗ PC ↦ᵣ inr (RX, Global, b', e', a') -∗ WP Seq (Instr Executable)
-                {{ v, ⌜v = HaltedV⌝
-                      → ∃ (r0 : Reg) (fs' : STS_states) (fr' : STS_rels),
-                          full_map r0
-                          ∧ ([∗ map] r1↦w ∈ r0, r1 ↦ᵣ w)
-                              ∗ ⌜related_sts_priv fs fs' fr fr'⌝ ∗ na_own logrel_nais ⊤ ∗ sts_full fs' fr' }})%I with "[A Hmap C1 C2 C3]" as "H".
-          { iIntros "[_ HPC]". iDestruct ("HB" with "[A Hmap HPC C1 C2 C3]") as "H"; iFrame.
-            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-              [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iFrame.
-            - iDestruct "H" as (p' g' b e a) "[% H]". auto. }
-          iDestruct (exec_global_same_local with "H") as "H'".
-          iApply "H'". iFrame.
+          iDestruct "A" as "[A1 A2]".
+          iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+          iApply ("IH" with "[A1] [A2] [Hmap] [C1] [C2] [C3]"); auto.
       + iNext. rewrite /interp_expr /=. iExists _, _.
-        do 2 (iSplitR; eauto). iIntros "HA". iClear "HB".
+        do 2 (iSplitR; eauto). iIntros "A". iClear "HB".
         iExists _, _, _, _, _. iSplitR; auto.
-        iDestruct "HA" as "[A [B C]]".
+        iDestruct "A" as "[A [B C]]".
         rewrite /registers_mapsto. rewrite /interp_conf.
         iDestruct ((big_sepM_delete _ _ PC) with "B") as "[HPC Hmap]".
         rewrite lookup_insert. reflexivity.
@@ -149,8 +153,21 @@ Section fundamental.
         iApply wp_value. iIntros "%". inv a.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
-      iDestruct "HA" as "#HA". iModIntro.
-      rewrite /enter_cond. (* same stuff again *) admit.
+      iDestruct "HA" as "#HA". iModIntro. inv H5.
+      destruct g, l'; simpl in H4; try congruence; auto.
+      rewrite /enter_cond /interp_expr /=.
+      iIntros. iNext. iExists _,_.
+      iSplitR; auto. iSplitR; auto.
+      iIntros "[[A1 A2] [B [C [D E]]]]".
+      iExists _,_,_,_,_. iSplitR; auto.
+      (*iDestruct (RelW_public_to_private with "C") as "C"; eauto.
+      iMod "C" as "[C1 C2]".
+      iDestruct ("HA" $! W r with "") as "HB"; eauto.
+      iDestruct "HB" as (fs fr) "[% [% HB]]". inv H5.
+      iDestruct ("HB" with "[A1 A2 B C1 D E]") as "HC"; iFrame.
+      + *)
+      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iModIntro. (* Hmmm *) admit.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -168,24 +185,42 @@ Section fundamental.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
       iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[HA #HB]". iFrame.
+      reflexivity. iDestruct "HA" as "[#HA #HB]". iFrame "#".
       iModIntro. rewrite /exec_cond.
       iIntros. iSpecialize ("HB" $! a W r a0).
       iNext. rewrite /interp_expr /=.
-      iDestruct "HB" as (fs fr) "[% [% HA]]".
-      (* somewhat same thing *)
-      admit.
+      iExists _,_. iSplitR; auto. iSplitR; auto.
+      iIntros "[[A1 A2] [B [C [D E]]]]".
+      iExists _,_,_,_,_. iSplitR; auto.
+      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iAlways. iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
-      iDestruct "HA" as (p) "[% [HA #HB]]".
+      iDestruct "HA" as (p) "[% [#HA #HB]]".
       inv H5. iModIntro. rewrite /exec_cond /enter_cond.
-      iIntros. admit. (* Same as the case before *)
+      iIntros. iNext. rewrite /interp_expr /=.
+      iExists _,_. iSplitR; auto. iSplitR; auto.
+      iIntros "[[A1 A2] [B [C [D E]]]]".
+      iExists _,_,_,_,_. iSplitR; auto.
+      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iAlways. iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
-      iDestruct "HA" as "[HA #HB]". iFrame.
-      iModIntro. (* still the same *) admit.
+      iDestruct "HA" as "[#HA #HB]". iFrame "#".
+      iModIntro. rewrite /exec_cond. iIntros.
+      iNext. iApply fundamental_RWX. eauto.
+    - iDestruct "HA" as (g b' e' a') "[% HA]".
+      iExists l', b, e, a. iSplitR; auto.
+      iDestruct "HA" as (p) "[% HA]".
+      iExists p. iSplitR; inv H5; auto.
+      iPureIntro. eapply PermFlows_trans; eauto.
+      reflexivity. iDestruct "HA" as "[HA HB]". auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -203,37 +238,48 @@ Section fundamental.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
       iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[HA HB]". auto.
+      reflexivity. iDestruct "HA" as "[#HA #HB]". auto.
+      iFrame "#". iModIntro.
+      rewrite /exec_cond. iIntros. iNext.
+      rewrite /interp_expr /=.
+      iExists _,_. iSplitR; auto. iSplitR; auto.
+      iIntros "[[A1 A2] [B [C [D E]]]]".
+      iExists _,_,_,_,_. iSplitR; auto.
+      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iAlways. iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + auto.
+    - iDestruct "HA" as (g b' e' a') "[% HA]".
+      iExists l', b, e, a. iSplitR; auto.
+      iDestruct "HA" as (p) "[% HA]".
+      iDestruct "HA" as "[#HA #HB]". inv H5.
+      iModIntro. rewrite /enter_cond /interp_expr /=.
+      iIntros. iNext. iExists _,_. iSplitR; auto. iSplitR; auto.
+      iIntros "[[A1 A2] [B [C [D E]]]]".
+      iExists _,_,_,_,_. iSplitR; auto.
+      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iAlways. iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
       iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[HA #HB]". auto.
-      iFrame. iModIntro.
-      rewrite /exec_cond. iIntros. iSpecialize ("HB" $! a W r a0).
-      iNext. admit. (* Same as the case before *)
-    - iDestruct "HA" as (g b' e' a') "[% HA]".
-      iExists l', b, e, a. iSplitR; auto.
-      iDestruct "HA" as (p) "[% HA]".
-      iDestruct "HA" as "[HA #HB]". iModIntro.
-      rewrite /exec_cond /enter_cond.
-      inv H5. iIntros. admit. (* Same as the case before *)
+      reflexivity. iDestruct "HA" as "[#HA #HB]". iFrame "#".
+      iModIntro. rewrite /exec_cond. iIntros.
+      iNext. iApply fundamental_RWX.
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; inv H5; auto.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[HA #HB]". iFrame.
-      iModIntro. rewrite /exec_cond. iIntros. iSpecialize ("HB" $! a W r a0).
-      iNext. admit. (* Same as the case before *)
-    - iDestruct "HA" as (g b' e' a') "[% HA]".
-      iExists l', b, e, a. iSplitR; auto.
-      iDestruct "HA" as (p) "[% HA]".
-      iExists p. iSplitR; inv H5; auto.
-      iDestruct "HA" as "[HA #HB]".
-      iFrame. iModIntro.
-      (* same *) admit.
+      iDestruct "HA" as "[#HA #HB]".
+      iFrame "#". iModIntro.
+      rewrite /exec_cond. iIntros.
+      iNext. iApply fundamental_RWLX; eauto.
   Admitted.
 
   Lemma RX_Restrict_case:
