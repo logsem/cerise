@@ -155,11 +155,37 @@ Section fundamental.
               { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
                 rewrite (insert_id r r0); auto.
-                iNext. (* use fundamental_RWX in some way ? *) admit. }
+                iNext. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hvalid".
+                rewrite /RegLocate Hsomer0.
+                rewrite (fixpoint_interp1_eq (inr _)).
+                simpl. iDestruct "Hvalid" as (g' b' e' a') "[% Hvalid']".
+                inv H5. iDestruct (fundamental_RWX with "[Hvalid']") as "Hind".
+                { iDestruct "Hvalid'" as (p) "[% [H1 H2]]".
+                  iExists p. iSplitR; auto. }
+                rewrite /interp_expression /interp_expr /=.
+                iDestruct "Hind" as (fs fr) "[% [% H]]".
+                instantiate (1 := M) in H5. inv H5.
+                iDestruct ("H" with "[HM Hsts Hcls' Hmap]") as "H".
+                { iFrame. iSplitR; auto. }
+                iDestruct "H" as (px gx bx ex ax) "[H1 H2]".
+                auto. }
               { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
                 rewrite (insert_id r r0); auto.
-                iNext. (* use fundamental_RWLX in some way ? *) admit. }
+                iNext. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hvalid".
+                rewrite /RegLocate Hsomer0.
+                rewrite (fixpoint_interp1_eq (inr _)).
+                simpl. iDestruct "Hvalid" as (g' b' e' a') "[% Hvalid']".
+                inv H5. iDestruct (fundamental_RWLX with "[Hvalid']") as "Hind".
+                { iDestruct "Hvalid'" as (p) "[% [H1 H2]]".
+                  iExists p. iSplitR; auto. }
+                rewrite /interp_expression /interp_expr /=.
+                iDestruct "Hind" as (fs fr) "[% [% H]]".
+                instantiate (1 := M) in H5. inv H5.
+                iDestruct ("H" with "[HM Hsts Hcls' Hmap]") as "H".
+                { iFrame. iSplitR; auto. }
+                iDestruct "H" as (px gx bx ex ax) "[H1 H2]".
+                auto. }
             * iApply (wp_move_fail_reg_toPC with "[HPC Ha Hr0]"); eauto; iFrame.
               iNext. iIntros "(HPC & Ha & Hr0)".
               iApply wp_pure_step_later; auto.
@@ -325,6 +351,7 @@ Section fundamental.
               iNext. iIntros "(HPC & Ha & Hdst & Hr0)".
               iApply wp_pure_step_later; auto.
               iApply wp_value. iNext; iIntros; discriminate. }
-  Admitted.
+      Unshelve. auto. auto. auto.
+  Qed.
 
 End fundamental.  
