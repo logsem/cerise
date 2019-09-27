@@ -130,14 +130,38 @@ Section fundamental.
   Qed.
 
   Lemma subseg_interp_preserved:
-    forall p l b b' e e' a,
+    forall p l b b' e e' a
+      (* RWX case *)
+      (fundamental_RWX : ∀ b e g a M r,
+          ((∃ p, ⌜PermFlows RWX p⌝ ∧
+                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
+           ⟦ inr ((RWX,g),b,e,a) ⟧ₑ M r)%I)
+      (* (* RWLX case *) *)
+      (fundamental_RWLX : ∀ b e g a M r,
+          ((∃ p, ⌜PermFlows RWLX p⌝ ∧
+                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp))) →
+           ⟦ inr ((RWLX,g),b,e,a) ⟧ₑ M r)%I),
       p <> E ->
       (b <= b')%a ->
       (e' <= e)%a ->
+      □ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
+            full_map a0
+         -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r0))
+         -∗ registers_mapsto (<[PC:=inr (RX, a2, a5, a6, a1)]> a0)
+         -∗ Exact_w wγ a7
+         -∗ sts_full a3 a4
+         -∗ na_own logrel_nais ⊤
+         -∗ ⌜a7.1.1 = a3⌝
+         → ⌜a7.1.2 = a4⌝
+         → □ (∃ p : Perm, ⌜PermFlows RX p⌝
+                           ∧ ([∗ list] a8 ∈ region_addrs a5 a6, 
+                              na_inv logrel_nais (logN.@a8)
+                                     (∃ w0 : leibnizO Word, a8 ↦ₐ[p] w0 ∗ ▷ interp w0)))
+             -∗ ⟦ [a3, a4] ⟧ₒ) -∗
       (fixpoint interp1) (inr (p, l, b, e, a)) -∗
       (fixpoint interp1) (inr (p, l, b', e', a)).
   Proof.
-    intros. iIntros "Hinterp".
+    intros. iIntros "#IH Hinterp".
     repeat (rewrite fixpoint_interp1_eq).
     destruct p; simpl; auto; try congruence.
     - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
@@ -184,55 +208,89 @@ Section fundamental.
       inv H6. iExists gx, b', e', ax.
       iSplitR; auto.
       iExists p. iSplitR; auto.
-      iSplitL "H".
+      iDestruct "H" as "#H".
+      iDestruct "H'" as "#H'".
+      iSplitL.
       + destruct (Z_le_dec b' e').
         * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
           iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          iDestruct (big_sepL_app with "H2") as "[H3 H4]".
           auto.
         * replace (region_addrs b' e') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-      + iDestruct "H'" as "#H". iModIntro.
+      + iModIntro.
         rewrite /exec_cond.
-        iIntros. iDestruct ("H" $! a W r ltac:(eapply (within_in_range a bx b' ex e'); eauto)) as "HH".
-        iNext. iClear "H". rewrite /interp_expr /=.
-        rewrite /interp_conf.
-        (* exec_cond preservation for RX *)
-        admit.
+        iIntros. iNext. rewrite /interp_expr /=.
+        iExists _,_. iSplitR; auto. iSplitR; auto.
+        iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
+        iExists _, _, _, _, _. iSplitR; auto.
+        iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
+        rewrite /read_write_cond. iAlways.
+        iExists p. iSplitR; auto.
+        destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H3 H4]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
     - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
       iDestruct "H" as (p) "[% [H H']]".
       inv H6. iExists gx, b', e', ax.
       iSplitR; auto.
       iExists p. iSplitR; auto.
-      iSplitL "H".
+      iDestruct "H" as "#H".
+      iDestruct "H'" as "#H'".
+      iSplitL.
       + destruct (Z_le_dec b' e').
         * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
           iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
           auto.
         * replace (region_addrs b' e') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-      + iDestruct "H'" as "#H". iModIntro.
-        rewrite /exec_cond. (* same thing with RWX *) admit.
+      + iModIntro. rewrite /exec_cond.
+        iIntros. iNext. iApply fundamental_RWX.
+        iExists p. iSplitR; auto.
+        destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
     - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
       iDestruct "H" as (p) "[% [H H']]".
       inv H6. iExists gx, b', e', ax.
       iSplitR; auto.
       iExists p. iSplitR; auto.
-      iSplitL "H".
+      iDestruct "H" as "#H".
+      iDestruct "H'" as "#H'".
+      iSplitL.
       + destruct (Z_le_dec b' e').
         * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
           iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H2 H3]".
+          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
           auto.
         * replace (region_addrs b' e') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-      + iDestruct "H'" as "#H". iModIntro.
-        rewrite /exec_cond. (* same thing with RLWX *) admit.
-  Admitted.
+      + iModIntro. rewrite /exec_cond.
+        iIntros. iNext. iApply fundamental_RWLX.
+        iExists p. iSplitR; auto.
+        destruct (Z_le_dec b' e').
+        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
+          iDestruct (big_sepL_app with "H") as "[H1 H2]".
+          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
+          auto.
+        * replace (region_addrs b' e') with (nil: list Addr).
+          rewrite big_sepL_nil. auto.
+          unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
+  Qed.
 
   Lemma RX_Subseg_case:
     ∀ r a g M fs fr b e p' w dst (r1 r2: Z + RegName)
@@ -577,7 +635,7 @@ Section fundamental.
                         - subst x. rewrite /RegLocate lookup_insert.
                           iDestruct ("Hreg" $! dst a6) as "Hdst".
                           rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
-                          iApply (subseg_interp_preserved with "Hdst"); eauto.
+                          iApply (subseg_interp_preserved with "[Hdst IH]"); eauto.
                         - rewrite /RegLocate lookup_insert_ne; auto.
                           iApply "Hreg". auto. }
                   + destruct (perm_eq_dec p E).
@@ -638,7 +696,7 @@ Section fundamental.
                         - subst x. rewrite /RegLocate lookup_insert.
                           iDestruct ("Hreg" $! dst a6) as "Hdst".
                           rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
-                          iApply (subseg_interp_preserved with "Hdst"); eauto.
+                          iApply (subseg_interp_preserved with "[IH Hdst]"); eauto.
                         - rewrite /RegLocate lookup_insert_ne; auto.
                           destruct (reg_eq_dec r0 x).
                           + subst x. rewrite lookup_insert.
@@ -711,7 +769,7 @@ Section fundamental.
                               - subst x. rewrite /RegLocate lookup_insert.
                                 iDestruct ("Hreg" $! dst a6) as "Hdst".
                                 rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
-                                iApply (subseg_interp_preserved with "Hdst"); eauto.
+                                iApply (subseg_interp_preserved with "[IH Hdst]"); eauto.
                               - rewrite /RegLocate lookup_insert_ne; auto.
                                 destruct (reg_eq_dec r0 x).
                                 + subst x. rewrite lookup_insert.
@@ -771,7 +829,7 @@ Section fundamental.
                                   - subst x. rewrite /RegLocate lookup_insert.
                                     iDestruct ("Hreg" $! dst a5) as "Hdst".
                                     rewrite Hsomedst. apply isWithin_implies in H5. destruct H5.
-                                    iApply (subseg_interp_preserved with "Hdst"); eauto.
+                                    iApply (subseg_interp_preserved with "[IH Hdst]"); eauto.
                                   - rewrite /RegLocate lookup_insert_ne; auto.
                                     destruct (reg_eq_dec r0 x).
                                     + subst r0. rewrite /RegLocate lookup_insert.
@@ -833,7 +891,7 @@ Section fundamental.
                                       - subst x. rewrite /RegLocate lookup_insert.
                                         iDestruct ("Hreg" $! dst a6) as "Hdst".
                                         rewrite Hsomedst. apply isWithin_implies in H6. destruct H6.
-                                        iApply (subseg_interp_preserved with "Hdst"); eauto.
+                                        iApply (subseg_interp_preserved with "[IH Hdst]"); eauto.
                                       - rewrite /RegLocate lookup_insert_ne; auto.
                                         destruct (reg_eq_dec r0 x).
                                         + subst x. rewrite lookup_insert.
