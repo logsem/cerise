@@ -90,8 +90,7 @@ Section fundamental.
       (* iApply (RX_jnz_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *)
         admit. 
       + (* Mov *)
-      (* iApply (RX_Mov_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *)
-        admit. 
+        iApply (RX_Mov_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Load *)
         iApply (RX_Load_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. 
       + (* Store *)
@@ -108,7 +107,7 @@ Section fundamental.
       + (* Restrict *)
         iApply (RX_Restrict_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* Subseg *)
-        (* iApply (RX_Subseg_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto. *) admit. 
+        iApply (RX_Subseg_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* IsPtr *) 
         iApply (RX_IsPtr_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetL *)
