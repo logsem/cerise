@@ -468,7 +468,7 @@ Section fundamental.
                   - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
                     + subst r2. rewrite /RegLocate lookup_insert.
                       iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
-                      simpl. destruct (decodePermPair z). iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ H4); auto.
+                      simpl. destruct (decodePermPair z). iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ fundamental_RWX fundamental_RWLX H4); auto.
                     + rewrite /RegLocate lookup_insert_ne; auto.
                       iApply "Hreg"; auto. }
                 iApply ("IH" with "[Hfull'] [Hreg'] [Hmap] [HM] [Hsts] [Hcls']"); auto. }
@@ -515,7 +515,7 @@ Section fundamental.
                           + subst r2. rewrite /RegLocate lookup_insert.
                             iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
                             simpl. destruct (decodePermPair z).
-                            iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ H4); auto.
+                            iApply (PermPairFlows_interp_preserved _ _ _ _ _ _ _ fundamental_RWX fundamental_RWLX H4); auto.
                           + rewrite /RegLocate lookup_insert_ne; auto.
                             destruct (reg_eq_dec r0 r2).
                             * subst r2; rewrite lookup_insert. simpl.
