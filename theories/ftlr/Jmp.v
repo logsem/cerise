@@ -151,20 +151,24 @@ Section fundamental.
             rewrite /interp_expr /=.
             iDestruct "H" as "#H".
             iDestruct ("H" $! M.1 r) as "H'".
-            iNext. iMod ("Hcls" with "[Ha $Hown]") as "Hown"; auto.
+            iAssert (|==> match g' with Global => Exact_w wγ (M.1, true) | Local => Exact_w wγ M end)%I with "[HM]" as "HM".
+            { destruct M; destruct b0; destruct g'; auto.
+              simpl. iMod (RelW_public_to_private with "HM") as "[HM1 HM2]".
+              auto. }
+            iNext. iMod "HM" as "HM".
+            iMod ("Hcls" with "[Ha $Hown]") as "Hown"; auto.
             iDestruct "H'" as (fs fr) "[% [% HH]]".
             iDestruct ("HH" with "[HM Hsts Hmap Hown]") as "Hx"; iFrame; eauto.
             { inv H4. destruct M. simpl.
               destruct g'; simpl.
               - iFrame. iSplitR; auto.
-                destruct b0; auto.
-                iDestruct (RelW_public_to_private with "HM") as "HM".
-                (* Need to remove the basic update modality :( *) admit.
               - iFrame. iSplitR; auto.
-                (* That part with Exact_w and possibly different locality *)
+                destruct b0; auto.
+                (* We have M = (W, global) and we have an (E, local) capability
+                   Can't convert global to local ? *)
                 admit. }
             iDestruct "Hx" as (px gx bx ex ax) "[% Hx]".
-            inv H6; auto. (* Hmmmmm *) admit.
+            inv H6; destruct gx; simpl; auto.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iNext. iNext. iIntros "HPC /=".
