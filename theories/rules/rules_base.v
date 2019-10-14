@@ -7,8 +7,7 @@ From iris.algebra Require Import frac auth.
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
   mem_invG : invG Σ;
-  mem_gen_memG :> gen_heapG Addr Word Σ;
-  cap_γ : gname; }.
+  mem_gen_memG :> gen_heapG Addr Word Σ}.
 
 (* CMRA for registers *)
 Class regG Σ := RegG {
@@ -204,10 +203,6 @@ Section World.
   Defined.
 
 End World. 
-  
-(* Points to predicates for memory *)
-Notation "a ↦ₐ [ p ] w" := (MonRefMapsto a cap_γ (w,p))
-  (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
 
 Definition logN : namespace := nroot .@ "logN".
 
@@ -286,30 +281,50 @@ Section cap_lang_rules.
   
 
   (* --------------------------- CAPABILITY PREDICATE ------------------------------- *)
+  (* Points to predicates for memory *)
+  Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
+             (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+
   Lemma gen_heap_valid_cap
         (σ : gmap Addr Word) (a : Addr) (w : Word) (p : Perm) :
     p ≠ O →
     gen_heap_ctx σ -∗ a ↦ₐ[p] w -∗ ⌜σ !! a = Some w⌝.
   Proof.
+    iIntros (Hne) "Hσ Ha".
+    iDestruct "Ha" as (γ_cap) "Ha".
     rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
-    iIntros (Hne) "Hσ (Hex & Hal & [Ha | %])"; [|contradiction].
+    iDestruct "Ha" as "(Hex & Hal & [Ha | %])"; [|contradiction]. 
     iApply (gen_heap_valid with "Hσ Ha"). 
   Qed.
 
+  Lemma cap_duplicate_false a p p' w w' :
+    p ≠ O ∧ p' ≠ O →
+    a ↦ₐ[p] w ∗ a ↦ₐ[p'] w' -∗ False.
+  Proof. 
+    iIntros ([Hne1 Hne2]) "[Ha1 Ha2]".
+    iDestruct "Ha1" as (γ1) "Ha1".
+    iDestruct "Ha2" as (γ2) "Ha2".
+    do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
+    iDestruct "Ha1" as "(_ & _ & [Ha | %])"; [|contradiction]. 
+    iDestruct "Ha2" as "(_ & _ & [Ha' | %])"; [|contradiction]. 
+    iDestruct (mapsto_valid_2 with "Ha Ha'") as %Hcontr. done. 
+  Qed. 
+    
   Lemma cap_restrict (a : Addr) (w : Word) (p p' : Perm) :
     PermFlows p' p →
     a ↦ₐ[p] w ==∗ a ↦ₐ[p'] w.
   Proof.
+    iIntros (Hfl) "Ha".
+    iDestruct "Ha" as (γ_cap) "Ha". iExists (γ_cap). 
     do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
-    iIntros (Hf) "(Hex & Hal & Ha)".
-    iFrame.
+    iDestruct "Ha" as "(Hex & Hal & Ha)".
     iMod (MonRef_update (A:=A) with "Hex") as "[HE HFr']"; eauto.
     right with (w,p');[|left].
     constructor; auto.
     iFrame.
     iDestruct "Ha" as "[Ha | %]".
     - iLeft. by iFrame.
-    - rewrite H2 in Hf. destruct p'; inversion Hf.
+    - rewrite H2 in Hfl. destruct p'; inversion Hfl.
       by iRight. 
   Qed.
 
@@ -318,8 +333,10 @@ Section cap_lang_rules.
     PermFlows (LeastPermUpd w') p →
     gen_heap_ctx σ -∗ a ↦ₐ[p] w ==∗ gen_heap_ctx (<[a:=w']> σ) ∗ a ↦ₐ[p] w'.
   Proof.
+    iIntros (Ho Hf) "Hσ Ha". 
+    iDestruct "Ha" as (γ_cap) "Ha". iApply bi.sep_exist_l. iExists γ_cap. 
     do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
-    iIntros (Ho Hf) "Hσ (Hex & Hal & [Ha | %])"; [|contradiction].
+    iDestruct "Ha" as "(Hex & Hal & [Ha | %])"; [|contradiction].
     iMod (MonRef_update (A:=A) with "Hex") as "[$ $]"; eauto.
     { right with (w',p); [|left]. by constructor. }
     by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
@@ -424,3 +441,7 @@ Section cap_lang_rules.
   Qed.
 
 End cap_lang_rules.
+
+(* Points to predicates for memory *)
+Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
+  (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.  

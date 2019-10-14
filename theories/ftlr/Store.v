@@ -4,13 +4,17 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ,
-            logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
+            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
+            Heap: heapG Σ}.
+
+  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Implicit Types W : WORLD.
+
+  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
+  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
-  Implicit Types interp : D.
+  Implicit Types interp : (D).
 (*
   Lemma RX_Store_case:
     ∀ E0 r a g fs fr b e p' w dst src

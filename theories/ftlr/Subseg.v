@@ -4,15 +4,19 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base. 
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ,
-            logrel_na_invs Σ,
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            World: MonRefG (leibnizO _) RelW Σ}.
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
-  Implicit Types w : (leibnizO Word).
-  Implicit Types interp : D.
+            Heap: heapG Σ}.
 
+  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Implicit Types W : WORLD.
+
+  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
+  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
+  Implicit Types w : (leibnizO Word).
+  Implicit Types interp : (D).
+
+  (*
   Lemma leb_addr_spec:
     forall a1 a2,
       reflect (le_addr a1 a2) (leb_addr a1 a2).
@@ -928,6 +932,6 @@ Section fundamental.
                 iNext. iApply wp_value; auto. iIntros; discriminate. } }
       Unshelve.
       assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption. assumption.
-  Qed.
+  Qed.*)
 
 End fundamental.
