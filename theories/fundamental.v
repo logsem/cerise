@@ -78,8 +78,7 @@ Section fundamental.
       + (* Load *)
         iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. 
       + (* Store *)
-      (* iApply (RX_Store_case with "[] [] [] [] [] [] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.  *)
-        admit. 
+        iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* Lt *)
         iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* Add *)
@@ -93,17 +92,17 @@ Section fundamental.
       + (* Subseg *)
         iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* IsPtr *) 
-        iApply (RX_IsPtr_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (isptr_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetL *)
-        iApply (RX_getL_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (getL_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetP *)
-        iApply (RX_getP_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetB *)
-        iApply (RX_getB_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (getB_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetE *)
-        iApply (RX_getE_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (getE_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetA *)
-        iApply (RX_getA_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (getA_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -113,31 +112,30 @@ Section fundamental.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=". 
-        iMod ("Hcls" with "[Ha Hown]") as "Hown".
-        { iFrame. iNext. iExists _; iFrame. auto. }
+        iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
         rewrite insert_insert. iNext. iIntros (_). 
-        iExists (<[PC:=inr (RX, g, b, e, a)]> r),fs,_. iFrame.
+        iExists (<[PC:=inr (p, g, b, e, a)]> r),fs,_. iFrame.
         iAssert (⌜related_sts_priv fs fs fr fr⌝)%I as "#Hrefl". 
         { iPureIntro. apply related_sts_priv_refl. }
         iFrame "#".
-        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (RX, g, b, e, a)]> r !! r0)⌝)%I as "HA".
+        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, g, b, e, a)]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
           - subst r0; rewrite lookup_insert; eauto.
           - rewrite lookup_insert_ne; auto. }            
         iFrame.
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-       first apply (lookup_insert _ _ (inr (RX, g, b, e, a))). 
+       first apply (lookup_insert _ _ (inr (p, g, b, e, a))). 
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Admitted.
+  Qed.
     
       
 End fundamental. 
