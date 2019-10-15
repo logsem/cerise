@@ -63,6 +63,8 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\usepackage{xcolor}
 \usepackage{graphicx} % need this package
 \usepackage{stmaryrd}
 \usepackage{amsthm}
@@ -87,6 +89,27 @@
     
 \newcommand{\interp}[2]{(#1)(#2)}
 \newcommand\sepimp{\mathrel{-\mkern-6mu*}}
+
+\usetikzlibrary{decorations.pathreplacing}
+
+\newcommand\MemoryLayout[1]{
+  \begin{tikzpicture}[scale=0.3]
+     \draw[thick](0,0)--++(0,1);
+     \foreach \pt/\col/\lab [remember=\pt as \tp (initially 0)] in {#1} {
+     \if\lab\relax\relax\else
+         \draw[thick,decorate, decoration={brace,amplitude=4mm}]
+            (-\tp,-0.2)--node[below=4mm]{\lab} (-\pt+2,-0.2);
+            \draw[fill=\col] (-\tp,0) rectangle (-\pt+2,1);
+       \fi
+       \foreach \a in {\tp,...,\pt} {
+          \draw(-\a,0) rectangle ++(-1,1);
+       }
+       \draw[thick](-\pt,0)--++(0,1);
+       
+     }
+     \node at (-4.5,0.6) {\small B};
+  \end{tikzpicture}
+}
 
 \begin{document}
 
@@ -203,42 +226,34 @@ Text of abstract \ldots.
 
 \section{Introduction}
 
-Text of paper \ldots
+Part of showing full abstraction consists of showing that the expressive power of a compiled program, is exactly the expressive power as the source program. This becomes a challenge when the expressive power of the target language is bigger than the expressive power of the source language. 
 
-\section{Iris Primer}
-??
+Take for instance the compilation from a high level functional language, to a low level machine language. Certain high level abstractions are taken for granted by the high level language, such as local state encapsulation and well bracketed control flow. At the lowest level, a machine may allow arbitrary jumps to instructions in memory, and arbitrarily manipulate pointers to access any local state otherwise hidden by the top level abstraction. It must therefore be up to the compiler to enforce such abstractions, if we want to show secure compilation. 
+
+Capability Machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce the high level abstractions mentioned above. 
+
+In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step indexed Kripke Logical Relation to define a notion of capability safety. However, such logical relations are notoriously difficult to reason about \cite{Ahmed2004SemanticsOT}. A formalization of these definitions into a proof assistant could facilitate such reasoning, and enable easier exploration of extensions and variations to the language.
+
+Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality enables elegant Iris definitions of step-indexed logical relations \cite{Krebbers:2017} \cite{Timany:2017}. 
+
+The work in process formalization will make the following contributions: 
+\begin{itemize}
+	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely statefull. 
+	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
+\end{itemize} 
+
 
 \section{Iris Embedding of a Capability Machine}
-The setting: we want to show full abstraction from a high level language, to a low level capability machine. Some basic properties of a high level language: local state encapsulation of well bracketed control flow. These are not natively enforced by a capability machine. When calling an adversary, any guarantees will depend on the calling convention the compiler implements. For LSE, the calling convention should ensure that no passed capability give authority over local state. For WBCR, the situation is more subtle. Skorstensgaard et. al. give detailed explanations of multiple control flow attacks that would happen with a naive calling conventions. 
+The first step of formalizing the logical relation, is to embed the capability machine language into Iris. We want a formalization which can be used to show full abstraction from a high level language, to a low level capability machine. We are interested in the case where the target language does not natively enforce certain basic abstractions of a high level language: local state encapsulation of well bracketed control flow. With this goal in mind, it is important not to \textit{accidentally} formalize a language where certain control flow abstractions are still enforced, such as implementing the language using frames and labels. Rather, we are interested in reasoning about a language with arbitrary jumps, and (almost) arbitrary capability manipulations (within its given range of authority). 
 
-With these goals in mind, it is important not to \textit{accidentally} formalize a language where certain control flow abstractions are enforced. We also want to be as architecture independent as possible. This we are interested in allowing: arbitrary jumps, and (almost) arbitrary capability manipulations (within the given range of authority). 
-
-Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation \textit{is nothing but} state manipulation. 
-
-Machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. A jump now simply consist of a store into the program counter itself. 
+Machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. A jump now simply consist of a store into the program counter itself. Strictly speaking, such a language does have expressions, rather it executes given the configurations: the state of registers and the state of memory. 
 
 \section{Logical Relation}
-It is well know that defining and reasoning about logical relations for languages with higher-order store, due to the so called World-circularity problem \cite{amal}. 
-
-\subsection{Definition of the Logical Relation}
-The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation}) describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstensgaard}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$ (we will later discuss what the World is). We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
-
-The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates Words to the notion of program capability safety, where the word in question will be the program counter state.
-
-\subsection{The Context}
-In the expression relation, the \textsf{context} contains the ghost resources necessary to run a program pointed to by the program counter. When the program has finished running, ownership of these resources is given back. To start out, the running program gets full ownership of all machine registers. A ghost register will be represented by the full ownership of the map from RegName to Word. We write 
-$$ r \mapsto_r w$$
-to indicate that registers r currently contains the word w. The context will contain such a statement for each register in the register map. 
-
-A program may also need the ghost resources for the pieces of memory it has authority over. 
-
-\subsection{The World}
-
 \begin{figure*}[ht]
 	\begin{minipage}{\textwidth}
 	\begin{align*}
 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~\textsf{context}(W)(r[\textsf{\small PC}:=pc])\\
-		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\{ v, v = HaltedV \implies \exists W' r', \textsf{context}(W')(r')\}
+		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W * \textsf{context}(W')(r')\}
 	\end{align*}
 	\end{minipage}
 	\label{fig:expr}
@@ -301,12 +316,37 @@ A program may also need the ghost resources for the pieces of memory it has auth
 	\end{align*}
 	\end{minipage}
 	\\[2em]
-	where $(\sigma',\rho_{pub}',\rho_{priv}') \sqsubseteq^{\tiny Global} (\sigma,\rho_{pub},\rho_{priv}) = (\sigma',\rho_{priv}') \sqsubseteq (\sigma,\rho_{priv})$\\ and 
-	$(\sigma',\rho_{pub}',\rho_{priv}') \sqsubseteq^{\tiny Local} (\sigma,\rho_{pub},\rho_{priv}) = (\sigma',\rho_{pub}') \sqsubseteq (\sigma,\rho_{pub}))$
+	where $W' \sqsubseteq^{\tiny Global} W \iff W' \sqsubseteq_{priv} W$\\ and 
+	$W' \sqsubseteq^{\tiny Local} W \iff W' \sqsubseteq_{pub} W$	
 	
 	\label{fig:condition}
 	\caption{Capability Conditions}
 \end{figure*}
+
+\subsection{Definition of the Logical Relation}
+The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation}) describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, in which the authors define a capability machine with Local capabilities, which imposes certain restrictions on where to store such capabilities. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state, and a Word can be an integer of a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
+
+The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates Words to the notion of program capability safety, where the word in question will be the program counter state.
+
+\subsection{The Context}
+In the expression relation, the \textsf{context} contains the ghost resources necessary to run a program pointed to by the program counter. When the program has finished running, ownership of these resources is given back. To start out, the running program gets full ownership of all machine registers. A ghost register will be represented by the full ownership of the map from RegName to Word. We write 
+$$ r \mapsto_r w$$
+to indicate that registers r currently contains the word w. The context will contain such a statement for each register in the register map. 
+
+A program may also need the ghost resources for the pieces of memory it has authority over. However, we want to respect the principle of least privilege. A program should only be able to gain ownership over the ghost resources for memory pointed to by a capability. Say a register contains a capability A. Consider the following memory layout.
+
+\begin{center}
+\MemoryLayout{
+    12/blue!30!/A,
+    21/blue!30!/B\relax
+  }
+\end{center}
+
+In that case, the program may have authority over the region given by A, as well as the region given by B. However if no other capabilities are given, the program should not be given access to the ghost resources denoted by the white regions. 
+
+One way to enforce this, is to define the value relation of a capability as an invariant containing the resources for its range of authority, which at the same time guarantees that all the words that these words point to are also valid. However, as the name indicates, an invariant can never change. This is not a problem when the only variant is the current state of a location. In this case however, the value relation is indexed over a particular \textit{World}. This World will capture the behaviour of local state. The validity of an executable capability will consider any possible future world. This becomes crucial when showing safety of programs that depend on well bracketed control flow. 
+
+\subsection{The World}
 
 
 %% Acknowledgments
@@ -327,8 +367,8 @@ A program may also need the ghost resources for the pieces of memory it has auth
 \end{acks}
 
 
-%% Bibliography
-%\bibliography{bibfile}
+% Bibliography
+\bibliography{reading_list}
 
 
 %% Appendix
