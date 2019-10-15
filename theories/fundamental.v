@@ -91,7 +91,7 @@ Section fundamental.
       + (* Restrict *)
         iApply (restrict_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* Subseg *)
-        iApply (RX_Subseg_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
+        iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* IsPtr *) 
         iApply (RX_IsPtr_case with "[] [] [] [] [] [HM] [Hsts] [Ha] [Hown] [Hcls] [HPC] [Hmap]"); eauto.
       + (* GetL *)
