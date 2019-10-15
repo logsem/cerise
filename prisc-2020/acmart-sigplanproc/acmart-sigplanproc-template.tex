@@ -213,7 +213,7 @@ The setting: we want to show full abstraction from a high level language, to a l
 
 With these goals in mind, it is important not to \textit{accidentally} formalize a language where certain control flow abstractions are enforced. We also want to be as architecture independent as possible. This we are interested in allowing: arbitrary jumps, and (almost) arbitrary capability manipulations (within the given range of authority). 
 
-Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation \textit{is} state manipulation. 
+Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation \textit{is nothing but} state manipulation. 
 
 Machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. A jump now simply consist of a store into the program counter itself. 
 
@@ -221,16 +221,18 @@ Machine instructions operate through memory. Typically a machine will have a spe
 It is well know that defining and reasoning about logical relations for languages with higher-order store, due to the so called World-circularity problem \cite{amal}. 
 
 \subsection{Definition of the Logical Relation}
-The logical relation is a unary relation that relates a word to  \textit{capability safety} (fig. \ref{fig:relation}). The definition is the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstensgaard}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$ (we will later discuss what the World type is). We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
+The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation}) describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstensgaard}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$ (we will later discuss what the World is). We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
 
 The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates Words to the notion of program capability safety, where the word in question will be the program counter state.
 
-\subsection{The Iris Implementation of the Context}
+\subsection{The Context}
 In the expression relation, the \textsf{context} contains the ghost resources necessary to run a program pointed to by the program counter. When the program has finished running, ownership of these resources is given back. To start out, the running program gets full ownership of all machine registers. A ghost register will be represented by the full ownership of the map from RegName to Word. We write 
 $$ r \mapsto_r w$$
 to indicate that registers r currently contains the word w. The context will contain such a statement for each register in the register map. 
 
 A program may also need the ghost resources for the pieces of memory it has authority over. 
+
+\subsection{The World}
 
 \begin{figure*}[ht]
 	\begin{minipage}{\textwidth}
