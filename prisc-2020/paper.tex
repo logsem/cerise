@@ -71,6 +71,10 @@
 \usepackage{dsfont}
 \usepackage{float}
 \usepackage{IEEEtrantools}
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+\presetkeys%
+    {todonotes}%
+    {inline,backgroundcolor=orange}{}
 
 \newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
 \newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
@@ -111,7 +115,8 @@
   \end{tikzpicture}
 }
 
-\newcommand\world{\emph{World}}
+\def\world{\emph{World}}
+\def\word{\emph{Word}}
 
 \begin{document}
 
@@ -242,9 +247,11 @@ In order to give a logical account of the logical relation, we must first define
 
 A high level language will typically have expressions, that may reduce to an expression or a value. On the other hand, machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
 
+\todo{Alix: Add a sentence to say that we artificially add expressions to fit into the framework, but the operational semantics is equivalent to the standard one}
 Strictly speaking, a machine does not have expressions. Rather the small step semantics are defined over machine configurations, and we want the program logic to illustrate that. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
 $$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p] w $$
 
+\todo{Alix: We don't really see the weakest precondition in this example, shouldn't we say Hoare triple instead?}
 Iris defines the program logic rules as weakest precondition rules. Similar to \cite{Jensen:2013}, the program logic rules for each instruction will be of the following form: 
 \begin{align*}
 \small
@@ -253,7 +260,7 @@ Iris defines the program logic rules as weakest precondition rules. Similar to \
 	\textsf{Instr Executable }\\
 	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
 \end{align*} 
-Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textit{Instr Executable} is a flag indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
+Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is a flag \todo{Alix: (an artificial expression)} indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
 \begin{figure*}[ht]
@@ -331,11 +338,12 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 \end{figure*}
 
 \subsection{Definition of the Logical Relation}
-The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation} describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, in which the authors define a capability machine with Local capabilities, which imposes certain restrictions on where to store such capabilities. The value relation $\mathcal{V}$ is an Iris relation of type $\world \to \emph{Word} \to \emph{iProp}$, where the World is a collection of state transition systems used to reason about local state, and a Word can be an integer of a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
+The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation} describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, in which the authors define a capability machine with so-called \emph{local} capabilities, which imposes certain restrictions on where to store such capabilities. The value relation $\mathcal{V}$ is an Iris relation of type $\world \to \word \to \emph{iProp}$, where \world{} is a collection of state transition systems used to reason about local states\todo{Alix: explain local as in local to a function call}, and a Word can be an integer of a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
 
-The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates Words to the notion of program capability safety, where the word in question will be the program counter state.
+The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates words to the notion of program capability safety, where the word in question is pointed to by the program counter.
 
 \subsection{The Context}
+\todo{Everything ghost might be too much of a Iris'sm ?}
 In the expression relation, the \textsf{context} contains the ghost resources necessary to run a program pointed to by the program counter. When the program has finished running, ownership of these resources is given back. To start out, the running program gets full ownership of all machine registers. A ghost register will be represented by the full ownership of the map from RegName to Word. We write 
 $$ r \mapsto_r w$$
 to indicate that registers r currently contains the word w. The context will contain such a statement for each register in the register map. 
@@ -351,7 +359,7 @@ A program may also need the ghost resources for the pieces of memory it has auth
 
 In that case, the program may have authority over the region given by A, as well as the region given by B. However if no other capabilities are given, the program should not be given access to the ghost resources denoted by the white regions. 
 
-One way to enforce this, is to define the value relation of a capability as an invariant containing the resources for its range of authority, which at the same time guarantees that all the words that these words point to are also valid. However, as the name indicates, an invariant can never change. This is not a problem when the only variant is the current state of a location. In this case however, the value relation is indexed over a particular \textit{World}. This World will capture the behaviour of local state. The validity of an executable capability will consider any possible future world. This becomes crucial when showing safety of programs that depend on well bracketed control flow. 
+One way to enforce this, is to define the value relation of a capability as an invariant containing the resources for its range of authority, which at the same time guarantees that all the words that these words point to are also valid. However, as the name indicates, an invariant can never change. This is not a problem when the only variant is the current state of a location. In this case however, the value relation is indexed over a particular \world. This World will capture the behaviour of local state. The validity of an executable capability will consider any possible future world. This becomes crucial when showing safety of programs that depend on well bracketed control flow. 
 
 \subsection{The World}
 
