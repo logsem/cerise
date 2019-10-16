@@ -111,6 +111,8 @@
   \end{tikzpicture}
 }
 
+\newcommand\world{\emph{World}}
+
 \begin{document}
 
 %% Title information
@@ -139,9 +141,9 @@
 
 %% Author with single affiliation.
 \author{A{\"i}na Linn Georges}
-\authornote{with author1 note}          %% \authornote is optional;
+%\authornote{with author1 note}          %% \authornote is optional;
                                         %% can be repeated if necessary
-\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
 \affiliation{
   %\position{Position1}
   %\department{Department1}              %% \department is recommended
@@ -156,9 +158,9 @@
 
 
 \author{Lars Birkedal}
-\authornote{with author2 note}          %% \authornote is optional;
+%\authornote{with author2 note}          %% \authornote is optional;
                                         %% can be repeated if necessary
-\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
 \affiliation{
   %\position{Position2a}
   %\department{Department2a}             %% \department is recommended
@@ -177,7 +179,7 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-  Capability Machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as control-flow integrity (CFI) and local state encapsulation (LSE).
+  Capability machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as control-flow integrity (CFI) and local state encapsulation (LSE).
   We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including CFI and LSE.
   Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, which can used to prove CFI and LSE.
 \end{abstract}
@@ -219,9 +221,9 @@
 
 \section{Introduction}
 
-Showing full abstraction consists of showing that the expressive power of a compiled programs is exactly that of the source program. Most often, the source language will enforce certain high level abstractions, not enforced in the target language. Capability Machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce such high level abstractions. 
+Showing full abstraction consists of showing that the expressive power of a compiled programs is exactly that of the source program. Most often, the source language will enforce certain high level abstractions, not enforced in the target language. Capability machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce such high level abstractions. 
 
-In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step indexed Kripke Logical Relation to define a notion of capability safety. 
+In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step-indexed Kripke logical relation to define a notion of capability safety. 
 
 However, such logical relations are notoriously difficult to construct, due to the so-called World circularity problem \cite{Ahmed2004SemanticsOT}. This challenge has been addressed by giving a logical account of the relation, thus raising the level of abstraction 
 \cite{Krogh-Jespersen2017} \cite{dreyer_neis_birkedal_2012}. Such logical accounts have typically been for logical relations of typed high level languages. We show how to give a logical account of an untyped low level language. 
@@ -230,7 +232,7 @@ Iris is a higher-order concurrent separation logic framework. Its support of hig
 
 We have formalized the unary logical relation defined in \cite{skorstengaardESOP18} in Iris. The formalization makes the following contributions: 
 \begin{itemize}
-	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely statefull. 
+	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely stateful. 
 	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
 \end{itemize} 
 
@@ -261,8 +263,8 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W * \textsf{context}(W')(r')\}
 	\end{align*}
 	\end{minipage}
-	\label{fig:expr}
 	\caption{Logical Relation for Expressions}
+	\label{fig:expr}
 \end{figure*}
 
 \begin{figure*}[ht]
@@ -271,8 +273,8 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 		\mathcal{R}\interp{W}{r} \triangleq&~\forall (reg : \text{RegName} \backslash \textsf{PC}), \mathcal{V}\interp{W}{r(reg)}
 	\end{align*}
 	\end{minipage}
-	\label{fig:expr}
 	\caption{Logical Relation for Register States}
+	\label{fig:regs}
 \end{figure*}
 
 \begin{figure*}[ht]
@@ -307,8 +309,8 @@ Where the run time conditions correspond to the dynamic checks done by the capab
  		\mathcal{V}\interp{W}{((\text{\tiny{E}},g),b,e,a)} \triangleq&~\square~\textsf{enter\_cond}(W)(\textsf{g,b,e,a})
 	\end{align*}
 	\end{minipage}
-	\label{fig:relation}
 	\caption{Logical Relation for Words}
+	\label{fig:relation}
 \end{figure*}
 
 
@@ -324,12 +326,12 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 	where $W' \sqsubseteq^{\tiny Global} W \iff W' \sqsubseteq_{priv} W$\\ and 
 	$W' \sqsubseteq^{\tiny Local} W \iff W' \sqsubseteq_{pub} W$	
 	
-	\label{fig:condition}
 	\caption{Capability Conditions}
+	\label{fig:condition}
 \end{figure*}
 
 \subsection{Definition of the Logical Relation}
-The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation}) describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, in which the authors define a capability machine with Local capabilities, which imposes certain restrictions on where to store such capabilities. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state, and a Word can be an integer of a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
+The logical relation is a unary relation that relates a word to  \textit{capability safety}. Figure \ref{fig:relation} describes the Iris implementation of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, in which the authors define a capability machine with Local capabilities, which imposes certain restrictions on where to store such capabilities. The value relation $\mathcal{V}$ is an Iris relation of type $\world \to \emph{Word} \to \emph{iProp}$, where the World is a collection of state transition systems used to reason about local state, and a Word can be an integer of a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
 
 The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. Strictly speaking, there are no "expressions" in such a machine language. Instead, the expression relation relates Words to the notion of program capability safety, where the word in question will be the program counter state.
 
