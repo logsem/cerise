@@ -1,5 +1,5 @@
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
@@ -114,14 +114,15 @@
 \begin{document}
 
 %% Title information
-\title[Short Title]{Full Title}         %% [Short Title] is optional;
+\title[Short Title]{Mechanized Reasoning about a Capability Machine}
+%% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
-\titlenote{with title note}             %% \titlenote is optional;
+%\titlenote{with title note}             %% \titlenote is optional;
                                         %% can be repeated if necessary;
                                         %% contents suppressed with 'anonymous'
-\subtitle{Subtitle}                     %% \subtitle is optional
-\subtitlenote{with subtitle note}       %% \subtitlenote is optional;
+%\subtitle{Subtitle}                     %% \subtitle is optional
+%\subtitlenote{with subtitle note}       %% \subtitlenote is optional;
                                         %% can be repeated if necessary;
                                         %% contents suppressed with 'anonymous'
 
@@ -149,7 +150,7 @@
   %\city{City1}
   %\state{State1}
   %\postcode{Post-Code1}
-  \country{Country1}                    %% \country is recommended
+  %\country{Denmark}                    %% \country is recommended
 }
 \email{ageorges@cs.au.dk}          %% \email is recommended
 
@@ -166,44 +167,19 @@
   %\city{City2a}
   %\state{State2a}
   %\postcode{Post-Code2a}
-  %\country{Country2a}                   %% \country is recommended
+  %\country{Denmark}                   %% \country is recommended
 }
 \email{birkedal@cs.au.dk}         %% \email is recommended
 
-% %% Author with two affiliations and emails.
-% \author{Lars Birkedal}
-% \authornote{with author2 note}          %% \authornote is optional;
-%                                         %% can be repeated if necessary
-% \orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
-% \affiliation{
-%   %\position{Position2a}
-%   %\department{Department2a}             %% \department is recommended
-%   \institution{Aarhus University}           %% \institution is required
-%   %\streetaddress{Street2a Address2a}
-%   %\city{City2a}
-%   %\state{State2a}
-%   %\postcode{Post-Code2a}
-%   %\country{Country2a}                   %% \country is recommended
-% }
-% \email{birkedal@cs.au.dk}         %% \email is recommended
-% \affiliation{
-%   \position{Position2b}
-%   \department{Department2b}             %% \department is recommended
-%   \institution{Institution2b}           %% \institution is required
-%   \streetaddress{Street3b Address2b}
-%   \city{City2b}
-%   \state{State2b}
-%   \postcode{Post-Code2b}
-%   \country{Country2b}                   %% \country is recommended
-% }
-% \email{first2.last2@inst2b.org}         %% \email is recommended
 
 
 %% Abstract
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-Text of abstract \ldots.
+  Capability Machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as control-flow integrity (CFI) and local state encapsulation (LSE).
+  We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including CFI and LSE.
+  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, which can used to prove CFI and LSE.
 \end{abstract}
 
 
@@ -373,14 +349,18 @@ One way to enforce this, is to define the value relation of a capability as an i
   %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
   %% acknowledge financial support and will be used by metadata
   %% extraction tools.
-  This material is based upon work supported by the
-  \grantsponsor{GS100000001}{National Science
-    Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
-  No.~\grantnum{GS100000001}{nnnnnnn} and Grant
-  No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
-  conclusions or recommendations expressed in this material are those
-  of the author and do not necessarily reflect the views of the
-  National Science Foundation.
+
+  This research was supported in part by the ModuRes Sapere Aude Advanced Grant from The Danish Council for Independent Research for the Natural Sciences (FNU) and by a Villum Investigator grant (no.
+  25804), Center for Basic Research in Program Verification (CPV), from the VILLUM Foundation.
+  
+  % This material is based upon work supported by the
+  % \grantsponsor{GS100000001}{National Science
+  %   Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
+  % No.~\grantnum{GS100000001}{nnnnnnn} and Grant
+  % No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
+  % conclusions or recommendations expressed in this material are those
+  % of the author and do not necessarily reflect the views of the
+  % National Science Foundation.
 \end{acks}
 
 
