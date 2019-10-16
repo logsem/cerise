@@ -2,6 +2,7 @@
 -arg -w -arg -several-object-files
 theories/monocmra.v
 theories/mono_ref.v
+theories/monotone.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v

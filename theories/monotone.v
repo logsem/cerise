@@ -11,7 +11,7 @@ Section monotone.
 
   Lemma interp_monotone W W' w :
     (⌜related_sts_pub W.1 W'.1 W.2 W'.2⌝ →
-    𝕍(W) w -∗ 𝕍(W') w)%I. 
+    interp W w -∗ interp W' w)%I. 
   Proof.
     iIntros (Hrelated) "#Hw".
     rewrite /interp /= fixpoint_interp1_eq /=. 
@@ -101,7 +101,7 @@ Section monotone.
   Lemma region_monotone W W' :
     (⌜related_sts_pub W.1 W'.1 W.2 W'.2⌝ → region W -∗ region W')%I.
   Proof.
-    iIntros (Hrelated) "HW".
+    iIntros (Hrelated) "HW". rewrite region_eq. 
     iDestruct "HW" as (M) "[HM Hmap]". 
     iExists (M). iFrame.
     iApply big_sepM_mono; iFrame. 
