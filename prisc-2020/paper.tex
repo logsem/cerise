@@ -219,27 +219,39 @@
 
 \section{Introduction}
 
-Part of showing full abstraction consists of showing that the expressive power of a compiled program, is exactly the expressive power as the source program. This becomes a challenge when the expressive power of the target language is bigger than the expressive power of the source language. 
+Showing full abstraction consists of showing that the expressive power of a compiled programs is exactly that of the source program. Most often, the source language will enforce certain high level abstractions, not enforced in the target language. Capability Machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce such high level abstractions. 
 
-Take for instance the compilation from a high level functional language, to a low level machine language. Certain high level abstractions are taken for granted by the high level language, such as local state encapsulation and well bracketed control flow. At the lowest level, a machine may allow arbitrary jumps to instructions in memory, and arbitrarily manipulate pointers to access any local state otherwise hidden by the top level abstraction. It must therefore be up to the compiler to enforce such abstractions, if we want to show secure compilation. 
+In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step indexed Kripke Logical Relation to define a notion of capability safety. 
 
-Capability Machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce the high level abstractions mentioned above. 
+However, such logical relations are notoriously difficult to construct, due to the so-called World circularity problem \cite{Ahmed2004SemanticsOT}. This challenge has been addressed by giving a logical account of the relation, thus raising the level of abstraction 
+\cite{Krogh-Jespersen2017} \cite{dreyer_neis_birkedal_2012}. Such logical accounts have typically been for logical relations of typed high level languages. We show how to give a logical account of an untyped low level language. 
 
-In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step indexed Kripke Logical Relation to define a notion of capability safety. However, such logical relations are notoriously difficult to reason about \cite{Ahmed2004SemanticsOT}. A formalization of these definitions into a proof assistant could facilitate such reasoning, and enable easier exploration of extensions and variations to the language.
+Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality, and other logical features of Iris, is enough to define these step-indexed logical relations\cite{Timany:2017} \cite{Jung:2017} \cite{timany2019}. Additionally, we can take advantage of the Iris proof mode \cite{Krebbers:2017} for an interactive proof style in Coq. 
 
-Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality enables elegant Iris definitions of step-indexed logical relations \cite{Krebbers:2017} \cite{Timany:2017}. 
-
-The work in process formalization will make the following contributions: 
+We have formalized the unary logical relation defined in \cite{skorstengaardESOP18} in Iris. The formalization makes the following contributions: 
 \begin{itemize}
 	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely statefull. 
 	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
 \end{itemize} 
 
 
-\section{Iris Embedding of a Capability Machine}
-The first step of formalizing the logical relation, is to embed the capability machine language into Iris. We want a formalization which can be used to show full abstraction from a high level language, to a low level capability machine. We are interested in the case where the target language does not natively enforce certain basic abstractions of a high level language: local state encapsulation of well bracketed control flow. With this goal in mind, it is important not to \textit{accidentally} formalize a language where certain control flow abstractions are still enforced, such as implementing the language using frames and labels. Rather, we are interested in reasoning about a language with arbitrary jumps, and (almost) arbitrary capability manipulations (within its given range of authority). 
+\section{The Program Logic of a Capability Machine}
+In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. However, the framework was designed with high level languages in mind. Embedding a language requires a definition of the expressions, the values, the state and the small step semantics. 
 
-Machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. A jump now simply consist of a store into the program counter itself. Strictly speaking, such a language does have expressions, rather it executes given the configurations: the state of registers and the state of memory. 
+A high level language will typically have expressions, that may reduce to an expression or a value. On the other hand, machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
+
+Strictly speaking, a machine does not have expressions. Rather the small step semantics are defined over machine configurations, and we want the program logic to illustrate that. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
+$$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p] w $$
+
+Iris defines the program logic rules as weakest precondition rules. Similar to \cite{Jensen:2013}, the program logic rules for each instruction will be of the following form: 
+\begin{align*}
+\small
+	\textit{run time conditions } \wedge &\textit{ decode}(w) = instr \Rightarrow  \\
+	\{\{\{ \textsf{PC} \mapsto_r ((p,g),b,e,a) &* a \mapsto_a[p] w * ... \}\}\} \\ 
+	\textsf{Instr Executable }\\
+	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
+\end{align*} 
+Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textit{Instr Executable} is a flag indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
 \begin{figure*}[ht]

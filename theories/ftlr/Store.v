@@ -117,7 +117,7 @@ Section fundamental.
         iNext. iIntros. iApply wp_pure_step_later; auto.
         iNext. iApply wp_value. iIntros. discriminate. }
       destruct c,p0,p0,p0.
-      case_eq (writeAllowed p
+      case_eq (writeAllowed p0
                && withinBounds (p0,l,a2,a1,a0));  
         intros Hconds.
       + destruct src.
@@ -147,8 +147,11 @@ Section fundamental.
                                                        | _ => false end); intros Hconds'. 
                  **** (* successful write from r0 into a0 *)
                    admit.
-             *** (* locality failure *)
-               admit.
+                 **** (* locality failure *)
+                   admit.
+      + (* write failure, either wrong permission or not within range *)
+        admit.
+        
              
       destruct (writeAllowed p).
       + iApply (wp_store_success_reg_same with "[$HPC $Ha]"). 
