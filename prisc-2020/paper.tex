@@ -250,6 +250,7 @@ A high level language will typically have expressions, that may reduce to an exp
 \todo{Alix: Add a sentence to say that we artificially add expressions to fit into the framework, but the operational semantics is equivalent to the standard one}
 Strictly speaking, a machine does not have expressions. Rather the small step semantics are defined over machine configurations, and we want the program logic to illustrate that. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
 $$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p] w $$
+\todo{Alix: give a quick introduction to permissions, and says for instance that a RO permission does not allow to update the ressource}
 
 \todo{Alix: We don't really see the weakest precondition in this example, shouldn't we say Hoare triple instead?}
 Iris defines the program logic rules as weakest precondition rules. Similar to \cite{Jensen:2013}, the program logic rules for each instruction will be of the following form: 
