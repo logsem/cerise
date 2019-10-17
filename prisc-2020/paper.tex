@@ -259,6 +259,23 @@ We have formalized the unary logical relation defined in \cite{skorstengaardESOP
 
 
 \section{The Program Logic of a Capability Machine}
+
+\begin{itemize}
+\item we define the operational semantics of the CM
+\item we prove basic hoare triples for each of the atomic instructions
+  of the CM (i.e., for load, store, etc.)
+\item non-trivial
+  \begin{itemize}
+  \item while Iris is a framework and supports many languages, it is
+    geared towards models of higher-level languages which abstract from
+    program counters and the fact that programs are stored in memory.
+    -- here our low-level machine model includes registers, in particular
+    the program counter register, and instructions are stored in memory.
+   \item hence we 
+  \end{itemize}
+\end{itemize}
+
+
 In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. However, the framework was designed with high level languages in mind. Embedding a language requires a definition of the expressions, the values, the state and the small step semantics. 
 
 A high level language will typically have expressions, that may reduce to an expression or a value. On the other hand, machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
