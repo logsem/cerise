@@ -200,9 +200,9 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-  Capability machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as control-flow integrity (CFI) and local state encapsulation (LSE).
-  We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including CFI and LSE.
-  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, which can used to prove CFI and LSE.
+  Capability machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as well-bracketed control-flow (WBCF) and local state encapsulation (LSE).
+  We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
+  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, which can used to prove WBCF and LSE.
 \end{abstract}
 
 
@@ -242,20 +242,51 @@
 
 \section{Introduction}
 
-Showing full abstraction consists of showing that the expressive power of a compiled programs is exactly that of the source program. Most often, the source language will enforce certain high level abstractions, not enforced in the target language. Capability machines allow for fine grained control over the \textit{authority} of memory. At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission. The language then executes instructions by dynamically checking that the instruction uses a capability within its range of authority. Using a capability machine language as the target of a secure compiler allows us to take advantage these dynamic checks to enforce such high level abstractions. 
+Capability machines allow for fine grained control over the authority of memory \cite{levy_capability-based_1984,watson_cheri:_2015}.
+At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission.
+When the machine executes an instruction it dynamically checks that the instruction uses a capability within its range of authority.
+Capability machines are promising targets for secure compilers because these dynamic checks can be used to enforce abstractions that are usually expected for high-level languages, such as well-bracketed
+control-flow (WBCF) and local state encapsulation (LSE). 
 
-In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step-indexed Kripke logical relation to define a notion of capability safety. 
+We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
 
-However, such logical relations are notoriously difficult to construct, due to the so-called World circularity problem \cite{Ahmed2004SemanticsOT}. This challenge has been addressed by giving a logical account of the relation, thus raising the level of abstraction 
-\cite{Krogh-Jespersen2017} \cite{dreyer_neis_birkedal_2012}. Such logical accounts have typically been for logical relations of typed high level languages. We show how to give a logical account of an untyped low level language. 
+Our formalization builds upon earlier work of Skorstensgaard et. al. \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, who present two different capability machines and calling conventions that enforce well-bracketed control flow, and methods for defining and reasoning about capability machines.
+In each case, they define a logical relation to capture a semantic
+notion of capability safety and use it to prove WBCF and LSE.
 
-Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality, and other logical features of Iris, is enough to define these step-indexed logical relations\cite{Timany:2017} \cite{Jung:2017} \cite{timany2019}. Additionally, we can take advantage of the Iris proof mode \cite{Krebbers:2017} for an interactive proof style in Coq. 
+The logical relations in \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19} are so-called step-indexed Kripke logical relations, which means that they are indexed over recursively-defined worlds, which contain descriptions of invariants of the memory of the machine.
+It is well-known that it is non-trivial to define and work with such step-indexed Kripke logical relations~\cite{ahmed-2002, birkedal2011step}.
+Therefore we do not formalize the logical relations of Skorstensgaard et.
+al.
+directly, but rather give a more abstract \emph{logical} definition of the logical relations in the Iris program logic framework \cite{iris,iris2,iris3, iris-jfp}, which comes with built-in support for abstract reasoning about recursion (qua the later modality and L{\"o}b induction) and invariants.
+Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr-journal,iris:type-effect,rustbelt,runst-popl18}); here we use it for the first time for a low-level untyped machine language.
+Another reason for using Iris is that we can use the Coq implementation of Iris and
+the Iris proof mode \cite{Krebbers:2017} to mechanize our development. 
 
-We have formalized the unary logical relation defined in \cite{skorstengaardESOP18} in Iris. The formalization makes the following contributions: 
+In summary, we present Iris formalizations of 
 \begin{itemize}
-	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely stateful. 
-	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
-\end{itemize} 
+  \item a program logic for reasoning about capability machine programs.
+  \item the logical relation from \cite{skorstengaardESOP18}, 
+     which captures capability safety and which can be used to reason about WBCF and LSE.
+\end{itemize}
+All of the technical development is mechanized in Coq using the Coq implementation of Iris.
+
+% Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
+% Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
+
+
+% In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step-indexed Kripke logical relation to define a notion of capability safety. 
+
+% However, such logical relations are notoriously difficult to construct, due to the so-called World circularity problem \cite{Ahmed2004SemanticsOT}. This challenge has been addressed by giving a logical account of the relation, thus raising the level of abstraction 
+% \cite{Krogh-Jespersen2017} \cite{dreyer_neis_birkedal_2012}. Such logical accounts have typically been for logical relations of typed high level languages. We show how to give a logical account of an untyped low level language. 
+
+% Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality, and other logical features of Iris, is enough to define these step-indexed logical relations\cite{Timany:2017} \cite{Jung:2017} \cite{timany2019}. Additionally, we can take advantage of the Iris proof mode \cite{Krebbers:2017} for an interactive proof style in Coq. 
+
+% We have formalized the unary logical relation defined in \cite{skorstengaardESOP18} in Iris. The formalization makes the following contributions: 
+% \begin{itemize}
+% 	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely stateful. 
+% 	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
+% \end{itemize} 
 
 
 \section{The Program Logic of a Capability Machine}
