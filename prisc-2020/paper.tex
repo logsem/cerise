@@ -257,7 +257,9 @@ notion of capability safety and use it to prove WBCF and LSE.
 The logical relations in \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19} are so-called step-indexed Kripke logical relations, which means that they are indexed over recursively-defined worlds, which contain descriptions of invariants of the memory of the machine.
 It is well-known that it is non-trivial to define and work with such step-indexed Kripke logical relations~\cite{ahmed-2002, birkedal2011step}.
 Therefore we do not formalize the logical relations of Skorstensgaard et.
-al. directly, but rather give a more abstract \emph{logical} definition of the logical relations in the Iris program logic, which comes with built-in support for abstract reasoning about recursion (qua the later modality and L{\"o}b induction) and invariants.
+al.
+directly, but rather give a more abstract \emph{logical} definition of the logical relations in the Iris program logic framework \cite{iris,iris2,iris3, iris-jfp}, which comes with built-in support for abstract reasoning about recursion (qua the later modality and L{\"o}b induction) and invariants.
+Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr-journal,iris:type-effect,rustbelt,runst-popl18}); here we use it for the first time for a low-level untyped machine language.
 Another reason for using Iris is that we can use the Coq implementation of Iris and
 the Iris proof mode \cite{Krebbers:2017} to mechanize our development. 
 
@@ -269,6 +271,7 @@ In summary, we present Iris formalizations of
 \end{itemize}
 All of the technical development is mechanized in Coq using the Coq implementation of Iris.
 
+% Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
 % Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
 
 
