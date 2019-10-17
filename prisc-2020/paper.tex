@@ -294,6 +294,7 @@ All of the technical development is mechanized in Coq using the Coq implementati
 
 \section{A Program Logic for a Capability Machine}
 
+
 % \begin{itemize}
 % \item we define the operational semantics of the CM
 % \item we prove basic hoare triples for each of the atomic instructions
@@ -430,6 +431,7 @@ unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
 % 	\label{fig:condition}
 % \end{figure*}
 
+
 % \subsection{The Value Relation}
 % \begin{itemize}
 % 	\item definition of the relation and World
@@ -447,15 +449,15 @@ We can use a simpler more abstract notion of world because XXX
   But that could also have been done before\ldots}
 
 \todo{Lars: the following is too hard to read and understand -- I suggest to omit it and just add a succinct description above}
-\todo{begin}
-Skorstensgaard et.
-al.
-use the World to define validity of capabilities, by relating the invariant of the region in question to certain standard islands for capabilities.
+% \todo{begin}
+% Skorstensgaard et.
+% al.
+% use the World to define validity of capabilities, by relating the invariant of the region in question to certain standard islands for capabilities.
 
-In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On the one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
+% In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On the one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
 
-We want the value relation to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how that should be done.
-\todo{end}
+% We want the value relation to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how that should be done.
+% \todo{end}
 % \subsection{Reasoning about Local State}
 % \begin{itemize}
 % 	\item How to reason about local state in high level languages
@@ -463,6 +465,7 @@ We want the value relation to give us the points-to predicate, while asserting t
 % 	\item TT style
 % 	\item difficulties w/ iris invariants 
 % \end{itemize}
+
 
 Logical accounts of logical relations for high level languages with references have used Iris invariants to define semantic validity of reference locations. This approach suffices for reasoning about 
 examples involving local state encapsulation in languages where all calls are well-bracketed.
@@ -474,6 +477,7 @@ Instead we explicitly define notions of public and private future world relation
 We use these relations in combination with Iris' saved predicates, which allow us to save a predicate by associating it to a unique name.
 Using that unique name, we are then able to refer to the saved predicate somewhere else, and apply it to
 an appropriate future world argument.
+
 
 
 % A callback is an executable capability.
