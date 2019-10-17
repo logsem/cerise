@@ -270,6 +270,8 @@ In summary, we present Iris formalizations of
 \end{itemize}
 All of the technical development is mechanized in Coq using the Coq implementation of Iris.
 
+\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
+
 % Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
 % Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
 
@@ -318,11 +320,10 @@ Typically a machine will have a special register; the program counter, which con
 
 To capture the semantics of the Capability Machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and an abstraction notion of values for halted and failed configurations.
 
-Next we use the Iris framework to prove Hoare Triples for each instruction. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
+Next we use the Iris framework to prove Hoare triples for each instruction. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
 $$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p]~w $$
 The capability points-to predicate states that address $a$ points to word $w$ with permission $p$. The permission restricts the words an address can update to. For instance, in $a \mapsto_a[\textsc{\tiny RO}]~w$, the $\textsc{\tiny RO}$ permission does not allow for any updates to $a$. 
 
-\todo{Alix: We don't really see the weakest precondition in this example, shouldn't we say Hoare triple instead?}
 Similar to \cite{Jensen:2013}, the program logic rules for each instruction are of the following form: 
 \begin{align*}
 \small
@@ -331,7 +332,7 @@ Similar to \cite{Jensen:2013}, the program logic rules for each instruction are 
 	\textsf{Instr Executable }\\
 	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
 \end{align*} 
-Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression \todo{Alix: (an artificial expression)} for executing the next instruction in memory. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
+Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression for executing the next instruction in memory. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
 
