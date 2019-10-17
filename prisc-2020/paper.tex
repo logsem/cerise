@@ -161,6 +161,22 @@
 }
 \email{ageorges@cs.au.dk}          %% \email is recommended
 
+\author{Alix Trieu}
+%\authornote{with author2 note}          %% \authornote is optional;
+                                        %% can be repeated if necessary
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+\affiliation{
+  %\position{Position2a}
+  %\department{Department2a}             %% \department is recommended
+  \institution{Aarhus University}           %% \institution is required
+  %\streetaddress{Street2a Address2a}
+  %\city{City2a}
+  %\state{State2a}
+  %\postcode{Post-Code2a}
+  %\country{Denmark}                   %% \country is recommended
+}
+\email{alix.trieu@cs.au.dk}         %% \email is recommended
+
 
 \author{Lars Birkedal}
 %\authornote{with author2 note}          %% \authornote is optional;
@@ -243,6 +259,28 @@ We have formalized the unary logical relation defined in \cite{skorstengaardESOP
 
 
 \section{The Program Logic of a Capability Machine}
+
+\begin{itemize}
+\item we define the operational semantics of the CM
+\item we prove basic hoare triples for each of the atomic instructions
+  of the CM (i.e., for load, store, etc.)
+\item non-trivial
+  \begin{itemize}
+  \item while Iris is a framework and supports many languages, it is
+    geared towards models of higher-level languages which abstract from
+    program counters and the fact that programs are stored in memory.
+    -- here our low-level machine model includes registers, in particular
+    the program counter register, and instructions are stored in memory.
+  \item to capture the semantics of the CM in the Iris framework, 
+    we introduce an abstract notion of instruction, whose
+    operational meaning is to execute the next instruction the program counter
+    points to, and abstract notions of values, failed and halted.
+  \item for each machine instruction, we can then prove a hoare triple
+    which expresses the pre- and post-conditions for executing the instruction
+  \end{itemize}
+\end{itemize}
+
+
 In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. However, the framework was designed with high level languages in mind. Embedding a language requires a definition of the expressions, the values, the state and the small step semantics. 
 
 A high level language will typically have expressions, that may reduce to an expression or a value. On the other hand, machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
@@ -264,6 +302,15 @@ Iris defines the program logic rules as weakest precondition rules. Similar to \
 Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is a flag \todo{Alix: (an artificial expression)} indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
+
+
+\begin{itemize}
+\item LS: worlds contained all invariants, both on local state and ``standard islands'' for capabilities
+\item now, simplified, world only contains sts's for local state, whereas the conditions on capabilities are captured by the permission of the points-to connective
+\end{itemize}
+
+
+
 \begin{figure*}[ht]
 	\begin{minipage}{\textwidth}
 	\begin{align*}
