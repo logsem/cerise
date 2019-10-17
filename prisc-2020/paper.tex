@@ -311,18 +311,20 @@ All of the technical development is mechanized in Coq using the Coq implementati
   \end{itemize}
 \end{itemize}
 
+In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. 
 
-In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. However, the framework was designed with high level languages in mind. Embedding a language requires a definition of the expressions, the values, the state and the small step semantics. 
+While Iris is a framework and supports many languages, it is geared towards models of higher-level languages. Embedding a language asks for a definition of expressions, values, and the state, which abstracts away from the fact that programs are stored in memory. 
 
-A high level language will typically have expressions, that may reduce to an expression or a value. On the other hand, machine instructions operate through memory. Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
+Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
 
-\todo{Alix: Add a sentence to say that we artificially add expressions to fit into the framework, but the operational semantics is equivalent to the standard one}
-Strictly speaking, a machine does not have expressions. Rather the small step semantics are defined over machine configurations, and we want the program logic to illustrate that. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
-$$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p] w $$
-\todo{Alix: give a quick introduction to permissions, and says for instance that a RO permission does not allow to update the ressource}
+To capture the semantics of the Capability Machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and an abstraction notion of values for halted and failed configurations.
+
+Next we use the Iris framework to prove Hoare Triples for each instruction. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
+$$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p]~w $$
+The capability points-to predicate states that address $a$ points to word $w$ with permission $p$. The permission restricts the words an address can update to. For instance, in $a \mapsto_a[\textsc{\tiny RO}]~w$, the $\textsc{\tiny RO}$ permission does not allow for any updates to $a$. 
 
 \todo{Alix: We don't really see the weakest precondition in this example, shouldn't we say Hoare triple instead?}
-Iris defines the program logic rules as weakest precondition rules. Similar to \cite{Jensen:2013}, the program logic rules for each instruction will be of the following form: 
+Similar to \cite{Jensen:2013}, the program logic rules for each instruction are of the following form: 
 \begin{align*}
 \small
 	\textit{run time conditions } \wedge &\textit{ decode}(w) = instr \Rightarrow  \\
@@ -330,15 +332,9 @@ Iris defines the program logic rules as weakest precondition rules. Similar to \
 	\textsf{Instr Executable }\\
 	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
 \end{align*} 
-Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is a flag \todo{Alix: (an artificial expression)} indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
+Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression \todo{Alix: (an artificial expression)} for executing the next instruction in memory. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
-
-
-\begin{itemize}
-\item LS: worlds contained all invariants, both on local state and ``standard islands'' for capabilities
-\item now, simplified, world only contains sts's for local state, whereas the conditions on capabilities are captured by the permission of the points-to connective
-\end{itemize}
 
 
 \begin{figure*}[ht]
@@ -415,20 +411,32 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 	\label{fig:condition}
 \end{figure*}
 
-\subsection{A Logical Account of the Value Logical Relation}
+\subsection{The Value Relation}
+\begin{itemize}
+	\item definition of the relation and World
+	\item LS definitions
+	\item now: standard islands are not used 
+\end{itemize}
+
 The logical relation is a unary relation that relates a word to a notion of \textit{capability safety}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state. 
 
-This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory. Skorstensgaard et. al. use the World to define validity of capabilities, by relating it to certain standard islands for capabilities. 
+This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory. Skorstensgaard et. al. use the World to define validity of capabilities, by relating the invariant of the region in question to certain standard islands for capabilities. 
 
-In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
+In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On the one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
 
-We need the value relation both to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how the value relation can do that. 
+We want the value relation to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how that should be done.
 
-\subsection{A Logical Account of the Expression Relation}
+\subsection{Reasoning about Local State}
+\begin{itemize}
+	\item How to reason about local state in high level languages
+	\item public/private distinction
+	\item TT style
+	\item difficulties w/ iris invariants 
+\end{itemize}
 
-Logical accounts of Logical Relations for high level languages with references have used Iris invariants to define the validity of a reference. In order to reason about local state, it suffices to define a future world relation only in the expression relation. This approach works in a high level language, where the calls are inherently well-bracketed.
+Logical accounts of relations for high level languages with references have used Iris invariants to define the validity of a reference. In order to reason about local state, it suffices to add a future world relation only in the definition of the expression relation. This approach works in a high level language, where the calls are inherently well-bracketed.
 
-In our case however, jumping to such an executable capability may be non well-bracketed. Skorstensgaard et. al. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
+In our case however, calls will not in all cases be well-bracketed. Skorstensgaard et. al. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
 
 Iris does not make such a distinction in its implementation of invariants. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future worlds, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
 
@@ -436,29 +444,6 @@ A callback is an executable capability. This distinction must therefore be done 
 
 This particular challenge was solved by using 
 
-\subsection{The Context}
-\todo{Everything ghost might be too much of a Iris'sm ?}
-In the expression relation, the \textsf{context} contains the ghost resources necessary to run a program pointed to by the program counter. When the program has finished running, ownership of these resources is given back. 
-
-To start out, the running program gets full ownership of all machine registers. A ghost register will be represented by the full ownership of the map from RegName to Word. The context will contain a points-to assertion for each register in the register map. 
-
-A program may also need the ghost resources for the pieces of memory it has authority over. However, we want to respect the principle of least privilege. A program should only be able to gain ownership over the ghost resources for memory pointed to by a capability. Say a register contains a capability A. Consider the following memory layout.
-
-\begin{center}
-\MemoryLayout{
-    12/blue!30!/A,
-    21/blue!30!/B\relax
-  }
-\end{center}
-
-In that case, the program may have authority over the region given by A, as well as the region given by B. However if no other capabilities are given, the program should not be given access to the ghost resources denoted by the white regions. 
-
-One way to enforce this, is to define the value relation of a capability as an invariant containing the resources for its range of authority, which at the same time guarantees that all the words that these words point to are also valid. The memory resource will then be given through the $\mathcal{R}$ relation. 
-
-However, as the name indicates, an invariant can never change. This is not a problem when the only variant is the current state of a location. In this case however, the value relation is parametrized over a particular World. The World captures the behaviour of local state. The validity of an executable capability will consider any possible future world. This becomes crucial when showing safety of programs that depend on well bracketed control flow. We do not want the invariant to depend on any one World. 
-
-Instead, we use Iris \textit{saved predicates}. The context contains the full authority over a map from locations to saved predicate names, asserting the resource for each location in the map, as well as the saved predicate applied to the current World and the word the location maps to. The map itself is abstracted by an existential quantifier. The Iris proposition rel($a,p,\mathcal{V}$) then states that the location a is included in that map, the points to relation has permission p, and the saved predicate is the value relation.
-\newpage
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
                                         %% contents suppressed with 'anonymous'
