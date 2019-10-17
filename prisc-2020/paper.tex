@@ -250,14 +250,13 @@ control-flow (WBCF) and local state encapsulation (LSE).
 
 We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
 
-Our formalization builds upon earlier work of Skorstensgaard et. al. \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, who present two different capability machines and calling conventions that enforce well-bracketed control flow, and methods for defining and reasoning about capability machines.
+Our formalization builds upon earlier work of \citeauthor{skorstengaardESOP18} \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, who present two different capability machines and calling conventions that enforce well-bracketed control flow, and methods for defining and reasoning about capability machines.
 In each case, they define a logical relation to capture a semantic
 notion of capability safety and use it to prove WBCF and LSE.
 
 The logical relations in \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19} are so-called step-indexed Kripke logical relations, which means that they are indexed over recursively-defined worlds, which contain descriptions of invariants of the memory of the machine.
 It is well-known that it is non-trivial to define and work with such step-indexed Kripke logical relations~\cite{ahmed-2002, birkedal2011step}.
-Therefore we do not formalize the logical relations of Skorstensgaard et.
-al.
+Therefore we do not formalize the logical relations of \citeauthor{skorstengaardESOP18} 
 directly, but rather give a more abstract \emph{logical} definition of the logical relations in the Iris program logic framework \cite{iris,iris2,iris3, iris-jfp}, which comes with built-in support for abstract reasoning about recursion (qua the later modality and L{\"o}b induction) and invariants.
 Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr-journal,iris:type-effect,rustbelt,runst-popl18}); here we use it for the first time for a low-level untyped machine language.
 Another reason for using Iris is that we can use the Coq implementation of Iris and
@@ -436,13 +435,13 @@ We want the value relation to give us the points-to predicate, while asserting t
 
 Logical accounts of relations for high level languages with references have used Iris invariants to define the validity of a reference. In order to reason about local state, it suffices to add a future world relation only in the definition of the expression relation. This approach works in a high level language, where the calls are inherently well-bracketed.
 
-In our case however, calls will not in all cases be well-bracketed. Skorstensgaard et. al. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
+In our case however, calls are not always well-bracketed. \citeauthor{skorstengaardESOP18}. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
 
-Iris does not make such a distinction in its implementation of invariants. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future worlds, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
+Iris invariants do not make such a distinction. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
 
-A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is indexed by a world, we again have difficulties using Iris invariants. Asserting $\exists w, \mathcal{V}(W)(w)$ in an invariant does not allow for $W$ to change.
+A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is indexed by a world, we again have difficulties using Iris invariants. Asserting $\exists w, \mathcal{V}(W)(w)$ as invariant does not allow for $W$ to change. 
 
-This particular challenge was solved by using 
+The difficulty is to support reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation. We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name. Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want. That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question. 
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
