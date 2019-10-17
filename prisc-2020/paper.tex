@@ -310,7 +310,6 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 \end{itemize}
 
 
-
 \begin{figure*}[ht]
 	\begin{minipage}{\textwidth}
 	\begin{align*}
@@ -385,11 +384,26 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 	\label{fig:condition}
 \end{figure*}
 
-\subsection{Definition of the Logical Relation}
-The logical relation is a unary relation that relates a word to a notion of \textit{capability safety}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state\todo{Alix: explain local as in local to a function call}, and a Word can be an integer or a capability. We then define the register relation $\mathcal{R}$ as the validity of each word that the register state maps to. 
+\subsection{A Logical Account of the Value Logical Relation}
+The logical relation is a unary relation that relates a word to a notion of \textit{capability safety}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state. 
 
-The expression relation should capture what it means for programs to be capability safe. However, as previously discussed, programs in a machine lie in memory, pointed to by the program counter. The expression relation relates Words to the notion of program capability safety, where the word in question will be the current state of the program.
+This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory. Skorstensgaard et. al. use the World to define validity of capabilities, by relating it to certain standard islands for capabilities. 
 
+In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
+
+We need the value relation both to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how the value relation can do that. 
+
+\subsection{A Logical Account of the Expression Relation}
+
+Logical accounts of Logical Relations for high level languages with references have used Iris invariants to define the validity of a reference. In order to reason about local state, it suffices to define a future world relation only in the expression relation. This approach works in a high level language, where the calls are inherently well-bracketed.
+
+In our case however, jumping to such an executable capability may be non well-bracketed. Skorstensgaard et. al. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
+
+Iris does not make such a distinction in its implementation of invariants. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future worlds, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
+
+A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is indexed by a world, we again have difficulties using Iris invariants. Asserting $\exists w, \mathcal{V}(W)(w)$ in an invariant does not allow for $W$ to change.
+
+This particular challenge was solved by using 
 
 \subsection{The Context}
 \todo{Everything ghost might be too much of a Iris'sm ?}
