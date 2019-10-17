@@ -271,7 +271,12 @@ We have formalized the unary logical relation defined in \cite{skorstengaardESOP
     program counters and the fact that programs are stored in memory.
     -- here our low-level machine model includes registers, in particular
     the program counter register, and instructions are stored in memory.
-   \item hence we 
+  \item to capture the semantics of the CM in the Iris framework, 
+    we introduce an abstract notion of instruction, whose
+    operational meaning is to execute the next instruction the program counter
+    points to, and abstract notions of values, failed and halted.
+  \item for each machine instruction, we can then prove a hoare triple
+    which expresses the pre- and post-conditions for executing the instruction
   \end{itemize}
 \end{itemize}
 
@@ -297,6 +302,15 @@ Iris defines the program logic rules as weakest precondition rules. Similar to \
 Where the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is a flag \todo{Alix: (an artificial expression)} indicating how the configuration should be interpreted. Unlike \cite{Jensen:2013}, the decoding function is in our case assumed. We now have the necessary building blocks for implementing the logical relation. 
 
 \section{Logical Relation}
+
+
+\begin{itemize}
+\item LS: worlds contained all invariants, both on local state and ``standard islands'' for capabilities
+\item now, simplified, world only contains sts's for local state, whereas the conditions on capabilities are captured by the permission of the points-to connective
+\end{itemize}
+
+
+
 \begin{figure*}[ht]
 	\begin{minipage}{\textwidth}
 	\begin{align*}
