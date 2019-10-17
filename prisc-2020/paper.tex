@@ -292,25 +292,25 @@ All of the technical development is mechanized in Coq using the Coq implementati
 
 \section{The Program Logic of a Capability Machine}
 
-\begin{itemize}
-\item we define the operational semantics of the CM
-\item we prove basic hoare triples for each of the atomic instructions
-  of the CM (i.e., for load, store, etc.)
-\item non-trivial
-  \begin{itemize}
-  \item while Iris is a framework and supports many languages, it is
-    geared towards models of higher-level languages which abstract from
-    program counters and the fact that programs are stored in memory.
-    -- here our low-level machine model includes registers, in particular
-    the program counter register, and instructions are stored in memory.
-  \item to capture the semantics of the CM in the Iris framework, 
-    we introduce an abstract notion of instruction, whose
-    operational meaning is to execute the next instruction the program counter
-    points to, and abstract notions of values, failed and halted.
-  \item for each machine instruction, we can then prove a hoare triple
-    which expresses the pre- and post-conditions for executing the instruction
-  \end{itemize}
-\end{itemize}
+%\begin{itemize}
+%\item we define the operational semantics of the CM
+%\item we prove basic hoare triples for each of the atomic instructions
+%  of the CM (i.e., for load, store, etc.)
+%\item non-trivial
+%  \begin{itemize}
+%  \item while Iris is a framework and supports many languages, it is
+%    geared towards models of higher-level languages which abstract from
+%    program counters and the fact that programs are stored in memory.
+%    -- here our low-level machine model includes registers, in particular
+%    the program counter register, and instructions are stored in memory.
+%  \item to capture the semantics of the CM in the Iris framework, 
+%    we introduce an abstract notion of instruction, whose
+%    operational meaning is to execute the next instruction the program counter
+%    points to, and abstract notions of values, failed and halted.
+%  \item for each machine instruction, we can then prove a hoare triple
+%    which expresses the pre- and post-conditions for executing the instruction
+%  \end{itemize}
+%\end{itemize}
 
 In order to give a logical account of the logical relation, we must first define a program logic for the capability machine language. Iris is a separation logic framework, which means we can embed any language into Iris by describing its small step semantics. 
 
@@ -318,7 +318,7 @@ While Iris is a framework and supports many languages, it is geared towards mode
 
 Typically a machine will have a special register; the program counter, which contains a pointer to an address in memory. That address in turn will contain an integer, which can then be decoded to various machine dependent instructions, such as Load, Store, Jump, etc. Once an instruction has been executed, the program counter is incremented and will now point to the next instruction in memory. 
 
-To capture the semantics of the Capability Machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and an abstraction notion of values for halted and failed configurations.
+To capture the semantics of the Capability Machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and an abstract notion of values for halted and failed configurations.
 
 Next we use the Iris framework to prove Hoare triples for each instruction. Like in \cite{Jensen:2013}, we define a notion of points-to for registers. Since a capability machine replaces pointers with capabilities, we will also replace the conventional points-to for memory with a points-to assertion with a permission attached to it: 
 $$ r \mapsto_r w \hspace{1cm} a \mapsto_a[p]~w $$
@@ -412,11 +412,11 @@ Where the run time conditions correspond to the dynamic checks done by the capab
 \end{figure*}
 
 \subsection{The Value Relation}
-\begin{itemize}
-	\item definition of the relation and World
-	\item LS definitions
-	\item now: standard islands are not used 
-\end{itemize}
+%\begin{itemize}
+%	\item definition of the relation and World
+%	\item LS definitions
+%	\item now: standard islands are not used 
+%\end{itemize}
 
 The logical relation is a unary relation that relates a word to a notion of \textit{capability safety}. The value relation $\mathcal{V}$ is an Iris relation of type $World \to Word \to iProp$, where the World is a collection of state transition systems used to reason about local state. 
 
@@ -427,22 +427,22 @@ In the logical account, we use the capability points-to assertion to both descri
 We want the value relation to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how that should be done.
 
 \subsection{Reasoning about Local State}
-\begin{itemize}
-	\item How to reason about local state in high level languages
-	\item public/private distinction
-	\item TT style
-	\item difficulties w/ iris invariants 
-\end{itemize}
+%\begin{itemize}
+%	\item How to reason about local state in high level languages
+%	\item public/private distinction
+%	\item TT style
+%	\item difficulties w/ iris invariants 
+%\end{itemize}
 
 Logical accounts of relations for high level languages with references have used Iris invariants to define the validity of a reference. In order to reason about local state, it suffices to add a future world relation only in the definition of the expression relation. This approach works in a high level language, where the calls are inherently well-bracketed.
 
-In our case however, calls are not always well-bracketed. \citeauthor{skorstengaardESOP18}. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
+In our case however, calls are not always well-bracketed. \citeauthor{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations at the site of the callback. 
 
-Iris invariants do not make such a distinction. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
+%Iris invariants do not make such a distinction. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
 
-A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is indexed by a world, we again have difficulties using Iris invariants. Asserting $\exists w, \mathcal{V}(W)(w)$ as invariant does not allow for $W$ to change. 
+A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is parametrized by a world, we have difficulties using Iris invariants. Asserting $\mathcal{V}(W)(w)$ as invariant does not allow for $W$ to change. 
 
-The difficulty is to support reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation. We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name. Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want. That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question. 
+The difficulty lies in supporting reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation. We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name. Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want. That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question. 
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
