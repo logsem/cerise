@@ -437,11 +437,11 @@ Logical accounts of relations for high level languages with references have used
 
 In our case however, calls are not always well-bracketed. \citeauthor{skorstengaardESOP18}. distinguishes between well-bracketed and non well-bracketed calls by respectively using public- and private future world relations given the appropriate conditions. 
 
-Iris does not make such a distinction in its implementation of invariants. Using invariants alone, is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
+Iris invariants do not make such a distinction. Using invariants alone is therefore not sufficient for our purposes. Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls. 
 
 A callback is an executable capability. This distinction must therefore be done by the value relation. However, if the value relation is indexed by a world, we again have difficulties using Iris invariants. Asserting $\exists w, \mathcal{V}(W)(w)$ as invariant does not allow for $W$ to change. 
 
-The difficulty is to support reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation. We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name. Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want. That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate to the future world in question. 
+The difficulty is to support reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation. We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name. Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want. That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question. 
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
