@@ -269,8 +269,10 @@ In summary, we present Iris formalizations of
     which captures capability safety and which can be used to reason about examples
     that rely on WBCF and LSE.
 \end{itemize}
-Most of the technical development is mechanized in Coq using the Coq implementation of Iris (the remaining work consists of a few missing details). Currently the mechanization consists of 5.8k lines of spec and 15k lines of proof as reported by \textsf{coqwc}. Its substantial size can be slightly improved by some clever use of tactics, however such a mechanization will always be large, due to the low level nature of a machine: we want to consider every possible case of an instruction, both the fails and the successes.
-\todo{Alix: I would say it's more due to the nature of a capability machine with dynamic checks and the multiple ways they can fail}
+Currently, almost all of the technical development is mechanized in Coq using the Coq implementation of Iris.
+The mechanization presently consists of 5.8K lines of spec and 15K lines of proof as reported by \textsf{coqwc}.
+Its substantial size can probably be reduced by better use of tactics. However, such a mechanization will always be non-trivial due to the nature of the capability machine with dynamic checks
+and multiple ways in which instructions can fail.
 
 %\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
 %\todo{Lars: I just tried to reduce the claim above}
