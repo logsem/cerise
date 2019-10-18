@@ -336,7 +336,7 @@ $a \mapsto_a[p]~w$.
 This predicate states that address $a$ points to word $w$ with permission $p$.
 The permission restricts how the memory may be updated at address $a$.
 For instance, if $a \mapsto_a[\textsc{\tiny RX}]~w$, then the $\textsc{\tiny RX}$ (ReadExecute)
-permission gives us permission to read from address $a$, to execute w, but it does not to permit us to write to address $a$.
+permission gives us permission to read from address $a$, to execute w, but it does not permit us to write to address $a$.
 
 % Similar to \cite{Jensen:2013}, the program logic rules for each instruction are of the following form: 
 The Hoare triples for basic instructions take the following form
@@ -351,7 +351,7 @@ Here, the run time conditions correspond to the dynamic checks done by the capab
 This form of Hoare triple is similar to the one used in \cite{Jensen:2013} but
 unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
 
-(Here we have only described the format for Hoare triples for individual instructions; we use a trick involving the standard bind rule of Iris to reason about programs consisting of many instructions, but we omit the description of that from this extended abstract.)
+Here we have only described the format for Hoare triples for individual instructions; we use a trick involving the standard bind rule of Iris to reason about programs consisting of many instructions, but we omit the description of that from this extended abstract.
 
 % We now have the necessary building blocks for implementing the logical relation.
 \section{Logical Relation}
@@ -440,11 +440,16 @@ unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
 % \end{itemize}
 
 \newcommand{\World}{\mathrm{World}} \newcommand{\Word}{\mathrm{Word}} We now outline how we define a unary logical relation in Iris that captures capability safety.
-We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to \Word \to \emph{iProp}$, where $\World$ is a collection of state transition systems used to reason about local state.
-(It is well-known how state transistion systems can be defined in Iris via Iris's notion of monoids and ghost state.)
+We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to \Word \to \emph{iProp}$, where $\World$ is a collection of state transition systems used to reason about local state and
+$\Word$ is the type of capability machine words. 
+It is well-known how state transistion systems can be defined in Iris via Iris' notion of monoids and ghost state \cite{iris}.
 
-This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory, not just local state.
-We can use a simpler more abstract notion of world because the Iris model takes care of the world circularity problem. The necessary step indexing is abstracted away by the Iris saved predicates, which we use to define the validity of the regions a capability has authority over. 
+Our notion of World is simpler and more abstract than the 
+one used in the concrete logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory, not just local state.
+We can use a simpler more abstract notion of world because the Iris model takes care of the world circularity problem. In particular, we make use of Iris' higher-order ghost state ---
+the ability to store arbitrary higher-order separation-logic predicates in ghost variables ---
+to define the validity of the regions a capability has authority over. The semantics of
+Iris' higher-order ghost state involves solving a recursive equation \cite{iris2}. 
 %\todo{Lars: say why succintly, is it just because we use capability points-to predicates ?
 %  But that could also have been done before\ldots}
 
@@ -467,14 +472,14 @@ We can use a simpler more abstract notion of world because the Iris model takes 
 % \end{itemize}
 
 
-Logical accounts of logical relations for high level languages with references have used Iris invariants to define semantic validity of reference locations. This approach suffices for reasoning about 
-examples involving local state encapsulation in languages where all calls are well-bracketed.
+Logical accounts of logical relations for high level languages with references have used Iris invariants to define semantic validity of reference locations, see, e.g., \cite{ipm}.
+This approach suffices for reasoning about examples involving local state encapsulation in languages where all calls are well-bracketed.
 
 In our case, however, calls are not always well-bracketed (since the capability machine includes general jump instructions).
-\citeauthor{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds.
+\citeauthor{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds, following \cite{dreyer_neis_birkedal_2012}.
 Iris invariants do not make such a distinction and thus invariants alone are not sufficient for our purposes.
 Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls.
-We use these relations in combination with Iris' saved predicates, which allow us to save a predicate by associating it to a unique name.
+We use these relations in combination with Iris' higher-order ghost state, which allow us to save a predicate by associating it to a unique ghost name.
 Using that unique name, we are then able to refer to the saved predicate somewhere else, and apply it to
 an appropriate future world argument.
 
@@ -489,7 +494,8 @@ an appropriate future world argument.
 % That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question.
 
 
-We prove the Fundamental Theorem of Logical Relations, in which we show that if we can read a region, we can execute it. We then use the fundamental theorem to prove examples with calls to unknown adversary code, which rely on local state encapsulation and well bracketed control flow. 
+We prove the Fundamental Theorem of Logical Relations, which roughly says that if we have a read-execute capability, and it is capability safe to read it, then it is capability safe to execute it (use it as a program counter).
+We then use the fundamental theorem to prove functional correctness of examples with calls to unknown adversary code and whose correctness relies on local state encapsulation and well-bracketed control flow.
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
