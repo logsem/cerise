@@ -202,7 +202,7 @@
 \begin{abstract}
   Capability machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as well-bracketed control-flow (WBCF) and local state encapsulation (LSE).
   We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
-  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et. al. \cite{skorstengaardESOP18}, which can used to prove WBCF and LSE.
+  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et al. \cite{skorstengaardESOP18}, which can used to prove WBCF and LSE.
 \end{abstract}
 
 
@@ -322,7 +322,7 @@ While Iris is a framework and supports many languages, it is geared towards mode
 In contrast, our low-level capability machine model has no notion of expression and values, it just consists of a memory and a register file.
 The program counter register contains a pointer to an address in memory.
 That address in turn will contain an integer, which can then be decoded to a machine instruction, such as Load, Store, Jump, etc.
-Once an instruction has been executed, the program counter is incremented and will then point to the next instruction in memory.
+Once an instruction has been executed, the program counter is updated and will then point to the next instruction in memory.
 
 To capture the semantics of the capability machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and abstract notions of values, for halted and failed configurations.
 
@@ -342,7 +342,7 @@ permission only gives us permission to read from address $a$, but not to write t
 The Hoare triples for basic instructions take the following form
 \begin{align*}
 \small
-	\textit{run time conditions } \wedge &\textit{ decode}(w) = instr \Rightarrow  \\
+	\textit{run time conditions } \wedge &\textit{ decode}(w) = \emph{instr} \Rightarrow  \\
 	\{\{\{ \textsf{PC} \mapsto_r ((p,g),b,e,a) &* a \mapsto_a[p] w * ... \}\}\} \\ 
 	\textsf{Instr Executable }\\
 	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
@@ -440,7 +440,7 @@ unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
 % \end{itemize}
 
 \newcommand{\World}{\mathrm{World}} \newcommand{\Word}{\mathrm{Word}} We now outline how we define a unary logical relation in Iris that captures capability safety.
-We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to \Word \to iProp$, where $\World$ is a collection of state transition systems used to reason about local state.
+We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to \Word \to \emph{iProp}$, where $\World$ is a collection of state transition systems used to reason about local state.
 (It is well-known how state transistion systems can be defined in Iris via Iris's notion of monoids and ghost state.)
 
 This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory, not just local state.
