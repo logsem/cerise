@@ -269,7 +269,8 @@ In summary, we present Iris formalizations of
     which captures capability safety and which can be used to reason about examples
     that rely on WBCF and LSE.
 \end{itemize}
-Most of the technical development is mechanized in Coq using the Coq implementation of Iris (the remaining work consists of a few missing details). Currently the mechanization consists of XXX lines of code. Its substantial size can be slightly improved by some clever use of tactics, however such a mechanization will always be large, due to the low level nature of a machine: we want to consider every possible case of an instruction, both the fails and the successes. 
+Most of the technical development is mechanized in Coq using the Coq implementation of Iris (the remaining work consists of a few missing details). Currently the mechanization consists of 5.8k lines of spec and 15k lines of proof as reported by \textsf{coqwc}. Its substantial size can be slightly improved by some clever use of tactics, however such a mechanization will always be large, due to the low level nature of a machine: we want to consider every possible case of an instruction, both the fails and the successes.
+\todo{Alix: I would say it's more due to the nature of a capability machine with dynamic checks and the multiple ways they can fail}
 
 %\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
 %\todo{Lars: I just tried to reduce the claim above}
@@ -326,7 +327,7 @@ Once an instruction has been executed, the program counter is updated and will t
 
 To capture the semantics of the capability machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and abstract notions of values, for halted and failed configurations.
 
-Next we use the Iris framework to \emph{prove} a Hoare triple for each instruction.
+Next we use the Iris framework to \emph{prove} Hoare triples for each instruction.
 As in \cite{Jensen:2013}, we define a points-to predicate for registers, denoted $r \mapsto_r w$.
 Since a capability machine replaces pointers with capabilities, we replace the conventional points-to predicate of separation logic for pointers with a points-to predicate with a permission attached to it, denoted
 $a \mapsto_a[p]~w$. 
@@ -347,7 +348,7 @@ The Hoare triples for basic instructions take the following form
 	\textsf{Instr Executable }\\
 	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
 \end{align*} 
-Here, the run time conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression for executing the next instruction in memory.
+Here, the runtime conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression for executing the next instruction in memory.
 This form of Hoare triple is similar to the one used in \cite{Jensen:2013} but
 unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
 
@@ -471,7 +472,7 @@ Logical accounts of logical relations for high level languages with references h
 examples involving local state encapsulation in languages where all calls are well-bracketed.
 
 In our case, however, calls are not always well-bracketed (since the capability machine includes general jump instructions).
-\citeauthor{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds.
+Skorstengaard et al.~\cite{skorstengaardESOP18} distinguish between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds.
 Iris invariants do not make such a distinction and thus invariants alone are not sufficient for our purposes.
 Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls.
 We use these relations in combination with Iris' saved predicates, which allow us to save a predicate by associating it to a unique name.
