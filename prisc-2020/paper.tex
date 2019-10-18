@@ -479,9 +479,9 @@ Logical accounts of logical relations for high level languages with references h
 This approach suffices for reasoning about examples involving local state encapsulation in languages where all calls are well-bracketed.
 
 In our case, however, calls are not always well-bracketed (since the capability machine includes general jump instructions).
-\citeauthor{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds, following \cite{dreyer_neis_birkedal_2012}.
+\citeauthor{skorstengaardESOP18} \cite{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds, following \cite{dreyer_neis_birkedal_2012}.
 Iris invariants do not make such a distinction and thus invariants alone are not sufficient for our purposes.
-Instead we explicitly define notions of public and private future world relations, and use these notions to distinguish between well-bracketed and non well-bracketed calls.
+Instead we \textit{explicitly} define notions of public and private future world relations, rather than relying on Iris' \textit{implicit} future world, and use these notions to distinguish between well-bracketed and non well-bracketed calls.
 We use these relations in combination with Iris' higher-order ghost state, which allow us to save a predicate by associating it to a unique ghost name.
 Using that unique name, we are then able to refer to the saved predicate somewhere else, and apply it to
 an appropriate future world argument.
@@ -499,6 +499,8 @@ an appropriate future world argument.
 
 We prove the Fundamental Theorem of Logical Relations, which roughly says that if we have a read-execute capability, and it is capability safe to read it, then it is capability safe to execute it (use it as a program counter).
 We then use the fundamental theorem to prove functional correctness of examples with calls to unknown adversary code and whose correctness relies on local state encapsulation and well-bracketed control flow.
+
+In the future we plan to finish the remaining details of the implementation, then use it as a starting point to prove full abstraction of a compiler from a high level language to our capability machine. Furthermore, it can also be used as a starting point for exploring different kinds of capabilities. 
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
