@@ -269,10 +269,10 @@ In summary, we present Iris formalizations of
     which captures capability safety and which can be used to reason about examples
     that rely on WBCF and LSE.
 \end{itemize}
-All of the technical development is mechanized in Coq using the Coq implementation of Iris.
+Most of the technical development is mechanized in Coq using the Coq implementation of Iris (the remaining work consists of a few missing details). Currently the mechanization consists of XXX lines of code. Its substantial size can be slightly improved by some clever use of tactics, however such a mechanization will always be large, due to the low level nature of a machine: we want to consider every possible case of an instruction, both the fails and the successes. 
 
-\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
-\todo{Lars: I just tried to reduce the claim above}
+%\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
+%\todo{Lars: I just tried to reduce the claim above}
 
 % Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
 % Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
@@ -335,8 +335,8 @@ $a \mapsto_a[p]~w$.
 % \]
 This predicate states that address $a$ points to word $w$ with permission $p$.
 The permission restricts how the memory may be updated at address $a$.
-For instance, if $a \mapsto_a[\textsc{\tiny RO}]~w$, then the $\textsc{\tiny RO}$ (ReadOnly)
-permission only gives us permission to read from address $a$, but not to write to it.
+For instance, if $a \mapsto_a[\textsc{\tiny RX}]~w$, then the $\textsc{\tiny RX}$ (ReadExecute)
+permission gives us permission to read from address $a$, to execute w, but it does not to permit us to write to address $a$.
 
 % Similar to \cite{Jensen:2013}, the program logic rules for each instruction are of the following form: 
 The Hoare triples for basic instructions take the following form
@@ -444,11 +444,11 @@ We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to
 (It is well-known how state transistion systems can be defined in Iris via Iris's notion of monoids and ghost state.)
 
 This notion of World is different from the logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory, not just local state.
-We can use a simpler more abstract notion of world because XXX
-\todo{Lars: say why succintly, is it just because we use capability points-to predicates ?
-  But that could also have been done before\ldots}
+We can use a simpler more abstract notion of world because the Iris model takes care of the world circularity problem. The necessary step indexing is abstracted away by the Iris saved predicates, which we use to define the validity of the regions a capability has authority over. 
+%\todo{Lars: say why succintly, is it just because we use capability points-to predicates ?
+%  But that could also have been done before\ldots}
 
-\todo{Lars: the following is too hard to read and understand -- I suggest to omit it and just add a succinct description above}
+%\todo{Lars: the following is too hard to read and understand -- I suggest to omit it and just add a succinct description above}
 % \todo{begin}
 % Skorstensgaard et.
 % al.
@@ -478,8 +478,6 @@ We use these relations in combination with Iris' saved predicates, which allow u
 Using that unique name, we are then able to refer to the saved predicate somewhere else, and apply it to
 an appropriate future world argument.
 
-
-
 % A callback is an executable capability.
 % This distinction must therefore be done by the value relation.
 % However, if the value relation is indexed by a world, we again have difficulties using Iris invariants.
@@ -491,8 +489,7 @@ an appropriate future world argument.
 % That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question.
 
 
-XXX Add that we prove FTLR and that the LR can be used to prove examples that rely
-on WBCF and LSE.
+We prove the Fundamental Theorem of Logical Relations, in which we show that if we can read a region, we can execute it. We then use the fundamental theorem to prove examples with calls to unknown adversary code, which rely on local state encapsulation and well bracketed control flow. 
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
