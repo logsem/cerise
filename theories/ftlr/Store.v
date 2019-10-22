@@ -2214,10 +2214,9 @@ Section fundamental.
         { by apply andb_false_iff in Hconds. }
         iNext. iIntros. iApply wp_pure_step_later; auto.
         iNext. iApply wp_value. iIntros. discriminate.
-        Unshelve. auto. 
-        
-        
-  Admitted. 
-             
+        Unshelve. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto.
+        auto. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto.
+        auto. auto. auto. 
+  Qed. 
    
 End fundamental.
