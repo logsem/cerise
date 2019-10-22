@@ -23,6 +23,7 @@ Section fundamental.
   Qed.
 
   Lemma PermPairFlows_interp_preserved W p p' l l' b e a :
+    p <> E ->
     PermPairFlowsTo (p', l') (p, l) = true →
     □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
              full_map a2
@@ -38,7 +39,7 @@ Section fundamental.
     (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
     (fixpoint interp1) W (inr (p', l', b, e, a)).
   Proof.
-    intros Hp. iIntros "#IH HA".
+    intros HpnotE Hp. iIntros "#IH HA".
     destruct (andb_true_eq _ _ ltac:(symmetry in Hp; exact Hp)).
     simpl in H3, H4. repeat rewrite fixpoint_interp1_eq.
     destruct p; destruct p'; simpl in H3; inversion H3; simpl;
@@ -136,12 +137,8 @@ Section fundamental.
         iApply wp_pure_step_later; auto. iNext.
         iApply wp_value. iIntros "%". inv a.
     - auto.
-    - iDestruct "HA" as (g b' e' a') "[% HA]".
-      iExists l', b, e, a. iSplitR; auto.
-      iDestruct "HA" as "#HA". iModIntro. inv H5.
-      destruct g, l'; simpl in H4; try congruence; auto.
-      (* Hmmm *) admit.
-    - auto. 
+    - elim HpnotE; auto.
+    - auto.
     - iDestruct "HA" as (g b' e' a') "[% HA]".
       iExists l', b, e, a. iSplitR; auto.
       iDestruct "HA" as (p) "[% HA]".
@@ -274,8 +271,17 @@ Section fundamental.
       iIntros "[[A1 A2] [B [C [D E]]]]".
       iExists _,_,_,_,_. iSplitR; auto. destruct W'. 
       iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-  Admitted.
+  Qed.
 
+  Lemma match_perm_with_E_rewrite:
+    forall (A: Type) p (a1 a2: A),
+      match p with
+      | E => a1
+      | _ => a2
+      end = if (perm_eq_dec p E) then a1 else a2.
+  Proof.
+    intros. destruct (perm_eq_dec p E); destruct p; auto; congruence.
+  Qed.
 
   Lemma restrict_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (dst : RegName) (r0 : Z + RegName) :
@@ -492,27 +498,31 @@ Section fundamental.
           + case_eq (PermPairFlowsTo (decodePermPair z) (p0, l)); intros.
             * case_eq (a + 1)%a; intros.
               { iApply (wp_restrict_success_z with "[$HPC $Ha $Hdst]"); eauto.
-                iNext. iIntros "(HPC & Ha & Hdst)".
-                iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                repeat rewrite -delete_insert_ne; auto.
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
-                iApply wp_pure_step_later; auto.
-                iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> r)))%I
-                  as "#[Hfull' Hreg']".
-                { iSplitL.
-                  - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                  - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
-                    + subst r2. rewrite /RegLocate lookup_insert.
-                      iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
-                      simpl. destruct (decodePermPair z).
-                      iApply (PermPairFlows_interp_preserved); auto. done. 
-                    + rewrite /RegLocate lookup_insert_ne; auto.
-                      iApply "Hreg"; auto. }
-                iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
-                  iFrame "#"; eauto. }
+                repeat rewrite match_perm_with_E_rewrite. destruct (perm_eq_dec p0 E).
+                - subst p0. iNext. iIntros "(HPC & Ha & Hdst)".
+                  iApply wp_pure_step_later; auto.
+                  iNext. iApply wp_value; auto. iIntros; discriminate.
+                - iNext. iIntros "(HPC & Ha & Hdst)".
+                  iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                  repeat rewrite -delete_insert_ne; auto.
+                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                  iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+                  iApply wp_pure_step_later; auto.
+                  iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> r)))%I
+                    as "#[Hfull' Hreg']".
+                  { iSplitL.
+                    - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                    - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
+                      + subst r2. rewrite /RegLocate lookup_insert.
+                        iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
+                        simpl. destruct (decodePermPair z).
+                        iApply (PermPairFlows_interp_preserved); auto. done. auto.
+                      + rewrite /RegLocate lookup_insert_ne; auto.
+                        iApply "Hreg"; auto. }
+                  iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
+                    iFrame "#"; eauto. }
               { iApply (wp_restrict_fail1' with "[$HPC $Ha $Hdst]"); eauto.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -535,36 +545,39 @@ Section fundamental.
                   * case_eq (a + 1)%a; intros.
                     { revert H3; intro H3.
                       iApply (wp_restrict_success_reg with "[$HPC $Ha $Hdst $Hr0]"); eauto.
-                      iNext. iIntros "(HPC & Ha & Hr0 & Hdst)".
-                      iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      repeat rewrite -delete_insert_ne; auto.
-                      iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      repeat rewrite -delete_insert_ne; auto.
-                      iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                      iDestruct (region_close with "[$Hr $Ha]") as "Hr";
-                        [iFrame "#"; auto|].
-                      iApply wp_pure_step_later; auto.
-                      iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> (<[r0:=inl z]> r))))%I
-                        as "#[Hfull' Hreg']".
-                      { iSplitL.
-                        - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                          destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
-                        - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
-                          + subst r2. rewrite /RegLocate lookup_insert.
-                            iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
-                            simpl. destruct (decodePermPair z).
-                            iApply (PermPairFlows_interp_preserved); auto. done. 
-                          + rewrite /RegLocate lookup_insert_ne; auto.
-                            destruct (reg_eq_dec r0 r2).
-                            * subst r2; rewrite lookup_insert. simpl.
-                              repeat rewrite fixpoint_interp1_eq. simpl. eauto.
-                            * rewrite lookup_insert_ne; auto.
-                              iApply "Hreg"; auto. }
-                      iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
-                  iFrame "#"; eauto. }
+                      repeat rewrite match_perm_with_E_rewrite. destruct (perm_eq_dec p0 E).
+                      - iNext. iIntros. iApply wp_pure_step_later; auto.
+                        iNext. iApply wp_value; auto. iIntros; discriminate.
+                      - iNext. iIntros "(HPC & Ha & Hr0 & Hdst)".
+                        iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                        repeat rewrite -delete_insert_ne; auto.
+                        iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                        repeat rewrite -delete_insert_ne; auto.
+                        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                        iDestruct (region_close with "[$Hr $Ha]") as "Hr";
+                          [iFrame "#"; auto|].
+                        iApply wp_pure_step_later; auto.
+                        iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> (<[r0:=inl z]> r))))%I
+                          as "#[Hfull' Hreg']".
+                        { iSplitL.
+                          - iIntros (r2). destruct (reg_eq_dec dst r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                            destruct (reg_eq_dec r0 r2); [subst r2; rewrite lookup_insert; eauto| rewrite lookup_insert_ne; auto].
+                          - iIntros (r2 Hnepc). destruct (reg_eq_dec dst r2).
+                            + subst r2. rewrite /RegLocate lookup_insert.
+                              iDestruct ("Hreg" $! dst Hnepc) as "HA". rewrite Hsomedst.
+                              simpl. destruct (decodePermPair z).
+                              iApply (PermPairFlows_interp_preserved); auto. done. auto. 
+                            + rewrite /RegLocate lookup_insert_ne; auto.
+                              destruct (reg_eq_dec r0 r2).
+                              * subst r2; rewrite lookup_insert. simpl.
+                                repeat rewrite fixpoint_interp1_eq. simpl. eauto.
+                              * rewrite lookup_insert_ne; auto.
+                                iApply "Hreg"; auto. }
+                        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
+                          iFrame "#"; eauto. }
                     { iApply (wp_restrict_fail4' with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
                       iNext. iApply wp_value; auto. iIntros; discriminate. }
