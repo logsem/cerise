@@ -116,6 +116,7 @@ Section cap_lang_rules.
        rewrite Hrv HPC Hflows.
        rewrite /updatePC /update_reg /= /RegLocate lookup_insert Hpca'.
        destruct (decodePermPair z); rewrite insert_insert; auto.
+       inv Hvpc; auto. destruct H7 as [Heq | [Heq | Heq]]; subst pc_p; auto.
      - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
        iModIntro. iNext.
        iIntros (e1 σ2 efs Hstep).
@@ -123,7 +124,8 @@ Section cap_lang_rules.
        rewrite HPC Hrv /= Hflows.
        rewrite /updatePC /update_reg /RegLocate lookup_insert Hpca' /=.
        destruct (decodePermPair z); rewrite insert_insert.
-       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+       inv Hvpc. destruct H8 as [Heq | [Heq | Heq]]; subst pc_p;
+       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
        iSpecialize ("Hϕ" with "[HPC Hrv Hpc_a]"); iFrame; eauto.
    Qed.
 
@@ -141,11 +143,11 @@ Section cap_lang_rules.
            ∗ ▷ r1 ↦ᵣ inr ((p,g),b,e,a)
            ∗ ▷ rv ↦ᵣ inl z }}}
        Instr Executable @ Ep
-       {{{ RET NextIV;
-           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
+       {{{ RET match p with E => FailedV | _ => NextIV end;
+           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,match p with E => pc_a | _ => pc_a' end)
               ∗ pc_a ↦ₐ[pc_p'] w
               ∗ rv ↦ᵣ inl z
-              ∗ r1 ↦ᵣ inr (decodePermPair z,b,e,a) }}}.
+              ∗ r1 ↦ᵣ inr (match p with E => (p, g) | _ => decodePermPair z end,b,e,a) }}}.
    Proof.
      iIntros (Hinstr Hfl Hvpc Hpca' Hflows Hne1 ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hϕ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
@@ -162,23 +164,26 @@ Section cap_lang_rules.
      iApply fupd_frame_l.
      iSplit.
      - rewrite /reducible.
-       iExists [], (Instr _),(updatePC (update_reg (r,m) r1 (inr (decodePermPair z,b,e,a)))).2, [].
+       iExists [], (Instr _),(match p with E => _ | _ => _ end), [].
        iPureIntro.
        constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a
+       eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a
                               (Restrict r1 (inr rv))
-                              (NextI,_)); eauto; simpl; try congruence.
+                              (match p with E => Failed | _ => NextI end,_)); eauto; simpl; try congruence.
        rewrite Hrv Hr1 Hflows /updatePC /update_reg /= /RegLocate lookup_insert_ne; auto.
-       rewrite /RegLocate in HPC. rewrite HPC Hpca'. reflexivity.
+       rewrite /RegLocate in HPC. rewrite HPC Hpca'. destruct p; reflexivity.
      - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
        iModIntro. iNext.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite Hr1 Hrv /= Hflows /updatePC /update_reg /RegLocate lookup_insert_ne; auto.
        rewrite /RegLocate in HPC. rewrite HPC Hpca' /=.
-       iMod (@gen_heap_update with "Hr Hr1") as "[Hr Hr1]";
-       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
-         iSpecialize ("Hϕ" with "[HPC Hr1 Hrv Hpc_a]"); iFrame; eauto. 
+       destruct p;
+         try (iMod (@gen_heap_update with "Hr Hr1") as "[Hr Hr1]";
+              iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
+              iSpecialize ("Hϕ" with "[HPC Hr1 Hrv Hpc_a]"); iFrame; eauto).
+       simpl. iFrame. iModIntro. iSplitR; auto.
+       iApply "Hϕ". iFrame.
    Qed.
 
    Lemma wp_restrict_success_z_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w z pc_p' :
@@ -215,14 +220,16 @@ Section cap_lang_rules.
                               (Restrict PC (inl z))
                               (NextI,_)); eauto; simpl; try congruence.
        rewrite HPC Hflows /updatePC /update_reg /= /RegLocate lookup_insert Hpca' /=.
-       destruct (decodePermPair z). auto.       
+       destruct (decodePermPair z). auto.
+       inv Hvpc. destruct H7 as [? | [? | ?]]; subst pc_p; auto.
      - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
        iModIntro. iNext.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite HPC /= Hflows /updatePC /update_reg /RegLocate lookup_insert Hpca' /=.
        destruct (decodePermPair z); rewrite insert_insert.
-       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]".
+       inv Hvpc. destruct H8 as [? | [? | ?]]; subst pc_p;
+       iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
        iSpecialize ("Hϕ" with "[HPC Hpc_a]"); iFrame; eauto.
    Qed.
 
@@ -238,10 +245,10 @@ Section cap_lang_rules.
            ∗ ▷ pc_a ↦ₐ[pc_p'] w
            ∗ ▷ r1 ↦ᵣ inr ((p,g),b,e,a) }}}
        Instr Executable @ Ep
-     {{{ RET NextIV;
-         PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
+     {{{ RET match p with E => FailedV | _ => NextIV end;
+         PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,match p with E => pc_a | _ => pc_a' end)
             ∗ pc_a ↦ₐ[pc_p'] w
-            ∗ r1 ↦ᵣ inr (decodePermPair z,b,e,a) }}}.
+            ∗ r1 ↦ᵣ inr (match p with E => (p, g) | _ => decodePermPair z end,b,e,a) }}}.
    Proof.
      iIntros (Hinstr Hfl Hvpc Hpca' Hflows Hne1 ϕ) "(>HPC & >Hpc_a & >Hr1) Hϕ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
@@ -260,22 +267,24 @@ Section cap_lang_rules.
      iApply fupd_frame_l.
      iSplit.
      - rewrite /reducible.
-       iExists [], (Instr _),(updatePC (update_reg (r,m) r1 (inr (decodePermPair z,b,e,a)))).2, [].
+       iExists [], (Instr _),match p with E => _ | _ => _ end, [].
        iPureIntro.
        constructor.
-       apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a
+       eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a
                               (Restrict r1 (inl z))
-                              (NextI,_)); eauto; simpl; try congruence.
-       rewrite Hr1 Hflows /updatePC /update_reg /= Hpc_new1 Hpca'. reflexivity.
+                              (match p with E => _ | _ => _ end,_)); eauto; simpl; try congruence.
+       rewrite Hr1 Hflows /updatePC /update_reg /= Hpc_new1 Hpca'. destruct p; reflexivity.
      - (*iMod (fupd_intro_mask' ⊤) as "H"; eauto.*)
        iModIntro. iNext.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1.
        rewrite Hr1 /= Hflows.
-       rewrite /updatePC /update_reg Hpc_new1 Hpca' /= ;
+       rewrite /updatePC /update_reg Hpc_new1 Hpca' /=.
+       destruct p; try (
          iMod (@gen_heap_update with "Hr Hr1") as "[Hr Hr1]";
          iMod (@gen_heap_update with "Hr HPC") as "[$ HPC]";
-         iSpecialize ("Hϕ" with "[HPC Hr1 Hpc_a]"); iFrame; eauto.
+         iSpecialize ("Hϕ" with "[HPC Hr1 Hpc_a]"); iFrame; eauto).
+       simpl. iModIntro; iFrame. iSplitR; auto. iApply "Hϕ"; iFrame.
    Qed.
 
    Lemma wp_restrict_failPC1 Ep pc_p pc_g pc_b pc_e pc_a w n pc_p':
@@ -309,14 +318,14 @@ Section cap_lang_rules.
        apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict PC (inl n))
                               (Failed,_));
          eauto; simpl; try congruence.
-       rewrite HPC Hflows. reflexivity.
+       rewrite HPC Hflows. destruct pc_p; reflexivity.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iModIntro.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite HPC Hflows /=.
        iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
+       iSplitR; auto. destruct pc_p; simpl; iFrame; by iApply "Hφ".
    Qed.
 
    Lemma wp_restrict_failPCreg1 Ep pc_p pc_g pc_b pc_e pc_a w n r1 pc_p' :
@@ -352,14 +361,14 @@ Section cap_lang_rules.
        eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict PC (inr r1))
                               (Failed,_));
          eauto; simpl; try congruence.
-       rewrite HPC Hr1 Hflows. reflexivity.
+       rewrite HPC Hr1 Hflows. destruct pc_p; reflexivity.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iModIntro.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite HPC Hr1 Hflows /=.
        iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
+       iSplitR; auto. destruct pc_p; simpl; iFrame; by iApply "Hφ".
    Qed.
 
    Lemma wp_restrict_failPC1' Ep pc_p pc_g pc_b pc_e pc_a w n pc_p' :
@@ -392,10 +401,10 @@ Section cap_lang_rules.
        iPureIntro.
        constructor.
        eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict PC (inl n))
-                              (Failed,_));
+                              (Failed, match pc_p with E => _ | _ => _ end));
          eauto; simpl; try congruence.
        rewrite HPC Hflows /updatePC /= /RegLocate lookup_insert Ha'.
-       case_eq (decodePermPair n); intros; auto. rewrite <- H1. reflexivity.
+       case_eq (decodePermPair n); intros; auto. rewrite <- H1. destruct pc_p; reflexivity.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iMod (@gen_heap_update with "Hr HPC") as "[Hr HPC]".
        iModIntro.
@@ -405,7 +414,8 @@ Section cap_lang_rules.
        iNext. iModIntro.
        iSplitR; auto.
        rewrite /update_reg. simpl. case_eq (decodePermPair n); intros; auto. rewrite <- H2.
-       iFrame; try iApply "Hφ"; auto.
+       destruct pc_p; simpl; iFrame; try iApply "Hφ"; auto.
+       inv Hvpc. destruct H9 as [? | [? | ?]]; congruence.
    Qed.
 
    Lemma wp_restrict_failPCreg1' Ep pc_p pc_g pc_b pc_e pc_a w n a' r1 pc_p' :
@@ -440,10 +450,11 @@ Section cap_lang_rules.
        iPureIntro.
        constructor.
        eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict PC (inr r1))
-                              (Failed,_));
+                              (Failed, match pc_p with E => _ | _ => _ end));
          eauto; simpl; try congruence.
        rewrite HPC Hr1 Hflows /updatePC /= /RegLocate lookup_insert Ha'.
        case_eq (decodePermPair n); intros; rewrite <- H1; auto.
+       destruct pc_p; reflexivity.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iMod (@gen_heap_update with "Hr HPC") as "[Hr HPC]".
        iModIntro.
@@ -452,7 +463,8 @@ Section cap_lang_rules.
        rewrite HPC Hr1 Hflows /updatePC /= /RegLocate lookup_insert Ha'.
        case_eq (decodePermPair n); intros; rewrite <- H2.
        iFrame. iNext. iModIntro.
-       iSplitR; auto. iFrame; try iApply "Hφ"; auto.
+       iSplitR; auto. destruct pc_p; simpl; iFrame; try iApply "Hφ"; auto.
+       inv Hvpc. destruct H9 as [? | [? | ?]]; congruence.
    Qed.
 
    Lemma wp_restrict_fail1 Ep dst pc_p pc_g pc_b pc_e pc_a w p g b e a n pc_p' :
@@ -488,14 +500,14 @@ Section cap_lang_rules.
        apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inl n))
                               (Failed,_));
          eauto; simpl; try congruence.
-       rewrite Hdst Hflows. auto.
+       rewrite Hdst Hflows. auto. destruct p; auto.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iModIntro.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite Hdst Hflows.
        iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
+       iSplitR; auto. destruct p; simpl; iFrame; by iApply "Hφ".
    Qed.
 
    Lemma wp_restrict_fail1' Ep dst pc_p pc_g pc_b pc_e pc_a w p g b e a n a' pc_p' :
@@ -531,19 +543,25 @@ Section cap_lang_rules.
        iPureIntro.
        constructor.
        eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inl n))
-                              (Failed,_));
+                              (Failed, match p with E => _ | _ => _ end));
          eauto; simpl; try congruence.
        rewrite Hdst Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
-       rewrite /RegLocate in HPC. rewrite HPC Ha'. auto.
+       rewrite /RegLocate in HPC. rewrite HPC Ha'. destruct p; auto.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
-       iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
-       iModIntro.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
-       rewrite /RegLocate in HPC. rewrite HPC Ha'.
-       iNext. iModIntro. iSplitR; auto.
-       simpl; iFrame; by iApply "Hφ".
+       destruct (perm_eq_dec p E).
+       + subst p. iModIntro.
+         iIntros (e1 σ2 efs Hstep).
+         inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+         rewrite Hdst /=. iNext. iModIntro. iSplitR; iFrame; auto.
+         by iApply "Hφ".
+       + iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
+         iModIntro.
+         iIntros (e1 σ2 efs Hstep).
+         inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+         rewrite Hdst Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
+         rewrite /RegLocate in HPC. rewrite HPC Ha'.
+         iNext. iModIntro. iSplitR; auto.
+         destruct p; simpl; iFrame; try (by iApply "Hφ"); congruence.
    Qed.
 
    Lemma wp_restrict_fail2 E dst src pc_p pc_g pc_b pc_e pc_a w n pc_p' :
@@ -625,14 +643,14 @@ Section cap_lang_rules.
        apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inr rg))
                               (Failed,_));
          eauto; simpl; try congruence.
-       rewrite Hdst. rewrite Hrg. rewrite Hflows. auto.
+       rewrite Hdst. rewrite Hrg. rewrite Hflows. destruct p; auto.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
        iModIntro.
        iIntros (e1 σ2 efs Hstep).
        inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
        rewrite Hdst. rewrite Hrg. rewrite Hflows.
        iFrame. iNext. iModIntro.
-       iSplitR; auto. by iApply "Hφ".
+       destruct p; simpl; iFrame; iSplitR; auto; by iApply "Hφ".
    Qed.
 
    Lemma wp_restrict_fail4' Ep dst pc_p pc_g pc_b pc_e pc_a w p g b e a rg n pc_p' :
@@ -670,19 +688,25 @@ Section cap_lang_rules.
        iPureIntro.
        constructor.
        eapply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a (Restrict dst (inr rg))
-                              (Failed,_));
+                              (Failed,match p with E => _ | _ => _ end));
          eauto; simpl; try congruence.
        rewrite Hdst. rewrite Hrg. rewrite Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
-       rewrite /RegLocate in HPC. rewrite HPC Ha'. auto.
+       rewrite /RegLocate in HPC. rewrite HPC Ha'. destruct p; reflexivity.
      - (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
-       iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
-       iModIntro.
-       iIntros (e1 σ2 efs Hstep).
-       inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-       rewrite Hdst. rewrite Hrg. rewrite Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
-       rewrite /RegLocate in HPC. rewrite HPC Ha'.
-       iNext. iModIntro. iSplitR; auto.
-       iFrame; by iApply "Hφ".
+       destruct (perm_eq_dec p E).
+       + subst p; simpl. iModIntro.
+         iIntros (e1 σ2 efs Hstep).
+         inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+         rewrite Hdst Hrg /=. iNext. iModIntro. iSplitR; iFrame; auto.
+         by iApply "Hφ".
+       + iMod (@gen_heap_update with "Hr Hdst") as "[Hr Hdst]".
+         iModIntro.
+         iIntros (e1 σ2 efs Hstep).
+         inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+         rewrite Hdst. rewrite Hrg. rewrite Hflows /updatePC /= /RegLocate lookup_insert_ne; auto.
+         rewrite /RegLocate in HPC. rewrite HPC Ha'.
+         iNext. iModIntro. iSplitR; auto.
+         destruct p; simpl; iFrame; try iApply "Hφ"; auto; congruence.
    Qed.
 
    Lemma wp_restrict_failPC5 Ep pc_p pc_g pc_b pc_e pc_a w rg x pc_p' :

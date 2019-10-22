@@ -349,9 +349,12 @@ Module cap_lang.
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
       | inr (permPair, b, e, a) =>
-        if PermPairFlowsTo (decodePermPair n) permPair then
-          updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
-        else (Failed, φ)
+        match permPair with
+        | (E, _) => (Failed, φ)
+        | _ => if PermPairFlowsTo (decodePermPair n) permPair then
+                updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+              else (Failed, φ)
+        end
       end
     | Restrict dst (inr r) =>
       match RegLocate (reg φ) dst with
@@ -360,9 +363,12 @@ Module cap_lang.
         match RegLocate (reg φ) r with
         | inr _ => (Failed, φ)
         | inl n =>
-          if PermPairFlowsTo (decodePermPair n) permPair then
-            updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
-          else (Failed, φ)
+          match permPair with
+          | (E, _) => (Failed, φ)
+          | _ => if PermPairFlowsTo (decodePermPair n) permPair then
+                  updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+                else (Failed, φ)
+          end
         end
       end
     | Add dst (inr r1) (inr r2) =>
