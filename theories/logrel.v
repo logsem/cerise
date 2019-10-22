@@ -56,7 +56,7 @@ Section heap.
                                              ∗ (a ↦ₐ[p] v)
                                              ∗ future_mono φ
                                              ∗ saved_pred_own γpred φ
-                                             ∗ φ (W,v))%I.
+                                             ∗ ▷ φ (W,v))%I.
   Definition region_aux : { x | x = @region_def }. by eexists. Qed.
   Definition region := proj1_sig region_aux.
   Definition region_eq : @region = @region_def := proj2_sig region_aux.
@@ -78,13 +78,8 @@ Section heap.
     revert Hi Heq; rewrite -Hy => Hi Heq.
     apply to_agree_included in Hi; subst.
     revert Heq; rewrite -Hi => Heq.
-    (* rewrite insert_delete insert_id; auto. *)
-    rewrite -(insert_id R n (to_agree r)) in Heq.
-    - rewrite lookup_insert in Heq. inversion Heq. subst.
-      rewrite insert_delete. 
-      admit.
-    - 
-    admit.
+    rewrite insert_delete insert_id; auto. eapply leibniz_equiv. apply Heq.
+    Unshelve. 
   Admitted.
 
   Lemma rels_agree a γ1 γ2 p1 p2 :
@@ -99,7 +94,18 @@ Section heap.
     apply agree_op_invL' in Hval.
     by inversion Hval. 
   Qed. 
-  
+
+  Lemma rel_agree a p1 p2 φ1 φ2 :
+    rel a p1 φ1 ∗ rel a p2 φ2 -∗ ⌜p1 = p2⌝ ∗ (∀ x, ▷ (φ1 x ≡ φ2 x)). 
+  Proof.
+    iIntros "[Hr1 Hr2]".
+    rewrite rel_eq /rel_def. 
+    iDestruct "Hr1" as (γ1) "[Hrel1 Hpred1]".
+    iDestruct "Hr2" as (γ2) "[Hrel2 Hpred2]".
+    iDestruct (rels_agree with "[$Hrel1 $Hrel2]") as %[-> ->].
+    iSplitR;[auto|]. iIntros (x). iApply (saved_pred_agree with "Hpred1 Hpred2").
+  Qed. 
+    
   Lemma extend_region E W l p v φ `{∀ W v, Persistent (φ (W,v))}:
     (⌜p ≠ O⌝ → future_mono φ →
     region W -∗ l ↦ₐ[p] v -∗ φ (W,v) ={E}=∗ region W ∗ rel l p φ)%I.
@@ -139,7 +145,7 @@ Section heap.
                                   ∗ (l ↦ₐ[p] v)
                                   ∗ future_mono φ
                                   ∗ saved_pred_own γpred φ
-                                  ∗ φ (W,v))%I.
+                                  ∗ ▷ φ (W,v))%I.
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
   Definition open_region := proj1_sig open_region_aux.
   Definition open_region_eq : @open_region = @open_region_def := proj2_sig open_region_aux.
@@ -180,7 +186,7 @@ Section heap.
   Qed.
 
   Lemma region_close W l φ p v :
-    open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_mono φ ∗ φ (W,v) ∗ rel l p φ
+    open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_mono φ ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
     rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
@@ -190,7 +196,7 @@ Section heap.
     iDestruct "Hreg_open" as (M) "(HM & Hpreds)".
     iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
       first by rewrite lookup_delete.
-    { iFrame. iExists _,_,_,_. iFrame "∗ #". do 2 (iSplitR;[eauto|]). done. }
+    { iFrame. iExists _,_,_,_. iFrame "∗ #". (iSplitR;[eauto|]). done. }
     iExists _. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite -HMeq. iFrame.
@@ -236,7 +242,7 @@ Section heap.
                                   ∗ l ↦ₐ[p] v
                                   ∗ future_mono φ
                                   ∗ saved_pred_own γpred φ
-                                  ∗ φ (W,v))%I.
+                                  ∗ ▷ φ (W,v))%I.
   Definition open_region_many_aux : { x | x = @open_region_many_def }. by eexists. Qed.
   Definition open_region_many := proj1_sig open_region_many_aux.
   Definition open_region_many_eq : @open_region_many = @open_region_many_def := proj2_sig open_region_many_aux.
@@ -288,7 +294,7 @@ Section heap.
 
   Lemma region_close_next W φ ls l p v :
     l ∉ ls ->
-    open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_mono φ ∗ φ (W,v) ∗ rel l p φ -∗ open_region_many ls W.
+    open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_mono φ ∗ ▷ φ (W,v) ∗ rel l p φ -∗ open_region_many ls W.
   Proof.
     rewrite open_region_many_eq /open_region_many_def. 
     iIntros (Hnin) "(Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
@@ -297,7 +303,7 @@ Section heap.
     iDestruct "Hreg_open" as (M) "(HM & Hpreds)".
     iDestruct (big_sepM_insert _ (delete l (delete_list ls M)) l with "[-HM]") as "test";
       first by rewrite lookup_delete.
-    { iFrame. iExists _,_,_,_. iFrame "∗ #". do 2 (iSplitR;[eauto|]). done. }
+    { iFrame. iExists _,_,_,_. iFrame "∗ #". (iSplitR;[eauto|]). done. }
     iExists _.
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite -delete_list_delete; auto. rewrite -delete_list_insert; auto.
