@@ -20,11 +20,9 @@ theories/logrel.v
 theories/region.v
 theories/sts.v
 theories/ftlr/Get.v
-theories/ftlr/Get2.v
 theories/ftlr/Load.v
 theories/ftlr/Store.v
 theories/ftlr/AddSubLt.v
-theories/ftlr/AddSubLt2.v
 theories/ftlr/Lea.v
 theories/ftlr/Mov.v
 theories/ftlr/Restrict.v
