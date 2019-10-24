@@ -1,14 +1,13 @@
-From cap_machine Require Import rules logrel fundamental. 
+From cap_machine Require Import rules logrel fundamental monotone. 
 From cap_machine Require Export addr_reg_sample.
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 
 Section stack_macros.
-  Context `{memG Σ, regG Σ, STSG Σ,
-            logrel_na_invs Σ,
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            World: MonRefG (leibnizO _) RelW Σ}.
+            Heap: heapG Σ}.
 
   (* ---------------------------- Helper Lemmas --------------------------------------- *)
   Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
@@ -932,8 +931,8 @@ Section stack_macros.
          iFrame. iApply "Hl2". auto. 
    Qed.
 
-   Lemma region_addrs_zeroes_valid_aux n : 
-     ([∗ list] y ∈ repeat (inl 0%Z) n, ▷ (fixpoint interp1) y)%I.
+   Lemma region_addrs_zeroes_valid_aux n W : 
+     ([∗ list] y ∈ repeat (inl 0%Z) n, ▷ (fixpoint interp1) W y)%I.
    Proof. 
      iInduction (n) as [n | n] "IHn".
      - done.
@@ -942,9 +941,9 @@ Section stack_macros.
        eauto.
    Qed. 
      
-   Lemma region_addrs_zeroes_valid (a b : Addr) :
+   Lemma region_addrs_zeroes_valid (a b : Addr) W :
      ([∗ list] _;y2 ∈ region_addrs a b; region_addrs_zeroes a b,
-                                        ▷ (fixpoint interp1) y2)%I.
+                                        ▷ (fixpoint interp1) W y2)%I.
    Proof.
      rewrite /region_addrs /region_addrs_zeroes.
      destruct (Z_le_dec a b); last done. 
@@ -975,30 +974,38 @@ Section stack_macros.
      iApply region_addrs_zeroes_trans_aux; auto.
    Qed. 
    
-   Lemma region_addrs_zeroes_alloc_aux E (a b : Addr) p n :
+   Lemma region_addrs_zeroes_alloc_aux E (a b : Addr) W p n :
+     p ≠ O → 
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
-       -∗ ([∗ list] x ∈ region_addrs_aux a n,
-           |={E}=> read_write_cond x p (fixpoint interp1)).
+       -∗ region W
+       ={E}=∗ ([∗ list] x ∈ region_addrs_aux a n,
+               read_write_cond x p (fixpoint interp1)) ∗ region W.
    Proof. 
      iInduction (n) as [n | n] "IHn" forall (a); first auto. 
-     iIntros "Hlist".
+     iIntros (Hne) "Hlist Hr".
      iDestruct "Hlist" as "[Ha Hlist]".
-     iSplitL "Ha".
-     - iApply na_inv_alloc.
-       iNext. iExists (inl 0%Z). iFrame.
-       iNext. rewrite fixpoint_interp1_eq /=. eauto.  
-     - iApply "IHn". iFrame.
+     iAssert (interp W (inl 0%Z)) as "#Hav".
+     { rewrite fixpoint_interp1_eq. eauto. }
+     iMod (extend_region E W a p _ (λne Wv, interp Wv.1 Wv.2)
+                    with "[] [] [$Hr] [$Ha] [$Hav]") as "[Hr #Hrel]"; auto.
+     { iAlways. iIntros (W1 W2 v Hrelated) "Hv /=". iApply interp_monotone; eauto. }
+     iFrame "#". iApply ("IHn" $! _ Hne with "[$Hlist] [$Hr]"). 
+     Unshelve.
+     - solve_proper.
+     - apply _. 
    Qed.      
      
-   Lemma region_addrs_zeroes_alloc E (a b : Addr) p :
+   Lemma region_addrs_zeroes_alloc E W (a b : Addr) p :
+     p ≠ O →
      ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
-     ={E}=∗ [∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1).
+       ∗ region W
+     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1)) ∗ region W.
    Proof.
-     iIntros "Hlist".
+     iIntros (Hne) "[Hlist Hr]".
      iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
-     iApply big_sepL_fupd. rewrite /region_addrs. 
-     destruct (Z_le_dec a b); last done.
-     iApply region_addrs_zeroes_alloc_aux; auto. 
+     rewrite /region_addrs.  
+     destruct (Z_le_dec a b); last auto.
+     iMod (region_addrs_zeroes_alloc_aux with "[$Hlist] [$Hr]") as "H"; auto.
    Qed. 
 
    (* opening a list of invariants all at once *)
@@ -1102,104 +1109,104 @@ Section stack_macros.
      rewrite /addr_reg.top /= in l. omega. 
    Qed.      
      
-   Lemma region_addrs_open_aux E F a n p :
-     (∃ a', (a + (Z.of_nat n))%a = Some a') →
-     (list_names (region_addrs_aux a n)) ⊆ E
-     → (list_names (region_addrs_aux a n)) ⊆ F
-     → na_own logrel_nais F
-     -∗ ([∗ list] a0 ∈ region_addrs_aux a n, read_write_cond a0 p (fixpoint interp1))
-     ={E}=∗ ([∗ list] a0 ∈ region_addrs_aux a n,
-             ▷ (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w))
-         ∗ (na_own logrel_nais (F ∖ list_names (region_addrs_aux a n)))
-         ∗ (na_own logrel_nais (F ∖ list_names (region_addrs_aux a n))
-            ∗ ([∗ list] a0 ∈ region_addrs_aux a n,
-               ▷ (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w))
-               ={E}=∗ na_own logrel_nais F).
-   Proof.
-     iInduction (n) as [n | n] "IHn" forall (a E F).
-     - iIntros (Hne HleE HleF) "Han #Hinv /=".
-       rewrite difference_empty_L.
-       iFrame. iModIntro. iIntros "[Hna _]". auto.
-     - iIntros (Hne HleE HleF) "Hna #Hinv /=".
-       iDestruct "Hinv" as "[Ha Hinv]".
-       simpl in *. 
-       apply union_subseteq in HleE as [HaE HleE].
-       apply union_subseteq in HleF as [HaF HleF]. 
-       iMod (na_inv_open with "Ha Hna") as "($ & Hna & Hcls)"; auto.
-       rewrite -difference_difference_L.
-       assert (list_names (region_addrs_aux (get_addr_from_option_addr (a + 1)%a) n)
-                          ## ↑logN.@a).
-       { apply list_names_disj; last omega.
-         destruct Hne as [a' Hne].
-         apply incr_addr_ne_top with (S n) a'; auto; lia. 
-       }
-       (* apply subseteq_difference_r with _ _ (↑logN.@a) in HleE; auto.  *)
-       apply subseteq_difference_r with _ _ (↑logN.@a) in HleF; auto.
-       assert ((∃ a' : Addr, (get_addr_from_option_addr (a + 1) + n)%a = Some a')
-               ∨ n = 0) as [Hnen | Hn0].
-       { destruct Hne as [an Hne].
-         assert (∃ a', (a + 1)%a = Some a') as [a' Ha'].
-         { rewrite /incr_addr.
-           destruct (Z_le_dec (a + 1)%Z MemNum); first eauto.
-           rewrite /incr_addr in Hne. 
-           destruct (Z_le_dec (a + S n)%Z MemNum),an; inversion Hne.
-           subst.
-           assert (a + 1 ≤ MemNum)%Z; last contradiction.
-           clear Hne n0 H3 HleF HaF HleE HaE fin.
-           induction n; auto. apply IHn. lia. 
-         }
-         destruct n.
-         - by right.
-         - left.
-           rewrite Ha' /=. exists an.
-           apply incr_addr_of_z in Ha'.
-           rewrite /incr_addr in Hne.
-           destruct (Z_le_dec (a + S (S n))%Z MemNum),an; inversion Hne.
-           rewrite /incr_addr.
-           destruct (Z_le_dec (a' + S n)%Z MemNum).
-           + f_equal. apply addr_unique. lia.
-           + rewrite -Ha' /= in n0. clear Hne. lia. 
-       }
-       + iMod ("IHn" $! _ _ _ Hnen HleE HleF with "Hna Hinv") as "(Hreg & Hna & Hcls')".
-         iFrame. iModIntro.
-         iIntros "(Hna & Ha' & Hreg)".
-         iMod ("Hcls'" with "[$Hna $Hreg]") as "Hna".
-           by iMod ("Hcls" with "[$Hna $Ha']").
-       + rewrite Hn0 /=.
-         iModIntro. iSplitR;[auto|].
-         rewrite difference_empty_L. iFrame.
-         iIntros "(Hna & Ha' & _)".
-         iApply "Hcls". iFrame.
-   Qed. 
+   (* Lemma region_addrs_open_aux E F W a n p : *)
+   (*   (∃ a', (a + (Z.of_nat n))%a = Some a') → *)
+   (*   (list_names (region_addrs_aux a n)) ⊆ E *)
+   (*   → (list_names (region_addrs_aux a n)) ⊆ F *)
+   (*   → na_own logrel_nais F *)
+   (*   -∗ ([∗ list] a0 ∈ region_addrs_aux a n, read_write_cond a0 p (fixpoint interp1)) *)
+   (*   ={E}=∗ ([∗ list] a0 ∈ region_addrs_aux a n, *)
+   (*           ▷ (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) W w)) *)
+   (*       ∗ (na_own logrel_nais (F ∖ list_names (region_addrs_aux a n))) *)
+   (*       ∗ (na_own logrel_nais (F ∖ list_names (region_addrs_aux a n)) *)
+   (*          ∗ ([∗ list] a0 ∈ region_addrs_aux a n, *)
+   (*             ▷ (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) W w)) *)
+   (*             ={E}=∗ na_own logrel_nais F). *)
+   (* Proof. *)
+   (*   iInduction (n) as [n | n] "IHn" forall (a E F). *)
+   (*   - iIntros (Hne HleE HleF) "Han #Hinv /=". *)
+   (*     rewrite difference_empty_L. *)
+   (*     iFrame. iModIntro. iIntros "[Hna _]". auto. *)
+   (*   - iIntros (Hne HleE HleF) "Hna #Hinv /=". *)
+   (*     iDestruct "Hinv" as "[Ha Hinv]". *)
+   (*     simpl in *.  *)
+   (*     apply union_subseteq in HleE as [HaE HleE]. *)
+   (*     apply union_subseteq in HleF as [HaF HleF].  *)
+   (*     iMod (na_inv_open with "Ha Hna") as "($ & Hna & Hcls)"; auto. *)
+   (*     rewrite -difference_difference_L. *)
+   (*     assert (list_names (region_addrs_aux (get_addr_from_option_addr (a + 1)%a) n) *)
+   (*                        ## ↑logN.@a). *)
+   (*     { apply list_names_disj; last omega. *)
+   (*       destruct Hne as [a' Hne]. *)
+   (*       apply incr_addr_ne_top with (S n) a'; auto; lia.  *)
+   (*     } *)
+   (*     (* apply subseteq_difference_r with _ _ (↑logN.@a) in HleE; auto.  *) *)
+   (*     apply subseteq_difference_r with _ _ (↑logN.@a) in HleF; auto. *)
+   (*     assert ((∃ a' : Addr, (get_addr_from_option_addr (a + 1) + n)%a = Some a') *)
+   (*             ∨ n = 0) as [Hnen | Hn0]. *)
+   (*     { destruct Hne as [an Hne]. *)
+   (*       assert (∃ a', (a + 1)%a = Some a') as [a' Ha']. *)
+   (*       { rewrite /incr_addr. *)
+   (*         destruct (Z_le_dec (a + 1)%Z MemNum); first eauto. *)
+   (*         rewrite /incr_addr in Hne.  *)
+   (*         destruct (Z_le_dec (a + S n)%Z MemNum),an; inversion Hne. *)
+   (*         subst. *)
+   (*         assert (a + 1 ≤ MemNum)%Z; last contradiction. *)
+   (*         clear Hne n0 H3 HleF HaF HleE HaE fin. *)
+   (*         induction n; auto. apply IHn. lia.  *)
+   (*       } *)
+   (*       destruct n. *)
+   (*       - by right. *)
+   (*       - left. *)
+   (*         rewrite Ha' /=. exists an. *)
+   (*         apply incr_addr_of_z in Ha'. *)
+   (*         rewrite /incr_addr in Hne. *)
+   (*         destruct (Z_le_dec (a + S (S n))%Z MemNum),an; inversion Hne. *)
+   (*         rewrite /incr_addr. *)
+   (*         destruct (Z_le_dec (a' + S n)%Z MemNum). *)
+   (*         + f_equal. apply addr_unique. lia. *)
+   (*         + rewrite -Ha' /= in n0. clear Hne. lia.  *)
+   (*     } *)
+   (*     + iMod ("IHn" $! _ _ _ Hnen HleE HleF with "Hna Hinv") as "(Hreg & Hna & Hcls')". *)
+   (*       iFrame. iModIntro. *)
+   (*       iIntros "(Hna & Ha' & Hreg)". *)
+   (*       iMod ("Hcls'" with "[$Hna $Hreg]") as "Hna". *)
+   (*         by iMod ("Hcls" with "[$Hna $Ha']"). *)
+   (*     + rewrite Hn0 /=. *)
+   (*       iModIntro. iSplitR;[auto|]. *)
+   (*       rewrite difference_empty_L. iFrame. *)
+   (*       iIntros "(Hna & Ha' & _)". *)
+   (*       iApply "Hcls". iFrame. *)
+   (* Qed.  *)
        
-   Lemma region_addrs_open (E F : coPset) a b p :
-     (∃ a' : Addr, (a + region_size a b)%a = Some a') →
-     (list_names (region_addrs a b)) ⊆ E
-     → (list_names (region_addrs a b)) ⊆ F
-     → na_own logrel_nais F 
-     -∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1))
-     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, ▷ ∃ w, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w)
-          ∗ na_own logrel_nais (F ∖ (list_names (region_addrs a b)))
-          ∗ (na_own logrel_nais (F ∖ (list_names (region_addrs a b)))
-             ∗ ([∗ list] a0 ∈ region_addrs a b, ▷ ∃ w, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w)
-             ={E}=∗ na_own logrel_nais F).
-   Proof.
-     iIntros (Ha' HleE HleF) "Hna #Hinv".
-     rewrite /region_addrs. 
-     destruct (Z_le_dec a b).
-     - iApply (region_addrs_open_aux with "Hna"); auto.
-       + rewrite /region_addrs in HleE.
-         destruct (Z_le_dec a b); auto. 
-         contradiction.
-       + rewrite /region_addrs in HleF.
-         destruct (Z_le_dec a b); auto. 
-         contradiction.
-     - iSplitR; auto. iSplitL.
-       + by rewrite difference_empty_L. 
-       + iModIntro.
-         iIntros "[Hna HP] /=".
-         by rewrite difference_empty_L. 
-   Qed.
+   (* Lemma region_addrs_open (E F : coPset) a b p : *)
+   (*   (∃ a' : Addr, (a + region_size a b)%a = Some a') → *)
+   (*   (list_names (region_addrs a b)) ⊆ E *)
+   (*   → (list_names (region_addrs a b)) ⊆ F *)
+   (*   → na_own logrel_nais F  *)
+   (*   -∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1)) *)
+   (*   ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, ▷ ∃ w, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w) *)
+   (*        ∗ na_own logrel_nais (F ∖ (list_names (region_addrs a b))) *)
+   (*        ∗ (na_own logrel_nais (F ∖ (list_names (region_addrs a b))) *)
+   (*           ∗ ([∗ list] a0 ∈ region_addrs a b, ▷ ∃ w, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) w) *)
+   (*           ={E}=∗ na_own logrel_nais F). *)
+   (* Proof. *)
+   (*   iIntros (Ha' HleE HleF) "Hna #Hinv". *)
+   (*   rewrite /region_addrs.  *)
+   (*   destruct (Z_le_dec a b). *)
+   (*   - iApply (region_addrs_open_aux with "Hna"); auto. *)
+   (*     + rewrite /region_addrs in HleE. *)
+   (*       destruct (Z_le_dec a b); auto.  *)
+   (*       contradiction. *)
+   (*     + rewrite /region_addrs in HleF. *)
+   (*       destruct (Z_le_dec a b); auto.  *)
+   (*       contradiction. *)
+   (*   - iSplitR; auto. iSplitL. *)
+   (*     + by rewrite difference_empty_L.  *)
+   (*     + iModIntro. *)
+   (*       iIntros "[Hna HP] /=". *)
+   (*       by rewrite difference_empty_L.  *)
+   (* Qed. *)
 
    (* -------------------- SUPPLEMENTAL LEMMAS ABOUT REGIONS -------------------------- *)
    
