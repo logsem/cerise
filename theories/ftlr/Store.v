@@ -1206,7 +1206,7 @@ Section fundamental.
            iDestruct "Ha" as %Hfl'. 
            iMod (@gen_heap_update_cap with "Hm Hpc_a") as "[$ Hpc_a]"; auto.
            { destruct p,pc_p'; auto; inversion Hfl'; auto. }
-           { apply PermFlows_trans with pc_p;auto. }
+           { apply PermFlows_trans with p; simpl; auto. }
            iModIntro. iSplitR;[auto|]. iFrame. by iApply "Hφ".
          }
          { iDestruct "Ha" as (Hfl') "Ha". 
@@ -1354,7 +1354,7 @@ Section fundamental.
               iSpecialize ("Hϕ" with "[-]"); iFrame; eauto).
          }
    Qed.
-         
+
   Lemma store_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm) 
         (g : Locality) (b e a : Addr) (w : Word) (dst : RegName) (src : Z + RegName) :
       p = RX ∨ p = RWX ∨ p = RWLX
@@ -1407,13 +1407,12 @@ Section fundamental.
         as "#HPCw".
     { rewrite (fixpoint_interp1_eq _ (inr _)) /=.
       destruct Hp as [-> | [-> | ->] ];
-      (iExists _,_,_,_; iSplitR;[eauto|];
-       iExists p';do 2 (iSplit; auto);
+      (iExists p';do 2 (iSplit; auto);
        iAlways;iIntros (a' r' W' Hin) "Hfuture";
        iNext; destruct W' as [fs' fr'];
        iExists _,_; do 2 (iSplitR; [auto|]);
        iIntros "(#[Hfull Hreg'] & Hmap & Hr & Hsts & Hna) /=";
-       iExists _,_,_,_,_; iSplit;[eauto|];
+       iSplit; auto;
        iApply ("IH" with "Hfull Hreg' Hmap Hr Hsts Hna"); auto).
     }
     destruct (reg_eq_dec dst PC).
@@ -2217,6 +2216,6 @@ Section fundamental.
         Unshelve. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto.
         auto. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto. auto.
         auto. auto. auto. 
-  Qed. 
+  Qed.
    
 End fundamental.

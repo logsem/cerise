@@ -131,8 +131,7 @@ Section fundamental.
                 iDestruct ("Hreg" $! r0 ltac:(auto)) as "HH".
                 rewrite /RegLocate Hsomer0. 
                 repeat (rewrite fixpoint_interp1_eq). simpl.
-                rewrite /read_write_cond. iDestruct "HH" as (g' b' e' a') "[% H]".
-                inv H4. iDestruct "H" as (p'') "[% [H2 H3]]".
+                rewrite /read_write_cond. iDestruct "HH" as (p'') "[% [H2 H3]]".
                 iExists p''. iSplitR; auto. }
               { iNext. iApply (wp_bind (fill [SeqCtx])).
                 iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
@@ -146,10 +145,9 @@ Section fundamental.
                 iNext. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hvalid".
                 rewrite /RegLocate Hsomer0.
                 rewrite (fixpoint_interp1_eq _ (inr _)).
-                simpl. iDestruct "Hvalid" as (g' b' e' a') "[% Hvalid']".
-                inv H4.
+                simpl. 
                 iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-                iDestruct "Hvalid'" as (p'') "[% [H1 H2]]".
+                iDestruct "Hvalid" as (p'') "[% [H1 H2]]".
                 iExists p''. iSplitR; auto. }
               { iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
@@ -157,9 +155,8 @@ Section fundamental.
                 iNext. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hvalid".
                 rewrite /RegLocate Hsomer0.
                 rewrite (fixpoint_interp1_eq _ (inr _)).
-                simpl. iDestruct "Hvalid" as (g' b' e' a') "[% Hvalid']".
-                inv H4. iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-                iDestruct "Hvalid'" as (p'') "[% [H1 H2]]".
+                simpl. iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+                iDestruct "Hvalid" as (p'') "[% [H1 H2]]".
                 iExists p''. iSplitR; auto. } 
             * iApply (wp_move_fail_reg_toPC with "[HPC Ha Hr0]"); eauto; iFrame.
               iNext. iIntros "(HPC & Ha & Hr0)".
@@ -224,11 +221,11 @@ Section fundamental.
                   iNext. rewrite /interp_expr /=. iExists _,_.
                   iSplitR; eauto. iSplitR; eauto.
                   iIntros "[[Hmap Hreg'] [Hfull [Hx [Hsts Hown]]]]".
-                  iExists _,_,_,_,_. iSplitR; eauto. destruct r'; simpl.
+                  iSplitR; eauto. destruct r'; simpl.
                   iApply ("IH" with "[Hmap] [Hreg'] [Hfull] [Hx] [Hsts] [Hown]"); iFrame "#"; eauto. }
                 destruct p; 
-                  destruct Hp as [Hcontr | [Hcontr | Hcontr] ]; inversion Hcontr; 
-                  (iExists _,_,_,_; iSplitR;[eauto|..]; iExists p'; iSplitR;[auto|]; iFrame "Hbe Hexec").
+                  destruct Hp as [Hcontr | [Hcontr | Hcontr] ]; inversion Hcontr;
+                  (iExists p'; iSplitR;[auto|]; iFrame "Hbe Hexec").
               - rewrite /RegLocate lookup_insert_ne.
                 iApply "Hreg"; auto. auto. }
             iFrame. auto. auto.
@@ -314,4 +311,4 @@ Section fundamental.
       Unshelve. auto. auto. auto.
   Qed.
 
-End fundamental.  
+End fundamental.

@@ -51,7 +51,7 @@ Section fundamental.
     iIntros (Hp) "#Hinv /=". iExists fs,fr.
     repeat (iSplit;auto). 
     iIntros "[[Hfull Hreg] [Hmreg [Hr [Hsts Hown]]]]".
-    iExists _,_,_,_,_; iSplit; eauto; simpl.
+    iSplit; eauto; simpl.
     iRevert (Hp) "Hinv".    
     iLöb as "IH" forall (fs fr r p g b e a).
     iIntros (Hp) "#Hinv". 

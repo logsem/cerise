@@ -153,10 +153,7 @@ Section fundamental.
     intros Hne Hb He. iIntros "#IH Hinterp".
     repeat (rewrite fixpoint_interp1_eq).
     destruct p; simpl; auto; try congruence.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p Hfl) "H".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p Hfl) "H".
       iExists p. iSplitR; auto.
       destruct (Z_le_dec b' e').
       + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
@@ -166,10 +163,7 @@ Section fundamental.
       + replace (region_addrs b' e') with (nil: list Addr).
         rewrite big_sepL_nil. auto.
         unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p) "[% H]".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p) "[% H]".
       iExists p. iSplitR; auto.
       destruct (Z_le_dec b' e').
       + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
@@ -179,10 +173,7 @@ Section fundamental.
       + replace (region_addrs b' e') with (nil: list Addr).
         rewrite big_sepL_nil. auto.
         unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p) "[% H]".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p) "[% H]".
       iExists p. iSplitR; auto.
       destruct (Z_le_dec b' e').
       + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
@@ -192,10 +183,7 @@ Section fundamental.
       + replace (region_addrs b' e') with (nil: list Addr).
         rewrite big_sepL_nil. auto.
         unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p) "[% [H H']]".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p) "[% [H H']]".
       iExists p. iSplitR; auto.
       iDestruct "H" as "#H".
       iDestruct "H'" as "#H'".
@@ -213,7 +201,7 @@ Section fundamental.
         iIntros. iNext. rewrite /interp_expr /=.
         iExists _,_. iSplitR; auto. iSplitR; auto.
         iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
-        iExists _, _, _, _, _. iSplitR; auto. destruct W'. 
+        iSplitR; auto. destruct W'. 
         iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
         rewrite /read_write_cond. iAlways.
         iExists p. iSplitR; auto.
@@ -225,10 +213,7 @@ Section fundamental.
         * replace (region_addrs b' e') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p) "[% [H H']]".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p) "[% [H H']]".
       iExists p. iSplitR; auto.
       iDestruct "H" as "#H".
       iDestruct "H'" as "#H'".
@@ -245,7 +230,7 @@ Section fundamental.
         iIntros. iNext. rewrite /interp_expr /=.
         iExists _,_. iSplitR; auto. iSplitR; auto.
         iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
-        iExists _, _, _, _, _. iSplitR; auto. destruct W'. 
+        iSplitR; auto. destruct W'. 
         iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
         iAlways. iExists p; iSplitR; auto.
         destruct (Z_le_dec b' e').
@@ -256,10 +241,7 @@ Section fundamental.
         * replace (region_addrs b' e') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
-    - iDestruct "Hinterp" as (gx bx ex ax) "[% H]".
-      iDestruct "H" as (p) "[% [H H']]".
-      inv H3. iExists gx, b', e', ax.
-      iSplitR; auto.
+    - iDestruct "Hinterp" as (p) "[% [H H']]".
       iExists p. iSplitR; auto.
       iDestruct "H" as "#H".
       iDestruct "H'" as "#H'".
@@ -276,7 +258,7 @@ Section fundamental.
         iIntros. iNext. rewrite /interp_expr /=.
         iExists _,_. iSplitR; auto. iSplitR; auto.
         iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
-        iExists _, _, _, _, _. iSplitR; auto. destruct W'. 
+        iSplitR; auto. destruct W'. 
         iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
         iExists p. iSplitR; auto.
         destruct (Z_le_dec b' e').
@@ -288,7 +270,6 @@ Section fundamental.
           rewrite big_sepL_nil. auto.
           unfold region_addrs. destruct (Z_le_dec b' e'); auto; lia.
   Qed.
-
 
   Lemma subseg_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (dst : RegName) (r1 r2 : Z + RegName) :

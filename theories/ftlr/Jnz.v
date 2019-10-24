@@ -128,25 +128,21 @@ Section fundamental.
               simpl. rewrite /read_write_cond.
               iNext.
               iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.              
-              iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H3.
-              iDestruct "H" as (p'') "[% [H1 H2]]".
+              iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
               iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
             + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
               simpl. rewrite /enter_cond.
-              iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H3.
               rewrite /interp_expr /=.
-              iDestruct "H" as "#H".
+              iDestruct "Hwr1" as "#H".
               iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto. 
-              iAssert (future_world g' (fs,fr) (fs,fr)) as "Hfuture".
-              { destruct g'; iPureIntro;
+              iAssert (future_world l (fs,fr) (fs,fr)) as "Hfuture".
+              { destruct l; iPureIntro;
                 [apply related_sts_priv_refl|apply related_sts_pub_refl]. }
               iSpecialize ("H" $! _ (fs,fr) with "Hfuture").
               iNext.
               iDestruct "H" as (fs' fr' Heq1 Heq2) "HH". inversion Heq1. inversion Heq2.
               subst.
-              iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "Hx"; iFrame; eauto.
-              iDestruct "Hx" as (px gx bx ex ax) "[% Hx] /=".
-              inv H5; destruct gx; simpl; auto.
+              iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "[_ Hx]"; iFrame; eauto.
           - iApply (wp_bind (fill [SeqCtx])).
             iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
             iNext. iNext. iIntros "HPC /=".
@@ -160,8 +156,7 @@ Section fundamental.
             destruct wr1; simpl in Heq; try congruence.
             destruct c,p0,p0,p0,p0; try congruence. inv Heq.
             rewrite (fixpoint_interp1_eq _ (inr _)).
-            simpl. iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H3.
-            iDestruct "H" as (p'') "[% [H1 H2]]".
+            simpl. iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
             iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
           - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
             apply lookup_insert. rewrite delete_insert_delete. iFrame.
@@ -170,8 +165,7 @@ Section fundamental.
             destruct wr1; simpl in Heq; try congruence.
             destruct c,p0,p0,p0,p0; try congruence. inv Heq.
             rewrite (fixpoint_interp1_eq _ (inr _)).
-            simpl. iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H3.
-            iDestruct "H" as (p'') "[% [H1 H2]]".
+            simpl. iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
             iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto. } }
     * destruct (Hsome r2) as [wr2 Hsomer2].
       iDestruct ((big_sepM_delete _ _ r2) with "Hmap") as "[Hr2 Hmap]".
@@ -241,25 +235,21 @@ Section fundamental.
                 destruct c,p0,p0,p0,p0; try congruence.
                 + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
                   simpl. rewrite /read_write_cond.
-                  iDestruct "Hwr2" as (g' b' e' a') "[% H]". inv H5.
-                  iDestruct "H" as (p'') "[% [H1 H2]]".
+                  iDestruct "Hwr2" as (p'') "[% [H1 H2]]".
                   iNext. iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto. 
                   iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
                 + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
                   simpl. rewrite /enter_cond.
-                  iDestruct "Hwr2" as (g' b' e' a') "[% H]". inv H5.
                   rewrite /interp_expr /=.
-                  iDestruct "H" as "#H".
-                  iAssert (future_world g' (fs,fr) (fs,fr)) as "Hfuture".
-                  { destruct g'; iPureIntro;
+                  iDestruct "Hwr2" as "#H".
+                  iAssert (future_world l (fs,fr) (fs,fr)) as "Hfuture".
+                  { destruct l; iPureIntro;
                       [apply related_sts_priv_refl|apply related_sts_pub_refl]. }
                   iSpecialize ("H" $! _ (fs,fr) with "Hfuture").
                   iNext.
                   iDestruct "H" as (fs' fr' Heq1 Heq2) "HH". inversion Heq1. inversion Heq2.
                   subst. iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto. 
-                  iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "Hx"; iFrame; eauto.
-                  iDestruct "Hx" as (px gx bx ex ax) "[% Hx] /=".
-                  inv H5; destruct gx; simpl; auto.
+                  iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "[_ Hx]"; iFrame; eauto.
               - iApply (wp_bind (fill [SeqCtx])).
                 iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
                 iNext. iNext. iIntros "HPC /=".
@@ -273,8 +263,7 @@ Section fundamental.
                 destruct c,p0,p0,p0,p0; try congruence. inv Heq.
                 iDestruct ("Hreg" $! r2 ltac:(auto)) as "Hwr2".
                 rewrite /RegLocate Hsomer2 /=. rewrite (fixpoint_interp1_eq _ (inr _)).
-                iDestruct "Hwr2" as (g' b' e' a') "[% H]". inv H5.
-                simpl. iDestruct "H" as (p'') "[% [H1 H2]]".
+                simpl. iDestruct "Hwr2" as (p'') "[% [H1 H2]]".
                 iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
               - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
@@ -283,8 +272,7 @@ Section fundamental.
                 destruct c,p0,p0,p0,p0; try congruence. inv Heq.
                 iDestruct ("Hreg" $! r2 ltac:(auto)) as "Hwr2".
                 rewrite /RegLocate Hsomer2 /=. rewrite (fixpoint_interp1_eq _ (inr _)).
-                iDestruct "Hwr2" as (g' b' e' a') "[% H]". inv H5.
-                simpl. iDestruct "H" as (p'') "[% [H1 H2]]".
+                simpl. iDestruct "Hwr2" as (p'') "[% [H1 H2]]".
                 iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto. }
           + destruct (Hsome r1) as [wr1 Hsomer1].
             iDestruct ((big_sepM_delete _ _ r1) with "Hmap") as "[Hr1 Hmap]".
@@ -340,24 +328,20 @@ Section fundamental.
                 destruct c,p0,p0,p0,p0; try congruence; inv Heq.
                 + rewrite (fixpoint_interp1_eq _ (inr _)) /=.
                   iNext.  iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto. 
-                  iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H5.
-                  simpl. iDestruct "H" as (p'') "[% [H1 H2]]".
+                  simpl. iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
                   iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
                 + rewrite (fixpoint_interp1_eq _ (inr _)) /=.
                   rewrite /enter_cond.
-                  iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H5.
                   rewrite /interp_expr /=.
-                  iDestruct "H" as "#H".
-                  iAssert (future_world g' (fs,fr) (fs,fr)) as "Hfuture".
-                  { destruct g'; iPureIntro;
+                  iDestruct "Hwr1" as "#H".
+                  iAssert (future_world l (fs,fr) (fs,fr)) as "Hfuture".
+                  { destruct l; iPureIntro;
                       [apply related_sts_priv_refl|apply related_sts_pub_refl]. }
                   iSpecialize ("H" $! _ (fs,fr) with "Hfuture").
                   iNext.
                   iDestruct "H" as (fs' fr' Heq1 Heq2) "HH". inversion Heq1. inversion Heq2.
                   subst. iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto. 
-                  iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "Hx"; iFrame; eauto.
-                  iDestruct "Hx" as (px gx bx ex ax) "[% Hx] /=".
-                  inv H5; destruct gx; simpl; auto.
+                  iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "[_ Hx]"; iFrame; eauto.
               - iApply (wp_bind (fill [SeqCtx])).
                 iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
                 iNext. iNext. iIntros "HPC /=".
@@ -372,8 +356,7 @@ Section fundamental.
                 destruct wr1; simpl in Heq; try congruence.
                 destruct c,p0,p0,p0,p0; try congruence. inv Heq.
                 rewrite (fixpoint_interp1_eq _ (inr _)) /=.
-                iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H5.
-                simpl. iDestruct "H" as (p'') "[% [H1 H2]]".
+                simpl. iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
                 iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
               - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
                 apply lookup_insert. rewrite delete_insert_delete. iFrame.
@@ -383,8 +366,7 @@ Section fundamental.
                 destruct wr1; simpl in Heq; try congruence.
                 destruct c,p0,p0,p0,p0; try congruence. inv Heq.
                 rewrite (fixpoint_interp1_eq _ (inr _)) /=.
-                iDestruct "Hwr1" as (g' b' e' a') "[% H]". inv H5.
-                simpl. iDestruct "H" as (p'') "[% [H1 H2]]".
+                simpl. iDestruct "Hwr1" as (p'') "[% [H1 H2]]".
                 iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto. } }
       { assert (wr2 = inl 0%Z) by (destruct wr2; cbv in H3; try congruence; destruct z; try congruence).
         subst wr2. case_eq (a+1)%a; intros.
