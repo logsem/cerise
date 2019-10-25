@@ -1,0 +1,7 @@
+\beamer@sectionintoc {1}{Capability Machines}{3}{0}{1}
+\beamer@subsectionintoc {1}{1}{What is a Capability Machine?}{3}{0}{1}
+\beamer@subsectionintoc {1}{2}{Reasoning about Capability Safety}{14}{0}{1}
+\beamer@sectionintoc {2}{Program Logic}{35}{0}{2}
+\beamer@subsectionintoc {2}{1}{Abstract Instructions}{35}{0}{2}
+\beamer@sectionintoc {3}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{51}{0}{3}
+\beamer@sectionintoc {4}{Conclusion}{63}{0}{4}
