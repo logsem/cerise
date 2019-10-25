@@ -17,31 +17,27 @@ Section monotone.
     rewrite /interp /= fixpoint_interp1_eq /=. 
     destruct w; rewrite fixpoint_interp1_eq /=; auto.
     destruct c,p,p,p,p; auto. 
-    - iDestruct "Hw" as (g b e a') "[% Hw]". inversion H3; subst.
-      iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
-      iExists _,_,_,_. iSplitR;[eauto|].
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
       iExists _. iSplitR;[eauto|]. iFrame "#".
       iAlways.
-      iIntros (a r W'' Hin).
-      destruct g; simpl.
+      iIntros (a' r' W'' Hin).
+      destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro. 
           apply related_sts_pub_priv_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
-        iFrame. 
+        iSpecialize ("Hexec" $! a' r' W'' Hin with "Hrelated").
+        iFrame.
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
         { iPureIntro.
           apply related_sts_pub_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
+        iSpecialize ("Hexec" $! a' r' W'' Hin with "Hrelated").
         iFrame.
-    - iDestruct "Hw" as ( g b e a' Heq) "Hw". inversion Heq; subst.
-      iExists _,_,_,_. iSplitR; [eauto|].
-      iAlways. iIntros (r W'').
-      destruct g; simpl.
+    - iAlways. iIntros (r W'').
+      destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro.
@@ -56,45 +52,41 @@ Section monotone.
         }
         iSpecialize ("Hw" $! r W'' with "Hrelated").
         iFrame.
-    - iDestruct "Hw" as (g b e a' Heq) "Hexec". inversion Heq;subst.
-      iDestruct "Hexec" as (p Hfl) "[Hbe Hexec]".
-      iExists _,_,_,_. iSplitR;[eauto|].
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
       iExists p. iSplit;[auto|].
-      iFrame "#". iAlways. iIntros (a r W'' Hin). 
-      destruct g; simpl.
+      iFrame "#". iAlways. iIntros (a' r W'' Hin). 
+      destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro. 
           apply related_sts_pub_priv_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
+        iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame. 
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
         { iPureIntro.
           apply related_sts_pub_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
-        iFrame.  
-    - iDestruct "Hw" as (g b e a' Heq) "Hexec". inversion Heq;subst.
-      iDestruct "Hexec" as (p Hfl) "[Hbe Hexec]".
-      iExists _,_,_,_. iSplitR;[eauto|].
+        iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
+        iFrame.
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
       iExists p. iSplit;[auto|].
-      iFrame "#". iAlways. iIntros (a r W'' Hin). 
-      destruct g; simpl.
+      iFrame "#". iAlways. iIntros (a' r W'' Hin). 
+      destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro. 
           apply related_sts_pub_priv_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
+        iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame. 
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
         { iPureIntro.
           apply related_sts_pub_trans with W'.1 W'.2; auto. 
         }
-        iSpecialize ("Hexec" $! a r W'' Hin with "Hrelated").
+        iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame. 
   Qed.
 
@@ -109,6 +101,6 @@ Section monotone.
     iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & #Hmono & #Hsavedφ & Hφ)".
     iExists _,_,_,_. do 2 (iSplitR;[eauto|]). iFrame "∗ #".
     iApply "Hmono"; iFrame; auto.
-  Qed. 
+  Qed.
     
 End monotone. 

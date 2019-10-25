@@ -249,9 +249,8 @@ Section fundamental.
         iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); eauto. 
         iAlways.
         rewrite (fixpoint_interp1_eq _ (inr (RX, l0, a5, a4, a3))) /=.
-        iDestruct "Hval" as (g0 b0 e0 a7) "(% & Hw0)".
-        iDestruct "Hw0" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. inversion H4; subst. iSplit;auto. 
+        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
+        iExists q. iSplit; auto. 
       } 
       { iClear "Hfail".
         iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
@@ -263,9 +262,8 @@ Section fundamental.
         iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); eauto. 
         iAlways.
         rewrite (fixpoint_interp1_eq _ (inr (RWX, l0, a5, a4, a3))) /=.
-        iDestruct "Hval" as (g0 b0 e0 a7) "(% & Hw0)".
-        iDestruct "Hw0" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. inversion H4; subst. iSplit;auto. 
+        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
+        iExists q. iSplit; auto. 
       }
       { iClear "Hfail".
         iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
@@ -277,9 +275,8 @@ Section fundamental.
         iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); eauto. 
         iAlways.
         rewrite (fixpoint_interp1_eq _ (inr (RWLX, l0, a5, a4, a3))) /=.
-        iDestruct "Hval" as (g0 b0 e0 a7) "(% & Hw0)".
-        iDestruct "Hw0" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. inversion H4; subst. iSplit;auto. 
+        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
+        iExists q. iSplit; auto. 
       }
     * destruct (Hsome dst) as [wdst Hsomedst].
       rewrite delete_insert_delete.
@@ -528,6 +525,6 @@ Section fundamental.
       { iSplitR;[auto|]. iFrame "#". }
       iDestruct (region_open_prepare with "Hr") as "$". 
       Unshelve. exact 0. 
-  Qed. 
+  Qed.
       
 End fundamental.

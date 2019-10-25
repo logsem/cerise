@@ -22,26 +22,7 @@ Section fundamental.
     (fixpoint interp1) W (inr (p, l, a2, a1, a3)).
   Proof.
     repeat rewrite fixpoint_interp1_eq. simpl. iIntros "HA".
-    destruct p; auto.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
-    - elim Hne; reflexivity.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
-    - iDestruct "HA" as (g b e a) "(HA & HB)".
-      iDestruct "HA" as %?. inv H3.
-      iExists g, b, e, a3. iFrame; auto.
+    destruct p; auto; congruence.
   Qed.
 
   Lemma lea_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)

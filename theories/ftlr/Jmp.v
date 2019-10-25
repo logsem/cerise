@@ -132,8 +132,7 @@ Section fundamental.
           destruct c,p0,p0,p0,p0; try congruence.
           + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
             simpl. rewrite /read_write_cond.
-            iDestruct "Hwsrc" as (g' b' e' a') "[% H]". inv H3.
-            iDestruct "H" as (q) "[% [H1 H2]]".
+            iDestruct "Hwsrc" as (q) "[% [H1 H2]]".
             iNext.
             (* close region *)
             iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
@@ -141,11 +140,10 @@ Section fundamental.
             iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
           + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
             simpl. rewrite /enter_cond.
-            iDestruct "Hwsrc" as (g' b' e' a') "[% H]". inv H3.
             rewrite /interp_expr /=.
-            iDestruct "H" as "#H".
-            iAssert (future_world g' (fs,fr) (fs,fr)) as "Hfuture".
-            { destruct g'; iPureIntro;
+            iDestruct "Hwsrc" as "#H".
+            iAssert (future_world l (fs,fr) (fs,fr)) as "Hfuture".
+            { destruct l; iPureIntro;
                 [apply related_sts_priv_refl|apply related_sts_pub_refl]. }
             iSpecialize ("H" $! _ (fs,fr) with "Hfuture").
             iNext. 
@@ -153,8 +151,7 @@ Section fundamental.
             subst.
             iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
             iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "Hx"; iFrame; eauto.
-            iDestruct "Hx" as (px gx bx ex ax) "[% Hx] /=".
-            inv H5; destruct gx; simpl; auto.
+            iDestruct "Hx" as "[_ Hx] /=". auto.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iNext. iNext. iIntros "HPC /=".
@@ -171,8 +168,8 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
-          simpl. iDestruct "Hwsrc" as (g' b' e' a') "[% H]". inv H3.
-          iDestruct "H" as (p'') "[% [H1 H2]]".
+          simpl. 
+          iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
           iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
         - iNext.
           iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
@@ -184,11 +181,10 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
-          simpl. iDestruct "Hwsrc" as (g' b' e' a') "[% H]". inv H3.
-          iDestruct "H" as (p'') "[% [H1 H2]]".
+          simpl. iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
           iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
           Unshelve. auto. auto. auto.
-      } 
-  Qed. 
+      }
+  Qed.
   
 End fundamental.
