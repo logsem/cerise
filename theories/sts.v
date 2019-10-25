@@ -316,11 +316,4 @@ Section STS.
       first by iModIntro; iFrame.
   Qed.
 
-  Lemma sts_full_related fs fr gs gr :
-    related_sts_priv fs gs fr gr ->
-    sts_full fs fr ==∗ sts_full gs gr.
-  Proof.
-    iIntros (Hrel) "Hfull".
-    Admitted. 
-
 End STS.
