@@ -1,7 +1,17 @@
-\beamer@sectionintoc {1}{Capability Machines}{3}{0}{1}
-\beamer@subsectionintoc {1}{1}{What is a Capability Machine?}{3}{0}{1}
-\beamer@subsectionintoc {1}{2}{Reasoning about Capability Safety}{14}{0}{1}
-\beamer@sectionintoc {2}{Program Logic}{35}{0}{2}
-\beamer@subsectionintoc {2}{1}{Abstract Instructions}{35}{0}{2}
-\beamer@sectionintoc {3}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{51}{0}{3}
-\beamer@sectionintoc {4}{Conclusion}{63}{0}{4}
+\beamer@sectionintoc {1}{Capability Machines}{14}{0}{1}
+\beamer@subsectionintoc {1}{1}{Enforcing Local Stack Encapsulation using Capabilities}{20}{0}{1}
+\beamer@subsectionintoc {1}{2}{Enforcing Well Bracketed Control Flow using Capabilities}{24}{0}{1}
+\beamer@subsectionintoc {1}{3}{Local Capabilities}{31}{0}{1}
+\beamer@sectionintoc {2}{Reasoning about Capability Safety}{37}{0}{2}
+\beamer@sectionintoc {3}{Program Logic}{48}{0}{3}
+\beamer@subsectionintoc {3}{1}{A Capability Points-to Predicate}{54}{0}{3}
+\beamer@sectionintoc {4}{Proving Hoare Triples}{59}{0}{4}
+\beamer@subsectionintoc {4}{1}{Successful Execution}{60}{0}{4}
+\beamer@subsectionintoc {4}{2}{Failed Execution}{64}{0}{4}
+\beamer@sectionintoc {5}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{67}{0}{5}
+\beamer@subsectionintoc {5}{1}{The Value Relation}{68}{0}{5}
+\beamer@subsectionintoc {5}{2}{The Execute Condition}{72}{0}{5}
+\beamer@subsectionintoc {5}{3}{The Expression Relation}{74}{0}{5}
+\beamer@sectionintoc {6}{The Fundamental Theorem of Logical Relations}{81}{0}{6}
+\beamer@sectionintoc {7}{Reasoning about Unknown Code}{87}{0}{7}
+\beamer@sectionintoc {8}{Conclusion}{89}{0}{8}

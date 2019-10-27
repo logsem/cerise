@@ -1,5 +1,5 @@
-\frametitle{Capability Safety}
-\textbf{We use the FTLR to reason about calls to an unknown adversary}
+\frametitle{Reasoning about Unknown Code}
+\textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
 \\[1cm]
 \begin{columns}[c]
 

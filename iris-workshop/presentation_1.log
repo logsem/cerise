@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  25 OCT 2019 13:51
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  27 OCT 2019 12:52
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -814,41 +814,59 @@ Package: IEEEtrantools 2015/08/26 V1.5 by Michael Shell
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/dsfont.sty
 Package: dsfont 1995/08/01 v0.1 Double stroke roman fonts
 )
+(/usr/local/texlive/2018/texmf-dist/tex/latex/tools/longtable.sty
+Package: longtable 2014/10/28 v4.11 Multi-page Table package (DPC)
+\LTleft=\skip58
+\LTright=\skip59
+\LTpre=\skip60
+\LTpost=\skip61
+\LTchunksize=\count183
+\LTcapwidth=\dimen290
+\LT@head=\box60
+\LT@firsthead=\box61
+\LT@foot=\box62
+\LT@lastfoot=\box63
+\LT@cols=\count184
+\LT@rows=\count185
+\c@LT@tables=\count186
+\c@LT@chunks=\count187
+\LT@p@ftn=\toks47
+)
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/librarie
 s/tikzlibrarydecorations.pathreplacing.code.tex
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/librarie
 s/tikzlibrarydecorations.code.tex
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/modules/pgfmoduledecoration
 s.code.tex
-\pgfdecoratedcompleteddistance=\dimen290
-\pgfdecoratedremainingdistance=\dimen291
-\pgfdecoratedinputsegmentcompleteddistance=\dimen292
-\pgfdecoratedinputsegmentremainingdistance=\dimen293
-\pgf@decorate@distancetomove=\dimen294
-\pgf@decorate@repeatstate=\count183
-\pgfdecorationsegmentamplitude=\dimen295
-\pgfdecorationsegmentlength=\dimen296
+\pgfdecoratedcompleteddistance=\dimen291
+\pgfdecoratedremainingdistance=\dimen292
+\pgfdecoratedinputsegmentcompleteddistance=\dimen293
+\pgfdecoratedinputsegmentremainingdistance=\dimen294
+\pgf@decorate@distancetomove=\dimen295
+\pgf@decorate@repeatstate=\count188
+\pgfdecorationsegmentamplitude=\dimen296
+\pgfdecorationsegmentlength=\dimen297
 )
-\tikz@lib@dec@box=\box60
+\tikz@lib@dec@box=\box64
 )
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/libraries/decorations/pgfli
 brarydecorations.pathreplacing.code.tex)) (./presentation_1.aux)
 \openout1 = `presentation_1.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 202.
+LaTeX Font Info:    ... okay on input line 202.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -886,17 +904,17 @@ LaTeX Font Info:    ... okay on input line 173.
 
 (/usr/local/texlive/2018/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count184
-\scratchdimen=\dimen297
-\scratchbox=\box61
-\nofMPsegments=\count185
-\nofMParguments=\count186
-\everyMPshowfont=\toks47
-\MPscratchCnt=\count187
-\MPscratchDim=\dimen298
-\MPnumerator=\count188
-\makeMPintoPDFobject=\count189
-\everyMPtoPDFconversion=\toks48
+\scratchcounter=\count189
+\scratchdimen=\dimen298
+\scratchbox=\box65
+\nofMPsegments=\count190
+\nofMParguments=\count191
+\everyMPshowfont=\toks48
+\MPscratchCnt=\count192
+\MPscratchDim=\dimen299
+\MPnumerator=\count193
+\makeMPintoPDFobject=\count194
+\everyMPtoPDFconversion=\toks49
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
 Package: epstopdf-base 2016/05/15 v2.6 Base part for package epstopdf
 
@@ -915,8 +933,8 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 ABD: EveryShipout initializing macros
-\AtBeginShipoutBox=\box62
-Package hyperref Info: Link coloring OFF on input line 173.
+\AtBeginShipoutBox=\box66
+Package hyperref Info: Link coloring OFF on input line 202.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
@@ -924,68 +942,68 @@ Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
 (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
 Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
-\c@section@level=\count190
+\c@section@level=\count195
 )
-LaTeX Info: Redefining \ref on input line 173.
-LaTeX Info: Redefining \pageref on input line 173.
-LaTeX Info: Redefining \nameref on input line 173.
+LaTeX Info: Redefining \ref on input line 202.
+LaTeX Info: Redefining \pageref on input line 202.
+LaTeX Info: Redefining \nameref on input line 202.
 
 (./presentation_1.out) (./presentation_1.out)
 \@outlinefile=\write5
 \openout5 = `presentation_1.out'.
 
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
-(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 173.
+(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 202.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 173.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 202.
 \symnumbers=\mathgroup6
 \sympureletters=\mathgroup7
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 173.
-LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 173.
+(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 202.
+LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 173.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 173.
-LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 173.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 202.
+LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/m/n on input line 173.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/m/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmss/m/n on input line 173.
-LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 173.
+(Font)                  OT1/cmss/bx/n --> OT1/cmss/m/n on input line 202.
+LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> OT1/cmss/m/it on input line 173.
+(Font)                  OT1/cmr/m/it --> OT1/cmss/m/it on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
-(Font)                  OT1/cmr/bx/it --> OT1/cmss/m/it on input line 173.
-LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 173.
+(Font)                  OT1/cmr/bx/it --> OT1/cmss/m/it on input line 202.
+LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 173.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 173.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 202.
 LaTeX Font Info:    Overwriting symbol font `numbers' in version `bold'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 173.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 202.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
-(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 173.
+(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmr/bx/n on input line 173.
+(Font)                  OT1/cmss/bx/n --> OT1/cmr/bx/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmss/bx/n on input line 173.
+(Font)                  OT1/cmss/bx/n --> OT1/cmss/bx/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 173.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
-(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 173.
+(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 202.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/bx/n on input line 173.
-LaTeX Font Info:    Redeclaring symbol font `pureletters' on input line 173.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/bx/n on input line 202.
+LaTeX Font Info:    Redeclaring symbol font `pureletters' on input line 202.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `normal'
-(Font)                  OT1/cmss/m/it --> OT1/mathkerncmss/m/sl on input line 1
-73.
+(Font)                  OT1/cmss/m/it --> OT1/mathkerncmss/m/sl on input line 2
+02.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  OT1/cmss/bx/it --> OT1/mathkerncmss/m/sl on input line 
-173.
+202.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  OT1/mathkerncmss/m/sl --> OT1/mathkerncmss/bx/sl on inp
-ut line 173.
+ut line 202.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/translator/translator-basic-dicti
 onary-English.dict
@@ -1011,36 +1029,64 @@ Dictionary: translator-numbers-dictionary, Language: English
 tionary-English.dict
 Dictionary: translator-theorem-dictionary, Language: English 
 )
-\c@lstlisting=\count191
+\c@lstlisting=\count196
  (./presentation_1.nav) [1
 
-{/usr/local/texlive/2018/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./pres
-entation_1.toc) [2
-
-]
-LaTeX Font Info:    Try loading font information for U+msa on input line 221.
+{/usr/local/texlive/2018/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+<images/sec_1.pdf, id=116, 327.14218pt x 60.225pt>
+File: images/sec_1.pdf Graphic file (type pdf)
+<use images/sec_1.pdf>
+Package pdftex.def Info: images/sec_1.pdf  used on input line 220.
+(pdftex.def)             Requested size: 228.99796pt x 42.1572pt.
+LaTeX Font Info:    Try loading font information for U+msa on input line 220.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 221.
+LaTeX Font Info:    Try loading font information for U+msb on input line 220.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Try loading font information for OT1+mathkerncmss on input 
-line 221.
+line 220.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/sansmathaccent/ot1mathkerncmss.fd
 File: ot1mathkerncmss.fd 2013/03/27 Fontinst v1.933 font definitions for OT1/ma
 thkerncmss.
-) [3
+) [2
 
-] [4
+ <./images/sec_1.pdf
 
-] [5
+pdfTeX warning: pdflatex (file ./images/sec_1.pdf): PDF inclusion: invalid othe
+r resource which is no dict (key 'ProcSets', type <array>); ignored.
+>]
+File: images/sec_1.pdf Graphic file (type pdf)
+<use images/sec_1.pdf>
+Package pdftex.def Info: images/sec_1.pdf  used on input line 220.
+(pdftex.def)             Requested size: 228.99796pt x 42.1572pt.
+ [3
 
-] [6
+]
+File: images/sec_1.pdf Graphic file (type pdf)
+<use images/sec_1.pdf>
+Package pdftex.def Info: images/sec_1.pdf  used on input line 220.
+(pdftex.def)             Requested size: 228.99796pt x 42.1572pt.
+ [4
+
+]
+<images/sec_2.pdf, id=203, 327.14218pt x 60.225pt>
+File: images/sec_2.pdf Graphic file (type pdf)
+<use images/sec_2.pdf>
+Package pdftex.def Info: images/sec_2.pdf  used on input line 220.
+(pdftex.def)             Requested size: 228.99796pt x 42.1572pt.
+ [5
+
+ <./images/sec_2.pdf
+
+pdfTeX warning: pdflatex (file ./images/sec_2.pdf): PDF inclusion: invalid othe
+r resource which is no dict (key 'ProcSets', type <array>); ignored.
+>] [6
 
 ] [7
 
@@ -1048,248 +1094,257 @@ thkerncmss.
 
 ] [9
 
+] [10
+
+] [11
+
+] [12
+
+] (./presentation_1.toc)
+Overfull \vbox (3.59204pt too high) detected at line 258
+ []
+
+[13
+
+] [14
+
 ]
-<images/cap_1.pdf, id=293, 189.8292pt x 160.6803pt>
+<images/cap_1.pdf, id=514, 189.8292pt x 160.6803pt>
 File: images/cap_1.pdf Graphic file (type pdf)
 <use images/cap_1.pdf>
-Package pdftex.def Info: images/cap_1.pdf  used on input line 254.
+Package pdftex.def Info: images/cap_1.pdf  used on input line 294.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 254--254
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 294--294
 [][]  
  []
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10.95> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 254.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 294.
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 254.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 294.
 
-[10
+[15
 
  <./images/cap_1.pdf
 
 pdfTeX warning: pdflatex (file ./images/cap_1.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_2.pdf, id=323, 189.8292pt x 160.6803pt>
+<images/cap_2.pdf, id=544, 189.8292pt x 160.6803pt>
 File: images/cap_2.pdf Graphic file (type pdf)
 <use images/cap_2.pdf>
-Package pdftex.def Info: images/cap_2.pdf  used on input line 254.
+Package pdftex.def Info: images/cap_2.pdf  used on input line 294.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 254--254
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 294--294
 [][]  
  []
 
-[11
+[16
 
  <./images/cap_2.pdf
 
 pdfTeX warning: pdflatex (file ./images/cap_2.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_3.pdf, id=357, 189.8292pt x 160.6803pt>
+<images/cap_3.pdf, id=578, 189.8292pt x 160.6803pt>
 File: images/cap_3.pdf Graphic file (type pdf)
 <use images/cap_3.pdf>
-Package pdftex.def Info: images/cap_3.pdf  used on input line 254.
+Package pdftex.def Info: images/cap_3.pdf  used on input line 294.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 254--254
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 294--294
 [][]  
  []
 
-[12
+[17
 
  <./images/cap_3.pdf
 
 pdfTeX warning: pdflatex (file ./images/cap_3.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_4.pdf, id=391, 189.8292pt x 160.6803pt>
+<images/cap_4.pdf, id=612, 189.8292pt x 160.6803pt>
 File: images/cap_4.pdf Graphic file (type pdf)
 <use images/cap_4.pdf>
-Package pdftex.def Info: images/cap_4.pdf  used on input line 254.
+Package pdftex.def Info: images/cap_4.pdf  used on input line 294.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 254--254
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 294--294
 [][]  
  []
 
-[13
+[18
 
  <./images/cap_4.pdf
 
 pdfTeX warning: pdflatex (file ./images/cap_4.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-\openout4 = `presentation_1.vrb'.
-
- (./presentation_1.vrb
-<images/wbcf_1.pdf, id=425, 189.8292pt x 160.6803pt>
-File: images/wbcf_1.pdf Graphic file (type pdf)
-<use images/wbcf_1.pdf>
-Package pdftex.def Info: images/wbcf_1.pdf  used on input line 8.
+File: images/cap_4.pdf Graphic file (type pdf)
+<use images/cap_4.pdf>
+Package pdftex.def Info: images/cap_4.pdf  used on input line 294.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--12
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 294--294
 [][]  
  []
 
-) [14
+[19
+
+] [20
+
+]
+\openout4 = `presentation_1.vrb'.
+
+ (./presentation_1.vrb
+<images/wbcf_1.pdf, id=699, 210.7875pt x 182.6022pt>
+File: images/wbcf_1.pdf Graphic file (type pdf)
+<use images/wbcf_1.pdf>
+Package pdftex.def Info: images/wbcf_1.pdf  used on input line 8.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
+
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--12
+[][]  
+ []
+
+) [21
 
  <./images/wbcf_1.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_1.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./presentation_1.vrb
-<images/wbcf_2.pdf, id=462, 189.8292pt x 160.6803pt>
+<images/wbcf_2.pdf, id=735, 210.7875pt x 182.6022pt>
 File: images/wbcf_2.pdf Graphic file (type pdf)
 <use images/wbcf_2.pdf>
 Package pdftex.def Info: images/wbcf_2.pdf  used on input line 9.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--12
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--12
 [][]  
  []
 
-) [15
+) [22
 
  <./images/wbcf_2.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_2.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./presentation_1.vrb
-<images/wbcf_3.pdf, id=496, 189.8292pt x 160.6803pt>
+<images/wbcf_3.pdf, id=768, 210.7875pt x 182.6022pt>
 File: images/wbcf_3.pdf Graphic file (type pdf)
 <use images/wbcf_3.pdf>
 Package pdftex.def Info: images/wbcf_3.pdf  used on input line 10.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--12
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--12
 [][]  
  []
 
-) [16
+) [23
 
  <./images/wbcf_3.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_3.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
->]
+>] [24
+
+]
 \openout4 = `presentation_1.vrb'.
 
  (./presentation_1.vrb
 File: images/wbcf_1.pdf Graphic file (type pdf)
 <use images/wbcf_1.pdf>
 Package pdftex.def Info: images/wbcf_1.pdf  used on input line 8.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [17
+) [25
 
 ] (./presentation_1.vrb
 File: images/wbcf_2.pdf Graphic file (type pdf)
 <use images/wbcf_2.pdf>
 Package pdftex.def Info: images/wbcf_2.pdf  used on input line 9.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [18
+) [26
 
 ] (./presentation_1.vrb
 File: images/wbcf_3.pdf Graphic file (type pdf)
 <use images/wbcf_3.pdf>
 Package pdftex.def Info: images/wbcf_3.pdf  used on input line 10.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [19
+) [27
 
 ] (./presentation_1.vrb
-<images/wbcf_4.pdf, id=608, 189.8292pt x 160.6803pt>
+<images/wbcf_4.pdf, id=906, 210.7875pt x 182.6022pt>
 File: images/wbcf_4.pdf Graphic file (type pdf)
 <use images/wbcf_4.pdf>
 Package pdftex.def Info: images/wbcf_4.pdf  used on input line 11.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [20
+) [28
 
  <./images/wbcf_4.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_4.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./presentation_1.vrb
-<images/wbcf_5.pdf, id=643, 189.8292pt x 160.6803pt>
+<images/wbcf_5.pdf, id=941, 210.7875pt x 182.6022pt>
 File: images/wbcf_5.pdf Graphic file (type pdf)
 <use images/wbcf_5.pdf>
 Package pdftex.def Info: images/wbcf_5.pdf  used on input line 12.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [21
+) [29
 
  <./images/wbcf_5.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_5.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./presentation_1.vrb
-<images/wbcf_6.pdf, id=677, 189.8292pt x 160.6803pt>
+<images/wbcf_6.pdf, id=976, 210.7875pt x 182.6022pt>
 File: images/wbcf_6.pdf Graphic file (type pdf)
 <use images/wbcf_6.pdf>
 Package pdftex.def Info: images/wbcf_6.pdf  used on input line 13.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--15
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 [][]  
  []
 
-) [22
+) [30
 
  <./images/wbcf_6.pdf
 
 pdfTeX warning: pdflatex (file ./images/wbcf_6.pdf): PDF inclusion: invalid oth
 er resource which is no dict (key 'ProcSets', type <array>); ignored.
->] [23
-
-] [24
-
-] [25
-
-]
-
-LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
-(Font)              using `OT1/cmss/bx/n' instead on input line 375.
-
-[26
-
-] [27
-
-] [28
-
-] [29
-
-] [30
-
-] [31
+>] [31
 
 ] [32
 
@@ -1297,20 +1352,44 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 
 ] [34
 
-] [35
+]
+<images/calling_1.pdf, id=1113, 277.035pt x 160.6803pt>
+File: images/calling_1.pdf Graphic file (type pdf)
+<use images/calling_1.pdf>
+Package pdftex.def Info: images/calling_1.pdf  used on input line 414.
+(pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
+ [35
 
-] [36
+ <./images/calling_1.pdf
 
-] [37
+pdfTeX warning: pdflatex (file ./images/calling_1.pdf): PDF inclusion: invalid 
+other resource which is no dict (key 'ProcSets', type <array>); ignored.
+>]
+<images/calling_2.pdf, id=1150, 277.035pt x 160.6803pt>
+File: images/calling_2.pdf Graphic file (type pdf)
+<use images/calling_2.pdf>
+Package pdftex.def Info: images/calling_2.pdf  used on input line 414.
+(pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
+ [36
 
-] [38
+ <./images/calling_2.pdf
+
+pdfTeX warning: pdflatex (file ./images/calling_2.pdf): PDF inclusion: invalid 
+other resource which is no dict (key 'ProcSets', type <array>); ignored.
+>] [37
+
+]
+
+LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
+(Font)              using `OT1/cmss/bx/n' instead on input line 428.
+
+[38
 
 ] [39
 
 ] [40
 
-]
-[41
+] [41
 
 ] [42
 
@@ -1330,27 +1409,14 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 
 ] [50
 
-]
-\openout4 = `presentation_1.vrb'.
+] [51
 
- (./presentation_1.vrb
-LaTeX Font Info:    Try loading font information for U+dsrom on input line 18.
-
-(/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
-File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
-)) [51
+] [52
 
 ]
-(./presentation_1.vrb) [52
+[53
 
-] (./presentation_1.vrb) [53
-
-]
-Overfull \hbox (9.43053pt too wide) detected at line 488
-[] \U/msa/m/n/10.95 , []
- []
-
-[54
+] [54
 
 ] [55
 
@@ -1366,24 +1432,94 @@ Overfull \hbox (9.43053pt too wide) detected at line 488
 
 ] [61
 
-]
-\openout4 = `presentation_1.vrb'.
-
- (./presentation_1.vrb
-File: images/wbcf_3.pdf Graphic file (type pdf)
-<use images/wbcf_3.pdf>
-Package pdftex.def Info: images/wbcf_3.pdf  used on input line 8.
-(pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
-
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--10
-[][]  
- []
-
-) [62
+] [62
 
 ] [63
 
 ] [64
+
+] [65
+
+] [66
+
+] [67
+
+]
+[68
+
+]
+\openout4 = `presentation_1.vrb'.
+
+ (./presentation_1.vrb
+LaTeX Font Info:    Try loading font information for U+dsrom on input line 19.
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
+File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
+)) [69
+
+]
+(./presentation_1.vrb) [70
+
+] (./presentation_1.vrb) [71
+
+] [72
+
+]
+Overfull \hbox (9.43053pt too wide) detected at line 565
+[] \U/msa/m/n/10.95 , []
+ []
+
+[73
+
+] [74
+
+] [75
+
+] [76
+
+] [77
+
+] [78
+
+] [79
+
+] [80
+
+] [81
+
+] [82
+
+] [83
+
+] [84
+
+] [85
+
+] [86
+
+] [87
+
+]
+\openout4 = `presentation_1.vrb'.
+
+
+(./presentation_1.vrb
+File: images/wbcf_3.pdf Graphic file (type pdf)
+<use images/wbcf_3.pdf>
+Package pdftex.def Info: images/wbcf_3.pdf  used on input line 8.
+(pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
+
+Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--10
+[][]  
+ []
+
+) [88
+
+] [89
+
+] [90
+
+] [91
 
  </usr/local/texlive/2018/texmf-dist/tex/latex/beamer/beamericonarticle.pdf>]
 \tf@nav=\write6
@@ -1395,24 +1531,24 @@ Overfull \hbox (1.89925pt too wide) in paragraph at lines 6--10
 \tf@snm=\write8
 \openout8 = `presentation_1.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 589.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 589.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 676.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 676.
  (./presentation_1.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 589.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 589.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 676.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 676.
 Package rerunfilecheck Info: File `presentation_1.out' has not changed.
-(rerunfilecheck)             Checksum: 675138ED333C3DAAD8704A57E6946842;501.
+(rerunfilecheck)             Checksum: CBB12350E2068658B1A34F927F0B1FBB;1251.
 
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 22909 strings out of 492649
- 448214 string characters out of 6129622
- 533957 words of memory out of 5000000
- 26136 multiletter control sequences out of 15000+600000
- 15787 words of font info for 59 fonts, out of 8000000 for 9000
+ 23209 strings out of 492649
+ 452444 string characters out of 6129622
+ 534985 words of memory out of 5000000
+ 26365 multiletter control sequences out of 15000+600000
+ 16143 words of font info for 60 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  56i,22n,73p,781b,1481s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pf
@@ -1428,14 +1564,14 @@ local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb></usr
 local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi9.pfb></usr/l
 ocal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/lo
 cal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/loca
-l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/
-texlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local
-/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/l
-ocal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on presentation_1.pdf (64 pages, 409895 bytes).
+l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local
+/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/t
+exlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/
+texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on presentation_1.pdf (91 pages, 544505 bytes).
 PDF statistics:
- 1878 PDF objects out of 2073 (max. 8388607)
- 1740 compressed objects within 18 object streams
- 137 named destinations out of 1000 (max. 500000)
- 149 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 2701 PDF objects out of 2984 (max. 8388607)
+ 2511 compressed objects within 26 object streams
+ 201 named destinations out of 1000 (max. 500000)
+ 267 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -86,9 +86,12 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{dsfont}
+\usepackage{longtable}
 
 \newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
 \newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
+\newcommand{\fupd}{=\kern-.3em=\ \kern-.8em\raisebox{-.659ex}{*}\ }
+\newcommand{\nfupd}{=\kern-.6em \backslash\ \kern-.9em=\ \kern-.8em\raisebox{-.659ex}{*}\ }
 
 \newcommand{\bigsep}{\mathop{\scalebox{2.5}{\raisebox{-0.4ex}{$*$}}}}%
 
@@ -155,6 +158,32 @@
 }
  
 \lstset{style=mystyle,xleftmargin=.2\textwidth, xrightmargin=.2\textwidth}
+
+\setbeamercovered{transparent}
+\setbeamercolor{alerted text}{fg=red}
+
+\AtBeginSection[]{
+  \begin{frame}
+  \vfill
+  \centering
+  \begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+    \usebeamerfont{title}\insertsectionhead\par%
+  \end{beamercolorbox}
+  \vfill
+  \end{frame}
+}
+
+\AtBeginSubsection[]
+{
+    \begin{frame}
+  	\vfill
+  	\centering
+  	\begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+    \usebeamerfont{title}\insertsubsectionhead\par%
+  	\end{beamercolorbox}
+  	\vfill
+  \end{frame}
+}
 %----------------------------------------------------------------------------------------
 %	TITLE PAGE
 %----------------------------------------------------------------------------------------
@@ -177,19 +206,18 @@ Aarhus University \\ % Your institution for the title page
 \end{frame}
 
 \begin{frame}
-\frametitle{Overview} % Table of contents slide, comment this block out to remove it
-\tableofcontents % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
+\frametitle{Introduction}
+\centering
+\begin{tikzpicture}
+    \node<1-3> (img1) {\includegraphics[scale=0.7]{images/sec_1.pdf}};
+    \node<4> (img2) {\includegraphics[scale=0.7]{images/sec_2.pdf}};
+\end{tikzpicture}
+\\[1cm]
+\begin{itemize}
+	\item<2-> Local state encapsulation
+	\item<3-> Well bracketed control flow
+\end{itemize}
 \end{frame}
-
-%----------------------------------------------------------------------------------------
-%	PRESENTATION SLIDES
-%----------------------------------------------------------------------------------------
-
-%------------------------------------------------
-\section{Capability Machines} % Sections can be created in order to organize your presentation into discrete blocks, all sections and subsections are automatically printed in the table of contents as an overview of the talk
-%------------------------------------------------
-
-\subsection{What is a Capability Machine?} 
 
 \begin{frame}
 \frametitle{Layers of Abstraction}
@@ -220,13 +248,25 @@ Aarhus University \\ % Your institution for the title page
 
 \end{frame}
 
+%----------------------------------------------------------------------------------------
+%	PRESENTATION SLIDES
+%----------------------------------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Overview} % Table of contents slide, comment this block out to remove it
+\tableofcontents % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
+\end{frame}
+
 %------------------------------------------------
+\section{Capability Machines} % Sections can be created in order to organize your presentation into discrete blocks, all sections and subsections are automatically printed in the table of contents as an overview of the talk
+%------------------------------------------------
+
 
 \begin{frame}
 \frametitle{Capability Machine}
 
-\textbf{Capability: } An unforgeable token of authority
-\\[1cm]
+\uncover<5->{\textbf{Capability: } An unforgeable token of authority
+\\[1cm]}
 \begin{columns}[c]
 
 \column{.45\textwidth} % Left column and width
@@ -234,11 +274,11 @@ Aarhus University \\ % Your institution for the title page
     \node<1> (img1) {\includegraphics[scale=0.7]{images/cap_1.pdf}};
     \node<2> (img2) {\includegraphics[scale=0.7]{images/cap_2.pdf}};
     \node<3> (img3) {\includegraphics[scale=0.7]{images/cap_3.pdf}};
-    \node<4> (img4) {\includegraphics[scale=0.7]{images/cap_4.pdf}};
+    \node<4-> (img4) {\includegraphics[scale=0.7]{images/cap_4.pdf}};
 \end{tikzpicture}
 
 \column{.5\textwidth} % Right column and width
-\uncover<4>{\begin{tikzpicture}
+\uncover<4->{\begin{tikzpicture}
 
 \matrix (a) [matrix of math nodes, ampersand replacement=\&, column sep=0.6cm, row sep=0.5cm]{
 \& \textsc{\small RWX} \&\\
@@ -254,7 +294,7 @@ Aarhus University \\ % Your institution for the title page
 \end{frame}
 
 %------------------------------------------------
-\subsection{Reasoning about Capability Safety} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
+\subsection{Enforcing Local Stack Encapsulation using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
 
 \begin{frame}[fragile]
 \frametitle{Capability Safety}
@@ -285,6 +325,7 @@ halt
 \end{frame}
 
 %------------------------------------------------
+\subsection{Enforcing Well Bracketed Control Flow using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
 
 \begin{frame}[fragile]
 \frametitle{Capability Safety}
@@ -306,7 +347,7 @@ halt
 \begin{center}
 \begin{lstlisting}
 push r_stk 1
-scall r ([r])
+scall r
 pop r_stk r_1
 assert r_1 1
 push r_stk 2
@@ -319,6 +360,7 @@ halt
 \end{frame}
 
 %------------------------------------------------
+\subsection{Local Capabilities}
 \begin{frame}
 \frametitle{Local Capabilities}
 
@@ -354,21 +396,48 @@ halt
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Calling Convention}
+\begin{tikzpicture}
+    \node<1> (img1) {\includegraphics[scale=0.7]{images/calling_1.pdf}};
+    \node<2> (img2) {\includegraphics[scale=0.7]{images/calling_2.pdf}};
+\end{tikzpicture}
+
+\begin{longtable}[c]{|l|l|}
+\hline
+\texttt{r\_stk} & $(RWLX,Local,b,e,a)$ \\ \hline
+\endfirsthead
+%
+\endhead
+\end{longtable}
+
+\end{frame}
+
 %------------------------------------------------
+\section{Reasoning about Capability Safety}
 
 \begin{frame}
 \frametitle{Expressing Capability Safety}
 
 \begin{itemize}
 	\item<2-> using a Program Logic 
-	\item<3-> using a Logical Relation to capture invariants on the type system
-	\item<4-> \textbf{using a Logical Relation on an \emph{untyped} (or \emph{uni-typed}) language to capture semantic properties of the language}
+	\item<3-> using a logical relation to capture invariants on the type system
+	\item<4-> \textbf{using a logical relation on an \emph{untyped} (or \emph{uni-typed}) language to capture semantic properties of the language}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Expressing Capability Safety}
+
+\begin{itemize}
+	\item<1-> \textbf{using a logical relation on an \emph{untyped} (or \emph{uni-typed}) language to capture semantic properties of the language}
 	\begin{enumerate}
-		\item<5-> embed the language into Iris
-		\item<6-> define a program logic by proving Hoare Triples
-		\item<7-> define the logical relation
-		\item<8-> prove the fundamental theorem of logical relations
-		\item<9-> use the logical relation to prove examples that rely on LSE and WBCF with calls to unknown adversary
+		\item<2-> embed the language into Iris
+		\item<3-> define a program logic by proving Hoare Triples
+		\item<4-> define the logical relation
+		\item<5-> prove the fundamental theorem of logical relations
+		\item<6-> use the logical relation to prove examples that rely on local state encapsulation and well-bracketed control flow with calls to unknown adversary
 	\end{enumerate}
 \end{itemize}
 
@@ -377,7 +446,6 @@ halt
 %------------------------------------------------
 \section{Program Logic}
 %------------------------------------------------
-\subsection{Abstract Instructions}
 
 \begin{frame}
 \frametitle{Abstract Instructions}
@@ -393,6 +461,23 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 \end{frame}
 
 %------------------------------------------------
+\subsection{A Capability Points-to Predicate}
+\begin{frame}
+\frametitle{Points-to Predicate with Permissions}
+
+\begin{align*}
+	a \mapsto_a[RWL] w \only<2->{&\fupd a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
+	\only<3->{&\fupd a \mapsto_a[RW] ((p,Local),b,e,l) \\}
+	\only<4->{&\nfupd a \mapsto_a[RW] ((p',Local),b',e',l') \\}
+\end{align*}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Proving Hoare Triples}
+
+%------------------------------------------------
+\subsection{Successful Execution}
 
 \begin{frame}
 \frametitle{Hoare Triples of the Program Logic: Success}
@@ -400,34 +485,22 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 \begin{align*}
 &decode(w) = \textsf{Load dst src} \\
 \wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
-\wedge &\textsf{ readAllowed } p_{src} ~\wedge~  \textsf{withinBounds } (b_{src},e_{src},a_{src})\\
-\wedge &~p_{pc} \sqsubseteq p'_{pc} ~\wedge~ p_{src} \sqsubseteq p'_{src}\\
-\{\{\{&~\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) * a_{pc} \mapsto_a[p'_{pc}] w \\
-&* dst \mapsto_r w_{dst} * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \\
-&* a_{src} \mapsto_a[p'_{src}] w_{src} \}\}\} \\
+\wedge &\textsf{ readAllowed } p_{src} ~\wedge~  \textsf{withinBounds } (b_{src},e_{src},a_{src})\\ \\
+\{\{\{&~ \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc})} * a_{pc} \mapsto_a[p_{pc}] w \\
+&* \alert<3>{dst \mapsto_r w_{dst}} * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \\
+&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\} \\
 &\textsf{Instr Executable} \\
-\{\{\{&~   \only<2->{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc} + 1)} 
-			   \only<3->{* a_{pc} \mapsto_a[p'_{pc}] w} 
-			   \only<4->{\\&* dst \mapsto_r w_{src}} 
-			   \only<5->{* src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src})} 
-			   \only<6->{\\&* a_{src} \mapsto_a[p'_{src}] w_{src}} \}\}\}
+\{\{\{&~  \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc} + 1)}
+			  * a_{pc} \mapsto_a[p_{pc}] w
+			  \\&* \alert<3>{dst \mapsto_r w_{src}}
+			  * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src})
+			   \\&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\}
 \end{align*}
 
 \end{frame}
 
 %------------------------------------------------
-\begin{frame}
-\frametitle{Points to Predicate with Permissions}
-
-\begin{align*}
-	a \mapsto_a[RWL] w \only<2->{&\rightarrow a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
-	\only<3->{&\rightarrow a \mapsto_a[RW] ((p,Local),b,e,l) \\}
-	\only<4->{&\nrightarrow a \mapsto_a[RW] ((p',Local),b',e',l')' \\}
-\end{align*}
-
-\end{frame}
-
-%------------------------------------------------
+\subsection{Failed Execution}
 
 \begin{frame}
 \frametitle{Hoare Triples of the Program Logic: Failure}
@@ -435,12 +508,11 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 \begin{align*}
 &decode(w) = \textsf{Load dst src} \\
 \wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
-\wedge &~\neg \textsf{readAllowed } p_{src} ~\vee~ \neg \textsf{withinBounds } (b_{src},e_{src},a_{src})\\
-\wedge &~p_{pc} \sqsubseteq p'_{pc}\\
-\{\{\{&~\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) * a_{pc} \mapsto_a[p'_{pc}] w \\
+\wedge &~\alert<2>{\neg \textsf{readAllowed } p_{src}} ~\vee~ \neg \textsf{withinBounds } (b_{src},e_{src},a_{src})\\
+\{\{\{&~\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) * a_{pc} \mapsto_a[p_{pc}] w \\
 &* src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \}\}\} \\
 &\textsf{Instr Executable} \\
-\{\{\{&~ \textsf{FailedV}, \top \}\}\}
+\{\{\{&~ \alert<2>{\textsf{FailedV}}, \top \}\}\}
 \end{align*}
 
 \end{frame}
@@ -448,6 +520,9 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 %------------------------------------------------
 \section{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}
 %------------------------------------------------
+
+%------------------------------------------------
+\subsection{The Value Relation}
 
 \begin{frame}[fragile]
 \frametitle{The Value Relation}
@@ -458,20 +533,22 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 $$\mathcal{V} : \only<2->{{\color{red}World} \rightarrow~} 
 			Word \rightarrow iProp~\Sigma $$
 \begin{itemize}
-	\item<2-> Reasoning about local state: {\color{red} World}\\
-					A collection of state transition systems
+	\item<2-> {\color{red} World}: A collection of state transition systems\\
+	to reason about \textit{local state}\\
+					
 \end{itemize}
 
 \uncover<3->{
 \begin{align*}
   		\mathcal{V}\interp{W}{z} \triangleq&~\exists z' \in \mathds{Z}. z = z' \\
-  		\mathcal{V}\interp{W}{((\text{\tiny{RO}},g),b,e,a)} \triangleq&~\exists~p', \text{\tiny{RO}} \sqsubseteq p' * \textsf{read\_write\_cond}(\textsf{p',b,e}) \\
-  		\mathcal{V}\interp{W}{((\text{\tiny{RX}},g),b,e,a)} \triangleq&~\exists~p', \text{\tiny{RX}} \sqsubseteq p' * \textsf{read\_write\_cond}(\textsf{p',b,e}) \\&* ~\square~\textsf{exec\_cond(W)(\textsf{p,g,b,e})}
+  		\mathcal{V}\interp{W}{((\text{\tiny{RO}},g),b,e,a)} \triangleq&~\textsf{read\_write\_cond}(\textsf{RO,b,e}) \\
+  		\mathcal{V}\interp{W}{((\text{\tiny{RX}},g),b,e,a)} \triangleq&~\textsf{read\_write\_cond}(\textsf{RX,b,e}) \\&* ~\square~\textsf{exec\_cond(W)(\textsf{RX,g,b,e})}
  	\end{align*}}
 
 \end{frame}
 
 %------------------------------------------------
+\subsection{The Execute Condition}
 
 \begin{frame}
 \frametitle{The Execute Condition}
@@ -488,6 +565,7 @@ $$\mathcal{V} : \only<2->{{\color{red}World} \rightarrow~}
 \end{frame}
 
 %------------------------------------------------
+\subsection{The Expression Relation}
 
 \begin{frame}
 \frametitle{The Expression Relation}
@@ -511,14 +589,22 @@ $$\mathcal{V} : \only<2->{{\color{red}World} \rightarrow~}
 \end{frame}
 
 %------------------------------------------------
+\section{The Fundamental Theorem of Logical Relations}
 
 \begin{frame}
-\frametitle{The Fundamental Theorem of Logical Relations}
+\frametitle{The Fundamental Theorem of logical relations}
 \begin{center}
-\textbf{If we can read a region, and that region is safe, we can safely execute it}
+If we can read a region, and every word in that region is safe, then we can safely execute it
 \end{center}
+\end{frame}
 	
-	
+\begin{frame}
+\begin{itemize}
+	\item<2-> "If we can read a region" : $p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}$
+	\item<3-> "and every word in that region is safe": $\textsf{read\_write\_cond }(p,b,e)$
+	\item<4-> "then we can safely execute it": $\mathcal{E}\interp{W}{((p,g),b,e,a)}$
+\end{itemize}
+
 \begin{align*}
 	&(p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}) \implies\\
 	&\textsf{read\_write\_cond }(p,b,e) \implies \mathcal{E}\interp{W}{((p,g),b,e,a)}
@@ -526,10 +612,11 @@ $$\mathcal{V} : \only<2->{{\color{red}World} \rightarrow~}
 \end{frame}
 
 %------------------------------------------------
+\section{Reasoning about Unknown Code}
 
 \begin{frame}[fragile]
-\frametitle{Capability Safety}
-\textbf{We use the FTLR to reason about calls to an unknown adversary}
+\frametitle{Reasoning about Unknown Code}
+\textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
 \\[1cm]
 \begin{columns}[c]
 
@@ -561,10 +648,10 @@ halt
 \frametitle{Conclusion}
 
 \begin{itemize}
-	\item Embedding of a Capability Machine into Iris
-	\item The Program Logic 
-	\item A unary Logical Relation for an Untyped Capability Machine Language
-	\item Fundamental Theorem of Logical Relations
+	\item Embed a capability machine into Iris
+	\item Define its program logic 
+	\item Mechanize a unary logical relation for an untyped capability machine language
+	\item Prove the fundamental theorem of logical relations
 	\item Reason about examples that rely on Local Stack Encapsulation and Well-Bracketed Control Flow with calls to an unknown adversary
 \end{itemize}
 
