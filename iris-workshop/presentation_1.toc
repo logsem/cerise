@@ -14,4 +14,3 @@
 \beamer@subsectionintoc {5}{3}{The Expression Relation}{74}{0}{5}
 \beamer@sectionintoc {6}{The Fundamental Theorem of Logical Relations}{81}{0}{6}
 \beamer@sectionintoc {7}{Reasoning about Unknown Code}{87}{0}{7}
-\beamer@sectionintoc {8}{Conclusion}{89}{0}{8}

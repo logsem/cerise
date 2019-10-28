@@ -71,7 +71,7 @@
 %\usecolortheme{wolverine}
 
 %\setbeamertemplate{footline} % To remove the footer line in all slides uncomment this line
-\setbeamertemplate{footline}[page number] % To replace the footer line in all slides with a simple slide count uncomment this line
+\setbeamertemplate{footline}[frame number] % To replace the footer line in all slides with a simple slide count uncomment this line
 
 %\setbeamertemplate{navigation symbols}{} % To remove the navigation symbols from the bottom of all slides uncomment this line
 }
@@ -254,7 +254,8 @@ Aarhus University \\ % Your institution for the title page
 
 \begin{frame}
 \frametitle{Overview} % Table of contents slide, comment this block out to remove it
-\tableofcontents % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
+\tableofcontents[hideallsubsections]
+ % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
 \end{frame}
 
 %------------------------------------------------
@@ -617,7 +618,7 @@ If we can read a region, and every word in that region is safe, then we can safe
 \begin{frame}[fragile]
 \frametitle{Reasoning about Unknown Code}
 \textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
-\\[1cm]
+
 \begin{columns}[c]
 
 \column{.45\textwidth} % Left column and width
@@ -636,12 +637,19 @@ halt
 \end{lstlisting}
 \end{center}
 
-
 \end{columns}
+
+\begin{align*}
+ 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~{\textsf{context}(W)(r[\textsf{\small PC}:=pc])}\\
+ 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
+ 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
+ 		&\hspace{1cm}* {\textsf{context}(W')(r')}\}
+ 	\end{align*}
+
 \end{frame}
 
 %------------------------------------------------
-\section{Conclusion}
+%\section{Conclusion}
 %------------------------------------------------
 
 \begin{frame}

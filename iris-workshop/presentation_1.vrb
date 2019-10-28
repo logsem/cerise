@@ -1,6 +1,6 @@
 \frametitle{Reasoning about Unknown Code}
 \textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
-\\[1cm]
+
 \begin{columns}[c]
 
 \column{.45\textwidth} % Left column and width
@@ -19,5 +19,12 @@ halt
 \end{lstlisting}
 \end{center}
 
-
 \end{columns}
+
+\begin{align*}
+ 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~{\textsf{context}(W)(r[\textsf{\small PC}:=pc])}\\
+ 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
+ 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
+ 		&\hspace{1cm}* {\textsf{context}(W')(r')}\}
+ 	\end{align*}
+
