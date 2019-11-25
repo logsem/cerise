@@ -1,0 +1,537 @@
+%% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
+\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%% For double-blind review submission, w/ CCS and ACM Reference
+%\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
+%% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
+%\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%% For single-blind review submission, w/ CCS and ACM Reference
+%\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true}
+%% For final camera-ready submission, w/ required CCS and ACM Reference
+%\documentclass[sigplan]{acmart}\settopmatter{}
+
+
+%% Conference information
+%% Supplied to authors by publisher for camera-ready submission;
+%% use defaults for review submission.
+\acmConference[PL'18]{ACM SIGPLAN Conference on Programming Languages}{January 01--03, 2018}{New York, NY, USA}
+\acmYear{2018}
+\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
+\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\startPage{1}
+
+%% Copyright information
+%% Supplied to authors (based on authors' rights management selection;
+%% see authors.acm.org) by publisher for camera-ready submission;
+%% use 'none' for review submission.
+\setcopyright{none}
+%\setcopyright{acmcopyright}
+%\setcopyright{acmlicensed}
+%\setcopyright{rightsretained}
+%\copyrightyear{2018}           %% If different from \acmYear
+
+%% Bibliography style
+\bibliographystyle{ACM-Reference-Format}
+%% Citation style
+%\citestyle{acmauthoryear}  %% For author/year citations
+%\citestyle{acmnumeric}     %% For numeric citations
+%\setcitestyle{nosort}      %% With 'acmnumeric', to disable automatic
+                            %% sorting of references within a single citation;
+                            %% e.g., \cite{Smith99,Carpenter05,Baker12}
+                            %% rendered as [14,5,2] rather than [2,5,14].
+%\setcitesyle{nocompress}   %% With 'acmnumeric', to disable automatic
+                            %% compression of sequential references within a
+                            %% single citation;
+                            %% e.g., \cite{Baker12,Baker14,Baker16}
+                            %% rendered as [2,3,4] rather than [2-4].
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Note: Authors migrating a paper from traditional SIGPLAN
+%% proceedings format to PACMPL format must update the
+%% '\documentclass' and topmatter commands above; see
+%% 'acmart-pacmpl-template.tex'.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%% Some recommended packages.
+\usepackage{booktabs}   %% For formal tables:
+                        %% http://ctan.org/pkg/booktabs
+\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
+                        %% http://ctan.org/pkg/subcaption
+%\usepackage[showframe]{geometry}% http://ctan.org/pkg/geometry
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\usepackage{xcolor}
+\usepackage{graphicx} % need this package
+\usepackage{stmaryrd}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{float}
+\usepackage{IEEEtrantools}
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+\presetkeys%
+    {todonotes}%
+    {inline,backgroundcolor=orange}{}
+
+\newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
+\newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
+
+\newcommand{\bigsep}{\mathop{\scalebox{2.5}{\raisebox{-0.4ex}{$*$}}}}%
+
+\newcommand{\ra}[1] {
+  \begin{tikzpicture}
+        \node[draw,dashed] {#1};
+    \end{tikzpicture}}
+    
+\newcommand{\inv}[1] {
+  \begin{tikzpicture}
+        \node[draw] {#1};
+    \end{tikzpicture}}
+    
+\newcommand{\interp}[2]{(#1)(#2)}
+\newcommand\sepimp{\mathrel{-\mkern-6mu*}}
+
+\usetikzlibrary{decorations.pathreplacing}
+
+\newcommand\MemoryLayout[1]{
+  \begin{tikzpicture}[scale=0.3]
+     \draw[thick](0,0)--++(0,1);
+     \foreach \pt/\col/\lab [remember=\pt as \tp (initially 0)] in {#1} {
+     \if\lab\relax\relax\else
+         \draw[thick,decorate, decoration={brace,amplitude=4mm}]
+            (-\tp,-0.2)--node[below=4mm]{\lab} (-\pt+2,-0.2);
+            \draw[fill=\col] (-\tp,0) rectangle (-\pt+2,1);
+       \fi
+       \foreach \a in {\tp,...,\pt} {
+          \draw(-\a,0) rectangle ++(-1,1);
+       }
+       \draw[thick](-\pt,0)--++(0,1);
+       
+     }
+     \node at (-4.5,0.6) {\small B};
+  \end{tikzpicture}
+}
+
+\def\world{\emph{World}}
+\def\word{\emph{Word}}
+
+\begin{document}
+
+%% Title information
+\title[Short Title]{Mechanized Reasoning about a Capability Machine}
+%% [Short Title] is optional;
+                                        %% when present, will be used in
+                                        %% header instead of Full Title.
+%\titlenote{with title note}             %% \titlenote is optional;
+                                        %% can be repeated if necessary;
+                                        %% contents suppressed with 'anonymous'
+%\subtitle{Subtitle}                     %% \subtitle is optional
+%\subtitlenote{with subtitle note}       %% \subtitlenote is optional;
+                                        %% can be repeated if necessary;
+                                        %% contents suppressed with 'anonymous'
+
+
+%% Author information
+%% Contents and number of authors suppressed with 'anonymous'.
+%% Each author should be introduced by \author, followed by
+%% \authornote (optional), \orcid (optional), \affiliation, and
+%% \email.
+%% An author may have multiple affiliations and/or emails; repeat the
+%% appropriate command.
+%% Many elements are not rendered, but should be provided for metadata
+%% extraction tools.
+
+%% Author with single affiliation.
+\author{A{\"i}na Linn Georges}
+%\authornote{with author1 note}          %% \authornote is optional;
+                                        %% can be repeated if necessary
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+\affiliation{
+  %\position{Position1}
+  %\department{Department1}              %% \department is recommended
+  \institution{Aarhus University}            %% \institution is required
+  %\streetaddress{Street1 Address1}
+  %\city{City1}
+  %\state{State1}
+  %\postcode{Post-Code1}
+  %\country{Denmark}                    %% \country is recommended
+}
+\email{ageorges@cs.au.dk}          %% \email is recommended
+
+\author{Alix Trieu}
+%\authornote{with author2 note}          %% \authornote is optional;
+                                        %% can be repeated if necessary
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+\affiliation{
+  %\position{Position2a}
+  %\department{Department2a}             %% \department is recommended
+  \institution{Aarhus University}           %% \institution is required
+  %\streetaddress{Street2a Address2a}
+  %\city{City2a}
+  %\state{State2a}
+  %\postcode{Post-Code2a}
+  %\country{Denmark}                   %% \country is recommended
+}
+\email{alix.trieu@cs.au.dk}         %% \email is recommended
+
+
+\author{Lars Birkedal}
+%\authornote{with author2 note}          %% \authornote is optional;
+                                        %% can be repeated if necessary
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+\affiliation{
+  %\position{Position2a}
+  %\department{Department2a}             %% \department is recommended
+  \institution{Aarhus University}           %% \institution is required
+  %\streetaddress{Street2a Address2a}
+  %\city{City2a}
+  %\state{State2a}
+  %\postcode{Post-Code2a}
+  %\country{Denmark}                   %% \country is recommended
+}
+\email{birkedal@cs.au.dk}         %% \email is recommended
+
+
+
+%% Abstract
+%% Note: \begin{abstract}...\end{abstract} environment must come
+%% before \maketitle command
+\begin{abstract}
+  Capability machines are promising targets for secure compilers since capabilities can be used to enforce abstractions that are usually expected for high-level languages, such as well-bracketed control-flow (WBCF) and local state encapsulation (LSE).
+  We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
+  Our formalization is done in the Coq implementation of Iris, a state-of-the-art concurrent higher-order separation logic, and includes a formalization of the logical relation defined by Skorstensgaard et al. \cite{skorstengaardESOP18}, which can used to prove WBCF and LSE.
+\end{abstract}
+
+
+%% 2012 ACM Computing Classification System (CSS) concepts
+%% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10011007.10011006.10011008</concept_id>
+<concept_desc>Software and its engineering~General programming languages</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10003456.10003457.10003521.10003525</concept_id>
+<concept_desc>Social and professional topics~History of programming languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~General programming languages}
+\ccsdesc[300]{Social and professional topics~History of programming languages}
+%% End of generated code
+
+
+%% Keywords
+%% comma separated list
+\keywords{keyword1, keyword2, keyword3}  %% \keywords are mandatory in final camera-ready submission
+
+
+%% \maketitle
+%% Note: \maketitle command must come after title commands, author
+%% commands, abstract environment, Computing Classification System
+%% environment and commands, and keywords command.
+\maketitle
+
+
+\section{Introduction}
+
+Capability machines allow for fine grained control over the authority of memory \cite{levy_capability-based_1984,watson_cheri:_2015}.
+At the machine level, pointers are replaced by capabilities, to which is attached a range of authority and a permission.
+When the machine executes an instruction it dynamically checks that the instruction uses a capability within its range of authority.
+Capability machines are promising targets for secure compilers because these dynamic checks can be used to enforce abstractions that are usually expected for high-level languages, such as well-bracketed
+control-flow (WBCF) and local state encapsulation (LSE). 
+
+We present the first formalization of a capability machine that supports mechanized reasoning about deep semantic properties, including WBCF and LSE.
+
+Our formalization builds upon earlier work of \citeauthor{skorstengaardESOP18} \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, who present two different capability machines and calling conventions that enforce well-bracketed control flow, and methods for defining and reasoning about capability machines.
+In each case, they define a logical relation to capture a semantic
+notion of capability safety and use it to prove WBCF and LSE.
+
+The logical relations in \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19} are so-called step-indexed Kripke logical relations, which means that they are indexed over recursively-defined worlds, which contain descriptions of invariants of the memory of the machine.
+It is well-known that it is non-trivial to define and work with such step-indexed Kripke logical relations~\cite{ahmed-2002, birkedal2011step}.
+Therefore we do not formalize the logical relations of \citeauthor{skorstengaardESOP18} 
+directly, but rather give a more abstract \emph{logical} definition of the logical relations in the Iris program logic framework \cite{iris,iris2,iris3, iris-jfp}, which comes with built-in support for abstract reasoning about recursion (qua the later modality and L{\"o}b induction) and invariants.
+Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr-journal,iris:type-effect,rustbelt,runst-popl18}); here we use it for the first time for a low-level untyped machine language.
+Another reason for using Iris is that we can use the Coq implementation of Iris and
+the Iris proof mode \cite{Krebbers:2017} to mechanize our development. 
+
+In summary, we present Iris formalizations of 
+\begin{itemize}
+  \item a program logic for reasoning about capability machine programs.
+  \item the logical relation from \cite{skorstengaardESOP18}, 
+    which captures capability safety and which can be used to reason about examples
+    that rely on WBCF and LSE.
+\end{itemize}
+Currently, almost all of the technical development is mechanized in Coq using the Coq implementation of Iris.
+The mechanization presently consists of 5.8K lines of spec and 15K lines of proof as reported by \textsf{coqwc}.
+Its substantial size can probably be reduced by better use of tactics. However, such a mechanization will always be non-trivial due to the nature of the capability machine with dynamic checks
+and multiple ways in which instructions can fail.
+
+%\todo{Alix: I think we need a short discussion (not specifically here) about the fact that we don't really have a theorem that says something like "being in the logical relation implies LSE and WBCF" as that's not really well defined, but we can prove things about specific programs that rely on it}
+%\todo{Lars: I just tried to reduce the claim above}
+
+% Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
+% Such a logical approach to defining logical relations has been used successfully before for logical relations for typed high-level languages (e.g., \cite{lslr, XXX}); here we use it for the first time for a low-level untyped machine language.
+
+
+% In \cite{skorstengaardESOP18} and \cite{SkorstengaardPOPL19}, Skorstensgaard et. al. present two different calling conventions that enforce well bracketed control flow, and methods for defining and reasoning about capability machines. In each case, they define a step-indexed Kripke logical relation to define a notion of capability safety. 
+
+% However, such logical relations are notoriously difficult to construct, due to the so-called World circularity problem \cite{Ahmed2004SemanticsOT}. This challenge has been addressed by giving a logical account of the relation, thus raising the level of abstraction 
+% \cite{Krogh-Jespersen2017} \cite{dreyer_neis_birkedal_2012}. Such logical accounts have typically been for logical relations of typed high level languages. We show how to give a logical account of an untyped low level language. 
+
+% Iris is a higher-order concurrent separation logic framework. Its support of higher-order ghost state makes Iris a great candidate for complex reasoning about \textit{state}. This is exactly what we need for reasoning about a machine, where computation consist of state manipulation. Furthermore, the model of Iris is itself step-indexed, and comes equipped with a later modality: $\triangleright$. The later modality, and other logical features of Iris, is enough to define these step-indexed logical relations\cite{Timany:2017} \cite{Jung:2017} \cite{timany2019}. Additionally, we can take advantage of the Iris proof mode \cite{Krebbers:2017} for an interactive proof style in Coq. 
+
+% We have formalized the unary logical relation defined in \cite{skorstengaardESOP18} in Iris. The formalization makes the following contributions: 
+% \begin{itemize}
+% 	\item A formalization of a capability machine program logic in Iris, in which programs lie in memory, and execution is completely stateful. 
+% 	\item An Iris formalization of a Logical Relation to reason about programs in a capability machine language, which can be used to reason about local state while distinguishing between well-bracketed, and non well-bracketed calls.
+% \end{itemize} 
+
+
+\section{A Program Logic for a Capability Machine}
+
+
+% \begin{itemize}
+% \item we define the operational semantics of the CM
+% \item we prove basic hoare triples for each of the atomic instructions
+%   of the CM (i.e., for load, store, etc.)
+% \item non-trivial
+%   \begin{itemize}
+%   \item while Iris is a framework and supports many languages, it is
+%     geared towards models of higher-level languages which abstract from
+%     program counters and the fact that programs are stored in memory.
+%     -- here our low-level machine model includes registers, in particular
+%     the program counter register, and instructions are stored in memory.
+%   \item to capture the semantics of the CM in the Iris framework, 
+%     we introduce an abstract notion of instruction, whose
+%     operational meaning is to execute the next instruction the program counter
+%     points to, and abstract notions of values, failed and halted.
+%   \item for each machine instruction, we can then prove a hoare triple
+%     which expresses the pre- and post-conditions for executing the instruction
+%   \end{itemize}
+% \end{itemize}
+
+In this section we give a brief overview of how we define a program logic
+for reasoning about the capability machine from \cite{skorstengaardESOP18} in the Iris framework.
+
+While Iris is a framework and supports many languages, it is geared towards models of higher-level languages, which abstract from the fact that programs are stored in memory, and hence come equipped with notions of expressions and values, in addition to the program memory.
+In contrast, our low-level capability machine model has no notion of expression and values, it just consists of a memory and a register file.
+The program counter register contains a pointer to an address in memory.
+That address in turn will contain an integer, which can then be decoded to a machine instruction, such as Load, Store, Jump, etc.
+Once an instruction has been executed, the program counter is updated and will then point to the next instruction in memory.
+
+To capture the semantics of the capability machine in the Iris framework, we introduce an abstract notion of an instruction, whose operational meaning is to execute the instruction the program counter points to, and abstract notions of values, for halted and failed configurations.
+
+Next we use the Iris framework to \emph{prove} Hoare triples for each instruction.
+As in \cite{Jensen:2013}, we define a points-to predicate for registers, denoted $r \mapsto_r w$.
+Since a capability machine replaces pointers with capabilities, we replace the conventional points-to predicate of separation logic for pointers with a points-to predicate with a permission attached to it, denoted
+$a \mapsto_a[p]~w$. 
+% \[
+%    \hspace{1cm} a \mapsto_a[p]~w.
+% \]
+This predicate states that address $a$ points to word $w$ with permission $p$.
+The permission restricts how the memory may be updated at address $a$.
+For instance, if $a \mapsto_a[\textsc{\tiny RX}]~w$, then the $\textsc{\tiny RX}$ (ReadExecute)
+permission gives us permission to read from address $a$, to execute w, but it does not permit us to write to address $a$.
+
+% Similar to \cite{Jensen:2013}, the program logic rules for each instruction are of the following form: 
+The Hoare triples for basic instructions take the following form
+\begin{align*}
+\small
+	\textit{run time conditions } \wedge &\textit{ decode}(w) = \emph{instr} \Rightarrow  \\
+	\{\{\{ \textsf{PC} \mapsto_r ((p,g),b,e,a) &* a \mapsto_a[p] w * ... \}\}\} \\ 
+	\textsf{Instr Executable }\\
+	\{\{\{\textsf{PC} \mapsto_r ((p,g),b,e,a&+1) * a \mapsto_a[p] w * ... \}\}\}
+\end{align*} 
+Here, the runtime conditions correspond to the dynamic checks done by the capability machine, and \textsf{Instr Executable} is the abstract expression for executing the next instruction in memory.
+This form of Hoare triple is similar to the one used in \cite{Jensen:2013} but
+unlike \cite{Jensen:2013}, the decoding function is in our case assumed.
+
+Here we have only described the format for Hoare triples for individual instructions; we use a trick involving the standard bind rule of Iris to reason about programs consisting of many instructions, but we omit the description of that from this extended abstract.
+
+% We now have the necessary building blocks for implementing the logical relation.
+\section{Logical Relation}
+
+
+% \begin{figure*}[ht]
+% 	\begin{minipage}{\textwidth}
+% 	\begin{align*}
+% 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~\textsf{context}(W)(r[\textsf{\small PC}:=pc])\\
+% 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W * \textsf{context}(W')(r')\}
+% 	\end{align*}
+% 	\end{minipage}
+% 	\caption{Logical Relation for Expressions}
+% 	\label{fig:expr}
+% \end{figure*}
+
+% \begin{figure*}[ht]
+% 	\begin{minipage}{\textwidth}
+% 	\begin{align*}
+% 		\mathcal{R}\interp{W}{r} \triangleq&~\forall (reg : \text{RegName} \backslash \textsf{PC}), \mathcal{V}\interp{W}{r(reg)}
+% 	\end{align*}
+% 	\end{minipage}
+% 	\caption{Logical Relation for Register States}
+% 	\label{fig:regs}
+% \end{figure*}
+
+% \begin{figure*}[ht]
+% 	\begin{minipage}{\textwidth}
+% 	\begin{align*}
+%  		\mathcal{V}\interp{W}{z} \triangleq&~\exists z' \in \mathds{Z}. z = z' \\
+%  		\mathcal{V}\interp{W}{((\text{\tiny{O}},g),b,e,a)} \triangleq&~\top
+%  \\
+%  		\left.
+% 		\begin{IEEEeqnarraybox}[\IEEEeqnarraystrutmode \IEEEeqnarraystrutsizeadd{2pt}{2pt}][c]{rCl} 
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RO}},g),b,e,a)} \\
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RW}},g),b,e,a)} \\
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RWL}},g),b,e,a)}
+%   \end{IEEEeqnarraybox}
+%   \, \right\}  &\triangleq  \left.\exists~p', p \sqsubseteq p' * \textsf{read\_write\_cond}(\textsf{p',b,e})
+%   \right. &\textit{where p is {\tiny{RO}}, {\tiny{RW}}, {\tiny{RWL}} resp.}
+%   \\
+%    		\left.
+% 		\begin{IEEEeqnarraybox}[\IEEEeqnarraystrutmode \IEEEeqnarraystrutsizeadd{2pt}{2pt}][c]{rCl} 
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RX}},g),b,e,a)} \\
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RWX}},g),b,e,a)} \\
+% 			\mathcal{V}\interp{W}{((\text{\tiny{RWLX}},g),b,e,a)}
+%   \end{IEEEeqnarraybox}
+%   \, \right\}  &\triangleq  \left.
+% 	\begin{IEEEeqnarraybox}[
+%     \IEEEeqnarraystrutmode][c]{rCl}
+%     \exists~p', p \sqsubseteq p' &*& \textsf{read\_write\_cond}(\textsf{p',b,e})\\
+%   &*& ~\square~\textsf{exec\_cond(W)(\textsf{p,g,b,e})}
+%   \end{IEEEeqnarraybox}  
+%   \right. &\textit{where p is {\tiny{RX}}, {\tiny{RWX}}, {\tiny{RWLX}} resp.}
+%   \\
+%  		\mathcal{V}\interp{W}{((\text{\tiny{E}},g),b,e,a)} \triangleq&~\square~\textsf{enter\_cond}(W)(\textsf{g,b,e,a})
+% 	\end{align*}
+% 	\end{minipage}
+% 	\caption{Logical Relation for Words}
+% 	\label{fig:relation}
+% \end{figure*}
+
+
+% \begin{figure*}[ht]
+% 	\begin{minipage}{\textwidth}
+% 	\begin{align*}
+%  		\textsf{read\_write\_cond}(p,b,e) \triangleq&~\bigsep_{a \in [b,e]} \text{rel}(a,p,\mathcal{V})\\
+%  		\textsf{exec\_cond(W)(p,g,b,e)} \triangleq&~\forall a \in [b~e], W' \sqsubseteq^g W.~\rhd~\mathcal{E}\interp{W'}{((p,g),b,e,a)}\\
+%  		\textsf{enter\_cond(W)(g,b,e,a)} \triangleq&~\forall W' \sqsubseteq^g W.~\rhd~\mathcal{E}\interp{W}{((\textsf{\tiny{RX}},g),b,e,a)}
+% 	\end{align*}
+% 	\end{minipage}
+% 	\\[2em]
+% 	where $W' \sqsubseteq^{\tiny Global} W \iff W' \sqsubseteq_{priv} W$\\ and 
+% 	$W' \sqsubseteq^{\tiny Local} W \iff W' \sqsubseteq_{pub} W$	
+	
+% 	\caption{Capability Conditions}
+% 	\label{fig:condition}
+% \end{figure*}
+
+
+% \subsection{The Value Relation}
+% \begin{itemize}
+% 	\item definition of the relation and World
+% 	\item LS definitions
+% 	\item now: standard islands are not used 
+% \end{itemize}
+
+\newcommand{\World}{\mathrm{World}} \newcommand{\Word}{\mathrm{Word}} We now outline how we define a unary logical relation in Iris that captures capability safety.
+We define a value relation $\mathcal{V}$ as an Iris relation of type $\World \to \Word \to \emph{iProp}$, where $\World$ is a collection of state transition systems used to reason about local state and
+$\Word$ is the type of capability machine words. 
+It is well-known how state transistion systems can be defined in Iris via Iris' notion of monoids and ghost state \cite{iris}.
+
+Our notion of World is simpler and more abstract than the 
+one used in the concrete logical relation given by \cite{skorstengaardESOP18}, where the World is a collection of invariants describing the behaviour of all memory, not just local state.
+We can use a simpler more abstract notion of world because the Iris model takes care of the world circularity problem. In particular, we make use of Iris' higher-order ghost state ---
+the ability to store arbitrary higher-order separation-logic predicates in ghost variables ---
+to define the validity of the regions a capability has authority over. The semantics of
+Iris' higher-order ghost state involves solving a recursive equation \cite{iris2}. 
+%\todo{Lars: say why succintly, is it just because we use capability points-to predicates ?
+%  But that could also have been done before\ldots}
+
+%\todo{Lars: the following is too hard to read and understand -- I suggest to omit it and just add a succinct description above}
+% \todo{begin}
+% Skorstensgaard et.
+% al.
+% use the World to define validity of capabilities, by relating the invariant of the region in question to certain standard islands for capabilities.
+
+% In the logical account, we use the capability points-to assertion to both describe what we may get from the read permission of a capability, and the restrictions imposed on us by the write permission of a capability. On the one hand, a points-to assertion lets us execute an instruction using that location. On the other, the permission of the points-to assertion restricts which updates are allowed, and thus which instructions will fail. The permission of the points-to assertion suffices to describe the behaviour of the above mentioned standard islands. 
+
+% We want the value relation to give us the points-to predicate, while asserting that what the predicate points to is valid. The challenge is now to define how that should be done.
+% \todo{end}
+% \subsection{Reasoning about Local State}
+% \begin{itemize}
+% 	\item How to reason about local state in high level languages
+% 	\item public/private distinction
+% 	\item TT style
+% 	\item difficulties w/ iris invariants 
+% \end{itemize}
+
+
+Logical accounts of logical relations for high level languages with references have used Iris invariants to define semantic validity of reference locations, see, e.g., \cite{ipm}.
+This approach suffices for reasoning about examples involving local state encapsulation in languages where all calls are well-bracketed.
+
+In our case, however, calls are not always well-bracketed (since the capability machine includes general jump instructions).
+\citeauthor{skorstengaardESOP18} \cite{skorstengaardESOP18} distinguishes between well-bracketed and non well-bracketed calls by using notions of public- and private future worlds, following \cite{dreyer_neis_birkedal_2012}.
+Iris invariants do not make such a distinction and thus invariants alone are not sufficient for our purposes.
+Instead we \textit{explicitly} define notions of public and private future world relations, rather than relying on Iris' \textit{implicit} future world, and use these notions to distinguish between well-bracketed and non well-bracketed calls.
+We use these relations in combination with Iris' higher-order ghost state, which allow us to save a predicate by associating it to a unique ghost name.
+Using that unique name, we are then able to refer to the saved predicate somewhere else, and apply it to
+an appropriate future world argument.
+
+% A callback is an executable capability.
+% This distinction must therefore be done by the value relation.
+% However, if the value relation is indexed by a world, we again have difficulties using Iris invariants.
+% Asserting $\exists w, \mathcal{V}(W)(w)$ as invariant does not allow for $W$ to change.
+
+% The difficulty is to support reasoning about local state, while distinguishing between public- and private future world relations in the value relation, rather than the expression relation.
+% We implement this by using Iris' saved predicates, which allows us to save a predicate by associating it to a unique name.
+% Using that unique name, we are then able to refer to that predicate somewhere else, and state it with the argument that we want.
+% That way, if we save the value relation predicate and associate it to a location, we can later on state that predicate and apply it to the future world in question.
+
+
+We prove the Fundamental Theorem of Logical Relations, which roughly says that if we have a read-execute capability, and it is capability safe to read it, then it is capability safe to execute it (use it as a program counter).
+We then use the fundamental theorem to prove functional correctness of examples with calls to unknown adversary code and whose correctness relies on local state encapsulation and well-bracketed control flow.
+
+In the future we plan to finish the remaining details of the implementation, then use it as a starting point to prove full abstraction of a compiler from a high level language to our capability machine. Furthermore, it can also be used as a starting point for exploring different kinds of capabilities. 
+
+%% Acknowledgments
+\begin{acks}                            %% acks environment is optional
+                                        %% contents suppressed with 'anonymous'
+  %% Commands \grantsponsor{<sponsorID>}{<name>}{<url>} and
+  %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
+  %% acknowledge financial support and will be used by metadata
+  %% extraction tools.
+
+  This research was supported in part by the ModuRes Sapere Aude Advanced Grant from The Danish Council for Independent Research for the Natural Sciences (FNU) and by a Villum Investigator grant (no.
+  25804), Center for Basic Research in Program Verification (CPV), from the VILLUM Foundation.
+  
+  % This material is based upon work supported by the
+  % \grantsponsor{GS100000001}{National Science
+  %   Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
+  % No.~\grantnum{GS100000001}{nnnnnnn} and Grant
+  % No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
+  % conclusions or recommendations expressed in this material are those
+  % of the author and do not necessarily reflect the views of the
+  % National Science Foundation.
+\end{acks}
+
+
+% Bibliography
+\bibliography{reading_list}
+
+
+% %% Appendix
+% \appendix
+% \section{Appendix}
+
+% Text of appendix \ldots
+
+\end{document}

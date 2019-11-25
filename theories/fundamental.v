@@ -1,27 +1,29 @@
 From cap_machine Require Export logrel.
+From stdpp Require Import base.
+From cap_machine.ftlr Require Export Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Store Restrict Subseg.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, inG Σ frac.fracR}.
-  Notation D := ((leibnizC Word) -n> iProp Σ).
-  Notation R := ((leibnizC Reg) -n> iProp Σ).
-  Implicit Types w : (leibnizC Word).
-  Implicit Types interp : D.
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
+            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
+            Heap: heapG Σ}.
 
-(* "Hmtr" : [∗ map] r0↦w ∈ <[PC:=inr (RX, g, b, e, a)]> r, r0 ↦ᵣ w
-  "Hmta" : [∗ map] a0↦w ∈ m, a0 ↦ₐ w *)
+  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Implicit Types W : WORLD.
 
-  (* Lemma extract_a m (a : Addr) : *)
-  (*   [∗ map] a0↦w ∈ m, a0 ↦ₐ w -∗  *)
+  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
+  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
+  Implicit Types w : (leibnizO Word).
+  Implicit Types interp : (D).
 
-  Lemma extract_r_ex reg (r : RegName) :
-    (∃ w, reg !! r = Some w) →
-    (([∗ map] r0↦w ∈ reg, r0 ↦ᵣ w) → ∃ w, r ↦ᵣ w)%I. 
+  Lemma extract_r_ex r (reg : RegName) :
+    (∃ w, r !! reg = Some w) →
+    (([∗ map] r0↦w ∈ r, r0 ↦ᵣ w) → ∃ w, reg ↦ᵣ w)%I. 
   Proof.
     intros [w Hw].
     iIntros "Hmap". iExists w. 
-    iApply (big_sepM_lookup (λ r i, r ↦ᵣ i)%I reg r w); eauto. 
+    iApply (big_sepM_lookup (λ reg' i, reg' ↦ᵣ i)%I r reg w); eauto. 
   Qed.
 
   Lemma extract_r reg (r : RegName) w :
@@ -30,95 +32,110 @@ Section fundamental.
      (r ↦ᵣ w ∗ (∀ x', r ↦ᵣ x' -∗ [∗ map] k↦y ∈ <[r := x']> reg, k ↦ᵣ y)))%I.
   Proof.
     iIntros (Hw) "Hmap". 
-    iDestruct (big_sepM_lookup_acc (λ r i, r ↦ᵣ i)%I reg r w) as "Hr"; eauto.
+    iDestruct (big_sepM_lookup_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hr"; eauto.
     iSpecialize ("Hr" with "[Hmap]"); eauto. iDestruct "Hr" as "[Hw Hmap]".
-    iDestruct (big_sepM_insert_acc (λ r i, r ↦ᵣ i)%I reg r w) as "Hupdate"; eauto.
+    iDestruct (big_sepM_insert_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hupdate"; eauto.
     iSpecialize ("Hmap" with "[Hw]"); eauto. 
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
   
-  (* Lemma extract_read_cond p g b e a γ : *)
-  (*   isCorrectPC (inr ((p,g),b,e,a)) -> *)
-  (*   read_cond b e g γ interp -∗ *)
-  (*   WP Halted {{ λne _, True }}%I.  *)
-  (* Proof. *)
-  (*   iIntros (Hvpc) "#Hrc /=". *)
-  (*   destruct g.  *)
-  (*   - iDestruct "Hrc" as (b' e') "#[Hin Hinv]". *)
-  (*     rewrite /inv_cap. *)
-  (*     iApply fupd_wp.  *)
-  (*     iInv (logN.@(b', e')) as (ws) "[Hregion Hvalid]". *)
-  (* Abort. *)
-    
-    
-  Theorem fundamental (perm : Perm) b e g γ (a : Addr) :
-    (⌜perm = RX⌝ ∧ read_cond b e g γ interp)%I ∨
-    (⌜perm = RWX⌝ ∧ read_cond b e g γ interp ∧
-     write_cond b e g γ interp (λne w, ⌜isLocalWord w = false⌝))%I ∨
-    (⌜perm = RWLX⌝ ∧ read_cond b e g γ interp ∧
-     write_cond b e g γ interp (λne w, True%I))%I -∗
-    ⟦ inr ((perm,g),b,e,a) ⟧ₑ.
+  Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
+
+  Theorem fundamental W r p g b e (a : Addr) :
+    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX⌝) →
+    (∃ p', ⌜PermFlows p p'⌝ ∧
+    ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp))) →
+     interp_expression r W (inr ((p,g),b,e,a)))%I.  
   Proof.
-    iIntros "[#[-> Hrc] | [#(Hrwx & Hrc & Hwc) | #(Hwlx & Hrc & Hwc)]]".
-    - destruct g.
-      + iIntros (r). iIntros (m) "Hreg Hmreg /=".
-        iLöb as "IH" forall (a).
-        destruct (decide (isCorrectPC (inr ((RX,Global),b,e,a)))). 
-        { (* Correct PC *)
-          (* iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC *)
-          (*                      (inr (RX, Global, b, e, a)) *)
-          (*              with "[Hmreg]") as "[HPC HPCmap]"; *)
-          (*   first by apply (lookup_insert r PC). iFrame. *)
-          iDestruct "Hrc" as (b' e') "#[Hin Hinv]".
-          iApply fupd_wp.
-          iInv (logN.@(b', e')) as (ws) "HregionHvalid" "Hcls".
-          iDestruct (extract_from_region _ _ a with "HregionHvalid")
-            as (w) "(Hregionl & Hvalidl & >Ha & Hva & Hregionh & Hvalidh)";
-            [admit|admit|admit|].
-          iDestruct (extract_r (<[PC:=inr (RX, Global, b, e, a)]> r) PC
-                               (inr (RX, Global, b, e, a))
-                       with "[Hmreg]") as "[HPC HPCmap]";
-            first by apply (lookup_insert r PC). iFrame.
-          destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
-          - admit. (* Jmp *)
-          - admit. (* Jnz *)
-          - admit. (* Mov *)
-          - (* Load *)
-            (* these come from the reg interp relation *)
-            iAssert (∃ w, dst ↦ᵣ w)%I as (wdst) "Hdst"; [admit|].
-            iAssert (∃ w, src ↦ᵣ w)%I as (wsrc) "Hsrc"; [admit|].
-            destruct wsrc eqn:Hsrc; [admit|].
-            destruct c. do 3 destruct p.
-            iAssert (∃ w, a0 ↦ₐ w)%I as (wa0) "Ha0"; [admit|].
-            
-            iApply wp_load_success; eauto.
-            + admit.
-            + admit.
-            + admit.
-            + iFrame.
-              (* STUCK: How can we get the resources from a wand under a fupd *)
-              (* is this even possible.... *)
-              admit.
-          - admit. (* Store *)
-          - admit. (* Lt *)
-          - admit. (* Add *)
-          - admit. (* Sub *)
-          - admit. (* Lea *)
-          - admit. (* Restrict *)
-          - admit. (* Subseg *)
-          - admit. (* IsPtr *)
-          - admit. (* GetL *)
-          - admit. (* GetP *)
-          - admit. (* GetB *)
-          - admit. (* GetE *)
-          - admit. (* GetA *)
-          - admit. (* Fail *)
-          - admit. (* Halt *)
-        }
-        { (* Incorrect PC *) admit. }
-      + (* Local *) admit.
-    - admit.
-    - admit. 
-  Admitted. 
-  
+    destruct W as [fs fr]. 
+    iIntros (Hp) "#Hinv /=". iExists fs,fr.
+    repeat (iSplit;auto). 
+    iIntros "[[Hfull Hreg] [Hmreg [Hr [Hsts Hown]]]]".
+    iSplit; eauto; simpl.
+    iRevert (Hp) "Hinv".    
+    iLöb as "IH" forall (fs fr r p g b e a).
+    iIntros (Hp) "#Hinv". 
+    iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
+    iApply (wp_bind (fill [SeqCtx])).
+    destruct (decide (isCorrectPC (inr ((p,g),b,e,a)))). 
+    - (* Correct PC *)
+      assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
+      { eapply in_range_is_correctPC; eauto.
+        unfold le_addr; omega. }
+      iDestruct "Hinv" as (p' Hfp) "Hinv". 
+      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "Hinva"; auto.
+      iDestruct (region_open (fs,fr) a p' with "[$Hinva $Hr]") 
+                                    as (w) "(Hr & Ha & % & #Hmono & #Hval) /=". 
+      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
+        first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
+      destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
+      + (* Jmp *)
+        iApply (jmp_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Jnz *)
+        iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Mov *)
+        iApply (mov_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Load *)
+        iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. 
+      + (* Store *)
+        iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Lt *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Add *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Sub *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Lea *)
+        iApply (lea_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Restrict *)
+        iApply (restrict_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Subseg *)
+        iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* IsPtr *) 
+        iApply (isptr_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* GetL *)
+        iApply (getL_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* GetP *)
+        iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* GetB *)
+        iApply (getB_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* GetE *)
+        iApply (getE_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* GetA *)
+        iApply (getA_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      + (* Fail *)
+        iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iApply wp_value.
+        iNext. iIntros (Hcontr); inversion Hcontr. 
+      + (* Halt *)
+        iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
+        iNext. iIntros "[HPC Ha] /=". 
+        iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+        iApply wp_pure_step_later; auto.
+        iApply wp_value.
+        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
+        apply lookup_insert. rewrite delete_insert_delete. iFrame.
+        rewrite insert_insert. iNext. iIntros (_). 
+        iExists (<[PC:=inr (p, g, b, e, a)]> r),fs,_. iFrame.
+        iAssert (⌜related_sts_priv fs fs fr fr⌝)%I as "#Hrefl". 
+        { iPureIntro. apply related_sts_priv_refl. }
+        iFrame "#".
+        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, g, b, e, a)]> r !! r0)⌝)%I as "HA".
+        { iIntros. destruct (reg_eq_dec PC r0).
+          - subst r0; rewrite lookup_insert; eauto.
+          - rewrite lookup_insert_ne; auto. }            
+        iFrame.
+   - (* Not correct PC *)
+     iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
+       first apply (lookup_insert _ _ (inr (p, g, b, e, a))). 
+     iApply (wp_notCorrectPC with "HPC"); eauto.
+     iNext. iIntros "HPC /=".
+     iApply wp_pure_step_later; auto.
+     iApply wp_value.
+     iNext. iIntros (Hcontr); inversion Hcontr.
+  Qed.
+    
+      
 End fundamental. 

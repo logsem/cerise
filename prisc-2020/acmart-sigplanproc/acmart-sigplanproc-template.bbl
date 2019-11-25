@@ -1,0 +1,117 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{5}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[\protect\citeauthoryear{Ahmed}{Ahmed}{2004}]%
+        {Ahmed2004SemanticsOT}
+\bibfield{author}{\bibinfo{person}{Amal~G Ahmed}.}
+  \bibinfo{year}{2004}\natexlab{}.
+\newblock \showarticletitle{Semantics of types for mutable state}.
+  \bibinfo{publisher}{Ph.D. DIssertation. Princeton University}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Krebbers, Timany, and Birkedal}{Krebbers
+  et~al\mbox{.}}{2017}]%
+        {Krebbers:2017}
+\bibfield{author}{\bibinfo{person}{Robbert Krebbers}, \bibinfo{person}{Amin
+  Timany}, {and} \bibinfo{person}{Lars Birkedal}.}
+  \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Interactive Proofs in Higher-order Concurrent
+  Separation Logic}. In \bibinfo{booktitle}{\emph{Proceedings of the 44th ACM
+  SIGPLAN Symposium on Principles of Programming Languages}}
+  \emph{(\bibinfo{series}{POPL 2017})}. \bibinfo{publisher}{ACM},
+  \bibinfo{address}{New York, NY, USA}, \bibinfo{pages}{205--217}.
+\newblock
+\showISBNx{978-1-4503-4660-3}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3009837.3009855}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Skorstengaard, Devriese, and
+  Birkedal}{Skorstengaard et~al\mbox{.}}{2018}]%
+        {skorstengaardESOP18}
+\bibfield{author}{\bibinfo{person}{Lau Skorstengaard},
+  \bibinfo{person}{Dominique Devriese}, {and} \bibinfo{person}{Lars Birkedal}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Reasoning About a Machine with Local Capabilities}.
+  In \bibinfo{booktitle}{\emph{Programming Languages and Systems}},
+  \bibfield{editor}{\bibinfo{person}{Amal Ahmed}} (Ed.).
+  \bibinfo{publisher}{Springer International Publishing},
+  \bibinfo{address}{Cham}, \bibinfo{pages}{475--501}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Skorstengaard, Devriese, and
+  Birkedal}{Skorstengaard et~al\mbox{.}}{2019}]%
+        {SkorstengaardPOPL19}
+\bibfield{author}{\bibinfo{person}{Lau Skorstengaard},
+  \bibinfo{person}{Dominique Devriese}, {and} \bibinfo{person}{Lars Birkedal}.}
+  \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{StkTokens: Enforcing Well-bracketed Control Flow
+  and Stack Encapsulation Using Linear Capabilities}.
+\newblock \bibinfo{journal}{\emph{Proc. ACM Program. Lang.}}
+  \bibinfo{volume}{3}, \bibinfo{number}{POPL}, Article \bibinfo{articleno}{19}
+  (\bibinfo{date}{Jan.} \bibinfo{year}{2019}), \bibinfo{numpages}{28}~pages.
+\newblock
+\showISSN{2475-1421}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3290332}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Timany, Stefanesco, Krogh-Jespersen, and
+  Birkedal}{Timany et~al\mbox{.}}{2017}]%
+        {Timany:2017}
+\bibfield{author}{\bibinfo{person}{Amin Timany}, \bibinfo{person}{L{\'e}o
+  Stefanesco}, \bibinfo{person}{Morten Krogh-Jespersen}, {and}
+  \bibinfo{person}{Lars Birkedal}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{A Logical Relation for Monadic Encapsulation of
+  State: Proving Contextual Equivalences in the Presence of runST}.
+\newblock \bibinfo{journal}{\emph{Proc. ACM Program. Lang.}}
+  \bibinfo{volume}{2}, \bibinfo{number}{POPL}, Article \bibinfo{articleno}{64}
+  (\bibinfo{date}{Dec.} \bibinfo{year}{2017}), \bibinfo{numpages}{28}~pages.
+\newblock
+\showISSN{2475-1421}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3158152}
+\showDOI{\tempurl}
+
+
+\end{thebibliography}

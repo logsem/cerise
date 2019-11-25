@@ -1,5 +1,5 @@
 From iris.algebra Require Import base.
-From iris.program_logic Require Import language.
+From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps list.
 From cap_machine Require Export addr_reg.
 
@@ -28,7 +28,7 @@ Module cap_lang.
 
   (* None = MemNum bound *)
   Definition Cap: Type :=
-    (Perm * Locality) * Addr * option Addr * Addr.
+    (Perm * Locality) * Addr * Addr * Addr.
 
   Definition Word := (Z + Cap)%type.
   
@@ -56,7 +56,8 @@ Module cap_lang.
   Inductive ConfFlag : Type :=
   | Executable
   | Halted
-  | Failed. 
+  | Failed
+  | NextI. 
   
   Definition Conf: Type := ConfFlag * ExecConf. 
 
@@ -86,13 +87,13 @@ Module cap_lang.
 
   Axiom encode: instr -> Word.
 
-  Hypothesis decode_encode_inv:
+  Global Axiom decode_encode_inv:
     forall i, decode (encode i) = i.
 
-  Hypothesis decode_cap_fail:
+  Global Axiom decode_cap_fail:
     forall c, decode (inr c) = Fail.
 
-  Hypothesis encode_decode_not_fail:
+  Global Axiom encode_decode_not_fail:
     forall w, decode w <> Fail ->
          encode (decode w) = w.
 
@@ -109,12 +110,13 @@ Module cap_lang.
       forall p g (b e a : Addr),
         (b <= a < e)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, (Some e), a))
-  | isCorrectPC_intro_infinity:
+        isCorrectPC (inr ((p, g), b, e, a)).
+  (* doesn't make sense anymore with finite memory *)
+  (*| isCorrectPC_intro_infinity:
       forall p g (b a : Addr),
         (b <= a)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, None, a)).
+        isCorrectPC (inr ((p, g), b, top, a)).*)
 
   Definition reg (ϕ: ExecConf) := fst ϕ.
 
@@ -138,6 +140,50 @@ Module cap_lang.
     | _ => false
     end.
 
+  Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a : 
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a).
+  Proof.
+    intros. inversion H; subst.
+    - destruct H2. apply andb_prop_intro. split. 
+      + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
+      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; omega.
+    (*- apply andb_prop_intro. split. 
+      + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
+      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
+        destruct pc_a; simpl. by apply Z.leb_le.*)
+  Qed.
+
+  Lemma not_isCorrectPC_perm p g b e a :
+    p ≠ RX ∧ p ≠ RWX ∧ p ≠ RWLX → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+  Proof.
+    intros (Hrx & Hrwx & Hrwlx).
+    intros Hvpc. inversion Hvpc;
+      destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
+  Qed.
+
+  Lemma isCorrectPC_bounds p g b e (a0 a1 a2 : Addr) :
+    isCorrectPC (inr (p, g, b, e, a0)) →
+    isCorrectPC (inr (p, g, b, e, a2)) →
+    (a0 ≤ a1 < a2)%Z → isCorrectPC (inr (p, g, b, e, a1)).
+  Proof.   
+    intros Hvpc0 Hvpc2 [Hle Hlt].
+    inversion Hvpc0.
+    - subst; econstructor; auto.
+      inversion Hvpc2; subst.
+      + destruct H1 as [Hb He]. destruct H2 as [Hb2 He2]. split.
+        { apply Z.le_trans with a0; auto. }
+        { apply Z.lt_trans with a2; auto. }
+      (* + destruct H1 as [Hb He]. split.
+        { apply Z.le_trans with a0; auto. }
+        { apply Z.lt_le_trans with a2; auto. destruct a2; simpl. by apply Z.leb_le. }
+    - subst. apply isCorrectPC_intro_infinity; auto. 
+      inversion Hvpc2; subst.
+      + destruct H2 as [Hb2 He2].
+        apply Z.le_trans with a0; auto.
+      + apply Z.le_trans with a0; auto.*)
+  Qed.
+        
   Definition updatePcPerm (w: Word): Word :=
     match w with
     | inr ((E, g), b, e, a) => inr ((RX, g), b, e, a)
@@ -152,11 +198,7 @@ Module cap_lang.
 
   Definition withinBounds (c: Cap): bool :=
     match c with
-    | (_, b, e, a) =>
-      match e with
-      | None => (b <=? a)%a
-      | Some e => (b <=? a)%a && (a <=? e)%a
-      end
+    | (_, b, e, a) => (b <=? a)%a && (a <=? e)%a
     end.
 
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
@@ -167,7 +209,7 @@ Module cap_lang.
     | inr ((p, g), b, e, a) =>
       match (a + 1)%a with
       | Some a' => let φ' := (update_reg φ PC (inr ((p, g), b, e, a'))) in
-                   (Executable, φ')
+                   (NextI, φ')
       | None => (Failed, φ)
       end
     | _ => (Failed, φ)  
@@ -230,20 +272,17 @@ Module cap_lang.
   Definition PermPairFlowsTo (pg1 pg2: Perm * Locality): bool :=
     PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
-  Definition isWithin (n1 n2 b: Addr) (e: option Addr): bool :=
-    match e with
-    | None => ((0 <=? b) && (b <=? n1) && (0 <=? n2) || (n2 =? -42))%a
-    | Some e => ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a
-    end.
-
+  Definition isWithin (n1 n2 b e: Addr) : bool :=
+    ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a.
+    
   Definition exec (i: instr) (φ: ExecConf): Conf :=
     match i with
     | Fail => (Failed, φ)
     | Halt => (Halted, φ)
-    | Jmp r => let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r))) in (Executable, φ')
+    | Jmp r => let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r))) in (NextI, φ')
     | Jnz r1 r2 =>
       if nonZero (RegLocate (reg φ) r2) then
-        let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r1))) in (Executable, φ')
+        let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r1))) in (NextI, φ')
       else updatePC φ
     | Load dst src =>
       match RegLocate (reg φ) src with
@@ -310,9 +349,12 @@ Module cap_lang.
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
       | inr (permPair, b, e, a) =>
-        if PermPairFlowsTo (decodePermPair n) permPair then
-          updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
-        else (Failed, φ)
+        match permPair with
+        | (E, _) => (Failed, φ)
+        | _ => if PermPairFlowsTo (decodePermPair n) permPair then
+                updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+              else (Failed, φ)
+        end
       end
     | Restrict dst (inr r) =>
       match RegLocate (reg φ) dst with
@@ -321,9 +363,12 @@ Module cap_lang.
         match RegLocate (reg φ) r with
         | inr _ => (Failed, φ)
         | inl n =>
-          if PermPairFlowsTo (decodePermPair n) permPair then
-            updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
-          else (Failed, φ)
+          match permPair with
+          | (E, _) => (Failed, φ)
+          | _ => if PermPairFlowsTo (decodePermPair n) permPair then
+                  updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+                else (Failed, φ)
+          end
         end
       end
     | Add dst (inr r1) (inr r2) =>
@@ -402,7 +447,7 @@ Module cap_lang.
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then 
-                  updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                  updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end 
@@ -423,7 +468,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
                      else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -443,7 +488,7 @@ Module cap_lang.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then 
-                updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? (-42))%a then None else Some a2, a)))
+                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
               else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -460,7 +505,7 @@ Module cap_lang.
           match z_to_addr n1, z_to_addr n2 with
           | Some a1, Some a2 => 
             if isWithin a1 a2 b e then 
-              updatePC (update_reg φ dst (inr ((p, g), a1, if (a2 =? -42)%a then None else Some a2, a)))
+              updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
             else (Failed, φ)
           | _,_ => (Failed, φ)
           end
@@ -487,11 +532,7 @@ Module cap_lang.
       | inl _ => (Failed, φ)
       | inr (_, _, e, _) =>
         match e with
-        | None => updatePC (update_reg φ dst (inl (-42)%Z))
-        | Some e =>
-          match e with
-          | A e' _ => updatePC (update_reg φ dst (inl e'))
-          end
+        | A e' _ => updatePC (update_reg φ dst (inl e'))
         end
       end
     | GetP dst r =>
@@ -533,17 +574,13 @@ Module cap_lang.
     - destruct c as ((((p & g) & b) & e) & a).
       case_eq (match p with RX | RWX | RWLX => true | _ => false end); intros.
       + destruct (Addr_le_dec b a).
-        * destruct e. 
-          { destruct (Addr_lt_dec a a0).
-            - left. econstructor; simpl; eauto. split; auto.
-              destruct p; simpl in H; try congruence; auto.
-            - right. red; intros. inv H0.
-              destruct H3. congruence. }
-          { left. econstructor; eauto.
-            destruct p; simpl in H; try congruence; auto. }
+        * destruct (Addr_lt_dec a e).
+            { left. econstructor; simpl; eauto. split; auto.
+              destruct p; simpl in H; try congruence; auto. }
+            { right. red; intro. inv H0.
+              apply n. destruct H3. exact H1. }
         * right. red; intros; inv H0. 
-          { destruct e0. destruct H3. elim n; eauto. }
-          { elim n; auto. }
+          { destruct e. destruct H3. elim n; eauto. }
       + right. red; intros. inv H0; destruct H7 as [A | [A | A]]; subst p; congruence.
   Qed.
   
@@ -566,29 +603,39 @@ Module cap_lang.
 
   Inductive val: Type :=
   | HaltedV: val
-  | FailedV: val.
+  | FailedV: val
+  | NextIV: val.
 
-  Definition expr := ConfFlag.
+  (* TODO: change to co-inductive list in the Seq case *)
+  Inductive expr: Type :=
+  | Instr (c : ConfFlag) 
+  | Seq (e : expr).
   Definition state : Type := ExecConf.
 
   Definition of_val (v: val): expr :=
     match v with
-    | HaltedV => Halted
-    | FailedV => Failed
+    | HaltedV => Instr Halted
+    | FailedV => Instr Failed
+    | NextIV => Instr NextI
     end.
 
-  Definition to_val (e: expr): option val :=
+  Fixpoint to_val (e: expr): option val :=
     match e with
-    | Executable => None
-    | Failed => Some FailedV
-    | Halted => Some HaltedV
+    | Instr c =>
+      match c with
+      | Executable => None
+      | Halted => Some HaltedV
+      | Failed => Some FailedV
+      | NextI => Some NextIV
+      end
+    | Seq _ => None
     end.
 
   Lemma of_to_val:
     forall e v, to_val e = Some v ->
            of_val v = e.
   Proof.
-    intros. destruct e; simpl in H; inv H; auto.
+    intros. destruct e; try destruct c; simpl in H; inv H; auto. 
   Qed.
 
   Lemma to_of_val:
@@ -597,31 +644,66 @@ Module cap_lang.
     destruct v; reflexivity.
   Qed.
 
+  (** Evaluation context *)
+  Inductive ectx_item :=
+  | SeqCtx. 
+
+  Notation ectx := (list ectx_item).
+
+  Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
+    match Ki with
+    | SeqCtx => Seq e
+    end.
+
+  
   Inductive prim_step: expr -> state -> list Empty_set -> expr -> state -> list expr -> Prop :=
-  | PS_no_fork e σ o e' σ' :
-        step (e, σ) (e', σ') → prim_step e σ o e' σ' [].
-    (* fun e σ o e' σ' efs =>  step (e, σ) (e', σ'). *)
+  | PS_no_fork_instr σ e' σ' :
+      step (Executable, σ) (e', σ') → prim_step (Instr Executable) σ [] (Instr e') σ' []
+  | PS_no_fork_seq σ : prim_step (Seq (Instr NextI)) σ [] (Seq (Instr Executable)) σ []
+  | PS_no_fork_halt σ : prim_step (Seq (Instr Halted)) σ [] (Instr Halted) σ []
+  | PS_no_fork_fail σ : prim_step (Seq (Instr Failed)) σ [] (Instr Failed) σ []. 
 
   Lemma val_stuck:
     forall e σ o e' σ' efs,
       prim_step e σ o e' σ' efs ->
       to_val e = None.
   Proof.
-    intros. inversion H. inversion H0; eauto. (* by simpl.  *)
+    intros. inversion H. inversion H0; eauto. by simpl. by simpl. by simpl.
   Qed.
 
-  Definition cap_lang_mixin: LanguageMixin of_val to_val prim_step.
+  Lemma fill_item_val Ki e :
+    is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
+  Proof. intros [v ?]. destruct Ki; simplify_option_eq; eauto. Qed.
+
+  Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
+  Proof. destruct Ki; intros ???; simplify_eq; auto with f_equal. Qed.
+
+  Lemma head_ctx_step_val Ki e σ1 κ e2 σ2 ef :
+    prim_step (fill_item Ki e) σ1 κ e2 σ2 ef → is_Some (to_val e).
+  Proof. destruct Ki; inversion_clear 1; simplify_option_eq; eauto. Qed.
+
+  Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
+    to_val e1 = None → to_val e2 = None →
+    fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
   Proof.
-    constructor.
-    - exact to_of_val.
-    - exact of_to_val.
-    - exact val_stuck.
+    destruct Ki1, Ki2; intros; try discriminate; simplify_eq;
+    repeat match goal with
+           | H : to_val (of_val _) = None |- _ => by rewrite to_of_val in H
+           end; auto.
+  Qed.
+
+  Lemma cap_lang_mixin : EctxiLanguageMixin of_val to_val fill_item prim_step.
+  Proof.
+    constructor;
+    apply _ || eauto using to_of_val, of_to_val, val_stuck,
+           fill_item_val, fill_item_no_val_inj, head_ctx_step_val. 
   Qed.
 
 End cap_lang.
 
-Canonical Structure cap_lang: language :=
-  @Language _ _ _ _ _ _ _ cap_lang.cap_lang_mixin.
+Canonical Structure cap_ectxi_lang := EctxiLanguage cap_lang.cap_lang_mixin.
+Canonical Structure cap_ectx_lang := EctxLanguageOfEctxi cap_ectxi_lang.
+Canonical Structure cap_lang := LanguageOfEctx cap_ectx_lang.
 
 Export cap_lang.
 
@@ -648,47 +730,54 @@ Definition get_addr_pointsto (w : Word) (conf : ExecConf) : option Word :=
   | inr ((p,g),b,e,a) => Some (MemLocate (mem conf) a)
   end. 
 
-Definition is_atomic (e : expr) (φ : state) : Prop :=
-  match e,φ with
-  | Halted,_ => True
-  | Failed,_ => True
-  | Executable, φ => ¬isCorrectPC (RegLocate (reg φ) PC) ∨
-                (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
-                      = Some w ∧ decode w = Halt) ∨
-                (∃ w, get_addr_pointsto (RegLocate (reg φ) PC) φ
-                      = Some w ∧ decode w = Fail)
+Definition is_atomic (e : expr) : Prop :=
+  match e with
+  | Instr _ => True
+  | _ => False
   end.
 
-(* Atomic is for all states, which does not really make sense in a machine where the 
-   state determines whether there can be an atomic step to a value (i.e. the PC.) 
-   rather than quantify over all states (which is pretty nonsensical), we should 
-   restrict the definition to states where PC points to some value. 
-   idea: change the definition of expr so that the executable flag connects a PC 
-   value to the state. *)
-Global Instance is_atomic_correct s (e : expr) :
-  (forall φ, is_atomic e φ) -> Atomic s e.
-  Proof.
-    intros Hσ; apply strongly_atomic_atomic.
-    rewrite /Atomic. intros; simpl in *. destruct H.
-    specialize Hσ with σ. 
-    destruct e.
-    - destruct Hσ.
-      + inversion H; eauto.
-        tauto. 
-      + destruct H0.
-        * destruct H0 as [w [Hs Hd]]. 
-          inv H; eauto.
-          rewrite H3 in Hs; inv Hs.
-          rewrite Hd; simpl; eauto.
-        * destruct H0 as [w [Hs Hd]]. 
-          inv H; eauto.
-          rewrite H3 in Hs; inv Hs.
-          rewrite Hd; simpl; eauto.
-    - destruct Hσ. rewrite /Atomic. intros; simpl in *.
-      inversion H.
-    - destruct Hσ. rewrite /Atomic. intros; simpl in *.
-      inversion H. 
-Defined.  
+Ltac flatten :=
+  repeat match goal with
+         | |- context [ if ?b then ?X else ?Y ] => destruct b
+         | |- context [ match ?t with _ => _ end ] => destruct t
+         end.
+
+Lemma updatePC_atomic φ :
+  ∃ φ', updatePC φ = (Failed,φ') ∨ (updatePC φ = (NextI,φ')) ∨
+        (updatePC φ = (Halted,φ')).
+Proof.
+  rewrite /updatePC; flatten; eauto.
+Qed.
+
+Lemma instr_atomic i φ :
+  ∃ φ', (exec i φ = (Failed, φ')) ∨ (exec i φ = (NextI, φ')) ∨
+        (exec i φ = (Halted, φ')).   
+Proof.
+  unfold exec; flatten; eauto; try (eapply updatePC_atomic; eauto).
+Qed.
+
+Global Instance is_atomic_correct s (e : expr) : is_atomic e → Atomic s e.
+Proof.
+  intros Ha; apply strongly_atomic_atomic, ectx_language_atomic.
+  - destruct e. 
+    + destruct c; rewrite /Atomic; intros ????? Hstep;
+        inversion Hstep. inversion H; eauto. 
+      destruct (instr_atomic i σ) as [σstepped [Hst | [Hst | Hst]]];
+          simplify_eq; rewrite Hst; simpl; eauto. 
+    + inversion Ha.
+  - intros K e' -> Hval%eq_None_not_Some.
+    induction K using rev_ind; first done.
+    simpl in Ha; rewrite fill_app in Ha; simpl in Ha.
+    destruct Hval. apply (fill_val K e'); simpl in *.
+    destruct x; naive_solver.
+Qed.
+
+Ltac solve_atomic :=
+  apply is_atomic_correct; simpl; repeat split;
+    rewrite ?to_of_val; eapply mk_is_Some; fast_done.
+
+Hint Extern 0 (Atomic _ _) => solve_atomic.
+Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
 
 Section macros.
 

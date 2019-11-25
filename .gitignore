@@ -5,3 +5,4 @@
 .*.aux
 *.bak
 .[ln]ia.cache
+.DS_Store

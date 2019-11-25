@@ -1,7 +1,37 @@
--Q theories cap_machine
+-Q theories/ cap_machine
 -arg -w -arg -several-object-files
-theories/rules.v
+theories/monocmra.v
+theories/mono_ref.v
+theories/monotone.v
+theories/rules/rules_base.v
+theories/rules/rules_Get.v
+theories/rules/rules_Load.v
+theories/rules/rules_Store.v
+theories/rules/rules_AddSubLt.v
+theories/rules/rules_Lea.v
+theories/rules/rules_Mov.v
+theories/rules/rules_Restrict.v
+theories/rules/rules_IsPtr.v
+theories/rules/rules_Jmp.v
+theories/rules/rules_Jnz.v
+theories/rules/rules_Subseg.v
+theories/rules/rules.v
 theories/lang.v
 theories/logrel.v
 theories/region.v
-theories/addr_reg.v
+theories/sts.v
+theories/ftlr/ftlr_base.v
+theories/ftlr/Get.v
+theories/ftlr/Load.v
+theories/ftlr/Store.v
+theories/ftlr/AddSubLt.v
+theories/ftlr/Lea.v
+theories/ftlr/Mov.v
+theories/ftlr/Restrict.v
+theories/ftlr/IsPtr.v
+theories/ftlr/Jmp.v
+theories/ftlr/Jnz.v
+theories/ftlr/Subseg.v
+theories/fundamental.v
+theories/examples/addr_reg_sample.v
+theories/examples/stack_macros.v
