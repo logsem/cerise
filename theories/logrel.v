@@ -876,12 +876,25 @@ Section heap.
         * subst. eauto. 
         * rewrite lookup_insert_ne in Hx;eauto. 
   Qed.
-
+  
   Lemma revoke_lookup_Some W (i : positive) :
     is_Some ((std_sta W) !! i) ↔ is_Some ((std_sta (revoke W)) !! i).
   Proof.
     rewrite revoke_list_dom.
     apply revoke_list_lookup_Some. 
+  Qed.
+
+  Lemma revoke_std_sta_lookup_Some Wstd_sta (i : positive) :
+    is_Some (Wstd_sta !! i) ↔ is_Some (revoke_std_sta Wstd_sta !! i).
+  Proof.
+    split; intros Hi. 
+    - assert (std_sta (Wstd_sta, ∅ : STS_rels, (∅,∅)) = Wstd_sta) as Heq;auto.
+      rewrite -Heq in Hi. 
+      apply (revoke_lookup_Some ((Wstd_sta,∅),∅) i) in Hi. 
+      auto.
+    - assert (std_sta (Wstd_sta, ∅ : STS_rels, (∅,∅)) = Wstd_sta) as <-;auto.
+      apply (revoke_lookup_Some ((Wstd_sta,∅),∅) i). 
+      auto.
   Qed. 
 
   Lemma revoke_list_nin Wstd_sta (l : list positive) (i : positive) :
@@ -983,6 +996,37 @@ Section heap.
       destruct (countable.encode Temporary =? p)%positive; auto. 
       rewrite lookup_insert_ne;auto.
   Qed. 
+
+  Lemma revoke_monotone W W' :
+    related_sts_priv_world W W' → related_sts_priv_world (revoke W) (revoke W').
+  Proof.
+    revert W'. 
+    destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
+    induction Wstd_sta using map_ind;intros W';
+    destruct W' as [ [Wstd_sta' Wstd_rel'] [Wloc_sta' Wloc_rel'] ];
+    rewrite /revoke /std_sta /std_rel /=;
+    intros [Hrelated_std Hrelated_loc];
+    split;auto;simpl in *. 
+    - destruct Hrelated_std as (Hdom_sta & Hdom_rel & Htransition). split;[|split;auto].
+      + rewrite /revoke_std_sta fmap_empty dom_empty. done.
+      + intros i r1 r2 r1' r2' Hr Hr'.
+        specialize (Htransition i r1 r2 r1' r2' Hr Hr') as (-> & -> & Htransition).
+        repeat (split;auto).
+        intros x y Hcontr.
+        inversion Hcontr.
+    - destruct Hrelated_std as (Hdom_sta & Hdom_rel & Htransition). split;[|split;auto].
+      + apply elem_of_subseteq in Hdom_sta. 
+        assert (is_Some (Wstd_sta' !! i)) as Hsome. 
+        { apply elem_of_gmap_dom;apply Hdom_sta.
+          apply elem_of_gmap_dom. rewrite lookup_insert. eauto. } 
+        apply elem_of_subseteq. intros j Hj.
+        apply elem_of_gmap_dom in Hj; apply elem_of_gmap_dom.
+        destruct (decide (i=j));subst. 
+        { by apply (revoke_std_sta_lookup_Some Wstd_sta'). }
+        { apply (revoke_std_sta_lookup_Some) in Hj. rewrite lookup_insert_ne in Hj;auto.
+          admit. 
+        }
+  Admitted. 
     
   Lemma map_size_insert_Some {K A} `{EqDecision K, Countable K} i x (m : gmap K A) :
     is_Some(m !! i) → size (<[i:=x]> m) = (size m).
@@ -1176,7 +1220,7 @@ Section heap.
     ⌜related_sts_priv_world W W'⌝ -∗
      ⌜dom_equal (std_sta W') M⌝ -∗
      sts_full_world sts_std (revoke W) -∗
-     region_map_def M (revoke W) -∗ region_map_def M (revoke W') (* ∗ sts_full_world sts_std (revoke W) *).
+     region_map_def M (revoke W) -∗ region_map_def M (revoke W') ∗ sts_full_world sts_std (revoke W).
   Proof.
     iIntros (Hrelated Hdom) "Hfull Hr".
     iDestruct (big_sepM_exists with "Hr") as (m') "Hr".
@@ -1187,20 +1231,18 @@ Section heap.
       iDestruct (sts_full_state_std with "Hfull Hstate") as %Hρ.
       iPureIntro. admit. 
     }
+    iFrame. 
     iApply big_sepM_exists. iExists m'.
     iApply big_sepM2_sep. iFrame. 
     iApply (big_sepM2_mono with "Hr").
     iIntros (a ρ γp Hsomeρ Hsomeγp) "Ha /=".
-    iDestruct "Ha" as (ρ) "(Hstate & Ha)".
-    
-
-    iDestruct (big_sepM2_sep with "[$Hstates $Hr]") as "Hr".
-    iDestruct (big_sepM_exists with "[Hr]") as "Hr".
-    { iExists m'. iFrame. }
-    iApply (big_sepM_mono with "Hr"). 
-    iIntros (a γp Hsome) "Ha /=".
-    iDestruct "Ha" as (ρ) "(Hstate & Ha)".
-    
+    specialize (Htemp a ρ Hsomeρ). 
+    destruct ρ;[contradiction| |done].
+    iDestruct "Ha" as (γpred v p φ) "(Heq & HpO & Ha & #Hmono & Hpred & Hφ)". 
+    iExists _,_,_,_; iFrame "∗ #".
+    iNext. iApply "Hmono";[|iFrame].
+    iPureIntro. by apply revoke_monotone.
+  Admitted.     
     
   Lemma sts_full_world_std W W' :
     (⌜related_sts_priv_world W W'⌝
