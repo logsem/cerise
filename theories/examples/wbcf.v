@@ -1,14 +1,13 @@
-From cap_machine Require Import rules logrel fundamental. 
-From cap_machine.examples Require Import stack_macros. 
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
+From cap_machine Require Import rules logrel fundamental. 
+From cap_machine.examples Require Import stack_macros. 
 
 Section wbcf.
-  Context `{memG Σ, regG Σ, STSG Σ,
-            logrel_na_invs Σ,
+  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            World: MonRefG (leibnizO _) RelW Σ}.
+            Heap: heapG Σ}.
 
    Ltac iPrologue_pre :=
     match goal with
@@ -123,7 +122,14 @@ Section wbcf.
          * rewrite lookup_delete_ne;auto. apply Hlookup.
            apply elem_of_cons. by right.
    Qed.
-        
+
+   (* TODO: move this earlier *)
+   Lemma region_prepare W :
+     region W ≡ open_region_many [] W. 
+   Proof.
+     rewrite open_region_many_eq /open_region_many_def /=. 
+     rewrite region_eq /region_def. done.
+   Qed. 
 
    (* well bracketed control flow, using scall *)
    (* assume r1 contains an executable pointer to adversarial code 
@@ -246,7 +252,7 @@ Section wbcf.
      to be able to show that if f3 halts in HaltedV configuration, then the flag was 
      not changed. We will therefore keep the flag state in an invarariant *)
   (* to make the proof simpler, we are assuming WLOG the r1 registers is r_t30 *)
-  Lemma f3_spec M b e a pc_p pc_g pc_b pc_e :
+  Lemma f3_spec W b e a pc_p pc_g pc_b pc_e :
     (* r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 → *)
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,a-0)) ∧
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,a-199)) →
@@ -266,8 +272,8 @@ Section wbcf.
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a-0)
       ∗ f3 r_t30 pc_p
       (* we start out with arbitrary sts *)
-      ∗ sts_full M.1.1 M.1.2
-      ∗ Exact_w wγ M
+      ∗ sts_full W.1 W.2
+      ∗ region W
     }}}
       Seq (Instr Executable)
     {{{ v, RET v; ⌜v = HaltedV⌝ → a-179 ↦ₐ[RW] inl 0%Z }}}.
@@ -413,7 +419,7 @@ Section wbcf.
     iApply wp_pure_step_later;auto;iNext.
     iDestruct "Hf3" as "[Hi Hf3]".
     iApply (wp_bind (fill [SeqCtx])).
-    iApply (wp_subseg_success _ _ _ _ _ (a-28) (a-29) _ r_stk r_t1 r_t2
+    iApply (wp_subseg_success _ _ _ _ _ (a-28) _ r_stk r_t1 r_t2
                               RWLX Local (a-200) (a-250) (a-209) 210 250 (a-210) (a-250)
               with "[Hi HPC Hr_stk Hr_t1 Hr_t2]");eauto;try addr_succ;
       first apply subseg_r_r_i; first apply PermFlows_refl;
@@ -426,6 +432,7 @@ Section wbcf.
         do 2 f_equal; apply eq_proofs_unicity; decide equality. 
     }
     iFrame.
+    assert ((a-28 + 1)%a = Some (a-29)) as ->; [addr_succ|]. 
     (* assert ((a150 =? -42)%a = false) as Ha10042;[done|]; rewrite Ha10042.   *)
     iNext. iIntros "(HPC & _ & Hr_t1 & Hr_t2 & Hr_stk)"; iSimpl.
     iApply wp_pure_step_later; auto;iNext. 
@@ -492,38 +499,25 @@ Section wbcf.
     iMod (sts_alloc _ _ true (λ a b, a = b) (λ a b, a = true ∨ b = false) with "Hsts")
       as (i) "(Hsts & % & % & Hstate & #Hrel)".
     (* Next we update the monotone world monoid to the same future state *)
-    rewrite /Exact_w.
-    assert (RelW M ((<[i:=encode true]> M.1.1),
+    assert (related_sts_pub W.1 (<[i:=countable.encode true]> W.1) W.2
                       (<[i:=(convert_rel (λ a0 b0 : bool, a0 = b0),
                              convert_rel (λ a0 b0 : bool, (a0 = true ∨ b0 = false)%type))]>
-                       M.1.2),M.2)) as HM.
-    { destruct M as [W p].
-      destruct p.
-      - constructor. destruct W as [fs fr]; simpl. 
-        rewrite /related_sts_priv.
-        split; [apply dom_insert_subseteq|split;[apply dom_insert_subseteq|] ].
-        intros i0 x y r1 r2 r1' r2' Hfs Hfs' Hfr Hfr'. 
-        destruct (decide (i = i0)).
-        + subst. apply not_elem_of_dom in H5. 
-          rewrite H5 in Hfs. inversion Hfs.
-        + rewrite lookup_insert_ne in Hfs'; auto.
-          rewrite lookup_insert_ne in Hfr'; auto.
-          rewrite Hfs' in Hfs. rewrite Hfr' in Hfr.
-          inversion Hfs; inversion Hfr. repeat split; auto. left. 
-      - constructor. destruct W as [fs fr]; simpl. 
-        rewrite /related_sts_priv.
-        split; [apply dom_insert_subseteq|split;[apply dom_insert_subseteq|] ].
-        intros i0 x y r1 r2 r1' r2' Hfs Hfs' Hfr Hfr'. 
-        destruct (decide (i = i0)).
-        + subst. apply not_elem_of_dom in H5. 
-          rewrite H5 in Hfs. inversion Hfs.
-        + rewrite lookup_insert_ne in Hfs'; auto.
-          rewrite lookup_insert_ne in Hfr'; auto.
-          rewrite Hfs' in Hfs. rewrite Hfr' in Hfr.
-          inversion Hfs; inversion Hfr. repeat split; auto. left. 
-    }   
-    iMod (MonRef_update (A:=(leibnizO ((STS_states * STS_rels) * bool))) with "Hex")
-      as "[Hex #Hleast]"; first apply HM.
+                       W.2)) as Hrelated.
+    { destruct W as [fs fr].
+      split; [apply dom_insert_subseteq|split;[apply dom_insert_subseteq|] ].
+      intros i0 x y r1 r2 r1' r2' Hfs Hfs' Hfr Hfr'. 
+      destruct (decide (i = i0)).
+      + subst. apply not_elem_of_dom in H5. 
+        rewrite H5 in Hfs. inversion Hfs.
+      + rewrite lookup_insert_ne in Hfs'; auto.
+        rewrite lookup_insert_ne in Hfr'; auto.
+        rewrite Hfs' in Hfs. rewrite Hfr' in Hfr.
+        inversion Hfs; inversion Hfr. repeat split; auto. left. 
+    }
+    iDestruct (region_monotone _ (<[i:=countable.encode true]> W.1,
+                                  <[i:=(convert_rel (λ a0 b0 : bool, a0 = b0),
+                                        convert_rel (λ a0 b0 : bool, (a0 = true ∨ b0 = false)%type))]> W.2)
+                 with "[] [$Hex]") as "Hr"; [auto|].
     (* We can now allocate the invariant for the local state 
        (note the two possible states): *)
     iMod (na_inv_alloc logrel_nais ⊤ (regN.@(a-200, a-209))
@@ -557,9 +551,9 @@ Section wbcf.
     iMod (na_inv_alloc logrel_nais ⊤ (regN.@(a-81,a-176)) with "Hprog") as "#Hprog".
     (* We create the necessary invariant for the adv stack *)
     iAssert (|={⊤}=> ([∗ list] a0 ∈ region_addrs (a-210) (a-250),
-                     read_write_cond a0 RWLX (fixpoint interp1)))%I
-                                           with "[Hstack_adv]" as ">#Hstack_adv". 
-    { iApply region_addrs_zeroes_alloc. done. }
+                     read_write_cond a0 RWLX (fixpoint interp1)) ∗ region _)%I
+                                           with "[Hstack_adv Hr]" as ">[#Hstack_adv Hr]". 
+    { iApply region_addrs_zeroes_alloc; auto. iFrame. }
     (* We choose the r *)
     evar (r : gmap RegName Word).
     instantiate (r := <[PC    := inl 0%Z]>
@@ -618,12 +612,15 @@ Section wbcf.
       apply create_gmap_default_lookup. apply elem_of_list_difference. auto.
     }
     (* We instantiate the fundamental theorem on the adversary region *)
-    iAssert (interp_expression _ r (inr (RX, Global, b, e, a)))
+    iAssert (interp_expression r _ (inr (RX, Global, b, e, a)))
       as (fs' fr') "(-> & -> & Hvalid)". 
     { iApply fundamental. iLeft; auto. iExists RX. iFrame "#". done. }
     (* We are now ready to show that all registers point to a valid word *)
-    iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))%I
-      with "[-Hsts Hex Hmaps Hvalid Hna Hφ Hflag]" as "Hreg".
+    evar (W' : (prod STS_states STS_rels)).
+    instantiate (W' := (<[i:=countable.encode true]> W.1,
+           <[i:=(convert_rel (λ a0 b0 : bool, a0 = b0), convert_rel (λ a0 b0 : bool, (a0 = true ∨ b0 = false)%type))]> W.2)).
+    iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W' (r !r! r1))%I
+      with "[-Hsts Hr Hmaps Hvalid Hna Hφ Hflag]" as "Hreg".
     { iIntros (r1).
       assert (r1 = PC ∨ r1 = r_stk ∨ r1 = r_t0 ∨ r1 = r_t30 ∨ (r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 ∧ r1 ≠ r_t30)).
       { destruct (decide (r1 = PC)); [by left|right].
@@ -634,12 +631,11 @@ Section wbcf.
       destruct H7 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
       - iIntros "%". contradiction.
       - assert (r !! r_stk = Some (inr (RWLX, Local, a-210, a-250, a-209))) as Hr_stk; auto. 
-        rewrite /RegLocate Hr_stk fixpoint_interp1_eq. iSimpl.
-        iIntros (_). iExists _,_,_,_. (iSplitR; [eauto|]).
-        iExists RWLX. iSplitR; [auto|]. iFrame "#". 
+        rewrite /RegLocate Hr_stk fixpoint_interp1_eq. 
+        iIntros (_). iExists RWLX. iSplitR; [auto|]. iFrame "#". 
         iAlways.
         rewrite /exec_cond.
-        iIntros (a0 W r' Ha0). iNext.
+        iIntros (a0 r' W'' Ha0 Hrelated'). iNext.
         iApply fundamental.
         + iRight. iRight. done.
         + iExists RWLX. iSplit; auto.
@@ -648,22 +644,19 @@ Section wbcf.
         assert (r !! r_t0 = Some (inr (E, Local, a-200, a-250, a-202))) as Hr_t0; auto. 
         rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
         (* prove continuation *)
-        iExists _,_,_,_. iSplit;[eauto|].
         iAlways.
         rewrite /enter_cond.
-        iIntros (W r').
-        destruct W as [fs' fr' ].
+        iIntros (r' W'' Hrelated').
+        destruct W'' as [fs' fr' ].
         iNext. iSimpl. 
         iExists _,_. do 2 (iSplit; [eauto|]).
         iIntros "(#[Hfull' Hreg'] & Hmreg' & Hex & Hsts & Hna)". 
-        iExists _,_,_,_,_. iSplit; [eauto|rewrite /interp_conf].
-        (* From atleast and the current exact, we can get that fs' fr' is public
+        iSplit; [eauto|rewrite /interp_conf].
+        (* we know that fs' fr' is public
            future world of the sts previously defined *)
-        iDestruct (RelW_public with "Hleast Hex") as %Hpub. simpl in Hpub.
         (* This is the key to the proof! We will now be able to know that the state at 
            i must be true, from which we get the correct local state to be able to prove 
-           the continuation. 
-           We will then have to update Hex again to set state i to false (privately) *)
+           the continuation. *)
          (* get the PC, currently pointing to the activation record *)
         iDestruct (big_sepM_delete _ _ PC with "Hmreg'") as "[HPC Hmreg']".
         { rewrite lookup_insert; eauto. }
@@ -713,10 +706,9 @@ Section wbcf.
           iDestruct (sts_full_state with "Hsts Hstate") as %Hi.
           iDestruct (sts_full_rel with "Hsts Hrel") as %Hir. 
           exfalso.
-          destruct Hpub as (_ & _ & Hrelated).
           assert ((convert_rel (λ a b : bool, a = b)) = (convert_rel (λ a b : bool, a = b)) ∧
-                  (convert_rel (λ a b : bool, a = true ∨ b = false)) = (convert_rel (λ a b : bool, a = true ∨ b = false)) ∧ rtc (convert_rel (λ a b : bool, a = b)) (encode true) (encode false)) as (_ & _ & Hcontr).
-          { apply Hrelated with i; auto; apply lookup_insert. }
+                  (convert_rel (λ a b : bool, a = true ∨ b = false)) = (convert_rel (λ a b : bool, a = true ∨ b = false)) ∧ rtc (convert_rel (λ a b : bool, a = b)) (countable.encode true) (countable.encode false)) as (_ & _ & Hcontr).
+          { apply Hrelated' with i; auto; apply lookup_insert. }
           apply rtc_id_eq in Hcontr. done. 
         }
         iDestruct "Hstack" as "(>Hstate & >Ha200 & >Ha201 & >Ha202 & >Ha203 & >Ha204
@@ -1062,7 +1054,7 @@ Section wbcf.
         (* subseg r_stk r_t1 r_t2 *)
         iDestruct "Hf3" as "[Hi Hf3]".
         iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_subseg_success _ _ _ _ _ (a-119) (a-120) _ r_stk r_t1 r_t2
+        iApply (wp_subseg_success _ _ _ _ _ (a-119) _ r_stk r_t1 r_t2
                               RWLX Local (a-200) (a-250) (a-208) 209 250 (a-209) (a-250)
               with "[Hi HPC Hr_stk Hr_t1 Hr_t2]");try addr_succ;
           [apply subseg_r_r_i|apply PermFlows_refl|
@@ -1071,6 +1063,7 @@ Section wbcf.
         { rewrite /z_to_addr.
           split;do 2 f_equal; apply eq_proofs_unicity; decide equality. 
         }
+        assert ((a-119 + 1)%a = Some (a-120)) as ->;[addr_succ|]. 
         iEpilogue "(HPC & Ha119 & Hr_t1 & Hr_t2 & Hr_stk)".
         (* mclear *)
         assert (list.last (region_addrs_aux (a-120) 22) = Some (a-141)).
@@ -1093,10 +1086,12 @@ Section wbcf.
         { do 9 (rewrite lookup_delete_ne; auto). rewrite lookup_insert_ne; eauto. }
         iDestruct "Hf3" as "[Hi Hf3]".
         (* open the adv stack invariants *)
-        iMod (region_addrs_open with "Hna Hstack_adv")
-          as "(Hadv_stack_r & Hna & Hcls'')";[|auto| |].
+        iDestruct (region_prepare with "Hex") as "Hr". 
+        iDestruct (region_addrs_open with "[$Hr] [$Hstack_adv]")
+          as "[Hadv_stack_r Hr]"; auto.
         { exists (a-251). rewrite /region_size /=. addr_succ. }
-        { do 2 (apply subseteq_difference_r;[apply list_names_disj_format|]);auto. }
+        { rewrite /disjoint /set_disjoint =>x _ Hcontr.
+            by apply not_elem_of_nil in Hcontr. }
         iApply (mclear_spec (region_addrs_aux (a-120) 22) r_stk
                             (a-141) (a-120) (a-126) (a-136) pc_p _ pc_g pc_b pc_e RWLX _
                             Local (a-209) (a-250) (a-208) (a-251) (a-142) 
@@ -1118,7 +1113,7 @@ Section wbcf.
         iSplitL "Hr_t5"; [iNext;iExists _;iFrame|].
         iSplitL "Hr_t6"; [iNext;iExists _;iFrame|].        
         iSplitL "Ha209 Hadv_stack_r".
-        { rewrite -big_sepL_later. iNext.  
+        { iNext. 
           iDestruct (region_addrs_exists with "Hadv_stack_r") as (adv_ws) "Hadv_stack_r".
           iDestruct (big_sepL2_sep with "Hadv_stack_r") as "[Hadv_stack_r _]". 
           iExists ((inr (RWLX, Local, a- 200, a- 250, a- 209))::adv_ws).
@@ -1135,7 +1130,7 @@ Section wbcf.
         }
         iNext. iIntros "(HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t6 & Hr_stk 
                    & Hstack & Hmclear)".
-        (* close the adv stack invariants (all now point to 0!) *)
+        (* close the adv stack region (all now point to 0!) *)
         rewrite /region_mapsto (region_addrs_decomposition (a-209) (a-209) (a-250));
           [|rewrite /le_addr /=; by split]. 
         rewrite /get_addr_from_option_addr. 
@@ -1146,13 +1141,15 @@ Section wbcf.
             by destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hle; inversion Hle. }
         rewrite app_nil_l.
         iDestruct "Hstack" as "[Ha209 Hstack]".         
-        iMod ("Hcls''" with "[Hstack $Hna]") as "Hna".
-        { iApply big_sepL_later. iNext.
-          iApply region_addrs_exists.
-          iExists (region_addrs_zeroes (a- 210) (a- 250)).
-          iApply big_sepL2_sep. iFrame.
-          iApply region_addrs_zeroes_valid. 
-        }
+        iAssert (region (fs',fr')) with "[Hstack Hr]" as "Hr". 
+        { admit. }
+        (* iMod ("Hcls''" with "[Hstack $Hna]") as "Hna". *)
+        (* { iApply big_sepL_later. iNext. *)
+        (*   iApply region_addrs_exists. *)
+        (*   iExists (region_addrs_zeroes (a- 210) (a- 250)). *)
+        (*   iApply big_sepL2_sep. iFrame. *)
+        (*   iApply region_addrs_zeroes_valid.  *)
+        (* } *)
         (* let's now close the invariant for the local stack. We will need to privately 
            update the state of sts to 2! *)
         (* first we update the sts *)
@@ -1164,10 +1161,9 @@ Section wbcf.
         { iFrame "Hna". iExists false.
           rewrite i_4a. iFrame. }
         (* We take a private transition in the monotone monoid *)
-        rewrite /Exact_w.
         assert ((fr' !! i = Some (convert_rel (λ a0 b0 : bool, a0 = b0),
                                   convert_rel (λ a0 b0 : bool, a0 = true ∨ b0 = false)))) as Hir.
-        { destruct Hpub as (_ & Hsub & Hrelated).
+        { destruct Hrelated' as (_ & Hsub & Hrelated').
           assert (∃ hr, fr' !! i = Some hr) as [hr Hhr].
           { apply elem_of_gmap_dom.
             revert Hsub. rewrite elem_of_subseteq. intros Hsub.
@@ -1178,24 +1174,24 @@ Section wbcf.
           }
           assert ((convert_rel (λ a0 b0 : bool, a0 = b0)) = hr.1
                 ∧ (convert_rel (λ a0 b0 : bool, a0 = true ∨ b0 = false)) = hr.2
-                ∧ rtc (convert_rel (λ a0 b0 : bool, a0 = b0)) (encode true) (encode true))
+                ∧ rtc (convert_rel (λ a0 b0 : bool, a0 = b0)) (countable.encode true) (countable.encode true))
             as (-> & -> & _). 
-          { apply Hrelated with i; auto. 
+          { apply Hrelated' with i; auto. 
             - by rewrite lookup_insert.
             - by rewrite lookup_insert.
             - destruct hr; apply Hhr. 
           }
           destruct hr; apply Hhr. 
         } 
-        assert (RelW (fs',fr',false) ((<[i:=encode false]> fs'),fr',true)) as HM'.
-        { constructor. simpl.
-          rewrite /related_sts_priv.
+        assert (related_sts_priv fs' (<[i:=countable.encode false]> fs') fr' fr')
+          as Hrelated''.
+        { rewrite /related_sts_priv.
           split; [apply dom_insert_subseteq|split;[auto|] ].
           intros i0 x y r1 r2 r1' r2' Hfs Hfs' Hfr Hfr'.
           destruct (decide (i0 = i)).
           - subst. do 2 (split; [congruence|]).
             rewrite lookup_insert in Hfs'. inversion Hfs'.
-            right with (encode false);[|left].
+            right with (countable.encode false);[|left].
             rewrite Hi in Hfs. inversion Hfs.
             right. rewrite Hir in Hfr. inversion Hfr.
             cbv. exists true,false. auto.
@@ -1204,9 +1200,8 @@ Section wbcf.
             do 2 (split; [congruence|]).
             left. 
         }
-        
-        iMod (MonRef_update (A:=(leibnizO ((STS_states * STS_rels) * bool))) with "Hex")
-          as "[Hex #Hleast']"; [apply HM'|].
+        (* advance the region *)
+        iDestruct (region_monotone with )
         (* rclear *)
         iDestruct "Hf3" as "[Hi Hf3]".
         assert (list.last (region_addrs_aux (a-142) 29) = Some (a-170)).

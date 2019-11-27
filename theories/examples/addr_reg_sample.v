@@ -4,7 +4,7 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 
 (* Some addresses *)
-  Notation "a- z" := (A z eq_refl) (at level 10). 
+  Notation "a- z" := (A z eq_refl) (at level 10, format "a- z"). 
   
   (* Some general purpuse registers *)
   Definition r_t0 : RegName := R 0 eq_refl. 
