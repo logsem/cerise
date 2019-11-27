@@ -20,6 +20,7 @@ theories/lang.v
 theories/logrel.v
 theories/region.v
 theories/sts.v
+theories/ftlr/ftlr_base.v
 theories/ftlr/Get.v
 theories/ftlr/Load.v
 theories/ftlr/Store.v
