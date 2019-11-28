@@ -1803,21 +1803,21 @@ Section logrel.
   
   Definition interp_cap_O : D := λne _ _, True%I.
 
-  Definition region_state_pwl W (a : Addr) : iProp Σ :=
-    (⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝)%I.
+  Definition region_state_pwl W (a : Addr) : Prop :=
+    (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary).
 
-  Definition region_state_nwl W (a : Addr) (l : Locality) : iProp Σ :=
-    (match l with
-     | Local => ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝
-               ∨ ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)⌝
-    | Global => ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)⌝
-    end)%I. 
+  Definition region_state_nwl W (a : Addr) (l : Locality) : Prop :=
+    match l with
+     | Local => (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)
+               ∨ (std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)
+    | Global => (std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)
+    end. 
   
   Definition interp_cap_RO (interp : D) : D :=
     λne W w, (match w with
               | inr ((RO,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RO p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_nwl W a g
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
               | _ => False
               end)%I.
   
@@ -1825,7 +1825,7 @@ Section logrel.
     λne W w, (match w with
               | inr ((RW,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RW p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_nwl W a g
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
               | _ => False
               end)%I.
   
@@ -1833,14 +1833,14 @@ Section logrel.
     λne W w, (match w with
               | inr ((RWL,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RWL p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_pwl W a
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝
               | _ => False
               end)%I.
 
   Definition interp_cap_RX (interp : D) : D :=
     λne W w, (match w with inr ((RX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_nwl W a g)
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝)
                                  ∗ □ exec_cond W b e g RX interp
              | _ => False end)%I.  
 
@@ -1853,14 +1853,14 @@ Section logrel.
   Definition interp_cap_RWX (interp : D) : D :=
     λne W w, (match w with inr ((RWX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RWX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_nwl W a g) 
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝) 
                                  ∗ □ exec_cond W b e g RWX interp
              | _ => False end)%I.
   
   Definition interp_cap_RWLX (interp : D) : D :=
     λne W w, (match w with inr ((RWLX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RWLX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ region_state_pwl W a) 
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝) 
                                  ∗ □ exec_cond W b e g RWLX interp
              | _ => False end)%I.
   
