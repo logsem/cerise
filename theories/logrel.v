@@ -810,11 +810,10 @@ Section heap.
         rewrite lookup_insert_ne; auto. 
       + auto.
   Qed.
-    
-  Lemma revoke_list_dom W :
-    revoke W = revoke_list (map_to_list W.1.1).*1 W.
+
+  Lemma revoke_list_dom_std_sta (Wstd_sta : STS_states) :
+    revoke_std_sta Wstd_sta = revoke_list_std_sta (map_to_list Wstd_sta).*1 Wstd_sta.
   Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]. 
     induction Wstd_sta using map_ind.
     - rewrite /revoke /revoke_std_sta /=. 
         by rewrite fmap_empty map_to_list_empty /revoke_list /std_sta /std_rel /=.
@@ -825,18 +824,19 @@ Section heap.
       rewrite /revoke_list (revoke_list_permutation _ _ ((i, x) :: map_to_list m).*1); auto.
       rewrite /= lookup_insert.
       destruct (countable.encode Temporary =? x)%positive; auto.
-      + rewrite /std_rel /std_sta /=. 
-        rewrite /revoke /revoke_list /revoke_std_sta /std_sta /std_rel /= in IHWstd_sta.
-        inversion IHWstd_sta.
-        do 2 f_equiv. 
-        rewrite revoke_list_insert_insert. repeat f_equiv. auto.
-      + rewrite /std_rel /std_sta /=. do 2 f_equiv.
-        rewrite /revoke /revoke_list /revoke_std_sta /std_sta /std_rel /= in IHWstd_sta.
-        inversion IHWstd_sta. rewrite H5.
+      + rewrite /revoke_std_sta in IHWstd_sta. rewrite IHWstd_sta. 
+        rewrite revoke_list_insert_insert. repeat f_equiv. 
+      + rewrite /revoke_std_sta in IHWstd_sta. rewrite IHWstd_sta. 
         apply revoke_list_not_elem_of.
         intros Hcontr. apply (elem_of_list_fmap_2 fst) in Hcontr.
         destruct Hcontr as [ [y1 y2] [Hy Hyin] ]. subst.
         apply elem_of_map_to_list in Hyin. simpl in *. congruence.
+  Qed. 
+  
+  Lemma revoke_list_dom W :
+    revoke W = revoke_list (map_to_list W.1.1).*1 W.
+  Proof.
+    by rewrite /revoke_list /= -revoke_list_dom_std_sta /revoke /std_sta. 
   Qed.
 
   Lemma map_to_list_fst {A B : Type} `{EqDecision A, Countable A} (m : gmap A B) i :
@@ -929,6 +929,16 @@ Section heap.
     by apply revoke_list_lookup_Temp. 
   Qed.
 
+  Lemma revoke_lookup_Temp Wstd_sta i :
+    (Wstd_sta !! i = Some (countable.encode Temporary)) →
+    (revoke_std_sta Wstd_sta) !! i = Some (countable.encode Revoked).
+  Proof.
+    rewrite revoke_list_dom_std_sta. intros Hsome.
+    apply revoke_list_lookup_middle_Temp; auto.
+    apply map_to_list_fst. exists (countable.encode Temporary).
+      by apply elem_of_map_to_list.
+  Qed. 
+
   Lemma revoke_list_lookup_Revoked (Wstd_sta : STS_states) (l : list positive) (i : positive) :
     (Wstd_sta !! i = Some (countable.encode Revoked)) →
     (revoke_list_std_sta (i :: l) Wstd_sta) !! i = Some (countable.encode Revoked). 
@@ -948,37 +958,84 @@ Section heap.
         destruct (countable.encode Temporary =? countable.encode Revoked)%positive; auto. 
   Qed.
 
+  Lemma revoke_list_lookup_middle_Revoked (Wstd_sta : STS_states) (l : list positive) (i : positive) :
+    i ∈ l →
+    (Wstd_sta !! i = Some (countable.encode Revoked)) →
+    (revoke_list_std_sta l Wstd_sta) !! i = Some (countable.encode Revoked). 
+  Proof.
+    intros Hin Hp.
+    apply elem_of_list_split in Hin as [l1 [l2 ->] ].
+    rewrite revoke_list_swap_middle.
+    by apply revoke_list_lookup_Revoked. 
+  Qed.
+
+  Lemma revoke_lookup_Revoked Wstd_sta i :
+    (Wstd_sta !! i = Some (countable.encode Revoked)) →
+    (revoke_std_sta Wstd_sta) !! i = Some (countable.encode Revoked).
+  Proof.
+    rewrite revoke_list_dom_std_sta. intros Hsome.
+    apply revoke_list_lookup_middle_Revoked; auto.
+    apply map_to_list_fst. exists (countable.encode Revoked).
+      by apply elem_of_map_to_list.
+  Qed. 
+
   Lemma revoke_list_lookup_Perm (Wstd_sta : STS_states) (l : list positive) (i : positive) :
-    i ∉ l →
     (Wstd_sta !! i = Some (countable.encode Permanent)) →
     (revoke_list_std_sta (i :: l) Wstd_sta) !! i = Some (countable.encode Permanent). 
   Proof.
     induction l.
-    - intros Hin Hp.
+    - intros Hp.
       rewrite /= Hp. 
       destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|done].
       apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr. 
-    - intros Hin Hp.
-      apply not_elem_of_cons in Hin as [Hneq Hin]. 
-      rewrite revoke_list_swap. 
+    - intros Hp.
+      (* apply not_elem_of_cons in Hin as [Hneq Hin].  *)
+      rewrite revoke_list_swap.
       rewrite /=.
-      destruct (Wstd_sta !! a).
-      + rewrite Hp. destruct (countable.encode Temporary =? p)%positive.
-        * destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
+      destruct (decide (i = a)).
+      + subst. rewrite Hp. 
+        destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr.
+        * apply Positive_as_DT.eqb_eq,encode_inj in Hcontr. inversion Hcontr.
+        * specialize (IHl Hp).
+          by rewrite /= Hp Hcontr in IHl. 
+      + destruct (Wstd_sta !! a).
+        * rewrite Hp. destruct (countable.encode Temporary =? p)%positive.
+          ** destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
+             apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr.
+             rewrite lookup_insert_ne;auto.
+             specialize (IHl Hp). 
+               by rewrite /= Hp Hcontr in IHl. 
+          ** destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
+             apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr.
+             specialize (IHl Hp). 
+               by rewrite /= Hp Hcontr in IHl. 
+        * rewrite Hp. 
+          destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
           apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr.
-          rewrite lookup_insert_ne;auto.
-          specialize (IHl Hin Hp). 
-          by rewrite /= Hp Hcontr in IHl. 
-        * destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
-          apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr.
-          specialize (IHl Hin Hp). 
-          by rewrite /= Hp Hcontr in IHl. 
-      + rewrite Hp. 
-        destruct (countable.encode Temporary =? countable.encode Permanent)%positive eqn:Hcontr; [|].
-        apply Positive_as_OT.eqb_eq,encode_inj in Hcontr; inversion Hcontr.
-        specialize (IHl Hin Hp). 
-          by rewrite /= Hp Hcontr in IHl. 
+          specialize (IHl Hp). 
+            by rewrite /= Hp Hcontr in IHl. 
   Qed.
+
+  Lemma revoke_list_lookup_middle_Perm (Wstd_sta : STS_states) (l : list positive) (i : positive) :
+    i ∈ l →
+    (Wstd_sta !! i = Some (countable.encode Permanent)) →
+    (revoke_list_std_sta l Wstd_sta) !! i = Some (countable.encode Permanent). 
+  Proof.
+    intros Hin Hp.
+    apply elem_of_list_split in Hin as [l1 [l2 ->] ].
+    rewrite revoke_list_swap_middle.
+    by apply revoke_list_lookup_Perm. 
+  Qed.
+
+  Lemma revoke_lookup_Perm Wstd_sta i :
+    (Wstd_sta !! i = Some (countable.encode Permanent)) →
+    (revoke_std_sta Wstd_sta) !! i = Some (countable.encode Permanent).
+  Proof.
+    rewrite revoke_list_dom_std_sta. intros Hsome.
+    apply revoke_list_lookup_middle_Perm; auto.
+    apply map_to_list_fst. exists (countable.encode Permanent).
+      by apply elem_of_map_to_list.
+  Qed. 
 
   Lemma revoke_list_lookup_None (Wstd_sta : STS_states) (l : list positive) (i : positive) :
     i ∉ l →
@@ -1042,36 +1099,320 @@ Section heap.
     apply elem_of_map_to_list. done. 
   Qed.    
 
+  Lemma revoke_monotone_dom Wstd_sta Wstd_sta' :
+    dom (gset positive) Wstd_sta ⊆ dom (gset positive) Wstd_sta' →
+    dom (gset positive) (revoke_std_sta Wstd_sta) ⊆ dom (gset positive) (revoke_std_sta Wstd_sta').
+  Proof.
+    intros Hdom.
+    induction Wstd_sta using map_ind.
+    - rewrite /revoke_std_sta fmap_empty dom_empty.
+      apply empty_subseteq.
+    - apply elem_of_subseteq in Hdom. 
+      assert (is_Some (Wstd_sta' !! i)) as Hsome. 
+      { apply elem_of_gmap_dom;apply Hdom.
+        apply elem_of_gmap_dom. rewrite lookup_insert. eauto. } 
+      apply elem_of_subseteq. intros j Hj.
+      apply elem_of_gmap_dom in Hj; apply elem_of_gmap_dom.
+      destruct (decide (i=j));subst. 
+      { by apply (revoke_std_sta_lookup_Some Wstd_sta'). }
+      { rewrite -revoke_std_sta_lookup_Some.
+        apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom. apply Hdom.
+        apply elem_of_gmap_dom. rewrite lookup_insert_ne;auto.
+        apply (revoke_std_sta_lookup_Some) in Hj. rewrite lookup_insert_ne in Hj;auto.
+      }
+  Qed.
+
+  Lemma revoke_monotone_lookup Wstd_sta Wstd_sta' i :
+    Wstd_sta !! i = Wstd_sta' !! i →
+    revoke_std_sta Wstd_sta !! i = revoke_std_sta Wstd_sta' !! i.
+  Proof.
+    intros Heq.
+    induction Wstd_sta using map_ind.
+    - rewrite lookup_empty in Heq.
+      rewrite /revoke_std_sta fmap_empty lookup_empty lookup_fmap.
+      destruct (Wstd_sta' !! i) eqn:Hnone; inversion Heq.
+      rewrite Hnone. done.
+    - destruct (decide (i0 = i)).
+      + subst. rewrite lookup_insert in Heq.
+        rewrite /revoke_std_sta fmap_insert lookup_fmap lookup_insert -Heq /=.
+        done.
+      + rewrite lookup_insert_ne in Heq;auto.
+        specialize (IHWstd_sta Heq). 
+        rewrite /revoke_std_sta fmap_insert lookup_insert_ne;auto.
+  Qed. 
+
+   Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
+    is_Some ((std_sta W) !! (countable.encode a)) →
+    sts_full_world sts_std W -∗ ⌜(std_rel W) !! (countable.encode a) = Some (convert_rel (Rpub : relation region_type),
+                                                                             convert_rel (Rpriv : relation region_type))⌝.
+  Proof. 
+    iIntros (Hsome) "[[% [% _] ] _]".
+    iPureIntro. apply elem_of_subseteq in H3.
+    apply elem_of_gmap_dom in Hsome. 
+    specialize (H3 _ Hsome).
+    specialize (H4 (countable.encode a)). apply H4. 
+    apply elem_of_gmap_dom. auto.
+  Qed.
+
+  Lemma related_sts_preserve_std W W' :
+    related_sts_priv_world W W' →
+    (∀ i, is_Some ((std_rel W) !! i) →
+          (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
+                                   convert_rel (Rpriv : relation region_type))) →
+    (∀ i, is_Some ((std_rel W) !! i) →
+          (std_rel W') !! i = Some (convert_rel (Rpub : relation region_type),
+                                    convert_rel (Rpriv : relation region_type))).
+  Proof.
+    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
+    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
+    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hstd i Hi. simpl in *.
+    apply elem_of_gmap_dom in Hi. apply elem_of_subseteq in Hdom_rel.
+    specialize (Hdom_rel _ Hi).
+    apply elem_of_gmap_dom in Hdom_rel as [ [r1' r2'] Hr'].
+    apply elem_of_gmap_dom in Hi as Hr.
+    specialize (Hstd _ Hr). 
+    specialize (Hrelated i _ _ _ _ Hstd Hr') as (-> & -> & Hrelated). 
+    auto.
+  Qed.
+
+  Lemma related_sts_rel_std W W' i :
+    related_sts_priv_world W W' →
+    (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
+                             convert_rel (Rpriv : relation region_type)) ->
+    (std_rel W') !! i = Some (convert_rel (Rpub : relation region_type),
+                              convert_rel (Rpriv : relation region_type)).
+  Proof.
+    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
+    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
+    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hi. simpl in *.
+    assert (is_Some (Wstd_rel' !! i)) as [ [r1' r2'] Hr'].
+    { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_rel.
+      apply Hdom_rel. apply elem_of_gmap_dom. eauto. }
+    specialize (Hrelated i _ _ _ _ Hi Hr') as (-> & -> & Hrelated).
+    eauto. 
+  Qed.
+
+  Lemma std_rel_pub_Permanent x :
+    (convert_rel std_rel_pub) (countable.encode Permanent) x → x = countable.encode Permanent.
+  Proof.
+    intros Hrel.
+    inversion Hrel as [ρ Hb].
+    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
+    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+  Qed.
+
+  Lemma std_rel_pub_rtc_Permanent x y :
+    x = countable.encode Permanent →
+    rtc (convert_rel std_rel_pub) x y → y = countable.encode Permanent.
+  Proof.
+    intros Hx Hrtc.
+    induction Hrtc ;auto.
+    subst. apply std_rel_pub_Permanent in H3.
+    apply IHHrtc. auto.
+  Qed.
+
+  Lemma std_rel_priv_Permanent x :
+    (convert_rel std_rel_priv) (countable.encode Permanent) x → x = countable.encode Permanent.
+  Proof.
+    intros Hrel.
+    inversion Hrel as [ρ Hb].
+    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
+    subst. inversion Hρb; subst; auto. apply encode_inj in Heqρ. inversion Heqρ.
+  Qed.
+
+  Lemma std_rel_priv_rtc_Permanent x y :
+    x = countable.encode Permanent →
+    rtc (convert_rel std_rel_priv) x y → y = countable.encode Permanent.
+  Proof.
+    intros Hx Hrtc.
+    induction Hrtc ;auto.
+    subst. apply std_rel_priv_Permanent in H3.
+    apply IHHrtc. auto.
+  Qed. 
+  
+  Lemma std_rel_pub_Temporary x :
+    (convert_rel std_rel_pub) (countable.encode Temporary) x → x = countable.encode Temporary.
+  Proof.
+    intros Hrel.
+    inversion Hrel as [ρ Hb].
+    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
+    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+  Qed.
+
+  Lemma std_rel_pub_rtc_Temporary x y :
+    x = countable.encode Temporary →
+    rtc (convert_rel std_rel_pub) x y → y = countable.encode Temporary.
+  Proof.
+    intros Hx Hrtc.
+    induction Hrtc ;auto.
+    subst. apply std_rel_pub_Temporary in H3.
+    apply IHHrtc. auto.
+  Qed.
+
+  Lemma std_rel_exist x y :
+    (∃ (ρ : region_type), countable.encode ρ = x) → 
+    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
+    ∃ (ρ : region_type), y = countable.encode ρ. 
+  Proof.
+    intros Hsome Hrel.
+    induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|].
+    destruct H3 as [Hpub | Hpriv].
+    - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
+      apply IHHrel. eauto.
+    - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
+      apply IHHrel. eauto.
+  Qed.
+
+  (* TODO: move this somewhere else. sts file maybe? *)
+  Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
+    rtc (λ a b, R a b) x y →
+    rtc (λ a b, Q a b ∨ R a b) x y.
+  Proof.
+    intros HR. induction HR.
+    - done.
+    - apply rtc_transitive with y; auto.
+      apply rtc_once. by right.
+  Qed.
+  
+  Lemma std_rel_priv_monotone x y x' y' Wstd_sta Wstd_sta' i :
+    Wstd_sta !! i = Some x -> Wstd_sta' !! i = Some y ->
+    (revoke_std_sta Wstd_sta) !! i = Some x' → (revoke_std_sta Wstd_sta') !! i = Some y' →
+    rtc (convert_rel std_rel_priv) x y → rtc (convert_rel (std_rel_priv)) x' y'.
+  Proof.
+    intros Hx Hy Hx' Hy' Hrtc.
+    induction Hrtc as [Hrefl | j k h Hjk].
+    - simplify_eq. rewrite -Hx in Hy.
+      apply revoke_monotone_lookup in Hy.
+      rewrite Hx' Hy' in Hy. inversion Hy. left.
+    - inversion Hjk as [ρ Hρ].
+      destruct Hρ as [ρ' [Hjρ [Hkρ' Hρρ'] ] ].
+      subst. destruct ρ,ρ'; inversion Hρρ'; try discriminate; auto.
+      + apply std_rel_priv_rtc_Permanent in Hrtc; auto; subst.
+        apply revoke_lookup_Temp in Hx as Hxtemp.
+        apply revoke_lookup_Perm in Hy as Hyperm.
+        rewrite Hxtemp in Hx'. rewrite Hyperm in Hy'.
+        inversion Hx'; inversion Hy'; simplify_eq. 
+        right with (countable.encode Permanent); [|left]. 
+        exists Revoked, Permanent. repeat (split;auto). by right.
+      + apply std_rel_priv_rtc_Permanent in Hrtc; auto; subst.
+        apply revoke_lookup_Temp in Hx as Hxtemp.
+        apply revoke_lookup_Perm in Hy as Hyperm.
+        rewrite Hxtemp in Hx'. rewrite Hyperm in Hy'.
+        inversion Hx'; inversion Hy'; simplify_eq. 
+        right with (countable.encode Permanent); [|left]. 
+        exists Revoked, Permanent. repeat (split;auto). by right.
+      + assert (∃ (ρ : region_type), h = countable.encode ρ) as [ρ Hρ]. 
+        { apply std_rel_exist with (countable.encode Revoked); eauto.
+          apply rtc_or_intro_l. auto. }
+        apply revoke_lookup_Temp in Hx as Hxtemp.
+        rewrite Hxtemp in Hx'. inversion Hx'; simplify_eq.
+        destruct ρ.
+        * apply revoke_lookup_Temp in Hy as Hytemp.
+          rewrite Hytemp in Hy'. inversion Hy'; simplify_eq.
+          left.
+        * apply revoke_lookup_Perm in Hy as Hytemp.
+          rewrite Hytemp in Hy'. inversion Hy'; simplify_eq.
+          right with (countable.encode Permanent); [|left]. 
+          exists Revoked, Permanent. repeat (split;auto). by right.
+        * apply revoke_lookup_Revoked in Hy as Hytemp.
+          rewrite Hytemp in Hy'. inversion Hy'; simplify_eq.
+          left.         
+      + apply std_rel_priv_rtc_Permanent in Hrtc; auto; subst.
+        apply revoke_lookup_Revoked in Hx as Hxtemp.
+        apply revoke_lookup_Perm in Hy as Hyperm.
+        rewrite Hxtemp in Hx'. rewrite Hyperm in Hy'.
+        inversion Hx'; inversion Hy'; simplify_eq. 
+        right with (countable.encode Permanent); [|left]. 
+        exists Revoked, Permanent. repeat (split;auto).
+  Qed.
+
+  Lemma std_rel_pub_monotone x y x' y' Wstd_sta Wstd_sta' i :
+    Wstd_sta !! i = Some x -> Wstd_sta' !! i = Some y ->
+    (revoke_std_sta Wstd_sta) !! i = Some x' → (revoke_std_sta Wstd_sta') !! i = Some y' →
+    rtc (convert_rel std_rel_pub) x y → rtc (convert_rel (std_rel_pub)) x' y'.
+  Proof.
+    intros Hx Hy Hx' Hy' Hrtc.
+    induction Hrtc as [Hrefl | j k h Hjk].
+    - simplify_eq. rewrite -Hx in Hy.
+      apply revoke_monotone_lookup in Hy.
+      rewrite Hx' Hy' in Hy. inversion Hy. left.
+    - inversion Hjk as [ρ Hρ].
+      destruct Hρ as [ρ' [Hjρ [Hkρ' Hρρ'] ] ].
+      subst. destruct ρ,ρ'; inversion Hρρ'; try discriminate; auto.
+      apply std_rel_pub_rtc_Temporary in Hrtc; auto. subst. 
+      apply revoke_lookup_Revoked in Hx as Hxtemp.
+      apply revoke_lookup_Temp in Hy as Hyperm.
+      rewrite Hxtemp in Hx'. rewrite Hyperm in Hy'.
+      inversion Hx'; inversion Hy'; simplify_eq. 
+      left. 
+  Qed.
+
+  Ltac revoke_i W1 W2 i :=
+    (match goal with
+     | H : W1 !! i = Some (countable.encode _)
+           , H' : W2 !! i = Some (countable.encode _) |- _ =>
+       let Hxtemp := fresh "Hxtemp" in
+       let Hytemp := fresh "Hytemp" in 
+      try (apply revoke_lookup_Temp in H as Hxtemp);
+      try (apply revoke_lookup_Perm in H as Hxtemp);
+      try (apply revoke_lookup_Revoked in H as Hxtemp);
+      try (apply revoke_lookup_Temp in H' as Hytemp);
+      try (apply revoke_lookup_Perm in H' as Hytemp);
+      try (apply revoke_lookup_Revoked in H' as Hytemp);simplify_eq
+    end).
+
+  Lemma std_rel_monotone x y x' y' Wstd_sta Wstd_sta' i :
+    Wstd_sta !! i = Some x -> Wstd_sta' !! i = Some y ->
+    (revoke_std_sta Wstd_sta) !! i = Some x' → (revoke_std_sta Wstd_sta') !! i = Some y' →
+    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
+    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x' y'.
+  Proof.
+    intros Hx Hy Hx' Hy' Hrtc. 
+    induction Hrtc as [Hrefl | j k h Hjk].
+    - simplify_eq. rewrite -Hx in Hy.
+      apply revoke_monotone_lookup in Hy.
+      rewrite Hx' Hy' in Hy. inversion Hy. left.
+    - destruct Hjk as [Hjk | Hjk]. 
+      + inversion Hjk as [ρ Hρ].
+        destruct Hρ as [ρ' [Hjρ [Hkρ' Hρρ'] ] ].
+        subst. destruct ρ,ρ'; inversion Hρρ'; try discriminate; auto.
+        apply std_rel_exist in Hrtc as [ρ Hρ]; eauto. subst.
+        destruct ρ; revoke_i Wstd_sta Wstd_sta' i; try left.
+        right with (countable.encode Permanent); [|left]. right. 
+        exists Revoked, Permanent. repeat (split;auto). by right.
+      + inversion Hjk as [ρ Hρ].
+        destruct Hρ as [ρ' [Hjρ [Hkρ' Hρρ'] ] ].
+        subst. apply std_rel_exist in Hrtc as [ρ'' Hρ'']; eauto. subst.
+        destruct ρ,ρ',ρ''; inversion Hρρ'; try discriminate; auto;
+          revoke_i Wstd_sta Wstd_sta' i; try left;
+        (right with (countable.encode Permanent); [|left]; right; 
+          exists Revoked, Permanent; repeat (split;auto); by right).
+  Qed.         
+  
   Lemma revoke_monotone W W' :
+    (∀ i, is_Some ((std_rel W) !! i) →
+          (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
+                                   convert_rel (Rpriv : relation region_type))) ->
     related_sts_priv_world W W' → related_sts_priv_world (revoke W) (revoke W').
   Proof.
-    revert W'. 
     destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
-    induction Wstd_sta using map_ind;intros W';
     destruct W' as [ [Wstd_sta' Wstd_rel'] [Wloc_sta' Wloc_rel'] ];
-    rewrite /revoke /std_sta /std_rel /=;
-    intros [Hrelated_std Hrelated_loc];
-    split;auto;simpl in *. 
-    - destruct Hrelated_std as (Hdom_sta & Hdom_rel & Htransition). split;[|split;auto].
-      + rewrite /revoke_std_sta fmap_empty dom_empty. done.
-      + intros i r1 r2 r1' r2' Hr Hr'.
-        specialize (Htransition i r1 r2 r1' r2' Hr Hr') as (-> & -> & Htransition).
-        repeat (split;auto).
-        intros x y Hcontr.
-        inversion Hcontr.
-    - destruct Hrelated_std as (Hdom_sta & Hdom_rel & Htransition). split;[|split;auto].
-      + apply elem_of_subseteq in Hdom_sta. 
-        assert (is_Some (Wstd_sta' !! i)) as Hsome. 
-        { apply elem_of_gmap_dom;apply Hdom_sta.
-          apply elem_of_gmap_dom. rewrite lookup_insert. eauto. } 
-        apply elem_of_subseteq. intros j Hj.
-        apply elem_of_gmap_dom in Hj; apply elem_of_gmap_dom.
-        destruct (decide (i=j));subst. 
-        { by apply (revoke_std_sta_lookup_Some Wstd_sta'). }
-        { apply (revoke_std_sta_lookup_Some) in Hj. rewrite lookup_insert_ne in Hj;auto.
-          admit. 
-        }
-  Admitted. 
+    rewrite /revoke /std_sta /std_rel /=. 
+    intros Hstd [(Hdom_sta & Hdom_rel & Htransition) Hrelated_loc]. 
+    apply revoke_monotone_dom in Hdom_sta.
+    split;[split;[auto|split;[auto|] ]|auto].
+    intros i r1 r2 r1' r2' Hr Hr'.
+    simpl in *.
+    assert ((r1,r2) = (convert_rel std_rel_pub, convert_rel std_rel_priv)) as Heq.
+    { apply Some_inj. rewrite -Hr. apply Hstd. eauto. }
+    simplify_eq. 
+    specialize (Htransition i _ _ r1' r2' Hr Hr') as [<- [<- Htransition] ]. 
+    split;[auto|split;[auto|] ]. 
+    intros x' y' Hx' Hy'.
+    assert (is_Some (Wstd_sta !! i)) as [x Hx]; [apply revoke_std_sta_lookup_Some; eauto|]. 
+    assert (is_Some (Wstd_sta' !! i)) as [y Hy]; [apply revoke_std_sta_lookup_Some; eauto|].
+    apply std_rel_monotone with x y Wstd_sta Wstd_sta' i; auto. 
+  Qed. 
     
   Lemma map_size_insert_Some {K A} `{EqDecision K, Countable K} i x (m : gmap K A) :
     is_Some(m !! i) → size (<[i:=x]> m) = (size m).
@@ -1352,6 +1693,8 @@ Section heap.
       iDestruct (sts_full_state_std with "Hfull Hstate") as %Hρ.
       iPureIntro. eapply revoke_lookup_non_temp; eauto. 
     }
+    iDestruct (sts_full_world_std (revoke W) with "[] [$Hfull]") as %Hstd.
+    { iPureIntro. split;apply related_sts_priv_refl. }
     iFrame. 
     iApply big_sepM_exists. iExists m'.
     iApply big_sepM2_sep. iFrame. 
@@ -1362,7 +1705,7 @@ Section heap.
     iDestruct "Ha" as (γpred v p φ) "(Heq & HpO & Ha & #Hmono & Hpred & Hφ)". 
     iExists _,_,_,_; iFrame "∗ #".
     iNext. iApply "Hmono";[|iFrame].
-    iPureIntro. by apply revoke_monotone.
+    iPureIntro. apply revoke_monotone; auto.
     Unshelve. apply _. 
   Qed. 
 
@@ -1811,7 +2154,13 @@ Section logrel.
      | Local => (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)
                ∨ (std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)
     | Global => (std_sta W) !! (countable.encode a) = Some (countable.encode Permanent)
-    end. 
+    end.
+
+  (* For simplicity we might want to have the following statement in valididy of caps. However, it is strictly not 
+     necessary since it can be derived form full_sts_world *)
+  (* Definition region_std W (a : Addr) : Prop := (std_rel W) !! (countable.encode a) = *)
+  (*                                           Some (convert_rel (Rpub : relation region_type), *)
+  (*                                                 convert_rel (Rpriv : relation region_type)).  *)
   
   Definition interp_cap_RO (interp : D) : D :=
     λne W w, (match w with
