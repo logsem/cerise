@@ -89,13 +89,21 @@ Section heap.
 
   Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
   Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
-  Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}. 
+  Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
 
   (* Some practical shorthands for projections *)
   Definition std W := W.1.
   Definition loc W := W.2.
   Definition std_sta W := W.1.1.
   Definition std_rel W := W.1.2.
+
+  (* The following predicates states that the std relations map in the STS collection is standard according to sts_std *)
+  Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
+                                                        convert_rel (Rpriv : relation region_type)). 
+  Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i).
+
+  (* ------------------------------------------- DOM_EQUAL ----------------------------------------- *)
+  (* dom_equal : we require the domain of the STS standard collection and the memory map to be equal *)
 
   Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
     ∀ (i : positive), is_Some (Wstd_sta !! i) ↔ (∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)).
@@ -132,6 +140,10 @@ Section heap.
       }
   Qed.
 
+  (* ----------------------------------------------------------------------------------------------- *)
+  (* ------------------------------------------- REGION_MAP ---------------------------------------- *)
+  (* ----------------------------------------------------------------------------------------------- *)
+  
   Definition region_map_def M W :=
     ([∗ map] a↦γp ∈ M, ∃ ρ, sts_state_std (countable.encode a) ρ ∗
                             match ρ with
@@ -208,6 +220,10 @@ Section heap.
     iDestruct (rels_agree with "[$Hrel1 $Hrel2]") as %[-> ->].
     iSplitR;[auto|]. iIntros (x). iApply (saved_pred_agree with "Hpred1 Hpred2").
   Qed. 
+
+
+  (* When opening the region map at specific locations, 
+     we will rely on assumptions on the current state of that location *)
   
   Definition temporary (W : WORLD) (l : Addr) :=
     match W.1.1 !! (countable.encode l) with
@@ -224,7 +240,8 @@ Section heap.
     | Some ρ => ρ = countable.encode Revoked
     | _ => False
     end.
-  
+
+  (* Definition and notation for updating a standard or local state in the STS collection *)
   Definition std_update (W : WORLD) (l : Addr) (a : region_type) (r1 r2 : region_type → region_type -> Prop) : WORLD :=
     ((<[countable.encode l := countable.encode a]>W.1.1,
       <[countable.encode l := (convert_rel r1,convert_rel r2)]>W.1.2), W.2). 
@@ -235,12 +252,17 @@ Section heap.
   Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
   Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
 
+  (* ----------------------------------------------------------------------------------------------- *)
+  (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
+  
   Definition open_region_def (a : Addr) (W : WORLD) : iProp Σ :=
     (∃ (M : relT), RELS M ∗ ⌜dom_equal (std_sta W) M⌝ ∗ region_map_def (delete a M) W)%I. 
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
   Definition open_region := proj1_sig open_region_aux.
   Definition open_region_eq : @open_region = @open_region_def := proj2_sig open_region_aux.
 
+  (* Helper lemma that applies lemma of both collections in the W pair *)
+  (* TODO: move this to the STS file *)
   Lemma related_sts_pub_priv_world W W' :
     related_sts_pub_world W W' -> related_sts_priv_world W W'.
   Proof.
@@ -248,6 +270,9 @@ Section heap.
     split; apply related_sts_pub_priv; auto.
   Qed.
 
+  (* ------------------------------------------------------------------- *)
+  (* region_map is monotone with regards to public future world relation *)
+  
   Lemma region_map_monotone W W' M :
     (⌜related_sts_pub_world W W'⌝ →
      region_map_def M W -∗ region_map_def M W')%I.
@@ -321,7 +346,7 @@ Section heap.
 
    Lemma related_sts_pub_world_fresh_state W a ρ :
     (countable.encode a) ∉ dom (gset positive) (std_sta W) →
-    std_rel W !! (countable.encode a) = Some (convert_rel (Rpub : relation region_type),convert_rel (Rpriv : relation region_type)) →
+    rel_is_std_i W (countable.encode a) →
     related_sts_pub_world W (<s[a:=ρ,(Rpub,Rpriv)]s> W).
   Proof.
     rewrite /std_sta /std_rel. intros Hdom_sta Hdom_rel.
@@ -333,7 +358,7 @@ Section heap.
     - apply not_elem_of_dom in Hdom_sta.
       intros i r1 r2 r1' r2' Hr Hr'. 
       destruct (decide (countable.encode a = i)).
-      + subst. rewrite Hr in Hdom_rel. rewrite lookup_insert in Hr'. simplify_eq.
+      + subst. rewrite /rel_is_std_i Hr in Hdom_rel. rewrite lookup_insert in Hr'. simplify_eq.
         repeat (split;auto). intros x y Hcontr. rewrite Hcontr in Hdom_sta. done. 
       + rewrite lookup_insert_ne in Hr'; auto.
         rewrite Hr in Hr'. inversion Hr'. repeat (split;auto).
@@ -342,7 +367,10 @@ Section heap.
         rewrite Hx in Hy. 
         inversion Hy; inversion Hr'; subst.
         left.
-  Qed. 
+  Qed.
+
+  (* ----------------------------------------------------------------------------------------------- *)
+  (* ----------------------- LEMMAS FOR EXTENDING THE REGION MAP ----------------------------------- *)
   
   Lemma extend_region_temp_pwl E W l p v φ `{∀ W v, Persistent (φ (W,v))}:
      p ≠ O →
@@ -502,6 +530,9 @@ Section heap.
       rewrite REL_eq /REL_def. 
       done. 
   Qed.
+
+  (* ----------------------------------------------------------------------------------------------- *)
+  (* ------------------------- LEMMAS FOR OPENING THE REGION MAP ----------------------------------- *)
 
   Lemma region_open_temp_pwl W l p φ :
     (std_sta W) !! (countable.encode l) = Some (countable.encode Temporary) →
@@ -697,15 +728,23 @@ Section heap.
     rewrite -HMeq. iFrame. auto. 
   Qed.
 
-  (* Next we need to define revocation of memory *)
+  (* --------------------------------------------------------------------------------------------------------- *)
+  (* --------------------------------------------- REVOCATION ------------------------------------------------ *)
+  (* --------------------------------------------------------------------------------------------------------- *)
+
+  (* 
+     Revocation turns every temporary location state to revoked. 
+     Revocation is crucial to privately update state: in general, 
+     region states are only monotone with regards to public future 
+     world. To do a private update, we must thus revoke all temp 
+     regions, after which we only have regions that are indeed 
+     monotone wrt private future world.
+   *)
+  
 
   (* Revocation only changes the states of the standard STS collection *)
   Definition revoke_std_sta : STS_states → STS_states :=
-    fmap (λ v, if ((countable.encode Temporary) =? v)%positive then countable.encode Revoked else v
-         (* match countable.decode v with *)
-         (* | Some Temporary => countable.encode Revoked *)
-         (* | _ => v *)
-         (* end *) ). 
+    fmap (λ v, if ((countable.encode Temporary) =? v)%positive then countable.encode Revoked else v). 
   Definition revoke W : WORLD := ((revoke_std_sta (std_sta W),std_rel W), loc W).
 
   (* A weaker revocation which only revokes elements from a list *)
@@ -716,15 +755,15 @@ Section heap.
                | Some j => if ((countable.encode Temporary) =? j)%positive
                           then <[i := countable.encode Revoked]> (revoke_list_std_sta l' fs)
                           else (revoke_list_std_sta l' fs)
-               (* match countable.decode j with *)
-               (* | Some Temporary => <[i := countable.encode Revoked]> (revoke_list_std_sta l' fs) *)
-               (* | _ => (revoke_list_std_sta l' fs) *)
-               (* end *)
                | None => (revoke_list_std_sta l' fs)
                end
     end.
   Definition revoke_list l W : WORLD := ((revoke_list_std_sta l (std_sta W),std_rel W), loc W).
 
+
+  (* -------------------------------------------------------------------------- *)
+  (* ------------------------- LEMMAS ABOUT REVOKE ---------------------------- *)
+  
   Lemma revoke_list_swap Wstd_sta l a b :
     revoke_list_std_sta (a :: b :: l) Wstd_sta = revoke_list_std_sta (b :: a :: l) Wstd_sta.
   Proof.
@@ -1143,8 +1182,7 @@ Section heap.
 
    Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
     is_Some ((std_sta W) !! (countable.encode a)) →
-    sts_full_world sts_std W -∗ ⌜(std_rel W) !! (countable.encode a) = Some (convert_rel (Rpub : relation region_type),
-                                                                             convert_rel (Rpriv : relation region_type))⌝.
+    sts_full_world sts_std W -∗ ⌜rel_is_std_i W (countable.encode a)⌝.
   Proof. 
     iIntros (Hsome) "[[% [% _] ] _]".
     iPureIntro. apply elem_of_subseteq in H3.
@@ -1156,12 +1194,8 @@ Section heap.
 
   Lemma related_sts_preserve_std W W' :
     related_sts_priv_world W W' →
-    (∀ i, is_Some ((std_rel W) !! i) →
-          (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
-                                   convert_rel (Rpriv : relation region_type))) →
-    (∀ i, is_Some ((std_rel W) !! i) →
-          (std_rel W') !! i = Some (convert_rel (Rpub : relation region_type),
-                                    convert_rel (Rpriv : relation region_type))).
+    rel_is_std W →
+    (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W' i). 
   Proof.
     destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
     destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
@@ -1170,20 +1204,18 @@ Section heap.
     specialize (Hdom_rel _ Hi).
     apply elem_of_gmap_dom in Hdom_rel as [ [r1' r2'] Hr'].
     apply elem_of_gmap_dom in Hi as Hr.
-    specialize (Hstd _ Hr). 
-    specialize (Hrelated i _ _ _ _ Hstd Hr') as (-> & -> & Hrelated). 
-    auto.
+    specialize (Hstd _ Hr). destruct Hr as [x Hr]. 
+    specialize (Hrelated i _ _ _ _ Hstd Hr') as (Heq1 & Heq2 & Hrelated). 
+    rewrite /std_rel /=. subst. auto.
   Qed.
 
   Lemma related_sts_rel_std W W' i :
     related_sts_priv_world W W' →
-    (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
-                             convert_rel (Rpriv : relation region_type)) ->
-    (std_rel W') !! i = Some (convert_rel (Rpub : relation region_type),
-                              convert_rel (Rpriv : relation region_type)).
+    rel_is_std_i W i → rel_is_std_i W' i.
   Proof.
     destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
     destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
+    rewrite /rel_is_std_i. 
     intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hi. simpl in *.
     assert (is_Some (Wstd_rel' !! i)) as [ [r1' r2'] Hr'].
     { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_rel.
@@ -1192,6 +1224,9 @@ Section heap.
     eauto. 
   Qed.
 
+  (* --------------------------------------------------------------------------------- *)
+  (* ------------------------- LEMMAS ABOUT STD TRANSITIONS -------------------------- *)
+  
   Lemma std_rel_pub_Permanent x :
     (convert_rel std_rel_pub) (countable.encode Permanent) x → x = countable.encode Permanent.
   Proof.
@@ -1387,12 +1422,13 @@ Section heap.
           revoke_i Wstd_sta Wstd_sta' i; try left;
         (right with (countable.encode Permanent); [|left]; right; 
           exists Revoked, Permanent; repeat (split;auto); by right).
-  Qed.         
+  Qed.
+  
+  (* --------------------------------------------------------------------------------- *)
+  (* ----------- A REVOKED REGION IS MONOTONE WRT PRIVATE FUTURΕ WORLDS -------------- *)
   
   Lemma revoke_monotone W W' :
-    (∀ i, is_Some ((std_rel W) !! i) →
-          (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
-                                   convert_rel (Rpriv : relation region_type))) ->
+    rel_is_std W ->
     related_sts_priv_world W W' → related_sts_priv_world (revoke W) (revoke W').
   Proof.
     destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
@@ -1412,29 +1448,13 @@ Section heap.
     assert (is_Some (Wstd_sta !! i)) as [x Hx]; [apply revoke_std_sta_lookup_Some; eauto|]. 
     assert (is_Some (Wstd_sta' !! i)) as [y Hy]; [apply revoke_std_sta_lookup_Some; eauto|].
     apply std_rel_monotone with x y Wstd_sta Wstd_sta' i; auto. 
-  Qed. 
-    
-  Lemma map_size_insert_Some {K A} `{EqDecision K, Countable K} i x (m : gmap K A) :
-    is_Some(m !! i) → size (<[i:=x]> m) = (size m).
-  Proof. induction m using map_ind.
-         - intros [y Hcontr]; inversion Hcontr.
-         - intros Hsome.
-           destruct (decide (i = i0)). 
-           + subst.
-             rewrite insert_insert. 
-             unfold size, map_size.
-             do 2 (rewrite map_to_list_insert; auto).
-           + rewrite insert_commute;auto. 
-             unfold size, map_size.
-             rewrite map_to_list_insert;[|rewrite lookup_insert_ne;auto].
-             rewrite (map_to_list_insert _ i0);auto.
-             simpl. f_equal. apply IHm.
-             rewrite lookup_insert_ne in Hsome;auto. 
   Qed.
 
+  (* --------------------------------------------------------------------------------- *)
+  (* ----------------- REVOKED W IS A PRIVATE FUTURE WORLD TO W ---------------------- *)
+  
   Lemma revoke_list_related_sts_priv_cons W l i :
-    (is_Some (W.1.2 !! i) → W.1.2 !! i = Some (convert_rel (Rpub : relation region_type),
-                                               convert_rel (Rpriv : relation region_type))) →
+    (is_Some ((std_rel W) !! i) → rel_is_std_i W i) →
     related_sts_priv_world W (revoke_list l W) → related_sts_priv_world W (revoke_list (i :: l) W).
   Proof.
     intros Hstd Hpriv.
@@ -1469,8 +1489,7 @@ Section heap.
   Qed. 
 
   Lemma revoke_list_related_sts_priv W l :
-    (∀ (i : positive), is_Some(W.1.2 !! i) → W.1.2 !! i = Some (convert_rel (Rpub : relation region_type),
-                                                                convert_rel (Rpriv : relation region_type))) →
+    rel_is_std W →
     related_sts_priv_world W (revoke_list l W).
   Proof.
     induction l.
@@ -1480,42 +1499,19 @@ Section heap.
   Qed.
 
   Lemma revoke_related_sts_priv W :
-    (∀ (i : positive), is_Some(W.1.2 !! i) → W.1.2 !! i = Some (convert_rel (Rpub : relation region_type),
-                                                                convert_rel (Rpriv : relation region_type))) →
+    rel_is_std W →
     related_sts_priv_world W (revoke W).
   Proof.
     intros Hstd.
     rewrite revoke_list_dom. apply revoke_list_related_sts_priv.
     done. 
   Qed.
-
-  Lemma revoke_list_size W l :
-    size (revoke_list l W).1.1 = size W.1.1. 
-  Proof.
-    induction l.
-    - done.
-    - destruct W as [Wstd Wloc].
-      destruct Wstd as [Wstd_sta Wstd_rel].
-      rewrite /= /std_sta /=. rewrite /= /std_sta /= in IHl. 
-      destruct (Wstd_sta !! a) eqn:Hsome.
-      + destruct (countable.encode Temporary =? p)%positive; auto.
-        rewrite (map_size_insert_Some); auto.
-        apply revoke_list_lookup_Some. eauto.
-      + apply IHl.
-  Qed.
     
-  (* TODO: choose between:
-     1) restate revoke so that it only actually revokes the temporary in the M map
-     2) change region definition to related the domains of M and Wstd_sta to be equal
-        (we can argue that we want Wstd_sta to exactly represent the map M, and thus 
-        revoke should cover all temps in Wstd_sta)
-   *)
-
+  (* If a full private future world of W is standard, then W is standard *)
   Lemma sts_full_world_std W W' :
     (⌜related_sts_priv_world W W'⌝
       -∗ sts_full_world sts_std W'
-    → ⌜∀ (i : positive), is_Some(W.1.2 !! i) → W.1.2 !! i = Some (convert_rel (Rpub : relation region_type),
-                                                                convert_rel (Rpriv : relation region_type))⌝)%I. 
+    → ⌜rel_is_std W⌝)%I. 
   Proof.
     iIntros (Hrelated) "Hfull".
     iDestruct "Hfull" as "[[% [% _] ] _]".
@@ -1533,6 +1529,8 @@ Section heap.
     rewrite H4 in Hr'; auto.
     by inversion Hr'; subst. 
   Qed.
+
+  (* Helper lemmas for reasoning about a revoked domain *)
 
   Lemma dom_equal_empty_inv_r Wstd_sta :
     dom_equal Wstd_sta ∅ → Wstd_sta = ∅.
@@ -1617,6 +1615,7 @@ Section heap.
         rewrite lookup_insert_ne;auto. 
   Qed.
 
+  (* Helper lemma for reasoning about the current state of a region map *)
   Lemma big_sepM_exists {A B C : Type} `{EqDecision A, Countable A} (m : gmap A B) (φ : A → C -> B → iProp Σ) :
     (([∗ map] a↦b ∈ m, ∃ c, φ a c b) ∗-∗ (∃ (m' : gmap A C), [∗ map] a↦c;b ∈ m';m, φ a c b))%I.
   Proof.
@@ -1646,12 +1645,13 @@ Section heap.
         iExists ρ. iFrame. 
   Qed.
 
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ------------------- IF THΕ FULL STS IS REVOKED, WΕ CAN REVOKE REGION ------------------- *)
+
   Lemma monotone_revoke_region_def M W :
-    ⌜dom_equal (std_sta W) M⌝ -∗
-     ⌜∀ (i : positive), is_Some (W.1.2 !! i) → W.1.2 !! i = Some (convert_rel (Rpub : relation region_type),
-                                                                  convert_rel (Rpriv : relation region_type))⌝ -∗
-     sts_full_world sts_std (revoke W) -∗
-     region_map_def M W -∗ region_map_def M (revoke W) ∗ sts_full_world sts_std (revoke W).
+    ⌜dom_equal (std_sta W) M⌝ -∗ ⌜rel_is_std W⌝ -∗
+     sts_full_world sts_std (revoke W) -∗ region_map_def M W -∗
+     sts_full_world sts_std (revoke W) ∗ region_map_def M (revoke W).
   Proof.
     destruct W as [ [Wstd_sta Wstd_rel] Wloc].
     iIntros (Hdom Hstd) "Hfull Hr".
@@ -1676,13 +1676,15 @@ Section heap.
     iNext. iApply ("Hmono" with "[] Hφ"). 
     iPureIntro. apply revoke_related_sts_priv. auto.
     Unshelve. apply _. 
-  Qed. 
+  Qed.
+
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ------------------- A REVOKED W IS MONOTONE WRT PRIVATE FUTURE WORLD ------------------- *)
   
   Lemma monotone_revoke_list_region_def_mono M W W' :
-    ⌜related_sts_priv_world W W'⌝ -∗
-     ⌜dom_equal (std_sta W') M⌝ -∗
-     sts_full_world sts_std (revoke W) -∗
-     region_map_def M (revoke W) -∗ region_map_def M (revoke W') ∗ sts_full_world sts_std (revoke W).
+    ⌜related_sts_priv_world W W'⌝ -∗ ⌜dom_equal (std_sta W') M⌝ -∗
+     sts_full_world sts_std (revoke W) -∗ region_map_def M (revoke W) -∗
+     sts_full_world sts_std (revoke W) ∗ region_map_def M (revoke W').
   Proof.
     iIntros (Hrelated Hdom) "Hfull Hr".
     iDestruct (big_sepM_exists with "Hr") as (m') "Hr".
@@ -1707,14 +1709,16 @@ Section heap.
     iNext. iApply "Hmono";[|iFrame].
     iPureIntro. apply revoke_monotone; auto.
     Unshelve. apply _. 
-  Qed. 
+  Qed.
+
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ---------------- IF WΕ HAVE THE REGION, THEN WE CAN REVOKE THE FULL STS ---------------- *)
 
   Lemma monotone_revoke_list_sts_full_world M W l :
-    ⌜∀ (i : positive), i ∈ l→∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)⌝ -∗
+    ⌜∀ (i : positive), i ∈ l → ∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)⌝ -∗
     ⌜NoDup l⌝ -∗
     sts_full_world sts_std W ∗ region_map_def M W
-    ==∗ (sts_full_world sts_std (revoke_list l W)
-          ∗ region_map_def M W).
+    ==∗ (sts_full_world sts_std (revoke_list l W) ∗ region_map_def M W).
   Proof.
     destruct W as [ [Wstd_sta Wstd_rel] Wloc]. 
     rewrite /std_sta /=. 
@@ -1742,8 +1746,7 @@ Section heap.
 
   Lemma monotone_revoke_sts_full_world W :
     sts_full_world sts_std W ∗ region W
-    ==∗ (sts_full_world sts_std (revoke W)
-          ∗ region W).
+    ==∗ (sts_full_world sts_std (revoke W) ∗ region W).
   Proof.
     iIntros "[Hfull Hr]".
     rewrite region_eq /region_def.
@@ -1761,6 +1764,10 @@ Section heap.
     iModIntro. iExists M. iFrame. done. 
   Qed.
 
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ------------------ WE CAN REVOKΕ A REGION AND STS COLLECTION PAIR ---------------------- *)
+  (* ---------------------------------------------------------------------------------------- *)
+  
   Lemma monotone_revoke W :
     sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W).
   Proof.
@@ -1773,6 +1780,10 @@ Section heap.
     iModIntro. iFrame. iExists _. iFrame.
     iPureIntro. by apply dom_equal_revoke.
   Qed.
+
+
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ----------------------- OPENING MULTIPLE LOCATIONS IN REGION --------------------------- *)
     
   Fixpoint delete_list {K V : Type} `{Countable K, EqDecision K}
              (ks : list K) (m : gmap K V) : gmap K V :=
@@ -2158,15 +2169,13 @@ Section logrel.
 
   (* For simplicity we might want to have the following statement in valididy of caps. However, it is strictly not 
      necessary since it can be derived form full_sts_world *)
-  (* Definition region_std W (a : Addr) : Prop := (std_rel W) !! (countable.encode a) = *)
-  (*                                           Some (convert_rel (Rpub : relation region_type), *)
-  (*                                                 convert_rel (Rpriv : relation region_type)).  *)
+  Definition region_std W (a : Addr) : Prop := rel_is_std_i W (countable.encode a).
   
   Definition interp_cap_RO (interp : D) : D :=
     λne W w, (match w with
               | inr ((RO,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RO p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝ ∧ ⌜region_std W a⌝
               | _ => False
               end)%I.
   
@@ -2174,7 +2183,7 @@ Section logrel.
     λne W w, (match w with
               | inr ((RW,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RW p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝ ∧ ⌜region_std W a⌝
               | _ => False
               end)%I.
   
@@ -2182,14 +2191,15 @@ Section logrel.
     λne W w, (match w with
               | inr ((RWL,g),b,e,a) =>
                 ∃ p, ⌜PermFlows RWL p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝
+                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝ ∧ ⌜region_std W a⌝
               | _ => False
               end)%I.
 
   Definition interp_cap_RX (interp : D) : D :=
     λne W w, (match w with inr ((RX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝)
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                                                                   ∧ ⌜region_state_nwl W a g⌝ ∧ ⌜region_std W a⌝)
                                  ∗ □ exec_cond W b e g RX interp
              | _ => False end)%I.  
 
@@ -2202,14 +2212,16 @@ Section logrel.
   Definition interp_cap_RWX (interp : D) : D :=
     λne W w, (match w with inr ((RWX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RWX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝) 
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                                                                   ∧ ⌜region_state_nwl W a g⌝ ∧ ⌜region_std W a⌝) 
                                  ∗ □ exec_cond W b e g RWX interp
              | _ => False end)%I.
   
   Definition interp_cap_RWLX (interp : D) : D :=
     λne W w, (match w with inr ((RWLX,g),b,e,a) =>
                            ∃ p, ⌜PermFlows RWLX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝) 
+                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                                                                   ∧ ⌜region_state_pwl W a⌝ ∧ ⌜region_std W a⌝) 
                                  ∗ □ exec_cond W b e g RWLX interp
              | _ => False end)%I.
   

@@ -11,8 +11,7 @@ Section monotone.
 
     
   Lemma region_state_nwl_monotone W W' a l :
-    (std_rel W) !! (countable.encode a) = Some (convert_rel (Rpub : relation region_type),
-                                                convert_rel (Rpriv : relation region_type)) →
+    rel_is_std_i W (countable.encode a) →
     related_sts_pub_world W W' →
     region_state_nwl W a l -> region_state_nwl W' a l.
   Proof.
@@ -47,8 +46,7 @@ Section monotone.
   Qed.
 
   Lemma region_state_pwl_monotone W W' a :
-    (std_rel W) !! (countable.encode a) = Some (convert_rel (Rpub : relation region_type),
-                                                convert_rel (Rpriv : relation region_type)) →
+    rel_is_std_i W (countable.encode a) →
     related_sts_pub_world W W' →
     region_state_pwl W a -> region_state_pwl W' a.
   Proof.
@@ -63,6 +61,48 @@ Section monotone.
     specialize (Hrelated (countable.encode Temporary) y Hstate Hy).
     destruct (decide (y = countable.encode Temporary)); subst; auto.
     apply std_rel_pub_rtc_Temporary in Hrelated; auto. contradiction. 
+  Qed.
+
+  (* Helper functions for transitivity of sts pairs *)
+  (* TODO: move this to the sts file *)
+  Lemma related_sts_pub_priv_trans_world W W' W'' :
+    related_sts_pub_world W W' -> related_sts_priv_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_pub_priv_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_pub_priv_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_priv_pub_trans_world W W' W'' :
+    related_sts_priv_world W W' -> related_sts_pub_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_priv_pub_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_priv_pub_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_priv_trans_world W W' W'' :
+    related_sts_priv_world W W' -> related_sts_priv_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_priv_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_priv_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_pub_trans_world W W' W'' :
+    related_sts_pub_world W W' -> related_sts_pub_world W' W'' ->
+    related_sts_pub_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_pub_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_pub_trans with W'.2.1 W'.2.2; auto.
   Qed. 
     
   Lemma interp_monotone W W' w :
@@ -76,79 +116,193 @@ Section monotone.
     - iDestruct "Hw" as (p Hfl) "Hw".
       iExists _; iSplit;eauto.
       iApply (big_sepL_mono with "Hw").
-      iIntros (n y Hsome) "#[Hrw %]". iFrame "#".
-      iPureIntro. apply region_state_nwl_monotone with W; auto. 
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto.
+    - iDestruct "Hw" as (p Hfl) "Hw".
+      iExists _; iSplit;eauto.
+      iApply (big_sepL_mono with "Hw").
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto.
+    - iDestruct "Hw" as (p Hfl) "Hw".
+      iExists _; iSplit;eauto.
+      iApply (big_sepL_mono with "Hw").
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_pwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto. 
     - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
-      iExists _. iSplitR;[eauto|]. iFrame "#".
+      iExists _. iSplitR;[eauto|].
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
       iAlways.
       iIntros (a' r' W'' Hin).
       destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
-        { iPureIntro.
-          apply related_sts_pub_priv_trans with W'.1 W'.2; auto.
-        }
+        { iPureIntro. apply related_sts_pub_priv_trans_world with W'; auto. }
         iSpecialize ("Hexec" $! a' r' W'' Hin with "Hrelated").
         iFrame.
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
-        { iPureIntro.
-          apply related_sts_pub_trans with W'.1 W'.2; auto.
-        }
+        { iPureIntro. apply related_sts_pub_trans_world with W'; auto. } 
         iSpecialize ("Hexec" $! a' r' W'' Hin with "Hrelated").
         iFrame.
     - iAlways. iIntros (r W'').
       destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
-        { iPureIntro.
-          apply related_sts_pub_priv_trans with W'.1 W'.2; auto.
-        }
+        { iPureIntro. apply related_sts_pub_priv_trans_world with W'; auto. }
         iSpecialize ("Hw" $! r W'' with "Hrelated").
         iFrame.
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
-        { iPureIntro.
-          apply related_sts_pub_trans with W'.1 W'.2; auto.
-        }
+        { iPureIntro. apply related_sts_pub_trans_world with W'; auto. }
         iSpecialize ("Hw" $! r W'' with "Hrelated").
         iFrame.
     - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
       iExists p. iSplit;[auto|].
-      iFrame "#". iAlways. iIntros (a' r W'' Hin).
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
+      iAlways. iIntros (a' r W'' Hin).
       destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro.
-          apply related_sts_pub_priv_trans with W'.1 W'.2; auto.
+          apply related_sts_pub_priv_trans_world with W'; auto.
         }
         iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame.
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
         { iPureIntro.
-          apply related_sts_pub_trans with W'.1 W'.2; auto.
+          apply related_sts_pub_trans_world with W'; auto.
         }
         iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame.
     - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
       iExists p. iSplit;[auto|].
-      iFrame "#". iAlways. iIntros (a' r W'' Hin).
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_pwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
+      iAlways. iIntros (a' r W'' Hin).
       destruct l; simpl.
       + iIntros (Hrelated').
         iAssert (future_world Global W W'')%I as "Hrelated".
         { iPureIntro.
-          apply related_sts_pub_priv_trans with W'.1 W'.2; auto.
+          apply related_sts_pub_priv_trans_world with W'; auto.
         }
         iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame.
       + iIntros (Hrelated').
         iAssert (future_world Local W W'')%I as "Hrelated".
         { iPureIntro.
-          apply related_sts_pub_trans with W'.1 W'.2; auto.
+          apply related_sts_pub_trans_world with W'; auto.
         }
         iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
         iFrame.
+  Qed.
+
+  Lemma interp_monotone_nl W W' w :
+    (⌜related_sts_pub_world W W'⌝ → ⌜isLocalWord w = false⌝ →
+    interp W w -∗ interp W' w)%I. 
+  Proof.
+    iIntros (Hrelated Hnl) "#Hw".
+    rewrite /interp /= fixpoint_interp1_eq /=.
+    destruct w; rewrite fixpoint_interp1_eq /=; auto.
+    destruct c,p,p,p,p; auto.
+    - iDestruct "Hw" as (p Hfl) "Hw".
+      iExists _; iSplit;eauto.
+      iApply (big_sepL_mono with "Hw").
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto.
+    - iDestruct "Hw" as (p Hfl) "Hw".
+      iExists _; iSplit;eauto.
+      iApply (big_sepL_mono with "Hw").
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto.
+    - iDestruct "Hw" as (p Hfl) "Hw".
+      iExists _; iSplit;eauto.
+      iApply (big_sepL_mono with "Hw").
+      iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+      iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+      iPureIntro. split; [apply region_state_pwl_monotone with W|apply related_sts_rel_std with W]; auto.
+      apply related_sts_pub_priv_world; auto. 
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
+      iExists _. iSplitR;[eauto|].
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
+      iAlways.
+      iIntros (a' r' W'' Hin).
+      destruct l; simpl; try discriminate.
+      iIntros (Hrelated').
+      iAssert (future_world Global W W'')%I as "Hrelated".
+      { iPureIntro. apply related_sts_pub_priv_trans_world with W'; auto. }
+      iSpecialize ("Hexec" $! a' r' W'' Hin with "Hrelated").
+      iFrame.
+    - iAlways. iIntros (r W'').
+      destruct l; simpl; try discriminate.
+      iIntros (Hrelated').
+      iAssert (future_world Global W W'')%I as "Hrelated".
+      { iPureIntro. apply related_sts_pub_priv_trans_world with W'; auto. }
+      iSpecialize ("Hw" $! r W'' with "Hrelated").
+      iFrame.
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
+      iExists p. iSplit;[auto|].
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_nwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
+      iAlways. iIntros (a' r W'' Hin).
+      destruct l; simpl; try discriminate.
+      iIntros (Hrelated').
+      iAssert (future_world Global W W'')%I as "Hrelated".
+      { iPureIntro.
+        apply related_sts_pub_priv_trans_world with W'; auto.
+      }
+      iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
+      iFrame.
+    - iDestruct "Hw" as (p Hfl) "[Hbe Hexec]".
+      iExists p. iSplit;[auto|].
+      iSplit.
+      { iApply (big_sepL_mono with "Hbe").
+        iIntros (n y Hsome) "#[Hrw [Hst Hrel] ]". iFrame "#".
+        iDestruct "Hst" as %Hst; iDestruct "Hrel" as %Hrel. 
+        iPureIntro. split; [apply region_state_pwl_monotone with W|apply related_sts_rel_std with W]; auto.
+        apply related_sts_pub_priv_world; auto. }
+      iAlways. iIntros (a' r W'' Hin).
+      destruct l; simpl; try discriminate.
+      iIntros (Hrelated').
+      iAssert (future_world Global W W'')%I as "Hrelated".
+      { iPureIntro.
+        apply related_sts_pub_priv_trans_world with W'; auto.
+      }
+      iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
+      iFrame.
   Qed.
     
 End monotone. 
