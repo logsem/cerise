@@ -1263,8 +1263,20 @@ Section heap.
     induction Hrtc ;auto.
     subst. apply std_rel_priv_Permanent in H3.
     apply IHHrtc. auto.
+  Qed.
+
+  Lemma std_rel_rtc_Permanent x y :
+    x = countable.encode Permanent →
+    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
+    y = countable.encode Permanent.
+  Proof.
+    intros Hx Hrtc.
+    induction Hrtc as [|x y z Hrel];auto.
+    subst. destruct Hrel as [Hrel | Hrel].
+    - apply std_rel_pub_Permanent in Hrel. auto.
+    - apply std_rel_priv_Permanent in Hrel. auto. 
   Qed. 
-  
+      
   Lemma std_rel_pub_Temporary x :
     (convert_rel std_rel_pub) (countable.encode Temporary) x → x = countable.encode Temporary.
   Proof.
@@ -2189,7 +2201,7 @@ Section logrel.
   
   Definition interp_cap_RWL (interp : D) : D :=
     λne W w, (match w with
-              | inr ((RWL,g),b,e,a) =>
+              | inr ((RWL,Local),b,e,a) =>
                 ∃ p, ⌜PermFlows RWL p⌝ ∗
                       [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝ ∧ ⌜region_std W a⌝
               | _ => False
@@ -2218,11 +2230,11 @@ Section logrel.
              | _ => False end)%I.
   
   Definition interp_cap_RWLX (interp : D) : D :=
-    λne W w, (match w with inr ((RWLX,g),b,e,a) =>
+    λne W w, (match w with inr ((RWLX,Local),b,e,a) =>
                            ∃ p, ⌜PermFlows RWLX p⌝ ∗
                                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_pwl W a⌝ ∧ ⌜region_std W a⌝) 
-                                 ∗ □ exec_cond W b e g RWLX interp
+                                 ∗ □ exec_cond W b e Global RWLX interp
              | _ => False end)%I.
   
   Definition interp1 (interp : D) : D :=
@@ -2270,7 +2282,7 @@ Section logrel.
   Global Instance interp_cap_RWL_contractive :
     Contractive (interp_cap_RWL).
   Proof. solve_proper_prepare.
-         destruct x1; auto. destruct c, p, p, p, p; auto.
+         destruct x1; auto. destruct c, p, p, p, p, l; auto.
          apply exist_ne. rewrite /pointwise_relation; intros.
          apply sep_ne; auto.
          apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
@@ -2332,7 +2344,7 @@ Section logrel.
   Proof.
     rewrite /interp_cap_RWLX.
     solve_proper_prepare.
-    destruct x1; auto. destruct c, p, p, p, p; auto.
+    destruct x1; auto. destruct c, p, p, p, p, l; auto.
     apply exist_ne. rewrite /pointwise_relation; intros.
     apply sep_ne; auto. apply sep_ne. 
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
@@ -2381,12 +2393,15 @@ Section logrel.
   Proof.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
-    destruct p; try contradiction;
+    destruct p,g; try contradiction;
     try (iDestruct "Hinterp" as (p) "[Hleast Hinterp]");
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
-    iExists _; iFrame; try destruct g;
+    iExists _; iFrame; 
     try (iDestruct (extract_from_region_inv_2 with "Hinterp") as (w) "[ [Hinv _] _]"; eauto); 
     try (iDestruct (extract_from_region_inv with "Hinterp") as "[Hinv _]"; eauto).
+    - done.
+    - done.
+      Unshelve. exact RWL. exact RWLX. 
   Qed.
   
 End logrel.
