@@ -9,7 +9,8 @@ Section fundamental.
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
-  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation WORLD := (leibnizO (STS * STS)). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -17,6 +18,7 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
+  (*
   Lemma locality_eq_dec:
     forall (l1 l2: Locality), {l1 = l2} + {l1 <> l2}.
   Proof.
@@ -498,6 +500,6 @@ Section fundamental.
                 - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate. } }
-  Qed.
+  Qed. *)
 
 End fundamental.

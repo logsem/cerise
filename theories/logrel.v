@@ -671,7 +671,36 @@ Section heap.
       + iNext. iRewrite "Hφeq". iFrame "∗ #".
   Qed.
 
-  (* Closing the region without updating the world *)
+  Lemma region_open W l p φ (ρ : region_type) :
+    ρ ≠ Revoked →
+    (std_sta W) !! (countable.encode l) = Some (countable.encode ρ) →
+    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+        ∃ v, open_region l W
+           ∗ sts_full_world sts_std W
+           ∗ sts_state_std (countable.encode l) ρ              
+           ∗ l ↦ₐ[p] v
+           ∗ ⌜p ≠ O⌝
+           ∗ (if (decide (ρ = Temporary ∧ pwl p = true))
+             then ▷ future_pub_mono φ v
+             else ▷ future_priv_mono φ v)
+           ∗ ▷ φ (W,v).
+  Proof.
+    iIntros (Hne Htemp) "(Hrel & Hreg & Hfull)".
+    destruct ρ; try contradiction.
+    - destruct (pwl p) eqn:Hpwl.
+      + iDestruct (region_open_temp_pwl with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
+        iExists _; iFrame.
+        rewrite decide_True; auto.
+      + iDestruct (region_open_temp_nwl with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
+        iExists _; iFrame.
+        rewrite decide_False;auto. 
+        intros [_ Hcontr]. done.
+    - iDestruct (region_open_perm with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
+      iExists _; iFrame.
+      rewrite decide_False; auto. intros [Hcontr _]. done.
+  Qed. 
+
+  (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v :
     pwl p = true →
     sts_state_std (countable.encode l) Temporary
@@ -726,6 +755,26 @@ Section heap.
     iExists _. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite -HMeq. iFrame. auto. 
+  Qed.
+
+  Lemma region_close W l φ p v (ρ : region_type) :
+    ρ ≠ Revoked →
+    sts_state_std (countable.encode l) ρ
+                  ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗
+                  (if (decide (ρ = Temporary ∧ pwl p = true))
+                   then future_pub_mono φ v
+                   else future_priv_mono φ v) ∗ ▷ φ (W,v) ∗ rel l p φ
+    -∗ region W.
+  Proof.
+    iIntros (Hrev) "(Hstate & Hreg_open & Hl & Hp & Hmono & Hφ & Hrel)".
+    destruct ρ; try contradiction.
+    - destruct (pwl p) eqn:Hpwl.
+      + iApply region_close_temp_pwl; eauto. iFrame.
+        rewrite decide_True; auto.
+      + iApply region_close_temp_nwl; eauto. iFrame.
+        rewrite decide_False; auto. intros [_ Hcontr]. done.
+    - iApply region_close_perm; eauto. iFrame.
+      rewrite decide_False; auto. intros [Hcontr _]. done.
   Qed.
 
   (* --------------------------------------------------------------------------------------------------------- *)

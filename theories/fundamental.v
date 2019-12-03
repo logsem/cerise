@@ -1,15 +1,16 @@
-From cap_machine Require Export logrel.
-From stdpp Require Import base.
 From cap_machine.ftlr Require Export Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Store Restrict Subseg.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
+From stdpp Require Import base.
+From cap_machine Require Export logrel.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
-  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation WORLD := (leibnizO (STS * STS)). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -44,16 +45,16 @@ Section fundamental.
   Theorem fundamental W r p g b e (a : Addr) :
     ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
-    ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp))) →
+           ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
+                                             ∧ ⌜region_std W a⌝
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)) →
      interp_expression r W (inr ((p,g),b,e,a)))%I.  
   Proof.
-    destruct W as [fs fr]. 
-    iIntros (Hp) "#Hinv /=". iExists fs,fr.
-    repeat (iSplit;auto). 
+    iIntros (Hp) "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg [Hr [Hsts Hown]]]]".
     iSplit; eauto; simpl.
     iRevert (Hp) "Hinv".    
-    iLöb as "IH" forall (fs fr r p g b e a).
+    iLöb as "IH" forall (W r p g b e a).
     iIntros (Hp) "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
     iApply (wp_bind (fill [SeqCtx])).
@@ -63,9 +64,12 @@ Section fundamental.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
-      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "Hinva"; auto.
-      iDestruct (region_open (fs,fr) a p' with "[$Hinva $Hr]") 
-                                    as (w) "(Hr & Ha & % & #Hmono & #Hval) /=". 
+      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hrel_a & Hstate_a)"; auto.
+      iDestruct "Hstate_a" as %Hstate_a; iDestruct "Hrel_a" as %Hrel_a.
+      assert (∃ (ρ : region_type), (std_sta W) !! (countable.encode a) = Some (countable.encode ρ) ∧ ρ ≠ Revoked) as [ρ [Hρ Hne] ].
+      { destruct (pwl p),g; eauto. destruct Hstate_a as [Htemp | Hperm];eauto. }      
+      iDestruct (region_open W a p' with "[$Hinva $Hr $Hsts]") 
+                                    as (w) "(Hr & Hsts & Hstate & Ha & % & Hmono & #Hw) /="; eauto. 
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
         first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)

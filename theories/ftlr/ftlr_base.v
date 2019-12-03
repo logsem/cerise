@@ -8,7 +8,8 @@ Section fundamental.
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
-  Notation WORLD := (leibnizO (STS_states * STS_rels)).
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation WORLD := (leibnizO (STS * STS)). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -16,34 +17,50 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Definition ftlr_instr (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (i: instr) :=
+
+  Definition ftlr_instr (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (i: instr) (ρ : region_type) := 
       p = RX ∨ p = RWX ∨ p = RWLX
     → (∀ x : RegName, is_Some (r !! x))
     → isCorrectPC (inr (p, g, b, e, a))
     → (b <= a)%a ∧ (a <= e)%a
     → PermFlows p p'
+    → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
+    → region_std W a
+    → std_sta W !! countable.encode a = Some (countable.encode ρ)
+    → ρ ≠ Revoked 
     → p' ≠ O
     → cap_lang.decode w = i
-    -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
-             full_map a2
-          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) (a0, a1)) (a2 !r! r1))
-          -∗ registers_mapsto (<[PC:=inr (a3, a4, a5, a6, a7)]> a2)
-          -∗ region (a0, a1)
-          -∗ sts_full a0 a1
+    -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,
+             full_map a1
+          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) a0) (a1 !r! r1))
+          -∗ registers_mapsto (<[PC:=inr (a2, a3, a4, a5, a6)]> a1)
+          -∗ region a0
+          -∗ sts_full_world sts_std a0
           -∗ na_own logrel_nais ⊤
-          -∗ ⌜a3 = RX ∨ a3 = RWX ∨ a3 = RWLX⌝
-             → □ (∃ p'0 : Perm, ⌜PermFlows a3 p'0⌝
-                    ∧ ([∗ list] a8 ∈ region_addrs a5 a6, read_write_cond a8 p'0 interp))
-                 -∗ interp_conf a0 a1)
-    -∗ ([∗ list] a0 ∈ region_addrs b e, read_write_cond a0 p' interp)
-    -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) (fs, fr)) (r !r! r1))
+          -∗ ⌜a2 = RX ∨ a2 = RWX ∨ a2 = RWLX⌝
+             → □ (∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝
+                                ∧ ([∗ list] a7 ∈ region_addrs a5 a6, read_write_cond a7 p'0 interp
+                                                                     ∧ ⌜region_std a0 a7⌝
+                                                                     ∧ ⌜if pwl a2
+                                                                        then region_state_pwl a0 a7
+                                                                        else region_state_nwl a0 a7 a3⌝))
+                 -∗ interp_conf a0)
+    -∗ ([∗ list] a0 ∈ region_addrs b e, read_write_cond a0 p' interp
+                                        ∧ ⌜region_std W a0⌝
+                                        ∧ ⌜if pwl p
+                                           then region_state_pwl W a0
+                                           else region_state_nwl W a0 g⌝)
+    -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
     -∗ read_write_cond a p' interp
-    -∗ ▷ future_mono (λ Wv : prodO WORLD (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2)
-    -∗ ▷ ((fixpoint interp1) (fs, fr)) w
-    -∗ sts_full fs fr
+    -∗ (if decide (ρ = Temporary ∧ pwl p' = true)
+        then ▷ future_pub_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w
+        else ▷ future_priv_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w)
+    -∗ ▷ ((fixpoint interp1) W) w
+    -∗ sts_full_world sts_std W
     -∗ na_own logrel_nais ⊤
-    -∗ open_region a (fs, fr)
+    -∗ open_region a W
+    -∗ sts_state_std (countable.encode a) ρ
     -∗ a ↦ₐ[p'] w
     -∗ PC ↦ᵣ inr (p, g, b, e, a)
     -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=inr (p, g, b, e, a)]> r), k ↦ᵣ y)
@@ -51,11 +68,11 @@ Section fundamental.
         WP Instr Executable
         {{ v, WP Seq (cap_lang.of_val v)
                  {{ v0, ⌜v0 = HaltedV⌝
-                        → ∃ (r1 : Reg) (fs' : STS_states) (fr' : STS_rels),
+                        → ∃ (r1 : Reg) (W' : WORLD),
                         full_map r1
                         ∧ registers_mapsto r1
-                                           ∗ ⌜related_sts_priv fs fs' fr fr'⌝
+                                           ∗ ⌜related_sts_priv_world W W'⌝
                                            ∗ na_own logrel_nais ⊤
-                                           ∗ sts_full fs' fr' ∗ region (fs', fr') }} }}.
+                                           ∗ sts_full_world sts_std W' ∗ region W' }} }}.
 
 End fundamental.
