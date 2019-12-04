@@ -40,7 +40,7 @@ Section fundamental.
           -∗ na_own logrel_nais ⊤
           -∗ ⌜a2 = RX ∨ a2 = RWX ∨ a2 = RWLX⌝
              → □ (∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝
-                                ∧ ([∗ list] a7 ∈ region_addrs a5 a6, read_write_cond a7 p'0 interp
+                                ∧ ([∗ list] a7 ∈ region_addrs a4 a5, read_write_cond a7 p'0 interp
                                                                      ∧ ⌜region_std a0 a7⌝
                                                                      ∧ ⌜if pwl a2
                                                                         then region_state_pwl a0 a7
@@ -53,9 +53,9 @@ Section fundamental.
                                            else region_state_nwl W a0 g⌝)
     -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
     -∗ read_write_cond a p' interp
-    -∗ (if decide (ρ = Temporary ∧ pwl p' = true)
-        then ▷ future_pub_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w
-        else ▷ future_priv_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w)
+    -∗ (▷ if decide (ρ = Temporary ∧ pwl p' = true)
+        then future_pub_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w
+        else future_priv_mono (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), ((fixpoint interp1) Wv.1) Wv.2) w)
     -∗ ▷ ((fixpoint interp1) W) w
     -∗ sts_full_world sts_std W
     -∗ na_own logrel_nais ⊤

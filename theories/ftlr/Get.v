@@ -18,14 +18,13 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*
-  Lemma getL_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (dst r0 : RegName) :
-    ftlr_instr fs fr r p p' g b e a w (cap_lang.GetL dst r0).
+  Lemma getL_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst r0 : RegName) :
+    ftlr_instr W r p p' g b e a w (cap_lang.GetL dst r0) (ρ : region_type).
   Proof.
-    intros Hp Hsome i Hbae Hfp HO Hi.
-    iIntros "#IH #Hbe #Hreg #Harel #Hmono #Hw".
-    iIntros "Hfull Hna Hr Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
     specialize Hsome with dst as Hdst. 
     destruct Hdst as [wdst Hsomesdst].
@@ -105,8 +104,8 @@ Section fundamental.
               + rewrite lookup_insert_ne; auto. }
           (* reestablish invariant *)
           iNext.
-          iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
-          iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+          iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
         + destruct wr0.
           * simpl. iApply wp_pure_step_later; auto.
             iNext. iApply wp_value. iIntros (Hcontr); inversion Hcontr. 
@@ -126,7 +125,7 @@ Section fundamental.
                 do 2 (rewrite -delete_insert_ne; auto).
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto. }
-            iAssert (interp_registers (fs,fr) (if reg_eq_dec r0 dst then <[dst:=inl _]> r else <[r0:=inr (p0, l, a3, a2, a1)]> (<[dst:=inl _]> r))) as "#[% Hreg']".
+            iAssert (interp_registers W (if reg_eq_dec r0 dst then <[dst:=inl _]> r else <[r0:=inr (p0, l, a3, a2, a1)]> (<[dst:=inl _]> r))) as "#[% Hreg']".
             { iSplit.
               - iIntros (r1).
                 iPureIntro. destruct (reg_eq_dec r0 dst).
@@ -151,8 +150,8 @@ Section fundamental.
                       iApply "Hv"; auto. } }
             (* reestablish invariant *)
             iNext.
-            iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
-            iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+            iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
       - iApply (wp_GetL_fail with "[Hr0 HPC Hdst Ha]"); eauto; iFrame.
         iNext. iIntros "(HPC & Ha & Hr0 & Hdst)".
         iApply wp_pure_step_later; auto.
@@ -166,8 +165,9 @@ Section fundamental.
     - apply _.
     - apply _.
     - apply _. 
-  Qed. 
+  Qed.
 
+  (*
   Lemma getP_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (dst r0 : RegName) :
     ftlr_instr fs fr r p p' g b e a w (cap_lang.GetP dst r0).

@@ -48,12 +48,12 @@ Section fundamental.
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
                                              ∧ ⌜region_std W a⌝
                                              ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)) →
-     interp_expression r W (inr ((p,g),b,e,a)))%I.  
+     interp_expression r W (inr ((p,g),b,e,a)))%I.
   Proof.
     iIntros (Hp) "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg [Hr [Hsts Hown]]]]".
     iSplit; eauto; simpl.
-    iRevert (Hp) "Hinv".    
+    iRevert (Hp) "Hinv".
     iLöb as "IH" forall (W r p g b e a).
     iIntros (Hp) "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
@@ -74,31 +74,43 @@ Section fundamental.
         first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
-        iApply (jmp_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (jmp_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Jnz *)
-        iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Mov *)
-        iApply (mov_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (mov_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Load *)
-        iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. 
+      (* iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Store *)
-        iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Lt *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit.
       + (* Add *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* Sub *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* Lea *)
-        iApply (lea_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (lea_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* Restrict *)
-        iApply (restrict_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (restrict_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* Subseg *)
-        iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* IsPtr *) 
-        iApply (isptr_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (isptr_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
+        admit.
       + (* GetL *)
-        iApply (getL_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+        iApply (getL_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetP *)
         iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
       + (* GetB *)
@@ -140,6 +152,5 @@ Section fundamental.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
   Qed.
-    
       
 End fundamental. 
