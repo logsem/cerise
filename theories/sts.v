@@ -133,6 +133,15 @@ Proof.
     apply rtc_once. by left.
 Qed. 
 
+Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
+    rtc (λ a b, R a b) x y →
+    rtc (λ a b, Q a b ∨ R a b) x y.
+  Proof.
+    intros HR. induction HR.
+    - done.
+    - apply rtc_transitive with y; auto.
+      apply rtc_once. by right.
+  Qed.
     
 Section STS.
   Context `{STSG Σ} `{Countable A} `{sts_std : STS_STD A}.
@@ -254,7 +263,55 @@ Section STS.
     intros x y Hx Hy. 
     destruct Hf1;eauto.
     etrans;eauto. 
-  Qed. 
+  Qed.
+
+  (* Helper functions for transitivity of sts pairs *)
+  Lemma related_sts_pub_priv_trans_world W W' W'' :
+    related_sts_pub_world W W' -> related_sts_priv_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_pub_priv_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_pub_priv_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_priv_pub_trans_world W W' W'' :
+    related_sts_priv_world W W' -> related_sts_pub_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_priv_pub_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_priv_pub_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_priv_trans_world W W' W'' :
+    related_sts_priv_world W W' -> related_sts_priv_world W' W'' ->
+    related_sts_priv_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_priv_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_priv_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_pub_trans_world W W' W'' :
+    related_sts_pub_world W W' -> related_sts_pub_world W' W'' ->
+    related_sts_pub_world W W''.
+  Proof.
+    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
+    split. 
+    - apply related_sts_pub_trans with W'.1.1 W'.1.2; auto.
+    - apply related_sts_pub_trans with W'.2.1 W'.2.2; auto.
+  Qed.
+
+  Lemma related_sts_pub_priv_world W W' :
+    related_sts_pub_world W W' -> related_sts_priv_world W W'.
+  Proof.
+    intros [Hstd Hloc].
+    split; apply related_sts_pub_priv; auto.
+  Qed.
 
   Lemma sts_full_rel_std W (i : positive) :
     (sts_full_world sts_std W -∗ sts_rel_std sts_std i -∗

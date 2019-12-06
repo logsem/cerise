@@ -80,48 +80,6 @@ Section monotone.
     destruct (decide (y = countable.encode Temporary)); subst; auto.
     apply std_rel_pub_rtc_Temporary in Hrelated; auto. contradiction. 
   Qed.
-
-  (* Helper functions for transitivity of sts pairs *)
-  (* TODO: move this to the sts file *)
-  Lemma related_sts_pub_priv_trans_world W W' W'' :
-    related_sts_pub_world W W' -> related_sts_priv_world W' W'' ->
-    related_sts_priv_world W W''.
-  Proof.
-    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
-    split. 
-    - apply related_sts_pub_priv_trans with W'.1.1 W'.1.2; auto.
-    - apply related_sts_pub_priv_trans with W'.2.1 W'.2.2; auto.
-  Qed.
-
-  Lemma related_sts_priv_pub_trans_world W W' W'' :
-    related_sts_priv_world W W' -> related_sts_pub_world W' W'' ->
-    related_sts_priv_world W W''.
-  Proof.
-    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
-    split. 
-    - apply related_sts_priv_pub_trans with W'.1.1 W'.1.2; auto.
-    - apply related_sts_priv_pub_trans with W'.2.1 W'.2.2; auto.
-  Qed.
-
-  Lemma related_sts_priv_trans_world W W' W'' :
-    related_sts_priv_world W W' -> related_sts_priv_world W' W'' ->
-    related_sts_priv_world W W''.
-  Proof.
-    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
-    split. 
-    - apply related_sts_priv_trans with W'.1.1 W'.1.2; auto.
-    - apply related_sts_priv_trans with W'.2.1 W'.2.2; auto.
-  Qed.
-
-  Lemma related_sts_pub_trans_world W W' W'' :
-    related_sts_pub_world W W' -> related_sts_pub_world W' W'' ->
-    related_sts_pub_world W W''.
-  Proof.
-    intros [Hpub_std Hpub_loc] [Hpriv_std Hpriv_loc].
-    split. 
-    - apply related_sts_pub_trans with W'.1.1 W'.1.2; auto.
-    - apply related_sts_pub_trans with W'.2.1 W'.2.2; auto.
-  Qed. 
     
   Lemma interp_monotone W W' w :
     (⌜related_sts_pub_world W W'⌝ →
