@@ -671,9 +671,9 @@ Section heap.
            ∗ sts_state_std (countable.encode l) ρ              
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
-           ∗ (if (decide (ρ = Temporary ∧ pwl p = true))
-             then ▷ future_pub_mono φ v
-             else ▷ future_priv_mono φ v)
+           ∗ (▷ if (decide (ρ = Temporary ∧ pwl p = true))
+             then future_pub_mono φ v
+             else future_priv_mono φ v)
            ∗ ▷ φ (W,v).
   Proof.
     iIntros (Hne Htemp) "(Hrel & Hreg & Hfull)".
@@ -689,7 +689,7 @@ Section heap.
     - iDestruct (region_open_perm with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
       iExists _; iFrame.
       rewrite decide_False; auto. intros [Hcontr _]. done.
-  Qed. 
+  Qed.
 
   (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v :
