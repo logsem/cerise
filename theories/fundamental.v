@@ -112,13 +112,17 @@ Section fundamental.
       + (* GetL *)
         iApply (getL_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetP *)
-        iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit. 
       + (* GetB *)
-        iApply (getB_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (getB_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit. 
       + (* GetE *)
-        iApply (getE_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (getE_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit. 
       + (* GetA *)
-        iApply (getA_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.
+      (* iApply (getA_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
+        admit. 
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -128,15 +132,15 @@ Section fundamental.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=". 
-        iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+        iDestruct (region_close _ _ _ _ _ ρ with "[$Hr $Ha $Hstate $Hmono]") as "Hr";[auto|iFrame "#"; auto|].
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
         rewrite insert_insert. iNext. iIntros (_). 
-        iExists (<[PC:=inr (p, g, b, e, a)]> r),fs,_. iFrame.
-        iAssert (⌜related_sts_priv fs fs fr fr⌝)%I as "#Hrefl". 
-        { iPureIntro. apply related_sts_priv_refl. }
+        iExists (<[PC:=inr (p, g, b, e, a)]> r),W. iFrame.
+        iAssert (⌜related_sts_priv_world W W⌝)%I as "#Hrefl". 
+        { iPureIntro. split; apply related_sts_priv_refl. }
         iFrame "#".
         iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, g, b, e, a)]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
@@ -151,6 +155,6 @@ Section fundamental.
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Qed.
+  Admitted. 
       
 End fundamental. 
