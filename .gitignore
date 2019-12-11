@@ -4,5 +4,6 @@
 *.vo.aux
 .*.aux
 *.bak
+prisc-2020/*
 .[ln]ia.cache
 .DS_Store

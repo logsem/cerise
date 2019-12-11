@@ -2759,7 +2759,7 @@ Section logrel.
                            ∃ p, ⌜PermFlows RWLX p⌝ ∗
                                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_pwl W a⌝ ∧ ⌜region_std W a⌝) 
-                                 ∗ □ exec_cond W b e Global RWLX interp
+                                 ∗ □ exec_cond W b e Local RWLX interp
              | _ => False end)%I.
   
   Definition interp1 (interp : D) : D :=

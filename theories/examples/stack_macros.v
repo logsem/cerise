@@ -1,8 +1,8 @@
-From cap_machine Require Import rules logrel fundamental monotone. 
-From cap_machine Require Export addr_reg_sample.
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
+From cap_machine Require Import rules logrel fundamental monotone. 
+From cap_machine Require Export addr_reg_sample.
 
 Section stack_macros.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -972,41 +972,367 @@ Section stack_macros.
      rewrite /region_addrs /region_addrs_zeroes.
      destruct (Z_le_dec a b); last done. 
      iApply region_addrs_zeroes_trans_aux; auto.
+   Qed.
+
+   Fixpoint std_update_temp_multiple W l :=
+     match l with
+     | [] => W
+     | a :: l => std_update (std_update_temp_multiple W l) a Temporary std_rel_pub std_rel_priv
+     end.
+
+   Lemma std_update_temp_multiple_loc_sta W l :
+     (std_update_temp_multiple W l).2.1 = W.2.1.
+   Proof.
+     induction l; auto.
+   Qed.      
+
+   Lemma std_update_temp_multiple_loc_rel W l :
+     (std_update_temp_multiple W l).2.2 = W.2.2.
+   Proof.
+     induction l; auto.
+   Qed.
+
+   Lemma std_update_temp_multiple_swap_head W l a1 a2 :
+     std_update_temp_multiple W (a1 :: a2 :: l) = std_update_temp_multiple W (a2 :: a1 :: l).
+   Proof.
+     induction l.
+     - simpl. destruct (decide (a1 = a2)); subst.
+       + done.
+       + rewrite /std_update.
+         assert (countable.encode a1 ≠ countable.encode a2).
+         { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
+         repeat rewrite (insert_commute _ (countable.encode a1) (countable.encode a2)) ; auto. 
+     - destruct (decide (a1 = a2)); subst;[done|].
+       assert (countable.encode a1 ≠ countable.encode a2).
+       { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
+       simpl. rewrite /std_update. 
+       repeat rewrite (insert_commute _ (countable.encode a1) (countable.encode a2)) ; auto. 
    Qed. 
+       
+   Lemma std_update_temp_multiple_swap W l1 a l2 :
+     std_update_temp_multiple W (l1 ++ a :: l2) = std_update_temp_multiple W (a :: l1 ++ l2).
+   Proof.
+     induction l1; auto.
+     rewrite app_comm_cons std_update_temp_multiple_swap_head /=. 
+     f_equal. auto.
+   Qed.
+
+   Lemma remove_dups_swap_head {A : Type} `{EqDecision A} (a1 a2 : A) (l : list A) :
+     remove_dups (a1 :: a2 :: l) ≡ₚ remove_dups (a2 :: a1 :: l).
+   Proof. 
+     destruct (decide (a1 = a2)); subst; auto.
+     simpl. destruct (decide_rel elem_of a1 (a2 :: l)), (decide_rel elem_of a2 (a1 :: l)).
+     - apply elem_of_cons in e as [Hcontr | Hl];[subst;contradiction|].
+       apply elem_of_cons in e0 as [Hcontr | Hl0];[subst;contradiction|].
+       destruct (decide_rel elem_of a2 l);[|contradiction].
+       destruct (decide_rel elem_of a1 l);[|contradiction].
+       done.
+     - apply elem_of_cons in e as [Hcontr | Hl];[subst;contradiction|].
+       apply not_elem_of_cons in n0 as [Hcontr Hl0]. 
+       destruct (decide_rel elem_of a2 l);[contradiction|].
+       destruct (decide_rel elem_of a1 l);[|contradiction].
+       done.
+     - apply elem_of_cons in e as [Hcontr | Hl];[subst;contradiction|].
+       apply not_elem_of_cons in n0 as [Hcontr Hl0]. 
+       destruct (decide_rel elem_of a2 l);[|contradiction].
+       destruct (decide_rel elem_of a1 l);[contradiction|].
+       done.
+     - apply not_elem_of_cons in n1 as [Hcontr Hl]. 
+       apply not_elem_of_cons in n0 as [Hcontr0 Hl0]. 
+       destruct (decide_rel elem_of a2 l); [contradiction|]. 
+       destruct (decide_rel elem_of a1 l);[contradiction|].
+       rewrite (Permutation_swap a1 a2 (remove_dups l)). done. 
+   Qed. 
+     
+   Lemma remove_dups_swap {A : Type} `{EqDecision A} (l1 : list A) (a : A) (l2 : list A) :
+     remove_dups (l1 ++ a :: l2) ≡ₚremove_dups (a :: l1 ++ l2).
+   Proof.
+     induction l1; auto.
+     rewrite app_comm_cons remove_dups_swap_head (app_comm_cons l1 l2 a) /=.
+     destruct (decide_rel elem_of a0 (l1 ++ a :: l2)).
+     - rewrite decide_True;[|by rewrite Permutation_middle].
+       destruct (decide_rel elem_of a (l1 ++ l2)). 
+       + rewrite IHl1. simpl. rewrite decide_True; auto. 
+       + rewrite IHl1. simpl. rewrite decide_False; auto.
+     - rewrite decide_False;[|by rewrite Permutation_middle]. f_equiv. 
+       destruct (decide_rel elem_of a (l1 ++ l2)). 
+       + rewrite IHl1. simpl. rewrite decide_True; auto. 
+       + rewrite IHl1. simpl. rewrite decide_False; auto.
+   Qed.
+
+   (* TODO: an improvement is to simply apply all these to the removed duplicate version, 
+      this turned out to be a hassle to prove. For now just assume that the list does not have duplicates.... *)
    
-   Lemma region_addrs_zeroes_alloc_aux E (a b : Addr) W p n :
-     p ≠ O → 
+   (* Lemma std_update_temp_multiple_remove_dupls W l : *)
+   (*   std_update_temp_multiple W l = std_update_temp_multiple W (remove_dups l). *)
+   (* Proof. *)
+   (*   induction l; auto. *)
+   (*   simpl. destruct (decide_rel elem_of a l). *)
+   (*   - apply elem_of_list_split in e as [l1 [l2 Heq] ]. *)
+   (*     rewrite Heq std_update_temp_multiple_swap /=.  *)
+   (*     rewrite /std_update insert_insert. rewrite (remove_dups_swap l1 a l2).  *)
+
+   Lemma std_update_temp_multiple_not_in_sta W l (a : Addr) :
+     a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_sta W) ↔
+             (countable.encode a) ∈ dom (gset positive) (std_sta (std_update_temp_multiple W l)). 
+   Proof. 
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
+     split.
+     - intros Hin. simpl. rewrite dom_insert.
+       apply elem_of_union. right. apply IHl; auto. 
+     - simpl. rewrite dom_insert. intros Hin.
+       apply elem_of_union in Hin as [Hcontr | Hin].
+       + apply elem_of_singleton in Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+       + apply IHl; auto.
+   Qed. 
+       
+   Lemma std_update_temp_multiple_not_in_rel W l (a : Addr) :
+     a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_rel W) ↔
+             (countable.encode a) ∈ dom (gset positive) (std_rel (std_update_temp_multiple W l)). 
+   Proof. 
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
+     split.
+     - intros Hin. simpl. rewrite dom_insert.
+       apply elem_of_union. right. apply IHl; auto. 
+     - simpl. rewrite dom_insert. intros Hin.
+       apply elem_of_union in Hin as [Hcontr | Hin].
+       + apply elem_of_singleton in Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+       + apply IHl; auto.
+   Qed. 
+     
+   Lemma related_sts_pub_update_temp_multiple W l :
+     NoDup l →
+     Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W) ∧
+                  (countable.encode a) ∉ dom (gset positive) (std_rel W)) l →
+     related_sts_pub_world W (std_update_temp_multiple W l).
+   Proof.
+     intros Hdup Hforall. induction l.
+     - split; apply related_sts_pub_refl. 
+     - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup]. 
+       apply list.Forall_cons in Hforall as [ [Ha_std Ha_rel] Hforall].
+       eapply related_sts_pub_trans_world;[apply IHl; auto|].
+       apply related_sts_pub_world_fresh; auto. 
+       + intros Hcontr. apply std_update_temp_multiple_not_in_sta in Hcontr; auto. 
+         intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
+       + intros Hcontr. apply std_update_temp_multiple_not_in_rel in Hcontr; auto. 
+         intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
+   Qed.
+
+   Lemma std_update_temp_multiple_lookup W l k y :
+     l !! k = Some y →
+     region_state_pwl (std_update_temp_multiple W l) y ∧ region_std (std_update_temp_multiple W l) y.
+   Proof.
+     intros Helem.
+     apply elem_of_list_lookup_2 in Helem.
+     apply elem_of_list_split in Helem as [l1 [l2 Heq] ].
+     rewrite Heq std_update_temp_multiple_swap /= /std_update. split. 
+     - rewrite /region_state_pwl /std_sta /=. apply lookup_insert.
+     - rewrite /region_std /rel_is_std_i /std_rel /=. apply lookup_insert.
+   Qed. 
+     
+   Lemma std_update_multiple_dom_top_sta W n a :
+     a ≠ top ->
+     countable.encode a ∉ dom (gset positive) (std_sta W) →
+     countable.encode a ∉ dom (gset positive) (std_sta (std_update_temp_multiple W (repeat top n))).
+   Proof.
+     intros Hne Hnin.
+     induction n; auto.
+     simpl. rewrite dom_insert. apply not_elem_of_union.
+     split.
+     + apply not_elem_of_singleton.
+       intros Hcontr. apply encode_inj in Hcontr.
+       subst. done.
+     + apply IHn.
+   Qed.
+
+   Lemma std_update_multiple_dom_top_rel W n a :
+     a ≠ top ->
+     countable.encode a ∉ dom (gset positive) (std_rel W) →
+     countable.encode a ∉ dom (gset positive) (std_rel (std_update_temp_multiple W (repeat top n))).
+   Proof.
+     intros Hne Hnin.
+     induction n; auto.
+     simpl. rewrite dom_insert. apply not_elem_of_union.
+     split.
+     + apply not_elem_of_singleton.
+       intros Hcontr. apply encode_inj in Hcontr.
+       subst. done.
+     + apply IHn.
+   Qed.
+
+   Lemma region_addrs_aux_top n :
+     region_addrs_aux top n = repeat top n.
+   Proof.
+     induction n; auto.
+     simpl. f_equiv. done.
+   Qed. 
+
+   Lemma std_update_multiple_dom_sta_i W n a i :
+     a ≠ top → i > 0 →
+     countable.encode a ∉ dom (gset positive) (std_sta W) →
+     countable.encode a ∉ dom (gset positive) (std_sta (std_update_temp_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n))).
+   Proof.
+     intros Hneq Hgt. 
+     destruct (a + i)%a eqn:Hsome.
+     - simpl.
+       assert (a < a0)%a as Hlt;[by apply next_lt_i with i|].
+       intros Hnin.
+       revert Hlt Hsome. generalize i a0. induction n; auto; intros j a1 Hlt Hsome. 
+       simpl. rewrite dom_insert. apply not_elem_of_union.
+       split.
+       + apply not_elem_of_singleton.
+         intros Hcontr. apply encode_inj in Hcontr.
+         subst. rewrite /lt_addr in Hlt. lia.  
+       + destruct (a1 + 1)%a eqn:Ha2; simpl. 
+         ++ apply IHn with (j + 1). 
+            +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
+            +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
+                assert ((j + 1)%Z = (j + 1)%nat) as <-; auto. lia. 
+         ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
+     - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
+   Qed.
+
+   Lemma std_update_multiple_dom_rel_i W n a i :
+     a ≠ top → i > 0 →
+     countable.encode a ∉ dom (gset positive) (std_rel W) →
+     countable.encode a ∉ dom (gset positive) (std_rel (std_update_temp_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n))).
+   Proof.
+      intros Hneq Hgt. 
+     destruct (a + i)%a eqn:Hsome.
+     - simpl.
+       assert (a < a0)%a as Hlt;[by apply next_lt_i with i|].
+       intros Hnin.
+       revert Hlt Hsome. generalize i a0. induction n; auto; intros j a1 Hlt Hsome. 
+       simpl. rewrite dom_insert. apply not_elem_of_union.
+       split.
+       + apply not_elem_of_singleton.
+         intros Hcontr. apply encode_inj in Hcontr.
+         subst. rewrite /lt_addr in Hlt. lia.  
+       + destruct (a1 + 1)%a eqn:Ha2; simpl. 
+         ++ apply IHn with (j + 1). 
+            +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
+            +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
+                assert ((j + 1)%Z = (j + 1)%nat) as <-; auto. lia. 
+         ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
+     - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
+   Qed.
+
+   Lemma incr_addr_is_Some_weak a n :
+     is_Some (a + S (S n))%a → is_Some (a + (S n))%a.
+   Proof.
+     intros Hsome.
+     rewrite /incr_addr in Hsome. rewrite /incr_addr.
+     destruct (Z_le_dec (a + S (S n))%Z MemNum); inversion Hsome; try discriminate.
+     destruct (Z_le_dec (a + S n)%Z MemNum); eauto.
+     clear H3 x Hsome. lia. 
+   Qed. 
+
+   Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
+     p ≠ O → is_Some (a + (Z.of_nat n))%a →
+     Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W) ∧
+                  (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs_aux a n) →
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
        -∗ region W
-       ={E}=∗ ([∗ list] x ∈ region_addrs_aux a n,
-               read_write_cond x p (fixpoint interp1)) ∗ region W.
-   Proof. 
-     iInduction (n) as [n | n] "IHn" forall (a); first auto. 
-     iIntros (Hne) "Hlist Hr".
-     iDestruct "Hlist" as "[Ha Hlist]".
-     iAssert (interp W (inl 0%Z)) as "#Hav".
-     { rewrite fixpoint_interp1_eq. eauto. }
-     iMod (extend_region E W a p _ (λne Wv, interp Wv.1 Wv.2)
-                    with "[] [] [$Hr] [$Ha] [$Hav]") as "[Hr #Hrel]"; auto.
-     { iAlways. iIntros (W1 W2 v Hrelated) "Hv /=". iApply interp_monotone; eauto. }
-     iFrame "#". iApply ("IHn" $! _ Hne with "[$Hlist] [$Hr]"). 
-     Unshelve.
-     - solve_proper.
-     - apply _. 
-   Qed.      
-     
-   Lemma region_addrs_zeroes_alloc E W (a b : Addr) p :
-     p ≠ O →
-     ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
-       ∗ region W
-     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1)) ∗ region W.
+       -∗ sts_full_world sts_std W
+     ={E}=∗ ([∗ list] x ∈ region_addrs_aux a n, read_write_cond x p (fixpoint interp1))
+         ∗ region (std_update_temp_multiple W (region_addrs_aux a n))
+         ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs_aux a n)).
    Proof.
-     iIntros (Hne) "[Hlist Hr]".
-     iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
-     rewrite /region_addrs.  
-     destruct (Z_le_dec a b); last auto.
-     iMod (region_addrs_zeroes_alloc_aux with "[$Hlist] [$Hr]") as "H"; auto.
+     iInduction (n) as [n | n] "IHn" forall (a W).
+     - simpl. iIntros (_ _ _) "_ Hr Hsts". iFrame. done. 
+     - iIntros (Hne Hnext Hforall) "Hlist Hr Hsts".
+       iDestruct "Hlist" as "[Ha Hlist]".
+       simpl in Hforall.
+       apply list.Forall_cons in Hforall as [ [Hasta Harel] Hforall].
+       destruct (pwl p) eqn:Hpwl. 
+       + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
+         { iIntros (W'). rewrite fixpoint_interp1_eq. eauto. }
+         iMod ("IHn" with "[] [] [] Hlist Hr Hsts") as "(Hlist & Hr & Hsts)"; auto.
+         { iPureIntro.
+           rewrite Nat2Z.inj_succ -Z.add_1_l in Hnext.
+           destruct (a + 1)%a eqn:Hsome.
+           - rewrite (addr_add_assoc a a0) in Hnext; auto.
+           - apply incr_addr_one_none in Hsome. subst.
+             rewrite /incr_addr in Hnext.
+             destruct (Z_le_dec (top + (1 + n))%Z MemNum); inversion Hnext; try discriminate.
+             exfalso. clear Hnext x H3. rewrite /top /= in l. lia. }
+         iFrame. 
+         iMod (extend_region_temp_pwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
+                 with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
+         { apply (std_update_multiple_dom_sta_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_rel_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
+         iFrame. done.
+       + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
+         { iIntros (W'). rewrite fixpoint_interp1_eq. eauto. }
+         iMod ("IHn" with "[] [] [] Hlist Hr Hsts") as "(Hlist & Hr & Hsts)"; auto.
+         { iPureIntro.
+           rewrite Nat2Z.inj_succ -Z.add_1_l in Hnext.
+           destruct (a + 1)%a eqn:Hsome.
+           - rewrite (addr_add_assoc a a0) in Hnext; auto.
+           - apply incr_addr_one_none in Hsome. subst.
+             rewrite /incr_addr in Hnext.
+             destruct (Z_le_dec (top + (1 + n))%Z MemNum); inversion Hnext; try discriminate.
+             exfalso. clear Hnext x H3. rewrite /top /= in l. lia. }
+         iFrame. 
+         iMod (extend_region_temp_nwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
+                 with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
+         { apply (std_update_multiple_dom_sta_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_rel_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
+         iFrame. done.
+   Qed.
+
+   Lemma incr_addr_region_size (a b b': Addr) :
+     (b + 1)%a = Some b' →
+     (a <= b)%a →
+     (a + (region_size a b))%a = Some b'.
+   Proof.
+     intros Hb' Hle.
+     assert (b ≠ top) as Hb.
+     { intros Htop. subst.
+       rewrite /incr_addr in Hb'.
+       destruct (Z_le_dec (top + 1)%Z MemNum); try discriminate. clear Hb'.
+       rewrite /top /= in l. lia. 
+     }
+     apply get_addr_from_option_addr_next with b a b' in Hb' as Hsome; auto.
+     rewrite -Hsome.
+     apply incr_addr_of_z in Hb'. subst.
+     rewrite /incr_addr.
+     destruct (Z_le_dec (a + region_size a b)%Z MemNum).
+     - f_equiv.
+     - exfalso. rewrite /incr_addr in Hb'.
+       destruct (Z_le_dec (a + region_size a b)%Z MemNum); inversion Hb'.
+       + contradiction.
+       + rewrite /region_size/=  in n.
+         rewrite /le_addr in Hle. 
+         rewrite -Zabs2Nat.inj_succ in n;[|lia]. 
+         rewrite Zminus_succ_l -Z.add_1_r H4 in n.
+         lia.
    Qed. 
+     
+   Lemma region_addrs_zeroes_alloc E W (a b b' : Addr) p :
+     p ≠ O → (b + 1)%a = Some b' →
+     Forall (λ a0 : Addr, (countable.encode a0 ∉ dom (gset positive) (std_sta W))
+                          ∧ countable.encode a0 ∉ dom (gset positive) (std_rel W))
+            (region_addrs a b) →
+     ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
+       ∗ region W ∗ sts_full_world sts_std W
+     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1))
+         ∗ region (std_update_temp_multiple W (region_addrs a b))
+         ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs a b)).
+   Proof.
+     iIntros (Hne Hb' Hforall) "[Hlist [Hr Hsts] ]".
+     iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
+     rewrite /region_addrs. rewrite /region_addrs in Hforall.
+     destruct (Z_le_dec a b); last iFrame; auto.
+     iMod (region_addrs_zeroes_alloc_aux with "[$Hlist] [$Hr] [$Hsts]") as "H"; auto.
+     apply incr_addr_region_size with _ _ b' in l; auto. eauto. 
+   Qed.
 
    (* opening a list of invariants all at once *)
    Fixpoint list_names (a : list Addr) : coPset :=
@@ -1109,6 +1435,18 @@ Section stack_macros.
      rewrite /addr_reg.top /= in l. omega. 
    Qed.
 
+   Lemma disjoint_nil_l {A : Type} `{EqDecision A} (a : A) (l2 : list A) :
+     [] ## l2.
+   Proof.
+     apply elem_of_disjoint. intros x Hcontr. inversion Hcontr.
+   Qed.
+
+   Lemma disjoint_nil_r {A : Type} `{EqDecision A} (a : A) (l2 : list A) :
+     l2 ## [].
+   Proof.
+     apply elem_of_disjoint. intros x Hl Hcontr. inversion Hcontr.
+   Qed. 
+   
    Lemma disjoint_cons {A : Type} `{EqDecision A} (a : A) (l1 l2 : list A) :
      a :: l1 ## l2 → a ∉ l2.
    Proof.
@@ -1209,21 +1547,30 @@ Section stack_macros.
        
    Lemma region_addrs_open_aux W l a n p :
      (∃ a', (a + (Z.of_nat n))%a = Some a') →
-     region_addrs_aux a n ## l →
-     open_region_many l W 
+     region_addrs_aux a n ## l ->
+     pwl p = true ->
+     (Forall (λ a, (std_sta W) !! countable.encode a = Some (countable.encode Temporary)) (region_addrs_aux a n)) ->
+     open_region_many l W
+     -∗ sts_full_world sts_std W
      -∗ ([∗ list] a0 ∈ region_addrs_aux a n, read_write_cond a0 p (fixpoint interp1))
      -∗ ([∗ list] a0 ∈ region_addrs_aux a n,
-             (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) W w ∗ ⌜p ≠ O⌝))
-         ∗ open_region_many (region_addrs_aux a n ++ l) W.
+         (∃ w : Word, a0 ↦ₐ[p] w
+                         ∗ ▷ (fixpoint interp1) W w
+                         ∗ ⌜p ≠ O⌝
+                         ∗ ▷ future_pub_mono (λ Wv, (fixpoint interp1) Wv.1 Wv.2) w
+                         ∗ sts_state_std (countable.encode a0) Temporary))
+     ∗ open_region_many (region_addrs_aux a n ++ l) W
+     ∗ sts_full_world sts_std W.
    Proof.
      iInduction (n) as [n | n] "IHn" forall (a l).
-     - iIntros (Hne Hdisj) "Hr #Hinv /=".
+     - iIntros (Hne Hdisj Hpwl Hforall) "Hr Hsts #Hinv /=".
        iFrame. 
-     - iIntros (Hne Hdisj) "Hr #Hinv /=".
+     - iIntros (Hne Hdisj Hpwl Hforall) "Hr Hsts #Hinv /=".
        iDestruct "Hinv" as "[Ha Hinv]".
-       simpl in *. 
-       iDestruct (region_open_next with "[$Ha $Hr]") as (v) "(Hr & Hapt & % & _ & #Hav)".
+       simpl in *.       
+       iDestruct (region_open_next_temp_pwl with "[$Ha $Hr $Hsts]") as (v) "(Hr & Hsts & Hstate & Ha0 & #Hp & #Hmono & Hav)"; auto.
        { by apply disjoint_cons with (region_addrs_aux (get_addr_from_option_addr (a + 1)%a) n). }
+       { apply Forall_inv in Hforall. done. }
        (* apply subseteq_difference_r with _ _ (↑logN.@a) in HleE; auto.  *)
        assert ((∃ a' : Addr, (get_addr_from_option_addr (a + 1) + n)%a = Some a')
                ∨ n = 0) as [Hnen | Hn0].
@@ -1235,7 +1582,7 @@ Section stack_macros.
            destruct (Z_le_dec (a + S n)%Z MemNum),an; inversion Hne.
            subst.
            assert (a + 1 ≤ MemNum)%Z; last contradiction.
-           clear Hne n0 H3 fin Hdisj.
+           clear Hne n0 fin Hdisj Hforall.
            induction n; auto. apply IHn. lia.
          }
          destruct n.
@@ -1250,12 +1597,13 @@ Section stack_macros.
            + f_equal. apply addr_unique. lia.
            + rewrite -Ha' /= in n0. clear Hne. lia.
        }
-       + iDestruct ("IHn" $! _ _ Hnen _ with "Hr Hinv") as "(Hreg & Hr)".
-         iFrame. 
-         iDestruct (open_region_many_swap with "Hr") as "$". 
-         iExists _; iFrame "∗ #". auto. 
+       + apply Forall_cons_1 in Hforall as [Ha Hforall]. 
+         iDestruct ("IHn" $! _ _ Hnen _ Hpwl Hforall with "Hr Hsts Hinv") as "(Hreg & Hr & Hsts)".
+         iFrame "Hreg Hsts". 
+         iDestruct (open_region_many_swap with "Hr") as "$".
+         iExists _; iFrame "∗ #". 
        + rewrite Hn0 /=. iFrame.
-         iSplitL;[|auto]. iExists _; iFrame "∗ #". auto.
+         iExists _; iFrame "∗ #". 
          Unshelve.
          apply disjoint_swap; auto.
          apply not_elem_of_region_addrs_aux; [done|].
@@ -1264,24 +1612,45 @@ Section stack_macros.
          destruct Hne as [a' Ha'].
          rewrite /incr_addr /= in Ha'.
          destruct (Z_le_dec (MemNum + S n)%Z MemNum),a'; inversion Ha'.
-         clear fin Ha' H5. lia. 
+         clear fin Ha' H4. lia. 
    Qed.
 
+   Lemma region_state_pwl_forall_temp W (l : list Addr) (φ : Addr → iProp Σ) :
+     (([∗ list] a ∈ l, φ a ∧ ⌜region_state_pwl W a⌝) -∗
+     ⌜Forall (λ a, (std_sta W) !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I.
+   Proof.
+     iIntros "Hl".
+     iInduction (l) as [|x l] "IH".
+     - done.
+     - iDestruct "Hl" as "[ [_ Ha] Hl]". iDestruct "Ha" as %Ha. 
+       iDestruct ("IH" with "Hl") as %Hforall. 
+       iPureIntro. apply list.Forall_cons.
+       split;auto.
+   Qed. 
 
    Lemma region_addrs_open W l a b p :
      (∃ a', (a + region_size a b)%a = Some a') →
      region_addrs a b ## l →
-     open_region_many l W 
-     -∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1))
+     pwl p = true ->
+     open_region_many l W
+     -∗ sts_full_world sts_std W
+     -∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1)
+                                         ∧ ⌜region_state_pwl W a0⌝)
      -∗ ([∗ list] a0 ∈ region_addrs a b,
-             (∃ w : Word, a0 ↦ₐ[p] w ∗ ▷ (fixpoint interp1) W w ∗ ⌜p ≠ O⌝))
-         ∗ open_region_many (region_addrs a b ++ l) W.
+             (∃ w : Word, a0 ↦ₐ[p] w
+                         ∗ ▷ (fixpoint interp1) W w
+                         ∗ ⌜p ≠ O⌝
+                         ∗ ▷ future_pub_mono (λ Wv, (fixpoint interp1) Wv.1 Wv.2) w
+                         ∗ sts_state_std (countable.encode a0) Temporary))
+     ∗ open_region_many (region_addrs a b ++ l) W
+     ∗ sts_full_world sts_std W.
    Proof.
-     iIntros (Ha' Hdiff) "Hr #Hinv".
-     rewrite /region_addrs in Hdiff.
      rewrite /region_addrs.
+     iIntros (Ha' Hdiff Hpwl) "Hr Hsts #Hinv".
+     iDestruct (region_state_pwl_forall_temp W with "Hinv") as %Hforall. 
      destruct (Z_le_dec a b).
-     - iApply (region_addrs_open_aux with "Hr"); auto.
+     - iApply (region_addrs_open_aux with "Hr Hsts"); auto.
+       iApply (big_sepL_mono with "Hinv"). iIntros (n y Hlookup) "[$ _]". 
      - simpl. iFrame.
    Qed. 
 

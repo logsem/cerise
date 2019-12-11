@@ -438,6 +438,26 @@ Require Import Eqdep_dec List.
     simpl. lia.
   Qed.
 
+  Lemma next_lt_i (a a' : Addr) i :
+    i > 0 →
+    (a + i)%a = Some a' → (a < a')%Z.
+  Proof.
+    rewrite /incr_addr. intros Hgt Ha'.
+    destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
+    simpl. lia.
+  Qed.
+
+  Lemma next_lt_top (a : Addr) i :
+    i > 0 →
+    is_Some (a + i)%a → a ≠ top.
+  Proof.
+    intros Hlt Hsome.
+    intros Heq. subst. destruct Hsome as [x Hcontr].
+    rewrite /incr_addr in Hcontr.
+    destruct ( Z_le_dec (top + i)%Z MemNum); inversion Hcontr.
+    clear Hcontr H0. rewrite /top /= in l. lia.
+  Qed. 
+  
   Lemma addr_next_le (a e e' : Addr) :
     (a ≤ e)%Z → (e + 1)%a = Some e' → ∃ a', (a + 1)%a = Some a'.
   Proof.
@@ -604,8 +624,7 @@ Require Import Eqdep_dec List.
     - rewrite /incr_addr in Hai'.
       destruct (Z_le_dec (a + i)%Z MemNum); inversion Hai'; lia.
   Qed. 
-    
-
+  
   Definition region_addrs_aux_singleton (a : Addr) :
     [a] = region_addrs_aux a 1. Proof. done. Qed. 
 
@@ -629,6 +648,14 @@ Require Import Eqdep_dec List.
    Proof. 
      intros Ha'. rewrite /incr_addr in Ha'.
        by destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
+   Qed.
+
+   Lemma incr_addr_of_z_i (a a' : Addr) i :
+     (a + i)%a = Some a' →
+     (a + i)%Z = a'.
+   Proof. 
+     intros Ha'. rewrite /incr_addr in Ha'.
+       by destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
    Qed. 
 
    Lemma get_addr_from_option_addr_next (a b a' : Addr) :

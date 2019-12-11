@@ -28,7 +28,7 @@ Class STS_STD A :=
     Rpriv : relation A;}. 
 
 Section definitionsS.
-  Context `{STSG Σ} `{Countable A}.
+  Context `{STSG Σ} `{Countable A} `{Countable B}.
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation WORLD := (prodO STS STS). 
   Implicit Types W : WORLD.
@@ -36,17 +36,17 @@ Section definitionsS.
   Definition sts_state_std (i : positive) (x : A) : iProp Σ
     := own (A := sts_stateUR) γs_std (◯ {[ i := Excl (encode x) ]}).
 
-  Definition sts_state_loc (i : positive) (x : A) : iProp Σ
-    := own (A := sts_stateUR) γs_loc (◯ {[ i := Excl (encode x) ]}).
+  Definition sts_state_loc (i : positive) (y : B) : iProp Σ
+    := own (A := sts_stateUR) γs_loc (◯ {[ i := Excl (encode y) ]}).
 
-  Definition convert_rel (R : A → A → Prop) : positive → positive → Prop :=
+  Definition convert_rel {A : Type} `{Countable A} (R : A → A → Prop) : positive → positive → Prop :=
     λ x y, ∃ a b, x = encode a ∧ y = encode b ∧ R a b.
 
   (* for the standard map we will only have the standard sts *)
   Definition sts_rel_std (sts_std : STS_STD A) (i : positive) : iProp Σ :=
-    own (A := sts_relUR) γr_std (◯ {[ i := to_agree ((convert_rel Rpub,convert_rel Rpriv)) ]}).
+    own (A := sts_relUR) γr_std (◯ {[ i := to_agree ((convert_rel (A:=A) Rpub,convert_rel (A:=A) Rpriv)) ]}).
   
-  Definition sts_rel_loc (i : positive) (R : A → A → Prop) (P : A → A → Prop) : iProp Σ :=
+  Definition sts_rel_loc (i : positive) (R : B → B → Prop) (P : B → B → Prop) : iProp Σ :=
     own (A := sts_relUR) γr_loc (◯ {[ i := to_agree ((convert_rel R,convert_rel P)) ]}).
 
   Definition sts_subset (fr : STS_rels) : Prop :=
@@ -58,7 +58,7 @@ Section definitionsS.
             ∗ own (A := sts_relUR) γr (● (to_agree <$> fr)))%I.
   Program Definition sts_full_std `{STSG Σ} (sts_std : STS_STD A) γs γr (fs : STS_states) (fr : STS_rels) : iProp Σ
     := (⌜dom (gset positive) fs ⊆ dom (gset positive) fr⌝
-       ∗ ⌜∀ i, is_Some(fr !! i) → fr !! i = Some (convert_rel Rpub,convert_rel Rpriv)⌝
+       ∗ ⌜∀ (i : positive), is_Some(fr !! i) → fr !! i = Some (convert_rel (A:=A) Rpub,convert_rel (A:=A) Rpriv)⌝
        ∗ own (A := sts_stateUR) γs (● (Excl <$> fs))
        ∗ own (A := sts_relUR) γr (● (to_agree <$> fr)))%I.
   Program Definition sts_full_world `{STSG Σ} (sts_std : STS_STD A) W : iProp Σ :=
@@ -144,12 +144,14 @@ Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
   Qed.
     
 Section STS.
-  Context `{STSG Σ} `{Countable A} `{sts_std : STS_STD A}.
+  Context `{STSG Σ} `{Countable A} `{sts_std : STS_STD A} `{Countable B}.
   Implicit Types x y : positive.
-  Implicit Types a b : A.
+  Implicit Types a : A.
+  Implicit Types b : B. 
   Implicit Types fs gs : STS_states.
   Implicit Types fr_pub fr_priv gr_pub gr_priv : STS_rels.
-  Implicit Types R Q : A → A → Prop.
+  Implicit Types R : A → A → Prop.
+  Implicit Types Q : B → B → Prop. 
   Implicit Types Rp : positive → positive → Prop.
 
   Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
@@ -186,13 +188,13 @@ Section STS.
     rewrite /related_sts_pub /related_sts_priv. 
     intros [Hf1 [Hf2 Hf3]].
     do 2 (split; auto). intros. 
-    specialize (Hf3 i r1 r2 r1' r2' H1 H2) as (Hr1 & Hr2 & Hrtc); auto.
+    specialize (Hf3 i r1 r2 r1' r2' H2 H3) as (Hr1 & Hr2 & Hrtc); auto.
     subst. repeat (split;auto). intros.
-    specialize (Hrtc x y H3 H4). 
+    specialize (Hrtc x y H4 H5). 
     inversion Hrtc.
     - left.
     - right with y0; auto.
-      apply rtc_or_intro. apply H6.
+      apply rtc_or_intro. apply H7. 
   Qed. 
 
   Lemma related_sts_pub_trans fs fr gs gr hs hr :
@@ -336,8 +338,8 @@ Section STS.
     by rewrite Hz'.  
   Qed.
 
-  Lemma sts_full_rel_loc W i R P :
-    sts_full_world sts_std W -∗ sts_rel_loc i R P -∗ ⌜W.2.2 !! i = Some (convert_rel R,convert_rel P)⌝.
+  Lemma sts_full_rel_loc W i Q P :
+    sts_full_world sts_std W -∗ sts_rel_loc i Q P -∗ ⌜W.2.2 !! i = Some (convert_rel Q,convert_rel P)⌝.
   Proof.
     rewrite /sts_rel_loc /sts_full_world /sts_full.
     destruct W as [Wstd [fs fr]].
@@ -377,8 +379,8 @@ Section STS.
     apply leibniz_equiv in HR; simplify_eq; eauto.
   Qed.
 
-  Lemma sts_full_state_loc W i a :
-    sts_full_world sts_std W -∗ sts_state_loc i a -∗ ⌜W.2.1 !! i = Some (encode a)⌝.
+  Lemma sts_full_state_loc W i b :
+    sts_full_world sts_std W -∗ sts_state_loc i b -∗ ⌜W.2.1 !! i = Some (encode b)⌝.
   Proof.
     rewrite /sts_full_world /sts_full /sts_state_loc.
     (* iIntros "[% [H1 _]] H2". *)
@@ -467,7 +469,7 @@ Section STS.
       destruct (decide (fresh (dom (gset positive) fs ∪ dom (gset positive) fr) = i)).
       + subst. rewrite lookup_insert. auto.
       + rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne in Hx; auto.
-        apply H2. eauto.       
+        apply H3. eauto.       
   Qed.
 
   Lemma sts_alloc_std_i W i a :
@@ -496,7 +498,7 @@ Section STS.
       auto. }
     destruct (decide (i ∈ dom (gset positive) fr)). 
     - (* i is already in the domain of fr. We know from sts_full_world that it must map to std_sts *)
-      apply elem_of_dom,H2 in e.
+      apply elem_of_dom,H3 in e.
       iFrame. iSplitR;[|iSplitR]. 
       + iModIntro. iPureIntro. do 2 rewrite dom_insert_L.
         apply union_mono_l. auto.
@@ -504,7 +506,7 @@ Section STS.
         destruct (decide (i0 = i)).
         * subst. rewrite lookup_insert. auto.
         * rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne in Hx; auto.
-          apply H2. eauto.
+          apply H3. eauto.
       + rewrite (insert_id fr i (convert_rel Rpub, convert_rel Rpriv)); auto.
     - iMod (own_update
             (A := sts_relUR)
@@ -526,14 +528,14 @@ Section STS.
       destruct (decide (i0 = i)).
         * subst. rewrite lookup_insert. auto.
         * rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne in Hx; auto.
-          apply H2. eauto.
+          apply H3. eauto.
   Qed.
 
-  Lemma sts_alloc_loc W a R P:
+  Lemma sts_alloc_loc W b Q P:
     sts_full_world sts_std W ==∗
-             ∃ i, sts_full_world sts_std (W.1,((<[i := encode a ]>W.2.1),(<[i := (convert_rel R,convert_rel P) ]>W.2.2)))
+             ∃ i, sts_full_world sts_std (W.1,((<[i := encode b ]>W.2.1),(<[i := (convert_rel Q,convert_rel P) ]>W.2.2)))
                   ∗ ⌜i ∉ dom (gset positive) W.2.1⌝ ∗ ⌜i ∉ dom (gset positive) W.2.2⌝
-                  ∗ sts_state_loc i a ∗ sts_rel_loc i R P.
+                  ∗ sts_state_loc i b ∗ sts_rel_loc i Q P.
   Proof.
     rewrite /sts_full_world /sts_full /sts_rel_loc /sts_state_loc.
     (* iIntros "[Hd [H1 H2]]". *)
@@ -543,13 +545,13 @@ Section STS.
     assert (fresh (dom (gset positive) fs ∪ dom (gset positive) fr) ∉
                     (dom (gset positive) fs ∪ dom (gset positive) fr)).
     { apply is_fresh. }
-    apply not_elem_of_union in H1 as [Hfs Hfr]. 
+    apply not_elem_of_union in H2 as [Hfs Hfr]. 
     iMod (own_update
             (A := sts_stateUR)
             _ _
             (● (Excl <$>
-                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := encode a]> fs)
-            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := Excl (encode a)]})
+                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := encode b]> fs)
+            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := Excl (encode b)]})
             with "H1") as "[H1 Hs]".
     { apply auth_update_alloc.
       rewrite fmap_insert /=.
@@ -561,8 +563,8 @@ Section STS.
             (A := sts_relUR)
             _ _
             (● (to_agree <$>
-                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := (convert_rel R,convert_rel P)]> fr)
-            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := to_agree (convert_rel R,convert_rel P)]})
+                <[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := (convert_rel Q,convert_rel P)]> fr)
+            ⋅ ◯ {[fresh (dom (gset positive) fs ∪ dom (gset positive) fr) := to_agree (convert_rel Q,convert_rel P)]})
             with "H2") as "[H2 Hr]".
     { apply auth_update_alloc.
       rewrite fmap_insert /=.
@@ -575,9 +577,9 @@ Section STS.
     repeat iSplit; auto. 
   Qed.
 
-  Lemma sts_update_std W i a b :
+  Lemma sts_update_std W i a a' :
     sts_full_world sts_std W -∗ sts_state_std i a ==∗
-    sts_full_world sts_std (((<[i := encode b ]>W.1.1),W.1.2),W.2) ∗ sts_state_std i b.
+    sts_full_world sts_std (((<[i := encode a' ]>W.1.1),W.1.2),W.2) ∗ sts_state_std i a'.
   Proof.
     iIntros "Hsf Hi".
     iDestruct (sts_full_state_std with "Hsf Hi") as %Hfs.
@@ -587,8 +589,8 @@ Section STS.
     iCombine "H1" "Hi" as "H1".
     iMod (own_update (A := sts_stateUR)
             _ _
-            (● (<[i := Excl (encode b)]> (Excl <$> fs))
-               ⋅ ◯ {[i := Excl (encode b)]})
+            (● (<[i := Excl (encode a')]> (Excl <$> fs))
+               ⋅ ◯ {[i := Excl (encode a')]})
             with "H1") as "[H1 Hs]".
     { apply auth_update.
       apply: singleton_local_update; eauto.
@@ -601,9 +603,9 @@ Section STS.
     apply elem_of_subseteq_singleton. apply elem_of_gmap_dom. eauto. 
   Qed.
 
-  Lemma sts_update_loc W i a b :
-    sts_full_world sts_std W -∗ sts_state_loc i a ==∗
-    sts_full_world sts_std (W.1,((<[i := encode b ]>W.2.1),W.2.2)) ∗ sts_state_loc i b.
+  Lemma sts_update_loc W i b b' :
+    sts_full_world sts_std W -∗ sts_state_loc i b ==∗
+    sts_full_world sts_std (W.1,((<[i := encode b' ]>W.2.1),W.2.2)) ∗ sts_state_loc i b'.
   Proof.
     iIntros "Hsf Hi".
     iDestruct (sts_full_state_loc with "Hsf Hi") as %Hfs.
@@ -613,8 +615,8 @@ Section STS.
     iCombine "H1" "Hi" as "H1".
     iMod (own_update (A := sts_stateUR)
             _ _
-            (● (<[i := Excl (encode b)]> (Excl <$> fs))
-               ⋅ ◯ {[i := Excl (encode b)]})
+            (● (<[i := Excl (encode b')]> (Excl <$> fs))
+               ⋅ ◯ {[i := Excl (encode b')]})
             with "H1") as "[H1 Hs]".
     { apply auth_update.
       apply: singleton_local_update; eauto.

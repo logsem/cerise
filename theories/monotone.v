@@ -80,6 +80,19 @@ Section monotone.
     destruct (decide (y = countable.encode Temporary)); subst; auto.
     apply std_rel_pub_rtc_Temporary in Hrelated; auto. contradiction. 
   Qed.
+
+  
+
+  
+  (* Lemma read_cond_monotone W W' l p g : *)
+  (*   (⌜related_sts_pub_world W W'⌝ → *)
+  (*   ([∗ list] a ∈ l, read_write_cond a p interp *)
+  (*                    ∧ ⌜region_std W'' a⌝ *)
+  (*                    ∧ ⌜if pwl p then region_state_pwl W'' a else region_state_nwl W'' a g⌝) → *)
+  (*   ([∗ list] a ∈ l, read_write_cond a1 p interp *)
+  (*                    ∧ ⌜region_std W'' a⌝ *)
+  (*                    ∧ ⌜if pwl p then region_state_pwl W'' a else region_state_nwl W'' a g⌝) → *)
+    
     
   Lemma interp_monotone W W' w :
     (⌜related_sts_pub_world W W'⌝ →
