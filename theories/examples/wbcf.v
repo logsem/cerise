@@ -739,7 +739,7 @@ Section wbcf.
           iFrame. iPureIntro.
           apply std_update_temp_multiple_lookup with W _ _ _ in Hsome as [Hpwl Hstd]. 
           split.
-          ++ apply related_sts_rel_std with W'; auto.
+          ++ apply related_sts_rel_std with W'; auto. apply related_sts_pub_priv_world. auto.
           ++ simpl. apply region_state_pwl_monotone with W'; auto. 
       - (* continuation *)
         iIntros (_). 
