@@ -192,9 +192,9 @@ Section monotone.
         apply related_sts_pub_priv_world; auto. }
       iAlways. iIntros (a' r W'' Hin).
       iIntros (Hrelated').
-      iAssert (future_world Global W W'')%I as "Hrelated".
+      iAssert (future_world Local W W'')%I as "Hrelated".
       { iPureIntro.
-        apply related_sts_pub_priv_trans_world with W'; auto.
+        apply related_sts_pub_trans_world with W'; auto.
       }
       iSpecialize ("Hexec" $! a' r W'' Hin with "Hrelated").
       iFrame.
