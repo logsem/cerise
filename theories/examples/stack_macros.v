@@ -1060,18 +1060,6 @@ Section stack_macros.
        + rewrite IHl1. simpl. rewrite decide_False; auto.
    Qed.
 
-   (* TODO: an improvement is to simply apply all these to the removed duplicate version, 
-      this turned out to be a hassle to prove. For now just assume that the list does not have duplicates.... *)
-   
-   (* Lemma std_update_temp_multiple_remove_dupls W l : *)
-   (*   std_update_temp_multiple W l = std_update_temp_multiple W (remove_dups l). *)
-   (* Proof. *)
-   (*   induction l; auto. *)
-   (*   simpl. destruct (decide_rel elem_of a l). *)
-   (*   - apply elem_of_list_split in e as [l1 [l2 Heq] ]. *)
-   (*     rewrite Heq std_update_temp_multiple_swap /=.  *)
-   (*     rewrite /std_update insert_insert. rewrite (remove_dups_swap l1 a l2).  *)
-
    Lemma std_update_temp_multiple_not_in_sta W l (a : Addr) :
      a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_sta W) ↔
              (countable.encode a) ∈ dom (gset positive) (std_sta (std_update_temp_multiple W l)). 
@@ -1112,7 +1100,7 @@ Section stack_macros.
    Proof.
      intros Hdup Hforall. induction l.
      - split; apply related_sts_pub_refl. 
-     - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup]. 
+     - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup].
        apply list.Forall_cons in Hforall as [ [Ha_std Ha_rel] Hforall].
        eapply related_sts_pub_trans_world;[apply IHl; auto|].
        apply related_sts_pub_world_fresh; auto. 
@@ -1172,14 +1160,14 @@ Section stack_macros.
    Qed. 
 
    Lemma std_update_multiple_dom_sta_i W n a i :
-     a ≠ top → i > 0 →
+     a ≠ top → (i > 0)%Z →
      countable.encode a ∉ dom (gset positive) (std_sta W) →
      countable.encode a ∉ dom (gset positive) (std_sta (std_update_temp_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n))).
    Proof.
      intros Hneq Hgt. 
      destruct (a + i)%a eqn:Hsome.
      - simpl.
-       assert (a < a0)%a as Hlt;[by apply next_lt_i with i|].
+       assert (a < a0)%a as Hlt;[apply next_lt_i with i; auto|].
        intros Hnin.
        revert Hlt Hsome. generalize i a0. induction n; auto; intros j a1 Hlt Hsome. 
        simpl. rewrite dom_insert. apply not_elem_of_union.
@@ -1188,16 +1176,15 @@ Section stack_macros.
          intros Hcontr. apply encode_inj in Hcontr.
          subst. rewrite /lt_addr in Hlt. lia.  
        + destruct (a1 + 1)%a eqn:Ha2; simpl. 
-         ++ apply IHn with (j + 1). 
+         ++ apply IHn with (j + 1)%Z. 
             +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
             +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
-                assert ((j + 1)%Z = (j + 1)%nat) as <-; auto. lia. 
          ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
      - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
    Qed.
 
    Lemma std_update_multiple_dom_rel_i W n a i :
-     a ≠ top → i > 0 →
+     a ≠ top → (i > 0)%Z →
      countable.encode a ∉ dom (gset positive) (std_rel W) →
      countable.encode a ∉ dom (gset positive) (std_rel (std_update_temp_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n))).
    Proof.
@@ -1213,10 +1200,9 @@ Section stack_macros.
          intros Hcontr. apply encode_inj in Hcontr.
          subst. rewrite /lt_addr in Hlt. lia.  
        + destruct (a1 + 1)%a eqn:Ha2; simpl. 
-         ++ apply IHn with (j + 1). 
+         ++ apply IHn with (j + 1)%Z. 
             +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
             +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
-                assert ((j + 1)%Z = (j + 1)%nat) as <-; auto. lia. 
          ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
      - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
    Qed.
@@ -1232,7 +1218,7 @@ Section stack_macros.
    Qed. 
 
    Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
-     p ≠ O → is_Some (a + (Z.of_nat n))%a →
+     p ≠ O → is_Some (a + (Z.of_nat n - 1))%a →
      Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W) ∧
                   (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs_aux a n) →
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
@@ -1251,72 +1237,62 @@ Section stack_macros.
        destruct (pwl p) eqn:Hpwl. 
        + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
          { iIntros (W'). rewrite fixpoint_interp1_eq. eauto. }
+         (* if n is 0 we do not need to use IH *)
+         destruct n.
+         { simpl. iFrame. 
+           iMod (extend_region_temp_pwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
+                 with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
+           { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
+           iFrame. done.
+         }         
          iMod ("IHn" with "[] [] [] Hlist Hr Hsts") as "(Hlist & Hr & Hsts)"; auto.
          { iPureIntro.
            rewrite Nat2Z.inj_succ -Z.add_1_l in Hnext.
            destruct (a + 1)%a eqn:Hsome.
-           - rewrite (addr_add_assoc a a0) in Hnext; auto.
+           - rewrite Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r. 
+             rewrite Z.add_simpl_l Nat2Z.inj_succ -Z.add_1_r Z.add_comm (addr_add_assoc a a0) in Hnext; auto. 
            - apply incr_addr_one_none in Hsome. subst.
-             rewrite /incr_addr in Hnext.
-             destruct (Z_le_dec (top + (1 + n))%Z MemNum); inversion Hnext; try discriminate.
+             rewrite /incr_addr Z.add_simpl_l Nat2Z.inj_succ -Z.add_1_r in Hnext.
+             destruct (Z_le_dec (top + (n + 1))%Z MemNum); inversion Hnext; try discriminate.
              exfalso. clear Hnext x H3. rewrite /top /= in l. lia. }
-         iFrame. 
+         iFrame. rewrite Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r in Hnext.
          iMod (extend_region_temp_pwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
                  with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
-         { apply (std_update_multiple_dom_sta_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
-         { apply (std_update_multiple_dom_rel_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_sta_i _ (S n) _ 1); auto;[|lia]. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_rel_i _ (S n) _ 1); auto;[|lia]. apply next_lt_top with (S n); auto. lia. }
          { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
          iFrame. done.
        + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
          { iIntros (W'). rewrite fixpoint_interp1_eq. eauto. }
+         (* if n is 0 we do not need to use IH *)
+         destruct n.
+         { simpl. iFrame. 
+           iMod (extend_region_temp_nwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
+                 with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
+           { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
+           iFrame. done.
+         }         
          iMod ("IHn" with "[] [] [] Hlist Hr Hsts") as "(Hlist & Hr & Hsts)"; auto.
          { iPureIntro.
            rewrite Nat2Z.inj_succ -Z.add_1_l in Hnext.
            destruct (a + 1)%a eqn:Hsome.
-           - rewrite (addr_add_assoc a a0) in Hnext; auto.
+           - rewrite Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r. 
+             rewrite Z.add_simpl_l Nat2Z.inj_succ -Z.add_1_r Z.add_comm (addr_add_assoc a a0) in Hnext; auto. 
            - apply incr_addr_one_none in Hsome. subst.
-             rewrite /incr_addr in Hnext.
-             destruct (Z_le_dec (top + (1 + n))%Z MemNum); inversion Hnext; try discriminate.
+             rewrite /incr_addr Z.add_simpl_l Nat2Z.inj_succ -Z.add_1_r in Hnext.
+             destruct (Z_le_dec (top + (n + 1))%Z MemNum); inversion Hnext; try discriminate.
              exfalso. clear Hnext x H3. rewrite /top /= in l. lia. }
-         iFrame. 
+         iFrame. rewrite Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r in Hnext.
          iMod (extend_region_temp_nwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
                  with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
-         { apply (std_update_multiple_dom_sta_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
-         { apply (std_update_multiple_dom_rel_i _ n _ 1); auto. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_sta_i _ (S n) _ 1); auto;[|lia]. apply next_lt_top with (S n); auto. lia. }
+         { apply (std_update_multiple_dom_rel_i _ (S n) _ 1); auto;[|lia]. apply next_lt_top with (S n); auto. lia. }
          { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
          iFrame. done.
    Qed.
-
-   Lemma incr_addr_region_size (a b b': Addr) :
-     (b + 1)%a = Some b' →
-     (a <= b)%a →
-     (a + (region_size a b))%a = Some b'.
-   Proof.
-     intros Hb' Hle.
-     assert (b ≠ top) as Hb.
-     { intros Htop. subst.
-       rewrite /incr_addr in Hb'.
-       destruct (Z_le_dec (top + 1)%Z MemNum); try discriminate. clear Hb'.
-       rewrite /top /= in l. lia. 
-     }
-     apply get_addr_from_option_addr_next with b a b' in Hb' as Hsome; auto.
-     rewrite -Hsome.
-     apply incr_addr_of_z in Hb'. subst.
-     rewrite /incr_addr.
-     destruct (Z_le_dec (a + region_size a b)%Z MemNum).
-     - f_equiv.
-     - exfalso. rewrite /incr_addr in Hb'.
-       destruct (Z_le_dec (a + region_size a b)%Z MemNum); inversion Hb'.
-       + contradiction.
-       + rewrite /region_size/=  in n.
-         rewrite /le_addr in Hle. 
-         rewrite -Zabs2Nat.inj_succ in n;[|lia]. 
-         rewrite Zminus_succ_l -Z.add_1_r H4 in n.
-         lia.
-   Qed. 
      
-   Lemma region_addrs_zeroes_alloc E W (a b b' : Addr) p :
-     p ≠ O → (b + 1)%a = Some b' →
+   Lemma region_addrs_zeroes_alloc E W (a b : Addr) p :
+     p ≠ O → 
      Forall (λ a0 : Addr, (countable.encode a0 ∉ dom (gset positive) (std_sta W))
                           ∧ countable.encode a0 ∉ dom (gset positive) (std_rel W))
             (region_addrs a b) →
@@ -1326,12 +1302,12 @@ Section stack_macros.
          ∗ region (std_update_temp_multiple W (region_addrs a b))
          ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs a b)).
    Proof.
-     iIntros (Hne Hb' Hforall) "[Hlist [Hr Hsts] ]".
+     iIntros (Hne Hforall) "[Hlist [Hr Hsts] ]".
      iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist".
      rewrite /region_addrs. rewrite /region_addrs in Hforall.
      destruct (Z_le_dec a b); last iFrame; auto.
      iMod (region_addrs_zeroes_alloc_aux with "[$Hlist] [$Hr] [$Hsts]") as "H"; auto.
-     apply incr_addr_region_size with _ _ b' in l; auto. eauto. 
+     apply incr_addr_region_size in l; auto. eauto. 
    Qed.
 
    (* opening a list of invariants all at once *)

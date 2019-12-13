@@ -438,8 +438,8 @@ Require Import Eqdep_dec List.
     simpl. lia.
   Qed.
 
-  Lemma next_lt_i (a a' : Addr) i :
-    i > 0 →
+  Lemma next_lt_i (a a' : Addr) (i : Z) :
+    (i > 0)%Z →
     (a + i)%a = Some a' → (a < a')%Z.
   Proof.
     rewrite /incr_addr. intros Hgt Ha'.
@@ -447,8 +447,17 @@ Require Import Eqdep_dec List.
     simpl. lia.
   Qed.
 
+  Lemma next_le_i (a a' : Addr) (i : Z) :
+    (i >= 0)%Z →
+    (a + i)%a = Some a' → (a <= a')%Z.
+  Proof.
+    rewrite /incr_addr. intros Hgt Ha'.
+    destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
+    simpl. lia.
+  Qed.
+
   Lemma next_lt_top (a : Addr) i :
-    i > 0 →
+    (i > 0)%Z →
     is_Some (a + i)%a → a ≠ top.
   Proof.
     intros Hlt Hsome.
@@ -631,6 +640,17 @@ Require Import Eqdep_dec List.
   Definition region_addrs_zeroes (b e : Addr) : list Word :=
     if Z_le_dec b e then (repeat (inl 0%Z) (region_size b e)) else nil.
 
+  Lemma region_addrs_zeroes_lookup (b e : Addr) i y :
+    region_addrs_zeroes b e !! i = Some y → y = inl 0%Z.
+  Proof.
+    rewrite /region_addrs_zeroes.
+    destruct (Z_le_dec b e).
+    - intros Hlookup. apply repeat_spec with (region_size b e).
+      apply elem_of_list_In.
+      by apply elem_of_list_lookup_2 with i. 
+    - intro Hcontr; inversion Hcontr.
+  Qed. 
+
   Lemma region_size_split (a b e a' : Addr) :
      (b ≤ a < e)%Z →
      (a + 1)%Z = a' →
@@ -675,8 +695,69 @@ Require Import Eqdep_dec List.
      - f_equal. by apply addr_unique.
      - rewrite H0 /= in n.
        apply Z.leb_nle in n. congruence.
+   Qed.
+
+   Lemma get_addr_from_option_addr_region_size (a b : Addr) :
+     (b ≤ a)%Z →
+     (get_addr_from_option_addr (b + (region_size b a - 1))%a = a)%a.
+   Proof.
+     intros Hle.
+     rewrite /region_size /= Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r.
+     destruct (b + Z.abs_nat (a - b))%a eqn:Hsome.
+     - rewrite /incr_addr in Hsome.
+       destruct (Z_le_dec (b + Z.abs_nat (a - b))%Z MemNum); inversion Hsome.
+       destruct a; simpl. apply z_of_eq. simpl in *. clear H0 Hsome l a0.
+       lia.
+     - rewrite /incr_addr in Hsome.
+       destruct (Z_le_dec (b + Z.abs_nat (a - b))%Z MemNum); inversion Hsome. exfalso.
+       clear Hsome. destruct a,b; simpl in *. apply Z.leb_le in fin0. apply Z.leb_le in fin.
+       lia. 
    Qed. 
-     
+
+   Lemma incr_addr_region_size_next (a b b': Addr) :
+     (b + 1)%a = Some b' →
+     (a <= b)%a →
+     (a + (region_size a b))%a = Some b'.
+   Proof.
+     intros Hb' Hle.
+     assert (b ≠ top) as Hb.
+     { intros Htop. subst.
+       rewrite /incr_addr in Hb'.
+       destruct (Z_le_dec (top + 1)%Z MemNum); try discriminate. clear Hb'.
+       rewrite /top /= in l. lia. 
+     }
+     apply get_addr_from_option_addr_next with b a b' in Hb' as Hsome; auto.
+     rewrite -Hsome.
+     apply incr_addr_of_z in Hb'. subst.
+     rewrite /incr_addr.
+     destruct (Z_le_dec (a + region_size a b)%Z MemNum).
+     - f_equiv.
+     - exfalso. rewrite /incr_addr in Hb'.
+       destruct (Z_le_dec (a + region_size a b)%Z MemNum); inversion Hb'.
+       + contradiction.
+       + rewrite /region_size/=  in n.
+         rewrite /le_addr in Hle. 
+         rewrite -Zabs2Nat.inj_succ in n;[|lia]. 
+         rewrite Zminus_succ_l -Z.add_1_r H0 in n.
+         lia.
+   Qed.
+
+   Lemma incr_addr_region_size (a b : Addr) :
+     (a <= b)%a →
+     (a + (region_size a b - 1))%a = Some b.
+   Proof.
+     intros Hle.
+     apply get_addr_from_option_addr_region_size in Hle.
+     rewrite /incr_addr. rewrite /incr_addr in Hle. 
+     destruct (Z_le_dec (a + (region_size a b - 1))%Z MemNum).
+     - simpl in *. f_equiv. done. 
+     - exfalso.
+       destruct a,b; simpl in *.
+       rewrite /top in Hle. inversion Hle; subst.
+       apply Z.leb_le in fin as Hle'. rewrite /region_size /= in n.
+       lia. 
+   Qed.
+   
    Lemma region_addrs_aux_contiguous a n i ai aj :
      region_addrs_aux a n !! i = Some ai
      → (a + n + 1 < MemNum)%Z
@@ -695,6 +776,72 @@ Require Import Eqdep_dec List.
          apply Z.lt_trans with (a + n + 1)%Z; [lia|done].          
        } congruence.
    Qed.
+
+   Lemma region_addrs_not_elem_of a n :
+     forall a', (a < a')%a -> a ∉ (region_addrs_aux a' n).
+   Proof.
+     induction n. 
+     - intros a' Ha'. apply not_elem_of_nil.
+     - intros a' Ha'. apply not_elem_of_cons.
+       split.
+       + intros Hcontr; subst. rewrite /lt_addr in Ha'. lia.
+       + apply IHn. rewrite /lt_addr in Ha'. rewrite /lt_addr.
+         destruct (a' + 1)%a eqn:Hsome; simpl.
+         ++ apply next_lt in Hsome. lia.
+         ++ destruct a,a'. simpl in *. apply Z.leb_le in fin0 as Hle. lia. 
+   Qed. 
+
+   Lemma region_addrs_aux_NoDup a n :
+     is_Some (a + (Z.of_nat n - 1))%a →
+     NoDup (region_addrs_aux a n).
+   Proof.
+     generalize a. clear a. induction n; intros a Hsome. 
+     - apply NoDup_nil.
+     - apply NoDup_cons.
+       + intros Hin. apply elem_of_list_In in Hin.
+         destruct n. { inversion Hin. }
+         assert (a < top)%a as Hlt.
+         { destruct Hsome as [x Hx]. apply next_lt_i in Hx;[|lia].
+           rewrite /lt_addr. destruct a,x; simpl in *. apply Z.leb_le in fin0 as Hle. lia.
+         }
+         assert (a < (get_addr_from_option_addr (a + 1)%a))%a as Hlt2.
+         { destruct (a + 1)%a eqn:Hnext.
+           - apply next_lt in Hnext. simpl. auto. 
+           - simpl. done. 
+         }
+         apply region_addrs_not_elem_of with _ (S n) _ in Hlt2. contradiction. 
+       + destruct n; [apply NoDup_nil|].
+         apply IHn.
+         destruct Hsome as [x Hx].
+         rewrite Nat2Z.inj_succ -Z.add_1_r in Hx.
+         assert (n + 1 > 0)%Z as Hgt;[lia|].
+         rewrite Z.add_simpl_r Nat2Z.inj_succ -Z.add_1_r in Hx. 
+         apply (next_lt_i a x (n + 1) Hgt) in Hx as Hlt.
+         exists x. destruct (a + 1)%a eqn:some.
+         ++ simpl.
+            apply incr_addr_of_z in some.
+            apply incr_addr_of_z_i in Hx as Ha. 
+            rewrite /incr_addr.
+            destruct x; simpl in *. apply Z.leb_le in fin as Hle.
+            assert (a0 + n <= MemNum)%Z as Hle0;[lia|].
+            assert (S n - 1 = n)%Z as ->;[lia|]. 
+            destruct (Z_le_dec (a0 + n)%Z MemNum);[|contradiction].
+            assert (a0 + n = z)%Z as Heq;[lia|]. 
+            subst. f_equiv. apply z_of_eq. done. 
+         ++ exfalso. apply incr_addr_one_none in some.
+            rewrite /top /= in some.
+            destruct x; simpl in *. apply Z.leb_le in fin as Hle. 
+            subst. simpl in *. lia.
+   Qed.
+   
+   Lemma region_addrs_NoDup a b :     
+     NoDup (region_addrs a b).
+   Proof.
+     rewrite /region_addrs. destruct (Z_le_dec a b).
+     - apply region_addrs_aux_NoDup.
+       rewrite incr_addr_region_size; eauto.
+     - apply NoDup_nil.
+   Qed. 
 
     Lemma big_sepL2_app'
          (PROP : bi) (A B : Type) (Φ : nat → A → B → PROP) (l1 l2 : list A) 

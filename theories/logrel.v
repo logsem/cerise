@@ -963,6 +963,18 @@ Section heap.
     apply revoke_list_lookup_Some. 
   Qed.
 
+  Lemma revoke_lookup_None W (i : positive) :
+    (std_sta W) !! i = None <-> (std_sta (revoke W)) !! i = None.
+  Proof.
+    split.
+    - intros Hnone. apply eq_None_not_Some.
+      intros Hcontr. apply revoke_lookup_Some in Hcontr.
+      apply eq_None_not_Some in Hcontr; auto.
+    - intros Hnone. apply eq_None_not_Some.
+      intros Hcontr. apply revoke_lookup_Some in Hcontr.
+      apply eq_None_not_Some in Hcontr; auto.
+  Qed. 
+
   Lemma revoke_std_sta_lookup_Some Wstd_sta (i : positive) :
     is_Some (Wstd_sta !! i) ↔ is_Some (revoke_std_sta Wstd_sta !! i).
   Proof.
@@ -1637,11 +1649,41 @@ Section heap.
           apply IHl. eauto.
   Qed.
 
+  Lemma dom_equal_revoke_list' W M l : 
+    dom_equal (std_sta (revoke_list l W)) M →
+    dom_equal (std_sta W) M.
+  Proof.
+    intros Hdom.
+    induction l.
+    - done.
+    - rewrite /revoke_list /= in Hdom.
+      destruct (std_sta W !! a) eqn:Hsome; auto.
+      destruct Hdom with a as [Hdom1 Hdom2].
+      destruct (countable.encode Temporary =? p)%positive eqn:Htemp;auto.
+      rewrite /std_sta /=. 
+      split.
+      + intros [x Hi].
+        destruct (decide (a = i));subst.
+        * apply Hdom1. rewrite /revoke_list /std_sta /= lookup_insert.
+          eauto. 
+        * rewrite /revoke_list /std_sta /= in Hdom. 
+          destruct Hdom with i as [Hdomi1 _].
+          apply Hdomi1. rewrite lookup_insert_ne; auto.
+          apply revoke_list_lookup_Some. eauto. 
+      + intros [a' [Heq [x Hx] ] ]; simplify_eq.
+        rewrite /revoke_list /std_sta /= in Hdom.
+        destruct Hdom with (countable.encode a') as [Hdom1i Hdom2i]. 
+        destruct (decide (a = (countable.encode a')));subst; eauto.
+        rewrite lookup_insert_ne in Hdom2i; auto.
+        rewrite revoke_list_lookup_Some. apply Hdom2i.
+        exists a'. split; eauto.
+  Qed.
+
   Lemma dom_equal_revoke W M :
-    dom_equal (std_sta W) M →
+    dom_equal (std_sta W) M <->
     dom_equal (std_sta (revoke W)) M.
   Proof.
-    rewrite revoke_list_dom. apply dom_equal_revoke_list.
+    rewrite revoke_list_dom. split; [apply dom_equal_revoke_list|apply dom_equal_revoke_list'].
   Qed. 
 
   Lemma related_sts_priv_weaken fs fr gs gr i x :
@@ -1769,7 +1811,7 @@ Section heap.
   (* ---------------- IF WΕ HAVE THE REGION, THEN WE CAN REVOKE THE FULL STS ---------------- *)
 
   (* This matches the temprary resources in the map *)
-  Fixpoint temp_resources (W : WORLD) φ (a : Addr) (p : Perm) : iProp Σ :=
+  Definition temp_resources (W : WORLD) φ (a : Addr) (p : Perm) : iProp Σ :=
     (∃ (v : Word),
            ⌜p ≠ O⌝
           ∗ a ↦ₐ[p] v
@@ -2016,7 +2058,7 @@ Section heap.
     iDestruct "Hr" as (M) "(HM & % & Hpreds)". 
     iDestruct (monotone_revoke_region_def with "[] [] [$HW] [$Hpreds]") as "[Hpreds HW]"; auto.
     iModIntro. iFrame. iExists _. iFrame.
-    iPureIntro. by apply dom_equal_revoke.
+    iPureIntro. by apply (dom_equal_revoke W M).
   Qed.
 
   Lemma monotone_revoke_keep W l p φ :
@@ -2037,7 +2079,7 @@ Section heap.
     iDestruct "Hr" as (M) "(HM & % & Hpreds)".
     iDestruct (monotone_revoke_region_def with "[] [] [$HW] [$Hpreds]") as "[Hpreds HW]"; auto.
     iModIntro. iFrame. iSplitL "HW HM".
-    - iExists _. iFrame. iPureIntro. by apply dom_equal_revoke.
+    - iExists _. iFrame. iPureIntro. by apply (dom_equal_revoke W M).
     - iApply big_sepL_sep. iFrame. iApply big_sepL_forall. iPureIntro.
       revert Htemps. rewrite (Forall_lookup _ l). intros Hl i a Ha; auto.
       specialize (Hl i a Ha). rewrite /revoke. apply revoke_lookup_Temp. done. 
@@ -2084,6 +2126,18 @@ Section heap.
         * subst. eauto. 
         * rewrite lookup_insert_ne in Hx;eauto. 
   Qed.
+
+  Lemma close_list_std_sta_None Wstd_sta l i :
+    Wstd_sta !! i = None <-> close_list_std_sta l Wstd_sta !! i = None.
+  Proof.
+    split.
+    - intros Hnone. apply eq_None_not_Some.
+      intros Hcontr. apply close_list_std_sta_is_Some in Hcontr.
+      apply eq_None_not_Some in Hcontr; auto.
+    - intros Hnone. apply eq_None_not_Some.
+      intros Hcontr. revert Hcontr. rewrite close_list_std_sta_is_Some =>Hcontr.
+      apply eq_None_not_Some in Hcontr; eauto.
+  Qed. 
 
   Lemma close_list_std_sta_same Wstd_sta l i :
     i ∉ l → Wstd_sta !! i = close_list_std_sta l Wstd_sta !! i.
