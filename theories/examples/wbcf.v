@@ -609,13 +609,26 @@ Section wbcf.
     }
     iDestruct (region_monotone $! _ Hrelated
                  with "Hex") as "Hr". Unshelve. 2: { rewrite /std_sta /=. auto. }
+    (* We allocate a revoked region for the stack that will be passed to adversary at call #2 *)
+    assert (a-209 ∈ region_addrs (a-200) (a-250)) as Hin209.
+    { apply elem_of_list_In. apply nth_error_In with 9.
+      assert (a-209 = get_addr_from_option_addr ((a-200) + 9)%a) as ->; auto.
+      simpl; f_equiv. apply eq_proofs_unicity; decide equality. }
+    iMod (extend_region_revoked _ _ (a-209) RWLX (λ Wv, interp Wv.1 Wv.2) with "Hsts Hr") as "(Hsts & #Hrel209 & Hr)".
+    (* TODO: make some lemma for the following two *)
+    { revert Hfresh. rewrite list.Forall_forall =>Hfresh.
+      destruct Hfresh with (a-209) as [Hfresh209 _]; auto. }
+    { revert Hfresh. rewrite list.Forall_forall =>Hfresh.
+      destruct Hfresh with (a-209) as [_ Hfresh209]; auto. }
     (* We create the necessary invariant for the adv stack *)
     iAssert (|={⊤}=> ([∗ list] a0 ∈ region_addrs (a-210) (a-250),
                      read_write_cond a0 RWLX (fixpoint interp1)) ∗ region _ ∗ sts_full_world sts_std _)%I
                                            with "[Hstack_adv Hr Hsts]" as ">(#Hstack_adv & Hr & Hsts)". 
     { iApply region_addrs_zeroes_alloc; auto; [|iFrame]. rewrite /std_sta /std_rel /=.
       rewrite (region_addrs_decomposition _ (a-210) _) in Hfresh.
-      - apply Forall_app in Hfresh as [_ Hfresh]. auto.
+      - apply Forall_app in Hfresh as [_ Hfresh].
+        apply std_update_multiple_dom_insert; auto. 
+        rewrite /lt_addr /=; lia. 
       - split; rewrite /le_addr /=; lia. 
     }
     (* We choose the r *)
@@ -683,16 +696,27 @@ Section wbcf.
     evar (W' : prod (prod STS_states STS_rels) (prod STS_states STS_rels)).
     instantiate (W' :=
      (std_update_temp_multiple
-        (W.1, (<[i:=countable.encode true]> W.2.1,
-               <[i:=(convert_rel (λ a0 b0 : bool, a0 = b0), convert_rel (λ a0 b0 : bool, (a0 = true ∨ b0 = false)%type))]> W.2.2))
-        (region_addrs (a-210) (a-250)))).
+              (std_update
+                 (W.1,
+                 (<[i:=countable.encode true]> W.2.1,
+                 <[i:=(convert_rel (λ a0 b0 : bool, a0 = b0), convert_rel (λ a0 b0 : bool, (a0 = true ∨ b0 = false)%type))]> W.2.2))
+                 (a-209) Revoked (Rpub, Rpriv).1 (Rpub, Rpriv).2) (region_addrs (a-210) (a-250)))).
     iAssert (region W') with "Hr" as "Hr". iAssert (sts_full_world sts_std W') with "Hsts" as "Hsts".
     (* We must show that W' is a public future world of W to conclude that the adv program remains valid *)
     assert (related_sts_pub_world (W.1,W_loc) W') as Hrelated'.
-    { rewrite /W' /W_loc. apply related_sts_pub_update_temp_multiple;[apply region_addrs_NoDup|].
-      rewrite (region_addrs_decomposition _ (a-210) _) in Hfresh.
-      - apply Forall_app in Hfresh as [_ Hfresh]. auto.
-      - split; rewrite /le_addr /=; lia. 
+    { rewrite /W' /W_loc.
+      eapply related_sts_pub_trans_world; 
+      [|apply related_sts_pub_update_temp_multiple;[apply region_addrs_NoDup|] ].
+      - apply related_sts_pub_world_fresh. 
+        + rewrite /std_sta /=. revert Hfresh. rewrite list.Forall_forall =>Hfresh.
+          destruct Hfresh with (a-209) as [Hfresh209 _]; auto.
+        + rewrite /std_sta /=. revert Hfresh. rewrite list.Forall_forall =>Hfresh.
+          destruct Hfresh with (a-209) as [_ Hfresh209]; auto.
+      - rewrite (region_addrs_decomposition _ (a-210) _) in Hfresh.
+        + apply Forall_app in Hfresh as [_ Hfresh].
+          apply std_update_multiple_dom_insert; auto.
+          rewrite /lt_addr /=; lia. 
+        + split; rewrite /le_addr /=; lia. 
     }
     assert (related_sts_pub_world W W') as HrelatedWW'.
     { eapply related_sts_pub_trans_world;[|apply Hrelated'].
@@ -737,9 +761,9 @@ Section wbcf.
           iApply (big_sepL_mono with "Hstack_adv").
           iIntros (k y Hsome) "Hr".
           iFrame. iPureIntro.
-          apply std_update_temp_multiple_lookup with W _ _ _ in Hsome as [Hpwl Hstd]. 
+          eapply std_update_temp_multiple_lookup (* with W _ _ _  *)in Hsome as [Hpwl Hstd]. 
           split.
-          ++ apply related_sts_rel_std with W'; auto. apply related_sts_pub_priv_world. auto.
+          ++ apply related_sts_rel_std with W'; auto. apply related_sts_pub_priv_world; auto. apply Hstd. 
           ++ simpl. apply region_state_pwl_monotone with W'; auto. 
       - (* continuation *)
         iIntros (_). 
@@ -1190,15 +1214,16 @@ Section wbcf.
         (* Stack clearing is interesting and tricky! Clearing the stack corresponds to revoking any local capabilities 
            previously given (for instance the old sp). Rather than opening the stack, we need to REVOKE the region. 
            revoking the region thus allows us to PRIVATELY update the world. 
-        *)
+         *)
+        iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|]. 
         iMod (monotone_revoke_keep W'' (region_addrs (a-210) (a-250)) with "[$Hsts $Hex Hstack_adv]")
           as "(Hsts & Hex & Hstack_adv_r)".
         { apply NoDup_ListNoDup, region_addrs_NoDup. }
         { iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hr".
           rewrite /read_write_cond. iFrame. iPureIntro.
           assert (region_state_pwl W'' y) as Hlookup;[|auto].
-          apply std_update_temp_multiple_lookup with W _ _ _ in Hsome as [Hpwl Hstd]. 
-          apply region_state_pwl_monotone with W'; auto.
+          eapply std_update_temp_multiple_lookup in Hsome as [Hpwl Hstd']. 
+          apply region_state_pwl_monotone with W'; eauto.
         }
         do 2 iDestruct (big_sepL_sep with "Hstack_adv_r") as "[Hstack_adv_r _]".
         iApply (mclear_spec (region_addrs_aux (a-120) 22) r_stk
@@ -1312,8 +1337,8 @@ Section wbcf.
           - iApply big_sepL_sep. rewrite /read_write_cond. iFrame "Hstack_adv".
             iApply big_sepL_forall. iPureIntro. simpl. 
             intros x y Hsome. rewrite /std_sta /std_rel /=.
-            apply revoke_lookup_Temp. apply std_update_temp_multiple_lookup with W _ _ _ in Hsome as [Hpwl Hstd]. 
-            apply region_state_pwl_monotone with W';auto. 
+            apply revoke_lookup_Temp. eapply std_update_temp_multiple_lookup in Hsome as [Hpwl Hstd']. 
+            apply region_state_pwl_monotone with W';eauto. 
         }
         (* rclear *)
         iDestruct "Hf3" as "[Hi Hf3]".
@@ -1422,27 +1447,39 @@ Section wbcf.
           Ha116 Ha117 Ha118 Ha119 Hmclear Hrclear Ha171 Hf3" as "Hprog'". 
           iExact "Hprog'". 
         }
-        (* the stack pointer passed to the adversary now contains a209. we must therefore
-           extend the region to include the resource as temporary *)
-        iMod (extend_region_temp_pwl _ _ _ _ _ (λ Wv, interp Wv.1 Wv.2) with "[] Hsts Hex Ha209 []")
-          as "(Hex & #Ha209 & Hsts)"; auto. 
-        { (* TODO: make this a lemma *)
-          revert Hfresh. rewrite List.Forall_forall =>Hfresh.
-          destruct Hfresh with (a-209) as [Hfresh209 _].
-          { apply nth_error_In with 9.
-            assert (a-209 = get_addr_from_option_addr ((a-200) + 9)%a) as ->.
-            { simpl; f_equiv. apply eq_proofs_unicity; decide equality. }
-            apply region_addrs_spec; [by rewrite /le_addr|rewrite /region_size]. cbv. lia. }
-          apply not_elem_of_dom. apply not_elem_of_dom in Hfresh209. 
-
-          intros Hcontr. apply elem_of_dom,close_list_std_sta_is_Some,revoke_lookup_Some in Hcontr. 
-          apply Hfresh209. apply elem_of_dom. rewrite /std_sta /= in Hcontr.
-          apply region_state_nwl_monotone_nl. 
-          
-        { apply (std_update_multiple_dom_rel_i _ (S n) _ 1); auto;[|lia]. apply next_lt_top with (S n); auto. lia. }
-        { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
-        { iNext. iExists _. iFrame. iNext. iApply fixpoint_interp1_eq.
-          iSimpl. done. }
+        (* The stack pointer passed to the adversary now contains a209. we must therefore
+           update the state of 209 from revoked to temporary *)
+        (* First we must assert that its state is still revoked (this must be the case since we have a non duplicable 
+           resource that cannot be in the map). We can prove this in a more direct way by using the fact that a-209 was 
+           not in the list that we closed, and must therefore either be revoked *)
+        assert (std_sta W' !! countable.encode (a-209) = Some (countable.encode Revoked)) as Ha.
+        { rewrite /W' std_sta_update_multiple_insert /std_update /std_sta. rewrite lookup_insert; auto.
+          rewrite /lt_addr /=. lia. }
+        apply region_state_Revoked_monotone with _ W'' _ in Ha; [| |auto].
+        2: { rewrite /rel_is_std_i /W' std_rel_update_multiple_insert /std_update /std_rel.
+             rewrite lookup_insert;auto. rewrite /lt_addr /=. lia. }
+        assert (std_sta (close_list (countable.encode <$> region_addrs (a-210) (a-250))
+                                     (revoke (W''.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2))))
+                        !! countable.encode (a-209) = Some (countable.encode Revoked)) as Ha'.
+        { assert (a-209 ∉ region_addrs_aux (a-210) (region_size (a-210) (a-250))) as Hnin. 
+          { apply region_addrs_not_elem_of. rewrite /lt_addr /=; lia. }
+          destruct Ha as [Hrevoked | Htemporary].
+          - rewrite -close_list_std_sta_same.
+            + apply revoke_lookup_Revoked. auto.
+            + intros Hcontr. apply elem_of_list_fmap in Hcontr as [y  [Hy Hcontr] ].
+              apply encode_inj in Hy; subst. contradiction.
+          - rewrite -close_list_std_sta_same.
+            + apply revoke_lookup_Temp. auto.
+            + intros Hcontr. apply elem_of_list_fmap in Hcontr as [y  [Hy Hcontr] ].
+              apply encode_inj in Hy; subst. contradiction.
+        }
+        iDestruct (full_sts_world_is_Some_rel_std _ (a-209) with "Hsts") as %Hstd209; [eauto|].         
+        iMod (update_region_revoked_temp_pwl with "[] Hsts Hex Ha209 [] Hrel209") as "[Hex Hsts]"; auto. 
+        { iAlways. iIntros (W1 W2 Hpub) "Hv". do 2 (rewrite fixpoint_interp1_eq). done. }
+        { iAssert (∀ W, interp W (inl 0%Z))%I as "Htrivial".
+          { iIntros (W0). rewrite fixpoint_interp1_eq. auto. }
+          iApply "Htrivial". 
+        } 
         (* We choose the r *)
         evar (r'' : gmap RegName Word).
         instantiate (r'' := <[r_stk := inr (RWLX, Local, a-209, a-250, a-208)]>
@@ -1483,19 +1520,23 @@ Section wbcf.
           destruct (decide (r_t30 = x)); first (subst;rewrite lookup_insert;eauto).
           rewrite lookup_insert_ne;auto.
         }
-        iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|]. 
         (* We instantiate the fundamental theorem on the adversary region *)
         (* We start by instantiating a variable for the final version of the sts collection *)
         evar (W''' : prod (prod STS_states STS_rels) (prod STS_states STS_rels)).
-        instantiate (W''' := (close_list (countable.encode <$> region_addrs (a-210) (a-250))
-                                                       (revoke (W''.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2))))). 
+        instantiate (W''' := (std_update
+                                (close_list (countable.encode <$> region_addrs (a-210) (a-250))
+                                            (revoke (W''.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2)))) (a-209) Temporary 
+                                (Rpub, Rpriv).1 (Rpub, Rpriv).2)). 
         assert (related_sts_priv_world W'' W''')
           as Hrelated4.
         { apply related_sts_priv_trans_world with (W''.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2)); auto. 
           apply related_sts_priv_trans_world with (revoke (W''.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2))). 
           - apply revoke_related_sts_priv; auto.
-          - apply related_sts_pub_priv_world.
-            apply close_list_related_sts_pub; auto. 
+          - eapply related_sts_priv_trans_world. 
+            + apply related_sts_pub_priv_world. 
+              apply (close_list_related_sts_pub _ (countable.encode <$> region_addrs (a-210) (a-250))); auto.
+            + apply related_sts_pub_priv_world. 
+              apply related_sts_pub_world_revoked_temp; auto.
         }
         iAssert (interp_expression r'' W''' (inr (RX, Global, b, e, a)))
           as "Hvalid".
@@ -1526,27 +1567,71 @@ Section wbcf.
             { rewrite /r''. by rewrite lookup_insert. }
             rewrite /RegLocate Hr_stk fixpoint_interp1_eq. 
             iIntros (_). iExists RWLX. iSplitR; [auto|].
-            iAssert ([∗ list] a1 ∈ region_addrs (a- 209) (a- 250),
-                     read_write_cond a1 RWLX interp)%I as "#Hstack_adv+".
-            { rewrite (region_addrs_decomposition (a-209) (a-209) (a-250));
+            rewrite (region_addrs_decomposition (a-209) (a-209) (a-250));
+                last (split; rewrite /le_addr; done).
+            rewrite /region_addrs.
+            assert ((a- 209 + -1)%a = Some (a-208)) as ->;[addr_succ|].
+            rewrite /get_addr_from_option_addr.
+            destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hcontr;
+              [inversion Hcontr|clear Hcontr]. rewrite app_nil_l.
+            assert ((a- 209 + 1)%a = Some (a-210)) as ->;[addr_succ|].
+            destruct (Z_le_dec (a- 210) (a- 250)) eqn:Hcontr;
+              [clear Hcontr;iFrame "#"|inversion Hcontr].
+            iAssert ([∗ list] y ∈ region_addrs (a-210) (a-250), read_write_cond y RWLX (fixpoint interp1)
+                                                                ∧ ⌜region_state_pwl W''' y⌝
+                                                                ∧ ⌜region_std W''' y⌝)%I as "#Hstack_adv+". 
+            { iApply (big_sepL_mono with "Hstack_adv").
+              iIntros (k y Hsome) "Hr".
+              iFrame. iPureIntro.
+              rewrite /region_state_pwl /region_std /rel_is_std_i /W'''.
+              destruct (decide (y = (a-209))); subst; [do 2 rewrite lookup_insert;auto|].
+              rewrite lookup_insert_ne;[|intros Hcontr; apply encode_inj in Hcontr; subst; contradiction].
+              assert (countable.encode y ∈ countable.encode <$> region_addrs (a-210) (a-250)) as Hin.
+              { apply elem_of_list_fmap. exists y. split; auto. apply elem_of_list_lookup_2 with k. auto. }
+              eapply std_update_temp_multiple_lookup in Hsome as [Hpwl Hstd'].
+              split. 
+              - apply close_list_std_sta_revoked; auto.
+                apply revoke_lookup_Temp.
+                apply region_state_pwl_monotone with (W'.1, (<[i:=countable.encode false]> W''.2.1, W''.2.2));
+                  [apply Hstd'| |apply Hpwl].
+                split;[|apply related_sts_pub_refl].
+                destruct Hrelated'' as [Hrelated'' _]; apply Hrelated''.                      
+              - apply related_sts_rel_std with W''; auto.
+                apply related_sts_rel_std with W'; auto.
+                apply related_sts_pub_priv_world; auto.
+            }
+            iFrame "Hstack_adv+". iSplit. 
+            { iPureIntro. rewrite /region_state_pwl /region_std /rel_is_std_i /W'''.
+              do 2 rewrite lookup_insert. auto. }
+            iAlways. 
+            rewrite /exec_cond.
+            iIntros (a0 r0 W4 Ha0 Hrelated5). iNext.
+            iApply fundamental.
+            + iRight. iRight. done.
+            + iExists RWLX. iSplit; auto.
+              rewrite (region_addrs_decomposition (a-209) (a-209) (a-250));
                 last (split; rewrite /le_addr; done).
               rewrite /region_addrs.
               assert ((a- 209 + -1)%a = Some (a-208)) as ->;[addr_succ|].
               rewrite /get_addr_from_option_addr.
               destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hcontr;
                 [inversion Hcontr|clear Hcontr]. rewrite app_nil_l.
-              iFrame "#".
               assert ((a- 209 + 1)%a = Some (a-210)) as ->;[addr_succ|].
               destruct (Z_le_dec (a- 210) (a- 250)) eqn:Hcontr;
-                [clear Hcontr;iFrame "#"|inversion Hcontr]. rewrite /read_write_cond. 
-            }
-            iFrame "Hstack_adv+".
-            iAlways. 
-            rewrite /exec_cond.
-            iIntros (a0 W r0 Ha0). iNext.
-            iApply fundamental.
-            + iRight. iRight. done.
-            + iExists RWLX. iSplit; auto.
+                [clear Hcontr;iFrame "#"|inversion Hcontr].
+              iSplit.
+              ++ iSimpl. iPureIntro. split.
+                 +++ apply rel_is_std_i_monotone with W'''; auto.
+                     by rewrite /W''' /std_update /rel_is_std_i lookup_insert. 
+                 +++ apply region_state_pwl_monotone with W'''; auto;
+                       [by rewrite /W''' /std_update /rel_is_std_i lookup_insert|
+                        by rewrite /W''' /std_update /region_state_pwl lookup_insert]. 
+              ++ iApply (big_sepL_mono with "Hstack_adv+").
+                 iIntros (k y Hsome) "(Hr & Hpwl & Hstd)".
+                 iDestruct "Hpwl" as %Hpwl; iDestruct "Hstd" as %Hstd'. 
+                 iFrame. iSimpl. iPureIntro. split. 
+                 +++ apply rel_is_std_i_monotone with W'''; auto. 
+                 +++ apply region_state_pwl_monotone with W'''; auto. 
           - (* continuation *)
             (* clear some previously used lemmas *)
             clear rt1w Hrt1 rt2w Hrt2 rt0w Hrt0 rstkw Hrstk wr30 Hr30.
@@ -1556,15 +1641,12 @@ Section wbcf.
               as Hr_t0; auto. 
             rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
             (* prove continuation *)
-            iExists _,_,_,_. iSplit;[eauto|].
             iAlways.
             rewrite /enter_cond.
-            iIntros (W3 r3).
-            destruct W3 as [fs3 fr3 ].
+            iIntros (r3 W4 Hrelated5).
             iNext. iSimpl. 
-            iExists _,_. do 2 (iSplit; [eauto|]).
-            iIntros "(#[Hfull3 Hreg3] & Hmreg & Hex & Hsts & Hna)". 
-            iExists _,_,_,_,_. iSplit; [eauto|rewrite /interp_conf].
+            iIntros "(#[Hfull3 Hreg3] & Hmreg & Hex & Hsts & Hna)".
+            iSplit; [auto|rewrite /interp_conf].
             (* From atleast and the current exact, we can get that fs3 fr3 is public
                future world of the sts previously defined *)
             iDestruct (RelW_public with "Hleast' Hex") as %Hpub'. simpl in Hpub'.

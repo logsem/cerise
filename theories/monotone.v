@@ -9,7 +9,10 @@ Section monotone.
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
-    
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation WORLD := (leibnizO (STS * STS)). 
+  Implicit Types W : WORLD.
+  
   Lemma region_state_nwl_monotone W W' a l :
     rel_is_std_i W (countable.encode a) →
     related_sts_pub_world W W' →
@@ -81,18 +84,42 @@ Section monotone.
     apply std_rel_pub_rtc_Temporary in Hrelated; auto. contradiction. 
   Qed.
 
+  Lemma region_state_Revoked_monotone (W W' : WORLD) (a : Addr) :
+    rel_is_std_i W (countable.encode a) →
+    related_sts_pub_world W W' →
+    (std_sta W) !! (countable.encode a) = Some (countable.encode Revoked) ->
+    (std_sta W') !! (countable.encode a) = Some (countable.encode Revoked) ∨
+    (std_sta W') !! (countable.encode a) = Some (countable.encode Temporary).
+  Proof.
+    rewrite /region_state_pwl /std_sta /std_rel.
+    intros Hsome Hrelated Hstate.
+    apply (related_sts_rel_std W W') in Hsome as Hsome'; 
+      [|destruct Hrelated as [Hrelated1 Hrelated2]; split; apply related_sts_pub_priv; auto].
+    destruct Hrelated as [ [Hdom_sta [Hdom_rel Hrelated] ] _]. simpl in *.
+    specialize (Hrelated (countable.encode a) _ _ _ _ Hsome Hsome') as (_ & _ & Hrelated).
+    assert (is_Some (W'.1.1 !! countable.encode a)) as [y Hy].
+    { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_sta. apply Hdom_sta. apply elem_of_gmap_dom;eauto. }
+    specialize (Hrelated (countable.encode Revoked) y Hstate Hy).
+    apply std_rel_pub_rtc_Revoked in Hrelated; auto.
+    destruct Hrelated as [Htemp | Hrev]; subst; auto. 
+  Qed.
   
-
-  
-  (* Lemma read_cond_monotone W W' l p g : *)
-  (*   (⌜related_sts_pub_world W W'⌝ → *)
-  (*   ([∗ list] a ∈ l, read_write_cond a p interp *)
-  (*                    ∧ ⌜region_std W'' a⌝ *)
-  (*                    ∧ ⌜if pwl p then region_state_pwl W'' a else region_state_nwl W'' a g⌝) → *)
-  (*   ([∗ list] a ∈ l, read_write_cond a1 p interp *)
-  (*                    ∧ ⌜region_std W'' a⌝ *)
-  (*                    ∧ ⌜if pwl p then region_state_pwl W'' a else region_state_nwl W'' a g⌝) → *)
-    
+  Lemma rel_is_std_i_monotone (W W' : WORLD) (a : Addr) :
+    related_sts_pub_world W W' →
+    rel_is_std_i W (countable.encode a) →
+    rel_is_std_i W' (countable.encode a).
+  Proof.
+    rewrite /rel_is_std_i.
+    intros [(Hdom_sta & Hdom_rel & Htransition) _] Hstd.
+    apply elem_of_subseteq in Hdom_rel.
+    assert ((countable.encode a) ∈ dom (gset positive) (std_rel W)) as Hin.
+    { apply elem_of_dom. eauto. }
+    specialize (Hdom_rel (countable.encode a) Hin).
+    apply elem_of_dom in Hdom_rel as [ [r1' r2'] Hr'].
+    apply elem_of_dom in Hin as [ [r1 r2] Hr].
+    specialize (Htransition (countable.encode a) r1 r2 r1' r2' Hr Hr') as (Heq1 & Heq2 & _). 
+    simplify_eq. rewrite Hstd in Hr. inversion Hr. subst. auto.
+  Qed. 
     
   Lemma interp_monotone W W' w :
     (⌜related_sts_pub_world W W'⌝ →

@@ -1060,6 +1060,28 @@ Section stack_macros.
        + rewrite IHl1. simpl. rewrite decide_False; auto.
    Qed.
 
+   Lemma std_sta_update_temp_multiple_lookup_same W l (a : Addr) :
+     a ∉ l -> (std_sta (std_update_temp_multiple W l)) !! (countable.encode a) =
+             (std_sta W) !! (countable.encode a).
+   Proof.
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hne Hnin].
+     rewrite lookup_insert_ne; auto.
+     intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+   Qed.
+
+   Lemma std_rel_update_temp_multiple_lookup_same W l (a : Addr) :
+     a ∉ l -> (std_rel (std_update_temp_multiple W l)) !! (countable.encode a) =
+             (std_rel W) !! (countable.encode a).
+   Proof.
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hne Hnin].
+     rewrite lookup_insert_ne; auto.
+     intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+   Qed. 
+   
    Lemma std_update_temp_multiple_not_in_sta W l (a : Addr) :
      a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_sta W) ↔
              (countable.encode a) ∈ dom (gset positive) (std_sta (std_update_temp_multiple W l)). 
@@ -1215,8 +1237,93 @@ Section stack_macros.
      destruct (Z_le_dec (a + S (S n))%Z MemNum); inversion Hsome; try discriminate.
      destruct (Z_le_dec (a + S n)%Z MemNum); eauto.
      clear H3 x Hsome. lia. 
-   Qed. 
+   Qed.
 
+   Lemma std_sta_update_multiple_insert W (a b a' l : Addr) i r r' :
+     (a' < a)%a →
+     std_sta (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) !! (countable.encode l) =
+     std_sta (std_update (std_update_temp_multiple W (region_addrs a b)) a' i r r') !! (countable.encode l).
+   Proof.
+     intros Hlt. 
+     destruct (decide (l ∈ region_addrs a b)).
+     - assert (l ≠ a') as Hne.
+       { intros Hcontr. apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
+         subst. rewrite /region_addrs in e. destruct (Z_le_dec a b); first contradiction.
+         apply elem_of_nil in e. done. }
+       apply elem_of_list_lookup in e as [n Hsome].
+       assert (region_state_pwl (std_update_temp_multiple W (region_addrs a b)) l
+               ∧ region_std (std_update_temp_multiple W (region_addrs a b)) l) as [Hpwl _].
+       { apply std_update_temp_multiple_lookup with n. auto. }
+       assert (region_state_pwl (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) l
+               ∧ region_std (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) l) as [Hpwl' _].
+       { apply std_update_temp_multiple_lookup with n. auto. }
+       rewrite /region_state_pwl /= in Hpwl. rewrite /region_state_pwl /= in Hpwl'.
+       rewrite -Hpwl in Hpwl'. rewrite Hpwl'. 
+       rewrite lookup_insert_ne; auto. 
+       intros Hcontr. apply encode_inj in Hcontr. subst. contradiction.
+     - rewrite std_sta_update_temp_multiple_lookup_same; auto. 
+       destruct (decide (countable.encode a' = countable.encode l)).
+       + rewrite /std_update /std_sta /= e. do 2 rewrite lookup_insert. done.
+       + rewrite /std_update /std_sta /=. rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne; auto.
+         rewrite std_sta_update_temp_multiple_lookup_same; auto.
+   Qed.
+
+   Lemma std_rel_update_multiple_insert W (a b a' l : Addr) i r r' :
+     (a' < a)%a →
+     std_rel (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) !! (countable.encode l) =
+     std_rel (std_update (std_update_temp_multiple W (region_addrs a b)) a' i r r') !! (countable.encode l).
+   Proof.
+     intros Hlt. 
+     destruct (decide (l ∈ region_addrs a b)).
+     - assert (l ≠ a') as Hne.
+       { intros Hcontr. apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
+         subst. rewrite /region_addrs in e. destruct (Z_le_dec a b); first contradiction.
+         apply elem_of_nil in e. done. }
+       apply elem_of_list_lookup in e as [n Hsome].
+       assert (region_state_pwl (std_update_temp_multiple W (region_addrs a b)) l
+               ∧ region_std (std_update_temp_multiple W (region_addrs a b)) l) as [_ Hstd].
+       { apply std_update_temp_multiple_lookup with n. auto. }
+       assert (region_state_pwl (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) l
+               ∧ region_std (std_update_temp_multiple (std_update W a' i r r') (region_addrs a b)) l) as [_ Hstd'].
+       { apply std_update_temp_multiple_lookup with n. auto. }
+       rewrite /region_std /rel_is_std_i /= in Hstd. rewrite /region_std /rel_is_std_i /= in Hstd'.
+       rewrite -Hstd in Hstd'. rewrite Hstd'. 
+       rewrite lookup_insert_ne; auto. 
+       intros Hcontr. apply encode_inj in Hcontr. subst. contradiction.
+     - rewrite std_rel_update_temp_multiple_lookup_same; auto. 
+       destruct (decide (countable.encode a' = countable.encode l)).
+       + rewrite /std_update /std_rel /= e. do 2 rewrite lookup_insert. done.
+       + rewrite /std_update /std_rel /=. rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne; auto.
+         rewrite std_rel_update_temp_multiple_lookup_same; auto.
+   Qed. 
+       
+   Lemma std_update_multiple_dom_insert W (a b a' : Addr) i r :
+     (a' < a)%a →
+     Forall (λ a : Addr,
+                   (countable.encode a ∉ dom (gset positive) (std_sta W))
+                   ∧ countable.encode a ∉ dom (gset positive) (std_rel W)) (region_addrs a b) →
+     Forall (λ a : Addr,
+                   (countable.encode a ∉ dom (gset positive) (<[countable.encode a' := i]> W.1.1))
+                   ∧ countable.encode a ∉ dom (gset positive) (<[countable.encode a' := r]> W.1.2)) (region_addrs a b).
+   Proof.
+     intros Hlt. 
+     do 2 (rewrite list.Forall_forall). intros Hforall.  
+     intros x Hin.
+     assert (x ≠ a') as Hne.
+     { intros Hcontr; subst.
+       apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
+       rewrite /region_addrs in Hin.
+       destruct (Z_le_dec a b);[contradiction|apply elem_of_nil in Hin; auto].
+     }
+     destruct Hforall with x as [Hsta Hrel];auto. split.
+     - rewrite dom_insert. apply not_elem_of_union.
+       split;auto. apply not_elem_of_singleton.
+       intros Hcontr. apply encode_inj in Hcontr. contradiction. 
+     - rewrite dom_insert. apply not_elem_of_union.
+       split;auto. apply not_elem_of_singleton.
+       intros Hcontr. apply encode_inj in Hcontr. contradiction.
+   Qed. 
+            
    Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
      p ≠ O → is_Some (a + (Z.of_nat n - 1))%a →
      Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W) ∧

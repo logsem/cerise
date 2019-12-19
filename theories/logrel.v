@@ -360,6 +360,37 @@ Section heap.
         left.
   Qed.
 
+  Lemma related_sts_pub_world_revoked_temp W a :
+    (std_sta W) !! (countable.encode a) = Some (countable.encode Revoked) ∨
+    (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary) →
+    rel_is_std_i W (countable.encode a) →
+    related_sts_pub_world W (<s[a:=Temporary,(Rpub, Rpriv)]s>W).
+  Proof.
+    intros Ha Hstd.
+    rewrite /related_sts_pub_world /=.
+    split;[|apply related_sts_pub_refl].
+    rewrite /related_sts_pub. split;[|split;[auto|] ]. 
+    - apply dom_insert_subseteq.
+    - apply dom_insert_subseteq. 
+    - intros i r1 r2 r1' r2' Hr Hr'. 
+      destruct (decide (countable.encode a = i)).
+      + subst. rewrite /rel_is_std_i Hr in Hstd. rewrite lookup_insert in Hr'. simplify_eq.
+        repeat (split;auto). intros x y Hx Hy.
+        rewrite Hx in Ha.
+        destruct Ha as [Ha | Ha]; inversion Ha.
+        ++ rewrite lookup_insert in Hy. inversion Hy.
+           right with (countable.encode Temporary);[|left].
+           exists Revoked,Temporary. repeat (split;auto).
+        ++ rewrite lookup_insert in Hy. inversion Hy. left. 
+      + rewrite lookup_insert_ne in Hr'; auto.
+        rewrite Hr in Hr'. inversion Hr'. repeat (split;auto).
+        intros x y Hx Hy. 
+        rewrite lookup_insert_ne in Hy;auto.
+        rewrite Hx in Hy. 
+        inversion Hy; inversion Hr'; subst.
+        left.
+  Qed.
+
   (* ----------------------------------------------------------------------------------------------- *)
   (* ----------------------- LEMMAS FOR EXTENDING THE REGION MAP ----------------------------------- *)
   
@@ -522,6 +553,151 @@ Section heap.
       done. 
   Qed.
 
+  (* The following allocates a Revoked region. This allocates the saved predicate and the region state, *)
+  (* but since a revoked region is empty, there is no need to assume any resources for that region *)
+
+  Lemma extend_region_revoked E W l p φ :
+     (countable.encode l) ∉ dom (gset positive) (std_sta W) →
+     (countable.encode l) ∉ dom (gset positive) (std_rel W) →
+     (sts_full_world sts_std W -∗ region W ={E}=∗ region (<s[l := Revoked, (Rpub,Rpriv) ]s>W)
+                                               ∗ rel l p φ
+                                               ∗ sts_full_world sts_std (<s[l := Revoked, (Rpub,Rpriv)]s>W))%I.
+  Proof.
+    iIntros (Hnone1 Hnone2) "Hfull Hreg".
+    rewrite region_eq rel_eq /region_def /rel_def.
+    iDestruct "Hreg" as (M) "(Hγrel & % & Hpreds)".
+    rewrite RELS_eq /RELS_def. 
+    (* destruct on M !! l *)
+    destruct (M !! l) eqn:HRl.
+    { (* The location is not in the map *)
+      iDestruct (big_sepM_delete _ _ _ _ HRl with "Hpreds") as "[Hl' _]".
+      iDestruct "Hl'" as (ρ') "[Hstate Hl']". 
+      iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
+      apply not_elem_of_dom in Hnone1. 
+      rewrite Hcontr in Hnone1. done.
+    }
+    (* if not, we need to allocate a new saved pred using φ, 
+       and extend R with l := pred *)
+    iMod (saved_pred_alloc φ) as (γpred) "#Hφ'".
+    iMod (own_update _ _ (● (<[l:=to_agree (γpred,p)]> (to_agree <$> M : relUR)) ⋅ ◯ ({[l:=to_agree (γpred,p)]}))
+            with "Hγrel") as "[HR #Hγrel]". 
+    { apply auth_update_alloc.
+      apply (alloc_singleton_local_update (to_agree <$> M)); last done.
+      rewrite lookup_fmap. rewrite HRl. done. 
+    }
+    (* we also need to extend the World with a new temporary region *)
+    iMod (sts_alloc_std_i W (countable.encode l) Revoked
+            with "[] Hfull") as "(Hfull & Hstate)"; auto.     
+    apply (related_sts_pub_world_fresh W l Revoked) in Hnone1 as Hrelated; auto. 
+    iDestruct (region_map_monotone $! Hrelated with "Hpreds") as "Hpreds'".
+    iModIntro. rewrite bi.sep_exist_r. iExists _.
+    rewrite -fmap_insert. 
+    iFrame "HR". iFrame.
+    iSplitL;[iSplitR|].
+    - iPureIntro. apply dom_equal_insert; auto. 
+    - iApply big_sepM_insert; auto.
+      iFrame. iExists Revoked. iFrame. 
+    - iExists γpred. iFrame "#".
+      rewrite REL_eq /REL_def. 
+      done.
+  Qed.
+
+  (* As a followup of above, the following lemma takes a revoked region and makes it Temporary. *)
+
+  Lemma update_region_revoked_temp_pwl E W l p v φ `{∀ W v, Persistent (φ (W,v))} :
+    (std_sta W) !! (countable.encode l) = Some (countable.encode Revoked) →
+    p ≠ O → pwl p = true →
+    (future_pub_mono φ v -∗
+    sts_full_world sts_std W -∗
+    region W -∗
+    l ↦ₐ[p] v -∗ φ (W,v) -∗ rel l p φ ={E}=∗ region (<s[l := Temporary, (Rpub,Rpriv) ]s>W)
+                             ∗ sts_full_world sts_std (<s[l := Temporary, (Rpub,Rpriv)]s>W))%I.
+  Proof.
+    iIntros (Hrev HO Hpwl) "#Hmono Hsts Hreg Hl #Hφ #Hrel".
+    rewrite region_eq /region_def.
+    iDestruct "Hreg" as (M) "(Hγrel & Hdom & Hpreds)".
+    iDestruct "Hdom" as %Hdom. 
+    rewrite RELS_eq /RELS_def. 
+    rewrite rel_eq /rel_def REL_eq /REL_def. iDestruct "Hrel" as (γ) "[HREL Hsaved]". 
+    iDestruct (reg_in γrel (M) with "[$Hγrel $HREL]") as %HMeq.
+    rewrite /region_map_def HMeq big_sepM_insert; [|by rewrite lookup_delete].
+    iDestruct "Hpreds" as "[Hl' Hr]".     
+    iDestruct "Hl'" as (ρ) "[Hstate Hresources]".
+    iDestruct (sts_full_state_std with "Hsts Hstate") as %Hρ.
+    iDestruct (sts_full_rel_state_std with "Hsts Hstate") as %Hstd. 
+    rewrite Hrev in Hρ. inversion Hρ as [Hρrev]. apply encode_inj in Hρrev. subst. 
+    iMod (sts_update_std _ _ _ Temporary with "Hsts Hstate") as "[Hsts Hstate]".
+    assert (related_sts_pub_world W (<s[l := Temporary,(Rpub, Rpriv)]s> W)) as Hrelated.
+    { apply related_sts_pub_world_revoked_temp; auto. }
+    iDestruct (region_map_monotone $! Hrelated with "Hr") as "Hr".
+    iDestruct ("Hmono" $! _ _ Hrelated with "Hφ") as "Hφ'".
+    assert (is_Some (M !! l)) as [x Hsome].
+    { specialize (Hdom (countable.encode l)).
+      destruct Hdom as [ [a [Heq [x Hsome] ] ] _];[eauto|].
+      apply encode_inj in Heq; subst. eauto. }
+    iDestruct (big_sepM_delete _ _ l _ Hsome with "[Hl Hstate $Hr]") as "Hr".
+    { iExists Temporary. iFrame.
+      iExists γ, v, p, φ. rewrite HMeq lookup_insert in Hsome.
+      inversion Hsome. repeat (iSplit; auto). iFrame.
+      rewrite Hpwl. iFrame "#". }
+    apply insert_id in Hstd.
+    rewrite /std_update /= Hstd. iFrame "Hsts".
+    iExists M. iFrame. rewrite -HMeq. iFrame.
+    iModIntro. iPureIntro. 
+    apply insert_id in Hsome. rewrite -Hsome.
+    by apply dom_equal_insert. 
+  Qed.
+
+   Lemma update_region_revoked_temp_nwl E W l p v φ `{∀ W v, Persistent (φ (W,v))} :
+    (std_sta W) !! (countable.encode l) = Some (countable.encode Revoked) →
+    p ≠ O →
+    (future_priv_mono φ v -∗
+    sts_full_world sts_std W -∗
+    region W -∗
+    l ↦ₐ[p] v -∗ φ (W,v) -∗ rel l p φ ={E}=∗ region (<s[l := Temporary, (Rpub,Rpriv) ]s>W)
+                             ∗ sts_full_world sts_std (<s[l := Temporary, (Rpub,Rpriv)]s>W))%I.
+  Proof.
+    iIntros (Hrev HO) "#Hmono Hsts Hreg Hl #Hφ #Hrel".
+    rewrite region_eq /region_def.
+    iDestruct "Hreg" as (M) "(Hγrel & Hdom & Hpreds)".
+    iDestruct "Hdom" as %Hdom. 
+    rewrite RELS_eq /RELS_def. 
+    rewrite rel_eq /rel_def REL_eq /REL_def. iDestruct "Hrel" as (γ) "[HREL Hsaved]". 
+    iDestruct (reg_in γrel (M) with "[$Hγrel $HREL]") as %HMeq.
+    rewrite /region_map_def HMeq big_sepM_insert; [|by rewrite lookup_delete].
+    iDestruct "Hpreds" as "[Hl' Hr]".     
+    iDestruct "Hl'" as (ρ) "[Hstate Hresources]".
+    iDestruct (sts_full_state_std with "Hsts Hstate") as %Hρ.
+    iDestruct (sts_full_rel_state_std with "Hsts Hstate") as %Hstd. 
+    rewrite Hrev in Hρ. inversion Hρ as [Hρrev]. apply encode_inj in Hρrev. subst. 
+    iMod (sts_update_std _ _ _ Temporary with "Hsts Hstate") as "[Hsts Hstate]".
+    assert (related_sts_pub_world W (<s[l := Temporary,(Rpub, Rpriv)]s> W)) as Hrelated.
+    { apply related_sts_pub_world_revoked_temp; auto. }
+    assert (related_sts_priv_world W (<s[l := Temporary,(Rpub, Rpriv)]s> W)) as Hrelated'.
+    { apply related_sts_pub_priv_world. auto. }
+    iDestruct (region_map_monotone $! Hrelated with "Hr") as "Hr".
+    iDestruct ("Hmono" $! _ _ Hrelated' with "Hφ") as "Hφ'".
+    assert (is_Some (M !! l)) as [x Hsome].
+    { specialize (Hdom (countable.encode l)).
+      destruct Hdom as [ [a [Heq [x Hsome] ] ] _];[eauto|].
+      apply encode_inj in Heq; subst. eauto. }
+    iDestruct (big_sepM_delete _ _ l _ Hsome with "[Hl Hstate $Hr]") as "Hr".
+    { iExists Temporary. iFrame.
+      iExists γ, v, p, φ. rewrite HMeq lookup_insert in Hsome.
+      inversion Hsome. repeat (iSplit; auto). iFrame.
+      destruct (pwl p); iFrame "#".
+      iIntros (W' W'' Hrelated''). iAlways. iIntros "HφW'".
+      iApply ("Hmono" with "[] HφW'").
+      iPureIntro. apply related_sts_pub_priv_world; auto. 
+    } 
+    apply insert_id in Hstd.
+    rewrite /std_update /= Hstd. iFrame "Hsts".
+    iExists M. iFrame. rewrite -HMeq. iFrame.
+    iModIntro. iPureIntro. 
+    apply insert_id in Hsome. rewrite -Hsome.
+    by apply dom_equal_insert. 
+  Qed. 
+    
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------- LEMMAS FOR OPENING THE REGION MAP ----------------------------------- *)
 
@@ -1361,6 +1537,25 @@ Section heap.
     apply IHHrtc. auto.
   Qed.
 
+  Lemma std_rel_pub_Revoked x :
+    (convert_rel std_rel_pub) (countable.encode Revoked) x → x = countable.encode Temporary (* ∨ x = countable.encode Revoked *).
+  Proof.
+    intros Hrel.
+    inversion Hrel as [ρ Hb].
+    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
+    subst. inversion Hρb. subst. auto.
+  Qed.
+
+  Lemma std_rel_pub_rtc_Revoked x y :
+    x = countable.encode Revoked →
+    rtc (convert_rel std_rel_pub) x y → y = countable.encode Temporary ∨ y = countable.encode Revoked.
+  Proof.
+    intros Hx Hrtc.
+    inversion Hrtc; subst; auto. 
+    apply std_rel_pub_Revoked in H3. subst. 
+    apply std_rel_pub_rtc_Temporary in H4; auto. 
+  Qed. 
+
   Lemma std_rel_exist x y :
     (∃ (ρ : region_type), countable.encode ρ = x) → 
     rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
@@ -2168,30 +2363,6 @@ Section heap.
         * rewrite lookup_insert; auto.
         * rewrite lookup_insert_ne;auto.
   Qed.
-
-  Lemma close_list_related_sts_pub_insert W i l :
-    rel_is_std (revoke W) → i ∉ l →
-    std_sta (revoke W) !! i = Some (countable.encode Revoked) ->
-    related_sts_pub_world
-      (<[i:=countable.encode Temporary]> (close_list_std_sta l (std_sta (revoke W))), std_rel (revoke W), loc W)
-      (close_list_std_sta l (std_sta (revoke W)), std_rel (revoke W), loc W).
-  Proof.
-    intros Hstd Hnin Hlookup.
-    split;[|apply related_sts_pub_refl].
-    split;[|split]; auto; simpl.
-    - apply elem_of_subseteq. intros j Hj.
-      rewrite dom_insert_L in Hj. apply elem_of_union in Hj as [Hi | Hj]; auto.
-      apply elem_of_singleton in Hi; subst. apply elem_of_dom. apply close_list_std_sta_is_Some. eauto.
-    - intros j r1 r2 r1' r2' Hr Hr'.
-      assert (is_Some (std_rel (revoke W) !! j)) as Hsomer; eauto.
-      rewrite (Hstd j) in Hr;auto. rewrite (Hstd j) in Hr';auto. inversion Hr'; inversion Hr.
-      subst. repeat (split;auto).
-      intros x y Hx Hy.
-      destruct (decide (i = j)); subst.
-      + rewrite lookup_insert in Hx. inversion Hx. subst.
-        rewrite (close_list_std_sta_same _ l _) in Hlookup; auto. rewrite Hlookup in Hy; inversion Hy.
-  Abort. 
-
           
   Lemma close_list_related_sts_pub_cons W a l :
     rel_is_std W →
@@ -2260,7 +2431,7 @@ Section heap.
         right with (countable.encode Temporary);[|left].
         exists Revoked, Temporary. repeat (split;auto).
       * rewrite lookup_insert_ne in Hy; auto. rewrite Hx in Hy. inversion Hy. left.
-  Qed. 
+  Qed.
 
   Lemma close_list_related_sts_pub_insert Wstd_sta Wstd_rel Wloc i l :
     rel_is_std (Wstd_sta,Wstd_rel,Wloc) → 
@@ -2275,8 +2446,8 @@ Section heap.
                                             std_rel (Wstd_sta, Wstd_rel, Wloc), Wloc).
     - apply close_list_related_sts_pub with _ l in Hstd. apply Hstd.
     - apply close_list_related_sts_pub_insert'; auto. 
-  Qed. 
-      
+  Qed.
+
   Lemma monotone_revoked_close_sub W l p φ :
     ([∗ list] a ∈ l, temp_resources (revoke W) φ a p ∗ rel a p φ
                                     ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝)

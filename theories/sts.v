@@ -338,6 +338,29 @@ Section STS.
     by rewrite Hz'.  
   Qed.
 
+  Lemma sts_full_rel_state_std W i a :
+    (sts_full_world sts_std W -∗ sts_state_std i a -∗
+                    ⌜W.1.2 !! i = Some (convert_rel (Rpub : relation A), convert_rel (Rpriv : relation A))⌝)%I.
+  Proof.
+    rewrite /sts_full_world /sts_full /sts_state_std.
+    (* iIntros "[% [H1 _]] H2". *)
+    destruct W as [[fs fr] Wloc]. 
+    iIntros "[[Hdom [Hstd [H1 _] ] ] _] H2".
+    iDestruct "Hdom" as %Hdom. iDestruct "Hstd" as %Hstd.  
+    iDestruct (own_valid_2 with "H1 H2") as %[HR Hv]%auth_both_valid;
+      iPureIntro.
+    specialize (Hv i).
+    revert HR; rewrite /= singleton_included;
+      intros [z [Hz HR]].
+    rewrite lookup_fmap in Hz Hv.
+    destruct (fs !! i) eqn:Heq; rewrite Heq /= in Hz Hv; last by inversion Hz.
+    apply leibniz_equiv in Hz; simplify_eq.
+    revert Hdom. rewrite /= elem_of_subseteq =>Hdom.
+    assert (i ∈ dom (gset positive) fs) as Hin; [apply elem_of_dom;eauto|].
+    specialize (Hdom i Hin). apply elem_of_dom in Hdom.
+    specialize (Hstd i Hdom). done. 
+  Qed. 
+    
   Lemma sts_full_rel_loc W i Q P :
     sts_full_world sts_std W -∗ sts_rel_loc i Q P -∗ ⌜W.2.2 !! i = Some (convert_rel Q,convert_rel P)⌝.
   Proof.
