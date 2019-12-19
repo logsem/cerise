@@ -1647,10 +1647,6 @@ Section wbcf.
             iNext. iSimpl. 
             iIntros "(#[Hfull3 Hreg3] & Hmreg & Hex & Hsts & Hna)".
             iSplit; [auto|rewrite /interp_conf].
-            (* From atleast and the current exact, we can get that fs3 fr3 is public
-               future world of the sts previously defined *)
-            iDestruct (RelW_public with "Hleast' Hex") as %Hpub'. simpl in Hpub'.
-            (* Now we can assert that the state of i is currently false *)
             (* get the PC, currently pointing to the activation record *)
             iDestruct (big_sepM_delete _ _ PC with "Hmreg") as "[HPC Hmreg]".
             { rewrite lookup_insert; eauto. }
@@ -1690,20 +1686,21 @@ Section wbcf.
             iMod (na_inv_open logrel_nais ⊤ (⊤ ∖ ↑regN.@(a-81, a-176))
                               (regN.@(a-200, a-209)) with "Hlocal Hna")
               as "(Hstack & Hna & Hcls)"; [auto|solve_ndisj|].
-            (* assert that the state of i is true *)
+            (* By public future world, we can assert that the state of i is true *)
             rewrite bi.later_exist. iDestruct "Hstack" as (x) "Hstack".
             destruct x.
             { (* by the future world relation, we will get a contradiction *)
-              iDestruct "Hstack" as "(>Hstate & >Ha200 & >Ha201 & >Ha202 & >Ha203 & >Ha204
-                                    & >Ha205 & >Ha206 & >Ha207 & >Ha208 & >Ha209')".
-              iDestruct (sts_full_state with "Hsts Hstate") as %Hi'''.
-              iDestruct (sts_full_rel with "Hsts Hrel") as %Hir''. 
+              iDestruct "Hstack" as "(>Hstate & _)".
+              iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hi'''.
+              iDestruct (sts_full_rel_loc with "Hsts Hrel") as %Hir''. 
               exfalso.
-              destruct Hpub' as (_ & _ & Hrelated).
-              assert ((convert_rel (λ a b : bool, a = b)) = (convert_rel (λ a b : bool, a = b)) ∧
-                      (convert_rel (λ a b : bool, a = true ∨ b = false)) = (convert_rel (λ a b : bool, a = true ∨ b = false)) ∧ rtc (convert_rel (λ a b : bool, a = b)) (encode false) (encode true)) as (_ & _ & Hcontr).
-              { apply Hrelated with i; auto; apply lookup_insert. }
-              apply rtc_id_eq in Hcontr. done. 
+              destruct Hrelated5 as (_ & _ & _ & Hrelated5).
+              destruct Hrelated5 with i (convert_rel (λ a b : bool, a = b))
+                                       (convert_rel (λ a b : bool, a = true ∨ b = false))
+                                       (convert_rel (λ a b : bool, a = b))
+                                       (convert_rel (λ a b : bool, a = true ∨ b = false))
+                as (_ & _ & Hcontr); auto.
+              eapply rtc_id_eq  with (countable.encode false) (countable.encode true) in Hcontr; auto; done. 
             }
             iDestruct "Hstack" as "(>Hstate & >Ha200 & >Ha201 & >Ha202 & >Ha203 & >Ha204
                                         & >Ha205 & >Ha206 & >Ha207 & >Ha208)".
@@ -1818,7 +1815,7 @@ Section wbcf.
             (* we are now ready to show the postcondition *)
             iApply wp_value; auto.
             iIntros "_".
-            iExists _,_,_.
+            iExists _,_.
             (* reconstruct the full map f3 *)
             iDestruct (big_sepM_delete _ _ r_t30 with "[$Hmreg $Hr_t30]") as "Hmreg".
             { repeat (rewrite lookup_delete_ne;auto).
@@ -1848,7 +1845,7 @@ Section wbcf.
             { rewrite lookup_insert;auto. }
             (* frame *)
             iFrame.
-            iSplitL;[|iPureIntro;apply related_sts_priv_refl].
+            iSplitL;[|iPureIntro;split;apply related_sts_priv_refl].
             rewrite /full_map.
             iIntros (r0).
             destruct (decide (r0 = r_stk)); first subst;
@@ -1865,12 +1862,24 @@ Section wbcf.
             assert (r'' !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto.
             rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
             iIntros (_). 
-            iExists _,_,_,_. iSplit; [eauto|].
-            iIntros (E' r0).
             iAlways. rewrite /enter_cond.
+            iIntros (r0 W6 Hrelated6). 
             iNext. iApply fundamental.
             iLeft. done.
             iExists RX. iSplit; auto.
+            iApply (big_sepL_mono with "Hadv"). 
+            iIntros (k y Hsome) "(Hcond & Hperm & Hstd)".
+            iFrame. iDestruct "Hperm" as %Hperm; iDestruct "Hstd" as %Hstd'.
+            iPureIntro. simpl.
+            assert (related_sts_priv_world W W6) as Hrelated_final.
+            { apply related_sts_priv_trans_world with W'''; auto.
+              apply related_sts_priv_trans_world with W''; auto.
+              apply related_sts_priv_trans_world with W';
+                apply related_sts_pub_priv_world; auto.
+            }
+            split.
+            + apply related_sts_rel_std with W; auto.
+            + apply region_state_nwl_monotone_nl with W; auto.
           - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
             rewrite /RegLocate in Hr1. 
             rewrite /r'' /RegLocate. 
@@ -1882,49 +1891,42 @@ Section wbcf.
             rewrite fixpoint_interp1_eq. iPureIntro. eauto.      
         }
         iDestruct ("Hvalid" with "[$Hreg'' Hsts $Hex $Hna $Hmaps'']")
-          as (p g b0 e3 a0 Heq) "Ho". 
+          as "[_ Ho]". 
         { iFrame "∗ #". }
-        inversion Heq; subst. 
-        iSimpl in "Ho".
         iApply wp_wand_r. iFrame.
         iIntros (v) "Hhalted".
         iIntros (->).
         iSpecialize ("Hhalted" with "[]");[auto|]. 
-        iDestruct "Hhalted" as (r0 fs'0 fr'0) "(Hr0 & Hregr0 & % & Hna & Hsts)". 
-        iExists _,_,_. iFrame. 
+        iDestruct "Hhalted" as (r0 W6) "(Hr0 & Hregr0 & % & Hna & Hsts)". 
+        iExists _,_. iFrame. 
         iPureIntro.
-        apply related_sts_priv_trans with (<[i:=encode false]> fs') fr'; auto. 
-        split; [|split;auto].
-        + apply dom_insert_subseteq.
-        + intros i0 x y r1 r2 r1' r2' Hx Hy Hr12 Hr12'.
-          rewrite Hr12 in Hr12'. inversion Hr12'.
-          split;[auto|split;[auto|] ].
-          destruct (decide (i = i0)).
-          * subst. rewrite lookup_insert in Hy. inversion Hy.
-            rewrite Hi in Hx. inversion Hx.
-            right with (encode false);[|left]. 
-            right. rewrite Hir in Hr12. inversion Hr12.
-            cbv. exists true,false. auto.  
-          * rewrite lookup_insert_ne in Hy; auto. rewrite Hx in Hy.
-            inversion Hy. left. 
+        apply related_sts_priv_trans_world with W'''; auto. 
       - rewrite Hr_t30. 
         assert (r !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto. 
         rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
         iIntros (_). 
-        iExists _,_,_,_. iSplit; [eauto|].
-        iIntros (E' r').
         iAlways. rewrite /enter_cond.
+        iIntros (r0 W6 Hrelated6). 
         iNext. iApply fundamental.
         iLeft. done.
         iExists RX. iSplit; auto.
+        iApply (big_sepL_mono with "Hadv").
+        iIntros (k y Hsome) "(Hcond & Hperm & Hstd)". iFrame.
+        iDestruct "Hperm" as %Hperm; iDestruct "Hstd" as %Hstd. iPureIntro.
+        assert (related_sts_priv_world W W6) as Hrelated_final.
+        { apply related_sts_priv_trans_world with W'; auto.
+          apply related_sts_pub_priv_world; auto. }
+        split.
+        + apply related_sts_rel_std with W; auto.
+        + apply region_state_nwl_monotone_nl with W; auto.
       - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
         rewrite Hr1; auto.
         rewrite fixpoint_interp1_eq. iPureIntro. eauto.         
     }
-    iAssert (((interp_reg interp) r))%I as "#HvalR";[iSimpl;auto|].
-    iSpecialize ("Hvalid" with "[$HvalR $Hmaps Hsts $Hna $Hex]"); iFrame. 
-    iDestruct "Hvalid" as (p' g b0 e1 a0 Heq) "Ho". 
-    inversion Heq; subst. rewrite /interp_conf.
+    iAssert (((interp_reg interp) W' r))%I as "#HvalR";[iSimpl;auto|]. 
+    iSpecialize ("Hvalid" with "[$HvalR $Hmaps Hsts $Hna $Hr]"); iFrame. 
+    iDestruct "Hvalid" as "[_ Ho]". 
+    rewrite /interp_conf.
     iApply wp_wand_r. iFrame.
     iIntros (v) "Htest".
     iApply "Hφ". 
