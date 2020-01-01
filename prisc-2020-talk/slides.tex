@@ -432,10 +432,29 @@ $$ \mathcal{V}\uncover<2->{(W)}\triangleq~\{\uncover<5->{{\color{red}n}}, (RW, g
 		\begin{itemize}
 			\item<5-> Invariants
 			\item<6-> Ghost state
+			\item<7-> Always and Later Modalities
 		\end{itemize}
 \end{itemize}
 
-\uncover<5->{We can take advantage of Iris' step-indexed model and invariants to mechanize step-indexed Kripke logical relations with recursive worlds in a succinct and elegant way.}
+\uncover<8->{We can take advantage of Iris' step-indexed model and invariants to mechanize step-indexed Kripke logical relations with recursive worlds in a succinct and elegant way.}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Expressing Capability Safety in Iris - Challenges}
+
+\begin{itemize}
+	\item Region invariants: Iris invariants
+	\item Future world relation: frame preserving updates and world satisfaction 
+	\item Step indexing: later modality
+\end{itemize}
+
+\textbf{Challenges}
+\begin{itemize}
+	\item<2-> Iris was designed with more high level languages in mind, how do we embed a low level machine language into Iris
+	\item<3-> Iris abstracts away certain details we want to reason about directly
+	\item<4-> There is only one frame preserving update, we need to distinguish between two future world relations
+\end{itemize}
 
 \end{frame}
 
