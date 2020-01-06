@@ -40,17 +40,17 @@ Section fundamental.
           -∗ na_own logrel_nais ⊤
           -∗ ⌜a2 = RX ∨ a2 = RWX ∨ a2 = RWLX⌝
              → □ (∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝
-                                ∧ ([∗ list] a7 ∈ region_addrs a4 a5, read_write_cond a7 p'0 interp
-                                                                     ∧ ⌜region_std a0 a7⌝
+                                ∧ ([∗ list] a7 ∈ region_addrs a4 a5, read_write_cond a7 p'0 interp                                                                     
                                                                      ∧ ⌜if pwl a2
                                                                         then region_state_pwl a0 a7
-                                                                        else region_state_nwl a0 a7 a3⌝))
+                                                                        else region_state_nwl a0 a7 a3⌝
+                                                                     ∧ ⌜region_std a0 a7⌝))
                  -∗ interp_conf a0)
     -∗ ([∗ list] a0 ∈ region_addrs b e, read_write_cond a0 p' interp
-                                        ∧ ⌜region_std W a0⌝
                                         ∧ ⌜if pwl p
                                            then region_state_pwl W a0
-                                           else region_state_nwl W a0 g⌝)
+                                           else region_state_nwl W a0 g⌝
+                                        ∧ ⌜region_std W a0⌝)
     -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
     -∗ read_write_cond a p' interp
     -∗ (▷ if decide (ρ = Temporary ∧ pwl p' = true)
