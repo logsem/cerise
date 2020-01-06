@@ -18,14 +18,13 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*
-  Lemma isptr_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (dst r0 : RegName) :
-    ftlr_instr fs fr r p p' g b e a w (cap_lang.IsPtr dst r0).
+  Lemma isptr_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst r0 : RegName) :
+    ftlr_instr W r p p' g b e a w (cap_lang.IsPtr dst r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp HO Hi.
-    iIntros "#IH #Hbe #Hreg #Harel #Hmono #Hw".
-    iIntros "Hfull Hna Hr Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC dst).
     * subst dst.
@@ -82,8 +81,8 @@ Section fundamental.
               auto. }
           (* reestablish invariant *)
           iNext.
-          iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
-          iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+          iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
         - specialize Hsome with dst as Hdst. 
           destruct Hdst as [wdst Hsomesdst].
           specialize Hsome with r0 as Hr0. 
@@ -160,8 +159,8 @@ Section fundamental.
                   ** rewrite lookup_insert_ne; auto. rewrite Hsomec.
                      iApply "Hreg"; auto. }
           (* reestablish invariant *)
-          iNext. iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
-          iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+          iNext. iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+          iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
       } 
       { specialize Hsome with dst as Hdst. 
         destruct Hdst as [wdst Hsomesdst].
@@ -205,7 +204,7 @@ Section fundamental.
               [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto. }
       iApply wp_value.
       iNext. iIntros (Hcontr); inversion Hcontr. 
-      } 
-  Qed.*)
+      }
+  Qed.
 
 End fundamental.

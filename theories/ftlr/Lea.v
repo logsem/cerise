@@ -18,8 +18,6 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*
-  
   Lemma interp_cap_preserved W p l a2 a1 a0 a3 (Hne: p <> cap_lang.E):
     (fixpoint interp1) W (inr (p, l, a2, a1, a0)) -∗
     (fixpoint interp1) W (inr (p, l, a2, a1, a3)).
@@ -28,13 +26,13 @@ Section fundamental.
     destruct p; auto; congruence.
   Qed.
 
-  Lemma lea_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (dst : RegName) (r0 : Z + RegName) :
-    ftlr_instr fs fr r p p' g b e a w (cap_lang.Lea dst r0).
+  Lemma lea_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
+    ftlr_instr W r p p' g b e a w (cap_lang.Lea dst r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp HO Hi.
-    iIntros "#IH #Hbe #Hreg #Harel #Hmono #Hw".
-    iIntros "Hfull Hna Hr Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC dst).
     * subst dst. destruct r0.
@@ -46,9 +44,9 @@ Section fundamental.
             iNext. iIntros "(HPC & Ha)".
             iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
               [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-            iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
             iApply wp_pure_step_later; auto.
-            iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); eauto. }
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+            iApply ("IH" with "[%] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. }
           { iApply (wp_lea_failPC1' with "[HPC Ha]"); eauto;
               [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. 
             iFrame.
@@ -75,11 +73,10 @@ Section fundamental.
                  rewrite -delete_insert_ne; auto.
                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                 iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
                  iApply wp_pure_step_later; auto.
-                 iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
-                   iFrame "#"; eauto.
-                 { iPureIntro. intros x. simpl.
+                 iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+                 iApply ("IH" with "[%] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
+                 { intros x. simpl.
                    destruct (decide (x = r0));
                      [subst;rewrite lookup_insert;eauto|
                      rewrite lookup_insert_ne;auto]. }
@@ -93,7 +90,7 @@ Section fundamental.
               }
               { iApply (wp_lea_failPCreg1' with "[HPC Ha Hr0]"); eauto;
                   [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. iFrame.
-                iNext. iIntros.  iApply wp_pure_step_later; auto.
+                iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
              * iApply (wp_lea_failPCreg1 with "[HPC Ha Hr0]"); eauto; iFrame.
                iNext. iIntros. iApply wp_pure_step_later; auto.
@@ -127,8 +124,8 @@ Section fundamental.
                  repeat rewrite -delete_insert_ne; auto.
                  iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                 iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
                  iApply wp_pure_step_later; auto.
+                 iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
                  iAssert ((interp_registers _ (<[dst:=inr (p0, l, a2, a1, a3)]> r)))%I
                    as "#[Hfull' Hreg']".
                  { iSplitL.
@@ -139,9 +136,7 @@ Section fundamental.
                        simpl. iApply (interp_cap_preserved with "HA"); auto.
                      + rewrite /RegLocate lookup_insert_ne; auto.
                        iApply "Hreg"; auto. }
-                 iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
-                   iFrame "#"; eauto.
-               }
+                 iApply ("IH" with "[$Hfull'] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. }
                { iApply (wp_lea_fail1' with "[HPC Ha Hdst]"); eauto; iFrame.
                  iNext. iIntros. iApply wp_pure_step_later; auto.
                  iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -173,7 +168,7 @@ Section fundamental.
                        repeat rewrite -delete_insert_ne; auto.
                        iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                          [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                       iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+                       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
                        iApply wp_pure_step_later; auto.
                        iAssert ((interp_registers _ (<[dst:=inr (p0, l, a2, a1, a3)]> (<[r0:=inl z]> r))))%I
                          as "#[Hfull' Hreg']".
@@ -190,8 +185,7 @@ Section fundamental.
                                repeat rewrite fixpoint_interp1_eq. simpl. eauto.
                              * rewrite lookup_insert_ne; auto.
                                iApply "Hreg"; auto. }
-                       iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
-                         iFrame "#"; eauto. }
+                       iApply ("IH" with "[$Hfull'] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. }
                      { iApply (wp_lea_fail4' with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                        iNext. iIntros. iApply wp_pure_step_later; auto.
                        iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -201,6 +195,6 @@ Section fundamental.
                  - iApply (wp_lea_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                    iNext. iIntros. iApply wp_pure_step_later; auto.
                    iNext. iApply wp_value; auto. iIntros; discriminate. } }
-  Qed. *)
+  Qed.
        
 End fundamental.
