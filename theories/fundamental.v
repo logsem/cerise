@@ -74,8 +74,7 @@ Section fundamental.
         first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
-      (* iApply (jmp_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (jmp_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Jnz *)
       (* iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
         admit.
