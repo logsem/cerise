@@ -20,7 +20,7 @@ Section fundamental.
 
   Definition ftlr_instr (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (i: instr) (ρ : region_type) := 
-      p = RX ∨ p = RWX ∨ p = RWLX
+      p = RX ∨ p = RWX ∨ (p = RWLX /\ g = Local)
     → (∀ x : RegName, is_Some (r !! x))
     → isCorrectPC (inr (p, g, b, e, a))
     → (b <= a)%a ∧ (a <= e)%a
@@ -38,7 +38,7 @@ Section fundamental.
           -∗ region a0
           -∗ sts_full_world sts_std a0
           -∗ na_own logrel_nais ⊤
-          -∗ ⌜a2 = RX ∨ a2 = RWX ∨ a2 = RWLX⌝
+          -∗ ⌜a2 = RX ∨ a2 = RWX ∨ (a2 = RWLX /\ a3 = Local)⌝
              → □ (∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝
                                 ∧ ([∗ list] a7 ∈ region_addrs a4 a5, read_write_cond a7 p'0 interp                                                                     
                                                                      ∧ ⌜if pwl a2

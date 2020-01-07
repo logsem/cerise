@@ -42,9 +42,8 @@ Section fundamental.
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
-  (* Should be ⌜p = RWLX /\ g = Local⌝ most likely *)
   Theorem fundamental W r p g b e (a : Addr) :
-    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX⌝) →
+    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX /\ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
                                              ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝
@@ -81,8 +80,7 @@ Section fundamental.
       (* iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
         admit.
       + (* Mov *)
-      (* iApply (mov_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (mov_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Load *)
       (* iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
         admit.
@@ -150,6 +148,6 @@ Section fundamental.
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Admitted. 
-      
+  Admitted.
+
 End fundamental. 

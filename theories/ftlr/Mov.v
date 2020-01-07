@@ -24,7 +24,7 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*Lemma mov_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+  Lemma mov_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (src : Z + RegName):
     ftlr_instr W r p p' g b e a w (Mov dst src) ρ.
   Proof.
@@ -124,7 +124,7 @@ Section fundamental.
                 rewrite /RegLocate Hsomer0.
                 rewrite (fixpoint_interp1_eq _ (inr _)).
                 simpl. iApply ("IH" with "[%] [$Hreg] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
-                destruct l; auto.
+                destruct l; auto. destruct l; auto.
                 iDestruct "Hvalid" as (p'') "[% [H1 H2]]".
                 iExists p''. iSplitR; auto. }
             * iApply (wp_move_fail_reg_toPC with "[HPC Ha Hr0]"); eauto; iFrame.
@@ -191,15 +191,19 @@ Section fundamental.
                   unfold future_world; destruct g; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "Hinv"); intros; simpl.
                   - iIntros "[HA [% %]]". iSplitL "HA"; auto.
                     iPureIntro; split.
-                    + admit.
+                    + assert (pwl p = false) by (destruct p; destruct Hp as [Hp | [Hp | [Hp Hcontr] ] ]; try congruence; auto).
+                      rewrite H7 in Hpwl, H5. rewrite H7.
+                      eelim (region_state_nwl_monotone_nl _ _ y _ Hfuture H5). auto.
                     + eapply related_sts_rel_std; eauto.
                   - iIntros "[HA [% %]]". iSplitL "HA"; auto.
                     iPureIntro; split.
-                    + admit.
+                    + destruct (pwl p).
+                      * eapply region_state_pwl_monotone; eauto.
+                      * eapply (region_state_nwl_monotone _ _ _ Local _ Hfuture H5); eauto.
                     + eapply rel_is_std_i_monotone; eauto.
                 }
-                destruct Hp as [Hcontr | [Hcontr | Hcontr] ]; subst p.
-                  (iExists p'; iSplitR;[auto|]; iFrame "Hbe Hexec").
+                destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; subst p; try subst g;
+                  (iExists p'; iSplitR;[auto|]; iFrame "Hinv Hexec").
               - rewrite /RegLocate lookup_insert_ne.
                 iApply "Hreg"; auto. auto. }
             iFrame. auto. auto.
@@ -216,11 +220,11 @@ Section fundamental.
               repeat rewrite -delete_insert_ne; auto.
               iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
               apply lookup_insert. rewrite delete_insert_delete. iFrame.
-              iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
               iApply wp_pure_step_later; auto.
-              iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"). 
+              iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]").
               { iIntros (r2). iPureIntro.
-              destruct (reg_eq_dec dst r2).
+                destruct (reg_eq_dec dst r2).
                 - subst r2. exists (wdst). eapply lookup_insert.
                 - destruct (Hsome r2) as [wr2 Hsomer2].
                   exists wr2. rewrite -Hsomer2. rewrite lookup_insert_ne; eauto. }
@@ -230,7 +234,6 @@ Section fundamental.
                   iApply "Hreg"; auto.
                 - rewrite /RegLocate lookup_insert_ne.
                   iApply "Hreg"; auto. auto. }
-              { eauto. }
               { eauto. }
               { eauto. }
             * destruct (Hsome r0) as [wr0 Hsomer0].
@@ -246,9 +249,9 @@ Section fundamental.
               repeat rewrite -delete_insert_ne; auto.
               iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
               apply lookup_insert. rewrite delete_insert_delete. iFrame.
-              iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
               iApply wp_pure_step_later; auto.
-              iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"). 
+              iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]").
               { iIntros (r2). iPureIntro.
                 destruct (reg_eq_dec dst r2).
                 - subst r2. exists wr0. eapply lookup_insert.
@@ -269,7 +272,6 @@ Section fundamental.
                   + rewrite lookup_insert_ne; auto. iApply "Hreg"; auto. }
               { eauto. }
               { eauto. }
-              { eauto. }
           + destruct (reg_eq_dec dst r0).
             * subst r0. iApply (wp_move_fail_reg_same with "[$HPC $Ha $Hdst]"); eauto.
               iNext. iIntros "(HPC & Ha & Hdst)".
@@ -282,7 +284,7 @@ Section fundamental.
               iNext. iIntros "(HPC & Ha & Hdst & Hr0)".
               iApply wp_pure_step_later; auto.
               iApply wp_value. iNext; iIntros; discriminate. }
-      Unshelve. auto. auto. auto.
-  Qed. *)
+      Unshelve. auto. auto. auto. auto. auto.
+  Qed.
 
 End fundamental.

@@ -39,7 +39,7 @@ Section fundamental.
       { case_eq (a + z)%a; intros.
         * case_eq (a0 + 1)%a; intros.
           { iApply (wp_lea_success_z_PC with "[HPC Ha]"); eauto;
-              [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. 
+              [destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; rewrite Hp; auto|..]. 
             iFrame.
             iNext. iIntros "(HPC & Ha)".
             iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
@@ -48,7 +48,7 @@ Section fundamental.
             iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
             iApply ("IH" with "[%] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. }
           { iApply (wp_lea_failPC1' with "[HPC Ha]"); eauto;
-              [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. 
+              [destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; rewrite Hp; auto|..]. 
             iFrame.
             iNext. iIntros. iApply wp_pure_step_later; auto.
             iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -66,7 +66,7 @@ Section fundamental.
           + case_eq (a + z)%a; intros.
             * case_eq (a0 + 1)%a; intros.
               { iApply (wp_lea_success_reg_PC with "[HPC Ha Hr0]"); eauto;
-                  [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. iFrame.
+                  [destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; rewrite Hp; auto|..]. iFrame.
                  iNext. iIntros "(HPC & Ha & Hr0)".
                  iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
                    [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -89,7 +89,7 @@ Section fundamental.
                  }
               }
               { iApply (wp_lea_failPCreg1' with "[HPC Ha Hr0]"); eauto;
-                  [destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; auto|..]. iFrame.
+                  [destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; rewrite Hp; auto|..]. iFrame.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
              * iApply (wp_lea_failPCreg1 with "[HPC Ha Hr0]"); eauto; iFrame.
