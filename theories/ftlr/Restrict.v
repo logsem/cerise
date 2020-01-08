@@ -2,7 +2,13 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Import ftlr_base.
+From cap_machine Require Import ftlr_base monotone.
+
+(* TODO: Move into logrel.v *)
+Instance future_world_persistent (Σ: gFunctors) g W W': Persistent (@future_world Σ g W W').
+Proof.
+  unfold future_world. destruct g; apply bi.pure_persistent.
+Qed.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -18,27 +24,47 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*
   Lemma locality_eq_dec:
     forall (l1 l2: Locality), {l1 = l2} + {l1 <> l2}.
   Proof.
     destruct l1, l2; auto.
   Qed.
 
+  Lemma loc_flowsto_region_state_nwl W y l l':
+    LocalityFlowsTo l' l = true ->
+    region_state_nwl W y l ->
+    region_state_nwl W y l'.
+  Proof.
+    intros; destruct l, l'; simpl; auto; discriminate.
+  Qed.
+
   Lemma PermPairFlows_interp_preserved W p p' l l' b e a :
     p <> E ->
     PermPairFlowsTo (p', l') (p, l) = true →
-    □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6 a7,
-             full_map a2
-          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) (a0, a1)) (a2 !r! r1))
-          -∗ registers_mapsto (<[PC:=inr (a3, a4, a5, a6, a7)]> a2)
-          -∗ region (a0, a1)
-          -∗ sts_full a0 a1
-          -∗ na_own logrel_nais ⊤
-          -∗ ⌜a3 = RX ∨ a3 = RWX ∨ a3 = RWLX⌝
-             → □ (∃ p'0 : Perm, ⌜PermFlows a3 p'0⌝
-                    ∧ ([∗ list] a8 ∈ region_addrs a5 a6, read_write_cond a8 p'0 interp))
-                 -∗ interp_conf a0 a1) -∗
+    □ ▷ (∀ (a7 : leibnizO (STS * STS)) (a8 : Reg) (a9 : Perm) (a10 : Locality) 
+           (a11 a12 a13 : Addr),
+            full_map a8
+            -∗ (∀ r1 : RegName,
+                   ⌜r1 ≠ PC⌝
+                   → ((fixpoint interp1) a7)
+                       match a8 !! r1 with
+                       | Some w0 => w0
+                       | None => inl 0%Z
+                       end)
+            -∗ registers_mapsto (<[PC:=inr (a9, a10, a11, a12, a13)]> a8)
+            -∗ region a7
+            -∗ sts_full_world sts_std a7
+            -∗ na_own logrel_nais ⊤
+            -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
+            → □ (∃ p'0 : Perm,
+                    ⌜PermFlows a9 p'0⌝
+                    ∧ ([∗ list] a14 ∈ region_addrs a11 a12, 
+                       read_write_cond a14 p'0 interp
+                       ∧ ⌜if pwl a9
+                          then region_state_pwl a7 a14
+                          else region_state_nwl a7 a14 a10⌝
+                               ∧ ⌜region_std a7 a14⌝)) -∗ 
+                interp_conf a7) -∗
     (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
     (fixpoint interp1) W (inr (p', l', b, e, a)).
   Proof.
@@ -47,61 +73,101 @@ Section fundamental.
     simpl in H3, H4. repeat rewrite fixpoint_interp1_eq.
     destruct p; destruct p'; simpl in H3; inversion H3; simpl; auto.
     - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
+      iExists p. iFrame "%".
+      iApply (big_sepL_mono with "HA").
+      simpl; intros. iIntros "[H [% %]]".
+      iSplitL; auto. iFrame "%".
+      iPureIntro. eapply loc_flowsto_region_state_nwl; eauto.
     - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA").
+        simpl; intros. iIntros "[H [% %]]".
+        iSplitL; auto. iFrame "%".
+        iPureIntro. eapply loc_flowsto_region_state_nwl; eauto.
     - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
-    - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
+      iExists p. iFrame "%".
+      iApply (big_sepL_mono with "HA").
+      simpl; intros. iIntros "[H [% %]]".
+      iSplitL; auto. iFrame "%".
+      iPureIntro. eapply loc_flowsto_region_state_nwl; eauto.
+    - destruct l; auto.
+      iDestruct "HA" as (p) "[% HA]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + assert (l' = Local) by (destruct l'; auto; discriminate).
+        subst l'. simpl. iApply (big_sepL_mono with "HA").
+        simpl; intros. iIntros "[H [% %]]".
+        iSplitL; auto.
+    - destruct l; auto.
+      iDestruct "HA" as (p) "[% HA]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + assert (l' = Local) by (destruct l'; auto; discriminate).
+        subst l'. simpl. iApply (big_sepL_mono with "HA").
+        simpl; intros. iIntros "[H [% %]]".
+        iSplitL; auto.
+    - destruct l; auto. assert (l' = Local) by (destruct l'; auto; discriminate).
+      subst l'. auto.
+    - iDestruct "HA" as (p) "[% [HA _]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto. iPureIntro; split; auto.
+        eapply loc_flowsto_region_state_nwl; eauto.
     - iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; auto.
       iDestruct "HA" as "[#HA #HB]".
-      iFrame "#". iModIntro. rewrite /exec_cond /=.
-      destruct (locality_eq_dec l' l).
-      + subst l'. auto.
-      + destruct l', l; simpl in H4; try congruence.
-        iIntros. 
-        iAssert (future_world Global W W') as "Hfuture".
-        { iPureIntro. by apply related_sts_pub_priv. }
-        iSpecialize ("HB" $! a0 r W' a1 with "Hfuture").
-        iNext. iDestruct "HB" as (fs fr) "[% [% H]]". subst. 
-        iExists _, _. do 2 (iSplitR; [eauto|]). 
-        iIntros "[A [B [C [D E]]]]". 
-        iSplitR; eauto.
-        rewrite /interp_conf. 
-        iDestruct "A" as "[A1 A2]".
-        destruct W'. 
-        iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iSplit.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto. iPureIntro; split; auto.
+        eapply loc_flowsto_region_state_nwl; eauto.
+      + iModIntro. rewrite /exec_cond /=.
+        destruct (locality_eq_dec l' l).
+        * subst l'. auto.
+        * destruct l', l; simpl in H4; try congruence.
+          iIntros. 
+          iAssert (future_world Global W W') as "Hfuture".
+          { iPureIntro. by apply related_sts_pub_priv_world. }
+          iSpecialize ("HB" $! a0 r W' a1 with "Hfuture").
+          iNext. iIntros "[A [B [C [D E]]]]". 
+          iSplitR; eauto.
+          iDestruct "A" as "[A1 A2]".
+          iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+          simpl. iModIntro.
+          iExists p. iSplitR; auto.
+          iApply (big_sepL_mono with "HA"); simpl; intros.
+          iIntros "[H [% %]]".
+          iSplitL; auto. iPureIntro; split; auto.
+          { right. eapply (region_state_nwl_monotone W W' y Global); auto. }
+          { eapply rel_is_std_i_monotone; eauto. }
     - iDestruct "HA" as (p) "[% HA]".
       iDestruct "HA" as "[#HA #HB]".
       iModIntro. rewrite /exec_cond /enter_cond.
       iIntros (r W') "Hfuture". destruct (decide (in_range a b e)).
-      + iAssert (future_world l W W') with "[Hfuture]" as "Hfuture".
-        { destruct (locality_eq_dec l' l).
-          - by subst l'.
-          - destruct l', l; simpl in H4; try congruence.
-            iDestruct "Hfuture" as %Hfuture.
-            iPureIntro. by apply related_sts_pub_priv. 
-        }
-        iSpecialize ("HB" $! a r W' i with "Hfuture").
-        iNext. rewrite /interp_expr /=. iExists _, _.
-        do 2 (iSplitR; eauto). iIntros "A".
-        iSplitR; auto.
-        rewrite /interp_conf. iDestruct "HB" as (fs fr) "[% [% HB]]".
-        iDestruct "A" as "[A [B [C [D E]]]]".
-        iDestruct "A" as "[A1 A2]". destruct W'. 
+      + iDestruct "Hfuture" as "#Hfuture".
+        iNext. rewrite /interp_expr /=. iIntros "[[A1 A2] [B [C [D E]]]]".
+        iSplitR; auto. rewrite /interp_conf. 
         iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-      + iNext. rewrite /interp_expr /=. iExists _, _.
-        do 2 (iSplitR; eauto). iIntros "A". iClear "HB".
+        iModIntro. iExists p. iSplitR; auto.
+        destruct l'; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "HA"); simpl; intros; iIntros "[H [% %]]"; iSplitL; auto; iPureIntro.
+        { destruct l; simpl in H4; try congruence.
+          simpl in H7. split.
+          - eapply (region_state_nwl_monotone_nl W W' y); auto.
+          - eapply related_sts_rel_std; eauto. }
+        { split.
+          - destruct l; simpl in H7.
+            + right. eapply (region_state_nwl_monotone W W' y Global); auto.
+            + eapply (region_state_nwl_monotone W W' y Local); auto.
+          - eapply rel_is_std_i_monotone; eauto. }
+      + iNext. rewrite /interp_expr /=.
+        iIntros "A". iClear "HB".
         iSplitR; auto.
         iDestruct "A" as "[A [B C]]".
         rewrite /registers_mapsto. rewrite /interp_conf.
@@ -116,112 +182,167 @@ Section fundamental.
         iApply wp_value. iIntros "%". discriminate.
     - elim HpnotE; auto.
     - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto. iPureIntro; split; auto.
+        eapply loc_flowsto_region_state_nwl; eauto.
     - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto. iPureIntro; split; auto.
+        eapply loc_flowsto_region_state_nwl; eauto.
     - iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; auto.
       iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[#HA #HB]". iFrame "#".
-      iModIntro. rewrite /exec_cond.
-      iIntros (a' r W' Hin) "Hfuture".
-      iAssert (future_world l W W') with "[Hfuture]" as "Hfuture".
-        { destruct (locality_eq_dec l' l).
-          - by subst l'.
-          - destruct l', l; simpl in H4; try congruence.
-            iDestruct "Hfuture" as %Hfuture.
-            iPureIntro. by apply related_sts_pub_priv. }
-      iSpecialize ("HB" $! a' r W' Hin with "Hfuture").
-      iNext. rewrite /interp_expr /=.
-      iExists _,_. iSplitR; auto. iSplitR; auto.
-      iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'.
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-      iAlways. iExists p. iSplitR.
-      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
-      + auto.
+      reflexivity. iDestruct "HA" as "[#HA #HB]".
+      iSplit.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto. iPureIntro; split; auto.
+        eapply loc_flowsto_region_state_nwl; eauto.
+      + iModIntro. rewrite /exec_cond.
+        iIntros (a' r W' Hin) "#Hfuture".
+        rewrite /interp_expr /=.
+        iNext. iIntros "[[A1 A2] [B [C [D E]]]]".
+        iSplitR; auto. iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+        iAlways. iExists p. iSplitR.
+        * iPureIntro. eapply PermFlows_trans; eauto. constructor.
+        * simpl. destruct l'; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "HA"); simpl; intros; iIntros "[H [% %]]"; iSplitL; auto; iPureIntro.
+          { destruct l; simpl in H4; try congruence.
+            simpl in H7. split.
+            - eapply (region_state_nwl_monotone_nl W W' y); auto.
+            - eapply related_sts_rel_std; eauto. }
+          { split.
+            - destruct l; simpl in H7.
+              + right. eapply (region_state_nwl_monotone W W' y Global); auto.
+              + eapply (region_state_nwl_monotone W W' y Local); auto.
+            - eapply rel_is_std_i_monotone; eauto. }
     - iDestruct "HA" as (p) "[% [#HA #HB]]".
       iModIntro. rewrite /exec_cond /enter_cond.
-      iIntros. iNext. rewrite /interp_expr /=.
-      iExists _,_. iSplitR; auto. iSplitR; auto.
-      iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'.
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-      iAlways. iExists p. iSplitR.
-      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
-      + auto.
-    - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iSplitR; auto.
-      iDestruct "HA" as "[#HA #HB]". iFrame "#".
-      iModIntro. rewrite /exec_cond.
-      iIntros (a' r W' Hin) "Hfuture".
-      iNext. rewrite /interp_expr /=.
-      iExists _,_. iSplitR; auto. iSplitR; auto.
-      iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'. 
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-    - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
-    - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
-    - iDestruct "HA" as (p) "[% [HA HB]]".
-      iExists p. iFrame.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity.
-    - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iSplitR; auto.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[#HA #HB]". auto.
-      iFrame "#". iModIntro.
-      rewrite /exec_cond. iIntros. iNext.
+      iIntros (r W') "#Hfuture". iNext.
       rewrite /interp_expr /=.
-      iExists _,_. iSplitR; auto. iSplitR; auto.
       iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'. 
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iSplitR; auto. iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
       iAlways. iExists p. iSplitR.
       + iPureIntro. eapply PermFlows_trans; eauto. constructor.
-      + auto.
-    - iDestruct "HA" as (p) "[% HA]".
-      iDestruct "HA" as "[#HA #HB]". 
-      iModIntro. rewrite /enter_cond /interp_expr /=.
-      iIntros. iNext. iExists _,_. iSplitR; auto. iSplitR; auto.
-      iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'. 
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-      iAlways. iExists p. iSplitR.
-      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
-      + auto.
-    - iDestruct "HA" as (p) "[% HA]".
-      iExists p. iSplitR; auto.
-      iPureIntro. eapply PermFlows_trans; eauto.
-      reflexivity. iDestruct "HA" as "[#HA #HB]". iFrame "#".
-      iModIntro. rewrite /exec_cond.
-      iIntros (a' r W' Hin) "Hfuture".
-      iNext. iExists _,_. iSplitR; auto. iSplitR; auto.
-      iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'. 
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
-      iAlways. iExists p. iSplitR.
-      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
-      + auto.
+      + simpl. destruct l'; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "HA"); simpl; intros; iIntros "[H [% %]]"; iSplitL; auto; iPureIntro.
+        { destruct l; simpl in H4; try congruence.
+          simpl in H7. split.
+          - eapply (region_state_nwl_monotone_nl W W' y); auto.
+          - eapply related_sts_rel_std; eauto. }
+        { split.
+          - destruct l; simpl in H7.
+            + right. eapply (region_state_nwl_monotone W W' y Global); auto.
+            + eapply (region_state_nwl_monotone W W' y Local); auto.
+          - eapply rel_is_std_i_monotone; eauto. }
     - iDestruct "HA" as (p) "[% HA]".
       iExists p. iSplitR; auto.
       iDestruct "HA" as "[#HA #HB]".
-      iFrame "#". iModIntro.
-      rewrite /exec_cond. iIntros (a' r W' Hin) "Hfuture".
-      iNext. iExists _,_. iSplitR; auto. iSplitR; auto.
+      destruct (locality_eq_dec l l').
+      + subst l'; auto.
+      + destruct l, l'; simpl in H4; try congruence.
+        iSplit.
+        * iApply (big_sepL_mono with "HA"); simpl; intros.
+          iIntros "[H [% %]]"; iSplitL; auto.
+        * iAlways. rewrite /exec_cond.
+          iIntros (a' r W' Hin) "%".
+          iNext. rewrite /interp_expr /=.
+          iIntros "[[A1 A2] [B [C [D E]]]]".
+          iSplitR; auto. iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+          iAlways. iExists p.
+          iSplitR; auto.
+          iApply (big_sepL_mono with "HA"); simpl; intros; iIntros "[H [% %]]"; iSplitL; auto; iPureIntro.
+          split; [right | eapply rel_is_std_i_monotone; eauto].
+          eapply (region_state_nwl_monotone W W' y Global); auto.
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% [HA HB]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto.
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% [HA HB]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto.
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% [HA HB]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]".
+        iSplitL; auto.
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% [#HA #HB]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iSplit.
+        * iApply (big_sepL_mono with "HA"); simpl; intros.
+          iIntros "[H [% %]]". iSplitL; auto.
+        * iAlways. rewrite /exec_cond.
+          iIntros (a0 r W' Hin Hfuture).
+          iNext. iIntros "[[A1 A2] [B [C [D E]]]]".
+          iSplitR; auto.
+          iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+          iAlways. iExists p. iSplitR.
+          { iPureIntro. eapply PermFlows_trans; eauto. constructor. }
+          { iApply (big_sepL_mono with "HA"); simpl; intros.
+            iIntros "[H [% %]]". iSplitL; auto.
+            iPureIntro. split.
+            - eapply (region_state_nwl_monotone W W' y Local); auto.
+              left. auto.
+            - eapply rel_is_std_i_monotone; eauto. }
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% HA]".
+      iDestruct "HA" as "[#HA #HB]". 
+      iModIntro. rewrite /enter_cond /interp_expr /=.
+      iIntros (r W' Hfuture). iNext.
       iIntros "[[A1 A2] [B [C [D E]]]]".
-      iSplitR; auto. destruct W'. 
-      iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iSplitR; auto. iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+      iAlways. iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto. constructor.
+      + simpl. iApply (big_sepL_mono with "HA"); simpl; intros.
+        iIntros "[H [% %]]". iSplitL; auto.
+        iPureIntro. split.
+        * eapply (region_state_nwl_monotone W W' y Local); auto.
+          left. auto.
+        * eapply rel_is_std_i_monotone; eauto.
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      iDestruct "HA" as (p) "[% [#HA #HB]]".
+      iExists p. iSplitR.
+      + iPureIntro. eapply PermFlows_trans; eauto.
+        reflexivity.
+      + iSplit.
+        * iApply (big_sepL_mono with "HA"); simpl; intros.
+          iIntros "[H [% %]]". iSplitL; auto.
+        * iAlways. rewrite /exec_cond.
+          iIntros (a0 r W' Hin Hfuture).
+          iNext. iIntros "[[A1 A2] [B [C [D E]]]]".
+          iSplitR; auto.
+          iApply ("IH" with "[A1] [A2] [B] [C] [D] [E]"); auto.
+          iAlways. iExists p. iSplitR.
+          { iPureIntro. eapply PermFlows_trans; eauto. constructor. }
+          { iApply (big_sepL_mono with "HA"); simpl; intros.
+            iIntros "[H [% %]]". iSplitL; auto.
+            iPureIntro. split.
+            - eapply (region_state_nwl_monotone W W' y Local); auto.
+              left. auto.
+            - eapply rel_is_std_i_monotone; eauto. }
+    - destruct l; auto. destruct l'; simpl in H4; try discriminate.
+      auto.
   Qed.
 
   Lemma match_perm_with_E_rewrite:
@@ -234,13 +355,13 @@ Section fundamental.
     intros. destruct (perm_eq_dec p E); destruct p; auto; congruence.
   Qed.
 
-  Lemma restrict_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (dst : RegName) (r0 : Z + RegName) :
-    ftlr_instr fs fr r p p' g b e a w (cap_lang.Restrict dst r0).
+  Lemma restrict_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
+    ftlr_instr W r p p' g b e a w (Restrict dst r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp HO Hi.
-    iIntros "#IH #Hbe #Hreg #Harel #Hmono #Hw".
-    iIntros "Hfull Hna Hr Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC dst).
     * subst dst. destruct r0.
@@ -248,7 +369,7 @@ Section fundamental.
         * case_eq (a + 1)%a; intros.
           { iApply (wp_restrict_success_z_PC with "[$HPC $Ha]"); eauto.
             iNext. iIntros "(HPC & Ha)".
-            iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
             iApply wp_pure_step_later; auto.
             case_eq (decodePermPair z); intros. rewrite H5 in H3.
             destruct (andb_true_eq _ _ ltac:(symmetry in H3; exact H3)).
@@ -279,11 +400,24 @@ Section fundamental.
               iNext. iIntros. discriminate.
             - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
               [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-              iNext. iAlways. iExists _; iFrame "#". auto.
-              iPureIntro.
-              apply PermFlows_trans with p; auto.
-              destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; done. 
+              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
+              iNext. iAlways. iExists p'. iSplit.
+              + iPureIntro. apply PermFlows_trans with p; auto.
+                eapply (proj1 (andb_prop _ _ H3)).
+              + iApply (big_sepL_mono with "Hinv"); simpl; intros.
+                iIntros "[H [% %]]". iSplitL; auto.
+                iPureIntro. split; auto.
+                destruct (locality_eq_dec l g).
+                * subst g. destruct p; simpl in H9; try congruence.
+                  destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; try discriminate.
+                  subst l. left; auto.
+                * destruct p; simpl in H9; try congruence.
+                  { destruct l; destruct g; simpl in H7; try congruence.
+                    right; auto. }
+                  { destruct l; destruct g; simpl in H7; try congruence.
+                    right; auto. }
+                  { destruct Hp as [Hp | [ Hp | [Hp Hg] ] ]; try discriminate.
+                    subst g. destruct l; simpl in H7; try congruence. }
             - iNext. iApply (wp_bind (fill [SeqCtx])).
               iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
               iNext. iIntros "HPC /=".
@@ -292,20 +426,28 @@ Section fundamental.
               iNext. iIntros. discriminate.
             - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
               [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-              iNext. iAlways. iExists _; iFrame "#". auto.
-              iPureIntro.
-              apply PermFlows_trans with p; auto.
-              destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; try done.
-              rewrite Hp in H6; inversion H6.
-            - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
+              iNext. iAlways. iExists p'. iSplit.
+              + iPureIntro. apply PermFlows_trans with p; auto.
+                eapply (proj1 (andb_prop _ _ H3)).
+              + iApply (big_sepL_mono with "Hinv"); simpl; intros.
+                iIntros "[H [% %]]". iSplitL; auto.
+                iPureIntro. split; auto.
+                destruct (locality_eq_dec l g).
+                * subst g. destruct p; simpl in H9; try congruence.
+                  destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; try discriminate.
+                  subst l. left; auto.
+                * destruct p; simpl in H9; try congruence.
+                  { destruct l; destruct g; simpl in H7; try congruence.
+                    right; auto. }
+                  { destruct l; destruct g; simpl in H7; try congruence.
+                    left; auto. }
+            - destruct p; try congruence.
+              destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; try congruence; subst g.
+              destruct l; simpl in H7; try congruence.
+              iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
               [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-              iNext. iAlways. iExists _; iFrame "#". auto.
-              iPureIntro.
-              apply PermFlows_trans with p; auto.
-              destruct Hp as [Hp | [Hp | Hp] ]; rewrite Hp; try done;
-              rewrite Hp in H6; inversion H6. }
+              iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto. }
           { iApply (wp_restrict_failPC1' with "[$HPC $Ha]"); eauto.
             iNext. iIntros. iApply wp_pure_step_later; auto.
             iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -329,7 +471,7 @@ Section fundamental.
                 rewrite -delete_insert_ne; auto.
                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                   [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+                iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
                 iApply wp_pure_step_later; auto. rewrite (insert_id _ r0); auto.
                 case_eq (decodePermPair z); intros.
                 destruct (andb_true_eq _ _ ltac:(symmetry in H3; exact H3)).
@@ -366,11 +508,25 @@ Section fundamental.
                   iApply wp_pure_step_later; auto.
                   iApply wp_value.
                   iNext. iIntros. discriminate.
-                - iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-                  iNext. iAlways. iExists _; iFrame "#".
-                  iPureIntro.
-                  destruct Hp as [Hp | [Hp | Hp] ]; 
-                    apply PermFlows_trans with p;subst p; auto. 
+                - rewrite H5 in H3, H7.
+                  iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
+                  iNext. iAlways. iExists p'. iSplit.
+                  + iPureIntro. apply PermFlows_trans with p; auto.
+                    eapply (proj1 (andb_prop _ _ H3)).
+                  + iApply (big_sepL_mono with "Hinv"); simpl; intros.
+                    iIntros "[H [% %]]". iSplitL; auto.
+                    iPureIntro. split; auto.
+                    destruct (locality_eq_dec l g).
+                    * subst g. destruct p; simpl in H9; try congruence.
+                      destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; try discriminate.
+                      subst l. left; auto.
+                    * destruct p; simpl in H9; try congruence.
+                      { destruct l; destruct g; simpl in H7; try congruence.
+                        right; auto. }
+                      { destruct l; destruct g; simpl in H7; try congruence.
+                        right; auto. }
+                      { destruct Hp as [Hp | [ Hp | [Hp Hg] ] ]; try discriminate.
+                        subst g. destruct l; simpl in H7; try congruence. }
                 - iNext. iApply (wp_bind (fill [SeqCtx])).
                   iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
                   erewrite lookup_insert; eauto.
@@ -379,17 +535,28 @@ Section fundamental.
                   iApply wp_pure_step_later; auto.
                   iApply wp_value.
                   iNext. iIntros. discriminate.
-                - iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-                  iNext. iAlways. iExists _; iFrame "#".
-                  iPureIntro.
-                  destruct Hp as [Hp | [Hp | Hp] ]; 
-                    apply PermFlows_trans with p;subst p; auto; congruence.
-                - iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
-                  iNext. iAlways. iExists _; iFrame "#".
-                  iPureIntro.
-                  destruct Hp as [Hp | [Hp | Hp] ]; 
-                    apply PermFlows_trans with p;subst p; auto; congruence.
-              }
+                - iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
+                  rewrite H5 in H3, H7.
+                  iNext. iAlways. iExists p'. iSplit.
+                  + iPureIntro. apply PermFlows_trans with p; auto.
+                    eapply (proj1 (andb_prop _ _ H3)).
+                  + iApply (big_sepL_mono with "Hinv"); simpl; intros.
+                    iIntros "[H [% %]]". iSplitL; auto.
+                    iPureIntro. split; auto.
+                    destruct (locality_eq_dec l g).
+                    * subst g. destruct p; simpl in H9; try congruence.
+                      destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; try discriminate.
+                      subst l. left; auto.
+                    * destruct p; simpl in H9; try congruence.
+                      { destruct l; destruct g; simpl in H7; try congruence.
+                        right; auto. }
+                      { destruct l; destruct g; simpl in H7; try congruence.
+                        left; auto. }
+                - rewrite H5 in H3, H7.
+                  destruct p; try congruence.
+                  destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; try congruence; subst g.
+                  destruct l; simpl in H7; try congruence.
+                  iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto. }
               { iApply (wp_restrict_failPCreg1' with "[HPC Ha Hr0]"); eauto; iFrame.
                 iNext. iIntros.  iApply wp_pure_step_later; auto.
                 iNext. iApply wp_value; auto. iIntros; discriminate. }
@@ -421,7 +588,7 @@ Section fundamental.
                   repeat rewrite -delete_insert_ne; auto.
                   iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                     [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                  iDestruct (region_close with "[$Hr $Ha]") as "Hr";[iFrame "#"; auto|].
+                  iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
                   iApply wp_pure_step_later; auto.
                   iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> r)))%I
                     as "#[Hfull' Hreg']".
@@ -434,7 +601,7 @@ Section fundamental.
                         iApply (PermPairFlows_interp_preserved); auto. done. auto.
                       + rewrite /RegLocate lookup_insert_ne; auto.
                         iApply "Hreg"; auto. }
-                  iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
+                  iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]");
                     iFrame "#"; eauto. }
               { iApply (wp_restrict_fail1' with "[$HPC $Ha $Hdst]"); eauto.
                 iNext. iIntros. iApply wp_pure_step_later; auto.
@@ -470,8 +637,7 @@ Section fundamental.
                         repeat rewrite -delete_insert_ne; auto.
                         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
                           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-                        iDestruct (region_close with "[$Hr $Ha]") as "Hr";
-                          [iFrame "#"; auto|].
+                        iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
                         iApply wp_pure_step_later; auto.
                         iAssert ((interp_registers _ (<[dst:=inr (decodePermPair z, a2, a1, a0)]> (<[r0:=inl z]> r))))%I
                           as "#[Hfull' Hreg']".
@@ -489,7 +655,7 @@ Section fundamental.
                                 repeat rewrite fixpoint_interp1_eq. simpl. eauto.
                               * rewrite lookup_insert_ne; auto.
                                 iApply "Hreg"; auto. }
-                        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hfull] [$Hna]");
+                        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]");
                           iFrame "#"; eauto. }
                     { iApply (wp_restrict_fail4' with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                       iNext. iIntros. iApply wp_pure_step_later; auto.
@@ -500,6 +666,6 @@ Section fundamental.
                 - iApply (wp_restrict_fail5 with "[HPC Ha Hdst Hr0]"); eauto; iFrame.
                   iNext. iIntros. iApply wp_pure_step_later; auto.
                   iNext. iApply wp_value; auto. iIntros; discriminate. } }
-  Qed. *)
+  Qed.
 
 End fundamental.
