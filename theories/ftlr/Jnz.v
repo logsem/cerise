@@ -18,7 +18,7 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma jmp_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+  Lemma jnz_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (r1 r2 : RegName):
     ftlr_instr W r p p' g b e a w (Jnz r1 r2) ρ.
   Proof.
