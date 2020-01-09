@@ -80,8 +80,7 @@ Section fundamental.
       + (* Mov *)
         iApply (mov_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Load *)
-      (* iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (load_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Store *)
       (* iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
         admit.
