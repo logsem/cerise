@@ -46,29 +46,6 @@ Section fundamental.
     destruct (reg_eq_dec PC dst).
     { subst dst. iApply (wp_GetL_failPC with "[Hr0 HPC Hdst Ha]"); eauto; iFrame.
       iNext. iIntros "(HPC & Ha & Hr0)".
-      iAssert ([∗ map] k↦y ∈ <[PC:=(if reg_eq_dec PC r0 then inl (encodeLoc g) else match wr0 with | inl _ => inr (p, g, b, e, a) | inr (_, g', _, _, _) => inl (encodeLoc g') end)]> (if reg_eq_dec PC r0 then r else <[r0:= wr0]> r), k ↦ᵣ y)%I with "[Hr0 HPC Hmap]" as "Hmap".
-      { destruct (reg_eq_dec PC r0).
-        - iDestruct ((big_sepM_delete _ _ ) with "[HPC Hmap]") as "Hmap /=".
-          eapply lookup_insert.
-          erewrite (delete_insert_delete r PC _). iFrame. simpl. auto.
-        - iDestruct ((big_sepM_delete _ _ ) with "[Hr0 Hmap]") as "Hmap /=";
-            [eapply lookup_insert|erewrite (delete_insert_delete (delete PC r) r0 _);iFrame|]. simpl.
-          rewrite -delete_insert_ne; auto.
-          iDestruct ((big_sepM_delete _ _ ) with "[HPC Hmap]") as "Hmap /=";
-            [eapply lookup_insert|erewrite (delete_insert_delete (<[r0:=wr0]> r) PC _);iFrame|]. simpl. auto. }
-      iAssert (interp_registers _ (if reg_eq_dec PC r0 then r else <[r0:=wr0]> r)) as "#Hreg'".
-      { iSplit.
-        - iIntros (r1).
-          iPureIntro. destruct (reg_eq_dec PC r0); auto.
-          destruct (reg_eq_dec r0 r1); eapply (proj2 (lookup_insert_is_Some r _ _ _)); eauto.
-        - iIntros (r1 Hnepc).
-          iDestruct ("Hreg" $! r1 Hnepc) as "#Hv".
-          specialize Hsome with r1 as [wr1 Hr1]. 
-          destruct (reg_eq_dec PC r0); eauto.
-          destruct (reg_eq_dec r0 r1).
-          + subst r1. rewrite /RegLocate lookup_insert Hsomer0.
-            iApply "Hv"; auto.
-          + rewrite /RegLocate lookup_insert_ne; auto. }
       iApply wp_pure_step_later; auto. iApply wp_value.
       iNext. iIntros (Hcontr); inversion Hcontr. 
     } 
@@ -154,14 +131,6 @@ Section fundamental.
         iApply wp_pure_step_later; auto.
         iApply wp_value. iNext. iIntros (Hcontr); inversion Hcontr.
     }
-    Unshelve.
-    - apply _.
-    - apply _.
-    - apply _.
-    - apply _.
-    - apply _.
-    - apply _.
-    - apply _. 
   Qed.
 
   Lemma getP_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
