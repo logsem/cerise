@@ -1,13 +1,12 @@
-\beamer@sectionintoc {1}{Capability Machines}{8}{0}{1}
-\beamer@subsectionintoc {1}{1}{Enforcing Local Stack Encapsulation using Capabilities}{14}{0}{1}
-\beamer@subsectionintoc {1}{2}{Enforcing Well Bracketed Control Flow using Capabilities}{18}{0}{1}
-\beamer@subsectionintoc {1}{3}{Local Capabilities}{25}{0}{1}
-\beamer@sectionintoc {2}{Reasoning about Capability Safety}{31}{0}{2}
-\beamer@sectionintoc {3}{Program Logic}{61}{0}{3}
-\beamer@subsectionintoc {3}{1}{A Capability Points-to Predicate}{67}{0}{3}
-\beamer@sectionintoc {4}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{72}{0}{4}
-\beamer@subsectionintoc {4}{1}{The Value Relation}{73}{0}{4}
-\beamer@subsectionintoc {4}{2}{The Execute Condition}{80}{0}{4}
-\beamer@subsectionintoc {4}{3}{The Expression Relation}{82}{0}{4}
-\beamer@sectionintoc {5}{The Fundamental Theorem of Logical Relations}{89}{0}{5}
-\beamer@sectionintoc {6}{Reasoning about Unknown Code}{95}{0}{6}
+\beamer@sectionintoc {1}{Capability Machines}{7}{0}{1}
+\beamer@subsectionintoc {1}{1}{Enforcing Well Bracketed Control Flow using Capabilities}{13}{0}{1}
+\beamer@subsectionintoc {1}{2}{Local Capabilities}{20}{0}{1}
+\beamer@sectionintoc {2}{Reasoning about Capability Safety}{25}{0}{2}
+\beamer@sectionintoc {3}{Program Logic}{55}{0}{3}
+\beamer@subsectionintoc {3}{1}{A Capability Points-to Predicate}{61}{0}{3}
+\beamer@sectionintoc {4}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{66}{0}{4}
+\beamer@subsectionintoc {4}{1}{The Value Relation}{67}{0}{4}
+\beamer@subsectionintoc {4}{2}{The Execute Condition}{74}{0}{4}
+\beamer@subsectionintoc {4}{3}{The Expression Relation}{76}{0}{4}
+\beamer@sectionintoc {5}{The Fundamental Theorem of Logical Relations}{83}{0}{5}
+\beamer@sectionintoc {6}{Reasoning about Unknown Code}{89}{0}{6}

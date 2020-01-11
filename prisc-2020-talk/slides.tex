@@ -88,6 +88,7 @@
 \usepackage{dsfont}
 \usepackage{longtable}
 \usepackage{mathtools}
+\usepackage{iris}
 
 \newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
 \newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
@@ -98,10 +99,10 @@
 \newcommand\myeq[1]{\stackrel{\mathclap{\normalfont\mbox{#1}}}{=}}
 
 
-\newcommand{\ra}[1] {
-  \begin{tikzpicture}
-        \node[draw,dashed] {#1};
-    \end{tikzpicture}}
+%\newcommand{\ra}[1] {
+%  \begin{tikzpicture}
+%        \node[draw,dashed] {#1};
+%    \end{tikzpicture}}
     
 \newcommand{\inv}[1] {
   \begin{tikzpicture}
@@ -225,11 +226,11 @@ Aarhus University \\ % Your institution for the title page
 %	PRESENTATION SLIDES
 %----------------------------------------------------------------------------------------
 
-\begin{frame}
-\frametitle{Overview} % Table of contents slide, comment this block out to remove it
-\tableofcontents[hideallsubsections]
- % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
-\end{frame}
+%\begin{frame}
+%\frametitle{Overview} % Table of contents slide, comment this block out to remove it
+%\tableofcontents[hideallsubsections]
+% % Throughout your presentation, if you choose to use \section{} and \subsection{} commands, these will automatically be printed on this slide as an overview of your presentation
+%\end{frame}
 
 %------------------------------------------------
 \section{Capability Machines} % Sections can be created in order to organize your presentation into discrete blocks, all sections and subsections are automatically printed in the table of contents as an overview of the talk
@@ -268,35 +269,35 @@ Aarhus University \\ % Your institution for the title page
 \end{frame}
 
 %------------------------------------------------
-\subsection{Enforcing Local Stack Encapsulation using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
-
-\begin{frame}[fragile]
-\frametitle{Capability Safety}
-\textbf{Local State Encapsulation}
-\\[1cm]
-\begin{columns}[c]
-
-\column{.45\textwidth} % Left column and width
-\begin{tikzpicture}
-    \node<1> (img1) {\includegraphics[scale=0.7]{images/wbcf_1.pdf}};
-    \node<2> (img2) {\includegraphics[scale=0.7]{images/wbcf_2.pdf}};
-    \node<3> (img3) {\includegraphics[scale=0.7]{images/wbcf_3.pdf}};
-\end{tikzpicture}
-
-\column{.5\textwidth} % Right column and width
-\begin{center}
-\begin{lstlisting}
-push r_stk 1
-scall r 
-pop r_stk r_1
-assert r_1 1
-halt
-\end{lstlisting}
-\end{center}
-
-
-\end{columns}
-\end{frame}
+%\subsection{Enforcing Local Stack Encapsulation using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
+%
+%\begin{frame}[fragile]
+%\frametitle{Capability Safety}
+%\textbf{Local State Encapsulation}
+%\\[1cm]
+%\begin{columns}[c]
+%
+%\column{.45\textwidth} % Left column and width
+%\begin{tikzpicture}
+%    \node<1> (img1) {\includegraphics[scale=0.7]{images/wbcf_1.pdf}};
+%    \node<2> (img2) {\includegraphics[scale=0.7]{images/wbcf_2.pdf}};
+%    \node<3> (img3) {\includegraphics[scale=0.7]{images/wbcf_3.pdf}};
+%\end{tikzpicture}
+%
+%\column{.5\textwidth} % Right column and width
+%\begin{center}
+%\begin{lstlisting}
+%push r_stk 1
+%scall r 
+%pop r_stk r_1
+%assert r_1 1
+%halt
+%\end{lstlisting}
+%\end{center}
+%
+%
+%\end{columns}
+%\end{frame}
 
 %------------------------------------------------
 \subsection{Enforcing Well Bracketed Control Flow using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
@@ -365,8 +366,6 @@ halt
 %
 \end{tikzpicture}
 }
-\uncover<3>{
-\begin{center} well-bracketed \hspace{2cm} not well-bracketed \end{center}}
 
 \end{frame}
 
@@ -376,14 +375,14 @@ halt
     \node<1> (img1) {\includegraphics[scale=0.7]{images/calling_1.pdf}};
     \node<2> (img2) {\includegraphics[scale=0.7]{images/calling_2.pdf}};
 \end{tikzpicture}
-
-\begin{longtable}[c]{|l|l|}
-\hline
-\texttt{r\_stk} & $(RWLX,Local,b,e,a)$ \\ \hline
-\endfirsthead
 %
-\endhead
-\end{longtable}
+%\begin{longtable}[c]{|l|l|}
+%\hline
+%\texttt{r\_stk} & $(RWLX,Local,b,e,a)$ \\ \hline
+%\endfirsthead
+%%
+%\endhead
+%\end{longtable}
 
 \end{frame}
 
@@ -496,9 +495,9 @@ $$(reg,mem) \rightarrow (reg',mem')$$
 \frametitle{Points-to Predicate with Permissions}
 
 \begin{align*}
-	a \mapsto_a[RWL] w \only<2->{&\fupd a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
-	\only<3->{&\fupd a \mapsto_a[RW] ((p,Local),b,e,l) \\}
-	\only<4->{&\nfupd a \mapsto_a[RW] ((p',Local),b',e',l') \\}
+	a \mapsto_a[RWL] w \only<2->{&\vs a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
+	\only<3->{&\vs a \mapsto_a[RW] ((p,Local),b,e,l) \\}
+	\only<4->{&\not\vs a \mapsto_a[RW] ((p',Local),b',e',l') \\}
 \end{align*}
 
 \end{frame}
@@ -572,7 +571,7 @@ $$\mathcal{V} : \only<6->{{\color{red}STS} \rightarrow~}
 \uncover<6->{{\color{red} STS}: A collection of state transition systems}
 
 \uncover<2->{
-$$  \mathcal{V}\only<6->{{\color{red} (W)}}((\text{\tiny{RW}},g),b,e,a) \triangleq~ \bigsep_{a \in [b,e]} \fbox{$\exists w, a \mapsto_a [RW] w \sep \mathcal{V}\only<5->{{\color{red} (W)}}(w)$}$$}
+$$  \mathcal{V}\only<6->{{\color{red} (\Sigma)}}((\text{\tiny{RW}},g),b,e,a) \triangleq~ \bigsep_{a \in [b,e]} \fbox{$\exists w, a \mapsto_a [RW] w * \mathcal{V}\only<5->{{\color{red} (\Sigma)}}(w)$}$$}
 
 
 \end{frame}
@@ -584,11 +583,11 @@ $$  \mathcal{V}\only<6->{{\color{red} (W)}}((\text{\tiny{RW}},g),b,e,a) \triangl
 \frametitle{The Execute Condition}
 
 \begin{equation*}
-\textsf{exec\_cond(W)(\textsf{p,g,b,e})} \triangleq \begin{cases}
-\forall a \in [b~e], W' \sqsubseteq_{pub} W.\\
-~\rhd~\mathcal{E}\interp{W'}{((p,g),b,e,a)} &g = Local\\ \\
-\forall a \in [b~e], W' \sqsubseteq_{priv} W.\\
-~\rhd~\mathcal{E}\interp{W'}{((p,g),b,e,a)} &g = Global\\
+\textsf{exec\_cond($\Sigma$)(\textsf{p,g,b,e})} \triangleq \begin{cases}
+\forall a \in [b~e], \Sigma ' \sqsupseteq_{pub} \Sigma.\\
+~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Local\\ \\
+\forall a \in [b~e], \Sigma ' \sqsupseteq_{priv} \Sigma.\\
+~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Global\\
 \end{cases}
 \end{equation*}
 
@@ -674,6 +673,29 @@ halt
  		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
  		&\hspace{1cm}* {\textsf{context}(W')(r')}\}
  	\end{align*}
+
+\end{frame}
+
+%------------------------------------------------
+%\section{What's new/contributions}
+%------------------------------------------------
+
+\begin{frame}
+\frametitle{What's new}
+
+\textbf{What's new: capability machine viewpoint}
+
+\begin{itemize}
+	\item Mechanized formalization: currently $\sim 20,000$ lines of code
+	\item A higher level of abstraction
+\end{itemize}
+
+~\\[1em]
+\textbf{What's new: Iris formalization viewpoint}
+\begin{itemize}
+	\item Formalization of a machine level language, with no distinction between program and memory
+	\item Distinction between  well-bracketed and non well-bracketed calls: using public/private transitions
+\end{itemize}
 
 \end{frame}
 
