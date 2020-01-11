@@ -43,11 +43,11 @@ Section fundamental.
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
   Theorem fundamental W r p g b e (a : Addr) :
-    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX⌝) →
+    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX /\ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
-                                             ∧ ⌜region_std W a⌝
-                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)) →
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝
+                                             ∧ ⌜region_std W a⌝)) →
      interp_expression r W (inr ((p,g),b,e,a)))%I.
   Proof.
     iIntros (Hp) "#Hinv /=".
@@ -64,7 +64,7 @@ Section fundamental.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
-      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hrel_a & Hstate_a)"; auto.
+      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hstate_a & Hrel_a)"; auto.
       iDestruct "Hstate_a" as %Hstate_a; iDestruct "Hrel_a" as %Hrel_a.
       assert (∃ (ρ : region_type), (std_sta W) !! (countable.encode a) = Some (countable.encode ρ) ∧ ρ ≠ Revoked) as [ρ [Hρ Hne] ].
       { destruct (pwl p),g; eauto. destruct Hstate_a as [Htemp | Hperm];eauto. }      
@@ -74,55 +74,40 @@ Section fundamental.
         first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
-      (* iApply (jmp_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (jmp_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Jnz *)
-      (* iApply (jnz_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (jnz_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Mov *)
-      (* iApply (mov_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (mov_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Load *)
-      (* iApply (load_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (load_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Store *)
       (* iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
         admit.
       + (* Lt *)
-      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Add *)
-      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Sub *)
-      (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Lea *)
-      (* iApply (lea_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (lea_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Restrict *)
-      (* iApply (restrict_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (restrict_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Subseg *)
-      (* iApply (subseg_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (subseg_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* IsPtr *) 
-      (* iApply (isptr_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto.*)
-        admit.
+        iApply (isptr_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetL *)
         iApply (getL_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetP *)
-      (* iApply (getP_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit. 
+        iApply (getP_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetB *)
-      (* iApply (getB_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit. 
+        iApply (getB_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetE *)
-      (* iApply (getE_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit. 
+        iApply (getE_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* GetA *)
-      (* iApply (getA_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit. 
+        iApply (getA_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -155,6 +140,6 @@ Section fundamental.
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Admitted. 
-      
+  Admitted.
+
 End fundamental. 

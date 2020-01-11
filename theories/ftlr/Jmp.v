@@ -2,7 +2,7 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine Require Import ftlr_base.
+From cap_machine Require Import ftlr_base monotone.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -18,14 +18,13 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (*
-  Lemma jmp_case (fs : STS_states) (fr : STS_rels) (r : leibnizO Reg) (p p' : Perm) 
-        (g : Locality) (b e a : Addr) (w : Word) (r0 : RegName) :
-    ftlr_instr fs fr r p p' g b e a w (Jmp r0).
+  Lemma jmp_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (r0 : RegName):
+    ftlr_instr W r p p' g b e a w (Jmp r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp HO Hi.
-    iIntros "#IH #Hbe #Hreg #Harel #Hmono #Hw".
-    iIntros "Hfull Hna Hr Ha HPC Hmap". 
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r0).
     * subst r0.
@@ -37,13 +36,12 @@ Section fundamental.
       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* close region *)
-      iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
+      iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
       (* apply IH *)
-      iApply ("IH" $! _ _ _ _ g _ _ a
-                       with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); eauto; iFrame "#".
+      iApply ("IH" $! _ _ _ g _ _ a with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
       { iPureIntro. apply Hsome. }
       destruct p; iFrame. 
-      destruct Hp as [Hcontr | [Hcontr | Hcontr] ]; inversion Hcontr. 
+      destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; congruence.
     * specialize Hsome with r0 as Hr0.
       destruct Hr0 as [wsrc Hsomesrc].
       iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hsrc Hmap]"; eauto.
@@ -99,24 +97,20 @@ Section fundamental.
             simpl. rewrite /read_write_cond.
             iDestruct "Hwsrc" as (q) "[% [H1 H2]]".
             iNext.
-            (* close region *)
-            iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
-            (* apply IH *)
-            iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+            iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
           + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
             simpl. rewrite /enter_cond.
             rewrite /interp_expr /=.
             iDestruct "Hwsrc" as "#H".
-            iAssert (future_world l (fs,fr) (fs,fr)) as "Hfuture".
-            { destruct l; iPureIntro;
-                [apply related_sts_priv_refl|apply related_sts_pub_refl]. }
-            iSpecialize ("H" $! _ (fs,fr) with "Hfuture").
-            iNext. 
-            iDestruct "H" as (fs' fr' Heq1 Heq2) "HH". inversion Heq1. inversion Heq2.
-            subst.
-            iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
-            iDestruct ("HH" with "[Hr Hfull Hmap Hna]") as "Hx"; iFrame; eauto.
-            iDestruct "Hx" as "[_ Hx] /=". auto.
+            iAssert (future_world l W W) as "Hfuture".
+            { destruct l; iPureIntro.
+              - destruct W. split; apply related_sts_priv_refl.
+              - destruct W. split; apply related_sts_pub_refl. }
+            iSpecialize ("H" $! _ _ with "Hfuture").
+            iNext.
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+            iDestruct ("H" with "[$Hmap $Hr $Hsts $Hown]") as "[_ H]"; auto.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iNext. iNext. iIntros "HPC /=".
@@ -124,7 +118,7 @@ Section fundamental.
           iApply wp_value.
           iNext. iIntros. discriminate.
         - iNext.
-          iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
+          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
           iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
@@ -133,11 +127,11 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
-          simpl. 
+          simpl.
           iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
-          iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+          iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
         - iNext.
-          iDestruct (region_close with "[$Hr $Ha]") as "Hr"; iFrame "#"; auto.
+          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
           iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
@@ -146,10 +140,10 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
-          simpl. iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
-          iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hfull] [$Hna]"); iFrame "#"; eauto.
+          simpl. destruct l; auto. iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
+          iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
           Unshelve. auto. auto. auto.
       }
-  Qed.*)
+  Qed.
   
 End fundamental.
