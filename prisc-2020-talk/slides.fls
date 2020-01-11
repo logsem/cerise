@@ -347,6 +347,12 @@ INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libr
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/arydshln/arydshln.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/arydshln/arydshln.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/easy/easytable.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/easy/easytable.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/easy/easy.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/easy/easy.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex
 INPUT /usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex

@@ -89,6 +89,8 @@
 \usepackage{longtable}
 \usepackage{mathtools}
 \usepackage{iris}
+\usepackage{arydshln}
+\usepackage[thinlines]{easytable}
 
 \newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
 \newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
@@ -800,9 +802,29 @@ halt
 
 \begin{frame}
 \frametitle{Proving the Fundamental Theorem}
-
+\begin{table}
+\begin{tabular}[t]{c}
+\parbox{8cm}{\begin{align}
+\only<4->{& decode(w) = \text{Load}~dst~src \\}
+\only<1-3>{&\bigsep_{a \in [b,e]} \text{read\_write\_cond }a \\}
+&\bigsep \mathcal{R}(r)
+\end{align}} \\[1em]
+\hdashline
+\parbox{8cm}{\begin{align}
+\only<1-4>{&\bigsep_{reg \hookrightarrow w \in r\only<2->{\backslash \textsc{PC}}} reg \mapsto_r w}
+\only<5->{&\bigsep dst \mapsto_r w_{dst} \bigsep src \mapsto_r (p,g,b,e,a) \\}
+\only<2->{\\ &\bigsep \textsc{PC} \mapsto_r (pc_g,pc_p,pc_b,pc_e,pc_a)}
+\only<3->{\\ &\bigsep pc_a \mapsto_a[pc_p] w}
+\end{align}} \\
+\hline
+\parbox{8cm}{\begin{align*}\textsc{WP}~\textsf{Seq (Instr Executable)}~
+ 		\{ v, &v = HaltedV \implies \\ &\exists \Sigma ' r',
+ 		\Sigma ' \sqsupseteq_{priv} \Sigma * {\textsf{context}(\Sigma ')(r')}\}
+ 		\end{align*}}
+\end{tabular}
+\end{table}
 
 \end{frame}
-	
+
 
 \end{document} 

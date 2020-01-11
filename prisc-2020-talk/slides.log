@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  11 JAN 2020 14:06
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  11 JAN 2020 15:01
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1226,41 +1226,180 @@ File: pgflibraryarrows.meta.code.tex 2015/05/13 v3.0.1a (rcs-revision 1.13)
 . Defining command \hoareHV with sig. 'O{c} m m m O{}' on line 308.
 .................................................
 )
+(/usr/local/texlive/2018/texmf-dist/tex/latex/arydshln/arydshln.sty
+Package: arydshln 2016/04/28 v1.73 
+\dashlinedash=\dimen338
+\dashlinegap=\dimen339
+\adl@box=\box103
+\adl@height=\dimen340
+\adl@heightsave=\dimen341
+\adl@depth=\dimen342
+\adl@depthsave=\dimen343
+\adl@finaldepth=\dimen344
+\adl@columns=\count350
+\adl@ncol=\count351
+\adl@currentcolumn=\count352
+\adl@currentcolumnsave=\count353
+\adl@totalheight=\count354
+\adl@totalheightsave=\count355
+\adl@dash=\count356
+\adl@gap=\count357
+\adl@cla=\count358
+\adl@clb=\count359
+\adl@everyvbox=\toks54
+\adl@LTpagetotal=\dimen345
+)
+(/usr/local/texlive/2018/texmf-dist/tex/latex/easy/easytable.sty
+Document Style `easytable' v1.0 <2001/06/13>.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/easy/easy.sty
+Document Style `easy' v1.1 <2001/05/31>.
+Package: easy 2001/05/31 v1.1
+\@easy@level=\count360
+\@easy@ncol=\count361
+\@easy@nrow=\count362
+\@easy@cnt=\count363
+\@easy@boxviii=\box104
+\@easy@minxviii=\dimen346
+\@easy@minyviii=\dimen347
+\@easy@maxxviii=\dimen348
+\@easy@maxyviii=\dimen349
+\@easy@boxvii=\box105
+\@easy@minxvii=\dimen350
+\@easy@minyvii=\dimen351
+\@easy@maxxvii=\dimen352
+\@easy@maxyvii=\dimen353
+\@easy@boxvi=\box106
+\@easy@minxvi=\dimen354
+\@easy@minyvi=\dimen355
+\@easy@maxxvi=\dimen356
+\@easy@maxyvi=\dimen357
+\@easy@boxv=\box107
+\@easy@minxv=\dimen358
+\@easy@minyv=\dimen359
+\@easy@maxxv=\dimen360
+\@easy@maxyv=\dimen361
+\@easy@boxiv=\box108
+\@easy@minxiv=\dimen362
+\@easy@minyiv=\dimen363
+\@easy@maxxiv=\dimen364
+\@easy@maxyiv=\dimen365
+\@easy@boxiii=\box109
+\@easy@minxiii=\dimen366
+\@easy@minyiii=\dimen367
+\@easy@maxxiii=\dimen368
+\@easy@maxyiii=\dimen369
+\@easy@boxii=\box110
+\@easy@minxii=\dimen370
+\@easy@minyii=\dimen371
+\@easy@maxxii=\dimen372
+\@easy@maxyii=\dimen373
+\@easy@boxi=\box111
+\@easy@minxi=\dimen374
+\@easy@minyi=\dimen375
+\@easy@maxxi=\dimen376
+\@easy@maxyi=\dimen377
+\@easy@hsizexxx=\dimen378
+\@easy@vsizexxx=\dimen379
+\@easy@hsizexxix=\dimen380
+\@easy@vsizexxix=\dimen381
+\@easy@hsizexxviii=\dimen382
+\@easy@vsizexxviii=\dimen383
+\@easy@hsizexxvii=\dimen384
+\@easy@vsizexxvii=\dimen385
+\@easy@hsizexxvi=\dimen386
+\@easy@vsizexxvi=\dimen387
+\@easy@hsizexxv=\dimen388
+\@easy@vsizexxv=\dimen389
+\@easy@hsizexxiv=\dimen390
+\@easy@vsizexxiv=\dimen391
+\@easy@hsizexxiii=\dimen392
+\@easy@vsizexxiii=\dimen393
+\@easy@hsizexxii=\dimen394
+\@easy@vsizexxii=\dimen395
+\@easy@hsizexxi=\dimen396
+\@easy@vsizexxi=\dimen397
+\@easy@hsizexx=\dimen398
+\@easy@vsizexx=\dimen399
+\@easy@hsizexix=\dimen400
+\@easy@vsizexix=\dimen401
+\@easy@hsizexviii=\dimen402
+\@easy@vsizexviii=\dimen403
+\@easy@hsizexvii=\dimen404
+\@easy@vsizexvii=\dimen405
+\@easy@hsizexvi=\dimen406
+\@easy@vsizexvi=\dimen407
+\@easy@hsizexv=\dimen408
+\@easy@vsizexv=\dimen409
+\@easy@hsizexiv=\dimen410
+\@easy@vsizexiv=\dimen411
+\@easy@hsizexiii=\dimen412
+\@easy@vsizexiii=\dimen413
+\@easy@hsizexii=\dimen414
+\@easy@vsizexii=\dimen415
+\@easy@hsizexi=\dimen416
+\@easy@vsizexi=\dimen417
+\@easy@hsizex=\dimen418
+\@easy@vsizex=\dimen419
+\@easy@hsizeix=\dimen420
+\@easy@vsizeix=\dimen421
+\@easy@hsizeviii=\dimen422
+\@easy@vsizeviii=\dimen423
+\@easy@hsizevii=\dimen424
+\@easy@vsizevii=\dimen425
+\@easy@hsizevi=\dimen426
+\@easy@vsizevi=\dimen427
+\@easy@hsizev=\dimen428
+\@easy@vsizev=\dimen429
+\@easy@hsizeiv=\dimen430
+\@easy@vsizeiv=\dimen431
+\@easy@hsizeiii=\dimen432
+\@easy@vsizeiii=\dimen433
+\@easy@hsizeii=\dimen434
+\@easy@vsizeii=\dimen435
+\@easy@hsizei=\dimen436
+\@easy@vsizei=\dimen437
+\@easy@dash@len=\dimen438
+\@easy@dash@sep=\dimen439
+)
+Package: easytable 2001/05/31v1.1
+\@tab@size@rule=\dimen440
+\@tab@size@dash=\dimen441
+)
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/librarie
 s/tikzlibrarydecorations.pathreplacing.code.tex
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/frontendlayer/tikz/librarie
 s/tikzlibrarydecorations.code.tex
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/modules/pgfmoduledecoration
 s.code.tex
-\pgfdecoratedcompleteddistance=\dimen338
-\pgfdecoratedremainingdistance=\dimen339
-\pgfdecoratedinputsegmentcompleteddistance=\dimen340
-\pgfdecoratedinputsegmentremainingdistance=\dimen341
-\pgf@decorate@distancetomove=\dimen342
-\pgf@decorate@repeatstate=\count350
-\pgfdecorationsegmentamplitude=\dimen343
-\pgfdecorationsegmentlength=\dimen344
+\pgfdecoratedcompleteddistance=\dimen442
+\pgfdecoratedremainingdistance=\dimen443
+\pgfdecoratedinputsegmentcompleteddistance=\dimen444
+\pgfdecoratedinputsegmentremainingdistance=\dimen445
+\pgf@decorate@distancetomove=\dimen446
+\pgf@decorate@repeatstate=\count364
+\pgfdecorationsegmentamplitude=\dimen447
+\pgfdecorationsegmentlength=\dimen448
 )
-\tikz@lib@dec@box=\box103
+\tikz@lib@dec@box=\box112
 )
 (/usr/local/texlive/2018/texmf-dist/tex/generic/pgf/libraries/decorations/pgfli
 brarydecorations.pathreplacing.code.tex)) (./slides.aux)
 \openout1 = `slides.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 206.
-LaTeX Font Info:    ... okay on input line 206.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 208.
+LaTeX Font Info:    ... okay on input line 208.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -1298,17 +1437,17 @@ LaTeX Font Info:    ... okay on input line 206.
 
 (/usr/local/texlive/2018/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count351
-\scratchdimen=\dimen345
-\scratchbox=\box104
-\nofMPsegments=\count352
-\nofMParguments=\count353
-\everyMPshowfont=\toks54
-\MPscratchCnt=\count354
-\MPscratchDim=\dimen346
-\MPnumerator=\count355
-\makeMPintoPDFobject=\count356
-\everyMPtoPDFconversion=\toks55
+\scratchcounter=\count365
+\scratchdimen=\dimen449
+\scratchbox=\box113
+\nofMPsegments=\count366
+\nofMParguments=\count367
+\everyMPshowfont=\toks55
+\MPscratchCnt=\count368
+\MPscratchDim=\dimen450
+\MPnumerator=\count369
+\makeMPintoPDFobject=\count370
+\everyMPtoPDFconversion=\toks56
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
 Package: epstopdf-base 2016/05/15 v2.6 Base part for package epstopdf
 
@@ -1327,8 +1466,8 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 ABD: EveryShipout initializing macros
-\AtBeginShipoutBox=\box105
-Package hyperref Info: Link coloring OFF on input line 206.
+\AtBeginShipoutBox=\box114
+Package hyperref Info: Link coloring OFF on input line 208.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
@@ -1336,68 +1475,68 @@ Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
 (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
 Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
-\c@section@level=\count357
+\c@section@level=\count371
 )
-LaTeX Info: Redefining \ref on input line 206.
-LaTeX Info: Redefining \pageref on input line 206.
-LaTeX Info: Redefining \nameref on input line 206.
+LaTeX Info: Redefining \ref on input line 208.
+LaTeX Info: Redefining \pageref on input line 208.
+LaTeX Info: Redefining \nameref on input line 208.
 
 (./slides.out) (./slides.out)
 \@outlinefile=\write6
 \openout6 = `slides.out'.
 
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
-(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 206.
+(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 208.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 206.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 208.
 \symnumbers=\mathgroup6
 \sympureletters=\mathgroup7
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 206.
-LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 206.
+(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 208.
+LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 206.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 206.
-LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 206.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/bx/n on input line 208.
+LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/m/n on input line 206.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/m/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmss/m/n on input line 206.
-LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 206.
+(Font)                  OT1/cmss/bx/n --> OT1/cmss/m/n on input line 208.
+LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> OT1/cmss/m/it on input line 206.
+(Font)                  OT1/cmr/m/it --> OT1/cmss/m/it on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
-(Font)                  OT1/cmr/bx/it --> OT1/cmss/m/it on input line 206.
-LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 206.
+(Font)                  OT1/cmr/bx/it --> OT1/cmss/m/it on input line 208.
+LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 206.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 206.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 208.
 LaTeX Font Info:    Overwriting symbol font `numbers' in version `bold'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 206.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 208.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
-(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 206.
+(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmr/bx/n on input line 206.
+(Font)                  OT1/cmss/bx/n --> OT1/cmr/bx/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/cmss/bx/n on input line 206.
+(Font)                  OT1/cmss/bx/n --> OT1/cmss/bx/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 206.
+(Font)                  OT1/cmss/m/n --> OT1/cmss/bx/n on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
-(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 206.
+(Font)                  OT1/cmss/m/it --> OT1/cmss/bx/it on input line 208.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/bx/n on input line 206.
-LaTeX Font Info:    Redeclaring symbol font `pureletters' on input line 206.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/bx/n on input line 208.
+LaTeX Font Info:    Redeclaring symbol font `pureletters' on input line 208.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `normal'
 (Font)                  OT1/cmss/m/it --> OT1/mathkerncmss/m/sl on input line 2
-06.
+08.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  OT1/cmss/bx/it --> OT1/mathkerncmss/m/sl on input line 
-206.
+208.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  OT1/mathkerncmss/m/sl --> OT1/mathkerncmss/bx/sl on inp
-ut line 206.
+ut line 208.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/translator/translator-basic-dicti
 onary-English.dict
@@ -1423,22 +1562,22 @@ Dictionary: translator-numbers-dictionary, Language: English
 tionary-English.dict
 Dictionary: translator-theorem-dictionary, Language: English 
 )
-\c@lstlisting=\count358
+\c@lstlisting=\count372
  (./slides.nav) [1
 
 {/usr/local/texlive/2018/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
-LaTeX Font Info:    Try loading font information for U+msa on input line 223.
+LaTeX Font Info:    Try loading font information for U+msa on input line 225.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 223.
+LaTeX Font Info:    Try loading font information for U+msb on input line 225.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Try loading font information for OT1+mathkerncmss on input 
-line 223.
+line 225.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/sansmathaccent/ot1mathkerncmss.fd
 File: ot1mathkerncmss.fd 2013/03/27 Fontinst v1.933 font definitions for OT1/ma
@@ -1459,20 +1598,20 @@ thkerncmss.
 <images/cap_1.pdf, id=259, 189.8292pt x 160.6803pt>
 File: images/cap_1.pdf Graphic file (type pdf)
 <use images/cap_1.pdf>
-Package pdftex.def Info: images/cap_1.pdf  used on input line 269.
+Package pdftex.def Info: images/cap_1.pdf  used on input line 271.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 269--269
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 [][]  
  []
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10.95> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 269.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 271.
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 269.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 271.
 
 [8
 
@@ -1484,10 +1623,10 @@ r resource which is no dict (key 'ProcSets', type <array>); ignored.
 <images/cap_2.pdf, id=290, 189.8292pt x 160.6803pt>
 File: images/cap_2.pdf Graphic file (type pdf)
 <use images/cap_2.pdf>
-Package pdftex.def Info: images/cap_2.pdf  used on input line 269.
+Package pdftex.def Info: images/cap_2.pdf  used on input line 271.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 269--269
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 [][]  
  []
 
@@ -1501,10 +1640,10 @@ r resource which is no dict (key 'ProcSets', type <array>); ignored.
 <images/cap_3.pdf, id=324, 189.8292pt x 160.6803pt>
 File: images/cap_3.pdf Graphic file (type pdf)
 <use images/cap_3.pdf>
-Package pdftex.def Info: images/cap_3.pdf  used on input line 269.
+Package pdftex.def Info: images/cap_3.pdf  used on input line 271.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 269--269
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 [][]  
  []
 
@@ -1518,10 +1657,10 @@ r resource which is no dict (key 'ProcSets', type <array>); ignored.
 <images/cap_4.pdf, id=358, 189.8292pt x 160.6803pt>
 File: images/cap_4.pdf Graphic file (type pdf)
 <use images/cap_4.pdf>
-Package pdftex.def Info: images/cap_4.pdf  used on input line 269.
+Package pdftex.def Info: images/cap_4.pdf  used on input line 271.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 269--269
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 [][]  
  []
 
@@ -1534,10 +1673,10 @@ r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
 File: images/cap_4.pdf Graphic file (type pdf)
 <use images/cap_4.pdf>
-Package pdftex.def Info: images/cap_4.pdf  used on input line 269.
+Package pdftex.def Info: images/cap_4.pdf  used on input line 271.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 269--269
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 [][]  
  []
 
@@ -1660,7 +1799,7 @@ er resource which is no dict (key 'ProcSets', type <array>); ignored.
 <images/calling_1.pdf, id=732, 277.035pt x 160.6803pt>
 File: images/calling_1.pdf Graphic file (type pdf)
 <use images/calling_1.pdf>
-Package pdftex.def Info: images/calling_1.pdf  used on input line 387.
+Package pdftex.def Info: images/calling_1.pdf  used on input line 389.
 (pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
  [23
 
@@ -1672,7 +1811,7 @@ other resource which is no dict (key 'ProcSets', type <array>); ignored.
 <images/calling_2.pdf, id=766, 277.035pt x 160.6803pt>
 File: images/calling_2.pdf Graphic file (type pdf)
 <use images/calling_2.pdf>
-Package pdftex.def Info: images/calling_2.pdf  used on input line 387.
+Package pdftex.def Info: images/calling_2.pdf  used on input line 389.
 (pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
  [24
 
@@ -1685,7 +1824,7 @@ other resource which is no dict (key 'ProcSets', type <array>); ignored.
 ]
 
 LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
-(Font)              using `OT1/cmss/bx/n' instead on input line 401.
+(Font)              using `OT1/cmss/bx/n' instead on input line 403.
 
 [26
 
@@ -1790,7 +1929,7 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 ] (./slides.vrb) [73
 
 ]
-LaTeX Font Info:    Try loading font information for U+dsrom on input line 594.
+LaTeX Font Info:    Try loading font information for U+dsrom on input line 596.
 
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
@@ -1816,7 +1955,7 @@ File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
 82
 
 ]
-Overfull \hbox (2.79546pt too wide) detected at line 715
+Overfull \hbox (2.79546pt too wide) detected at line 717
 [] \U/msa/m/n/10.95 , []
  []
 
@@ -1865,12 +2004,78 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--10
  []
 
 )
-Overfull \vbox (13.1919pt too high) detected at line 798
+Overfull \vbox (13.1919pt too high) detected at line 800
  []
 
 [98
 
-] [99
+]
+Overfull \hbox (79.12335pt too wide) detected at line 827
+[]
+ []
+
+
+Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
+ [] 
+ []
+
+[99
+
+]
+Overfull \hbox (79.12335pt too wide) detected at line 827
+[]
+ []
+
+
+Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
+ [] 
+ []
+
+[100
+
+]
+Overfull \hbox (79.12335pt too wide) detected at line 827
+[]
+ []
+
+
+Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
+ [] 
+ []
+
+
+Overfull \vbox (10.87552pt too high) detected at line 827
+ []
+
+[101
+
+]
+Overfull \hbox (79.12335pt too wide) detected at line 827
+[]
+ []
+
+
+Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
+ [] 
+ []
+
+[102
+
+]
+Overfull \hbox (79.12335pt too wide) detected at line 827
+[]
+ []
+
+
+Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
+ [] 
+ []
+
+
+Overfull \vbox (3.84901pt too high) detected at line 827
+ []
+
+[103
 
 ]
 \tf@nav=\write7
@@ -1882,11 +2087,11 @@ Overfull \vbox (13.1919pt too high) detected at line 798
 \tf@snm=\write9
 \openout9 = `slides.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 808.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 808.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 830.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 830.
  (./slides.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 808.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 808.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 830.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 830.
 Package rerunfilecheck Info: File `slides.out' has not changed.
 (rerunfilecheck)             Checksum: 19BCC1091D58A94F6FA00C5F78610EDF;905.
 
@@ -1895,13 +2100,13 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 35585 strings out of 492649
- 723137 string characters out of 6129622
- 819236 words of memory out of 5000000
- 38627 multiletter control sequences out of 15000+600000
+ 36051 strings out of 492649
+ 729548 string characters out of 6129622
+ 827888 words of memory out of 5000000
+ 39074 multiletter control sequences out of 15000+600000
  544951 words of font info for 78 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 56i,22n,73p,10382b,1488s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 56i,22n,73p,10403b,1488s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pf
 b></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 ></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb>
@@ -1919,10 +2124,10 @@ l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/
 texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/te
 xlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/t
 exlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on slides.pdf (99 pages, 521785 bytes).
+Output written on slides.pdf (103 pages, 533597 bytes).
 PDF statistics:
- 2839 PDF objects out of 2984 (max. 8388607)
- 2648 compressed objects within 27 object streams
- 214 named destinations out of 1000 (max. 500000)
+ 2945 PDF objects out of 2984 (max. 8388607)
+ 2749 compressed objects within 28 object streams
+ 222 named destinations out of 1000 (max. 500000)
  217 words of extra memory for PDF output out of 10000 (max. 10000000)
 
