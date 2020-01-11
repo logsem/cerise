@@ -6,7 +6,7 @@
 \beamer@subsectionintoc {3}{1}{A Capability Points-to Predicate}{61}{0}{3}
 \beamer@sectionintoc {4}{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}{66}{0}{4}
 \beamer@subsectionintoc {4}{1}{The Value Relation}{67}{0}{4}
-\beamer@subsectionintoc {4}{2}{The Execute Condition}{74}{0}{4}
-\beamer@subsectionintoc {4}{3}{The Expression Relation}{76}{0}{4}
-\beamer@sectionintoc {5}{The Fundamental Theorem of Logical Relations}{83}{0}{5}
-\beamer@sectionintoc {6}{Reasoning about Unknown Code}{89}{0}{6}
+\beamer@subsectionintoc {4}{2}{The Execute Condition}{82}{0}{4}
+\beamer@subsectionintoc {4}{3}{The Expression Relation}{84}{0}{4}
+\beamer@sectionintoc {5}{The Fundamental Theorem of Logical Relations}{91}{0}{5}
+\beamer@sectionintoc {6}{Reasoning about Unknown Code}{97}{0}{6}

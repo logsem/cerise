@@ -22,9 +22,9 @@ halt
 \end{columns}
 
 \begin{align*}
- 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~{\textsf{context}(W)(r[\textsf{\small PC}:=pc])}\\
+ 		\mathcal{E}\interp{\Sigma}{pc} \triangleq&~\forall r, \mathcal{R}(\Sigma)(r) ~*~{\textsf{context}(\Sigma)(r[\textsf{\small PC}:=pc])}\\
  		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
- 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
- 		&\hspace{1cm}* {\textsf{context}(W')(r')}\}
+ 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists \Sigma ' r', \Sigma ' \sqsupseteq_{priv} \Sigma \\
+ 		&\hspace{1cm}* {\textsf{context}(\Sigma ')(r')}\}
  	\end{align*}
 

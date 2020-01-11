@@ -508,12 +508,20 @@ INPUT slides.vrb
 INPUT slides.vrb
 INPUT slides.vrb
 INPUT slides.vrb
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom10.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom8.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom8.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom10.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom8.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/doublestroke/dsrom8.tfm
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmssi9.tfm
 OUTPUT slides.vrb
 INPUT slides.vrb
 INPUT slides.vrb
 INPUT images/wbcf_3.pdf
 INPUT ./images/wbcf_3.pdf
-INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmssi9.tfm
 OUTPUT slides.nav
 OUTPUT slides.toc
 OUTPUT slides.snm
@@ -535,4 +543,5 @@ INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi9.p
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb

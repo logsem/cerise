@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  11 JAN 2020 11:33
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  11 JAN 2020 14:06
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1789,13 +1789,15 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 
 ] (./slides.vrb) [73
 
-] [74
+]
+LaTeX Font Info:    Try loading font information for U+dsrom on input line 594.
+
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
+File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
+) [74
 
 ]
-Overfull \hbox (2.79546pt too wide) detected at line 594
-[] \U/msa/m/n/10.95 , []
- []
-
 [75
 
 ] [76
@@ -1810,9 +1812,15 @@ Overfull \hbox (2.79546pt too wide) detected at line 594
 
 ] [81
 
-] [82
+ </usr/local/texlive/2018/texmf-dist/tex/latex/beamer/beamericonarticle.pdf>] [
+82
 
-] [83
+]
+Overfull \hbox (2.79546pt too wide) detected at line 715
+[] \U/msa/m/n/10.95 , []
+ []
+
+[83
 
 ] [84
 
@@ -1825,6 +1833,22 @@ Overfull \hbox (2.79546pt too wide) detected at line 594
 ] [88
 
 ] [89
+
+] [90
+
+] [91
+
+] [92
+
+] [93
+
+] [94
+
+] [95
+
+] [96
+
+] [97
 
 ]
 \openout4 = `slides.vrb'.
@@ -1841,18 +1865,14 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--10
  []
 
 )
-Overfull \vbox (13.1919pt too high) detected at line 677
+Overfull \vbox (13.1919pt too high) detected at line 798
  []
 
-[90
+[98
 
-] [91
+] [99
 
-] [92
-
-] [93
-
- </usr/local/texlive/2018/texmf-dist/tex/latex/beamer/beamericonarticle.pdf>]
+]
 \tf@nav=\write7
 \openout7 = `slides.nav'.
 
@@ -1862,24 +1882,24 @@ Overfull \vbox (13.1919pt too high) detected at line 677
 \tf@snm=\write9
 \openout9 = `slides.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 746.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 746.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 808.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 808.
  (./slides.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 746.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 746.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 808.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 808.
 Package rerunfilecheck Info: File `slides.out' has not changed.
-(rerunfilecheck)             Checksum: ED09097E4FB10483A3B69E926DC80FDF;905.
+(rerunfilecheck)             Checksum: 19BCC1091D58A94F6FA00C5F78610EDF;905.
 
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 35456 strings out of 492649
- 720449 string characters out of 6129622
- 816179 words of memory out of 5000000
- 38516 multiletter control sequences out of 15000+600000
- 544375 words of font info for 72 fonts, out of 8000000 for 9000
+ 35585 strings out of 492649
+ 723137 string characters out of 6129622
+ 819236 words of memory out of 5000000
+ 38627 multiletter control sequences out of 15000+600000
+ 544951 words of font info for 78 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  56i,22n,73p,10382b,1488s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pf
@@ -1897,11 +1917,12 @@ cal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi9.pfb></usr/loc
 al/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/loca
 l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/
 texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/te
-xlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on slides.pdf (93 pages, 506883 bytes).
+xlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/t
+exlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on slides.pdf (99 pages, 521785 bytes).
 PDF statistics:
- 2680 PDF objects out of 2984 (max. 8388607)
- 2498 compressed objects within 25 object streams
- 202 named destinations out of 1000 (max. 500000)
+ 2839 PDF objects out of 2984 (max. 8388607)
+ 2648 compressed objects within 27 object streams
+ 214 named destinations out of 1000 (max. 500000)
  217 words of extra memory for PDF output out of 10000 (max. 10000000)
 

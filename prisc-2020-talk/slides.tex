@@ -576,103 +576,53 @@ $$  \mathcal{V}\only<6->{{\color{red} (\Sigma)}}((\text{\tiny{RW}},g),b,e,a) \tr
 
 \end{frame}
 
-%------------------------------------------------
-\subsection{The Execute Condition}
-
 \begin{frame}
-\frametitle{The Execute Condition}
-
-\begin{equation*}
-\textsf{exec\_cond($\Sigma$)(\textsf{p,g,b,e})} \triangleq \begin{cases}
-\forall a \in [b~e], \Sigma ' \sqsupseteq_{pub} \Sigma.\\
-~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Local\\ \\
-\forall a \in [b~e], \Sigma ' \sqsupseteq_{priv} \Sigma.\\
-~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Global\\
-\end{cases}
-\end{equation*}
-
-\end{frame}
-
-%------------------------------------------------
-\subsection{The Expression Relation}
-
-\begin{frame}
-\frametitle{The Expression Relation}
-
- 	\begin{align*}
- 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~{\only<2->{\color{red}} \textsf{context}(W)(r[\textsf{\small PC}:=pc])}\\
- 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
- 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
- 		&\hspace{1cm}* {\only<2->{\color{red}}\textsf{context}(W')(r')}\}
- 	\end{align*}
-
-\only<2->{
+\frametitle{From World to state transition system collection}
+On paper: 
 \begin{align*}
-	{\color{red} \textsf{context}(W)(r) =~\only<2>{?}} &\only<3->{(\bigsep_{r_i \mapsto w \in r} r_i \mapsto_r w) \wedge \textsf{full\_map } r}\\
-	\only<4->{&* \textsf{na\_inv } \gamma_{na} \top \\ }
-	\only<5->{&* \textsf{sts\_full } W \\ }
-	\only<6->{&* \textsf{region } W \\ }
+	\text{Region} =~&\{Revoked\}~\uplus \\
+						     &\{Temporary\} \times {\color{red} \text{State} \times \text{Rels}} \\ 
+						     &\times (\text{State} \rightarrow (Wor \xrightarrow[\sqsupseteq_{pub}]{mon, ne} \text{UPred(MemSeg)}))~\uplus \\
+						     &\{Permanent\} \times {\color{red} \text{State} \times \text{Rels}}  \\ 
+						     &\times (\text{State} \rightarrow (Wor \xrightarrow[\sqsupseteq_{priv}]{mon, ne} \text{UPred(MemSeg)})) \\
+	\text{World} =~&\mathds{N} \rightharpoonup \text{Region}
 \end{align*}
-}
-
-\end{frame}
-
-%------------------------------------------------
-\section{The Fundamental Theorem of Logical Relations}
-
-\begin{frame}
-\frametitle{The Fundamental Theorem of logical relations}
-\begin{center}
-If we can read a region, and every word in that region is safe, then we can safely execute it
-\end{center}
-\end{frame}
+In the Iris mechanization, we use a collection of state transition systems: 
+$$\Sigma: \mathds{N} \rightharpoonup States \times \mathds{N} \rightharpoonup Rels $$
+\uncover<2->{The world circularity problem is now handled using Iris invariants and saved predicates.}
 	
-\begin{frame}
-\begin{itemize}
-	\item<2-> "If we can read a region" : $p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}$
-	\item<3-> "and every word in that region is safe": $\textsf{read\_write\_cond }(p,b,e)$
-	\item<4-> "then we can safely execute it": $\mathcal{E}\interp{W}{((p,g),b,e,a)}$
-\end{itemize}
-
-\begin{align*}
-	&(p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}) \implies\\
-	&\textsf{read\_write\_cond }(p,b,e) \implies \mathcal{E}\interp{W}{((p,g),b,e,a)}
-\end{align*}
 \end{frame}
 
-%------------------------------------------------
-\section{Reasoning about Unknown Code}
+\begin{frame}
+\frametitle{Standard STS}
 
-\begin{frame}[fragile]
-\frametitle{Reasoning about Unknown Code}
-\textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
+$$\Sigma: \mathds{N} \rightharpoonup States \times \mathds{N} \rightharpoonup Rels $$
 
-\begin{columns}[c]
-
-\column{.45\textwidth} % Left column and width
-\begin{tikzpicture}
-    \node (img3) {\includegraphics[scale=0.7]{images/wbcf_3.pdf}};
-\end{tikzpicture}
-
-\column{.5\textwidth} % Right column and width
 \begin{center}
-\begin{lstlisting}
-push r_stk 1
-scall r 
-pop r_stk r_1
-assert r_1 1
-halt
-\end{lstlisting}
+\begin{tikzpicture}[scale=0.2]
+\tikzstyle{every node}+=[inner sep=0pt]
+\draw [black] (17.8,-20.1) circle (3);
+\draw (17.8,-20.1) node {$temp$};
+\draw [black] (39.8,-20.1) circle (3);
+\draw (39.8,-20.1) node {$rev$};
+\draw [black] (29.2,-33) circle (3);
+\draw (29.2,-33) node {$perm$};
+\draw [black,dashed] (20.396,-18.602) arc (115.58004:64.41996:19.465);
+\fill [black] (37.2,-18.6) -- (36.7,-17.81) -- (36.27,-18.71);
+\draw [black] (37.061,-21.318) arc (-69.63899:-110.36101:23.742);
+\fill [black] (20.54,-21.32) -- (21.12,-22.07) -- (21.46,-21.13);
+\draw [black,dashed] (19.79,-22.35) -- (27.21,-30.75);
+\fill [black] (27.21,-30.75) -- (27.06,-29.82) -- (26.31,-30.48);
+\draw [black,dashed] (37.9,-22.42) -- (31.1,-30.68);
+\fill [black] (31.1,-30.68) -- (32,-30.38) -- (31.23,-29.75);
+\draw [black] (16.477,-17.42) arc (234:-54:2.25);
+\fill [black] (19.12,-17.42) -- (20,-17.07) -- (19.19,-16.48);
+\draw [black] (38.477,-17.42) arc (234:-54:2.25);
+\fill [black] (41.12,-17.42) -- (42,-17.07) -- (41.19,-16.48);
+\draw [black] (30.523,-35.68) arc (54:-234:2.25);
+\fill [black] (27.88,-35.68) -- (27,-36.03) -- (27.81,-36.62);
+\end{tikzpicture}
 \end{center}
-
-\end{columns}
-
-\begin{align*}
- 		\mathcal{E}\interp{W}{pc} \triangleq&~\forall r, \mathcal{R}(W)(r) ~*~{\textsf{context}(W)(r[\textsf{\small PC}:=pc])}\\
- 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
- 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists W' r', W' \sqsubseteq_{priv} W \\
- 		&\hspace{1cm}* {\textsf{context}(W')(r')}\}
- 	\end{align*}
 
 \end{frame}
 
@@ -686,11 +636,15 @@ halt
 \textbf{What's new: capability machine viewpoint}
 
 \begin{itemize}
-	\item Mechanized formalization: currently $\sim 20,000$ lines of code
-	\item A higher level of abstraction
+	\item Mechanized formalization: currently $\sim 25 000$ lines of Iris code
+	\item At a higher level of abstraction
+	\begin{itemize}
+		\item<2-> Step index $\rightarrow$ later modality
+		\item<3-> World $\rightarrow$ collection of state transition systems
+	\end{itemize}
 \end{itemize}
 
-~\\[1em]
+~\\[0.5em]
 \textbf{What's new: Iris formalization viewpoint}
 \begin{itemize}
 	\item Formalization of a machine level language, with no distinction between program and memory
@@ -742,5 +696,113 @@ and Lars Birkedal (2018)
 \end{frame}
 
 %----------------------------------------------------------------------------------------
+% Bonus Slides
+%------------------------------------------------
+\subsection{The Execute Condition}
+
+\begin{frame}
+\frametitle{The Execute Condition}
+
+\begin{equation*}
+\textsf{exec\_cond($\Sigma$)(\textsf{p,g,b,e})} \triangleq \begin{cases}
+\forall a \in [b~e], \Sigma ' \sqsupseteq_{pub} \Sigma.\\
+~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Local\\ \\
+\forall a \in [b~e], \Sigma ' \sqsupseteq_{priv} \Sigma.\\
+~\rhd~\mathcal{E}\interp{\Sigma '}{((p,g),b,e,a)} &g = Global\\
+\end{cases}
+\end{equation*}
+
+\end{frame}
+
+%------------------------------------------------
+\subsection{The Expression Relation}
+
+\begin{frame}
+\frametitle{The Expression Relation}
+
+ 	\begin{align*}
+ 		\mathcal{E}\interp{\Sigma}{pc} \triangleq&~\forall r, \mathcal{R}(\Sigma)(r) ~*~{\only<2->{\color{red}} \textsf{context}(\Sigma)(r[\textsf{\small PC}:=pc])}\\
+ 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
+ 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists \Sigma ' r', \Sigma ' \sqsupseteq_{priv} \Sigma \\
+ 		&\hspace{1cm}* {\only<2->{\color{red}}\textsf{context}(\Sigma ')(r')}\}
+ 	\end{align*}
+
+\only<2->{
+\begin{align*}
+	{\color{red} \textsf{context}(\Sigma)(r) =~\only<2>{?}} &\only<3->{(\bigsep_{r_i \mapsto w \in r} r_i \mapsto_r w) \wedge \textsf{full\_map } r}\\
+	\only<4->{&* \textsf{na\_inv } \gamma_{na} \top \\ }
+	\only<5->{&* \textsf{sts\_full } \Sigma \\ }
+	\only<6->{&* \textsf{region } \Sigma \\ }
+\end{align*}
+}
+
+\end{frame}
+
+%------------------------------------------------
+\section{The Fundamental Theorem of Logical Relations}
+
+\begin{frame}
+\frametitle{The Fundamental Theorem of logical relations}
+\begin{center}
+If we can read a region, and every word in that region is safe, then we can safely execute it
+\end{center}
+\end{frame}
+	
+\begin{frame}
+\begin{itemize}
+	\item<2-> "If we can read a region" : $p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}$
+	\item<3-> "and every word in that region is safe": $\textsf{read\_write\_cond }(p,b,e)$
+	\item<4-> "then we can safely execute it": $\mathcal{E}\interp{\Sigma}{((p,g),b,e,a)}$
+\end{itemize}
+
+\begin{align*}
+	&(p = \textsc{\small RX} \vee p = \textsc{\small RWX} \vee p = \textsc{\small RWLX}) \implies\\
+	&\textsf{read\_write\_cond }(p,b,e) \implies \mathcal{E}\interp{\Sigma}{((p,g),b,e,a)}
+\end{align*}
+\end{frame}
+
+%------------------------------------------------
+\section{Reasoning about Unknown Code}
+
+\begin{frame}[fragile]
+\frametitle{Reasoning about Unknown Code}
+\textbf{We use the fundamental theorem to reason about calls to an unknown adversary}
+
+\begin{columns}[c]
+
+\column{.45\textwidth} % Left column and width
+\begin{tikzpicture}
+    \node (img3) {\includegraphics[scale=0.7]{images/wbcf_3.pdf}};
+\end{tikzpicture}
+
+\column{.5\textwidth} % Right column and width
+\begin{center}
+\begin{lstlisting}
+push r_stk 1
+scall r 
+pop r_stk r_1
+assert r_1 1
+halt
+\end{lstlisting}
+\end{center}
+
+\end{columns}
+
+\begin{align*}
+ 		\mathcal{E}\interp{\Sigma}{pc} \triangleq&~\forall r, \mathcal{R}(\Sigma)(r) ~*~{\textsf{context}(\Sigma)(r[\textsf{\small PC}:=pc])}\\
+ 		&\sep~\textsc{WP}~\textsf{Seq (Instr Executable)}~\\
+ 		&\hspace{1cm}\{ v, v = HaltedV \implies \exists \Sigma ' r', \Sigma ' \sqsupseteq_{priv} \Sigma \\
+ 		&\hspace{1cm}* {\textsf{context}(\Sigma ')(r')}\}
+ 	\end{align*}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Proving the Fundamental Theorem}
+
+
+\end{frame}
+	
 
 \end{document} 
