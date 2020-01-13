@@ -649,8 +649,8 @@ $$\Sigma: \mathds{N} \rightharpoonup States \times \mathds{N} \rightharpoonup Re
 ~\\[0.5em]
 \textbf{What's new: Iris formalization viewpoint}
 \begin{itemize}
-	\item Formalization of a machine level language, with no distinction between program and memory
-	\item Distinction between  well-bracketed and non well-bracketed calls: using public/private transitions
+	\item Formalization of a machine language, with no distinction between program and memory
+	\item Distinction between well-bracketed and non well-bracketed calls: using public/private transitions
 \end{itemize}
 
 \end{frame}
@@ -802,19 +802,25 @@ halt
 
 \begin{frame}
 \frametitle{Proving the Fundamental Theorem}
+
+{\small
 \begin{table}
 \begin{tabular}[t]{c}
 \parbox{8cm}{\begin{align}
-\only<4->{& decode(w) = \text{Load}~dst~src \\}
-\only<1-3>{&\bigsep_{a \in [b,e]} \text{read\_write\_cond }a \\}
-&\bigsep \mathcal{R}(r)
+\only<4->{& decode(w) = \text{Load}~dst~src}
+\only<1-3>{\\ &\bigsep_{a \in [b,e]} \text{read\_write\_cond }a}
+\only<1-4>{\\ &\bigsep \mathcal{R}(r)}
+\only<5->{\\ &\bigsep \mathcal{V}(p,g,b,e,a)}
+\only<6->{\\ &\bigsep  \mathcal{V}(w_{src})}
 \end{align}} \\[1em]
 \hdashline
 \parbox{8cm}{\begin{align}
 \only<1-4>{&\bigsep_{reg \hookrightarrow w \in r\only<2->{\backslash \textsc{PC}}} reg \mapsto_r w}
-\only<5->{&\bigsep dst \mapsto_r w_{dst} \bigsep src \mapsto_r (p,g,b,e,a) \\}
+\only<5->{&\bigsep dst \mapsto_r \only<5-6>{w_{dst}} \only<7->{\color{red} w_{src}} \\
+				  &\bigsep src \mapsto_r (p,g,b,e,a)}
 \only<2->{\\ &\bigsep \textsc{PC} \mapsto_r (pc_g,pc_p,pc_b,pc_e,pc_a)}
 \only<3->{\\ &\bigsep pc_a \mapsto_a[pc_p] w}
+\only<6->{\\ &\bigsep a \mapsto_a[p] w_{src}}
 \end{align}} \\
 \hline
 \parbox{8cm}{\begin{align*}\textsc{WP}~\textsf{Seq (Instr Executable)}~
@@ -823,6 +829,7 @@ halt
  		\end{align*}}
 \end{tabular}
 \end{table}
+}
 
 \end{frame}
 

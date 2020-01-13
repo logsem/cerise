@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  11 JAN 2020 15:01
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  13 JAN 2020 12:05
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -2010,72 +2010,61 @@ Overfull \vbox (13.1919pt too high) detected at line 800
 [98
 
 ]
-Overfull \hbox (79.12335pt too wide) detected at line 827
+Overfull \hbox (53.24052pt too wide) detected at line 834
 []
- []
-
-
-Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
- [] 
  []
 
 [99
 
 ]
-Overfull \hbox (79.12335pt too wide) detected at line 827
+Overfull \hbox (53.24052pt too wide) detected at line 834
 []
- []
-
-
-Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
- [] 
  []
 
 [100
 
 ]
-Overfull \hbox (79.12335pt too wide) detected at line 827
+Overfull \hbox (53.24052pt too wide) detected at line 834
 []
- []
-
-
-Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
- [] 
- []
-
-
-Overfull \vbox (10.87552pt too high) detected at line 827
  []
 
 [101
 
 ]
-Overfull \hbox (79.12335pt too wide) detected at line 827
+Overfull \hbox (53.24052pt too wide) detected at line 834
 []
- []
-
-
-Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
- [] 
  []
 
 [102
 
 ]
-Overfull \hbox (79.12335pt too wide) detected at line 827
+Overfull \hbox (53.24052pt too wide) detected at line 834
+[]
+ []
+
+[103
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 834
 []
  []
 
 
-Overfull \hbox (11.45552pt too wide) in paragraph at lines 827--827
- [] 
+Overfull \vbox (5.77309pt too high) detected at line 834
+ []
+
+[104
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 834
+[]
  []
 
 
-Overfull \vbox (3.84901pt too high) detected at line 827
+Overfull \vbox (5.77309pt too high) detected at line 834
  []
 
-[103
+[105
 
 ]
 \tf@nav=\write7
@@ -2087,11 +2076,11 @@ Overfull \vbox (3.84901pt too high) detected at line 827
 \tf@snm=\write9
 \openout9 = `slides.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 830.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 830.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 837.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 837.
  (./slides.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 830.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 830.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 837.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 837.
 Package rerunfilecheck Info: File `slides.out' has not changed.
 (rerunfilecheck)             Checksum: 19BCC1091D58A94F6FA00C5F78610EDF;905.
 
@@ -2100,34 +2089,36 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 36051 strings out of 492649
- 729548 string characters out of 6129622
+ 36059 strings out of 492649
+ 729648 string characters out of 6129622
  827888 words of memory out of 5000000
- 39074 multiletter control sequences out of 15000+600000
- 544951 words of font info for 78 fonts, out of 8000000 for 9000
+ 39078 multiletter control sequences out of 15000+600000
+ 545553 words of font info for 80 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  56i,22n,73p,10403b,1488s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pf
 b></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 ></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb>
-</usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></
-usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss10.pfb></u
-sr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb></us
-r/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/
-local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss9.pfb></usr/lo
-cal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb></usr/l
-ocal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi10.pfb></usr/l
-ocal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi8.pfb></usr/lo
-cal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi9.pfb></usr/loc
-al/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/loca
-l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/
-texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/te
-xlive/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/t
-exlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on slides.pdf (103 pages, 533597 bytes).
+</usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></
+usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></us
+r/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss10.pfb></usr
+/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb></usr/
+local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/lo
+cal/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmss9.pfb></usr/loca
+l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb></usr/loc
+al/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi10.pfb></usr/loc
+al/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi8.pfb></usr/loca
+l/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi9.pfb></usr/local
+/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/
+texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/te
+xlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texl
+ive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/texliv
+e/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/texli
+ve/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on slides.pdf (105 pages, 553968 bytes).
 PDF statistics:
- 2945 PDF objects out of 2984 (max. 8388607)
- 2749 compressed objects within 28 object streams
- 222 named destinations out of 1000 (max. 500000)
+ 3005 PDF objects out of 3580 (max. 8388607)
+ 2804 compressed objects within 29 object streams
+ 226 named destinations out of 1000 (max. 500000)
  217 words of extra memory for PDF output out of 10000 (max. 10000000)
 
