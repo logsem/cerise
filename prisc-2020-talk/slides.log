@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  13 JAN 2020 12:05
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.8.29)  15 JAN 2020 11:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1566,18 +1566,18 @@ Dictionary: translator-theorem-dictionary, Language: English
  (./slides.nav) [1
 
 {/usr/local/texlive/2018/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
-LaTeX Font Info:    Try loading font information for U+msa on input line 225.
+LaTeX Font Info:    Try loading font information for U+msa on input line 227.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 225.
+LaTeX Font Info:    Try loading font information for U+msb on input line 227.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Try loading font information for OT1+mathkerncmss on input 
-line 225.
+line 227.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/sansmathaccent/ot1mathkerncmss.fd
 File: ot1mathkerncmss.fd 2013/03/27 Fontinst v1.933 font definitions for OT1/ma
@@ -1595,23 +1595,23 @@ thkerncmss.
 ] [7
 
 ]
-<images/cap_1.pdf, id=259, 189.8292pt x 160.6803pt>
+<images/cap_1.pdf, id=278, 189.8292pt x 160.6803pt>
 File: images/cap_1.pdf Graphic file (type pdf)
 <use images/cap_1.pdf>
-Package pdftex.def Info: images/cap_1.pdf  used on input line 271.
+Package pdftex.def Info: images/cap_1.pdf  used on input line 280.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 280--280
 [][]  
  []
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10.95> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 271.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 280.
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10> not available
-(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 271.
+(Font)              Font shape `OT1/cmr/m/sc' tried instead on input line 280.
 
 [8
 
@@ -1620,13 +1620,13 @@ LaTeX Font Warning: Font shape `OT1/cmss/m/sc' in size <10> not available
 pdfTeX warning: pdflatex (file ./images/cap_1.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_2.pdf, id=290, 189.8292pt x 160.6803pt>
+<images/cap_2.pdf, id=308, 189.8292pt x 160.6803pt>
 File: images/cap_2.pdf Graphic file (type pdf)
 <use images/cap_2.pdf>
-Package pdftex.def Info: images/cap_2.pdf  used on input line 271.
+Package pdftex.def Info: images/cap_2.pdf  used on input line 280.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 280--280
 [][]  
  []
 
@@ -1637,13 +1637,13 @@ Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 pdfTeX warning: pdflatex (file ./images/cap_2.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_3.pdf, id=324, 189.8292pt x 160.6803pt>
+<images/cap_3.pdf, id=342, 189.8292pt x 160.6803pt>
 File: images/cap_3.pdf Graphic file (type pdf)
 <use images/cap_3.pdf>
-Package pdftex.def Info: images/cap_3.pdf  used on input line 271.
+Package pdftex.def Info: images/cap_3.pdf  used on input line 280.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 280--280
 [][]  
  []
 
@@ -1654,29 +1654,29 @@ Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 pdfTeX warning: pdflatex (file ./images/cap_3.pdf): PDF inclusion: invalid othe
 r resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/cap_4.pdf, id=358, 189.8292pt x 160.6803pt>
-File: images/cap_4.pdf Graphic file (type pdf)
-<use images/cap_4.pdf>
-Package pdftex.def Info: images/cap_4.pdf  used on input line 271.
+<images/cap_4'.pdf, id=376, 189.8292pt x 160.6803pt>
+File: images/cap_4'.pdf Graphic file (type pdf)
+<use images/cap_4'.pdf>
+Package pdftex.def Info: images/cap_4'.pdf  used on input line 280.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 280--280
 [][]  
  []
 
 [11
 
- <./images/cap_4.pdf
+ <./images/cap_4'.pdf
 
-pdfTeX warning: pdflatex (file ./images/cap_4.pdf): PDF inclusion: invalid othe
-r resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/cap_4'.pdf): PDF inclusion: invalid oth
+er resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-File: images/cap_4.pdf Graphic file (type pdf)
-<use images/cap_4.pdf>
-Package pdftex.def Info: images/cap_4.pdf  used on input line 271.
+File: images/cap_4'.pdf Graphic file (type pdf)
+<use images/cap_4'.pdf>
+Package pdftex.def Info: images/cap_4'.pdf  used on input line 280.
 (pdftex.def)             Requested size: 132.87952pt x 112.47543pt.
 
-Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
+Overfull \hbox (1.89925pt too wide) in paragraph at lines 280--280
 [][]  
  []
 
@@ -1688,10 +1688,10 @@ Overfull \hbox (1.89925pt too wide) in paragraph at lines 271--271
 \openout4 = `slides.vrb'.
 
  (./slides.vrb
-<images/wbcf_1.pdf, id=446, 210.7875pt x 182.6022pt>
-File: images/wbcf_1.pdf Graphic file (type pdf)
-<use images/wbcf_1.pdf>
-Package pdftex.def Info: images/wbcf_1.pdf  used on input line 8.
+<images/wbcf_1'.pdf, id=464, 210.7875pt x 182.6022pt>
+File: images/wbcf_1'.pdf Graphic file (type pdf)
+<use images/wbcf_1'.pdf>
+Package pdftex.def Info: images/wbcf_1'.pdf  used on input line 8.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1700,15 +1700,15 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [14
 
- <./images/wbcf_1.pdf
+ <./images/wbcf_1'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_1.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_1'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./slides.vrb
-<images/wbcf_2.pdf, id=481, 210.7875pt x 182.6022pt>
-File: images/wbcf_2.pdf Graphic file (type pdf)
-<use images/wbcf_2.pdf>
-Package pdftex.def Info: images/wbcf_2.pdf  used on input line 9.
+<images/wbcf_2'.pdf, id=500, 210.7875pt x 182.6022pt>
+File: images/wbcf_2'.pdf Graphic file (type pdf)
+<use images/wbcf_2'.pdf>
+Package pdftex.def Info: images/wbcf_2'.pdf  used on input line 9.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1717,15 +1717,15 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [15
 
- <./images/wbcf_2.pdf
+ <./images/wbcf_2'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_2.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_2'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./slides.vrb
-<images/wbcf_3.pdf, id=516, 210.7875pt x 182.6022pt>
-File: images/wbcf_3.pdf Graphic file (type pdf)
-<use images/wbcf_3.pdf>
-Package pdftex.def Info: images/wbcf_3.pdf  used on input line 10.
+<images/wbcf_3'.pdf, id=534, 210.7875pt x 182.6022pt>
+File: images/wbcf_3'.pdf Graphic file (type pdf)
+<use images/wbcf_3'.pdf>
+Package pdftex.def Info: images/wbcf_3'.pdf  used on input line 10.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1734,15 +1734,15 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [16
 
- <./images/wbcf_3.pdf
+ <./images/wbcf_3'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_3.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_3'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./slides.vrb
-<images/wbcf_4.pdf, id=550, 210.7875pt x 182.6022pt>
-File: images/wbcf_4.pdf Graphic file (type pdf)
-<use images/wbcf_4.pdf>
-Package pdftex.def Info: images/wbcf_4.pdf  used on input line 11.
+<images/wbcf_4'.pdf, id=568, 210.7875pt x 182.6022pt>
+File: images/wbcf_4'.pdf Graphic file (type pdf)
+<use images/wbcf_4'.pdf>
+Package pdftex.def Info: images/wbcf_4'.pdf  used on input line 11.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1751,15 +1751,15 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [17
 
- <./images/wbcf_4.pdf
+ <./images/wbcf_4'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_4.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_4'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./slides.vrb
-<images/wbcf_5.pdf, id=585, 210.7875pt x 182.6022pt>
-File: images/wbcf_5.pdf Graphic file (type pdf)
-<use images/wbcf_5.pdf>
-Package pdftex.def Info: images/wbcf_5.pdf  used on input line 12.
+<images/wbcf_5'.pdf, id=603, 210.7875pt x 182.6022pt>
+File: images/wbcf_5'.pdf Graphic file (type pdf)
+<use images/wbcf_5'.pdf>
+Package pdftex.def Info: images/wbcf_5'.pdf  used on input line 12.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1768,15 +1768,15 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [18
 
- <./images/wbcf_5.pdf
+ <./images/wbcf_5'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_5.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_5'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] (./slides.vrb
-<images/wbcf_6.pdf, id=620, 210.7875pt x 182.6022pt>
-File: images/wbcf_6.pdf Graphic file (type pdf)
-<use images/wbcf_6.pdf>
-Package pdftex.def Info: images/wbcf_6.pdf  used on input line 13.
+<images/wbcf_6'.pdf, id=638, 210.7875pt x 182.6022pt>
+File: images/wbcf_6'.pdf Graphic file (type pdf)
+<use images/wbcf_6'.pdf>
+Package pdftex.def Info: images/wbcf_6'.pdf  used on input line 13.
 (pdftex.def)             Requested size: 147.55025pt x 127.82066pt.
 
 Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
@@ -1785,10 +1785,10 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--15
 
 ) [19
 
- <./images/wbcf_6.pdf
+ <./images/wbcf_6'.pdf
 
-pdfTeX warning: pdflatex (file ./images/wbcf_6.pdf): PDF inclusion: invalid oth
-er resource which is no dict (key 'ProcSets', type <array>); ignored.
+pdfTeX warning: pdflatex (file ./images/wbcf_6'.pdf): PDF inclusion: invalid ot
+her resource which is no dict (key 'ProcSets', type <array>); ignored.
 >] [20
 
 ] [21
@@ -1796,10 +1796,10 @@ er resource which is no dict (key 'ProcSets', type <array>); ignored.
 ] [22
 
 ]
-<images/calling_1.pdf, id=732, 277.035pt x 160.6803pt>
+<images/calling_1.pdf, id=750, 277.035pt x 160.6803pt>
 File: images/calling_1.pdf Graphic file (type pdf)
 <use images/calling_1.pdf>
-Package pdftex.def Info: images/calling_1.pdf  used on input line 389.
+Package pdftex.def Info: images/calling_1.pdf  used on input line 412.
 (pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
  [23
 
@@ -1808,10 +1808,10 @@ Package pdftex.def Info: images/calling_1.pdf  used on input line 389.
 pdfTeX warning: pdflatex (file ./images/calling_1.pdf): PDF inclusion: invalid 
 other resource which is no dict (key 'ProcSets', type <array>); ignored.
 >]
-<images/calling_2.pdf, id=766, 277.035pt x 160.6803pt>
+<images/calling_2.pdf, id=784, 277.035pt x 160.6803pt>
 File: images/calling_2.pdf Graphic file (type pdf)
 <use images/calling_2.pdf>
-Package pdftex.def Info: images/calling_2.pdf  used on input line 389.
+Package pdftex.def Info: images/calling_2.pdf  used on input line 412.
 (pdftex.def)             Requested size: 193.92317pt x 112.47543pt.
  [24
 
@@ -1824,7 +1824,7 @@ other resource which is no dict (key 'ProcSets', type <array>); ignored.
 ]
 
 LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
-(Font)              using `OT1/cmss/bx/n' instead on input line 403.
+(Font)              using `OT1/cmss/bx/n' instead on input line 426.
 
 [26
 
@@ -1890,21 +1890,31 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 ]
 [56
 
-] [57
+]
+\openout4 = `slides.vrb'.
 
-] [58
+ (./slides.vrb) [57
 
-] [59
+] (./slides.vrb) [58
 
-] [60
+] (./slides.vrb) [59
 
-] [61
+] (./slides.vrb) [60
 
-] [62
+] (./slides.vrb) [61
 
-] [63
+] (./slides.vrb) [62
 
-] [64
+]
+LaTeX Font Info:    Try loading font information for U+dsrom on input line 545.
+
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
+File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
+) [63
+
+]
+[64
 
 ] [65
 
@@ -1912,32 +1922,22 @@ LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
 
 ] [67
 
-]
-\openout4 = `slides.vrb'.
+] [68
 
- (./slides.vrb)
-[68
+] [69
 
-] (./slides.vrb) [69
+] [70
 
-] (./slides.vrb) [70
+ </usr/local/texlive/2018/texmf-dist/tex/latex/beamer/beamericonarticle.pdf>] [
+71
 
-] (./slides.vrb) [71
+] [72
 
-] (./slides.vrb) [72
+] [73
 
-] (./slides.vrb) [73
+] [74
 
-]
-LaTeX Font Info:    Try loading font information for U+dsrom on input line 596.
-
-
-(/usr/local/texlive/2018/texmf-dist/tex/latex/doublestroke/Udsrom.fd
-File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
-) [74
-
-]
-[75
+] [75
 
 ] [76
 
@@ -1945,21 +1945,16 @@ File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
 
 ] [78
 
-] [79
+]
+[79
 
 ] [80
 
 ] [81
 
- </usr/local/texlive/2018/texmf-dist/tex/latex/beamer/beamericonarticle.pdf>] [
-82
+] [82
 
-]
-Overfull \hbox (2.79546pt too wide) detected at line 717
-[] \U/msa/m/n/10.95 , []
- []
-
-[83
+] [83
 
 ] [84
 
@@ -1975,7 +1970,12 @@ Overfull \hbox (2.79546pt too wide) detected at line 717
 
 ] [90
 
-] [91
+]
+Overfull \hbox (2.79546pt too wide) detected at line 760
+[] \U/msa/m/n/10.95 , []
+ []
+
+[91
 
 ] [92
 
@@ -1989,11 +1989,84 @@ Overfull \hbox (2.79546pt too wide) detected at line 717
 
 ] [97
 
+] [98
+
+] [99
+
+] [100
+
+] [101
+
+] [102
+
+] [103
+
+] [104
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+[105
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+[106
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+[107
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+[108
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+[109
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+
+Overfull \vbox (5.77309pt too high) detected at line 841
+ []
+
+[110
+
+]
+Overfull \hbox (53.24052pt too wide) detected at line 841
+[]
+ []
+
+
+Overfull \vbox (5.77309pt too high) detected at line 841
+ []
+
+[111
+
+] [112
+
 ]
 \openout4 = `slides.vrb'.
 
-
-(./slides.vrb
+ (./slides.vrb
+<images/wbcf_3.pdf, id=3087, 210.7875pt x 182.6022pt>
 File: images/wbcf_3.pdf Graphic file (type pdf)
 <use images/wbcf_3.pdf>
 Package pdftex.def Info: images/wbcf_3.pdf  used on input line 8.
@@ -2004,69 +2077,16 @@ Overfull \hbox (16.56996pt too wide) in paragraph at lines 6--10
  []
 
 )
-Overfull \vbox (13.1919pt too high) detected at line 800
+Overfull \vbox (13.1919pt too high) detected at line 877
  []
 
-[98
+[113
 
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
+ <./images/wbcf_3.pdf
 
-[99
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-[100
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-[101
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-[102
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-[103
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-
-Overfull \vbox (5.77309pt too high) detected at line 834
- []
-
-[104
-
-]
-Overfull \hbox (53.24052pt too wide) detected at line 834
-[]
- []
-
-
-Overfull \vbox (5.77309pt too high) detected at line 834
- []
-
-[105
-
-]
+pdfTeX warning: pdflatex (file ./images/wbcf_3.pdf): PDF inclusion: invalid oth
+er resource which is no dict (key 'ProcSets', type <array>); ignored.
+>]
 \tf@nav=\write7
 \openout7 = `slides.nav'.
 
@@ -2076,23 +2096,23 @@ Overfull \vbox (5.77309pt too high) detected at line 834
 \tf@snm=\write9
 \openout9 = `slides.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 837.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 837.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 880.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 880.
  (./slides.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 837.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 837.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 880.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 880.
 Package rerunfilecheck Info: File `slides.out' has not changed.
-(rerunfilecheck)             Checksum: 19BCC1091D58A94F6FA00C5F78610EDF;905.
+(rerunfilecheck)             Checksum: DC95DFE15B60F83D9296EADD461FFDFC;1100.
 
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 36059 strings out of 492649
- 729648 string characters out of 6129622
- 827888 words of memory out of 5000000
- 39078 multiletter control sequences out of 15000+600000
+ 36109 strings out of 492649
+ 730389 string characters out of 6129622
+ 829962 words of memory out of 5000000
+ 39108 multiletter control sequences out of 15000+600000
  545553 words of font info for 80 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  56i,22n,73p,10403b,1488s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -2115,10 +2135,10 @@ xlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texl
 ive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/texliv
 e/2018/texmf-dist/fonts/type1/public/doublestroke/dsrom10.pfb></usr/local/texli
 ve/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on slides.pdf (105 pages, 553968 bytes).
+Output written on slides.pdf (113 pages, 586816 bytes).
 PDF statistics:
- 3005 PDF objects out of 3580 (max. 8388607)
- 2804 compressed objects within 29 object streams
- 226 named destinations out of 1000 (max. 500000)
- 217 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 3241 PDF objects out of 3580 (max. 8388607)
+ 3027 compressed objects within 31 object streams
+ 245 named destinations out of 1000 (max. 500000)
+ 246 words of extra memory for PDF output out of 10000 (max. 10000000)
 

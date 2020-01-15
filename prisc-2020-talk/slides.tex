@@ -222,6 +222,8 @@ Aarhus University \\ % Your institution for the title page
 	\item<5> These tools are elaborate and complex: we want to mechanize them, and facilitate the process of using them
 \end{itemize}
 
+\textit{Reasoning about a Machine with Local Capabilities}: \cite{p1}
+
 \end{frame}
 
 %----------------------------------------------------------------------------------------
@@ -251,7 +253,7 @@ Aarhus University \\ % Your institution for the title page
     \node<1> (img1) {\includegraphics[scale=0.7]{images/cap_1.pdf}};
     \node<2> (img2) {\includegraphics[scale=0.7]{images/cap_2.pdf}};
     \node<3> (img3) {\includegraphics[scale=0.7]{images/cap_3.pdf}};
-    \node<4-> (img4) {\includegraphics[scale=0.7]{images/cap_4.pdf}};
+    \node<4-> (img4) {\includegraphics[scale=0.7]{images/cap_4'.pdf}};
 \end{tikzpicture}
 
 \column{.5\textwidth} % Right column and width
@@ -268,10 +270,17 @@ Aarhus University \\ % Your institution for the title page
 \end{tikzpicture}}
 
 \end{columns}
+\only<2-4>{
+\begin{itemize}
+	\item \only<2>{Range}
+			  \only<3>{Address}
+			  \only<4>{Permission}
+\end{itemize}}
+
 \end{frame}
 
 %------------------------------------------------
-%\subsection{Enforcing Local Stack Encapsulation using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
+%\subsection{Enforcing Local State Encapsulation using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
 %
 %\begin{frame}[fragile]
 %\frametitle{Capability Safety}
@@ -302,22 +311,22 @@ Aarhus University \\ % Your institution for the title page
 %\end{frame}
 
 %------------------------------------------------
-\subsection{Enforcing Well Bracketed Control Flow using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
+\subsection{Enforcing Well-Bracketed Control Flow using Capabilities} % A subsection can be created just before a set of slides with a common theme to further break down your presentation into chunks
 
 \begin{frame}[fragile]
 \frametitle{Capability Safety}
-\textbf{Well Bracketed Control Flow}
+\textbf{Well-Bracketed Control Flow}
 \\[1cm]
 \begin{columns}[c]
 
 \column{.45\textwidth} % Left column and width
 \begin{tikzpicture}
-    \node<1> (img1) {\includegraphics[scale=0.7]{images/wbcf_1.pdf}};
-    \node<2> (img2) {\includegraphics[scale=0.7]{images/wbcf_2.pdf}};
-    \node<3> (img3) {\includegraphics[scale=0.7]{images/wbcf_3.pdf}};
-    \node<4> (img4) {\includegraphics[scale=0.7]{images/wbcf_4.pdf}};
-    \node<5> (img5) {\includegraphics[scale=0.7]{images/wbcf_5.pdf}};
-    \node<6> (img6) {\includegraphics[scale=0.7]{images/wbcf_6.pdf}};
+    \node<1> (img1) {\includegraphics[scale=0.7]{images/wbcf_1'.pdf}};
+    \node<2> (img2) {\includegraphics[scale=0.7]{images/wbcf_2'.pdf}};
+    \node<3> (img3) {\includegraphics[scale=0.7]{images/wbcf_3'.pdf}};
+    \node<4> (img4) {\includegraphics[scale=0.7]{images/wbcf_4'.pdf}};
+    \node<5> (img5) {\includegraphics[scale=0.7]{images/wbcf_5'.pdf}};
+    \node<6> (img6) {\includegraphics[scale=0.7]{images/wbcf_6'.pdf}};
 \end{tikzpicture}
 
 \column{.5\textwidth} % Right column and width
@@ -334,6 +343,15 @@ halt
 \end{center}
 
 \end{columns}
+
+\begin{itemize}
+	\item \only<1>{We start with a stack with range b to e}
+			  \only<2>{Push some local state}
+			  \only<3>{Prepare adversary stack}
+			  \only<4>{Adversary possesses a return capability}
+			  \only<5>{Once jumped to we get back original stack - we pop the stack and assert that local state did not change}
+			  \only<6>{Prepare the adversary stack for second call}
+\end{itemize}
 \end{frame}
 
 %------------------------------------------------
@@ -367,6 +385,9 @@ halt
     \draw (a-\i) -- (a-\j);
 %
 \end{tikzpicture}
+\begin{itemize}
+	\item Local capabilities can only be stored where you have write local permission
+\end{itemize}
 }
 
 \end{frame}
@@ -385,7 +406,9 @@ halt
 %%
 %\endhead
 %\end{longtable}
-
+\begin{itemize}
+	\item We want the adversary to lose any temporary capabilities (such as return capabilities) upon return of a function call
+\end{itemize}
 \end{frame}
 
 %------------------------------------------------
@@ -395,7 +418,7 @@ halt
 \frametitle{Expressing Capability Safety}
 
 \begin{itemize}
-	\item<2-> using a Program Logic 
+	\item<2-> using a program logic 
 	\item<3-> using a logical relation to capture invariants on the type system
 	\item<4-> \textbf{using a logical relation on an \emph{untyped} (or \emph{uni-typed}) language to capture semantic properties of the language}
 \end{itemize}
@@ -465,7 +488,7 @@ $$ \mathcal{V}\uncover<2->{(W)}\triangleq~\{\uncover<5->{{\color{red}n}}, (RW, g
 \textbf{Roadmap}
 	\begin{itemize}
 		\item<2> embed the language into Iris
-		\item<3> define a program logic by proving Hoare Triples
+		\item<3> define a program logic by proving hoare triples
 		\item<4> define the logical relation -- using Iris tools to solve the world circularity problem
 		\item<5> prove the fundamental theorem of logical relations
 		\item<6> use the logical relation to prove examples that rely on local state encapsulation and well-bracketed control flow with calls to unknown adversary
@@ -473,80 +496,6 @@ $$ \mathcal{V}\uncover<2->{(W)}\triangleq~\{\uncover<5->{{\color{red}n}}, (RW, g
 
 \end{frame}
 
-
-%------------------------------------------------
-\section{Program Logic}
-%------------------------------------------------
-
-\begin{frame}
-\frametitle{Abstract Instructions}
-
-$$(reg,mem) \rightarrow (reg',mem')$$
-%
-\begin{itemize}
-	\item<2-> \textsf{Instr Executable}
-	\item<3-> \textsf{Instr Halted} \uncover<5->{$\rightarrow$ \textsf{HaltedV}}
-	\item<4-> \textsf{Instr Failed} \uncover<5->{$\rightarrow$ \textsf{FailedV}}
-\end{itemize}
-
-\end{frame}
-
-%------------------------------------------------
-\subsection{A Capability Points-to Predicate}
-\begin{frame}
-\frametitle{Points-to Predicate with Permissions}
-
-\begin{align*}
-	a \mapsto_a[RWL] w \only<2->{&\vs a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
-	\only<3->{&\vs a \mapsto_a[RW] ((p,Local),b,e,l) \\}
-	\only<4->{&\not\vs a \mapsto_a[RW] ((p',Local),b',e',l') \\}
-\end{align*}
-
-\end{frame}
-
-%%------------------------------------------------
-%\section{Proving Hoare Triples}
-%
-%%------------------------------------------------
-%\subsection{Successful Execution}
-%
-%\begin{frame}
-%\frametitle{Hoare Triples of the Program Logic: Success}
-%
-%\begin{align*}
-%&decode(w) = \textsf{Load dst src} \\
-%\wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
-%\wedge &\textsf{ readAllowed } p_{src} ~\wedge~  \textsf{withinBounds } (b_{src},e_{src},a_{src})\\ \\
-%\{\{\{&~ \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc})} * a_{pc} \mapsto_a[p_{pc}] w \\
-%&* \alert<3>{dst \mapsto_r w_{dst}} * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \\
-%&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\} \\
-%&\textsf{Instr Executable} \\
-%\{\{\{&~  \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc} + 1)}
-%			  * a_{pc} \mapsto_a[p_{pc}] w
-%			  \\&* \alert<3>{dst \mapsto_r w_{src}}
-%			  * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src})
-%			   \\&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\}
-%\end{align*}
-%
-%\end{frame}
-%
-%%------------------------------------------------
-%\subsection{Failed Execution}
-%
-%\begin{frame}
-%\frametitle{Hoare Triples of the Program Logic: Failure}
-%
-%\begin{align*}
-%&decode(w) = \textsf{Load dst src} \\
-%\wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
-%\wedge &~\alert<2>{\neg \textsf{readAllowed } p_{src}} ~\vee~ \neg \textsf{withinBounds } (b_{src},e_{src},a_{src})\\
-%\{\{\{&~\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) * a_{pc} \mapsto_a[p_{pc}] w \\
-%&* src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \}\}\} \\
-%&\textsf{Instr Executable} \\
-%\{\{\{&~ \alert<2>{\textsf{FailedV}}, \top \}\}\}
-%\end{align*}
-%
-%\end{frame}
 
 %------------------------------------------------
 \section{A Unary Logical Relation for Reasoning about Semantic Properties of an Untyped Language}
@@ -626,6 +575,11 @@ $$\Sigma: \mathds{N} \rightharpoonup States \times \mathds{N} \rightharpoonup Re
 \end{tikzpicture}
 \end{center}
 
+\begin{itemize}
+	\item Dotted lines: private transitions
+	\item Continuous lines: public transitions
+\end{itemize}
+
 \end{frame}
 
 %------------------------------------------------
@@ -662,12 +616,27 @@ $$\Sigma: \mathds{N} \rightharpoonup States \times \mathds{N} \rightharpoonup Re
 \begin{frame}
 \frametitle{Conclusion}
 
+%\begin{itemize}
+%	\item Embed a capability machine into Iris
+%	\item Define its program logic 
+%	\item Mechanize a unary logical relation for an untyped capability machine language
+%	\item Prove the fundamental theorem of logical relations
+%	\item Reason about examples that rely on Local State Encapsulation and Well-Bracketed Control Flow with calls to an unknown adversary
+%\end{itemize}
+
+\textbf{Contributions}
 \begin{itemize}
-	\item Embed a capability machine into Iris
-	\item Define its program logic 
-	\item Mechanize a unary logical relation for an untyped capability machine language
-	\item Prove the fundamental theorem of logical relations
-	\item Reason about examples that rely on Local Stack Encapsulation and Well-Bracketed Control Flow with calls to an unknown adversary
+	\item First mechanization of a core model of a capability machine. The mechanization includes: 
+		\begin{itemize}
+			\item Embedding of a capability machine language into Iris (first embedding of a machine language into Iris)
+			\item Mechanized proof of the fundamental theorem of logical relations 
+			\item Mechanized proof of capability safety of two non-trivial example programs 
+		\end{itemize}
+\end{itemize}
+\textbf{Future work}
+\begin{itemize}
+	\item Mechanize a proof of capability safety of the awkward example
+	\item Expand the mechanization with new capabilities and calling conventions that solve current shortcomings of local capabilities
 \end{itemize}
 
 \end{frame}
@@ -700,6 +669,80 @@ and Lars Birkedal (2018)
 %----------------------------------------------------------------------------------------
 % Bonus Slides
 %------------------------------------------------
+%------------------------------------------------
+\section{Program Logic}
+%------------------------------------------------
+
+\begin{frame}
+\frametitle{Abstract Instructions}
+
+$$(reg,mem) \rightarrow (reg',mem')$$
+%
+\begin{itemize}
+	\item<2-> \textsf{Instr Executable}
+	\item<3-> \textsf{Instr Halted} \uncover<5->{$\rightarrow$ \textsf{HaltedV}}
+	\item<4-> \textsf{Instr Failed} \uncover<5->{$\rightarrow$ \textsf{FailedV}}
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\subsection{A Capability Points-to Predicate}
+\begin{frame}
+\frametitle{Points-to Predicate with Permissions}
+
+\begin{align*}
+	a \mapsto_a[RWL] w \only<2->{&\vs a \mapsto_a[RWL] ((p,Local),b,e,l) \\}
+	\only<3->{&\vs a \mapsto_a[RW] ((p,Local),b,e,l) \\}
+	\only<4->{&\not\vs a \mapsto_a[RW] ((p',Local),b',e',l') \\}
+\end{align*}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Proving Hoare Triples}
+
+%------------------------------------------------
+\subsection{Successful Execution}
+
+\begin{frame}
+\frametitle{Hoare Triples of the Program Logic: Success}
+
+\begin{align*}
+&decode(w) = \textsf{Load dst src} \\
+\wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
+\wedge &\textsf{ readAllowed } p_{src} ~\wedge~  \textsf{withinBounds } (b_{src},e_{src},a_{src})\\ \\
+\{\{\{&~ \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc})} * a_{pc} \mapsto_a[p_{pc}] w \\
+&* \alert<3>{dst \mapsto_r w_{dst}} * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \\
+&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\} \\
+&\textsf{Instr Executable} \\
+\{\{\{&~  \alert<2>{\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc} + 1)}
+			  * a_{pc} \mapsto_a[p_{pc}] w
+			  \\&* \alert<3>{dst \mapsto_r w_{src}}
+			  * src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src})
+			   \\&* a_{src} \mapsto_a[p_{src}] w_{src} \}\}\}
+\end{align*}
+
+\end{frame}
+
+%------------------------------------------------
+\subsection{Failed Execution}
+
+\begin{frame}
+\frametitle{Hoare Triples of the Program Logic: Failure}
+
+\begin{align*}
+&decode(w) = \textsf{Load dst src} \\
+\wedge &\textsf{ isCorrectPC }((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) \\
+\wedge &~\alert<2>{\neg \textsf{readAllowed } p_{src}} ~\vee~ \neg \textsf{withinBounds } (b_{src},e_{src},a_{src})\\
+\{\{\{&~\textsf{PC} \mapsto_r ((p_{pc},g_{pc}),b_{pc},e_{pc},a_{pc}) * a_{pc} \mapsto_a[p_{pc}] w \\
+&* src \mapsto_r ((p_{src},g_{src}),b_{src},e_{src},a_{src}) \}\}\} \\
+&\textsf{Instr Executable} \\
+\{\{\{&~ \alert<2>{\textsf{FailedV}}, \top \}\}\}
+\end{align*}
+
+\end{frame}
+
 \subsection{The Execute Condition}
 
 \begin{frame}
@@ -763,6 +806,40 @@ If we can read a region, and every word in that region is safe, then we can safe
 \end{align*}
 \end{frame}
 
+
+\begin{frame}
+\frametitle{Proving the Fundamental Theorem}
+
+{\small
+\begin{table}
+\begin{tabular}[t]{c}
+\parbox{8cm}{\begin{align}
+\only<4->{& decode(w) = \text{Load}~dst~src}
+\only<1-3>{\\ &\bigsep_{a \in [b,e]} \text{read\_write\_cond }a}
+\only<1-4>{\\ &\bigsep \mathcal{R}(r)}
+\only<5->{\\ &\bigsep \mathcal{V}(p,g,b,e,a)}
+\only<6->{\\ &\bigsep  \mathcal{V}(w_{src})}
+\end{align}} \\[1em]
+\hdashline
+\parbox{8cm}{\begin{align}
+\only<1-4>{&\bigsep_{reg \hookrightarrow w \in r\only<2->{\backslash \textsc{PC}}} reg \mapsto_r w}
+\only<5->{&\bigsep dst \mapsto_r \only<5-6>{w_{dst}} \only<7->{\color{red} w_{src}} \\
+				  &\bigsep src \mapsto_r (p,g,b,e,a)}
+\only<2->{\\ &\bigsep \textsc{PC} \mapsto_r (pc_g,pc_p,pc_b,pc_e,pc_a)}
+\only<3->{\\ &\bigsep pc_a \mapsto_a[pc_p] w}
+\only<6->{\\ &\bigsep a \mapsto_a[p] w_{src}}
+\end{align}} \\
+\hline
+\parbox{8cm}{\begin{align*}\textsc{WP}~\textsf{Seq (Instr Executable)}~
+ 		\{ v, &v = HaltedV \implies \\ &\exists \Sigma ' r',
+ 		\Sigma ' \sqsupseteq_{priv} \Sigma * {\textsf{context}(\Sigma ')(r')}\}
+ 		\end{align*}}
+\end{tabular}
+\end{table}
+}
+
+\end{frame}
+
 %------------------------------------------------
 \section{Reasoning about Unknown Code}
 
@@ -796,40 +873,6 @@ halt
  		&\hspace{1cm}\{ v, v = HaltedV \implies \exists \Sigma ' r', \Sigma ' \sqsupseteq_{priv} \Sigma \\
  		&\hspace{1cm}* {\textsf{context}(\Sigma ')(r')}\}
  	\end{align*}
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Proving the Fundamental Theorem}
-
-{\small
-\begin{table}
-\begin{tabular}[t]{c}
-\parbox{8cm}{\begin{align}
-\only<4->{& decode(w) = \text{Load}~dst~src}
-\only<1-3>{\\ &\bigsep_{a \in [b,e]} \text{read\_write\_cond }a}
-\only<1-4>{\\ &\bigsep \mathcal{R}(r)}
-\only<5->{\\ &\bigsep \mathcal{V}(p,g,b,e,a)}
-\only<6->{\\ &\bigsep  \mathcal{V}(w_{src})}
-\end{align}} \\[1em]
-\hdashline
-\parbox{8cm}{\begin{align}
-\only<1-4>{&\bigsep_{reg \hookrightarrow w \in r\only<2->{\backslash \textsc{PC}}} reg \mapsto_r w}
-\only<5->{&\bigsep dst \mapsto_r \only<5-6>{w_{dst}} \only<7->{\color{red} w_{src}} \\
-				  &\bigsep src \mapsto_r (p,g,b,e,a)}
-\only<2->{\\ &\bigsep \textsc{PC} \mapsto_r (pc_g,pc_p,pc_b,pc_e,pc_a)}
-\only<3->{\\ &\bigsep pc_a \mapsto_a[pc_p] w}
-\only<6->{\\ &\bigsep a \mapsto_a[p] w_{src}}
-\end{align}} \\
-\hline
-\parbox{8cm}{\begin{align*}\textsc{WP}~\textsf{Seq (Instr Executable)}~
- 		\{ v, &v = HaltedV \implies \\ &\exists \Sigma ' r',
- 		\Sigma ' \sqsupseteq_{priv} \Sigma * {\textsf{context}(\Sigma ')(r')}\}
- 		\end{align*}}
-\end{tabular}
-\end{table}
-}
 
 \end{frame}
 
