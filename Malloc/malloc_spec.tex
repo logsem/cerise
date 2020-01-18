@@ -1,0 +1,60 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{graphicx} % Allows including images
+\usepackage{tikz}
+\usetikzlibrary{matrix}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{dsfont}
+\usepackage{longtable}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage[margin=1in]{geometry}
+
+\newcommand{\sep}{-\kern-.6em\raisebox{-.659ex}{*}\ }
+\newcommand{\bupd}[1]{=\kern-.6em\{#1\}\ \kern-.9em =\ \kern-.8em\raisebox{-.659ex}{*}\ }
+\newcommand{\fupd}{=\kern-.3em=\ \kern-.8em\raisebox{-.659ex}{*}\ }
+\newcommand{\nfupd}{=\kern-.6em \backslash\ \kern-.9em=\ \kern-.8em\raisebox{-.659ex}{*}\ }
+
+\newcommand{\bigsep}{\mathop{\scalebox{2.5}{\raisebox{-0.4ex}{$*$}}}}%
+\newcommand\myeq[1]{\stackrel{\mathclap{\normalfont\mbox{#1}}}{=}}
+
+
+\title{Malloc Specification}
+
+\begin{document}
+
+\maketitle
+
+\begin{align}
+	&\textsc{pc} \mapsto_r ({\small \textsc{rw}},\text{Global},b_m,e_m,a_m) \\
+	*~&\bigsep_{r \in \texttt{regs}} \exists w, r \mapsto_r w \\
+	*~&\text{region } W * \text{full\_sts\_world } W \\
+    *~&\triangleright (\textsc{pc} \mapsto_r continuation \\
+    						  &\hspace{1em}* \exists b'~e', e' - b' = size -1 \wedge r_1 \mapsto_r ({\small \textsc{rwx}},\text{Global},b',e',b') \\
+    						  &\hspace{1em}* \bigsep_{r \in  \texttt{regs}/\{r_1\}} \exists w, r \mapsto_r w\\
+    						  &\hspace{1em}* \text{region }(W[e',\cdots,b':=\texttt{permanent}]) \\
+    						  &\hspace{1em}* \text{full\_sts\_world  }(W[e',\cdots,b':=\texttt{permanent}])\\
+    						  &\hspace{1em}* \bigsep_{a \in [b',e']}\text{rel }a~{\small \textsc{rwx}} \\
+    						  &\hspace{1em}\sep \textbf{WP}~\textsf{Seq (Instr Executable)}~\{\Phi\})\\
+  \vdash~&\textbf{WP}~\textsf{Seq (Instr Executable)}~\{\Phi\}
+\end{align}
+
+\begin{enumerate}[label=(\arabic*)]
+	\item the program counter after jumping the Malloc subroutine
+	\item general purpose registers 
+	\item region and collection of state transition systems
+	\item the program counter is set to the continuation once Malloc is done
+	\item $b'$ and $e'$ denote the malloc'ed region, must be a fresh region. $r_1$ now contains a capability to that region
+	\item general purpose registers 
+	\item the updated region with the new permanent addresses
+	\item the updated STS collection
+	\item each address in the malloc'ed range is in the region with permission {\small \textsc{rwx}}
+	\item the continuation should have $\Phi$ as its postcondition 
+	\item then malloc followed by the continuation has $\Phi$ as its postcondition 
+\end{enumerate}
+
+\end{document}
