@@ -7,3 +7,4 @@
 prisc-2020/*
 .[ln]ia.cache
 .DS_Store
+*.fuse_*
