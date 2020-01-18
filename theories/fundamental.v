@@ -42,6 +42,7 @@ Section fundamental.
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
+  (*TODO: the g=Local should be automatically derivable here *)
   Theorem fundamental W r p g b e (a : Addr) :
     ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX /\ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
@@ -82,8 +83,7 @@ Section fundamental.
       + (* Load *)
         iApply (load_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Store *)
-      (* iApply (store_case with "[] [] [] [] [] [] [Hsts] [Hown] [Hr] [Ha] [HPC]"); eauto. *)
-        admit.
+        iApply (store_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Lt *)
         iApply (add_sub_lt_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); eauto.
       + (* Add *)
@@ -140,6 +140,6 @@ Section fundamental.
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Admitted.
+  Qed.
 
-End fundamental. 
+End fundamental.
