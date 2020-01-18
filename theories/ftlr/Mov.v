@@ -192,7 +192,7 @@ Section fundamental.
                   - iIntros "[HA [% %]]". iSplitL "HA"; auto.
                     iPureIntro; split.
                     + assert (pwl p = false) by (destruct p; destruct Hp as [Hp | [Hp | [Hp Hcontr] ] ]; try congruence; auto).
-                      rewrite H7 in Hpwl, H5. rewrite H7.
+                      rewrite H7 in H5. rewrite H7.
                       eelim (region_state_nwl_monotone_nl _ _ y _ Hfuture H5). auto.
                     + eapply related_sts_rel_std; eauto.
                   - iIntros "[HA [% %]]". iSplitL "HA"; auto.
