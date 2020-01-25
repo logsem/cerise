@@ -67,14 +67,13 @@ Proof.
   - iApply (region_close_next_perm with "[A B C D E F G]"); eauto; iFrame.
 Qed.
 
-
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation WORLD := (leibnizO (STS * STS)).
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -133,18 +132,164 @@ Proof.
     iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
 Qed.
 
-  Lemma store_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm) (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (src : Z + RegName) :
-    ftlr_instr W r p p' g b e a w (Store dst src) ρ.
+Lemma writeLocalAllowed_implies_local W p l b e a:
+  pwl p = true ->
+  withinBounds (p, l, b, e, a) = true ->
+  interp W (inr (p, l, b, e, a)) -∗ ⌜isLocal l⌝.
+Proof.
+  intros. iIntros "Hvalid".
+  eapply withinBounds_le_addr in H4.
+  unfold interp; rewrite fixpoint_interp1_eq /=.
+  destruct p; simpl in H3; try congruence; destruct l; eauto.
+Qed.
 
-  Proof.
-   intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
-   iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
-   iIntros "Hr Hstate Ha HPC Hmap".
-   rewrite delete_insert_delete.
+Lemma writeLocalAllowed_valid_cap_implies W p l b e a:
+  pwl p = true ->
+  withinBounds (p, l, b, e, a) = true ->
+  interp W (inr (p, l, b, e, a)) -∗
+         ⌜region_std W a /\ std_sta W !! countable.encode a = Some (countable.encode Temporary)⌝.
+Proof.
+  intros. iIntros "Hvalid".
+  iAssert (⌜isLocal l⌝)%I as "%". by iApply writeLocalAllowed_implies_local.
+  eapply withinBounds_le_addr in H4.
+  unfold interp; rewrite fixpoint_interp1_eq /=.
+  destruct p; simpl in H3; try congruence; destruct l.
+  - by exfalso.
+  - iDestruct "Hvalid" as (p) "[% H]".
+    iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+  - by exfalso.
+  - iDestruct "Hvalid" as (p) "[% [H _] ]".
+    iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+Qed.
 
-    destruct (reg_eq_dec dst PC).
-    - subst dst.
-       destruct Hp as [-> | Hp].
+
+Lemma execcPC_implies_interp W p p' g b e a0:
+  PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX ∧ g = Local →
+  □ exec_cond W b e g p (fixpoint interp1) -∗
+    ([∗ list] a ∈ region_addrs b e,
+     rel a p'(λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word),
+                     ((fixpoint interp1) Wv.1) Wv.2)
+     ∧ ⌜if pwl p
+        then region_state_pwl W a
+        else region_state_nwl W a g⌝
+             ∧ ⌜region_std W a⌝) -∗
+    ((fixpoint interp1) W) (inr (p, g, b, e, a0)).
+Proof.
+  iIntros (Hpf Hp) "#HEC #HR".
+  rewrite (fixpoint_interp1_eq _ (inr _)).
+  (do 2 try destruct Hp as [ | Hp]). 3:destruct Hp.
+  all:subst; iExists p' ; by do 2 (iSplit; [auto | ]).
+Qed.
+
+(* TODO: I have no clue why this is not derived somehow, but it seems to be necessary to type the below thing -- just followed the bread crumbs laid out by the errors *)
+Global Instance interp_ne n :
+  Proper (dist n ==> dist n) (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
+Proof.
+  solve_proper.
+Qed.
+
+(*The general monotonicity statement that interp gives you when writing a word into a pointer (p0, l, a2, a1, a0) ; simply a bundling of all individual monotonicity statements*)
+Lemma interp_monotone_generalW (W : WORLD)  (ρ : region_type) (p p0 p1 : Perm) (l g : Locality)(b e a a2 a1 a0 : Addr):
+  std_sta W !! countable.encode a0 = Some (countable.encode ρ) →
+  withinBounds (p0, l, a2, a1, a0) = true →
+  PermFlows p0 p1 →
+ (negb (isLocal g) || match p0 with
+                                | RWL | RWLX => true
+                                | _ => false
+                                end = true)→
+  ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
+ (match ρ with
+  | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
+  | Permanent => future_priv_mono
+  | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+  end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
+      (inr (p, g, b, e, a))).
+Proof.
+ iIntros (Hstd Hwb Hfl' Hconds) "#Hvdst".
+ destruct ρ.
+  - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone.
+    * iIntros (W0 W1) "% HIW0".
+      destruct g.
+    + by iApply interp_monotone_nl.
+    (*The below case is a contradiction, since if g is local,p0 must be WL and p0 flows into the non-WL p1*)
+    + destruct p0 ; try (simpl in Hconds; by exfalso).
+      all:destruct p1 eqn:Hp1v ; (by exfalso).
+  - iAlways. simpl. iIntros (W0 W1) "% HIW0".
+    destruct g.
+    + by iApply interp_monotone_nl.
+    + (*Trick here: value relation leads to a contradiction if p0 is WL, since then its region cannot be permanent*)
+      iDestruct ( writeLocalAllowed_valid_cap_implies with "Hvdst" ) as "%"; eauto.
+      destruct H3. rewrite Hstd in H4. inversion H4.
+      apply (f_equal (countable.decode (A:=region_type))) in H6.
+      do 2 rewrite countable.decode_encode in H6. by inversion H6.
+  - auto.
+Qed.
+
+Lemma interp_monotone_generalZ (W : WORLD)  (ρ : region_type) (p0 p1 : Perm) (l : Locality)(a2 a1 a0 : Addr) z:
+  std_sta W !! countable.encode a0 = Some (countable.encode ρ) →
+  withinBounds (p0, l, a2, a1, a0) = true →
+  PermFlows p0 p1 →
+  ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
+ (match ρ with
+  | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
+  | Permanent => future_priv_mono
+  | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+  end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
+      (inl z)).
+Proof.
+  iIntros (Hstd Hwb Hfl') "#Hvdst".
+  destruct ρ.
+  - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone_nl.
+  - iAlways. simpl. iIntros (W0 W1) "% HIW0".
+      by iApply interp_monotone_nl.
+  - trivial.
+Qed.
+
+(*Lemma that allows switching between the two different formulations of monotonicity, to alleviate the effects of inconsistencies*)
+Lemma switch_monotonicity_formulation ρ w p φ:
+  (match ρ with
+   | Temporary => if pwl p then future_pub_mono else future_priv_mono
+   | Permanent => future_priv_mono
+   | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+   end φ w)%I ↔
+           (ρ ≠ Revoked → (if decide (ρ = Temporary ∧ pwl p = true)
+                           then future_pub_mono φ w
+                           else future_priv_mono φ w)%I).
+Proof.
+  split.
+  - destruct ρ.
+    * destruct (pwl p) ; intros.
+      destruct (decide (Temporary = Temporary ∧ true = true)). auto. assert (Temporary = Temporary ∧ true = true); auto. by congruence.
+      destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
+    *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
+    * by intros.
+  - intros. destruct ρ.
+    * destruct (pwl p).
+      destruct (decide (Temporary = Temporary ∧ true = true)). auto.
+      assert (Temporary = Temporary ∧ true = true); auto. by congruence.
+      destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
+    *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
+    * by iPureIntro.
+Qed.
+
+    Lemma store_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm) (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (src : Z + RegName) :
+      ftlr_instr W r p p' g b e a w (Store dst src) ρ.
+
+    Proof.
+      intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+      iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+      iIntros "Hr Hstate Ha HPC Hmap".
+      rewrite delete_insert_delete.
+
+      destruct (reg_eq_dec dst PC).
+      - subst dst.
+        destruct Hp as [-> | Hp].
        { (* if p is RX, write is not allowed *)
          iApply (wp_store_fail1' with "[$HPC $Ha]"); eauto.
          iNext. iIntros (_).

@@ -42,7 +42,7 @@ Section fundamental.
   
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
 
-  (*TODO: the g=Local should be automatically derivable here *)
+  (*TODO: the g=Local should be automatically derivable here: lemma for this is now present in Load.v *)
   Theorem fundamental W r p g b e (a : Addr) :
     ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX /\ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
