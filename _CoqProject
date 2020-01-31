@@ -35,3 +35,4 @@ theories/ftlr/Subseg.v
 theories/fundamental.v
 theories/examples/addr_reg_sample.v
 theories/examples/stack_macros.v
+theories/examples/contiguous.v

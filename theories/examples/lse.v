@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental. 
-From cap_machine.examples Require Import stack_macros. 
+From cap_machine.examples Require Import stack_macros scall. 
 
 Section lse.
    Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -91,37 +91,40 @@ Section lse.
   Definition f2 (r1 : RegName) (p : Perm) : iProp Σ :=
     (    (* push 1 *)
            push_z (a-0) (a-1) p r_stk 1
-    (* scall r1([],[]) *)
-         (* push private state *)
-         (* push activation code *)
-         ∗ push_z (a-2) (a-3) p r_stk w_1
-         ∗ push_z (a-4) (a-5) p r_stk w_2
-         ∗ push_z (a-6) (a-7) p r_stk w_3
-         ∗ push_z (a-8) (a-9) p r_stk w_4a
-         ∗ push_z (a-10) (a-11) p r_stk w_4b
-         ∗ push_z (a-12) (a-13) p r_stk w_4c
-         (* push old pc *)
-         ∗ (a-14) ↦ₐ[p] move_r r_t1 PC
-         ∗ (a-15) ↦ₐ[p] lea_z r_t1 64 (* offset to "after" *)
-         ∗ push_r (a-16) (a-17) p r_stk r_t1
-         (* push stack pointer *)
-         ∗ (a-18) ↦ₐ[p] lea_z r_stk 1
-         ∗ (a-19) ↦ₐ[p] store_r r_stk r_stk
-         (* set up protected return pointer *)
-         ∗ (a-20) ↦ₐ[p] move_r r_t0 r_stk
-         ∗ (a-21) ↦ₐ[p] lea_z r_t0 (-7)%Z
-         ∗ (a-22) ↦ₐ[p] restrict_z r_t0 (local_e)
-         (* restrict stack capability *)
-         ∗ (a-23) ↦ₐ[p] geta r_t1 r_stk
-         ∗ (a-24) ↦ₐ[p] add_r_z r_t1 r_t1 1
-         ∗ (a-25) ↦ₐ[p] gete r_t2 r_stk
-         ∗ (a-26) ↦ₐ[p] subseg_r_r r_stk r_t1 r_t2
-         (* clear the unused part of the stack *)
-         (* mclear r_stk: *)
-         ∗ mclear (region_addrs_aux (a-27) 22) p r_stk 10 2 (* contiguous *)
-         (* clear non-argument registers *)
-         ∗ rclear (region_addrs_aux (a-49) 29) p
-                  (list_difference all_registers [PC;r_stk;r_t0;r1])
+    (* (* scall r1([],[]) *) *)
+    (*      (* push private state *) *)
+    (*      (* push activation code *) *)
+    (*      ∗ push_z (a-2) (a-3) p r_stk w_1 *)
+    (*      ∗ push_z (a-4) (a-5) p r_stk w_2 *)
+    (*      ∗ push_z (a-6) (a-7) p r_stk w_3 *)
+    (*      ∗ push_z (a-8) (a-9) p r_stk w_4a *)
+    (*      ∗ push_z (a-10) (a-11) p r_stk w_4b *)
+    (*      ∗ push_z (a-12) (a-13) p r_stk w_4c *)
+    (*      (* push old pc *) *)
+    (*      ∗ (a-14) ↦ₐ[p] move_r r_t1 PC *)
+    (*      ∗ (a-15) ↦ₐ[p] lea_z r_t1 64 (* offset to "after" *) *)
+    (*      ∗ push_r (a-16) (a-17) p r_stk r_t1 *)
+    (*      (* push stack pointer *) *)
+    (*      ∗ (a-18) ↦ₐ[p] lea_z r_stk 1 *)
+    (*      ∗ (a-19) ↦ₐ[p] store_r r_stk r_stk *)
+    (*      (* set up protected return pointer *) *)
+    (*      ∗ (a-20) ↦ₐ[p] move_r r_t0 r_stk *)
+    (*      ∗ (a-21) ↦ₐ[p] lea_z r_t0 (-7)%Z *)
+    (*      ∗ (a-22) ↦ₐ[p] restrict_z r_t0 (local_e) *)
+    (*      (* restrict stack capability *) *)
+    (*      ∗ (a-23) ↦ₐ[p] geta r_t1 r_stk *)
+    (*      ∗ (a-24) ↦ₐ[p] add_r_z r_t1 r_t1 1 *)
+    (*      ∗ (a-25) ↦ₐ[p] gete r_t2 r_stk *)
+    (*      ∗ (a-26) ↦ₐ[p] subseg_r_r r_stk r_t1 r_t2 *)
+    (*      (* clear the unused part of the stack *) *)
+    (*      (* mclear r_stk: *) *)
+    (*      ∗ mclear (region_addrs_aux (a-27) 22) p r_stk 10 2 (* contiguous *) *)
+    (*      (* clear non-argument registers *) *)
+    (*      ∗ rclear (region_addrs_aux (a-49) 29) p *)
+    (*               (list_difference all_registers [PC;r_stk;r_t0;r1]) *)
+    (*      (* jump to unknown code *) *)
+    (*      ∗ (a-78) ↦ₐ[p] jmp r1 *)
+         ∗ scall_prologue (region_addrs (a-2) (a-77)) p 64 r1
          (* jump to unknown code *)
          ∗ (a-78) ↦ₐ[p] jmp r1
     (* after: *)
@@ -173,7 +176,7 @@ Section lse.
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,(a-0))
       ∗ f2 r_t30 pc_p
       (* we start out with arbitrary sts *)
-      ∗ sts_full W.1 W.2
+      ∗ sts_full_world sts_std W
       ∗ region W
     }}}
       Seq (Instr Executable)
@@ -203,6 +206,22 @@ Section lse.
       simpl. repeat f_equal; (apply eq_proofs_unicity; decide equality). }
     wp_push_z "Hstack_own" (a-0) (a-110) (a-120) (a-150) (a-119) (a-120) φ (a-0) (a-1) (a-2) ws_own "Hf2"
               "(HPC & _ & Hr_stk & Ha120)".
+    iDestruct "Hf2" as "[Hscall Hf2]". 
+    iApply (scall_prologue_spec (a-128) (a-129) (a-121) (a-79) (a-78) with "[-]");
+      last iFrame "HPC Hr_stk Hscall";
+      try addr_succ;[apply isCorrectPC_bounds with (a-0) (a-110); auto|apply isCorrectPC_bounds with (a-0) (a-110); auto|apply PermFlows_refl|..]. 
+    iSplitL "Hr_gen Hrt0 Hrt1 Hrt2"; [admit|].
+    iSplitL "Hstack";[admit|].
+    iSplitL "Hstack_adv";[admit|]. 
+    iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hstack_adv & _)". 
+    
+
+
+
+
+    
+
+    (*
     wp_push_z "Hstack" (a-0) (a-110) (a-120) (a-150) (a-120) (a-121) φ (a-2) (a-3) (a-4) ws_own "Hf2"
               "(HPC & _ & Hr_stk & Ha121)".
     wp_push_z "Hstack" (a-0) (a-110) (a-120) (a-150) (a-121) (a-122) φ (a-4) (a-5) (a-6) ws_own "Hf2"
@@ -378,12 +397,17 @@ Section lse.
     { iNext. iExists ((repeat (inl 0%Z) 6) ++ wsr); iSimpl. iFrame. }
     iSplitL "HPC";[iFrame|].
     iSplitL "Hi";[iExact "Hi"|].
-    iNext. iIntros "(HPC & Hr_gen & _)".
+    iNext. iIntros "(HPC & Hr_gen & _)".*)
     iPrologue "Hf2".
     iApply (wp_jmp_success _ _ _ _ _ (a-78) with "[Hi HPC Hr1]");
       first apply jmp_i;first apply PermFlows_refl;
       first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done). 
     iFrame. iEpilogue "(HPC & _ & Hr1)"; iSimpl in "HPC".
+    
+
+
+
+    
     (* We have now arrived at the interesting part of the proof: namely the unknown 
        adversary code. In order to reason about unknown code, we must apply the 
        fundamental theorem. To this purpose, we must first define the stsf that will 
@@ -395,16 +419,15 @@ Section lse.
                      (<[r_t30 := inr (E, Global, b, e, a)]>
                      (create_gmap_default
                 (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (inl 0%Z)))))).
-    iAssert (interp_expression r W (inr (RX, Global, b, e, a)))
-      as (fs' fr') "(-> & -> & Hvalid)". 
-    { iApply fundamental. iLeft; auto. iExists RX. iFrame "#". done. }
+    iAssert (interp_expression r W (inr (RX, Global, b, e, a))) as "Hvalid". 
+    { iApply fundamental. iLeft; auto. iExists RX. iFrame "#". admit. }
     (* We have all the resources of r *)
     iAssert (registers_mapsto (<[PC:=inr (RX, Global, b, e, a)]> r))
-                          with "[Hr_gen Hr_stk Hrt0 Hr1 HPC]" as "Hmaps".
+                          with "[Hr_gen Hr_stk Hr_t0 Hr1 HPC]" as "Hmaps".
     { rewrite /r /registers_mapsto (insert_insert _ PC).
       iApply (big_sepM_insert_2 with "[HPC]"); first iFrame.
       iApply (big_sepM_insert_2 with "[Hr_stk]"); first iFrame.
-      iApply (big_sepM_insert_2 with "[Hrt0]"); first (rewrite epp_local_e;iFrame).
+      iApply (big_sepM_insert_2 with "[Hr_t0]"); first iFrame.
       iApply (big_sepM_insert_2 with "[Hr1]"); first iFrame.
       assert ((list_difference all_registers [PC; r_stk; r_t0; r_t30]) =
               [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12;
@@ -465,11 +488,12 @@ Section lse.
                        ∗ a- 127 ↦ₐ[RWLX] inr (pc_p, pc_g, pc_b, pc_e, a- 78)
                        ∗ a- 128 ↦ₐ[RWLX] inr (RWLX, Local, a- 120, a- 150, a- 128))%I with "[-Hφ Hs Hstack_adv Hvalid Hmaps Hna Hflag Hr]")
       as "#Hlocal".
-    { iNext. iFrame. }
+    { iNext. iFrame. admit. }
     iAssert (|={⊤}=> ([∗ list] a0 ∈ region_addrs (a-129) (a-150),
-                     read_write_cond a0 RWLX (fixpoint interp1)) ∗ region W)%I
-                                           with "[Hstack_adv Hr]" as ">[#Hstack_adv Hr]". 
-    { iApply region_addrs_zeroes_alloc; auto. iFrame. }
+                     read_write_cond a0 RWLX (fixpoint interp1)) ∗ region _ ∗ sts_full_world sts_std _)%I
+                                           with "[Hstack_adv Hr Hs]" as ">(#Hstack_adv & Hr & Hs)". 
+    { iApply region_addrs_zeroes_alloc; auto; [|iFrame]. rewrite /std_sta /std_rel /=.
+      admit. }
     iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W (r !r! r1))%I
       with "[-Hs Hmaps Hvalid Hna Hφ Hflag Hr]" as "Hreg".
     { iIntros (r1).
@@ -479,7 +503,7 @@ Section lse.
         destruct (decide (r1 = r_t0)); [by left|right].
         destruct (decide (r1 = r_t30)); [by left|right;auto].  
       }
-      destruct H5 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
+      destruct H4 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
       - iIntros "%". contradiction.
       - (* invariant for the stack of the adversary *)
         assert (r !! r_stk = Some (inr (RWLX, Local, a-129, a-150, a-128))) as Hr_stk; auto. 

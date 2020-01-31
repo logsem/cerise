@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental monotone. 
-From cap_machine Require Export addr_reg_sample.
+From cap_machine Require Export addr_reg_sample contiguous.
 
 Section stack_macros.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -47,9 +47,7 @@ Section stack_macros.
 
   Ltac iCorrectPC index :=
     match goal with
-    | [ Hnext : ∀ (i : nat) (ai aj : Addr), ?a !! i = Some ai
-                                          → ?a !! (i + 1) = Some aj
-                                          → (ai + 1)%a = Some aj,
+    | [ Hnext : contiguous ?a,
           Ha_first : ?a !! 0 = Some ?a_first,
           Ha_last : list.last ?a = Some ?a_last |- _ ]
       => apply isCorrectPC_bounds_alt with a_first a_last; eauto; split ;
@@ -68,9 +66,11 @@ Section stack_macros.
   (* --------------------------------------------------------------------------------- *)
   
   (* -------------------------------------- PUSH ------------------------------------- *)
+
+  Definition push_r_instrs r_stk r := [lea_z r_stk 1 ; store_r r_stk r]. 
+                                
   Definition push_r (a1 a2 : Addr) (p : Perm) (r_stk r : RegName) : iProp Σ :=
-    (a1 ↦ₐ[p] lea_z r_stk 1
-   ∗ a2 ↦ₐ[p] store_r r_stk r)%I.
+    ([∗ list] i;a ∈ (push_r_instrs r_stk r);[a1;a2], a ↦ₐ[p] i)%I. 
   
   Lemma push_r_spec a1 a2 a3 w w' r p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) →
@@ -92,7 +92,7 @@ Section stack_macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof. 
     iIntros ([Hvpc1 Hvpc2] Hfl Hwb Hsuc Hlea Hstk)
-            "([Ha1 Ha2] & HPC & Hr_stk & Hr & Hstk_a' & Hφ)".
+            "([Ha1 [Ha2 _] ] & HPC & Hr_stk & Hr & Hstk_a' & Hφ)".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_lea_success_z _ _ _ _ _ a1 a2 _ r_stk RWLX with "[HPC Ha1 Hr_stk]");
       eauto; try apply lea_z_i; iFrame. 
@@ -103,13 +103,14 @@ Section stack_macros.
               with "[HPC Ha2 Hr_stk Hr Hstk_a']"); eauto; try apply store_r_i;
       first apply PermFlows_refl; iFrame.
     iNext. iIntros "(HPC & Ha2 & Hr & Hr_stk & Hstk_a') /=".
-    iApply wp_pure_step_later; auto. iNext. iApply "Hφ". iFrame.
+    iApply wp_pure_step_later; auto. iNext. iApply "Hφ". iFrame. done. 
   Qed.
 
   
+  Definition push_z_instrs r_stk z := [lea_z r_stk 1; store_z r_stk z]. 
+  
   Definition push_z (a1 a2 : Addr) (p : Perm) (r_stk : RegName) (z : Z) : iProp Σ :=
-    (a1 ↦ₐ[p] lea_z r_stk 1
-   ∗ a2 ↦ₐ[p] store_z r_stk z)%I.
+    ([∗ list] i;a ∈ (push_z_instrs r_stk z);[a1;a2], a ↦ₐ[p] i)%I.
   
   Lemma push_z_spec a1 a2 a3 w z p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) →
@@ -130,7 +131,7 @@ Section stack_macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof. 
     iIntros ([Hvpc1 Hvpc2] Hfl Hwb Hsuc Hlea Hstk)
-            "([Ha1 Ha2] & HPC & Hr_stk & Hstk_a' & Hφ)".
+            "([Ha1 [Ha2 _] ] & HPC & Hr_stk & Hstk_a' & Hφ)".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_lea_success_z _ _ _ _ _ a1 a2 _ r_stk RWLX with "[HPC Ha1 Hr_stk]");
       eauto; first apply lea_z_i; iFrame. 
@@ -141,15 +142,15 @@ Section stack_macros.
               with "[HPC Ha2 Hr_stk Hstk_a']"); eauto; first apply store_z_i;
       first apply PermFlows_refl; iFrame.
     iNext. iIntros "(HPC & Ha2 & Hr_stk & Hstk_a') /=".
-    iApply wp_pure_step_later; auto. iNext. iApply "Hφ". iFrame.
+    iApply wp_pure_step_later; auto. iNext. iApply "Hφ". iFrame. done. 
   Qed.
 
   
   (* -------------------------------------- POP -------------------------------------- *)
+  Definition pop_instrs r_stk r := [load_r r r_stk; sub_z_z r_t1 0 1; lea_r r_stk r_t1].
+  
   Definition pop (a1 a2 a3 : Addr) (p : Perm) (r_stk r : RegName) : iProp Σ :=
-    (a1 ↦ₐ[p] load_r r r_stk
-   ∗ a2 ↦ₐ[p] sub_z_z r_t1 0 1
-   ∗ a3 ↦ₐ[p] lea_r r_stk r_t1)%I.
+    ([∗ list] i;a ∈ (pop_instrs r_stk r);[a1;a2;a3], a ↦ₐ[p] i)%I.
 
   Lemma pop_spec a1 a2 a3 a4 r w w' wt1 p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) ∧
@@ -179,7 +180,7 @@ Section stack_macros.
     WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros ((Hvpc1 & Hvpc2 & Hvpc3) Hfl Hwb Hne Ha1' Ha2' Ha3' Hstk_a')
-            "((>Ha1 & >Ha2 & >Ha3) & >HPC & >Hr_stk & Hstk_a & >Hr_t1 & Hr & Hφ)".
+            "((>Ha1 & >Ha2 & >Ha3 & _) & >HPC & >Hr_stk & Hstk_a & >Hr_t1 & Hr & Hφ)".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_load_success _ _ _ _ _ _ _ a1 _ _ _ RWLX
               with "[HPC Ha1 Hr_stk Hr Hstk_a]"); eauto; first apply load_r_i;
@@ -199,25 +200,23 @@ Section stack_macros.
               with "[HPC Ha3 Hr_stk Hr_t1]"); eauto; first apply lea_r_i; iFrame.
     iNext. iIntros "(HPC & Ha3 & Hr_t1 & Hr_stk) /=".
     iApply wp_pure_step_later; auto; iNext.
-    iApply "Hφ". iFrame.
+    iApply "Hφ". iFrame. done. 
   Qed.
 
   (* -------------------------------------- RCLEAR ----------------------------------- *)
   (* the following macro clears registers in r. a denotes the list of addresses
      containing the instructions for the clear: |a| = |r| *)
+  Definition rclear_instrs (r : list RegName) := map (λ r_i, move_z r_i 0) r. 
+  
   Definition rclear (a : list Addr) (p : Perm) (r : list RegName) : iProp Σ :=
-    if ((length a) =? (length r))%nat then
-      ([∗ list] k↦a_i;r_i ∈ a;r, a_i ↦ₐ[p] move_z r_i 0)%I
-    else
-      False%I.
+      ([∗ list] k↦a_i;w_i ∈ a;(rclear_instrs r), a_i ↦ₐ[p] w_i)%I.
 
   Lemma rclear_spec (a : list Addr) (r : list RegName) p p' g b e a1 an a' φ :
-    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    contiguous a →
     list.last a = Some an → (an + 1)%a = Some a' →
     ¬ PC ∈ r → hd_error a = Some a1 →
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a')) →
     PermFlows p p' →
-    (length a) = (length r) →
     
       ▷ (∃ ws, ([∗ list] k↦r_i;w_i ∈ r;ws, r_i ↦ᵣ w_i))
     ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a1)
@@ -227,28 +226,28 @@ Section stack_macros.
             WP Seq (Instr Executable) {{ φ }})
     ⊢ WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hsuc Hend Ha' Hne Hhd [Hvpchd Hvpcend] Hfl Har) "(>Hreg & >HPC & Hrclear & Hφ)".
+    iIntros (Hsuc Hend Ha' Hne Hhd [Hvpchd Hvpcend] Hfl) "(>Hreg & >HPC & >Hrclear & Hφ)".
+    iDestruct (big_sepL2_length with "Hrclear") as %Har. 
     iRevert (Hne Har Hhd Hvpchd). 
     iInduction (a) as [_ | a1'] "IH" forall (r a1). iIntros (Hne Har Hhd Hvpchd).
     inversion Hhd; simplify_eq.
     iDestruct "Hreg" as (ws) "Hreg". 
     iIntros (Hne Har Hhd Hvpchd).
-    iApply (wp_bind (fill [SeqCtx])). rewrite /rclear Har /=.
-    rewrite -(beq_nat_refl (length r)). destruct r; inversion Har. 
-    iDestruct "Hrclear" as ">Hrclear".
+    iApply (wp_bind (fill [SeqCtx])). rewrite /rclear /=.
+    (* rewrite -(beq_nat_refl (length r)).  *)destruct r; inversion Har. 
     iDestruct (big_sepL2_cons with "Hrclear") as "[Ha1 Hrclear]".
     iDestruct (big_sepL2_length with "Hreg") as %rws.
     destruct ws; inversion rws. 
     iDestruct (big_sepL2_cons with "Hreg") as "[Hr Hreg]".
     destruct a. 
-    - inversion H4; symmetry in H6; apply (nil_length_inv r0) in H6. 
+    - inversion H4; symmetry in H6; apply (nil_length_inv) in H6. 
       inversion Hend. inversion Hhd. subst.                                      
       iApply (wp_move_success_z _ _ _ _ _ a1 with "[HPC Ha1 Hr]");
         eauto;first apply move_z_i.
       { apply (not_elem_of_cons) in Hne as [Hne _]. apply Hne. }
       iFrame. iNext. iIntros "(HPC & Han & Hr) /=".
       iApply wp_pure_step_later; auto; iNext. 
-      iApply "Hφ". iFrame. 
+      iApply "Hφ". iFrame. destruct r0; inversion H6. done. 
     - destruct r0; inversion H4.
       iApply (wp_move_success_z _ _ _ _ _ a1 a _ r with "[HPC Ha1 Hr]")
       ; eauto; first apply move_z_i. 
@@ -264,8 +263,8 @@ Section stack_macros.
       + auto.
       + iExists (ws). iFrame. 
         (* iApply big_sepL2_cons. iFrame.  *)
-      + simpl. rewrite H6. rewrite -beq_nat_refl. iFrame. 
-      + simpl. rewrite H6. rewrite -beq_nat_refl.
+      + simpl. rewrite H6. iFrame. 
+      + simpl. rewrite H6. 
         iNext. iIntros "(HPC & Hreg & Hrclear)".
         iApply "Hφ". iFrame. 
       + iPureIntro. by apply not_elem_of_cons in Hne as [_ Hne]. 
@@ -287,7 +286,7 @@ Section stack_macros.
      the list of adresses containing the instructions for the clear. |a| = 21 *)
 
   (* first we will define the list of Words making up the mclear macro *)
-  Definition mclear_prog r_stk off_end off_iter :=
+  Definition mclear_instrs r_stk off_end off_iter :=
     [ move_r r_t4 r_stk;
       getb r_t1 r_t4; 
       geta r_t2 r_t4; 
@@ -315,8 +314,8 @@ Section stack_macros.
 
   (* Next we define mclear in memory, using a list of addresses of size 21 *)
   Definition mclear (a : list Addr) (p : Perm) (r : RegName) (off_end off_iter : Z) : iProp Σ :=
-    if ((length a) =? (length (mclear_prog r off_end off_iter)))%nat then
-      ([∗ list] k↦a_i;w_i ∈ a;(mclear_prog r off_end off_iter), a_i ↦ₐ[p] w_i)%I
+    if ((length a) =? (length (mclear_instrs r off_end off_iter)))%nat then
+      ([∗ list] k↦a_i;w_i ∈ a;(mclear_instrs r off_end off_iter), a_i ↦ₐ[p] w_i)%I
     else
       False%I.
 
@@ -559,7 +558,7 @@ Section stack_macros.
     
   Lemma mclear_spec (a : list Addr) (r : RegName) 
         (a_last a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r e_r' : Addr) a' φ :
-    (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj) →
+    contiguous a →
     a !! 0 = Some a_first → list.last a = Some a_last →
     (* We will assume that we are not trying to clear memory in a *)
     r ≠ PC ∧ writeAllowed p_r = true →
@@ -603,10 +602,10 @@ Section stack_macros.
     iDestruct "Hr_t5" as (w5) "Hr_t5".
     iDestruct "Hr_t6" as (w6) "Hr_t6".
     (* destruct Hne as (Hne1 & Hne2 & Hne3 & Hwa). *)
-    iAssert (⌜((length a) =? (length (mclear_prog r _ _)) = true)%nat⌝)%I as %Hlen.
-    { destruct (((length a) =? (length (mclear_prog r _ _)))%nat) eqn:Hlen; auto.
+    iAssert (⌜((length a) =? (length (mclear_instrs r _ _)) = true)%nat⌝)%I as %Hlen.
+    { destruct (((length a) =? (length (mclear_instrs r _ _)))%nat) eqn:Hlen; auto.
       rewrite /mclear Hlen. by iApply bi.False_elim. }
-    rewrite /mclear Hlen /mclear_prog; simpl in Hlen. apply beq_nat_true in Hlen.
+    rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply beq_nat_true in Hlen.
     destruct a as [_ | a1 a]; inversion Hlen; simpl; inversion Ha_first; simplify_eq. 
     iPrologue "Hmclear". 
     iApply (wp_move_success_reg _ _ _ _ _ a_first _ _ r_t4 _ r with "[HPC Hr Hr_t4 Hi]");
@@ -817,31 +816,6 @@ Section stack_macros.
   (* -------------------- USEFUL LEMMAS FOR STACK MANIPULATION ----------------------- *)
   (* --------------------------------------------------------------------------------- *)
 
-  Lemma big_sepL2_app'
-         (PROP : bi) (A B : Type) (Φ : nat → A → B → PROP) (l1 l2 : list A) 
-         (l1' l2' : list B) :
-     (length l1) = (length l1') → 
-    (([∗ list] k↦y1;y2 ∈ l1;l1', Φ k y1 y2)
-       ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (strings.length l1 + k) y1 y2))%I
-    ≡ ([∗ list] k↦y1;y2 ∈ (l1 ++ l2);(l1' ++ l2'), Φ k y1 y2)%I.
-   Proof.
-     intros Hlenl1.
-     iSplit.
-     - iIntros "[Hl1 Hl2]". iApply (big_sepL2_app with "Hl1 Hl2").
-     - iIntros "Happ".
-       iAssert (∃ l0' l0'' : list A,
-         ⌜(l1 ++ l2) = l0' ++ l0''⌝
-         ∧ ([∗ list] k↦y1;y2 ∈ l0';l1', Φ k y1 y2)
-             ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (strings.length l1' + k) y1 y2))%I
-                       with "[Happ]" as (l0' l0'') "(% & Happl0' & Happl0'')".
-       { by iApply (big_sepL2_app_inv_r with "Happ"). }
-       iDestruct (big_sepL2_length with "Happl0'") as %Hlen1.
-       iDestruct (big_sepL2_length with "Happl0''") as %Hlen2.
-       rewrite -Hlenl1 in Hlen1.
-       assert (l1 = l0' ∧ l2 = l0'') as [Heq1 Heq2]; first by apply app_inj_1.
-       simplify_eq; rewrite Hlenl1. 
-       iFrame.
-   Qed.        
   
    Lemma stack_split (b e a a' : Addr) (p : Perm) (w1 w2 : list Word) :
      (b ≤ a < e)%Z →
@@ -974,6 +948,8 @@ Section stack_macros.
      iApply region_addrs_zeroes_trans_aux; auto.
    Qed.
 
+   (* TODO: move this to folder that will contain all the files about region *)
+  
    Fixpoint std_update_temp_multiple W l :=
      match l with
      | [] => W
@@ -1505,6 +1481,7 @@ Section stack_macros.
       
    Qed.
 
+   (* TODO: move to reg_addr file *)
    Lemma incr_addr_ne_top a z a' :
      (z > 0)%Z → (a + z)%a = Some a' →
      a ≠ addr_reg.top.

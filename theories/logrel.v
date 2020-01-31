@@ -1101,8 +1101,8 @@ Section heap.
     - intros Hi.
       destruct (m !! i) eqn:Hsome.
       + exists b. by apply elem_of_map_to_list.
-      + apply not_elem_of_list_to_map in Hi; [done|].
-          by rewrite list_to_map_to_list.
+      + rewrite -(list_to_map_to_list m) in Hsome.
+        eapply not_elem_of_list_to_map in Hsome. done. 
     - intros [x Hix].
       apply elem_of_list_fmap.
       exists (i,x). auto. 
