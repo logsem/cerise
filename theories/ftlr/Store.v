@@ -181,7 +181,6 @@ Proof.
   all:subst; iExists p' ; by do 2 (iSplit; [auto | ]).
 Qed.
 
-(* TODO: I have no clue why this is not derived somehow, but it seems to be necessary to type the below thing -- just followed the bread crumbs laid out by the errors *)
 Global Instance interp_ne n :
   Proper (dist n ==> dist n) (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
 Proof.
@@ -360,10 +359,7 @@ Qed.
                      - iIntros (W0 W1) "% HIW0".
                          by iApply interp_monotone_nl.
                      }
-
-                     iNext. simpl.
-                     rewrite (fixpoint_interp1_eq _ (inr _)). simpl.
-                     iExists p'. do 2 (iSplit; [auto | ]).
+                     iApply execcPC_implies_interp; eauto.
                        { iAlways.
                          rewrite /exec_cond. iIntros (a' r' W' Hin) "#Hfuture".
                          iNext. rewrite /interp_expr /=.
