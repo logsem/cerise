@@ -511,9 +511,7 @@ Section wbcf.
                 pc_p _ pc_g pc_b pc_e RWLX _ Local (a-210) (a-250) (a-209) (a-251) (a-51) 
               with "[-Hstack]"); try apply PermFlows_refl;
       try addr_succ; try assumption;[|auto|auto| | | |].  
-    { intros j ai aj Hai Haj.
-      apply (region_addrs_aux_contiguous (a-29) 22 j ai aj); auto.
-      done. }
+    { apply region_addrs_aux_contiguous. simpl. cbv. done. }
     { split; [cbn; f_equal; by apply addr_unique|].
       split; [addr_succ|cbn; f_equal; by apply addr_unique].  
     }
@@ -537,9 +535,7 @@ Section wbcf.
                         (list_difference all_registers [PC; r_stk; r_t0; r_t30])
                         _ _ _ _ _ (a-51) (a-79) (a-80) with "[-]");
       try addr_succ; try assumption; try apply PermFlows_refl; auto. 
-    { intros j ai aj Hai Haj.
-      apply (region_addrs_aux_contiguous (a-51) 29 j ai aj); eauto.
-      done. }
+    { apply region_addrs_aux_contiguous. simpl. cbv. done. }
     { apply not_elem_of_list, elem_of_list_here. }
     { split; (apply isCorrectPC_bounds with (a-0) (a-199); eauto; split; done). }
     iSplitL "Hr_t1 Hr_t2 Hr_t3 Hr_t4 Hr_t5 Hr_t6 Hr_gen". 

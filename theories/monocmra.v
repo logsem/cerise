@@ -247,7 +247,7 @@ Proof.
 Qed.
 End monotone.
 
-Instance: Params (@principal) 1.
+Instance: Params (@principal) 1. 
 Arguments monotoneC {_} _.
 Arguments monotoneR {_} _.
 Arguments monotoneUR {_} _.
