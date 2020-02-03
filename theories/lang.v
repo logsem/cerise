@@ -779,6 +779,51 @@ Ltac solve_atomic :=
 Hint Extern 0 (Atomic _ _) => solve_atomic.
 Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
 
+(* Introducing a generalized notion of a Getter instruction, according to this given template, and proof that all getters satisfy this template *)
+Definition getterTemplate φ dst src z :=
+  match RegLocate (reg φ) src with
+  | inl _ => (Failed, φ)
+  | inr _ => updatePC (update_reg φ dst (inl z))
+  end.
+
+Inductive isGetInstr:  (RegName → RegName → instr) → Prop :=
+| isGetInstr_intro i:
+    (forall φ dst src , exists z,  (exec (i dst src) φ = getterTemplate φ dst src z)) → isGetInstr i.
+
+Ltac decide_get_instr:=
+  constructor; intros; rewrite /exec /getterTemplate;
+  match goal with |- (∃ z:Z, (match ?x with
+                              | inl _ => _
+                              | inr _ => _ end) = _)
+                  => destruct x end; auto;
+  [> by eapply ex_intro |
+   do 4 match goal with |- (∃ z:Z, (let (_,_) := ?x in _) = _) => destruct x end ; by eapply ex_intro].
+
+Lemma getL_isGet: isGetInstr GetL.
+Proof.
+  decide_get_instr.
+Qed.
+
+Lemma getP_isGet: isGetInstr GetP.
+Proof.
+  decide_get_instr.
+Qed.
+
+Lemma getB_isGet: isGetInstr GetB.
+Proof.
+  decide_get_instr.
+Qed.
+
+Lemma getE_isGet: isGetInstr GetE.
+Proof.
+  decide_get_instr.
+Qed.
+
+Lemma getA_isGet: isGetInstr GetA.
+Proof.
+  decide_get_instr.
+Qed.
+
 Section macros.
 
   Variables RT1 RT2 RT3: RegName.
