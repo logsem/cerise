@@ -201,6 +201,18 @@ Module cap_lang.
     | (_, b, e, a) => (b <=? a)%a && (a <=? e)%a
     end.
 
+  Lemma withinBounds_le_addr p l b e a:
+    withinBounds (p, l, b, e, a) = true ->
+    (b <= a)%a ∧ (a <= e)%a.
+  Proof.
+    simpl; intros A. eapply andb_true_iff in A.
+    unfold le_addr in *. unfold leb_addr in *.
+    generalize (proj1 (Z.leb_le _ _) (proj1 A)).
+    generalize (proj1 (Z.leb_le _ _) (proj2 A)).
+    lia.
+  Qed.
+
+
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
   Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
 

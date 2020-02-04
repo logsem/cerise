@@ -4,62 +4,6 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel.
 From cap_machine Require Import ftlr_base.
 
-Lemma region_open_next
-    (Σ : gFunctors) (H : heapG Σ) (H0 : memG Σ) (H2 : STSG Σ) (MonRef : MonRefG _ Σ) 
-    (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels))) 
-    (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ) 
-    (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
-    l ∉ ls
-    → std_sta W !! countable.encode l = Some (countable.encode ρ)
-      → open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W
-        -∗ ∃ v : Word,
-             sts_full_world sts_std W
-             ∗ sts_state_std (countable.encode l) ρ
-               ∗ open_region_many (l :: ls) W
-               ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ (match ρ with
-                                          | Permanent => future_priv_mono
-                                          | Temporary => if pwl p then
-                                                          future_pub_mono
-                                                        else future_priv_mono
-                                          | Revoked => fun _ _ => True%I
-                                          end) φ v ∗
-               ▷ φ (W, v).
-Proof.
-  intros. iIntros "H".
-  destruct ρ; try congruence.
-  - case_eq (pwl p); intros.
-    + iDestruct (region_open_next_temp_pwl with "H") as (v) "[A [B [C D]]]"; eauto.
-      iExists v. iFrame.
-    + iDestruct (region_open_next_temp_nwl with "H") as (v) "[A [B [C D]]]"; eauto.
-      iExists v. iFrame.
-  - iApply (region_open_next_perm with "H"); eauto.
-Qed.
-
-Lemma region_close_next
-    (Σ : gFunctors) (H : heapG Σ) (H0 : memG Σ) (H2 : STSG Σ) (MonRef : MonRefG _ Σ) 
-    (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels))) 
-    (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ) 
-    (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
-    l ∉ ls
-    → sts_state_std (countable.encode l) ρ
-      ∗ open_region_many (l :: ls) W
-        ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ (match ρ with
-                                          | Permanent => future_priv_mono
-                                          | Temporary => if pwl p then
-                                                          future_pub_mono
-                                                        else future_priv_mono
-                                          | Revoked => fun _ _ => True%I
-                                          end) φ v ∗ ▷ φ (W, v) ∗ rel l p φ -∗ 
-        open_region_many ls W.
-Proof.
-  intros. iIntros "[A [B [C [D [E [F G]]]]]]".
-  destruct ρ; try congruence.
-  - case_eq (pwl p); intros.
-    + iApply (region_close_next_temp_pwl with "[A B C D E F G]"); eauto; iFrame.
-    + iApply (region_close_next_temp_nwl with "[A B C D E F G]"); eauto; iFrame.
-  - iApply (region_close_next_perm with "[A B C D E F G]"); eauto; iFrame.
-Qed.
-
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
@@ -74,54 +18,6 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma withinBounds_le_addr p l b e a:
-    withinBounds (p, l, b, e, a) = true ->
-    (b <= a)%a ∧ (a <= e)%a.
-  Proof.
-    simpl; intros A. eapply andb_true_iff in A.
-    unfold le_addr in *. unfold leb_addr in *.
-    generalize (proj1 (Z.leb_le _ _) (proj1 A)).
-    generalize (proj1 (Z.leb_le _ _) (proj2 A)).
-    lia.
-  Qed.
-
-  Lemma readAllowed_valid_cap_implies W p l b e a:
-    readAllowed p = true ->
-    withinBounds (p, l, b, e, a) = true ->
-    interp W (inr (p, l, b, e, a)) -∗
-    ⌜region_std W a /\ ∃ ρ, std_sta W !! countable.encode a = Some (countable.encode ρ) /\ ρ <> Revoked⌝.
-  Proof.
-    intros. iIntros "Hvalid".
-    eapply withinBounds_le_addr in H4.
-    unfold interp; rewrite fixpoint_interp1_eq /=.
-    destruct p; simpl in H3; try congruence.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-      iPureIntro. split; eauto.
-      destruct l; simpl in H6; eauto.
-      destruct H6; eauto.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-      iPureIntro. split; eauto.
-      destruct l; simpl in H6; eauto.
-      destruct H6; eauto.
-    - destruct l; auto.
-      iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-    - iDestruct "Hvalid" as (p) "[% [H H']]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-      iPureIntro. split; eauto.
-      destruct l; simpl in H6; eauto.
-      destruct H6; eauto.
-    - iDestruct "Hvalid" as (p) "[% [H H']]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-      iPureIntro. split; eauto.
-      destruct l; simpl in H6; eauto.
-      destruct H6; eauto.
-    - destruct l; auto.
-      iDestruct "Hvalid" as (p) "[% [H H']]".
-      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
-  Qed.
 
   Lemma load_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst src : RegName) :

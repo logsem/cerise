@@ -44,7 +44,7 @@ Section fundamental.
 
   (*TODO: the g=Local should be automatically derivable here: lemma for this is now present in Load.v *)
   Theorem fundamental W r p g b e (a : Addr) :
-    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX /\ g = Local⌝) →
+    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX ∧ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
                                              ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝
