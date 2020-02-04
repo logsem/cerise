@@ -401,7 +401,7 @@ Section fundamental.
               { apply andb_true_iff in Hwb as [Hle Hge].
                 split; apply Zle_is_le_bool; auto. }
               { destruct p0; inversion Hwa; auto. }
-              iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+              iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
               { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
               iApply (wp_store_success_z with "[$HPC $Hdst $Ha $Ha0]"); eauto.
               iNext. iIntros "(HPC & Ha & Hdst & Ha0)".
@@ -457,7 +457,7 @@ Section fundamental.
               { apply andb_true_iff in Hwb as [Hle Hge].
                 split; apply Zle_is_le_bool; auto. }
               { destruct p0; inversion Hwa; auto. }
-              iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+              iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
               { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
               iApply (wp_store_fail_z2 with "[$Ha $HPC $Hdst Ha0]"); eauto.
               { destruct (a0 =? a)%a eqn:Hcontr;[by apply Z.eqb_eq,z_of_eq in Hcontr|].
@@ -574,7 +574,7 @@ Section fundamental.
                    { apply andb_true_iff in Hwb as [Hle Hge].
                      split; apply Zle_is_le_bool; auto. }
                    { destruct p0; inversion Hwa; auto. }
-                   iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                   iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                    { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                    iApply (wp_store_success_reg' with "[$HPC $Ha $Hdst Ha0]"); eauto;
                      (destruct (a0 =? a)%a eqn:Hcontr;
@@ -605,7 +605,6 @@ Section fundamental.
                        + by iApply interp_monotone_nl.
                        + (*Trick here: value relation leads to a contradiction if p0 is WL, since then its region cannot be permanent*)
                          iDestruct ( writeLocalAllowed_valid_cap_implies with "Hvdst" ) as "%"; eauto.
-                         (*TODO: This reappearing block will be a good candidate to try out an initial, small tactic macro*)
                          destruct H4. rewrite Hstd' in H5. inversion H5.
                          apply (f_equal (countable.decode (A:=region_type))) in H7.
                          do 2 rewrite countable.decode_encode in H7. by inversion H7.
@@ -686,7 +685,7 @@ Section fundamental.
                   { apply andb_true_iff in Hwb as [Hle Hge].
                     split; apply Zle_is_le_bool; auto. }
                   { destruct p0; inversion Hwa; auto. }
-                  iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                  iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                   { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                   iApply (wp_store_fail_reg_PC_2 with "[$HPC $Ha $Hdst Ha0]"); eauto.
                   { destruct g; auto. rewrite orb_false_l in Hconds'. right.
@@ -780,7 +779,7 @@ Section fundamental.
                      { apply andb_true_iff in Hwb as [Hle Hge].
                        split; apply Zle_is_le_bool; auto. }
                      { destruct p0; inversion Hwa; auto. }
-                     iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                     iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                      iApply (wp_store_success_reg_same with "[$HPC $Ha $Hdst $Ha0]"); eauto.
                      { destruct l; auto. revert Hconds'. rewrite orb_false_l =>Hp0.
@@ -841,7 +840,7 @@ Section fundamental.
                      { apply andb_true_iff in Hwb as [Hle Hge].
                        split; apply Zle_is_le_bool; auto. }
                      { destruct p0; inversion Hwa; auto. }
-                     iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                     iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                      iApply (wp_store_fail_same_None with "[$HPC $Ha $Hdst Ha0]"); eauto.
                      { destruct l; auto. rewrite orb_false_l in Hconds'. right.
@@ -926,7 +925,7 @@ Section fundamental.
                      { apply andb_true_iff in Hwb as [Hle Hge].
                        split; apply Zle_is_le_bool; auto. }
                      { destruct p0; inversion Hwa; auto. }
-                     iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                     iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                      iApply (wp_store_success_reg with "[$HPC $Ha $Ha0 $Hsrc $Hdst]"); eauto.
                      iNext. iIntros "(HPC & Ha & Hsrc & Hdst & Ha0)".
@@ -993,7 +992,7 @@ Section fundamental.
                      { apply andb_true_iff in Hwb as [Hle Hge].
                        split; apply Zle_is_le_bool; auto. }
                      { destruct p0; inversion Hwa; auto. }
-                     iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                     iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                      iApply (wp_store_fail_None with "[$HPC $Ha $Hdst $Hsrc Ha0]"); eauto.
                      { destruct (a0 =? a)%a eqn:Hcontr;[by apply Z.eqb_eq,z_of_eq in Hcontr|auto]. }
@@ -1091,7 +1090,7 @@ Section fundamental.
                           { apply andb_true_iff in Hwb as [Hle Hge].
                             split; apply Zle_is_le_bool; auto. }
                           { destruct p0; inversion Hwa; auto. }
-                          iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                          iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                           { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                           iApply (wp_store_success_reg with "[$HPC $Ha $Ha0 $Hsrc $Hdst]"); eauto.
                           { destruct c,p2,p2,p2,l0; auto. rewrite orb_false_l in Hconds'. right.
@@ -1160,7 +1159,7 @@ Section fundamental.
                           { apply andb_true_iff in Hwb as [Hle Hge].
                             split; apply Zle_is_le_bool; auto. }
                           { destruct p0; inversion Hwa; auto. }
-                          iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+                          iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                           { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
                           iApply (wp_store_fail_None with "[$HPC $Ha $Hdst $Hsrc Ha0]"); eauto.
                           { destruct c,p2,p2,p2,l0; auto. rewrite orb_false_l in Hconds'. right.

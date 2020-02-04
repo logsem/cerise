@@ -92,7 +92,7 @@ Section fundamental.
       iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
       { rewrite /withinBounds /leb_addr Hle Hge. auto. }
       destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
-      iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+      iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
       { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
       iAssert (∀ w1 w2, full_map (<[PC:=w1]> (<[src:=w2]> r)))%I as "#Hfull'".
       { iIntros (w1 w2 r0).
@@ -449,7 +449,7 @@ Section fundamental.
       { rewrite /withinBounds /leb_addr Hle Hge. auto. }
       destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
       rewrite /read_write_cond.
-      iDestruct (region_open_next _ _ _ _ _ _ _ _ a0 p'' ρ' with "[$Hinv0 $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hmono' & #Hw0)"; eauto.
+      iDestruct (region_open_next _ _ _ a0 p'' ρ' with "[$Hinv0 $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hmono' & #Hw0)"; eauto.
       { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
       iApply "Hstep". iFrame.
       iExists w0,p''. 
