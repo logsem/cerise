@@ -200,7 +200,7 @@ Ltac solve_addr := intros; zify_addr; solve [ auto | lia | congruence ].
 
 (** Derived lemmas *)
 
-Lemma incr_addr_zero a: (a + 0)%a = Some a.
+Lemma addr_add_0 a: (a + 0)%a = Some a.
 Proof. solve_addr. Qed.
 
 Lemma incr_addr_one_none a :

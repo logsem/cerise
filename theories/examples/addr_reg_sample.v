@@ -358,86 +358,38 @@ Require Import Eqdep_dec List.
 
   Lemma next_lt (a a' : Addr) :
     (a + 1)%a = Some a' → (a < a')%Z.
-  Proof.
-    rewrite /incr_addr. intros Ha'.
-    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
-    simpl. lia.
-  Qed.
+  Proof. solve_addr. Qed.
 
   Lemma next_lt_i (a a' : Addr) (i : Z) :
     (i > 0)%Z →
     (a + i)%a = Some a' → (a < a')%Z.
-  Proof.
-    rewrite /incr_addr. intros Hgt Ha'.
-    destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
-    simpl. lia.
-  Qed.
+  Proof. solve_addr. Qed.
 
   Lemma next_le_i (a a' : Addr) (i : Z) :
     (i >= 0)%Z →
     (a + i)%a = Some a' → (a <= a')%Z.
-  Proof.
-    rewrite /incr_addr. intros Hgt Ha'.
-    destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
-    simpl. lia.
-  Qed.
+  Proof. solve_addr. Qed.
 
   Lemma next_lt_top (a : Addr) i :
     (i > 0)%Z →
     is_Some (a + i)%a → a ≠ top.
-  Proof.
-    intros Hlt Hsome.
-    intros Heq. subst. destruct Hsome as [x Hcontr].
-    rewrite /incr_addr in Hcontr.
-    destruct ( Z_le_dec (top + i)%Z MemNum); inversion Hcontr.
-    clear Hcontr H0. rewrite /top /= in l. lia.
-  Qed. 
-  
+  Proof. intros ? [? ?] ?. solve_addr. Qed.
+
   Lemma addr_next_le (a e e' : Addr) :
     (a ≤ e)%Z → (e + 1)%a = Some e' → ∃ a', (a + 1)%a = Some a'.
-  Proof.
-    intros Ha He.
-    assert (e < e')%Z as Hlt.
-    { rewrite /incr_addr in He.
-      destruct (Z_le_dec (e + 1)%Z MemNum); inversion He. simpl. omega. }
-    assert (a < e')%a; [apply Z.le_lt_trans with e; auto|].
-    assert (a < MemNum)%Z.
-    { apply Z.lt_le_trans with e'; destruct e'; auto. simpl.
-        by apply Z.leb_le. }
-    destruct (a + 1)%a eqn:Hnone.
-    - exists a0; done.
-    - apply incr_addr_one_none in Hnone.
-      rewrite Hnone in H0. inversion H0.
-  Qed.
-    
+  Proof. intros. zify_addr; eauto. exfalso. lia. Qed.
+
   Lemma addr_next_lt_gt_contr (a e a' : Addr) :
     (a < e)%Z → (a + 1)%a = Some a' → (e < a')%Z → False.
-  Proof.
-    intros Hlta Ha' Hlta'.
-    rewrite /incr_addr in Ha'.
-    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
-    rewrite -H0 in Hlta'. 
-    simpl in *. lia.
-  Qed.
+  Proof. solve_addr. Qed.
 
   Lemma addr_next_lt (a e a' : Addr) :
     (a < e)%Z → (a + 1)%a = Some a' → (a' ≤ e)%Z.
-  Proof.
-    intros Ha Ha'.
-    apply Znot_gt_le. rewrite /not.
-    intros Hlt. apply Z.gt_lt in Hlt. 
-    apply addr_next_lt_gt_contr with a e a'; auto.
-  Qed. 
-    
+  Proof. solve_addr. Qed.
+
   Lemma addr_abs_next (a e a' : Addr) :
     (a + 1)%a = Some a' → (a < e)%Z → (Z.abs_nat (e - a) - 1) = (Z.abs_nat (e - a')).
-  Proof.
-    intros Ha' Hlt.
-    rewrite /incr_addr in Ha'.
-    destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
-    destruct a'. inversion H0; simpl.
-    rewrite Z.sub_add_distr. lia.
-  Qed.
+  Proof. solve_addr. Qed.
 
   Lemma addr_unique a a' fin fin' :
     a = a' → A a fin = A a' fin'.
@@ -448,53 +400,12 @@ Require Import Eqdep_dec List.
   Lemma incr_addr_trans (a1 a2 a3 : Addr) (z1 z2 : Z) :
     (a1 + z1)%a = Some a2 → (a2 + z2)%a = Some a3 →
     (a1 + (z1 + z2))%a = Some a3.
-  Proof.
-    rewrite /incr_addr. 
-    intros Ha1 Ha2. 
-    destruct (Z_le_dec (a1 + z1)%Z MemNum); inversion Ha1.
-    destruct (Z_le_dec (a2 + z2)%Z MemNum); inversion Ha2.
-    destruct a2,a3. simpl in *.
-    inversion H0. inversion H1.  
-    rewrite -H2 in H3. subst.
-    destruct (Z_le_dec (a1 + (z1 + z2))%Z MemNum).
-    - f_equal. apply addr_unique. lia.
-    - exfalso. clear fin l l0 H0 H1 Ha2 Ha1.
-      apply Z.leb_nle in n. 
-      rewrite Z.add_assoc in n.
-      congruence.
-  Qed. 
+  Proof. solve_addr. Qed.
 
   Lemma addr_add_assoc (a a' : Addr) (z1 z2 : Z) :
     (a + z1)%a = Some a' →
     (a + (z1 + z2))%a = (a' + z2)%a.
-  Proof.
-    intros Ha'.
-    assert ((z_of a) + z1 = z_of a')%Z as Haz'.
-    { rewrite /incr_addr in Ha'.
-      by destruct (Z_le_dec (a + z1)%Z MemNum); inversion Ha'. } 
-    rewrite /incr_addr.
-    destruct (Z_le_dec (a + (z1 + z2))%Z MemNum),(Z_le_dec (a' + z2)%Z MemNum); auto. 
-    - f_equal. apply addr_unique. lia. 
-    - rewrite -Haz' in n.
-      exfalso.  
-      by rewrite Z.add_assoc in l.
-    - exfalso. 
-      rewrite -Haz' in l.
-        by rewrite Z.add_assoc in n.
-  Qed. 
-
-  Lemma addr_add_0 (a : Addr) :
-    (a + 0)%a = Some a.
-  Proof.
-    rewrite /incr_addr.
-    destruct a; simpl.
-    destruct (Z_le_dec (z + 0)%Z MemNum).
-    - f_equal. apply addr_unique. lia.
-    - rewrite Z.add_0_r in n.
-      exfalso. 
-      apply (Z.leb_le z MemNum) in fin.
-      contradiction.
-  Qed.
+  Proof. solve_addr. Qed.
 
   (* Some additional helper lemmas about region_addrs *)
 
@@ -593,38 +504,19 @@ Require Import Eqdep_dec List.
    Lemma incr_addr_of_z (a a' : Addr) :
      (a + 1)%a = Some a' →
      (a + 1)%Z = a'.
-   Proof. 
-     intros Ha'. rewrite /incr_addr in Ha'.
-       by destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'.
-   Qed.
+   Proof. solve_addr. Qed.
 
    Lemma incr_addr_of_z_i (a a' : Addr) i :
      (a + i)%a = Some a' →
      (a + i)%Z = a'.
-   Proof. 
-     intros Ha'. rewrite /incr_addr in Ha'.
-       by destruct (Z_le_dec (a + i)%Z MemNum); inversion Ha'.
-   Qed. 
+   Proof. solve_addr. Qed.
 
    (* a + (region_size a b) = a + 1 *)
    Lemma get_addr_from_option_addr_next (a b a' : Addr) :
      (a + 1)%a = Some a' →
      (b ≤ a)%Z →
      (get_addr_from_option_addr (b + region_size b a)%a = a')%a.
-   Proof.
-     intros Hasome' Hle.
-     apply incr_addr_of_z in Hasome' as Ha'.
-     rewrite /region_size.
-     assert (b ≤ a')%Z.
-     { assert (a < a')%Z; first by apply next_lt. lia. }     
-     assert (b + S (Z.abs_nat (a - b)) = a')%Z; first lia.
-     (* assert ((b + S (Z.abs_nat (a - b)))%a = Some a'). *)
-     destruct a'. rewrite /incr_addr.
-     destruct (Z_le_dec (b + S (Z.abs_nat (a - b)))%Z MemNum).
-     - f_equal. by apply addr_unique.
-     - rewrite H0 /= in n.
-       apply Z.leb_nle in n. congruence.
-   Qed.
+   Proof. intros. unfold region_size. solve_addr. Qed.
 
    Lemma get_addr_from_option_addr_region_size (a b : Addr) :
      (b ≤ a)%Z →
@@ -632,60 +524,19 @@ Require Import Eqdep_dec List.
    Proof.
      intros Hle.
      rewrite /region_size /= Nat2Z.inj_succ -Z.add_1_r Z.add_simpl_r.
-     destruct (b + Z.abs_nat (a - b))%a eqn:Hsome.
-     - rewrite /incr_addr in Hsome.
-       destruct (Z_le_dec (b + Z.abs_nat (a - b))%Z MemNum); inversion Hsome.
-       destruct a; simpl. apply z_of_eq. simpl in *. clear H0 Hsome l a0.
-       lia.
-     - rewrite /incr_addr in Hsome.
-       destruct (Z_le_dec (b + Z.abs_nat (a - b))%Z MemNum); inversion Hsome. exfalso.
-       clear Hsome. destruct a,b; simpl in *. apply Z.leb_le in fin0. apply Z.leb_le in fin.
-       lia. 
-   Qed. 
+     solve_addr.
+   Qed.
 
    Lemma incr_addr_region_size_next (a b b': Addr) :
      (b + 1)%a = Some b' →
      (a <= b)%a →
      (a + (region_size a b))%a = Some b'.
-   Proof.
-     intros Hb' Hle.
-     assert (b ≠ top) as Hb.
-     { intros Htop. subst.
-       rewrite /incr_addr in Hb'.
-       destruct (Z_le_dec (top + 1)%Z MemNum); try discriminate. clear Hb'.
-       rewrite /top /= in l. lia. 
-     }
-     apply get_addr_from_option_addr_next with b a b' in Hb' as Hsome; auto.
-     rewrite -Hsome.
-     apply incr_addr_of_z in Hb'. subst.
-     rewrite /incr_addr.
-     destruct (Z_le_dec (a + region_size a b)%Z MemNum).
-     - f_equiv.
-     - exfalso. rewrite /incr_addr in Hb'.
-       destruct (Z_le_dec (a + region_size a b)%Z MemNum); inversion Hb'.
-       + contradiction.
-       + rewrite /region_size/=  in n.
-         rewrite /le_addr in Hle. 
-         rewrite -Zabs2Nat.inj_succ in n;[|lia]. 
-         rewrite Zminus_succ_l -Z.add_1_r H0 in n.
-         lia.
-   Qed.
+   Proof. intros Hb' Hle. unfold region_size. solve_addr. Qed.
 
    Lemma incr_addr_region_size (a b : Addr) :
      (a <= b)%a →
      (a + (region_size a b - 1))%a = Some b.
-   Proof.
-     intros Hle.
-     apply get_addr_from_option_addr_region_size in Hle.
-     rewrite /incr_addr. rewrite /incr_addr in Hle. 
-     destruct (Z_le_dec (a + (region_size a b - 1))%Z MemNum).
-     - simpl in *. f_equiv. done. 
-     - exfalso.
-       destruct a,b; simpl in *.
-       rewrite /top in Hle. inversion Hle; subst.
-       apply Z.leb_le in fin as Hle'. rewrite /region_size /= in n.
-       lia. 
-   Qed.
+   Proof. intros. unfold region_size. solve_addr. Qed.
 
    Lemma region_addrs_not_elem_of a n :
      forall a', (a < a')%a -> a ∉ (region_addrs_aux a' n).
