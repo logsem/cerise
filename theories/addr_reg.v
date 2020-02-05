@@ -41,7 +41,7 @@ Qed.
 Global Instance addr_eq_dec: EqDecision Addr.
 intros x y. destruct x,y. destruct (Z_eq_dec z z0).
 - left. eapply z_of_eq; eauto.
-- right. inversion 1. simplify_eq. 
+- right. inversion 1. simplify_eq.
 Defined.
 
 Definition z_to_addr (z : Z) : option Addr.
@@ -59,8 +59,8 @@ Proof.
                         | Some z => z_to_addr z
                         | None => None
                         end ;
-            decode_encode := _ |}. 
-  intro r. destruct r; auto. 
+            decode_encode := _ |}.
+  intro r. destruct r; auto.
   rewrite decode_encode.
   unfold z_to_addr. simpl.
   destruct (Z_le_dec z MemNum).
@@ -93,10 +93,10 @@ Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
 Notation "0" := (za) : Addr_scope.
 Notation "- 42" := (special_a) : Addr_scope.
 
-Global Instance Addr_le_dec : RelDecision le_addr. 
+Global Instance Addr_le_dec : RelDecision le_addr.
 Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
-Global Instance Addr_lt_dec : RelDecision lt_addr. 
-Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.             
+Global Instance Addr_lt_dec : RelDecision lt_addr.
+Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
 
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
   if (Z_le_dec (a + z)%Z MemNum) then Some (A (a + z)%Z _) else None.
@@ -188,7 +188,7 @@ Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
        + right. congruence.
 Defined.
 
-Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.   
+Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
   if (nat_le_dec n RegNum) then Some (R n _) else None.
@@ -197,7 +197,7 @@ Next Obligation.
 Qed.
 
 Global Instance reg_countable : Countable RegName.
-Proof. 
+Proof.
   refine {| encode r := encode match r with
                                | PC => inl ()
                                | R n fin => inr n
@@ -207,11 +207,11 @@ Proof.
                         | Some (inr n) => n_to_regname n
                         | None => None
                         end ;
-            decode_encode := _ |}. 
-  intro r. destruct r; auto. 
+            decode_encode := _ |}.
+  intro r. destruct r; auto.
   rewrite decode_encode.
   unfold n_to_regname.
   destruct (nat_le_dec n RegNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-  - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
+  - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
