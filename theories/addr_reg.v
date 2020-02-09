@@ -1,4 +1,4 @@
-Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
+From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 From stdpp Require Import gmap fin_maps list.
 
 Definition RegNum: nat := 31.
@@ -129,8 +129,7 @@ Proof.
 Qed.
 
 Ltac incr_addr_as_spec a x :=
-  let H := fresh in
-  generalize (incr_addr_spec a x); intros [(?&H&?&?)|(H&?)];
+  generalize (incr_addr_spec a x); intros [(?&?&?&?)|(?&?)];
   let ax := fresh "ax" in
   set (ax := (incr_addr a x)) in *;
   clearbody ax; subst ax.
@@ -140,12 +139,8 @@ Lemma Some_eq_inj A (x y: A) :
   x = y.
 Proof. congruence. Qed.
 
-Ltac zify_addr_op_step :=
-  match goal with
-  | |- context [ incr_addr ?a ?x ] =>
-    incr_addr_as_spec a x
-  | _ : context [ incr_addr ?a ?x ] |- _ =>
-    incr_addr_as_spec a x
+Ltac zify_addr_op_nonbranching_step :=
+  lazymatch goal with
   | |- @eq Addr ?a ?a' =>
     apply z_of_eq
   | H : @eq Addr ?a ?a' |- _ =>
@@ -186,17 +181,95 @@ Ltac zify_addr_op_step :=
     unfold eqb_addr in H
   end.
 
-Ltac zify_addr_ty_step :=
-  match goal with
-  | a : Addr |- _ =>
-    generalize (addr_spec a); intros;
-    let z := fresh "z" in
-    set (z := (z_of a)) in *;
-    clearbody z; clear a
+Ltac zify_addr_nonbranching_step :=
+  first [ progress (cbn in *)
+        | zify_addr_op_nonbranching_step ].
+
+Ltac zify_addr_op_branching_goal_step :=
+  lazymatch goal with
+  | |- context [ incr_addr ?a ?x ] =>
+    incr_addr_as_spec a x
   end.
 
-Ltac zify_addr := repeat (zify_addr_op_step; cbn in *); repeat zify_addr_ty_step.
-Ltac solve_addr := intros; zify_addr; solve [ auto | lia | congruence ].
+Ltac zify_addr_op_branching_hyps_step :=
+  lazymatch goal with
+  | _ : context [ incr_addr ?a ?x ] |- _ =>
+    incr_addr_as_spec a x
+  end.
+
+Ltac zify_addr_ty_step :=
+  lazymatch goal with
+  | a : Addr |- _ =>
+    generalize (addr_spec a); intro;
+    let z := fresh "z" in
+    set (z := (z_of a)) in *;
+    clearbody z;
+    first [ clear a | revert dependent a ]
+  end.
+
+(** zify_addr **)
+(* This greedily translates all the address-related terms in the goal and in the
+   context. Because each (_ + _) introduces a disjunction, the number of goals
+   quickly explodes if there are many (_ + _) in the context.
+
+   The solve_addr tactic below is more clever and tries to limit the
+   combinatorial explosion, but zify_addr does not. *)
+
+Ltac zify_addr :=
+  repeat (first [ zify_addr_nonbranching_step
+                | zify_addr_op_branching_goal_step
+                | zify_addr_op_branching_hyps_step ]);
+  repeat zify_addr_ty_step; intros.
+
+
+(** solve_addr *)
+(* From a high-level perspective, [solve_addr] is equivalent to [zify_addr]
+   followed by [lia].
+
+   However, this gets very slow when there are many (_ + _) in the context (and
+   some of those may not be relevant to prove the goal at hand), so the
+   implementation is a bit more clever. Instead, we try to call [lia] as soon as
+   possible to quickly terminate sub-goals than can be proved before the whole
+   context gets translated. *)
+
+Ltac zify_addr_op_goal_step :=
+  first [ zify_addr_nonbranching_step
+        | zify_addr_op_branching_goal_step ].
+
+Ltac zify_addr_op_deepen :=
+  zify_addr_op_branching_hyps_step;
+  repeat zify_addr_nonbranching_step;
+  try (
+    zify_addr_op_branching_hyps_step;
+    repeat zify_addr_nonbranching_step
+  ).
+
+Ltac solve_addr_close_proof :=
+  repeat zify_addr_ty_step; intros;
+  solve [ auto | lia | congruence ].
+
+Ltac solve_addr :=
+  intros;
+  repeat zify_addr_op_goal_step;
+  try solve_addr_close_proof;
+  repeat (
+    zify_addr_op_deepen;
+    try solve_addr_close_proof
+  );
+  solve_addr_close_proof.
+
+Goal forall (a a' b b' : Addr),
+  (a + 1)%a = Some a' ->
+  (b + 1)%a = Some b' ->
+  (a + 0)%a = Some a.
+Proof.
+  intros.
+  repeat zify_addr_op_goal_step.
+  (* Check that we can actually terminate early before translating the whole
+     context. *)
+  solve_addr_close_proof.
+  solve_addr_close_proof.
+Qed.
 
 (** Derived lemmas *)
 
