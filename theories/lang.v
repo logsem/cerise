@@ -613,6 +613,35 @@ Module cap_lang.
     intros; split; inv H; inv H0; auto; try congruence.
   Qed.
 
+   Lemma regs_lookup_eq (regs: Reg) (r: RegName) (v: Word) :
+     regs !! r = Some v ->
+     regs !r! r = v.
+   Proof. rewrite /RegLocate. intros HH. rewrite HH//. Qed.
+
+   Lemma mem_lookup_eq (m: Mem) (a: Addr) (v: Word) :
+     m !! a = Some v ->
+     m !m! a = v.
+   Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
+
+   Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
+     r !! PC = Some (inr ((p, g), b, e, a)) →
+     isCorrectPC (inr ((p, g), b, e, a)) →
+     m !! a = Some w →
+     decode w = instr →
+     step (Executable, (r, m)) (c, σ) ->
+     exec instr (r, m) = (c, σ).
+   Proof.
+     intros HPC Hpc Hm Hinstr. inversion 1.
+     { exfalso. erewrite regs_lookup_eq in *; eauto. }
+     erewrite regs_lookup_eq in *; eauto.
+     match goal with H: inr _ = inr _ |- _ => inversion H; clear H end.
+     cbn in *.
+     match goal with H: exec ?i _ = ?k |- _ => destruct k; subst i end. cbn.
+     subst.
+     match goal with H: m !! _ = Some w |- _ =>
+                     erewrite (mem_lookup_eq _ _ _ H) in * end. eauto.
+   Qed.
+
   Inductive val: Type :=
   | HaltedV: val
   | FailedV: val
@@ -683,6 +712,24 @@ Module cap_lang.
     intros. inversion H. inversion H0; eauto. by simpl. by simpl. by simpl.
   Qed.
 
+  Lemma prim_step_exec_inv σ1 l1 e2 σ2 efs :
+    cap_lang.prim_step (Instr Executable) σ1 l1 e2 σ2 efs ->
+    l1 = [] ∧ efs = [] ∧
+    exists (c: ConfFlag),
+      e2 = Instr c ∧
+      cap_lang.step (Executable, σ1) (c, σ2).
+  Proof. inversion 1; subst; split; eauto. Qed.
+
+  Lemma prim_step_and_step_exec σ1 e2 σ2 l1 e2' σ2' efs :
+    cap_lang.step (Executable, σ1) (e2, σ2) ->
+    cap_lang.prim_step (Instr Executable) σ1 l1 e2' σ2' efs ->
+    l1 = [] ∧ e2' = (Instr e2) ∧ σ2' = σ2 ∧ efs = [].
+  Proof.
+    intros* Hstep Hpstep. inversion Hpstep as [? ? ? Hstep' | | |]; subst.
+    generalize (step_deterministic _ _ _ _ _ _ Hstep Hstep'). intros [-> ->].
+    auto.
+  Qed.
+
   Lemma fill_item_val Ki e :
     is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
   Proof. intros [v ?]. destruct Ki; simplify_option_eq; eauto. Qed.
@@ -735,6 +782,13 @@ Local Hint Unfold language.irreducible.
 
 Global Instance dec_pc c : Decision (isCorrectPC c).
 Proof. apply isCorrectPC_dec. Qed.
+
+Global Instance perm_eq_decide : EqDecision Perm.
+Proof. exact perm_eq_dec. Qed.
+
+(* There is probably a more general instance to be stated there...*)
+Instance Reflexive_ofe_equiv_Word : (Reflexive (ofe_equiv (leibnizO Word))).
+Proof. intro; reflexivity. Qed.
 
 Definition get_addr_pointsto (w : Word) (conf : ExecConf) : option Word :=
   match w with
@@ -790,6 +844,20 @@ Ltac solve_atomic :=
 
 Hint Extern 0 (Atomic _ _) => solve_atomic.
 Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
+
+Lemma head_reducible_from_step σ1 e2 σ2 :
+  step (Executable, σ1) (e2, σ2) ->
+  head_reducible (Instr Executable) σ1.
+Proof. intros * HH. rewrite /head_reducible /head_step //=.
+       eexists [], (Instr _), σ2, []. by constructor.
+Qed.
+
+Lemma normal_always_head_reducible σ :
+  head_reducible (Instr Executable) σ.
+Proof.
+  generalize (normal_always_step σ); intros (?&?&?).
+  eapply head_reducible_from_step. eauto.
+Qed.
 
 (* Introducing a generalized notion of a Getter instruction, according to this given template, and proof that all getters satisfy this template *)
 Definition getterTemplate φ dst src z :=
