@@ -12,7 +12,7 @@ Section Contiguous.
     λ a, (∀ i ai aj, a !! i = Some ai → a !! (i + 1) = Some aj → (ai + 1)%a = Some aj).
 
   (* The first element of the contiguous list is less than or equal to the last *)
-   Lemma incr_list_lt (a : list Addr) (a0 an : Addr) :
+   Lemma incr_list_le (a : list Addr) (a0 an : Addr) :
     contiguous a →
     a !! 0 = Some a0 → list.last a = Some an → (a0 ≤ an)%Z.
   Proof.
@@ -48,8 +48,46 @@ Section Contiguous.
       + simpl; simpl in Hlen. apply IHl; first omega.
         assert (0 < length l) as Hl; first lia.
         destruct l; simpl in Hl; first by apply Nat.lt_irrefl in Hl. auto.
-  Qed. 
+  Qed.
 
+  Lemma last_lookup {A : Type} (l : list A) :
+    list.last l = l !! (length l - 1).
+  Proof.
+    induction l.
+    - done.
+    - simpl. destruct l; auto.
+      rewrite IHl. simpl. rewrite PeanoNat.Nat.sub_0_r. done.
+  Qed.
+
+  Lemma last_app_iff {A : Type} (l1 l2 : list A) a :
+    list.last l2 = Some a <-> length l2 > 0 ∧ list.last (l1 ++ l2) = Some a.
+  Proof.
+    split. 
+    - intros Hl2.
+      induction l1.
+      + destruct l2; inversion Hl2. simpl. split; auto. lia. 
+      + destruct IHl1 as [Hlt Hlast]. split; auto. simpl. rewrite Hlast.
+        destruct (l1 ++ l2); auto.
+        inversion Hlast.
+    - generalize l1. induction l2; intros l1' [Hlen Hl].
+      + inversion Hlen.
+      + destruct l2;[rewrite last_snoc in Hl; inversion Hl; done|].
+        rewrite -(IHl2 (l1' ++ [a0])); auto.
+        simpl. split;[lia|]. rewrite -app_assoc -cons_middle. done. 
+  Qed.
+
+  Lemma last_app_eq {A : Type} (l1 l2 : list A) :
+    length l2 > 0 ->
+    list.last l2 = list.last (l1 ++ l2).
+  Proof.
+    revert l1. induction l2;intros l1 Hlen.
+    - inversion Hlen.
+    - destruct l2.
+      + rewrite last_snoc. done.
+      + rewrite cons_middle app_assoc -(IHl2 (l1 ++ [a]));[auto|simpl;lia].
+  Qed. 
+    
+    
   (* The i'th element of the contiguous list is less than or equal to the last *)
   Lemma incr_list_le_middle (a : list Addr) i (ai an : Addr) :
     contiguous a →
@@ -57,12 +95,12 @@ Section Contiguous.
   Proof.
     generalize ai. destruct i;
                      intros ai' Hcond Hi' Hlast.
-    - apply incr_list_lt with a; auto. 
+    - apply incr_list_le with a; auto. 
     - rewrite -Nat.add_1_r in Hi'.
       assert ((drop (i + 1) a) !! 0 = Some ai') as Ha.
       { rewrite -(Nat.add_0_r (i + 1)) in Hi'.
         rewrite -Hi'. apply (lookup_drop a (i + 1) 0). }
-      apply incr_list_lt with _ _ an in Ha; auto.
+      apply incr_list_le with _ _ an in Ha; auto.
       + intros i0 ai0 aj Hd Hd'. 
         rewrite (lookup_drop) /= in Hd. rewrite (lookup_drop) /= in Hd'.
         apply Hcond with (i + 1 + i0); auto.
@@ -95,6 +133,80 @@ Section Contiguous.
     destruct (Z_le_dec (a0 + 1)%Z MemNum); inversion Hi. simpl. omega.
   Qed.
 
+  (* the i'th element is greater or equal to the first *)
+  Lemma incr_list_ge_middle (a : list Addr) i (a0 ai : Addr) :
+    contiguous a ->
+    a !! 0 = Some a0 -> a !! i = Some ai -> (a0 <= ai)%Z.
+  Proof.
+    intros Hcond Ha0 Hi. rewrite /contiguous in Hcond.
+    revert ai Hi. induction i; intros ai Hi.
+    - rewrite Ha0 in Hi.
+      inversion Hi; subst.
+      lia.
+    - assert (i < length a) as Hlt.
+      { apply Nat.lt_succ_l. apply lookup_lt_is_Some; eauto. }
+      apply lookup_lt_is_Some in Hlt as [ai' Hai'].
+      specialize (IHi ai' Hai').
+      rewrite -PeanoNat.Nat.add_1_r in Hi. 
+      specialize (Hcond i ai' ai Hai' Hi).
+      apply next_le_i in Hcond;lia.
+  Qed. 
+
+  (* the i'th element is the same as adding i to the first element *)
+  Lemma contiguous_incr_addr (a : list Addr) (i : nat) a0 ai :
+    contiguous a ->
+    a !! 0 = Some a0 → a !! i = Some ai -> (a0 + i)%a = Some ai.
+  Proof.
+    revert ai. induction i; intros ai Ha Ha0 Hai.
+    - rewrite Ha0 in Hai. inversion Hai.
+      apply addr_add_0.
+    - assert (∃ aj, a !! i = Some aj) as [aj Haj].
+      { apply lookup_lt_is_Some.
+        apply Nat.lt_succ_l.
+        apply lookup_lt_is_Some. eauto. }
+      specialize (IHi aj Ha Ha0 Haj).
+      rewrite -Nat.add_1_r in Hai. rewrite -Nat.add_1_r. 
+      specialize (Ha i _ _ Haj Hai).
+      rewrite -(incr_addr_trans a0 aj ai i 1); auto.
+      rewrite Nat.add_1_r Z.add_1_r Nat2Z.inj_succ. 
+      done.
+  Qed.
+
+  Lemma contiguous_nil : contiguous [].
+  Proof. done. Qed. 
+  
+  Lemma contiguous_weak hd a :
+    contiguous (hd :: a) → contiguous a.
+  Proof.
+    intros Ha.
+    destruct a.
+    - done.
+    - intros i ai aj Hai Haj.
+      rewrite /contiguous in Ha. apply Ha with (S i); auto.
+  Qed. 
+  
+  Lemma contiguous_drop (a : list Addr) :
+    ∀ i, contiguous a -> contiguous (drop i a).
+  Proof.
+    induction a; intros i Ha.
+    - rewrite drop_nil. apply contiguous_nil.
+    - destruct i; auto. simpl.
+      apply IHa. by apply contiguous_weak with a.
+  Qed.       
+  
+  (* the i + j element is the same as adding j to the ith element *)
+  Lemma contiguous_incr_addr_middle (a : list Addr) (i j : nat) ai aj :
+    contiguous a ->
+    a !! i = Some ai -> a !! (i + j) = Some aj -> (ai + j)%a = Some aj.
+  Proof.
+    intros Ha Hai Haij.
+    rewrite -(PeanoNat.Nat.add_0_r i) in Hai.
+    rewrite -lookup_drop in Hai.
+    rewrite -lookup_drop in Haij.
+    apply contiguous_drop with _ i in Ha.
+    apply contiguous_incr_addr with (drop i a); auto.
+  Qed.
+  
   (* A region_addrs_aux is contiguous *)
   Lemma region_addrs_aux_contiguous (a : Addr) (n : nat) :
     (a + n - 1 ≤ MemNum)%Z
@@ -125,19 +237,6 @@ Section Contiguous.
       inversion l. 
     - done. 
   Qed.
-
-  Lemma contiguous_nil : contiguous [].
-  Proof. done. Qed. 
-  
-  Lemma contiguous_weak hd a :
-    contiguous (hd :: a) → contiguous a.
-  Proof.
-    intros Ha.
-    destruct a.
-    - done.
-    - intros i ai aj Hai Haj.
-      rewrite /contiguous in Ha. apply Ha with (S i); auto.
-  Qed. 
 
   (* the following lemma assumes that a1 and a2 are non empty.
      if either are empty, the lemma holds trivially *)
@@ -176,6 +275,16 @@ Section Contiguous.
         by specialize (IHa1 a H Hlast Hfirst Ha') as [_ Ha2].
   Qed.
 
+  Lemma last_app_region_addrs l1 a b :
+    length (region_addrs a b) > 0 ->
+    list.last (l1 ++ region_addrs a b) = Some b. 
+  Proof.
+    intros Hlen (* Hcont *).    
+    assert (a ≤ b)%Z.
+    { rewrite /region_addrs in Hlen. destruct (Z_le_dec a b); auto. simpl in Hlen; lia. }
+    rewrite -last_app_eq; auto. apply region_addrs_last; auto.
+  Qed. 
+  
   (* the following lemmas lets us split a list of length at least n + 1 into two parts *)
   Lemma take_n_last {A : Type} (a : list A) n :
     0 < n < length a -> ∃ a_last, list.last (take n a) = Some a_last.
@@ -194,7 +303,7 @@ Section Contiguous.
     intros Hlt. 
     rewrite lookup_drop PeanoNat.Nat.add_0_r. 
     apply lookup_lt_is_Some_2. done. 
-  Qed. 
+  Qed.
     
   Lemma app_split {A : Type} (a : list A) n :
     0 < n < length a → ∃ a1 a2 a1_last a2_first, a = a1 ++ a2
@@ -228,7 +337,8 @@ Section Contiguous.
            ∧ contiguous a2
            ∧ a = a1 ++ a2
            ∧ list.last a1 = Some a1_last
-           ∧ a2 !! 0 = Some a2_first⌝)%I. 
+           ∧ a2 !! 0 = Some a2_first
+           ∧ (a1_last + 1)%a = Some a2_first⌝)%I. 
   Proof.
     iIntros (Ha Hprog1 Hprog2) "Hprog".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength. 
@@ -239,9 +349,63 @@ Section Contiguous.
     iDestruct (big_sepL2_app' with "Hprog") as "[Hprog1 Hprog2]"; auto.
     iFrame.
     iPureIntro.
-    destruct (contiguous_app a1 a2 a1_last a2_first a) as (Hca1 & Hca2 & Heq); auto.  
+    destruct (contiguous_app a1 a2 a1_last a2_first a) as (Hca1 & Hca2 & Heq); auto.
+    repeat split;auto.
+  Qed.
+
+  Lemma contiguous_region_addrs a a_first a_last :
+    contiguous a -> a !! 0 = Some a_first -> list.last a = Some a_last ->
+    a = region_addrs a_first a_last.
+  Proof.
+    generalize a_first. induction a; intros a_first' Ha Hfirst Hlast.
+    - inversion Hfirst.
+    - simpl in Hfirst. inversion Hfirst; subst.
+      rewrite /region_addrs.
+      assert (a_first' <= a_last)%Z as Hle.
+      { apply incr_list_le with (a_first' :: a0); auto. }
+      destruct (Z_le_dec a_first' a_last);[|contradiction].
+      simpl. f_equiv.
+      destruct a0.
+      + inversion Hlast; subst.
+        rewrite Z.sub_diag /=. done.
+      + rewrite (Ha 0 _ a); auto. simpl.
+        specialize (IHa a). 
+        rewrite /region_addrs in IHa.
+        assert (a <= a_last)%Z as Hle'.
+        { apply contiguous_weak in Ha. apply incr_list_le with (a :: a0); auto. }
+        destruct (Z_le_dec a a_last);[|contradiction].
+        assert (region_size a a_last = Z.abs_nat (a_last - a_first')) as <-.
+        { rewrite /region_size.
+          assert ((a_first' + 1)%a = Some a) as Hnext;[apply Ha with 0; auto|].
+          apply incr_addr_of_z_i in Hnext. rewrite -Hnext. lia. 
+        }
+        apply contiguous_weak in Ha. 
+        apply IHa; auto. 
   Qed. 
         
+  (* Helper lemma for contiguous lists of size 2: useful for the push macro *)
+  Lemma contiguous_2 a :
+    length a = 2 → contiguous a → ∃ a1 a2, a = [a1; a2] ∧ (a1 + 1)%a = Some a2.
+  Proof.
+    intros Hlength Ha.
+    destruct a as [|a1 a]; inversion Hlength. 
+    destruct a as [|a2 a]; inversion Hlength. 
+    destruct a; inversion Hlength.
+    exists a1,a2. rewrite /contiguous in Ha. split; [|apply Ha with 0];auto.
+  Qed.
+
+  (* Helper lemma for contiguous lists of size 3: useful for the pop macro *)
+  Lemma contiguous_3 a :
+    length a = 3 → contiguous a → ∃ a1 a2 a3, a = [a1; a2; a3] ∧ (a1 + 1)%a = Some a2 ∧ (a2 + 1)%a = Some a3.
+  Proof.
+    intros Hlength Ha.
+    destruct a as [|a1 a]; inversion Hlength. 
+    destruct a as [|a2 a]; inversion Hlength.
+    destruct a as [|a3 a]; inversion Hlength. 
+    destruct a; inversion Hlength.
+    exists a1,a2,a3. rewrite /contiguous in Ha. split; [|split;[apply Ha with 0|apply Ha with 1] ];auto.
+  Qed.
+
     
 End Contiguous.
     

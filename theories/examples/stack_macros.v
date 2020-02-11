@@ -10,6 +10,7 @@ Section stack_macros.
             Heap: heapG Σ}.
 
   (* ---------------------------- Helper Lemmas --------------------------------------- *)
+  (* TODO: move to lang *)
   Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
     isCorrectPC (inr (p, g, b, e, a0))
     → isCorrectPC (inr (p, g, b, e, a2))
@@ -21,6 +22,22 @@ Section stack_macros.
     - apply isCorrectPC_bounds with a0 a2; auto.
     - apply z_of_eq in Heq2. rewrite Heq2. auto.
   Qed.
+
+  Lemma isWithinBounds_bounds_alt p g b e (a0 a1 a2 : Addr) :
+    withinBounds (p,g,b,e,a0) = true ->
+    withinBounds (p,g,b,e,a2) = true ->
+    (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z ->
+    withinBounds (p,g,b,e,a1) = true.
+  Proof.
+    intros Hwb0 Hwb2 [Hle0 Hle2].
+    rewrite /withinBounds.
+    apply andb_true_iff.
+    apply andb_true_iff in Hwb0 as [Hleb0 Hlea0].
+    apply andb_true_iff in Hwb2 as [Hleb2 Hlea2].  
+    split; rewrite /leb_addr; apply Z.leb_le.
+    - apply Z.leb_le in Hleb0. apply Z.leb_le in Hlea0. lia.
+    - apply Z.leb_le in Hleb2. apply Z.leb_le in Hlea2. lia.
+  Qed. 
 
   (* -------------------------------- LTACS ------------------------------------------- *)
   Ltac iPrologue_pre :=
@@ -41,7 +58,7 @@ Section stack_macros.
 
   Ltac middle_lt prev index :=
     match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _ 
+    | Ha_first : ?a !! 0 = Some ?a_first |- _
     => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
     end. 
 
@@ -70,7 +87,7 @@ Section stack_macros.
   Definition push_r_instrs r_stk r := [lea_z r_stk 1 ; store_r r_stk r]. 
                                 
   Definition push_r (a1 a2 : Addr) (p : Perm) (r_stk r : RegName) : iProp Σ :=
-    ([∗ list] i;a ∈ (push_r_instrs r_stk r);[a1;a2], a ↦ₐ[p] i)%I. 
+    ([∗ list] a;i ∈ [a1;a2];(push_r_instrs r_stk r), a ↦ₐ[p] i)%I. 
   
   Lemma push_r_spec a1 a2 a3 w w' r p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) →
@@ -110,7 +127,7 @@ Section stack_macros.
   Definition push_z_instrs r_stk z := [lea_z r_stk 1; store_z r_stk z]. 
   
   Definition push_z (a1 a2 : Addr) (p : Perm) (r_stk : RegName) (z : Z) : iProp Σ :=
-    ([∗ list] i;a ∈ (push_z_instrs r_stk z);[a1;a2], a ↦ₐ[p] i)%I.
+    ([∗ list] a;i ∈ [a1;a2];(push_z_instrs r_stk z), a ↦ₐ[p] i)%I.
   
   Lemma push_z_spec a1 a2 a3 w z p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) →
@@ -134,7 +151,7 @@ Section stack_macros.
             "([Ha1 [Ha2 _] ] & HPC & Hr_stk & Hstk_a' & Hφ)".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_lea_success_z _ _ _ _ _ a1 a2 _ r_stk RWLX with "[HPC Ha1 Hr_stk]");
-      eauto; first apply lea_z_i; iFrame. 
+      eauto; first apply lea_z_i;iFrame.
     iNext. iIntros "(HPC & Ha1 & Hr_stk) /=".
     iApply wp_pure_step_later; auto. iNext.
     iApply (wp_bind (fill [SeqCtx])).
@@ -215,7 +232,7 @@ Section stack_macros.
     contiguous a →
     list.last a = Some an → (an + 1)%a = Some a' →
     ¬ PC ∈ r → hd_error a = Some a1 →
-    isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a')) →
+    isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,an)) →
     PermFlows p p' →
     
       ▷ (∃ ws, ([∗ list] k↦r_i;w_i ∈ r;ws, r_i ↦ᵣ w_i))
@@ -275,15 +292,12 @@ Section stack_macros.
         { apply Z.lt_le_incl. apply incr_list_lt_succ with (a1 :: a :: a0) 0; auto. }
       assert (a ≤ an)%Z.
       { apply incr_list_le_middle with (a1 :: a :: a0) 1; auto. }
-      assert (a < a')%Z as Hi.
-      { apply Z.le_lt_trans with an; auto. rewrite /incr_addr in Ha'.
-        destruct (Z_le_dec (an + 1)%Z MemNum); inversion Ha'. simpl. omega. }
-        apply isCorrectPC_bounds with a1 a'; eauto. 
+      apply isCorrectPC_bounds_alt with a1 an; auto. 
   Qed. 
   
   (* -------------------------------------- MCLEAR ----------------------------------- *)
    (* the following macro clears the region of memory a capability govers over. a denotes
-     the list of adresses containing the instructions for the clear. |a| = 21 *)
+     the list of adresses containing the instructions for the clear. |a| = 23 *)
 
   (* first we will define the list of Words making up the mclear macro *)
   Definition mclear_instrs r_stk off_end off_iter :=
@@ -293,14 +307,15 @@ Section stack_macros.
       sub_r_r r_t2 r_t1 r_t2; 
       lea_r r_t4 r_t2;
       gete r_t5 r_t4;
+      sub_r_z r_t5 r_t5 1; (* we subtract the bound by one so that the lt check becomes a le check *)
       move_r r_t2 PC;
       lea_z r_t2 off_end; (* offset to "end" *)
       move_r r_t3 PC;
       lea_z r_t3 off_iter; (* offset to "iter" *)
     (* iter: *)
-      lt_r_r r_t6 r_t5 r_t1; 
-      jnz r_t2 r_t6;
+      lt_r_r r_t6 r_t5 r_t1;
       store_z r_t4 0; 
+      jnz r_t2 r_t6;
       lea_z r_t4 1;
       add_r_z r_t1 r_t1 1; 
       jmp r_t3; 
@@ -312,7 +327,7 @@ Section stack_macros.
       move_z r_t5 0;
       move_z r_t6 0].
 
-  (* Next we define mclear in memory, using a list of addresses of size 21 *)
+  (* Next we define mclear in memory, using a list of addresses of size 23 *)
   Definition mclear (a : list Addr) (p : Perm) (r : RegName) (off_end off_iter : Z) : iProp Σ :=
     if ((length a) =? (length (mclear_instrs r off_end off_iter)))%nat then
       ([∗ list] k↦a_i;w_i ∈ a;(mclear_instrs r off_end off_iter), a_i ↦ₐ[p] w_i)%I
@@ -327,7 +342,7 @@ Section stack_macros.
     contradiction. 
   Qed. 
              
-  Lemma mclear_iter_spec (a1 a2 a3 a4 a5 a6 b_r e_r a_r e_r' : Addr) ws z
+  Lemma mclear_iter_spec (a1 a2 a3 a4 a5 a6 b_r e_r a_r (* e_r' *) : Addr) ws (z : nat)
         p p' g b e rt rt1 rt2 rt3 rt4 rt5 a_end (p_r p_r' : Perm) (g_r : Locality) φ :
         isCorrectPC (inr ((p,g),b,e,a1))
       ∧ isCorrectPC (inr ((p,g),b,e,a2))
@@ -340,9 +355,9 @@ Section stack_macros.
       ∧ (a3 + 1)%a = Some a4
       ∧ (a4 + 1)%a = Some a5
       ∧ (a5 + 1)%a = Some a6 →
-        ((b_r + z ≤ e_r)%Z → withinBounds ((p_r,g_r),b_r,e_r,a_r) = true) →
+        withinBounds ((p_r,g_r),b_r,e_r,a_r) = true → (* This should now always hold! since we are jumping once a_r and e_r are equal *)
         writeAllowed p_r = true →
-        (e_r + 1)%a = Some e_r' →
+        (* (e_r + 1)%a = Some e_r' → *)
         (b_r + z)%a = Some a_r →
         PermFlows p p' ->
         PermFlows p_r p_r' -> 
@@ -351,13 +366,13 @@ Section stack_macros.
      ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a1)
      ∗ ▷ rt ↦ᵣ inr ((p_r,g_r),b_r,e_r,a_r)
      ∗ ▷ rt1 ↦ᵣ inl (b_r + z)%Z
-     ∗ ▷ rt2 ↦ᵣ inl (z_of e_r)
+     ∗ ▷ rt2 ↦ᵣ inl ((z_of e_r) - 1)%Z
      ∗ ▷ (∃ w, rt3 ↦ᵣ w)
      ∗ ▷ rt4 ↦ᵣ inr (p, g, b, e, a_end)
      ∗ ▷ rt5 ↦ᵣ inr (p, g, b, e, a1)
      ∗ ▷ ([∗ list] a_i;w_i ∈ [a1;a2;a3;a4;a5;a6];[lt_r_r rt3 rt2 rt1;
-                                                  jnz rt4 rt3;
                                                   store_z rt 0;
+                                                  jnz rt4 rt3;
                                                   lea_z rt 1;
                                                   add_r_z rt1 rt1 1;
                                                   jmp rt5], a_i ↦ₐ[p'] w_i)
@@ -365,20 +380,20 @@ Section stack_macros.
              ∗ [[ a_r , e_r ]] ↦ₐ[p_r'] [[ region_addrs_zeroes a_r e_r ]]
              ∗ (∃ a_r, rt ↦ᵣ inr (p_r, g_r, b_r, e_r, a_r))
              ∗ rt5 ↦ᵣ inr (p, g, b, e, a1)
-             ∗ a3 ↦ₐ[p'] store_z rt 0
+             ∗ a2 ↦ₐ[p'] store_z rt 0
              ∗ a4 ↦ₐ[p'] lea_z rt 1
              ∗ a5 ↦ₐ[p'] add_r_z rt1 rt1 1
              ∗ a6 ↦ₐ[p'] jmp rt5
              ∗ a1 ↦ₐ[p'] lt_r_r rt3 rt2 rt1
-             ∗ rt2 ↦ᵣ inl (z_of e_r)
+             ∗ rt2 ↦ᵣ inl ((z_of e_r) - 1)%Z
              ∗ (∃ z, rt1 ↦ᵣ inl (b_r + z)%Z)
-             ∗ a2 ↦ₐ[p'] jnz rt4 rt3
+             ∗ a3 ↦ₐ[p'] jnz rt4 rt3
              ∗ rt4 ↦ᵣ inr (p, g, b, e, a_end)
              ∗ rt3 ↦ᵣ inl 1%Z
               -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (Hvpc Hnext Hwb Hwa Her' Hprogress Hfl1 Hfl2)
+    iIntros (Hvpc Hnext Hwb Hwa (* Her' *) Hprogress Hfl1 Hfl2)
             "(Hbe & >HPC & >Hrt & >Hr_t1 & >Hr_t2 & >Hr_t3 & >Hr_t4 & >Hr_t5 & >Hprog & Hφ)".
     iRevert (Hwb Hprogress). 
     iLöb as "IH" forall (a_r ws z).
@@ -413,31 +428,32 @@ Section stack_macros.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     destruct (reg_eq_dec rt2 rt3),(reg_eq_dec rt1 rt3); try contradiction. 
     rewrite /region_mapsto /region_addrs. 
-    destruct (Z_le_dec (b_r + z) e_r)%Z; simpl. 
-    - assert (Z.b2z (e_r <? b_r + z)%Z = 0%Z) as Heq0.
-      { rewrite /Z.b2z. assert (e_r <? b_r + z = false)%Z as Heq; [apply Z.ltb_nlt; omega|].
+    destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl. 
+    - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
+      { rewrite /Z.b2z. assert (e_r - 1 <? b_r + z = false)%Z as Heq; [apply Z.ltb_nlt; omega|].
           by rewrite Heq. }
       rewrite Heq0. 
-      (* jnz rt4 rt3 *)
-      iDestruct "Hprog" as "[Hi Hprog]". 
-      iApply (wp_bind (fill [SeqCtx])). 
-      iApply (wp_jnz_success_next _ rt4 rt3 _ _ _ _ a2 a3 with "[HPC Hi Hr_t3]");
-        first apply jnz_i; first apply Hfl1;eauto. 
-      iFrame. iEpilogue "(HPC & Ha2 & Hr_t3)". 
       (* store rt 0 *)
-      apply Hwb in l as Hwb'.
-      rewrite/ withinBounds in Hwb'.
-      apply andb_prop in Hwb' as [Hwb_b Hwb_e]. 
+      rewrite/ withinBounds in Hwb.
+      apply andb_prop in Hwb as [Hwb_b Hwb_e]. 
       apply (Z.leb_le a_r e_r) in Hwb_e. 
       destruct (Z_le_dec a_r e_r); try contradiction.
       destruct ws as [_ | w1 ws]; [simpl; by iApply bi.False_elim|simpl]. 
       iDestruct "Hbe" as "[Ha_r Hbe]".
       iDestruct "Hprog" as "[Hi Hprog]". 
       iApply (wp_bind (fill [SeqCtx])). 
-      iApply (wp_store_success_z _ _ _ _ _ a3 a4 _ rt 0 _ p_r g_r b_r e_r a_r with "[HPC Hi Hrt Ha_r]"); first apply store_z_i; first apply Hfl1; eauto. 
-      iFrame. iEpilogue "(HPC & Ha3 & Hrt & Ha_r)".
+      iApply (wp_store_success_z _ _ _ _ _ a2 a3 _ rt 0 _ p_r g_r b_r e_r a_r with "[HPC Hi Hrt Ha_r]"); first apply store_z_i; first apply Hfl1; eauto.
+      { split;[auto|]. rewrite /withinBounds andb_true_iff; split;[auto|]. by apply Z.leb_le. }
+      iFrame. iEpilogue "(HPC & Ha2 & Hrt & Ha_r)".
+      (* jnz rt4 rt3 *)
+      iDestruct "Hprog" as "[Hi Hprog]". 
+      iApply (wp_bind (fill [SeqCtx])). 
+      iApply (wp_jnz_success_next _ rt4 rt3 _ _ _ _ a3 a4 with "[HPC Hi Hr_t3]");
+        first apply jnz_i; first apply Hfl1;eauto. 
+      iFrame. iEpilogue "(HPC & Ha3 & Hr_t3)". 
       (* lea rt 1 *)
-      assert (∃ a_r', (a_r + 1)%a = Some a_r') as [a_r' Ha_r']; [apply addr_next_le with e_r e_r'; auto|].
+      assert (∃ a_r', (a_r + 1)%a = Some a_r') as [a_r' Ha_r'].
+      { apply addr_next_lt with e_r. apply incr_addr_of_z_i in Hprogress. lia. }
       iDestruct "Hprog" as "[Hi Hprog]". 
       iApply (wp_bind (fill [SeqCtx])). 
       iApply (wp_lea_success_z _ _ _ _ _ a4 a5 _ rt p_r _ _ _ a_r 1 a_r' with "[HPC Hi Hrt]"); first apply lea_z_i; first apply Hfl1; eauto. 
@@ -458,7 +474,7 @@ Section stack_macros.
       iApply (wp_jmp_success _ _ _ _ _ a6 with "[HPC Hi Hr_t5]");
         first apply jmp_i; first apply Hfl1; eauto. 
       iFrame. iEpilogue "(HPC & Ha6 & Hr_t5)".
-      iApply ("IH" $! a_r' ws (z + 1)%Z with
+      iApply ("IH" $! a_r' ws (z + 1)%nat with
                   "[Hbe] [HPC] [Hrt] [Hr_t1] [Hr_t2] [Hr_t3] [Hr_t4] [Hr_t5] [Ha1 Ha2 Ha3 Ha4 Ha5 Ha6] [Hφ Ha_r]")
       ; iFrame. 
       + rewrite Ha_r'; simpl.
@@ -483,7 +499,7 @@ Section stack_macros.
         { rewrite /updatePcPerm. destruct p; auto.
           inversion Hvpc1; destruct H9 as [Hc | [Hc | Hc] ]; inversion Hc. }
         rewrite H3. iFrame.
-      + rewrite Z.add_assoc. iFrame.
+      + assert (b_r + z + 1 = b_r + (z + 1)%nat)%Z as ->;[lia|]. iFrame.
       + iExists (inl 0%Z). iFrame.
       + iNext.
         iIntros "(HPC & Hregion & Hrt & Hrt5 & Ha3 & Ha4 & Ha5 & Ha6 & Ha1 & Hrt2 & Hrt1 & Ha2 & Hrt4 & Hrt3)".
@@ -510,65 +526,75 @@ Section stack_macros.
             destruct (Z_le_dec e_r e_r); last lia. 
             simpl. iFrame. } 
       + iPureIntro.
-        intros Hle.
         apply andb_true_intro.
         apply Z.leb_le in Hwb_b. 
         split; apply Z.leb_le.
         * apply Z.le_trans with a_r; auto.
           rewrite /incr_addr in Ha_r'.
           destruct (Z_le_dec (a_r + 1)%Z MemNum); inversion Ha_r'; simpl; omega.  
-        * rewrite Z.add_assoc in Hle.
-          assert ((z_of b_r) + z = z_of a_r)%Z as Heq_brz.
+        * assert ((z_of b_r) + z = z_of a_r)%Z as Heq_brz.
           { rewrite /incr_addr in Hprogress.
               by destruct (Z_le_dec (b_r + z)%Z MemNum); inversion Hprogress. }
-          rewrite Heq_brz in Hle.
           assert ((z_of a_r) + 1 = z_of a_r')%Z as Ha_rz.
           { rewrite /incr_addr in Ha_r'.
               by destruct (Z_le_dec (a_r + 1)%Z MemNum); inversion Ha_r'. }
-          rewrite Ha_rz in Hle.
-          done. 
+          lia. 
       + iPureIntro.
         rewrite -Ha_r'.
+        rewrite PeanoNat.Nat.add_1_r Nat2Z.inj_succ -Z.add_1_r. 
         by rewrite (addr_add_assoc _ a_r). 
-    - (* b_r + z > e_r case *)
-      (* in this case we immediately jump to a_end *)
-      (* jnz rt4 rt3 *)
-      assert (Z.b2z (e_r <? b_r + z)%Z = 1%Z) as Heq0.
-      { rewrite /Z.b2z. assert (e_r <? b_r + z = true)%Z as Heq; [apply Z.ltb_lt; omega|].
+    - assert (Z.b2z (e_r -1 <? b_r + z)%Z = 1%Z) as Heq0.
+      { rewrite /Z.b2z. assert (e_r - 1 <? b_r + z = true)%Z as Heq; [apply Z.ltb_lt; omega|].
           by rewrite Heq. }
-      rewrite Heq0. 
-      iDestruct "Hprog" as "[Hi Hprog]". 
-      iApply (wp_bind (fill [SeqCtx])). 
-      iApply (wp_jnz_success_jmp _ rt4 rt3 _ _ _ _ a2 _ _ (inl 1%Z) with "[HPC Hi Hr_t3 Hr_t4]"); first apply jnz_i; first apply Hfl1; eauto. 
-      iFrame. iEpilogue "(HPC & Ha2 & Hr_t4 & Hr_t3)". 
-      iApply "Hφ". iFrame.
-      assert (a_r > e_r)%Z.
+      rewrite Heq0.
+      assert (a_r >= e_r)%Z.
       { assert ((z_of b_r) + z = a_r)%Z; 
           first (rewrite /incr_addr in Hprogress;
                    by destruct (Z_le_dec (b_r + z)%Z MemNum); inversion Hprogress).
         rewrite -H3. lia. 
       }
-      rewrite /region_addrs_zeroes.
-      iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & _)".
-      destruct (Z_le_dec a_r e_r); try contradiction. iFrame.
-      iSplitR; auto. iSplitL "Hrt". iExists (a_r). iFrame. iExists z. iFrame.
-      Unshelve. apply w1. 
+      destruct (Z_le_dec a_r e_r).
+      + assert (z_of a_r = z_of e_r) as Heq;[lia|].
+        apply z_of_eq in Heq. subst. rewrite Z.sub_diag /=.
+        destruct ws;[by iApply bi.False_elim|]. 
+        iSimpl in "Hbe". iDestruct "Hbe" as "[He_r _]".
+        iDestruct "Hprog" as "[Hi Hprog]". 
+        iApply (wp_bind (fill [SeqCtx])). 
+        iApply (wp_store_success_z _ _ _ _ _ a2 a3 _ rt 0 _ p_r g_r b_r e_r e_r with "[HPC Hi Hrt He_r]"); first apply store_z_i; first apply Hfl1; eauto.
+        iFrame. iEpilogue "(HPC & Ha2 & Hrt & Ha_r)".
+        (* jnz *)
+        iDestruct "Hprog" as "[Hi Hprog]". 
+        iApply (wp_bind (fill [SeqCtx])). 
+        iApply (wp_jnz_success_jmp _ rt4 rt3 _ _ _ _ a3 _ _ (inl 1%Z) with "[HPC Hi Hr_t3 Hr_t4]"); first apply jnz_i; first apply Hfl1; eauto. 
+        iFrame. iEpilogue "(HPC & Ha3 & Hr_t4 & Hr_t3)". 
+        iApply "Hφ". iDestruct "Hprog" as "(Ha4 & Ha5 & Ha6 & _)". iFrame. 
+        rewrite /region_addrs_zeroes /= Z.sub_diag /=.
+        destruct (Z_le_dec e_r e_r);[|contradiction]. 
+        iFrame. iSplitR;[auto|].
+        iSplitL "Hrt". iExists (e_r). iFrame. iExists z. iFrame.
+      + (* This should lead to a contradiction from within bounds *)
+        exfalso. 
+        rewrite /withinBounds in Hwb.
+        apply andb_true_iff in Hwb as [Hwb1 Hwb2].
+        apply Z.leb_le in Hwb2. done. 
+        Unshelve. apply w1. 
   Qed. 
 
     
   Lemma mclear_spec (a : list Addr) (r : RegName) 
-        (a_last a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r e_r' : Addr) a' φ :
+        (a_last a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r : Addr) a' φ :
     contiguous a →
     a !! 0 = Some a_first → list.last a = Some a_last →
     (* We will assume that we are not trying to clear memory in a *)
     r ≠ PC ∧ writeAllowed p_r = true →
-    (a !! 6 = Some a6' ∧ (a6' + 10)%a = Some a_end ∧ a !! 16 = Some a_end) →
+    (a !! 7 = Some a6' ∧ (a6' + 10)%a = Some a_end ∧ a !! 17 = Some a_end) →
     
     isCorrectPC (inr ((p,g),b,e,a_first)) → isCorrectPC (inr ((p,g),b,e,a_last)) →
     PermFlows p p' → PermFlows p_r p_r' -> 
     
     (a_last + 1)%a = Some a' →
-    (e_r + 1)%a = Some e_r' →
+    (* We will also assume the region to clear is non empty *)
+    (b_r ≤ e_r)%Z →
 
      (mclear a p' r 10 2
     ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a_first)
@@ -593,7 +619,7 @@ Section stack_macros.
             WP Seq (Instr Executable) {{ φ }})
     ⊢ WP Seq (Instr Executable) {{ φ }})%I.  
   Proof.
-    iIntros (Hnext Ha_first Ha_last [Hne Hwa] Hjnz_off Hvpc1 Hvpc2 Hfl1 Hfl2 Ha_last' He_r')
+    iIntros (Hnext Ha_first Ha_last [Hne Hwa] Hjnz_off Hvpc1 Hvpc2 Hfl1 Hfl2 Ha_last' Hle)
             "(Hmclear & >HPC & >Hr & >Hr_t4 & >Hr_t1 & >Hr_t2 & >Hr_t3 & >Hr_t5 & >Hr_t6 & >Hregion & Hφ)".
     iDestruct "Hr_t4" as (w4) "Hr_t4".
     iDestruct "Hr_t1" as (w1) "Hr_t1".
@@ -674,47 +700,58 @@ Section stack_macros.
     destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
     destruct (reg_eq_dec r_t4 r_t5) as [Hcontr | _]; [inversion Hcontr|].
     iEpilogue "(HPC & Ha4 & Hr_t4 & Hr_t5)".
-    iCombine "Ha4 Hprog_done" as "Hprog_done". 
-    (* move r_t2 PC *)
+    iCombine "Ha4 Hprog_done" as "Hprog_done".
+    (* sub r_t5 r_t5 1 *)
     iPrologue "Hprog".
     assert (a_first < a5)%Z as Hlt5; first middle_lt a4 5.
-    iApply (wp_move_success_reg_fromPC _ _ _ _ _ a5 a6 _ r_t2 with "[HPC Hi Hr_t2]");
-      first apply move_r_i; first apply Hfl1; first iCorrectPC 6; eauto. 
-    { apply Hnext with 6; auto. }
-    iFrame. iEpilogue "(HPC & Ha5 & Hr_t2)".
+    iApply (wp_add_sub_lt_success with "[$HPC $Hi Hr_t5]");
+      [right;left;apply sub_r_z_i|apply Hfl1|iCorrectPC 6|auto..].
+    destruct (reg_eq_dec r_t5 PC) eqn:Hcontr;[by inversion Hcontr|clear Hcontr].
+    assert ((a5 + 1)%a = Some a6) as ->;[apply Hnext with 6; auto|].
+    destruct (reg_eq_dec r_t5 r_t5) eqn:Hcontr;[clear Hcontr|by inversion Hcontr].
+    rewrite sub_r_z_i.
+    iEpilogue "(HPC & Ha5 & _ & _ & Hr_t5)".
     iCombine "Ha5 Hprog_done" as "Hprog_done". 
-    (* lea r_t2 off_end *)
+    (* move r_t2 PC *)
     iPrologue "Hprog".
     assert (a_first < a6)%Z as Hlt6; first middle_lt a5 6.
-    assert (p ≠ E) as Hpne.
-    { inversion Hvpc1; destruct H18 as [? | [? | ?] ]; subst; auto. }
-    iApply (wp_lea_success_z _ _ _ _ _ a6 a7 _ r_t2 p _ _ _ a5 10 a_end with "[HPC Hi Hr_t2]");
-      first apply lea_z_i; first apply Hfl1; first iCorrectPC 7; auto.
+    iApply (wp_move_success_reg_fromPC _ _ _ _ _ a6 a7 _ r_t2 with "[HPC Hi Hr_t2]");
+      first apply move_r_i; first apply Hfl1; first iCorrectPC 7; eauto. 
     { apply Hnext with 7; auto. }
-    { destruct Hjnz_off as (Ha7' & Hoff_end & Ha_end). simpl in Ha7'. congruence. }
     iFrame. iEpilogue "(HPC & Ha6 & Hr_t2)".
     iCombine "Ha6 Hprog_done" as "Hprog_done". 
-    (* move r_t3 PC *)
+    (* lea r_t2 off_end *)
     iPrologue "Hprog".
     assert (a_first < a7)%Z as Hlt7; first middle_lt a6 7.
-    iApply (wp_move_success_reg_fromPC _ _ _ _ _ a7 a8 _ r_t3 with "[HPC Hi Hr_t3]");
-      first apply move_r_i; first apply Hfl1; first iCorrectPC 8; auto.
+    assert (p ≠ E) as Hpne.
+    { inversion Hvpc1; destruct H19 as [? | [? | ?] ]; subst; auto. }
+    iApply (wp_lea_success_z _ _ _ _ _ a7 a8 _ r_t2 p _ _ _ a6 10 a_end with "[HPC Hi Hr_t2]");
+      first apply lea_z_i; first apply Hfl1; first iCorrectPC 8; auto.
     { apply Hnext with 8; auto. }
-    iFrame. iEpilogue "(HPC & Ha7 & Hr_t3)".
+    { destruct Hjnz_off as (Ha7' & Hoff_end & Ha_end). simpl in Ha7'. congruence. }
+    iFrame. iEpilogue "(HPC & Ha7 & Hr_t2)".
     iCombine "Ha7 Hprog_done" as "Hprog_done". 
-    (* lea r_t3 off_iter *)
+    (* move r_t3 PC *)
     iPrologue "Hprog".
     assert (a_first < a8)%Z as Hlt8; first middle_lt a7 8.
-    iApply (wp_lea_success_z _ _ _ _ _ a8 a9 _ r_t3 p _ _ _ a7 2 a9 with "[HPC Hi Hr_t3]");
-      first apply lea_z_i; first apply Hfl1; first iCorrectPC 9; auto.
+    iApply (wp_move_success_reg_fromPC _ _ _ _ _ a8 a9 _ r_t3 with "[HPC Hi Hr_t3]");
+      first apply move_r_i; first apply Hfl1; first iCorrectPC 9; auto.
     { apply Hnext with 9; auto. }
-    { assert (2 = 1 + 1)%Z as ->; auto. 
-      apply incr_addr_trans with a8. 
-      apply Hnext with 8; auto. apply Hnext with 9; auto. }
     iFrame. iEpilogue "(HPC & Ha8 & Hr_t3)".
     iCombine "Ha8 Hprog_done" as "Hprog_done". 
+    (* lea r_t3 off_iter *)
+    iPrologue "Hprog".
+    assert (a_first < a9)%Z as Hlt9; first middle_lt a8 9.
+    iApply (wp_lea_success_z _ _ _ _ _ a9 a10 _ r_t3 p _ _ _ a8 2 a10 with "[HPC Hi Hr_t3]");
+      first apply lea_z_i; first apply Hfl1; first iCorrectPC 10; auto.
+    { apply Hnext with 10; auto. }
+    { assert (2 = 1 + 1)%Z as ->; auto. 
+      apply incr_addr_trans with a9. 
+      apply Hnext with 9; auto. apply Hnext with 10; auto. }
+    iFrame. iEpilogue "(HPC & Ha9 & Hr_t3)".
+    iCombine "Ha9 Hprog_done" as "Hprog_done".
     (* iter *)
-    clear H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 Hlt0 Hlt1 Hlt2 Hlt3 Hlt4 Hlt5 Hlt6 Hlt7.
+    clear H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 Hlt0 Hlt1 Hlt2 Hlt3 Hlt4 Hlt5 Hlt6 Hlt7 Hlt8.
     do 5 iPrologue_pre. clear H4 H5 H6 H7.
     iDestruct "Hprog" as "[Hi1 Hprog]".
     iDestruct "Hprog" as "[Hi2 Hprog]".
@@ -723,22 +760,22 @@ Section stack_macros.
     iDestruct "Hprog" as "[Hi5 Hprog]".
     iDestruct "Hprog" as "[Hi6 Hprog]".
     iDestruct "Hregion" as (ws) "Hregion".
-    assert (a_first < a9)%Z as Hlt9; first middle_lt a8 9.
-    assert (a_first < a10)%Z as Hlt10; first middle_lt a9 10.
+    assert (a_first < a10)%Z as Hlt10;first middle_lt a9 10.
     assert (a_first < a11)%Z as Hlt11; first middle_lt a10 11.
     assert (a_first < a12)%Z as Hlt12; first middle_lt a11 12.
     assert (a_first < a13)%Z as Hlt13; first middle_lt a12 13.
     assert (a_first < a14)%Z as Hlt14; first middle_lt a13 14.
-    iApply (mclear_iter_spec a9 a10 a11 a12 a13 a14 b_r e_r b_r e_r' _
+    assert (a_first < a15)%Z as Hlt15; first middle_lt a14 15.
+    iApply (mclear_iter_spec a10 a11 a12 a13 a14 a15 b_r e_r b_r _
                         0 p p' g b e r_t4 r_t1 r_t5 r_t6 r_t2 r_t3 _ p_r p_r' g_r
               with "[-]"); auto.
-    - split; [|(split; [|(split; [|(split; [|split])])])]; [iCorrectPC 10|iCorrectPC 11|iCorrectPC 12|iCorrectPC 13|iCorrectPC 14|iCorrectPC 15].
-    - repeat split;[apply Hnext with 10; auto|apply Hnext with 11; auto|apply Hnext with 12; auto|
-                    apply Hnext with 13; auto|apply Hnext with 14; auto].
-    - rewrite Z.add_0_r. intros Hle.
+    - split; [|(split; [|(split; [|(split; [|split])])])]; [iCorrectPC 11|iCorrectPC 12|iCorrectPC 13|iCorrectPC 14|iCorrectPC 15|iCorrectPC 16].
+    - repeat split;[apply Hnext with 11; auto|apply Hnext with 12; auto|
+                    apply Hnext with 13; auto|apply Hnext with 14; auto|apply Hnext with 15; auto].
+    - (* rewrite Z.add_0_r. intros Hle. *)
       rewrite /withinBounds.
       apply andb_true_intro.
-      split; apply Z.leb_le; lia.
+      split; apply Z.leb_le; [lia|congruence].
     - apply addr_add_0.
     - rewrite Z.add_0_r -Hb_r.
       iFrame. rewrite Hb_r /=; iFrame. 
@@ -750,65 +787,58 @@ Section stack_macros.
       iCombine "Ha9 Ha10 Ha11 Ha12 Ha13 Ha14 Hprog_done" as "Hprog_done". 
       iDestruct "Hr_t4" as (a_r0) "Hr_t4".
       iDestruct "Hr_t1" as (z0) "Hr_t1".
-      (* assert (match p with *)
-      (*        | E => inr (RX, g, b, e, a_end) *)
-      (*        | _ => inr (p, g, b, e, a_end) *)
-      (*        end = inr (p, g, b, e, a_end)) as ->. *)
-      (* { rewrite /updatePcPerm. *)
-      (*   destruct p; auto; contradiction. } *)
-      (* move r_t4 0 *)
       iPrologue "Hprog".
-      assert (a15 = a_end)%a as Ha15.
+      assert (a16 = a_end)%a as Ha16.
       { simpl in Hjnz_off. 
-        destruct Hjnz_off as (Ha15 & Ha15' & Hend).
+        destruct Hjnz_off as (Ha16 & Ha16' & Hend).
         by inversion Hend. 
       } 
-      destruct a as [_ | a16 a]; inversion Hlen. 
-      assert (a_first < a15)%Z as Hlt15; first middle_lt a14 15. 
-      iApply (wp_move_success_z _ _ _ _ _ a15 a16 _ r_t4 _ 0 with "[HPC Hi Hr_t4]");
-        first apply move_z_i; first apply Hfl1; first iCorrectPC 16; auto. 
-      { apply Hnext with 16; auto. }
-      { rewrite Ha15. destruct p; iFrame. contradiction. }
-      iEpilogue "(HPC & Ha15 & Hr_t4)".
+      destruct a as [_ | a17 a]; inversion Hlen. 
+      assert (a_first < a16)%Z as Hlt16; first middle_lt a15 16. 
+      iApply (wp_move_success_z _ _ _ _ _ a16 a17 _ r_t4 _ 0 with "[HPC Hi Hr_t4]");
+        first apply move_z_i; first apply Hfl1; first iCorrectPC 17; auto. 
+      { apply Hnext with 17; auto. }
+      { rewrite Ha16. destruct p; iFrame. contradiction. }
+      iEpilogue "(HPC & Ha16 & Hr_t4)".
       (* move r_t1 0 *)
       iPrologue "Hprog".
-      assert (a_first < a16)%Z as Hlt16; first middle_lt a15 16. 
-      iApply (wp_move_success_z _ _ _ _ _ a16 a17 _ r_t1 _ 0 with "[HPC Hi Hr_t1]");
-        first apply move_z_i; first apply Hfl1; first iCorrectPC 17; auto.
-      { apply Hnext with 17; auto. }
-      iFrame. iEpilogue "(HPC & Ha16 & Hr_t1)".
-      (* move r_t2 0 *)
-      iPrologue "Hprog".
       assert (a_first < a17)%Z as Hlt17; first middle_lt a16 17. 
-      iApply (wp_move_success_z _ _ _ _ _ a17 a18 _ r_t2 _ 0 with "[HPC Hi Hr_t2]");
+      iApply (wp_move_success_z _ _ _ _ _ a17 a18 _ r_t1 _ 0 with "[HPC Hi Hr_t1]");
         first apply move_z_i; first apply Hfl1; first iCorrectPC 18; auto.
       { apply Hnext with 18; auto. }
-      iFrame. iEpilogue "(HPC & Ha17 & Hr_t2)".
-      (* move r_t3 0 *)
+      iFrame. iEpilogue "(HPC & Ha17 & Hr_t1)".
+      (* move r_t2 0 *)
       iPrologue "Hprog".
       assert (a_first < a18)%Z as Hlt18; first middle_lt a17 18. 
-      iApply (wp_move_success_z _ _ _ _ _ a18 a19 _ r_t3 _ 0 with "[HPC Hi Hr_t3]");
+      iApply (wp_move_success_z _ _ _ _ _ a18 a19 _ r_t2 _ 0 with "[HPC Hi Hr_t2]");
         first apply move_z_i; first apply Hfl1; first iCorrectPC 19; auto.
       { apply Hnext with 19; auto. }
-      iFrame. iEpilogue "(HPC & Ha18 & Hr_t3)".
-      (* move r_t5 0 *)
+      iFrame. iEpilogue "(HPC & Ha18 & Hr_t2)".
+      (* move r_t3 0 *)
       iPrologue "Hprog".
       assert (a_first < a19)%Z as Hlt19; first middle_lt a18 19. 
-      iApply (wp_move_success_z _ _ _ _ _ a19 a20 _ r_t5 _ 0 with "[HPC Hi Hr_t5]");
+      iApply (wp_move_success_z _ _ _ _ _ a19 a20 _ r_t3 _ 0 with "[HPC Hi Hr_t3]");
         first apply move_z_i; first apply Hfl1; first iCorrectPC 20; auto.
       { apply Hnext with 20; auto. }
-      iFrame. iEpilogue "(HPC & Ha19 & Hr_t5)".
-      (* move r_t6 0 *)
+      iFrame. iEpilogue "(HPC & Ha19 & Hr_t3)".
+      (* move r_t5 0 *)
       iPrologue "Hprog".
       assert (a_first < a20)%Z as Hlt20; first middle_lt a19 20. 
-      iApply (wp_move_success_z _ _ _ _ _ a20 a' _ r_t6 _ 0 with "[HPC Hi Hr_t6]");
+      iApply (wp_move_success_z _ _ _ _ _ a20 a21 _ r_t5 _ 0 with "[HPC Hi Hr_t5]");
         first apply move_z_i; first apply Hfl1; first iCorrectPC 21; auto.
+      { apply Hnext with 21; auto. }
+      iFrame. iEpilogue "(HPC & Ha20 & Hr_t5)".
+      (* move r_t6 0 *)
+      iPrologue "Hprog".
+      assert (a_first < a21)%Z as Hlt21; first middle_lt a20 21. 
+      iApply (wp_move_success_z _ _ _ _ _ a21 a' _ r_t6 _ 0 with "[HPC Hi Hr_t6]");
+        first apply move_z_i; first apply Hfl1; first iCorrectPC 22; auto.
       { inversion Ha_last. auto. }
-      iFrame. iEpilogue "(HPC & Ha20 & Hr_t6)".
+      iFrame. iEpilogue "(HPC & Ha21 & Hr_t6)".
       iApply "Hφ".
-      iDestruct "Hprog_done" as "(Ha_iter & Ha10 & Ha11 & Ha12 & Ha13 & Ha14 & Ha8 & Ha7
+      iDestruct "Hprog_done" as "(Ha_iter & Ha10 & Ha12 & Ha11 & Ha13 & Ha14 & Ha15 & Ha8 & Ha7
       & Ha6 & Ha5 & Ha4 & Ha3 & Ha2 & Ha1 & Ha0 & Ha_first)".
-      iFrame. Unshelve. exact 0. exact 0. apply w1. 
+      iFrame. Unshelve. exact 0. exact 0. apply w1. apply w1. 
   Qed.        (* ??? *)
 
 
@@ -826,7 +856,7 @@ Section stack_macros.
      intros [Hba Hae] Ha' Hsize.
      assert (b ≤ e)%Z; first lia.
      assert (a < a')%Z; first by apply next_lt.
-     assert (a' ≤ e)%Z; first by apply addr_next_lt with a; auto.
+     assert (a' ≤ e)%Z; first apply addr_next_lt_le with a; auto.
      assert ((a + 1)%Z = a').
      { rewrite /incr_addr in Ha'.
          by destruct (Z_le_dec (a + 1)%Z MemNum); inversion Ha'. }
