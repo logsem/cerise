@@ -469,7 +469,7 @@ Section scall.
       [apply subseg_r_r_i|apply Hfl| |eauto|auto|auto|..].
     { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a17 a_last 24 Ha. }
     { repeat (apply andb_true_iff;split);destruct Hnonzero as [Hnz1 Hnz2] ;apply Z.leb_le;auto;last lia.
-      apply Store.withinBounds_le_addr in Hwb3 as [Hwb3 _]. 
+      apply withinBounds_le_addr in Hwb3 as [Hwb3 _]. 
       trans a_r_adv; auto.
       assert ((a_r_adv + 1)%a = Some b_r_adv) as temp;[rewrite -(addr_add_assoc a_act _ 7);auto|].
       apply next_le_i with 1;[lia|auto]. 
