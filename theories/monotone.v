@@ -292,5 +292,104 @@ Section monotone.
       iFrame.
     - destruct l; try discriminate. done. 
   Qed.
-    
-End monotone. 
+
+  (*Lemma that allows switching between the two different formulations of monotonicity, to alleviate the effects of inconsistencies*)
+  Lemma switch_monotonicity_formulation ρ w p φ:
+    (match ρ with
+     | Temporary => if pwl p then future_pub_mono else future_priv_mono
+     | Permanent => future_priv_mono
+     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     end φ w)%I ↔
+             (ρ ≠ Revoked → (if decide (ρ = Temporary ∧ pwl p = true)
+                             then future_pub_mono φ w
+                             else future_priv_mono φ w)%I).
+  Proof.
+    split.
+    - destruct ρ.
+      * destruct (pwl p) ; intros.
+        destruct (decide (Temporary = Temporary ∧ true = true)). auto. assert (Temporary = Temporary ∧ true = true); auto. by congruence.
+        destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
+      *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
+      * by intros.
+    - intros. destruct ρ.
+      * destruct (pwl p).
+        destruct (decide (Temporary = Temporary ∧ true = true)). auto.
+        assert (Temporary = Temporary ∧ true = true); auto. by congruence.
+        destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
+      *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
+      * by iPureIntro.
+  Qed.
+
+
+Global Instance interp_ne n :
+  Proper (dist n ==> dist n) (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
+Proof.
+  solve_proper.
+Qed.
+
+(*The general monotonicity statement that interp gives you when writing a word into a pointer (p0, l, a2, a1, a0) ; simply a bundling of all individual monotonicity statements*)
+Lemma interp_monotone_generalW (W : WORLD)  (ρ : region_type) (p p0 p1 : Perm) (l g : Locality)(b e a a2 a1 a0 : Addr):
+  std_sta W !! countable.encode a0 = Some (countable.encode ρ) →
+  withinBounds (p0, l, a2, a1, a0) = true →
+  PermFlows p0 p1 →
+  (negb (isLocal g) || match p0 with
+                       | RWL | RWLX => true
+                       | _ => false
+                       end = true)→
+  ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
+                         (match ρ with
+                          | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
+                          | Permanent => future_priv_mono
+                          | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+                          end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
+                              (inr (p, g, b, e, a))).
+Proof.
+  iIntros (Hstd Hwb Hfl' Hconds) "#Hvdst".
+  destruct ρ.
+  - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone.
+    * iIntros (W0 W1) "% HIW0".
+      destruct g.
+    + by iApply interp_monotone_nl.
+    (*The below case is a contradiction, since if g is local,p0 must be WL and p0 flows into the non-WL p1*)
+    + destruct p0 ; try (simpl in Hconds; by exfalso).
+      all:destruct p1 eqn:Hp1v ; (by exfalso).
+  - iAlways. simpl. iIntros (W0 W1) "% HIW0".
+    destruct g.
+    + by iApply interp_monotone_nl.
+    + (*Trick here: value relation leads to a contradiction if p0 is WL, since then its region cannot be permanent*)
+      iDestruct ( writeLocalAllowed_valid_cap_implies with "Hvdst" ) as "%"; eauto.
+      destruct H3. rewrite Hstd in H4. inversion H4.
+      apply (f_equal (countable.decode (A:=region_type))) in H6.
+      do 2 rewrite countable.decode_encode in H6. by inversion H6.
+  - auto.
+Qed.
+
+(* Analogous, but now we have the general monotonicity statement in case an integer z is written *)
+Lemma interp_monotone_generalZ (W : WORLD)  (ρ : region_type) (p0 p1 : Perm) (l : Locality)(a2 a1 a0 : Addr) z:
+  std_sta W !! countable.encode a0 = Some (countable.encode ρ) →
+  withinBounds (p0, l, a2, a1, a0) = true →
+  PermFlows p0 p1 →
+  ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
+                         (match ρ with
+                          | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
+                          | Permanent => future_priv_mono
+                          | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+                          end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
+                              (inl z)).
+Proof.
+  iIntros (Hstd Hwb Hfl') "#Hvdst".
+  destruct ρ.
+  - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone.
+    * iIntros (W0 W1) "% HIW0".
+        by iApply interp_monotone_nl.
+  - iAlways. simpl. iIntros (W0 W1) "% HIW0".
+      by iApply interp_monotone_nl.
+  - trivial.
+Qed.
+
+
+End monotone.

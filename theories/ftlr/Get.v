@@ -722,4 +722,121 @@ Section fundamental.
     - apply _. 
   Qed.
 
+  (* General case for all getters combined, from which the individual cases follow by using the proper isGetInstr instance *)
+  Lemma get_General (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst r0 : RegName)(instr : RegName → RegName → instr) :
+   (isGetInstr instr) → ftlr_instr W r p p' g b e a w (instr dst r0) ρ.
+  Proof.
+    intros Hgetinstr Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
+    iIntros "Hr Hstate Ha HPC Hmap".
+    rewrite delete_insert_delete.
+    specialize Hsome with dst as Hdst.
+    destruct Hdst as [wdst Hsomesdst].
+    specialize Hsome with r0 as Hr0.
+    destruct Hr0 as [wr0 Hsomer0].
+    iAssert ((if reg_eq_dec PC r0 then emp else r0 ↦ᵣ wr0) ∗ (if reg_eq_dec PC r0 then [∗ map] k↦y ∈ delete PC r, k ↦ᵣ y else [∗ map] k↦y ∈ delete r0 (delete PC r), k ↦ᵣ y))%I with "[Hmap]" as "[Hr0 Hmap]".
+    { destruct (reg_eq_dec PC r0); iFrame.
+      iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hr0 Hmap]".
+      rewrite (lookup_delete_ne _ PC r0); eauto. iFrame. }
+    iAssert ((if reg_eq_dec PC dst then emp else if reg_eq_dec r0 dst then emp else dst ↦ᵣ wdst) ∗ (if reg_eq_dec PC dst then (if reg_eq_dec PC r0 then [∗ map] k↦y ∈ delete PC r, k ↦ᵣ y else [∗ map] k↦y ∈ delete r0 (delete PC r), k ↦ᵣ y) else if reg_eq_dec r0 dst then (if reg_eq_dec PC r0 then [∗ map] k↦y ∈ delete PC r, k ↦ᵣ y else [∗ map] k↦y ∈ delete r0 (delete PC r), k ↦ᵣ y) else (if reg_eq_dec PC r0 then [∗ map] k↦y ∈ delete dst (delete PC r), k ↦ᵣ y else [∗ map] k↦y ∈ delete dst (delete r0 (delete PC r)), k ↦ᵣ y)))%I with "[Hmap]" as "[Hdst Hmap]".
+    { destruct (reg_eq_dec PC dst); iFrame.
+      destruct (reg_eq_dec r0 dst); iFrame.
+      destruct (reg_eq_dec PC r0).
+      - iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]".
+        rewrite (lookup_delete_ne _ PC dst); eauto. iFrame.
+      - iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]".
+        rewrite (lookup_delete_ne _ r0 dst); eauto.
+        rewrite (lookup_delete_ne _ PC dst); eauto. iFrame. }
+    destruct (reg_eq_dec PC dst).
+    { subst dst. iApply (wp_GetGeneral_failPC with "[Hr0 HPC Hdst Ha]"); eauto; iFrame.
+      iNext. iIntros.
+      iApply wp_pure_step_later; auto. iApply wp_value.
+      iNext. iIntros (Hcontr); inversion Hcontr.
+    }
+    { case_eq (a + 1)%a; intros.
+      - iApply (wp_GetGeneral_success with "[$Hr0 $HPC $Hdst $Ha]"); eauto.
+        iNext. iIntros "(HPC & Ha & Hr0 & Hdst)".
+        iDestruct "Hdst" as (z0) "Hdst".
+        destruct (reg_eq_dec PC r0).
+        + subst r0. destruct (reg_eq_dec PC dst); try congruence.
+          iApply wp_pure_step_later; auto.
+          iAssert ([∗ map] k↦y ∈ <[PC:=inr (p, g, b, e, a0)]> (<[dst:=inl z0]> r), k ↦ᵣ y)%I with "[Hdst HPC Hmap]" as "Hmap".
+          { iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+              [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+            rewrite -delete_insert_ne; auto.
+            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+              [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto. }
+          simpl.
+          iAssert (interp_registers _ (<[dst:=inl z0]> r)) as "#[% Hreg']".
+          { iSplit.
+            - iIntros (r1).
+              iPureIntro. destruct (reg_eq_dec r1 dst); simpl.
+              + subst r1. rewrite lookup_insert; eauto.
+              + rewrite lookup_insert_ne; auto.
+            - iIntros (r1 Hnepc) "/=".
+              iDestruct ("Hreg" $! r1 Hnepc) as "#Hv".
+              specialize Hsome with r1 as [wr1 Hr1].
+              rewrite /RegLocate.
+              destruct (reg_eq_dec r1 dst); simpl.
+              + subst r1. rewrite lookup_insert; eauto.
+                repeat rewrite fixpoint_interp1_eq. simpl. eauto.
+              + rewrite lookup_insert_ne; auto. }
+          (* reestablish invariant *)
+          iNext.
+          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+          iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
+        + destruct wr0.
+          * simpl. iApply wp_pure_step_later; auto.
+            iNext. iApply wp_value. iIntros (Hcontr); inversion Hcontr.
+          * destruct c, p0, p0, p0. iApply wp_pure_step_later; auto.
+            iAssert ([∗ map] k↦y ∈ <[PC:=inr (p, g, b, e, a0)]> (if reg_eq_dec r0 dst then <[dst:=inl z0]> r else <[r0:=inr (p0, l, a3, a2, a1)]> (<[dst:=inl z0]> r)), k ↦ᵣ y)%I with "[Hr0 Hdst HPC Hmap]" as "Hmap".
+            { destruct (reg_eq_dec r0 dst).
+              - subst r0. iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                            [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                rewrite -delete_insert_ne; auto.
+                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto.
+              - iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                rewrite -delete_insert_ne; auto.
+                iDestruct ((big_sepM_delete _ _ r0) with "[Hr0 Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+                do 2 (rewrite -delete_insert_ne; auto).
+                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+                  [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl. auto. }
+            iAssert (interp_registers W (if reg_eq_dec r0 dst then <[dst:=inl _]> r else <[r0:=inr (p0, l, a3, a2, a1)]> (<[dst:=inl _]> r))) as "#[% Hreg']".
+            { iSplit.
+              - iIntros (r1).
+                iPureIntro. destruct (reg_eq_dec r0 dst).
+                + subst r0. destruct (reg_eq_dec r1 dst); eapply (proj2 (lookup_insert_is_Some r _ _ _)); eauto.
+                + destruct (reg_eq_dec r1 r0); eapply (proj2 (lookup_insert_is_Some _ r0 r1 (inr _))); eauto.
+                  right; split; auto. destruct (reg_eq_dec r1 dst); eapply (proj2 (lookup_insert_is_Some r _ _ _)); eauto.
+              - iIntros (r1 Hnepc) "/=".
+                iDestruct ("Hreg" $! r1 Hnepc) as "#Hv".
+                specialize Hsome with r1 as [w0 Hsome].
+                rewrite /RegLocate.
+                rewrite Hsome. destruct (reg_eq_dec r0 dst).
+                + subst r0. destruct (reg_eq_dec dst r1).
+                  * subst r1. rewrite lookup_insert !fixpoint_interp1_eq /=; eauto.
+                  * rewrite lookup_insert_ne; eauto. rewrite Hsome; eauto.
+                + destruct (reg_eq_dec r0 r1).
+                  * subst r1. rewrite lookup_insert /=.
+                    rewrite Hsome in Hsomer0; inv Hsomer0.
+                    iApply "Hv"; auto.
+                  * rewrite lookup_insert_ne; auto. destruct (reg_eq_dec dst r1).
+                    { subst r1; rewrite lookup_insert !fixpoint_interp1_eq /=; eauto. }
+                    { rewrite lookup_insert_ne; auto. rewrite Hsome.
+                      iApply "Hv"; auto. } }
+            (* reestablish invariant *)
+            iNext.
+            iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+            iApply ("IH" with "[%] [$Hreg'] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
+      - iApply (wp_GetGeneral_fail with "[Hr0 HPC Hdst Ha]"); eauto; iFrame.
+        iNext. iIntros.
+        iApply wp_pure_step_later; auto.
+        iApply wp_value. iNext. iIntros (Hcontr); inversion Hcontr.
+    }
+  Qed.
+
 End fundamental.

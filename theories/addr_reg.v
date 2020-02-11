@@ -16,32 +16,27 @@ Definition z_of (a: Addr): Z :=
 
 Coercion z_of: Addr >-> Z.
 
-Lemma z_of_eq:
-  forall a1 a2,
-    z_of a1 = z_of a2 ->
-    a1 = a2.
+Lemma z_of_eq a1 a2 :
+  z_of a1 = z_of a2 ->
+  a1 = a2.
 Proof.
-  intros. destruct a1, a2; simpl in *.
-  simplify_eq.
-  assert (forall (b: bool) (n m: Z) (P1 P2: Z.leb n m = b), P1 = P2).
-  { intros. apply eq_proofs_unicity.
-    intros; destruct x; destruct y; auto. }
-    by rewrite (H true z0 MemNum fin fin0).
+  destruct a1, a2; cbn. intros ->.
+  f_equal; apply eq_proofs_unicity; decide equality.
 Qed.
 
-Lemma neq_z_of :
-  forall a1 a2,
-    a1 ≠ a2 → (z_of a1) ≠ (z_of a2).
-Proof.
-  intros.
-  unfold not. intros Heq. apply (z_of_eq a1 a2) in Heq.
-  contradiction.
-Qed. 
+Lemma eq_z_of a1 a2 :
+  a1 = a2 ->
+  z_of a1 = z_of a2.
+Proof. destruct a1; destruct a2. congruence. Qed.
+
+Lemma neq_z_of a1 a2 :
+  a1 ≠ a2 → (z_of a1) ≠ (z_of a2).
+Proof. intros. intros Heq%z_of_eq. congruence. Qed.
 
 Global Instance addr_eq_dec: EqDecision Addr.
 intros x y. destruct x,y. destruct (Z_eq_dec z z0).
 - left. eapply z_of_eq; eauto.
-- right. inversion 1. simplify_eq. 
+- right. inversion 1. simplify_eq.
 Defined.
 
 Definition z_to_addr (z : Z) : option Addr.
@@ -49,8 +44,8 @@ Proof.
   destruct (Z_le_dec z MemNum).
   - apply (Z.leb_le z MemNum) in l.
     exact (Some (A z l)).
-  - exact None. 
-Defined. 
+  - exact None.
+Defined.
 
 Global Instance addr_countable : Countable Addr.
 Proof.
@@ -59,13 +54,13 @@ Proof.
                         | Some z => z_to_addr z
                         | None => None
                         end ;
-            decode_encode := _ |}. 
-  intro r. destruct r; auto. 
+            decode_encode := _ |}.
+  intro r. destruct r; auto.
   rewrite decode_encode.
   unfold z_to_addr. simpl.
   destruct (Z_le_dec z MemNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-  - exfalso. by apply (Z.leb_le z MemNum) in fin. 
+  - exfalso. by apply (Z.leb_le z MemNum) in fin.
 Qed.
 
 Definition le_lt_addr : Addr → Addr → Addr → Prop :=
@@ -93,10 +88,10 @@ Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
 Notation "0" := (za) : Addr_scope.
 Notation "- 42" := (special_a) : Addr_scope.
 
-Global Instance Addr_le_dec : RelDecision le_addr. 
+Global Instance Addr_le_dec : RelDecision le_addr.
 Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
-Global Instance Addr_lt_dec : RelDecision lt_addr. 
-Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.             
+Global Instance Addr_lt_dec : RelDecision lt_addr.
+Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
 
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
   if (Z_le_dec (a + z)%Z MemNum) then Some (A (a + z)%Z _) else None.
@@ -105,49 +100,7 @@ Next Obligation.
 Defined.
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
-Lemma incr_addr_neg:
-  forall a z,
-    (z <= 0)%Z ->
-    exists a', (a + z)%a = Some a'.
-Proof.
-  intros; unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum); eauto.
-  destruct a. generalize (proj1 (Z.leb_le _ _) fin).
-  intros. elim n. simpl. omega.
-Qed.
-
-Lemma incr_addr_one_none:
-  forall a,
-    (a + 1)%a = None ->
-    a = top.
-Proof.
-  unfold incr_addr; intros.
-  destruct (Z_le_dec (a + 1)%Z MemNum); try congruence.
-  eapply z_of_eq. simpl in *.
-  destruct a; simpl in *.
-  apply Z.leb_le in fin. omega.
-Qed.
-
-Lemma Zpred_minus z : (Z.pred z = z - 1)%Z.
-Proof. eauto. Qed. 
-
-Lemma Zminus_succ_r z n : (Z.pred (z - (Z_of_nat n)) = z - (Z.succ (Z_of_nat n)))%Z.
-Proof.
-  induction n; simpl. 
-  - rewrite <- Zminus_0_l_reverse. eauto.
-  - rewrite Zpred_minus. omega.
-Qed.
-
-Lemma Z_minus_plus_leq z z' z'' : (z - z' ≤ z'' ↔ z ≤ z'' + z')%Z.
-Proof. split; omega. Qed.
-
-Lemma Z_plus_minus_leq z z' z'' : (z ≤ z'' - z' ↔ z + z' ≤ z'')%Z.
-Proof. split; omega. Qed.
-
-Lemma Z_leq_succ z z' : (Z.succ z ≤ Z.succ z' → z ≤ z')%Z.
-Proof. intros. omega. Qed. 
-
-Definition region_size : Addr → Addr → nat := 
+Definition region_size : Addr → Addr → nat :=
   λ b e, S (Z.abs_nat (e - b)).
 
 Definition get_addr_from_option_addr : option Addr → Addr :=
@@ -156,20 +109,116 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
            | None => top%a
            end.
 
-Lemma top_le_eq e' : (top <= e')%a → e' = top.
+Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Addr_scope.
+
+(** zify-like tactic to send arithmetic on adresses into Z ******)
+
+Lemma addr_spec (a: Addr) : (a <= MemNum)%Z.
+Proof. destruct a. cbn. rewrite Z.leb_le in fin. lia. Qed.
+
+Lemma incr_addr_spec (a: Addr) (z: Z) :
+  (exists (a': Addr),
+    (a + z)%a = Some a' /\ a + z <= MemNum /\ (a':Z) = a + z)%Z
+  \/
+  ((a + z)%a = None /\ a + z > MemNum)%Z.
 Proof.
-  intros. apply z_of_eq. simpl in *.
-  destruct e'. unfold le_addr in *.
-  simpl in *. apply Z.leb_le in fin.
-  omega.
+  unfold incr_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum); [ left | right ].
+  { eexists. repeat split; lia. }
+  { split; auto; lia. }
 Qed.
 
+Ltac incr_addr_as_spec a x :=
+  let H := fresh in
+  generalize (incr_addr_spec a x); intros [(?&H&?&?)|(H&?)];
+  let ax := fresh "ax" in
+  set (ax := (incr_addr a x)) in *;
+  clearbody ax; subst ax.
+
+Lemma Some_eq_inj A (x y: A) :
+  Some x = Some y ->
+  x = y.
+Proof. congruence. Qed.
+
+Ltac zify_addr_op_step :=
+  match goal with
+  | |- context [ incr_addr ?a ?x ] =>
+    incr_addr_as_spec a x
+  | _ : context [ incr_addr ?a ?x ] |- _ =>
+    incr_addr_as_spec a x
+  | |- @eq Addr ?a ?a' =>
+    apply z_of_eq
+  | H : @eq Addr ?a ?a' |- _ =>
+    apply eq_z_of in H
+  | |- @eq (option Addr) (Some _) (Some _) =>
+    f_equal
+  | H : @eq (option Addr) (Some _) (Some _) |- _ =>
+    apply Some_eq_inj in H
+  | |- @eq (option Addr) (Some _) None =>
+    exfalso
+  | |- @eq (option Addr) None (Some _) =>
+    exfalso
+
+  (* wrapper definitions to unfold (<=, <, etc) *)
+  | |- context [ le_lt_addr _ _ _ ] =>
+    unfold le_lt_addr
+  | H : context [ le_lt_addr _ _ _ ] |- _ =>
+    unfold le_lt_addr in H
+  | |- context [ le_addr _ _ ] =>
+    unfold le_addr
+  | H : context [ le_addr _ _ ] |- _ =>
+    unfold le_addr in H
+  | |- context [ leb_addr _ _ ] =>
+    unfold leb_addr
+  | H : context [ leb_addr _ _ ] |- _ =>
+    unfold leb_addr in H
+  | |- context [ lt_addr _ _ ] =>
+    unfold lt_addr
+  | H : context [ lt_addr _ _ ] |- _ =>
+    unfold lt_addr in H
+  | |- context [ ltb_addr _ _ ] =>
+    unfold ltb_addr
+  | H : context [ ltb_addr _ _ ] |- _ =>
+    unfold ltb_addr in H
+  | |- context [ eqb_addr _ _ ] =>
+    unfold eqb_addr
+  | H : context [ eqb_addr _ _ ] |- _ =>
+    unfold eqb_addr in H
+  end.
+
+Ltac zify_addr_ty_step :=
+  match goal with
+  | a : Addr |- _ =>
+    generalize (addr_spec a); intros;
+    let z := fresh "z" in
+    set (z := (z_of a)) in *;
+    clearbody z; clear a
+  end.
+
+Ltac zify_addr := repeat (zify_addr_op_step; cbn in *); repeat zify_addr_ty_step.
+Ltac solve_addr := intros; zify_addr; solve [ auto | lia | congruence ].
+
+(** Derived lemmas *)
+
+Lemma addr_add_0 a: (a + 0)%a = Some a.
+Proof. solve_addr. Qed.
+
+Lemma incr_addr_one_none a :
+  (a + 1)%a = None ->
+  a = top.
+Proof. solve_addr. Qed.
+
+Lemma incr_addr_opt_add_twice (a: Addr) (n m: Z) :
+  (0 <= n)%Z ->
+  (0 <= m)%Z ->
+  ^(^(a + n) + m)%a = ^(a + (n + m)%Z)%a.
+Proof. solve_addr. Qed.
+
+Lemma top_le_eq a : (top <= a)%a → a = top.
+Proof. solve_addr. Qed.
+
 Lemma top_not_le_eq a : ¬ (a < top)%a → a = top.
-Proof.
-  intros. apply top_le_eq.
-  destruct a; unfold le_addr; unfold lt_addr in *; simpl in *.
-  apply Z.leb_le in fin. omega.
-Qed.
+Proof. solve_addr. Qed.
 
 (* ------------------------------------ REG --------------------------------------------*)
 
@@ -188,7 +237,7 @@ Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
        + right. congruence.
 Defined.
 
-Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.   
+Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
   if (nat_le_dec n RegNum) then Some (R n _) else None.
@@ -197,7 +246,7 @@ Next Obligation.
 Qed.
 
 Global Instance reg_countable : Countable RegName.
-Proof. 
+Proof.
   refine {| encode r := encode match r with
                                | PC => inl ()
                                | R n fin => inr n
@@ -207,11 +256,11 @@ Proof.
                         | Some (inr n) => n_to_regname n
                         | None => None
                         end ;
-            decode_encode := _ |}. 
-  intro r. destruct r; auto. 
+            decode_encode := _ |}.
+  intro r. destruct r; auto.
   rewrite decode_encode.
   unfold n_to_regname.
   destruct (nat_le_dec n RegNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-  - exfalso. by apply (Nat.leb_le n RegNum) in fin. 
+  - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.

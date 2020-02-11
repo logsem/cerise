@@ -285,3 +285,8 @@ TSWLatexianTemp*
 
 # Makeindex log files
 *.lpz
+
+# Compilation artifacts
+.coqdeps.d
+Makefile.coq
+Makefile.coq.conf

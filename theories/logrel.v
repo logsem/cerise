@@ -2811,7 +2811,61 @@ Section heap.
     rewrite -HMeq. 
     iFrame "# ∗". auto. 
   Qed.
-  
+
+  Lemma region_open_next
+        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
+        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
+    l ∉ ls
+    → std_sta W !! countable.encode l = Some (countable.encode ρ)
+    → open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W
+                       -∗ ∃ v : Word,
+        sts_full_world sts_std W
+                       ∗ sts_state_std (countable.encode l) ρ
+                       ∗ open_region_many (l :: ls) W
+                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ (match ρ with
+                                                  | Permanent => future_priv_mono
+                                                  | Temporary => if pwl p then
+                                                                   future_pub_mono
+                                                                 else future_priv_mono
+                                                  | Revoked => fun _ _ => True%I
+                                                  end) φ v ∗
+                       ▷ φ (W, v).
+  Proof.
+    intros. iIntros "H".
+    destruct ρ; try congruence.
+    - case_eq (pwl p); intros.
+      + iDestruct (region_open_next_temp_pwl with "H") as (v) "[A [B [C D]]]"; eauto.
+        iExists v. iFrame.
+      + iDestruct (region_open_next_temp_nwl with "H") as (v) "[A [B [C D]]]"; eauto.
+        iExists v. iFrame.
+    - iApply (region_open_next_perm with "H"); eauto.
+  Qed.
+
+  Lemma region_close_next
+        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
+        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
+    l ∉ ls
+    → sts_state_std (countable.encode l) ρ
+                    ∗ open_region_many (l :: ls) W
+                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ (match ρ with
+                                             | Permanent => future_priv_mono
+                                             | Temporary => if pwl p then
+                                                              future_pub_mono
+                                                            else future_priv_mono
+                                             | Revoked => fun _ _ => True%I
+                                             end) φ v ∗ ▷ φ (W, v) ∗ rel l p φ -∗
+                    open_region_many ls W.
+  Proof.
+    intros. iIntros "[A [B [C [D [E [F G]]]]]]".
+    destruct ρ; try congruence.
+    - case_eq (pwl p); intros.
+      + iApply (region_close_next_temp_pwl with "[A B C D E F G]"); eauto; iFrame.
+      + iApply (region_close_next_temp_nwl with "[A B C D E F G]"); eauto; iFrame.
+    - iApply (region_close_next_perm with "[A B C D E F G]"); eauto; iFrame.
+  Qed.
+
 End heap. 
 
 Ltac auto_equiv :=
@@ -2898,8 +2952,13 @@ Section logrel.
     (match g with
     | Local => ⌜related_sts_pub_world W W'⌝
     | Global => ⌜related_sts_priv_world W W'⌝
-    end)%I. 
-  
+     end)%I.
+
+  Global Instance future_world_persistent g W W': Persistent (future_world g W W').
+  Proof.
+    unfold future_world. destruct g; apply bi.pure_persistent.
+  Qed.
+
   Definition exec_cond W b e g p (interp : D) : iProp Σ :=
     (∀ a r W', ⌜a ∈ₐ [[ b , e ]]⌝ → future_world g W W' →
             ▷ interp_expr interp r W' (inr ((p,g),b, e,a)))%I.
@@ -3153,13 +3212,77 @@ Section logrel.
     - done.
       Unshelve. exact RWL. exact RWLX. 
   Qed.
-  
+
+  Lemma writeLocalAllowed_implies_local W p l b e a:
+    pwl p = true ->
+    interp W (inr (p, l, b, e, a)) -∗ ⌜isLocal l⌝.
+  Proof.
+    intros. iIntros "Hvalid".
+    unfold interp; rewrite fixpoint_interp1_eq /=.
+    destruct p; simpl in H3; try congruence; destruct l; eauto.
+  Qed.
+
+  Lemma readAllowed_valid_cap_implies W p l b e a:
+    readAllowed p = true ->
+    withinBounds (p, l, b, e, a) = true ->
+    interp W (inr (p, l, b, e, a)) -∗
+           ⌜region_std W a /\ ∃ ρ, std_sta W !! countable.encode a = Some (countable.encode ρ) /\ ρ <> Revoked⌝.
+  Proof.
+    intros. iIntros "Hvalid".
+    eapply withinBounds_le_addr in H4.
+    unfold interp; rewrite fixpoint_interp1_eq /=.
+    destruct p; simpl in H3; try congruence.
+    - iDestruct "Hvalid" as (p) "[% H]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split; eauto.
+      destruct l; simpl in H6; eauto.
+      destruct H6; eauto.
+    - iDestruct "Hvalid" as (p) "[% H]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split; eauto.
+      destruct l; simpl in H6; eauto.
+      destruct H6; eauto.
+    - destruct l; auto.
+      iDestruct "Hvalid" as (p) "[% H]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+    - iDestruct "Hvalid" as (p) "[% [H H']]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split; eauto.
+      destruct l; simpl in H6; eauto.
+      destruct H6; eauto.
+    - iDestruct "Hvalid" as (p) "[% [H H']]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split; eauto.
+      destruct l; simpl in H6; eauto.
+      destruct H6; eauto.
+    - destruct l; auto.
+      iDestruct "Hvalid" as (p) "[% [H H']]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+  Qed.
+
+
+  Lemma writeLocalAllowed_valid_cap_implies W p l b e a:
+    pwl p = true ->
+    withinBounds (p, l, b, e, a) = true ->
+    interp W (inr (p, l, b, e, a)) -∗
+           ⌜region_std W a /\ std_sta W !! countable.encode a = Some (countable.encode Temporary)⌝.
+  Proof.
+    intros. iIntros "Hvalid".
+    iAssert (⌜isLocal l⌝)%I as "%". by iApply writeLocalAllowed_implies_local.
+    eapply withinBounds_le_addr in H4.
+    unfold interp; rewrite fixpoint_interp1_eq /=.
+    destruct p; simpl in H3; try congruence; destruct l.
+    - by exfalso.
+    - iDestruct "Hvalid" as (p) "[% H]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+    - by exfalso.
+    - iDestruct "Hvalid" as (p) "[% [H _] ]".
+      iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+  Qed.
+
 End logrel.
 
 (* Notation "𝕍( W )" := (interp W) (at level 70). *)
 (* Notation "𝔼( W )" := (λ r, interp_expression r W). *)
 (* Notation "ℝ( W )" := (interp_registers W). *)
 (* Notation "𝕆( W )" := (interp_conf W.1 W.2).  *)
-
-
-    

@@ -16,6 +16,7 @@ theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules/rules.v
+theories/addr_reg.v
 theories/lang.v
 theories/logrel.v
 theories/region.v
