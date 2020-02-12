@@ -23,7 +23,7 @@ Section fundamental.
       p = RX ∨ p = RWX ∨ (p = RWLX /\ g = Local)
     → (∀ x : RegName, is_Some (r !! x))
     → isCorrectPC (inr (p, g, b, e, a))
-    → (b <= a)%a ∧ (a <= e)%a
+    → (b <= a)%a ∧ (a < e)%a
     → PermFlows p p'
     → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
     → region_std W a

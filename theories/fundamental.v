@@ -61,7 +61,7 @@ Section fundamental.
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr ((p,g),b,e,a)))). 
     - (* Correct PC *)
-      assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
+      assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 

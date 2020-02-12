@@ -334,7 +334,7 @@ Section logrel.
   Qed. 
 
   Lemma read_allowed_inv W (a' a b e: Addr) p g :
-    (b ≤ a' ∧ a' ≤ e)%Z →
+    (b ≤ a' ∧ a' < e)%Z →
     readAllowed p → (interp W (inr ((p,g),b,e,a)) →
       (∃ p', ⌜PermFlows p p'⌝ ∗ (read_write_cond a' p' interp)))%I.
   Proof.

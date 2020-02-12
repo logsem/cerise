@@ -142,12 +142,13 @@ Module cap_lang.
 
   Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
-    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a).
+    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
   Proof.
     intros. inversion H; subst.
     - destruct H2. apply andb_prop_intro. split.
       + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
-      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; omega.
+      + apply andb_prop_intro.
+        split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
     (*- apply andb_prop_intro. split.
       + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
       + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
@@ -198,17 +199,17 @@ Module cap_lang.
 
   Definition withinBounds (c: Cap): bool :=
     match c with
-    | (_, b, e, a) => (b <=? a)%a && (a <=? e)%a
+    | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
     end.
 
   Lemma withinBounds_le_addr p l b e a:
     withinBounds (p, l, b, e, a) = true ->
-    (b <= a)%a ∧ (a <= e)%a.
+    (b <= a)%a ∧ (a < e)%a.
   Proof.
     simpl; intros A. eapply andb_true_iff in A.
-    unfold le_addr in *. unfold leb_addr in *.
+    unfold le_addr, lt_addr, leb_addr, ltb_addr in *.
     generalize (proj1 (Z.leb_le _ _) (proj1 A)).
-    generalize (proj1 (Z.leb_le _ _) (proj2 A)).
+    generalize (proj1 (Z.ltb_lt _ _) (proj2 A)).
     lia.
   Qed.
 

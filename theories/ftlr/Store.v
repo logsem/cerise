@@ -83,7 +83,7 @@ Section fundamental.
           iApply (wp_store_fail_z_PC_1 with "[$HPC $Ha]"); eauto.
           { split; [destruct Hp as [-> | [-> _] ]; auto|].
             destruct Hbae as [Hb He].
-            apply andb_true_iff; split; apply Zle_is_le_bool; auto.
+            apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto.
           }
           iNext. iIntros (_).
           iApply wp_pure_step_later; auto. iNext.
@@ -97,7 +97,7 @@ Section fundamental.
              *** (* failure: trying to write a local word without perm *)
                iApply (wp_store_fail_PC_PC3 with "[$HPC $Ha]"); eauto.
                { destruct Hbae as [Hb He].
-                 apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                 apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                iNext. iIntros (_).
                iApply wp_pure_step_later; auto. iNext.
                iApply wp_value. iIntros. discriminate.
@@ -105,7 +105,7 @@ Section fundamental.
                  { (* successful write into a: word is not local *)
                    iApply (wp_store_success_reg_PC_same with "[$HPC $Ha]"); eauto.
                    { split; auto. destruct Hbae as [Hb He].
-                     apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                     apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                    iNext. iIntros "[HPC Ha]".
                    iApply wp_pure_step_later; auto; iNext.
                    iDestruct (region_close with "[$Hr $Ha $Hstate ]") as "Hr"; eauto. iFrame "#".
@@ -145,7 +145,7 @@ Section fundamental.
                    destruct g; inversion Hlocal; auto.
                    iApply (wp_store_fail_PC_PC_1 with "[$HPC $Ha]"); eauto.
                    { split;auto. destruct Hbae as [Hb He].
-                     apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                     apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                    iNext. iIntros (_).
                    iApply wp_pure_step_later; auto. iNext.
                    iApply wp_value. iIntros. discriminate.
@@ -154,7 +154,7 @@ Section fundamental.
              { (* successful write into a: perm is local allowed *)
                iApply (wp_store_success_reg_PC_same with "[$HPC $Ha]"); eauto.
                { split; auto. destruct Hbae as [Hb He].
-                 apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                 apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                iNext. iIntros "[HPC Ha]".
                iApply wp_pure_step_later; auto; iNext.
                iDestruct (region_close with "[$Hr $Ha $Hstate ]") as "Hr"; eauto. iFrame "#".
@@ -209,7 +209,7 @@ Section fundamental.
              { (* failure to increment PC *)
                iApply (wp_store_fail_PC_PC_1 with "[$HPC $Ha]"); eauto.
                { split;auto. destruct Hbae as [Hb He].
-                 apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                 apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                iNext. iIntros (_).
                iApply wp_pure_step_later; auto. iNext.
                iApply wp_value. iIntros. discriminate.
@@ -222,7 +222,7 @@ Section fundamental.
                destruct wdst; first inversion Hlocal. destruct c,p,p,p.
                iApply (wp_store_fail_PC3 with "[$HPC $Ha $Hdst]"); eauto.
                { destruct Hbae as [Hb He].
-                 apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                 apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                iNext. iIntros (_).
                iApply wp_pure_step_later; auto. iNext.
                iApply wp_value. iIntros. discriminate.
@@ -264,7 +264,7 @@ Section fundamental.
                  { (* failure to increment PC *)
                    iApply (wp_store_fail_reg_PC_1 with "[$HPC $Ha $Hdst]"); eauto.
                    { split;auto. destruct Hbae as [Hb He].
-                     apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                     apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                    iNext. iIntros (_).
                    iApply wp_pure_step_later; auto. iNext.
                    iApply wp_value. iIntros. discriminate.
@@ -323,7 +323,7 @@ Section fundamental.
              { (* failure to increment PC *)
                iApply (wp_store_fail_reg_PC_1 with "[$HPC $Ha $Hdst]"); eauto.
                { split;auto. destruct Hbae as [Hb He].
-                 apply andb_true_iff; split; apply Zle_is_le_bool; auto. }
+                 apply andb_true_iff; split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                iNext. iIntros (_).
                iApply wp_pure_step_later; auto. iNext.
                iApply wp_value. iIntros. discriminate.
@@ -354,7 +354,7 @@ Section fundamental.
               iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
               iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
               { apply andb_true_iff in Hwb as [Hle Hge].
-                split; apply Zle_is_le_bool; auto. }
+                split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
               { destruct p0; inversion Hwa; auto. }
               rewrite /read_write_cond.
               iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -399,7 +399,7 @@ Section fundamental.
               destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
               iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
               { apply andb_true_iff in Hwb as [Hle Hge].
-                split; apply Zle_is_le_bool; auto. }
+                split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
               { destruct p0; inversion Hwa; auto. }
               iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
               { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -439,7 +439,7 @@ Section fundamental.
             - iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
               iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
               { apply andb_true_iff in Hwb as [Hle Hge].
-                split; apply Zle_is_le_bool; auto. }
+                split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
               { destruct p0; inversion Hwa; auto. }
               rewrite /read_write_cond.
               iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -455,7 +455,7 @@ Section fundamental.
               destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
               iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
               { apply andb_true_iff in Hwb as [Hle Hge].
-                split; apply Zle_is_le_bool; auto. }
+                split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
               { destruct p0; inversion Hwa; auto. }
               iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
               { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -477,7 +477,7 @@ Section fundamental.
                 { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                   iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                   { apply andb_true_iff in Hwb as [Hle Hge].
-                    split; apply Zle_is_le_bool; auto. }
+                    split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                   { destruct p0; inversion Hwa; auto. }
                   rewrite /read_write_cond.
                   iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -572,7 +572,7 @@ Section fundamental.
                    destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                    iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                    { apply andb_true_iff in Hwb as [Hle Hge].
-                     split; apply Zle_is_le_bool; auto. }
+                     split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                    { destruct p0; inversion Hwa; auto. }
                    iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                    { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -664,7 +664,7 @@ Section fundamental.
                 { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                   iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                   { apply andb_true_iff in Hwb as [Hle Hge].
-                    split; apply Zle_is_le_bool; auto. }
+                    split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                   { destruct p0; inversion Hwa; auto. }
                   rewrite /read_write_cond.
                   iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -683,7 +683,7 @@ Section fundamental.
                   destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                   iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                   { apply andb_true_iff in Hwb as [Hle Hge].
-                    split; apply Zle_is_le_bool; auto. }
+                    split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                   { destruct p0; inversion Hwa; auto. }
                   iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                   { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -713,7 +713,7 @@ Section fundamental.
                    { iDestruct ("Hreg" $! r0 _) as "Hdstv". rewrite /RegLocate Hsomedst.
                      iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      rewrite /read_write_cond.
                      iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -777,7 +777,7 @@ Section fundamental.
                      destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                      iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -819,7 +819,7 @@ Section fundamental.
                    { iDestruct ("Hreg" $! r0 _) as "Hdstv". rewrite /RegLocate Hsomedst.
                      iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      rewrite /read_write_cond.
                      iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -838,7 +838,7 @@ Section fundamental.
                      destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                      iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -869,7 +869,7 @@ Section fundamental.
                    { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                      iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      rewrite /read_write_cond.
                      iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -923,7 +923,7 @@ Section fundamental.
                      destruct H4 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                      iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -973,7 +973,7 @@ Section fundamental.
                    { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                      iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      rewrite /read_write_cond.
                      iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -990,7 +990,7 @@ Section fundamental.
                      destruct H4 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                      iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                      { apply andb_true_iff in Hwb as [Hle Hge].
-                       split; apply Zle_is_le_bool; auto. }
+                       split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                      { destruct p0; inversion Hwa; auto. }
                      iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -1009,7 +1009,7 @@ Section fundamental.
                         { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                           iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                           { apply andb_true_iff in Hwb as [Hle Hge].
-                            split; apply Zle_is_le_bool; auto. }
+                            split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                           { destruct p0; inversion Hwa; auto. }
                           rewrite /read_write_cond.
                           iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -1088,7 +1088,7 @@ Section fundamental.
                           destruct H4 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                           iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                           { apply andb_true_iff in Hwb as [Hle Hge].
-                            split; apply Zle_is_le_bool; auto. }
+                            split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                           { destruct p0; inversion Hwa; auto. }
                           iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                           { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
@@ -1138,7 +1138,7 @@ Section fundamental.
                         { iDestruct ("Hreg" $! dst _) as "Hdstv". rewrite /RegLocate Hsomedst.
                           iDestruct (read_allowed_inv _ a0 with "Hdstv") as (p'' Hfl') "#Harel'".
                           { apply andb_true_iff in Hwb as [Hle Hge].
-                            split; apply Zle_is_le_bool; auto. }
+                            split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                           { destruct p0; inversion Hwa; auto. }
                           rewrite /read_write_cond.
                           iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
@@ -1157,7 +1157,7 @@ Section fundamental.
                           destruct H4 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
                           iDestruct (read_allowed_inv _ a0 with "Hvdst") as (p1 Hfl') "#Ha2a1".
                           { apply andb_true_iff in Hwb as [Hle Hge].
-                            split; apply Zle_is_le_bool; auto. }
+                            split; [apply Zle_is_le_bool | apply Zlt_is_lt_bool]; auto. }
                           { destruct p0; inversion Hwa; auto. }
                           iDestruct (region_open_next _ _ _ a0 p1 ρ' with "[$Ha2a1 $Hr $Hsts]") as (wa0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
                           { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }

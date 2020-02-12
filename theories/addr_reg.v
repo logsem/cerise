@@ -100,9 +100,6 @@ Next Obligation.
 Defined.
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
-Definition region_size : Addr → Addr → nat :=
-  λ b e, S (Z.abs_nat (e - b)).
-
 Definition get_addr_from_option_addr : option Addr → Addr :=
   λ e_opt, match e_opt with
            | Some e => e
@@ -337,3 +334,30 @@ Proof.
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
   - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
+
+(* ------------------ *)
+(* Hack: modify [zify] to make it support [Z.to_nat] (used in the definition of
+   [region_size]). *)
+(* TODO: remove the code below whenever we upgrade to Coq 8.11, as the issue has
+   been fixed upstream starting from Coq 8.11.
+*)
+
+Lemma Z_of_nat_zify : forall x, Z.of_nat (Z.to_nat x) = Z.max 0 x.
+Proof.
+  intros x. destruct x.
+  - rewrite Z2Nat.id; reflexivity.
+  - rewrite Z2Nat.inj_pos. lia.
+  - rewrite Z2Nat.inj_neg. lia.
+Qed.
+
+Ltac zify_nat_op_extended :=
+  match goal with
+  | H : context [ Z.of_nat (Z.to_nat ?a) ] |- _ => rewrite (Z_of_nat_zify a) in H
+  | |- context [ Z.of_nat (Z.to_nat ?a) ] => rewrite (Z_of_nat_zify a)
+  | _ => zify_nat_op
+  end.
+
+Global Ltac zify_nat ::=
+  repeat zify_nat_rel; repeat zify_nat_op_extended; unfold Z_of_nat' in *.
+
+(* ------------------ *)

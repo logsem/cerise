@@ -22,7 +22,7 @@ Section fundamental.
       p = RX ∨ p = RWX ∨ (p = RWLX /\ g = Local)
     → (∀ x : RegName, is_Some (r !! x))
     → isCorrectPC (inr (p, g, b, e, a))
-    → (b <= a)%a ∧ (a <= e)%a
+    → (b <= a)%a ∧ (a < e)%a
     → PermFlows p p'
     → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
     → region_std W a
@@ -761,8 +761,7 @@ Section fundamental.
                   + iApply (wp_add_sub_lt_fail1 with "[Ha HPC Hr0]"); eauto; iFrame.
                     iNext. iIntros "(HPC & Ha & Hr0)". iApply wp_pure_step_later; auto.
                     iApply wp_value; eauto. iNext; iIntros; discriminate. } }
-      Unshelve. exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
-      exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z). exact (inl 0%Z).
+      Unshelve. all: exact (inl 0%Z).
   Qed.
 
 End fundamental.

@@ -306,7 +306,7 @@ Section cap_lang_rules.
            ∗ pc_a ↦ₐ[pc_p'] w
            ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc)
            ∗ (if reg_eq_dec src dst then emp else dst ↦ᵣ wdst) }}}
-      Instr Executable @ E
+       Instr Executable @ E
       {{{ RET if reg_eq_dec PC src then NextIV else match wsrc with inr _ => NextIV | _ => FailedV end;
           PC ↦ᵣ (if reg_eq_dec PC src then inr ((pc_p,pc_g),pc_b,pc_e,pc_a') else match wsrc with inr _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a') | inl _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a) end)
              ∗ pc_a ↦ₐ[pc_p'] w
