@@ -206,7 +206,25 @@ Section Contiguous.
     apply contiguous_drop with _ i in Ha.
     apply contiguous_incr_addr with (drop i a); auto.
   Qed.
-  
+
+  (* an alternative version of proving that an element in the middle of the list is < than the last *)
+  Lemma incr_list_lt_middle_alt (a : list Addr) i (ai an : Addr) :
+    contiguous a ->
+    a !! i = Some ai -> list.last a = Some an -> i < length a - 1 -> (ai < an)%Z.
+  Proof.
+    intros Hreg Ha Hj Hlt.
+    assert (ai ≤ an)%Z as Hinc; first (apply incr_list_le_middle with a i; auto).
+    rewrite last_lookup in Hj.
+    apply Zle_lt_or_eq in Hinc as [Hlt' | Heq];[auto|].
+    apply z_of_eq in Heq. subst.
+    assert ((an + (length a - 1 - i))%a = Some an) as Hcontr.
+    { apply (contiguous_incr_addr_middle a i (length a - 1 - i)%nat an an) in Ha;auto.
+      - solve_addr.
+      - rewrite -Hj. f_equiv. lia. 
+    } 
+    apply next_lt_i in Hcontr; [done|lia]. 
+  Qed. 
+    
   (* A region_addrs_aux is contiguous *)
   Lemma region_addrs_aux_contiguous (a : Addr) (n : nat) :
     (a + n - 1 ≤ MemNum)%Z

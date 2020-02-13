@@ -9,21 +9,6 @@ Section lse.
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
             Heap: heapG Σ}.
 
-   Ltac iPrologue_pre :=
-    match goal with
-    | Hlen : length ?a = ?n |- _ =>
-      let a' := fresh "a" in
-      destruct a as [_ | a' a]; inversion Hlen; simpl
-    end.
-  
-  Ltac iPrologue prog :=
-    (try iPrologue_pre);
-    iDestruct prog as "[Hi Hprog]"; 
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
 
   Ltac middle_lt prev index :=
     match goal with
@@ -53,35 +38,6 @@ Section lse.
     | H : _ |- (?a1 + ?z)%a = Some ?a2 =>
       rewrite /incr_addr /=; do 2 f_equal; apply eq_proofs_unicity; decide equality
     end.
-       
-  Ltac wp_push_z Hstack a_lo a_hi b e a_cur a_next φ push1 push2 push3 ws prog ptrn :=
-    match goal with
-    | H : strings.length _ = _ |- _ =>
-      let wa := fresh "wa" in
-      let Ha := fresh "w" in
-      let Ha_next := fresh "H" in
-      iDestruct prog as "[Hi Hf2]";
-      destruct ws as [_ | wa ws]; first inversion H;
-      iDestruct Hstack as "[Ha Hstack]"; 
-      iApply (push_z_spec push1 push2 push3 _ _ _ _ _ _ _ b e a_cur a_next φ);
-      eauto; try addr_succ; try apply PermFlows_refl; 
-      [split; eauto; apply isCorrectPC_bounds with a_lo a_hi; eauto; split; done|];
-      iFrame; iNext; iIntros ptrn
-    end.
-
-   Ltac wp_push_r Hstack a_lo a_hi b e a_cur a_next φ push1 push2 push3 ws prog ptrn :=
-    match goal with
-    | H : length _ = _ |- _ =>
-      let wa := fresh "wa" in
-      let Ha := fresh "w" in
-      iDestruct prog as "[Hi Hf2]";
-      destruct ws as [_ | wa ws]; first inversion H;
-      iDestruct Hstack as "[Ha Hstack]"; 
-      iApply (push_r_spec push1 push2 push3 _ _ _ _ _ _ _ _ b e a_cur a_next φ);
-      eauto; try addr_succ; try apply PermFlows_refl;
-      [split; eauto; apply isCorrectPC_bounds with a_lo a_hi; eauto; split; done|];
-      iFrame; iNext; iIntros ptrn
-    end.
 
    (* The following ltac gets out the next general purpuse register *)
    Ltac get_genpur_reg Hr_gen wsr ptr :=
@@ -99,6 +55,20 @@ Section lse.
 
    Ltac iContiguous_next Ha index :=
      rewrite /contiguous in Ha; apply Ha with index;auto.
+
+   Ltac iPrologue_pre l Hl :=
+     destruct l; [inversion Hl|]; iApply (wp_bind (fill [SeqCtx])).
+   
+   Ltac iPrologue l Hl prog := 
+     iPrologue_pre l Hl;
+     iDestruct prog as "[Hinstr Hprog]".     
+
+  Ltac iEpilogue intro_ptrn :=
+    iNext; iIntros intro_ptrn; iSimpl;
+    iApply wp_pure_step_later;auto;iNext.
+
+  Ltac iLookupR Hl :=
+    rewrite /= lookup_app_r;rewrite Hl /=;auto. 
     
         
   (* encapsulation of local state using local capabilities and scall *)
@@ -152,6 +122,9 @@ Section lse.
     (b_r ≤ e_r)%Z ->
     region_size b_r e_r > 10 -> (* we must assume the stack is large enough for needed local state *)
     (b_r' + 1)%a = Some b_r ->
+    (* Finally, we must assume that the stack is currently not in the world *)
+    Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
+                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b_r e_r) ->
     
     {{{ r_stk ↦ᵣ inr ((RWLX,Local),b_r,e_r,b_r')
       ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_stk;r_t30]; wsr,
@@ -163,7 +136,9 @@ Section lse.
       ∗ na_own logrel_nais ⊤
       (* adv *)
       ∗ r_t30 ↦ᵣ inr ((E,Global),b,e,a)
-      ∗ ([∗ list] a ∈ region_addrs b e, read_write_cond a RX interp)
+      ∗ ([∗ list] a ∈ (region_addrs b e), (read_write_cond a RX interp)
+                                             ∧ ⌜region_state_nwl W a Global⌝
+                                             ∧ ⌜region_std W a⌝)
       (* trusted *)
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a_first)
       ∗ f2 f2_addrs pc_p r_t30 65 flag_off
@@ -174,7 +149,7 @@ Section lse.
       Seq (Instr Executable)
     {{{ v, RET v; ⌜v = HaltedV⌝ → a_flag ↦ₐ[RW] inl 0%Z }}}.
   Proof.
-    iIntros ([Hvpc0 Hvpc93] Hf2 [Ha_first Ha_last] Hbounds Hle Hsize Hb_r' φ)
+    iIntros ([Hvpc0 Hvpc93] Hf2 [Ha_first Ha_last] Hbounds Hle Hsize Hb_r' Hdom φ)
             "(Hr_stk & Hr_gen & Hstack & Hflag & Hna & Hr1 & #Hadv & HPC & Hf2 & Hs & Hr) Hφ /=".
     (* Getting some general purpose regiters *)
     iDestruct "Hr_gen" as (wsr) "Hr_gen". 
@@ -255,32 +230,45 @@ Section lse.
     { assert (8 = 7 + 1)%Z as ->;[lia|]. rewrite (addr_add_assoc _ s_last); auto. }
     { apply (contiguous_incr_addr _ 77 rest_first _ Hrest); auto.
       rewrite lookup_app_r;[|lia]. by rewrite -Hscall_length PeanoNat.Nat.sub_diag. }
-    iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hstack_adv & _)". 
+    iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hstack_adv & _)".
+    iDestruct (big_sepL2_length with "Hf2") as %Hf2_length. simpl in Hf2_length. 
     (* jmp r_t30 *)
-    iPrologue "Hf2".
-    iApply (wp_jmp_success _ _ _ _ _ (a-78) with "[Hi HPC Hr1]");
-      first apply jmp_i;first apply PermFlows_refl;
-      first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done). 
-    iFrame. iEpilogue "(HPC & _ & Hr1)"; iSimpl in "HPC".
+    iPrologue rest0 Hf2_length "Hf2". simpl in Hrest0_first; inversion Hrest0_first; subst.
+    iApply (wp_jmp_success with "[$Hinstr $Hr1 $HPC]");
+      [apply jmp_i|apply PermFlows_refl|..].
+    { apply isCorrectPC_bounds_alt with a_first a_last; auto. iContiguous_bounds a_first rest0_first a_last 79 Hf2;
+      do 2 (rewrite lookup_app_r;[simpl|simpl;lia]); by rewrite Hscall_length. }
+    iEpilogue "(HPC & _ & Hr1)"; iSimpl in "HPC".
     (* We have now arrived at the interesting part of the proof: namely the unknown 
        adversary code. In order to reason about unknown code, we must apply the 
        fundamental theorem. To this purpose, we must first define the stsf that will 
        describe the behavior of the memory. *)
     evar (r : gmap RegName Word).
     instantiate (r := <[PC    := inl 0%Z]>
-                     (<[r_stk := inr (RWLX, Local, (a-129), (a-150), (a-128))]>
-                     (<[r_t0  := inr (E, Local, (a-120), (a-150), (a-121))]>
+                     (<[r_stk := inr (RWLX, Local, s_first, e_r, s_last)]>
+                     (<[r_t0  := inr (E, Local, b_r, e_r, stack_own_b)]>
                      (<[r_t30 := inr (E, Global, b, e, a)]>
                      (create_gmap_default
-                (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (inl 0%Z)))))).
-    iAssert (interp_expression r W (inr (RX, Global, b, e, a))) as "Hvalid". 
-    { iApply fundamental. iLeft; auto. iExists RX. iFrame "#". admit. }
+                        (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (inl 0%Z)))))).
+    evar (W_stk : prod (prod STS_states STS_rels) (prod STS_states STS_rels)).
+    instantiate (W_stk := (std_update_temp_multiple W (region_addrs s_first e_r))).
+    assert (related_sts_pub_world W W_stk) as Hrelated_alloc.
+    { rewrite /W_stk. apply related_sts_pub_update_temp_multiple;[apply region_addrs_NoDup|].
+      rewrite Hstackeq in Hdom. apply Forall_app in Hdom as [_ Hdom]. done. }
+    iAssert (interp_expression r W_stk (inr (RX, Global, b, e, a))) as "Hvalid". 
+    { iApply fundamental. iLeft; auto. iExists RX. iSplit;[auto|]. 
+      iApply (big_sepL_mono with "Hadv"). iIntros (k y Hsome) "(Hadv & Hperm & Hstd)". iFrame.
+      iDestruct "Hstd" as %Hstd'. iDestruct "Hperm" as %Hsta.
+      iPureIntro. simpl. split.
+      + apply region_state_nwl_monotone_nl with W; auto. by apply related_sts_pub_priv_world.
+      + apply related_sts_rel_std with W; auto. by apply related_sts_pub_priv_world.
+    } 
     (* We have all the resources of r *)
     iAssert (registers_mapsto (<[PC:=inr (RX, Global, b, e, a)]> r))
                           with "[Hr_gen Hr_stk Hr_t0 Hr1 HPC]" as "Hmaps".
     { rewrite /r /registers_mapsto (insert_insert _ PC).
-      iApply (big_sepM_insert_2 with "[HPC]"); first iFrame.
-      iApply (big_sepM_insert_2 with "[Hr_stk]"); first iFrame.
+      iApply (big_sepM_insert_2 with "[HPC]"); [iFrame|]. 
+      iApply (big_sepM_insert_2 with "[Hr_stk]"); [iFrame|].
       iApply (big_sepM_insert_2 with "[Hr_t0]"); first iFrame.
       iApply (big_sepM_insert_2 with "[Hr1]"); first iFrame.
       assert ((list_difference all_registers [PC; r_stk; r_t0; r_t30]) =
@@ -311,88 +299,61 @@ Section lse.
     }
     (* Need to prove the validity of the continuation, the stack, as well as put
        local memory into invariant. *)
-    iMod (inv_alloc
-            (nroot.@"Hprog")
-            _
-            (a- 79 ↦ₐ[pc_p] sub_z_z r_t1 0 7
-           ∗ a- 80 ↦ₐ[pc_p] lea_r r_stk r_t1
-           ∗ a- 81 ↦ₐ[pc_p] load_r r_t30 r_stk
-           ∗ a- 82 ↦ₐ[pc_p] sub_z_z r_t1 0 1
-           ∗ a- 83 ↦ₐ[pc_p] lea_r r_stk r_t1
-           ∗ a- 84 ↦ₐ[pc_p] move_r r_t1 PC
-           ∗ a- 85 ↦ₐ[pc_p] lea_z r_t1 5
-           ∗ a- 86 ↦ₐ[pc_p] sub_r_z r_t30 r_t30 1
-           ∗ a- 87 ↦ₐ[pc_p] jnz r_t1 r_t30
-           ∗ a- 88 ↦ₐ[pc_p] halt
-           ∗ a- 89 ↦ₐ[pc_p] move_r r_t1 PC
-           ∗ a- 90 ↦ₐ[pc_p] lea_z r_t1 4
-           ∗ a- 91 ↦ₐ[pc_p] store_z r_t1 1
-           ∗ a- 92 ↦ₐ[pc_p] halt)
-            with "[Hprog]")%I as "#Hprog".
-    { iNext; iFrame. }
-    iMod (na_inv_alloc logrel_nais ⊤ (logN.@(a- 120, a- 150))
-                        (a- 120 ↦ₐ[RWLX] inl 1%Z
-                       ∗ a- 121 ↦ₐ[RWLX] inl w_1
-                       ∗ a- 122 ↦ₐ[RWLX] inl w_2
-                       ∗ a- 123 ↦ₐ[RWLX] inl w_3
-                       ∗ a- 124 ↦ₐ[RWLX] inl w_4a
-                       ∗ a- 125 ↦ₐ[RWLX] inl w_4b
-                       ∗ a- 126 ↦ₐ[RWLX] inl w_4c
-                       ∗ a- 127 ↦ₐ[RWLX] inr (pc_p, pc_g, pc_b, pc_e, a- 78)
-                                ∗ a- 128 ↦ₐ[RWLX] inr (RWLX, Local, a- 120, a- 150, a- 128))%I
-            with "[-Hφ Hs Hstack_adv Hvalid Hmaps Hna Hflag Hr]")
-      as "#Hlocal".
-    { iNext. iFrame. rewrite /region_mapsto. 
-      assert (region_addrs (a-121) (a-128) = [a-121; a-122; a-123; a-124; a-125; a-126; a-127; a-128]) as ->.
-      { rewrite /region_addrs. simpl. repeat f_equal; (apply eq_proofs_unicity; decide equality). }
-      repeat (iDestruct "Hstack_own" as "(Ha & Hstack_own)"; iFrame "Ha"). 
-    }
-    iAssert (|={⊤}=> ([∗ list] a0 ∈ region_addrs (a-129) (a-150),
+    iMod (inv_alloc (nroot.@"Hprog") with "Hprog")%I as "#Hprog".
+    iMod (na_inv_alloc logrel_nais ⊤ (nroot.@"Hframe") _ with "Hstack_own") as "#Hlocal".
+    (* We will put the local state 1 into a separate invariant *)
+    iMod (inv_alloc (nroot.@"local") with "Hb_r")%I as "#Hlocal_one".
+    iAssert (|={⊤}=> ([∗ list] a0 ∈ region_addrs s_first e_r,
                      read_write_cond a0 RWLX (fixpoint interp1)) ∗ region _ ∗ sts_full_world sts_std _)%I
                                            with "[Hstack_adv Hr Hs]" as ">(#Hstack_adv & Hr & Hs)". 
     { iApply region_addrs_zeroes_alloc; auto; [|iFrame]. rewrite /std_sta /std_rel /=.
-      admit. }
-    iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W (r !r! r1))%I
+      rewrite Hstackeq in Hdom. by apply Forall_app in Hdom as [_ Hdom]. }
+    iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W_stk (r !r! r1))%I
       with "[-Hs Hmaps Hvalid Hna Hφ Hflag Hr]" as "Hreg".
     { iIntros (r1).
-      assert (r1 = PC ∨ r1 = r_stk ∨ r1 = r_t0 ∨ r1 = r_t30 ∨ (r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 ∧ r1 ≠ r_t30)).
+      assert (r1 = PC ∨ r1 = r_stk ∨ r1 = r_t0 ∨ r1 = r_t30 ∨ (r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 ∧ r1 ≠ r_t30)) as Hne.
       { destruct (decide (r1 = PC)); [by left|right].
         destruct (decide (r1 = r_stk)); [by left|right].
         destruct (decide (r1 = r_t0)); [by left|right].
         destruct (decide (r1 = r_t30)); [by left|right;auto].  
       }
-      destruct H4 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
+      destruct Hne as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
       - iIntros "%". contradiction.
       - (* invariant for the stack of the adversary *)
-        assert (r !! r_stk = Some (inr (RWLX, Local, a-129, a-150, a-128))) as Hr_stk; auto. 
+        assert (r !! r_stk = Some (inr (RWLX, Local, s_first, e_r, s_last))) as Hr_stk; auto. 
         rewrite /RegLocate Hr_stk fixpoint_interp1_eq. (* iSimpl.  *)
         iIntros (_). (* iAlways. iExists _,_,_,_. (iSplitR; [eauto|]). *)
         iExists RWLX. iSplitR; [auto|].
-        iSplitL.
-        { admit. }
+        iSplitR.
+        { iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Helem) "Hr". iFrame.
+          iPureIntro. by apply std_update_temp_multiple_lookup with k. }
         iAlways.
         rewrite /exec_cond.
         iIntros (a0 r' W' Ha0 HWW'). iNext.
         iApply fundamental.
         + iRight. iRight. done.
-        + iExists RWLX. iSplit; auto. admit.
+        + iExists RWLX. iSplit; simpl;auto.
+          iApply (big_sepL_mono with "Hstack_adv").
+          iIntros (k y Hsome) "Hr".
+          iFrame. iPureIntro.
+          eapply std_update_temp_multiple_lookup (* with W _ _ _  *)in Hsome as [Hpwl Hstd]. 
+          split;[by apply (region_state_pwl_monotone _ _ _ Hstd HWW')|].
+          eapply related_sts_rel_std;[|eauto]. apply related_sts_pub_priv_world; auto. 
       - (* continuation *)
         iIntros (_). 
-        assert (r !! r_t0 = Some (inr (E, Local, a-120, a-150, a-121))) as Hr_t0; auto. 
+        assert (r !! r_t0 = Some (inr (E, Local, b_r, e_r, stack_own_b))) as Hr_t0; auto. 
         rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
         (* prove continuation *)
         (* iExists _,_,_,_. iSplit;[eauto|]. *)
         iAlways.
         rewrite /enter_cond. 
         iIntros (r' W' HWW').
-        destruct W as [fs' fr' ].
         iNext. iSimpl. 
         (* iExists _,_.  do 2 (iSplit; [eauto|]).*)
         iIntros "(#[Hfull' Hreg'] & Hmreg' & Hr & Hs & Hna)". 
-        iSplit; [eauto|rewrite /interp_conf].
+        iSplit; [auto|rewrite /interp_conf].
         (* get the PC, currently pointing to the activation record *)
-        iDestruct (big_sepM_delete _ _ PC with "Hmreg'") as "[HPC Hmreg']".
-        { rewrite lookup_insert; eauto. }
+        iDestruct (big_sepM_delete _ _ PC with "Hmreg'") as "[HPC Hmreg']";[rewrite lookup_insert; eauto|].
         (* get a general purpose register *)
         iAssert (⌜∃ wr_t1, r' !! r_t1 = Some wr_t1⌝)%I as %[rt1w Hrt1];
           first iApply "Hfull'".
@@ -412,206 +373,153 @@ Section lse.
         { do 3 (rewrite lookup_delete_ne; auto).
           rewrite lookup_insert_ne; eauto. }
         (* open the na invariant for the local stack content *)
-        iMod (na_inv_open logrel_nais ⊤ ⊤ (logN.@(a-120,a-150)) with "Hlocal Hna")
-          as "(>(Ha120 & Ha121 & Ha122 & Ha123 & Ha124 & Ha125 & Ha126 & Ha127 & Ha128) 
-          & Hna & Hcls)"; auto.
-        assert (PermFlows RX RWLX) as Hrx;[by rewrite /PermFlows /=|]. 
+        iMod (na_inv_open logrel_nais ⊤ ⊤ with "Hlocal Hna") as "(>Hframe & Hna & Hcls)";auto. 
+        assert (PermFlows RX RWLX) as Hrx;[by rewrite /PermFlows /=|].
+        (* prepare the continuation *)
+        let a := fresh "a" in destruct rest0 as [|a rest0];[inversion Hf2_length|].
+        (* prepare the new stack value *)
+        assert (is_Some (s_last + (0 - 1))%a) as [stack_new Hstack_new].
+        { do 7 (let a := fresh "a" in destruct stack_own as [|a stack_own];[inversion Hlength_own|]).
+          destruct stack_own;[|inversion Hlength_own]. exists a7. simpl in Hs_last; inversion Hs_last; subst.
+          rewrite -(addr_add_assoc a7 _ 1);[|iContiguous_next Hstackcont 7]. apply addr_add_0. }
         (* step through instructions in activation record *)
-        (* move rt_1 PC *)
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_move_success_reg_fromPC _ RX Local (a-120) (a-150) (a-121) (a-122) (inl w_1)
-               with "[HPC Ha121 Hr_t1]");
-          [rewrite -i_1; apply decode_encode_inv|eauto
-           |constructor; auto; split; done|
-           addr_succ|
-           auto|iFrame|]. 
-        iEpilogue "(HPC & Ha121 & Hr_t1)".
-        (* lea r_t1 7 *)
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_lea_success_z _ RX Local (a-120) (a-150) (a-122) (a-123) (inl w_2)
-                                 _ RX _ _ _ (a-121) 7 (a-128) with "[HPC Ha122 Hr_t1]");
-          try addr_succ;
-          first (rewrite -i_2; apply decode_encode_inv);
-          [eauto|(constructor; auto; split; done); auto|auto|auto|iFrame|].
-        iEpilogue "(HPC & Ha122 & Hr_t1)".
-        (* load r_stk r_t1 *)
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_load_success _ _ _ RX Local (a-120) (a-150) (a-123) (inl w_3) _ _ RX Local (a-120) (a-150) (a-128) (a-124)
-                  with "[HPC Ha128 Hr_t1 Hr_stk Ha123]");
-         try addr_succ;
-         first (rewrite -i_3; apply decode_encode_inv);
-         [eauto|eauto|(constructor; auto; split; done)|auto|auto|iFrame|].
-        iEpilogue "(HPC & Hr_stk & Ha123 & Hr_t1 & Ha128)".
-        (* sub r_t1 0 1 *)
-        destruct ((a-128) =? (a-123))%a eqn:Hcontr;[inversion Hcontr|clear Hcontr].
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_add_sub_lt_success _ r_t1 _ _ (a-120) (a-150) (a-124) (inl w_4a)
-                  with "[HPC Hr_t1 Ha124]");
-          try addr_succ;
-          first (right; left; rewrite -i_4a; apply decode_encode_inv);
-          [apply Hrx|constructor; auto; split; done| | ]. 
-        iFrame. iSplit; auto.
-        destruct (reg_eq_dec r_t1 PC) eqn:Hcontr;[inversion Hcontr|clear Hcontr].
-        assert ((a-124 + 1)%a = Some (a-125)) as ->; [addr_succ|].
-        rewrite -i_4a decode_encode_inv.
-        iEpilogue "(HPC & Ha124 & _ & _ & Hr_t1)".
-        (* Lea r_stk r_t1 *)
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_lea_success_reg _ RX Local (a-120) (a-150) (a-125) (a-126) (inl w_4b) _ _
-                                   RWLX Local (a-120) (a-150) (a-128) (-1) (a-127)
-                  with "[HPC Hr_t1 Hr_stk Ha125]");
-          try addr_succ;
-          first (rewrite -i_4b; apply decode_encode_inv); first apply Hrx; 
-          first (constructor; auto; split; done); auto.
-        iFrame. iEpilogue "(HPC & Ha125 & Hr_t1 & Hr_stk)".
-        (* Load PC r_t1 *)
-        iApply (wp_bind (fill [SeqCtx])). 
-        iApply (wp_load_success_PC _ r_stk RX Local (a-120) (a-150) (a-126) (inl w_4c)
-                                   RWLX Local (a-120) (a-150) (a-127) _ _ _ _ (a-78) (a-79)
-                  with "[HPC Hr_stk Ha126 Ha127]");
-          try addr_succ;
-          first (rewrite -i_4c; apply decode_encode_inv);
-          first apply Hrx; first apply PermFlows_refl;
-          first (constructor; auto; split; done); auto.
-        iFrame. iEpilogue "(HPC & Ha126 & Hr_stk & Ha127)".
+        iApply (scall_epilogue_spec with "[-]"); last iFrame "Hframe HPC";
+          [| |auto|iContiguous_next Hcont_rest0 0|apply Hstack_new|..]. 
+        { split;[|auto]. split;[apply (incr_list_ge_middle _ 1 _ _ Hstack_own);auto|].
+          apply (incr_list_lt_middle_alt _ 1 _ _ Hstackcont); [auto| |rewrite app_length Hlength_own /=;lia].
+          rewrite -last_app_eq;[|destruct (region_addrs s_first e_r);[inversion Hs_first|simpl;lia] ].
+          apply region_addrs_last. rewrite /region_addrs in Hs_first. destruct (Z_le_dec s_first e_r);[auto|inversion Hs_first]. }
+        { split;[|auto]. split;[apply (incr_list_ge_middle _ 8 _ _ Hstack_own);auto|].
+          - assert (8 = length (b_r :: stack_own_b :: stack_own) - 1) as ->;[by rewrite Hlength_own|]. by rewrite -last_lookup.
+          - assert (s_first <= e_r)%Z as Hle';[rewrite /region_addrs in Hs_first;destruct (Z_le_dec s_first e_r);[auto|inversion Hs_first]|].
+            apply next_lt in Hlink. lia. }
+        iSplitL "Hr_t1";[iNext;eauto|]. iSplitL "Hr_stk";[iNext;eauto|]. 
+        iNext. iIntros "(HPC & Hr_stk & Hr_t1 & Hframe)".
+        iDestruct "Hr_t1" as (wrt1) "Hr_t1". 
         (* we don't want to close the stack invariant yet, as we will now need to pop it *)
-        (* iMod ("Hcls" with "[$Ha120 $Ha121 $Ha122 $Ha123 $Ha124 $Ha125 $Ha126 $Ha127 $Ha128 $Hna]") as "Hna". *)
         (* go through rest of the program. We will now need to open the invariant one instruction at a time *)
         (* sub r_t1 0 7 *)
-        iApply (wp_bind (fill [SeqCtx])). 
-        iInv (nroot.@"Hprog") as "[>Ha79 Hprog_rest]" "Hcls'".
-        iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ (a-79)
-                  with "[HPC Hr_t1 Ha79]");
-          first (right; left; apply sub_z_z_i); first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iSplit; auto. iNext.
-        destruct (reg_eq_dec r_t1 PC) eqn:Hcontr;[inversion Hcontr|clear Hcontr].
-        assert ((a-79 + 1)%a = Some (a-80)) as ->; [addr_succ|].
-        rewrite sub_z_z_i.
-        iIntros "(HPC & Ha79 & _ & _ & Hr_t1)".
-        iMod ("Hcls'" with "[$Ha79 $Hprog_rest]") as "_".
+        iPrologue_pre rest0 Hf2_length. 
+        iInv (nroot.@"Hprog") as "[>Hinstr Hprog_rest]" "Hcls'".
+        iApply (wp_add_sub_lt_success with "[$HPC Hr_t1 $Hinstr]");
+          [right; left; apply sub_z_z_i|apply PermFlows_refl| |iSimpl;iFrame;eauto|iSimpl;rewrite sub_z_z_i].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a0 a_last 80 Hf2; iLookupR Hscall_length. }
+        assert ((a0 + 1)%a = Some a1) as ->;[iContiguous_next Hcont_rest0 1|]. 
+        iNext. iIntros "(HPC & Hinstr & _ & _ & Hr_t1)".
+        iMod ("Hcls'" with "[$Hinstr $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* lea r_stk r_t1 *) 
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length. 
         iInv (nroot.@"Hprog") as "(Ha79 & >Ha80 & Hprog_rest)" "Hcls'".
-        iApply (wp_lea_success_reg _ _ _ _ _ (a-80) (a-81) _ r_stk r_t1 RWLX _ _ _ (a-127) (-7)%Z (a-120)
-                  with "[HPC Hr_t1 Hr_stk Ha80]");
-          try addr_succ;
-          first apply lea_r_i; first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iNext. iIntros "(HPC & Ha80 & Hr_t1 & Hr_stk)".
+        assert ((stack_new + (0 - 7))%a = Some b_r) as Hpop.
+        { rewrite -(addr_add_assoc b_r _ 7);[apply addr_add_0|].
+          rewrite -Hstack_new. assert (7 = 1 + 6)%Z as ->;[lia|]. 
+          rewrite (addr_add_assoc b_r stack_own_b 1);[|iContiguous_next Hstack_own 0].
+          assert (6 = 7 + (0 - 1))%Z as ->;[lia|]. rewrite (addr_add_assoc stack_own_b s_last 7); auto. }
+        iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Ha80]");
+          [apply lea_r_i|apply PermFlows_refl| |iContiguous_next Hcont_rest0 2|apply Hpop|auto..].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a1 a_last 81 Hf2; iLookupR Hscall_length. }
+        iNext. iIntros "(HPC & Ha80 & Hr_t1 & Hr_stk)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* load r_t30 r_stk *)
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length. 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & >Ha81 & Hprog_rest)" "Hcls'".
-        iApply (wp_load_success _ r_t30 _ _ _ _ _ (a-81) _ _ _ RWLX Local (a-120) (a-150) (a-120) (a-82)
-                  with "[HPC Ha81 Ha120 Hr_t30 Hr_stk]");
-          try addr_succ;
-          first apply load_r_i; try apply PermFlows_refl; 
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto.
-        iFrame. iNext. iIntros "(HPC & Hr_t30 & Ha81 & Hr_stk & Ha120)"; iSimpl.  
+        iInv (nroot.@"local") as ">Hb_r" "Hcls''".
+        iAssert (⌜(b_r =? a3)%a = false⌝)%I as %Hne.
+        { destruct (b_r =? a3)%a eqn:Heq;auto. apply Z.eqb_eq,z_of_eq in Heq. rewrite Heq.
+          iDestruct (cap_duplicate_false with "[$Ha81 $Hb_r]") as "Hfalse";[|done]. destruct pc_p;auto.
+          inversion Hvpc0 as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
+        iApply (wp_load_success with "[$HPC $Ha81 Hb_r $Hr_t30 $Hr_stk]");
+          [apply load_r_i|apply PermFlows_refl|apply PermFlows_refl| |auto|iContiguous_next Hcont_rest0 3|auto|rewrite Hne;iFrame|rewrite Hne].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a3 a_last 82 Hf2; iLookupR Hscall_length. }
+        iNext. iIntros "(HPC & Hr_t30 & Ha81 & Hr_stk & Ha120)"; iSimpl.  
+        iMod ("Hcls''" with "[$Ha120]") as "_". iModIntro. 
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* we will not use the local stack anymore, so we may close the na_inv *)
-        iMod ("Hcls" with "[$Ha120 $Ha121 $Ha122 $Ha123 $Ha124 $Ha125 $Ha126 $Ha127 $Ha128 $Hna]") as "Hna".
+        iMod ("Hcls" with "[$Hframe $Hna]") as "Hna".
         (* we will now make the assertion that r_t30 points to 1 *)
         (* sub r_t1 0 1 *)
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length. 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & >Ha82 & Hprog_rest)" "Hcls'".
-        iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ (a-82)
-                  with "[HPC Hr_t1 Ha82]");
-          first (right; left; apply sub_z_z_i); first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iSplit; eauto. iNext.
-        destruct (reg_eq_dec r_t1 PC) eqn:Hcontr;[inversion Hcontr|clear Hcontr].
-        assert ((a-82 + 1)%a = Some (a-83)) as ->; [addr_succ|].
-        rewrite sub_z_z_i.
-        iIntros "(HPC & Ha82 & _ & _ & Hr_t1)".
+        iApply (wp_add_sub_lt_success with "[$HPC Hr_t1 $Ha82]");
+          [right; left; apply sub_z_z_i|apply PermFlows_refl| |iSimpl;iFrame;eauto|iSimpl;rewrite sub_z_z_i].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a4 a_last 83 Hf2; iLookupR Hscall_length. }
+        assert ((a4 + 1)%a = Some a5) as ->;[iContiguous_next Hcont_rest0 4|]. 
+        iNext. iIntros "(HPC & Ha82 & _ & _ & Hr_t1)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* lea r_stk r_t1 *)
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length. 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & >Ha83 & Hprog_rest)" "Hcls'".
-        iApply (wp_lea_success_reg _ _ _ _ _ (a-83) (a-84) _ r_stk r_t1 RWLX _ _ _ (a-120) (-1)%Z (a-119)
-                  with "[HPC Hr_t1 Hr_stk Ha83]");
-          try addr_succ;
-          first apply lea_r_i; first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iNext. iIntros "(HPC & Ha83 & Hr_t1 & Hr_stk)".
+        assert ((b_r + (0 - 1))%a = Some b_r') as Hb_r'_decr.
+        { rewrite -(addr_add_assoc b_r' _ 1);[apply addr_add_0|auto]. }
+        iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Ha83]");
+          [apply lea_r_i|apply PermFlows_refl| |iContiguous_next Hcont_rest0 5|apply Hb_r'_decr|auto..].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a5 a_last 84 Hf2; iLookupR Hscall_length; lia. }
+        iNext. iIntros "(HPC & Ha83 & Hr_t1 & Hr_stk)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* move r_t1 PC *)
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length.
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & Ha83 & >Ha84 & Hprog_rest)" "Hcls'".
-        iApply (wp_move_success_reg_fromPC _ _ _ _ _ (a-84) (a-85) _ r_t1
-                  with "[HPC Hr_t1 Ha84]");
-          try addr_succ;
-          first apply move_r_i; first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iNext. iIntros "(HPC & Ha84 & Hr_t1)".
+        iApply (wp_move_success_reg_fromPC with "[$HPC $Hr_t1 $Ha84]");
+          [apply move_r_i|apply PermFlows_refl| |iContiguous_next Hcont_rest0 6|auto|..].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a6 a_last 85 Hf2; iLookupR Hscall_length; lia. }
+        iNext. iIntros "(HPC & Ha84 & Hr_t1)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Ha84 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* lea r_t1 5 *)
-        iApply (wp_bind (fill [SeqCtx])). 
+        iPrologue_pre rest0 Hf2_length.
+        do 3 (destruct rest0;[inversion Hf2_length|]).
+        assert ((a6 + 5)%a = Some a11) as Hincr;[apply (contiguous_incr_addr_middle _ 6 5 _ _ Hcont_rest0); auto|].
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & Ha83 & Ha84 & >Ha85 & Hprog_rest)" "Hcls'".
-        iApply (wp_lea_success_z _ _ _ _ _ (a-85) (a-86) _ r_t1 pc_p _ _ _ (a-84) 5 (a-89)
-               with "[HPC Ha85 Hr_t1]");
-          try addr_succ;
-          first apply lea_z_i; first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); first auto. 
-        { inversion Hvpc0 as [?????? Hpc_p];
-            destruct Hpc_p as [Hpc_p | [Hpc_p | Hpc_p] ]; congruence. }
-        iFrame. iNext. iIntros "(HPC & Ha85 & Hr_t1)".
+        iApply (wp_lea_success_z with "[$HPC $Ha85 $Hr_t1]");
+          [apply lea_z_i|apply PermFlows_refl| |iContiguous_next Hcont_rest0 7|apply Hincr|auto|..].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a7 a_last 86 Hf2; iLookupR Hscall_length; lia. }
+        { inversion Hvpc0 as [?????? Hpc_p]; destruct Hpc_p as [Hpc_p | [Hpc_p | Hpc_p] ]; congruence. }
+        iNext. iIntros "(HPC & Ha85 & Hr_t1)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Ha84 $Ha85 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* sub r_t30 r_t30 1 *)
         iApply (wp_bind (fill [SeqCtx])). 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & Ha83 & Ha84 & Ha85 & >Ha86 & Hprog_rest)" "Hcls'".
-        iApply (wp_add_sub_lt_success _ r_t30 _ _ _ _ (a-86)
-                  with "[HPC Ha86 Hr_t30]"); 
-          first (right;left;apply sub_r_z_i); first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done); auto. 
-        iFrame. iSplit; auto. iNext.
-        destruct (reg_eq_dec r_t30 PC) eqn:Hcontr; [inversion Hcontr|clear Hcontr].
-        assert ((a-86 + 1)%a = Some (a-87)) as ->;[addr_succ|].
-        destruct (reg_eq_dec r_t30 r_t30) eqn:Hcontr;[clear Hcontr| inversion Hcontr].
-        rewrite sub_r_z_i. 
-        iIntros "(HPC & Ha86 & _ & _ & Hr_t30 )".
+        iApply (wp_add_sub_lt_success with "[$HPC $Ha86 Hr_t30]");
+          [right;left;apply sub_r_z_i|apply PermFlows_refl| |iSimpl;iFrame;eauto|iSimpl;rewrite sub_r_z_i]. 
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a8 a_last 87 Hf2; iLookupR Hscall_length; lia. }
+        assert ((a8 + 1)%a = Some a9) as ->;[iContiguous_next Hcont_rest0 8|]. 
+        iNext. iIntros "(HPC & Ha86 & _ & _ & Hr_t30 )".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Ha84 $Ha85 $ Ha86 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* jnz r_t1 r_t30 *)
         iApply (wp_bind (fill [SeqCtx])). 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & Ha83 & Ha84 & Ha85 & Ha86 & >Ha87 
         & Hprog_rest)" "Hcls'".
-        iApply (wp_jnz_success_next _ r_t1 r_t30 _ _ _ _ (a-87) (a-88)
-                  with "[HPC Ha87 Hr_t30]");
-          try addr_succ;
-          first apply jnz_i; first apply PermFlows_refl;
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done).
-        iFrame. iNext. iIntros "(HPC & Ha87 & Hr_t30)".
+        iApply (wp_jnz_success_next with "[$HPC $Ha87 $Hr_t30]");
+          [apply jnz_i|apply PermFlows_refl| |iContiguous_next Hcont_rest0 9|..].
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a9 a_last 88 Hf2; iLookupR Hscall_length; lia. }
+        iNext. iIntros "(HPC & Ha87 & Hr_t30)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Ha84 $Ha85 $Ha86 $Ha87 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* halt *)
         iApply (wp_bind (fill [SeqCtx])). 
         iInv (nroot.@"Hprog") as "(Ha79 & Ha80 & Ha81 & Ha82 & Ha83 & Ha84 & Ha85 & Ha86 & Ha87 & >Ha88
         & Hprog_rest)" "Hcls'".
-        iApply (wp_halt _ _ _ _ _ (a-88) with "[HPC Ha88]");
-          first apply halt_i; first apply PermFlows_refl; 
-          first (apply isCorrectPC_bounds with (a-0) (a-110); eauto; split; done).
-        iFrame. iNext. iIntros "(HPC & Ha88)".
+        iApply (wp_halt with "[$HPC $Ha88]");
+          [apply halt_i|apply PermFlows_refl|..]. 
+        { apply isCorrectPC_bounds_alt with a_first a_last;auto;iContiguous_bounds a_first a10 a_last 89 Hf2; iLookupR Hscall_length; lia. }
+        iNext. iIntros "(HPC & Ha88)".
         iMod ("Hcls'" with "[$Ha79 $Ha80 $Ha81 $Ha82 $Ha83 $Ha84 $Ha85 $Ha86 $Ha87 $Ha88 $Hprog_rest]") as "_".
         iModIntro;iApply wp_pure_step_later;auto;iNext.
         (* halted: need to show post condition *)
         iApply wp_value. iIntros "_".
         evar (r'' : gmap RegName Word).
-        instantiate (r'' := <[PC    := inr (pc_p, pc_g, pc_b, pc_e, (a-88))]>
-                           (<[r_t1  := inr (pc_p, pc_g, pc_b, pc_e, (a-89))]>
+        instantiate (r'' := <[PC    := inr (pc_p, pc_g, pc_b, pc_e, a10)]>
+                           (<[r_t1  := inr (pc_p, pc_g, pc_b, pc_e, a11)]>
                            (<[r_t30 := inl 0%Z]>
-                           (<[r_stk := inr (RWLX, Local, (a-120), (a-150), (a-119))]> r')))). 
-        destruct W' as [fs'' fr'']. 
-        iExists r'',fs'',fr''.        
-        iFrame. iSplit;[|iSplit].
+                           (<[r_stk := inr (RWLX, Local, b_r, e_r, b_r')]> r')))). 
+        iFrame. iExists r'',_. iFrame. iSplit;[|iSplit].
         + iDestruct "Hfull'" as %Hfull'.
           iPureIntro.
           intros r0. rewrite /r''.
@@ -633,9 +541,9 @@ Section lse.
           { by rewrite lookup_insert. }
           iFrame. do 2 rewrite delete_insert_delete.
           iDestruct (big_sepM_delete (λ x y, x ↦ᵣ y)%I
-                        (delete PC (<[r_t1:=inr (pc_p, pc_g, pc_b, pc_e, a-89)]>
+                        (delete PC (<[r_t1:=inr (pc_p, pc_g, pc_b, pc_e, a11)]>
                          (<[r_t30:=inl 0%Z]>
-                          (<[r_stk:=inr (RWLX, Local, a-120, a-150, a-119)]> r')))) r_t1
+                          (<[r_stk:=inr (RWLX, Local, b_r, e_r, b_r')]> r')))) r_t1
                        with "[-]") as "Hmreg'"; auto.
           { rewrite lookup_delete_ne; auto. by rewrite lookup_insert. }
           iFrame. do 2 rewrite (delete_commute _ r_t1 PC).
@@ -644,7 +552,7 @@ Section lse.
           iDestruct (big_sepM_delete (λ x y, x ↦ᵣ y)%I
                         (delete r_t1 (delete PC
                             (<[r_t30:=inl 0%Z]>
-                             (<[r_stk:=inr (RWLX, Local, a-120, a-150, a-119)]> r')))) r_stk
+                             (<[r_stk:=inr (RWLX, Local, b_r, e_r, b_r')]> r')))) r_stk
                        with "[-]") as "Hmreg'"; auto.
           { repeat (rewrite lookup_delete_ne; auto).
             rewrite lookup_insert_ne; auto. by rewrite lookup_insert. }
@@ -657,23 +565,31 @@ Section lse.
           { repeat (rewrite lookup_delete_ne; auto). by rewrite lookup_insert. }
           iFrame. repeat rewrite (delete_commute _ r_t30 _).  
           rewrite delete_insert_delete. iFrame. 
-        + iPureIntro. apply related_sts_priv_refl. 
+        + iPureIntro. split; apply related_sts_priv_refl. 
       - rewrite Hr_t30. 
         assert (r !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto. 
         rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
         iIntros (_). 
-        iExists _,_,_,_. iSplit; [eauto|].
-        iIntros (r' W' Hrelated).
-        iAlways. rewrite /enter_cond.
+        iAlways. iIntros (r' W' Hrelated). 
         iNext. iApply fundamental.
         iLeft. done.
-        iExists RX. iSplit; auto. 
+        iExists RX. iSplit; simpl; auto.
+        iApply (big_sepL_mono with "Hadv").
+        iIntros (k y Hsome) "(Ha & Hy & Hstd)". iDestruct "Hy" as %Hy. iDestruct "Hstd" as %Hstd.
+        iFrame. iPureIntro.
+        assert (related_sts_priv_world W W') as Hrelated_final.
+        { eapply related_sts_priv_trans_world;[|apply Hrelated].
+          apply related_sts_pub_priv_world. auto. 
+        }
+        split.
+        + apply region_state_nwl_monotone_nl with W; auto.
+        + apply related_sts_rel_std with W; auto.
       - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
         assert (r !r! r1 = inl 0%Z) as Hr1.
         { rewrite /RegLocate.
-          destruct (r !! r1) eqn:Hsome; rewrite Hsome; last done.
-          do 4 (rewrite lookup_insert_ne in Hsome;auto).
-          assert (Some w = Some (inl 0%Z)) as Heq.
+          destruct (r !! r1) eqn:Hsome; rewrite Hsome; last done. rewrite /r in Hsome. 
+          do 4 (rewrite lookup_insert_ne in Hsome;auto). 
+          assert (Some w0 = Some (inl 0%Z)) as Heq.
           { rewrite -Hsome. apply create_gmap_default_lookup.
             apply elem_of_list_difference. split; first apply all_registers_correct.
             repeat (apply not_elem_of_cons;split;auto).
@@ -683,15 +599,14 @@ Section lse.
         }
         rewrite Hr1 fixpoint_interp1_eq. iPureIntro. eauto.         
     }
-    iAssert (((interp_reg interp) _ r))%I as "#HvalR";[iSimpl;auto|].
-    iSpecialize ("Hvalid" with "[HvalR Hmaps Hs Hna Hr]").
-    { iFrame "∗ #". } 
-    iDestruct "Hvalid" as (p' g b0 e1 a0 Heq) "Ho". 
-    inversion Heq; subst. rewrite /interp_conf.
+    iAssert (((interp_reg interp) _ r))%I as "#HvalR";[iSimpl;auto|]. 
+    iSpecialize ("Hvalid" with "[$HvalR $Hmaps $Hs $Hna $Hr]"); iFrame. 
+    iDestruct "Hvalid" as "[_ Ho]". 
+    rewrite /interp_conf.
     iApply wp_wand_r. iFrame.
     iIntros (v) "Htest".
     iApply "Hφ". 
-    iIntros "_"; iFrame. Unshelve. eauto. 
+    iIntros "_"; iFrame. Unshelve. done. 
   Qed. 
 
 
