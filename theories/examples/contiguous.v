@@ -1,5 +1,5 @@
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import addr_reg_sample. 
+From cap_machine Require Import region_macros. 
 
 
 (* This file contains definition and lemmas for contiguous address regions *)

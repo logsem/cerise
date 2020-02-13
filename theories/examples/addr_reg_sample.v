@@ -442,9 +442,76 @@ Require Import Eqdep_dec List.
     rewrite /incr_addr in Ha2.
     destruct (Z_le_dec (A z fin + z2)%Z MemNum); inversion Ha2.
     lia.
+  Qed.
+
+  Lemma incr_addr_ne a i :
+    i ≠ 0%Z → a ≠ addr_reg.top →
+    get_addr_from_option_addr (a + i)%a ≠ a.
+  Proof.
+    intros Hne0 Hnetop. destruct (a + i)%a eqn:Hai; auto.
+    simpl. destruct a,a0.
+    rewrite /not. intros Hcontr.
+    inversion Hcontr.
+    subst. rewrite /incr_addr in Hai.
+    destruct (Z_le_dec (A z fin + i)%Z MemNum); inversion Hai.
+    destruct i; try contradiction; omega.
+  Qed.
+
+  Lemma incr_addr_ne_top a z a' :
+    (z > 0)%Z → (a + z)%a = Some a' →
+    a ≠ addr_reg.top.
+  Proof.
+    intros Hz Ha.
+    rewrite /not. intros Hat.
+    rewrite Hat in Ha.
+    rewrite /incr_addr in Ha.
+    destruct (Z_le_dec (addr_reg.top + z)%Z MemNum); inversion Ha.
+    clear Ha H0. 
+    rewrite /addr_reg.top /= in l. omega. 
+  Qed.
+
+  Lemma get_addrs_from_option_addr_comm a i k :
+    (k >= 0)%Z -> 
+    (get_addr_from_option_addr (get_addr_from_option_addr (a + i) + k)%a) =
+    (get_addr_from_option_addr (a + (i + k)%Z)%a).
+  Proof.
+    intros Hne. 
+    destruct (a + i)%a eqn:Hsome; simpl. 
+    - f_equal. rewrite /incr_addr in Hsome.
+      rewrite /incr_addr.
+      destruct (Z_le_dec (a + i)%Z MemNum); inversion Hsome as [Heq]. 
+      destruct a0; simpl. inversion Heq as [Ha].
+      destruct (Z_le_dec (a + i + k)%Z MemNum); simpl.
+      + destruct (Z_le_dec (a + (i + k))%Z MemNum); [simpl |omega].
+        f_equal. apply z_of_eq. simpl. omega.
+      + by destruct (Z_le_dec (a + (i + k))%Z MemNum); [omega|].
+    - rewrite /incr_addr in Hsome.
+      destruct (Z_le_dec (a + i)%Z MemNum); inversion Hsome.
+      rewrite /incr_addr. 
+      destruct (Z_le_dec (addr_reg.top + k)%Z MemNum).
+      + assert (k = 0) as ->; [destruct k; simpl in *; lia|].
+        destruct (Z_le_dec (a + (i + 0%nat))%Z MemNum); [omega|].
+        simpl. apply z_of_eq. simpl. lia.
+      + by destruct (Z_le_dec (a + (i + k))%Z MemNum); [omega|].
   Qed. 
   
   (* Some additional helper lemmas about region_addrs *)
+
+  Lemma not_elem_of_region_addrs_aux a n (i : Z) :
+     (i > 0)%Z →
+     a ≠ addr_reg.top →
+     a ∉ region_addrs_aux (get_addr_from_option_addr (a + i)%a) n.
+   Proof. 
+     intros Hi Hne.
+     revert i Hi; induction n; intros i Hi.
+     - apply not_elem_of_nil.
+     - simpl. apply not_elem_of_cons; split.
+       + rewrite /incr_addr.
+         destruct (Z_le_dec (a + i)%Z MemNum); simpl; auto. 
+         destruct a. intros Hcontr. inversion Hcontr. omega.
+       + rewrite get_addrs_from_option_addr_comm.
+         apply IHn; omega. done. 
+   Qed.
 
   Lemma region_size_non_zero a b :
     region_size a b = 0 -> False.
@@ -734,32 +801,4 @@ Require Import Eqdep_dec List.
      - apply region_addrs_aux_NoDup.
        rewrite incr_addr_region_size; eauto.
      - apply NoDup_nil.
-   Qed.
-
-
-   (* Helper lemma for big separation conjuction of two lists, with appends of the same size *)
-   Lemma big_sepL2_app'
-         (PROP : bi) (A B : Type) (Φ : nat → A → B → PROP) (l1 l2 : list A)
-         (l1' l2' : list B) :
-     (length l1) = (length l1') →
-    (([∗ list] k↦y1;y2 ∈ l1;l1', Φ k y1 y2)
-       ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (strings.length l1 + k) y1 y2))%I
-    ≡ ([∗ list] k↦y1;y2 ∈ (l1 ++ l2);(l1' ++ l2'), Φ k y1 y2)%I.
-   Proof.
-     intros Hlenl1.
-     iSplit.
-     - iIntros "[Hl1 Hl2]". iApply (big_sepL2_app with "Hl1 Hl2").
-     - iIntros "Happ".
-       iAssert (∃ l0' l0'' : list A,
-         ⌜(l1 ++ l2) = l0' ++ l0''⌝
-         ∧ ([∗ list] k↦y1;y2 ∈ l0';l1', Φ k y1 y2)
-             ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (strings.length l1' + k) y1 y2))%I
-                       with "[Happ]" as (l0' l0'') "(% & Happl0' & Happl0'')".
-       { by iApply (big_sepL2_app_inv_r with "Happ"). }
-       iDestruct (big_sepL2_length with "Happl0'") as %Hlen1.
-       iDestruct (big_sepL2_length with "Happl0''") as %Hlen2.
-       rewrite -Hlenl1 in Hlen1.
-       assert (l1 = l0' ∧ l2 = l0'') as [Heq1 Heq2]; first by apply app_inj_1.
-       simplify_eq; rewrite Hlenl1.
-       iFrame.
    Qed.
