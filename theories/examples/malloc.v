@@ -27,10 +27,11 @@ Section malloc.
   Global Parameter malloc_subroutine : RegName -> nat -> list Word.
   
   Global Axiom malloc_spec : forall (W : WORLD) (size : nat) (continuation : Word) (r : RegName) φ, 
-  ( (* the malloc subroutine *)
+  ( (* the malloc subroutine and parameters *)
        [[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine r size]]
+     ∗ r_t0 ↦ᵣ continuation
     (* we pass control of all general purpose registers *)
-     ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC]; wsr, r_i ↦ᵣ w_i)
+     ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; wsr, r_i ↦ᵣ w_i)
     (* the PC points to the malloc subroutine *)
      ∗ PC ↦ᵣ inr (p_m,Global,b_m,e_m,a_m)
     (* continuation *)
@@ -38,7 +39,7 @@ Section malloc.
         ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r]; wsr, r_i ↦ᵣ w_i)
         ∗ PC ↦ᵣ continuation
         (* the newly allocated region *)
-        ∗ ∃ (b e b' : Addr), ⌜(e - b = size - 1)%Z⌝ ∧ ⌜((b' + 1)%a = Some b)⌝ ∧ r ↦ᵣ inr (RWX,Global,b,e,b')
+        ∗ ∃ (b e : Addr), ⌜(e - b = size)%Z⌝ ∧ r ↦ᵣ inr (RWX,Global,b,e,b)
         ∗ [[b,e]] ↦ₐ[RWX] [[region_addrs_zeroes b e]]
         (* the allocated region is guaranteed to be fresh in the provided world *)
         (* TODO: remove this is we can prove it *)
