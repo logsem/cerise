@@ -1720,16 +1720,16 @@ Section heap.
           
   Lemma close_list_related_sts_pub_cons W a l :
     rel_is_std W →
-    related_sts_pub_world (revoke W) (close_list l (revoke W)) →
-    related_sts_pub_world (revoke W) (close_list_std_sta (a :: l) (std_sta (revoke W)), std_rel (revoke W), loc (revoke W)).
+    related_sts_pub_world W (close_list l W) →
+    related_sts_pub_world W (close_list_std_sta (a :: l) (std_sta W), std_rel W, loc W).
   Proof.
     rewrite /close_list /=. intros Hstd IHl.
-    destruct (std_sta (revoke W) !! a) eqn:Hsome; auto.
+    destruct (std_sta W !! a) eqn:Hsome; auto.
     destruct (countable.encode Revoked =? p)%positive eqn:Hrev;auto.
-    apply related_sts_pub_trans_world with (close_list l (revoke W)); auto.
+    apply related_sts_pub_trans_world with (close_list l W); auto.
     split;[|apply related_sts_pub_refl].
     split;[|split].
-    + rewrite dom_insert /close_list /=.
+    + simpl. rewrite dom_insert /close_list /=.
       apply union_subseteq_r.
     + by rewrite /close_list /=.
     + rewrite /close_list /=. intros i r1 r2 r1' r2' Hr Hr'.
@@ -1753,7 +1753,7 @@ Section heap.
          
   Lemma close_list_related_sts_pub W l :
     rel_is_std W → 
-    related_sts_pub_world (revoke W) (close_list l (revoke W)).
+    related_sts_pub_world W (close_list l W).
   Proof.
     intros Hstd.
     induction l.
@@ -1763,11 +1763,10 @@ Section heap.
 
   Lemma close_list_related_sts_pub_insert' Wstd_sta Wstd_rel Wloc i l :
     rel_is_std (Wstd_sta,Wstd_rel,Wloc) → 
-    i ∉ l → revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc)) !! i = Some (countable.encode Revoked) ->
+    i ∉ l → Wstd_sta !! i = Some (countable.encode Revoked) ->
     related_sts_pub_world
-      (close_list_std_sta l (revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc))), std_rel (Wstd_sta, Wstd_rel, Wloc), Wloc)
-      (<[i:=countable.encode Temporary]> (close_list_std_sta l (revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc)))),
-       std_rel (Wstd_sta, Wstd_rel, Wloc), Wloc).
+      (close_list_std_sta l ((std_sta (Wstd_sta, Wstd_rel, Wloc))), Wstd_rel, Wloc)
+      (<[i:=countable.encode Temporary]> (close_list_std_sta l Wstd_sta), Wstd_rel, Wloc).
   Proof.
     intros Hstd Hnin Hlookup.
     split;[|apply related_sts_pub_refl]; simpl.
@@ -1789,25 +1788,24 @@ Section heap.
 
   Lemma close_list_related_sts_pub_insert Wstd_sta Wstd_rel Wloc i l :
     rel_is_std (Wstd_sta,Wstd_rel,Wloc) → 
-    i ∉ l → revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc)) !! i = Some (countable.encode Revoked) ->
+    i ∉ l → Wstd_sta !! i = Some (countable.encode Revoked) ->
     related_sts_pub_world
-      (revoke_std_sta Wstd_sta, Wstd_rel, Wloc)
-      (<[i:=countable.encode Temporary]> (close_list_std_sta l (revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc)))),
-       std_rel (Wstd_sta, Wstd_rel, Wloc), Wloc).
+      (Wstd_sta, Wstd_rel, Wloc)
+      (<[i:=countable.encode Temporary]> (close_list_std_sta l Wstd_sta), Wstd_rel, Wloc).
   Proof.
     intros Hstd Hnin Hlookup.
-    apply related_sts_pub_trans_world with (close_list_std_sta l (revoke_std_sta (std_sta (Wstd_sta, Wstd_rel, Wloc))),
+    apply related_sts_pub_trans_world with (close_list_std_sta l ((std_sta (Wstd_sta, Wstd_rel, Wloc))),
                                             std_rel (Wstd_sta, Wstd_rel, Wloc), Wloc).
     - apply close_list_related_sts_pub with _ l in Hstd. apply Hstd.
     - apply close_list_related_sts_pub_insert'; auto. 
   Qed.
-
-  Lemma monotone_revoked_close_sub W l p φ :
-    ([∗ list] a ∈ l, temp_resources (revoke W) φ a p ∗ rel a p φ
-                                    ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝)
-    ∗ sts_full_world sts_std (revoke W) ∗ region (revoke W) ==∗
-    sts_full_world sts_std (close_list (countable.encode <$> l) (revoke W))
-    ∗ region (close_list (countable.encode <$> l) (revoke W)).
+  
+  Lemma monotone_close W l p φ :
+    ([∗ list] a ∈ l, temp_resources W φ a p ∗ rel a p φ
+                                    ∗ ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Revoked)⌝)
+    ∗ sts_full_world sts_std W ∗ region W ==∗
+    sts_full_world sts_std (close_list (countable.encode <$> l) W)
+    ∗ region (close_list (countable.encode <$> l) W).
   Proof.
     iIntros "(Hl & Hfull & Hr)".
     iAssert (⌜NoDup l⌝)%I as %Hdup.
@@ -1826,7 +1824,7 @@ Section heap.
         } iPureIntro. apply NoDup_cons. split; auto. 
     }
     iInduction (l) as [|x l] "IH". 
-    - iFrame. done.
+    - iFrame. destruct W as [ [Wstd_sta Wstd_rel] Wloc]; done. 
     - apply NoDup_cons in Hdup as [Hdup Hnin]. 
       iDestruct "Hl" as "[ [Hx #[Hrel Hrev] ] Hl]". rewrite fmap_cons /=. 
       rewrite /close_list region_eq /region_def /std_sta /std_rel /=.
@@ -1896,6 +1894,19 @@ Section heap.
       + intros [a0 [Heq Hsome] ]. destruct (decide (i = countable.encode x)); subst. 
         ++ rewrite e. rewrite lookup_insert. eauto. 
         ++ rewrite lookup_insert_ne; auto. destruct Hdom2 as [xa0 Ha0]; eauto.
+  Qed. 
+    
+
+  Lemma monotone_revoked_close_sub W l p φ :
+    ([∗ list] a ∈ l, temp_resources (revoke W) φ a p ∗ rel a p φ
+                                    ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝)
+    ∗ sts_full_world sts_std (revoke W) ∗ region (revoke W) ==∗
+    sts_full_world sts_std (close_list (countable.encode <$> l) (revoke W))
+    ∗ region (close_list (countable.encode <$> l) (revoke W)).
+  Proof.
+    iIntros "(Hl & Hfull & Hr)".
+    iApply monotone_close. 
+    iFrame. 
   Qed. 
 
 

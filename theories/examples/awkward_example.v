@@ -302,18 +302,6 @@ Section awkward_example.
      apply related_sts_pub_fresh; auto.
    Qed.
 
-   Import uPred.
-
-   (* TODO: move this to separate region lemma file *)
-   Lemma monotone_revoked_close_sub' W l p φ :
-    ([∗ list] a ∈ l, temp_resources W φ a p ∗ rel a p φ ∗ ⌜revoked W a⌝)
-    ∗ sts_full_world sts_std W ∗ region W ==∗
-    sts_full_world sts_std (close_list (countable.encode <$> l) W)
-    ∗ region (close_list (countable.encode <$> l) W).
-  Admitted. 
-   
-
-
    (* The proof of the awkward example goes through a number of worlds.
       Below are some helper lemmas and definitions about how these worlds 
       are related *)
