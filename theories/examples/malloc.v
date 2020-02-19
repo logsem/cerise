@@ -30,21 +30,21 @@ Section malloc.
   ( (* the malloc subroutine and parameters *)
        [[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine r size]]
      ∗ r_t0 ↦ᵣ continuation
+     (* the PC points to the malloc subroutine *)
+     ∗ PC ↦ᵣ inr (RX,Global,b_m,e_m,a_m)
     (* we pass control of all general purpose registers *)
      ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; wsr, r_i ↦ᵣ w_i)
-    (* the PC points to the malloc subroutine *)
-     ∗ PC ↦ᵣ inr (p_m,Global,b_m,e_m,a_m)
     (* continuation *)
-     ∗ ▷ ([[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine r size]]
+     ∗ ▷ (([[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine r size]]
         ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r]; wsr, r_i ↦ᵣ w_i)
         ∗ PC ↦ᵣ continuation
         (* the newly allocated region *)
-        ∗ ∃ (b e : Addr), ⌜(e - b = size)%Z⌝ ∧ r ↦ᵣ inr (RWX,Global,b,e,b)
+        ∗ ∃ (b e : Addr), ⌜(e - b = size - 1)%Z⌝ ∧ r ↦ᵣ inr (RWX,Global,b,e,b)
         ∗ [[b,e]] ↦ₐ[RWX] [[region_addrs_zeroes b e]]
         (* the allocated region is guaranteed to be fresh in the provided world *)
         (* TODO: remove this is we can prove it *)
         ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
-                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝
+                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝)
         -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
 
