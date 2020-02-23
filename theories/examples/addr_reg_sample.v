@@ -374,92 +374,6 @@ Require Import Eqdep_dec List.
        done.
    Qed.
 
-   (* Helper lemmas for doing arithmetic on adresses. TODO: move this to addr_reg *)
-
-  Lemma next_lt (a a' : Addr) :
-    (a + 1)%a = Some a' → (a < a')%Z.
-  Proof. solve_addr. Qed.
-
-  Lemma next_lt_i (a a' : Addr) (i : Z) :
-    (i > 0)%Z →
-    (a + i)%a = Some a' → (a < a')%Z.
-  Proof. solve_addr. Qed.
-
-  Lemma next_le_i (a a' : Addr) (i : Z) :
-    (i >= 0)%Z →
-    (a + i)%a = Some a' → (a <= a')%Z.
-  Proof. solve_addr. Qed.
-
-  Lemma next_lt_top (a : Addr) i :
-    (i > 0)%Z →
-    is_Some (a + i)%a → a ≠ top.
-  Proof. intros ? [? ?] ?. solve_addr. Qed.
-
-  Lemma addr_next_le (a e : Addr) :
-    (a < e)%Z → ∃ a', (a + 1)%a = Some a'.
-  Proof. intros. zify_addr; eauto. exfalso. lia. Qed.
-
-  Lemma addr_next_lt (a e : Addr) :
-    (a < e)%Z -> ∃ a', (a + 1)%a = Some a'.
-  Proof. intros. zify_addr; eauto. exfalso. lia. Qed.
-
-  Lemma addr_next_lt_gt_contr (a e a' : Addr) :
-    (a < e)%Z → (a + 1)%a = Some a' → (e < a')%Z → False.
-  Proof. solve_addr. Qed.
-
-  Lemma addr_next_lt_le (a e a' : Addr) :
-    (a < e)%Z → (a + 1)%a = Some a' → (a' ≤ e)%Z.
-  Proof. solve_addr. Qed.
-
-  Lemma addr_abs_next (a e a' : Addr) :
-    (a + 1)%a = Some a' → (a < e)%Z → (Z.abs_nat (e - a) - 1) = (Z.abs_nat (e - a')).
-  Proof. solve_addr. Qed.
-
-  Lemma addr_unique a a' fin fin' :
-    a = a' → A a fin = A a' fin'.
-  Proof.
-    intros ->. f_equal. apply eq_proofs_unicity. decide equality.
-  Qed.
-
-  Lemma incr_addr_trans (a1 a2 a3 : Addr) (z1 z2 : Z) :
-    (a1 + z1)%a = Some a2 → (a2 + z2)%a = Some a3 →
-    (a1 + (z1 + z2))%a = Some a3.
-  Proof. solve_addr. Qed.
-
-  Lemma addr_add_assoc (a a' : Addr) (z1 z2 : Z) :
-    (a + z1)%a = Some a' →
-    (a + (z1 + z2))%a = (a' + z2)%a.
-  Proof. solve_addr. Qed.
-
-  Lemma incr_addr_le (a1 a2 a3 : Addr) (z1 z2 : Z) :
-    (a1 + z1)%a = Some a2 -> (a1 + z2)%a = Some a3 -> (z1 <= z2)%Z ->
-    (a2 <= a3)%Z.
-  Proof.
-    intros Ha1 Ha2 Hz.
-    destruct a1,a2,a3; simpl in *.
-    rewrite /incr_addr in Ha1.
-    destruct (Z_le_dec (A z fin + z1)%Z MemNum); inversion Ha1.
-    rewrite /incr_addr in Ha2.
-    destruct (Z_le_dec (A z fin + z2)%Z MemNum); inversion Ha2.
-    lia.
-  Qed.
-
-  Lemma incr_addr_ne a i :
-    i ≠ 0%Z → a ≠ addr_reg.top →
-    ^ (a + i)%a ≠ a.
-  Proof. intros H1 H2. intro. apply H2. solve_addr. Qed.
-
-  Lemma incr_addr_ne_top a z a' :
-    (z > 0)%Z → (a + z)%a = Some a' →
-    a ≠ addr_reg.top.
-  Proof. intros. intro. solve_addr. Qed.
-
-  Lemma get_addrs_from_option_addr_comm a i k :
-    (k >= 0)%Z -> 
-    (^(^(a + i) + k)%a) =
-    (^(a + (i + k)%Z)%a).
-  Proof. solve_addr. Qed.
-  
   (* Some additional helper lemmas about region_addrs *)
 
   Lemma not_elem_of_region_addrs_aux a n (i : Z) :
@@ -475,8 +389,6 @@ Require Import Eqdep_dec List.
        + rewrite get_addrs_from_option_addr_comm.
          apply IHn; omega. done. 
    Qed.
-
-  (* Some additional helper lemmas about region_addrs *)
 
   Lemma region_addrs_first a b :
     (a < b)%a ->
@@ -571,16 +483,6 @@ Require Import Eqdep_dec List.
      (b ≤ a < e)%Z →
      region_size b e = region_size b a + region_size a e.
    Proof. intros [? ?]. rewrite /region_size. solve_addr. Qed.
-
-   Lemma incr_addr_of_z (a a' : Addr) :
-     (a + 1)%a = Some a' →
-     (a + 1)%Z = a'.
-   Proof. solve_addr. Qed.
-
-   Lemma incr_addr_of_z_i (a a' : Addr) i :
-     (a + i)%a = Some a' →
-     (a + i)%Z = a'.
-   Proof. solve_addr. Qed.
 
    Lemma get_addr_from_option_addr_region_size (a b : Addr) :
      (b ≤ a)%Z →
