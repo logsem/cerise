@@ -390,16 +390,6 @@ Section stack_macros.
     contradiction.
   Qed.
 
-  Lemma region_size_S a b :
-    (a < b)%a ->
-    region_size a b = S (region_size (^(a+1))%a b).
-  Proof. rewrite /region_size. solve_addr. Qed.
-
-  Lemma region_size_0 a b :
-    (b <= a)%a ->
-    region_size a b = 0.
-  Proof. rewrite /region_size. solve_addr. Qed.
-
   Lemma mclear_iter_spec (a1 a2 a3 a4 a5 a6 b_r e_r a_r (* e_r' *) : Addr) ws (z : nat)
         p p' g b e rt rt1 rt2 rt3 rt4 rt5 a_end (p_r p_r' : Perm) (g_r : Locality) φ :
         isCorrectPC (inr ((p,g),b,e,a1))
