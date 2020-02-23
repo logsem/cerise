@@ -213,6 +213,13 @@ Module cap_lang.
     lia.
   Qed.
 
+  Lemma isCorrectPC_withinBounds p g p' g' b e a :
+    isCorrectPC (inr (p, g, b, e, a)) →
+    withinBounds (p', g', b, e, a) = true.
+  Proof.
+    intros HH. inversion HH; subst.
+    rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
+  Qed.
 
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
   Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).

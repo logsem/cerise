@@ -87,16 +87,6 @@ Section stack_macros.
     inversion HH; auto.
   Qed.
 
-  (* TODO: move to lang.v & simplify wp specs that require both isCorrectPC 
-     and withinBounds = true *)
-  Lemma isCorrectPC_withinBounds p g p' g' b e a :
-    isCorrectPC (inr (p, g, b, e, a)) →
-    withinBounds (p', g', b, e, a) = true.
-  Proof.
-    intros HH. inversion HH; subst.
-    rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
-  Qed.
-
   (* -------------------------------- LTACS ------------------------------------------- *)
   Ltac iPrologue_pre :=
     match goal with
