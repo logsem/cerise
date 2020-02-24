@@ -590,6 +590,7 @@ Section fundamental.
                    iSplit; auto. iSplit.
                    (* To close the region, we need to reestablish interp and monotonicity for the new value *)
                    {
+                     unfold monotonicity_guarantees_region.
                      destruct ρ'.
                      - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
                        * iIntros (W0 W1) "% HIW0".
