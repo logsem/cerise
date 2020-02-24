@@ -59,31 +59,6 @@ Section cap_lang_rules.
     Lea_failure regs r1 rv ->
     Lea_spec regs r1 rv regs' retv.
 
-   Definition regs_of_argument (arg: Z + RegName): gset RegName :=
-     match arg with
-     | inl _ => ∅
-     | inr r => {[ r ]}
-     end.
-
-   Definition regs_of (i: instr): gset RegName :=
-     match i with
-     | Lea r1 arg => {[ r1 ]} ∪ regs_of_argument arg
-     | _ => ∅
-     end.
-
-   Lemma indom_regs_incl D (regs regs': Reg) :
-     D ⊆ dom (gset RegName) regs →
-     regs ⊆ regs' →
-     ∀ r, r ∈ D →
-     ∃ (w:Word), (regs !! r = Some w) ∧ (regs' !! r = Some w).
-   Proof.
-     intros * HD Hincl rr Hr.
-     assert (is_Some (regs !! rr)) as [w Hw].
-     { eapply @elem_of_dom with (D := gset RegName). typeclasses eauto.
-       eapply elem_of_subseteq; eauto. }
-     exists w. split; auto. eapply lookup_weaken; eauto.
-   Qed.
-
    (* Used to close the failing cases.
       - Hcont is the (iris) name of the closing hypothesis (usually "Hφ")
       - lea_fail_case is one constructor of the Lea_failure inductive,

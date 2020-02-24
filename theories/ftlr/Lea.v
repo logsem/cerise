@@ -27,16 +27,6 @@ Section fundamental.
     destruct p; auto; congruence.
   Qed.
 
-  Lemma lookup_insert_is_Some_weaken
-    {K : Type} {M : Type → Type} `{FMap M} `{∀ A : Type, Lookup K A (M A)} `{∀ A : Type, Empty (M A)}
-               `{∀ A : Type, PartialAlter K A (M A)} `{OMap M} `{Merge M}
-               `{∀ A : Type, FinMapToList K A (M A)} `{EqDecision K} `{FinMap K M} :
-    ∀ {A : Type} (m : M A) (i j : K) (x : A),
-      is_Some (m !! j) → is_Some (<[i:=x]> m !! j).
-  Proof.
-    intros. rewrite lookup_insert_is_Some. destruct (decide (i = j)); auto.
-  Qed.
-
   Lemma lea_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
     ftlr_instr W r p p' g b e a w (cap_lang.Lea dst r0) ρ.
