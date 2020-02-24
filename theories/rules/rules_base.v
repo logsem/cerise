@@ -290,6 +290,64 @@ Section cap_lang_rules.
     contradiction.
   Qed.
 
+  Lemma regname_neq r1 r2 w1 w2 :
+    r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗ ⌜ r1 ≠ r2 ⌝.
+  Proof.
+    iIntros "H1 H2" (?). subst r1. iApply (regname_dupl_false with "H1 H2").
+  Qed.
+
+  Lemma map_of_regs_1 (r1: RegName) (w1: Word) :
+    r1 ↦ᵣ w1 -∗
+    ([∗ map] k↦y ∈ {[r1 := w1]}, k ↦ᵣ y).
+  Proof. by rewrite big_sepM_singleton. Qed.
+
+  Lemma regs_of_map_1 (r1: RegName) (w1: Word) :
+    ([∗ map] k↦y ∈ {[r1 := w1]}, k ↦ᵣ y) -∗
+    r1 ↦ᵣ w1.
+  Proof. by rewrite big_sepM_singleton. Qed.
+
+  Lemma map_of_regs_2 (r1 r2: RegName) (w1 w2: Word) :
+    r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> ∅)), k ↦ᵣ y) ∗ ⌜ r1 ≠ r2 ⌝.
+  Proof.
+    iIntros "H1 H2". iPoseProof (regname_neq with "H1 H2") as "%".
+    rewrite !big_sepM_insert ?big_sepM_empty; eauto.
+    2: by apply lookup_insert_None; split; eauto.
+    iFrame. eauto.
+  Qed.
+
+  Lemma regs_of_map_2 (r1 r2: RegName) (w1 w2: Word) :
+    r1 ≠ r2 →
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> ∅)), k ↦ᵣ y) -∗
+    r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2.
+  Proof.
+    iIntros (?) "Hmap". rewrite !big_sepM_insert ?big_sepM_empty; eauto.
+    by iDestruct "Hmap" as "(? & ? & _)"; iFrame.
+    apply lookup_insert_None; split; eauto.
+  Qed.
+
+  Lemma map_of_regs_3 (r1 r2 r3: RegName) (w1 w2 w3: Word) :
+    r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗ r3 ↦ᵣ w3 -∗
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> ∅))), k ↦ᵣ y) ∗
+     ⌜ r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ⌝.
+  Proof.
+    iIntros "H1 H2 H3".
+    iPoseProof (regname_neq with "H1 H2") as "%".
+    iPoseProof (regname_neq with "H1 H3") as "%".
+    iPoseProof (regname_neq with "H2 H3") as "%".
+    rewrite !big_sepM_insert ?big_sepM_empty; simplify_map_eq; eauto.
+    iFrame. eauto.
+  Qed.
+
+  Lemma regs_of_map_3 (r1 r2 r3: RegName) (w1 w2 w3: Word) :
+    r1 ≠ r2 → r1 ≠ r3 → r2 ≠ r3 →
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> ∅))), k ↦ᵣ y) -∗
+    r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 ∗ r3 ↦ᵣ w3.
+  Proof.
+    iIntros (? ? ?) "Hmap". rewrite !big_sepM_insert ?big_sepM_empty; simplify_map_eq; eauto.
+    iDestruct "Hmap" as "(? & ? & ? & _)"; iFrame.
+  Qed.
+
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
 
   Lemma gen_heap_valid_inSepM:
@@ -317,6 +375,21 @@ Section cap_lang_rules.
     intros *. iIntros "? Hmap" (l v Hσ').
     rewrite (big_sepM_delete _ σ' l) //. iDestruct "Hmap" as "[? ?]".
     iApply (gen_heap_valid with "[$]"). eauto.
+  Qed.
+
+  Lemma gen_heap_valid_inclSepM:
+    ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
+      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (σ σ' : gmap L V) (q : Qp),
+      gen_heap_ctx σ -∗
+      ([∗ map] k↦y ∈ σ', mapsto k q y) -∗
+      ⌜σ' ⊆ σ⌝.
+  Proof.
+    intros *. iIntros "Hσ Hmap".
+    iDestruct (gen_heap_valid_inSepM' with "Hσ Hmap") as "#H".
+    iDestruct "H" as %Hincl. iPureIntro. intro l.
+    unfold option_relation.
+    destruct (σ' !! l) eqn:HH'; destruct (σ !! l) eqn:HH; naive_solver.
   Qed.
 
   Lemma gen_heap_valid_allSepM:
@@ -473,6 +546,19 @@ Section cap_lang_rules.
     case_eq (u+1)%a; congruence.
   Qed.
 
+  Lemma incrementPC_overflow_mono regs regs' :
+    incrementPC regs = None →
+    is_Some (regs !! PC) →
+    regs ⊆ regs' →
+    incrementPC regs' = None.
+  Proof.
+    intros Hi HPC Hincl. unfold incrementPC in *. destruct HPC as [c HPC].
+    pose proof (lookup_weaken _ _ _ _ HPC Hincl) as HPC'.
+    rewrite HPC HPC' in Hi |- *.
+    destruct c as [| ((((?&?)&?)&?)&aa)]; first by auto.
+    destruct (aa+1)%a; last by auto. congruence.
+  Qed.
+
   (* todo: instead, define updatePC on top of incrementPC *)
   Lemma incrementPC_fail_updatePC regs m :
      incrementPC regs = None ->
@@ -497,6 +583,25 @@ Section cap_lang_rules.
     destruct X as [| [[[[? ?] ?] ?] a']] eqn:?; try congruence; [].
     destruct (a' + 1)%a eqn:?; [| congruence]. inversion 1; subst regs'.
     do 6 eexists. repeat split; auto.
+  Qed.
+
+  Lemma updatePC_success_incl m m' regs regs' w :
+    regs ⊆ regs' →
+    updatePC (regs, m) = (NextI, (<[ PC := w ]> regs, m)) →
+    updatePC (regs', m') = (NextI, (<[ PC := w ]> regs', m')).
+  Proof.
+    intros * Hincl Hu. rewrite /updatePC /= in Hu |- *.
+    destruct (regs !! PC) as [ w1 |] eqn:Hrr.
+    { pose proof (regs_lookup_eq _ _ _ Hrr) as Hrr2. rewrite Hrr2 in Hu.
+      pose proof (lookup_weaken _ _ _ _ Hrr Hincl) as ->%regs_lookup_eq.
+      destruct w1 as [|((((?&?)&?)&?)&a1)]. by inversion Hu.
+      destruct (a1 + 1)%a eqn:Ha1. 2: by inversion Hu.
+      unfold update_reg in *.
+      inversion Hu; clear Hu. cbn. f_equal. f_equal.
+      assert (HH: forall reg1 reg2, reg1 = reg2 -> reg1 !! PC = reg2 !! PC)
+        by (intros * ->; auto).
+      apply HH in H3. rewrite !lookup_insert in H3. inversion H3. by subst w. }
+    { unfold RegLocate in Hu. rewrite Hrr in Hu. inversion Hu. }
   Qed.
 
   (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
@@ -601,3 +706,101 @@ End cap_lang_rules.
 (* Points to predicates for memory *)
 Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
   (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+
+Ltac incrementPC_inv :=
+  match goal with
+  | H : incrementPC _ = Some _ |- _ =>
+    apply incrementPC_Some_inv in H as (?&?&?&?&?&?&?&?&?)
+  | H : incrementPC _ = None |- _ =>
+    eapply incrementPC_None_inv in H
+  end; simplify_eq.
+
+(* TODO: add to stdpp *)
+Lemma lookup_insert_is_Some_weaken
+  {K : Type} {M : Type → Type} `{FMap M} `{∀ A : Type, Lookup K A (M A)} `{∀ A : Type, Empty (M A)}
+             `{∀ A : Type, PartialAlter K A (M A)} `{OMap M} `{Merge M}
+             `{∀ A : Type, FinMapToList K A (M A)} `{EqDecision K} `{FinMap K M} :
+  ∀ {A : Type} (m : M A) (i j : K) (x : A),
+    is_Some (m !! j) → is_Some (<[i:=x]> m !! j).
+Proof.
+  intros. rewrite lookup_insert_is_Some. destruct (decide (i = j)); auto.
+Qed.
+
+(*----------------------- FIXME TEMPORARY ------------------------------------*)
+(* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using
+   "rewrite .. by .." that is not available when using ssreflect's rewrite. *)
+(* TODO: upstream the fix into stdpp, and remove the code below whenever we
+   upgrade to a version of stdpp that includes it *)
+
+Tactic Notation "simpl_map" "by" tactic3(tac) := repeat
+  match goal with
+  | H : context[ ∅ !! _ ] |- _ => rewrite lookup_empty in H
+  | H : context[ (<[_:=_]>_) !! _ ] |- _ =>
+    rewrite lookup_insert in H || (rewrite lookup_insert_ne in H; [| by tac])
+  | H : context[ (alter _ _ _) !! _] |- _ =>
+    rewrite lookup_alter in H || (rewrite lookup_alter_ne in H; [| by tac])
+  | H : context[ (delete _ _) !! _] |- _ =>
+    rewrite lookup_delete in H || (rewrite lookup_delete_ne in H; [| by tac])
+  | H : context[ {[ _ := _ ]} !! _ ] |- _ =>
+    rewrite lookup_singleton in H || (rewrite lookup_singleton_ne in H; [| by tac])
+  | H : context[ (_ <$> _) !! _ ] |- _ => rewrite lookup_fmap in H
+  | H : context[ (omap _ _) !! _ ] |- _ => rewrite lookup_omap in H
+  | H : context[ lookup (A:=?A) ?i (?m1 ∪ ?m2) ] |- _ =>
+    let x := fresh in evar (x:A);
+    let x' := eval unfold x in x in clear x;
+    let E := fresh in
+    assert ((m1 ∪ m2) !! i = Some x') as E by (clear H; by tac);
+    rewrite E in H; clear E
+  | |- context[ ∅ !! _ ] => rewrite lookup_empty
+  | |- context[ (<[_:=_]>_) !! _ ] =>
+    rewrite lookup_insert || (rewrite lookup_insert_ne; [| by tac])
+  | |- context[ (alter _ _ _) !! _ ] =>
+    rewrite lookup_alter || (rewrite lookup_alter_ne; [| by tac])
+  | |- context[ (delete _ _) !! _ ] =>
+    rewrite lookup_delete || (rewrite lookup_delete_ne; [| by tac])
+  | |- context[ {[ _ := _ ]} !! _ ] =>
+    rewrite lookup_singleton || (rewrite lookup_singleton_ne; [| by tac])
+  | |- context[ (_ <$> _) !! _ ] => rewrite lookup_fmap
+  | |- context[ (omap _ _) !! _ ] => rewrite lookup_omap
+  | |- context [ lookup (A:=?A) ?i ?m ] =>
+    let x := fresh in evar (x:A);
+    let x' := eval unfold x in x in clear x;
+    let E := fresh in
+    assert (m !! i = Some x') as E by tac;
+    rewrite E; clear E
+  end.
+
+Tactic Notation "simpl_map" := simpl_map by eauto with simpl_map map_disjoint.
+
+Tactic Notation "simplify_map_eq" "by" tactic3(tac) :=
+  decompose_map_disjoint;
+  repeat match goal with
+  | _ => progress simpl_map by tac
+  | _ => progress simplify_eq/=
+  | _ => progress simpl_option by tac
+  | H : {[ _ := _ ]} !! _ = None |- _ => rewrite lookup_singleton_None in H
+  | H : {[ _ := _ ]} !! _ = Some _ |- _ =>
+    rewrite lookup_singleton_Some in H; destruct H
+  | H1 : ?m1 !! ?i = Some ?x, H2 : ?m2 !! ?i = Some ?y |- _ =>
+    let H3 := fresh in
+    feed pose proof (lookup_weaken_inv m1 m2 i x y) as H3; [done|by tac|done|];
+    clear H2; symmetry in H3
+  | H1 : ?m1 !! ?i = Some ?x, H2 : ?m2 !! ?i = None |- _ =>
+    let H3 := fresh in
+    apply (lookup_weaken _ m2) in H1; [congruence|by tac]
+  | H : ?m ∪ _ = ?m ∪ _ |- _ =>
+    apply map_union_cancel_l in H; [|by tac|by tac]
+  | H : _ ∪ ?m = _ ∪ ?m |- _ =>
+    apply map_union_cancel_r in H; [|by tac|by tac]
+  | H : {[?i := ?x]} = ∅ |- _ => by destruct (map_non_empty_singleton i x)
+  | H : ∅ = {[?i := ?x]} |- _ => by destruct (map_non_empty_singleton i x)
+  | H : ?m !! ?i = Some _, H2 : ?m !! ?j = None |- _ =>
+     unless (i ≠ j) by done;
+     assert (i ≠ j) by (by intros ?; simplify_eq)
+  end.
+Tactic Notation "simplify_map_eq" "/=" "by" tactic3(tac) :=
+  repeat (progress csimpl in * || simplify_map_eq by tac).
+Tactic Notation "simplify_map_eq" :=
+  simplify_map_eq by eauto with simpl_map map_disjoint.
+Tactic Notation "simplify_map_eq" "/=" :=
+  simplify_map_eq/= by eauto with simpl_map map_disjoint.
