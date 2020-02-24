@@ -2,7 +2,9 @@
 -arg -w -arg -several-object-files
 theories/monocmra.v
 theories/mono_ref.v
-theories/monotone.v
+theories/sts.v
+theories/addr_reg.v
+theories/lang.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v
@@ -16,10 +18,11 @@ theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules/rules.v
-theories/lang.v
-theories/logrel.v
 theories/region.v
-theories/sts.v
+theories/region_invariants.v
+theories/region_invariants_revocation.v
+theories/logrel.v
+theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/Get.v
 theories/ftlr/Load.v
@@ -34,5 +37,6 @@ theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/fundamental.v
 theories/examples/addr_reg_sample.v
+theories/examples/region_macros.v
 theories/examples/stack_macros.v
 theories/examples/contiguous.v

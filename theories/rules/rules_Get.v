@@ -8,13 +8,13 @@ Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr. 
+  Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val. 
+  Implicit Types v : cap_lang.val.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
-  Implicit Types ms : gmap Addr Word. 
+  Implicit Types ms : gmap Addr Word.
 
   Lemma wp_GetL_success E dst src pc_p pc_g pc_b pc_e pc_a w wdst wsrc pc_a' pc_p' :
     cap_lang.decode w = GetL dst src →
@@ -69,7 +69,7 @@ Section cap_lang_rules.
         iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
       * rewrite H3. destruct wsrc.
         { simpl. iFrame. destruct (reg_eq_dec src dst).
-          - subst src. 
+          - subst src.
             iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
           - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
         { simpl. destruct c. destruct p,p,p.
@@ -138,7 +138,7 @@ Section cap_lang_rules.
         iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
       * rewrite H3. destruct wsrc.
         { simpl. iFrame. destruct (reg_eq_dec src dst).
-          - subst src. 
+          - subst src.
             iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
           - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
         { simpl. destruct c. destruct p,p,p.
@@ -208,7 +208,7 @@ Section cap_lang_rules.
         iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
       * rewrite H3. destruct wsrc.
         { simpl. iFrame. destruct (reg_eq_dec src dst).
-          - subst src. 
+          - subst src.
             iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
           - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
         { simpl. destruct c. destruct p,p,p.
@@ -279,7 +279,7 @@ Section cap_lang_rules.
         iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
       * rewrite H3. destruct wsrc.
         { simpl. iFrame. destruct (reg_eq_dec src dst).
-          - subst src. 
+          - subst src.
             iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
           - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
         { simpl. destruct c. destruct p,p,p.
@@ -306,7 +306,7 @@ Section cap_lang_rules.
            ∗ pc_a ↦ₐ[pc_p'] w
            ∗ (if reg_eq_dec PC src then emp else src ↦ᵣ wsrc)
            ∗ (if reg_eq_dec src dst then emp else dst ↦ᵣ wdst) }}}
-      Instr Executable @ E
+       Instr Executable @ E
       {{{ RET if reg_eq_dec PC src then NextIV else match wsrc with inr _ => NextIV | _ => FailedV end;
           PC ↦ᵣ (if reg_eq_dec PC src then inr ((pc_p,pc_g),pc_b,pc_e,pc_a') else match wsrc with inr _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a') | inl _ => inr ((pc_p,pc_g),pc_b,pc_e,pc_a) end)
              ∗ pc_a ↦ₐ[pc_p'] w
@@ -350,7 +350,7 @@ Section cap_lang_rules.
         iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
       * rewrite H3. destruct wsrc.
         { simpl. iFrame. destruct (reg_eq_dec src dst).
-          - subst src. 
+          - subst src.
             iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
           - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
         { simpl. destruct c. destruct p,p,p.
@@ -468,7 +468,7 @@ Section cap_lang_rules.
       inv Hstep. inv H4.
       + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
       + clear H9. rewrite /RegLocate H1 in H8. inv H8.
-        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
         destruct (reg_eq_dec PC src).
         * subst src. rewrite H1.
           destruct (reg_eq_dec PC dst); try contradiction.
@@ -478,7 +478,7 @@ Section cap_lang_rules.
           iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
         * rewrite H3. destruct wsrc.
           { simpl. iFrame. destruct (reg_eq_dec src dst).
-            - subst src. 
+            - subst src.
               iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
             - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
           { simpl. destruct c, p0, p0, p0.
@@ -593,7 +593,7 @@ Section cap_lang_rules.
       inv Hstep. inv H4.
       + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
       + clear H9. rewrite /RegLocate H1 in H8. inv H8.
-        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
         destruct (reg_eq_dec PC src).
         * subst src. rewrite H1.
           destruct (reg_eq_dec PC dst); try contradiction.
@@ -603,7 +603,7 @@ Section cap_lang_rules.
           iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
         * rewrite H3. destruct wsrc.
           { simpl. iFrame. destruct (reg_eq_dec src dst).
-            - subst src. 
+            - subst src.
               iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
             - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
           { simpl. destruct c, p0, p0, p0.
@@ -720,7 +720,7 @@ Section cap_lang_rules.
       inv Hstep. inv H4.
       + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
       + clear H9. rewrite /RegLocate H1 in H8. inv H8.
-        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
         destruct (reg_eq_dec PC src).
         * subst src. rewrite H1.
           destruct (reg_eq_dec PC dst); try contradiction.
@@ -731,7 +731,7 @@ Section cap_lang_rules.
           iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
         * rewrite H3. destruct wsrc.
           { simpl. iFrame. destruct (reg_eq_dec src dst).
-            - subst src. 
+            - subst src.
               iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
             - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
           { simpl. destruct c, p0, p0, p0.
@@ -849,7 +849,7 @@ Section cap_lang_rules.
       inv Hstep. inv H4.
       + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
       + clear H9. rewrite /RegLocate H1 in H8. inv H8.
-        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
         destruct (reg_eq_dec PC src).
         * subst src. rewrite H1.
           destruct (reg_eq_dec PC dst); try contradiction.
@@ -860,7 +860,7 @@ Section cap_lang_rules.
           iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
         * rewrite H3. destruct wsrc.
           { simpl. iFrame. destruct (reg_eq_dec src dst).
-            - subst src. 
+            - subst src.
               iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
             - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
           { simpl. destruct c, p0, p0, p0.
@@ -978,7 +978,7 @@ Section cap_lang_rules.
       inv Hstep. inv H4.
       + simpl in H7; unfold RegLocate in H7; rewrite H1 in H7; contradiction.
       + clear H9. rewrite /RegLocate H1 in H8. inv H8.
-        rewrite /MemLocate H2 Hinstr /exec /RegLocate. 
+        rewrite /MemLocate H2 Hinstr /exec /RegLocate.
         destruct (reg_eq_dec PC src).
         * subst src. rewrite H1.
           destruct (reg_eq_dec PC dst); try contradiction.
@@ -989,7 +989,7 @@ Section cap_lang_rules.
           iSpecialize ("Hϕ" with "[HPC Hpc_a Hdst]"); iFrame. auto.
         * rewrite H3. destruct wsrc.
           { simpl. iFrame. destruct (reg_eq_dec src dst).
-            - subst src. 
+            - subst src.
               iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto.
             - iSpecialize ("Hϕ" with "[HPC Hpc_a Hsrc Hdst]"); iFrame. auto. }
           { simpl. destruct c, p0, p0, p0.

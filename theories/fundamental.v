@@ -2,7 +2,7 @@ From cap_machine.ftlr Require Export Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Sto
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel region_invariants.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -61,7 +61,7 @@ Section fundamental.
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr ((p,g),b,e,a)))). 
     - (* Correct PC *)
-      assert ((b <= a)%a ∧ (a <= e)%a) as Hbae.
+      assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 

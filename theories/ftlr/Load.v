@@ -594,7 +594,7 @@ Section fundamental.
       iDestruct ("Hreg" $! src n) as "Hvsrc".
       rewrite /RegLocate Hsomesrc.
       iDestruct (read_allowed_inv _ a0 with "Hvsrc") as "Hconds"; auto;
-        first (split; by apply Z.leb_le).
+        first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
       (* Each condition in Hconds take a step in similar fashion *)
       destruct (decide (a = a0)).
       {
@@ -815,7 +815,7 @@ Section fundamental.
       { apply reg_eq_sym in n0. iDestruct ("Hreg" $! src n0) as "Hvsrc".
         rewrite /RegLocate Hsomesrc /=. by iApply "Hvsrc". }
       iDestruct (read_allowed_inv _ a0 with "Hvsrc") as "Hconds"; auto;
-        first (split; by apply Z.leb_le).
+        first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
       (* Each condition in Hconds take a step in similar fashion *)
       iAssert ((∃ w' p'', ▷ ((if (a0 =? a)%a then emp else a0 ↦ₐ[p''] w') -∗ open_region a W)
                             ∗ (if (a0 =? a)%a then emp else ▷ a0 ↦ₐ[p''] w')

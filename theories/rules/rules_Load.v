@@ -735,7 +735,7 @@ Section cap_lang_rules.
     assert (<[r1:=w]> r !r! PC = (inr (pc_p, pc_g, pc_b, pc_e, pc_a)))
       as Hpc_new1.
     { rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.
@@ -893,7 +893,7 @@ Section cap_lang_rules.
     assert (<[PC:=m !m! pc_a]> r !r! PC = m !m! pc_a)
       as Hpc_new1.
     { rewrite (locate_eq_reg _ _ (r !r! PC)); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true).
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { apply Is_true_eq_true. by apply (isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -1132,7 +1132,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -1196,7 +1196,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a0.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -1269,7 +1269,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a0.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
