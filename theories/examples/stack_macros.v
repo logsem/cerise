@@ -372,14 +372,6 @@ Section stack_macros.
     else
       False%I.
 
-  Lemma regname_dupl_false r w1 w2 :
-    r ↦ᵣ w1 -∗ r ↦ᵣ w2 -∗ False.
-  Proof.
-    iIntros "Hr1 Hr2".
-    iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
-    contradiction.
-  Qed.
-
   Lemma mclear_iter_spec (a1 a2 a3 a4 a5 a6 b_r e_r a_r (* e_r' *) : Addr) ws (z : nat)
         p p' g b e rt rt1 rt2 rt3 rt4 rt5 a_end (p_r p_r' : Perm) (g_r : Locality) φ :
         isCorrectPC (inr ((p,g),b,e,a1))

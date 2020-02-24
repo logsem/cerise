@@ -280,6 +280,16 @@ Section cap_lang_rules.
     rewrite lookup_partial_alter_ne; eauto.
   Qed.
 
+  (* ------------------------- registers points-to --------------------------------- *)
+
+  Lemma regname_dupl_false r w1 w2 :
+    r ↦ᵣ w1 -∗ r ↦ᵣ w2 -∗ False.
+  Proof.
+    iIntros "Hr1 Hr2".
+    iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
+    contradiction.
+  Qed.
+
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
 
   Lemma gen_heap_valid_inSepM:
