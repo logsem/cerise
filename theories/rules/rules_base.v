@@ -206,6 +206,72 @@ End World.
 
 Definition logN : namespace := nroot .@ "logN".
 
+(* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
+
+Ltac inv_head_step :=
+  repeat match goal with
+         | _ => progress simplify_map_eq/= (* simplify memory stuff *)
+         | H : to_val _ = Some _ |- _ => apply of_to_val in H
+         | H : _ = of_val ?v |- _ =>
+           is_var v; destruct v; first[discriminate H|injection H as H]
+         | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
+           try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
+           (*    and can thus better be avoided. *)
+           let φ := fresh "φ" in
+           inversion H as [| φ]; subst φ; clear H
+         end.
+
+Ltac option_locate_mr_once m r :=
+  match goal with
+  | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
+                                assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
+  | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
+                                assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
+  end.
+
+Ltac option_locate_mr m r :=
+  repeat option_locate_mr_once m r.
+
+Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
+  match goal with
+  | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
+    let σ := fresh "σ" in
+    let e' := fresh "e'" in
+    let σ' := fresh "σ'" in
+    let Hstep' := fresh "Hstep'" in
+    let He0 := fresh "He0" in
+    let Ho := fresh "Ho" in
+    let He' := fresh "H"e' in
+    let Hσ' := fresh "H"σ' in
+    let Hefs := fresh "Hefs" in
+    let φ0 := fresh "φ" in
+    let p0 := fresh "p" in
+    let g0 := fresh "g" in
+    let b0 := fresh "b" in
+    let e2 := fresh "e" in
+    let a0 := fresh "a" in
+    let i := fresh "i" in
+    let c0 := fresh "c" in
+    let HregPC := fresh "HregPC" in
+    let Hi := fresh "H"i in
+    let Hexec := fresh "Hexec" in
+    inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?];
+    inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
+    (simpl in *; try congruence );
+    subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
+    try (rewrite HPC in HregPC;
+         inversion HregPC;
+         repeat match goal with
+                | H : _ = p0 |- _ => destruct H
+                | H : _ = g0 |- _ => destruct H
+                | H : _ = b0 |- _ => destruct H
+                | H : _ = e2 |- _ => destruct H
+                | H : _ = a0 |- _ => destruct H
+                end ; destruct Hi ; clear HregPC ;
+         rewrite Hpc_a Hinstr /= ;
+         rewrite Hpc_a Hinstr in Hstep)
+  end.
+
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRefG (leibnizO _) CapR_rtc Σ,
             World: MonRefG (leibnizO _) RelW Σ}.
@@ -436,6 +502,10 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
+  (* Permission-carrying memory type, used to describe maps of locations and permissions in the load and store cases *)
+  Definition PermMem := gmap Addr (Perm * Word).
+
+
   (* --------------------------- CAPABILITY PREDICATE ------------------------------- *)
   (* Points to predicates for memory *)
   Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
@@ -498,68 +568,6 @@ Section cap_lang_rules.
     by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
   Qed.
 
-  (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
-
-  Ltac inv_head_step :=
-    repeat match goal with
-           | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-           | H : to_val _ = Some _ |- _ => apply of_to_val in H
-           | H : _ = of_val ?v |- _ =>
-             is_var v; destruct v; first[discriminate H|injection H as H]
-           | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
-             try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-             (*    and can thus better be avoided. *)
-             let φ := fresh "φ" in
-             inversion H as [| φ]; subst φ; clear H
-           end.
-
-  Ltac option_locate_mr m r :=
-    repeat match goal with
-    | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-        assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-    | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-        assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
-           end.
-
-  Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-    match goal with
-    | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-      let σ := fresh "σ" in
-      let e' := fresh "e'" in
-      let σ' := fresh "σ'" in
-      let Hstep' := fresh "Hstep'" in
-      let He0 := fresh "He0" in
-      let Ho := fresh "Ho" in
-      let He' := fresh "H"e' in
-      let Hσ' := fresh "H"σ' in
-      let Hefs := fresh "Hefs" in
-      let φ0 := fresh "φ" in
-      let p0 := fresh "p" in
-      let g0 := fresh "g" in
-      let b0 := fresh "b" in
-      let e2 := fresh "e" in
-      let a0 := fresh "a" in
-      let i := fresh "i" in
-      let c0 := fresh "c" in
-      let HregPC := fresh "HregPC" in
-      let Hi := fresh "H"i in
-      let Hexec := fresh "Hexec" in
-      inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?];
-      inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-        (simpl in *; try congruence );
-      subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-      try (rewrite HPC in HregPC;
-           inversion HregPC;
-           repeat match goal with
-                  | H : _ = p0 |- _ => destruct H
-                  | H : _ = g0 |- _ => destruct H
-                  | H : _ = b0 |- _ => destruct H
-                  | H : _ = e2 |- _ => destruct H
-                  | H : _ = a0 |- _ => destruct H
-                  end ; destruct Hi ; clear HregPC ;
-           rewrite Hpc_a Hinstr /= ;
-           rewrite Hpc_a Hinstr in Hstep)
-    end.
 
   Lemma cap_lang_determ:
     forall e1 σ1 κ κ' e2 e2' σ2 σ2' efs efs',

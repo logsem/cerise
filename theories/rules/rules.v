@@ -118,6 +118,33 @@ Section cap_lang_rules.
       iModIntro. iSplitR; auto. iApply "Hϕ". iFrame. 
   Qed.
 
+  (* Subcases for respecitvely permissions and bounds *)
+
+  Lemma wp_notCorrectPC_perm E pc_p pc_g pc_b pc_e pc_a :
+      pc_p ≠ RX ∧ pc_p ≠ RWX ∧ pc_p ≠ RWLX →
+      {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)}}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]");
+      [apply not_isCorrectPC_perm;eauto|iFrame|].
+    iNext. iIntros "HPC /=".
+    by iApply "Hwp".
+  Qed.
+
+  Lemma wp_notCorrectPC_range E pc_p pc_g pc_b pc_e pc_a :
+       ¬ (pc_b <= pc_a < pc_e)%a →
+      {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)}}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]");
+      [apply not_isCorrectPC_bounds;eauto|iFrame|].
+    iNext. iIntros "HPC /=".
+    by iApply "Hwp".
+  Qed.
 
  (* --------------------------------------------------------------------------------- *)
  (* ----------------------------------- ATOMIC RULES -------------------------------- *)
@@ -220,4 +247,4 @@ Section cap_lang_rules.
   Proof. by solve_exec_pure. Qed.
     
     
-End cap_lang_rules. 
+End cap_lang_rules.

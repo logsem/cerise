@@ -295,15 +295,10 @@ Section monotone.
 
   (*Lemma that allows switching between the two different formulations of monotonicity, to alleviate the effects of inconsistencies*)
   Lemma switch_monotonicity_formulation ρ w p φ:
-    (match ρ with
-     | Temporary => if pwl p then future_pub_mono else future_priv_mono
-     | Permanent => future_priv_mono
-     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
-     end φ w)%I ↔
-             (ρ ≠ Revoked → (if decide (ρ = Temporary ∧ pwl p = true)
-                             then future_pub_mono φ w
-                             else future_priv_mono φ w)%I).
+      monotonicity_guarantees_region ρ w p φ  ↔
+             (ρ ≠ Revoked → monotonicity_guarantees_decide (Σ := Σ) ρ w p φ).
   Proof.
+    unfold monotonicity_guarantees_region, monotonicity_guarantees_decide.
     split.
     - destruct ρ.
       * destruct (pwl p) ; intros.
@@ -337,13 +332,9 @@ Lemma interp_monotone_generalW (W : WORLD)  (ρ : region_type) (p p0 p1 : Perm) 
                        | _ => false
                        end = true)→
   ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
-                         (match ρ with
-                          | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
-                          | Permanent => future_priv_mono
-                          | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
-                          end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
-                              (inr (p, g, b, e, a))).
+  monotonicity_guarantees_region ρ  (inr (p, g, b, e, a)) p1  (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
 Proof.
+  unfold monotonicity_guarantees_region.
   iIntros (Hstd Hwb Hfl' Hconds) "#Hvdst".
   destruct ρ.
   - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.
@@ -372,13 +363,9 @@ Lemma interp_monotone_generalZ (W : WORLD)  (ρ : region_type) (p0 p1 : Perm) (l
   withinBounds (p0, l, a2, a1, a0) = true →
   PermFlows p0 p1 →
   ((fixpoint interp1) W) (inr (p0, l, a2, a1, a0)) -∗
-                         (match ρ with
-                          | Temporary => if pwl p1 then future_pub_mono else future_priv_mono
-                          | Permanent => future_priv_mono
-                          | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
-                          end (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2)
-                              (inl z)).
+  monotonicity_guarantees_region ρ  (inl z) p1  (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
 Proof.
+  unfold monotonicity_guarantees_region.
   iIntros (Hstd Hwb Hfl') "#Hvdst".
   destruct ρ.
   - destruct (pwl p1) eqn: HpwlP1 ; iAlways; simpl.

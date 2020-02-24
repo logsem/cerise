@@ -773,7 +773,19 @@ Section heap.
     iFrame "# ∗". auto. 
   Qed.
 
-  Lemma region_open_next
+  Definition monotonicity_guarantees_region ρ w p φ :=
+    (match ρ with
+     | Temporary => if pwl p then future_pub_mono else future_priv_mono
+     | Permanent => future_priv_mono
+     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     end φ w)%I.
+
+  Definition monotonicity_guarantees_decide ρ w p φ:=
+    (if decide (ρ = Temporary ∧ pwl p = true)
+     then future_pub_mono φ w
+     else future_priv_mono φ w)%I.
+
+   Lemma region_open_next
         (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
         (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
         (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
@@ -784,15 +796,10 @@ Section heap.
         sts_full_world sts_std W
                        ∗ sts_state_std (countable.encode l) ρ
                        ∗ open_region_many (l :: ls) W
-                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ (match ρ with
-                                                  | Permanent => future_priv_mono
-                                                  | Temporary => if pwl p then
-                                                                   future_pub_mono
-                                                                 else future_priv_mono
-                                                  | Revoked => fun _ _ => True%I
-                                                  end) φ v ∗
+                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ monotonicity_guarantees_region ρ v p φ ∗
                        ▷ φ (W, v).
-  Proof.
+   Proof.
+    unfold monotonicity_guarantees_region.
     intros. iIntros "H".
     destruct ρ; try congruence.
     - case_eq (pwl p); intros.
@@ -810,15 +817,10 @@ Section heap.
     l ∉ ls
     → sts_state_std (countable.encode l) ρ
                     ∗ open_region_many (l :: ls) W
-                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ (match ρ with
-                                             | Permanent => future_priv_mono
-                                             | Temporary => if pwl p then
-                                                              future_pub_mono
-                                                            else future_priv_mono
-                                             | Revoked => fun _ _ => True%I
-                                             end) φ v ∗ ▷ φ (W, v) ∗ rel l p φ -∗
+                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ monotonicity_guarantees_region ρ v p φ ∗ ▷ φ (W, v) ∗ rel l p φ -∗
                     open_region_many ls W.
   Proof.
+    unfold monotonicity_guarantees_region.
     intros. iIntros "[A [B [C [D [E [F G]]]]]]".
     destruct ρ; try congruence.
     - case_eq (pwl p); intros.
@@ -980,4 +982,3 @@ End heap.
 
 Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
 Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
-
