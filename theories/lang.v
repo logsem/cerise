@@ -48,6 +48,12 @@ Module cap_lang.
     | None => inl 0%Z
     end.
 
+  Instance perm_dec_eq (p p' : Perm) : Decision (p = p') := _.
+  Instance local_dec_eq (l l' : Locality) : Decision (l = l') := _.  Proof. solve_decision. Qed.
+  Instance cap_dec_eq (c c' : Cap) : Decision (c = c').
+  Proof.
+    repeat (refine (prod_eq_dec _ _); unfold EqDecision; intros); solve_decision. Qed.
+
   Notation "mem !m! a" := (MemLocate mem a) (at level 20).
   Notation "reg !r! r" := (RegLocate reg r) (at level 20).
 
@@ -161,6 +167,14 @@ Module cap_lang.
     intros (Hrx & Hrwx & Hrwlx).
     intros Hvpc. inversion Hvpc;
       destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
+  Qed.
+
+  Lemma not_isCorrectPC_bounds p g b e a :
+   ¬ (b <= a < e)%a → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+  Proof.
+    intros Hbounds.
+    intros Hvpc. inversion Hvpc.
+    by exfalso.
   Qed.
 
   Lemma isCorrectPC_bounds p g b e (a0 a1 a2 : Addr) :
@@ -630,6 +644,18 @@ Module cap_lang.
      m !! a = Some v ->
      m !m! a = v.
    Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
+
+   Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p g b e a :
+     regs !r! r = inr ((p, g), b, e, a) ->
+     regs !! r = Some (inr ((p, g), b, e, a)).
+   Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
+   Qed.
+
+   Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p g b e i :
+     m !m! a = inr ((p, g), b, e, i) ->
+     m !! a = Some (inr ((p, g), b, e, i)).
+   Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
+   Qed.
 
    Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
      r !! PC = Some (inr ((p, g), b, e, a)) →

@@ -333,6 +333,15 @@ Section logrel.
          destruct c,p,p,p,p; destruct l; repeat (apply exist_persistent; intros); try apply _.
   Qed.
 
+  Instance ne_interpC : NonExpansive
+                           (λ Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
+  Proof. intros. solve_proper. Qed.
+
+  (* Non-curried version of interp *)
+  Definition interpC :=
+    (λne Wv : prodO (leibnizO (STS * STS)) (leibnizO Word), (interp Wv.1) Wv.2).
+
+
   Lemma read_allowed_inv W (a' a b e: Addr) p g :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p → (interp W (inr ((p,g),b,e,a)) →
@@ -396,6 +405,25 @@ Section logrel.
     - destruct l; auto.
       iDestruct "Hvalid" as (p) "[% [H H']]".
       iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+  Qed.
+
+  (* TODO: rewrite this as a definition/notation elsewhere *)
+  Definition region_conditions W p g b e:=
+  (∃ p', ⌜PermFlows p p'⌝ ∧
+           ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝
+                                             ∧ ⌜region_std W a⌝))%I.
+
+  Lemma readAllowed_implies_region_conditions W p l b e a:
+    readAllowed p = true ->
+    interp W (inr (p, l, b, e, a)) -∗ region_conditions W p l b e.
+  Proof.
+    intros. iIntros "Hvalid".
+    unfold interp; rewrite fixpoint_interp1_eq /=.
+    unfold region_conditions.
+    destruct p; simpl in H3; try congruence; destruct l; auto.
+    all: iDestruct "Hvalid" as (p) "[% Hvalid]"; iExists p; iSplitR; auto.
+    all: iDestruct "Hvalid" as "[Hvalid _]"; auto.
   Qed.
 
 
