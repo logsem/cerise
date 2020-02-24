@@ -2823,13 +2823,7 @@ Section heap.
         sts_full_world sts_std W
                        ∗ sts_state_std (countable.encode l) ρ
                        ∗ open_region_many (l :: ls) W
-                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ (match ρ with
-                                                  | Permanent => future_priv_mono
-                                                  | Temporary => if pwl p then
-                                                                   future_pub_mono
-                                                                 else future_priv_mono
-                                                  | Revoked => fun _ _ => True%I
-                                                  end) φ v ∗
+                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ monotonicity_guarantees_region ρ v p φ ∗
                        ▷ φ (W, v).
   Proof.
     intros. iIntros "H".
@@ -2849,13 +2843,7 @@ Section heap.
     l ∉ ls
     → sts_state_std (countable.encode l) ρ
                     ∗ open_region_many (l :: ls) W
-                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ (match ρ with
-                                             | Permanent => future_priv_mono
-                                             | Temporary => if pwl p then
-                                                              future_pub_mono
-                                                            else future_priv_mono
-                                             | Revoked => fun _ _ => True%I
-                                             end) φ v ∗ ▷ φ (W, v) ∗ rel l p φ -∗
+                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ monotonicity_guarantees_region ρ v p φ ∗ ▷ φ (W, v) ∗ rel l p φ -∗
                     open_region_many ls W.
   Proof.
     intros. iIntros "[A [B [C [D [E [F G]]]]]]".
@@ -3215,7 +3203,7 @@ Section logrel.
 
   Lemma writeLocalAllowed_implies_local W p l b e a:
     pwl p = true ->
-    interp W (inr (p, l, b, e, a)) -∗ ⌜isLocal l⌝.
+    interp W (inr (p, l, b, e, a)) -∗ ⌜isLocal l = true⌝.
   Proof.
     intros. iIntros "Hvalid".
     unfold interp; rewrite fixpoint_interp1_eq /=.
@@ -3268,7 +3256,7 @@ Section logrel.
            ⌜region_std W a /\ std_sta W !! countable.encode a = Some (countable.encode Temporary)⌝.
   Proof.
     intros. iIntros "Hvalid".
-    iAssert (⌜isLocal l⌝)%I as "%". by iApply writeLocalAllowed_implies_local.
+    iAssert (⌜isLocal l = true⌝)%I as "%". by iApply writeLocalAllowed_implies_local.
     eapply withinBounds_le_addr in H4.
     unfold interp; rewrite fixpoint_interp1_eq /=.
     destruct p; simpl in H3; try congruence; destruct l.
