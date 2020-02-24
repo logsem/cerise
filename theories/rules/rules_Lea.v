@@ -104,7 +104,7 @@ Section cap_lang_rules.
 
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
-     unshelve epose proof (Hri r1 _) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      pose proof (regs_lookup_eq _ _ _ Hr1) as Hr1'.
      cbn in Hstep. rewrite Hr1' in Hstep.
      destruct r1v as [| (([[p g] b] & e) & a) ] eqn:Hr1v.
@@ -123,7 +123,7 @@ Section cap_lang_rules.
        pose proof Harg as Harg'; cycle 1.
      { (* Failure: argument is not a constant (z_of_argument regs arg = None) *)
        unfold z_of_argument in Harg. destruct arg as [| r0]; [ congruence |].
-       unshelve epose proof (Hri r0 _) as [r0v [Hr'0 Hr0]].
+       feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
        rewrite /RegLocate Hr0 Hr'0 in Harg Hstep.
        destruct r0v; [ congruence |].
@@ -138,7 +138,7 @@ Section cap_lang_rules.
          assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
          iFail "Hφ" Lea_fail_overflow. }
-       { unshelve epose proof (Hri r0 _) as [r0v [Hr'0 Hr0]].
+       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
          by unfold regs_of_argument; set_solver+.
          rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
          destruct r0v; [| congruence]. inversion Harg; subst z.
@@ -166,7 +166,7 @@ Section cap_lang_rules.
          { inversion Harg; subst z. rewrite Hoffset in Hstep.
            rewrite incrementPC_fail_updatePC //= in Hstep.
            destruct p; inversion Hstep; subst; eauto. }
-         { unshelve epose proof (Hri r0 _) as [r0v [Hr'0 Hr0]].
+         { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
            by unfold regs_of_argument; set_solver+.
            rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
            destruct r0v; [| congruence]. inversion Harg; subst z. rewrite Hoffset in Hstep.
@@ -182,7 +182,7 @@ Section cap_lang_rules.
      assert ((c, σ2) = updatePC (update_reg (r, m) r1 (inr (p, g, b, e, a')))) as HH.
      { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
        { inversion Harg; subst z. rewrite Hoffset in Hstep. by destruct p. }
-       { unshelve epose proof (Hri r0 _) as [r0v [Hr'0 Hr0]].
+       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
          by unfold regs_of_argument; set_solver+.
          rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
          destruct r0v; [| congruence]. inversion Harg; subst z.
