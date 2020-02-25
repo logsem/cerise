@@ -16,66 +16,78 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Ltac inv_head_step :=
-    repeat match goal with
-           | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-           | H : to_val _ = Some _ |- _ => apply of_to_val in H
-           | H : _ = of_val ?v |- _ =>
-             is_var v; destruct v; first[discriminate H|injection H as H]
-           | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
-             try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-             (*    and can thus better be avoided. *)
-             let φ := fresh "φ" in 
-             inversion H as [| φ]; subst φ; clear H
-           end.
+  (* TODO: move copycats elsewhere *)
+  Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
+  Proof. solve_decision. Qed.
 
-  Ltac option_locate_mr m r :=
-    repeat match goal with
-           | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-           | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
-           end.
+ (* Conditionally unify on the read register value *)
+  Definition read_reg_inr  (regs : Reg) (r : RegName) p g b e a :=
+    regs !! r = Some (inr ((p, g), b, e, a)) ∨ ∃ z, regs !! r = Some(inl z).
 
-  Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-    match goal with
-    | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-      let σ := fresh "σ" in
-      let e' := fresh "e'" in
-      let σ' := fresh "σ'" in
-      let Hstep' := fresh "Hstep'" in
-      let He0 := fresh "He0" in
-      let Ho := fresh "Ho" in
-      let He' := fresh "H"e' in
-      let Hσ' := fresh "H"σ' in
-      let Hefs := fresh "Hefs" in
-      let φ0 := fresh "φ" in
-      let p0 := fresh "p" in
-      let g0 := fresh "g" in
-      let b0 := fresh "b" in
-      let e2 := fresh "e" in
-      let a0 := fresh "a" in
-      let i := fresh "i" in
-      let c0 := fresh "c" in
-      let HregPC := fresh "HregPC" in
-      let Hi := fresh "H"i in
-      let Hexec := fresh "Hexec" in 
-      inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?]; 
-      inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-      (simpl in *; try congruence );
-      subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-      try (rewrite HPC in HregPC;
-           inversion HregPC;
-           repeat match goal with
-                  | H : _ = p0 |- _ => destruct H
-                  | H : _ = g0 |- _ => destruct H
-                  | H : _ = b0 |- _ => destruct H
-                  | H : _ = e2 |- _ => destruct H
-                  | H : _ = a0 |- _ => destruct H
-                  end ; destruct Hi ; clear HregPC ;
-           rewrite Hpc_a Hinstr /= ;
-           rewrite Hpc_a Hinstr in Hstep)
+  (* Move OG definition to lang *)
+  Definition pwl p : bool :=
+    match p with
+    | RWLX | RWL => true
+    | _ => false
     end.
+
+  Definition is_local_argument  (regs : Reg) (a : Z + RegName) : bool :=
+    match a with
+      | inl z => true
+      | inr r => match regs !! r with
+                 | Some (inr ((p, g), b, e, a)) => isLocal g
+                 | _ => true
+      end
+  end.
+
+  Definition reg_allows_store (regs : Reg) (r1  : RegName) (r2 : Z + RegName) p g b e a (is_loc : bool) :=
+    regs !! r1 = Some (inr ((p, g), b, e, a)) ∧
+    writeAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true ∧
+    if is_loc then
+      pwl p = true
+    else True.
+
+  Global Instance reg_allows_store_dec_eq  (regs : Reg)(r1  : RegName) (r2 : Z + RegName) p g b e a (is_loc : bool) : Decision (reg_allows_store regs r1 r2 p g b e a is_loc).
+  Proof.
+    unfold reg_allows_store. destruct (regs !! r1). destruct s.
+    - right. intros Hfalse; destruct Hfalse; by exfalso.
+    - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
+      refine (option_dec_eq _ _ _). intros.
+      refine (sum_eq_dec _ _); unfold EqDecision; intros. refine (cap_dec_eq x0 y0).
+      destruct is_loc; solve_decision.
+    - destruct is_loc; solve_decision.
+  Qed.
+
+  Definition allow_store_map_or_true (r1 : RegName) (r2 : Z + RegName) (regs : Reg) (mem : PermMem):=
+    ∃ p g b e a is_loc, read_reg_inr regs r1 p g b e a ∧ is_loc = is_local_argument regs r2 ∧
+      if decide (reg_allows_store regs r1 r2 p g b e a is_loc) then
+        ∃ p' w, mem !! a = Some (p', w) ∧ PermFlows p p'
+      else True.
+
+   Local Ltac iFail Hcont store_fail_case :=
+     iFailWP Hcont Store_spec_failure store_fail_case.
+
+   Lemma wp_store Ep
+     pc_p pc_g pc_b pc_e pc_a pc_p'
+     r1 r2 w mem regs :
+   cap_lang.decode w = Store r1 r2 →
+   PermFlows pc_p pc_p' →
+   isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   (∀ (ri: RegName), is_Some (regs !! ri)) →
+   mem !! pc_a = Some (pc_p', w) →
+   allow_store_map_or_true r2 regs mem →
+
+   {{{ (▷ [∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+       ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+     Instr Executable @ Ep
+   {{{ regs' retv, RET retv;
+       ⌜ Store_spec regs r1 r2 regs' retv mem⌝ ∗
+         ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+   Proof.
+
+   Admitted.
 
   Lemma wp_store_success_z_PC E pc_p pc_p' pc_g pc_b pc_e pc_a pc_a' w z :
      cap_lang.decode w = Store PC (inl z) →

@@ -65,11 +65,7 @@ Section cap_lang_rules.
         indicating the appropriate error case
    *)
    Local Ltac iFail Hcont lea_fail_case :=
-     by (
-       cbn; iFrame; iApply Hcont; iFrame; iPureIntro;
-       eapply Lea_spec_failure; eauto;
-       eapply lea_fail_case; eauto
-     ).
+     iFailWP Hcont Lea_spec_failure lea_fail_case.
 
    Lemma wp_lea Ep pc_p pc_g pc_b pc_e pc_a pc_p' r1 w arg regs :
      cap_lang.decode w = Lea r1 arg →

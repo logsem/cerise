@@ -419,10 +419,6 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  (* Permission-carrying memory type, used to describe maps of locations and permissions in the load and store cases *)
-  Definition PermMem := gmap Addr (Perm * Word).
-
-
   (* --------------------------- CAPABILITY PREDICATE ------------------------------- *)
   (* Points to predicates for memory *)
   Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
@@ -594,8 +590,106 @@ Section cap_lang_rules.
       inv H3; auto.
   Qed.
 
+  (* -------------- predicates on memory maps -------------------------- *)
+
+  (* Permission-carrying memory type, used to describe maps of locations and permissions in the load and store cases *)
+  Definition PermMem := gmap Addr (Perm * Word).
+
+  Lemma resource_exists a p' w:
+    a ↦ₐ[p'] w ⊣⊢ (∃ (p : Perm) (w0 : Word), ⌜(p', w) = (p, w0)⌝ ∗ a ↦ₐ[p] w0).
+  Proof.
+    iSplit; first by auto.
+    iIntros "HH"; iDestruct "HH" as (p w0 Heq) "HH"; by inversion Heq.
+  Qed.
+
+  Lemma memMap_resource_0  :
+        True ⊣⊢ ([∗ map] a↦pw ∈ ∅, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w).
+  Proof.
+    by rewrite big_sepM_empty.
+  Qed.
+
+
+  Lemma memMap_resource_1 (a : Addr) (p' : Perm) (w : Word)  :
+        a ↦ₐ[p'] w  ⊣⊢ ([∗ map] a↦pw ∈ <[a:=(p',w)]> ∅, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
+  Proof.
+    rewrite big_sepM_delete; last by apply lookup_insert.
+    rewrite delete_insert; last by auto. rewrite -memMap_resource_0.
+    iSplit; iIntros "HH".
+    - rewrite resource_exists. by iSplitL.
+    - rewrite resource_exists. by iDestruct "HH" as "[HH _]".
+  Qed.
+
+  Lemma memMap_resource_2ne (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+        a1 ≠ a2 → a1 ↦ₐ[p1'] w1 ∗ a2 ↦ₐ[p2'] w2  ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
+  Proof.
+    intros.
+    rewrite big_sepM_delete; last by apply lookup_insert.
+    rewrite (big_sepM_delete _ _ a2 (p2',w2)); rewrite delete_insert; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert.
+    rewrite delete_insert; auto.
+    rewrite -memMap_resource_0.
+    iSplit; iIntros "HH".
+    - iDestruct "HH" as "[H1 H2]". iSplitL "H1"; auto.
+    - iDestruct "HH" as "[H1 [H2 _ ] ]".  iSplitL "H1"; by rewrite -resource_exists.
+  Qed.
+
+  Lemma memMap_resource_2eq (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+        a1 = a2 → a1 ↦ₐ[p1'] w1  ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
+  Proof.
+    intros; subst.
+    rewrite insert_insert.
+    by apply memMap_resource_1.
+  Qed.
+
+  Lemma memMap_resource_2g (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+    (a1 ↦ₐ[p1'] w1 ∗ if decide (a1 ≠ a2) then a2 ↦ₐ[p2'] w2 else True) ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
+  Proof.
+    case_decide.
+    - apply memMap_resource_2ne; auto.
+    - assert ((a1 ↦ₐ[p1'] w1 ∗ True) ⊣⊢ a1 ↦ₐ[p1'] w1) as ->. iSplit; auto. by iIntros "[HCh _]".
+      apply memMap_resource_2eq; auto.
+  Qed.
+
+  Lemma memMap_delete:
+    ∀(a : Addr) (p' : Perm) (w : Word) (mem0 : PermMem),
+      mem0 !! a = Some (p', w) →
+      ([∗ map] a↦pw ∈ mem0, ∃ (p : Perm) (w0 : Word), ⌜pw = (p, w0)⌝ ∗ a ↦ₐ[p] w0)
+      ⊣⊢ (a ↦ₐ[p'] w
+         ∗ ([∗ map] k↦y ∈ delete a mem0, ∃ (p : Perm) (w0 : Word),
+               ⌜y = (p, w0)⌝ ∗ k ↦ₐ[p] w0)).
+  Proof.
+    intros a p' w mem0 Hmem0a.
+    rewrite resource_exists.
+    rewrite -(big_sepM_delete _ _ a); auto.
+  Qed.
+
+  Lemma gen_mem_valid_inSepM:
+    ∀ (a : Addr) (p' : Perm) (r1 r2 : RegName) (w : Word) (mem0 : PermMem) (r : Reg) (m : Mem),
+      p' ≠ O →
+      mem0 !! a = Some (p', w) →
+      gen_heap_ctx m
+                   -∗ ([∗ map] a↦pw ∈ mem0, ∃ (p : Perm) (w0 : Word), ⌜pw = (p, w0)⌝ ∗ a ↦ₐ[p] w0)
+                   -∗ ⌜m !! a = Some w⌝.
+  Proof.
+    iIntros (a p' r1 r2 w mem0 r m Hpnz Hmem_pc) "Hm Hmem".
+    iDestruct (memMap_delete a with "Hmem") as "[Hpc_a Hmem]"; eauto.
+    iDestruct (gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
+  Qed.
+
 End cap_lang_rules.
 
 (* Points to predicates for memory *)
 Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
   (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+
+(* Used to close the failing cases of the ftlr.
+  - Hcont is the (iris) name of the closing hypothesis (usually "Hφ")
+  - fail_case_name is one constructor of the spec_name,
+    indicating the appropriate error case
+ *)
+Ltac iFailCore spec_name fail_case_name :=
+      iPureIntro;
+      eapply spec_name; eauto;
+      eapply fail_case_name ; eauto.
+
+Ltac iFailWP Hcont spec_name fail_case_name :=
+  by (cbn; iFrame; iApply Hcont; iFrame; iFailCore spec_name fail_case_name).
