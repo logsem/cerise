@@ -634,6 +634,11 @@ Definition regs_of_argument (arg: Z + RegName): gset RegName :=
 Definition regs_of (i: instr): gset RegName :=
   match i with
   | Lea r1 arg => {[ r1 ]} ∪ regs_of_argument arg
+  | GetP r1 r2 => {[ r1; r2 ]}
+  | GetL r1 r2 => {[ r1; r2 ]}
+  | GetB r1 r2 => {[ r1; r2 ]}
+  | GetE r1 r2 => {[ r1; r2 ]}
+  | GetA r1 r2 => {[ r1; r2 ]}
   | _ => ∅
   end.
 
@@ -742,6 +747,18 @@ Proof.
       by (intros * ->; auto).
     apply HH in Hu. rewrite !lookup_insert in Hu. by simplify_eq. }
   { unfold RegLocate in Hu. rewrite Hrr in Hu. inversion Hu. }
+Qed.
+
+Lemma updatePC_fail_incl m m' regs regs' :
+  is_Some (regs !! PC) →
+  regs ⊆ regs' →
+  updatePC (regs, m) = (Failed, (regs, m)) →
+  updatePC (regs', m') = (Failed, (regs', m')).
+Proof.
+  intros [w HPC] Hincl Hfail. rewrite /updatePC /RegLocate /= in Hfail |- *.
+  rewrite !HPC in Hfail. have -> := lookup_weaken _ _ _ _ HPC Hincl.
+  destruct w as [|((((?&?)&?)&?)&a1)]; simplify_eq; auto;[].
+  destruct (a1 + 1)%a; simplify_eq; auto.
 Qed.
 
 Ltac incrementPC_inv :=

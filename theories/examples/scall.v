@@ -446,9 +446,9 @@ Section scall.
     (* RESTRICT STACK CAP *)
     (* geta r_t1 r_stk *)
     iPrologue a_rest0 Hlength "Hprog".
-    iApply (wp_GetA_success with "[$HPC $Hinstr Hr_t1 Hr_stk]");
-      [apply geta_i|apply Hfl| |iContiguous_next Ha 21|auto|simpl;iFrame|iSimpl].
-    { iCorrectPC a_first a_cont. }
+    iApply (wp_Get_success with "[$HPC $Hinstr Hr_t1 Hr_stk]");
+      [apply geta_i|eauto|apply Hfl| |iContiguous_next Ha 21|auto| |iSimpl|]; eauto.
+    { iCorrectPC a_first a_cont. } { iFrame. }
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t1)" "Hinstr" "Hi".
     (* add r_t1 r_t1 1 *)
     iPrologue a_rest0 Hlength "Hprog".
@@ -460,9 +460,9 @@ Section scall.
     (* gete r_t2 r_stk *)
     iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t2 Hr_gen]".
     iPrologue a_rest0 Hlength "Hprog".
-    iApply (wp_GetE_success with "[$HPC $Hinstr Hr_t2 Hr_stk]");
-      [apply gete_i|apply Hfl| |iContiguous_next Ha 23|auto|iSimpl;iFrame|iSimpl].
-    { iCorrectPC a_first a_cont. }
+    iApply (wp_Get_success with "[$HPC $Hinstr Hr_t2 Hr_stk]");
+      [apply gete_i| eauto | apply Hfl| |iContiguous_next Ha 23|auto| |iSimpl|]; eauto.
+    { iCorrectPC a_first a_cont. } { iFrame. }
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t2)" "Hinstr" "Hi".
     (* subseg r_stk r_t1 r_t2 *)
     assert (z_to_addr (a_r_adv + 1) = Some b_r_adv) as Hb_r_adv.

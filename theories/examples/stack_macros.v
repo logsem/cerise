@@ -602,16 +602,16 @@ Section stack_macros.
     iFrame. iEpilogue "(HPC & Ha_first & Hr_t4 & Hr)".
     (* getb r_t1 r_t4 *)
     iPrologue "Hprog".
-    iApply (wp_GetB_success _ r_t1 r_t4 _ _ _ _ a0 _ _ _ a1 with "[HPC Hi Hr_t1 Hr_t4]");
-      first apply getb_i; first apply Hfl1; first iCorrectPC a_first a'; eauto.
+    iApply (wp_Get_success _ _ r_t1 r_t4 _ _ _ _ a0 _ _ _ a1 with "[$HPC $Hi $Hr_t1 $Hr_t4]");
+      first eapply getb_i; first eauto; first apply Hfl1; first iCorrectPC a_first a'; eauto.
     { iContiguous_next Hnext 1. }
     iFrame. iEpilogue "(HPC & Ha0 & Hr_t4 & Hr_t1)".
     destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
     iCombine "Ha0 Ha_first" as "Hprog_done".
     (* geta r_t2 r_t4 *)
     iPrologue "Hprog".
-    iApply (wp_GetA_success _ r_t2 r_t4 _ _ _ _ a1 _ _ _ a2 with "[HPC Hi Hr_t2 Hr_t4]");
-       first apply geta_i; first apply Hfl1; first iCorrectPC a_first a'; auto.
+    iApply (wp_Get_success _ _ r_t2 r_t4 _ _ _ _ a1 _ _ _ a2 with "[HPC Hi Hr_t2 Hr_t4]");
+      first eapply geta_i; first eauto; first eapply Hfl1; first iCorrectPC a_first a'; auto.
     { iContiguous_next Hnext 2. }
     iFrame. iEpilogue "(HPC & Ha1 & Hr_t4 & Hr_t2)".
     destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
@@ -644,8 +644,8 @@ Section stack_macros.
     iCombine "Ha3 Hprog_done" as "Hprog_done".
     (* gete r_t2 r_t4 *)
     iPrologue "Hprog".
-    iApply (wp_GetE_success _ r_t5 _ _ _ _ _ a4 _ _ _ a5 with "[HPC Hi Hr_t5 Hr_t4]");
-      first apply gete_i; first apply Hfl1; first iCorrectPC a_first a'; eauto.
+    iApply (wp_Get_success _ _ r_t5 r_t4 _ _ _ _ a4 _ _ _ a5 with "[HPC Hi Hr_t5 Hr_t4]");
+      first apply gete_i; first eauto; first apply Hfl1; first iCorrectPC a_first a'; eauto.
     { iContiguous_next Hnext 5. }
     do 2 iFrame.
     destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
