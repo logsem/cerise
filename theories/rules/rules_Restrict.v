@@ -77,6 +77,123 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
+  (* TODO: Move somewhere *)
+  Ltac destruct_cap c :=
+    let p := fresh "p" in
+    let g := fresh "g" in
+    let b := fresh "b" in
+    let e := fresh "e" in
+    let a := fresh "a" in
+    destruct c as ((((p & g) & b) & e) & a).
+
+  Ltac flatten_hyp H :=
+    repeat
+      match type of H with
+      | context [ if ?b then ?X else ?Y ] => destruct b
+      | context [ match ?t with
+                  | _ => _
+                  end ] => destruct t
+      end.
+
+  Inductive Restrict_spec (regs: Reg) (dst: RegName) (src: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
+  | Restrict_spec_failure:
+      Restrict_spec regs dst src regs' FailedV
+  | Restrict_spec_success p g b e a n:
+      regs !! dst = Some (inr (p, g, b, e, a)) ->
+      p <> E ->
+      z_of_argument regs src = Some n ->
+      PermPairFlowsTo (decodePermPair n) (p, g) = true ->
+      incrementPC (<[ dst := inr (decodePermPair n, b, e, a) ]> regs) = Some regs' ->
+      Restrict_spec regs dst src regs' NextIV.
+  
+  Lemma wp_Restrict Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
+    cap_lang.decode w = Restrict dst src ->
+
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    (∀ (ri: RegName), is_Some (regs !! ri)) →
+    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+    {{{ regs' retv, RET retv;
+        ⌜ Restrict_spec regs dst src regs' retv ⌝ ∗
+          pc_a ↦ₐ[pc_p'] w ∗
+          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+  Proof.
+    iIntros (Hinstr Hfl Hvpc HPC Hri φ) "(>Hpc_a & >Hmap) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
+    iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
+    { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    (*option_locate_mr m r.*) iModIntro.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iNext. iIntros (e2 σ2 efs Hpstep).
+    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+
+    destruct (z_of_argument regs src) as [wsrc|] eqn:Hwsrc; cycle 1.
+    { cbn in Hstep. destruct src; simpl in Hwsrc; try discriminate.
+      rewrite /RegLocate in Hstep.
+      assert ((c, σ2) = (Failed, (regs, m))) as HH.
+      { destruct (regs !! r) as [wr|] eqn:Hr; rewrite Hr in Hwsrc Hstep; [destruct wr; try discriminate|]; destruct (regs !! dst) as [wdst|] eqn:Hdst; rewrite Hdst in Hstep; try (destruct wdst as [nn | cc]); try destruct_cap cc; auto.
+        destruct (Hri r); congruence. }
+      inv HH; simpl. iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor. }
+    
+    destruct (Hri dst) as [wdst Hdst].
+    destruct wdst as [|cdst]; [| destruct_cap cdst].
+    { cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
+      destruct src; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor. }
+
+    destruct (perm_eq_dec p E).
+    { subst p. cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
+      flatten_hyp Hstep; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor. }
+    destruct (PermPairFlowsTo (decodePermPair wsrc) (p, g)) eqn:Hflows; cycle 1.
+    { cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
+      destruct src; simpl in Hwsrc.
+      - inv Hwsrc. rewrite Hflows in Hstep.
+        destruct p; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor.
+      - destruct (regs !! r) eqn:Hr; rewrite Hr in Hwsrc; try discriminate.
+        destruct w0; inv Hwsrc. rewrite Hr in Hstep.
+        rewrite Hflows in Hstep. destruct p; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor. }
+    
+    destruct (incrementPC (<[ dst := inr (decodePermPair wsrc, b, e, a) ]> regs)) eqn:HX; cycle 1.
+    { cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
+      destruct src; simpl in Hwsrc.
+      - inv Hwsrc. rewrite Hflows (incrementPC_fail_updatePC _ _ HX) in Hstep.
+        iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+        destruct p; try congruence; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor.
+      - destruct (regs !! r) eqn:Hr; rewrite Hr in Hwsrc; try discriminate.
+        destruct w0; inv Hwsrc. rewrite Hr in Hstep.
+        rewrite Hflows (incrementPC_fail_updatePC _ _ HX) in Hstep.
+        iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+        destruct p; try congruence; inv Hstep; simpl; iFrame; iApply "Hφ"; iFrame; iPureIntro; econstructor. }
+
+    assert ((c, σ2) = updatePC (update_reg (regs, m) dst (inr (decodePermPair wsrc, b, e, a)))) as HH.
+    { cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
+      destruct src; simpl in Hwsrc.
+      - inv Hwsrc. rewrite Hflows in Hstep.
+        destruct p; auto; congruence.
+      - destruct (regs !! r0) eqn:Hr0; rewrite Hr0 in Hwsrc; try discriminate.
+        destruct w0; inv Hwsrc. rewrite Hr0 Hflows in Hstep.
+        destruct p; auto; congruence. }
+    eapply (incrementPC_success_updatePC _ m) in HX
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+    rewrite HuPC in HH. inv HH.
+    iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    simpl; iFrame. iApply "Hφ". iFrame. iPureIntro.
+    econstructor; eauto.
+    by rewrite /incrementPC HPC'' Ha_pc'.
+  Qed.  
+
   Lemma wp_restrict_success_reg_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w rv z a' pc_p' :
     cap_lang.decode w = Restrict PC (inr rv) →
     PermFlows pc_p pc_p' →
