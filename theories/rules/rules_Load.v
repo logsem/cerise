@@ -81,25 +81,25 @@ Section cap_lang_rules.
     ∀ (r2 : RegName) (mem0 : PermMem) (r : Reg) (p : Perm) (g : Locality) (b e a : Addr),
       allow_load_map_or_true r2 r mem0
       → r !r! r2 = inr (p, g, b, e, a)
-      → readAllowed p && withinBounds (p, g, b, e, a) = true
+      → readAllowed p = true
+      → withinBounds (p, g, b, e, a) = true
       → ∃ (p' : Perm) (loadv : Word),
           mem0 !! a = Some (p', loadv) ∧ PermFlows p p'.
   Proof.
-    intros r2 mem0 r p g b e a HaLoad Hr2v HRA.
-
+    intros r2 mem0 r p g b e a HaLoad Hr2v Hra Hwb.
     unfold allow_load_map_or_true in HaLoad.
     destruct HaLoad as (?&?&?&?&?&[Hrr | Hrl]&Hmem).
     - assert (Hrr' := Hrr). option_locate_mr_once m r. rewrite Hr2 in Hr2v; inversion Hr2v; subst.
       case_decide as HAL.
       * auto.
-      * unfold reg_allows_load in HAL. apply andb_true_iff in HRA.
+      * unfold reg_allows_load in HAL.
         destruct HAL; auto.
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
   Lemma mem_loadv_implies_m_loadv:
     ∀ (mem0 : PermMem) (m : Mem) (p : Perm) (g : Locality) (b e a : Addr) (p' : Perm) (loadv : Word),
-      readAllowed p && withinBounds (p, g, b, e, a) = true
+      readAllowed p
       → mem0 !! a = Some (p', loadv)
       → PermFlows p p'
       → ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w : Word),
@@ -110,7 +110,7 @@ Section cap_lang_rules.
     iDestruct (memMap_delete a with "Hmem") as "[H_a Hmem]"; eauto.
     iDestruct (gen_heap_valid_cap with "Hm H_a") as %?; auto.
     {
-      apply andb_true_iff in HRA; destruct HRA as (HRA & _); unfold readAllowed in HRA.
+      unfold readAllowed in HRA.
       destruct (decide (p = O)); first by simplify_eq.
       destruct (decide (p' = O)); last by simplify_eq. rewrite e0 in HPFp.
       destruct p; by exfalso.
@@ -182,6 +182,7 @@ Section cap_lang_rules.
        apply andb_false_iff in HRA.
        iFail "Hφ" Load_fail_bounds.
      }
+     apply andb_true_iff in HRA; destruct HRA as (Hra & Hwb).
 
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
      destruct (allow_load_implies_loadv r2 mem r p g b e a) as (p' & loadv & Hmema & HPFp); auto.
@@ -217,7 +218,7 @@ Section cap_lang_rules.
      iPureIntro.  eapply Load_spec_success; auto.
        * split; auto. apply (regs_lookup_inr_eq r r2); auto.
          exact Hr2v.
-         by apply andb_true_iff in HRA.
+         auto.
        * exact Hmema.
        * unfold incrementPC. by rewrite HPC'' Ha_pc'.
      Unshelve. all: auto.
