@@ -632,23 +632,6 @@ Section cap_lang_rules.
     - iDestruct "HH" as "[H1 [H2 _ ] ]".  iSplitL "H1"; by rewrite -resource_exists.
   Qed.
 
-  Lemma memMap_resource_2eq (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
-        a1 = a2 → a1 ↦ₐ[p1'] w1  ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
-  Proof.
-    intros; subst.
-    rewrite insert_insert.
-    by apply memMap_resource_1.
-  Qed.
-
-  Lemma memMap_resource_2g (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
-    (a1 ↦ₐ[p1'] w1 ∗ if decide (a1 ≠ a2) then a2 ↦ₐ[p2'] w2 else True) ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
-  Proof.
-    case_decide.
-    - apply memMap_resource_2ne; auto.
-    - assert ((a1 ↦ₐ[p1'] w1 ∗ True) ⊣⊢ a1 ↦ₐ[p1'] w1) as ->. iSplit; auto. by iIntros "[HCh _]".
-      apply memMap_resource_2eq; auto.
-  Qed.
-
   Lemma memMap_delete:
     ∀(a : Addr) (p' : Perm) (w : Word) (mem0 : PermMem),
       mem0 !! a = Some (p', w) →

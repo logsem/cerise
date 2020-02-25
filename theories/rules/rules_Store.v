@@ -40,16 +40,16 @@ Section cap_lang_rules.
       end
   end.
 
-  Definition reg_allows_store (regs : Reg) (r1  : RegName) (r2 : Z + RegName) p g b e a (is_loc : bool) :=
-    regs !! r1 = Some (inr ((p, g), b, e, a)) ∧
+  Definition reg_allows_store (regs : Reg) (r : RegName) p g b e a (is_loc : bool) :=
+    regs !! r = Some (inr ((p, g), b, e, a)) ∧
     writeAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true ∧
     if is_loc then
       pwl p = true
     else True.
 
-  Global Instance reg_allows_store_dec_eq  (regs : Reg)(r1  : RegName) (r2 : Z + RegName) p g b e a (is_loc : bool) : Decision (reg_allows_store regs r1 r2 p g b e a is_loc).
+  Global Instance reg_allows_store_dec_eq  (regs : Reg)(r  : RegName) p g b e a (is_loc : bool) : Decision (reg_allows_store regs r p g b e a is_loc).
   Proof.
-    unfold reg_allows_store. destruct (regs !! r1). destruct s.
+    unfold reg_allows_store. destruct (regs !! r). destruct s.
     - right. intros Hfalse; destruct Hfalse; by exfalso.
     - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
       refine (option_dec_eq _ _ _). intros.
@@ -58,9 +58,42 @@ Section cap_lang_rules.
     - destruct is_loc; solve_decision.
   Qed.
 
+  Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : PermMem):=
+  (* | Store_fail_const z: *)
+      (* regs !r! r2 = inl z -> *)
+      (* Store_failure regs r1 r2 mem *)
+  | Store_fail_bounds p g b e a:
+      (* regs !r! r2 = inr ((p, g), b, e, a) -> *)
+      (readAllowed p = false ∨ withinBounds ((p, g), b, e, a) = false) →
+      Store_failure regs r1 r2 mem
+  (* (* Notice how the None below also includes all cases where we read an inl value into the PC, because then incrementing it will fail *) *)
+  (* | Store_fail_invalid_PC p p' g b e a loadv: *)
+  (*     (* regs !r! r2 = inr ((p, g), b, e, a) -> *) *)
+  (*     mem !! a = Some(p', loadv) → *)
+  (*     incrementPC (<[ r1 := loadv ]> regs) = None -> *)
+  (*     Store_failure regs r1 r2 mem *)
+  .
+
+  Inductive Store_spec
+    (regs: Reg) (r1 : RegName) (r2 : Z + RegName)
+    (regs': Reg) (retv: cap_lang.val) (mem : PermMem) : Prop
+  :=
+  | Store_spec_success p p' g b e a loadv :
+    retv = NextIV ->
+    reg_allows_store regs r1 p g b e a true →
+    mem !! a = Some(p', loadv) →
+    incrementPC
+      (<[ r1 := loadv ]> regs) = Some regs' ->
+    Store_spec regs r1 r2 regs' retv mem
+  | Store_spec_failure :
+    retv = FailedV ->
+    Store_failure regs r1 r2 mem ->
+    Store_spec regs r1 r2 regs' retv mem.
+
+
   Definition allow_store_map_or_true (r1 : RegName) (r2 : Z + RegName) (regs : Reg) (mem : PermMem):=
     ∃ p g b e a is_loc, read_reg_inr regs r1 p g b e a ∧ is_loc = is_local_argument regs r2 ∧
-      if decide (reg_allows_store regs r1 r2 p g b e a is_loc) then
+      if decide (reg_allows_store regs r1 p g b e a is_loc) then
         ∃ p' w, mem !! a = Some (p', w) ∧ PermFlows p p'
       else True.
 
@@ -69,14 +102,14 @@ Section cap_lang_rules.
 
    Lemma wp_store Ep
      pc_p pc_g pc_b pc_e pc_a pc_p'
-     r1 r2 w mem regs :
+     r1 (r2 : Z + RegName) w mem regs :
    cap_lang.decode w = Store r1 r2 →
    PermFlows pc_p pc_p' →
    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
    (∀ (ri: RegName), is_Some (regs !! ri)) →
    mem !! pc_a = Some (pc_p', w) →
-   allow_store_map_or_true r2 regs mem →
+   allow_store_map_or_true r1 r2 regs mem →
 
    {{{ (▷ [∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
