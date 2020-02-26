@@ -76,6 +76,155 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
+  (* TODO: Move somewhere *)
+  Ltac destruct_cap c :=
+    let p := fresh "p" in
+    let g := fresh "g" in
+    let b := fresh "b" in
+    let e := fresh "e" in
+    let a := fresh "a" in
+    destruct c as ((((p & g) & b) & e) & a).
+
+  Ltac flatten_hyp H :=
+    repeat
+      match type of H with
+      | context [ if ?b then ?X else ?Y ] => destruct b
+      | context [ match ?t with
+                  | _ => _
+                  end ] => destruct t
+      end.
+
+  Definition addr_of_argument regs src :=
+    match z_of_argument regs src with
+    | None => None
+    | Some n => z_to_addr n
+    end.
+
+  Inductive Subseg_spec (regs: Reg) (dst: RegName) (src1 src2: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
+  | Subseg_spec_failure:
+      (match regs !! dst with
+       | None => False
+       | Some (inl _) => regs' = regs
+       | Some (inr (p, g, b, e, a)) =>
+         if perm_eq_dec p E then
+           regs' = regs
+         else match addr_of_argument regs src1 with
+              | None => regs' = regs
+              | Some a1 =>
+                match addr_of_argument regs src2 with
+                | None => regs' = regs
+                | Some a2 => if isWithin a1 a2 b e then
+                              match incrementPC (<[ dst := inr (p, g, a1, a2, a) ]> regs) with
+                              | Some _ => False
+                              | None => regs' = (<[ dst := inr (p, g, a1, a2, a) ]> regs)
+                              end
+                            else regs' = regs
+                end
+              end
+       end) ->
+      Subseg_spec regs dst src1 src2 regs' FailedV
+  | Subseg_spec_success p g b e a a1 a2:
+      regs !! dst = Some (inr (p, g, b, e, a)) ->
+      p <> E ->
+      addr_of_argument regs src1 = Some a1 ->
+      addr_of_argument regs src2 = Some a2 ->
+      isWithin a1 a2 b e = true ->
+      incrementPC (<[ dst := inr (p, g, a1, a2, a) ]> regs) = Some regs' ->
+      Subseg_spec regs dst src1 src2 regs' NextIV.
+  
+  Lemma wp_Subseg Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src1 src2 regs :
+    cap_lang.decode w = Subseg dst src1 src2 ->
+
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    (∀ (ri: RegName), is_Some (regs !! ri)) →
+    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+    {{{ regs' retv, RET retv;
+        ⌜ Subseg_spec regs dst src1 src2 regs' retv ⌝ ∗
+          pc_a ↦ₐ[pc_p'] w ∗
+          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+  Proof.
+    iIntros (Hinstr Hfl Hvpc HPC Hri φ) "(>Hpc_a & >Hmap) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
+    iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
+    { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    (*option_locate_mr m r.*) iModIntro.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iNext. iIntros (e2 σ2 efs Hpstep).
+    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    
+    destruct (Hri dst) as [wdst Hdst].
+    destruct wdst as [ndst | c0]; [| destruct_cap c0]; rewrite /= /RegLocate Hdst in Hstep.
+    { assert (c = Failed /\ σ2 = (regs, m)) as (-> & ->) by (destruct src1; destruct src2; inv Hstep; auto).
+      simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; auto. }
+    destruct (perm_eq_dec p E).
+    { subst p. assert (c = Failed /\ σ2 = (regs, m)) as (-> & ->) by (destruct src1; destruct src2; inv Hstep; auto).
+      simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; destruct (perm_eq_dec E E); auto; congruence. }
+    destruct (addr_of_argument regs src1) as [a1|] eqn:Ha1; cycle 1.
+    { assert (c = Failed /\ σ2 = (regs, m)) as (-> & ->).
+      { unfold addr_of_argument in Ha1.
+        destruct (z_of_argument regs src1) as [n1|] eqn:Hn1.
+        - destruct src1; simpl in *; inv Hn1.
+          + rewrite Ha1 in Hstep.
+            flatten_hyp Hstep; auto; inv Hstep; auto.
+          + flatten_hyp H3; inv H3; rewrite Ha1 in Hstep; flatten_hyp Hstep; inv Hstep; auto.
+        - unfold z_of_argument in Hn1.
+          destruct src1; try congruence.
+          destruct (Hri r) as [wr Hr]. rewrite Hr in Hn1, Hstep.
+          destruct wr; try congruence; destruct src2; destruct p; inv Hstep; auto. }
+      simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; destruct (perm_eq_dec p E); try contradiction; rewrite Ha1; auto. }
+    destruct (addr_of_argument regs src2) as [a2|] eqn:Ha2; cycle 1.
+    { assert (c = Failed /\ σ2 = (regs, m)) as (-> & ->).
+      { unfold addr_of_argument in Ha2.
+        destruct (z_of_argument regs src2) as [n2|] eqn:Hn2.
+        - destruct src2; simpl in *; inv Hn2.
+          + rewrite Ha2 in Hstep.
+            flatten_hyp Hstep; auto; inv Hstep; auto.
+          + flatten_hyp H3; inv H3; rewrite Ha2 in Hstep; flatten_hyp Hstep; inv Hstep; auto.
+        - unfold z_of_argument in Hn2.
+          destruct src2; try congruence.
+          destruct (Hri r) as [wr Hr]. rewrite Hr in Hn2, Hstep.
+          destruct wr; try congruence; flatten_hyp Hstep; inv Hstep; auto. }
+      simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; destruct (perm_eq_dec p E); try contradiction; rewrite Ha1; rewrite Ha2; auto. }
+    assert ((c, σ2) = if isWithin a1 a2 b e then updatePC (update_reg (regs, m) dst (inr (p, g, a1, a2, a))) else (Failed, (regs, m))) as Hexec.
+    { rewrite -Hstep; clear Hstep.
+      unfold addr_of_argument in Ha1, Ha2.
+      unfold z_of_argument in Ha1, Ha2.
+      destruct src1 as [n1|r1]; [rewrite Ha1| destruct (Hri r1) as [wr1 Hr1]; rewrite Hr1 in Ha1 |- *; destruct wr1; try congruence; rewrite Ha1]; (destruct src2 as [n2|r2]; [rewrite Ha2| destruct (Hri r2) as [wr2 Hr2]; rewrite Hr2 in Ha2 |- *; destruct wr2; try congruence; rewrite Ha2]; destruct p; auto; try congruence). }
+    clear Hstep.
+    destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1.
+    { inv Hexec. simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; destruct (perm_eq_dec p E); try contradiction; rewrite Ha1; rewrite Ha2; rewrite Hiw; auto. }
+    destruct (incrementPC (<[ dst := (inr (p, g, a1, a2, a)) ]> regs)) eqn:HX; cycle 1.
+    { rewrite (incrementPC_fail_updatePC _ _ HX) in Hexec.
+      iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      inv Hexec; simpl; iFrame. iApply "Hφ"; iFrame.
+      iPureIntro; econstructor 1; rewrite Hdst; destruct (perm_eq_dec p E); try contradiction; rewrite Ha1; rewrite Ha2; rewrite Hiw; rewrite HX; auto. }
+    eapply (incrementPC_success_updatePC _ m) in HX
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+    rewrite HuPC in Hexec. inv Hexec.
+    iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    simpl; iFrame. iApply "Hφ". iFrame. iPureIntro.
+    econstructor; eauto.
+    by rewrite /incrementPC HPC'' Ha_pc'.
+  Qed.
+
   Lemma wp_subseg_success E pc_p pc_g pc_b pc_e pc_a w dst r1 r2 p g b e a n1 n2 a1 a2 pc_p' :
     cap_lang.decode w = Subseg dst (inr r1) (inr r2) →
     PermFlows pc_p pc_p' → 
