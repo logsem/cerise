@@ -127,10 +127,10 @@ Section cap_lang_rules.
       assert (c = Failed ∧ σ2 = (<[ dst := inl (denote get_i (p,g,b,e,a)) ]> r, m)) as (-> & ->).
       { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
         eapply updatePC_fail_incl with (m':=m) in Hregs'.
-        2: by apply lookup_insert_is_Some_weaken; eauto.
+        2: by apply lookup_insert_is_Some'; eauto.
         2: by apply insert_mono; eauto.
         destruct_or! Hinstr; rewrite Hinstr in Hstep Hregs' |- *; cbn in Hstep.
-        all: rewrite /RegLocate /update_reg Hsrc /= in Hstep Hregs' |- *.
+        all: rewrite /RegLocate /update_reg Hsrc /= in Hstep Hregs' |- *. 
         all: destruct b, e, a; rewrite Hstep in Hregs'; simplify_eq; eauto. }
       iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
       iFail "Hφ" Get_fail_overflow_PC. by rewrite Hdecode. }

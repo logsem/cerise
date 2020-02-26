@@ -34,7 +34,7 @@ Section fundamental.
     iApply (wp_Get with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
-      apply elem_of_gmap_dom. by apply lookup_insert_is_Some_weaken. }
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
@@ -48,9 +48,7 @@ Section fundamental.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
       iApply ("IH" $! _ (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]");
         try iClear "IH"; eauto.
-      { intro. cbn. (* FIXME: fix the statement of lookup_insert_is_Some_weaken. *)
-        rewrite lookup_insert_is_Some. destruct (decide (dst = x5)); auto; right; split; auto.
-        rewrite lookup_insert_is_Some. destruct (decide (PC = x5)); auto; right; split; auto. }
+      { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
       iIntros (ri Hri). rewrite /(RegLocate _ ri) insert_commute // lookup_insert_ne //; [].
       destruct (decide (ri = dst)); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }

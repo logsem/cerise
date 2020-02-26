@@ -1003,17 +1003,6 @@ Ltac incrementPC_inv :=
     eapply incrementPC_None_inv in H
   end; simplify_eq.
 
-(* TODO: add to stdpp *)
-Lemma lookup_insert_is_Some_weaken
-  {K : Type} {M : Type → Type} `{FMap M} `{∀ A : Type, Lookup K A (M A)} `{∀ A : Type, Empty (M A)}
-             `{∀ A : Type, PartialAlter K A (M A)} `{OMap M} `{Merge M}
-             `{∀ A : Type, FinMapToList K A (M A)} `{EqDecision K} `{FinMap K M} :
-  ∀ {A : Type} (m : M A) (i j : K) (x : A),
-    is_Some (m !! j) → is_Some (<[i:=x]> m !! j).
-Proof.
-  intros. rewrite lookup_insert_is_Some. destruct (decide (i = j)); auto.
-Qed.
-
 (*----------------------- FIXME TEMPORARY ------------------------------------*)
 (* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using
    "rewrite .. by .." that is not available when using ssreflect's rewrite. *)
