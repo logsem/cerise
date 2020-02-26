@@ -245,12 +245,11 @@ Section stack_macros.
     iNext. iIntros "(HPC & Hr & Ha1 & Hr_stk & Hstk_a) /=".
     iApply wp_pure_step_later; auto; iNext.
     iApply (wp_bind (fill [SeqCtx])).
-    iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ a2 with "[HPC Ha2 Hr_t1]");
-      first (right;left;apply sub_z_z_i); eauto; iFrame; simpl.
-    { iSplit; iPureIntro; reflexivity. }
+    iApply (wp_add_sub_lt_success_z_z _ r_t1 _ _ _ _ a2 with "[HPC Ha2 Hr_t1]");
+      first apply sub_z_z_i; eauto; iFrame; simpl.
     iNext.
-    rewrite sub_z_z_i Ha2'.
-    iIntros "(HPC & Ha2 & _ & _ & Hr_t1) /=".
+    (* rewrite sub_z_z_i Ha2'. *)
+    iIntros "(HPC & Ha2 & Hr_t1) /=".
     iApply wp_pure_step_later; auto; iNext.
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_lea_success_reg _ _ _ _ _ a3 a4 _ r_stk _ RWLX
@@ -448,14 +447,10 @@ Section stack_macros.
     (* lt rt3 rt2 rt1 *)
     iDestruct "Hprog" as "[Hi Hprog]".
     iApply (wp_bind (fill [SeqCtx])).
-    iApply (wp_add_sub_lt_success _ rt3 _ _ _ _ a1 _ _ (inr rt2) (inr rt1) _ _
-              with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); first (right;right;apply lt_i);
-      first apply Hfl1; eauto.
-    destruct (reg_eq_dec rt2 rt3),(reg_eq_dec rt1 rt3),(reg_eq_dec rt3 PC);iFrame.
-    destruct (reg_eq_dec rt3 PC); try contradiction.
-    rewrite Hnext1 lt_i.
+    iApply (wp_add_sub_lt_success_r_r _ rt3 _ _ _ _ a1 _ _ _ rt2 _ rt1 _ _
+      with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply lt_i | | | apply Hfl1 | ..]; eauto.
+    iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
-    destruct (reg_eq_dec rt2 rt3),(reg_eq_dec rt1 rt3); try contradiction.
     rewrite /region_mapsto /region_addrs.
     destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
@@ -491,12 +486,9 @@ Section stack_macros.
       (* add rt1 rt1 1 *)
       iDestruct "Hprog" as "[Hi Hprog]".
       iApply (wp_bind (fill [SeqCtx])).
-      iApply (wp_add_sub_lt_success _ rt1 _ _ _ _ a5 _ _ (inr rt1) with "[HPC Hi Hr_t1]");
-        first (left;apply add_r_z_i); first apply Hfl1; eauto.
-      { iFrame. iSplit; eauto. by destruct (reg_eq_dec rt1 rt1); try contradiction. }
-      destruct (reg_eq_dec rt1 PC),(reg_eq_dec rt1 rt1); try contradiction.
-      rewrite Hnext5 add_r_z_i.
-      iEpilogue "(HPC & Ha5 & _ & _ & Hr_t1)".
+      iApply (wp_add_sub_lt_success_dst_z _ rt1 _ _ _ _ a5 _ _ _ with "[HPC Hi Hr_t1]");
+        [ apply add_r_z_i | | | apply Hfl1 | ..]; eauto.
+      iFrame. iEpilogue "(HPC & Ha5 & Hr_t1)".
       (* jmp rt5 *)
       iDestruct "Hprog" as "[Hi _]".
       iApply (wp_bind (fill [SeqCtx])).
@@ -511,7 +503,7 @@ Section stack_macros.
         { rewrite /updatePcPerm. destruct p; auto.
           inversion Hvpc1; destruct H9 as [Hc | [Hc | Hc] ]; inversion Hc. }
         rewrite H3. iFrame.
-      + assert (b_r + z + 1 = b_r + (z + 1)%nat)%Z as ->;[lia|]. iFrame.
+      + cbn. assert (b_r + z + 1 = b_r + (z + 1)%nat)%Z as ->;[lia|]. iFrame.
       + iNext.
         iIntros "(HPC & Hregion & Hrt & Hrt5 & Ha3 & Ha4 & Ha5 & Ha6 & Ha1 & Hrt2 & Hrt1 & Ha2 & Hrt4 & Hrt3)".
         iApply "Hφ".
@@ -539,7 +531,6 @@ Section stack_macros.
       iApply "Hφ". iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & _)".
       rewrite /region_addrs_zeroes region_size_0 //=. iFrame.
       iSplitL "Hrt"; eauto.
-      Unshelve. apply w1.
   Qed.
 
 
@@ -618,19 +609,11 @@ Section stack_macros.
     iCombine "Ha1 Hprog_done" as "Hprog_done".
     (* sub r_t2 r_t1 r_t2 *)
     iPrologue "Hprog".
-    destruct b_r eqn:Hb_r.
-    iApply (wp_add_sub_lt_success _ r_t2 _ _ _ _ a2 _ _ (inr r_t1) (inr r_t2)
-              with "[HPC Hi Hr_t1 Hr_t2]");
-      first (right; left; apply sub_r_r_i); first apply Hfl1; first iCorrectPC a_first a'; eauto.
-    iFrame.
-    destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
-    destruct (reg_eq_dec r_t2 PC) as [Hcontr | _]; [inversion Hcontr|].
-    destruct (reg_eq_dec r_t1 r_t2) as [Hcontr | _]; [inversion Hcontr|].
-    destruct (reg_eq_dec r_t2 r_t2); try contradiction.
-    assert ((a2 + 1) = Some a3)%a as ->.
-    { iContiguous_next Hnext 3. }
-    rewrite sub_r_r_i.
-    iEpilogue "(HPC & Ha2 & Hr_t1 & _ & Hr_t2)".
+    (* destruct b_r eqn:Hb_r. *)
+    iApply (wp_add_sub_lt_success_r_dst _ _ _ _ _ _ a2 _ _ r_t1 with "[HPC Hi Hr_t1 Hr_t2]");
+      [ apply sub_r_r_i | | | apply Hfl1 | ..]; eauto. 2: by iCorrectPC a_first a'. 
+    assert ((a2 + 1) = Some a3)%a as ->. { iContiguous_next Hnext 3. } by eauto. by iFrame.
+    iEpilogue "(HPC & Ha2 & Hr_t1 & Hr_t2)".
     iCombine "Ha2 Hprog_done" as "Hprog_done".
     (* lea r_t4 r_t2 *)
     iPrologue "Hprog".
@@ -640,7 +623,7 @@ Section stack_macros.
       first apply lea_r_i; first apply Hfl1; first iCorrectPC a_first a'; eauto.
     { iContiguous_next Hnext 4. }
     { destruct p_r; inversion Hwa; auto. }
-    rewrite /z_of Hb_r; iFrame. iEpilogue "(HPC & Ha3 & Hr_t2 & Hr_t4)".
+    by iFrame. iEpilogue "(HPC & Ha3 & Hr_t2 & Hr_t4)".
     iCombine "Ha3 Hprog_done" as "Hprog_done".
     (* gete r_t2 r_t4 *)
     iPrologue "Hprog".
@@ -654,14 +637,10 @@ Section stack_macros.
     iCombine "Ha4 Hprog_done" as "Hprog_done".
     (* sub r_t5 r_t5 1 *)
     iPrologue "Hprog".
-    iApply (wp_add_sub_lt_success with "[$HPC $Hi Hr_t5]");
-      [right;left;apply sub_r_z_i|apply Hfl1|iCorrectPC a_first a'|auto..].
-    destruct (reg_eq_dec r_t5 PC) eqn:Hcontr;[by inversion Hcontr|clear Hcontr].
-    assert ((a5 + 1)%a = Some a6) as ->.
-    { iContiguous_next Hnext 6. }
-    destruct (reg_eq_dec r_t5 r_t5) eqn:Hcontr;[clear Hcontr|by inversion Hcontr].
-    rewrite sub_r_z_i.
-    iEpilogue "(HPC & Ha5 & _ & _ & Hr_t5)".
+    iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi Hr_t5]");
+      [apply sub_r_z_i| | | apply Hfl1|iCorrectPC a_first a'|..]; eauto.
+    assert ((a5 + 1)%a = Some a6) as ->. { iContiguous_next Hnext 6. } eauto.
+    iEpilogue "(HPC & Ha5 & Hr_t5)".
     iCombine "Ha5 Hprog_done" as "Hprog_done".
     (* move r_t2 PC *)
     iPrologue "Hprog".
@@ -724,11 +703,11 @@ Section stack_macros.
       rewrite /withinBounds. intro.
       rewrite andb_true_iff Z.leb_le Z.ltb_lt. lia.
     - apply addr_add_0.
-    - rewrite Z.add_0_r -Hb_r.
-      iFrame. rewrite Hb_r /=; iFrame.
+    - rewrite Z.add_0_r.
+      iFrame.
       iSplitL "Hr_t6". iNext. iExists w6. iFrame.
       iSplitR; auto.
-      iNext. rewrite -Hb_r.
+      iNext.
       iIntros "(HPC & Hbe & Hr_t4 & Hr_t3 & Ha11 & Ha12 & Ha13 & Ha14 &
       Ha9 & Hr_t5 & Hr_t1 & Ha10 & Hr_t2 & Hr_t6)".
       iCombine "Ha9 Ha10 Ha11 Ha12 Ha13 Ha14 Hprog_done" as "Hprog_done".
@@ -785,7 +764,7 @@ Section stack_macros.
       iApply "Hφ".
       iDestruct "Hprog_done" as "(Ha_iter & Ha10 & Ha12 & Ha11 & Ha13 & Ha14 & Ha15 & Ha8 & Ha7
       & Ha6 & Ha5 & Ha4 & Ha3 & Ha2 & Ha1 & Ha0 & Ha_first)".
-      iFrame. Unshelve. exact 0. exact 0. apply w1. apply w1.
+      iFrame. Unshelve. exact 0. exact 0.
   Qed.        (* ??? *)
 
 End stack_macros.

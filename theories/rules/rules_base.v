@@ -414,6 +414,31 @@ Section cap_lang_rules.
     iDestruct "Hmap" as "(? & ? & ? & _)"; iFrame.
   Qed.
 
+  Lemma map_of_regs_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: Word) :
+    r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗ r3 ↦ᵣ w3 -∗ r4 ↦ᵣ w4 -∗
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> (<[r4:=w4]> ∅)))), k ↦ᵣ y) ∗
+     ⌜ r1 ≠ r2 ∧ r1 ≠ r3 ∧ r1 ≠ r4 ∧ r2 ≠ r3 ∧ r2 ≠ r4 ∧ r3 ≠ r4 ⌝.
+  Proof.
+    iIntros "H1 H2 H3 H4".
+    iPoseProof (regname_neq with "H1 H2") as "%".
+    iPoseProof (regname_neq with "H1 H3") as "%".
+    iPoseProof (regname_neq with "H1 H4") as "%".
+    iPoseProof (regname_neq with "H2 H3") as "%".
+    iPoseProof (regname_neq with "H2 H4") as "%".
+    iPoseProof (regname_neq with "H3 H4") as "%".
+    rewrite !big_sepM_insert ?big_sepM_empty; simplify_map_eq; eauto.
+    iFrame. eauto.
+  Qed.
+
+  Lemma regs_of_map_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: Word) :
+    r1 ≠ r2 → r1 ≠ r3 → r1 ≠ r4 → r2 ≠ r3 → r2 ≠ r4 → r3 ≠ r4 →
+    ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> (<[r4:=w4]> ∅)))), k ↦ᵣ y) -∗
+    r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 ∗ r3 ↦ᵣ w3 ∗ r4 ↦ᵣ w4.
+  Proof.
+    intros. iIntros "Hmap". rewrite !big_sepM_insert ?big_sepM_empty; simplify_map_eq; eauto.
+    iDestruct "Hmap" as "(? & ? & ? & ? & _)"; iFrame.
+  Qed.
+
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
 
   Lemma gen_heap_valid_inSepM:
