@@ -3,6 +3,7 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
 From cap_machine Require Import ftlr_base.
+From cap_machine.rules Require Export rules_Get.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -10,7 +11,7 @@ Section fundamental.
             Heap: heapG Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation WORLD := (leibnizO (STS * STS)).
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -19,10 +20,11 @@ Section fundamental.
   Implicit Types interp : (D).
 
   Lemma get_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst r0 : RegName) (ins: instr) (Hinstr: ins = cap_lang.GetP dst r0 \/ ins = cap_lang.GetL dst r0 \/ ins = cap_lang.GetB dst r0 \/ ins = cap_lang.GetE dst r0 \/ ins = cap_lang.GetA dst r0):
+        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst r0 : RegName) (ins: instr) :
+    is_Get ins dst r0 →
     ftlr_instr W r p p' g b e a w ins ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    intros Hinstr Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -31,36 +33,28 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Get with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. by apply lookup_insert_is_Some_weaken. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
-    { match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
+    { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iNext.
       destruct c as ((((p1 & g1) & b1) & e1) & a1).
-      assert (dst <> PC) as HdstPC.
-      { intro. subst dst. rewrite lookup_insert in HPC.
-        inv HPC. destruct (decode w); simpl in H5; destruct b1; destruct a1; destruct e1; congruence. }
-      rewrite lookup_insert_ne in HPC; auto.
-      rewrite lookup_insert in HPC; inv HPC.
+      assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
+      simplify_map_eq.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      iApply ("IH" $! _ (<[dst:= rules_Get.denote (cap_lang.decode w) (p1, g1, b1, e1, a1)]> (<[PC:=inr (p'', g'', b'', e'', a'')]> r)) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
-      + intros; simpl.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec dst x0); auto; right; split; auto.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec PC x0); auto; right; split; auto.
-      + iIntros (ri Hri).
-        destruct (reg_eq_dec ri dst).
-        * subst ri. rewrite /RegLocate lookup_insert.
-          destruct b1; destruct e1; destruct a1; destruct (decode w); simpl; repeat rewrite fixpoint_interp1_eq; auto.
-        * repeat rewrite /RegLocate lookup_insert_ne; auto.
-          iApply "Hreg"; auto. }
-  Qed.      
+      iApply ("IH" $! _ (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]");
+        try iClear "IH"; eauto.
+      { intro. cbn. (* FIXME: fix the statement of lookup_insert_is_Some_weaken. *)
+        rewrite lookup_insert_is_Some. destruct (decide (dst = x5)); auto; right; split; auto.
+        rewrite lookup_insert_is_Some. destruct (decide (PC = x5)); auto; right; split; auto. }
+      iIntros (ri Hri). rewrite /(RegLocate _ ri) insert_commute // lookup_insert_ne //; [].
+      destruct (decide (ri = dst)); simplify_map_eq.
+      { repeat rewrite fixpoint_interp1_eq; auto. }
+      { by iApply "Hreg". } }
+  Qed.
 
 End fundamental.

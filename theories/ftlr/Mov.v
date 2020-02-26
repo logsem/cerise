@@ -3,6 +3,7 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base monotone.
+From cap_machine.rules Require Import rules_Mov.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
