@@ -43,8 +43,31 @@ Section fundamental.
       * rewrite Hinr0 in Hinr1. inversion Hinr1.
         rewrite H4 H5 H6 H7 H8 in Hrar; auto.
       * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
-  Qed. 
+  Qed.
 
+  (* TODO: move together with reginr *)
+  Lemma addr_ne_reg_ne {regs : leibnizO Reg} {r1 r2 : RegName}
+        {p0 g0 b0 e0 a0 p g b e a}:
+    regs !! r1 = Some (inr (p0, g0, b0, e0, a0))
+    → regs !! r2 = Some (inr (p, g, b, e, a))
+    → a0 ≠ a → r1 ≠ r2.
+  Proof.
+    intros Hr1 Hr2 Hne.
+    destruct (decide (r1 = r2)); simplify_eq; auto.
+  Qed.
+
+  (* TODO: move together with reginr *)
+  Lemma addr_ne_reg_inr_ne {regs : leibnizO Reg} {r1 r2 : RegName}
+        {p0 g0 b0 e0 a0 p g b e a}:
+    read_reg_inr regs r1 p0 g0 b0 e0 a0
+    → regs !! r2 = Some (inr (p, g, b, e, a))
+    → a0 ≠ a → r1 ≠ r2.
+  Proof.
+    intros Hr1 Hr2 Hne. intros contra.
+    destruct Hr1 as [Hinr | [z Hinl] ].
+    - rewrite contra in Hinr; rewrite Hinr in Hr2; inversion Hr2; congruence.
+    -  rewrite contra in Hinl; rewrite Hinl in Hr2; inversion Hinl; congruence.
+  Qed.
 
   (* Description of what the resources are supposed to look like after opening the region if we need to, but before closing the region up again*)
   Definition allow_load_res W r (regs : Reg) pc_a pc_p:=
@@ -86,11 +109,7 @@ Section fundamental.
          rewrite /leb_addr in Hle,Hge.
 
          (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
-         assert (src ≠ PC) as n.
-         {
-           intros contra. rewrite contra in Hrinr.
-           rewrite lookup_insert in Hrinr. inversion Hrinr. congruence.
-         }
+         assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
          iDestruct ("Hreg" $! src n) as "Hvsrc".
          rewrite lookup_insert_ne in Hrinr; last by congruence.
