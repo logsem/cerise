@@ -603,6 +603,163 @@ Section cap_lang_rules.
       inv H3; auto.
   Qed.
 
+  (* ----------------------------------- FAIL RULES ---------------------------------- *)
+
+  Lemma wp_notCorrectPC:
+    forall E w,
+      ~ isCorrectPC w ->
+      {{{ PC ↦ᵣ w }}}
+        Instr Executable @ E
+        {{{ RET FailedV; PC ↦ᵣ w }}}.
+  Proof.
+    intros *. intros Hnpc.
+    iIntros (ϕ) "HPC Hϕ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr HPC") as %?.
+    option_locate_mr m r.
+    rewrite -HPC in Hnpc.
+    iApply fupd_frame_l.
+    iSplit.
+    + rewrite /reducible.
+      iExists [], (Instr Failed : cap_lang.expr), (r,m), [].
+      iPureIntro.
+      constructor.
+      apply (step_exec_fail (r,m)); eauto.
+    + (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
+      iModIntro.
+      iIntros (e1 σ2 efs Hstep).
+      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      iFrame. iNext.
+      iModIntro. iSplitR; auto. iApply "Hϕ". iFrame.
+  Qed.
+
+  (* Subcases for respecitvely permissions and bounds *)
+
+  Lemma wp_notCorrectPC_perm E pc_p pc_g pc_b pc_e pc_a :
+      pc_p ≠ RX ∧ pc_p ≠ RWX ∧ pc_p ≠ RWLX →
+      {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)}}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]");
+      [apply not_isCorrectPC_perm;eauto|iFrame|].
+    iNext. iIntros "HPC /=".
+    by iApply "Hwp".
+  Qed.
+
+  Lemma wp_notCorrectPC_range E pc_p pc_g pc_b pc_e pc_a :
+       ¬ (pc_b <= pc_a < pc_e)%a →
+      {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)}}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]");
+      [apply not_isCorrectPC_bounds;eauto|iFrame|].
+    iNext. iIntros "HPC /=".
+    by iApply "Hwp".
+  Qed.
+
+  (* ----------------------------------- ATOMIC RULES -------------------------------- *)
+
+  Lemma wp_halt E pc_p pc_g pc_b pc_e pc_a w pc_p' :
+    cap_lang.decode w = Halt →
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) ∗ pc_a ↦ₐ[pc_p'] w }}}
+      Instr Executable @ E
+    {{{ RET HaltedV; PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) ∗ pc_a ↦ₐ[pc_p'] w }}}.
+  Proof.
+    intros Hinstr Hfl Hvpc.
+    iIntros (φ) "[Hpc Hpca] Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
+    iDestruct (@gen_heap_valid_cap with "Hm Hpca") as %?.
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H9 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    option_locate_mr m r.
+    iModIntro.
+    iSplitR.
+    - rewrite /reducible.
+      iExists [],(Instr Halted),(r,m),[].
+      iPureIntro.
+      constructor.
+      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a Halt
+                             (Halted,_));
+        eauto; simpl; try congruence.
+    - iIntros (e2 σ2 efs Hstep).
+      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      iFrame.
+      iNext. iModIntro. iSplitR; eauto.
+      iApply "Hφ".
+      iFrame.
+  Qed.
+
+  Lemma wp_fail E pc_p pc_g pc_b pc_e pc_a w pc_p' :
+    cap_lang.decode w = Fail →
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+
+    {{{ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) ∗ pc_a ↦ₐ[pc_p'] w }}}
+      Instr Executable @ E
+    {{{ RET FailedV; PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a) ∗ pc_a ↦ₐ[pc_p'] w }}}.
+  Proof.
+    intros Hinstr Hfl Hvpc.
+    iIntros (φ) "[Hpc Hpca] Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
+    iDestruct (@gen_heap_valid_cap with "Hm Hpca") as %?.
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst;
+        destruct H9 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    option_locate_mr m r.
+    iModIntro.
+    iSplitR.
+    - rewrite /reducible.
+      iExists [],(Instr Failed),(r,m),[].
+      iPureIntro.
+      constructor.
+      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a Fail
+                             (Failed,_));
+        eauto; simpl; try congruence.
+    - iIntros (e2 σ2 efs Hstep).
+      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      iFrame.
+      iNext. iModIntro. iSplitR; eauto.
+      iApply "Hφ".
+      iFrame.
+   Qed.
+
+  (* ----------------------------------- PURE RULES ---------------------------------- *)
+
+  Local Ltac solve_exec_safe := intros; subst; do 3 eexists; econstructor; eauto.
+  Local Ltac solve_exec_puredet := simpl; intros; by inv_head_step.
+  Local Ltac solve_exec_pure := intros ?; apply nsteps_once, pure_head_step_pure_step;
+                                constructor; [solve_exec_safe|]; intros;
+                                (match goal with
+                                | H : head_step _ _ _ _ _ _ |- _ => inversion H end).
+
+  Global Instance pure_seq_failed :
+    PureExec True 1 (Seq (Instr Failed)) (Instr Failed).
+  Proof. by solve_exec_pure. Qed.
+
+  Global Instance pure_seq_halted :
+    PureExec True 1 (Seq (Instr Halted)) (Instr Halted).
+  Proof. by solve_exec_pure. Qed.
+
+  Global Instance pure_seq_done :
+    PureExec True 1 (Seq (Instr NextI)) (Seq (Instr Executable)).
+  Proof. by solve_exec_pure. Qed.
+
 End cap_lang_rules.
 
 (* Points to predicates for memory *)

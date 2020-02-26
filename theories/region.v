@@ -1,4 +1,4 @@
-From cap_machine Require Export lang rules.
+From cap_machine Require Export lang rules_base.
 From cap_machine Require Import addr_reg.
 From iris.proofmode Require Import tactics.
 Require Import List.
