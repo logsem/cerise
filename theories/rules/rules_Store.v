@@ -1,4 +1,4 @@
-From cap_machine Require Import rules_base.
+From cap_machine Require Import region_invariants rules_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
@@ -23,13 +23,6 @@ Section cap_lang_rules.
  (* Conditionally unify on the read register value *)
   Definition read_reg_inr  (regs : Reg) (r : RegName) p g b e a :=
     regs !! r = Some (inr ((p, g), b, e, a)) ∨ ∃ z, regs !! r = Some(inl z).
-
-  (* Move OG definition to lang *)
-  Definition pwl p : bool :=
-    match p with
-    | RWLX | RWL => true
-    | _ => false
-    end.
 
   Definition is_local_argument  (regs : Reg) (a : Z + RegName) : bool :=
     match a with
