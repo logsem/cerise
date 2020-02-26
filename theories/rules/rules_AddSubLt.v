@@ -16,67 +16,6 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Ltac inv_head_step :=
-    repeat match goal with
-           | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-           | H : to_val _ = Some _ |- _ => apply of_to_val in H
-           | H : _ = of_val ?v |- _ =>
-             is_var v; destruct v; first[discriminate H|injection H as H]
-           | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
-             try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-             (*    and can thus better be avoided. *)
-             let φ := fresh "φ" in 
-             inversion H as [| φ]; subst φ; clear H
-           end.
-
-  Ltac option_locate_mr m r :=
-    repeat match goal with
-           | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-           | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
-           end.
-
-  Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-    match goal with
-    | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-      let σ := fresh "σ" in
-      let e' := fresh "e'" in
-      let σ' := fresh "σ'" in
-      let Hstep' := fresh "Hstep'" in
-      let He0 := fresh "He0" in
-      let Ho := fresh "Ho" in
-      let He' := fresh "H"e' in
-      let Hσ' := fresh "H"σ' in
-      let Hefs := fresh "Hefs" in
-      let φ0 := fresh "φ" in
-      let p0 := fresh "p" in
-      let g0 := fresh "g" in
-      let b0 := fresh "b" in
-      let e2 := fresh "e" in
-      let a0 := fresh "a" in
-      let i := fresh "i" in
-      let c0 := fresh "c" in
-      let HregPC := fresh "HregPC" in
-      let Hi := fresh "H"i in
-      let Hexec := fresh "Hexec" in 
-      inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?]; 
-      inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-      (simpl in *; try congruence );
-      subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-      try (rewrite HPC in HregPC;
-           inversion HregPC;
-           repeat match goal with
-                  | H : _ = p0 |- _ => destruct H
-                  | H : _ = g0 |- _ => destruct H
-                  | H : _ = b0 |- _ => destruct H
-                  | H : _ = e2 |- _ => destruct H
-                  | H : _ = a0 |- _ => destruct H
-                  end ; destruct Hi ; clear HregPC ;
-           rewrite Hpc_a Hinstr /= ;
-           rewrite Hpc_a Hinstr in Hstep)
-    end.
-
   Definition denote (i: instr) (n1 n2: Z): Word :=
     match i with
     | cap_lang.Add _ _ _ => inl (n1 + n2)%Z
@@ -110,14 +49,16 @@ Section cap_lang_rules.
       AddSubLt_spec i regs dst rv1 rv2 regs' FailedV.
 
   Lemma wp_AddSubLt Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst arg1 arg2 regs :
-    cap_lang.decode w = cap_lang.Add dst arg1 arg2 \/ cap_lang.decode w = Sub dst arg1 arg2  \/ cap_lang.decode w = Lt dst arg1 arg2 →
+    cap_lang.decode w = cap_lang.Add dst arg1 arg2 ∨
+    cap_lang.decode w = Sub dst arg1 arg2 ∨
+    cap_lang.decode w = Lt dst arg1 arg2 →
 
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
     regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
     (∀ (ri: RegName), is_Some (regs !! ri)) →
     {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
-          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
         ⌜ AddSubLt_spec (cap_lang.decode w) regs dst arg1 arg2 regs' retv ⌝ ∗
@@ -135,8 +76,7 @@ Section cap_lang_rules.
     iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
     { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
     iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
-    (*option_locate_mr m r.*) iModIntro.
-    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.

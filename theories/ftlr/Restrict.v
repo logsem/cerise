@@ -3,6 +3,7 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base monotone.
+From cap_machine.rules Require Import rules_Restrict.
 
 (* TODO: Move into logrel.v *)
 Instance future_world_persistent (Σ: gFunctors) g W W': Persistent (@future_world Σ g W W').

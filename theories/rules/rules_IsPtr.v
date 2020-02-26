@@ -77,6 +77,69 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
+  Inductive IsPtr_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
+  | IsPtr_spec_success:
+      incrementPC (<[ dst := match regs !! src with Some (inr _) => inl 1%Z | _ => inl 0%Z end]> regs) = Some regs' ->
+      IsPtr_spec regs dst src regs' NextIV
+  | IsPtr_spec_failure:
+      IsPtr_spec regs dst src regs' FailedV.
+  
+  Lemma wp_IsPtr Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
+    cap_lang.decode w = IsPtr dst src ->
+
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    (∀ (ri: RegName), is_Some (regs !! ri)) →
+    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+    {{{ regs' retv, RET retv;
+        ⌜ IsPtr_spec regs dst src regs' retv ⌝ ∗
+          pc_a ↦ₐ[pc_p'] w ∗
+          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+  Proof.
+    iIntros (Hinstr Hfl Hvpc HPC Hri φ) "(>Hpc_a & >Hmap) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
+    iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
+    { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    (*option_locate_mr m r.*) iModIntro.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iNext. iIntros (e2 σ2 efs Hpstep).
+    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    
+    destruct (Hri src) as [wsrc Hsrc].
+    destruct (incrementPC (<[ dst := match wsrc with inl _ => inl 0%Z | inr _ => inl 1%Z end ]> regs)) as [regs'|] eqn:Hregs'; cycle 1.
+    { assert (c = Failed /\ σ2 = ((<[ dst := match wsrc with inl _ => inl 0%Z | inr _ => inl 1%Z end ]> regs), m)) as (-> & ->).
+      { cbn in Hstep. rewrite /RegLocate Hsrc in Hstep.
+        destruct wsrc; rewrite (incrementPC_fail_updatePC _ _ Hregs') in Hstep; inv Hstep; auto. }
+      iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      iFrame. iApply "Hφ"; iFrame.
+      iPureIntro. econstructor 2. }
+
+    cbn in Hstep. rewrite /RegLocate Hsrc in Hstep.
+    assert ((c, σ2) = updatePC (update_reg (regs, m) dst (match wsrc with inl _ => inl 0%Z | inr _ => inl 1%Z end))) as HH.
+    { destruct wsrc; auto. }
+
+    eapply (incrementPC_success_updatePC _ m) in Hregs'
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+    rewrite HuPC in HH; clear HuPC; inversion HH; clear HH; subst c σ2. cbn.
+    iFrame.
+    iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro.
+    econstructor 1; eauto.
+    by rewrite Hsrc /incrementPC HPC'' Ha_pc'.
+  Qed.
+
    Lemma wp_IsPtr_successPC E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w' pc_p' :
      cap_lang.decode w = IsPtr dst PC →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
