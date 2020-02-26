@@ -16,13 +16,54 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition denote (i: instr) (n1 n2: Z): Word :=
+  (* TODO: move to stdpp *)
+  Tactic Notation "destruct_or" ident(H) :=
+  match type of H with
+  | _ ∨ _ => destruct H as [H|H]
+  | Is_true (_ || _) => apply orb_True in H; destruct H as [H|H]
+  end.
+  Tactic Notation "destruct_or" "?" ident(H) := repeat (destruct_or H).
+  Tactic Notation "destruct_or" "!" ident(H) := hnf in H; destruct_or H; destruct_or? H.
+
+  Definition denote (i: instr) (n1 n2: Z): Z :=
     match i with
-    | cap_lang.Add _ _ _ => inl (n1 + n2)%Z
-    | Sub _ _ _ => inl (n1 - n2)%Z
-    | Lt _ _ _ => (inl (Z.b2z (n1 <? n2)%Z))
-    | _ => inl 0%Z
+    | cap_lang.Add _ _ _ => (n1 + n2)%Z
+    | Sub _ _ _ => (n1 - n2)%Z
+    | Lt _ _ _ => (Z.b2z (n1 <? n2)%Z)
+    | _ => 0%Z
     end.
+
+  Definition is_AddSubLt (i: instr) (r: RegName) (arg1 arg2: Z + RegName) :=
+    i = cap_lang.Add r arg1 arg2 ∨
+    i = Sub r arg1 arg2 ∨
+    i = Lt r arg1 arg2.
+
+  Lemma regs_of_is_AddSubLt i r arg1 arg2 :
+    is_AddSubLt i r arg1 arg2 →
+    regs_of i = {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2.
+  Proof.
+    intros HH. destruct_or! HH; subst i; reflexivity.
+  Qed.
+
+  (* TODO: move to rules_base *)
+  Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
+    z_of_argument regs arg = Some z →
+    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+  Proof.
+    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  Qed.
+
+  (* TODO: move to rules_base. *)
+  (* TODO: add in the second case of the conclusion the fact that [regs !! r = Some (inl z)]
+     (there is an unecessary loss of generality at the moment) *)
+  Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
+    z_of_argument regs arg = Some z →
+    regs ⊆ regs' →
+    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs' !! r = Some (inl z)).
+  Proof.
+    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+    intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+  Qed.
 
   Inductive AddSubLt_failure (i: instr) (regs: Reg) (dst: RegName) (rv1 rv2: Z + RegName) (regs': Reg) :=
   | AddSubLt_fail_nonconst1:
@@ -34,29 +75,45 @@ Section cap_lang_rules.
   | AddSubLt_fail_incrPC n1 n2:
       z_of_argument regs rv1 = Some n1 ->
       z_of_argument regs rv2 = Some n2 ->
-      incrementPC (<[ dst := denote i n1 n2 ]> regs) = None ->
-      regs' = (<[ dst := denote i n1 n2 ]> regs) ->
+      incrementPC (<[ dst := inl (denote i n1 n2) ]> regs) = None ->
+      regs' = (<[ dst := inl (denote i n1 n2) ]> regs) ->
       AddSubLt_failure i regs dst rv1 rv2 regs'.
 
   Inductive AddSubLt_spec (i: instr) (regs: Reg) (dst: RegName) (rv1 rv2: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | AddSubLt_spec_success n1 n2:
       z_of_argument regs rv1 = Some n1 ->
       z_of_argument regs rv2 = Some n2 ->
-      incrementPC (<[ dst := denote i n1 n2 ]> regs) = Some regs' ->
+      incrementPC (<[ dst := inl (denote i n1 n2) ]> regs) = Some regs' ->
       AddSubLt_spec i regs dst rv1 rv2 regs' NextIV
   | AddSubLt_spec_failure:
       AddSubLt_failure i regs dst rv1 rv2 regs' ->
       AddSubLt_spec i regs dst rv1 rv2 regs' FailedV.
 
-  Lemma wp_AddSubLt Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst arg1 arg2 regs :
-    cap_lang.decode w = cap_lang.Add dst arg1 arg2 ∨
-    cap_lang.decode w = Sub dst arg1 arg2 ∨
-    cap_lang.decode w = Lt dst arg1 arg2 →
+  Local Ltac iFail Hcont get_fail_case :=
+    cbn; iFrame; iApply Hcont; iFrame; iPureIntro;
+    econstructor; eapply get_fail_case; eauto.
 
+  (* TODO: move elsewhere *)
+  Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
+      x = (y, z) -> x = (u, t) ->
+      y = u ∧ z = t.
+  Proof. intros. subst x. inversion H2. auto. Qed.
+
+  Tactic Notation "simplify_eq_pair" :=
+    repeat
+      lazymatch goal with
+      | H1 : ?x = (?y, ?z), H2 : ?x = (?u, ?t) |- _ =>
+        assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 H2)); clear H2
+      | |- _ => progress simplify_eq
+      end.
+
+  Lemma wp_AddSubLt Ep i pc_p pc_g pc_b pc_e pc_a pc_p' w dst arg1 arg2 regs :
+    cap_lang.decode w = i →
+    is_AddSubLt i dst arg1 arg2 →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
     regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
-    (∀ (ri: RegName), is_Some (regs !! ri)) →
+    regs_of i ⊆ dom _ regs →
     {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
@@ -65,73 +122,82 @@ Section cap_lang_rules.
           pc_a ↦ₐ[pc_p'] w ∗
           [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc HPC Hri φ) "(>Hpc_a & >Hmap) Hφ".
+    iIntros (Hdecode Hinstr Hfl Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
     { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
       inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
-    pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
-    iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
-    { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+    iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
+    have HPC' := regs_lookup_eq _ _ _ HPC.
+    have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
-    assert (match arg1 with | inl _ => True | inr r1 => is_Some (regs !! r1) end) as Hr1 by (destruct arg1; auto; eapply Hri).
-    assert (match arg2 with | inl _ => True | inr r2 => is_Some (regs !! r2) end) as Hr2 by (destruct arg2; auto; eapply Hri).
+    specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
+    erewrite regs_of_is_AddSubLt in Hri, Dregs; eauto.
+    destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
 
-    destruct (z_of_argument regs arg1) as [n1|] eqn:Hn1; cycle 1.
+    destruct (z_of_argument regs arg1) as [n1|] eqn:Hn1;
+      pose proof Hn1 as Hn1'; cycle 1.
     (* Failure: arg1 is not an integer *)
-    { assert (c = Failed ∧ σ2 = (regs, m)) as (-> & ->).
-      { destruct Hinstr as [Hi | [Hi | Hi]]; rewrite Hi in Hstep;
-        cbn in Hstep; destruct arg1; simpl in *; try discriminate;
-        rewrite /RegLocate in Hstep; destruct Hr1 as [x Hr1]; destruct x; rewrite Hr1 in Hn1 Hstep; try congruence; destruct arg2; inv Hstep; auto. }
-      cbn; iFrame; iApply "Hφ"; iFrame; iPureIntro.
-      econstructor. econstructor 1; eauto. }
+    { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
+      destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
+      rewrite Hr'0 in Hn1. destruct r0v as [| (([[? ?] ?] & ?) & ?) ]; [ congruence |].
+      assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
+        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+      iFail "Hφ" AddSubLt_fail_nonconst1. }
 
-    destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2; cycle 1.
+    destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2;
+      pose proof Hn2 as Hn2'; cycle 1.
     (* Failure: arg2 is not an integer *)
-    { assert (c = Failed ∧ σ2 = (regs, m)) as (-> & ->).
-      { destruct Hinstr as [Hi | [Hi | Hi]]; rewrite Hi in Hstep;
-        cbn in Hstep; destruct arg2; simpl in *; try discriminate;
-        rewrite /RegLocate in Hstep; destruct Hr2 as [x Hr2]; destruct x; rewrite Hr2 in Hn2 Hstep; try congruence; destruct arg1; try (inv Hstep; auto; fail); destruct Hr1 as [y Hr1]; rewrite Hr1 in Hstep; destruct y; inv Hstep; auto. }
-      cbn; iFrame; iApply "Hφ"; iFrame; iPureIntro.
-      econstructor. econstructor 2; eauto. }
+    { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
+      destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
+      rewrite Hr'0 in Hn2. destruct r0v as [| (([[? ?] ?] & ?) & ?) ]; [ congruence |].
+      assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
+        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+      iFail "Hφ" AddSubLt_fail_nonconst2. }
 
-    destruct (incrementPC (<[ dst := denote (cap_lang.decode w) n1 n2 ]> regs)) as [regs'|] eqn:Hregs'; cycle 1.
+    eapply z_of_argument_Some_inv' in Hn1; eapply z_of_argument_Some_inv' in Hn2; eauto.
+
+    destruct (incrementPC (<[ dst := inl (denote i n1 n2) ]> regs))
+      as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
-    { assert (c = Failed ∧ σ2 = (<[ dst := denote (cap_lang.decode w) n1 n2 ]> regs, m)) as (-> & ->).
-      { assert (exec (cap_lang.decode w) (regs, m) = updatePC (update_reg (regs, m) dst (denote (cap_lang.decode w) n1 n2))) as HX.
-        { destruct Hinstr as [Hi | [Hi | Hi]]; rewrite Hi;
-          cbn; destruct arg1 as [z1 | r1]; destruct arg2 as [z2 | r2]; simpl in *; try (destruct Hr1 as [z1 Hr1]; rewrite Hr1 in Hn1; destruct z1; rewrite /RegLocate; rewrite Hr1); try (destruct Hr2 as [z2 Hr2]; rewrite Hr2 in Hn2; destruct z2; rewrite /RegLocate; rewrite Hr2); try (inv Hn1; inv Hn2; auto). }
-        rewrite HX in Hstep. rewrite (incrementPC_fail_updatePC _ m Hregs') in Hstep.
-        inv Hstep; auto. }
+    { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
+      eapply updatePC_fail_incl with (m':=m) in Hregs'.
+      2: by apply lookup_insert_is_Some'; eauto.
+      2: by apply insert_mono; eauto.
+
+      assert (c = Failed ∧ σ2 = (<[ dst := inl (denote i n1 n2) ]> r, m)) as (-> & ->).
+      { destruct Hn1 as [ -> | (r1 & -> & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & Hr2) ].
+        all: destruct_or! Hinstr; rewrite !Hinstr /= /update_reg /RegLocate in Hstep Hregs' |- *.
+        all: rewrite ?Hr1 ?Hr2 /= in Hstep.
+        all: by simplify_eq_pair. }
       cbn; iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-      iFrame; iApply "Hφ"; iFrame; iPureIntro.
-      econstructor. econstructor 3; eauto. }
+      rewrite Hdecode. iFail "Hφ" AddSubLt_fail_incrPC. }
 
     (* Success *)
 
-    assert ((c, σ2) = updatePC (update_reg (regs, m) dst (denote (cap_lang.decode w) n1 n2))) as HH.
-    { assert (exec (cap_lang.decode w) (regs, m) = updatePC (update_reg (regs, m) dst (denote (cap_lang.decode w) n1 n2))) as HX.
-      { destruct Hinstr as [Hi | [Hi | Hi]]; rewrite Hi;
-          cbn; destruct arg1 as [z1 | r1]; destruct arg2 as [z2 | r2]; simpl in *; try (destruct Hr1 as [z1 Hr1]; rewrite Hr1 in Hn1; destruct z1; rewrite /RegLocate; rewrite Hr1); try (destruct Hr2 as [z2 Hr2]; rewrite Hr2 in Hn2; destruct z2; rewrite /RegLocate; rewrite Hr2); try (inv Hn1; inv Hn2; auto). }
-      rewrite HX in Hstep. auto. }
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (denote i n1 n2)))) as HH.
+    { destruct Hn1 as [ -> | (r1 & -> & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & Hr2) ].
+      all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
+      all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
 
     rewrite /update_reg /= in HH.
     eapply (incrementPC_success_updatePC _ m) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
-    rewrite HuPC in HH; clear HuPC; inversion HH; clear HH; subst c σ2. cbn.
+    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
+    rewrite HuPC in HH. simplify_eq.
     iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro.
-    econstructor 1; eauto.
-    by rewrite /incrementPC HPC'' Ha_pc'.
+    iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
   Qed.
 
   Lemma wp_add_sub_lt_success_same E dst pc_p pc_g pc_b pc_e pc_a w wdst x n1 pc_p' :

@@ -873,6 +873,9 @@ Definition regs_of (i: instr): gset RegName :=
   | GetB r1 r2 => {[ r1; r2 ]}
   | GetE r1 r2 => {[ r1; r2 ]}
   | GetA r1 r2 => {[ r1; r2 ]}
+  | cap_lang.Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | _ => ∅
   end.
 
