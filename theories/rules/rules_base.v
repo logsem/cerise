@@ -776,7 +776,8 @@ Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
   | inl z => Some z
   | inr r =>
     match regs !! r with
-    | Some (inl z) => Some z    | _ => None
+    | Some (inl z) => Some z
+    | _ => None
     end
   end.
 
