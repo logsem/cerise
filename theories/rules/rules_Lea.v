@@ -88,8 +88,7 @@ Section cap_lang_rules.
      assert (pc_p' ≠ O).
      { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
       destruct H5 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
-     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
-     iDestruct "H" as %Hregs.
+     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
      pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.

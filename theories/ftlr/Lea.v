@@ -41,7 +41,7 @@ Section fundamental.
     iApply (wp_lea with "[$Ha $Hmap]"); eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
-      apply elem_of_gmap_dom. by apply lookup_insert_is_Some_weaken. }
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * -> Hdst ? Hz Hoffset HincrPC |].
@@ -53,7 +53,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto. iNext.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
       iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH".
-      { cbn. intros. subst regs'. by repeat apply lookup_insert_is_Some_weaken. }
+      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri Hri). subst regs'.
         erewrite locate_ne_reg; [ | | reflexivity]; auto.
         destruct (decide (ri = dst)).

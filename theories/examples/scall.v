@@ -452,11 +452,11 @@ Section scall.
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t1)" "Hinstr" "Hi".
     (* add r_t1 r_t1 1 *)
     iPrologue a_rest0 Hlength "Hprog".
-    iApply (wp_add_sub_lt_success with "[$HPC $Hinstr Hr_t1]");
-      [left;apply add_r_z_i|apply Hfl| |iSimpl;iFrame;eauto|iSimpl;rewrite add_r_z_i].
+    iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hinstr Hr_t1]");
+      [apply add_r_z_i| | | apply Hfl| ..]; eauto.
+    assert ((a15 + 1)%a = Some a16) as ->;[iContiguous_next Ha 22|]. eauto.
     { iCorrectPC a_first a_cont. }
-    assert ((a15 + 1)%a = Some a16) as ->;[iContiguous_next Ha 22|].
-    iEpilogue "(HPC & Hinstr & _ & _ & Hr_t1)" "Hinstr" "Hi".
+    iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hi".
     (* gete r_t2 r_stk *)
     iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t2 Hr_gen]".
     iPrologue a_rest0 Hlength "Hprog".
@@ -557,7 +557,7 @@ Section scall.
     - rewrite Happeq'.
       iDestruct "Hi" as "(Ha17 & Ha16 & Ha15 & Ha14 & Ha13 & Ha12 & Ha11 & Ha10 & Ha9 &
                           Ha8 & Ha1 & Ha0 & Ha & Hpush6 & Hpush5 & Hpush4 & Hpush3 & Hpush0 & Hpush2)".
-      iFrame. Unshelve. exact (inl 0%Z).
+      iFrame. 
   Qed.
 
   Lemma scall_epilogue_spec stack_own_b stack_own_e s_last stack_new
@@ -651,11 +651,11 @@ Section scall.
     iEpilogue "(HPC & Hr_stk & Hinstr & Hr_t1 & Hlast)" "Hinstr" "Hframe_past".
     (* sub r_t1 0 1 *)
     iApply (wp_bind (fill [SeqCtx])). 
-    iApply (wp_add_sub_lt_success with "[$HPC Hr_t1 $Hinstr1]");
-      [right; left; rewrite -i_4a; apply decode_encode_inv|apply Hfl| |iSimpl;iFrame;eauto|iSimpl..].
+    iApply (wp_add_sub_lt_success_z_z with "[$HPC Hr_t1 $Hinstr1]");
+      [rewrite -i_4a; apply decode_encode_inv| | | apply Hfl | | iFrame;eauto|..]; eauto.
+    assert ((a1 + 1)%a = Some a2) as ->;[iContiguous_next Hcont 3|]. eauto.
     { iCorrectPC stack_own_b stack_own_e. }
-    rewrite -i_4a decode_encode_inv. assert ((a1 + 1)%a = Some a2) as ->;[iContiguous_next Hcont 3|].
-    iEpilogue "(HPC & Hinstr & _ & _ & Hr_t1)" "Hinstr" "Hframe_past".
+    iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hframe_past".
     (* Lea r_stk r_t1 *)
     iApply (wp_bind (fill [SeqCtx])).
     assert ((s_last + (0 - 1))%a = Some stack_new) as Hdecr.
