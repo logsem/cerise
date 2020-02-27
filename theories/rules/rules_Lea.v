@@ -143,6 +143,16 @@ Section cap_lang_rules.
            by (destruct p; inversion Hstep; auto).
          iFail "Hφ" Lea_fail_overflow. } }
 
+     assert ((c, σ2) = updatePC (update_reg (r, m) r1 (inr (p, g, b, e, a')))) as HH.
+     { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
+       { inversion Harg; subst z. rewrite Hoffset in Hstep. by destruct p. }
+       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
+         by unfold regs_of_argument; set_solver+.
+         rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
+         destruct r0v; [| congruence]. inversion Harg; subst z.
+         rewrite Hoffset in Hstep. by destruct p. } }
+     clear Hstep. rewrite /update_reg /= in HH.
+
      destruct (incrementPC (<[ r1 := inr ((p, g), b, e, a') ]> regs)) as [ regs' |] eqn:Hregs';
        pose proof Hregs' as Hregs'2; cycle 1.
      { (* Failure: incrementing PC overflows *)
@@ -153,37 +163,11 @@ Section cap_lang_rules.
            (* todo: tactic? *) }
          apply insert_mono; eauto. }
 
-       unfold z_of_argument in Harg.
-       assert (exists (r': Reg),
-         c = Failed ∧ σ2 = (r', m) ∧
-         (r' = r ∨ r' = (<[ r1 := inr ((p, g), b, e, a') ]> r)))
-         as (r' & -> & -> & H'_cases).
-       { destruct arg as [ z | r0 ].
-         { inversion Harg; subst z. rewrite Hoffset in Hstep.
-           rewrite incrementPC_fail_updatePC //= in Hstep.
-           destruct p; inversion Hstep; subst; eauto. }
-         { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
-           by unfold regs_of_argument; set_solver+.
-           rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
-           destruct r0v; [| congruence]. inversion Harg; subst z. rewrite Hoffset in Hstep.
-           rewrite incrementPC_fail_updatePC //= in Hstep.
-           destruct p; inversion Hstep; subst; eauto. } }
-       destruct H'_cases; subst r'.
-       by iFail "Hφ" Lea_fail_overflow_PC.
+       rewrite incrementPC_fail_updatePC //= in HH; inversion HH; subst.
        iMod (@gen_heap_update_inSepM with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iFail "Hφ" Lea_fail_overflow_PC. }
 
      (* Success *)
-
-     assert ((c, σ2) = updatePC (update_reg (r, m) r1 (inr (p, g, b, e, a')))) as HH.
-     { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
-       { inversion Harg; subst z. rewrite Hoffset in Hstep. by destruct p. }
-       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
-         by unfold regs_of_argument; set_solver+.
-         rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
-         destruct r0v; [| congruence]. inversion Harg; subst z.
-         rewrite Hoffset in Hstep. by destruct p. } }
-     clear Hstep. rewrite /update_reg /= in HH.
 
      eapply (incrementPC_success_updatePC _ m) in Hregs'
        as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
