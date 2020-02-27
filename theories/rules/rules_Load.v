@@ -16,16 +16,12 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
-  Proof. solve_decision. Qed.
-
-  (* Conditionally unify on the read register value *)
-  Definition read_reg_inr  (regs : Reg) (r : RegName) p g b e a :=
-    regs !! r = Some (inr ((p, g), b, e, a)) ∨ ∃ z, regs !! r = Some(inl z).
-
   Definition reg_allows_load (regs : Reg) (r : RegName) p g b e a  :=
     regs !! r = Some (inr ((p, g), b, e, a)) ∧
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true.
+
+  Local Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
+  Proof. solve_decision. Qed.
 
   Global Instance reg_allows_load_dec_eq  (regs : Reg) (r : RegName) p g b e a : Decision (reg_allows_load regs r p g b e a).
   Proof.
@@ -97,27 +93,6 @@ Section cap_lang_rules.
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
-  Lemma mem_loadv_implies_m_loadv:
-    ∀ (mem0 : PermMem) (m : Mem) (p : Perm) (g : Locality) (b e a : Addr) (p' : Perm) (loadv : Word),
-      readAllowed p
-      → mem0 !! a = Some (p', loadv)
-      → PermFlows p p'
-      → ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w : Word),
-            ⌜pw = (p0, w)⌝ ∗ a0 ↦ₐ[p0] w)
-          -∗ gen_heap_ctx m -∗ ⌜m !m! a = loadv⌝.
-  Proof.
-    iIntros (mem0 m p g b e a p' loadv HRA Hmema HPFp) "Hmem Hm".
-    iDestruct (memMap_delete a with "Hmem") as "[H_a Hmem]"; eauto.
-    iDestruct (gen_heap_valid_cap with "Hm H_a") as %?; auto.
-    {
-      unfold readAllowed in HRA.
-      destruct (decide (p = O)); first by simplify_eq.
-      destruct (decide (p' = O)); last by simplify_eq. rewrite e0 in HPFp.
-      destruct p; by exfalso.
-    }
-      by option_locate_mr_once m r.
-  Qed.
-
    Local Ltac iFail Hcont load_fail_case :=
      iFailWP Hcont Load_spec_failure load_fail_case.
 
@@ -150,7 +125,7 @@ Section cap_lang_rules.
      iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %<-.
      { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
 
-     (* Derive the pointsto for the PC *)
+     (* Derive the PC in memory *)
      iDestruct (gen_mem_valid_inSepM pc_a _ _ _ _ mem _ m with "Hm Hmem") as %H2; eauto.
      option_locate_mr m r.
      iModIntro.
@@ -185,10 +160,10 @@ Section cap_lang_rules.
      apply andb_true_iff in HRA; destruct HRA as (Hra & Hwb).
 
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
-     destruct (allow_load_implies_loadv r2 mem r p g b e a) as (p' & loadv & Hmema & HPFp); auto.
+     pose proof (allow_load_implies_loadv r2 mem r p g b e a) as (p' & loadv & Hmema & HPFp); auto.
 
      (* Given this, prove that a is also present in the memory itself *)
-     iDestruct (mem_loadv_implies_m_loadv mem m p g b e a p' loadv with "Hmem Hm" ) as %Hma ; auto.
+     iDestruct (mem_v_implies_m_v mem m p g b e a p' loadv with "Hmem Hm" ) as %Hma ; auto.
 
      rewrite Hma in H5.
      destruct (decide (∃ regs', incrementPC (<[ r1 := loadv ]> r) = Some regs')) as [[r' HIncrS]| HIncrN ].
@@ -216,7 +191,7 @@ Section cap_lang_rules.
      iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
      iFrame. iModIntro. iApply "Hφ". iFrame.
      iPureIntro.  eapply Load_spec_success; auto.
-       * split; auto. apply (regs_lookup_inr_eq r r2); auto.
+       * split; auto. apply (regs_lookup_inr_eq r r2).
          exact Hr2v.
          auto.
        * exact Hmema.

@@ -146,6 +146,25 @@ Module cap_lang.
     | _ => false
     end.
 
+  Definition pwl p : bool :=
+    match p with
+    | RWLX | RWL => true
+    | _ => false
+    end.
+
+  Lemma writeA_implies_readA p :
+    writeAllowed p = true → readAllowed p = true.
+  Proof. destruct p; auto. Qed.
+
+
+  Lemma pwl_implies_RWL_RWLX p :
+    pwl p = true → p = RWL ∨ p = RWLX.
+  Proof.
+    intros. destruct p; try by exfalso.
+    by left. by right.
+  Qed.
+
+
   Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
@@ -260,6 +279,15 @@ Module cap_lang.
     | inl _ => false
     | inr ((_,l),_,_,_) => isLocal l
     end.
+
+  Lemma isLocalWord_cap_isLocal (c0:Cap):
+    isLocalWord (inr c0) = true →
+    ∃ p g b e a, c0 = (p,g,b,e,a) ∧ isLocal g = true.
+  Proof.
+    intros. destruct c0, p, p, p.
+    cbv in H. destruct l; first by congruence.
+    eexists _, _, _, _, _. split; eauto.
+  Qed.
 
   Definition LocalityFlowsTo (l1 l2: Locality): bool :=
     match l1 with
@@ -657,6 +685,15 @@ Module cap_lang.
    Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
    Qed.
 
+   Lemma regs_lookup_inl_eq (regs: Reg) (r: RegName) z :
+     (∀ ri : RegName, is_Some (regs !! ri)) →
+     regs !r! r = inl z ->
+     regs !! r = Some (inl z).
+   Proof. rewrite /RegLocate. intros Hall HH.
+          destruct (regs !! r) eqn:HRead; first by apply f_equal.
+          destruct (Hall r) as (s & Hsr). rewrite Hsr in HRead; discriminate.
+   Qed.
+
    Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
      r !! PC = Some (inr ((p, g), b, e, a)) →
      isCorrectPC (inr ((p, g), b, e, a)) →
@@ -932,6 +969,18 @@ Section macros.
 
       (* TODO others macro *)
 End macros.
+
+(* Destruct pairs & capabilities *)
+
+Ltac destruct_pair_l c n :=
+  match eval compute in n with
+  | 0 => idtac
+  | _ => let sndn := fresh c in
+        destruct c as (c,sndn); destruct_pair_l c (pred n)
+  end.
+
+Ltac destruct_cap c :=
+  destruct_pair_l c 4.
 
 
 (* Require Coq.Logic.FunctionalExtensionality. *)

@@ -58,6 +58,26 @@ Section Capabilities.
     destruct P1,P3,P2; simpl; auto; contradiction.
   Qed.
 
+  (* It could have been better to define the second in terms of the first here *)
+  Lemma isLocal_RWL w:
+    isLocalWord w = true → LeastPermUpd w = RWL.
+  Proof.
+    intros HiLW. destruct w.
+    - cbv in HiLW. by exfalso.
+    - destruct_cap c. cbv in HiLW.
+      destruct c3; by cbv.
+  Qed.
+
+  Lemma not_isLocal_WL w:
+    isLocalWord w = false → LeastPermUpd w = RW.
+  Proof.
+    intros HiLW. destruct w.
+    - auto.
+    - destruct_cap c. cbv in HiLW.
+      destruct c3; by cbv.
+  Qed.
+
+
   Inductive CapR : relation (Word * Perm) :=
   | P_res w p1 p2 : PermFlows p1 p2 → CapR (w,p2) (w,p1)
   | W_upd w1 w2 p : PermFlows (LeastPermUpd w2) p → CapR (w1,p) (w2,p).
@@ -414,6 +434,11 @@ Section cap_lang_rules.
     iDestruct "Hmap" as "(? & ? & ? & _)"; iFrame.
   Qed.
 
+   (* Conditionally unify on the read register value *)
+   Definition read_reg_inr  (regs : Reg) (r : RegName) p g b e a :=
+     regs !! r = Some (inr ((p, g), b, e, a)) ∨ ∃ z, regs !! r = Some(inl z).
+
+
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
 
   Lemma gen_heap_valid_inSepM:
@@ -564,7 +589,6 @@ Section cap_lang_rules.
     by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
   Qed.
 
-
   Lemma cap_lang_determ:
     forall e1 σ1 κ κ' e2 e2' σ2 σ2' efs efs',
       cap_lang.prim_step e1 σ1 κ e2 σ2 efs ->
@@ -665,6 +689,52 @@ Section cap_lang_rules.
     iIntros (a p' r1 r2 w mem0 r m Hpnz Hmem_pc) "Hm Hmem".
     iDestruct (memMap_delete a with "Hmem") as "[Hpc_a Hmem]"; eauto.
     iDestruct (gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
+  Qed.
+
+  Lemma mem_v_implies_m_v:
+    ∀ (mem0 : PermMem) (m : Mem) (p : Perm) (g : Locality) (b e a : Addr) (p' : Perm) (v : Word),
+      readAllowed p = true
+      → mem0 !! a = Some (p', v)
+      → PermFlows p p'
+      → ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w : Word),
+            ⌜pw = (p0, w)⌝ ∗ a0 ↦ₐ[p0] w)
+          -∗ gen_heap_ctx m -∗ ⌜m !m! a = v⌝.
+  Proof.
+    iIntros (mem0 m p g b e a p' v HRA Hmema HPFp) "Hmem Hm".
+    iDestruct (memMap_delete a with "Hmem") as "[H_a Hmem]"; eauto.
+    iDestruct (gen_heap_valid_cap with "Hm H_a") as %?; auto.
+    {
+      unfold readAllowed in HRA.
+      destruct (decide (p = O)); first by simplify_eq.
+      destruct (decide (p' = O)); last by simplify_eq. rewrite e0 in HPFp.
+      destruct p; by exfalso.
+    }
+      by option_locate_mr_once m r.
+  Qed.
+
+  Lemma gen_mem_update_inSepM :
+    ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapG Addr Word Σ}
+      (σ : gmap Addr Word) (mem : PermMem) (l : Addr) (p : Perm) (v' v : Word),
+      mem !! l = Some (p,v') → PermFlows (LeastPermUpd v) p →
+      gen_heap_ctx σ
+      -∗ ([∗ map] a0↦pw ∈ mem, ∃ (p0 : Perm) (w0 : Word),
+             ⌜pw = (p0, w0)⌝ ∗ a0 ↦ₐ[p0] w0)
+      ==∗ gen_heap_ctx (<[l:=v]> σ)
+          ∗ ([∗ map] a0↦pw ∈ <[l:=(p,v)]> mem, ∃ (p0 : Perm) (w0 : Word),
+             ⌜pw = (p0, w0)⌝ ∗ a0 ↦ₐ[p0] w0).
+  Proof.
+    intros.
+    rewrite (memMap_delete l) //. iIntros "Hh [Hl Hmap]".
+    iMod (gen_heap_update_cap with "Hh Hl") as "[Hh Hl]".
+    { destruct v.
+      - cbv in H3. intros contr. by rewrite contr in H3.
+      - destruct c,p0,p0,p0. destruct l0; cbv in H3. all: intros contr; by rewrite contr in H3.
+    }
+    { exact H3. }
+    iModIntro.
+    iSplitL "Hh"; eauto.
+    iApply (memMap_delete l); first by rewrite lookup_insert.
+    rewrite delete_insert_delete. iFrame.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
