@@ -51,12 +51,6 @@ Section heap.
   Definition future_priv_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
     (□ ∀ W W', ⌜related_sts_priv_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
-  Definition pwl p : bool :=
-    match p with
-    | RWLX | RWL => true
-    | _ => false
-    end.
-
   (* We will first define the standard STS for the shared part of the heap *)
   Inductive region_type :=
   | Temporary

@@ -407,7 +407,6 @@ Section logrel.
       iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
   Qed.
 
-  (* TODO: rewrite this as a definition/notation elsewhere *)
   Definition region_conditions W p g b e:=
   (∃ p', ⌜PermFlows p p'⌝ ∧
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
