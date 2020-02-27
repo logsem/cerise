@@ -77,6 +77,76 @@ Section cap_lang_rules.
            rewrite Hpc_a Hinstr in Hstep)
     end.
 
+  Inductive Jnz_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
+  | Jnz_spec_failure w:
+      regs !! src = Some w ->
+      nonZero w = false ->
+      incrementPC regs = None ->
+      regs = regs' ->
+      Jnz_spec regs dst src regs' FailedV
+  | Jnz_spec_success1 w:
+      regs !! src = Some w ->
+      nonZero w = false ->
+      incrementPC regs = Some regs' ->
+      Jnz_spec regs dst src regs' NextIV
+  | Jnz_spec_success2 w w':
+      regs !! src = Some w ->
+      regs !! dst = Some w' ->
+      nonZero w = true ->
+      <[PC := updatePcPerm w' ]> regs = regs' ->
+      Jnz_spec regs dst src regs' NextIV.
+  
+  Lemma wp_Jnz Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
+    cap_lang.decode w = Jnz dst src ->
+
+    PermFlows pc_p pc_p' →
+    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    (∀ (ri: RegName), is_Some (regs !! ri)) →
+    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+    {{{ regs' retv, RET retv;
+        ⌜ Jnz_spec regs dst src regs' retv ⌝ ∗
+          pc_a ↦ₐ[pc_p'] w ∗
+          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+  Proof.
+    iIntros (Hinstr Hfl Hvpc HPC Hri φ) "(>Hpc_a & >Hmap) Hφ".
+    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iDestruct "Hσ1" as "[Hr Hm]".
+    assert (pc_p' ≠ O).
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
+      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
+    iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %->.
+    { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    (*option_locate_mr m r.*) iModIntro.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iNext. iIntros (e2 σ2 efs Hpstep).
+    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+
+    destruct (Hri src) as [wsrc Hsrc].
+    destruct (Hri dst) as [wdst Hdst].
+    destruct (nonZero wsrc) eqn:Hnz; cbn in Hstep; rewrite /RegLocate Hsrc Hdst Hnz in Hstep.
+    { inv Hstep. simpl.
+      iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      iFrame. iApply "Hφ". iFrame.
+      iPureIntro. econstructor 3; eauto. }
+    destruct (incrementPC regs) eqn:HX; cycle 1.
+    { rewrite (incrementPC_fail_updatePC _ _ HX) in Hstep.
+      inv Hstep. iFrame. iApply "Hφ". iFrame.
+      iPureIntro; econstructor; eauto. }
+    destruct (incrementPC_success_updatePC _ m _ HX)
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+    rewrite HuPC in Hstep. inv Hstep.
+    simpl. iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iFrame. iApply "Hφ". iFrame.
+    iPureIntro. econstructor 2; eauto.
+  Qed.
+
   Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_g pc_b pc_e pc_a w w1 w2 pc_p' :
     cap_lang.decode w = Jnz r1 r2 →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
