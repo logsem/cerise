@@ -42,30 +42,20 @@ Section cap_lang_rules.
 
   Inductive Lea_spec
     (regs: Reg) (r1: RegName) (rv: Z + RegName)
-    (regs': Reg) (retv: cap_lang.val) : Prop
+    (regs': Reg) : cap_lang.val → Prop
   :=
   | Lea_spec_success : forall p g b e a z a',
-    retv = NextIV ->
     regs !! r1 = Some (inr ((p, g), b, e, a)) ->
     p ≠ E ->
     z_of_argument regs rv = Some z ->
     (a + z)%a = Some a' ->
     incrementPC
       (<[ r1 := inr ((p, g), b, e, a') ]> regs) = Some regs' ->
-    Lea_spec regs r1 rv regs' retv
+    Lea_spec regs r1 rv regs' NextIV
 
   | Lea_spec_failure :
-    retv = FailedV ->
     Lea_failure regs r1 rv ->
-    Lea_spec regs r1 rv regs' retv.
-
-   (* Used to close the failing cases.
-      - Hcont is the (iris) name of the closing hypothesis (usually "Hφ")
-      - lea_fail_case is one constructor of the Lea_failure inductive,
-        indicating the appropriate error case
-   *)
-   Local Ltac iFail Hcont lea_fail_case :=
-     iFailWP Hcont Lea_spec_failure lea_fail_case.
+    Lea_spec regs r1 rv regs' FailedV.
 
    Lemma wp_lea Ep pc_p pc_g pc_b pc_e pc_a pc_p' r1 w arg (regs: Reg) :
      cap_lang.decode w = Lea r1 arg →
@@ -106,13 +96,13 @@ Section cap_lang_rules.
      { (* Failure: r1 is not a capability *)
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
          by (destruct arg; inversion Hstep; auto).
-       iFail "Hφ" Lea_fail_r1_noncap. }
+       iFailWP "Hφ" Lea_fail_r1_noncap. }
 
      destruct (perm_eq_dec p E); [ subst p |].
      { (* Failure: r1.p is Enter *)
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
        { destruct arg; inversion Hstep; subst; eauto. }
-       iFail "Hφ" Lea_fail_p_E. }
+       iFailWP "Hφ" Lea_fail_p_E. }
 
      destruct (z_of_argument regs arg) as [ argz |] eqn:Harg;
        pose proof Harg as Harg'; cycle 1.
@@ -124,7 +114,7 @@ Section cap_lang_rules.
        destruct r0v; [ congruence |].
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
          by (destruct p; inversion Hstep; eauto).
-       iFail "Hφ" Lea_fail_rv_nonconst. }
+       iFailWP "Hφ" Lea_fail_rv_nonconst. }
 
      destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
      { (* Failure: offset is too large *)
@@ -132,7 +122,7 @@ Section cap_lang_rules.
        { inversion Harg; subst z. rewrite Hoffset in Hstep.
          assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
-         iFail "Hφ" Lea_fail_overflow. }
+         iFailWP "Hφ" Lea_fail_overflow. }
        { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
          by unfold regs_of_argument; set_solver+.
          rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
@@ -140,7 +130,7 @@ Section cap_lang_rules.
          rewrite Hoffset in Hstep.
          assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
-         iFail "Hφ" Lea_fail_overflow. } }
+         iFailWP "Hφ" Lea_fail_overflow. } }
 
      assert ((c, σ2) = updatePC (update_reg (r, m) r1 (inr (p, g, b, e, a')))) as HH.
      { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
@@ -164,7 +154,7 @@ Section cap_lang_rules.
 
        rewrite incrementPC_fail_updatePC //= in HH; inversion HH; subst.
        iMod (@gen_heap_update_inSepM with "Hr Hmap") as "[Hr Hmap]"; eauto.
-       iFail "Hφ" Lea_fail_overflow_PC. }
+       iFailWP "Hφ" Lea_fail_overflow_PC. }
 
      (* Success *)
 
@@ -204,7 +194,7 @@ Section cap_lang_rules.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
 
-     destruct Hspec as [ | * ? Hfail ]; subst retv.
+     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
        rewrite !insert_insert. (* TODO: add to simplify_map_eq via simpl_map? *)
@@ -238,7 +228,7 @@ Section cap_lang_rules.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
 
-     destruct Hspec as [| * ? Hfail ]; subst retv.
+     destruct Hspec as [| * Hfail ].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
        (* FIXME: tedious *)
@@ -270,7 +260,7 @@ Section cap_lang_rules.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
 
-     destruct Hspec as [ | * ? Hfail ]; subst retv.
+     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
        rewrite !insert_insert. iApply (regs_of_map_1 with "Hmap"); eauto. }
@@ -301,7 +291,7 @@ Section cap_lang_rules.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
 
-     destruct Hspec as [ | * ? Hfail ]; subst retv.
+     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
        (* FIXME: tedious *)

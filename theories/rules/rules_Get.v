@@ -73,10 +73,6 @@ Section cap_lang_rules.
       Get_failure i regs dst src →
       Get_spec i regs dst src regs' FailedV.
 
-  Local Ltac iFail Hcont get_fail_case :=
-    cbn; iFrame; iApply Hcont; iFrame; iPureIntro;
-    econstructor; eapply get_fail_case; eauto.
-
   Lemma wp_Get Ep pc_p pc_g pc_b pc_e pc_a pc_p' w get_i dst src regs :
     cap_lang.decode w = get_i →
     is_Get get_i dst src →
@@ -119,7 +115,7 @@ Section cap_lang_rules.
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
         all: rewrite /RegLocate Hsrc in Hstep; inversion Hstep; auto. }
-      iFail "Hφ" Get_fail_src_noncap. }
+      iFailWP "Hφ" Get_fail_src_noncap. }
 
     destruct (incrementPC (<[ dst := inl (denote get_i (p, g, b, e, a)) ]> regs))
       as [regs'|] eqn:Hregs'; cycle 1.
@@ -133,7 +129,7 @@ Section cap_lang_rules.
         all: rewrite /RegLocate /update_reg Hsrc /= in Hstep Hregs' |- *. 
         all: destruct b, e, a; rewrite Hstep in Hregs'; simplify_eq; eauto. }
       iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-      iFail "Hφ" Get_fail_overflow_PC. by rewrite Hdecode. }
+      rewrite Hdecode. iFailWP "Hφ" Get_fail_overflow_PC. }
 
     (* Success *)
 

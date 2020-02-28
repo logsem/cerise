@@ -316,10 +316,9 @@ Section fundamental.
     {iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
-    destruct HSpec as [|].
-    { subst retv.
-      apply incrementPC_Some_inv in H6.
-      destruct H6 as (?&?&?&?&?&?&?&?&?).
+    destruct HSpec as [* ? ? Hincr|].
+    { apply incrementPC_Some_inv in Hincr.
+      destruct Hincr as (?&?&?&?&?&?&?&?&?).
       iApply wp_pure_step_later; auto. iNext.
 
       (* Step 5: return all the resources we had in order to close the second location in the region, in the cases where we need to *)
@@ -358,23 +357,22 @@ Section fundamental.
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
        { destruct (decide (PC = dst)); simplify_eq.
          - destruct o as [HRX | [HRWX | HRWLX] ]; auto.
-           rewrite lookup_insert in H3; inversion H3. rewrite HRWLX.
+           rewrite lookup_insert in H5; inversion H5. rewrite HRWLX.
            iDestruct (writeLocalAllowed_implies_local _ RWLX with "[HLVInterp]") as "%"; auto.
            destruct x0; unfold isLocal in H7; first by congruence.
            iPureIntro; do 2 right; auto.
-         - rewrite lookup_insert_ne in H3; last by auto. rewrite lookup_insert in H3; inversion H3.
+         - rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5.
            by rewrite -H8 -H9.
        }
        { iAlways. auto.
          destruct (decide (PC = dst)); simplify_eq.
-         - rewrite lookup_insert in H3; inversion H3. rewrite (fixpoint_interp1_eq W).
+         - rewrite lookup_insert in H5; inversion H5. rewrite (fixpoint_interp1_eq W).
            iApply readAllowed_implies_region_conditions; auto.
            { destruct o as [o | [o | o] ]; rewrite o; auto . }
-         - iExists p'. rewrite lookup_insert_ne in H3; last by auto. rewrite lookup_insert in H3; inversion H3. iSplitR; first by rewrite -H8. auto.
+         - iExists p'. rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5. iSplitR; first by rewrite -H8. auto.
        }
     }
-    { subst retv.
-      iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }
+    { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }
     Unshelve. all: auto.
   Qed.
 

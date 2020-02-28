@@ -45,26 +45,6 @@ Section cap_lang_rules.
     intros HH. destruct_or! HH; subst i; reflexivity.
   Qed.
 
-  (* TODO: move to rules_base *)
-  Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
-    z_of_argument regs arg = Some z →
-    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
-  Proof.
-    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-  Qed.
-
-  (* TODO: move to rules_base. *)
-  (* TODO: add in the second case of the conclusion the fact that [regs !! r = Some (inl z)]
-     (there is an unecessary loss of generality at the moment) *)
-  Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
-    z_of_argument regs arg = Some z →
-    regs ⊆ regs' →
-    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs' !! r = Some (inl z)).
-  Proof.
-    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-    intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
-  Qed.
-
   Inductive AddSubLt_failure (i: instr) (regs: Reg) (dst: RegName) (rv1 rv2: Z + RegName) (regs': Reg) :=
   | AddSubLt_fail_nonconst1:
       z_of_argument regs rv1 = None ->
@@ -92,20 +72,6 @@ Section cap_lang_rules.
   Local Ltac iFail Hcont get_fail_case :=
     cbn; iFrame; iApply Hcont; iFrame; iPureIntro;
     econstructor; eapply get_fail_case; eauto.
-
-  (* TODO: move elsewhere *)
-  Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
-      x = (y, z) -> x = (u, t) ->
-      y = u ∧ z = t.
-  Proof. intros. subst x. inversion H2. auto. Qed.
-
-  Tactic Notation "simplify_eq_pair" :=
-    repeat
-      lazymatch goal with
-      | H1 : ?x = (?y, ?z), H2 : ?x = (?u, ?t) |- _ =>
-        assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 H2)); clear H2
-      | |- _ => progress simplify_eq
-      end.
 
   Lemma wp_AddSubLt Ep i pc_p pc_g pc_b pc_e pc_a pc_p' w dst arg1 arg2 regs :
     cap_lang.decode w = i →
@@ -175,17 +141,17 @@ Section cap_lang_rules.
       2: by apply insert_mono; eauto.
 
       assert (c = Failed ∧ σ2 = (<[ dst := inl (denote i n1 n2) ]> r, m)) as (-> & ->).
-      { destruct Hn1 as [ -> | (r1 & -> & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & Hr2) ].
+      { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
         all: destruct_or! Hinstr; rewrite !Hinstr /= /update_reg /RegLocate in Hstep Hregs' |- *.
         all: rewrite ?Hr1 ?Hr2 /= in Hstep.
-        all: by simplify_eq_pair. }
+        all: by simplify_pair_eq. }
       cbn; iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
       rewrite Hdecode. iFail "Hφ" AddSubLt_fail_incrPC. }
 
     (* Success *)
 
     assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (denote i n1 n2)))) as HH.
-    { destruct Hn1 as [ -> | (r1 & -> & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & Hr2) ].
+    { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
       all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
       all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
 

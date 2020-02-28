@@ -930,17 +930,23 @@ Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
   - fail_case_name is one constructor of the spec_name,
     indicating the appropriate error case
  *)
-Ltac iFailCore spec_name fail_case_name :=
+Ltac iFailCore fail_case_name :=
       iPureIntro;
-      eapply spec_name; eauto;
+      econstructor; eauto;
       eapply fail_case_name ; eauto.
 
-Ltac iFailWP Hcont spec_name fail_case_name :=
-  by (cbn; iFrame; iApply Hcont; iFrame; iFailCore spec_name fail_case_name).
+Ltac iFailWP Hcont fail_case_name :=
+  by (cbn; iFrame; iApply Hcont; iFrame; iFailCore fail_case_name).
 
 (* ----------------- useful definitions to factor out the wp specs ---------------- *)
 
-(*--- z_of_argument ---*)
+(*--- word_of_argument, z_of_argument ---*)
+
+Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
+  match a with
+  | inl n => Some (inl n)
+  | inr r => regs !! r
+  end.
 
 Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
   match a with
@@ -951,6 +957,40 @@ Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
     | _ => None
     end
   end.
+
+Lemma word_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs arg = Some w →
+  ((∃ z, arg = inl z ∧ w = inl z) ∨
+   (∃ r, arg = inr r ∧ regs !! r = Some w)).
+Proof.
+  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+Qed.
+
+Lemma word_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs arg = Some w →
+  regs ⊆ regs' →
+  ((∃ z, arg = inl z ∧ w = inl z) ∨
+   (∃ r, arg = inr r ∧ regs !! r = Some w ∧ regs' !! r = Some w)).
+Proof.
+  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
+
+Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs arg = Some z →
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+Proof.
+  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+Qed.
+
+Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs arg = Some z →
+  regs ⊆ regs' →
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
+Proof.
+  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
 
 (*--- regs_of ---*)
 
@@ -971,6 +1011,8 @@ Definition regs_of (i: instr): gset RegName :=
   | cap_lang.Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | IsPtr dst src => {[ dst; src ]}
+  | Mov r arg => {[ r ]} ∪ regs_of_argument arg
   | _ => ∅
   end.
 
@@ -1100,6 +1142,20 @@ Ltac incrementPC_inv :=
   | H : incrementPC _ = None |- _ =>
     eapply incrementPC_None_inv in H
   end; simplify_eq.
+
+Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
+    x = (y, z) -> x = (u, t) ->
+    y = u ∧ z = t.
+Proof. intros ->. inversion 1. auto. Qed.
+
+(* TODO: integrate into stdpp? *)
+Tactic Notation "simplify_pair_eq" :=
+  repeat
+    lazymatch goal with
+    | H1 : ?x = (?y, ?z), H2 : ?x = (?u, ?t) |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 H2)); clear H2
+    | |- _ => progress simplify_eq
+    end.
 
 (*----------------------- FIXME TEMPORARY ------------------------------------*)
 (* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using

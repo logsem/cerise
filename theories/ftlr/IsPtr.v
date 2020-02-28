@@ -31,36 +31,25 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_IsPtr with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
-    { match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
+    { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iNext.
-      assert (dst <> PC) as HdstPC.
-      { intro. subst dst. rewrite lookup_insert in HPC.
-        destruct (<[PC:=inr (p, g, b, e, a)]> r !! r0) as [wx|] eqn:Hn; rewrite Hn in HPC; try destruct wx; inv HPC. }
-
-      rewrite lookup_insert_ne in HPC; auto.
-      rewrite lookup_insert in HPC; inv HPC.
+      assert (dst <> PC) as HdstPC. { intros ->. simplify_map_eq. }
+      simplify_map_eq.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      iApply ("IH" $! _ (<[dst:= _]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
-      + intros; simpl.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec dst x0); auto; right; split; auto.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec PC x0); auto; right; split; auto.
-      + iIntros (ri Hri).
-        destruct (reg_eq_dec ri dst).
-        * subst ri. rewrite /RegLocate lookup_insert.
-          destruct (<[PC:=inr (p'', g'', b'', e'', a'')]> r !! r0) as [wx|] eqn:Hn; rewrite Hn; try destruct wx; repeat rewrite fixpoint_interp1_eq; auto.
-        * repeat rewrite /RegLocate lookup_insert_ne; auto.
-          iApply "Hreg"; auto. }
+      iApply ("IH" $! _ (<[dst:= _]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]");
+        try iClear "IH"; eauto.
+      { cbn; intro. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
+      { iIntros (ri Hri). rewrite /RegLocate insert_commute // lookup_insert_ne //.
+        destruct (decide (ri = dst)); simplify_map_eq.
+        * repeat rewrite fixpoint_interp1_eq; auto.
+        * by iApply "Hreg". } }
   Qed.
 
 End fundamental.

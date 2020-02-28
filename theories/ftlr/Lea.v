@@ -44,7 +44,7 @@ Section fundamental.
       apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * -> Hdst ? Hz Hoffset HincrPC |].
+    destruct HSpec as [ * Hdst ? Hz Hoffset HincrPC |].
     { apply incrementPC_Some_inv in HincrPC as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs').
 
       assert (p'' = p ∧ g'' = g ∧ b'' = b ∧ e'' = e) as (-> & -> & -> & ->).
@@ -65,7 +65,7 @@ Section fundamental.
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       { iPureIntro. tauto. }
       eauto. }
-    { subst retv. iApply wp_pure_step_later; auto. iNext.
+    { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.
 

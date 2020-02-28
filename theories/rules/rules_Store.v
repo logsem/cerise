@@ -98,20 +98,18 @@ Section cap_lang_rules.
 
   Inductive Store_spec
     (regs: Reg) (r1 : RegName) (r2 : Z + RegName)
-    (regs': Reg) (retv: cap_lang.val) (mem mem' : PermMem) : Prop
+    (regs': Reg) (mem mem' : PermMem) : cap_lang.val → Prop
   :=
   | Store_spec_success p p' g b e a storev oldv :
-    retv = NextIV ->
     word_of_argument regs r2 = Some storev ->
     reg_allows_store regs r1 p g b e a storev  →
     mem !! a = Some(p', oldv) →
     mem' = (<[ a := (p', storev) ]> mem) →
     incrementPC(regs) = Some regs' ->
-    Store_spec regs r1 r2 regs' retv mem mem'
+    Store_spec regs r1 r2 regs' mem mem' NextIV
   | Store_spec_failure :
-    retv = FailedV ->
     Store_failure regs r1 r2 mem ->
-    Store_spec regs r1 r2 regs' retv mem mem'.
+    Store_spec regs r1 r2 regs' mem mem' FailedV.
 
 
   Definition allow_store_map_or_true (r1 : RegName) (r2 : Z + RegName) (regs : Reg) (mem : PermMem):=
@@ -144,9 +142,6 @@ Section cap_lang_rules.
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
-   Local Ltac iFail Hcont store_fail_case :=
-     iFailWP Hcont Store_spec_failure store_fail_case.
-
    Lemma wp_store Ep
      pc_p pc_g pc_b pc_e pc_a pc_p'
      r1 (r2 : Z + RegName) w mem regs :
@@ -162,7 +157,7 @@ Section cap_lang_rules.
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
      Instr Executable @ Ep
    {{{ regs' mem' retv, RET retv;
-       ⌜ Store_spec regs r1 r2 regs' retv mem mem'⌝ ∗
+       ⌜ Store_spec regs r1 r2 regs' mem mem' retv⌝ ∗
          ([∗ map] a↦pw ∈ mem', ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
    Proof.
@@ -200,7 +195,7 @@ Section cap_lang_rules.
      { (* Failure: r1 is not a capability *)
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
          by (destruct r2; inversion H5; auto).
-       iFail "Hφ" Store_fail_const.
+       iFailWP "Hφ" Store_fail_const.
      }
 
      destruct (writeAllowed p && withinBounds ((p, g), b, e, a)) eqn:HWA; rewrite HWA in H5.
@@ -208,7 +203,7 @@ Section cap_lang_rules.
         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
          by (destruct r2; inversion H5; auto).
        apply andb_false_iff in HWA.
-       iFail "Hφ" Store_fail_bounds.
+       iFailWP "Hφ" Store_fail_bounds.
      }
      apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb).
 
@@ -232,7 +227,7 @@ Section cap_lang_rules.
          (* TODO: when refactoring the other rules, make opsem use pwl to avoid this ugliness*)
          destruct p; try by exfalso. all: by inversion H5.
       }
-      iFail "Hφ" Store_fail_invalid_locality.
+      iFailWP "Hφ" Store_fail_invalid_locality.
      }
 
 
@@ -277,7 +272,7 @@ Section cap_lang_rules.
       2: { (* Failure: the PC could not be incremented correctly *)
         rewrite incrementPC_fail_updatePC /= in H2; auto.
         inversion H2.
-        iFail "Hφ" Store_fail_invalid_PC.
+        iFailWP "Hφ" Store_fail_invalid_PC.
       }
 
      (* Success *)

@@ -31,14 +31,16 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Mov with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
-    { match goal with
+    { (* TODO: it might be possible to refactor the proof below by using more simplify_map_eq *)
+      (* TODO: use incrementPC_inv *)
+      match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs')
       end. simplify_map_eq.
       iApply wp_pure_step_later; auto. iNext.

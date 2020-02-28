@@ -52,20 +52,18 @@ Section cap_lang_rules.
 
   Inductive Load_spec
     (regs: Reg) (r1 r2: RegName)
-    (regs': Reg) (retv: cap_lang.val) (mem : PermMem) : Prop
+    (regs': Reg) (mem : PermMem) : cap_lang.val → Prop
   :=
   | Load_spec_success p p' g b e a loadv :
-    retv = NextIV ->
     reg_allows_load regs r2 p g b e a →
     mem !! a = Some(p', loadv) →
     incrementPC
       (<[ r1 := loadv ]> regs) = Some regs' ->
-    Load_spec regs r1 r2 regs' retv mem
+    Load_spec regs r1 r2 regs' mem NextIV
 
   | Load_spec_failure :
-    retv = FailedV ->
     Load_failure regs r1 r2 mem ->
-    Load_spec regs r1 r2 regs' retv mem.
+    Load_spec regs r1 r2 regs' mem FailedV.
 
   Definition allow_load_map_or_true r (regs : Reg) (mem : PermMem):=
     ∃ p g b e a, read_reg_inr regs r p g b e a ∧
@@ -93,8 +91,6 @@ Section cap_lang_rules.
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
-   Local Ltac iFail Hcont load_fail_case :=
-     iFailWP Hcont Load_spec_failure load_fail_case.
 
    Lemma wp_load Ep
      pc_p pc_g pc_b pc_e pc_a pc_p'
@@ -111,7 +107,7 @@ Section cap_lang_rules.
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
      Instr Executable @ Ep
    {{{ regs' retv, RET retv;
-       ⌜ Load_spec regs r1 r2 regs' retv mem⌝ ∗
+       ⌜ Load_spec regs r1 r2 regs' mem retv⌝ ∗
          ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
          [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
    Proof.
@@ -148,14 +144,14 @@ Section cap_lang_rules.
      destruct (r !r! r2) as  [| (([[p g] b] & e) & a) ] eqn:Hr2v.
      { (* Failure: r2 is not a capability *)
        symmetry in H5; inversion H5; clear H5. subst c σ2.
-       iFail "Hφ" Load_fail_const.
+       iFailWP "Hφ" Load_fail_const.
      }
 
      destruct (readAllowed p && withinBounds ((p, g), b, e, a)) eqn:HRA; rewrite HRA in H5.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in H5; inversion H5; clear H5. subst c σ2.
        apply andb_false_iff in HRA.
-       iFail "Hφ" Load_fail_bounds.
+       iFailWP "Hφ" Load_fail_bounds.
      }
      apply andb_true_iff in HRA; destruct HRA as (Hra & Hwb).
 
@@ -178,7 +174,7 @@ Section cap_lang_rules.
        (* Update the heap resource, using the resource for r2 *)
        destruct (Hri r1) as [r0v Hr0].
        iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-       iFail "Hφ" Load_fail_invalid_PC.
+       iFailWP "Hφ" Load_fail_invalid_PC.
      }
 
      (* Success *)
