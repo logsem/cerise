@@ -1013,6 +1013,7 @@ Definition regs_of (i: instr): gset RegName :=
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | IsPtr dst src => {[ dst; src ]}
   | Mov r arg => {[ r ]} ∪ regs_of_argument arg
+  | Restrict r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | _ => ∅
   end.
 
@@ -1055,9 +1056,9 @@ Proof.
   do 6 eexists. split; eauto.
 Qed.
 
-Lemma incrementPC_None_inv regs p g b e a :
+Lemma incrementPC_None_inv regs pg b e a :
   incrementPC regs = None ->
-  regs !! PC = Some (inr ((p, g), b, e, a)) ->
+  regs !! PC = Some (inr (pg, b, e, a)) ->
   (a + 1)%a = None.
 Proof.
   unfold incrementPC.

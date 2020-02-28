@@ -369,11 +369,11 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Restrict with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec.
+    destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
@@ -425,14 +425,10 @@ Section fundamental.
       rewrite lookup_insert_ne in H3; auto.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
       iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
-      - intros; simpl.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec dst x0); auto; right; split; auto.
-        rewrite lookup_insert_is_Some.
-        destruct (reg_eq_dec PC x0); auto; right; split; auto.
+      - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
       - iIntros (ri Hri). rewrite /RegLocate.
-        destruct (reg_eq_dec ri dst).
-        + subst ri. rewrite lookup_insert.  
+        destruct (decide (ri = dst)).
+        + subst ri. rewrite lookup_insert.
           destruct (decodePermPair n) as (p1 & g1).
           iDestruct ("Hreg" $! dst Hri) as "Hdst".
           rewrite H3. iApply PermPairFlows_interp_preserved; eauto.
