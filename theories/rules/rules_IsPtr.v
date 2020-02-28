@@ -66,28 +66,26 @@ Section cap_lang_rules.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
 
+    rewrite /= /RegLocate Hsrc in Hstep.
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    { unfold is_cap; destruct wsrc; auto. }
+
     destruct (incrementPC (<[ dst := inl (if is_cap wsrc then 1%Z else 0%Z) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-      assert (c = Failed /\ σ2 = ((<[ dst := inl (if is_cap wsrc then 1%Z else 0%Z) ]> r), m)) as (-> & ->).
-      { rewrite /= /RegLocate /update_reg Hsrc /= in Hstep. unfold is_cap in Hregs' |- *.
-        destruct wsrc; simplify_pair_eq; eauto. }
+      simplify_pair_eq.
       iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
       iFrame. iApply "Hφ"; iFrame. iPureIntro. econstructor; eauto. }
 
     (* Success *)
 
-    rewrite /= /RegLocate Hsrc in Hstep.
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
-    { unfold is_cap; destruct wsrc; auto. }
-
     eapply (incrementPC_success_updatePC _ m) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
     eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
-    rewrite HuPC in HH. simplify_eq. iFrame.
+    simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.

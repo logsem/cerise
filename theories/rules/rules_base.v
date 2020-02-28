@@ -1154,6 +1154,12 @@ Tactic Notation "simplify_pair_eq" :=
     lazymatch goal with
     | H1 : ?x = (?y, ?z), H2 : ?x = (?u, ?t) |- _ =>
       assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 H2)); clear H2
+    | H1 : (?y, ?z) = ?x, H2 : ?x = (?u, ?t) |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) H2)); clear H2
+    | H1 : ?x = (?y, ?z), H2 : (?u, ?t) = ?x |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 (eq_sym H2))); clear H2
+    | H1 : (?y, ?z) = ?x, H2 : (?u, ?t) = ?x |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) (eq_sym H2))); clear H2
     | |- _ => progress simplify_eq
     end.
 

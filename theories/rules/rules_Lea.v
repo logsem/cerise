@@ -147,11 +147,8 @@ Section cap_lang_rules.
      { (* Failure: incrementing PC overflows *)
        assert (incrementPC (<[ r1 := inr ((p, g, b, e, a'))]> r) = None).
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
-         { rewrite lookup_insert_is_Some.
-           destruct (decide (r1 = PC)); [ by left | right; split ]; eauto.
-           (* todo: tactic? *) }
-         apply insert_mono; eauto. }
-
+         by rewrite lookup_insert_is_Some'; eauto.
+         by apply insert_mono; eauto. }
        rewrite incrementPC_fail_updatePC //= in HH; inversion HH; subst.
        iMod (@gen_heap_update_inSepM with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iFailWP "Hφ" Lea_fail_overflow_PC. }
