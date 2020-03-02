@@ -372,7 +372,32 @@ Require Import Eqdep_dec List.
        revert Hnin; rewrite -elem_of_list_In; intro Hnin.
        destruct (decide_rel elem_of a l2);[contradiction|].
        done.
-   Qed. 
+   Qed.
+
+   (* helper lemma for making a big_sepM into big_sepL for the sake of registers *)
+   Lemma big_sepM_to_big_sepL {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
+         (r : gmap A B) (lr : list A) (φ : A → B → iProp Σ) :
+     NoDup lr →
+     (∀ r0, r0 ∈ lr → ∃ b, r !! r0 = Some b) →
+     ([∗ map] k↦y ∈ r, φ k y) -∗ ([∗ list] y ∈ lr, ∃ b, φ y b).
+   Proof.
+     iInduction (lr) as [ | r0 ] "IHl" forall (r); iIntros (Hdup Hlookup) "Hmap".
+     - done.
+     - assert (∃ b, r !! r0 = Some b) as [b Hr0].
+       { apply Hlookup. apply elem_of_cons. by left. } 
+       iDestruct (big_sepM_delete _ _ r0 with "Hmap") as "[Hr0 Hmap]"; eauto.
+       iSplitL "Hr0".
+       + iExists b. iFrame. 
+       + iApply ("IHl" with "[] [] [$Hmap]").
+         { iPureIntro. by apply NoDup_cons_iff in Hdup as [_ Hdup]. }
+         iPureIntro.
+         intros r1 Hr1.
+         destruct (decide (r0 = r1)).
+         * subst. apply NoDup_cons_iff in Hdup as [Hnelem Hdup].
+           apply elem_of_list_In in Hr1. contradiction. 
+         * rewrite lookup_delete_ne;auto. apply Hlookup.
+           apply elem_of_cons. by right.
+   Qed.
 
    (* Helper lemmas for doing arithmetic on adresses. TODO: move this to addr_reg *)
 

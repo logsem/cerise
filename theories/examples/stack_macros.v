@@ -167,7 +167,7 @@ Section stack_macros.
   Definition pop_instrs r_stk r := [load_r r r_stk; sub_z_z r_t1 0 1; lea_r r_stk r_t1].
   
   Definition pop (a1 a2 a3 : Addr) (p : Perm) (r_stk r : RegName) : iProp Σ :=
-    ([∗ list] i;a ∈ (pop_instrs r_stk r);[a1;a2;a3], a ↦ₐ[p] i)%I.
+    ([∗ list] a;i ∈ [a1;a2;a3];(pop_instrs r_stk r), a ↦ₐ[p] i)%I.
 
   Lemma pop_spec a1 a2 a3 a4 r w w' wt1 p p' g b e stk_b stk_e stk_a stk_a' φ :
     isCorrectPC (inr ((p,g),b,e,a1)) ∧ isCorrectPC (inr ((p,g),b,e,a2)) ∧
@@ -183,13 +183,13 @@ Section stack_macros.
       ▷ pop a1 a2 a3 p' r_stk r
     ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a1)
     ∗ ▷ r_stk ↦ᵣ inr ((RWLX,Local),stk_b,stk_e,stk_a)
-    ∗ (if (stk_a =? a1)%a then emp else ▷ stk_a ↦ₐ[RWLX] w)
+    ∗ ▷ stk_a ↦ₐ[RWLX] w
     ∗ ▷ r_t1 ↦ᵣ wt1
     ∗ ▷ r ↦ᵣ w'
     ∗ ▷ (PC ↦ᵣ inr ((p,g),b,e,a4)
             ∗ pop a1 a2 a3 p' r_stk r
-            ∗ r ↦ᵣ (if (stk_a =? a1)%a then load_r r r_stk else w)
-            ∗ (if (stk_a =? a1)%a then emp else stk_a ↦ₐ[RWLX] w)
+            ∗ r ↦ᵣ w
+            ∗ stk_a ↦ₐ[RWLX] w
             ∗ r_stk ↦ᵣ inr ((RWLX,Local),stk_b,stk_e,stk_a')
             ∗ r_t1 ↦ᵣ (inl (-1)%Z)
             -∗ WP Seq (Instr Executable) {{ φ }})
@@ -197,11 +197,16 @@ Section stack_macros.
     WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros ((Hvpc1 & Hvpc2 & Hvpc3) Hfl Hwb Hne Ha1' Ha2' Ha3' Hstk_a')
-            "((>Ha1 & >Ha2 & >Ha3 & _) & >HPC & >Hr_stk & Hstk_a & >Hr_t1 & Hr & Hφ)".
+            "((>Ha1 & >Ha2 & >Ha3 & _) & >HPC & >Hr_stk & >Hstk_a & >Hr_t1 & >Hr & Hφ)".
     iApply (wp_bind (fill [SeqCtx])).
+    iAssert (⌜(stk_a =? a1)%a = false⌝)%I as %Hne'.
+    { rewrite Z.eqb_neq. iIntros (Hcontr); apply z_of_eq in Hcontr; subst.
+      iApply (cap_duplicate_false with "[$Ha1 $Hstk_a]").
+      split; auto. destruct p'; auto. destruct p; inversion Hfl. 
+      inversion Hvpc1 as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
     iApply (wp_load_success _ _ _ _ _ _ _ a1 _ _ _ RWLX
               with "[HPC Ha1 Hr_stk Hr Hstk_a]"); eauto; first apply load_r_i;
-      first apply PermFlows_refl;iFrame.
+      first apply PermFlows_refl;iFrame. rewrite Hne'. iFrame. 
     iNext. iIntros "(HPC & Hr & Ha1 & Hr_stk & Hstk_a) /=".
     iApply wp_pure_step_later; auto; iNext. 
     iApply (wp_bind (fill [SeqCtx])).
@@ -217,7 +222,7 @@ Section stack_macros.
               with "[HPC Ha3 Hr_stk Hr_t1]"); eauto; first apply lea_r_i; iFrame.
     iNext. iIntros "(HPC & Ha3 & Hr_t1 & Hr_stk) /=".
     iApply wp_pure_step_later; auto; iNext.
-    iApply "Hφ". iFrame. done. 
+    iApply "Hφ". rewrite Hne'. iFrame. done. 
   Qed.
 
   (* -------------------------------------- RCLEAR ----------------------------------- *)
