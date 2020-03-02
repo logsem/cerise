@@ -57,27 +57,23 @@ Section heap.
   | Permanent
   | Revoked.
 
-  Global Instance region_type_EqDecision : EqDecision region_type.
-  Proof.
-    intros ρ1 ρ2.
-    destruct ρ1,ρ2;
-      [by left|by right|by right|by right|
-         by left|by right|by right|by right|by left]. 
-  Qed.
-  Global Instance region_type_finite : finite.Finite region_type.
-  Proof.
-    refine {| finite.enum := [Temporary; Permanent; Revoked] ;
-              finite.NoDup_enum := _ ;
-              finite.elem_of_enum := _ |}.
-    - repeat (apply NoDup_cons; split; [repeat (apply not_elem_of_cons;split;auto); apply not_elem_of_nil|]).
-        by apply NoDup_nil.
-    - intros ρ.
-      destruct ρ;apply elem_of_cons;[by left|right|right];
-        apply elem_of_cons;[by left|right];
-          apply elem_of_cons; by left. 
-  Qed.           
+  Global Instance region_type_EqDecision : EqDecision region_type :=
+    (fun x y => match x, y with
+             | Temporary, Temporary
+             | Permanent, Permanent
+             | Revoked, Revoked => left eq_refl
+             | _, _ => ltac:(right; auto)
+             end).  
+  Global Instance region_type_finite : finite.Finite region_type :=
+    (finite.enc_finite
+       (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
+       (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
+       3%nat
+       ltac:(destruct x; cbv; auto)
+       ltac:(destruct x; cbv; auto)
+       ltac:(do 2 (destruct i; try lia))).
   Global Instance region_type_countable : Countable region_type.
-  Proof. apply finite.finite_countable. Qed. 
+  Proof. apply finite.finite_countable. Qed.
 
   Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
   Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
