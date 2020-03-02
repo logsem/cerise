@@ -48,6 +48,12 @@ Module cap_lang.
     | None => inl 0%Z
     end.
 
+  Instance perm_dec_eq (p p' : Perm) : Decision (p = p') := _.
+  Instance local_dec_eq (l l' : Locality) : Decision (l = l') := _.  Proof. solve_decision. Qed.
+  Instance cap_dec_eq (c c' : Cap) : Decision (c = c').
+  Proof.
+    repeat (refine (prod_eq_dec _ _); unfold EqDecision; intros); solve_decision. Qed.
+
   Notation "mem !m! a" := (MemLocate mem a) (at level 20).
   Notation "reg !r! r" := (RegLocate reg r) (at level 20).
 
@@ -140,14 +146,34 @@ Module cap_lang.
     | _ => false
     end.
 
+  Definition pwl p : bool :=
+    match p with
+    | RWLX | RWL => true
+    | _ => false
+    end.
+
+  Lemma writeA_implies_readA p :
+    writeAllowed p = true → readAllowed p = true.
+  Proof. destruct p; auto. Qed.
+
+
+  Lemma pwl_implies_RWL_RWLX p :
+    pwl p = true → p = RWL ∨ p = RWLX.
+  Proof.
+    intros. destruct p; try by exfalso.
+    by left. by right.
+  Qed.
+
+
   Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
-    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a).
+    readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
   Proof.
     intros. inversion H; subst.
     - destruct H2. apply andb_prop_intro. split.
       + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
-      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; omega.
+      + apply andb_prop_intro.
+        split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
     (*- apply andb_prop_intro. split.
       + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
       + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
@@ -160,6 +186,14 @@ Module cap_lang.
     intros (Hrx & Hrwx & Hrwlx).
     intros Hvpc. inversion Hvpc;
       destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
+  Qed.
+
+  Lemma not_isCorrectPC_bounds p g b e a :
+   ¬ (b <= a < e)%a → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+  Proof.
+    intros Hbounds.
+    intros Hvpc. inversion Hvpc.
+    by exfalso.
   Qed.
 
   Lemma isCorrectPC_bounds p g b e (a0 a1 a2 : Addr) :
@@ -198,20 +232,27 @@ Module cap_lang.
 
   Definition withinBounds (c: Cap): bool :=
     match c with
-    | (_, b, e, a) => (b <=? a)%a && (a <=? e)%a
+    | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
     end.
 
   Lemma withinBounds_le_addr p l b e a:
     withinBounds (p, l, b, e, a) = true ->
-    (b <= a)%a ∧ (a <= e)%a.
+    (b <= a)%a ∧ (a < e)%a.
   Proof.
     simpl; intros A. eapply andb_true_iff in A.
-    unfold le_addr in *. unfold leb_addr in *.
+    unfold le_addr, lt_addr, leb_addr, ltb_addr in *.
     generalize (proj1 (Z.leb_le _ _) (proj1 A)).
-    generalize (proj1 (Z.leb_le _ _) (proj2 A)).
+    generalize (proj1 (Z.ltb_lt _ _) (proj2 A)).
     lia.
   Qed.
 
+  Lemma isCorrectPC_withinBounds p g p' g' b e a :
+    isCorrectPC (inr (p, g, b, e, a)) →
+    withinBounds (p', g', b, e, a) = true.
+  Proof.
+    intros HH. inversion HH; subst.
+    rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
+  Qed.
 
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
   Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
@@ -238,6 +279,15 @@ Module cap_lang.
     | inl _ => false
     | inr ((_,l),_,_,_) => isLocal l
     end.
+
+  Lemma isLocalWord_cap_isLocal (c0:Cap):
+    isLocalWord (inr c0) = true →
+    ∃ p g b e a, c0 = (p,g,b,e,a) ∧ isLocal g = true.
+  Proof.
+    intros. destruct c0, p, p, p.
+    cbv in H. destruct l; first by congruence.
+    eexists _, _, _, _, _. split; eauto.
+  Qed.
 
   Definition LocalityFlowsTo (l1 l2: Locality): bool :=
     match l1 with
@@ -623,6 +673,27 @@ Module cap_lang.
      m !m! a = v.
    Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
 
+   Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p g b e a :
+     regs !r! r = inr ((p, g), b, e, a) ->
+     regs !! r = Some (inr ((p, g), b, e, a)).
+   Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
+   Qed.
+
+   Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p g b e i :
+     m !m! a = inr ((p, g), b, e, i) ->
+     m !! a = Some (inr ((p, g), b, e, i)).
+   Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
+   Qed.
+
+   Lemma regs_lookup_inl_eq (regs: Reg) (r: RegName) z :
+     (∀ ri : RegName, is_Some (regs !! ri)) →
+     regs !r! r = inl z ->
+     regs !! r = Some (inl z).
+   Proof. rewrite /RegLocate. intros Hall HH.
+          destruct (regs !! r) eqn:HRead; first by apply f_equal.
+          destruct (Hall r) as (s & Hsr). rewrite Hsr in HRead; discriminate.
+   Qed.
+
    Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
      r !! PC = Some (inr ((p, g), b, e, a)) →
      isCorrectPC (inr ((p, g), b, e, a)) →
@@ -859,51 +930,6 @@ Proof.
   eapply head_reducible_from_step. eauto.
 Qed.
 
-(* Introducing a generalized notion of a Getter instruction, according to this given template, and proof that all getters satisfy this template *)
-Definition getterTemplate φ dst src z :=
-  match RegLocate (reg φ) src with
-  | inl _ => (Failed, φ)
-  | inr _ => updatePC (update_reg φ dst (inl z))
-  end.
-
-Inductive isGetInstr:  (RegName → RegName → instr) → Prop :=
-| isGetInstr_intro i:
-    (forall φ dst src , exists z,  (exec (i dst src) φ = getterTemplate φ dst src z)) → isGetInstr i.
-
-Ltac decide_get_instr:=
-  constructor; intros; rewrite /exec /getterTemplate;
-  match goal with |- (∃ z:Z, (match ?x with
-                              | inl _ => _
-                              | inr _ => _ end) = _)
-                  => destruct x end; auto;
-  [> by eapply ex_intro |
-   do 4 match goal with |- (∃ z:Z, (let (_,_) := ?x in _) = _) => destruct x end ; by eapply ex_intro].
-
-Lemma getL_isGet: isGetInstr GetL.
-Proof.
-  decide_get_instr.
-Qed.
-
-Lemma getP_isGet: isGetInstr GetP.
-Proof.
-  decide_get_instr.
-Qed.
-
-Lemma getB_isGet: isGetInstr GetB.
-Proof.
-  decide_get_instr.
-Qed.
-
-Lemma getE_isGet: isGetInstr GetE.
-Proof.
-  decide_get_instr.
-Qed.
-
-Lemma getA_isGet: isGetInstr GetA.
-Proof.
-  decide_get_instr.
-Qed.
-
 Section macros.
 
   Variables RT1 RT2 RT3: RegName.
@@ -943,6 +969,18 @@ Section macros.
 
       (* TODO others macro *)
 End macros.
+
+(* Destruct pairs & capabilities *)
+
+Ltac destruct_pair_l c n :=
+  match eval compute in n with
+  | 0 => idtac
+  | _ => let sndn := fresh c in
+        destruct c as (c,sndn); destruct_pair_l c (pred n)
+  end.
+
+Ltac destruct_cap c :=
+  destruct_pair_l c 4.
 
 
 (* Require Coq.Logic.FunctionalExtensionality. *)

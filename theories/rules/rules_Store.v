@@ -1,4 +1,4 @@
-From cap_machine Require Import rules_base.
+From cap_machine Require Import region_invariants rules_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
@@ -16,66 +16,279 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Ltac inv_head_step :=
-    repeat match goal with
-           | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-           | H : to_val _ = Some _ |- _ => apply of_to_val in H
-           | H : _ = of_val ?v |- _ =>
-             is_var v; destruct v; first[discriminate H|injection H as H]
-           | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
-             try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-             (*    and can thus better be avoided. *)
-             let φ := fresh "φ" in 
-             inversion H as [| φ]; subst φ; clear H
-           end.
+  Lemma wa_and_locality_allows_update (p p' : Perm) (storev : Word):
+      writeAllowed p = true
+      → PermFlows p p'
+      → (isLocalWord storev = false ∨ pwl p = true)
+      → PermFlows (LeastPermUpd storev) p'.
+  Proof.
+    intros Hwa HPFp HLocal.
+    destruct (isLocalWord storev) eqn:HiLW.
+    - apply isLocal_RWL in HiLW; rewrite HiLW.
+      destruct HLocal as [Hcontr | Hpwl]; first by exfalso.
+      apply pwl_implies_RWL_RWLX in Hpwl.
+      destruct Hpwl as [-> | ->]; first by auto.
+      assert (PermFlows RWL RWLX); auto.
+        by apply (PermFlows_trans _ _ _ H1 HPFp).
+    - apply not_isLocal_WL in HiLW; rewrite HiLW.
+      cbv in Hwa.
+      refine (PermFlows_trans _ _ _ _ HPFp).
+      destruct p; cbv in Hwa; try congruence; done.
+  Qed.
 
-  Ltac option_locate_mr m r :=
-    repeat match goal with
-           | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-           | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
-           end.
-
-  Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-    match goal with
-    | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-      let σ := fresh "σ" in
-      let e' := fresh "e'" in
-      let σ' := fresh "σ'" in
-      let Hstep' := fresh "Hstep'" in
-      let He0 := fresh "He0" in
-      let Ho := fresh "Ho" in
-      let He' := fresh "H"e' in
-      let Hσ' := fresh "H"σ' in
-      let Hefs := fresh "Hefs" in
-      let φ0 := fresh "φ" in
-      let p0 := fresh "p" in
-      let g0 := fresh "g" in
-      let b0 := fresh "b" in
-      let e2 := fresh "e" in
-      let a0 := fresh "a" in
-      let i := fresh "i" in
-      let c0 := fresh "c" in
-      let HregPC := fresh "HregPC" in
-      let Hi := fresh "H"i in
-      let Hexec := fresh "Hexec" in 
-      inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?]; 
-      inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-      (simpl in *; try congruence );
-      subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-      try (rewrite HPC in HregPC;
-           inversion HregPC;
-           repeat match goal with
-                  | H : _ = p0 |- _ => destruct H
-                  | H : _ = g0 |- _ => destruct H
-                  | H : _ = b0 |- _ => destruct H
-                  | H : _ = e2 |- _ => destruct H
-                  | H : _ = a0 |- _ => destruct H
-                  end ; destruct Hi ; clear HregPC ;
-           rewrite Hpc_a Hinstr /= ;
-           rewrite Hpc_a Hinstr in Hstep)
+  Definition word_of_argument (regs: Reg) (a: Z + RegName) : option Word :=
+    match a with
+    | inl z => Some (inl z)
+    | inr r =>
+      match regs !! r with
+      | Some w => Some w
+      | _ => None
+      end
     end.
+
+  Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) (c0 : Cap):
+    word_of_argument regs arg = Some(inr(c0)) →
+    (∃ r : RegName, arg = inr r ∧ regs !! r = Some(inr(c0))).
+  Proof.
+    intros HStoreV.
+    unfold word_of_argument in HStoreV.
+    destruct arg.
+       - by inversion HStoreV.
+       - exists r. destruct (regs !! r) eqn:Hvr0; last by inversion HStoreV.
+         split; auto.
+  Qed.
+
+  Definition reg_allows_store (regs : Reg) (r : RegName) p g b e a (storev : Word) :=
+    regs !! r = Some (inr ((p, g), b, e, a)) ∧
+    writeAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true ∧
+    (isLocalWord storev = false ∨ pwl p = true).
+
+  Local Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
+  Proof. solve_decision. Qed.
+
+  Global Instance reg_allows_store_dec_eq  (regs : Reg)(r  : RegName) p g b e a (storev : Word) : Decision (reg_allows_store regs r p g b e a storev).
+  Proof.
+    unfold reg_allows_store. destruct (regs !! r). destruct s.
+    - right. intros Hfalse; destruct Hfalse; by exfalso.
+    - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
+      refine (option_dec_eq _ _ _). intros.
+      refine (sum_eq_dec _ _); unfold EqDecision; intros. refine (cap_dec_eq x0 y0).
+      solve_decision.
+    - solve_decision.
+  Qed.
+
+  Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : PermMem):=
+  | Store_fail_const z:
+      regs !r! r1 = inl z ->
+      Store_failure regs r1 r2 mem
+  | Store_fail_bounds p g b e a:
+      regs !r! r1 = inr ((p, g), b, e, a) ->
+      (writeAllowed p = false ∨ withinBounds ((p, g), b, e, a) = false) →
+      Store_failure regs r1 r2 mem
+  | Store_fail_invalid_locality p g b e a storev:
+      regs !r! r1 = inr ((p, g), b, e, a) ->
+      word_of_argument regs r2 = Some storev ->
+      isLocalWord storev = true →
+      pwl p = false →
+      Store_failure regs r1 r2 mem
+  | Store_fail_invalid_PC:
+      incrementPC (regs) = None ->
+      Store_failure regs r1 r2 mem
+  .
+
+  Inductive Store_spec
+    (regs: Reg) (r1 : RegName) (r2 : Z + RegName)
+    (regs': Reg) (mem mem' : PermMem) : cap_lang.val → Prop
+  :=
+  | Store_spec_success p p' g b e a storev oldv :
+    word_of_argument regs r2 = Some storev ->
+    reg_allows_store regs r1 p g b e a storev  →
+    mem !! a = Some(p', oldv) →
+    mem' = (<[ a := (p', storev) ]> mem) →
+    incrementPC(regs) = Some regs' ->
+    Store_spec regs r1 r2 regs' mem mem' NextIV
+  | Store_spec_failure :
+    Store_failure regs r1 r2 mem ->
+    Store_spec regs r1 r2 regs' mem mem' FailedV.
+
+
+  Definition allow_store_map_or_true (r1 : RegName) (r2 : Z + RegName) (regs : Reg) (mem : PermMem):=
+    ∃ p g b e a storev,
+      read_reg_inr regs r1 p g b e a ∧ word_of_argument regs r2 = Some storev ∧
+      if decide (reg_allows_store regs r1 p g b e a storev) then
+        ∃ p' w, mem !! a = Some (p', w) ∧ PermFlows p p'
+      else True.
+
+  Lemma allow_store_implies_storev:
+    ∀ (r1 : RegName)(r2 : Z + RegName) (mem0 : PermMem) (r : Reg) (p : Perm) (g : Locality) (b e a : Addr) storev,
+      allow_store_map_or_true r1 r2 r mem0
+      → r !r! r1 = inr (p, g, b, e, a)
+      → word_of_argument r r2 = Some storev
+      → writeAllowed p = true
+      → withinBounds (p, g, b, e, a) = true
+      → (isLocalWord storev = false ∨ pwl p = true)
+      → ∃ (p' : Perm) (storev : Word),
+          mem0 !! a = Some (p', storev) ∧ PermFlows p p'.
+  Proof.
+    intros r1 r2 mem0 r p g b e a storev HaStore Hr2v Hwoa Hwa Hwb HLocal.
+    unfold allow_store_map_or_true in HaStore.
+    destruct HaStore as (?&?&?&?&?&?&[Hrr | Hrl]&Hwo&Hmem).
+    - assert (Hrr' := Hrr). option_locate_mr_once m r.
+      rewrite Hr1 in Hr2v; inversion Hr2v; subst.
+      case_decide as HAL.
+      * auto.
+      * unfold reg_allows_store in HAL.
+        destruct HAL. rewrite Hwo in Hwoa; inversion Hwoa. auto.
+    - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
+  Qed.
+
+   Lemma wp_store Ep
+     pc_p pc_g pc_b pc_e pc_a pc_p'
+     r1 (r2 : Z + RegName) w mem regs :
+   cap_lang.decode w = Store r1 r2 →
+   PermFlows pc_p pc_p' →
+   isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   (∀ (ri: RegName), is_Some (regs !! ri)) →
+   mem !! pc_a = Some (pc_p', w) →
+   allow_store_map_or_true r1 r2 regs mem →
+
+   {{{ (▷ [∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+       ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+     Instr Executable @ Ep
+   {{{ regs' mem' retv, RET retv;
+       ⌜ Store_spec regs r1 r2 regs' mem mem' retv⌝ ∗
+         ([∗ map] a↦pw ∈ mem', ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+   Proof.
+     iIntros (Hinstr Hfl Hvpc Hnep Hri Hmem_pc HaStore φ) "(>Hmem & >Hmap) Hφ".
+     iApply wp_lift_atomic_head_step_no_fork; auto.
+     iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+     assert (pc_p' ≠ O).
+     { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
+      destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+
+     iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %<-.
+     { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+
+     (* Derive the PC in memory *)
+     iDestruct (gen_mem_valid_inSepM pc_a _ _ _ _ mem _ m with "Hm Hmem") as %H2; eauto.
+     option_locate_mr m r.
+     iModIntro.
+
+     iSplitR. by iPureIntro; apply normal_always_head_reducible.
+     iNext. iIntros (e2 σ2 efs Hpstep).
+     apply prim_step_exec_inv in Hpstep.
+     destruct Hpstep as (-> & -> & (c & -> & Hstep)). iSplitR; auto.
+     inversion Hstep as [| ? ? ? ? ?].
+     { cbn in H2. rewrite HPC in H2. congruence. }
+     assert (p = pc_p /\ g = pc_g /\ b = pc_b /\ e = pc_e /\ a = pc_a) as (-> & -> & -> & -> & ->).
+     { cbn in *. rewrite HPC in H2. by inversion H2. }
+     clear H2 H3. cbn in H4. rewrite Hpc_a in H4.
+     assert (i = Store r1 r2) as ->. { by rewrite Hinstr in H4. } clear H4.
+     destruct c0 as [xx1 xx2]; cbn in H7, H8; subst xx1 xx2. subst φ0.
+     cbn [fst snd].
+     cbn in H5.
+
+     (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
+     destruct (r !r! r1) as  [| (([[p g] b] & e) & a) ] eqn:Hr2v.
+     { (* Failure: r1 is not a capability *)
+       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         by (destruct r2; inversion H5; auto).
+       iFailWP "Hφ" Store_fail_const.
+     }
+
+     destruct (writeAllowed p && withinBounds ((p, g), b, e, a)) eqn:HWA; rewrite HWA in H5.
+     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
+        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         by (destruct r2; inversion H5; auto).
+       apply andb_false_iff in HWA.
+       iFailWP "Hφ" Store_fail_bounds.
+     }
+     apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb).
+
+     assert (∃ storev, word_of_argument r r2 = Some storev) as (storev & HStoreV).
+     {
+       destruct r2 as [z | r2].
+       - by exists (inl z).
+       - destruct (Hri r2) as [r0v Hr0].
+         exists r0v; unfold word_of_argument; rewrite Hr0; by destruct r0v.
+     }
+
+     destruct (decide (isLocalWord storev = true ∧ pwl p = false)).
+     {  (* Failure: trying to write a local value to a non-WL cap *)
+       destruct a0 as [HLW Hpwl].
+       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      { destruct storev.
+       - cbv in HLW; by exfalso.
+       - destruct (word_of_argument_inr _ _ _ HStoreV) as (r0 & -> & Hr0s).
+         destruct (isLocalWord_cap_isLocal _ HLW) as (p' & g' & b' & e' & a' & -> & HIL).
+         option_locate_mr m r; rewrite Hr0 HIL in H5.
+         (* TODO: when refactoring the other rules, make opsem use pwl to avoid this ugliness*)
+         destruct p; try by exfalso. all: by inversion H5.
+      }
+      iFailWP "Hφ" Store_fail_invalid_locality.
+     }
+
+
+     assert (isLocalWord storev = false ∨ pwl p = true) as HLocal.
+     {
+     apply (not_and_r) in n0.
+     destruct n0 as [Hlw | Hpwl].
+     destruct (isLocalWord storev); first by exfalso. by left.
+     destruct (pwl p); last by exfalso. by right.
+     } clear n0.
+
+     (* Prove that a is in the memory map now, otherwise we cannot continue *)
+     pose proof (allow_store_implies_storev r1 r2 mem r p g b e a storev) as (p' & oldv & Hmema & HPFp); auto.
+
+     (* Given this, prove that a is also present in the memory itself *)
+     iDestruct (mem_v_implies_m_v mem m p g b e a p' oldv with "Hmem Hm" ) as %Hma ; auto. by apply writeA_implies_readA.
+
+     (* Prove that p' gives us sufficient permissions to update the memory *)
+     pose proof (wa_and_locality_allows_update p p' storev Hwa HPFp HLocal) as HLoadA.
+     (* Regardless of whether we increment the PC, the memory will change: destruct on the PC later *)
+     assert (updatePC (update_mem (r, m) a storev) = (c, σ2)).
+      { destruct r2.
+       - cbv in HStoreV; inversion HStoreV; subst storev. done.
+       - destruct (r !r! r0) eqn:Hr0.
+         * epose proof (regs_lookup_inl_eq r r0 z _ _) as Hr0'.
+           simpl in HStoreV; rewrite Hr0' in HStoreV.
+           inversion HStoreV; subst storev. done.
+         * destruct_cap c0.
+           epose proof (regs_lookup_inr_eq r r0 _ _ _ _ _ Hr0) as Hr0'.
+           simpl in HStoreV; rewrite Hr0' in HStoreV; inversion HStoreV.
+           subst storev; clear HStoreV.
+           destruct HLocal as [HiLW | Hpwl].
+           + cbv in HiLW. destruct c4; last by exfalso. simpl in H5. done.
+           + destruct c4; simpl in H5.
+             ++ done.
+             ++ apply pwl_implies_RWL_RWLX in Hpwl.
+                destruct Hpwl as [-> | ->]; done.
+       }
+      iMod ((gen_mem_update_inSepM _ _ a) with "Hm Hmem") as "[Hm Hmem]"; eauto.
+      destruct (incrementPC r ) as [ regs' |] eqn:Hregs'.
+
+      2: { (* Failure: the PC could not be incremented correctly *)
+        rewrite incrementPC_fail_updatePC /= in H2; auto.
+        inversion H2.
+        iFailWP "Hφ" Store_fail_invalid_PC.
+      }
+
+     (* Success *)
+      clear Hstep. rewrite /update_mem /= in H2.
+      eapply (incrementPC_success_updatePC _ (<[a:=storev]> m)) in Hregs'
+        as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
+      rewrite HuPC in H2; clear HuPC; inversion H2; clear H2; subst c σ2. cbn.
+      iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      iFrame. iModIntro. iApply "Hφ". iFrame.
+      iPureIntro.  eapply Store_spec_success; eauto.
+        * split; auto. apply (regs_lookup_inr_eq r r1).
+          exact Hr2v.
+          auto.
+        * unfold incrementPC. by rewrite HPC'' Ha_pc'.
+          Unshelve. all: auto.
+   Qed.
 
   Lemma wp_store_success_z_PC E pc_p pc_p' pc_g pc_b pc_e pc_a pc_a' w z :
      cap_lang.decode w = Store PC (inl z) →

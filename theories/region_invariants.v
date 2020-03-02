@@ -1,5 +1,5 @@
 From iris.algebra Require Import gmap agree auth.
-From cap_machine Require Export lang sts rules.
+From cap_machine Require Export lang sts rules_base.
 From iris.proofmode Require Import tactics.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 Import uPred. 
@@ -83,11 +83,37 @@ Section heap.
   Definition future_priv_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
     (□ ∀ W W', ⌜related_sts_priv_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
-  Definition pwl p : bool :=
-    match p with
-    | RWLX | RWL => true
-    | _ => false
-    end.
+  (* We will first define the standard STS for the shared part of the heap *)
+  Inductive region_type :=
+  | Temporary
+  | Permanent
+  | Revoked.
+
+  Global Instance region_type_EqDecision : EqDecision region_type.
+  Proof.
+    intros ρ1 ρ2.
+    destruct ρ1,ρ2;
+      [by left|by right|by right|by right|
+         by left|by right|by right|by right|by left]. 
+  Qed.
+  Global Instance region_type_finite : finite.Finite region_type.
+  Proof.
+    refine {| finite.enum := [Temporary; Permanent; Revoked] ;
+              finite.NoDup_enum := _ ;
+              finite.elem_of_enum := _ |}.
+    - repeat (apply NoDup_cons; split; [repeat (apply not_elem_of_cons;split;auto); apply not_elem_of_nil|]).
+        by apply NoDup_nil.
+    - intros ρ.
+      destruct ρ;apply elem_of_cons;[by left|right|right];
+        apply elem_of_cons;[by left|right];
+          apply elem_of_cons; by left. 
+  Qed.           
+  Global Instance region_type_countable : Countable region_type.
+  Proof. apply finite.finite_countable. Qed. 
+
+  Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
+  Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
+  Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
 
   (* Some practical shorthands for projections *)
   Definition std W := W.1.
@@ -773,7 +799,19 @@ Section heap.
     iFrame "# ∗". auto. 
   Qed.
 
-  Lemma region_open_next
+  Definition monotonicity_guarantees_region ρ w p φ :=
+    (match ρ with
+     | Temporary => if pwl p then future_pub_mono else future_priv_mono
+     | Permanent => future_priv_mono
+     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     end φ w)%I.
+
+  Definition monotonicity_guarantees_decide ρ w p φ:=
+    (if decide (ρ = Temporary ∧ pwl p = true)
+     then future_pub_mono φ w
+     else future_priv_mono φ w)%I.
+
+   Lemma region_open_next
         (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
         (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
         (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
@@ -784,15 +822,10 @@ Section heap.
         sts_full_world sts_std W
                        ∗ sts_state_std (countable.encode l) ρ
                        ∗ open_region_many (l :: ls) W
-                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ (match ρ with
-                                                  | Permanent => future_priv_mono
-                                                  | Temporary => if pwl p then
-                                                                   future_pub_mono
-                                                                 else future_priv_mono
-                                                  | Revoked => fun _ _ => True%I
-                                                  end) φ v ∗
+                       ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ monotonicity_guarantees_region ρ v p φ ∗
                        ▷ φ (W, v).
-  Proof.
+   Proof.
+    unfold monotonicity_guarantees_region.
     intros. iIntros "H".
     destruct ρ; try congruence.
     - case_eq (pwl p); intros.
@@ -810,15 +843,10 @@ Section heap.
     l ∉ ls
     → sts_state_std (countable.encode l) ρ
                     ∗ open_region_many (l :: ls) W
-                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ (match ρ with
-                                             | Permanent => future_priv_mono
-                                             | Temporary => if pwl p then
-                                                              future_pub_mono
-                                                            else future_priv_mono
-                                             | Revoked => fun _ _ => True%I
-                                             end) φ v ∗ ▷ φ (W, v) ∗ rel l p φ -∗
+                    ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ monotonicity_guarantees_region ρ v p φ ∗ ▷ φ (W, v) ∗ rel l p φ -∗
                     open_region_many ls W.
   Proof.
+    unfold monotonicity_guarantees_region.
     intros. iIntros "[A [B [C [D [E [F G]]]]]]".
     destruct ρ; try congruence.
     - case_eq (pwl p); intros.
@@ -980,4 +1008,3 @@ End heap.
 
 Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
 Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
-

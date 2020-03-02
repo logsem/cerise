@@ -1,5 +1,5 @@
 coq: Makefile.coq
-	$(MAKE) -f Makefile.coq
+	$(MAKE) -f Makefile.coq pretty-timed
 
 Makefile.coq:
 	coq_makefile -f _CoqProject -o Makefile.coq

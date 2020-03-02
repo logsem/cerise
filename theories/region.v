@@ -1,37 +1,53 @@
-From cap_machine Require Export lang rules.
+From cap_machine Require Export lang rules_base.
+From cap_machine Require Import addr_reg.
 From iris.proofmode Require Import tactics.
-(*Require Import Coq.Program.Wf.*)
+Require Import List.
 
 Section region.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
 
-  (* Not usable without proving some sort of rewriting rule, and can't manage to prove it *)
-  (* Program Fixpoint region_addrs (b e: Addr) { measure (Z.to_nat (e - b)%Z) }: list Addr := *)
-  (*   if Z.eq_dec b e then b::nil else *)
-  (*     if Z_lt_dec b e then  *)
-  (*       match (b + 1)%a with *)
-  (*       | Some b' => b::region_addrs b' e *)
-  (*       | None => False_rect _ _  *)
-  (*       end *)
-  (*     else nil. *)
-  (* Next Obligation. *)
-  (*   intros. unfold incr_addr in *. *)
-  (*   destruct (Z_le_dec (b + 1)%Z MemNum); try discriminate. *)
-  (*   inv Heq_anonymous. simpl. destruct e; simpl. *)
-  (*   destruct b; simpl in *. assert (z - z0 = Z.succ (z - (z0 + 1)))%Z by omega. *)
-  (*   rewrite H3. rewrite Z2Nat.inj_succ; omega. Defined. *)
-  (* Next Obligation. *)
-  (*   intros. unfold incr_addr in *. *)
-  (*   destruct (Z_le_dec (b + 1)%Z MemNum); try discriminate. *)
-  (*   destruct b; destruct e; simpl in *. *)
-  (*   apply Z.leb_le in fin. apply Z.leb_le in fin0. *)
-  (*   omega. Defined. *)
-  (* Next Obligation. apply measure_wf. apply lt_wf. Defined. *)
+  (*------------------------- region_size ------------------------------------*)
+
+  Definition region_size : Addr → Addr → nat :=
+    λ b e, Z.to_nat (e - b).
+
+  Lemma region_size_S a b :
+    (a < b)%a ->
+    region_size a b = S (region_size (^(a+1))%a b).
+  Proof. rewrite /region_size. solve_addr. Qed.
+
+  Lemma region_size_0 a b :
+    (b <= a)%a ->
+    region_size a b = 0.
+  Proof. rewrite /region_size. solve_addr. Qed.
+
+  Lemma region_size_split (a b e : Addr) :
+    (b ≤ a < e)%Z →
+    region_size b e = region_size b a + region_size a e.
+  Proof. intros [? ?]. rewrite /region_size. solve_addr. Qed.
+
+  Lemma get_addr_from_option_addr_region_size (a b : Addr) :
+    (b ≤ a)%Z →
+    (^(b + region_size b a) = a)%a.
+  Proof. intros Hle. rewrite /region_size. solve_addr. Qed.
+
+  Lemma incr_addr_region_size (a b : Addr) :
+    (b <= a)%a →
+    (b + region_size b a)%a = Some a.
+  Proof. intros. unfold region_size. solve_addr. Qed.
+
+  Lemma incr_addr_region_size_iff (a b : Addr) (i : nat) :
+    (a + i)%a = Some b ↔ (a <= b)%a ∧ region_size a b = i.
+  Proof.
+    rewrite /region_size. split; [ intros | intros [? ?] ]; solve_addr.
+  Qed.
+
+  (*-------------------------- region_addrs_aux ------------------------------*)
 
   Fixpoint region_addrs_aux (b: Addr) (n: nat): list Addr :=
     match n with
     | 0 => nil
-    | S n => b :: (region_addrs_aux (get_addr_from_option_addr (b + 1)%a) n)
+    | S n => b :: (region_addrs_aux (^(b + 1)%a) n)
     end.
 
   Lemma region_addrs_aux_length:
@@ -39,10 +55,13 @@ Section region.
       length (region_addrs_aux b n) = n.
   Proof. induction n; intros; simpl; auto. Qed.
 
+  Definition region_addrs_aux_singleton (a : Addr) :
+    [a] = region_addrs_aux a 1. Proof. done. Qed.
+
   Lemma region_addrs_aux_decomposition:
     forall n b k,
       (k <= n)%nat ->
-      region_addrs_aux b n = region_addrs_aux b k ++ (region_addrs_aux (get_addr_from_option_addr (b + Z.of_nat k)%a) (n - k)).
+      region_addrs_aux b n = region_addrs_aux b k ++ (region_addrs_aux (^(b + k)%a) (n - k)).
   Proof.
     induction n; intros.
     - assert ((k = 0)%nat) by Lia.lia; subst k.
@@ -57,7 +76,7 @@ Section region.
   Lemma region_addrs_aux_spec:
     forall n b k,
       (k < n)%nat ->
-      nth_error (region_addrs_aux b n) k = Some (get_addr_from_option_addr (b + (Z.of_nat k))%a).
+      nth_error (region_addrs_aux b n) k = Some (^(b + k)%a).
   Proof.
     induction n; intros.
     - inv H1.
@@ -71,25 +90,113 @@ Section region.
         rewrite region_addrs_aux_length. auto.
   Qed.
 
+  Lemma not_elem_of_region_addrs_aux a n (i : Z) :
+     (i > 0)%Z →
+     a ≠ addr_reg.top →
+     a ∉ region_addrs_aux (^(a + i)%a) n.
+   Proof.
+     intros Hi Hne.
+     revert i Hi; induction n; intros i Hi.
+     - apply not_elem_of_nil.
+     - simpl. apply not_elem_of_cons; split.
+       + intro. apply Hne. solve_addr.
+       + rewrite get_addrs_from_option_addr_comm.
+         apply IHn; omega. done.
+   Qed.
+
+   Lemma region_addrs_not_elem_of a n :
+     forall a', (a < a')%a -> a ∉ (region_addrs_aux a' n).
+   Proof.
+     induction n.
+     - intros a' Ha'. apply not_elem_of_nil.
+     - intros a' Ha'. apply not_elem_of_cons.
+       split.
+       + intros Hcontr; subst. rewrite /lt_addr in Ha'. lia.
+       + apply IHn. rewrite /lt_addr in Ha'. rewrite /lt_addr.
+         destruct (a' + 1)%a eqn:Hsome; simpl.
+         ++ apply next_lt in Hsome. lia.
+         ++ destruct a,a'. simpl in *. apply Z.leb_le in fin0 as Hle. lia.
+   Qed.
+
+  Lemma region_addrs_aux_next_head a (a0 a1 : Addr) n :
+    ((region_addrs_aux (^a)%a n) !! 0) = Some a0 →
+    ((region_addrs_aux (^a)%a n) !! (1)) = Some a1 →
+    (^(a0 + 1)%a = a1).
+  Proof.
+    intros Ha0 Ha1.
+    destruct n as [| n]; cbn in *; [ by inversion Ha0 |].
+    destruct n as [| n]; cbn in *; [ by inversion Ha1 |].
+    solve_addr.
+  Qed.
+
+  Lemma region_addrs_aux_next a n i ai aj :
+    ((region_addrs_aux a n) !! i) = Some ai → ((region_addrs_aux a n) !! (i + 1)) = Some aj →
+    ^(ai + 1)%a = aj.
+  Proof.
+    intros Hai Haj.
+    assert (i + 1 < n).
+    { rewrite -(region_addrs_aux_length n a).
+      apply lookup_lt_is_Some_1. eauto. }
+    assert (i < n).
+    { rewrite -(region_addrs_aux_length n a).
+      apply lookup_lt_is_Some_1. eauto. }
+    rewrite (region_addrs_aux_decomposition n a i) in Hai; last lia.
+    rewrite lookup_app_r region_addrs_aux_length in Hai |- *; last lia.
+    rewrite (region_addrs_aux_decomposition n a i) in Haj; last lia.
+    rewrite lookup_app_r region_addrs_aux_length in Haj |- *; last lia.
+    rewrite minus_plus in Haj. rewrite Nat.sub_diag in Hai.
+    eapply region_addrs_aux_next_head; eauto.
+  Qed.
+
+  Lemma region_addrs_lt_top (a: Addr) n i ai :
+    (a + (Z.of_nat i) < MemNum)%Z →
+    region_addrs_aux a n !! i = Some ai → ai ≠ top.
+  Proof.
+    intros Ha Hai.
+    assert (length (region_addrs_aux a n) = n) as Hlen.
+    { apply region_addrs_aux_length. }
+    assert (length (region_addrs_aux a i) = i) as Hleni.
+    { apply region_addrs_aux_length. }
+    assert (i < n) as Hi.
+    { rewrite -Hlen. by apply lookup_lt_Some with ai. }
+    rewrite (region_addrs_aux_decomposition n a i) in Hai; last lia.
+    rewrite lookup_app_r in Hai; last lia.
+    rewrite Hleni Nat.sub_diag in Hai.
+    destruct (n - i) eqn:Hni; cbn in Hai; [ congruence |].
+    inversion Hai; subst ai. intro. solve_addr.
+  Qed.
+
+  Lemma region_addrs_aux_NoDup (a: Addr) (n: nat) :
+    is_Some (a + n)%a →
+    NoDup (region_addrs_aux a n).
+  Proof.
+    generalize a. clear a. induction n; intros a Hsome.
+    - apply NoDup_nil; auto.
+    - cbn. apply NoDup_cons.
+      + intros HH%elem_of_list_In. revert HH.
+        eapply not_elem_of_region_addrs_aux; first lia.
+        destruct Hsome as [? ?]. intros ->. solve_addr.
+      + eapply IHn. destruct Hsome as [? ?]. unfold is_Some.
+        zify_addr; first [ by eauto | lia ].
+  Qed.
+
+  (*---------------------------- region_addrs --------------------------------*)
+
   Definition region_addrs (b e: Addr): list Addr :=
-    if Z_le_dec b e then region_addrs_aux b (region_size b e) else nil.
+    region_addrs_aux b (region_size b e).
 
   Lemma region_addrs_length:
     forall b e,
-      (b <= e)%a ->
       length (region_addrs b e) = region_size b e.
   Proof.
-    intros; unfold region_addrs.
-    destruct (Z_le_dec b e).
-    - apply region_addrs_aux_length.
-    - elim n. exact H1.
+    intros; unfold region_addrs. by rewrite region_addrs_aux_length.
   Qed.
 
   Lemma region_addrs_spec:
     forall b e k,
       (b <= e)%a ->
       (k < region_size b e)%nat ->
-      nth_error (region_addrs b e) k = Some (get_addr_from_option_addr (b + (Z.of_nat k))%a).
+      nth_error (region_addrs b e) k = Some (^(b + k)%a).
   Proof.
     intros; unfold region_addrs.
     destruct (Z_le_dec b e).
@@ -97,78 +204,49 @@ Section region.
     - elim n. exact H1.
   Qed.
 
-  Lemma list_nth_eq:
-    forall A (l1 l2: list A),
-      (forall n, nth_error l1 n = nth_error l2 n) ->
-      l1 = l2.
-  Proof.
-    induction l1; intros.
-    - destruct l2; auto.
-      generalize (H1 0). simpl. discriminate.
-    - destruct l2.
-      + generalize (H1 0); simpl; discriminate.
-      + generalize (H1 0); simpl; intros.
-        inv H2. f_equal.
-        apply IHl1. intros.
-        generalize (H1 (S n)); simpl; auto.
+  Lemma region_addrs_decomposition b a e :
+    (b <= a /\ a < e)%a ->
+    region_addrs b e = region_addrs b a ++ (a :: region_addrs ^(a+1)%a e).
+  Proof with try (unfold region_size; solve_addr).
+    intros [? ?]. unfold region_addrs at 1.
+    rewrite (region_addrs_aux_decomposition _ _ (region_size b a))...
+    rewrite (_ : region_size b e - region_size b a = region_size a e)...
+    rewrite -/(region_addrs b a). f_equal.
+    rewrite (_ : region_size a e = S (region_size ^(a+1)%a e))...
+    cbn. f_equal... rewrite /region_addrs. f_equal...
   Qed.
 
-  Lemma addr_conv:
-    forall (b a: Addr),
-      (b + (a - b)%Z)%a = Some a.
-  Proof. intros. solve_addr. Qed.
-
-  Lemma region_addrs_decomposition:
-    forall b a e,
-      (b <= a /\ a <= e)%a ->
-      region_addrs b e = region_addrs b (get_addr_from_option_addr (a + (-1))%a)
-                         ++ (a :: match (a + 1)%a with
-                                  | Some y => region_addrs y e
-                                  | _ => nil
-                                  end).
-  Proof.
-    intros. unfold region_addrs at 1.
-    assert (b <= e)%Z by (unfold le_addr in H1; omega).
-    destruct (Z_le_dec b e); try omega.
-    assert (X: length (region_addrs b (get_addr_from_option_addr (a + -1)%a)) <= region_size b e).
-    { unfold region_addrs. destruct (Z_le_dec b (get_addr_from_option_addr (a + -1)%a)).
-      - rewrite region_addrs_aux_length. unfold region_size. solve_addr.
-      - simpl; lia. }
-    erewrite region_addrs_aux_decomposition; eauto. f_equal.
-    { unfold region_addrs.
-      destruct (Z_le_dec b (get_addr_from_option_addr (a + -1)%a)).
-      - rewrite region_addrs_aux_length. reflexivity.
-      - reflexivity. }
-    rewrite (_ : (^(b + length (region_addrs b (^(a + -1))))%a) = a); cycle 1.
-    { unfold region_addrs. destruct (Z_le_dec b (^(a + -1)%a)).
-      - rewrite region_addrs_aux_length /region_size. solve_addr.
-      - simpl. solve_addr. }
-    rewrite (_ : (region_size b e - length (region_addrs b (^(a + -1)%a))) =
-                 S (length (match (a + 1)%a with
-                            | Some y => region_addrs y e
-                            | None => []
-                            end))); cycle 1.
-    { unfold region_addrs, region_size in *. destruct (Z_le_dec b (^(a + -1)%a)).
-      - rewrite region_addrs_aux_length in X |- *.
-        case_eq (a + 1)%a; intros; cbn; [| solve_addr].
-        destruct (Z_le_dec a0 e); cbn. rewrite region_addrs_aux_length. all: solve_addr.
-      - simpl. rewrite (ltac:(solve_addr): a = b). case_eq (b + 1)%a; intros; [| solve_addr].
-        destruct (Z_le_dec a0 e); cbn; [| solve_addr].
-        rewrite region_addrs_aux_length. solve_addr. }
-    simpl. f_equal.
-    unfold region_addrs. destruct (a + 1)%a.
-    { simpl. destruct (Z_le_dec a0 e); simpl; auto.
-      rewrite region_addrs_aux_length. reflexivity. }
-    { simpl. auto. }
+  Lemma region_addrs_split b a e :
+    (b <= a ∧ a < e)%a →
+    region_addrs b e = region_addrs b a ++ region_addrs a e.
+  Proof with try (unfold region_size; solve_addr).
+    intros [? ?]. unfold region_addrs at 1.
+    rewrite (region_addrs_aux_decomposition _ _ (region_size b a))...
+    rewrite (_: region_size b e - region_size b a = region_size a e)...
+    rewrite (_: ^(b + region_size b a)%a = a)...
+    rewrite -/(region_addrs _ _) //.
   Qed.
 
-  (*Fixpoint region_addrs (b e : Addr) (n : nat) {struct n} : list Addr :=
-    if (b <=? e)%a && ((region_size b e) =? n)%nat then
-      match n with
-      | 0 => [b]
-      | S n => b :: (region_addrs (get_addr_from_option_addr (b + 1)%a) e n)
-      end
-    else [].*)
+  Lemma region_addrs_first a b :
+    (a < b)%a ->
+    (region_addrs a b) !! 0 = Some a.
+  Proof.
+    intros Hle.
+    rewrite /region_addrs.
+    rewrite (_: region_size a b = S (region_size a b - 1)).
+    2: by (unfold region_size; solve_addr). done.
+  Qed.
+
+  Lemma region_addrs_NoDup a b :
+    NoDup (region_addrs a b).
+  Proof.
+    rewrite /region_addrs. destruct (Z_le_dec a b).
+    - apply region_addrs_aux_NoDup.
+      rewrite incr_addr_region_size; eauto.
+    - rewrite /region_size Z_to_nat_nonpos; [| lia]. apply NoDup_nil.
+  Qed.
+
+  (*--------------------------------------------------------------------------*)
 
   Definition region_mapsto (b e : Addr) (p : Perm) (ws : list Word) : iProp Σ :=
     ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↦ₐ[p] y2)%I.
@@ -178,9 +256,6 @@ Section region.
 
   Definition in_range (a b e : Addr) : Prop :=
     (b <= a)%a ∧ (a < e)%a.
-
-  (* Fixpoint region_mapsto_sub (b e : Addr) ws : iProp Σ :=  *)
-  (*   ([∗ list] k↦y1;y2 ∈ (region_addrs b e);take (region_size b e) ws, y1 ↦ₐ y2)%I.  *)
 
   Lemma mapsto_decomposition:
     forall l1 l2 p ws1 ws2,
@@ -230,28 +305,25 @@ Section region.
   Qed.
 
   Lemma extract_from_region b e p a ws φ :
-    let al := (get_addr_from_option_addr (a + (-1))%a) in
-    let n := length (region_addrs b al) in
-    (b <= a ∧ a <= e)%a →
+    let n := length (region_addrs b a) in
+    (b <= a ∧ a < e)%a →
     (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b al p (take n ws)
+        ∗ region_mapsto b a p (take n ws)
         ∗ ([∗ list] w ∈ (take n ws), φ w)
         ∗ a ↦ₐ[p] w ∗ φ w
-        ∗ match (a + 1)%a with
-          | Some ah => region_mapsto ah e p (drop (S n) ws) ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I
-          | None => ⌜drop (S n) ws = nil⌝
-          end)%I.
+        ∗ region_mapsto (^(a+1))%a e p (drop (S n) ws)
+        ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I).
   Proof.
     intros. iSplit.
     - iIntros "[A B]". unfold region_mapsto.
       iDestruct (mapsto_length with "A") as "%".
-      generalize (region_addrs_decomposition _ _ _ H1); intro HRA. rewrite HRA.
+      rewrite (region_addrs_decomposition b a e) //.
       assert (Hlnws: n = length (take n ws)).
       { rewrite take_length. rewrite Min.min_l; auto.
-        rewrite <- H2. rewrite HRA. rewrite app_length.
-        unfold n. unfold al. omega. }
+        rewrite <- H2. subst n. rewrite !region_addrs_length /region_size.
+        solve_addr. }
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
@@ -262,48 +334,36 @@ Section region.
         iDestruct "HB2" as "[HB2 HB3]".
         generalize (drop_S _ _ _ _ _ H3). intros Hdws.
         rewrite <- H3. rewrite HWS. rewrite Hdws.
-        iExists w. iFrame. rewrite <- H3. rewrite HWS.
-        destruct (a + 1)%a; auto; iFrame; auto.
-        iSplit; auto. iDestruct (mapsto_length with "HA3") as "%".
-        destruct l; simpl in H4; auto.
+        iExists w. iFrame. by rewrite <- H3.
     - iIntros "A". iDestruct "A" as (w) "[% [A1 [B1 [A2 [B2 AB]]]]]".
-      unfold region_mapsto. generalize (region_addrs_decomposition _ _ _ H1); intro HRA. rewrite HRA.
-      case_eq (a + 1)%a; intros; rewrite H3 in HRA.
-      + iDestruct "AB" as "[A3 B3]".
-        iSplitL "A1 A2 A3".
-        * rewrite H2. iFrame.
-          rewrite <- H2. iFrame.
-        * rewrite H2. iFrame.
-          rewrite <- H2. iFrame.
+      unfold region_mapsto. rewrite (region_addrs_decomposition b a e) //.
+      iDestruct "AB" as "[A3 B3]".
+      iSplitL "A1 A2 A3".
       + rewrite H2. iFrame.
         rewrite <- H2. iFrame.
-        iDestruct "AB" as "%".
-        rewrite H4. auto.
+      + rewrite H2. iFrame.
+        rewrite <- H2. iFrame.
   Qed.
 
   Lemma extract_from_region' b e a p ws φ `{!∀ x, Persistent (φ x)}:
-    let al := (get_addr_from_option_addr (a + (-1))%a) in
-    let n := length (region_addrs b al) in
-    (b <= a ∧ a <= e)%a →
+    let n := length (region_addrs b a) in
+    (b <= a ∧ a < e)%a →
     (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b al p (take n ws)
+        ∗ region_mapsto b a p (take n ws)
         ∗ ([∗ list] w ∈ ws, φ w)
         ∗ a ↦ₐ[p] w ∗ φ w
-        ∗ match (a + 1)%a with
-          | Some ah => region_mapsto ah e p (drop (S n) ws)
-          | None => ⌜drop (S n) ws = nil⌝
-          end)%I.
+        ∗ region_mapsto (^(a+1))%a e p (drop (S n) ws))%I.
   Proof.
     intros. iSplit.
     - iIntros "[A #B]". unfold region_mapsto.
       iDestruct (mapsto_length with "A") as "%".
-      generalize (region_addrs_decomposition _ _ _ H2); intro HRA. rewrite HRA.
+      rewrite (region_addrs_decomposition b a e) //.
       assert (Hlnws: n = length (take n ws)).
       { rewrite take_length. rewrite Min.min_l; auto.
-        rewrite <- H3. rewrite HRA. rewrite app_length.
-        unfold n. unfold al. omega. }
+        rewrite <- H3. subst n. rewrite !region_addrs_length /region_size.
+        solve_addr. }
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct (big_sepL_app with "B") as "#[HB1 HB2]".
@@ -315,32 +375,23 @@ Section region.
         iDestruct "HB2" as "#[HB2 HB3]".
         generalize (drop_S _ _ _ _ _ H4). intros Hdws.
         rewrite <- H4. rewrite HWS. rewrite Hdws.
-        iExists w. iFrame. rewrite <- H4. rewrite HWS.
-        destruct (a + 1)%a; auto; iFrame; auto.
-        iSplit; auto. iDestruct (mapsto_length with "HA3") as "%".
-        destruct l; simpl in H4; auto.
+        iExists w. iFrame. rewrite <- H4. auto.
     - iIntros "A". iDestruct "A" as (w) "[% [A1 [#B1 [A2 [#B2 AB]]]]]".
-      unfold region_mapsto. generalize (region_addrs_decomposition _ _ _ H2); intro HRA. rewrite HRA.
-      case_eq (a + 1)%a; intros; rewrite H4 in HRA.
-      + iFrame "#". rewrite <- HRA.
-        iCombine "A2 AB" as "AB".
-        iDestruct (big_sepL2_app _ (region_addrs b al) (a :: region_addrs a0 e)
-                                 (take n ws) (w :: drop (S n) ws)
-                     with "[$A1] [$AB]") as "AB".
-        rewrite -H3 -HRA. iFrame.
-      + rewrite H3. iFrame.
-        rewrite <- H3. iFrame.
-        iDestruct "AB" as "%".
-        rewrite H5. auto.
+      unfold region_mapsto. rewrite (region_addrs_decomposition b a e) //.
+      iFrame "#".
+      iCombine "A2 AB" as "AB".
+      iDestruct (big_sepL2_app _ (region_addrs b a) (a :: region_addrs _ e)
+                               (take n ws) (w :: drop (S n) ws)
+                   with "[$A1] [$AB]") as "AB".
+      rewrite -H3. iFrame.
   Qed.
 
   Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
-    let al := (get_addr_from_option_addr (a + (-1))%a) in
-    (b <= a ∧ a <= e)%a →
+    (b <= a ∧ a < e)%a →
     (([∗ list] a' ∈ (region_addrs b e), φ a') →
      φ a)%I.
   Proof.
-    iIntros (al Ha) "#Hreg".
+    iIntros (Ha) "#Hreg".
     generalize (region_addrs_decomposition _ _ _ Ha); intro HRA. rewrite HRA.
     iDestruct (big_sepL_app with "Hreg") as "[Hlo Hhi] /=".
     iDestruct "Hhi" as "[$ _]".
@@ -348,77 +399,42 @@ Section region.
 
   Lemma extract_from_region_inv_2 b e a ws (φ : Addr → Word → iProp Σ)
         `{!∀ x y, Persistent (φ x y)}:
-    let al := (get_addr_from_option_addr (a + (-1))%a) in
-    let n := length (region_addrs b al) in
-    (b <= a ∧ a <= e)%a →
+    let n := length (region_addrs b a) in
+    (b <= a ∧ a < e)%a →
     (([∗ list] a';w' ∈ (region_addrs b e);ws, φ a' w') →
      ∃ w, φ a w ∗ ⌜ws = (take n ws) ++ w :: (drop (S n) ws)⌝)%I.
   Proof.
-    iIntros (al n Ha) "#Hreg".
+    iIntros (n Ha) "#Hreg".
     iDestruct (big_sepL2_length with "Hreg") as %Hlen.
-    generalize (region_addrs_decomposition _ _ _ Ha); intro HRA. rewrite HRA.
+    rewrite (region_addrs_decomposition b a e) //.
     assert (Hlnws: n = length (take n ws)).
     { rewrite take_length. rewrite Min.min_l; auto.
-      rewrite <- Hlen. rewrite HRA. rewrite app_length.
-      unfold n. unfold al. omega. }
+      rewrite <- Hlen. subst n. rewrite !region_addrs_length /region_size.
+      solve_addr. }
     generalize (take_drop n ws). intros HWS.
     rewrite <- HWS.
-    case_eq (a + 1)%a.
-    - intros a' Ha'; rewrite Ha' in HRA.
-      iDestruct (big_sepL2_app_inv_l _ (region_addrs b al) (a :: region_addrs a' e)
-                   with "Hreg") as (l1 l2 Hws2) "[Hl1 Hl2]".
-      destruct l2; auto.
-      simpl. iDestruct "Hl2" as "[Ha Hl2]".
-      iExists w. iFrame "#".
-      iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
-      iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
-      iPureIntro.
-      assert (take n (take n ws ++ drop n ws) = take n ws) as ->.
-      { rewrite take_app_alt; auto. }
-      assert (drop n ws = w :: l2) as Heql2.
-      { apply app_inj_1 in Hws2 as [_ Heq]; auto.
-          by rewrite -Hlnws. }
-      rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence.
-    - intros Ha'; rewrite Ha' in HRA.
-      iDestruct (big_sepL2_app_inv_l _ (region_addrs b al) ([a])
-                   with "Hreg") as (l1 l2 Hws2) "[Hl1 Hl2]".
-      destruct l2; auto.
-      simpl. iDestruct "Hl2" as "[Ha Hl2]".
-      iExists w. iFrame "#".
-      iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
-      iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
-      iPureIntro.
-      assert (take n (take n ws ++ drop n ws) = take n ws) as ->.
-      { rewrite take_app_alt; auto. }
-      simpl in *.
-      assert (l2 = []) as Hl2nil; first (destruct l2; auto; inversion Hlenl2).
-      rewrite Hl2nil in Hws2.
-      assert (drop n ws = [w]) as Heql2.
-      { apply app_inj_1 in Hws2 as [_ Heq]; auto.
-          by rewrite -Hlnws. }
-      rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence.
+    iDestruct (big_sepL2_app_inv_l _ (region_addrs b a) (a :: region_addrs _ e)
+                 with "Hreg") as (l1 l2 Hws2) "[Hl1 Hl2]".
+    destruct l2; auto.
+    simpl. iDestruct "Hl2" as "[Ha Hl2]".
+    iExists w. iFrame "#".
+    iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
+    iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
+    iPureIntro.
+    rewrite take_app_alt //.
+    assert (drop n ws = w :: l2) as Heql2.
+    { apply app_inj_1 in Hws2 as [_ Heq]; auto.
+        by rewrite -Hlnws. }
+    rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence.
   Qed.
 
   Lemma in_range_is_correctPC p l b e a b' e' :
     isCorrectPC (inr ((p,l),b,e,a)) →
     (b' <= b)%a ∧ (e <= e')%a →
-    (b' <= a)%a ∧ (a <= e')%a.
+    (b' <= a)%a ∧ (a < e')%a.
   Proof.
     intros Hvpc [Hb He].
-    inversion Hvpc; simplify_eq.
-    - destruct H3; rewrite /leb_addr in Hb;
-      rewrite /le_addr. split.
-      + apply (Z.le_trans b' b a); eauto.
-      + simpl in He.
-        apply (Z.le_trans a e e'); eauto.
-        by apply Z.lt_le_incl.
-    (*- simpl in He.
-      apply top_le_eq in He.
-      split.
-      + apply (Z.le_trans b' b a); eauto.
-      + rewrite He.
-        destruct a. rewrite /le_addr. simpl.
-        by apply Z.leb_le. *)
+    inversion Hvpc; simplify_eq. solve_addr.
   Qed.
 
   (* (* The following takes a capability and defines the proposition of points-to's of its region *) *)

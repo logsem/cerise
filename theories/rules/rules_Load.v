@@ -16,66 +16,184 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Ltac inv_head_step :=
-    repeat match goal with
-           | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-           | H : to_val _ = Some _ |- _ => apply of_to_val in H
-           | H : _ = of_val ?v |- _ =>
-             is_var v; destruct v; first[discriminate H|injection H as H]
-           | H : cap_lang.prim_step ?e _ _ _ _ _ |- _ =>
-             try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-             (*    and can thus better be avoided. *)
-             let φ := fresh "φ" in 
-             inversion H as [| φ]; subst φ; clear H
-           end.
+  Definition reg_allows_load (regs : Reg) (r : RegName) p g b e a  :=
+    regs !! r = Some (inr ((p, g), b, e, a)) ∧
+    readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true.
 
-  Ltac option_locate_mr m r :=
-    repeat match goal with
-           | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-           | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                         assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
-           end.
+  Local Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
+  Proof. solve_decision. Qed.
 
-  Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-    match goal with
-    | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-      let σ := fresh "σ" in
-      let e' := fresh "e'" in
-      let σ' := fresh "σ'" in
-      let Hstep' := fresh "Hstep'" in
-      let He0 := fresh "He0" in
-      let Ho := fresh "Ho" in
-      let He' := fresh "H"e' in
-      let Hσ' := fresh "H"σ' in
-      let Hefs := fresh "Hefs" in
-      let φ0 := fresh "φ" in
-      let p0 := fresh "p" in
-      let g0 := fresh "g" in
-      let b0 := fresh "b" in
-      let e2 := fresh "e" in
-      let a0 := fresh "a" in
-      let i := fresh "i" in
-      let c0 := fresh "c" in
-      let HregPC := fresh "HregPC" in
-      let Hi := fresh "H"i in
-      let Hexec := fresh "Hexec" in 
-      inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?]; 
-      inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-      (simpl in *; try congruence );
-      subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-      try (rewrite HPC in HregPC;
-           inversion HregPC;
-           repeat match goal with
-                  | H : _ = p0 |- _ => destruct H
-                  | H : _ = g0 |- _ => destruct H
-                  | H : _ = b0 |- _ => destruct H
-                  | H : _ = e2 |- _ => destruct H
-                  | H : _ = a0 |- _ => destruct H
-                  end ; destruct Hi ; clear HregPC ;
-           rewrite Hpc_a Hinstr /= ;
-           rewrite Hpc_a Hinstr in Hstep)
-    end.
+  Global Instance reg_allows_load_dec_eq  (regs : Reg) (r : RegName) p g b e a : Decision (reg_allows_load regs r p g b e a).
+  Proof.
+    unfold reg_allows_load. destruct (regs !! r). destruct s.
+    - right. intros Hfalse; destruct Hfalse; by exfalso.
+    - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
+      refine (option_dec_eq _ _ _). intros.
+      refine (sum_eq_dec _ _); unfold EqDecision; intros. refine (cap_dec_eq x0 y0).
+      solve_decision.
+    - solve_decision.
+  Qed.
+
+  Inductive Load_failure (regs: Reg) (r1 r2: RegName) (mem : PermMem):=
+  | Load_fail_const z:
+      regs !r! r2 = inl z ->
+      Load_failure regs r1 r2 mem
+  | Load_fail_bounds p g b e a:
+      regs !r! r2 = inr ((p, g), b, e, a) ->
+      (readAllowed p = false ∨ withinBounds ((p, g), b, e, a) = false) →
+      Load_failure regs r1 r2 mem
+  (* Notice how the None below also includes all cases where we read an inl value into the PC, because then incrementing it will fail *)
+  | Load_fail_invalid_PC p p' g b e a loadv:
+      regs !r! r2 = inr ((p, g), b, e, a) ->
+      mem !! a = Some(p', loadv) →
+      incrementPC (<[ r1 := loadv ]> regs) = None ->
+      Load_failure regs r1 r2 mem
+  .
+
+  Inductive Load_spec
+    (regs: Reg) (r1 r2: RegName)
+    (regs': Reg) (mem : PermMem) : cap_lang.val → Prop
+  :=
+  | Load_spec_success p p' g b e a loadv :
+    reg_allows_load regs r2 p g b e a →
+    mem !! a = Some(p', loadv) →
+    incrementPC
+      (<[ r1 := loadv ]> regs) = Some regs' ->
+    Load_spec regs r1 r2 regs' mem NextIV
+
+  | Load_spec_failure :
+    Load_failure regs r1 r2 mem ->
+    Load_spec regs r1 r2 regs' mem FailedV.
+
+  Definition allow_load_map_or_true r (regs : Reg) (mem : PermMem):=
+    ∃ p g b e a, read_reg_inr regs r p g b e a ∧
+      if decide (reg_allows_load regs r p g b e a) then
+        ∃ p' w, mem !! a = Some (p', w) ∧ PermFlows p p'
+      else True.
+
+  Lemma allow_load_implies_loadv:
+    ∀ (r2 : RegName) (mem0 : PermMem) (r : Reg) (p : Perm) (g : Locality) (b e a : Addr),
+      allow_load_map_or_true r2 r mem0
+      → r !r! r2 = inr (p, g, b, e, a)
+      → readAllowed p = true
+      → withinBounds (p, g, b, e, a) = true
+      → ∃ (p' : Perm) (loadv : Word),
+          mem0 !! a = Some (p', loadv) ∧ PermFlows p p'.
+  Proof.
+    intros r2 mem0 r p g b e a HaLoad Hr2v Hra Hwb.
+    unfold allow_load_map_or_true in HaLoad.
+    destruct HaLoad as (?&?&?&?&?&[Hrr | Hrl]&Hmem).
+    - assert (Hrr' := Hrr). option_locate_mr_once m r. rewrite Hr2 in Hr2v; inversion Hr2v; subst.
+      case_decide as HAL.
+      * auto.
+      * unfold reg_allows_load in HAL.
+        destruct HAL; auto.
+    - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
+  Qed.
+
+
+   Lemma wp_load Ep
+     pc_p pc_g pc_b pc_e pc_a pc_p'
+     r1 r2 w mem regs :
+   cap_lang.decode w = Load r1 r2 →
+   PermFlows pc_p pc_p' →
+   isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+   (∀ (ri: RegName), is_Some (regs !! ri)) →
+   mem !! pc_a = Some (pc_p', w) →
+   allow_load_map_or_true r2 regs mem →
+
+   {{{ (▷ [∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+       ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
+     Instr Executable @ Ep
+   {{{ regs' retv, RET retv;
+       ⌜ Load_spec regs r1 r2 regs' mem retv⌝ ∗
+         ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
+   Proof.
+     iIntros (Hinstr Hfl Hvpc Hnep Hri Hmem_pc HaLoad φ) "(>Hmem & >Hmap) Hφ".
+     iApply wp_lift_atomic_head_step_no_fork; auto.
+     iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+     assert (pc_p' ≠ O).
+     { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
+      destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+
+     iAssert (⌜ r = regs ⌝)%I with "[Hr Hmap]" as %<-.
+     { iApply (gen_heap_valid_allSepM with "[Hr]"); eauto. }
+
+     (* Derive the PC in memory *)
+     iDestruct (gen_mem_valid_inSepM pc_a _ _ _ _ mem _ m with "Hm Hmem") as %H2; eauto.
+     option_locate_mr m r.
+     iModIntro.
+
+     iSplitR. by iPureIntro; apply normal_always_head_reducible.
+     iNext. iIntros (e2 σ2 efs Hpstep).
+     apply prim_step_exec_inv in Hpstep.
+     destruct Hpstep as (-> & -> & (c & -> & Hstep)). iSplitR; auto.
+     inversion Hstep as [| ? ? ? ? ?].
+     { cbn in H2. rewrite HPC in H2. congruence. }
+     assert (p = pc_p /\ g = pc_g /\ b = pc_b /\ e = pc_e /\ a = pc_a) as (-> & -> & -> & -> & ->).
+     { cbn in *. rewrite HPC in H2. by inversion H2. }
+     clear H2 H3. cbn in H4. rewrite Hpc_a in H4.
+     assert (i = Load r1 r2) as ->. { by rewrite Hinstr in H4. } clear H4.
+     destruct c0 as [xx1 xx2]; cbn in H7, H8; subst xx1 xx2. subst φ0.
+     cbn [fst snd].
+     cbn in H5.
+
+     (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
+     destruct (r !r! r2) as  [| (([[p g] b] & e) & a) ] eqn:Hr2v.
+     { (* Failure: r2 is not a capability *)
+       symmetry in H5; inversion H5; clear H5. subst c σ2.
+       iFailWP "Hφ" Load_fail_const.
+     }
+
+     destruct (readAllowed p && withinBounds ((p, g), b, e, a)) eqn:HRA; rewrite HRA in H5.
+     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
+       symmetry in H5; inversion H5; clear H5. subst c σ2.
+       apply andb_false_iff in HRA.
+       iFailWP "Hφ" Load_fail_bounds.
+     }
+     apply andb_true_iff in HRA; destruct HRA as (Hra & Hwb).
+
+     (* Prove that a is in the memory map now, otherwise we cannot continue *)
+     pose proof (allow_load_implies_loadv r2 mem r p g b e a) as (p' & loadv & Hmema & HPFp); auto.
+
+     (* Given this, prove that a is also present in the memory itself *)
+     iDestruct (mem_v_implies_m_v mem m p g b e a p' loadv with "Hmem Hm" ) as %Hma ; auto.
+
+     rewrite Hma in H5.
+     destruct (decide (∃ regs', incrementPC (<[ r1 := loadv ]> r) = Some regs')) as [[r' HIncrS]| HIncrN ].
+     2: { (* Failure: the PC could not be incremented correctly *)
+       assert (incrementPC (<[r1:=loadv]> r) = None) as HPCFail.
+       {
+         destruct (incrementPC (<[r1:=loadv]> r)); last by auto.
+         destruct HIncrN. by exists r0.
+       }
+       rewrite incrementPC_fail_updatePC /= in H5; auto.
+       symmetry in H5; inversion H5; clear H5. subst c σ2.
+       (* Update the heap resource, using the resource for r2 *)
+       destruct (Hri r1) as [r0v Hr0].
+       iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+       iFailWP "Hφ" Load_fail_invalid_PC.
+     }
+
+     (* Success *)
+     clear Hstep. rewrite /update_reg /= in H5.
+     eapply (incrementPC_success_updatePC _ m) in HIncrS
+       as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
+     rewrite HuPC in H5; clear HuPC; inversion H5; clear H5; subst c σ2. cbn.
+     iFrame.
+     iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+     iFrame. iModIntro. iApply "Hφ". iFrame.
+     iPureIntro.  eapply Load_spec_success; auto.
+       * split; auto. apply (regs_lookup_inr_eq r r2).
+         exact Hr2v.
+         auto.
+       * exact Hmema.
+       * unfold incrementPC. by rewrite HPC'' Ha_pc'.
+     Unshelve. all: auto.
+   Qed.
 
   Lemma wp_load_success E r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a'
         pc_p' p' :
@@ -329,7 +447,7 @@ Section cap_lang_rules.
     assert (<[r1:=w]> r !r! PC = (inr (pc_p, pc_g, pc_b, pc_e, pc_a)))
       as Hpc_new1.
     { rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.
@@ -487,7 +605,7 @@ Section cap_lang_rules.
     assert (<[PC:=m !m! pc_a]> r !r! PC = m !m! pc_a)
       as Hpc_new1.
     { rewrite (locate_eq_reg _ _ (r !r! PC)); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true).
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { apply Is_true_eq_true. by apply (isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -726,7 +844,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -790,7 +908,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a0.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  
@@ -863,7 +981,7 @@ Section cap_lang_rules.
       as Hpc_new1.
     { intros a0.
       rewrite (locate_ne_reg _ _ _ (inr (pc_p, pc_g, pc_b, pc_e, pc_a))); eauto. }
-    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <=? pc_e)%a) = true). 
+    assert (readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a) = true).
     { by apply Is_true_eq_true,(isCorrectPC_ra_wb _ pc_g). }
     iApply fupd_frame_l. 
     iSplit.  

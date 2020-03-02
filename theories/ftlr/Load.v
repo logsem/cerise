@@ -1,8 +1,11 @@
-From stdpp Require Import base. 
+From stdpp Require Import base.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel.
 From cap_machine Require Import ftlr_base.
+From cap_machine.rules Require Import rules_Load.
+Require Import Coq.Logic.Decidable.
+Import uPred.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -10,7 +13,7 @@ Section fundamental.
             Heap: heapG Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation WORLD := (leibnizO (STS * STS)).
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -18,449 +21,359 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
+  (* The necessary resources to close the region again, except for the points to predicate, which we will store separately
+   The boolean bl can be used to keep track of whether or not we have applied a wp lemma *)
+  Definition region_open_resources W l ls p φ v (bl : bool): iProp Σ :=
+    (∃ ρ,
+     sts_state_std (countable.encode l) ρ
+    ∗ ⌜ρ ≠ Revoked⌝
+    ∗ open_region_many (l :: ls) W
+    ∗ ⌜p ≠ O⌝
+    ∗ (if bl then monotonicity_guarantees_region ρ v p φ ∗ φ (W, v)
+       else ▷ monotonicity_guarantees_region ρ v p φ ∗  ▷ φ (W, v) )
+    ∗ rel l p φ)%I.
 
-  Lemma load_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
+  Lemma load_inr_eq {regs r p0 g0 b0 e0 a0 p1 g1 b1 e1 a1}:
+    reg_allows_load regs r p0 g0 b0 e0 a0 →
+    read_reg_inr regs r p1 g1 b1 e1 a1 →
+    p0 = p1 ∧ g0 = g1 ∧ b0 = b1 ∧ e0 = e1 ∧ a0 = a1.
+  Proof.
+      intros Hrar H3.
+      pose (Hrar' := Hrar).
+      destruct Hrar' as (Hinr0 & _ & _). destruct H3 as [Hinr1 | Hinl1].
+      * rewrite Hinr0 in Hinr1. inversion Hinr1.
+        rewrite H4 H5 H6 H7 H8 in Hrar; auto.
+      * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
+  Qed.
+
+  (* TODO: move together with reginr *)
+  Lemma addr_ne_reg_ne {regs : leibnizO Reg} {r1 r2 : RegName}
+        {p0 g0 b0 e0 a0 p g b e a}:
+    regs !! r1 = Some (inr (p0, g0, b0, e0, a0))
+    → regs !! r2 = Some (inr (p, g, b, e, a))
+    → a0 ≠ a → r1 ≠ r2.
+  Proof.
+    intros Hr1 Hr2 Hne.
+    destruct (decide (r1 = r2)); simplify_eq; auto.
+  Qed.
+
+  (* TODO: move together with reginr *)
+  Lemma addr_ne_reg_inr_ne {regs : leibnizO Reg} {r1 r2 : RegName}
+        {p0 g0 b0 e0 a0 p g b e a}:
+    read_reg_inr regs r1 p0 g0 b0 e0 a0
+    → regs !! r2 = Some (inr (p, g, b, e, a))
+    → a0 ≠ a → r1 ≠ r2.
+  Proof.
+    intros Hr1 Hr2 Hne. intros contra.
+    destruct Hr1 as [Hinr | [z Hinl] ].
+    - rewrite contra in Hinr; rewrite Hinr in Hr2; inversion Hr2; congruence.
+    -  rewrite contra in Hinl; rewrite Hinl in Hr2; inversion Hinl; congruence.
+  Qed.
+
+  (* Description of what the resources are supposed to look like after opening the region if we need to, but before closing the region up again*)
+  Definition allow_load_res W r (regs : Reg) pc_a pc_p:=
+    (∃ p g b e a, ⌜read_reg_inr regs r p g b e a⌝ ∗
+    if decide (reg_allows_load regs r p g b e a ) then
+       if decide (a ≠ pc_a) then
+         ∃ p' w, a ↦ₐ [p'] w  ∗ ⌜PermFlows p p'⌝ ∗ (region_open_resources W a [pc_a] p' interpC w false)
+       else ⌜PermFlows p pc_p⌝ ∗ open_region pc_a W
+      else open_region pc_a W)%I.
+
+  Definition allow_load_mem W r (regs : Reg) pc_a pc_p pc_w (mem : PermMem) (bl: bool):=
+    (∃ p g b e a, ⌜read_reg_inr regs r p g b e a⌝ ∗
+    if decide (reg_allows_load regs r p g b e a) then
+       if decide (a ≠ pc_a) then
+         ∃ p' w, ⌜mem = <[a:=(p',w)]> (<[pc_a:=(pc_p,pc_w)]> ∅)⌝ ∗
+            ⌜PermFlows p p'⌝ ∗ (region_open_resources W a [pc_a] p' interpC w bl)
+       else  ⌜mem = <[pc_a:=(pc_p,pc_w)]> ∅⌝ ∗ ⌜PermFlows p pc_p⌝ ∗ open_region pc_a W     else  ⌜mem = <[pc_a:=(pc_p,pc_w)]> ∅⌝ ∗ open_region pc_a W)%I.
+
+  Lemma create_load_res:
+    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+      (g : Locality) (b e a : Addr) (src : RegName) (p0 : Perm)
+      (g0 : Locality) (b0 e0 a0 : Addr),
+      PermFlows p p'
+      → read_reg_inr (<[PC:=inr (p, g, b, e, a)]> r) src p0 g0 b0 e0 a0
+      → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
+          -∗ read_write_cond a p' interp
+          -∗ open_region a W
+          -∗ sts_full_world sts_std W
+          -∗ allow_load_res W src (<[PC:=inr (p, g, b, e, a)]> r) a p'
+          ∗ sts_full_world sts_std W.
+  Proof.
+    intros W r p p' g b e a src p0 g0 b0 e0 a0 Hpf HVsrc.
+    iIntros "#Hreg #Hinva Hr Hsts".
+    do 5 (iApply sep_exist_r; iExists _). iFrame "%".
+    destruct (decide (reg_allows_load (<[PC:=inr (p, g, b, e, a)]> r) src p0 g0 b0 e0 a0)). 1: rename r0 into Hallows.
+    -  destruct Hallows as [Hrinr [Hra Hwb] ].
+       destruct (decide (a0 ≠ a)); rename n into Haeq.
+       * apply andb_prop in Hwb as [Hle Hge].
+         rewrite /leb_addr in Hle,Hge.
+
+         (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
+         assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+
+         iDestruct ("Hreg" $! src n) as "Hvsrc".
+         rewrite lookup_insert_ne in Hrinr; last by congruence.
+         rewrite /RegLocate Hrinr.
+         iDestruct (read_allowed_inv _ a0 with "Hvsrc") as "Hconds"; auto;
+           first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
+
+         rewrite /read_write_cond.
+         iDestruct "Hconds" as (p0' Hfl') "Hrel'".
+         iDestruct (region_open_prepare with "Hr") as "Hr".
+         iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
+         { rewrite /withinBounds /leb_addr Hle Hge. auto. }
+         destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
+         (*We can finally frame off Hsts here, since it is no longer needed after opening the region*)
+         iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+         { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
+         iExists p0', w0. iSplitL "Ha0"; auto. iSplitR; auto. unfold region_open_resources.
+         iExists ρ'. iFrame "%". iFrame. by iFrame "#".
+       * iFrame.
+         destruct (decide (src = PC)) ; simplify_eq.
+          + rewrite lookup_insert in Hrinr.
+            inversion Hrinr. rewrite -H4. auto.
+          +  iDestruct ("Hreg" $! src n) as "Hsrcv".
+              rewrite lookup_insert_ne in Hrinr; last by congruence.
+              rewrite /RegLocate Hrinr.
+              iDestruct (read_allowed_inv _ a0 with "Hsrcv") as (p'' Hfl') "#Harel'".
+              { apply andb_true_iff in Hwb as [Hle Hge].
+                split; [by apply Z.leb_le | by apply Z.ltb_lt]; auto. }
+              { destruct p0; inversion Hra; auto. }
+              rewrite /read_write_cond.
+              assert (a0 = a). by apply dec_stable.
+              rewrite -H3.
+                by iDestruct (rel_agree a0 p' p'' with "[$Hinva $Harel']") as "[-> _]".
+    - iFrame.
+  Qed.
+
+  Lemma load_res_implies_mem_map:
+    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+      (g : Locality) (b e a : Addr) (w : Word) (src : RegName),
+      allow_load_res W src (<[PC:=inr (p, g, b, e, a)]> r) a p'
+      -∗ a ↦ₐ[p'] w
+      -∗ ∃ mem0 : PermMem,
+          allow_load_mem W src (<[PC:=inr (p, g, b, e, a)]> r) a p' w mem0 false
+            ∗ ▷ ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w0 : leibnizO Word),
+                ⌜pw = (p0, w0)⌝ ∗ a0 ↦ₐ[p0] w0).
+  Proof.
+    intros W r p p' g b e a w src.
+    iIntros "HLoadRes Ha".
+    iDestruct "HLoadRes" as (p1 g1 b1 e1 a1) "[% HLoadRes]".
+
+    case_decide as Hallows.
+    -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ].
+        case_decide as Haeq.
+        * iDestruct "HLoadRes" as (p'0 w0) "[HLoadCh HLoadRest]".
+          iExists _.
+          iSplitL "HLoadRest".
+          + iExists p1,g1,b1,e1,a1. iSplitR; first auto.
+            do 2 (case_decide; last by exfalso).
+            iExists p'0,w0. iSplitR; auto.
+          + iNext.
+            iApply memMap_resource_2ne; auto; iFrame.
+      * iExists _.
+        iSplitL "HLoadRes".
+          + iExists p1,g1,b1,e1,a1. iSplitR; auto.
+            case_decide; last by exfalso. case_decide; first by exfalso.
+            iDestruct "HLoadRes" as (HPF) "HLoadRes". iSplitR; auto.
+          + iNext. by iApply memMap_resource_1.
+    - iExists _.
+      iSplitL "HLoadRes".
+      + iExists p1,g1,b1,e1,a1. iSplitR; auto.
+        case_decide; first by exfalso. auto.
+      + iNext. by iApply memMap_resource_1.
+    Qed.
+
+  Lemma mem_map_implies_pure_conds:
+    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+      (g : Locality) (b e a : Addr) (w : Word) (src : RegName)
+      (mem0 : PermMem),
+        allow_load_mem W src (<[PC:=inr (p, g, b, e, a)]> r) a p' w mem0 false
+        -∗ ⌜mem0 !! a = Some (p', w)⌝
+          ∗ ⌜allow_load_map_or_true src (<[PC:=inr (p, g, b, e, a)]> r) mem0⌝.
+  Proof.
+    iIntros (W r p p' g b e a w src mem0) "HLoadMem".
+    iDestruct "HLoadMem" as (p1 g1 b1 e1 a1) "[% HLoadRes]".
+    case_decide as Hallows.
+    -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ].
+        case_decide as Haeq.
+        * iDestruct "HLoadRes" as (p'0 w0 ->) "[% _]".
+          iSplitR. rewrite lookup_insert_ne; auto. by rewrite lookup_insert.
+          iExists p1,g1,b1,e1,a1. iSplitR; auto.
+          case_decide; last by exfalso.
+          iExists p'0,w0. iSplitR; auto.
+          by rewrite lookup_insert.
+        * iDestruct "HLoadRes" as "[-> [% HLoadRes] ]".
+          iSplitR. by rewrite lookup_insert.
+          iExists p1,g1,b1,e1,a1. iSplitR; auto.
+          case_decide; last by exfalso.
+          iExists p',w. by rewrite Haeq lookup_insert.
+    - iDestruct "HLoadRes" as "[-> HLoadRes]".
+      iSplitR. by rewrite lookup_insert.
+      iExists p1,g1,b1,e1,a1. iSplitR; auto.
+      case_decide; first by exfalso. auto.
+  Qed.
+
+  Lemma allow_load_mem_later:
+    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+      (g : Locality) (b e a : Addr) (w : Word) (src : RegName)
+      (mem0 : PermMem),
+      allow_load_mem W src (<[PC:=inr (p, g, b, e, a)]> r) a p' w mem0 false
+      -∗ ▷ allow_load_mem W src (<[PC:=inr (p, g, b, e, a)]> r) a p' w mem0 true.
+  Proof.
+    iIntros (W r p p' g b e a w src mem0) "HLoadMem".
+    iDestruct "HLoadMem" as (p0 g0 b0 e0 a0) "[% HLoadMem]".
+    do 5 (iApply later_exist_2; iExists _). iApply later_sep_2; iSplitR; auto.
+    case_decide.
+    - case_decide.
+      * iDestruct "HLoadMem" as (p'0 w0) "[-> [% HLoadMem] ]".
+        do 2 (iApply later_exist_2; iExists _).
+        do 2 (iApply later_sep_2; iSplitR; auto).
+      * iFrame.
+    - iFrame.
+  Qed.
+
+  Lemma mem_map_recover_res:
+    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+      (g : Locality) (b e a : Addr) (w : Word) (src : RegName)  (p0 p'0 : Perm)
+      (g0 : Locality) (b0 e0 a0 : Addr) (mem0 : PermMem) (loadv : Word),
+      reg_allows_load (<[PC:=inr (p, g, b, e, a)]> r) src p0 g0 b0 e0 a0
+      → mem0 !! a0 = Some (p'0, loadv)
+      → allow_load_mem W src (<[PC:=inr (p, g, b, e, a)]> r) a p' w mem0 true
+        -∗ ((fixpoint interp1) W) w
+        -∗ ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w0 : Word),
+                ⌜pw = (p0, w0)⌝ ∗ a0 ↦ₐ[p0] w0)
+        -∗ open_region a W ∗ a ↦ₐ[p'] w ∗ ((fixpoint interp1) W) loadv.
+  Proof.
+    intros W r p p' g b e a w src p0 p'0 g0 b0 e0 a0 mem0 loadv Hrar Ha0.
+    iIntros "HLoadMem #Hw Hmem".
+    iDestruct "HLoadMem" as (p1 g1 b1 e1 a1) "[% HLoadRes]".
+    destruct (decide (reg_allows_load (<[PC:=inr (p, g, b, e, a)]> r) src p1 g1 b1 e1 a1)). 1: rename r0 into Hallows.
+    -  destruct Hallows as [Hrinr [Hra Hwb] ].
+        destruct (decide (a1 ≠ a)); rename n into Haeq.
+        * iDestruct "HLoadRes" as (p'1 w0) "[-> [% HLoadRes] ]".
+          iDestruct "HLoadRes" as (ρ1) "(Hstate' & % & Hr & % & (Hfuture & #HV) & Hrel')".
+          rewrite -memMap_resource_2ne. iDestruct "Hmem" as  "[Ha1 $]".
+          iDestruct (region_close_next with "[$Hr $Ha1 $Hrel' $Hstate' $Hfuture]") as "Hr"; eauto.
+          { apply not_elem_of_cons; split; [auto|apply not_elem_of_nil]. }
+          iDestruct (region_open_prepare with "Hr") as "$".
+          destruct (load_inr_eq Hrar H3) as (<- & <- &<- &<- &<-).
+          rewrite lookup_insert in Ha0; inversion Ha0. all: done.
+        * apply dec_stable in Haeq.
+          iDestruct "HLoadRes" as "[-> [% $ ] ]".
+          rewrite -memMap_resource_1.
+          destruct (load_inr_eq Hrar H3) as (<- & <- &<- &<- &<-).
+          rewrite Haeq lookup_insert in Ha0. inversion Ha0. by iFrame.
+    - destruct (load_inr_eq Hrar H3) as (<- & <- &<- &<- &<-); by exfalso.
+  Qed.
+
+
+  Lemma load_case(W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst src : RegName) :
     ftlr_instr W r p p' g b e a w (Load dst src) ρ.
   Proof.
     intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
-    destruct (decide (PC = dst)),(decide (PC = src)); simplify_eq. 
-    * (* Load PC PC ==> fail *)
-      iApply (wp_load_fail3 with "[HPC Ha]"); eauto; iFrame. 
-      iNext. iIntros "[HPC Ha] /=".
-      iApply wp_pure_step_later; auto.
-      iApply wp_value.
-      iNext. iIntros "%"; inversion a0.
-    * (* Load PC src ==> success if src ↦ inr, fail o/w *)
-      specialize Hsome with src as Hsrc. 
-      destruct Hsrc as [wsrc Hsomesrc]. 
-      assert ((delete PC r !! src) = Some wsrc) as Hsomesrc'.
-      { rewrite -Hsomesrc. apply (lookup_delete_ne r PC src). eauto. }
-      rewrite delete_insert_delete.
-      iDestruct ((big_sepM_delete _ _ src) with "Hmap") as "[Hsrc Hmap]"; eauto.
-      destruct wsrc.
-      { (* src ↦ inl z ==> fail *)
-        iApply (wp_load_fail2 with "[HPC Ha Hsrc]"); eauto; iFrame.
-        iNext. iIntros "[HPC [Ha Hsrc]] /=".
-        iApply wp_pure_step_later; auto. iApply wp_value.
-        iNext. iIntros "%"; inversion a0.  
-      } 
-      (* src ↦ inr c ==> need to open invariant *)
-      destruct c. do 3 destruct p0.
-      (* if p is not ra or a0 is not within bounds: fail *)
-      destruct (decide ((readAllowed p0 && withinBounds ((p0,l),a2,a1,a0)) = false)).
-      { (* Capability fail *)
-        iApply (wp_load_fail1 with "[HPC Ha Hsrc]"); eauto.
-        - split; eauto. apply andb_false_iff. eauto.
-        - iFrame.
-        - iNext. iIntros "[HPC [Ha Hsrc]] /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value.
-          iNext. iIntros "%"; inversion a3. 
-      }
-      (* readAllowed p && withinBounds ((p,l),a2,a1,a0) *)
-      apply (not_false_is_true (_ && _)),andb_prop in n0
-        as [Hra Hwb]. apply andb_prop in Hwb as [Hle Hge].
-      rewrite /leb_addr in Hle,Hge.
-      (* get validity of capability in src from Hreg *)
-      apply reg_eq_sym in n. 
-      iDestruct ("Hreg" $! src n) as "Hvsrc". 
-      rewrite /RegLocate Hsomesrc.
-      iDestruct (read_allowed_inv _ a0 with "Hvsrc") as "Hconds"; auto; 
-        first (split; by apply Z.leb_le).        
-      (* Each condition in Hconds take a step in similar fashion *)
-      destruct (decide (a = a0)).
-      {
-        subst. 
-        (* no need to open any invariant, in this case we need to do cases on 
-           a = a0. if a = a0, then the program should crash, since we will not 
-           be able to increment w once loaded into PC. *)
-        iApply (wp_load_fail5 with "[HPC Ha Hsrc]"); try iFrame; auto. 
-        - apply PermFlows_refl.
-        - split;auto. apply andb_true_iff. split; auto.
-        - destruct (a0 =? a0)%a eqn:Hcontr; first done.
-          rewrite /eqb_addr Z.eqb_refl in Hcontr; inversion Hcontr. 
-        - iNext. iIntros "(_ & _ & _ & _) /=".
-          iApply wp_pure_step_later;[auto|]. iNext.
-          iApply wp_value. iIntros (Hcontr); inversion Hcontr.  
-      }
-      rewrite /read_write_cond. 
-      iDestruct "Hconds" as (p0' Hfl') "Hrel'".
-      iDestruct (region_open_prepare with "Hr") as "Hr".
-      iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
-      { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-      destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
-      iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
-      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
-      iAssert (∀ w1 w2, full_map (<[PC:=w1]> (<[src:=w2]> r)))%I as "#Hfull'".
-      { iIntros (w1 w2 r0).
-        iPureIntro.
-        destruct (decide (PC = r0)); [simplify_eq; rewrite lookup_insert; eauto|].
-        rewrite lookup_insert_ne.
-        destruct (decide (src = r0)); [simplify_eq; rewrite lookup_insert; eauto|].
-        rewrite lookup_insert_ne. apply Hsome. done. done.
-      }
-      destruct w0.
-      { iApply (wp_load_fail5 with "[HPC Ha Hsrc Ha0]")
-        ;[eauto|apply Hfp|apply Hfl'| | | | |]; eauto. 
-        - split; [eauto|]. apply Is_true_eq_true; eauto.
-          apply andb_prop_intro.
-          split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-        - destruct (a0 =? a)%a; iFrame. 
-        - iNext. iIntros "[HPC [Ha [Hsrc Ha0]]] /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value.
-          iNext. iIntros "%"; inversion a3. 
-      }
-      destruct c,p1,p1,p1.
-      destruct ((a3 + 1)%a) eqn:Ha0.
-      2: { (* If src points to top address, load crashes *)
-        iApply (wp_load_fail4 with "[HPC Hsrc Ha Ha0]")
-        ;[eauto|apply Hfp|apply Hfl'| | | | | |]; eauto.
-        - split; [eauto|]. apply Is_true_eq_true; eauto.
-          apply andb_prop_intro.
-          split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-        - destruct (a0 =? a)%a; iFrame. 
-        - iNext. iIntros "[HPC [Ha [Hsrc Ha0]]] /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value.
-          iNext. iIntros (Hcontr); inversion Hcontr. 
-      }
-      (* successful load into PC *)
-      iApply (wp_load_success_PC with "[$HPC $Ha $Hsrc Ha0]")
-      ;[eauto|apply Hfp|apply Hfl'| | | | |]; eauto.
-      { split; [eauto|]. apply Is_true_eq_true; eauto.
-        apply andb_prop_intro.
-        split; apply Is_true_eq_left; [apply Hle|apply Hge].  }
-      iNext. iIntros "[HPC [Ha [Hsrc Ha0]]] /=".
-      iApply wp_pure_step_later; auto. iNext. 
-      iAssert (⌜p1 ≠ RX⌝ ∧ ⌜p1 ≠ RWX⌝ ∧ ⌜p1 ≠ RWLX⌝ →
-               PC ↦ᵣ inr (p1, l0, a5, a4, a6) -∗
-                  WP Seq (Instr Executable) {{ w, ⌜w = FailedV⌝
-                    ∗ PC ↦ᵣ inr (p1, l0, a5, a4, a6) }})%I
-            as "Hfail".
-      { iIntros "(% & % & %) HPC".
+    rewrite delete_insert_delete.
+    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+
+    (* To read out PC's name later, and needed when calling wp_load *)
+    assert(∀ x : RegName, is_Some (<[PC:=inr (p, g, b, e, a)]> r !! x)) as Hsome'.
+    {
+      intros. destruct (decide (x = PC)).
+      rewrite e0 lookup_insert; unfold is_Some. by eexists.
+      by rewrite lookup_insert_ne.
+    }
+
+    (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1*)
+    assert (∃ p0 g0 b0 e0 a0 , read_reg_inr (<[PC:=inr (p, g, b, e, a)]> r) src p0 g0 b0 e0 a0) as [p0 [g0 [b0 [e0 [a0 HVsrc] ] ] ] ].
+    {
+      specialize Hsome' with src as Hsrc.
+      destruct Hsrc as [wsrc Hsomesrc].
+      unfold read_reg_inr. destruct wsrc. 2: destruct c,p0,p0,p0. all: repeat eexists.
+      right. by exists z. by left.
+    }
+
+    (* Step 1: open the region, if necessary, and store all the resources obtained from the region in allow_load_res *)
+    iDestruct (create_load_res with "Hreg Hinva Hr Hsts") as "[HLoadRes Hsts]"; eauto.
+    (* Clear helper values; they exist in the existential now *)
+    clear HVsrc p0 g0 b0 e0 a0.
+
+    (* Step2: derive the concrete map of memory we need, and any spatial predicates holding over it *)
+    iDestruct (load_res_implies_mem_map W  with "HLoadRes Ha") as (mem) "[HLoadMem HMemRes]".
+
+    (* Step 3:  derive the non-spatial conditions over the memory map*)
+    iDestruct (mem_map_implies_pure_conds with "HLoadMem") as %(HReadPC & HLoadAP).
+
+    (* Step 4: move the later outside, so that we can remove it after applying wp_load *)
+    iDestruct (allow_load_mem_later with "HLoadMem") as "HLoadMem".
+
+    iApply (wp_load with "[Hmap HMemRes]"); eauto.
+    {by rewrite lookup_insert. }
+    {iSplitR "Hmap"; auto. }
+    iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
+
+    destruct HSpec as [* ? ? Hincr|].
+    { apply incrementPC_Some_inv in Hincr.
+      destruct Hincr as (?&?&?&?&?&?&?&?&?).
+      iApply wp_pure_step_later; auto. iNext.
+
+      (* Step 5: return all the resources we had in order to close the second location in the region, in the cases where we need to *)
+      iDestruct (mem_map_recover_res with "HLoadMem Hw Hmem") as "[Hr [Ha #HLVInterp ] ]"; eauto.
+
+      (* Exceptional success case: we do not apply the induction hypothesis in case we have a faulty PC*)
+      destruct (decide (x = RX ∨ x = RWX ∨ x = RWLX)).
+      2 : {
+        assert (x ≠ RX ∧ x ≠ RWX ∧ x ≠ RWLX). split; last split; by auto.
+        iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
+        { rewrite H7. by rewrite lookup_insert. }
         iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_notCorrectPC with "[HPC]");
-              [apply not_isCorrectPC_perm;eauto|iFrame|].
-        iNext. iIntros "HPC /=".
-        iApply wp_pure_step_later; auto.
-        iNext. iApply wp_value. iFrame. done.
+        iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
+        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iIntros (a1); inversion a1.
       }
-      (* The new register state is valid *)
-      iAssert (interp_registers W (<[src:=inr (p0, l, a2, a1, a0)]> r)) as "[#Hfull'' #Hreg'']".
-      { iSplitL.
-        { iIntros (r0). iPureIntro.
-          destruct (decide (src = r0)); simplify_eq;
-            [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto. }
-        iIntros (r0) "%".
-        destruct (decide (src = r0)); simplify_eq.
-        + by rewrite /RegLocate lookup_insert.
-        + rewrite /RegLocate lookup_insert_ne; auto.
-          iDestruct ("Hreg" $! (r0) a7) as "Hr0".
-          specialize Hsome with r0.
-          destruct Hsome as [c Hsome].
-          rewrite Hsome. iApply "Hr0"; auto.
-      }
-      (* close region *)
-      iDestruct (region_close_next with "[$Hr $Ha0 $Hrel' $Hstate' $Hfuture]") as "Hr"; eauto.
-      { apply not_elem_of_cons; split; [auto|apply not_elem_of_nil]. }
-      iDestruct (region_open_prepare with "Hr") as "Hr". 
+
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      destruct (perm_eq_dec p1 RX).
-      { iClear "Hfail".
-        iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
-          [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-          rewrite -delete_insert_ne; auto;
-            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-            [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-        (* apply IH *)
-        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. 
-        iAlways. subst p1.
-        rewrite (fixpoint_interp1_eq _ (inr (RX, l0, a5, a4, a3))) /=.
-        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. iSplit; auto. }
-      destruct (perm_eq_dec p1 RWX).
-      { subst p1. iClear "Hfail".
-        iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
-          [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-          rewrite -delete_insert_ne; auto;
-            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-            [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-        (* apply IH *)
-        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. 
-        iAlways.
-        rewrite (fixpoint_interp1_eq _ (inr (RWX, l0, a5, a4, a3))) /=.
-        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. iSplit; auto. }
-      destruct (perm_eq_dec p1 RWLX).
-      { subst p1. iClear "Hfail".
-        iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
-          [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-          rewrite -delete_insert_ne; auto;
-            iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-            [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-        rewrite (fixpoint_interp1_eq _ (inr (RWLX, l0, a5, a4, a3))) /=.
-        destruct l0; auto.
-        (* apply IH *)
-        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto. 
-        iAlways.
-        iDestruct "Hval" as (q Hq) "[Hb0e0 Hexec]".
-        iExists q. iSplit; auto. }
-      iDestruct ("Hfail" with "[%] [HPC]") as "Hfail"; auto.
-      iApply (wp_wand with "Hfail"). iIntros (v) "[-> HPC]".
-      iIntros. discriminate.
-    * destruct (Hsome dst) as [wdst Hsomedst].
-      rewrite delete_insert_delete.
-      assert ((delete PC r !! dst) = Some wdst) as Hsomedst'.
-      { rewrite -Hsomedst. apply (lookup_delete_ne r PC dst). eauto. }
-      iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]"; eauto. 
-      destruct (a + 1)%a eqn:Ha'. 
-      2: { (* if PC cannot be incremented ==> dst is updated, then program crashes *)
-          iApply (wp_load_fail6 with "[HPC Hdst Ha]"); eauto.
-          iFrame. iNext. iIntros "[HPC [Ha Hdst]] /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value; auto.
-          iNext. 
-          iIntros (Hcontr); inversion Hcontr. 
+      iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]").
+      { cbn. intros. subst regs'.
+        rewrite lookup_insert_is_Some.
+        destruct (decide (PC = x5)); [ auto | right; split; auto].
+        rewrite lookup_insert_is_Some.
+        destruct (decide (dst = x5)); [ auto | right; split; auto]. }
+      (* Prove in the general case that the value relation holds for the register that was loaded to - unless it was the PC.*)
+       { iIntros (ri Hri).
+        subst regs'.
+        erewrite locate_ne_reg; [ | | reflexivity]; auto.
+        destruct (decide (ri = dst)).
+        { subst ri.
+          erewrite locate_eq_reg; [ | reflexivity]; auto.
         }
-        (* if PC can be incremented, load succeeds ==> apply IH *)
-        iApply (wp_load_success_fromPC with "[HPC Hdst Ha]"); eauto.
-        iFrame.
-        iNext. iIntros "[HPC [Ha Hdst]] /=".
-        iApply wp_pure_step_later; auto.
-        (* we want to apply IH on the updated register state *)
-        iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
-                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-                 rewrite -delete_insert_ne; auto;
-                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-        (* apply IH *)
-        iAssert (▷ interp_registers _ (<[dst:=w]> r))%I
-          as "#[Hfull' Hreg']".
-        { iNext. iSplitL.
-          { iIntros (r0). iPureIntro.
-            destruct (decide (dst = r0)); simplify_eq;
-              [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto. }
-          iIntros (r0) "%".
-          destruct (decide (dst = r0)); simplify_eq.
-              + by rewrite /RegLocate lookup_insert.
-              + rewrite /RegLocate lookup_insert_ne; auto.
-                iDestruct ("Hreg" $! (r0) a1) as "Hr0".
-                specialize Hsome with r0. 
-                destruct Hsome as [c Hsome].
-                rewrite Hsome. iApply "Hr0"; auto.
-        } 
-        iNext.
-        iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto; iFrame "#". 
-    * destruct (Hsome src) as [wsrc Hsomesrc].
-      assert ((delete PC r !! src) = Some wsrc) as Hsomesrc'.
-      { rewrite -Hsomesrc. apply (lookup_delete_ne r PC src). eauto. }
-      rewrite delete_insert_delete. 
-      iDestruct ((big_sepM_delete _ _ src) with "Hmap") as "[Hsrc Hmap]"; eauto.
-      destruct wsrc.
-      { (* src ↦ inl z ==> fail *)
-        iApply (wp_load_fail2 with "[HPC Ha Hsrc]"); eauto; iFrame.
-        iNext. iIntros "[HPC [Ha Hsrc]] /=".
-        iApply wp_pure_step_later; auto. iApply wp_value.
-        iNext. iIntros (Hcontr); inversion Hcontr. 
-      } 
-      (* src ↦ inr c ==> need to open invariant *)
-      destruct c. do 3 destruct p0.
-       (* if p is not ra or a0 is not within bounds: fail *)
-      destruct (decide ((readAllowed p0 && withinBounds ((p0,l),a2,a1,a0)) = false)).
-      { (* Capability fail *)
-        iApply (wp_load_fail1 with "[HPC Ha Hsrc]"); eauto.
-        - split; eauto. apply andb_false_iff. eauto.
-        - iFrame.
-        - iNext. iIntros "[HPC [Ha Hsrc]] /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value. iNext.
-          iIntros (Hcontr); inversion Hcontr. 
-      }
-      (* readAllowed p && withinBounds ((p,l),a2,a1,a0) *)
-      apply (not_false_is_true (_ && _)),andb_prop in n1
-        as [Hra Hwb]. apply andb_prop in Hwb as [Hle Hge].
-      rewrite /leb_addr in Hle,Hge. 
-      (* the contents of src is valid *)
-      iAssert ((fixpoint interp1) _ (inr (p0, l, a2, a1, a0))) as "#Hvsrc".
-      { apply reg_eq_sym in n0. iDestruct ("Hreg" $! src n0) as "Hvsrc".
-        rewrite /RegLocate Hsomesrc /=. by iApply "Hvsrc". }
-      iDestruct (read_allowed_inv _ a0 with "Hvsrc") as "Hconds"; auto; 
-        first (split; by apply Z.leb_le).
-      (* Each condition in Hconds take a step in similar fashion *)
-      iAssert ((∃ w' p'', ▷ ((if (a0 =? a)%a then emp else a0 ↦ₐ[p''] w') -∗ open_region a W)
-                            ∗ (if (a0 =? a)%a then emp else ▷ a0 ↦ₐ[p''] w')
-                            ∗ ▷ ▷ (fixpoint interp1) W w' ∗ ⌜PermFlows p0 p''⌝
-               (* ∗ (∃ E', ⌜get_namespace w' = Some E'⌝ ∧ ⌜↑E' ⊆ E⌝)*))
-        ∗ sts_full_world sts_std W
-        -∗ WP Instr Executable
-        {{ v, WP Seq (cap_lang.of_val v)
-                 {{ v0, ⌜v0 = HaltedV⌝
-                        → ∃ (r1 : Reg) (W' : leibnizO (STS * STS)),
-                        full_map r1
-                        ∧ registers_mapsto r1
-                                           ∗ ⌜related_sts_priv_world W W'⌝
-                                           ∗ na_own logrel_nais ⊤ ∗ sts_full_world sts_std W' ∗ region W' }} }} )%I
-        with "[Ha HPC Hsrc Hmap Hown Hstate Hmono]" as "Hstep".
-      { iIntros "[Hres Hsts]".
-        iDestruct "Hres" as (w0 p'') "[Hr [Ha0 [#Hw0 %]]]". 
-        (* if PC cannot be incremented ==> dst is updated, then program crashes *)
-        destruct (a + 1)%a eqn:Ha'; simplify_eq.
-        2: { destruct (decide (src = dst)); simplify_eq. 
-             - iApply (wp_load_fail8 with "[HPC Hsrc Ha Ha0]");
-                 [eauto|eauto|apply Hfp|apply H3| | | | | | ]; eauto.
-               { split; apply Is_true_eq_true; [eauto|]. 
-                 apply andb_prop_intro.
-                 split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-               }
-               iFrame. iNext. iIntros "[HPC [Ha [Hdst Ha0]]] /=".
-               iApply wp_pure_step_later; auto.
-               iApply wp_value. iNext.
-               iIntros (Hcontr); inversion Hcontr. 
-             - destruct (Hsome dst) as [wdst Hsomedst].
-               assert (delete PC r !! dst = Some wdst) as Hsomedst'.
-               { rewrite -Hsomedst. apply (lookup_delete_ne r PC dst). eauto. }
-               assert (delete src (delete PC r) !! dst = Some wdst) as Hsomedst''.
-               { rewrite -Hsomedst'. apply (lookup_delete_ne (delete PC r) src dst).
-                 eauto. }
-               iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]";
-                 eauto.
-               iApply (wp_load_fail7 with "[HPC Hsrc Hdst Ha Ha0]");
-                 [eauto|apply Hfp|apply H3| | | | | | ]; eauto.
-               { split; apply Is_true_eq_true; [eauto|]. 
-                 apply andb_prop_intro.
-                 split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-               }
-               iFrame. iNext. iIntros "(HPC & Ha & Hsrc & Ha0 & Hdst) /=".
-               iApply wp_pure_step_later; auto.
-               iApply wp_value. iNext.
-               iIntros (Hcontr); inversion Hcontr. 
-            }
-        (* two successful steps: loading to a fresh dst, and loading to src *)
-        destruct (decide (src = dst)); simplify_eq.
-        - iApply (wp_load_success_same with "[HPC Hsrc Ha Ha0]");
-                 [eauto|eauto|apply Hfp|apply H3| | | | | | ]; eauto.
-          { split; apply Is_true_eq_true; [eauto|]. 
-            apply andb_prop_intro.
-            split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-          }
-          iFrame. iNext. iIntros "(HPC & Hdst & Ha & Ha0) /=".
-          iApply wp_pure_step_later; auto. 
-          iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
-                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-                 rewrite -delete_insert_ne; auto;
-                 iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                 [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-          (* apply IH *)
-          (* we will apply the IH on an updated register state *)
-          (* we can only prove the following once we have taken a step *)
-          iAssert (▷ interp_registers W (<[dst:=if (a0 =? a)%a then w else w0]> r))%I as "#[Hfull' Hreg']".
-          { iNext. iSplitR.
-            - iIntros (r0).
-              iPureIntro.
-              destruct (Hsome r0) as [c Hsomec]. 
-              destruct (decide (dst = r0)); simplify_eq;
-                [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto.
-            - iIntros (r0) "% /=".
-              iDestruct ("Hreg" $! (r0)) as "Hv".
-              destruct (Hsome r0) as [c Hsomec]. 
-              destruct (decide (dst = r0)); simplify_eq.
-              + rewrite /RegLocate lookup_insert.
-                destruct (a0 =? a)%a;[iApply "Hw"|iApply "Hw0"]. 
-              + rewrite /RegLocate lookup_insert_ne; auto. 
-                rewrite Hsomec. iApply "Hv"; auto.  
-          }
-          iNext.
-          iSpecialize ("Hr" with "Ha0").
-          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-          iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto; iFrame "#". 
-        - destruct (Hsome dst) as [wdst Hsomedst].
-          assert (delete PC r !! dst = Some wdst) as Hsomedst'.
-          { rewrite -Hsomedst. apply (lookup_delete_ne r PC dst). eauto. }
-          assert (delete src (delete PC r) !! dst = Some wdst) as Hsomedst''.
-          { rewrite -Hsomedst'. apply (lookup_delete_ne (delete PC r) src dst).
-            eauto. }
-          iDestruct ((big_sepM_delete _ _ dst) with "Hmap") as "[Hdst Hmap]";
-            eauto.
-          iApply (wp_load_success with "[HPC Hsrc Hdst Ha Ha0]");
-                 [eauto|apply Hfp|apply H3| | | | | | ]; eauto.
-          { split; apply Is_true_eq_true; [eauto|]. 
-            apply andb_prop_intro.
-            split; apply Is_true_eq_left; [apply Hle|apply Hge]. 
-          }
-          destruct (a0 =? a)%a; iFrame. 
-          iNext. iIntros "(HPC & Hdst & Ha & Hsrc & Ha0) /=".
-          iApply wp_pure_step_later; auto. 
-          iDestruct ((big_sepM_delete _ _ dst) with "[Hdst Hmap]") as "Hmap /=";
-                [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-                rewrite -delete_insert_ne; auto;
-                iDestruct ((big_sepM_delete _ _ src) with "[Hsrc Hmap]") as "Hmap /=";
-                [apply lookup_insert|rewrite delete_insert_delete;iFrame|];
-                rewrite -delete_insert_ne; auto;
-                iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-                [apply lookup_insert|rewrite delete_insert_delete|].
-          rewrite -delete_insert_ne; auto. iFrame. 
-          (* apply IH *)
-          (* we will apply the IH on an updated register state *)
-          (* we can only prove the following once we have taken a step *)
-          iAssert (▷ interp_registers _ (<[src:=inr (p0, l, a2, a1, a0)]>
-                                         (<[dst:=if (a0 =? a)%a then w else w0]> r)))%I
-                    as "#[Hfull' Hreg']".
-          { iNext. iSplitR.
-            - iIntros (r0).
-              destruct (Hsome r0) as [c Hsomec].
-              iPureIntro.
-              destruct (decide (src = r0)); simplify_eq;
-                [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto.
-              destruct (decide (dst = r0)); simplify_eq;
-                [rewrite lookup_insert|rewrite lookup_insert_ne]; eauto.
-            - iIntros (r0) "%".
-              destruct (Hsome r0) as [c Hsomec].
-              iDestruct ("Hreg" $! (r0)) as "Hv".
-              destruct (decide (src = r0)); simplify_eq.
-              + rewrite /RegLocate lookup_insert.
-                iApply "Hvsrc". 
-              + rewrite /RegLocate lookup_insert_ne; auto. 
-                rewrite Hsomec. destruct (decide (dst = r0)); simplify_eq.
-                * rewrite lookup_insert. destruct (a0 =? a)%a; auto. 
-                * rewrite lookup_insert_ne. rewrite Hsomec. iApply "Hv"; auto.
-                  auto. 
-          }
-          iNext.
-          iSpecialize ("Hr" with "Ha0").
-          iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-          iApply ("IH" with "[] [] [$Hmap] [$Hr] [$Hsts] [$Hown]"); eauto; iFrame "#". 
-      }
-      destruct (decide (a = a0)).
-      { iApply "Hstep". iFrame "Hsts".
-        iExists w,p0.
-        destruct (a0 =? a)%a eqn:Ha0; [|apply Z.eqb_neq in Ha0;congruence].
-        iFrame "#". iSplitL.
-        - iIntros "_". iFrame. 
-        - iPureIntro. apply PermFlows_refl. 
-      }
-      iDestruct "Hconds" as (p'' Hp'') "Hinv0". 
-      iDestruct (region_open_prepare with "Hr") as "Hr".
-      iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
-      { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-      destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
-      rewrite /read_write_cond.
-      iDestruct (region_open_next _ _ _ a0 p'' ρ' with "[$Hinv0 $Hr $Hsts]") as (w0) "(Hsts & Hstate' & Hr & Ha0 & % & Hmono' & #Hw0)"; eauto.
-      { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
-      iApply "Hstep". iFrame.
-      iExists w0,p''. 
-      destruct (a0 =? a)%a eqn:Ha0; [apply Z.eqb_eq,z_of_eq in Ha0;congruence|].
-      iFrame "∗ #". 
-      iSplitL; auto. iNext. 
-      iIntros "Ha0".
-      iDestruct (region_close_next with "[$Hr $Ha0 $Hinv0 $Hstate' $Hmono']") as "Hr"; eauto.
-      { apply not_elem_of_cons; split; [auto|apply not_elem_of_nil]. }
-      iDestruct (region_open_prepare with "Hr") as "$". 
-      Unshelve. exact 0. 
+        { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
+          iApply "Hreg"; auto. }
+       }
+       { subst regs'. rewrite insert_insert. iApply "Hmap". }
+       { destruct (decide (PC = dst)); simplify_eq.
+         - destruct o as [HRX | [HRWX | HRWLX] ]; auto.
+           rewrite lookup_insert in H5; inversion H5. rewrite HRWLX.
+           iDestruct (writeLocalAllowed_implies_local _ RWLX with "[HLVInterp]") as "%"; auto.
+           destruct x0; unfold isLocal in H7; first by congruence.
+           iPureIntro; do 2 right; auto.
+         - rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5.
+           by rewrite -H8 -H9.
+       }
+       { iAlways. auto.
+         destruct (decide (PC = dst)); simplify_eq.
+         - rewrite lookup_insert in H5; inversion H5. rewrite (fixpoint_interp1_eq W).
+           iApply readAllowed_implies_region_conditions; auto.
+           { destruct o as [o | [o | o] ]; rewrite o; auto . }
+         - iExists p'. rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5. iSplitR; first by rewrite -H8. auto.
+       }
+    }
+    { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }
+    Unshelve. all: auto.
   Qed.
-      
+
 End fundamental.
