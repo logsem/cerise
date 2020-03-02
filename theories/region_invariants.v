@@ -57,23 +57,21 @@ Section heap.
   | Permanent
   | Revoked.
 
-  Global Instance region_type_EqDecision : EqDecision region_type.
-  Proof. exact (fun x y => match x, y with
-                        | Temporary, Temporary
-                        | Permanent, Permanent
-                        | Revoked, Revoked => left eq_refl
-                        | _, _ => ltac:(right; auto)
-                        end).
-  Qed.
-  Global Instance region_type_finite : finite.Finite region_type.
-  Proof. exact (finite.enc_finite
-                  (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
-                  (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
-                  3%nat
-                  ltac:(destruct x; cbv; auto)
-                  ltac:(destruct x; cbv; auto)
-                  ltac:(do 2 (destruct i; try lia))).
-  Qed.
+  Global Instance region_type_EqDecision : EqDecision region_type :=
+    (fun x y => match x, y with
+             | Temporary, Temporary
+             | Permanent, Permanent
+             | Revoked, Revoked => left eq_refl
+             | _, _ => ltac:(right; auto)
+             end).
+  Global Instance region_type_finite : finite.Finite region_type :=
+    (finite.enc_finite
+       (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
+       (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
+       3%nat
+       ltac:(destruct x; cbv; auto)
+       ltac:(destruct x; cbv; auto)
+       ltac:(do 2 (destruct i; try lia))).
   Global Instance region_type_countable : Countable region_type.
   Proof. apply finite.finite_countable. Qed.
 
@@ -410,14 +408,10 @@ Section heap.
     - destruct (pwl p) eqn:Hpwl.
       + iDestruct (region_open_temp_pwl with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
         iExists _; iFrame.
-        rewrite decide_True; auto.
       + iDestruct (region_open_temp_nwl with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
         iExists _; iFrame.
-        rewrite decide_False;auto. 
-        intros [_ Hcontr]. done.
     - iDestruct (region_open_perm with "[$Hrel $Hreg $Hfull]") as (v) "(Hr & Hfull & Hstate & Hl & Hp & Hmono & φ)"; auto.
       iExists _; iFrame.
-      rewrite decide_False; auto. intros [Hcontr _]. done.
   Qed.
 
   (* Closing the region without updating the sts collection *)
@@ -437,7 +431,7 @@ Section heap.
     { iFrame. iExists Temporary. iFrame. iExists _,_,p,_. rewrite Hpwl. iFrame "∗ #". (iSplitR;[eauto|]). done. }
     iExists _. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
-    rewrite -HMeq. iFrame. auto. 
+    rewrite -HMeq. iFrame. auto.
   Qed.
 
   Lemma region_close_temp_nwl W l φ p v :
@@ -490,11 +484,8 @@ Section heap.
     destruct ρ; try contradiction.
     - destruct (pwl p) eqn:Hpwl.
       + iApply region_close_temp_pwl; eauto. iFrame.
-        rewrite decide_True; auto.
       + iApply region_close_temp_nwl; eauto. iFrame.
-        rewrite decide_False; auto. intros [_ Hcontr]. done.
     - iApply region_close_perm; eauto. iFrame.
-      rewrite decide_False; auto. intros [Hcontr _]. done.
   Qed.
 
   (* ---------------------------------------------------------------------------------------- *)
