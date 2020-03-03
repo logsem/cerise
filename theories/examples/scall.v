@@ -440,7 +440,7 @@ Section scall.
     (* restrict r_t0 (Local,E) *)
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_restrict_success_z with "[$HPC $Hinstr $Hr_t0]");
-      [apply restrict_r_z|apply Hfl| |iContiguous_next Ha 20|rewrite epp_local_e;auto|auto|].
+      [apply restrict_r_z|apply Hfl| |iContiguous_next Ha 20|rewrite epp_local_e;auto|auto|auto|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t0)" "Hinstr" "Hi".
     (* RESTRICT STACK CAP *)
