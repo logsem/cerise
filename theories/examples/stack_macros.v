@@ -465,9 +465,9 @@ Section stack_macros.
       (* jnz rt4 rt3 *)
       iDestruct "Hprog" as "[Hi Hprog]".
       iApply (wp_bind (fill [SeqCtx])).
-      iApply (wp_jnz_success_next _ rt4 rt3 _ _ _ _ a2 a3 with "[HPC Hi Hr_t3]");
+      iApply (wp_jnz_success_next _ rt4 rt3 _ _ _ _ a2 a3 with "[HPC Hi Hr_t3 Hr_t4]");
         first apply jnz_i; first apply Hfl1;eauto.
-      iFrame. iEpilogue "(HPC & Ha2 & Hr_t3)".
+      iFrame. iEpilogue "(HPC & Ha2 & Hr_t4 & Hr_t3)".
       (* store rt 0 *)
       rewrite/ withinBounds in Hwb.
       apply andb_prop in Hwb as [Hwb_b%Z.leb_le Hwb_e%Z.ltb_lt].
