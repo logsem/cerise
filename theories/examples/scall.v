@@ -476,7 +476,7 @@ Section scall.
     { iCorrectPC a_first a_cont. }
     { rewrite !andb_true_iff !Z.leb_le. repeat split; try lia.
       eapply withinBounds_le_addr; eauto. }
-    assert ((a17 + 1)%a = Some a18) as ->;[iContiguous_next Ha 24|].
+    assert ((a17 + 1)%a = Some a18) as ->;[iContiguous_next Ha 24|]; auto.
     iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_t2 & Hr_stk)" "Hinstr" "Hi".
     (* MCLEAR *)
     assert ([a_first; push2] ++ [cont; push0] ++ [cont0; push1] ++ [cont1; push3] ++ [cont2; push4] ++ [cont3; push5]

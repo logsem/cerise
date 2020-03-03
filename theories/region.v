@@ -217,7 +217,7 @@ Section region.
   Qed.
 
   Lemma region_addrs_split b a e :
-    (b <= a ∧ a < e)%a →
+    (b <= a ∧ a <= e)%a →
     region_addrs b e = region_addrs b a ++ region_addrs a e.
   Proof with try (unfold region_size; solve_addr).
     intros [? ?]. unfold region_addrs at 1.
@@ -225,6 +225,17 @@ Section region.
     rewrite (_: region_size b e - region_size b a = region_size a e)...
     rewrite (_: ^(b + region_size b a)%a = a)...
     rewrite -/(region_addrs _ _) //.
+  Qed.
+
+  Lemma isWithin_region_addrs_decomposition a0 a1 b e:
+    (b <= a0 /\ a1 <= e /\ a0 <= a1)%a ->
+    region_addrs b e = region_addrs b a0 ++
+                       region_addrs a0 a1 ++
+                       region_addrs a1 e.
+  Proof with try (unfold region_size; solve_addr).
+    intros (Hba0 & Ha1e & Ha0a1).
+    rewrite (region_addrs_split b a0 e)... f_equal.
+    rewrite (region_addrs_split a0 a1 e)...
   Qed.
 
   Lemma region_addrs_first a b :

@@ -2,7 +2,7 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Import ftlr_base monotone.
+From cap_machine Require Import ftlr_base monotone region.
 From cap_machine Require Import addr_reg.
 From cap_machine.rules Require Import rules_Subseg.
 
@@ -43,30 +43,6 @@ Section fundamental.
     generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H6).
     generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H4).
     auto.
-  Qed.
-
-  (* TODO: This should be move to region.v *)
-  Lemma region_split b a e :
-    (b <= a /\ a <= e)%a ->
-    region_addrs b e = region_addrs b a ++ region_addrs a e.
-  Proof.
-    intros [? ?].
-    rewrite /region_addrs.
-    rewrite (region_addrs_aux_decomposition (region_size b e) b (region_size b a)).
-    2: unfold region_size; solve_addr.
-    do 2 f_equal; unfold region_size; solve_addr.
-  Qed.
-
-  (* TODO: This should be move to region.v *)
-  Lemma isWithin_region_addrs_decomposition a0 a1 b e:
-    (b <= a0 /\ a1 <= e /\ a0 <= a1)%a ->
-    region_addrs b e = region_addrs b a0 ++
-                       region_addrs a0 a1 ++
-                       region_addrs a1 e.
-  Proof with try (unfold region_size; solve_addr).
-    intros (Hba0 & Ha1e & Ha0a1).
-    rewrite (region_split b a0 e)... f_equal.
-    rewrite (region_split a0 a1 e)...
   Qed.
 
   Lemma within_in_range:
@@ -270,11 +246,11 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Subseg with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec.
+    destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with

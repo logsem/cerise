@@ -940,13 +940,7 @@ Ltac iFailWP Hcont fail_case_name :=
 
 (* ----------------- useful definitions to factor out the wp specs ---------------- *)
 
-(*--- word_of_argument, z_of_argument ---*)
-
-Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
-  match a with
-  | inl n => Some (inl n)
-  | inr r => regs !! r
-  end.
+(*--- z_of_argument ---*)
 
 Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
   match a with
@@ -956,6 +950,30 @@ Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
     | Some (inl z) => Some z
     | _ => None
     end
+  end.
+
+Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs arg = Some z →
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+Proof.
+  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+Qed.
+
+Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs arg = Some z →
+  regs ⊆ regs' →
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
+Proof.
+  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
+
+(*--- word_of_argument ---*)
+
+Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
+  match a with
+  | inl n => Some (inl n)
+  | inr r => regs !! r
   end.
 
 Lemma word_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (w:Word) :
@@ -976,20 +994,32 @@ Proof.
   intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
-Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+(*--- addr_of_argument ---*)
+
+Definition addr_of_argument regs src :=
+  match z_of_argument regs src with
+  | Some n => z_to_addr n
+  | None => None
+  end.
+
+Lemma addr_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs arg = Some a →
+  ∃ z, z_to_addr z = Some a ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
 Proof.
-  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  unfold addr_of_argument, z_of_argument.
+  intro. repeat case_match; simplify_eq/=; eauto. eexists. eauto.
 Qed.
 
-Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
+Lemma addr_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs arg = Some a →
   regs ⊆ regs' →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
+  ∃ z, z_to_addr z = Some a ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
 Proof.
-  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+  unfold addr_of_argument, z_of_argument.
+  intros ? HH. repeat case_match; simplify_eq/=; eauto. eexists. split; eauto.
+  unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
 (*--- regs_of ---*)
@@ -1014,6 +1044,7 @@ Definition regs_of (i: instr): gset RegName :=
   | IsPtr dst src => {[ dst; src ]}
   | Mov r arg => {[ r ]} ∪ regs_of_argument arg
   | Restrict r1 arg => {[ r1 ]} ∪ regs_of_argument arg
+  | Subseg r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | _ => ∅
   end.
 
