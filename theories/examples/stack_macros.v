@@ -92,7 +92,7 @@ Section stack_macros.
     match goal with
     | Hlen : length ?a = ?n |- _ =>
       let a' := fresh "a" in
-      destruct a as [_ | a' a]; inversion Hlen; simpl
+      destruct a as [| a' a]; inversion Hlen; simpl
     end.
 
   Ltac iPrologue prog :=
@@ -289,7 +289,7 @@ Section stack_macros.
     iIntros (Ha Hne Hhd Hvpc Hfl) "(>Hreg & >HPC & >Hrclear & Hφ)".
     iDestruct (big_sepL2_length with "Hrclear") as %Har.
     iRevert (Hne Har Hhd Hvpc Ha).
-    iInduction (a) as [_ | a1'] "IH" forall (r a1 an). iIntros (Hne Har Hhd Hvpc Ha).
+    iInduction (a) as [| a1'] "IH" forall (r a1 an). iIntros (Hne Har Hhd Hvpc Ha).
     by inversion Hhd; simplify_eq.
     iDestruct "Hreg" as (ws) "Hreg".
     iIntros (Hne Har Hhd Hvpc Ha).
@@ -588,7 +588,7 @@ Section stack_macros.
     { destruct (((length a) =? (length (mclear_instrs r _ _)))%nat) eqn:Hlen; auto.
       rewrite /mclear Hlen. by iApply bi.False_elim. }
     rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply beq_nat_true in Hlen.
-    destruct a as [_ | a1 a]; inversion Hlen; simpl.
+    destruct a as [| a1 a]; inversion Hlen; simpl.
     move: (contiguous_between_cons_inv_first _ _ _ _ Hnext).
     match goal with |- (?a = _) -> _ => intro; subst a end.
     iPrologue "Hmclear".
@@ -724,7 +724,7 @@ Section stack_macros.
         destruct Hjnz_off as (Ha16 & Ha16' & Hend).
         by inversion Hend.
       }
-      destruct a as [_ | a17 a]; inversion Hlen.
+      destruct a as [| a17 a]; inversion Hlen.
       iApply (wp_move_success_z _ _ _ _ _ a16 a17 _ r_t4 _ 0 with "[HPC Hi Hr_t4]");
         first apply move_z_i; first apply Hfl1;
         first iCorrectPC a_first a'; auto.
