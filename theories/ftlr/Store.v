@@ -46,7 +46,8 @@ Section fundamental.
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
 
-    destruct (reg_eq_dec dst PC).
+    admit. Admitted.
+    (*destruct (reg_eq_dec dst PC).
     - subst dst.
       destruct Hp as [-> | Hp].
       { (* if p is RX, write is not allowed *)
@@ -1187,6 +1188,6 @@ Section fundamental.
         iNext. iIntros. iApply wp_pure_step_later; auto.
         iNext. iApply wp_value. iIntros. discriminate.
         Unshelve. all:auto.
-  Qed.
+  Qed.*)
 
 End fundamental.
