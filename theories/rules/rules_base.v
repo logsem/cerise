@@ -241,16 +241,30 @@ Ltac inv_head_step :=
            inversion H as [| φ]; subst φ; clear H
          end.
 
-Ltac option_locate_mr_once m r :=
+Ltac option_locate_m_once m :=
   match goal with
-  | H : m !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                assert (m !m! a = w) as Ha; [ by (unfold MemLocate; rewrite H) | clear H]
-  | H : r !! ?a = Some ?w |- _ => let Ha := fresh "H"a in
-                                assert (r !r! a = w) as Ha; [ by (unfold RegLocate; rewrite H) | clear H]
+  | H : m !! ?a = Some ?w |- _ => let Htmp := fresh in
+                                rename H into Htmp ;
+                                let Ha := fresh "H" m a in
+                                pose proof (mem_lookup_eq _ _ _ Htmp) as Ha; clear Htmp
   end.
-
+Ltac option_locate_r_once r :=
+  match goal with
+  | H : r !! ?a = Some ?w |- _ => let Htmp := fresh in
+                                rename H into Htmp ;
+                                let Ha := fresh "H" r a in
+                                pose proof (regs_lookup_eq _ _ _ Htmp) as Ha; clear Htmp
+  end.
+Ltac option_locate_mr_once m r :=
+  first [ option_locate_m_once m | option_locate_r_once r ].
 Ltac option_locate_mr m r :=
   repeat option_locate_mr_once m r.
+Ltac option_locate_m m :=
+  repeat option_locate_m_once m.
+Ltac option_locate_r m :=
+  repeat option_locate_r_once m.
+
+
 
 Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
   match goal with
@@ -778,7 +792,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     option_locate_mr m r.
-    rewrite -HPC in Hnpc.
+    rewrite -HrPC in Hnpc.
     iApply fupd_frame_l.
     iSplit.
     + rewrite /reducible.
@@ -854,7 +868,7 @@ Section cap_lang_rules.
                              (Halted,_));
         eauto; simpl; try congruence.
     - iIntros (e2 σ2 efs Hstep).
-      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      inv_head_step_advanced m r HrPC Hmpc_a Hinstr Hstep HrPC.
       iFrame.
       iNext. iModIntro. iSplitR; eauto.
       iApply "Hφ".
@@ -891,7 +905,7 @@ Section cap_lang_rules.
                              (Failed,_));
         eauto; simpl; try congruence.
     - iIntros (e2 σ2 efs Hstep).
-      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
+      inv_head_step_advanced m r HrPC Hmpc_a Hinstr Hstep HrPC.
       iFrame.
       iNext. iModIntro. iSplitR; eauto.
       iApply "Hφ".
