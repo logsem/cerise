@@ -134,7 +134,7 @@ Section cap_lang_rules.
     unfold allow_store_map_or_true in HaStore.
     destruct HaStore as (?&?&?&?&?&?&[Hrr | Hrl]&Hwo&Hmem).
     - assert (Hrr' := Hrr). option_locate_mr_once m r.
-      rewrite Hr1 in Hr2v; inversion Hr2v; subst.
+      rewrite Hrr1 in Hr2v; inversion Hr2v; subst.
       case_decide as HAL.
       * auto.
       * unfold reg_allows_store in HAL.
@@ -181,10 +181,10 @@ Section cap_lang_rules.
      apply prim_step_exec_inv in Hpstep.
      destruct Hpstep as (-> & -> & (c & -> & Hstep)). iSplitR; auto.
      inversion Hstep as [| ? ? ? ? ?].
-     { cbn in H2. rewrite HPC in H2. congruence. }
+     { cbn in H2. rewrite HrPC in H2. congruence. }
      assert (p = pc_p /\ g = pc_g /\ b = pc_b /\ e = pc_e /\ a = pc_a) as (-> & -> & -> & -> & ->).
-     { cbn in *. rewrite HPC in H2. by inversion H2. }
-     clear H2 H3. cbn in H4. rewrite Hpc_a in H4.
+     { cbn in *. rewrite HrPC in H2. by inversion H2. }
+     clear H2 H3. cbn in H4. rewrite Hmpc_a in H4.
      assert (i = Store r1 r2) as ->. { by rewrite Hinstr in H4. } clear H4.
      destruct c0 as [xx1 xx2]; cbn in H7, H8; subst xx1 xx2. subst φ0.
      cbn [fst snd].
@@ -223,7 +223,7 @@ Section cap_lang_rules.
        - cbv in HLW; by exfalso.
        - destruct (word_of_argument_inr _ _ _ HStoreV) as (r0 & -> & Hr0s).
          destruct (isLocalWord_cap_isLocal _ HLW) as (p' & g' & b' & e' & a' & -> & HIL).
-         option_locate_mr m r; rewrite Hr0 HIL in H5.
+         option_locate_mr m r. rewrite Hrr0 HIL in H5.
          (* TODO: when refactoring the other rules, make opsem use pwl to avoid this ugliness*)
          destruct p; try by exfalso. all: by inversion H5.
       }
@@ -243,7 +243,7 @@ Section cap_lang_rules.
      pose proof (allow_store_implies_storev r1 r2 mem r p g b e a storev) as (p' & oldv & Hmema & HPFp); auto.
 
      (* Given this, prove that a is also present in the memory itself *)
-     iDestruct (mem_v_implies_m_v mem m p g b e a p' oldv with "Hmem Hm" ) as %Hma ; auto. by apply writeA_implies_readA.
+     iDestruct (mem_v_implies_m_v mem m p g b e a p' oldv with "Hmem Hm" ) as %Hma ; auto. by apply (writeAllowed_nonO p p').
 
      (* Prove that p' gives us sufficient permissions to update the memory *)
      pose proof (wa_and_locality_allows_update p p' storev Hwa HPFp HLocal) as HLoadA.
