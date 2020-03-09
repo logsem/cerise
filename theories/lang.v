@@ -174,10 +174,6 @@ Module cap_lang.
       + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
       + apply andb_prop_intro.
         split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
-    (*- apply andb_prop_intro. split.
-      + destruct H6,pc_p; inversion H0; try inversion H1; auto; try congruence.
-      + apply andb_prop_intro. split; apply Is_true_eq_left; apply Z.leb_le; auto.
-        destruct pc_a; simpl. by apply Z.leb_le.*)
   Qed.
 
   Lemma not_isCorrectPC_perm p g b e a :
