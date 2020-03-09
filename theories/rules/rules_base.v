@@ -674,6 +674,24 @@ Section cap_lang_rules.
     iIntros "HH"; iDestruct "HH" as (p w0 Heq) "HH"; by inversion Heq.
   Qed.
 
+  Lemma address_dupl_false a w1 w2 p1 p2 :
+    p1 ≠ O → p2 ≠ O → a ↦ₐ[p1] w1 -∗ a ↦ₐ[p2] w2 -∗ False.
+  Proof.
+    iIntros (p1ne p2ne) "Hr1 Hr2".
+    iDestruct "Hr1" as (g1) "Hr1".
+    iDestruct "Hr2" as (g2) "Hr2".
+    iDestruct (MonRefDealloc with "[$Hr1]") as "[[Hr1 | %] _]"; last congruence.
+    iDestruct (MonRefDealloc with "[$Hr2]") as "[[Hr2 | %] _]"; last congruence.
+    iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
+    contradiction.
+  Qed.
+
+  Lemma address_neq a1 a2 w1 w2 p1 p2  :
+    p1 ≠ O → p2 ≠ O → a1 ↦ₐ[p1] w1 -∗ a2 ↦ₐ[p2] w2 -∗ ⌜ a1 ≠ a2 ⌝.
+  Proof.
+    iIntros (p1ne p2ne) "H1 H2". iIntros (contr). subst a1. iApply (address_dupl_false with "H1 H2");auto.
+  Qed.
+
   Lemma memMap_resource_0  :
         True ⊣⊢ ([∗ map] a↦pw ∈ ∅, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w).
   Proof.
@@ -692,7 +710,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma memMap_resource_2ne (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
-        a1 ≠ a2 → a1 ↦ₐ[p1'] w1 ∗ a2 ↦ₐ[p2'] w2  ⊣⊢ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I.
+    a1 ≠ a2 → ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w)%I ⊣⊢ a1 ↦ₐ[p1'] w1 ∗ a2 ↦ₐ[p2'] w2.
   Proof.
     intros.
     rewrite big_sepM_delete; last by apply lookup_insert.
@@ -700,8 +718,65 @@ Section cap_lang_rules.
     rewrite delete_insert; auto.
     rewrite -memMap_resource_0.
     iSplit; iIntros "HH".
-    - iDestruct "HH" as "[H1 H2]". iSplitL "H1"; auto.
     - iDestruct "HH" as "[H1 [H2 _ ] ]".  iSplitL "H1"; by rewrite -resource_exists.
+    - iDestruct "HH" as "[H1 H2]". iSplitL "H1"; auto.
+  Qed.
+
+  Lemma memMap_resource_2ne_apply (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+    p1' ≠ O → p2' ≠ O → a1 ↦ₐ[p1'] w1 -∗ a2 ↦ₐ[p2'] w2 -∗ ([∗ map] a↦pw ∈  <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅), ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗ ⌜a1 ≠ a2⌝.
+  Proof.
+    iIntros (Hne1 Hne2) "Hi Hr2a".
+    iDestruct (address_neq  with "Hi Hr2a") as %Hne; auto.
+    iSplitL; last by auto.
+    iApply memMap_resource_2ne; auto. iSplitL "Hi"; auto.
+  Qed.
+
+  Lemma memMap_resource_2gen (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+    ( ∃ mem, ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∧
+       ⌜ if  (a2 =? a1)%a
+       then mem =  (<[a1:=(p1',w1)]> ∅)
+       else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
+)%I ⊣⊢ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
+  Proof.
+    destruct (a2 =? a1)%a eqn:Heq.
+    - apply Z.eqb_eq, z_of_eq in Heq. rewrite memMap_resource_1.
+      iSplit.
+      * iDestruct 1 as (mem) "[HH ->]".  by iSplit.
+      * iDestruct 1 as "[Hmap _]". iExists (<[a1:=(p1', w1)]> ∅); iSplitL; auto.
+    - apply Z.eqb_neq in Heq.
+      rewrite -memMap_resource_2ne; auto. 2 : congruence.
+      iSplit.
+      * iDestruct 1 as (mem) "[HH ->]". done.
+      * iDestruct 1 as "Hmap". iExists (<[a1:=(p1', w1)]> (<[a2:=(p2', w2)]> ∅)); iSplitL; auto.
+  Qed.
+
+  Lemma memMap_resource_2gen_d (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+    ( ∃ mem, ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∧
+       ⌜ if  (a2 =? a1)%a
+       then mem =  (<[a1:=(p1',w1)]> ∅)
+       else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
+) -∗ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
+  Proof.
+    iIntros. by rewrite memMap_resource_2gen.
+  Qed.
+
+  (* Not the world's most beautiful lemma, but it does avoid us having to fiddle around with a later under an if in proofs *)
+  Lemma memMap_resource_2gen_clater (a1 a2 : Addr) (p1' p2' : Perm) (w1 w2 : Word)  :
+    (▷ a1 ↦ₐ[p1'] w1) -∗
+    (if (a2 =? a1)%a then emp else ▷ a2 ↦ₐ[p2'] w2) -∗
+    (∃ mem, ▷ ([∗ map] a↦pw ∈ mem, ∃ p w, ⌜pw = (p,w)⌝ ∗ a ↦ₐ[p] w) ∗
+       ⌜if  (a2 =? a1)%a
+       then mem =  (<[a1:=(p1',w1)]> ∅)
+       else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
+)%I.
+  Proof.
+    iIntros "Hc1 Hc2".
+    destruct (a2 =? a1)%a eqn:Heq.
+    - iExists (<[a1:=(p1', w1)]> ∅); iSplitL; auto. iNext. by rewrite memMap_resource_1.
+    - iExists (<[a1:=(p1', w1)]> (<[a2:=(p2', w2)]> ∅)); iSplitL; auto.
+      iNext. iDestruct (memMap_resource_2ne with "[$Hc1 $Hc2]") as "Hmem".
+      {apply Z.eqb_neq in Heq. congruence. }
+      done.
   Qed.
 
   Lemma memMap_delete:
@@ -730,25 +805,43 @@ Section cap_lang_rules.
     iDestruct (gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
   Qed.
 
+  Lemma readAllowed_nonO p p' :
+    PermFlows p p' → readAllowed p = true → p' ≠ O.
+  Proof.
+    intros Hfl' Hra. destruct p'; auto. destruct p; inversion Hfl'. inversion Hra.
+  Qed.
+
+  Lemma writeAllowed_nonO p p' :
+    PermFlows p p' → writeAllowed p = true → p' ≠ O.
+  Proof.
+    intros Hfl' Hra. apply writeA_implies_readA in Hra. by apply (readAllowed_nonO p p').
+  Qed.
+
+  Lemma PCPerm_nonO p p' :
+    PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX → p' ≠ O.
+  Proof.
+    intros Hfl Hvpc. destruct p'; auto. destruct p; inversion Hfl.
+    destruct Hvpc as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr.
+  Qed.
+
+  Lemma correctPC_nonO p p' g b e a :
+    PermFlows p p' → isCorrectPC (inr (p,g,b,e,a)) → p' ≠ O.
+  Proof.
+    intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
+  Qed.
+
   Lemma mem_v_implies_m_v:
     ∀ (mem0 : PermMem) (m : Mem) (p : Perm) (g : Locality) (b e a : Addr) (p' : Perm) (v : Word),
-      readAllowed p = true
-      → mem0 !! a = Some (p', v)
-      → PermFlows p p'
+      mem0 !! a = Some (p', v)
+      → p' ≠ O
       → ([∗ map] a0↦pw ∈ mem0, ∃ (p0 : Perm) (w : Word),
             ⌜pw = (p0, w)⌝ ∗ a0 ↦ₐ[p0] w)
           -∗ gen_heap_ctx m -∗ ⌜m !m! a = v⌝.
   Proof.
-    iIntros (mem0 m p g b e a p' v HRA Hmema HPFp) "Hmem Hm".
+    iIntros (mem0 m p g b e a p' v Hmema HPFp) "Hmem Hm".
     iDestruct (memMap_delete a with "Hmem") as "[H_a Hmem]"; eauto.
     iDestruct (gen_heap_valid_cap with "Hm H_a") as %?; auto.
-    {
-      unfold readAllowed in HRA.
-      destruct (decide (p = O)); first by simplify_eq.
-      destruct (decide (p' = O)); last by simplify_eq. rewrite e0 in HPFp.
-      destruct p; by exfalso.
-    }
-      by option_locate_mr_once m r.
+    by option_locate_mr_once m r.
   Qed.
 
   Lemma gen_mem_update_inSepM :
@@ -1059,6 +1152,8 @@ Definition regs_of (i: instr): gset RegName :=
   | Mov r arg => {[ r ]} ∪ regs_of_argument arg
   | Restrict r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | Subseg r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | Load r1 r2 => {[ r1; r2 ]}
+  | Store r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | _ => ∅
   end.
 
