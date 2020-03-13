@@ -40,9 +40,9 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Jnz with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
-    
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
+
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec.
     { iApply wp_pure_step_later; auto. iNext.
@@ -109,5 +109,5 @@ Section fundamental.
           iApply wp_value.
           iNext. iIntros. discriminate. } }
   Qed.
-         
+
 End fundamental.

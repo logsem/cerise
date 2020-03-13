@@ -499,7 +499,7 @@ Section region_macros.
          ∗ region (std_update_temp_multiple W (region_addrs_aux a n))
          ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs_aux a n)).
    Proof.
-     iInduction (n) as [n | n] "IHn" forall (a W).
+     iInduction (n) as [| n] "IHn" forall (a W).
      - simpl. iIntros (_ _ _) "_ Hr Hsts". iFrame. done. 
      - iIntros (Hne Hnext Hforall) "Hlist Hr Hsts".
        iDestruct "Hlist" as "[Ha Hlist]".
@@ -574,7 +574,7 @@ Section region_macros.
    Lemma region_addrs_zeroes_valid_aux n W : 
      ([∗ list] y ∈ repeat (inl 0%Z) n, ▷ (fixpoint interp1) W y)%I.
    Proof. 
-     iInduction (n) as [n | n] "IHn".
+     iInduction (n) as [| n] "IHn".
      - done.
      - simpl. iSplit; last iFrame "#".
        rewrite fixpoint_interp1_eq. iNext.
@@ -596,7 +596,7 @@ Section region_macros.
      ([∗ list] y1;y2 ∈ region_addrs_aux a n;repeat (inl 0%Z) n, y1 ↦ₐ[p] y2)
        -∗ [∗ list] y1 ∈ region_addrs_aux a n, y1 ↦ₐ[p] inl 0%Z.
    Proof.
-     iInduction (n) as [n | n] "IHn" forall (a); first auto. 
+     iInduction (n) as [| n] "IHn" forall (a); first auto.
      iIntros "Hlist". 
      iDestruct "Hlist" as "[Ha Hlist]".
      iFrame.
@@ -687,7 +687,7 @@ Section region_macros.
    Lemma open_region_many_swap a l1 l2 W :
      open_region_many (l1 ++ a :: l2) W ≡ open_region_many (a :: l1 ++ l2) W.
    Proof. 
-     iInduction (l1) as [l | a' l'] "IHl"; simpl.
+     iInduction (l1) as [| a' l'] "IHl"; simpl.
      - iSplit; auto.
      - iSplit.
        + iIntros "Hr /=".
@@ -719,7 +719,7 @@ Section region_macros.
      ∗ open_region_many (region_addrs_aux a n ++ l) W
      ∗ sts_full_world sts_std W.
    Proof.
-     iInduction (n) as [n | n] "IHn" forall (a l).
+     iInduction (n) as [| n] "IHn" forall (a l).
      - iIntros (Hne Hdisj Hpwl Hforall) "Hr Hsts #Hinv /=".
        iFrame. 
      - iIntros (Hne Hdisj Hpwl Hforall) "Hr Hsts #Hinv /=".

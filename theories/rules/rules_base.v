@@ -1174,6 +1174,7 @@ Definition regs_of (i: instr): gset RegName :=
   | Subseg r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Load r1 r2 => {[ r1; r2 ]}
   | Store r1 arg => {[ r1 ]} ∪ regs_of_argument arg
+  | Jnz r1 r2 => {[ r1; r2 ]}
   | _ => ∅
   end.
 

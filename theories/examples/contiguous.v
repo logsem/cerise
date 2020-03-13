@@ -183,10 +183,10 @@ Section Contiguous.
     contiguous a →
     a !! 0 = Some a0 → list.last a = Some an → (a0 ≤ an)%Z.
   Proof.
-    generalize a0 an. induction a as [_ | a al IHa ]; intros a0' an' Hcond Hfirst Hlast;
+    generalize a0 an. induction a as [| a al IHa ]; intros a0' an' Hcond Hfirst Hlast;
      first inversion Hfirst.
     simpl in Hfirst. inversion Hfirst. subst.
-    destruct al as [_ | hd tl ].
+    destruct al as [| hd tl ].
     - inversion Hlast. omega.
     - assert ((a0' :: hd :: tl) !! 0 = Some a0') as Ha0; auto.
       assert ((a0' :: hd :: tl) !! 1 = Some hd) as Ha; auto.
