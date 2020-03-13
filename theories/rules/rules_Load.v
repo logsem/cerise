@@ -91,6 +91,38 @@ Section cap_lang_rules.
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
+  Lemma mem_eq_implies_allow_load_map:
+    ∀ (regs : Reg)(mem : PermMem)(r2 : RegName) (w : Word) p g b e a
+      (p' : Perm)  ,
+      mem = <[a:=(p', w)]> ∅
+      → regs !! r2 = Some (inr (p,g,b,e,a))
+      → p' ≠ O
+      → allow_load_map_or_true r2 regs mem.
+  Proof.
+    intros regs mem r2 w p g b e a p' Hmem Hrr2 Hpc_p'.
+    exists p,g,b,e,a; split.
+    - left. by simplify_map_eq.
+    - case_decide; last done.
+      exists p', w. simplify_map_eq. auto.
+  Qed.
+
+  Lemma mem_neq_implies_allow_load_map:
+    ∀ (regs : Reg)(mem : PermMem)(r2 : RegName) (pc_a : Addr)
+      (w w' : Word) p g b e a
+      (pc_p' p' : Perm)  ,
+      a ≠ pc_a
+      → mem = <[pc_a:=(pc_p', w)]> (<[a:=(p', w')]> ∅)
+      → regs !! r2 = Some (inr (p,g,b,e,a))
+      → p' ≠ O
+      → allow_load_map_or_true r2 regs mem.
+  Proof.
+    intros regs mem r2 pc_a w w' p g b e a pc_p' p' H4 Hrr2 Hp'.
+    exists p,g,b,e,a; split.
+    - left. by simplify_map_eq.
+    - case_decide; last done.
+      exists p', w'. simplify_map_eq. split; auto.
+  Qed.
+
   Lemma mem_implies_allow_load_map:
     ∀ (regs : Reg)(mem : PermMem)(r2 : RegName) (pc_a : Addr)
       (w w' : Word) p g b e a
@@ -99,19 +131,14 @@ Section cap_lang_rules.
        then mem = <[pc_a:=(pc_p', w)]> ∅
        else mem = <[pc_a:=(pc_p', w)]> (<[a:=(p', w')]> ∅))
       → regs !! r2 = Some (inr (p,g,b,e,a))
-      → p' ≠ O
+      → (if (a =? pc_a)%a then True else p' ≠ O)
       → pc_p' ≠ O
       → allow_load_map_or_true r2 regs mem.
   Proof.
     intros regs mem r2 pc_a w w' p g b e a pc_p' p' H4 Hrr2 Hp' Hpc_p'.
-    exists p,g,b,e,a; split.
-    - left. by simplify_map_eq.
-    - case_decide; last done.
-      destruct (a =? pc_a)%a eqn:Heq; rewrite H4.
-      + apply Z.eqb_eq, z_of_eq in Heq. exists pc_p', w. simplify_map_eq. auto.
-      + apply Z.eqb_neq in Heq. exists p', w'.
-        split. rewrite lookup_insert_ne; last by congruence. by simplify_map_eq.
-        done.
+    destruct (a =? pc_a)%a eqn:Heq.
+      + apply Z.eqb_eq, z_of_eq in Heq. subst a. eapply mem_eq_implies_allow_load_map; eauto.
+      + apply Z.eqb_neq in Heq.  eapply mem_neq_implies_allow_load_map; eauto. congruence.
   Qed.
 
   Lemma mem_implies_loadv:
@@ -217,7 +244,7 @@ Section cap_lang_rules.
      iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto.
      iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
      iFrame. iModIntro. iApply "Hφ". iFrame.
-     iPureIntro.  eapply Load_spec_success; auto.
+     iPureIntro. eapply Load_spec_success; auto.
        * split; auto. apply (regs_lookup_inr_eq regs r2).
          exact Hr''2.
          auto.
@@ -230,7 +257,6 @@ Section cap_lang_rules.
         pc_p' p' :
     cap_lang.decode w = Load r1 r2 →
     PermFlows pc_p pc_p' →
-    PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -239,7 +265,7 @@ Section cap_lang_rules.
           ∗ ▷ pc_a ↦ₐ[pc_p'] w
           ∗ ▷ r1 ↦ᵣ w''  
           ∗ ▷ r2 ↦ᵣ inr ((p,g),b,e,a)
-          ∗ (if (eqb_addr a pc_a) then emp else ▷ a ↦ₐ[p'] w') }}}
+          ∗ (if (eqb_addr a pc_a) then emp else ⌜PermFlows p p'⌝ ∗ ▷ a ↦ₐ[p'] w') }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
@@ -248,13 +274,20 @@ Section cap_lang_rules.
              ∗ r2 ↦ᵣ inr ((p,g),b,e,a)
              ∗ (if (eqb_addr a pc_a) then emp else a ↦ₐ[p'] w') }}}. 
   Proof.
-    iIntros (Hinstr Hfl Hfl' Hvpc [Hra Hwb] Hpca' φ)
+    iIntros (Hinstr Hfl Hvpc [Hra Hwb] Hpca' φ)
             "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iDestruct (extract_sep_if_split with "Hr2a") as "[Hfl' Hr2a]".
     iDestruct (memMap_resource_2gen_clater with "Hi Hr2a") as (mem) "[>Hmem %]".
-    pose proof (readAllowed_nonO _ _ Hfl' Hra) as Hp'.
     pose proof (correctPC_nonO _ _ _ _ _ _ Hfl Hvpc) as Hpc_p'.
-    iApply (wp_load _ pc_p with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    iAssert (⌜if (a =? pc_a)%a then True else p' ≠ O⌝)%I with "[Hfl']" as %Hp'.
+    {
+      destruct (a =? pc_a)%a; first by auto.
+      iDestruct "Hfl'" as %Hfl'.
+      iPureIntro. apply (readAllowed_nonO _ _ Hfl' Hra).
+    }
+
+    iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { destruct (a =? pc_a)%a; rewrite H4; by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto. by simplify_map_eq. }
@@ -281,7 +314,6 @@ Section cap_lang_rules.
         pc_p' p' :
     cap_lang.decode w = Load r1 r1 →
     PermFlows pc_p pc_p' →
-    PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -289,7 +321,7 @@ Section cap_lang_rules.
     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
           ∗ ▷ pc_a ↦ₐ[pc_p'] w
           ∗ ▷ r1 ↦ᵣ inr ((p,g),b,e,a)
-          ∗ (if (a =? pc_a)%a then emp else ▷ a ↦ₐ[p'] w') }}}
+          ∗ (if (a =? pc_a)%a then emp else ⌜PermFlows p p'⌝ ∗ ▷ a ↦ₐ[p'] w') }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
@@ -297,13 +329,20 @@ Section cap_lang_rules.
              ∗ pc_a ↦ₐ[pc_p'] w
              ∗ (if (a =? pc_a)%a then emp else a ↦ₐ[p'] w') }}}. 
   Proof.
-    iIntros (Hinstr Hfl Hfl' Hvpc [Hra Hwb] Hpca' φ)
+    iIntros (Hinstr Hfl Hvpc [Hra Hwb] Hpca' φ)
             "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
+    iDestruct (extract_sep_if_split with "Hr1a") as "[Hfl' Hr1a]".
     iDestruct (memMap_resource_2gen_clater with "Hi Hr1a") as (mem) "[>Hmem %]".
-    pose proof (readAllowed_nonO _ _ Hfl' Hra) as Hp'.
     pose proof (correctPC_nonO _ _ _ _ _ _ Hfl Hvpc) as Hpc_p'.
-    iApply (wp_load _ pc_p with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    iAssert (⌜if (a =? pc_a)%a then True else p' ≠ O⌝)%I with "[Hfl']" as %Hp'.
+    {
+      destruct (a =? pc_a)%a; first by auto.
+      iDestruct "Hfl'" as %Hfl'.
+      iPureIntro. apply (readAllowed_nonO _ _ Hfl' Hra).
+    }
+
+    iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { destruct (a =? pc_a)%a; rewrite H2; by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto. by simplify_map_eq. }
@@ -355,11 +394,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_2ne_apply with "Hi Hr2a") as "[Hmem %]"; auto.
     iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
-    { eapply mem_implies_allow_load_map with (a := a) (p' := p'')(pc_a := pc_a); eauto.
-      - destruct (a =? pc_a)%a eqn:Heq2.
-        + apply Z.eqb_eq, z_of_eq in Heq2. by exfalso.
-        + auto.
-      -  by simplify_map_eq. }
+    { eapply mem_neq_implies_allow_load_map with (a := a) (p' := p'')(pc_a := pc_a); eauto.
+      by simplify_map_eq. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
@@ -398,11 +434,8 @@ Section cap_lang_rules.
     rewrite memMap_resource_1.
     iApply (wp_load with "[$Hmap $Hi]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
-    { eapply mem_implies_allow_load_map with (a := pc_a)(pc_a := pc_a); eauto.
-      - destruct (pc_a =? pc_a)%a eqn:Heq2.
-        + auto.
-        + apply Z.eqb_neq in Heq2. congruence.
-      -  by simplify_map_eq. }
+    { eapply mem_eq_implies_allow_load_map with (a := pc_a); eauto.
+      by simplify_map_eq. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
@@ -420,7 +453,6 @@ Section cap_lang_rules.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb].
        destruct o; apply Is_true_false in H2. all:congruence.
      }
-     Unshelve. auto.
   Qed.
 
 End cap_lang_rules.
