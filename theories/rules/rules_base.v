@@ -686,6 +686,15 @@ Section cap_lang_rules.
     contradiction.
   Qed.
 
+  Lemma extract_sep_if_split a pc_a P Q R:
+     (if (a =? pc_a)%a then P else Q ∗ R)%I ≡
+     ((if (a =? pc_a)%a then P else Q) ∗
+     if (a =? pc_a)%a then emp else R)%I.
+  Proof.
+    destruct (a =? pc_a)%a; auto.
+    iSplit; auto. iIntros "[H1 H2]"; auto.
+  Qed.
+
   Lemma address_neq a1 a2 w1 w2 p1 p2  :
     p1 ≠ O → p2 ≠ O → a1 ↦ₐ[p1] w1 -∗ a2 ↦ₐ[p2] w2 -∗ ⌜ a1 ≠ a2 ⌝.
   Proof.
@@ -1046,6 +1055,17 @@ Ltac iFailWP Hcont fail_case_name :=
   by (cbn; iFrame; iApply Hcont; iFrame; iFailCore fail_case_name).
 
 (* ----------------- useful definitions to factor out the wp specs ---------------- *)
+
+(*--- register equality ---*)
+  Lemma addr_ne_reg_ne {regs : leibnizO Reg} {r1 r2 : RegName}
+        {p0 g0 b0 e0 a0 p g b e a}:
+    regs !! r1 = Some (inr (p0, g0, b0, e0, a0))
+    → regs !! r2 = Some (inr (p, g, b, e, a))
+    → a0 ≠ a → r1 ≠ r2.
+  Proof.
+    intros Hr1 Hr2 Hne.
+    destruct (decide (r1 = r2)); simplify_eq; auto.
+  Qed.
 
 (*--- z_of_argument ---*)
 

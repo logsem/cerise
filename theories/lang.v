@@ -682,12 +682,12 @@ Module cap_lang.
    Qed.
 
    Lemma regs_lookup_inl_eq (regs: Reg) (r: RegName) z :
-     (∀ ri : RegName, is_Some (regs !! ri)) →
+     is_Some (regs !! r) →
      regs !r! r = inl z ->
      regs !! r = Some (inl z).
    Proof. rewrite /RegLocate. intros Hall HH.
           destruct (regs !! r) eqn:HRead; first by apply f_equal.
-          destruct (Hall r) as (s & Hsr). rewrite Hsr in HRead; discriminate.
+          destruct Hall as (s & Hsr). rewrite Hsr in HRead; discriminate.
    Qed.
 
    Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
