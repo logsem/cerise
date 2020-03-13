@@ -37,8 +37,7 @@ Section fundamental.
     all:subst; iExists p' ; by do 2 (iSplit; [auto | ]).
   Qed.
 
-  (* The necessary resources to close the region again, except for the points to predicate, which we will store separately
-   The boolean bl can be used to keep track of whether or not we have applied a wp lemma *)
+  (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
   Definition region_open_resources W l ls p φ (v : Word): iProp Σ :=
     (∃ ρ,
         sts_state_std (countable.encode l) ρ
