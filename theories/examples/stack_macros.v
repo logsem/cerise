@@ -245,8 +245,7 @@ Section stack_macros.
       split; auto. destruct p'; auto. destruct p; inversion Hfl. 
       inversion Hvpc1 as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
     iApply (wp_load_success _ _ _ _ _ _ _ a1 _ _ _ RWLX
-              with "[HPC Ha1 Hr_stk Hr Hstk_a]"); eauto; first apply load_r_i;
-      first apply PermFlows_refl;iFrame. rewrite Hne'. iFrame. 
+              with "[HPC Ha1 Hr_stk Hr Hstk_a]"); eauto; first apply load_r_i; rewrite Hne'; iFrame. iPureIntro. eapply PermFlows_refl.
     iNext. iIntros "(HPC & Hr & Ha1 & Hr_stk & Hstk_a) /=".
     iApply wp_pure_step_later; auto; iNext.
     iApply (wp_bind (fill [SeqCtx])).
@@ -261,7 +260,7 @@ Section stack_macros.
               with "[HPC Ha3 Hr_stk Hr_t1]"); eauto; first apply lea_r_i; iFrame.
     iNext. iIntros "(HPC & Ha3 & Hr_t1 & Hr_stk) /=".
     iApply wp_pure_step_later; auto; iNext.
-    iApply "Hφ". rewrite Hne'. iFrame. done.
+    iApply "Hφ". iFrame. done.
   Qed.
 
   (* -------------------------------------- RCLEAR ----------------------------------- *)
