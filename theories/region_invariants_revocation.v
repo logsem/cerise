@@ -924,6 +924,40 @@ Section heap.
         rewrite /revoke_std_sta fmap_insert lookup_insert_ne;auto.
   Qed.
 
+  Lemma revoke_monotone_lookup_same Wstd_sta i :
+    Wstd_sta !! i ≠ Some (countable.encode Temporary) ->
+    revoke_std_sta Wstd_sta !! i = Wstd_sta !! i.
+  Proof.
+    intros Hneq.
+    induction Wstd_sta using map_ind.
+    - rewrite /revoke_std_sta lookup_empty lookup_fmap. eauto. 
+    - destruct (decide (i0 = i)).
+      + subst. rewrite lookup_insert in Hneq.
+        rewrite /revoke_std_sta fmap_insert lookup_insert lookup_insert /=.
+        f_equiv.
+        destruct ((countable.encode Temporary =? x)%positive) eqn:Hcontr; auto.
+        assert (countable.encode Temporary ≠ x).
+        { intros Hcontr'. subst. contradiction. }
+        apply Peqb_true_eq in Hcontr. contradiction. 
+      + rewrite lookup_insert_ne in Hneq;auto.
+        rewrite /revoke_std_sta fmap_insert lookup_insert_ne;auto.
+        rewrite lookup_insert_ne;auto. 
+  Qed.
+
+  Lemma revoke_dom_eq Wstd_sta :
+    dom (gset positive) Wstd_sta = dom (gset positive) (revoke_std_sta Wstd_sta).
+  Proof.
+    apply gset_leibniz. split.
+    - intros Hin.
+      apply elem_of_dom. apply elem_of_dom in Hin.
+      rewrite -revoke_std_sta_lookup_Some. 
+      eauto.
+    - intros Hin.
+      apply elem_of_dom. apply elem_of_dom in Hin.
+      rewrite revoke_std_sta_lookup_Some. 
+      eauto.
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ----------- A REVOKED REGION IS MONOTONE WRT PRIVATE FUTURΕ WORLDS -------------- *)
 
@@ -1367,16 +1401,62 @@ Section heap.
           ∗ (if pwl p
              then future_pub_mono φ v
              else future_priv_mono φ v)
-          ∗ φ (W,v))%I. 
+          ∗ φ (W,v))%I.
+
   
-  Lemma monotone_revoke_list_sts_full_world_keep W (l : list positive) (l' : list Addr) p φ :
+  Lemma reg_get (γ : gname) (R : relT) (n : Addr) (r : leibnizO (gname * Perm)) :
+    (own γ (● (to_agree <$> R : relUR)) ∧ ⌜R !! n = Some r⌝ ==∗
+    (own γ (● (to_agree <$> R : relUR)) ∗ own γ (◯ {[n := to_agree r]})))%I.
+  Proof.
+    iIntros "[HR #Hlookup]".
+    iDestruct "Hlookup" as %Hlookup.
+    iApply own_op. 
+    iApply (own_update with "HR"). 
+    apply auth_update_core_id; auto. apply gmap_core_id,agree_core_id. 
+    apply singleton_included. exists (to_agree r). split; auto.
+    (* apply leibniz_equiv_iff in Hlookup.  *)
+    rewrite lookup_fmap. apply fmap_Some_equiv.
+    exists r. split; auto. 
+  Qed. 
+
+  Lemma region_rel_get (W : WORLD) (a : Addr) :
+    (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary) ->
+    (region W ∗ sts_full_world sts_std W ==∗ region W ∗ sts_full_world sts_std W ∗ ∃ p φ, rel a p φ)%I.
+  Proof.
+    iIntros (Hlookup) "[Hr Hsts]".
+    rewrite region_eq /region_def.
+    iDestruct "Hr" as (M) "(HM & #Hdom & Hr)".
+    iDestruct "Hdom" as %Hdom.
+    assert (is_Some (M !! a)) as [γp Hγp].
+    { specialize (Hdom (countable.encode a)). assert (is_Some (std_sta W !! countable.encode a)) as Hsome;[eauto|].
+      apply Hdom in Hsome as [a' [Heq Hsome] ]. apply encode_inj in Heq. subst. eauto. 
+    }
+    rewrite RELS_eq /RELS_def. 
+    iMod (reg_get with "[$HM]") as "[HM Hrel]";[eauto|].
+    (* rewrite /region_map_def. iDestruct (reg_in with "[$HM $Hrel]") as %HMeq. *)
+    iDestruct (big_sepM_delete _ _ a with "Hr") as "[Hstate Hr]";[eauto|].
+    iDestruct "Hstate" as (ρ) "[Hρ Hstate]". 
+    iDestruct (sts_full_state_std with "Hsts Hρ") as %Hx''.
+    rewrite Hlookup in Hx''. inversion Hx'' as [Heq]; apply encode_inj in Heq; subst.
+    iDestruct "Hstate" as (γpred v p φ Heq Hne) "(Ha & Hmono & #Hsaved & Hφ)". 
+    destruct γp as [γpred' p']; inversion Heq; subst. 
+    iDestruct (big_sepM_delete _ _ a with "[Hρ Ha Hmono Hφ $Hr]") as "Hr";[eauto| |].
+    { iExists Temporary. iFrame. iExists γpred, v, p, φ. iFrame "∗ #". auto. }
+    iModIntro. 
+    iSplitL "HM Hr".
+    { iExists M. iFrame. auto. }
+    iFrame. iExists p,φ. rewrite rel_eq /rel_def REL_eq /REL_def. iExists γpred. 
+    iFrame "Hsaved Hrel".
+  Qed. 
+  
+  Lemma monotone_revoke_list_sts_full_world_keep W (l : list positive) (l' : list Addr) :
     (⌜NoDup l'⌝ → ⌜NoDup l⌝ → ⌜countable.encode <$> l' ⊆+ l⌝ →
-    ([∗ list] a ∈ l', ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∧ rel a p φ)
+    ([∗ list] a ∈ l', ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ (* ∧ rel a p φ *))
     ∗ sts_full_world sts_std W ∗ region W
     ==∗ (sts_full_world sts_std (revoke_list l W) ∗ region W
-                        ∗ [∗ list] a ∈ l', ▷ temp_resources W φ a p ∗ rel a p φ))%I.
+                        ∗ [∗ list] a ∈ l', ∃ p φ, ▷ temp_resources W φ a p ∗ rel a p φ))%I.
   Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]. 
+    (* destruct W as [ [Wstd_sta Wstd_rel] Wloc].  *)
     rewrite /std_sta region_eq /region_def /=.
     iInduction (l) as [|x l] "IH" forall (l'); 
     iIntros (Hdup' Hdup Hsub) "(#Hrel & Hfull & Hr)".
@@ -1389,9 +1469,13 @@ Section heap.
         apply NoDup_cons in Hdup' as [Hnin' Hdup'].
         assert (∃ a : Addr, x = countable.encode a ∧ a ∈ l') as [a [Hxa Ha] ].
         { apply elem_of_list_fmap_2. rewrite Heq. apply elem_of_app. right. apply elem_of_list_here. }
-        apply elem_of_Permutation in Ha as [l'' Hleq]. rewrite Hleq /=. 
-        iDestruct "Hrel" as "[ [Htemp Hx] Hrel]".
-        iDestruct "Htemp" as %Htemp. 
+        apply elem_of_Permutation in Ha as [l'' Hleq].
+        rewrite Hleq /=.
+        iDestruct "Hrel" as "[ Htemp Hrel]".
+        iDestruct "Htemp" as %Htemp.
+        iMod (region_rel_get with "[$Hfull Hr]") as "(Hfull & Hr & #Hx)";[apply Htemp|..].
+        { rewrite region_eq /region_def. iFrame. }
+        rewrite region_eq /region_def.
         iMod ("IH" with "[] [] [] [$Hrel $Hfull $Hr]") as "(Hfull & Hr & Hl)"; auto.
         { iPureIntro. apply submseteq_cons_l in Hsub as [k' [Hperm Hsub] ].
           apply Permutation.Permutation_cons_inv in Hperm.
@@ -1406,8 +1490,9 @@ Section heap.
         rewrite /revoke_list /= /std_sta /=.
         rewrite Hxa Htemp Positive_as_OT.eqb_refl.
         rewrite rel_eq /rel_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def. 
+        iDestruct "Hr" as (M) "(HM & % & Hpreds)".
+        iDestruct "Hx" as (p' φ') "Hx". 
         iDestruct "Hx" as (γpred) "#(Hγpred & Hφ)".
-        iDestruct "Hr" as (M) "(HM & % & Hpreds)". 
         (* assert that γrel = γrel' *)
         iDestruct (reg_in γrel (M) with "[$HM $Hγpred]") as %HMeq.
         rewrite HMeq big_sepM_insert; [|by rewrite lookup_delete].
@@ -1419,13 +1504,13 @@ Section heap.
         rewrite Htemp in Hlookup. inversion Hlookup; simplify_eq.
         iMod (sts_update_std _ _ _ (Revoked) with "Hfull Hstate") as "[Hfull Hstate]".
         iFrame "∗ #". iClear "IH". 
-        iDestruct (big_sepM_insert _ _ a (γpred, p) with "[$Hpreds Hstate]") as "Hpreds"; [apply lookup_delete|..].
+        iDestruct (big_sepM_insert _ _ a (γpred, p') with "[$Hpreds Hstate]") as "Hpreds"; [apply lookup_delete|..].
         iExists Revoked. iFrame. rewrite -HMeq.
         iModIntro. iSplitL "Hpreds HM".
         ++ iExists M. iFrame. auto. 
-        ++ iSplitL.
+        ++ iExists p', φ'. iSplitL.
            +++ iDestruct "Ha" as (γpred0 v p0 φ0 Heq0 Hp0) "(Hx & Hmono & #Hsaved & Hφ0)"; simplify_eq.
-               iExists v.
+               iExists v. destruct W as [ [Wstd_sta Wstd_rel] Wloc].
                iDestruct (saved_pred_agree _ _ _ (Wstd_sta, Wstd_rel, Wloc, v) with "Hφ Hsaved") as "#Hφeq". iFrame.
                iSplitR; auto.
                iDestruct (internal_eq_iff with "Hφeq") as "Hφeq'". 
@@ -1455,10 +1540,11 @@ Section heap.
         2: { exfalso. apply n. rewrite Hcontr. apply elem_of_list_here. }
         iMod ("IH" with "[] [] [] [$Hrel $Hfull $Hr]") as "(Hfull & Hr & Hl)"; auto.
         iDestruct "Hr" as (M) "(HM & #Hdom & Hr)". iDestruct "Hdom" as %Hdom. iClear "IH". 
-        rewrite /revoke_list /std_sta /=.
+        rewrite /revoke_list /std_sta /=. destruct W as [ [Wstd_sta Wstd_rel] Wloc].
         destruct (Wstd_sta !! x) eqn:Hsome.
-        2: { iFrame. iModIntro. iExists M. iFrame. auto. }
-        destruct (countable.encode Temporary =? p0)%positive eqn:Htemp.
+        2: { iFrame. iModIntro. rewrite Hsome. iFrame. iExists M. iFrame. auto. }
+        rewrite Hsome. 
+        destruct (countable.encode Temporary =? p)%positive eqn:Htemp.
         2: { iFrame. iModIntro. iExists M. iFrame. auto. }
         assert (∃ a:Addr, countable.encode a = x ∧ is_Some (M !! a)) as [a [Heqa [γp Hsomea] ] ].
         { destruct Hdom with (countable.encode x) as [ [a [Heq Ha] ] _]; eauto. }
@@ -1469,20 +1555,60 @@ Section heap.
         iExists Revoked; rewrite Heqa; iFrame.
         iModIntro. iFrame. iExists M. iFrame. auto. 
   Qed.
+
+  Lemma monotone_revoke_list_sts_full_world_keep_alt W (l : list positive) (l' : list Addr) p φ :
+    (⌜NoDup l'⌝ → ⌜NoDup l⌝ → ⌜countable.encode <$> l' ⊆+ l⌝ →
+    ([∗ list] a ∈ l', ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∗ rel a p φ)
+    ∗ sts_full_world sts_std W ∗ region W
+    ==∗ (sts_full_world sts_std (revoke_list l W) ∗ region W
+                        ∗ [∗ list] a ∈ l', ▷ temp_resources W φ a p ∗ rel a p φ))%I.
+  Proof.
+    (* destruct W as [ [Wstd_sta Wstd_rel] Wloc].  *)
+    iIntros (Hdupl Hdupl' Hsub) "(Htemp & Hsts & Hr)".
+    iDestruct (big_sepL_sep with "Htemp") as "[Htemp Hrel]". 
+    iMod (monotone_revoke_list_sts_full_world_keep with "[] [] [] [$Hsts $Hr $Htemp]") as "(Hsts & Hr & Htemp)";auto. 
+    iFrame. iApply big_sepL_bupd.
+    iDestruct (big_sepL_sep with "[$Hrel $Htemp]") as "Htemp".
+    iApply (big_sepL_mono with "Htemp").
+    iIntros (k y Hsome) "(#Hr & Htemp)". 
+    iDestruct "Htemp" as (p' φ') "[Htemp #Hrel]".
+    iModIntro. rewrite /temp_resources.
+    iDestruct (rel_agree _ p p' with "[$Hrel $Hr]") as "(% & #Hφeq')".
+    subst. 
+    iDestruct "Htemp" as (v) "(Hne & Ha & Hmono & Hφ)".
+    iFrame "Hr". 
+    iExists v. iFrame "#". iFrame. iSplitL "Hmono".
+    - destruct (pwl p').
+      + iIntros (W' W'' Hrelated). iDestruct "Hmono" as "#Hmono".
+        iDestruct (rel_agree _ _ _ φ φ' with "[$Hrel $Hr]") as "(% & #Hφeq'')".
+        iSpecialize ("Hφeq'" $! (W',v)) .
+        iSpecialize ("Hφeq''" $! (W'',v)) . 
+        iNext. iAlways.
+        iRewrite "Hφeq''". iRewrite "Hφeq'". 
+        iIntros "Hφ". iApply "Hmono"; eauto.
+      + iIntros (W' W'' Hrelated). iDestruct "Hmono" as "#Hmono".
+        iDestruct (rel_agree _ _ _ φ φ' with "[$Hrel $Hr]") as "(% & #Hφeq'')".
+        iSpecialize ("Hφeq'" $! (W',v)) .
+        iSpecialize ("Hφeq''" $! (W'',v)) . 
+        iNext. iAlways.
+        iRewrite "Hφeq''". iRewrite "Hφeq'". 
+        iIntros "Hφ". iApply "Hmono"; eauto.
+    - iNext. iSpecialize ("Hφeq'" $! (W,v)). iRewrite "Hφeq'". iFrame.
+  Qed.
             
-  Lemma monotone_revoke_sts_full_world_keep W (l : list Addr) p φ :
+  Lemma monotone_revoke_sts_full_world_keep W (l : list Addr) :
     ⌜NoDup l⌝ -∗
-    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∧ rel a p φ)
+    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝)
     ∗ sts_full_world sts_std W ∗ region W
     ==∗ (sts_full_world sts_std (revoke W) ∗ region W ∗
-                        ([∗ list] a ∈ l, ▷ temp_resources W φ a p ∗ rel a p φ)).
+                        ([∗ list] a ∈ l, ∃ p φ, ▷ temp_resources W φ a p ∗ rel a p φ)).
   Proof.
     iIntros (Hdup) "(Hl & Hfull & Hr)".
     rewrite revoke_list_dom.
     iAssert (⌜countable.encode <$> l ⊆+ (map_to_list W.1.1).*1⌝)%I as %Hsub.
     { iClear "Hfull Hr". iInduction l as [| x l] "IH".
       - rewrite fmap_nil. iPureIntro. apply submseteq_nil_l.
-      - rewrite fmap_cons /=. iDestruct "Hl" as "[ [Hin _] Hl]".
+      - rewrite fmap_cons /=. iDestruct "Hl" as "[ Hin Hl]".
         iDestruct "Hin" as %Hin. apply NoDup_cons in Hdup as [Hnin Hdup].
         iDestruct ("IH" with "[] Hl") as %Hsub; auto. 
         iPureIntro.
@@ -1502,7 +1628,38 @@ Section heap.
     iFrame. done. 
   Qed.
 
-  
+  Lemma monotone_revoke_sts_full_world_keep_alt W (l : list Addr) p φ :
+    ⌜NoDup l⌝ -∗
+    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∗ rel a p φ)
+    ∗ sts_full_world sts_std W ∗ region W
+    ==∗ (sts_full_world sts_std (revoke W) ∗ region W ∗
+                        ([∗ list] a ∈ l, ▷ temp_resources W φ a p ∗ rel a p φ)).
+  Proof.
+    iIntros (Hdup) "(Hl & Hfull & Hr)".
+    rewrite revoke_list_dom.
+    iAssert (⌜countable.encode <$> l ⊆+ (map_to_list W.1.1).*1⌝)%I as %Hsub.
+    { iClear "Hfull Hr". iInduction l as [| x l] "IH".
+      - rewrite fmap_nil. iPureIntro. apply submseteq_nil_l.
+      - rewrite fmap_cons /=. iDestruct "Hl" as "[ [Hin Hrel] Hl]".
+        iDestruct "Hin" as %Hin. apply NoDup_cons in Hdup as [Hnin Hdup].
+        iDestruct ("IH" with "[] Hl") as %Hsub; auto. 
+        iPureIntro.
+        assert (countable.encode x ∈ (map_to_list W.1.1).*1) as Helem.
+        { apply map_to_list_fst. exists (countable.encode Temporary). by apply elem_of_map_to_list. }
+        apply elem_of_Permutation in Helem as [l' Hl']. rewrite Hl'.
+        apply submseteq_skip. revert Hsub. rewrite Hl'; intros Hsub.
+        apply submseteq_cons_r in Hsub as [Hsub | [l'' [Heq _] ] ]; auto. 
+        assert (countable.encode x ∈ countable.encode <$> l) as Hcontr. 
+        { rewrite Heq. apply elem_of_list_here. }
+        apply elem_of_list_fmap_2 in Hcontr as [y [Hxy Hy] ]. 
+        apply encode_inj in Hxy. subst. contradiction. 
+    }
+    iMod (monotone_revoke_list_sts_full_world_keep_alt _ (map_to_list W.1.1).*1 l 
+            with "[] [] [] [$Hl $Hfull $Hr]") as "(Hfull & Hr & Hi)"; auto. 
+    { iPureIntro. apply NoDup_fst_map_to_list. }
+    iFrame. done. 
+  Qed.
+    
   (* The following statement discards all the resources of temporary regions *)
   Lemma monotone_revoke_list_sts_full_world M W l :
     ⌜∀ (i : positive), i ∈ l → ∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)⌝ -∗
@@ -1596,7 +1753,8 @@ Section heap.
   (* ---------------------------------------------------------------------------------------- *)
   (* ------------------ WE CAN REVOKΕ A REGION AND STS COLLECTION PAIR ---------------------- *)
   (* ---------------------------------------------------------------------------------------- *)
-  
+
+  (* revoke and discards temp regions *)
   Lemma monotone_revoke W :
     sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W).
   Proof.
@@ -1610,18 +1768,18 @@ Section heap.
     iPureIntro. by apply (dom_equal_revoke W M).
   Qed.
 
-  Lemma monotone_revoke_keep W l p φ :
+  (* revoke and keep temp resources in list l, with unknown p and φ *)
+  Lemma monotone_revoke_keep W l :
     NoDup l ->
-    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∧ rel a p φ)
+    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝)
       ∗ sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W)
-      ∗ [∗ list] a ∈ l, (▷ temp_resources W φ a p ∗ rel a p φ)
+      ∗ [∗ list] a ∈ l, (∃ p φ, ▷ temp_resources W φ a p ∗ rel a p φ)
                      ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝.
   Proof.
     iIntros (Hdup) "(Hl & HW & Hr)".
     iDestruct (sts_full_world_std W W with "[] HW") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
     iAssert (⌜Forall (λ a, std_sta W !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I as %Htemps.
-    { iDestruct (big_sepL_and with "Hl") as "[Htemps Hrel]".
-      iDestruct (big_sepL_forall with "Htemps") as %Htemps.
+    { iDestruct (big_sepL_forall with "Hl") as %Htemps.
       iPureIntro. apply Forall_lookup. done. }
     iMod (monotone_revoke_sts_full_world_keep with "[] [$HW $Hr $Hl]") as "(HW & Hr & Hl)"; eauto.
     rewrite region_eq /region_def.
@@ -1634,7 +1792,182 @@ Section heap.
       specialize (Hl i a Ha). rewrite /revoke. apply revoke_lookup_Temp. done. 
   Qed.
 
-  
+  (* revoke and keep temp resources in list l, with know p and φ *)
+  Lemma monotone_revoke_keep_alt W l p φ :
+    NoDup l ->
+    ([∗ list] a ∈ l, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∗ rel a p φ)
+      ∗ sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W)
+      ∗ [∗ list] a ∈ l, (▷ temp_resources W φ a p ∗ rel a p φ)
+                     ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝.
+  Proof.
+    iIntros (Hdup) "(Hl & HW & Hr)".
+    iDestruct (sts_full_world_std W W with "[] HW") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    iAssert (⌜Forall (λ a, std_sta W !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I as %Htemps.
+    { iDestruct (big_sepL_sep with "Hl") as "[Htemps Hrel]".
+      iDestruct (big_sepL_forall with "Htemps") as %Htemps.
+      iPureIntro. apply Forall_lookup. done. }
+    iMod (monotone_revoke_sts_full_world_keep_alt with "[] [$HW $Hr $Hl]") as "(HW & Hr & Hl)"; eauto.
+    rewrite region_eq /region_def.
+    iDestruct "Hr" as (M) "(HM & % & Hpreds)".
+    iDestruct (monotone_revoke_region_def with "[] [] [$HW] [$Hpreds]") as "[Hpreds HW]"; auto.
+    iModIntro. iFrame. iSplitL "HW HM".
+    - iExists _. iFrame. iPureIntro. by apply (dom_equal_revoke W M).
+    - iApply big_sepL_sep. iFrame. iApply big_sepL_forall. iPureIntro.
+      revert Htemps. rewrite (Forall_lookup _ l). intros Hl i a Ha; auto.
+      specialize (Hl i a Ha). rewrite /revoke. apply revoke_lookup_Temp. done. 
+  Qed.
+
+  (* For practical reasons, it will be convenient to have a version of revoking where you only know what some of the 
+     temp regions are *)
+  Lemma monotone_revoke_keep_some W l1 l2 p φ :
+    NoDup (l1 ++ l2) ->
+    ([∗ list] a ∈ l1, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝) ∗
+    ([∗ list] a ∈ l2, ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)⌝ ∗ rel a p φ)
+      ∗ sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W)
+      ∗ ([∗ list] a ∈ l1, (∃ p φ, ▷ temp_resources W φ a p ∗ rel a p φ)
+                           ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝)
+      ∗ [∗ list] a ∈ l2, (▷ temp_resources W φ a p ∗ rel a p φ)
+                           ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝.
+  Proof.
+    iIntros (Hdup) "(Hl1 & Hl2 & HW & Hr)".
+    iDestruct (big_sepL_sep with "Hl2") as "[Hl2 #Hrels]".
+    iDestruct (big_sepL_app with "[$Hl1 $Hl2]") as "Hl".
+    iMod (monotone_revoke_keep with "[$HW $Hr $Hl]") as "(HW & Hr & Hl)";[auto|].
+    iDestruct (big_sepL_app with "Hl") as "[Hl1 Hl2]".
+    iDestruct (big_sepL_sep with "Hl2") as "[Hl2 Hrev]".
+    iFrame. iApply big_sepL_sep. iFrame. 
+    iModIntro.
+    iDestruct (big_sepL_sep with "[Hrels $Hl2]") as "Hl2";[iFrame "Hrels"|]. 
+    iApply (big_sepL_mono with "Hl2").
+    iIntros (k y Hlookup) "[Htemp #Hrel]".
+    iDestruct "Htemp" as (p' φ') "(Htemp & #Hrel')".
+    rewrite /temp_resources.
+    iDestruct (later_exist with "Htemp") as (v) "(Hne & Hy & Hmono & Hφ')".
+    iDestruct (rel_agree _ p p' with "[$Hrel $Hrel']") as (Heq) "#Hφeq". subst.
+    iFrame "Hrel". iApply later_exist_2. iExists (v). iFrame.
+    iSplitR "Hφ'".
+    - destruct (pwl p').
+      + iIntros (W' W'' Hrelated). iDestruct "Hmono" as "#Hmono".
+        iDestruct (rel_agree _ _ _ φ φ' with "[$Hrel $Hrel']") as "(% & #Hφeq')".
+        iSpecialize ("Hφeq'" $! (W',v)) .
+        iSpecialize ("Hφeq" $! (W'',v)) . 
+        iNext. iAlways.
+        iRewrite "Hφeq'". iRewrite "Hφeq". 
+        iIntros "Hφ". iApply "Hmono"; eauto.
+      + iIntros (W' W'' Hrelated). iDestruct "Hmono" as "#Hmono".
+        iDestruct (rel_agree _ _ _ φ φ' with "[$Hrel $Hrel']") as "(% & #Hφeq')".
+        iSpecialize ("Hφeq'" $! (W',v)) .
+        iSpecialize ("Hφeq" $! (W'',v)) . 
+        iNext. iAlways.
+        iRewrite "Hφeq'". iRewrite "Hφeq". 
+        iIntros "Hφ". iApply "Hmono"; eauto.
+    - iNext.
+      iSpecialize ("Hφeq" $! (W,v)). 
+      iRewrite "Hφeq". iFrame. 
+  Qed. 
+
+  (* ---------------------------------------------------------------------------------------- *)
+  (* ----------------- REVOKING ALL TEMPORARY REGIONS, KNOWN AND UNKNOWN  ------------------- *)
+  (* ---------------------------------------------------------------------------------------- *)
+
+  (* The following helper lemmas are for revoking all temporary regions in the world *)
+
+  (* First we must assert that there exists a list of distinct addresses whose state is temporary, 
+     and no other address is temp*)
+
+   Lemma dom_equal_address_encode Wstd_sta M :
+     dom_equal Wstd_sta M ->
+     forall (i : positive), i ∈ dom (gset positive) Wstd_sta -> ∃ (a : Addr), countable.encode a = i.
+   Proof.
+     intros Hdom i Hin. rewrite /dom_equal in Hdom.
+     apply elem_of_dom in Hin. specialize (Hdom i).
+     apply Hdom in Hin. destruct Hin as [a [Ha Hsome] ].
+     eauto.
+   Qed.
+
+   Lemma dom_equal_iff Wstd_sta (l : list Addr) :
+     (∃ M, dom_equal Wstd_sta M) ->
+     (forall (a : Addr), Wstd_sta !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l) ->
+     (forall (i : positive), Wstd_sta !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l).
+   Proof.
+     intros [M Hdom] Hiff i. split.
+     - intros Htemp.
+       assert (∃ (a : Addr), countable.encode a = i) as [a Heq].
+       { apply dom_equal_address_encode with Wstd_sta M; [auto|]. apply elem_of_dom. eauto. }
+       subst. apply elem_of_list_fmap_1. apply Hiff. auto.
+     - intros Hin. apply elem_of_list_fmap_2 in Hin as [a [Ha Hin] ]. subst.
+       apply Hiff. auto.
+   Qed.
+
+  Lemma extract_temps W :
+    (∃ M, dom_equal (std_sta W) M) ->
+    ∃ l, NoDup l ∧ (forall (a : Addr), (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l).
+  Proof.
+    destruct W as [ [Wstd_sta Wstd_rel] Wloc ].
+    rewrite /std_sta /=. intros [M Hdom].
+    assert (forall (i : positive), i ∈ dom (gset positive) Wstd_sta -> ∃ (a : Addr), countable.encode a = i) as Hdec.
+    { apply dom_equal_address_encode with (M:=M). auto. }
+    clear Hdom.
+    induction Wstd_sta using map_ind.
+    - exists []. split;[by apply NoDup_nil|]. intros a. split; intros Hcontr; inversion Hcontr.
+    - destruct IHWstd_sta as [l [Hdup Hiff] ].
+      { intros i' Hin. apply Hdec. destruct (decide (i = i')); subst.
+        - apply elem_of_dom. rewrite lookup_insert; eauto.
+        - apply elem_of_dom. apply elem_of_dom in Hin. rewrite lookup_insert_ne; auto. }
+      specialize (Hdec i).
+      assert (i ∈ dom (gset positive) (<[i:=x]> m)) as Hin.
+      { apply elem_of_dom. rewrite lookup_insert; eauto. }
+      apply Hdec in Hin as [a Ha]. subst.
+      assert (a ∉ l) as Hnin.
+      { intros Hcontr. apply Hiff in Hcontr. rewrite H3 in Hcontr. inversion Hcontr. }
+      destruct (decide (x = countable.encode Temporary)); subst. 
+      + exists (a :: l). split;[apply NoDup_cons;split;auto|].
+        intros a0. destruct (decide (a = a0)); subst.
+        { rewrite lookup_insert. split; auto. intros _. apply elem_of_cons. by left. }
+        rewrite lookup_insert_ne;[|intros Hcontr;apply encode_inj in Hcontr;congruence].
+        split; intros Htemp.
+        { apply elem_of_cons; right. by apply Hiff. }
+        { apply elem_of_cons in Htemp as [Hcontr | Hin];[congruence|]. apply Hiff; auto. }
+      + exists l. split; auto. intros a0. split.
+        { destruct (decide (a = a0));subst.
+          - rewrite lookup_insert. intros Hcontr. congruence.
+          - rewrite lookup_insert_ne;[apply Hiff|].
+            intros Hcontr;apply encode_inj in Hcontr;congruence.
+        }
+        intros Hin. destruct (decide (a = a0));[congruence|].
+        rewrite lookup_insert_ne;[|intros Hcontr;apply encode_inj in Hcontr;congruence].
+        apply Hiff; auto.
+  Qed.
+
+  (* We also want to be able to split the extracted temporary regions into known and unknown *)
+  Lemma extract_temps_split W l :
+    (∃ M, dom_equal (std_sta W) M) -> NoDup l ->
+    Forall (λ (a : Addr), (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary)) l ->
+    ∃ l', NoDup (l' ++ l) ∧ (forall (a : Addr), (std_sta W) !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ (l' ++ l)).
+  Proof.
+    intros Hdom Hdup HForall.
+    apply extract_temps in Hdom as [l' [Hdup' Hl'] ].
+    revert HForall; rewrite Forall_forall =>HForall.
+    exists (list_difference l' l). split.
+    - apply NoDup_app. split;[|split].
+      + apply NoDup_list_difference. auto.
+      + intros a Ha. apply elem_of_list_difference in Ha as [_ Ha]; auto. 
+      + auto.
+    - intros a. split.
+      + intros Htemp.
+        destruct (decide (a ∈ list_difference l' l));[by apply elem_of_app;left|].
+        apply elem_of_app;right. apply Hl' in Htemp.
+        assert (not (a ∈ l' ∧ a ∉ l)) as Hnot.
+        { intros Hcontr. apply elem_of_list_difference in Hcontr. contradiction. }
+        destruct (decide (a ∈ l)); auto.
+        assert (a ∈ l' ∧ a ∉ l) as Hcontr; auto. apply Hnot in Hcontr. done. 
+      + intros Hin. apply elem_of_app in Hin as [Hin | Hin].
+        ++ apply elem_of_list_difference in Hin as [Hinl Hninl'].
+           by apply Hl'.
+        ++ by apply HForall.
+  Qed. 
+
+        
   (* ---------------------------------------------------------------------------------------- *)
   (* ------------------ WE CAN UPDATE A REVOKED WORLD BACK TO TEMPORARY  -------------------- *)
   (* ---------------------------------------------------------------------------------------- *)
@@ -1686,7 +2019,21 @@ Section heap.
     - intros Hnone. apply eq_None_not_Some.
       intros Hcontr. revert Hcontr. rewrite close_list_std_sta_is_Some =>Hcontr.
       apply eq_None_not_Some in Hcontr; eauto.
-  Qed. 
+  Qed.
+
+  Lemma close_list_dom_eq Wstd_sta l :
+    dom (gset positive) Wstd_sta = dom (gset positive) (close_list_std_sta l Wstd_sta).
+  Proof.
+    apply gset_leibniz. split.
+    - intros Hin.
+      apply elem_of_dom. apply elem_of_dom in Hin.
+      rewrite -close_list_std_sta_is_Some. 
+      eauto.
+    - intros Hin.
+      apply elem_of_dom. apply elem_of_dom in Hin.
+      rewrite close_list_std_sta_is_Some.  
+      eauto.
+  Qed.
 
   Lemma close_list_std_sta_same Wstd_sta l i :
     i ∉ l → Wstd_sta !! i = close_list_std_sta l Wstd_sta !! i.
@@ -1697,6 +2044,23 @@ Section heap.
       destruct (Wstd_sta !! a); auto.
       destruct (countable.encode Revoked =? p)%positive; auto.
       rewrite lookup_insert_ne; auto.
+  Qed.
+
+  Lemma close_list_std_sta_same_alt Wstd_sta l i :
+    Wstd_sta !! i ≠ Some (countable.encode Revoked) ->
+    Wstd_sta !! i = close_list_std_sta l Wstd_sta !! i.
+  Proof.
+    intros Hnin. induction l.
+    - done.
+    - simpl. (* apply not_elem_of_cons in Hnin as [Hne Hnin].  *)
+      destruct (Wstd_sta !! a) eqn:some; auto.
+      destruct (countable.encode Revoked =? p)%positive eqn:Hcontr; auto.
+      destruct (decide (a = i)).
+      + subst. apply base.positive_beq_true in Hcontr.
+        assert (countable.encode Revoked ≠ p) as Hneq.
+        { intros Hcontr'; subst. contradiction. }
+        contradiction. 
+      + rewrite lookup_insert_ne; auto. 
   Qed.
 
   Lemma close_list_std_sta_revoked Wstd_sta l i :
@@ -1717,6 +2081,26 @@ Section heap.
         * rewrite lookup_insert; auto.
         * rewrite lookup_insert_ne;auto.
   Qed.
+
+  Lemma std_rel_pub_not_temp_cases x y :
+    convert_rel std_rel_pub x y ->
+    (x = countable.encode Revoked ∧ y = countable.encode Temporary).
+  Proof.
+    intros Hpub.
+    inversion Hpub as [x0 [ρ [Heq1 [Heq2 Hx0] ] ] ].
+    subst. inversion Hx0. subst. split; auto.
+  Qed.
+
+  Lemma std_rel_pub_rtc_not_temp_cases x y :
+    rtc (convert_rel std_rel_pub) x y ->
+    (x = countable.encode Revoked ∧ y = countable.encode Temporary) ∨ x = y.
+  Proof.
+    intros Hrtc.
+    destruct Hrtc as [|ρ y z Hrel].
+    - by right.
+    - apply std_rel_pub_not_temp_cases in Hrel as [Heq1 Heq2]. subst.
+      left. apply std_rel_pub_rtc_Temporary in Hrtc; auto.
+  Qed. 
           
   Lemma close_list_related_sts_pub_cons W a l :
     rel_is_std W →
@@ -1799,7 +2183,107 @@ Section heap.
     - apply close_list_related_sts_pub with _ l in Hstd. apply Hstd.
     - apply close_list_related_sts_pub_insert'; auto. 
   Qed.
+
+  Lemma close_monotone W W' l :
+    rel_is_std W ->
+    related_sts_pub_world W W' → related_sts_pub_world (close_list l W) (close_list l W').
+  Proof.
+    intros Hstd Hrelated.
+    destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
+    destruct W' as [ [Wstd_sta' Wstd_rel'] [Wloc_sta' Wloc_rel'] ].
+    destruct Hrelated as [ [Hstd_sta_dom [Hstd_rel_dom Hstd_related] ] Hloc_related ].
+    simpl in *.
+    rewrite /close_list /std_sta /std_rel /=.
+    split;[simpl|apply Hloc_related].
+    split;[repeat rewrite -close_list_dom_eq;auto|split;[auto|]].
+    intros i r1 r2 r1' r2' Hr Hr'.
+    specialize (Hstd_related _ _ _ _ _ Hr Hr') as [Heq [Heq' Hstd_related] ]. subst.
+    repeat (split;auto).
+    assert (rel_is_std_i (Wstd_sta, Wstd_rel, (Wloc_sta, Wloc_rel)) i) as Hstdi.
+    { apply Hstd. eauto. }
+    rewrite Hstdi in Hr. inversion Hr;subst. 
+    intros x y Hx Hy.
+    destruct (decide (Wstd_sta !! i = Some (countable.encode Revoked))).
+    - destruct (decide (i ∈ l)).
+      + assert (is_Some (Wstd_sta' !! i)) as [y' Hy'];[rewrite close_list_std_sta_is_Some;eauto|]. 
+        specialize (Hstd_related _ _ e Hy').
+        apply (close_list_std_sta_revoked _ l _) in e; auto. rewrite e in Hx.
+        inversion Hx; subst.
+        apply std_rel_pub_rtc_Revoked in Hstd_related as [Htemp | Hrev];auto.
+        ++ subst.
+           assert (close_list_std_sta l Wstd_sta' !! i = Some (countable.encode Temporary)) as Hytemp. 
+           { rewrite -(close_list_std_sta_same_alt _ l _); auto. rewrite Hy'. intros Hcontr. inversion Hcontr as [Heq].
+             apply encode_inj in Heq. done. }
+           rewrite Hy in Hytemp. inversion Hytemp. left.
+        ++ subst.
+           apply (close_list_std_sta_revoked _ l _) in Hy'; auto. rewrite Hy' in Hy.
+           inversion Hy. left.
+      + rewrite -close_list_std_sta_same in Hx; auto.
+        rewrite -close_list_std_sta_same in Hy; auto.
+    - rewrite -close_list_std_sta_same_alt in Hx; auto.
+      assert (is_Some (Wstd_sta' !! i)) as [y' Hy'];[rewrite close_list_std_sta_is_Some;eauto|]. 
+      specialize (Hstd_related _ _ Hx Hy').
+      apply std_rel_pub_rtc_not_temp_cases in Hstd_related as [ [Hcontr _]|Htemp].
+      + subst. congruence.
+      + subst.
+        assert (Wstd_sta' !! i ≠ Some (countable.encode Revoked)) as Hneq.
+        { intros Hcontr. rewrite Hcontr in Hy'. inversion Hy'. subst. contradiction. }
+        rewrite -close_list_std_sta_same_alt in Hy; auto.
+        rewrite Hy in Hy'. inversion Hy'. subst. left. 
+  Qed.
+
+  Lemma close_revoke_iff Wstd_sta (l : list Addr) :
+     (forall (i : positive), Wstd_sta !! i = Some (countable.encode Temporary) <->
+                        i ∈ countable.encode <$> l) ->
+     ∀ i, (close_list_std_sta (countable.encode <$> l) (revoke_std_sta Wstd_sta)) !! i =
+          Wstd_sta !! i.
+  Proof.
+    intros Hiff.
+    intros i. destruct (decide (i ∈ countable.encode <$> l)).
+    + apply Hiff in e as Htemp. rewrite Htemp.
+      apply close_list_std_sta_revoked;[auto|].
+      apply revoke_lookup_Temp; auto.
+    + apply (close_list_std_sta_same (revoke_std_sta Wstd_sta)) in n as Heq. rewrite -Heq.
+      apply revoke_monotone_lookup_same.
+      intros Hcontr. apply Hiff in Hcontr. contradiction.
+  Qed.
   
+  Lemma close_revoke_eq Wstd_sta (l : list Addr) :
+    (∃ M, dom_equal Wstd_sta M) ->
+    (forall (i : positive), Wstd_sta !! i = Some (countable.encode Temporary) <->
+                       i ∈ countable.encode <$> l) ->
+    (close_list_std_sta (countable.encode <$> l) (revoke_std_sta Wstd_sta)) = Wstd_sta.
+  Proof.
+    intros [M Hdom] Hiff.
+    apply map_leibniz. intros i. apply leibniz_equiv_iff.
+    apply close_revoke_iff. auto.
+  Qed.
+
+  Lemma close_list_std_sta_idemp Wstd_sta (l1 l2 : list positive) :
+    close_list_std_sta l1 (close_list_std_sta l2 Wstd_sta) = close_list_std_sta (l1 ++ l2) Wstd_sta. 
+  Proof.
+    induction l1;[done|].
+    simpl. rewrite IHl1.
+    destruct (Wstd_sta !! a) eqn:Hsome. 
+    - destruct ((countable.encode Revoked =? p)%positive) eqn:Hrevoked.
+      + apply base.positive_beq_true in Hrevoked. subst.
+        destruct (decide (a ∈ l2)). 
+        ++ apply close_list_std_sta_revoked with (l:=l2) in Hsome as Hsome'; auto.
+           rewrite Hsome'. destruct (countable.encode Revoked =? countable.encode Temporary)%positive;auto.
+           rewrite insert_id;auto.
+           apply close_list_std_sta_revoked;auto.
+           apply elem_of_app;by right. 
+        ++ rewrite (close_list_std_sta_same _ l2) in Hsome;auto.
+           rewrite Hsome. destruct (countable.encode Revoked =? countable.encode Revoked)%positive eqn:Hcontr;auto.
+           apply Pos.eqb_neq in Hcontr. done.
+      + assert (Wstd_sta !! a ≠ Some (countable.encode Revoked)) as Hnrev.
+        { intros Hcontr. apply Pos.eqb_neq in Hrevoked. congruence. }
+        rewrite (close_list_std_sta_same_alt _ l2) in Hsome;auto.
+        by rewrite Hsome Hrevoked.
+    - apply (close_list_std_sta_None _ l2) in Hsome. rewrite Hsome. done.
+  Qed.
+
+  (* The following closes resources that are valid in the current world *)
   Lemma monotone_close W l p φ :
     ([∗ list] a ∈ l, temp_resources W φ a p ∗ rel a p φ
                                     ∗ ⌜(std_sta W) !! (countable.encode a) = Some (countable.encode Revoked)⌝)
@@ -1895,7 +2379,6 @@ Section heap.
         ++ rewrite e. rewrite lookup_insert. eauto. 
         ++ rewrite lookup_insert_ne; auto. destruct Hdom2 as [xa0 Ha0]; eauto.
   Qed. 
-    
 
   Lemma monotone_revoked_close_sub W l p φ :
     ([∗ list] a ∈ l, temp_resources (revoke W) φ a p ∗ rel a p φ
@@ -1907,7 +2390,81 @@ Section heap.
     iIntros "(Hl & Hfull & Hr)".
     iApply monotone_close. 
     iFrame. 
+  Qed.
+
+  (* However, we also want to be able to close regions that were valid in some world W, and which will be valid again 
+     in a public future world close l W' ! This is slightly more tricky: we must first update the region monotonically, 
+     after which it will be possible to consolidate the full_sts and region *)
+
+  Lemma close_list_consolidate W W' (l' l : list Addr) :
+    (⌜l' ⊆+ l⌝ →
+     ⌜related_sts_pub_world W (close_list_std_sta (countable.encode <$> l) (std_sta W'), std_rel W', loc W')⌝ →
+     (region (close_list (countable.encode <$> l) W') ∗ sts_full_world sts_std W'
+            ∗ ([∗ list] a ∈ l', ∃ p φ, temp_resources W φ a p ∗ rel a p φ))
+       ==∗ (sts_full_world sts_std (close_list (countable.encode <$> l') W') ∗ region (close_list (countable.encode <$> l) W')))%I.
+  Proof. 
+    iIntros (Hsub Hrelated) "(Hr & Hsts & Htemps)".
+    iInduction l' as [|x l'] "IH". 
+    - simpl. iFrame. done. 
+    - iDestruct "Htemps" as "[Hx Htemps]".
+      assert (l' ⊆+ l) as Hsub'.
+      { apply submseteq_cons_l in Hsub as [k [Hperm Hsub] ]. rewrite Hperm.
+        apply submseteq_cons_r. left. auto. }
+      iMod ("IH" $! Hsub' with "Hr Hsts Htemps") as "[Hsts Hr]".
+      iClear "IH". 
+      rewrite /close_list /=.
+      iDestruct "Hx" as (p φ) "(Htemp & Hrel)".
+      iDestruct "Htemp" as (v) "(Hne & Hx' & Hmono & Hφ)".
+      destruct (std_sta W' !! countable.encode x);[|iFrame;done]. 
+      destruct (countable.encode Revoked =? p0)%positive eqn:Hrev.
+      + apply Peqb_true_eq in Hrev. subst.
+        assert (countable.encode x ∈ countable.encode <$> l) as Hinl.
+        { apply elem_of_list_fmap. exists x; split; auto.
+          apply elem_of_submseteq with (x0:=x) in Hsub;[auto|apply elem_of_cons;by left]. }
+        rewrite region_eq /region_def /region_map_def.
+        iDestruct "Hr" as (M) "(HM & #Hdom & Hr)".
+        iDestruct "Hdom" as %Hdom.
+        rewrite RELS_eq rel_eq /RELS_def /rel_def REL_eq /REL_def.
+        iDestruct "Hrel" as (γpred) "#[Hrel Hsaved]".
+        iDestruct (reg_in with "[$HM $Hrel]") as %HMeq. rewrite HMeq.
+        iDestruct (big_sepM_delete _ _ x with "Hr") as "[Hx Hr]";[apply lookup_insert|].
+        rewrite delete_insert;[|apply lookup_delete].
+        iDestruct "Hx" as (ρ) "[Hstate Hx]".
+        destruct ρ.
+        { iDestruct "Hx" as (γpred' v' p' φ' Heq Hne) "(Hx & _)".
+          inversion Heq; subst. 
+          iApply bi.False_elim. iApply (cap_duplicate_false with "[$Hx' $Hx]"); auto. }
+        { iDestruct "Hx" as (γpred' v' p' φ' Heq Hne) "(Hx & _)".
+          inversion Heq; subst. 
+          iApply bi.False_elim. iApply (cap_duplicate_false with "[$Hx' $Hx]"); auto. }
+        iMod (sts_update_std _ _ _ Temporary with "Hsts Hstate") as "[Hsts Hstate]". rewrite HMeq.
+        iDestruct (big_sepM_delete _ _ x with "[Hne Hx' Hmono Hφ Hstate $Hr]") as "Hr";[apply lookup_insert|..].
+        { iExists Temporary. iFrame. iExists γpred,v,p,φ. repeat (iSplit;auto).
+          destruct (pwl p).
+          - iDestruct "Hmono" as "#Hmono". iFrame "∗#".
+            iApply ("Hmono" with "[] Hφ"). auto.
+          - iDestruct "Hmono" as "#Hmono". iFrame "∗#".
+            iApply ("Hmono" with "[] Hφ"). iPureIntro.
+            apply related_sts_pub_priv_world; auto.             
+        }
+        iFrame. iExists M. rewrite -HMeq. iFrame. rewrite -HMeq. iFrame. auto. 
+      + iFrame. done. 
   Qed. 
 
-
+  Lemma monotone_close_list_region W W' (l : list Addr) :
+    (⌜related_sts_pub_world W (close_list (countable.encode <$> l) W')⌝ -∗
+      sts_full_world sts_std W' ∗ region W'
+      ∗ ([∗ list] a ∈ l, ∃ p φ, temp_resources W φ a p ∗ rel a p φ)
+       ==∗ (sts_full_world sts_std (close_list (countable.encode <$> l) W') ∗ region (close_list (countable.encode <$> l) W')))%I.
+  Proof.
+    iIntros (Hrelated) "(Hsts & Hr & Htemp)".
+    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    assert (related_sts_pub_world W' (close_list (countable.encode <$> l) W')) as Hrelated'.
+    { apply close_list_related_sts_pub; auto. }
+    assert (dom (gset positive) (std_sta W') = dom (gset positive) (std_sta (close_list (countable.encode <$> l) W'))) as Heq.
+    { apply close_list_dom_eq. }
+    iDestruct (region_monotone $! Heq Hrelated' with "Hr") as "Hr". clear Hrelated'. 
+    iMod (close_list_consolidate _ _ l with "[] [] [$Hr $Hsts $Htemp]") as "[Hsts Hr]";[auto|eauto|iFrame;done].
+  Qed. 
+  
 End heap. 

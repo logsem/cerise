@@ -351,6 +351,23 @@ Section Contiguous.
       done.
   Qed.
 
+  (* the i'th element is the same as adding i to the first element *)
+  Lemma contiguous_between_link_last (a : list Addr) a_first a_last ai :
+    contiguous_between a a_first a_last ->
+    length a > 0 ->
+    (ai + 1)%a = Some a_last -> list.last a = Some ai.
+  Proof.
+    revert a_first. induction a; intros a_first Ha Hlen Hlink. 
+    - inversion Hlen. 
+    - destruct a0.
+      + inversion Ha. subst. inversion H4. subst.
+        solve_addr.
+      + simpl in *. apply IHa with a0;[|lia|auto]. 
+        inversion Ha; subst.
+        apply contiguous_between_cons_inv_first in H4 as Heq.
+        congruence.
+  Qed.
+
   (* the i'th element is greater or equal to the first *)
   Lemma incr_list_ge_middle (a : list Addr) i (a0 ai : Addr) :
     contiguous a ->
