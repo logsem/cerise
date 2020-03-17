@@ -260,7 +260,7 @@ Section stack_macros.
               with "[HPC Ha3 Hr_stk Hr_t1]"); eauto; first apply lea_r_i; iFrame.
     iNext. iIntros "(HPC & Ha3 & Hr_t1 & Hr_stk) /=".
     iApply wp_pure_step_later; auto; iNext.
-    iApply "Hφ". rewrite Hne'. iFrame. done.
+    iApply "Hφ". iFrame. done.
   Qed.
 
   (* -------------------------------------- RCLEAR ----------------------------------- *)

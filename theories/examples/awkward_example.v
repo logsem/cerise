@@ -1633,7 +1633,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           destruct y; iDestruct "Hb" as ">Hb".
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
               [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
-               iContiguous_next Hcont_rest0 12|auto|auto|].
+               iContiguous_next Hcont_rest0 12|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod ("Hcls" with "[Hstate Hd]") as "_".
             { iNext. iExists true. iFrame. }
@@ -1642,7 +1642,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             destruct W3 as [W3_std [W3_loc_pub W3_lo_priv] ]. iFrame. eauto. 
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
               [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
-               iContiguous_next Hcont_rest0 12|done|auto|].
+               iContiguous_next Hcont_rest0 12|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod (sts_update_loc _ _ _ true with "Hsts Hstate") as "[Hsts Hstate] /=".
             iMod ("Hcls" with "[Hstate Hd]") as "_".
@@ -2154,8 +2154,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                 destruct pc_p;auto.
                 inversion Hvpc as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
               iApply (wp_load_success with "[$HPC $Hinstr $Hr_adv $Hr_env Hb]");
-                [apply load_r_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC a27 a_last
-                 |auto|iContiguous_next Hcont_rest1 9|auto|rewrite Hne;iFrame|rewrite Hne].
+                [apply load_r_i|apply PermFlows_refl|iCorrectPC a27 a_last
+                 |auto|iContiguous_next Hcont_rest1 9|rewrite Hne;iFrame;iPureIntro;apply PermFlows_refl|rewrite Hne].
               iNext. iIntros "(HPC & Hr_adv & Ha36 & Hr_env & Hd)".
               iMod ("Hcls" with "[Hstate Hd]") as "_".
               { iNext. iExists true. iFrame. }
@@ -2190,7 +2190,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             iEpilogue "(HPC & Hinstr & Hr_t2)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
             (* jnz r_self *)
             iDestruct "Hprog" as "[Hinstr Hprog]". iApply (wp_bind (fill [SeqCtx])).
-            iApply (wp_jnz_success_next with "[$HPC $Hinstr $Hr_t2]");
+            iApply (wp_jnz_success_next with "[$HPC $Hinstr $Hr_t1 $Hr_t2]");
               [apply jnz_i|apply PermFlows_refl|iCorrectPC a27 a_last|iContiguous_next Hcont_rest1 13|..].
             iEpilogue "(HPC & Hinstr & Hr_t2)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".  
             (* Since the assertion succeeded, we are now ready to jump back to the adv who called us *)
@@ -2274,6 +2274,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             destruct (strings.length mclear_addrs =? strings.length (mclear_instrs r_stk 10 2))%nat eqn:Hcontr;
               [|rewrite Hmclear_length in Hcontr;inversion Hcontr].
             iFrame "Hmclear".
+            iDestruct "Hr_t2" as "[Hr_t1 Hr_t2]". 
             iGet_genpur_reg_map r3 r_t3 "Hmreg'" "Hfull3" "[Hr_t3 Hmreg']".
             iGet_genpur_reg_map r3 r_t4 "Hmreg'" "Hfull3" "[Hr_t4 Hmreg']".
             iGet_genpur_reg_map r3 r_t5 "Hmreg'" "Hfull3" "[Hr_t5 Hmreg']".
