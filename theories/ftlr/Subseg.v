@@ -2,15 +2,9 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Import ftlr_base monotone.
+From cap_machine Require Import ftlr_base monotone region interp_weakening.
 From cap_machine Require Import addr_reg.
 From cap_machine.rules Require Import rules_Subseg.
-
-(* TODO: Move into logrel.v *)
-Instance future_world_persistent (Σ: gFunctors) g W W': Persistent (@future_world Σ g W W').
-Proof.
-  unfold future_world. destruct g; apply bi.pure_persistent.
-Qed.
 
 Section fundamental.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -45,30 +39,6 @@ Section fundamental.
     auto.
   Qed.
 
-  (* TODO: This should be move to region.v *)
-  Lemma region_split b a e :
-    (b <= a /\ a <= e)%a ->
-    region_addrs b e = region_addrs b a ++ region_addrs a e.
-  Proof.
-    intros [? ?].
-    rewrite /region_addrs.
-    rewrite (region_addrs_aux_decomposition (region_size b e) b (region_size b a)).
-    2: unfold region_size; solve_addr.
-    do 2 f_equal; unfold region_size; solve_addr.
-  Qed.
-
-  (* TODO: This should be move to region.v *)
-  Lemma isWithin_region_addrs_decomposition a0 a1 b e:
-    (b <= a0 /\ a1 <= e /\ a0 <= a1)%a ->
-    region_addrs b e = region_addrs b a0 ++
-                       region_addrs a0 a1 ++
-                       region_addrs a1 e.
-  Proof with try (unfold region_size; solve_addr).
-    intros (Hba0 & Ha1e & Ha0a1).
-    rewrite (region_split b a0 e)... f_equal.
-    rewrite (region_split a0 a1 e)...
-  Qed.
-
   Lemma within_in_range:
     forall a b b' e e',
       (b <= b')%a ->
@@ -81,7 +51,6 @@ Section fundamental.
     lia.
   Qed.
 
-  (* TODO: Someone clever should factorize *)
   Lemma subseg_interp_preserved W p l b b' e e' a :
       p <> E ->
       (b <= b')%a ->
@@ -114,148 +83,9 @@ Section fundamental.
       (fixpoint interp1) W (inr (p, l, b', e', a)).
   Proof.
     intros Hne Hb He. iIntros "#IH Hinterp".
-    repeat (rewrite fixpoint_interp1_eq).
-    destruct p; simpl; auto; try congruence.
-    - iDestruct "Hinterp" as (p Hfl) "H".
-      iExists p. iSplitR; auto.
-      destruct (Z_le_dec b' e').
-      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-        iDestruct (big_sepL_app with "H") as "[H1 H2]".
-        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
-        auto.
-      + replace (region_addrs b' e') with (nil: list Addr).
-        rewrite big_sepL_nil. auto.
-        unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-    - iDestruct "Hinterp" as (p) "[% H]".
-      iExists p. iSplitR; auto.
-      destruct (Z_le_dec b' e').
-      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-        iDestruct (big_sepL_app with "H") as "[H1 H2]".
-        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
-        auto.
-      + replace (region_addrs b' e') with (nil: list Addr).
-        rewrite big_sepL_nil. auto.
-        unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-    - destruct l; auto.
-      iDestruct "Hinterp" as (p) "[% H]".
-      iExists p. iSplitR; auto.
-      destruct (Z_le_dec b' e').
-      + rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-        iDestruct (big_sepL_app with "H") as "[H1 H2]".
-        iDestruct (big_sepL_app with "H2") as "[H2 H3]".
-        auto.
-      + replace (region_addrs b' e') with (nil: list Addr).
-        rewrite big_sepL_nil. auto.
-        unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-    - iDestruct "Hinterp" as (p) "[% [H H']]".
-      iExists p. iSplitR; auto.
-      iDestruct "H" as "#H".
-      iDestruct "H'" as "#H'".
-      iSplitL.
-      + destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H3 H4]".
-          auto.
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-      + iModIntro.
-        rewrite /exec_cond.
-        iIntros (a0 r W') "#Hbe' #Hfuture". iNext. rewrite /interp_expr /=.
-        iIntros "[[Hfull Hreg] [Hmap [Hregion [Hsts Hown]]]]".
-        iSplitR; auto.
-        iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hregion] [Hsts] [Hown]"); eauto.
-        rewrite /read_write_cond. iAlways.
-        iExists p. iSplitR; auto.
-        destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H3 H4]".
-          simpl. destruct l; simpl; iDestruct "Hfuture" as %Hfuture.
-          { iApply (big_sepL_mono with "H3"). intros.
-            simpl. iIntros "[HA [% %]]". iSplitL "HA"; auto.
-            iPureIntro. split.
-            - eelim (region_state_nwl_monotone_nl _ _ y _ Hfuture H5). auto.
-            - eapply related_sts_rel_std; eauto. }
-          { iApply (big_sepL_mono with "H3"). intros.
-            simpl. iIntros "[HA [% %]]". iSplitL "HA"; auto.
-            iPureIntro. split.
-            - eapply (region_state_nwl_monotone _ _ _ Local _ Hfuture H5); eauto.
-            - eapply rel_is_std_i_monotone; eauto. }
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-    - iDestruct "Hinterp" as (p) "[% [H H']]".
-      iExists p. iSplitR; auto.
-      iDestruct "H" as "#H".
-      iDestruct "H'" as "#H'".
-      iSplitL.
-      + destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
-          auto.
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-      + iModIntro. rewrite /exec_cond.
-        iIntros (a0 r W') "#Hbe' #Hfuture". iNext. rewrite /interp_expr /=.
-        iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
-        iSplitR; auto.
-        iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
-        iAlways. iExists p; iSplitR; auto.
-        destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
-          simpl. destruct l; simpl; iDestruct "Hfuture" as %Hfuture.
-          { iApply (big_sepL_mono with "H4"). intros.
-            simpl. iIntros "[HA [% %]]". iSplitL "HA"; auto.
-            iPureIntro. split.
-            - eelim (region_state_nwl_monotone_nl _ _ y _ Hfuture H5). auto.
-            - eapply related_sts_rel_std; eauto. }
-          { iApply (big_sepL_mono with "H4"). intros.
-            simpl. iIntros "[HA [% %]]". iSplitL "HA"; auto.
-            iPureIntro. split.
-            - eapply (region_state_nwl_monotone _ _ _ Local _ Hfuture H5); eauto.
-            - eapply rel_is_std_i_monotone; eauto. }
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-    - destruct l; auto. iDestruct "Hinterp" as (p) "[% [H H']]".
-      iExists p. iSplitR; auto.
-      iDestruct "H" as "#H".
-      iDestruct "H'" as "#H'".
-      iSplitL.
-      + destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
-          auto.
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-      + iModIntro. rewrite /exec_cond.
-        iIntros (a0 r W') "#Hbe' #Hfuture". iNext. rewrite /interp_expr /=.
-        iIntros "[[Hfull Hreg] [Hmap [Hex [Hsts Hown]]]]".
-        iSplitR; auto.
-        iApply ("IH" with "[Hfull] [Hreg] [Hmap] [Hex] [Hsts] [Hown]"); eauto.
-        iExists p. iSplitR; auto.
-        destruct (Z_le_dec b' e').
-        * rewrite (isWithin_region_addrs_decomposition b' e'); eauto.
-          iDestruct (big_sepL_app with "H") as "[H1 H2]".
-          iDestruct (big_sepL_app with "H2") as "[H4 H3]".
-          simpl. iDestruct "Hfuture" as %Hfuture.
-          iApply (big_sepL_mono with "H4"). intros.
-          simpl. iIntros "[HA [% %]]". iSplitL "HA"; auto.
-          iPureIntro. split.
-          { eapply region_state_pwl_monotone; eauto. }
-          { eapply rel_is_std_i_monotone; eauto. }
-        * replace (region_addrs b' e') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia.
-          Unshelve. assumption. assumption. assumption. assumption.
+    iApply (interp_weakening with "IH Hinterp"); eauto.
+    - destruct p; reflexivity.
+    - destruct l; reflexivity.
   Qed.
 
   Lemma subseg_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
@@ -270,11 +100,11 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Subseg with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { (* todo: tactic *) intro ri. rewrite lookup_insert_is_Some.
-      destruct (decide (PC = ri)); eauto. }
+    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec.
+    destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iNext.
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with

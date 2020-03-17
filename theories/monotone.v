@@ -295,11 +295,11 @@ Section monotone.
 
   (*Lemma that allows switching between the two different formulations of monotonicity, to alleviate the effects of inconsistencies*)
   Lemma switch_monotonicity_formulation ρ w p φ:
-      monotonicity_guarantees_region ρ w p φ  ↔
-             (ρ ≠ Revoked → monotonicity_guarantees_decide (Σ := Σ) ρ w p φ).
+      ρ ≠ Revoked →
+      monotonicity_guarantees_region ρ w p φ ≡ monotonicity_guarantees_decide (Σ := Σ) ρ w p φ.
   Proof.
-    unfold monotonicity_guarantees_region, monotonicity_guarantees_decide.
-    split.
+    intros. unfold monotonicity_guarantees_region, monotonicity_guarantees_decide.
+    iSplit; iIntros "HH".
     - destruct ρ.
       * destruct (pwl p) ; intros.
         destruct (decide (Temporary = Temporary ∧ true = true)). auto. assert (Temporary = Temporary ∧ true = true); auto. by congruence.

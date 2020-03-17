@@ -394,10 +394,8 @@ Section scall.
     iPrologue a_rest0 Hlength "Hprog".
     destruct ws_own;[inversion Hlength'|].
     iDestruct "Hstack_own" as "[Ha7 Hstk_own]".
-    iApply (wp_store_success_reg with "[$HPC $Hinstr $Hrt_1 $Hr_stk $Ha7]");
-      [apply store_r_i|apply Hfl|apply PermFlows_refl| |iContiguous_next Ha 15|split;auto|by right;left|auto|].
-    { iCorrectPC a_first a_cont. }
-    { iContiguous_bounds_withinBounds a_act b_r_adv. }
+    iApply (wp_store_success_reg with "[$HPC $Hinstr $Hrt_1 $Hr_stk $Ha7]"); eauto.
+    eapply store_r_i. eapply PermFlows_refl. iCorrectPC a_first a_cont. iContiguous_next Ha 15. split; auto. iContiguous_bounds_withinBounds a_act b_r_adv.
     iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_stk & Ha7)" "Hinstr" "Hi".
     iCombine "Ha7" "Hact_frame" as "Hact_frame".
     (* STORE OLD SP *)
@@ -411,9 +409,8 @@ Section scall.
     iPrologue a_rest0 Hlength "Hprog".
     destruct ws_own;[inversion Hlength'|].
     iDestruct "Hstk_own" as "[Ha8 Hstk_own]".
-    iApply (wp_store_success_reg_same with "[$HPC $Hinstr $Hr_stk $Ha8]");
-      [apply store_r_i|apply Hfl|apply PermFlows_refl| |iContiguous_next Ha 17|split;auto|by right;left|auto|].
-    { iCorrectPC a_first a_cont. }
+    iApply (wp_store_success_reg_same with "[$HPC $Hinstr $Hr_stk $Ha8]"); eauto;
+      [apply store_r_i|apply PermFlows_refl| iCorrectPC a_first a_cont |iContiguous_next Ha 17|split;auto|].
     { iContiguous_bounds_withinBounds a_act b_r_adv. }
     iEpilogue "(HPC & Hinstr & Hr_stk & Ha_r_adv)" "Hinstr" "Hi".
     iCombine "Ha_r_adv" "Hact_frame" as "Hact_frame".
@@ -440,7 +437,7 @@ Section scall.
     (* restrict r_t0 (Local,E) *)
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_restrict_success_z with "[$HPC $Hinstr $Hr_t0]");
-      [apply restrict_r_z|apply Hfl| |iContiguous_next Ha 20|rewrite epp_local_e;auto|auto|].
+      [apply restrict_r_z|apply Hfl| |iContiguous_next Ha 20|rewrite epp_local_e;auto|auto|auto|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t0)" "Hinstr" "Hi".
     (* RESTRICT STACK CAP *)
@@ -476,7 +473,7 @@ Section scall.
     { iCorrectPC a_first a_cont. }
     { rewrite !andb_true_iff !Z.leb_le. repeat split; try lia.
       eapply withinBounds_le_addr; eauto. }
-    assert ((a17 + 1)%a = Some a18) as ->;[iContiguous_next Ha 24|].
+    assert ((a17 + 1)%a = Some a18) as ->;[iContiguous_next Ha 24|]; auto.
     iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_t2 & Hr_stk)" "Hinstr" "Hi".
     (* MCLEAR *)
     assert ([a_first; push2] ++ [cont; push0] ++ [cont0; push1] ++ [cont1; push3] ++ [cont2; push4] ++ [cont3; push5]
@@ -637,10 +634,9 @@ Section scall.
       { pose proof (contiguous_between_last _ _ _ _ Hcont eq_refl) as HH5.
         eapply (contiguous_between_incr_addr_middle _ _ _ 2 5 _ _ Hcont); auto. }
       apply Z.eqb_neq. revert Hincr'; clear; solve_addr. }
-    iApply (wp_load_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 Hlast]");
-      [rewrite -i_3; apply decode_encode_inv|apply Hfl|apply Hfl| | | |auto| 
-       rewrite Hne; iFrame ..].
-    { iCorrectPC stack_own_b stack_own_e. }
+    iApply (wp_load_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 Hlast]").
+    rewrite -i_3; apply decode_encode_inv. apply Hfl.
+    iCorrectPC stack_own_b stack_own_e. 
     { split.
       - unshelve epose proof (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc _) 
           as [ ? | [?|?] ]; [| destruct p; cbn; congruence ..].
@@ -648,6 +644,7 @@ Section scall.
       - eapply isCorrectPC_withinBounds. apply Hvpc.
         iContiguous_bounds stack_own_b stack_own_e. }
     { iContiguous_next Hcont 2. }
+    rewrite Hne; iFrame. iPureIntro; apply Hfl.
     iEpilogue "(HPC & Hr_stk & Hinstr & Hr_t1 & Hlast)" "Hinstr" "Hframe_past".
     (* sub r_t1 0 1 *)
     iApply (wp_bind (fill [SeqCtx])). 
@@ -662,6 +659,7 @@ Section scall.
     { revert Hstack1; clear; solve_addr. }
     assert (isCorrectPC (inr (p, g, b_r, e_r, stack_own_b))) as Hvpc_b.
     { apply Hvpc. iContiguous_bounds stack_own_b stack_own_e. }
+    rewrite Hne.
     iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Hinstr2]");
       [rewrite -i_4b; apply decode_encode_inv|apply Hfl| |iContiguous_next Hcont 4|apply Hdecr|auto|..].
     { iCorrectPC stack_own_b stack_own_e. }

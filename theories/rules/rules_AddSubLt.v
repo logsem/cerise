@@ -132,6 +132,12 @@ Section cap_lang_rules.
 
     eapply z_of_argument_Some_inv' in Hn1; eapply z_of_argument_Some_inv' in Hn2; eauto.
 
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (denote i n1 n2)))) as HH.
+    { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
+      all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
+      all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
+    rewrite /update_reg /= in HH.
+
     destruct (incrementPC (<[ dst := inl (denote i n1 n2) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
@@ -139,28 +145,16 @@ Section cap_lang_rules.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-
-      assert (c = Failed ∧ σ2 = (<[ dst := inl (denote i n1 n2) ]> r, m)) as (-> & ->).
-      { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
-        all: destruct_or! Hinstr; rewrite !Hinstr /= /update_reg /RegLocate in Hstep Hregs' |- *.
-        all: rewrite ?Hr1 ?Hr2 /= in Hstep.
-        all: by simplify_pair_eq. }
-      cbn; iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-      rewrite Hdecode. iFail "Hφ" AddSubLt_fail_incrPC. }
+      simplify_pair_eq.
+      iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      iFail "Hφ" AddSubLt_fail_incrPC. }
 
     (* Success *)
 
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (denote i n1 n2)))) as HH.
-    { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
-      all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
-      all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
-
-    rewrite /update_reg /= in HH.
     eapply (incrementPC_success_updatePC _ m) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
     eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
-    rewrite HuPC in HH. simplify_eq.
-    iFrame.
+    simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
