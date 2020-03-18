@@ -1,0 +1,66 @@
+\documentclass[a4paper, 10pt]{article}
+\topmargin-4.0cm
+
+\usepackage[english]{babel}
+\usepackage{csquotes}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{lastpage}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+\usepackage{datetime}
+
+\usepackage{newpxtext}
+\usepackage{newpxmath}
+
+\begin{document}
+\lhead{}
+\rhead{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\newdate{date}{17}{03}{2020}
+\newdate{friday}{20}{03}{2020}
+\newdate{next}{24}{03}{2020}
+
+\begin{center}
+{\LARGE \bf Meeting Notes}\\
+\displaydate{date}
+\end{center}
+
+\section{Talk of the day}
+
+\begin{itemize}
+\item A\"ina has finished proving a version of the awkward example without the preamble and with stack clearing upon return.
+
+\item Alix, Arma\"el and Thomas have finished the refactoring.
+
+\item Alix has rebased the uninitialized capabilities branch over the refactoring and started fixing proofs.
+
+\item Thomas has given a presentation of what the driver code that would be verified could look like.
+\end{itemize}
+
+\section{Things to do for next meeting}
+
+\begin{itemize}
+\item A\"ina will give a tour of the Coq code on \displaydate{friday} to showcase how to go through the examples. She will also give a higher level presentation of the awkward example, and how to reason about the world/revocation in the Iris setting next meeting.
+
+\item Arma\"el and Thomas will write down something about the operational semantics for I/O, and the expected changes to the value relation.
+
+\item Alix will write down something about uninitialized capabilities, how they are modeled, what is impacted by their introduction, and try to continue working on the uninitialized capabilities branch.
+\end{itemize}
+
+
+\end{document}
