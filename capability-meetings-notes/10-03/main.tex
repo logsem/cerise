@@ -1,0 +1,347 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathpartir}
+\usepackage{xspace}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{iris}
+
+\setlength{\parskip}{0.3em}
+
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\X}[1]{\ensuremath{\textrm{#1}}}
+\newcommand{\I}[1]{\ensuremath{\texttt{#1}}}
+\newcommand{\SL}{Separation Logic\xspace}
+\newcommand{\pure}[1]{\left\lceil #1 \right\rceil}
+
+\newcommand{\FIXME}[1]{{\color{MidnightBlue} FIXME: #1}}
+
+\newcommand{\MMIO}{\textlog{MMIO}}
+
+\title{Capabilities, MMIO and Robust Safety}
+\date{March 10, 2020}
+
+\begin{document}
+
+\maketitle
+
+\section{Memory Mapped I/O: Operational Semantics}
+
+The proposal is to simply represent read and writes to memory-mapped IO
+addresses as events in a trace. This says nothing a priori about devices that
+might be connected to these IO regions. In particular, without additional
+assumptions, reading a byte from a memory-mapped region just returns an
+arbitrary value.
+
+If at some point we want to reason under the assumption that we are connected to
+a specific device that reacts in a specific way, we can express that as an extra
+\SL assertion, that we assume as a pre-condition, and that restricts the set of
+different traces that we might observe.
+
+\[
+  \begin{array}{lcl}
+    \X{EventTy} & := & \X{IOWrite} \; | \; \X{IORead} \\
+    \X{Event} & := & \X{EventTy} \times \X{Addr} \times \Z \\
+    \X{Trace} & := & \X{list} \; \X{Event} \\
+    \X{State} & := & \underbrace{\X{Reg} \times \X{Mem}}_{\text{old state}}
+                     \times \X{Trace} \\
+  \end{array}
+\]
+
+Values of type \X{State} represent the state of a configuration in the
+small-step operational semantics. In this setup, we assume the whole semantics
+to be parameterized by the range of memory-mapped addresses: \MMIO.
+
+\[
+  \begin{array}{lcl}
+    \MMIO & := & [\MMIO_{b}, \MMIO_{e}) \\
+  \end{array}
+\]
+
+\textit{NB:} An alternative presentation would be to make this range an
+immutable part of \X{State}. It probably does not really matter in the end, we
+should do whatever makes our life easier for instantiating Iris with the
+semantics.
+
+In the (current) operational semantics without MMIO, the operational semantics
+of the \I{Load} instruction is:
+
+\begin{mathpar}
+  \inferrule[Load]
+  { r[\X{src}] = (p,g,b,e,a) \\ \X{readAllowed}\; p \\ a \in [b,e) }
+  { (r, m) \xrightarrow{\I{Load} \; \X{dst} \; \X{src}} (r[\X{dst} := m[a]], m) }
+\end{mathpar}
+
+With MMIO, we obtain two rules:
+
+\begin{mathpar}
+  \inferrule[MemLoad]
+  { r[\X{src}] = (p,g,b,e,a) \\ \X{readAllowed}\; p \\ a \in [b,e) \\ a \notin \MMIO}
+  { (r, m, t) \xrightarrow{\I{Load} \; \X{dst} \; \X{src}}
+    (r[\X{dst} := m[a]], m, t) }
+
+  \inferrule[IOLoad]
+  { r[\X{src}] = (p,g,b,e,a) \\ \X{readAllowed}\; p \\ a \in [b,e) \\ a \in \MMIO}
+  { (r, m, t) \xrightarrow{\I{Load} \; \X{dst} \; \X{src}}
+    (r[\X{dst} := x], m, (\X{IORead}, a, x) :: t) }
+\end{mathpar}
+
+Notice how in the second rule, we read an arbitrary integer $x$, and record it
+in the trace.
+
+
+\paragraph*{Remark:} With this presentation, the specification of the
+``machine'' is very much decoupled from the model of the devices it might be
+communicating with. This is a good thing, I think.
+
+Nevertheless, one could consider an alternative presentation where the model of
+the devices is more tightly integrated with the semantics of the machine. For
+instance, one could make the operational semantics parameterized with the
+devices' model, where each device is modeled as having some internal state, the
+ability to react on reads or writes, or to perform an internal step. Then, the
+operational semantics would either step the usual way, or whenever a device
+steps.
+
+I believe this would be somewhat similar to the semantics of I/O system calls
+through a foreign function interfaces as formalized in
+CakeML~\cite{cakeml-vstte17io}.
+
+\paragraph*{Remark:} Alix says that the proposed style of operational semantics
+(using a trace) is close to the semantics of \texttt{volatile} as in
+CompCert---which is also how memory mapped addresses seem to be exposed to C
+compilers in practice. So this is probably a good sign. 
+
+
+\section{\SL Resources}
+
+We added a trace as part of the state, so we wish to also expose it as a \SL
+assertion.
+
+\newcommand{\tracefull}[1]{\ownGhost{\gamma_{T}}{\authfull{#1}}}
+\newcommand{\tracefrag}[1]{\ownGhost{\gamma_{T}}{\authfrag{#1}}}
+
+The simplest way to do that is to directly expose the complete trace. In that
+case, the state interpretation additionally holds a resource for the trace:
+
+\[
+  \X{state\_interp} \; (r,m,t) := \ldots \ast \tracefull{t}
+\]
+
+The user then works with assertions of the form $\tracefrag{t'}$. Such an
+assertion is not duplicable, and grants full ownership over the trace. In
+particular, it allows one to \emph{update} the trace by emitting events, i.e. by
+performing I/O operations.
+
+The wp-rules for \I{Load} and \I{Store} need to be updated consequently. For
+instance, the rule for a \I{Load} reading the integer $x$ on a MMIO address $a$
+now requires $\tracefrag{t}$ in the pre-condition (for some $t$), and provides
+$\tracefrag{(\X{IORead}, a, x) :: t}$ in the post-condition.
+
+The corresponding resource algebra is $\authm(\exm(\X{Trace}))$. A few relevant
+rules are:
+
+\[
+  \begin{array}{l}
+    \tracefull{t} \ast \tracefrag{t'} \wand \pure{t = t'} \\
+    \tracefrag{t} \ast \tracefrag{t'} \wand \FALSE \\
+    \tracefull{t} \ast \tracefrag{t} \vsW \tracefull{t'} \ast \tracefrag{t'} \\
+  \end{array}
+\]
+
+
+\paragraph*{Remark:} This is very coarse-grained: either one has the full
+ownership for performing I/O and reasoning about it, or one cannot know anything
+about it.
+
+A first extension could be to allow observing prefixes of the trace (since
+events can only be appended to the trace). The observation that the trace
+has a given prefix would be duplicable.
+
+Another extension, that seems very useful for modular reasoning, would be to
+allow splitting the trace along separate range of addresses. Concretely, a trace
+containing events about the range of MMIO addresses $[a,c)$ could be split into
+two traces, granting ownership over events on addresses $[a,b)$ and $[b,c)$
+respectively. Note that recombining these two traces would only yield some
+unspecified interleaving of the events from the two traces, and not necessarily
+yield the original trace.
+
+One application of this second extension could be the verification of an example
+involving ``multiplexed'' I/O, where two separate parts of the code are granted
+separate ownership over separate MMIO addresses. These two separate pieces of
+code would be verified separately; then, in the end, one could prove that one
+gets \emph{some} interleaving of all the events emitted by both components.
+
+
+\section{Toplevel Theorem (\emph{à la} OCPL)}
+
+Let us start with a brief recap of the toplevel ``Robust Safety'' theorem for
+OCPL itself (and its key ingredients), then the extension (by Thomas) of OCPL to
+include a \I{print} capability, and finally move to the capability machine
+setting.
+
+\subsection{OCPL}
+
+The {\sc RobustSafety} theorem of OCPL is as follows:
+
+\begin{mathpar}
+  \mprset{vskip=0.3em}
+  \inferrule
+  {C \in \textit{AdvCtx} \\
+    e \; \X{closed} \\
+    \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
+    (C[e]);(\emptyset, \textlog{OK}) \longrightarrow^* T';(h',g')
+  }
+  {g' = \textlog{OK}}
+\end{mathpar}
+
+For any closed expression $e$, if $e$ has been verified to only return low
+values, then running $e$ wrapped in an adversarial context $C$ from an initial
+state, then we can observe that every reachable state is good
+($g' = \textlog{OK}$ means that no assertion has failed in $e$).
+
+$C \in AdvCtx$ means that $C$ cannot contain assertions (otherwise one could
+trivially contradict the theorem by taking
+$C[\cdot] = \textlog{assert false}$), and cannot contain references to raw
+memory locations (otherwise one could directly access $e$'s private state,
+invalidating the local state encapsulation mechanisms).
+
+\newcommand{\lift}[2]{\textlog{lift}\; #1 \; #2}
+\newcommand{\liftP}[1]{\lift{\Psi}{#1}}
+
+$\textlog{lowval}\; x$ intuitively means that $x$ cannot be used to directly
+access private (or ``high'') locations. It is formally defined using a logical
+relation ``$\liftP{v}$'', which more generally asserts that the value $v$ only
+gives direct access to locations that satisfy the predicate $\Psi$.
+
+\[
+  \begin{array}{lcl}
+    \liftP (\textlog{rec}\; f\; x.\; e) & \eqdef
+    & \later \forall v.\; \hoare{\liftP{v}}{e[v/x,\textlog{rec}\;f\;x.\; e/f]}{y.\; \liftP y} \\
+    %
+    \liftP (v_{1}, v_{2}) & \eqdef & \later (\liftP v_{1}, \liftP v_{2}) \\
+    %
+    \color{BrickRed} \liftP \ell & \color{BrickRed} \eqdef & \color{BrickRed} \Psi \; \ell \\
+    %
+    \ldots
+  \end{array}
+\]
+
+Then, $\textlog{lowval}\; x$ is defined as $\lift{\textlog{lowloc}}{x}$, where
+$\textlog{lowloc}$ is a predicate characterizing the region of memory containing
+``low locations'' (distinct from the other region containing ``high
+locations'').
+
+\subsection{OCPL with \I{print}}
+
+\newcommand{\OutV}{\textlog{Out}}
+
+In Thomas' extension of OCPL, a new value $\OutV$ is added, denoting an
+``output object capability'', as well as a $\textlog{print}$ primitive, where
+$\textlog{print}\; \OutV\; v$ effectively ``prints'' the value $v$, i.e. adds it
+to the trace of printed values.
+
+One then wants to be able to encapsulate the use of $\OutV$, for instance by
+defining object capabilities that enforce some invariants on the values being
+printed. In that setting, $\OutV$ is considered as a ``high'' value:
+
+\FIXME{Thomas, I realize that this is less general that what you have (I
+  think?), since in your case $\OutV$ \emph{can} be low, if the trace predicate
+  is equivalent to True. But I don't know how to state that in a setting where
+  the predicate is not directly embedded in the definitions...}
+
+\[
+  \begin{array}{lcl}
+    \liftP \OutV & \eqdef & \FALSE
+  \end{array}
+\]
+
+The theorem then becomes:
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  {C \in \textit{AdvCtx} \\
+    e \; \X{closed} \\
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)} \vdash \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
+    (C[e]);(\emptyset, \textlog{OK}); \emptyset \longrightarrow^* T';(h',g'); t
+  }
+  {g' = \textlog{OK} \wedge P(t)}
+\end{mathpar}
+
+That is, if $e$ has been verified under the assumption that the predicate $P$
+holds as a trace invariant, then executing $e$ in an adversarial context yields
+a trace that does satisfy $P$.
+
+$C \in \textit{AdvCtx}$ also has to be extended to forbid $C$ from containing
+$\OutV$.
+
+\subsection{Capability Machine with MMIO}
+
+\newcommand{\VR}{\mathcal{V}}
+\newcommand{\ER}{\mathcal{E}}
+\newcommand{\RR}{\mathcal{R}}
+\newcommand{\notMMIO}{\overline{\MMIO}}
+
+Similarly to $\textlog{lift}$, we can generalize the existing logical relation
+to thread a constraint on directly accessible memory locations. One would
+parameterize the value, expression and register relations ($\VR$, $ER$ and $RR$)
+with a predicate $\Psi$ on addresses.
+
+Then, for any permission $p$ that includes either the R or W bit, $\VR$
+is extended as follows:
+
+\[
+  \VR^{\Psi}(p, g, b, e, a) \eqdef \underbrace{\ldots}_{\text{as before}} \ast \; \pure{\forall a' \in [b,e).\; \Psi(a')}
+\]
+
+Then, $\ER^{\Psi}$ and $\RR^{\Psi}$ are simplify defined by threading the extra
+$\Psi$ parameter through the existing definition.
+
+Finally, for our relation to characterize ``low values'' that do not give direct
+access to MMIO addresses, one would instantiate $\Psi$ with a predicate
+$\notMMIO$ that excludes memory mapped addresses:
+
+\[
+  \notMMIO(a) \eqdef a \notin \MMIO
+\]
+
+Then, $\VR^{\notMMIO}$ is similar to the $\textlog{lowval}$ predicate of OCPL.
+Intuitively, a value in the relation does not directly point to memory-mapped
+locations, and also does not leak memory-mapped location through registers when
+interacting with other code.
+
+\paragraph*{Remark:} As stated above, the ``generalized'' value relation is in
+fact not very useful for instantiation of $\Psi$ other than $\notMMIO$. Indeed,
+even if $\Psi$ \emph{does} allow referring to addresses in the $\MMIO$ region,
+the value relation does not grant any corresponding resources.
+The fix would be to use the generalized trace resources mentioned previously,
+and grant ownership for the part of the trace corresponding to addresses in
+$[b,e) \cap \MMIO$.
+
+Then, the toplevel theorem would be:
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)} \vdash \VR^{\notMMIO}
+    (E, g, b, e, a) \\
+    (r[\X{PC} := (E, g, b, e, a)], m, \emptyset) \longrightarrow^*
+    (r', m', t)
+  }
+  {P(t)}
+\end{mathpar}
+
+\FIXME{We need to add refine the assumptions of the theorem so that it has a
+  chance of being true. One needs to add either a ``syntactic condition'' over
+  thee state of the initial memory, or link with an initial boot-code and assume
+  require the boot-code has a specification that entails the syntactic
+  condition.}
+
+\bibliographystyle{alpha}
+\bibliography{biblio}
+
+\appendix
+
+\end{document}
