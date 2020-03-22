@@ -8,8 +8,8 @@
    RC = Read Code = the code that will read adversary code through IO, and store it in the adversary section AC of memory
    AC = Adversary Code = memory starting where the adversary code read through IO will be stored, running all the way to the end of physical memory
 
-   TCB = Trusted Computing Base = Trusted Code = Boot Code + Driver Code
-   UTCB = Untrusted Code = Memory - VC - IO = RC + AC
+   TCB = Trusted Computing Base = Trusted Code = BC + DC
+   UTCB = Untrusted Code = Memory - TCB - IO = RC + AC
   *)
 
 (* Starting configuration:
