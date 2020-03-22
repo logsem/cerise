@@ -4,21 +4,34 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{mathpartir}
+\usepackage{tensor}
 \usepackage{xspace}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{iris}
+\usepackage{marvosym}
+\usepackage{xargs}
 
 \setlength{\parskip}{0.3em}
 
 \newcommand{\Z}{\mathbb{Z}}
-\newcommand{\X}[1]{\ensuremath{\textrm{#1}}}
-\newcommand{\I}[1]{\ensuremath{\texttt{#1}}}
+\newcommand{\X}[1]{\ensuremath{\mathrm{#1}}}
+\newcommand{\V}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\I}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\T}[1]{\texttt{#1}}
 \newcommand{\SL}{Separation Logic\xspace}
-\newcommand{\pure}[1]{\left\lceil #1 \right\rceil}
+\newcommand{\pure}[1]{\tensor[^{\ulcorner}]{#1{}}{^{\urcorner}}} %Hacky {} to avoid double superscript
 
 \newcommand{\FIXME}[1]{{\color{MidnightBlue} FIXME: #1}}
 
 \newcommand{\MMIO}{\textlog{MMIO}}
+
+\DeclareMathOperator{\initOKo}{init_{OK}}
+\newcommandx{\initOK}[4][3=r,4=m]{\initOKo(#1,#2,#3,#4)}
+\DeclareMathOperator{\initBCo}{init_{BC}}
+\newcommandx{\initBC}[4][3=r,4=m]{\initBCo(#1,#2,#3,#4)}
+
+\newcommand{\regdr}{\mathbin{!!}}
+
 
 \title{Capabilities, MMIO and Robust Safety}
 \date{March 10, 2020}
@@ -56,7 +69,7 @@ to be parameterized by the range of memory-mapped addresses: \MMIO.
 
 \[
   \begin{array}{lcl}
-    \MMIO & := & [\MMIO_{b}, \MMIO_{e}) \\
+    \MMIO & := & [\MMIO_{\X{b}}, \MMIO_{\X{e}}) \\
   \end{array}
 \]
 
@@ -91,6 +104,11 @@ With MMIO, we obtain two rules:
 Notice how in the second rule, we read an arbitrary integer $x$, and record it
 in the trace.
 
+The \I{Store} rule would be similar. Additionally, executing with a \X{PC}
+register pointing to an $\MMIO$ location should be disallowed in the operational
+semantics (I think this makes more sense than reading a random instruction
+through I/O).
+
 
 \paragraph*{Remark:} With this presentation, the specification of the
 ``machine'' is very much decoupled from the model of the devices it might be
@@ -119,8 +137,8 @@ compilers in practice. So this is probably a good sign.
 We added a trace as part of the state, so we wish to also expose it as a \SL
 assertion.
 
-\newcommand{\tracefull}[1]{\ownGhost{\gamma_{T}}{\authfull{#1}}}
-\newcommand{\tracefrag}[1]{\ownGhost{\gamma_{T}}{\authfrag{#1}}}
+\newcommand{\tracefull}[1]{\ownGhost{\gamma_{\X{T}}}{\authfull{#1}}}
+\newcommand{\tracefrag}[1]{\ownGhost{\gamma_{\X{T}}}{\authfrag{#1}}}
 
 The simplest way to do that is to directly expose the complete trace. In that
 case, the state interpretation additionally holds a resource for the trace:
@@ -157,7 +175,10 @@ about it.
 
 A first extension could be to allow observing prefixes of the trace (since
 events can only be appended to the trace). The observation that the trace
-has a given prefix would be duplicable.
+has a given prefix would be duplicable. This again seems to be an application of
+monotonicity, that could be realized by having a duplicable AtLeast part as part
+of $\tracefrag{t'}$,
+similarly to how we currently model Monotone References.
 
 Another extension, that seems very useful for modular reasoning, would be to
 allow splitting the trace along separate range of addresses. Concretely, a trace
@@ -165,7 +186,7 @@ containing events about the range of MMIO addresses $[a,c)$ could be split into
 two traces, granting ownership over events on addresses $[a,b)$ and $[b,c)$
 respectively. Note that recombining these two traces would only yield some
 unspecified interleaving of the events from the two traces, and not necessarily
-yield the original trace.
+yield the original trace, since in our model, we cannot know the exact interleaving of IO operations issued by different parties.
 
 One application of this second extension could be the verification of an example
 involving ``multiplexed'' I/O, where two separate parts of the code are granted
@@ -173,6 +194,34 @@ separate ownership over separate MMIO addresses. These two separate pieces of
 code would be verified separately; then, in the end, one could prove that one
 gets \emph{some} interleaving of all the events emitted by both components.
 
+We use another resource algebra to model the MMIO locations. The operational
+semantics have been parameterized with a set $\MMIO$ of memory locations, but we
+need a way to specify what these locations are at a higher level of abstraction.
+A non-elegant solution is to index the WP definition with this set $\MMIO$. A
+better solution (that does not necessitate any changes to the definition of WP)
+is to add $\MMIO$ to the state, and add a conjunct to the state interpretation
+that expresses ownership of $\MMIO$ under agreement, i.e. add
+
+\newcommand{\MMIOag}{\ownGhost{\gamma_{\X{MMIO}}}{\agm (\X{MMIO})}}
+
+\[
+  \X{state\_interp} \; (r,m,t,\MMIO) := \ldots \ast \MMIOag
+\]
+
+to the state interpretation we had before.
+
+\paragraph*{Remark:} Another alternative, mentioned by Dominique, was to
+parameterize the entire language by the set of MMIO locations. This might come
+down to the same thing as the first solution mentioned above.
+
+In the future, we might be interested in the dynamic allocation of MMIO memory.
+The question is what this would mean, though, since the set of available devices
+allowing for MMIO access and the concrete buffers they provide will most likely
+still be modeled as fixed at runtime.
+Rather, this would allow us to take (un)mapped MMIO locations, connected to the different devices, and (un)map them anywhere in main memory.
+This would require a different way of modeling MMIO, where we need both a notion
+of the total pool of possible MMIO locations, and a description of the currently
+mapped locations. We could model this using an authoritative RA.
 
 \section{Toplevel Theorem (\emph{à la} OCPL)}
 
@@ -246,14 +295,20 @@ One then wants to be able to encapsulate the use of $\OutV$, for instance by
 defining object capabilities that enforce some invariants on the values being
 printed. In that setting, $\OutV$ is considered as a ``high'' value:
 
-\FIXME{Thomas, I realize that this is less general that what you have (I
-  think?), since in your case $\OutV$ \emph{can} be low, if the trace predicate
-  is equivalent to True. But I don't know how to state that in a setting where
-  the predicate is not directly embedded in the definitions...}
-
 \[
   \begin{array}{lcl}
     \liftP \OutV & \eqdef & \FALSE
+  \end{array}
+\]
+
+To be more precise, we could actually allow sharing $\OutV$ in case the predicate P
+does not place any constraints on the output, i.e. is the $\TRUE$ predicate.
+Technically, we could hence have the following definition (although admittedly,
+it does look a bit hard-coded):
+\[
+  \begin{array}{lcl}
+    \liftP \OutV & \eqdef & \exists \iota \ldotp \knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast
+                            \pure{(\Lam{\_}.\TRUE) \spac t}}
   \end{array}
 \]
 
@@ -264,7 +319,7 @@ The theorem then becomes:
   \inferrule
   {C \in \textit{AdvCtx} \\
     e \; \X{closed} \\
-    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)} \vdash \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast \pure{\! P(t)}} \vdash \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
     (C[e]);(\emptyset, \textlog{OK}); \emptyset \longrightarrow^* T';(h',g'); t
   }
   {g' = \textlog{OK} \wedge P(t)}
@@ -286,7 +341,7 @@ $\OutV$.
 
 Similarly to $\textlog{lift}$, we can generalize the existing logical relation
 to thread a constraint on directly accessible memory locations. One would
-parameterize the value, expression and register relations ($\VR$, $ER$ and $RR$)
+parameterize the value, expression and register relations ($\VR$, $\ER$ and $\RR$)
 with a predicate $\Psi$ on addresses.
 
 Then, for any permission $p$ that includes either the R or W bit, $\VR$
@@ -309,35 +364,284 @@ $\notMMIO$ that excludes memory mapped addresses:
 
 Then, $\VR^{\notMMIO}$ is similar to the $\textlog{lowval}$ predicate of OCPL.
 Intuitively, a value in the relation does not directly point to memory-mapped
-locations, and also does not leak memory-mapped location through registers when
-interacting with other code.
+locations, nor can it gain access to memory-mapped locations indirectly,
+similarly to how $\textlog{lowval}$s cannot grant access to high locations
+(in)directly. The relation $\ER^{\notMMIO}$ specifies that, if we fill the
+registers with values in $\VR^{\notMMIO}$, then the
+invariants in a private future world of our starting world will be satisfied at the end of execution.
 
 \paragraph*{Remark:} As stated above, the ``generalized'' value relation is in
 fact not very useful for instantiation of $\Psi$ other than $\notMMIO$. Indeed,
 even if $\Psi$ \emph{does} allow referring to addresses in the $\MMIO$ region,
 the value relation does not grant any corresponding resources.
 The fix would be to use the generalized trace resources mentioned previously,
-and grant ownership for the part of the trace corresponding to addresses in
-$[b,e) \cap \MMIO$.
+and grant ownership for the part of the trace corresponding to the
+addresses in $[b,e) \cap \MMIO_{\X{pub}}$ with $\MMIO_{\X{pub}}$ the shareable subset of addresses in \MMIO.
 
-Then, the toplevel theorem would be:
+We will have to adapt the robust safety theorem to this new capability machine
+setting, \'and to the more concrete setup of the examples we want to gradually
+verify.
+
+Ignoring this second restriction for the time being, the general updated robust
+safety theorem might look something like this:
 
 \begin{mathpar}
   \mprset{vskip=0.4em}
   \inferrule
-  { \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)} \vdash \VR^{\notMMIO}
-    (E, g, b, e, a) \\
-    (r[\X{PC} := (E, g, b, e, a)], m, \emptyset) \longrightarrow^*
+  { \forall a_{i} \in A_{\X{entry}} \ldotp \left\{
+      {\begin{array}{ll}
+      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\! \ast \MMIOag
+         \vdash\\
+         \quad \forall W \ldotp\;(\ER^{\notMMIO} (RX, g, b, e, a_i))\spac W
+      \end{array}} \right. \\
+     \\
+    (r[\overline{r_{a_{i}} := (E, g, b, e, a_i)}], m, \emptyset) \longrightarrow^*
     (r', m', t)
   }
   {P(t)}
 \end{mathpar}
 
-\FIXME{We need to add refine the assumptions of the theorem so that it has a
-  chance of being true. One needs to add either a ``syntactic condition'' over
-  thee state of the initial memory, or link with an initial boot-code and assume
-  require the boot-code has a specification that entails the syntactic
-  condition.}
+The capability $(RX, g, b, e, a_i)$ points to the $i$th entry point of the code
+we want to gradually verify.
+The set of entry points is given by $A_{\X{entry}}$.
+The capability $(E, g, b, e, a_i)$ then represents
+a closure for this same piece of code. The adversary only gets access to the
+closure, in order to avoid them from executing or reading arbitrary lines of
+code within the trusted module.
+Notice the universal quantification over worlds in the precondition;
+this needs to be there, since we do not know in what world our code will be
+called.
+This universal quantification was not explicitly present in the OCPL
+formalization.
+The reason for that is that (I think so at least, do not quote me
+on this - Thomas) they
+used the built-in Iris worlds within their definition of weakest precondition,
+by leveraging the state interpretation, which is universally quantified over in
+the definition of weakest precondition.
+As we discussed before, if we do away
+with local capabilities, it should be possible to fall back onto Iris' notion of
+worlds, which would allow us to remove the universal quantification in the
+above definition too because it would be implicitly present in the WP inside $\ER$.
+
+\paragraph*{Remark:} it would be interesting to have a discussion about how to
+do away with the worlds if we remove local capabilities, regardless of whether
+we will in the end, since that might shed some light on why the worlds look the
+way they do right now.
+
+Also note that we might as well have written
+$\ldots \vdash \forall W \ldotp \; (\VR^{\notMMIO} \ldots $ %)
+in the above theorem, instead of having the expression relation, since this is
+the actual relation we will need, and easily unfolds to the former statement
+through the definition of the value relation. I wrote $\ER$ to place the focus
+on the execution of the driver being safe. I consider this a matter of taste.
+
+The above theorem is still lacking, since it has no notion of adversarial
+context \textit{AdvCtx} to limit the power of the attacker. Indeed, if we allow
+an attacker to have read or write access to any location in \MMIO, or possess
+any capability directly pointing into the driver, then all hope we might have of
+gradually enforcing safety properties is now lost. We need a check on the memory
+and registers that we will allow our driver closures to be used with.
+
+To enforce these syntactic restrictions, we have two options:
+\begin{enumerate}
+\item Add a syntactic check to the statement of our robust safety theorem,
+  ensuring that the adversary code cannot gain access to any non-E capabilities
+  pointing into the driver code or any capabilities pointing into $\MMIO$ directly.
+\item Assume the existence of a piece of boot code, that gets to run first when
+  the capability machine starts up, and makes sure the above condition actually
+  holds before passing control to the adversary. We could either assume that the
+  adversarial memory can contain any capability at startup, in which case the
+  driver has to erase the memory before passing control, or we could assume that
+  the memory cannot contain any capabilities whatsoever, in which case the boot
+  code does not have this obligation.
+\end{enumerate}
+
+If we were to follow option 2 and write concrete boot code, part of our proof
+would consist of reducing option 2 to the situation in option 1, since this is
+where unknown adversary code actually starts executing. In a way, option 1 is
+hence more fundamental than option 2. We therefore adapt the robust safety
+theorem to option 1 first.
+
+In this setting, we can subdivide the memory $m$ into 3 relevant subsections;
+$m = m_{\MMIO} \uplus m_{\X{driver}} \uplus m_{\X{adv}}$ %\uplus m_{\X{frame}}
+with the following meaning:
+\begin{itemize}
+\item $m_{\MMIO}$ contains the memory-mapped locations
+\item $m_{\X{driver}}$ contains the driver code
+\item  $m_{\X{adv}}$ contains the adversary's code and data (this will also
+  include the boot code in the general setting, since it does not contain any
+  inherently dangerous capabilities itself)
+\end{itemize}.
+
+\newcommand{\notMapsToR}[2]{\rightarrow^{\overline{#1}}\!\!(#2)}
+
+We can then implement the syntactic check using the following predicate
+$\notMapsToR{R}{w}$, that takes a word, memory region or register file and checks if it points into the forbidden region $R$ as follows:
+
+\[
+  \begin{array}{lcl}
+    \notMapsToR{R}{\X{inl}\spac z} & \eqdef
+    & \TRUE \\
+    %
+    \notMapsToR{R}{\X{inr}\spac (p,g,b,e,a)} & \eqdef & R \cap [b,e[\; =
+                                                 \emptyset  \\
+    %
+    \notMapsToR{R}{\V{reg}} & \eqdef & \forall r \in \dom(\V{reg}) \ldotp\spac \notMapsToR{R}{\V{reg}(r)} \\
+    %
+    \notMapsToR{R}{\V{mem}} & \eqdef & \forall l \in \dom(\V{mem}) \ldotp\spac   \notMapsToR{R}{\V{mem}(l)}
+  \end{array}
+\]
+
+Given this definition, we can now formalize the initialization constraints on
+registers $r$ and memory $m$, given the region $\MMIO$ and
+the driver's address space $[b,e[$ as follows;
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { m = m_{\MMIO} \uplus m_{\X{driver}} \uplus m_{\X{adv}}\\
+    m_{\MMIO} = \MMIO \rightarrow \mbox{\Lightning} \\
+    \dom( m_{\X{driver}} ) = [b,e[\\
+    \dom( m_{\X{adv}} ) = [b_{\X{adv}},e_{\X{adv}}[\\
+    \notMapsToR{\MMIO \cup [b,e[}{\V{r}}\\
+    \notMapsToR{\MMIO \cup [b,e[}{\V{m_{\X{adv}}}} \\
+    r \regdr \X{PC} = (\X{RWX}, \X{G},b_{\X{adv}},e_{\X{adv}},b_{\X{adv}})\\
+  }
+  {\initOK{\MMIO}{[b,e[}}
+\end{mathpar}
+
+
+and subsequently formulate the robust safety theorem as follows:
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { \forall a_{i} \in A_{\X{entry}} \ldotp \left\{
+      {\begin{array}{ll}
+      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\! \ast \MMIOag
+         \vdash\\
+         \quad \forall W \ldotp\;(\ER^{\notMMIO} (RX, g, b, e, a_i))\spac W
+       \end{array}} \right. \\
+   \initOK{\MMIO}{[b,e[} \\
+  (r[\overline{r_{a_{i}} := (E, g, b, e, a_i)}], m, \emptyset) \longrightarrow^* (r', m', t)\\
+  }
+  {P(t)}
+\end{mathpar}
+, where we have set the PC up to be a sensible capability (pointing to $b_{\X{adv}}$
+without loss of generality).
+
+Notice how the syntactic check for the registers is only performed on the set of registers $r$, allowing the closures in $\overline{r_{a_i}}$ to point into to the driver address space.
+
+Having this theorem in our toolbox, we can now take a closer look at scenario 2
+above, where a piece of boot code is used to set the memory up correctly,
+obviating the need for any other assumptions than that the boot code behaves
+according to some spec. Concretely, we want the boot code to uphold a spec that
+allows us to prove the above theorem.
+Alternatively, we could also just implement one specific instance of boot code, and prove that after it finishes executing, all preconditions to apply the above theorem are met.
+We can use the following predicate to specify that the starting configuration is
+valid:
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { m = m_{\MMIO} \uplus m_{\X{driver}} \uplus m_{\X{boot}}\\
+    m_{\MMIO} = \MMIO \rightarrow \mbox{\Lightning} \\
+    \dom(m_{\X{driver}}) = [b,e[\\
+    \dom(m) = [0,\X{MEM_{MAX}}[\\
+    r \regdr \X{PC} = (\X{RWX}, \X{G},0,\X{MEM_{MAX}},l_{\X{boot}})\\
+  }
+  {\initBC{\MMIO}{[b,e[}}
+\end{mathpar}
+where $l_{\X{boot}}$ is the location where the machine boots, to be determined
+by the machines operational semantics.
+
+On the level of the operational semantics, we have to prove that the
+following holds, in order to use our concrete driver implementation with the
+robust safety theorem above (the driver still needs to be proven safe separately):
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { \initBC{\MMIO}{[b,e[}\\
+  }
+  { \exists n\ldotp (r, m, \emptyset) \longrightarrow^n (r'[\overline{r_{a_{i}}
+      := (E, g, b, e, a_i)}], m', t) \land P(t) \land\\
+  \initOK{\MMIO}{[b,e[}[r'][m']}\quad (\textsc { BootCodeOK })
+\end{mathpar}
+
+Note that to link scenario 2 to scenario 1, we need a slightly adapted version of the robust safety theorem stated above
+where the initial trace is allowed to not be empty, but rather just satisfy
+$P(t)$, but that should not cause any problems.
+For a specific instance of boot code that provably satisfies the \textsc{BootCodeOK}
+rule, the resulting boot-code-based formulation of the robust safety theorem is now
+just a corollary of the general robust safety theorem, and has the following
+statement:
+
+\begin{mathpar}
+  \mprset{vskip=0.4em}
+  \inferrule
+  { \forall a_{i} \in A_{\X{entry}} \ldotp \left\{
+      {\begin{array}{ll}
+      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\! \ast \MMIOag
+         \vdash\\
+         \quad \forall W \ldotp\;(\ER^{\notMMIO} (RX, g, b, e, a_i))\spac W
+       \end{array}} \right. \\
+   \initBC{\MMIO}{[b,e[} \\
+  (r, m, \emptyset) \longrightarrow^* (r', m', t)\\
+  }
+  {P(t)}
+\end{mathpar}
+
+Now we have a closer look at the concrete example we would like to verify,
+including what its boot code looks like. Our goal is to prove that this concrete
+example satisfies \textsc{BootCodeOk} and this last robust safety theorem.
+
+The code for for the driver scenario we want to gradually verify can
+be found in \T{driver\_code.v}. This example file contains more details on the
+scenario in the comments. From a more high-level perspective, it contains a
+trusted part, consisting of a single MMIO location, boot code to properly set up
+the capability machine at start-up, and the code for the driver itself. On the
+other hand, the example also contains an untrusted part, consisting of a known,
+but untrusted code section and sandbox section (which we do not make assumptions
+over).
+The first address of the adversary code section is what the trusted part jumps
+to once it has finished setting up.
+
+The boot code is where execution starts off when the capability machine is
+powered on.
+It contains an omnipotent RWX capability (i.e. ranging over all of memory and
+providing full permissions over it) starts off execution.
+(\textbf{Design Alternative:} in the long run, it might be worthwhile to provide
+the boot code with a RWLX capability. Since RWX cannot be upgraded to RWLX, it
+is impossible in the current setting to develop a secure stack calling
+convention \'a la Lau, where the stack capability has to be local-WL and (in this
+case) the driver code has to ensure that there is no other WL than the stack.
+However, having a global stack capability is currently not an issue, since the interface to our driver is first order, i.e. it will
+never create another adversary stack frame on top of itself (currently, it does
+not even use the stack in the first place!), and since we are working in a
+single-threaded setting (not very relevant, but I think the multi-threaded
+setting is an interesting thought experiment). I avoided unnecessary
+complications and hence kept the omnipotent capability as RWX. If the omnipotent
+capability were to become RWLX in the future, we would have to be careful using
+a stack, since if we want our secure calling convention with a higher order
+interface to our driver API, there cannot be any adversary-accessible global
+write-local memory, i.e. the reduced omnipotent capability cannot be allowed to be global if we pass it to the adversary. We would thus have to pass a stack capability that we explicitly make local, and a global RWX capability for the rest of memory)
+
+The boot code has the following responsibilities:
+\begin{itemize}
+\item Generate the necessary closures (i.e. Enter capabilities) for the driver's read and write methods, so that the adversary can use safely use them to perform I/O, and any properties that the driver wants to uphold on the input-\textbackslash output stream can actually be enforced.
+\item Wipes all of the adversary's sandbox section, to make sure no remaining
+  capabilities can be found there (\textbf{Design Alternative:} maybe we should try to find out how CHERI handles this; is it possible that any lingering capabilities are left in RAM
+  on machine start-up? In any case, we are already being slightly unrealistic by assuming the adversary code section is just \emph{there}. We have the option
+  to not do any erasure, and just make the assumption that adversary memory
+  contains no capabilities pointing into MMIO or pointing into the driver. ).
+  It does n\'ot, however, wipe the untrusted, hard-coded adversary routine that reads $N$ lines of code from a single (and the only) MMIO location in memory.
+\item Reduces the omnipotent capability to provide RWX access to all of the
+  adversary's code, makes it point to the first element of the adversary's code
+  section and jumps to it, in order to hand control to the adversary. Before the
+  jump, it clears all registers except for the 2 containing the read and write
+  driver closures, in order to make sure that no extra permissions leak to the adversary.
+\end{itemize}
 
 \bibliographystyle{alpha}
 \bibliography{biblio}
