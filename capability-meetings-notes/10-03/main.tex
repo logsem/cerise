@@ -178,7 +178,7 @@ operations.
 The wp-rules for \I{Load} and \I{Store} need to be updated consequently. For
 instance, the rule for a \I{Load} reading the integer $x$ on a MMIO address $a$
 now requires $\tracefrag{t}$ in the pre-condition (for some $t$), and provides
-$\tracefrag{(\X{IORead}, a, x) :: t}$ in the post-condition.
+$\tracefrag{t \app (\X{IORead}, a, x)}$ in the post-condition.
 
 The corresponding resource algebra is $\authm(\exm(\X{Trace}))$. A few relevant
 rules are:
