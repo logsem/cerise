@@ -692,15 +692,15 @@ corollary of the general robust safety theorem, and has the following statement:
 \end{mathpar}
 
 Note that to link scenario 2 to scenario 1, we need a slightly adapted version
-of the robust safety theorem stated above where the initial trace is allowed to
-not be empty, but rather just satisfy $P(t)$, but that should not cause any
-problems.
+of the robust safety theorem stated previously, where the initial trace is
+allowed to not be empty, but rather just satisfy $P(t)$, but that should not
+cause any problems.
 
-Note as well that here, if the boot-code performs I/O, it is required to satisfy
+Note as well that if the boot-code performs I/O, then it is required to preserve
 the invariant $P$ on the trace. If needed, one could come up with a more general
 theorem statement, where the boot code is allowed to perform arbitrary I/O, and
-where $P$ is thus only enforced on the suffix of the trace \emph{after} the boot
-code has run...
+where $P$ is thus only true of the suffix of the trace for events that occur
+\emph{after} the boot code has run...
 
 \begin{remark}
   On the level of the operational semantics, proving the boot specification
