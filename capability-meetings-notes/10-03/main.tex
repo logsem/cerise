@@ -648,11 +648,11 @@ follows:
       \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
       \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} \_}
       \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} \_}
-      \ast \tracefrag{\emptyset}
+      \ast \; \tracefrag{\emptyset}
     \end{array}
     \right\}
     \\[2em]
-    \quad \I{Instr}\; \I{Executable}
+    \quad \I{Seq}\; (\I{Instr}\; \I{Executable})
     \\[0.5em]
     \left\{
     \begin{array}{l}
