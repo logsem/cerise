@@ -662,8 +662,9 @@ follows:
         \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, b_{adv}) \ast {} \\[0.7em]
         \bigast{a_{i} \in A_{\X{entry}}}{a_{i} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
         \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
-        \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast 
-        \tracefrag{t} \ast \pure{P(t)}
+        \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
+        \bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
+        \; \tracefrag{t} \ast \pure{P(t)}
       \end{array}
     \end{array}
     \right\}
