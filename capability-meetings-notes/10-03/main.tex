@@ -459,7 +459,7 @@ Then, for any permission $p$ that includes either the R or W bit, $\VR$
 is extended as follows:
 
 \[
-  \VR^{\Psi}(p, g, b, e, a) \eqdef \underbrace{\ldots}_{\text{as before}} \ast \; \pure{\forall a' \in [b,e).\; \Psi(a')}
+  \VR^{\Psi}(W)(p, g, b, e, a) \eqdef \underbrace{\ldots}_{\text{as before}} \ast \; \pure{\forall a' \in [b,e).\; \Psi(a')}
 \]
 
 Then, $\ER^{\Psi}$ and $\RR^{\Psi}$ are simplify defined by threading the extra
@@ -506,7 +506,7 @@ machine setting might look something like the following
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,
       \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
          \vdash
-         \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
        \\
      \\
     (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^*
@@ -566,7 +566,7 @@ right now.
 
 \begin{remark}
   Note that we could have written
-  $\ldots \vdash \forall W \ldotp \; (\VR^{\notMMIO} (\X{E}, \ldots))\; W$ %)
+  $\ldots \vdash \forall W \ldotp \; \VR^{\notMMIO} (W) (\X{E}, \ldots)$
   in the above theorem, instead of using the expression relation. This is
   equivalent, and easily unfolds to the former statement through the definition
   of the value relation. I wrote $\ER$ to place the focus on the execution of
@@ -695,7 +695,7 @@ semantic specification for $\initOKo$, which references the initial world):
     \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
     \driverC(b,e,\overline{\V{op}_l})\!
          \vdash \\
-         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\
    \initOKS{[b,e)}[r][m][\Winit] \\
   (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^* (r', m', t)\\
@@ -771,8 +771,8 @@ Then, the syntactic specification for the boot code that we have to prove is sta
     \left\{
     \begin{array}{l}
       \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
-      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} \_}
-      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} \_}
+      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
+      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]}
       \ast \; \tracefrag{\emptyset}
     \end{array}
     \right\}
@@ -801,8 +801,7 @@ Intuitively, establishing this specification ensures that, after running the
 boot code, we arrive in a state that satisfies $\initOKo$.
 
 
-The resulting boot-code-base formulation of the robust safety theorem is now a
-corollary of the general robust safety theorem, and has the following statement:
+The resulting boot-code formulation of the robust safety theorem is now a
 
 
 \begin{mathpar}
@@ -813,7 +812,7 @@ corollary of the general robust safety theorem, and has the following statement:
     \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
     \driverC(b,e,\overline{\V{op}_l})\!
          \vdash \\
-         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e,A_{\X{entry}}, \Winit) \\
   (r_0, m_0, \emptyset) \longrightarrow^* (r, m, t)\\
   }
@@ -931,10 +930,11 @@ The boot code has the following responsibilities:
 \end{itemize}
 
 \section{Potential driver clients/properties}
-The concrete driver that we described in \ref{subsec:driverimpl} does not yet enforce any useful
-safety properties on the traces that it outputs.
-This section describes a couple such properties that we might want to enforce,
-modifications to the driver that they require and example clients that make use of our modified driver.
+The concrete driver that we described in Section~\ref{subsec:driverimpl} does
+not yet enforce any useful safety properties on the traces that it outputs. This
+section describes a couple such properties that we might want to enforce,
+modifications to the driver that they require and example clients that make use
+of our modified driver.
 
 \subsection{Stateless properties}
 
