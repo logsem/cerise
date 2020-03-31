@@ -10,6 +10,7 @@
 \usepackage{iris}
 \usepackage{marvosym}
 \usepackage{xargs}
+\usepackage{listings}
 
 \setlength{\parskip}{0.3em}
 
@@ -34,6 +35,8 @@
 \newcommandx{\initBC}[2][1=r,2=m]{\initBCo(#1,#2)}
 \newcommandx{\initBCS}[3][1=r,2=m,3=W]{\initBCos(#1,#2,#3)}
 \DeclareMathOperator{\driverC}{code}
+\newcommand{\wrap}[1]{\operatorname{wrap}_{\mathrm{#1}}}
+
 
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 \newcommand{\app}{\mathbin{+\!\!+}}
@@ -928,7 +931,7 @@ The boot code has the following responsibilities:
 \end{itemize}
 
 \section{Potential driver clients/properties}
-The concrete driver that we described in \texttt{subsec:driverimpl} does not yet enforce any useful
+The concrete driver that we described in \ref{subsec:driverimpl} does not yet enforce any useful
 safety properties on the traces that it outputs.
 This section describes a couple such properties that we might want to enforce,
 modifications to the driver that they require and example clients that make use of our modified driver.
@@ -937,7 +940,35 @@ modifications to the driver that they require and example clients that make use 
 
 \paragraph{Printing values $\le 1000$}
 
+To only print values $\le 1000$, we need to wrap the driver's read method in a
+function that checks this condition, before passing control to the actual read
+method.
+On an abstract level, given a function $f$, we would have the following wrapper:
+\[
+  \wrap{\le 1000} f \eqdef \lambda x\ldotp \X{assert}(x \le 1000); f\; x
+\]
+, and the closure we share with the environment is hence $\wrap{\le
+  1000}(\X{read})$ instead of just $\X{read}$.
+
+A trivial misbehaving client could look as follows:
+(TODO: ask Dominique for Lau's code on environments)
+\begin{lstlisting}
+  move r1 1001
+  jmp r2
+\end{lstlisting}
+It simply loads an argument to write and jumps to the write routine.
+
+A well-behaved client might look as follows:
+\begin{lstlisting}
+  move r1 0
+  jmp r2
+\end{lstlisting}
+
 \paragraph{Modelling channel-specific safety properties}
+Here, we could encode different channels into our integers (in the spirit of
+what Frank mentioned), and enforce different safety properties on the different
+channels (by ensuring that we can split $P$).
+On a conceptual level, this does not require any changes whatsoever.
 
 \subsection{Stateful properties}
 
@@ -959,7 +990,8 @@ $\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000}}$ to
 $\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000} \ast
   \exists n\ldotp l_n \mapsto n \ast n = |t| }$. Concretely, this means that
 instead of having a pure predicate $P$ in our robust safety theorem, we should
-also allow non-pure predicates that entail $P$, since we might have to enforce
+also allow non-pure predicates $P_{\X{np}}$ that entail $P$, i.e. $\forall t
+\ldotp P_{\X{np}}(t) \wand \pure{P(t)} $, since we might have to enforce
 other invariants relating to local state over the trace as well.
 
 \begin{remark}
@@ -969,10 +1001,24 @@ other invariants relating to local state over the trace as well.
 \end{remark}
 
 To make sure we can prove the driver specification, we will have to update the
-robust safety theorem slightly to incorporate these changes. It will then look
-as follows:
+robust safety theorem slightly to incorporate these changes.
+
+Given a macro instruction to perform loops, a well/mis-behaving client might
+look as follows: (TODO: write this out,
+and come up with some macro formulation)
 
 \paragraph{Never performing I/O again after some stop token has been read on $\stdin$}
+Again, this requires no extra conceptual changes.
+
+\paragraph{Verifying OCP's}
+As Arma\"el noted at some point, it should be possible to simulate the
+proof-style we see in OCPL by emitting values onto the trace, instead of making
+assertions over them. This should give us the same proving power as the OCPL
+paper, and allow us to emulate their examples.
+
+\section{Proof sketch}
+This section describes the steps involved in proving the robust safety theorem
+stated above in some more detail.
 
 \bibliographystyle{alpha}
 \bibliography{biblio}
