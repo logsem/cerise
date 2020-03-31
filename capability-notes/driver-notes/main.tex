@@ -690,8 +690,8 @@ do the same for the semantic bootspec):
   need these to apply the fundamental theorem.
 \item A description of the exact driver code, still in terms of points-to chunks
   (or, in this case equivalently, an invariant). We can write this invariant as
-      $\driverC(b,e,\overline{\V{op}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{op}_l}}}$, with $\V{op}_l$
-      some hard-coded driver instruction at location $l$.
+      $\driverC(b,e,\overline{\V{op}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{w}_l}}}$, with $\V{w}_l$
+      some hard-coded driver word (an instruction or a capability) at location $l$.
 \end{itemize}
 
 
@@ -704,7 +704,7 @@ semantic specification for $\initOKo$, which references the initial world):
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
     {\begin{array}{ll}
     \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
-    \driverC(b,e,\overline{\V{op}_l})\!
+    \driverC(b,e,\overline{\V{w}_l})\!
          \vdash \\
          \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\
@@ -807,6 +807,14 @@ Then, the syntactic specification for the boot code that we have to prove is sta
   \end{array}
   \end{array}
 \]
+
+\begin{remark}
+As Frank mentioned, if we do not enforce any validity constraints on the part of the adversary's memory that is not reachable
+from the valid registers themselves, the driver cannot read from this memory in
+a useful way during execution (since the memory might contain any value whatsoever).
+There is currently no concrete use case for this scenario yet, so we left such
+condition on the adversary's memory out, but it is good to be aware of.
+\end{remark}
 
 Intuitively, establishing this specification ensures that, after running the
 boot code, we arrive in a state that satisfies $\initOKo$.
