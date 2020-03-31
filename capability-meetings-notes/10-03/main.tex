@@ -26,10 +26,16 @@
 \newcommand{\MMIO}{\textlog{MMIO}\xspace}
 
 \DeclareMathOperator{\initOKo}{init_{OK}}
+\DeclareMathOperator{\initOKos}{init^{\X{sem}}_{OK}}
 \newcommandx{\initOK}[3][2=r,3=m]{\initOKo(#1,#2,#3)}
+\newcommandx{\initOKS}[4][2=r,3=m,4=W]{\initOKos(#1,#2,#3,#4)}
 \DeclareMathOperator{\initBCo}{init_{BC}}
+\DeclareMathOperator{\initBCos}{init^{\X{sem}}_{BC}}
 \newcommandx{\initBC}[2][1=r,2=m]{\initBCo(#1,#2)}
+\newcommandx{\initBCS}[3][1=r,2=m,3=W]{\initBCos(#1,#2,#3)}
+\DeclareMathOperator{\driverC}{code}
 
+\newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 \newcommand{\app}{\mathbin{+\!\!+}}
 
 \newenvironment{remark}
@@ -489,6 +495,8 @@ A first attempt at adapting the OCPL robust safety theorem to the capability
 machine setting might look something like the following
 {\color{BrickRed}\textbf{(incomplete!)}} statement.
 
+\newcommand{\Wpub}{\sqsupseteq^{\X{pub}}}
+\newcommand{\Wpriv}{\sqsupseteq^{\X{priv}}}
 \begin{mathpar}
   \mprset{vskip=0.5em}
   \inferrule
@@ -528,6 +536,10 @@ called.
   %
   This would make the toplevel theorem simpler, at the cost of somewhat more
   contrieved calling convention between trusted and untrusted code.
+  Another alternative is to provide an opcode to specify the operation that
+  needs to be performed.
+  This is slightly less general, since it does not allow providing read access
+  only to an adversary.
 \end{remark}
 
 \begin{remark}
@@ -577,6 +589,10 @@ steps:
     the tentative statement of our robust safety theorem, ensuring that the
     adversary code cannot gain access to any non-$\X{E}$ capabilities pointing into
     the driver code or any capabilities pointing into $\MMIO$ directly.
+    Alternatively, we can formulate this condition in a semantic way, see below.
+    Additionally, we specify what exact code the driver contains, so that we can
+    use this in our proof that the driver is secure. This will involve adding an
+    invariant to the robust safety theorem.
 %
   \item Then, we provide an end-to-end statement that assumes the existence of a
     piece of boot code, that gets to run first when the capability machine
@@ -618,10 +634,13 @@ only contain non-capability values:
 \end{mathpar}
 
 \newcommand{\notMapsToR}[2]{\rightarrow^{\overline{#1}}\!\!(#2)}
+\newcommand{\Winit}{\X{W_{init}}}
+\newcommand{\Wemp}{\emptyset}
 
 Given this definition, we can now formalize the initialization constraints on
 registers $r$ and memory $m$, given the region $\MMIO$ and
-the driver's address space $[b,e)$ as follows:
+the driver's address space $[b,e)$ as follows (for a resource-aware formulation;
+see the bootSpec postcondition below):
 
 \begin{mathpar}
   \mprset{vskip=0.4em}
@@ -637,18 +656,45 @@ the driver's address space $[b,e)$ as follows:
   {\initOK{[b,e)}}
 \end{mathpar}
 
+It should be noted that a more general, semantic version of this specification
+is also possible. It would contain the following elements, that should all
+follow directly from the specification above (TODO: write this out properly and
+do the same for the semantic bootspec):
+\begin{itemize}
+\item All registers except \X{PC} are in the value relation with respect to
+  either the empty world $\Wemp$ (if we do not want to allow any non-empty, non-enter
+  capabilities in registers), or a world $\Winit$ containing a single standard region for
+  all of the adversary's memory.
+  The \X{PC} register satisfies both the read- and write conditions (note the
+  parallel with the fundamental theorem) with respect to this same world, if we
+  picked the non-empty world, or just points to the adversary's memory, which
+  does not contain capabilities (if we
+  picked the empty world, a capability pointing into memory can never be valid).
+  It feels slightly less artificial to pick the non-empty world option here.
+\item We have possession of the predicates $\I{region}$ and
+  $\I{sts\_full\_world}$ for the world we picked in the previous bullet. we will
+  need these to apply the fundamental theorem.
+\item A description of the exact driver code, still in terms of points-to chunks
+  (or, in this case equivalently, an invariant). We can write this invariant as
+      $\driverC(b,e,\overline{\V{op}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{op}_l}}}$, with $\V{op}_l$
+      some hard-coded driver instruction at location $l$.
+\end{itemize}
 
-and subsequently formulate the robust safety theorem as follows:
+
+and subsequently formulate the robust safety theorem as follows (using the
+semantic specification for $\initOKo$, which references the initial world):
 
 \begin{mathpar}
   \mprset{vskip=0.5em}
   \inferrule
-  { \forall a_{i} \in A_{\X{entry}} \ldotp\,
-      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
-         \vdash
-         \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
-         \\
-   \initOK{[b,e)} \\
+  { \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
+    {\begin{array}{ll}
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
+    \driverC(b,e,\overline{\V{op}_l})\!
+         \vdash \\
+         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+        \end{array}} \right. \\
+   \initOKS{[b,e)}[r][m][\Winit] \\
   (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^* (r', m', t)\\
   }
   {P(t)}
@@ -657,7 +703,11 @@ and subsequently formulate the robust safety theorem as follows:
 where we have set the PC up to be a sensible capability (pointing to
 $b_{\X{adv}}$ without loss of generality).
 
-Notice how the syntactic check for the registers is only performed on the set of registers $r$, allowing the closures in $\overline{r_{a_i}}$ to point into to the driver address space.
+Notice how the syntactic check for the registers is only performed on the set of
+registers $r$, allowing the closures in $\overline{r_{a_i}}$ to point into to
+the driver address space (TODO: we should change this though and add a
+requirement to $\initOKo$).
+(TODO: introduce notation for trace-owndership and predicate P holding)
 
 \begin{remark}
   If useful, the syntactic check can be relaxed to allow any capabilities that
@@ -709,7 +759,6 @@ We also assume the capability machine to initially start execution in the boot c
 %
 Then, the syntactic specification for the boot code that we have to prove is stated as follows:
 
-\newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 
 \[
   \begin{array}{l}
@@ -748,38 +797,20 @@ Then, the syntactic specification for the boot code that we have to prove is sta
 Intuitively, establishing this specification ensures that, after running the
 boot code, we arrive in a state that satisfies $\initOKo$.
 
-It should be noted that a more general, semantic version of this specification
-is also possible. It would contain the following elements, that should all
-follow directly from the specification above:
-\begin{itemize}
-\item All registers except \X{PC} are in the value relation with respect to
-  either the empty world (if we do not want to allow any non-empty, non-enter
-  capabilities in registers), or a world containing a single standard region for
-  all of the adversary's memory.
-  The \X{PC} register satisfies both the read- and write conditions (note the
-  parallel with the fundamental theorem) with respect to this same world, if we
-  picked the non-empty world, or just points to the adversary's memory, which
-  does not contain capabilities (if we
-  picked the empty world, a capability pointing into memory can never be valid).
-  It feels slightly less artificial to pick the non-empty world option here.
-\item We have possession of the predicates $\I{region}$ and
-  $\I{sts\_full\_world}$ for the world we picked in the previous bullet. we will
-  need these to apply the fundamental theorem.
-\item A description of the exact driver code, still in terms of points-to chunks
-  (or, in this case equivalently, an invariant)
-\end{itemize}
 
 The resulting boot-code formulation of the robust safety theorem is now a
+
 
 \begin{mathpar}
   \mprset{vskip=0.5em}
   \inferrule
-  { \forall a_{i} \in A_{\X{entry}} \ldotp\,
-    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast \pure{P(t)}}\!
-         \vdash
-         \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
-         \\
-   \X{bootSpec}(P,g,b,e,A_{\X{entry}}) \\
+  {  \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
+    {\begin{array}{ll}
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
+    \driverC(b,e,\overline{\V{op}_l})\!
+         \vdash \\
+         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+        \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e,A_{\X{entry}}, \Winit) \\
   (r_0, m_0, \emptyset) \longrightarrow^* (r, m, t)\\
   }
   {P(t)}
@@ -811,7 +842,22 @@ where $P$ is thus only true of the suffix of the trace for events that occur
   \end{array}
 \]
 \end{remark}
-
+\begin{remark}
+ Dominique made the remark that we might want to allow capabilities pointing
+ into the driver code that are not enter capabilities, but can just generally be
+ proven safe wrt.\ the driver code. This scenario (which we currently do not
+ support out of simplicity considerations) would force us to add the driver code
+ as a static region to the world. While this would work on paper, it does not in the
+ current Coq formalization, since all regions that standard regions point to are
+ forced to be standard as well (through the conditions in the different cases of
+ the $\I{interp1}$ predicate). Essentially, this behavior is disallowed because
+ the Coq development merged the notion of read- and write condition, and there
+ is hence no room to define a static region which defines a stricter reading
+ policy, but hence disallowes writing. More generally, it is currently
+ impossible to plug non-standard regions into the world, and allow standard
+ regions to depend on them in any way whatsoever. This was not a problem up
+ until now, since our examples never required this sort of dependency.
+\end{remark}
 \subsubsection{Concrete boot and driver code}
 \label{subsec:driverimpl}
 Now we have a closer look at the concrete example we would like to verify,
