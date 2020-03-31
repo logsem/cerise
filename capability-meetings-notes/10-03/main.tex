@@ -748,6 +748,27 @@ Then, the syntactic specification for the boot code that we have to prove is sta
 Intuitively, establishing this specification ensures that, after running the
 boot code, we arrive in a state that satisfies $\initOKo$.
 
+It should be noted that a more general, semantic version of this specification
+is also possible. It would contain the following elements, that should all
+follow directly from the specification above:
+\begin{itemize}
+\item All registers except \X{PC} are in the value relation with respect to
+  either the empty world (if we do not want to allow any non-empty, non-enter
+  capabilities in registers), or a world containing a single standard region for
+  all of the adversary's memory.
+  The \X{PC} register satisfies both the read- and write conditions (note the
+  parallel with the fundamental theorem) with respect to this same world, if we
+  picked the non-empty world, or just points to the adversary's memory, which
+  does not contain capabilities (if we
+  picked the empty world, a capability pointing into memory can never be valid).
+  It feels slightly less artificial to pick the non-empty world option here.
+\item We have possession of the predicates $\I{region}$ and
+  $\I{sts\_full\_world}$ for the world we picked in the previous bullet. we will
+  need these to apply the fundamental theorem.
+\item A description of the exact driver code, still in terms of points-to chunks
+  (or, in this case equivalently, an invariant)
+\end{itemize}
+
 The resulting boot-code-base formulation of the robust safety theorem is now a
 corollary of the general robust safety theorem, and has the following statement:
 
