@@ -105,19 +105,79 @@ in the trace.
 
 The \I{Store} rule would be similar.
 
-Notice that, for any address in \MMIO, which value is held by the map $m$ as
-that address is now irrelevant. Indeed, $m$ is never read nor modified for
-addresses in \MMIO. One could choose to enforce that a particular dummy value is
-stored in $m$ for these addresses. Instead, we choose to leave them
-unconstrained.
-
+\newcommand{\stdin}{\X{in}}
 \begin{remark}
-  Thomas: Additionally, we might want to disallow in the semantics an execution
-  with a \X{PC} register pointing to an $\MMIO$ location (I think this makes
-  more sense than reading a random instruction through I/O). Armaël: but it
-  makes the semantics of all instructions more complicated.
+As Lars remarked, the read rule introduces non-determinism into our operational
+semantics.
+This has lead to some complications in the past (the nature of which is still
+mysterious to me; n.b. that we use\\ $\I{ wp\_lift\_atomic\_head\_step\_no\_fork}$
+in our WP rules, and that one would allow non-determinism).
+(one question I -Thomas- had in this respect; does the $\I{Alloc}$ rule in HeapLang
+not introduce non-determinism in a similar way? Why is this not problematic?)
+Lars' suggestion was to additionally parameterize the operational semantics by
+an input-stream $\stdin$.
+The updated \textsc{IOLoad} load rule might then look something like this:
+\begin{mathpar}
+  \inferrule[IOLoad]
+  { r[\X{src}] = (p,g,b,e,a) \\ \X{readAllowed}\; p \\ a \in [b,e) \\ a \in \MMIO
+  \\ n = \#\{i \mid t[i] = ( \X{IORead},\_\;,\_) \}  }
+  { (r, m, t) \xrightarrow{\I{Load} \; \X{dst} \; \X{src}}
+    (r[\X{dst} := \stdin[n]], m, t \app (\X{IORead}, a, \stdin[n])) }
+\end{mathpar}
+
+When parameterizing our development with multiple values, we could either write
+them out as different Coq \texttt{Parameters} where we need them, or store them
+as fields in our \texttt{DriverG} typeclass (the latter is the approach taken
+in e.g.\ the code-base of ~\cite{sammler-2020}).
 \end{remark}
 
+
+
+We now have two options when it comes to modeling the memory $m$:
+\begin{enumerate}
+\item Include the \MMIO addresses into the map. Notice that, for any address in \MMIO, the specific value held by the map $m$ for
+that address is now irrelevant. Indeed, $m$ is never read nor modified for
+addresses in \MMIO (possible exception: see next remark). One could choose to enforce that a particular dummy value is stored in $m$ for these addresses. Instead, we choose to leave them
+unconstrained.
+\item Have $m$ model the physical RAM addresses only. This model is closer to
+  the conceptual model of state that we wish to implement, since it does not
+  require us to talk about the values in the heap that \MMIO locations are
+  associated with. In case it is not harder to implement (which I currently do not think
+  it is), it is to be preferred.
+\end{enumerate}
+Both approaches require us to make sure that no points-to chunks $l \mapsto \_$
+with $l \in \MMIO$ can be created. In the next section, we assume the second
+approach (until someone proves me wrong about it working).
+
+\begin{remark}
+  Additionally, we have the option of disallowing an execution
+  with a \X{PC} register pointing to a $\MMIO$ location in the semantics.
+  First off, consider that this is an edge case; since we always have points-to
+  chunks describing the layout of code in memory (and a points-to chunk for
+  location $l$ doubles as a proof that $l \not\in \MMIO$), it is trivial to prove that
+  this case would not occur in any of our current examples.
+  If we make no changes to the current code base, this behavior would be
+  allowed, and the following would happen in both cases described above:
+  \begin{enumerate}
+  \item An unconstrained value is read from the location. Any instruction could
+    be executed.
+  \item The predicate $\I{MemLocate}$ in $\I{lang.v}$ will make sure
+  that the default value $0$ is read and decoded into an instruction when we try
+  to execute an \MMIO location.
+  This would not cause a conflict with the current WP rules,
+  since a points-to chunk is required in the precondition, ensuring that this
+  case does not occur.
+  Another alternative is to read the encoding of a $\X{NOP}$ instruction, instead of
+  just the value $0$.
+\end{enumerate}
+  If we were to simply disallow execution when the PC points into \MMIO, we would make the semantics of all instructions slightly more complicated, but in a
+  uniform way.
+  We could simply add $a \not\in \MMIO$ to the predicate $\I{isCorrectPC}$ (or
+  add it as an additional predicate), which is used to define failing execution.
+  It would again not be a drastic change, since a points-to for the
+  address $a$ the PC points to is required by the WP rules regardless, from which we
+  can prove that $a \not\in \MMIO$.
+\end{remark}
 
 \begin{remark} With this presentation, the specification of the
 ``machine'' is very much decoupled from the model of the devices it might be
@@ -160,13 +220,28 @@ assertion. Recall the current definition of the state interpretation:
 
 The simplest way to account for the trace is to directly expose it in a
 monolithic fashion. In that case, the state interpretation additionally holds a
-resource for the trace.
+resource for the trace:
+
+\begin{align*}
+    \X{state\_interp} \; (r,m,t) :=& \X{gen\_heap\_ctx}\; r \ast\\
+    &\X{gen\_heap\_ctx}\; m \ast \dom(m) \cap \MMIO = \emptyset \ast
+    {\color{BrickRed}\tracefull{t}}
+\end{align*}
+
+\begin{remark}
+For the case where the \MMIO locations are still part of the heap $m$, this
+would look as follows:
 \[
   \X{state\_interp} \; (r,m,t) :=
     \X{gen\_heap\_ctx}\; r \ast
     \X{gen\_heap\_ctx}\; (m \setminus \MMIO) \ast
     {\color{BrickRed}\tracefull{t}}
 \]
+
+Sanity check: we never have allocation of new locations $l$ in our capability machine, but if we
+did, that would work in both settings by requiring that $l \not\in \MMIO$ in the
+operational semantics rule for \textsc{Alloc}.
+\end{remark}
 
 Note that we restrict the usual ``points-to'' assertions to be used only for
 non-MMIO addresses. Instead, to assert ownership of the MMIO region, the user
@@ -630,11 +705,9 @@ Depending on the specifics of the operiational semantics, we might have more
 information about $m_0$ and $r_0$, that can then be used in the implementation
 of the boot code (e.g., $m_0$ might be initialized to only zeroes).
 
-We also assume the boot-code to be initially loaded in memory at address
-$l_{\X{boot}}$.
+We also assume the capability machine to initially start execution in the boot code  at address $l_{\X{boot}}$.
 %
-Then, the specification for the boot code that we have to prove is stated as
-follows:
+Then, the syntactic specification for the boot code that we have to prove is stated as follows:
 
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 
@@ -660,7 +733,7 @@ follows:
       \quad
       \begin{array}{l}
         \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, b_{adv}) \ast {} \\[0.7em]
-        \bigast{a_{i} \in A_{\X{entry}}}{a_{i} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
+        \bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
         \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
         \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
         \bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
@@ -675,14 +748,34 @@ follows:
 Intuitively, establishing this specification ensures that, after running the
 boot code, we arrive in a state that satisfies $\initOKo$.
 
+It should be noted that a more general, semantic version of this specification
+is also possible. It would contain the following elements, that should all
+follow directly from the specification above:
+\begin{itemize}
+\item All registers except \X{PC} are in the value relation with respect to
+  either the empty world (if we do not want to allow any non-empty, non-enter
+  capabilities in registers), or a world containing a single standard region for
+  all of the adversary's memory.
+  The \X{PC} register satisfies both the read- and write conditions (note the
+  parallel with the fundamental theorem) with respect to this same world, if we
+  picked the non-empty world, or just points to the adversary's memory, which
+  does not contain capabilities (if we
+  picked the empty world, a capability pointing into memory can never be valid).
+  It feels slightly less artificial to pick the non-empty world option here.
+\item We have possession of the predicates $\I{region}$ and
+  $\I{sts\_full\_world}$ for the world we picked in the previous bullet. we will
+  need these to apply the fundamental theorem.
+\item A description of the exact driver code, still in terms of points-to chunks
+  (or, in this case equivalently, an invariant)
+\end{itemize}
+
 The resulting boot-code formulation of the robust safety theorem is now a
-corollary of the general robust safety theorem, and has the following statement:
 
 \begin{mathpar}
   \mprset{vskip=0.5em}
   \inferrule
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,
-      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast \pure{P(t)}}\!
          \vdash
          \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
          \\
@@ -720,7 +813,7 @@ where $P$ is thus only true of the suffix of the trace for events that occur
 \end{remark}
 
 \subsubsection{Concrete boot and driver code}
-
+\label{subsec:driverimpl}
 Now we have a closer look at the concrete example we would like to verify,
 including what its boot code looks like. Our goal is to prove that this concrete
 example satisfies \X{bootSpec} (alternatively, \textsc{BootCodeOk}) and this
@@ -786,6 +879,53 @@ The boot code has the following responsibilities:
     read and write driver closures, in order to make sure that no extra
     permissions leak to the adversary.
 \end{itemize}
+
+\section{Potential driver clients/properties}
+The concrete driver that we described in \texttt{subsec:driverimpl} does not yet enforce any useful
+safety properties on the traces that it outputs.
+This section describes a couple such properties that we might want to enforce,
+modifications to the driver that they require and example clients that make use of our modified driver.
+
+\subsection{Stateless properties}
+
+\paragraph{Printing values $\le 1000$}
+
+\paragraph{Modelling channel-specific safety properties}
+
+\subsection{Stateful properties}
+
+\paragraph{Performing $\le 1000$ I/O operations}
+
+To ensure that no more than 1000 values will be read or sent, the driver needs to
+keep some internal state, e.g.\ a single integer value $n$ (at location $l_n$) representing the number of times it has been called.
+
+To accommodate this local state, the initial world will need to contain one
+extra region for location $l_n$, that allows any integer values $\ge 0$. Since
+this region only has a single state, we can again short-circuit the world and
+enforce the constraints we want on $n$ through an invariant directly. We now
+discuss the concrete constraint that we are looking for.
+
+We have to tie this integer $n$ to the number of I/O events
+present in the trace $t$, otherwise it will prove impossible to verify our
+driver. Concretely, the invariant we will verify our driver under changes from
+$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000}}$ to
+$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000} \ast
+  \exists n\ldotp l_n \mapsto n \ast n = |t| }$. Concretely, this means that
+instead of having a pure predicate $P$ in our robust safety theorem, we should
+also allow non-pure predicates that entail $P$, since we might have to enforce
+other invariants relating to local state over the trace as well.
+
+\begin{remark}
+ I swept this under the rug in the above exposition, but if we allow boot code to run first, we have to
+ make sure that the value $n$ indeed corresponds to the number of I/O events
+ that have occurred when control is passed to the adversary.
+\end{remark}
+
+To make sure we can prove the driver specification, we will have to update the
+robust safety theorem slightly to incorporate these changes. It will then look
+as follows:
+
+\paragraph{Never performing I/O again after some stop token has been read on $\stdin$}
 
 \bibliographystyle{alpha}
 \bibliography{biblio}
