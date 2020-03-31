@@ -733,7 +733,7 @@ Then, the syntactic specification for the boot code that we have to prove is sta
       \quad
       \begin{array}{l}
         \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, b_{adv}) \ast {} \\[0.7em]
-        \bigast{a_{i} \in A_{\X{entry}}}{a_{i} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
+        \bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
         \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
         \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
         \bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
@@ -755,7 +755,7 @@ corollary of the general robust safety theorem, and has the following statement:
   \mprset{vskip=0.5em}
   \inferrule
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,
-      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
+    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast \pure{P(t)}}\!
          \vdash
          \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
          \\
@@ -793,7 +793,7 @@ where $P$ is thus only true of the suffix of the trace for events that occur
 \end{remark}
 
 \subsubsection{Concrete boot and driver code}
-
+\label{subsec:driverimpl}
 Now we have a closer look at the concrete example we would like to verify,
 including what its boot code looks like. Our goal is to prove that this concrete
 example satisfies \X{bootSpec} (alternatively, \textsc{BootCodeOk}) and this
@@ -859,6 +859,53 @@ The boot code has the following responsibilities:
     read and write driver closures, in order to make sure that no extra
     permissions leak to the adversary.
 \end{itemize}
+
+\section{Potential driver clients/properties}
+The concrete driver that we described in \texttt{subsec:driverimpl} does not yet enforce any useful
+safety properties on the traces that it outputs.
+This section describes a couple such properties that we might want to enforce,
+modifications to the driver that they require and example clients that make use of our modified driver.
+
+\subsection{Stateless properties}
+
+\paragraph{Printing values $\le 1000$}
+
+\paragraph{Modelling channel-specific safety properties}
+
+\subsection{Stateful properties}
+
+\paragraph{Performing $\le 1000$ I/O operations}
+
+To ensure that no more than 1000 values will be read or sent, the driver needs to
+keep some internal state, e.g.\ a single integer value $n$ (at location $l_n$) representing the number of times it has been called.
+
+To accommodate this local state, the initial world will need to contain one
+extra region for location $l_n$, that allows any integer values $\ge 0$. Since
+this region only has a single state, we can again short-circuit the world and
+enforce the constraints we want on $n$ through an invariant directly. We now
+discuss the concrete constraint that we are looking for.
+
+We have to tie this integer $n$ to the number of I/O events
+present in the trace $t$, otherwise it will prove impossible to verify our
+driver. Concretely, the invariant we will verify our driver under changes from
+$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000}}$ to
+$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000} \ast
+  \exists n\ldotp l_n \mapsto n \ast n = |t| }$. Concretely, this means that
+instead of having a pure predicate $P$ in our robust safety theorem, we should
+also allow non-pure predicates that entail $P$, since we might have to enforce
+other invariants relating to local state over the trace as well.
+
+\begin{remark}
+ I swept this under the rug in the above exposition, but if we allow boot code to run first, we have to
+ make sure that the value $n$ indeed corresponds to the number of I/O events
+ that have occurred when control is passed to the adversary.
+\end{remark}
+
+To make sure we can prove the driver specification, we will have to update the
+robust safety theorem slightly to incorporate these changes. It will then look
+as follows:
+
+\paragraph{Never performing I/O again after some stop token has been read on $\stdin$}
 
 \bibliographystyle{alpha}
 \bibliography{biblio}
