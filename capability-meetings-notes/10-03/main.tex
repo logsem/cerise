@@ -456,7 +456,7 @@ Then, for any permission $p$ that includes either the R or W bit, $\VR$
 is extended as follows:
 
 \[
-  \VR^{\Psi}(p, g, b, e, a) \eqdef \underbrace{\ldots}_{\text{as before}} \ast \; \pure{\forall a' \in [b,e).\; \Psi(a')}
+  \VR^{\Psi}(W)(p, g, b, e, a) \eqdef \underbrace{\ldots}_{\text{as before}} \ast \; \pure{\forall a' \in [b,e).\; \Psi(a')}
 \]
 
 Then, $\ER^{\Psi}$ and $\RR^{\Psi}$ are simplify defined by threading the extra
@@ -503,7 +503,7 @@ machine setting might look something like the following
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,
       \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
          \vdash
-         \forall W \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
        \\
      \\
     (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^*
@@ -563,7 +563,7 @@ right now.
 
 \begin{remark}
   Note that we could have written
-  $\ldots \vdash \forall W \ldotp \; (\VR^{\notMMIO} (\X{E}, \ldots))\; W$ %)
+  $\ldots \vdash \forall W \ldotp \; \VR^{\notMMIO} (W) (\X{E}, \ldots)$
   in the above theorem, instead of using the expression relation. This is
   equivalent, and easily unfolds to the former statement through the definition
   of the value relation. I wrote $\ER$ to place the focus on the execution of
@@ -692,7 +692,7 @@ semantic specification for $\initOKo$, which references the initial world):
     \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
     \driverC(b,e,\overline{\V{op}_l})\!
          \vdash \\
-         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\
    \initOKS{[b,e)}[r][m][\Winit] \\
   (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^* (r', m', t)\\
@@ -809,7 +809,7 @@ The resulting boot-code formulation of the robust safety theorem is now a
     \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
     \driverC(b,e,\overline{\V{op}_l})\!
          \vdash \\
-         \forall W \Wpriv \Winit \ldotp\;(\ER^{\notMMIO} (\X{RX}, g, b, e, a_i))\spac W
+         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e,A_{\X{entry}}, \Winit) \\
   (r_0, m_0, \emptyset) \longrightarrow^* (r, m, t)\\
   }
