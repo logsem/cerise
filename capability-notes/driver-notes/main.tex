@@ -18,13 +18,14 @@
 \newcommand{\X}[1]{\ensuremath{\mathrm{#1}}}
 \newcommand{\V}[1]{\ensuremath{\mathit{#1}}}
 \newcommand{\I}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\Sf}[1]{\ensuremath{\mathsf{#1}}}
 \newcommand{\T}[1]{\texttt{#1}}
 \newcommand{\SL}{Separation Logic\xspace}
 \newcommand{\pure}[1]{\tensor[^{\ulcorner}]{#1{}}{^{\urcorner}}} %Hacky {} to avoid double superscript
 
 \newcommand{\FIXME}[1]{{\color{MidnightBlue} FIXME: #1}}
 
-\newcommand{\MMIO}{\textlog{MMIO}\xspace}
+\newcommand{\MMIO}{\Sf{MMIO}\xspace}
 
 \DeclareMathOperator{\initOKo}{init_{OK}}
 \DeclareMathOperator{\initOKos}{init^{\X{sem}}_{OK}}
@@ -35,9 +36,11 @@
 \newcommandx{\initBC}[2][1=r,2=m]{\initBCo(#1,#2)}
 \newcommandx{\initBCS}[3][1=r,2=m,3=W]{\initBCos(#1,#2,#3)}
 \DeclareMathOperator{\driverC}{code}
+\DeclareMathOperator{\trace}{tr}
+\DeclareMathOperator{\lowval}{\Sf{lowval}}
+\DeclareMathOperator{\lifto}{\Sf{lift}}
+\newcommandx{\trInv}[2][1=P,2=\iota]{\operatorname{trInv}^{#2}(#1)}
 \newcommand{\wrap}[1]{\operatorname{wrap}_{\mathrm{#1}}}
-
-
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 \newcommand{\app}{\mathbin{+\!\!+}}
 
@@ -344,35 +347,35 @@ The {\sc RobustSafety} theorem of OCPL is as follows:
   \inferrule
   {C \in \textit{AdvCtx} \\
     e \; \X{closed} \\
-    \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
-    (C[e]);(\emptyset, \textlog{OK}) \longrightarrow^* T';(h',g')
+    \hoare{\TRUE}{e}{x\ldotp \lowval x} \\
+    (C[e]);(\emptyset, \Sf{OK}) \longrightarrow^* T';(h',g')
   }
-  {g' = \textlog{OK}}
+  {g' = \Sf{OK}}
 \end{mathpar}
 
 For any closed expression $e$, if $e$ has been verified to only return low
 values, then running $e$ wrapped in an adversarial context $C$ from an initial
 state, then we can observe that every reachable state is good
-($g' = \textlog{OK}$ means that no assertion has failed in $e$).
+($g' = \Sf{OK}$ means that no assertion has failed in $e$).
 
 $C \in AdvCtx$ means that $C$ cannot contain assertions (otherwise one could
 trivially contradict the theorem by taking
-$C[\cdot] = \textlog{assert false}$), and cannot contain references to raw
+$C[\cdot] = \Sf{assert}\spac \X{false}$), and cannot contain references to raw
 memory locations (otherwise one could directly access $e$'s private state,
 invalidating the local state encapsulation mechanisms).
 
-\newcommand{\lift}[2]{\textlog{lift}\; #1 \; #2}
+\newcommand{\lift}[2]{\lifto #1 \: #2}
 \newcommand{\liftP}[1]{\lift{\Psi}{#1}}
 
-$\textlog{lowval}\; x$ intuitively means that $x$ cannot be used to directly
+$\Sf{lowval}\; x$ intuitively means that $x$ cannot be used to directly
 access private (or ``high'') locations. It is formally defined using a logical
 relation ``$\liftP{v}$'', which more generally asserts that the value $v$ only
 gives direct access to locations that satisfy the predicate $\Psi$.
 
 \[
   \begin{array}{lcl}
-    \liftP (\textlog{rec}\; f\; x.\; e) & \eqdef
-    & \later \forall v.\; \hoare{\liftP{v}}{e[v/x,\textlog{rec}\;f\;x.\; e/f]}{y.\; \liftP y} \\
+    \liftP (\Sf{rec}\; f\; x.\; e) & \eqdef
+    & \later \forall v.\; \hoare{\liftP{v}}{e[v/x,\Sf{rec}\;f\;x.\; e/f]}{y.\; \liftP y} \\
     %
     \liftP (v_{1}, v_{2}) & \eqdef & \later (\liftP v_{1}, \liftP v_{2}) \\
     %
@@ -382,18 +385,18 @@ gives direct access to locations that satisfy the predicate $\Psi$.
   \end{array}
 \]
 
-Then, $\textlog{lowval}\; x$ is defined as $\lift{\textlog{lowloc}}{x}$, where
-$\textlog{lowloc}$ is a predicate characterizing the region of memory containing
+Then, $\lowval x$ is defined as $\lift{\Sf{lowloc}}{x}$, where
+$\Sf{lowloc}$ is a predicate characterizing the region of memory containing
 ``low locations'' (distinct from the other region containing ``high
 locations'').
 
 \subsection{OCPL with \I{print}}
 
-\newcommand{\OutV}{\textlog{Out}}
+\newcommand{\OutV}{\Sf{Out}}
 
 In Thomas' extension of OCPL, a new value $\OutV$ is added, denoting an
-``output object capability'', as well as a $\textlog{print}$ primitive, where
-$\textlog{print}\; \OutV\; v$ effectively ``prints'' the value $v$, i.e. adds it
+``output object capability'', as well as a $\Sf{print}$ primitive, where
+$\Sf{print}\; \OutV\; v$ effectively ``prints'' the value $v$, i.e. adds it
 to the trace of printed values.
 
 One then wants to be able to encapsulate the use of $\OutV$, for instance by
@@ -413,11 +416,20 @@ The theorem then becomes:
   \inferrule
   {C \in \textit{AdvCtx} \\
     e \; \X{closed} \\
-    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast \pure{\! P(t)}} \vdash \hoare{\TRUE}{e}{x.\; \textlog{lowval}\; x} \\
-    (C[e]);(\emptyset, \textlog{OK}); \emptyset \longrightarrow^* T';(h',g'); t
+    \trInv \vdash \hoare{\TRUE}{e}{x.\; \operatorname{\Sf{lowval}} x} \\
+    (C[e]);(\emptyset, \Sf{OK}); \emptyset \longrightarrow^* T';(h',g'); t
   }
-  {g' = \textlog{OK} \wedge P(t)}
+  {g' = \Sf{OK} \wedge P(t)}
 \end{mathpar}
+, where we introduced the following notation:
+%
+\[
+  \begin{array}{lcl}
+    \trace(t) & \eqdef & \tracefrag{t}\\
+    \trInv & \eqdef & \knowInv{\iota}{\exists t.\; \trace(t) \ast \pure{\! P(t)}}
+  \end{array}
+\]
+
 
 That is, if $e$ has been verified under the assumption that the predicate $P$
 holds as a trace invariant, then executing $e$ in an adversarial context yields
@@ -431,13 +443,12 @@ $\OutV$.
 To be slightly more general, we could actually allow sharing $\OutV$ in case the
 predicate $P$ does not place any constraints on the output, i.e. it is the
 $\TRUE$ predicate. Technically, we could hence have the following alternative
-definition for $\textlog{lift}$ (although admittedly, it does look a bit
+definition for $\Sf{lift}$ (although admittedly, it does look a bit
 hard-coded):
 %
 \[
   \begin{array}{lcl}
-    \liftP \OutV & \eqdef & \exists \iota \ldotp \knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast
-                            \pure{(\Lam{\_}.\TRUE) \spac t}}
+    \liftP \OutV & \eqdef & \trInv[\Lam{\_}.\TRUE]
   \end{array}
 \]
 
@@ -450,7 +461,7 @@ hard-coded):
 \newcommand{\RR}{\mathcal{R}}
 \newcommand{\notMMIO}{\overline{\MMIO}}
 
-Similarly to $\textlog{lift}$, we can generalize the existing logical relation
+Similarly to $\Sf{lift}$, we can generalize the existing logical relation
 to thread a constraint on directly accessible memory locations. One would
 parameterize the value, expression and register relations ($\VR$, $\ER$ and $\RR$)
 with a predicate $\Psi$ on addresses.
@@ -473,10 +484,10 @@ $\notMMIO$ that excludes memory mapped addresses:
   \notMMIO(a) \eqdef a \notin \MMIO
 \]
 
-Then, $\VR^{\notMMIO}$ is similar to the $\textlog{lowval}$ predicate of OCPL.
+Then, $\VR^{\notMMIO}$ is similar to the $\lowval$ predicate of OCPL.
 Intuitively, a value in the relation does not directly point to memory-mapped
 locations, nor can it gain access to memory-mapped locations indirectly,
-similarly to how $\textlog{lowval}$s cannot grant access to high locations
+similarly to how $\lowval$s cannot grant access to high locations
 directly. The relation $\ER^{\notMMIO}$ specifies that, if we fill the registers
 with values in $\VR^{\notMMIO}$, then the invariants in a private future world
 of our starting world will be satisfied at the end of execution.
@@ -641,7 +652,7 @@ only contain non-capability values:
 \newcommand{\Wemp}{\emptyset}
 
 Given this definition, we can now formalize the initialization constraints on
-registers $r$ and memory $m$, given the region $\MMIO$ and
+registers $r$ and memory $m$, given the region \MMIO and
 the driver's address space $[b,e)$ as follows (for a resource-aware formulation;
 see the bootSpec postcondition below):
 
