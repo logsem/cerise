@@ -105,19 +105,79 @@ in the trace.
 
 The \I{Store} rule would be similar.
 
-Notice that, for any address in \MMIO, which value is held by the map $m$ as
-that address is now irrelevant. Indeed, $m$ is never read nor modified for
-addresses in \MMIO. One could choose to enforce that a particular dummy value is
-stored in $m$ for these addresses. Instead, we choose to leave them
-unconstrained.
-
+\newcommand{\stdin}{\X{in}}
 \begin{remark}
-  Thomas: Additionally, we might want to disallow in the semantics an execution
-  with a \X{PC} register pointing to an $\MMIO$ location (I think this makes
-  more sense than reading a random instruction through I/O). Armaël: but it
-  makes the semantics of all instructions more complicated.
+As Lars remarked, the read rule introduces non-determinism into our operational
+semantics.
+This has lead to some complications in the past (the nature of which is still
+mysterious to me; n.b. that we use\\ $\I{ wp\_lift\_atomic\_head\_step\_no\_fork}$
+in our WP rules, and that one would allow non-determinism).
+(one question I -Thomas- had in this respect; does the $\I{Alloc}$ rule in HeapLang
+not introduce non-determinism in a similar way? Why is this not problematic?)
+Lars' suggestion was to additionally parameterize the operational semantics by
+an input-stream $\stdin$.
+The updated \textsc{IOLoad} load rule might then look something like this:
+\begin{mathpar}
+  \inferrule[IOLoad]
+  { r[\X{src}] = (p,g,b,e,a) \\ \X{readAllowed}\; p \\ a \in [b,e) \\ a \in \MMIO
+  \\ n = \#\{i \mid t[i] = ( \X{IORead},\_\;,\_) \}  }
+  { (r, m, t) \xrightarrow{\I{Load} \; \X{dst} \; \X{src}}
+    (r[\X{dst} := \stdin[n]], m, t \app (\X{IORead}, a, \stdin[n])) }
+\end{mathpar}
+
+When parameterizing our development with multiple values, we could either write
+them out as different Coq \texttt{Parameters} where we need them, or store them
+as fields in our \texttt{DriverG} typeclass (the latter is the approach taken
+in e.g.\ the code-base of ~\cite{sammler-2020}).
 \end{remark}
 
+
+
+We now have two options when it comes to modeling the memory $m$:
+\begin{enumerate}
+\item Include the \MMIO addresses into the map. Notice that, for any address in \MMIO, the specific value held by the map $m$ for
+that address is now irrelevant. Indeed, $m$ is never read nor modified for
+addresses in \MMIO (possible exception: see next remark). One could choose to enforce that a particular dummy value is stored in $m$ for these addresses. Instead, we choose to leave them
+unconstrained.
+\item Have $m$ model the physical RAM addresses only. This model is closer to
+  the conceptual model of state that we wish to implement, since it does not
+  require us to talk about the values in the heap that \MMIO locations are
+  associated with. In case it is not harder to implement (which I currently do not think
+  it is), it is to be preferred.
+\end{enumerate}
+Both approaches require us to make sure that no points-to chunks $l \mapsto \_$
+with $l \in \MMIO$ can be created. In the next section, we assume the second
+approach (until someone proves me wrong about it working).
+
+\begin{remark}
+  Additionally, we have the option of disallowing an execution
+  with a \X{PC} register pointing to a $\MMIO$ location in the semantics.
+  First off, consider that this is an edge case; since we always have points-to
+  chunks describing the layout of code in memory (and a points-to chunk for
+  location $l$ doubles as a proof that $l \not\in \MMIO$), it is trivial to prove that
+  this case would not occur in any of our current examples.
+  If we make no changes to the current code base, this behavior would be
+  allowed, and the following would happen in both cases described above:
+  \begin{enumerate}
+  \item An unconstrained value is read from the location. Any instruction could
+    be executed.
+  \item The predicate $\I{MemLocate}$ in $\I{lang.v}$ will make sure
+  that the default value $0$ is read and decoded into an instruction when we try
+  to execute an \MMIO location.
+  This would not cause a conflict with the current WP rules,
+  since a points-to chunk is required in the precondition, ensuring that this
+  case does not occur.
+  Another alternative is to read the encoding of a $\X{NOP}$ instruction, instead of
+  just the value $0$.
+\end{enumerate}
+  If we were to simply disallow execution when the PC points into \MMIO, we would make the semantics of all instructions slightly more complicated, but in a
+  uniform way.
+  We could simply add $a \not\in \MMIO$ to the predicate $\I{isCorrectPC}$ (or
+  add it as an additional predicate), which is used to define failing execution.
+  It would again not be a drastic change, since a points-to for the
+  address $a$ the PC points to is required by the WP rules regardless, from which we
+  can prove that $a \not\in \MMIO$.
+\end{remark}
 
 \begin{remark} With this presentation, the specification of the
 ``machine'' is very much decoupled from the model of the devices it might be
@@ -160,13 +220,28 @@ assertion. Recall the current definition of the state interpretation:
 
 The simplest way to account for the trace is to directly expose it in a
 monolithic fashion. In that case, the state interpretation additionally holds a
-resource for the trace.
+resource for the trace:
+
+\begin{align*}
+    \X{state\_interp} \; (r,m,t) :=& \X{gen\_heap\_ctx}\; r \ast\\
+    &\X{gen\_heap\_ctx}\; m \ast \dom(m) \cap \MMIO = \emptyset \ast
+    {\color{BrickRed}\tracefull{t}}
+\end{align*}
+
+\begin{remark}
+For the case where the \MMIO locations are still part of the heap $m$, this
+would look as follows:
 \[
   \X{state\_interp} \; (r,m,t) :=
     \X{gen\_heap\_ctx}\; r \ast
     \X{gen\_heap\_ctx}\; (m \setminus \MMIO) \ast
     {\color{BrickRed}\tracefull{t}}
 \]
+
+Sanity check: we never have allocation of new locations $l$ in our capability machine, but if we
+did, that would work in both settings by requiring that $l \not\in \MMIO$ in the
+operational semantics rule for \textsc{Alloc}.
+\end{remark}
 
 Note that we restrict the usual ``points-to'' assertions to be used only for
 non-MMIO addresses. Instead, to assert ownership of the MMIO region, the user
@@ -630,11 +705,9 @@ Depending on the specifics of the operiational semantics, we might have more
 information about $m_0$ and $r_0$, that can then be used in the implementation
 of the boot code (e.g., $m_0$ might be initialized to only zeroes).
 
-We also assume the boot-code to be initially loaded in memory at address
-$l_{\X{boot}}$.
+We also assume the capability machine to initially start execution in the boot code  at address $l_{\X{boot}}$.
 %
-Then, the specification for the boot code that we have to prove is stated as
-follows:
+Then, the syntactic specification for the boot code that we have to prove is stated as follows:
 
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 
