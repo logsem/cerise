@@ -39,7 +39,8 @@
 \DeclareMathOperator{\trace}{tr}
 \DeclareMathOperator{\lowval}{\Sf{lowval}}
 \DeclareMathOperator{\lifto}{\Sf{lift}}
-\newcommandx{\trInv}[2][1=P,2=\iota]{\operatorname{trInv}^{#2}(#1)}
+\newcommandx{\trInv}[3][1=P,2=\iota,3]{\operatorname{trInv}^{#2}_{#3}(#1)}
+\newcommandx{\trInvNp}[2][1=P,2=\iota]{\trInv[#1][#2][\mathrm{np}]}
 \newcommand{\wrap}[1]{\operatorname{wrap}_{\mathrm{#1}}}
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 \newcommand{\app}{\mathbin{+\!\!+}}
@@ -515,7 +516,7 @@ machine setting might look something like the following
   \mprset{vskip=0.5em}
   \inferrule
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,
-      \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\!
+      \trInv\!
          \vdash
          \forall W \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
        \\
@@ -690,7 +691,7 @@ do the same for the semantic bootspec):
   need these to apply the fundamental theorem.
 \item A description of the exact driver code, still in terms of points-to chunks
   (or, in this case equivalently, an invariant). We can write this invariant as
-      $\driverC(b,e,\overline{\V{op}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{w}_l}}}$, with $\V{w}_l$
+      $\driverC(b,e,\overline{\V{w}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{w}_l}}}$, with $\V{w}_l$
       some hard-coded driver word (an instruction or a capability) at location $l$.
 \end{itemize}
 
@@ -703,7 +704,7 @@ semantic specification for $\initOKo$, which references the initial world):
   \inferrule
   { \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
     {\begin{array}{ll}
-    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
+    \trInv \ast
     \driverC(b,e,\overline{\V{w}_l})\!
          \vdash \\
          \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
@@ -828,8 +829,8 @@ The resulting boot-code formulation of the robust safety theorem is now a
   \inferrule
   {  \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
     {\begin{array}{ll}
-    \knowInv{\iota}{\exists t.\; \tracefrag{t} \ast P(t)}\ast
-    \driverC(b,e,\overline{\V{op}_l})\!
+    \trInv \ast
+    \driverC(b,e,\overline{\V{w}_l})\!
          \vdash \\
          \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
         \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e,A_{\X{entry}}, \Winit) \\
@@ -1005,9 +1006,18 @@ discuss the concrete constraint that we are looking for.
 We have to tie this integer $n$ to the number of I/O events
 present in the trace $t$, otherwise it will prove impossible to verify our
 driver. Concretely, the invariant we will verify our driver under changes from
-$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000}}$ to
-$\knowInv{\iota}{\exists t\ldotp \tracefrag{t} \ast \pure{|t| \le 1000} \ast
-  \exists n\ldotp l_n \mapsto n \ast n = |t| }$. Concretely, this means that
+$\trInv[|t| \le 1000]$ to
+$\trInvNp[\pure{|t| \le 1000} \ast
+  \exists n\ldotp l_n \mapsto n \ast n = |t| ]$, where we defined
+%
+\[
+  \begin{array}{lcl}
+    \trInvNp[P_{\X{np}}] & \eqdef & \knowInv{\iota}{\exists t.\; \trace(t) \ast P_{\X{np}}(t)}
+  \end{array}
+\]
+
+(i.e., the predicate over the trace does not need to be pure any longer).
+Concretely, this means that
 instead of having a pure predicate $P$ in our robust safety theorem, we should
 also allow non-pure predicates $P_{\X{np}}$ that entail $P$, i.e. $\forall t
 \ldotp P_{\X{np}}(t) \wand \pure{P(t)} $, since we might have to enforce
