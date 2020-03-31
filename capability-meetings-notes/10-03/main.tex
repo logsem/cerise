@@ -719,8 +719,8 @@ Then, the syntactic specification for the boot code that we have to prove is sta
     \left\{
     \begin{array}{l}
       \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
-      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} \_}
-      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} \_}
+      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
+      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]}
       \ast \; \tracefrag{\emptyset}
     \end{array}
     \right\}
@@ -881,10 +881,11 @@ The boot code has the following responsibilities:
 \end{itemize}
 
 \section{Potential driver clients/properties}
-The concrete driver that we described in \texttt{subsec:driverimpl} does not yet enforce any useful
-safety properties on the traces that it outputs.
-This section describes a couple such properties that we might want to enforce,
-modifications to the driver that they require and example clients that make use of our modified driver.
+The concrete driver that we described in Section~\ref{subsec:driverimpl} does
+not yet enforce any useful safety properties on the traces that it outputs. This
+section describes a couple such properties that we might want to enforce,
+modifications to the driver that they require and example clients that make use
+of our modified driver.
 
 \subsection{Stateless properties}
 
@@ -925,7 +926,7 @@ To make sure we can prove the driver specification, we will have to update the
 robust safety theorem slightly to incorporate these changes. It will then look
 as follows:
 
-\paragraph{Never performing I/O again after some stop token has been read on $\stdin$}
+\paragraph{Never performing I/O again after some stop token has been read}
 
 \bibliographystyle{alpha}
 \bibliography{biblio}
