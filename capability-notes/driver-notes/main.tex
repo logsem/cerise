@@ -772,12 +772,15 @@ of the boot code (e.g., $m_0$ might be initialized to only zeroes).
 
 We also assume the capability machine to initially start execution in the boot code  at address $l_{\X{boot}}$.
 %
-Then, the syntactic specification for the boot code that we have to prove is stated as follows:
-
+Then, the syntactic specification for the boot code that we have to prove is
+stated as follows (we give both a specific, syntactic specification
+\X{bootSpec_{synt}} and a more
+general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic specification):
 
 \[
   \begin{array}{l}
-  \X{bootSpec}(P, g, b, e, A_{\X{entry}}) \eqdef {} \\[0.8em]
+
+  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\V{bootCont}) \eqdef \\[0.8em]
     \quad
   \begin{array}{l}
     \left\{
@@ -785,36 +788,87 @@ Then, the syntactic specification for the boot code that we have to prove is sta
       \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
       \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
       \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]}
-      \ast \; \tracefrag{\emptyset}
+      \ast \; \tracefrag{\emptyset} \ast \\[1.2em]
+      \later  \V{bootCont}
     \end{array}
     \right\}
-    \\[2em]
+    \\[2.5em]
     \quad \I{Seq}\; (\I{Instr}\; \I{Executable})
-    \\[0.5em]
-    \left\{
+    \\[0.2em]
+    \left\{ \Phi \right\}
+  \end{array}\\[4em]
+
+    \X{bootCont_{synt}}(P, g, b, e, A_{\X{entry}},\Phi) \eqdef  \\[0.2em]
     \begin{array}{l}
-      \exists b_{adv}\; e_{adv}\; t.\; \\[0.5em]
+       (\exists b_{adv}\; e_{adv}\; t.\; \\[0.5em]
       \quad
       \begin{array}{l}
         \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, b_{adv}) \ast {} \\[0.7em]
         \bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
         \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
         \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
-        \bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
-        \; \tracefrag{t} \ast \pure{P(t)}
+        %\bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
+        \driverC(b,e,\overline{\V{w}_l})\ast
+        \; \tracefrag{t} \ast \pure{P(t)})
       \end{array}
-    \end{array}
-    \right\}
-  \end{array}
+    \end{array} \\[4em]
+    \quad\wand
+    \begin{array}{l}
+     \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
+    \end{array}\\[1.2em]
+
+
+  \X{bootSpec_{synt}}(P, g, b, e, A_{\X{entry}}) \eqdef\\
+     \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\X{bootCont_{synt}}(P, g, b, e, A_{\X{entry}},\Phi))\\[0.8em]
+
+ \X{InitW}(\Winit,b,e) \eqdef\\
+\quad \text{Predicate that forces  $\Winit$ to be the world with one
+    permanent, standard region at $[b,e[$}\\[0.8em]
+
+ \X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit) \eqdef  \\[0.2em]
+    \begin{array}{l}
+       (\exists b_{\X{adv}}\; e_{\X{adv}}\; t.\; \\[0.5em]
+      \quad
+      \begin{array}{l}
+        \X{InitW}(\Winit,b_{\X{adv}}, e_{\X{adv}})\ast \\[0.5em]
+        \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{PC}}, e_{\X{PC}}, a_{\X{PC}})
+        \ast \VR^{\notMMIO} (\Winit)(\X{RW}, \X{G}, b_{\X{PC}}, e_{\X{PC}}, a_{\X{PC}})) \ast {} \\[1.2em]
+        \bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast
+        \VR^{\notMMIO} (\Winit)(w_r))} \ast {} \\[1.2em]
+        \driverC(b,e,\overline{\V{w}_l})\ast
+        \; \tracefrag{t} \ast  \pure{P(t)}\ast \\[0.5em]
+        \X{region}(\Winit) \ast  \X{sts\_full\_world}\; \X{sts\_std} \;
+        \Winit)\\[0.5em]       \end{array}
+    \end{array} \\[4em]
+    \quad\wand
+    \begin{array}{l}
+     \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
+    \end{array}\\[1.2em]
+
+  \X{bootSpec_{sem}}(P, g, b, e, A_{\X{entry}},\Winit)
+    \eqdef\\
+     \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit))\\[0.8em]
+
   \end{array}
 \]
 
 \begin{remark}
+  We will have to allocate the above predicates\\ $\X{region}(\Winit) \ast
+  \X{sts\_full\_world}\; \X{sts\_std} \; \Winit$ from our Coq development under
+  a different ghost name $\gamma$ than we usually do.
+  I do not know how exactly that would work on a technical level, but it should somehow.
+\end{remark}
+
+\begin{remark}
 As Frank mentioned, if we do not enforce any validity constraints on the part of the adversary's memory that is not reachable
 from the valid registers themselves, the driver cannot read from this memory in
-a useful way during execution (since the memory might contain any value whatsoever).
-There is currently no concrete use case for this scenario yet, so we left such
-condition on the adversary's memory out, but it is good to be aware of.
+a useful way during execution (since the memory might contain any value
+whatsoever, \'and we cannot obtain a points-to chunk to it).
+There is currently no concrete use case for this scenario yet, but it is good to be aware of.
+In the general case, we would have to make sure that the parts of the adversary
+code that are not pointed to by registers but are needed by the driver for some
+reason are present in the world (otherwise, we have no way to obtain the
+points-to chunk either), or present in an invariant.
 \end{remark}
 
 Intuitively, establishing this specification ensures that, after running the
