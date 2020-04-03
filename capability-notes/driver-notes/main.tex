@@ -393,20 +393,19 @@ the code we want to gradually verify.
 %
 \rk{toplevel:single_entrypoint}
 
-The capability $(\X{E}, g, b, e, a_i)$ then represents a closure for this same piece
-of code. Adversarial code only gets access to the closure (as an enter
-capability), in order to avoid them from executing or reading arbitrary lines of
-code within the trusted module.
+The capability $(\X{E}, g, b, e, a_i)$ then represents a closure for this same
+piece of code. Adversarial code should only get access to the closure (as an
+enter capability), in order to prevent it from executing or reading arbitrary
+lines of code within the trusted module.
 
-Notice the universal quantification over worlds in the precondition;
-this needs to be there, since we do not know in what world our code will be
-called.
+Notice that we also need to provide a world to instantiate the expression
+relation, here, we universally quantify over it...
 %
 \rk{toplevel:ocpl_explicit_worlds}
 
-\medskip
+\bigskip
 
-The theorem above is \emph{incomplete}. In other words, it is not provable as
+The theorem above is \emph{incomplete}. In particular, it is not provable as
 is, because it includes no notion of adversarial context (similar to OCPL's
 \textit{AdvCtx}), and therefore imposes no restriction on the adversarial code
 (i.e., the contents of the $r$ and $m$ other than our verified code).
