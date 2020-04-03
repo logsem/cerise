@@ -603,8 +603,8 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
         \bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
         \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
         \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
-        %\bigast{m \in [b, e)}{m \mapsto_{a} \_} \ast
-        \driverC(b,e,\overline{\V{w}_l})\ast
+        \bigast{l \in [b, e)}{m \mapsto_{a}\V{w}_l} \ast
+        % \driverC(b,e,\overline{\V{w}_l})\ast
         \; \tracefrag{t} \ast \pure{P(t)})
       \end{array}
     \end{array} \\[4em]
@@ -623,7 +623,7 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
 
  \X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit) \eqdef  \\[0.2em]
     \begin{array}{l}
-       (\exists b_{\X{adv}}\; e_{\X{adv}}\; t.\; \\[0.5em]
+       (\exists b_{\X{adv}}\; e_{\X{adv}}.\; \\[0.5em]
       \quad
       \begin{array}{l}
         \X{InitW}(\Winit,b_{\X{adv}}, e_{\X{adv}})\ast \\[0.5em]
@@ -632,7 +632,7 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
         \bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast
         \VR^{\notMMIO} (\Winit)(w_r))} \ast {} \\[1.2em]
         \driverC(b,e,\overline{\V{w}_l})\ast
-        \; \tracefrag{t} \ast  \pure{P(t)}\ast \\[0.5em]
+        \; \trInv \; \ast \\[0.5em]
         \X{region}(\Winit) \ast  \X{sts\_full\_world}\; \X{sts\_std} \;
         \Winit)\\[0.5em]       \end{array}
     \end{array} \\[4em]
@@ -898,6 +898,109 @@ paper, and allow us to emulate their examples.
 \section{Proof sketch}
 This section describes the steps involved in proving the robust safety theorem
 stated above in some more detail.
+
+\subsection{Adapting WP and the FTLR}
+The $\I{Load}$ and $\I{Store}$ cases will require new WP rules, that do not mention
+points-to chunks but mention the trace resource instead (and specifically, we
+will need rules in the presence of invariants such as $\trInv$ above ), when interactions at
+\MMIO locations happen. The general WP spec will need to distinguish between
+the MMIO and non-MMIO cases (alternatively, if both cases are too distinct, the
+ftlr can make this distinction again).
+
+The relations $\VR,\ER,\RR$ need to be updated in terms of $\notMMIO$ and the FTLR will need to be re-stated in terms of these updated relations. This should again only
+require some changes for the $\I{Load}$ and $\I{Store}$ cases, depending on how
+we choose to formalize the WP cases above.
+
+\subsection{Proving the driver safe}
+Specifically, we need to prove the condition
+
+\[
+\forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
+    {\begin{array}{ll}
+    \trInv \ast
+    \driverC(b,e,\overline{\V{w}_l})\!
+         \vdash \\
+         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
+        \end{array}} \right.
+\]
+
+mentioned above, for the set $A_{\X{entry}}$ of entry points that the boot code
+will actually hand closures out for. This will require reductive reasoning over the concrete code of
+the driver, but should not be too hard in the absence of local return pointers
+and local driver state.
+
+\subsection{Syntactic boot spec}
+
+Proving the syntactic boot specification given above, again through reasoning on
+the concrete boot code that we have written down in our example. This should be
+relatively easy, as our boot code erases adversary memory before handing over
+control. The proof includes verifying any IO that the boot code might need to
+do, using the new WP rules mentioned above.
+
+\subsection{Semantic boot spec}
+
+The semantic boot specification should be derivable from the syntactic one,
+combined with the proof of safety of the driver (so that we know that enter
+capabilities to the driver are safe). The different elements of the semantic bootSpec continuation can be proven as follows:
+\begin{itemize}
+\item First off, we can prove \[\exists \overline{\gamma}\ldotp \X{region}(\emptyset) \ast  \X{sts\_full\_world}\;
+  \X{sts\_std} \; \emptyset\] for \emph{some} ghost names $\overline{\gamma}$ (we
+  left this existential out for simplicity in our spec). This will
+  suffice, since all our other proofs are parametric in the concrete ghost names, and we
+  can use these specific ghost names to construct an instance of $\X{STSG}$. We
+  can then populate the world with a standard, permanent region for the
+  adversary's memory, using the chunks $\bigast{m \in [b_{adv}, e_{adv})}{m
+    \mapsto_{a} \X{inl}\; \_}$ from the syntactic boot spec. This allows us to
+  prove \[\exists \overline{\gamma}\ldotp \X{region}(\Winit) \ast  \X{sts\_full\_world}\;
+    \X{sts\_std} \; \Winit\] in the semantic bootspec.
+  We could generalize the semantic bootspec slightly, by only requiring $[b_{adv},
+  e_{adv})$ to be a subset of adversary memory, but it is not immediately clear
+  what we gain from that.
+\item $\trInv$ and $\driverC(b,e,\overline{\V{w}_l})$ are trivially proven by
+  allocating invariants for $\tracefrag{t} \ast \pure{P(t)}$ and $\bigast{l \in [b, e)}{m \mapsto_{a}\V{w}_l}$ respectively.
+\item In proving that
+  \[\bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast
+      \VR^{\notMMIO} (\Winit)(w_r))}\]
+  holds, we can distinguish two different cases:
+  \begin{itemize}
+  \item For registers $a_i$ containing closures to the driver, we use the chunks
+    $\bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)}$
+    from the syntactic bootspec, together with the proof of driver safety. To be
+    able to apply the latter, we have to use the $\driverC(b,e,\overline{\V{w}_l})$ and $\trInv$ invariants we allocated earlier.
+  \item All other registers will contain integers $\X{inl}\; z$ and will hence
+    trivially be in $\VR$. We can just use the chunks $\bigast{r \in
+      Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} $ to
+    satisfy the proof obligation.
+  \end{itemize}
+\item The proof of
+  \[\X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, b_{\X{adv}})
+        \ast \VR^{\notMMIO} (\Winit)({\color{red}\X{RW}}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}}))
+  \]
+   follows directly from $ \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv},
+   b_{adv}) $ in the syntactic boot spec, combined with the shape of $\Winit$
+   (i.e. the PC points to a standard, permanent region).
+\item The execution condition for the PC with respect to $\Winit$ can be proven
+  using the fundamental theorem, since we know from the previous bullet that
+  both the read- and write-conditions must be satisfied for the PC register.
+  This completes the proof of $\VR^{\notMMIO} (\Winit)({\color{red}\X{RWX}}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}}))
+$.
+\end{itemize}
+
+\subsection{Proving the robust safety theorem}
+Given a proof of the semantic boot spec, it should be fairly simple to
+prove that the robust safety theorem holds.
+
+To prove that our entire execution is safe, we will first of all need to prove
+that $\X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit)$ holds. This
+should be simple, since part of the precondition is that the PC is in the
+execution relation, which is essentially what we need to prove (under sensible
+-i.e.\ safe-
+memory and registers).
+
+When we know that our entire execution is safe according to the WP predicate, we
+can apply adequacy of the weakest precondition (and the fact that we have an
+invariant stating that our predicate $P$ must hold), to prove $P(t)$ over
+the entire I/O trace $t$.
 
 \appendix
 
