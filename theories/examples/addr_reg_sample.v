@@ -73,6 +73,8 @@ Require Import Eqdep_dec List.
   Parameter geta : RegName → RegName → Word.
   Parameter getb : RegName → RegName → Word.
   Parameter gete : RegName → RegName → Word.
+  Parameter getl : RegName -> RegName -> Word.
+  Parameter getp : RegName -> RegName -> Word. 
   Parameter add_r_z : RegName → RegName → Z → Word.
   Parameter sub_r_r : RegName → RegName → RegName → Word.
   Parameter sub_r_z : RegName → RegName → Z → Word.
@@ -101,6 +103,8 @@ Require Import Eqdep_dec List.
   Axiom geta_i : ∀ r1 r2, cap_lang.decode (geta r1 r2) = GetA r1 r2.
   Axiom getb_i : ∀ r1 r2, cap_lang.decode (getb r1 r2) = GetB r1 r2.
   Axiom gete_i : ∀ r1 r2, cap_lang.decode (gete r1 r2) = GetE r1 r2.
+  Axiom getl_i : ∀ r1 r2, cap_lang.decode (getl r1 r2) = GetL r1 r2.
+  Axiom getp_i : ∀ r1 r2, cap_lang.decode (getp r1 r2) = GetP r1 r2.
   Axiom add_r_z_i : ∀ r1 r2 z, cap_lang.decode (add_r_z r1 r2 z) = cap_lang.Add r1 (inr r2) (inl z).
   Axiom sub_r_r_i : ∀ r1 r2 r3, cap_lang.decode (sub_r_r r1 r2 r3) = cap_lang.Sub r1 (inr r2) (inr r3).
   Axiom sub_z_z_i : ∀ r1 z1 z2, cap_lang.decode (sub_z_z r1 z1 z2) = cap_lang.Sub r1 (inl z1) (inl z2).

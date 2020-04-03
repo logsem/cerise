@@ -771,4 +771,458 @@ Section stack_macros.
       iFrame. Unshelve. exact 0. exact 0.
   Qed.        (* ??? *)
 
+
+  (* -------------------------------------- REQGLOB ----------------------------------- *)
+  (* the following macro requires that a given registers contains a global capability. If 
+     this is not the case, the macro goes to fail, otherwise it continues               *)
+
+  Definition reqglob_instrs r :=
+    [getl r_t1 r;
+    sub_r_z r_t1 r_t1 (encodeLoc Global);
+    move_r r_t2 PC;
+    lea_z r_t2 6;
+    jnz r_t2 r_t1;
+    move_r r_t2 PC;
+    lea_z r_t2 4;
+    jmp r_t2;
+    fail_end;
+    move_z r_t1 0;
+    move_z r_t2 0].
+
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually 
+     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
+  Lemma wp_Get_fail E get_i dst src pc_p pc_g pc_b pc_e pc_a w zsrc wdst pc_p' :
+    cap_lang.decode w = get_i →
+    is_Get get_i dst src →
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+
+    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+      ∗ ▷ pc_a ↦ₐ[pc_p'] w
+      ∗ ▷ dst ↦ᵣ wdst
+      ∗ ▷ src ↦ᵣ inl zsrc }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hfl Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  (* TODO: move the following into lang. *)
+  Definition isGlobal (l: Locality): bool :=
+    match l with
+    | Global => true
+    | _ => false
+    end.
+
+  Definition isGlobalWord (w : Word): bool :=
+    match w with
+    | inl _ => false
+    | inr ((_,l),_,_,_) => isGlobal l
+    end.
+
+  Lemma isGlobalWord_cap_isGlobal (w0:Word):
+    isGlobalWord w0 = true →
+    ∃ p g b e a, w0 = inr (p,g,b,e,a) ∧ isGlobal g = true.
+  Proof.
+    intros. destruct w0;[done|].
+    destruct c, p, p, p.
+    cbv in H. destruct l; last done. 
+    eexists _, _, _, _, _. split; eauto.
+  Qed.
+
+  Global Axiom encodeLoc_inj : Inj eq eq encodeLoc.
+  (* ------------------------------- *)
+  
+  Definition reqglob r a p : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(reqglob_instrs r), a_i ↦ₐ[p] w_i)%I.
+
+  Lemma reqglob_spec r a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
+    PermFlows pc_p pc_p' ->
+    contiguous_between a a_first a_last ->
+
+      ▷ reqglob r a pc_p'
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
+    ∗ ▷ r ↦ᵣ w
+    ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
+    ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
+    (* if the capability is global, we want to be able to continue *)
+    (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
+    ∗ ▷ (if isGlobalWord w then
+           ∃ g b e a', ⌜w = inr (g,Global,b,e,a')⌝ ∧
+          (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ reqglob r a pc_p' ∗
+            r ↦ᵣ inr (g,Global,b,e,a') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
+            -∗ WP Seq (Instr Executable) {{ φ }})
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hfl Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hcont)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength. simpl in *.
+    iDestruct ("Hr_t1") as (w1) "Hr_t1".
+    iAssert (⌜r ≠ PC⌝)%I as %Hne.
+    { destruct (decide (r = PC)); auto; subst. iDestruct (regname_dupl_false with "HPC Hr") as %Hcontr. done. }
+    iPrologue "Hprog".
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
+    destruct w. 
+    { (* if w is an integer, the getL will fail *)
+      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");
+        [apply getl_i|auto|apply Hfl|iCorrectPC a_first a_last|..].
+      iEpilogue "_ /=". 
+      iApply wp_value. done. 
+    }
+    (* if w is a capability, the getL will succeed *)
+    destruct a as [|a l];[done|]. 
+    iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t1]");
+      [apply getl_i|auto|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
+    iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
+    destruct c,p,p,p. iSimpl in "Hr_t1". 
+    (* sub r_t1 r_t1 (encodeLoc Global) *)
+    destruct l;[done|].
+    iPrologue "Hprog". 
+    iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr_t1]");
+      [apply sub_r_z_i|auto|iContiguous_next Hcont 1|apply Hfl|iCorrectPC a_first a_last|..].
+    iEpilogue "(HPC & Hi & Hr_t1)". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iSimpl in "Hr_t1".
+    (* move r_t2 PC *)
+    destruct l;[done|]. 
+    iPrologue "Hprog".
+    iDestruct "Hr_t2" as (w2) "Hr_t2". 
+    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
+      [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 2|auto|..].
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    (* lea r_t2 6 *)
+    do 7 (destruct l;[done|]). destruct l; [|done]. 
+    assert ((a3 + 6)%a = Some a9) as Hlea. 
+    { apply (contiguous_between_incr_addr_middle _ _ _ 2 6 a3 a9) in Hcont; auto. }
+    assert (pc_p ≠ E) as HneE.
+    { apply isCorrectPC_range_perm in Hvpc as [Heq | [Heq | Heq] ]; subst; auto.
+      apply (contiguous_between_middle_bounds _ 0 a_first) in Hcont as [_ Hlt]; auto. }
+    iPrologue "Hprog". 
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
+      [apply lea_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 3|apply Hlea|auto..]. 
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    destruct (decide (encodeLoc l0 - encodeLoc Global = 0))%Z.
+    - (* l is Global *)
+      rewrite e. assert (l0 = Global);[apply encodeLoc_inj;lia|subst]. 
+      iSimpl in "Hcont". iDestruct "Hcont" as (g b e0 a' Heq) "Hφ". inversion Heq; subst.
+      iPrologue "Hprog". 
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move_r r_t2 PC *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
+        [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 5|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* lea r_t2 3 *)
+      assert ((a6 + 4)%a = Some a10) as Hlea'. 
+      { apply (contiguous_between_incr_addr_middle _ _ _ 5 4 a6 a10) in Hcont; auto. }
+      iPrologue "Hprog". 
+      iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
+        [apply lea_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 6|apply Hlea'|auto..]. 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* jmp r_t2 *)
+      iPrologue "Hprog".
+      iApply (wp_jmp_success with "[$HPC $Hi $Hr_t2]");
+        [apply jmp_i|apply Hfl|iCorrectPC a_first a_last|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      assert (updatePcPerm (inr (pc_p, pc_g, pc_b, pc_e, a10)) = (inr (pc_p, pc_g, pc_b, pc_e, a10))) as ->.
+      { destruct pc_p; auto. congruence. }
+      iDestruct "Hprog" as "[Hi Hprog]". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move r_t1 0 *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]"); 
+        [apply move_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 9|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move r_t2 0 *)
+      iPrologue "Hprog".
+      apply contiguous_between_last with (ai:=a11) in Hcont as Hnext;[|auto]. 
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]"); 
+        [apply move_z_i|apply Hfl|iCorrectPC a_first a_last|apply Hnext|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iApply "Hφ". iFrame "HPC Hr Hr_t1 Hr_t2".
+      repeat (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi"). 
+      iFrame.
+    - destruct l0;[lia|iSimpl in "Hcont"]. 
+      (* jnz r_t2 r_t1 *)
+      iPrologue "Hprog".
+      iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr_t2 $Hr_t1]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|..].
+      { intros Hcontr. inversion Hcontr. done. }
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      do 3 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done"). 
+      (* fail *)
+      iPrologue "Hprog".
+      assert (updatePcPerm (inr (pc_p, pc_g, pc_b, pc_e, a9)) = (inr (pc_p, pc_g, pc_b, pc_e, a9))) as ->.
+      { destruct pc_p; auto. congruence. }
+      iApply (wp_fail with "[$HPC $Hi]");
+        [apply fail_end_i|apply Hfl|iCorrectPC a_first a_last|]. 
+      iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont". 
+  Qed.
+
+  (* -------------------------------------- REQPERM ----------------------------------- *)
+  (* the following macro requires that a given registers contains a capability with a 
+     given (encoded) permission. If this is not the case, the macro goes to fail,
+     otherwise it continues *)  
+
+  Definition reqperm_instrs r z :=
+    [getp r_t1 r;
+    sub_r_z r_t1 r_t1 z;
+    move_r r_t2 PC;
+    lea_z r_t2 6;
+    jnz r_t2 r_t1;
+    move_r r_t2 PC;
+    lea_z r_t2 4;
+    jmp r_t2;
+    fail_end;
+    move_z r_t1 0;
+    move_z r_t2 0].
+
+
+  (* TODO: move the following into lang. *)
+  Definition isPerm p p' :=
+    match p with
+    | RWX => match p' with
+            | RWX => true
+            | _ => false
+            end
+    | RWLX => match p' with
+            | RWLX => true
+            | _ => false
+            end
+    | RX => match p' with
+            | RX => true
+            | _ => false
+            end
+    | RW => match p' with
+            | RW => true
+            | _ => false
+            end
+    | RWL => match p' with
+            | RWL => true
+            | _ => false
+            end
+    | RO => match p' with
+            | RO => true
+            | _ => false
+           end
+    | O => match p' with
+            | O => true
+            | _ => false
+          end
+    | E => match p' with
+          | E => true
+          | _ => false
+          end
+    end.
+
+  Lemma isPerm_refl p : isPerm p p = true.
+  Proof. destruct p; auto. Qed.
+  Lemma isPerm_ne p p' : p ≠ p' -> isPerm p p' = false.
+  Proof. intros Hne. destruct p,p'; auto; congruence. Qed. 
+
+  Definition isPermWord (w : Word) (p : Perm): bool :=
+    match w with
+    | inl _ => false
+    | inr ((p',_),_,_,_) => isPerm p p'
+    end.
+
+  Lemma isPermWord_cap_isPerm (w0:Word) p:
+    isPermWord w0 p = true →
+    ∃ p' g b e a, w0 = inr (p',g,b,e,a) ∧ isPerm p p' = true.
+  Proof.
+    intros. destruct w0;[done|].
+    destruct c,p0,p0,p0. 
+    cbv in H. destruct p; try done; 
+    eexists _, _, _, _, _; split; eauto.
+  Qed.
+  
+  Global Axiom encodePerm_inj : Inj eq eq encodePerm.
+  (* ------------------------------- *)
+  
+  Definition reqperm r z a p : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(reqperm_instrs r z), a_i ↦ₐ[p] w_i)%I.
+
+  Lemma reqperm_spec r perm a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
+    PermFlows pc_p pc_p' ->
+    contiguous_between a a_first a_last ->
+
+      ▷ reqperm r (encodePerm perm) a pc_p'
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
+    ∗ ▷ r ↦ᵣ w
+    ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
+    ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
+    (* if the capability is global, we want to be able to continue *)
+    (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
+    ∗ ▷ (if isPermWord w perm then
+           ∃ l b e a', ⌜w = inr (perm,l,b,e,a')⌝ ∧
+          (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ reqperm r (encodePerm perm) a pc_p' ∗
+            r ↦ᵣ inr (perm,l,b,e,a') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
+            -∗ WP Seq (Instr Executable) {{ φ }})
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hfl Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hcont)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength. simpl in *.
+    iDestruct ("Hr_t1") as (w1) "Hr_t1".
+    iAssert (⌜r ≠ PC⌝)%I as %Hne.
+    { destruct (decide (r = PC)); auto; subst. iDestruct (regname_dupl_false with "HPC Hr") as %Hcontr. done. }
+    iPrologue "Hprog".
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
+    destruct w. 
+    { (* if w is an integer, the getL will fail *)
+      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");
+        [apply getp_i|auto|apply Hfl|iCorrectPC a_first a_last|..].
+      iEpilogue "_ /=". 
+      iApply wp_value. done. 
+    }
+    (* if w is a capability, the getL will succeed *)
+    destruct a as [|a l];[done|]. 
+    iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t1]");
+      [apply getp_i|auto|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
+    iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
+    destruct c,p,p,p. iSimpl in "Hr_t1". 
+    (* sub r_t1 r_t1 (encodeLoc Global) *)
+    destruct l;[done|].
+    iPrologue "Hprog". 
+    iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr_t1]");
+      [apply sub_r_z_i|auto|iContiguous_next Hcont 1|apply Hfl|iCorrectPC a_first a_last|..].
+    iEpilogue "(HPC & Hi & Hr_t1)". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iSimpl in "Hr_t1".
+    (* move r_t2 PC *)
+    destruct l;[done|]. 
+    iPrologue "Hprog".
+    iDestruct "Hr_t2" as (w2) "Hr_t2". 
+    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
+      [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 2|auto|..].
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    (* lea r_t2 6 *)
+    do 7 (destruct l;[done|]). destruct l; [|done]. 
+    assert ((a3 + 6)%a = Some a9) as Hlea. 
+    { apply (contiguous_between_incr_addr_middle _ _ _ 2 6 a3 a9) in Hcont; auto. }
+    assert (pc_p ≠ E) as HneE.
+    { apply isCorrectPC_range_perm in Hvpc as [Heq | [Heq | Heq] ]; subst; auto.
+      apply (contiguous_between_middle_bounds _ 0 a_first) in Hcont as [_ Hlt]; auto. }
+    iPrologue "Hprog". 
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
+      [apply lea_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 3|apply Hlea|auto..]. 
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    destruct (decide (encodePerm p - encodePerm perm = 0))%Z.
+    - (* p is perm *)
+      rewrite e. assert (p = perm);[apply encodePerm_inj;lia|subst]. 
+      iSimpl in "Hcont". rewrite isPerm_refl. iDestruct "Hcont" as (l b e0 a' Heq) "Hφ". inversion Heq; subst.
+      iPrologue "Hprog". 
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move_r r_t2 PC *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
+        [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 5|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* lea r_t2 3 *)
+      assert ((a6 + 4)%a = Some a10) as Hlea'. 
+      { apply (contiguous_between_incr_addr_middle _ _ _ 5 4 a6 a10) in Hcont; auto. }
+      iPrologue "Hprog". 
+      iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
+        [apply lea_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 6|apply Hlea'|auto..]. 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* jmp r_t2 *)
+      iPrologue "Hprog".
+      iApply (wp_jmp_success with "[$HPC $Hi $Hr_t2]");
+        [apply jmp_i|apply Hfl|iCorrectPC a_first a_last|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      assert (updatePcPerm (inr (pc_p, pc_g, pc_b, pc_e, a10)) = (inr (pc_p, pc_g, pc_b, pc_e, a10))) as ->.
+      { destruct pc_p; auto. congruence. }
+      iDestruct "Hprog" as "[Hi Hprog]". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move r_t1 0 *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]"); 
+        [apply move_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 9|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      (* move r_t2 0 *)
+      iPrologue "Hprog".
+      apply contiguous_between_last with (ai:=a11) in Hcont as Hnext;[|auto]. 
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]"); 
+        [apply move_z_i|apply Hfl|iCorrectPC a_first a_last|apply Hnext|auto|..].
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iApply "Hφ". iFrame "HPC Hr Hr_t1 Hr_t2".
+      repeat (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi"). 
+      iFrame.
+    - assert (p ≠ perm) as HneP.
+      { intros Hcontr. subst. lia. }
+      iSimpl in "Hcont". rewrite isPerm_ne;[|auto]. 
+      (* jnz r_t2 r_t1 *)
+      iPrologue "Hprog".
+      iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr_t2 $Hr_t1]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|..].
+      { intros Hcontr. inversion Hcontr. done. }
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      do 3 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done"). 
+      (* fail *)
+      iPrologue "Hprog".
+      assert (updatePcPerm (inr (pc_p, pc_g, pc_b, pc_e, a9)) = (inr (pc_p, pc_g, pc_b, pc_e, a9))) as ->.
+      { destruct pc_p; auto. congruence. }
+      iApply (wp_fail with "[$HPC $Hi]");
+        [apply fail_end_i|apply Hfl|iCorrectPC a_first a_last|]. 
+      iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont". 
+  Qed.
+
+
+  (* -------------------------------------- PREPSTACK ---------------------------------- *)
+  (* The following macro first checks whether r is a capability with permission RWLX. Next
+     if it is, it will move the pointer to the bottom of its range *)
+
+  Definition prepstack_instrs r :=
+    reqperm_instrs r (encodePerm RWLX) ++
+    [getb r_t1 r;
+    geta r_t2 r;
+    sub_r_r r_t1 r_t1 r_t2;
+    lea_r r r_t1;
+    sub_z_z r_t1 0 1;
+    lea_r r r_t1;
+    move_z r_t1 0;
+    move_z r_t2 0].
+
+  Definition prepstack r a p : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(prepstack_instrs r), a_i ↦ₐ[p] w_i)%I. 
+
+  Lemma prepstack_spec r a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
+    PermFlows pc_p pc_p' ->
+    contiguous_between a a_first a_last ->
+
+      ▷ prepstack r a pc_p'
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
+    ∗ ▷ r ↦ᵣ w
+    ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
+    ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
+    (* if the capability is global, we want to be able to continue *)
+    (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
+    ∗ ▷ (if isPermWord w RWLX then
+           ∃ l b e a' b', ⌜w = inr (RWLX,l,b,e,a')⌝ ∧ ⌜(b' + 1)%a = Some b⌝ ∧
+          (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ prepstack r a pc_p' ∗
+            r ↦ᵣ inr (RWLX,l,b,e,b') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
+            -∗ WP Seq (Instr Executable) {{ φ }})
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hfl Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hcont)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength. simpl in *.
+    iAssert (⌜r ≠ PC⌝)%I as %Hne.
+    { destruct (decide (r = PC)); auto; subst. iDestruct (regname_dupl_false with "HPC Hr") as %Hcontr. done. }
+    Admitted. 
+    
+    
+      
 End stack_macros.
