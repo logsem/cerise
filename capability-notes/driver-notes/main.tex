@@ -617,18 +617,13 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
   \X{bootSpec_{synt}}(P, g, b, e, A_{\X{entry}}) \eqdef\\
      \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\X{bootCont_{synt}}(P, g, b, e, A_{\X{entry}},\Phi))\\[0.8em]
 
- \X{InitW}(\Winit,b,e) \eqdef\\
-\quad \text{Predicate that forces  $\Winit$ to be the world with one
-    permanent, standard region at $[b,e[$}\\[0.8em]
-
  \X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit) \eqdef  \\[0.2em]
     \begin{array}{l}
-       (\exists b_{\X{adv}}\; e_{\X{adv}}.\; \\[0.5em]
+       (\exists b_{\X{adv}}\; e_{\X{adv}}\; a_{\X{adv}}\; w_r.\; \\[0.5em]
       \quad
       \begin{array}{l}
-        \X{InitW}(\Winit,b_{\X{adv}}, e_{\X{adv}})\ast \\[0.5em]
-        \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{PC}}, e_{\X{PC}}, a_{\X{PC}})
-        \ast \VR^{\notMMIO} (\Winit)(\X{RW}, \X{G}, b_{\X{PC}}, e_{\X{PC}}, a_{\X{PC}})) \ast {} \\[1.2em]
+        \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}})
+        \ast \VR^{\notMMIO} (\Winit)(\X{RW}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}})) \ast {} \\[1.2em]
         \bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast
         \VR^{\notMMIO} (\Winit)(w_r))} \ast {} \\[1.2em]
         \driverC(b,e,\overline{\V{w}_l})\ast
