@@ -161,7 +161,7 @@ monolithic fashion. In that case, the state interpretation additionally holds a
 resource for the trace~\rk{resources:mmio_in_m}:
 
 \begin{align*}
-    \X{state\_interp} \; (r,m,t) :=& \X{gen\_heap\_ctx}\; r \ast\\
+    \X{state\_interp} \; (r,m,t) := {} & \X{gen\_heap\_ctx}\; r \ast {}\\
     &\X{gen\_heap\_ctx}\; m \ast \dom(m) \cap \MMIO = \emptyset \ast
     {\color{BrickRed}\tracefull{t}}
 \end{align*}
