@@ -493,8 +493,7 @@ see the bootSpec postcondition below):
 
 It should be noted that a more general, semantic version of this specification
 is also possible. It would contain the following elements, that should all
-follow directly from the specification above (TODO: write this out properly and
-do the same for the semantic bootspec):
+follow directly from the specification above:
 \begin{itemize}
 \item All registers except \X{PC} are in the value relation with respect to
   either the empty world $\Wemp$ (if we do not want to allow any non-empty, non-enter
@@ -541,7 +540,7 @@ $b_{\X{adv}}$ without loss of generality).
 Notice how the syntactic check for the registers is only performed on the set of
 registers $r$, allowing the closures in $\overline{r_{a_i}}$ to point into to
 the driver address space (TODO: we should change this though and add a
-requirement to $\initOKo$).
+requirement to $\initOKo$). (TODO 2: initOK\_sem is simply the precondition of bootcont\_sem below, we should inline it here or delete it)
 
 Having this theorem in our toolbox, we can now take a closer look at scenario 2
 above, where a piece of boot code is used to set the memory up correctly,
@@ -576,7 +575,7 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
 \[
   \begin{array}{l}
 
-  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\V{bootCont}) \eqdef \\[0.8em]
+  \X{bootSpec}(P, g, b, e,\V{bootCont}) \eqdef \\[0.8em]
     \quad
   \begin{array}{l}
     \left\{
@@ -617,9 +616,9 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
   \X{bootSpec_{synt}}(P, g, b, e, A_{\X{entry}}) \eqdef\\
      \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\X{bootCont_{synt}}(P, g, b, e, A_{\X{entry}},\Phi))\\[0.8em]
 
- \X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit) \eqdef  \\[0.2em]
+ \X{bootCont_{sem}}(P, g, b, e, \Phi,\Winit) \eqdef  \\[0.2em]
     \begin{array}{l}
-       (\exists b_{\X{adv}}\; e_{\X{adv}}\; a_{\X{adv}}\; w_r.\; \\[0.5em]
+       (\exists b_{\X{adv}}\; e_{\X{adv}}\; a_{\X{adv}}\;\overline{w_r}.\; \\[0.5em]
       \quad
       \begin{array}{l}
         \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}})
@@ -636,9 +635,9 @@ general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic s
      \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
     \end{array}\\[1.2em]
 
-  \X{bootSpec_{sem}}(P, g, b, e, A_{\X{entry}},\Winit)
+  \X{bootSpec_{sem}}(P, g, b, e, \Winit)
     \eqdef\\
-     \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e, A_{\X{entry}},\X{bootCont_{sem}}(P, g, b, e, A_{\X{entry}},\Phi,\Winit))\\[0.8em]
+     \quad \forall \Phi\ldotp  \X{bootSpec}(P, g, b, e,\X{bootCont_{sem}}(P, g, b, e, \Phi,\Winit))\\[0.8em]
 
   \end{array}
 \]
@@ -678,7 +677,7 @@ The resulting boot-code formulation of the robust safety theorem is now a
     \driverC(b,e,\overline{\V{w}_l})\!
          \vdash \\
          \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
-        \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e,A_{\X{entry}}, \Winit) \\
+        \end{array}} \right. \\   \X{bootSpec}^{\X{sem}}(P,g,b,e, \Winit) \\
   (r_0, m_0, \emptyset) \longrightarrow^* (r, m, t)\\
   }
   {P(t)}
@@ -1032,7 +1031,7 @@ them out as different Coq \texttt{Parameters} where we need them, or store them
 as fields in a \texttt{DriverG} typeclass (the latter is the approach taken in
 e.g.\ the code-base of~\cite{sammler-2020}).
 
-One could also take as a parameter a predicate that restrict the set of traces
+One could also take as a parameter a predicate that restricts the set of traces
 that are allowed (that is what~\cite{sammler-2020} do).
 
 We could also express more precisely the devices' model, and equip each device
@@ -1236,3 +1235,8 @@ Then, one would use $\notMapsToR{\MMIO \cup [b,e)}$ in place of $\nonCap{}$.
 \bibliography{biblio}
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
