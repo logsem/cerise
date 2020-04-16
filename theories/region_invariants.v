@@ -56,7 +56,7 @@ Section heap.
   | Temporary
   | Permanent
   | Revoked
-  | Static of gmap Addr Word
+  | Static of gmap Addr (Perm * Word)
   .
 
   Global Instance region_type_EqDecision : EqDecision region_type :=
