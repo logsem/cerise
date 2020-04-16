@@ -50,6 +50,7 @@ Require Import Eqdep_dec List.
   (* Instructions and their decodings *)
   (* A special register for the stack pointer, different from PC *)
   Definition r_stk : RegName := r_t31.
+  Definition r_env : RegName := r_t30.
   Lemma r_stk_ne : r_stk ≠ PC. Proof. done. Qed.
 
   (* Restore code encodings *)
