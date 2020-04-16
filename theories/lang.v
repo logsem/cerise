@@ -18,10 +18,6 @@ Module cap_lang.
   | RWX
   | RWLX.
 
-  Lemma perm_eq_dec:
-    forall (p1 p2: Perm), {p1 = p2} + {p1 <> p2}.
-  Proof. destruct p1; destruct p2; auto. Qed.
-
   Inductive Locality: Type :=
   | Global
   | Local.
@@ -48,11 +44,14 @@ Module cap_lang.
     | None => inl 0%Z
     end.
 
-  Instance perm_dec_eq (p p' : Perm) : Decision (p = p') := _.
-  Instance local_dec_eq (l l' : Locality) : Decision (l = l') := _.  Proof. solve_decision. Qed.
-  Instance cap_dec_eq (c c' : Cap) : Decision (c = c').
-  Proof.
-    repeat (refine (prod_eq_dec _ _); unfold EqDecision; intros); solve_decision. Qed.
+  Instance perm_eq_dec : EqDecision Perm.
+  Proof. solve_decision. Defined.
+  Instance local_eq_dec : EqDecision Locality.
+  Proof. solve_decision. Defined.
+  Instance cap_eq_dec : EqDecision Cap.
+  Proof. solve_decision. Defined.
+  Instance word_eq_dec : EqDecision Word.
+  Proof. solve_decision. Defined.
 
   Notation "mem !m! a" := (MemLocate mem a) (at level 20).
   Notation "reg !r! r" := (RegLocate reg r) (at level 20).
@@ -850,12 +849,66 @@ Local Hint Unfold language.irreducible.
 Global Instance dec_pc c : Decision (isCorrectPC c).
 Proof. apply isCorrectPC_dec. Qed.
 
-Global Instance perm_eq_decide : EqDecision Perm.
-Proof. exact perm_eq_dec. Qed.
-
 (* There is probably a more general instance to be stated there...*)
 Instance Reflexive_ofe_equiv_Word : (Reflexive (ofe_equiv (leibnizO Word))).
 Proof. intro; reflexivity. Qed.
+
+(* Countable instances *)
+
+Instance perm_countable : Countable Perm.
+Proof.
+  set encode := fun p => match p with
+    | O => 1
+    | RO => 2
+    | RW => 3
+    | RWL => 4
+    | RX => 5
+    | E => 6
+    | RWX => 7
+    | RWLX => 8
+    end%positive.
+  set decode := fun n => match n with
+    | 1 => Some O
+    | 2 => Some RO
+    | 3 => Some RW
+    | 4 => Some RWL
+    | 5 => Some RX
+    | 6 => Some E
+    | 7 => Some RWX
+    | 8 => Some RWLX
+    | _ => None
+    end%positive.
+  eapply (Build_Countable _ _ encode decode).
+  intro p. destruct p; reflexivity.
+Qed.
+
+Instance locality_countable : Countable Locality.
+Proof.
+  set encode := fun l => match l with
+    | Local => 1
+    | Global => 2
+    end%positive.
+  set decode := fun n => match n with
+    | 1 => Some Local
+    | 2 => Some Global
+    | _ => None
+    end%positive.
+  eapply (Build_Countable _ _ encode decode).
+  intro l. destruct l; reflexivity.
+Qed.
+
+Instance cap_countable : Countable Cap.
+Proof.
+  (* NB: this relies on the fact that cap_eq_dec has been Defined, because the
+  eq decision we have for Cap has to match the one used in the conclusion of the
+  lemma... *)
+  apply prod_countable.
+Qed.
+
+Instance word_countable : Countable Word.
+Proof. apply sum_countable. Qed.
+
+(****)
 
 Definition get_addr_pointsto (w : Word) (conf : ExecConf) : option Word :=
   match w with

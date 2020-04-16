@@ -55,29 +55,56 @@ Section heap.
   Inductive region_type :=
   | Temporary
   | Permanent
-  | Revoked.
+  | Revoked
+  | Static of gmap Addr Word
+  .
 
   Global Instance region_type_EqDecision : EqDecision region_type :=
     (fun x y => match x, y with
              | Temporary, Temporary
              | Permanent, Permanent
              | Revoked, Revoked => left eq_refl
+             | Static m1, Static m2 => ltac:(solve_decision)
              | _, _ => ltac:(right; auto)
              end).
-  Global Instance region_type_finite : finite.Finite region_type :=
-    (finite.enc_finite
-       (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
-       (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
-       3%nat
-       ltac:(destruct x; cbv; auto)
-       ltac:(destruct x; cbv; auto)
-       ltac:(do 2 (destruct i; try lia))).
-  Global Instance region_type_countable : Countable region_type.
-  Proof. apply finite.finite_countable. Qed.
 
-  Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
-  Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
-  Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
+  Global Instance region_type_countable : Countable region_type.
+  Proof.
+    set encode := fun ty => match ty with
+      | Temporary => 1
+      | Permanent => 2
+      | Revoked => 3
+      | Static m => 3 + countable.encode m
+      end%positive.
+    set decode := (fun n =>
+      if decide (n = 1) then Some Temporary
+      else if decide (n = 2) then Some Permanent
+      else if decide (n = 3) then Some Revoked
+      else
+        match countable.decode (n-3) with
+        | Some m => Some (Static m)
+        | None => None
+        end)%positive.
+    eapply (Build_Countable _ _ encode decode).
+    intro ty. destruct ty; try reflexivity.
+    unfold encode, decode.
+    repeat match goal with |- context [ decide ?x ] =>
+      destruct (decide x); [ exfalso; lia |] end.
+    rewrite Pos.add_comm Pos.add_sub decode_encode //.
+  Qed.
+
+  Inductive std_rel_pub : region_type -> region_type -> Prop :=
+    | Std_pub_Revoked_Temporary : std_rel_pub Revoked Temporary
+    | Std_pub_Static_Temporary m : std_rel_pub (Static m) Temporary
+    .
+
+  Inductive std_rel_priv : region_type -> region_type -> Prop :=
+    | Std_priv_from_Temporary ρ : std_rel_priv Temporary ρ
+    | Std_priv_Revoked_Permanent : std_rel_priv Revoked Permanent
+    .
+
+  Global Instance sts_std : STS_STD region_type :=
+    {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
 
   (* Some practical shorthands for projections *)
   Definition std W := W.1.
