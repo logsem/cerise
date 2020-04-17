@@ -787,6 +787,7 @@ Section heap.
      | Temporary => if pwl p then future_pub_mono else future_priv_mono
      | Permanent => future_priv_mono
      | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     | Static _ => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
      end φ w)%I.
 
   Definition monotonicity_guarantees_decide ρ w p φ:=
@@ -797,7 +798,8 @@ Section heap.
    Lemma region_open_next
         (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
         (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
-        (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
+        (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type)
+        (Hρnotrevoked : ρ <> Revoked) (Hρnotstatic : ¬ exists g, ρ = Static g):
     l ∉ ls
     → std_sta W !! encode l = Some (encode ρ)
     → open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W
@@ -817,12 +819,14 @@ Section heap.
       + iDestruct (region_open_next_temp_nwl with "H") as (v) "[A [B [C D]]]"; eauto.
         iExists v. iFrame.
     - iApply (region_open_next_perm with "H"); eauto.
+    - exfalso. apply Hρnotstatic. eauto. 
   Qed.
 
   Lemma region_close_next
         (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
         (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
-        (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
+        (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type)
+        (Hρnotrevoked : ρ <> Revoked) (Hρnotstatic : ¬ exists g, ρ = Static g):
     l ∉ ls
     → sts_state_std (encode l) ρ
                     ∗ open_region_many (l :: ls) W
@@ -836,6 +840,7 @@ Section heap.
       + iApply (region_close_next_temp_pwl with "[A B C D E F G]"); eauto; iFrame.
       + iApply (region_close_next_temp_nwl with "[A B C D E F G]"); eauto; iFrame.
     - iApply (region_close_next_perm with "[A B C D E F G]"); eauto; iFrame.
+    - exfalso. apply Hρnotstatic. eauto. 
   Qed.
 
   (* --------------------------------------------------------------------------------- *)
@@ -891,7 +896,7 @@ Section heap.
     intros Hrel.
     inversion Hrel as [ρ Hb].
     destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+    subst. inversion Hρb;subst;apply encode_inj in Heqρ;inversion Heqρ.
   Qed.
 
   Lemma std_rel_pub_rtc_Permanent x y :
@@ -941,7 +946,7 @@ Section heap.
     intros Hrel.
     inversion Hrel as [ρ Hb].
     destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+    subst. inversion Hρb;subst;apply encode_inj in Heqρ;inversion Heqρ.
   Qed.
 
   Lemma std_rel_pub_rtc_Temporary x y :
@@ -960,7 +965,7 @@ Section heap.
     intros Hrel.
     inversion Hrel as [ρ Hb].
     destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. auto.
+    subst. inversion Hρb;subst;auto.
   Qed.
 
   Lemma std_rel_pub_rtc_Revoked x y :
@@ -970,6 +975,25 @@ Section heap.
     intros Hx Hrtc.
     inversion Hrtc; subst; auto. 
     apply std_rel_pub_Revoked in H3. subst. 
+    apply std_rel_pub_rtc_Temporary in H4; auto. 
+  Qed.
+
+  Lemma std_rel_pub_Static x g :
+    (convert_rel std_rel_pub) (encode (Static g)) x → x = encode Temporary (* ∨ x = encode Revoked *).
+  Proof.
+    intros Hrel.
+    inversion Hrel as [ρ Hb].
+    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
+    subst. inversion Hρb;subst;auto.
+  Qed.
+
+  Lemma std_rel_pub_rtc_Static x y g :
+    x = encode (Static g) →
+    rtc (convert_rel std_rel_pub) x y → y = encode Temporary ∨ y = encode (Static g).
+  Proof.
+    intros Hx Hrtc.
+    inversion Hrtc; subst; auto. 
+    apply std_rel_pub_Static in H3. subst. 
     apply std_rel_pub_rtc_Temporary in H4; auto. 
   Qed. 
 
