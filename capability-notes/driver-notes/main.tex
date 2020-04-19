@@ -650,7 +650,8 @@ Using the notation we introduced, we must prove the following for each set-up pr
   We will have to allocate the above predicates\\ $\X{region}(\Winit) \ast
   \X{sts\_full\_world}\; \X{sts\_std} \; \Winit$ from our Coq development under
   a different ghost name $\gamma$ than we usually do.
-  I do not know how exactly that would work on a technical level, but it should somehow.
+  I do not know how exactly that would work on a technical level, but it should somehow. We should probably have $\X{region}(\emptyset) \ast
+  \X{sts\_full\_world}\; \X{sts\_std} \; \emptyset$ in the precondition of the hoare triple, and then externally have a universal quantification over the concrete $\I{traceG}$ typeclass used, similar to how OCPL does this.
 \end{remark}
 
 \begin{remark}
@@ -681,8 +682,7 @@ The resulting boot-code formulation of the robust safety theorem is now
   {P(t)}
 \end{mathpar}
 
-Note that to link scenario 2 to scenario 1, we need a slightly adapted version
-of the robust safety theorem stated previously, where the initial trace is
+Note that we will need a slightly more general adequacy theorem than is suggested by the above robust safety theorem, where the initial trace is
 allowed to not be empty, but rather just satisfy $P(t)$, but that should not
 cause any problems.
 
@@ -690,23 +690,8 @@ Note as well that if the boot-code performs I/O, then it is required to preserve
 the invariant $P$ on the trace. If needed, one could come up with a more general
 theorem statement, where the boot code is allowed to perform arbitrary I/O, and
 where $P$ is thus only true of the suffix of the trace for events that occur
-\emph{after} the boot code has run...
+\emph{after} the boot code has run.
 
-\begin{remark}
-  On the level of the operational semantics, proving the boot specification
-  corresponds to proving that the following holds, in order to use our concrete
-  driver implementation with the robust safety theorem above (the driver still
-  needs to be proven safe separately):
-\[
-  \begin{array}{l}
-    (\textsc {BootCodeOK}) \\[0.5em]
-%
-    \exists n\; b\; e\ldotp (r_0, m_0, \emptyset) \longrightarrow^n (r'[\overline{r_{a_{i}}
-    := (\X{E}, g, b, e, a_i)}], m', t) \\[0.5em]
-    {} \land P(t) \land \initOK{[b,e)}[r'][m']
-  \end{array}
-\]
-\end{remark}
 \begin{remark}
  Dominique made the remark that we might want to allow capabilities pointing
  into the driver code that are not enter capabilities, but can just generally be
@@ -723,6 +708,7 @@ where $P$ is thus only true of the suffix of the trace for events that occur
  regions to depend on them in any way whatsoever. This was not a problem up
  until now, since our examples never required this sort of dependency.
 \end{remark}
+
 \subsubsection{Concrete boot and driver code}
 \label{subsec:driverimpl}
 Now we have a closer look at the concrete example we would like to verify,
