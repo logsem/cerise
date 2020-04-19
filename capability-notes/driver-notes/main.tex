@@ -692,6 +692,8 @@ theorem statement, where the boot code is allowed to perform arbitrary I/O, and
 where $P$ is thus only true of the suffix of the trace for events that occur
 \emph{after} the boot code has run.
 
+Lastly, note how the trace invariant that appears in the boot specification is not an atomic invariant, even though atomic invariants might be involved in the verification of the driver if it has state (see e.g.\ the counter example below). We are obliged to have a regular invariant for the predicate over the trace, since otherwise adequacy breaks; even for infinite executions, we have to be able to show that any output values satisfy $P$ at \emph{any} point during execution.
+
 \begin{remark}
  Dominique made the remark that we might want to allow capabilities pointing
  into the driver code that are not enter capabilities, but can just generally be
@@ -713,8 +715,7 @@ where $P$ is thus only true of the suffix of the trace for events that occur
 \label{subsec:driverimpl}
 Now we have a closer look at the concrete example we would like to verify,
 including what its boot code looks like. Our goal is to prove that this concrete
-example satisfies \X{bootSpec} (alternatively, \textsc{BootCodeOk}) and this
-last robust safety theorem.
+example satisfies \X{bootSpec} and hence the above robust safety theorem.
 
 The code for for the driver scenario we want to gradually verify can
 be found in \T{driver\_code.v}. This example file contains more details on the
@@ -834,18 +835,26 @@ discuss the concrete constraint that we are looking for.
 We have to tie this integer $n$ to the number of I/O events
 present in the trace $t$, otherwise it will prove impossible to verify our
 driver. Concretely, the invariant we will verify our driver under changes from
+
+\newcommandx{\NaInvT}[1][1 = \top]{[\X{NaInv}: \X{driver\_nais}.#1]}
+\newcommandx{\NaInvI}[2][1 = \iota]{\operatorname{NaInv}^{#1}(#2)}
 $\trInv[|t| \le 1000]$ to
-$\trInvNp[\pure{|t| \le 1000} \ast
-  \exists n\ldotp l_n \mapsto n \ast n = |t| ]$, where we defined
+$\trInvNp[\exists n \ldotp  \pure{|t| = n \mathrel{\land} n \le 1000} \mathrel{\ast} \ownGhost{\gamma_n}{\authfull n}] \mathrel{\ast} \NaInvI[\iota]{\exists n\ldotp l_n \mapsto n \ast \ownGhost{\gamma_n}{\authfrag n}]}  $, where we defined
 %
 \[
   \begin{array}{lcl}
     \trInvNp[P_{\X{np}}] & \eqdef & \knowInv{\iota}{\exists t.\; \trace(t) \ast P_{\X{np}}(t)}
    \end{array}
 \]
+(i.e., the predicate over the trace does not need to be pure any longer).
+Concretely, this means that
+instead of having a pure predicate $P$ in our robust safety theorem, we should
+also allow non-pure predicates $P_{\X{np}}$ that entail $P$, i.e. $\forall t
+\ldotp P_{\X{np}}(t) \wand \pure{P(t)} $, since we might have to enforce
+other invariants relating to local state over the trace as well.
 
 
-Actually, there are two options, where the second one is probably slightly more modular:
+Note that the following two formalizations do not work, since the trace and counter value are not updated at the same time in the code:
 \[
   \begin{array}{lcl}
 
@@ -856,13 +865,9 @@ Actually, there are two options, where the second one is probably slightly more 
   \end{array}\\
 \]
 
+Using  a non-atomic invariant in the first of these two formalizations would not work either, as it would break the adequacy (as stated earlier); we would not know that the safety property inside $P_{\X{np}}$ was upheld at $any$ point during execution.
 
-(i.e., the predicate over the trace does not need to be pure any longer).
-Concretely, this means that
-instead of having a pure predicate $P$ in our robust safety theorem, we should
-also allow non-pure predicates $P_{\X{np}}$ that entail $P$, i.e. $\forall t
-\ldotp P_{\X{np}}(t) \wand \pure{P(t)} $, since we might have to enforce
-other invariants relating to local state over the trace as well.
+
 
 \begin{remark}
  I swept this under the rug in the above exposition, but if we allow boot code to run first, we have to
