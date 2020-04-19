@@ -44,6 +44,7 @@
 \newcommand{\wrap}[1]{\operatorname{wrap}_{\mathrm{#1}}}
 \newcommand{\bigast}[2]{\underset{#1}\Sep{\!\!\! #2}\;}
 \newcommand{\app}{\mathbin{+\!\!+}}
+\newcommand{\nonCap}[1]{\ensuremath{\mathrm{nonCap}(#1)}}
 
 \newenvironment{remark}
 { \bigskip\hrule\vspace{-1.3em}\nobreak
@@ -414,49 +415,12 @@ As such, the statement can be trivially falsified by taking an attacker with
 direct read or write access to any location in \MMIO, or with direct access to
 the trusted code's internal state.
 
-We move to a theorem statement that correctly constrains the adversary in two
-steps:
-%
-\begin{enumerate}
-  \item We add a syntactic condition (on the state of memory and registers) to
-    the tentative statement of our robust safety theorem, ensuring that the
-    adversary code cannot gain access to any non-$\X{E}$ capabilities pointing into
-    the driver code or any capabilities pointing into $\MMIO$ directly.
-    Alternatively, we can formulate this condition in a semantic way, see below.
-    Additionally, we specify what exact code the driver contains, so that we can
-    use this in our proof that the driver is secure. This will involve adding an
-    invariant to the robust safety theorem.
-%
-  \item Then, we provide an end-to-end statement that assumes the existence of a
-    piece of boot code, that gets to run first when the capability machine
-    starts up, and makes sure the above condition indeed holds before passing
-    control to the adversary.
+We now try to develop a theorem statement that correctly constrains the adversary.
 
-    The boot code is part of the trusted code base, and must satisfy a given
-    specification, as a precondition of the toplevel theorem.
-
-    The particular implementation of the boot code depends on the model of the
-    initial state of the machine. If the memory can contain any capability at
-    startup, then the boot code has to erase the memory before passing control.
-    If we assume that the initial memory cannot contain any capabilities
-    whatsoever, then the boot code does not need to do any cleanup.
-\end{enumerate}
-
-In this setting, we can subdivide the memory $m$ into 3 relevant subsections;
-$m = m_{\MMIO} \uplus m_{\X{driver}} \uplus m_{\X{adv}}$ %\uplus m_{\X{frame}}
-with the following meaning:
-\begin{itemize}
-\item $m_{\MMIO}$ contains the memory-mapped locations
-\item $m_{\X{driver}}$ contains the driver code
-\item  $m_{\X{adv}}$ contains the adversary's code and data (this will also
-  include the boot code in the general setting, since it does not contain any
-  inherently dangerous capabilities itself).
-\end{itemize}
-
-\newcommand{\nonCap}[1]{\ensuremath{\mathrm{nonCap}(#1)}}
-
-We can then implement the syntactic check as requiring registers and memory to
-only contain non-capability values:
+A first thing that is lacking is a way to constrain the memory and the registers of the adversary once it gains control.
+We have to add a condition (on the state of the reachable memory and registers) to the tentative statement of our robust safety theorem, ensuring that the adversary code cannot gain access to any non-$\X{E}$ capabilities pointing into the driver code or any capabilities pointing into $\MMIO$ directly.
+A possible way of syntactically expressing this condition (and in the process overestimating it), is to define the predicate $\nonCap$ below.
+More specifically, we can implement the syntactic check as requiring registers and memory (except perhaps driver memory) to only contain non-capability values:
 
 \def \MathparLineskip {\lineskiplimit=0.7em\lineskip=0.7em}
 \begin{mathpar}
@@ -465,15 +429,30 @@ only contain non-capability values:
   \nonCap{\V{reg}} \eqdef \forall r \in \dom(\V{reg}).\; \nonCap{\V{reg}(r)} \and
   \nonCap{\V{mem}} \eqdef \forall l \in \dom(\V{mem}).\; \nonCap{\V{mem}(l)}
 \end{mathpar}
+\rk{toplevel:less_restricted_syntactic_check_adverary}
 
-\newcommand{\notMapsToR}[2]{\rightarrow^{\overline{#1}}\!\!(#2)}
-\newcommand{\Winit}{\X{W_{init}}}
-\newcommand{\Wemp}{\emptyset}
+This condition can also easily be specified in terms of the value relation $\VR^{\notMMIO}$, by requiring the registers and part of the PC register to be valid, as will be demonstrated below. This more semantic specification is easily implied by the syntactic one above, and is additionally the one we will need to apply the ftlr to the adversary code, hence proving that it executes securely.
 
-Given this definition, we can now formalize the initialization constraints on
+Another change we add is that rather than having execution start off with the adversary, we model the entire boot process of a capability machine, and allow so-called \emph{boot code} to run before the adversary does.
+Because of this set-up, rather than having a theorem that assumes unknown adversary code to start executing immediately, we provide an end-to-end theorem that assumes the existence of this piece of boot code, that gets to run first when the capability machine starts up, and makes sure the necessary conditions for the ftlr indeed hold before passing control to the adversary.
+The boot code is part of the trusted code base, and must satisfy a given specification, as a precondition of the toplevel theorem. We call this bootcode specification BootSpec and will demonstrate it below.
+The particular implementation of the boot code depends on the model of the initial state of the machine.
+If the memory can contain any capability at startup, then the boot code has to erase the memory before passing control. If we assume that the initial memory cannot contain any capabilities whatsoever, then the boot code does not need to do any cleanup.
+
+In this setting, we can subdivide the memory $m$ into 3 relevant subsections;
+$m = m_{\MMIO} \uplus m_{\X{driver}} \uplus m_{\X{adv}}$ %\uplus m_{\X{frame}}
+with the following meaning:
+\begin{itemize}
+\item $m_{\MMIO}$ contains the memory-mapped locations
+\item $m_{\X{driver}}$ contains the driver code from address $b$ to $e$
+\item  $m_{\X{adv}}$ contains the adversary's code and data (this will also
+  include the boot code in the general setting, since it does not contain any
+  inherently dangerous capabilities itself). For simplicity, we will assume a contiguous region for the adversary, from $b_{\X{adv}}$ to $e_{\X{adv}}$.
+\end{itemize}
+
+Given this definition, we could now formalize the initialization constraints on
 registers $r$ and memory $m$, given the region \MMIO and
-the driver's address space $[b,e)$ as follows (for a resource-aware formulation;
-see the bootSpec postcondition below):
+the driver's address space $[b,e)$ on paper as follows:
 
 \begin{mathpar}
   \mprset{vskip=0.4em}
@@ -489,68 +468,29 @@ see the bootSpec postcondition below):
   {\initOK{[b,e)}}
 \end{mathpar}
 
-\rk{toplevel:less_restricted_syntactic_check_adverary}
+However, this predicate is not defined in terms of Iris resources, i.e. we cannot use it in our Coq development yet. We will redefine it below, in the process making it more semantic and hence general. The above predicate, however, demonstrates the state we would like our capability machine to be in when the adverary starts executing. Additionally, we will need to state that any registers pointing to the driver are secure; this is still lacking from the formalization.
 
-It should be noted that a more general, semantic version of this specification
-is also possible. It would contain the following elements, that should all
-follow directly from the specification above:
+\newcommand{\notMapsToR}[2]{\rightarrow^{\overline{#1}}\!\!(#2)}
+\newcommand{\Winit}{\X{W_{init}}}
+\newcommand{\Wemp}{\emptyset}
+
+The general semantic precondition on adversary execution would then contain the following elements:
 \begin{itemize}
 \item All registers except \X{PC} are in the value relation with respect to
-  either the empty world $\Wemp$ (if we do not want to allow any non-empty, non-enter
-  capabilities in registers), or a world $\Winit$ containing a single standard region for
+  a world $W$, meant to contain a single standard region for
   all of the adversary's memory.
   The \X{PC} register satisfies both the read- and write conditions (note the
-  parallel with the fundamental theorem) with respect to this same world, if we
-  picked the non-empty world, or just points to the adversary's memory, which
-  does not contain capabilities (if we
-  picked the empty world, a capability pointing into memory can never be valid).
-  It feels slightly less artificial to pick the non-empty world option here.
+  parallel with the fundamental theorem) with respect to this same world.
+  If we ever want to allow more than just enter capabilities to point to the driver's memory, we have to make sure that some region governing the driver is part of the world $W$. It is not entirely clear yet how to do this in our current development.
 \item We have possession of the predicates $\I{region}$ and
   $\I{sts\_full\_world}$ for the world we picked in the previous bullet. we will
   need these to apply the fundamental theorem.
-\item A description of the exact driver code, still in terms of points-to chunks
-  (or, in this case equivalently, an invariant). We can write this invariant as
-      $\driverC(b,e,\overline{\V{w}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{w}_l}}}$, with $\V{w}_l$
-      some hard-coded driver word (an instruction or a capability) at location $l$.
 \end{itemize}
 
 
-and subsequently formulate the robust safety theorem as follows (using the
-semantic specification for $\initOKo$, which references the initial world):
-
-\begin{mathpar}
-  \mprset{vskip=0.5em}
-  \inferrule
-  { \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
-    {\begin{array}{ll}
-    \trInv \ast
-    \driverC(b,e,\overline{\V{w}_l})\!
-         \vdash \\
-         \forall W \Wpriv \Winit \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
-        \end{array}} \right. \\
-   \initOKS{[b,e)}[r][m][\Winit] \\
-  (r[\overline{r_{a_{i}} := (\X{E}, g, b, e, a_i)}], m, \emptyset) \longrightarrow^* (r', m', t)\\
-  }
-  {P(t)}
-\end{mathpar}
-
-where we have set the PC up to be a sensible capability (pointing to
-$b_{\X{adv}}$ without loss of generality).
-
-Notice how the syntactic check for the registers is only performed on the set of
-registers $r$, allowing the closures in $\overline{r_{a_i}}$ to point into to
-the driver address space (TODO: we should change this though and add a
-requirement to $\initOKo$). (TODO 2: initOK\_sem is simply the precondition of bootcont\_sem below, we should inline it here or delete it)
-
-Having this theorem in our toolbox, we can now take a closer look at scenario 2
-above, where a piece of boot code is used to set the memory up correctly,
+We can now take a closer look at the scenario where a piece of boot code is used to set the memory up correctly,
 obviating the need for any other assumptions than that the boot code behaves
-according to some spec. Concretely, we want the boot code to uphold a spec that
-allows us to prove the above theorem.
-%
-(Alternatively, we could also just implement one specific instance of boot code,
-and prove that after it finishes executing, all preconditions to apply the above
-theorem are met.)
+according to some spec.
 
 Let $r_0$ and $m_0$ be the respective initial state of registers and memory
 immediately after booting. We assume that the following two properties hold,
@@ -566,11 +506,10 @@ information about $m_0$ and $r_0$, that can then be used in the implementation
 of the boot code (e.g., $m_0$ might be initialized to only zeroes).
 
 We also assume the capability machine to initially start execution in the boot code  at address $l_{\X{boot}}$.
+
 %
-Then, the syntactic specification for the boot code that we have to prove is
-stated as follows (we give both a specific, syntactic specification
-\X{bootSpec_{synt}} and a more
-general, semantic one \X{bootSpec_{sem}} that should follow from the syntactic specification):
+Then, the semantic specification for the boot code that we have to prove is
+stated as follows:
 
 \[
   \begin{array}{l}
@@ -626,7 +565,11 @@ To actually be able to construct this proof, we will need the following 2 elemen
     \trInv \ast
     \driverC(b,e,\overline{\V{w}_l})
 \]
+Here we defined $\driverC$ to be a description of the exact driver code, still in terms of points-to chunks. We can write this invariant as
+      $\driverC(b,e,\overline{\V{w}_l}) = \knowInv{\iota}{\bigast{l \in [b,e)}{l \mapsto_{a} \mathit{\V{w}_l}}}$, with $\V{w}_l$
+      some hard-coded driver word (an instruction or a capability) at location $l$.
 
+To prove the \X{PC} register valid, we will often be able to use the fact that the memory left by the boot code only contains integers $z$, i.e.\ that the $\mathrm{nonCap}$ predicate holds for memory.
 
 Note that the above specification does not allow for a scenario where we have multiple set-up programs in a row, i.e.\ multiple boot or set-up processes that each need some form of access to \MMIO, that each want to set up their own closures and that we want to verify modularly. The trust model of these set-up procedures goes bottom-up, i.e. any set-up procedure only trusts the set-up procedures that ran before it to ensure that its preconditions are satisfied when it assumes control.
 To allow for such a scenario, the execution of the bootcode has to be split up into different phases, where it holds that the postondition (precondition of the continuation) of boot program $i$ implies the precondition of boot program $i+1$. Additionally, the last bootloader has to make sure that the registers it delivers are safe with respect to $\VR^{\notMMIO}$, such that the ftlr (which will only hold for adversaries that have no access to \MMIO whatsoever) can be applied.
