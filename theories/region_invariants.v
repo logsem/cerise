@@ -186,8 +186,9 @@ Section heap.
   (* ------------------------------------------- REGION_MAP ---------------------------------------- *)
   (* ----------------------------------------------------------------------------------------------- *)
 
-  Definition region_map_def M W :=
-    ([∗ map] a↦γp ∈ M, ∃ ρ, sts_state_std (encode a) ρ ∗
+  Definition region_map_def M (Mρ: gmap Addr region_type) W :=
+    ([∗ map] a↦γp ∈ M, ∃ ρ, ⌜Mρ !! a = Some ρ⌝ ∗
+                            sts_state_std (encode a) ρ ∗
                             match ρ with
                             | Temporary => ∃ γpred (v : Word) (p : Perm) φ,
                                                ⌜γp = (γpred,p)⌝
@@ -207,13 +208,15 @@ Section heap.
                                              ∗ ▷ φ (W,v)
                             | Static m => ∃ p v, ⌜m !! a = Some (p, v)⌝
                                              ∗ a ↦ₐ[p] v
-                                             ∗ ⌜∀ a', a' ∈ dom (gset Addr) m → static W m a'⌝
+                                             ∗ ⌜∀ a', a' ∈ dom (gset Addr) m →
+                                                      Mρ !! a' = Some (Static m)⌝
                             | Revoked => emp
                             end)%I.
 
   Definition region_def W : iProp Σ := 
-    (∃ (M : relT), RELS M ∗ ⌜dom_equal (std_sta W) M⌝
-                         ∗ region_map_def M W)%I. 
+    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+                            ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
+                            ∗ region_map_def M Mρ W)%I. 
   Definition region_aux : { x | x = @region_def }. by eexists. Qed.
   Definition region := proj1_sig region_aux.
   Definition region_eq : @region = @region_def := proj2_sig region_aux.
@@ -282,7 +285,9 @@ Section heap.
   (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
 
   Definition open_region_def (a : Addr) (W : WORLD) : iProp Σ :=
-    (∃ (M : relT), RELS M ∗ ⌜dom_equal (std_sta W) M⌝ ∗ region_map_def (delete a M) W)%I. 
+    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+                            ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
+                            ∗ region_map_def (delete a M) Mρ W)%I.
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
   Definition open_region := proj1_sig open_region_aux.
   Definition open_region_eq : @open_region = @open_region_def := proj2_sig open_region_aux.
