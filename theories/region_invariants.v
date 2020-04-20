@@ -281,6 +281,56 @@ Section heap.
   Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
   Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
 
+  (* ------------------------------------------------------------------- *)
+  (* region_map is monotone with regards to public future world relation *)
+
+  Lemma region_map_monotone W W' M Mρ :
+    (⌜related_sts_pub_world W W'⌝ →
+     region_map_def M Mρ W -∗ region_map_def M Mρ W')%I.
+  Proof.
+    iIntros (Hrelated) "Hr".
+    iApply big_sepM_mono; iFrame.
+    iIntros (a γ Hsome) "Hm".
+    iDestruct "Hm" as (ρ) "[Hstate Hm]".
+    iExists ρ. iFrame.
+    destruct ρ.
+(*
+    - iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & Hmono & #Hsavedφ & Hφ)".
+      iExists _,_,_,_. do 2 (iSplitR;[eauto|]).
+      destruct (pwl p);
+      (iDestruct "Hmono" as "#Hmono"; iFrame "∗ #";
+        iApply "Hmono"; iFrame; auto);
+      try (iPureIntro; by apply related_sts_pub_priv_world).
+    - iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & #Hmono & #Hsavedφ & Hφ)".
+      iExists _,_,_,_. do 2 (iSplitR;[eauto|]).
+      iFrame "∗ #".
+      iApply "Hmono"; iFrame; auto.
+      iPureIntro.
+      by apply related_sts_pub_priv_world.
+    - done. *)
+  Admitted.
+
+  Lemma region_monotone W W' :
+    (⌜dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W')⌝ →
+     ⌜related_sts_pub_world W W'⌝ → region W -∗ region W')%I.
+  Proof.
+    iIntros (Hdomeq Hrelated) "HW". rewrite region_eq.
+    iDestruct "HW" as (M Mρ) "(HM & % & % & Hmap)".
+    iExists M, Mρ. iFrame.
+    iApply (wand_frame_r _ emp%I).
+    { iIntros (_).
+      iPureIntro.
+      intros a. split; intros [x Hx].
+      - destruct H3 with a as [Hstd _].
+        apply Hstd. apply elem_of_gmap_dom.
+        rewrite Hdomeq. apply elem_of_gmap_dom. eauto.
+      - destruct H3 with a as [_ Hstd].
+        apply elem_of_gmap_dom. rewrite -Hdomeq.
+        apply elem_of_gmap_dom. eauto.
+    } do 2 (iSplitR;[auto|]).
+    iApply region_map_monotone; eauto.
+  Qed.
+
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
 

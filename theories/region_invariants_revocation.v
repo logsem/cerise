@@ -42,56 +42,6 @@ Section heap.
     end.
   Definition revoke_list l W : WORLD := ((revoke_list_std_sta l (std_sta W),std_rel W), loc W).
 
-
-  (* ------------------------------------------------------------------- *)
-  (* region_map is monotone with regards to public future world relation *)
-  
-  Lemma region_map_monotone W W' M :
-    (⌜related_sts_pub_world W W'⌝ →
-     region_map_def M W -∗ region_map_def M W')%I.
-  Proof.
-    iIntros (Hrelated) "Hr".
-    iApply big_sepM_mono; iFrame. 
-    iIntros (a γ Hsome) "Hm".
-    iDestruct "Hm" as (ρ) "[Hstate Hm]".
-    iExists ρ. iFrame. 
-    destruct ρ.
-    - iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & Hmono & #Hsavedφ & Hφ)".
-      iExists _,_,_,_. do 2 (iSplitR;[eauto|]).
-      destruct (pwl p);
-      (iDestruct "Hmono" as "#Hmono"; iFrame "∗ #";
-        iApply "Hmono"; iFrame; auto); 
-      try (iPureIntro; by apply related_sts_pub_priv_world).      
-    - iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & #Hmono & #Hsavedφ & Hφ)".
-      iExists _,_,_,_. do 2 (iSplitR;[eauto|]).
-      iFrame "∗ #".
-      iApply "Hmono"; iFrame; auto. 
-      iPureIntro. 
-      by apply related_sts_pub_priv_world. 
-    - done.
-  Qed. 
-    
-  Lemma region_monotone W W' :
-    (⌜dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W')⌝ →
-     ⌜related_sts_pub_world W W'⌝ → region W -∗ region W')%I.
-  Proof.
-    iIntros (Hdomeq Hrelated) "HW". rewrite region_eq.
-    iDestruct "HW" as (M) "(HM & % & Hmap)". 
-    iExists (M). iFrame.
-    iApply (wand_frame_r _ emp%I).
-    { iIntros (_).
-      iPureIntro.
-      intros a. split; intros [x Hx].
-      - destruct H3 with a as [Hstd _].
-        apply Hstd. apply elem_of_gmap_dom.
-        rewrite Hdomeq. apply elem_of_gmap_dom. eauto.
-      - destruct H3 with a as [_ Hstd].
-        apply elem_of_gmap_dom. rewrite -Hdomeq.
-        apply elem_of_gmap_dom. eauto.
-    } iSplitR;[auto|].
-    iApply region_map_monotone; eauto. 
-  Qed.    
-    
   Lemma related_sts_pub_world_fresh W a ρ :
     (countable.encode a) ∉ dom (gset positive) (std_sta W) →
     (countable.encode a) ∉ dom (gset positive) (std_rel W) →
