@@ -22,6 +22,7 @@
 \newcommand{\T}[1]{\texttt{#1}}
 \newcommand{\SL}{Separation Logic\xspace}
 \newcommand{\pure}[1]{\tensor[^{\ulcorner}]{#1{}}{^{\urcorner}}} %Hacky {} to avoid double superscript
+\newcommand{\br}[1]{{\color{BrickRed} #1}}
 
 \newcommand{\FIXME}[1]{{\color{MidnightBlue} FIXME: #1}}
 
@@ -514,25 +515,7 @@ stated as follows:
 \[
   \begin{array}{l}
 
-  \X{bootSpec}(P,r_0,m_0,\V{bootCont},\Phi) \eqdef \\[0.8em]
-    \quad
-  \begin{array}{l}
-    \left\{
-    \begin{array}{l}
-      \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
-      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
-      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]}
-      \ast \; \trInv \; \ast \\[1.2em]
-      \later  \V{bootCont}
-    \end{array}
-    \right\}
-    \\[2.5em]
-    \quad \I{Seq}\; (\I{Instr}\; \I{Executable})
-    \\[0.2em]
-    \left\{ \Phi \right\}
-  \end{array}\\[4em]
-
- \X{bootCont_{sem}}(P,\Phi,\Winit) \eqdef \forall b_{\X{adv}}\; e_{\X{adv}}\; a_{\X{adv}}\;\overline{w_r}\; (W' \Wpriv \Winit) \ldotp\;  \\[0.2em]
+ \X{bootCont}(P,\Phi,\Winit) \eqdef \forall b_{\X{adv}}\; e_{\X{adv}}\; a_{\X{adv}}\;\overline{w_r}\; (W' \Wpriv \Winit) \ldotp\;  \\[0.2em]
     \begin{array}{l}
       \begin{array}{l}
         (\X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}})
@@ -547,9 +530,23 @@ stated as follows:
      \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
     \end{array}\\[1.2em]
 
-  \X{bootSpec_{sem}}(P,r_0,m_0)
-    \eqdef\\
-     \quad \forall \Phi\ldotp  \X{bootSpec}(P,r_0,m_0,\X{bootCont_{sem}}(P,\Phi,\emptyset),\Phi)\\[0.8em]
+  \X{bootSpec}(P,r_0,m_0) \eqdef \forall \Phi \ldotp \\[0.8em]
+    \quad
+  \begin{array}{l}
+    \left\{
+    \begin{array}{l}
+      \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
+      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
+      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]} \ast\\[.5em]
+      \X{region}(\emptyset) \ast  \X{sts\_full\_world}\; \X{sts\_std} \; \emptyset\ast \; \trInv \; \ast \\[.5em]
+      \later \X{bootCont}(P,\Phi,\emptyset)
+    \end{array}
+    \right\}
+    \\[2.5em]
+    \quad \I{Seq}\; (\I{Instr}\; \I{Executable})
+    \\[0.2em]
+    \left\{ \Phi \right\}
+  \end{array}\\[4em]
 
   \end{array}
 \]
@@ -576,40 +573,62 @@ To allow for such a scenario, the execution of the bootcode has to be split up i
 
 In general, each set-up process $i$ will require the following as a precondition to safely execute.
 \begin{itemize}
-\item Safe register values, with respect to some argument World $W$ (whose regions are standard - this will mostly be used for proving the enter capabilities to e.g\ the driver secure, and I expect this world to be empty at the moment) and a set of \MMIO locations $\MMIO_{i}$, for which it holds that $\MMIO_i \subseteq \MMIO$. This allows the process to perform some $\MMIO$, but only to locations in $\MMIO \setminus \MMIO_i$. If needed, more strict functional requirements on registers can be made.
-\item Its code and data stored somewhere accessible in memory (using regular points-to chunks). Generally, also point-to chunks for memory that will be used in the future. This is the region, $R_{\X{adv}}$, currently represented as a contiguous range $[b_{\X{adv}},e_{\X{adv}}[$ for simplicity. Note that it is possible to write drivers that use relative addressing in their spec to not make their precondition unnecessarily strict.
-\item The $PC$ register points to (a subset of)  $R_{\X{adv}}$, so that it is actually possible for our process to access this non-standard memory. Optionally, part of the memory the $PC$ points to can be in $W$, but then the precondition needs to contain a proof that this part of the $PC$ is $RW$-valid, i.e. $\in \VR(\X{RW},\ldots)$, so that we can actually obtain the necessary points-to chunks from the region predicate.
+\item Safe register values, with respect to some argument World $W$ (whose regions are standard - this will mostly be used for proving the enter capabilities to e.g\ the driver secure, and I expect this world to be empty at the moment) and a set of \MMIO locations $\br{\MMIO_{i}}$, for which it holds that $\MMIO_i \subseteq \MMIO$. This allows the process to perform some $\MMIO$, but only to locations in $\MMIO \setminus \MMIO_i$. We could allow non-safe values in registers as well, but for simplicity's sake, we model the PC to access any non-safe values instead. Since the PC can point to unsafe values, we can currently set $\MMIO_i = \MMIO$ for simplicity's sake. In the more general case, more strict functional requirements $\br{\X{REG}_i^{\X{pre}}}$ on non-valid registers could be made.
+\item Its code and data stored somewhere accessible in memory (using regular points-to chunks), described by a set of constraints (containing points-to chunks) $\br{\X{MEM}_i^{\X{pre}}}$. Generally, also point-to chunks for memory that will be used in the future. This is the region $\br{R_{\X{adv},i}}$ Note that it is possible to write drivers that use relative addressing in their spec to not make their precondition unnecessarily strict.
+\item The $PC$ register points to (a subset of)  $R_{\X{adv},i}$.
+  The exact constraints are enforced in $\X{MEM}_i^{\X{pre}}$.
+  % currently represented as a contiguous range $\br{[b_{\X{adv},i},e_{\X{adv},i}[}$,
+  so that it is actually possible for our process to access this non-standard memory.
+  Optionally, part of the memory the $PC$ points to can be in $W$, but then the precondition needs to contain a proof that this part of the $PC$ is $RW$-valid, i.e. $\in \VR(\X{RW},\ldots)$, so that we can actually obtain the necessary points-to chunks from the region predicate.
+
 \item An invariant $\trInv$ on the trace, so that the process can perform IO itself or create more closures to do so.
 \end{itemize}
 
 Each set-up process will deliver the following postcondition (precondition of the continuation) to the next set-up process or to adversary code, starting from the precondition: (this also means that the proof of the next process has to go through, given this postcondition, i.e. it has to be sufficiently specific)
 \begin{itemize}
-\item Safe register values in any ($\forall$) private future world of $W$, with respect to the relation $\VR^{\MMIO_{i+1}}$, where it has to hold that $\MMIO_{i} \subseteq \MMIO_{i+1}$ i.e. the permissions to perform IO are monotonely decreasing as set-up progresses. This constitutes no problem for instances of $\VR$,$\ER$ and $\RR$ proven in earlier set-up programs, since they all respect the following contravariant monotonicity property: $S_1 \subseteq S_2 \Rightarrow \X{\mathfrak{X}}^{\overline{S_2}} \subseteq \X{\mathfrak{X}}^{\overline{S_1}}$.
-\item Some description of the layout of memory and concrete register values, that should be sufficiently detailed to be able to prove the precondition of the next set-up program.
+\item Safe register values in any ($\forall$) private future world of $W$, with respect to the relation $\VR^{\notMMIO_{i+1}}$, where it has to hold that $\MMIO_{i} \subseteq \MMIO_{i+1}$ (which is currently trivially satisfied, since $\MMIO_i = \MMIO$) i.e. the permissions to perform IO are monotonely decreasing as set-up progresses. This constitutes no problem for instances of $\ER$ proven in earlier set-up programs, since the expression relation respects the following contravariant monotonicity property (since the value relation appears in the precondition of the observation relation): $S_1 \subseteq S_2 \Rightarrow \ER^{\overline{S_2}} \subseteq \ER^{\overline{S_1}}$. Note that for $\RR$ and $\VR$ the implication is covariant, so registers containing non-enter capabilities cannot trivially be ported to the next phase of boot.
+\item Some description of the layout of memory and concrete register values $\br{\X{REG}_i^{\X{post}}}$ and  $\br{\X{MEM}_i^{\X{post}}}$, that should be sufficiently detailed to be able to prove the precondition of the next set-up program.
 \item The trace invariant $\trInv$ (so that the next process can perform its own $\MMIO$). In the future, we can allow strengthening of $P$ throughout set-up by creating a monotone resource algebra for predicates, similarly to what we did for OCPL.
+We would then get $\knowInv{\iota}{\exists\; t, P \ldotp \tracefrag{t} \ast \ownGhost{\gamma_{\X{P}}}{\authfull{P}}\ast \pure{P(t)}}$ and could pass around a predicate $\ownGhost{\gamma_{\X{P}}}{\authfrag{P}}$ that we could strengthen before passing it to the next phase of set-up (we would need a notion of \emph{exact} and \emph{at least}, cfr.\ monotonic references).
 \end{itemize}
 
 In the case of the last set-up process $n$, we will also need the following, to be able to prove the semantic bootspec's postondition and in the end apply the ftlr, thereby proving the rest of execution safe:
 \begin{itemize}
 \item We need that $\MMIO_n = \MMIO$, such that we can apply the ftlr (otherwise some valid registers might grant the adverary access to \MMIO memory, and we cannot consider it an adversarial context in the robust safety sense)
 \item For similar reasons, the $PC$ should now point to valid memory only, i.e. the condition $\VR^{\notMMIO} (W)(\X{RW}, \X{G}, b_{\X{adv}}, e_{\X{adv}}, a_{\X{adv}})$ should hold.
-\item The trace invariant $\trInv$ is no longer required, since the untrusted adversary code will not be able to perform \MMIO anyway. Leaving it there is not a technical problem either, however, given that the registers and memory will be valid with respect to $\VR^{\MMIO}$.
+\item The trace invariant $\trInv$ is no longer required, since the untrusted adversary code will not be able to perform \MMIO anyway. Leaving it there is not a technical problem either, however, given that the registers and memory will be valid with respect to $\VR^{\notMMIO}$.
 \end{itemize}
 
 Using the notation we introduced, we must prove the following for each set-up program (TODO: write an attempt at a more modular spec here):
+
 \[
 \begin{array}{l}
+    \X{bootCont}_i(P,  b_{adv}, e_{adv}, a_{adv},W, \Phi) \eqdef  \\[0.2em]
+    \begin{array}{l}
+      \forall  b'_{adv}, e'_{adv}, a'_{adv},W' \Wpriv W \ldotp\\
+       \quad\begin{array}{l}
+       (\X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b'_{adv}, e'_{adv}, a'_{adv}) \ast \br{\X{MEM}_i^{\X{post}}}(b'_{adv}, e'_{adv}, a'_{adv},W', b_{adv}, e_{adv}, a_{adv},W) \\[0.7em]
+        \bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast \VR^{\notMMIO} (W')(w_r))} \ast {} \\[1.2em]
+              \X{region}(W') \ast  \X{sts\_full\_world}\; \X{sts\_std} \; W'
+      \ast \; \trInv  )
+      \end{array}
+    \end{array} \\[4em]
+    \qquad\wand
+    \begin{array}{l}
+     \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
+    \end{array}\\[1.2em]
 
-  \X{bootSpec}(P, g, b, e,\V{bootCont},\Phi) \eqdef \\[0.8em]
+  \X{bootSpec}_i(P) \eqdef \\[0.8em]
     \quad
   \begin{array}{l}
+    \forall  b_{adv}, e_{adv}, a_{adv},W,\Phi \ldotp\\
     \left\{
     \begin{array}{l}
-      \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, 0, \X{MEM_{MAX}}, l_{\X{boot}}) \ast {} \\[0.5em]
-      \bigast{r \in \X{Reg} \setminus \X{PC}}{r \mapsto_{r} r_{0}[r]}
-      \ast \bigast{m \in \X{Mem} \setminus \MMIO}{m \mapsto_{a} m_{0}[m]}
-      \ast \; \trInv \; \ast \\[1.2em]
-      \later  \V{bootCont}
+      \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, a_{adv}) \ast \br{\X{MEM}_i^{\X{pre}}}(b_{adv}, e_{adv}, a_{adv},W) \\[0.7em]
+      \bigast{r \in Reg\setminus \{\X{PC}\}}{(r \mapsto_{r} w_r \ast \VR^{\notMMIO} (W)(w_r))} \ast {} \\[1.2em]
+      \X{region}(W) \ast  \X{sts\_full\_world}\; \X{sts\_std} \; W
+      \ast \; \trInv \; \ast \\[.8em]
+      \later \X{bootCont}_i(P,  b_{adv}, e_{adv}, a_{adv},W, \Phi)
     \end{array}
     \right\}
     \\[2.5em]
@@ -618,33 +637,10 @@ Using the notation we introduced, we must prove the following for each set-up pr
     \left\{ \Phi \right\}
   \end{array}\\[4em]
 
-    \X{bootCont_{synt}}(P, g, b, e, A_{\X{entry}},\Phi) \eqdef  \\[0.2em]
-    \begin{array}{l}
-       (\exists b_{adv}\; e_{adv}\; t.\; \\[0.5em]
-      \quad
-      \begin{array}{l}
-        \X{PC} \mapsto_{r} (\X{RWX}, \X{G}, b_{adv}, e_{adv}, b_{adv}) \ast {} \\[0.7em]
-        \bigast{a_{i} \in A_{\X{entry}}}{r_{a_{i}} \mapsto_{r} (\X{E},g,b,e,a_i)} \ast
-        \bigast{r \in Reg\setminus \{\X{PC}, A_{\X{entry}}\}}{r \mapsto_{r} \X{inl}\; \_} \ast {} \\[1.4em]
-        \bigast{m \in [b_{adv}, e_{adv})}{m \mapsto_{a} \X{inl}\; \_} \ast
-        \bigast{l \in [b, e)}{m \mapsto_{a}\V{w}_l} \ast
-        % \driverC(b,e,\overline{\V{w}_l})\ast
-        \; \tracefrag{t} \ast \pure{P(t)}\\
-        \forall a_{i} \in A_{\X{entry}} \ldotp\,\left\{
-    {\begin{array}{ll}
-    \trInv \ast
-    \driverC(b,e,\overline{\V{w}_l})\!
-         \vdash \\
-         \forall W \ldotp\;\ER^{\notMMIO} (W) (\X{RX}, g, b, e, a_i)
-        \end{array}} \right. )
-      \end{array}
-    \end{array} \\[4em]
-    \quad\wand
-    \begin{array}{l}
-     \wpre{\I{Seq}\; (\I{Instr}\; \I{Executable})}{\Phi}
-    \end{array}\\[1.2em]
 \end{array}
 \]
+
+The overall $\X{bootSpec}$ is now proved by proving the individual $\X{bootSpec}_i$, and proving that they link together, i.e. $\br{\X{MEM}_{i+1}^{\X{pre}}}$ is implied by $\br{\X{MEM}_i^{\X{post}}} $, that the initial precondition of $\X{bootSpec}$ implies $\br{\X{MEM}_{0}^{\X{pre}}}$ and that the postcondition of $\X{bootSpec}$ is implied by $\br{\X{MEM}_n^{\X{post}}} $.
 
 \begin{remark}
   We will have to allocate the above predicates\\ $\X{region}(\Winit) \ast
@@ -876,7 +872,7 @@ Using  a non-atomic invariant in the first of these two formalizations would not
 \end{remark}
 
 To make sure we can prove the driver specification, we will have to update the
-robust safety theorem slightly to incorporate these changes.
+robust safety theorem slightly to incorporate these changes. Additionally, we probably want to ensure that the non-atomic invariants hold after each boot phase, so we have to add it to the postcondition of each boot spec.
 
 Given a macro instruction to perform loops, a well/mis-behaving client might
 look as follows: (TODO: write this out,
