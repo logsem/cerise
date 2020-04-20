@@ -21,6 +21,7 @@ theories/rules/rules.v
 theories/region.v
 theories/region_invariants.v
 theories/region_invariants_revocation.v
+theories/region_invariants_static.v
 theories/logrel.v
 theories/monotone.v
 theories/ftlr/ftlr_base.v
