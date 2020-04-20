@@ -310,23 +310,23 @@ Section heap.
     iIntros (Htemp Hpwl) "(Hrel & Hreg & Hfull)".
     rewrite rel_eq region_eq /rel_def /region_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def. 
     iDestruct "Hrel" as (γpred) "#(Hγpred & Hφ)".
-    iDestruct "Hreg" as (M) "(HM & % & Hpreds)". 
+    iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
     (* assert that γrel = γrel' *)
     iDestruct (reg_in γrel (M) with "[$HM $Hγpred]") as %HMeq.
     rewrite HMeq big_sepM_insert; [|by rewrite lookup_delete].
     iDestruct "Hpreds" as "[Hl Hpreds]".
-    iDestruct "Hl" as (ρ) "[Hstate Hl]".
+    iDestruct "Hl" as (ρ Hρ) "[Hstate Hl]".
     iDestruct (sts_full_state_std with "Hfull Hstate") as %Hst.
     rewrite Htemp in Hst. (destruct ρ; try by simplify_eq); [].
-    iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
+    iDestruct "Hl" as (γpred' v p' φ' HH1) "(% & Hl & Hmono & #Hφ' & Hφv)".
+    inversion HH1; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
     - rewrite open_region_eq /open_region_def.
       iExists _. rewrite RELS_eq /RELS_def -HMeq. iFrame "∗ #".
-      auto. 
-    - iSplitR;[auto|]. iSplitR. 
+      iExists Mρ. eauto.
+    - iSplitR;[auto|]. iSplitR.
       + rewrite /future_pub_mono.
         iApply later_intuitionistically_2. iAlways.
         repeat (iApply later_forall_2; iIntros (?)).
@@ -354,22 +354,22 @@ Section heap.
     iIntros (Htemp Hpwl) "(Hrel & Hreg & Hfull)".
     rewrite rel_eq region_eq /rel_def /region_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def. 
     iDestruct "Hrel" as (γpred) "#[Hγpred Hφ]".
-    iDestruct "Hreg" as (M) "(HM & % & Hpreds)". 
+    iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
     (* assert that γrel = γrel' *)
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite HMeq big_sepM_insert; [|by rewrite lookup_delete].
     iDestruct "Hpreds" as "[Hl Hpreds]".
-    iDestruct "Hl" as (ρ) "[Hstate Hl]".
+    iDestruct "Hl" as (ρ Hρ) "[Hstate Hl]".
     iDestruct (sts_full_state_std with "Hfull Hstate") as %Hst.
     rewrite Htemp in Hst. (destruct ρ; try by simplify_eq); [].
-    iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
+    iDestruct "Hl" as (γpred' v p' φ' HH) "(% & Hl & Hmono & #Hφ' & Hφv)".
+    inversion HH; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
     - rewrite open_region_eq /open_region_def.
       iExists _. rewrite RELS_eq /RELS_def -HMeq. iFrame "∗ #".
-      auto. 
+      iExists _. eauto.
     - iSplitR;[auto|]. iSplitR. 
       + rewrite /future_pub_mono.
         iApply later_intuitionistically_2. iAlways.
@@ -397,22 +397,22 @@ Section heap.
     iIntros (Htemp) "(Hrel & Hreg & Hfull)".
     rewrite rel_eq region_eq /rel_def /region_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def. 
     iDestruct "Hrel" as (γpred) "#[Hγpred Hφ]".
-    iDestruct "Hreg" as (M) "(HM & % & Hpreds)". 
+    iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
     (* assert that γrel = γrel' *)
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite HMeq big_sepM_insert; [|by rewrite lookup_delete].
     iDestruct "Hpreds" as "[Hl Hpreds]".
-    iDestruct "Hl" as (ρ) "[Hstate Hl]".
+    iDestruct "Hl" as (ρ Hρ) "[Hstate Hl]".
     iDestruct (sts_full_state_std with "Hfull Hstate") as %Hst.
     rewrite Htemp in Hst. (destruct ρ; try by simplify_eq); [].
-    iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & #Hmono & #Hφ' & Hφv)".
-    inversion H4; subst.
+    iDestruct "Hl" as (γpred' v p' φ' HH) "(% & Hl & #Hmono & #Hφ' & Hφv)".
+    inversion HH; subst.
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
     - rewrite open_region_eq /open_region_def.
       iExists _. rewrite RELS_eq /RELS_def -HMeq. iFrame "∗ #".
-      auto. 
+      iExists _. eauto.
     - iSplitR;[auto|]. iSplitR. 
       + rewrite /future_priv_mono.
         iApply later_intuitionistically_2. iAlways.
@@ -451,24 +451,38 @@ Section heap.
       iExists _; iFrame.
   Qed.
 
+  Lemma full_sts_Mρ_agree W M Mρ (l: Addr) (ρ: region_type) :
+    sts_full_world sts_std W -∗
+    region_map_def M Mρ W -∗
+    ⌜ (std_sta W) !! (encode l) = Some (encode ρ) ↔ Mρ !! l = Some ρ ⌝.
+  Admitted.
+
   (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v :
     pwl p = true →
     sts_state_std (encode l) Temporary
-                  ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
-    -∗ region W.
+    ∗ sts_full_world sts_std W
+    ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+    -∗ region W ∗ sts_full_world sts_std W.
   Proof.
     rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
             REL_eq RELS_eq /RELS_def /REL_def.
-    iIntros (Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
+    iIntros (Hpwl) "(Hstate & Hfull & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
     iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
-    iDestruct "Hreg_open" as (M) "(HM & % & Hpreds)".
-    iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
+    iDestruct "Hreg_open" as (M Mρ) "(HM & % & % & Hpreds)".
+
+    iDestruct (sts_full_state_std with "Hfull Hstate") as %HWl.
+    iDestruct (full_sts_Mρ_agree _ _ _ l Temporary with "Hfull Hpreds") as %[HMρl _].
+    pose proof (HMρl HWl) as HMρlT.
+
+    iDestruct (big_sepM_insert _ (delete l M) l with "[-HM Hfull]") as "test";
       first by rewrite lookup_delete.
-    { iFrame. iExists Temporary. iFrame. iExists _,_,p,_. rewrite Hpwl. iFrame "∗ #". (iSplitR;[eauto|]). done. }
-    iExists _. iFrame "∗ #".
+    { iFrame. iExists Temporary. iFrame. iSplitR; auto.
+      iExists _,_,p,_. rewrite Hpwl. iFrame "∗ #". (iSplitR;[eauto|]). done. }
+
+    iFrame. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
-    rewrite -HMeq. iFrame. auto.
+    iExists _, _. rewrite -HMeq. iFrame. auto.
   Qed.
 
   Lemma region_close_temp_nwl W l φ p v :
@@ -481,14 +495,15 @@ Section heap.
             REL_eq RELS_eq /RELS_def /REL_def.
     iIntros (Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
     iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+(*
     iDestruct "Hreg_open" as (M) "(HM & % & Hpreds)".
     iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
       first by rewrite lookup_delete.
     { iFrame. iExists Temporary. iFrame. iExists _,_,p,_. rewrite Hpwl. iFrame "∗ #". (iSplitR;[eauto|]). done. }
     iExists _. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
-    rewrite -HMeq. iFrame. auto. 
-  Qed.
+    rewrite -HMeq. iFrame. auto. *)
+  Admitted.
 
   Lemma region_close_perm W l φ p v :
     sts_state_std (encode l) Permanent
@@ -499,14 +514,15 @@ Section heap.
             REL_eq RELS_eq /RELS_def /REL_def.
     iIntros "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
     iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+(*
     iDestruct "Hreg_open" as (M) "(HM & % & Hpreds)".
     iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
       first by rewrite lookup_delete.
     { iFrame. iExists Permanent. iFrame. iExists _,_,_,_. iFrame "∗ #". (iSplitR;[eauto|]). done. }
     iExists _. iFrame "∗ #".
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
-    rewrite -HMeq. iFrame. auto. 
-  Qed.
+    rewrite -HMeq. iFrame. auto.  *)
+  Admitted.
 
   Lemma region_close W l φ p v (ρ : region_type) :
     ρ = Temporary ∨ ρ = Permanent →
@@ -520,14 +536,15 @@ Section heap.
     iIntros (Htp) "(Hstate & Hreg_open & Hl & Hp & Hmono & Hφ & Hrel)".
     destruct ρ; try (destruct Htp; exfalso; congruence).
     - destruct (pwl p) eqn:Hpwl.
+(*
       + iApply region_close_temp_pwl; eauto. iFrame.
       + iApply region_close_temp_nwl; eauto. iFrame.
-    - iApply region_close_perm; eauto. iFrame.
-  Qed.
+    - iApply region_close_perm; eauto. iFrame. *)
+  Admitted.
 
   (* ---------------------------------------------------------------------------------------- *)
   (* ----------------------- OPENING MULTIPLE LOCATIONS IN REGION --------------------------- *)
-    
+
   Fixpoint delete_list {K V : Type} `{Countable K, EqDecision K}
              (ks : list K) (m : gmap K V) : gmap K V :=
     match ks with
