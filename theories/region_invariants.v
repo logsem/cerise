@@ -291,10 +291,9 @@ Section heap.
     iIntros (Hrelated) "Hr".
     iApply big_sepM_mono; iFrame.
     iIntros (a γ Hsome) "Hm".
-    iDestruct "Hm" as (ρ) "[Hstate Hm]".
-    iExists ρ. iFrame.
+    iDestruct "Hm" as (ρ Hρ) "[Hstate Hm]".
+    iExists ρ. iFrame. iSplitR;[auto|].
     destruct ρ.
-(*
     - iDestruct "Hm" as (γpred v p φ Heq HO) "(Hl & Hmono & #Hsavedφ & Hφ)".
       iExists _,_,_,_. do 2 (iSplitR;[eauto|]).
       destruct (pwl p);
@@ -307,8 +306,9 @@ Section heap.
       iApply "Hmono"; iFrame; auto.
       iPureIntro.
       by apply related_sts_pub_priv_world.
-    - done. *)
-  Admitted.
+    - done.
+    - done. 
+  Qed. 
 
   Lemma region_monotone W W' :
     (⌜dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W')⌝ →
@@ -507,6 +507,36 @@ Section heap.
     ⌜ (std_sta W) !! (encode l) = Some (encode ρ) ↔ Mρ !! l = Some ρ ⌝.
   Admitted.
 
+  Lemma full_sts_static_all W m (l : Addr) :
+    (std_sta W) !! (encode l) = Some (encode (Static m)) →
+    sts_full_world sts_std W -∗
+    region W -∗
+    ⌜forall a, a ∈ dom (gset Addr) m -> static W m a⌝.
+  Proof. 
+    iIntros (Hstatic) "Hsts Hr".
+    rewrite region_eq /region_def.
+    iDestruct "Hr" as (M Mρ) "(HM & #Hdom1 & #Hdom2 & Hr)".
+    iDestruct "Hdom1" as %Hdom1. iDestruct "Hdom2" as %Hdom2. 
+    iDestruct (full_sts_Mρ_agree _ _ _ l (Static m) with "Hsts Hr") as %[Hag _].
+    pose proof (Hag Hstatic) as Hl. 
+    iIntros (a Hdom).
+    assert (∃ a0 : Addr, encode a0 = encode l ∧ is_Some (M !! a0)) as [a0 [Heq [γp Hsome] ] ].
+    { apply Hdom1. eauto. }
+    apply encode_inj in Heq. subst a0.
+    rewrite /region_map_def.
+    iDestruct (big_sepM_delete _ _ l with "Hr") as "[Hl Hr]";[eauto|].
+    iDestruct "Hl" as (ρ Hρ) "(Hstate & Hρ)".
+    rewrite Hl in Hρ. inversion Hρ.
+    iDestruct "Hρ" as (p v Hpv) "[Hl #Hall]". iDestruct "Hall" as %Hall.
+    iDestruct (big_sepM_delete _ _ l with "[$Hr Hl Hstate]") as "Hr";[eauto|..].
+    { iExists ρ. iSplitR;subst;auto. iFrame. iExists p,v. iFrame. auto. }
+    iDestruct (full_sts_Mρ_agree _ _ _ a (Static m) with "Hsts Hr") as %[_ Hag'].
+    iPureIntro.
+    rewrite /static.
+    pose proof (Hall _ Hdom) as Ha. 
+    pose proof (Hag' Ha) as ->. auto. 
+  Qed. 
+    
   (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v :
     pwl p = true →
