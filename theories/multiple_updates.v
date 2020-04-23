@@ -58,6 +58,19 @@ Section std_updates.
      f_equal. auto.
    Qed.
 
+
+   Lemma std_update_multiple_permutation W l1 l2 ρ :
+     l1 ≡ₚ l2 →
+     std_update_multiple W l1 ρ = std_update_multiple W l2 ρ.
+   Proof.
+     intros Hperm. 
+     induction Hperm using Permutation_ind.
+     - done.
+     - simpl. rewrite IHHperm. done. 
+     - apply (std_update_multiple_swap_head W l y x).
+     - by rewrite IHHperm1 IHHperm2.
+   Qed.
+   
    Lemma remove_dups_swap_head {A : Type} `{EqDecision A} (a1 a2 : A) (l : list A) :
      remove_dups (a1 :: a2 :: l) ≡ₚ remove_dups (a2 :: a1 :: l).
    Proof. 
