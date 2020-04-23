@@ -63,20 +63,6 @@ Section cap_lang_rules.
     writeAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true ∧
     (isLocalWord storev = false ∨ pwl p = true).
 
-  Local Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
-  Proof. solve_decision. Qed.
-
-  Global Instance reg_allows_store_dec_eq  (regs : Reg)(r  : RegName) p g b e a (storev : Word) : Decision (reg_allows_store regs r p g b e a storev).
-  Proof.
-    unfold reg_allows_store. destruct (regs !! r). destruct s.
-    - right. intros Hfalse; destruct Hfalse; by exfalso.
-    - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
-      refine (option_dec_eq _ _ _). intros.
-      refine (sum_eq_dec _ _); unfold EqDecision; intros. refine (cap_dec_eq x0 y0).
-      solve_decision.
-    - solve_decision.
-  Qed.
-
   Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : PermMem):=
   | Store_fail_const z:
       regs !! r1 = Some(inl z) ->
