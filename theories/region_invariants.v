@@ -19,7 +19,7 @@ Class heapG Σ := HeapG {
   heapG_saved_pred :> savedPredG Σ (((STS_states * STS_rels) * (STS_states * STS_rels)) * Word);
   heapG_rel :> inG Σ (authR relUR);
   γrel : gname
-                   }.
+}.
 
 Section heap.
   Context `{heapG Σ, memG Σ, regG Σ, STSG Σ,
@@ -523,6 +523,10 @@ Section heap.
       iExists _; iFrame.
   Qed.
 
+  (* It is important here that we have (delete l Mρ) and not simply Mρ.
+     Otherwise, [Mρ !! l] could in principle map to a static region (although
+     it's not the case in practice), that it would be incorrect to overwrite
+     with a non-static state. *)
   Lemma region_map_undelete_nonstatic M Mρ W l :
     (forall m, Mρ !! l ≠ Some (Static m)) →
     region_map_def (delete l M) (delete l Mρ) W -∗
