@@ -1,6 +1,6 @@
 From iris.algebra Require Import gmap agree auth.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Export region_invariants region_invariants_revocation.
+From cap_machine Require Export region_invariants multiple_updates region_invariants_revocation.
 Require Import stdpp.countable.
 Import uPred.
 
@@ -257,8 +257,16 @@ Section heap.
   (* --------------------------------------------------------------------------------- *)
   (* ------------------ Allocate a Static region from a Revoked one ------------------ *)
 
-
   
-  
-  
+  Lemma region_allocate_static_from_revoked_states φ W (m: gmap Addr (Perm * Word)) : 
+    (sts_full_world sts_std (revoke W)
+    ∗ region (revoke W)
+    ∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ)
+    ==∗ (sts_full_world sts_std (std_update_multiple (revoke W) (elements (dom (gset Addr) m)) (Static m))
+      ∗ region (std_update_multiple (revoke W) (elements (dom (gset Addr) m)) (Static m))))%I.
+  Proof.
+    iIntros "(Hfull & Hr & Hmap)". 
+    iDestruct (revoke_monotone with "Hr") as "Hr". 
+  Admitted. 
+    
 End heap.
