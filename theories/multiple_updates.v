@@ -125,6 +125,17 @@ Section std_updates.
      intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
    Qed.
 
+   Lemma std_sta_update_multiple_lookup_in W l ρ (a : Addr) :
+     a ∈ l -> (std_sta (std_update_multiple W l ρ)) !! (countable.encode a) = Some (countable.encode ρ).
+   Proof.
+     intros Hnin.
+     induction l; auto; first inversion Hnin.
+     apply elem_of_cons in Hnin as [Hne | Hnin].
+     - subst a0. rewrite lookup_insert; auto.
+     - destruct (decide (a = a0));[subst a0; rewrite lookup_insert; auto|].
+       rewrite lookup_insert_ne;auto. intros Hcontr. apply encode_inj in Hcontr. congruence. 
+   Qed.
+
    Lemma std_rel_update_multiple_lookup_same W l ρ (a : Addr) :
      a ∉ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
              (std_rel W) !! (countable.encode a).
@@ -230,9 +241,9 @@ Section std_updates.
      destruct (decide (i ∈ countable.encode <$> l)). 
      - eapply std_rel_update_multiple_lookup_std_i in e. eauto.
      - apply std_rel_update_multiple_lookup_same_i with (W:=W) (ρ:=ρ) in n.
-       rewrite /rel_is_std_i. rewrite n. apply Hrel. rewrite n in Hx. eauto. 
+       rewrite /rel_is_std_i. rewrite n. apply Hrel. rewrite n in Hx. eauto.
    Qed. 
-
+       
    Lemma std_update_multiple_lookup W l ρ k y :
      l !! k = Some y ->
      std_sta (std_update_multiple W l ρ) !! countable.encode y = Some (countable.encode ρ)

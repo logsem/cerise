@@ -775,7 +775,7 @@ Section heap.
     apply revoke_list_lookup_middle_Revoked; auto.
     apply map_to_list_fst. exists (countable.encode Revoked).
       by apply elem_of_map_to_list.
-  Qed.
+  Qed.  
 
   Lemma revoke_list_lookup_Perm (Wstd_sta : STS_states) (l : list positive) (i : positive) :
     (Wstd_sta !! i = Some (countable.encode Permanent)) →
@@ -1031,6 +1031,18 @@ Section heap.
         rewrite lookup_insert_ne;auto. 
   Qed.
 
+  Lemma anti_revoke_lookup_Revoked Wstd_sta i :
+    (revoke_std_sta Wstd_sta) !! i = Some (countable.encode Revoked) ->
+    (Wstd_sta !! i = Some (countable.encode Revoked)) ∨ (Wstd_sta !! i = Some (countable.encode Temporary)).
+  Proof.
+    intros Hrev.
+    assert (is_Some (Wstd_sta !! i)) as [x Hx];[apply revoke_std_sta_lookup_Some;eauto|]. 
+    destruct (decide (x = countable.encode Temporary));subst;auto.
+    assert (Wstd_sta !! i ≠ Some (countable.encode Temporary)) as Hntemp.
+    { intros Hcontr; subst. rewrite Hx in Hcontr. inversion Hcontr; subst. contradiction. }
+    apply revoke_monotone_lookup_same in Hntemp. rewrite Hrev in Hntemp. auto. 
+  Qed. 
+    
   Lemma revoke_dom_eq Wstd_sta :
     dom (gset positive) Wstd_sta = dom (gset positive) (revoke_std_sta Wstd_sta).
   Proof.
