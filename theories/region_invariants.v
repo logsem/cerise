@@ -207,6 +207,7 @@ Section heap.
                                              ∗ saved_pred_own γpred φ
                                              ∗ ▷ φ (W,v)
                             | Static m => ∃ p v, ⌜m !! a = Some (p, v)⌝
+                                             ∗ ⌜p ≠ O⌝
                                              ∗ a ↦ₐ[p] v
                                              ∗ ⌜∀ a', a' ∈ dom (gset Addr) m →
                                                       Mρ !! a' = Some (Static m)⌝
@@ -356,7 +357,7 @@ Section heap.
     iSplitR; eauto.
     { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
     iFrame. destruct ρ; try by iFrame.
-    iDestruct "HH" as (? ? ?) "(? & Hothers)". iDestruct "Hothers" as %Hothers.
+    iDestruct "HH" as (? ? ?) "(? & ? & Hothers)". iDestruct "Hothers" as %Hothers.
     iExists _, _. iSplitR; eauto. iFrame. iPureIntro.
     intros a' Ha'. destruct (decide (a' = l)).
     { subst. exfalso. apply Hothers in Ha'. congruence. }
@@ -533,7 +534,7 @@ Section heap.
     iSplitR; eauto.
     { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
     iFrame. destruct ρ; try by iFrame.
-    iDestruct "HH" as (? ? ?) "(? & Hothers)". iDestruct "Hothers" as %Hothers.
+    iDestruct "HH" as (? ? ?) "(? & ? & Hothers)". iDestruct "Hothers" as %Hothers.
     iExists _, _. iSplitR; eauto. iFrame. iPureIntro.
     intros a' Ha'. apply Hothers in Ha'.
     destruct (decide (a' = l)); by simplify_map_eq.
@@ -608,7 +609,7 @@ Section heap.
     iDestruct (big_sepM_delete _ _ l with "Hr") as "[Hl Hr]";[eauto|].
     iDestruct "Hl" as (ρ Hρ) "(Hstate & Hρ)".
     rewrite Hl in Hρ. inversion Hρ.
-    iDestruct "Hρ" as (p v Hpv) "[Hl #Hall]". iDestruct "Hall" as %Hall.
+    iDestruct "Hρ" as (p v Hpv Hne) "[Hl #Hall]". iDestruct "Hall" as %Hall.
     iDestruct (big_sepM_delete _ _ l with "[$Hr Hl Hstate]") as "Hr";[eauto|..].
     { iExists ρ. iSplitR;subst;auto. iFrame. iExists p,v. iFrame. auto. }
     iDestruct (full_sts_Mρ_agree _ _ _ a (Static m) with "Hsts Hr") as %[_ Hag']; auto.
