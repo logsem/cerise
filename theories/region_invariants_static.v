@@ -141,9 +141,7 @@ Section heap.
     l ↦ₐ[p] v.
   Proof.
     intros Hdom HMl HMρ Hm.
-    iIntros "Hr".
-    destruct HMl as [? ?].
-    SearchAbout "sepM" delete.
+    iIntros "Hr". destruct HMl as [? ?].
     iDestruct (big_sepM_delete _ _ l with "Hr") as "(Hl & Hr)"; eauto; [].
     iFrame. iDestruct "Hl" as (ρ' Hρ') "(? & Hst)".
     assert (ρ' = Static m) as -> by congruence.
