@@ -1,6 +1,6 @@
 From iris.algebra Require Import gmap agree auth.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Export region_invariants.
+From cap_machine Require Export region_invariants region_invariants_revocation.
 Require Import stdpp.countable.
 Import uPred.
 
@@ -147,7 +147,7 @@ Section heap.
     iDestruct (big_sepM_delete _ _ l with "Hr") as "(Hl & Hr)"; eauto; [].
     iFrame. iDestruct "Hl" as (ρ' Hρ') "(? & Hst)".
     assert (ρ' = Static m) as -> by congruence.
-    iDestruct "Hst" as (p' v' ?) "(? & ?)".
+    iDestruct "Hst" as (p' v' ?) "(? & ? & ?)".
     assert (p' = p ∧ v' = v) as (-> & ->) by (split; congruence). eauto.
   Qed.
 
@@ -204,7 +204,7 @@ Section heap.
     rewrite difference_het_lookup_Some in HMk * => HMk. destruct HMk as [HMk Hmk].
     iSplitR. iPureIntro. by rewrite difference_het_lookup_Some; eauto.
     iFrame. destruct ρ as [ | | | m']; (try by iFrame); [].
-    iDestruct "Hρ" as (p v Hm') "(? & Hothers)". iDestruct "Hothers" as %Hothers.
+    iDestruct "Hρ" as (p v Hm') "(? & ? & Hothers)". iDestruct "Hothers" as %Hothers.
     iExists _,_. iFrame. iPureIntro. split; eauto.
     intros a' Ha'. rewrite difference_het_lookup_Some. split; eauto.
 
@@ -229,7 +229,7 @@ Section heap.
     iDestruct "Hl" as (ρ Hρ) "(Hst & Hρ)".
     iDestruct (sts_full_state_std with "Hsts Hst") as %HH.
     rewrite HWl in HH. apply Some_eq_inj, encode_injective in HH. subst ρ.
-    iDestruct "Hρ" as (? ? ?) "(? & %)". intros. iPureIntro. split; eauto.
+    iDestruct "Hρ" as (? ? ?) "(? & ? & %)". intros. iPureIntro. split; eauto.
     rewrite -elem_of_gmap_dom; eauto.
   Qed.
 
@@ -253,4 +253,12 @@ Section heap.
     rewrite !delete_elements_eq_difference_het. eauto.
   Qed.
 
+
+  (* --------------------------------------------------------------------------------- *)
+  (* ------------------ Allocate a Static region from a Revoked one ------------------ *)
+
+
+  
+  
+  
 End heap.
