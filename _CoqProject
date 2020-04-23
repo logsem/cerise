@@ -19,6 +19,7 @@ theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules/rules.v
 theories/region.v
+theories/multiple_updates.v
 theories/region_invariants.v
 theories/region_invariants_revocation.v
 theories/region_invariants_static.v
