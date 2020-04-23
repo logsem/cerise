@@ -134,6 +134,41 @@ Section std_updates.
      apply not_elem_of_cons in Hnin as [Hne Hnin].
      rewrite lookup_insert_ne; auto.
      intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+   Qed.
+
+   Lemma std_rel_update_multiple_lookup_std W l ρ (a : Addr) :
+     a ∈ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
+             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
+   Proof.
+     intros Hin.
+     induction l; first inversion Hin.
+     apply elem_of_cons in Hin as [Heq | Hin].
+     - subst a. simpl. by rewrite lookup_insert. 
+     - destruct (decide (a = a0));[subst a; by rewrite lookup_insert|].
+       rewrite lookup_insert_ne;[apply IHl; auto|].
+       intro Hcontr. apply encode_inj in Hcontr. congruence. 
+   Qed.
+
+   Lemma std_rel_update_multiple_lookup_same_i W l ρ i :
+     i ∉ (countable.encode <$> l) -> (std_rel (std_update_multiple W l ρ)) !! i =
+             (std_rel W) !! i.
+   Proof.
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hne Hnin].
+     rewrite lookup_insert_ne; auto.
+   Qed.
+
+   Lemma std_rel_update_multiple_lookup_std_i W l ρ i :
+     i ∈ (countable.encode <$> l) -> (std_rel (std_update_multiple W l ρ)) !! i =
+             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
+   Proof.
+     intros Hin.
+     induction l; first inversion Hin.
+     apply elem_of_cons in Hin as [Heq | Hin].
+     - subst i. simpl. by rewrite lookup_insert. 
+     - destruct (decide (countable.encode a = i));[subst i; by rewrite lookup_insert|].
+       rewrite lookup_insert_ne;[apply IHl; auto|auto].
    Qed. 
    
    Lemma std_update_multiple_not_in_sta W l ρ (a : Addr) :
@@ -185,6 +220,18 @@ Section std_updates.
        + intros Hcontr. apply std_update_multiple_not_in_rel in Hcontr; auto. 
          intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
    Qed.
+
+   Lemma std_update_multiple_rel_is_std W l ρ :
+     rel_is_std W ->
+     rel_is_std (std_update_multiple W l ρ).
+   Proof.
+     intros Hrel.
+     intros i [x Hx].
+     destruct (decide (i ∈ countable.encode <$> l)). 
+     - eapply std_rel_update_multiple_lookup_std_i in e. eauto.
+     - apply std_rel_update_multiple_lookup_same_i with (W:=W) (ρ:=ρ) in n.
+       rewrite /rel_is_std_i. rewrite n. apply Hrel. rewrite n in Hx. eauto. 
+   Qed. 
 
    Lemma std_update_multiple_lookup W l ρ k y :
      l !! k = Some y ->
