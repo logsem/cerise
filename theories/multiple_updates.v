@@ -6,13 +6,17 @@ Require Import Eqdep_dec List.
 Section std_updates. 
 
   (* --------------------------------------------------------------------------------- *)
-   (* ----------------------- UPDATING MULTIPLE REGION STATES ------------------------- *)
-   
-   Fixpoint std_update_multiple W l ρ :=
-     match l with
-     | [] => W
-     | a :: l => std_update (std_update_multiple W l ρ) a ρ std_rel_pub std_rel_priv
-     end.
+  (* ----------------------- UPDATING MULTIPLE REGION STATES ------------------------- *)
+
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation WORLD := (prodO STS STS). 
+  Implicit Types W : WORLD.
+  
+  Fixpoint std_update_multiple W l ρ :=
+    match l with
+    | [] => W
+    | a :: l => std_update (std_update_multiple W l ρ) a ρ std_rel_pub std_rel_priv
+    end.
    
    (* Fixpoint std_update_temp_multiple W l := *)
    (*   match l with *)
@@ -24,13 +28,13 @@ Section std_updates.
    Lemma std_update_multiple_loc_sta W l ρ :
      (std_update_multiple W l ρ).2.1 = W.2.1.
    Proof.
-     induction l; auto.
+     induction l; auto. 
    Qed.      
 
    Lemma std_update_multiple_loc_rel W l ρ :
      (std_update_multiple W l ρ).2.2 = W.2.2.
    Proof.
-     induction l; auto.
+     induction l; auto. 
    Qed.
 
    Lemma std_update_multiple_swap_head W l a1 a2 ρ :
@@ -39,14 +43,14 @@ Section std_updates.
      induction l.
      - simpl. destruct (decide (a1 = a2)); subst.
        + done.
-       + rewrite /std_update.
+       + rewrite /std_update. 
          assert (countable.encode a1 ≠ countable.encode a2).
          { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
-         repeat rewrite (insert_commute _ (countable.encode a1) (countable.encode a2)) ; auto. 
+         repeat rewrite (insert_commute _ (countable.encode a1) (countable.encode a2)); auto. 
      - destruct (decide (a1 = a2)); subst;[done|].
        assert (countable.encode a1 ≠ countable.encode a2).
        { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
-       simpl. rewrite /std_update. 
+       simpl. rewrite /std_update.
        repeat rewrite (insert_commute _ (countable.encode a1) (countable.encode a2)) ; auto. 
    Qed. 
        
@@ -55,7 +59,7 @@ Section std_updates.
    Proof.
      induction l1; auto.
      rewrite app_comm_cons std_update_multiple_swap_head /=. 
-     f_equal. auto.
+     f_equal;auto.
    Qed.
 
 
