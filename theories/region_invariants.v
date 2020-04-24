@@ -159,6 +159,15 @@ Section heap.
       }
   Qed.
 
+  Lemma dom_equal_change_l (W1 W2: STS_states) (M: relT):
+    dom_equal W1 M →
+    dom (gset positive) W1 = dom (gset positive) W2 →
+    dom_equal W2 M.
+  Proof.
+    unfold dom_equal. intros HH1 Hdom.
+    intros i. rewrite elem_of_gmap_dom -Hdom -elem_of_gmap_dom //.
+  Qed.
+
   (* Asserting that a location is in a specific state in a given World *)
 
   Definition temporary (W : WORLD) (l : Addr) :=
@@ -318,17 +327,8 @@ Section heap.
     iIntros (Hdomeq Hrelated) "HW". rewrite region_eq.
     iDestruct "HW" as (M Mρ) "(HM & % & % & Hmap)".
     iExists M, Mρ. iFrame.
-    iApply (wand_frame_r _ emp%I).
-    { iIntros (_).
-      iPureIntro.
-      intros a. split; intros [x Hx].
-      - destruct H3 with a as [Hstd _].
-        apply Hstd. apply elem_of_gmap_dom.
-        rewrite Hdomeq. apply elem_of_gmap_dom. eauto.
-      - destruct H3 with a as [_ Hstd].
-        apply elem_of_gmap_dom. rewrite -Hdomeq.
-        apply elem_of_gmap_dom. eauto.
-    } do 2 (iSplitR;[auto|]).
+    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR;[auto|].
     iApply region_map_monotone; eauto.
   Qed.
 
@@ -342,6 +342,19 @@ Section heap.
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
   Definition open_region := proj1_sig open_region_aux.
   Definition open_region_eq : @open_region = @open_region_def := proj2_sig open_region_aux.
+
+  (* open_region is monotone wrt public future worlds *)
+  Lemma open_region_monotone l W W':
+    dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W') →
+    related_sts_pub_world W W' →
+    (open_region l W -∗ open_region l W')%I.
+  Proof.
+    iIntros (Hdomeq Hrelated) "HW". rewrite open_region_eq /open_region_def.
+    iDestruct "HW" as (M Mρ) "(Hm & % & % & Hmap)". iExists M, Mρ. iFrame.
+    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR; auto.
+    iApply region_map_monotone; eauto.
+  Qed.
 
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------- LEMMAS FOR OPENING THE REGION MAP ----------------------------------- *)
@@ -753,6 +766,18 @@ Section heap.
   Definition open_region_many_aux : { x | x = @open_region_many_def }. by eexists. Qed.
   Definition open_region_many := proj1_sig open_region_many_aux.
   Definition open_region_many_eq : @open_region_many = @open_region_many_def := proj2_sig open_region_many_aux.
+
+  Lemma open_region_many_monotone l W W':
+    dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W') →
+    related_sts_pub_world W W' →
+    (open_region_many l W -∗ open_region_many l W')%I.
+  Proof.
+    iIntros (Hdomeq Hrelated) "HW". rewrite open_region_many_eq /open_region_many_def.
+    iDestruct "HW" as (M Mρ) "(Hm & % & % & Hmap)". iExists M, Mρ. iFrame.
+    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR; auto.
+    iApply region_map_monotone; eauto.
+  Qed.
 
    Lemma region_open_prepare l W :
     (open_region l W ∗-∗ open_region_many [l] W)%I.
