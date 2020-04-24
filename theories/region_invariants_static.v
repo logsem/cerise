@@ -151,7 +151,7 @@ Section heap.
     m !! l = Some (p, v) →
     region_map_def M Mρ W -∗
     region_map_def (delete l M) Mρ W ∗
-    l ↦ₐ[p] v.
+    l ↦ₐ[p] v ∗ sts_state_std (encode l) (Static m).
   Proof.
     intros Hdom HMl HMρ Hm.
     iIntros "Hr".
@@ -161,8 +161,15 @@ Section heap.
     iFrame. iDestruct "Hl" as (ρ' Hρ') "(? & Hst)".
     assert (ρ' = Static m) as -> by congruence.
     iDestruct "Hst" as (p' v' ?) "(? & ? & ?)".
-    assert (p' = p ∧ v' = v) as (-> & ->) by (split; congruence). eauto.
+    assert (p' = p ∧ v' = v) as (-> & ->) by (split; congruence). iFrame.
   Qed.
+
+  Definition static_resources_aux (m m_all: gmap Addr (Perm * Word)) :=
+    ([∗ map] a↦pv ∈ m, ∃ p v,
+       ⌜pv = (p, v)⌝ ∗ a↦ₐ[p] v ∗ sts_state_std (encode a) (Static m_all))%I.
+
+  Definition static_resources (m: gmap Addr (Perm * Word)) :=
+    static_resources_aux m m.
 
   Lemma region_map_open_some_static (M: gmap Addr _) Mρ W (m m_all: gmap Addr (Perm * Word)) :
     m ⊆ m_all →
@@ -173,11 +180,11 @@ Section heap.
     -∗
     region_map_def (M ∖∖ m) Mρ W
     ∗ sts_full_world sts_std W
-    ∗ [∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ a ↦ₐ[p] v.
+    ∗ static_resources_aux m m_all.
   Proof.
     pattern m. revert m. refine (map_ind _ _ _).
     - intros **. iIntros "(?&?)".
-      rewrite !difference_het_empty big_sepM_empty /=.
+      rewrite !difference_het_empty /static_resources_aux big_sepM_empty /=.
       iFrame.
     - intros a [p v] m Hma HI Hsub_all Hm_all Hdom.
       iIntros "(Hr & Hsts)".
@@ -198,7 +205,7 @@ Section heap.
         set_solver. }
       { apply Hm_all. rewrite dom_insert; set_solver. }
       { eapply lookup_weaken; [| apply Hsub_all]. by rewrite lookup_insert. }
-      iFrame. rewrite big_sepM_insert//. iFrame. eauto.
+      iFrame. rewrite /static_resources_aux big_sepM_insert//. iFrame. eauto.
   Qed.
 
   Lemma region_map_open_all_static M Mρ W (m: gmap Addr (Perm * Word)) :
@@ -207,7 +214,7 @@ Section heap.
     region_map_def M Mρ W ∗ sts_full_world sts_std W
     -∗
     region_map_def (M ∖∖ m) (Mρ ∖∖ m) W ∗ sts_full_world sts_std W
-    ∗ [∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ a↦ₐ[p] v.
+    ∗ static_resources m.
   Proof.
     iIntros (HH Hdom) "(Hr & Hsts)".
     iDestruct (region_map_open_some_static M Mρ W m m with "[Hr Hsts]")
@@ -251,7 +258,7 @@ Section heap.
     region W ∗ sts_full_world sts_std W -∗
     open_region_many (elements (dom (gset Addr) m)) W
     ∗ sts_full_world sts_std W
-    ∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ a ↦ₐ[p] v)
+    ∗ static_resources m
     ∗ ⌜l ∈ dom (gset Addr) m⌝.
   Proof.
     iIntros (HWl) "(Hr & Hsts)".
