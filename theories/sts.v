@@ -142,7 +142,27 @@ Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
     - apply rtc_transitive with y; auto.
       apply rtc_once. by right.
   Qed.
-    
+
+(* TODO: move to stdpp? *)
+Lemma encode_injective {A} `{EqDecision A} `{Countable A} (a b: A) :
+  encode a = encode b → a = b.
+Proof.
+  intro HH. assert (decode (encode a) = decode (encode b)) as HHH by rewrite HH//.
+  rewrite !decode_encode in HHH. congruence.
+Qed.
+
+Lemma convert_rel_of_rel {A} `{EqDecision A, Countable A} (R: A -> A -> Prop) x y:
+  R x y → convert_rel R (encode x) (encode y).
+Proof. rewrite /convert_rel. eauto. Qed.
+
+Lemma rel_of_convert_rel {A} `{EqDecision A, Countable A} (R: A -> A -> Prop) x y:
+  convert_rel R (encode x) (encode y) → R x y.
+Proof.
+  rewrite /convert_rel. intros (?&?&HH1&HH2&?).
+  apply encode_injective in HH1.
+  apply encode_injective in HH2. subst; eauto.
+Qed.
+
 Section STS.
   Context `{STSG Σ} `{Countable A} `{sts_std : STS_STD A} `{Countable B}.
   Implicit Types x y : positive.

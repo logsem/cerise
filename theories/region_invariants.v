@@ -569,14 +569,6 @@ Section heap.
     auto.
   Qed.
 
-  Lemma encode_injective {A} `{EqDecision A} `{Countable A} (a b: A) :
-    encode a = encode b ->
-    a = b.
-  Proof.
-    intro HH. assert (decode (encode a) = decode (encode b)) as HHH by rewrite HH//.
-    rewrite !decode_encode in HHH. congruence.
-  Qed.
-
   Lemma full_sts_Mρ_agree W M Mρ (l: Addr) (ρ: region_type) :
     (* NB: only the forward direction of dom_equal (std_sta W) M is actually needed *)
     dom_equal (std_sta W) M →

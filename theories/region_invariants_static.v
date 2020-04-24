@@ -273,6 +273,70 @@ Section heap.
     rewrite !delete_elements_eq_difference_het. eauto.
   Qed.
 
+  (* --------------------------------------------------------------------------------- *)
+  (* ---------------------- Turn a static region into a temporary one ---------------- *)
+
+  Lemma related_sts_pub_world_static_to_temporary (l: list Addr) m W:
+    rel_is_std W →
+    Forall (λ (a:Addr), (std_sta W) !! (encode a) = Some (encode (Static m))) l →
+    related_sts_pub_world W (std_update_multiple W l Temporary).
+  Proof.
+    intros Hstd Hforall.
+    induction l.
+    - split; apply related_sts_pub_refl.
+    - rewrite Forall_cons in Hforall *; move=>[Ha Hforall].
+      eapply related_sts_pub_trans_world;[by apply IHl|].
+      cbn. set W' := std_update_multiple W l Temporary.
+      rewrite /std_update /related_sts_pub_world /=. split.
+      2: { apply related_sts_pub_refl. }
+      unfold related_sts_pub. rewrite !dom_insert_L.
+      repeat split_and; [set_solver ..|].
+      intros i r1 r2 r1' r2' Hr Hr'.
+      apply std_update_multiple_rel_is_std with (l:=l) (ρ:=Temporary) in Hstd.
+      rewrite -/W' in Hstd.
+      feed pose proof (Hstd i) as Hstdi; eauto. rewrite /rel_is_std_i /= in Hstdi.
+      unfold std_sta, std_rel in *. simplify_eq.
+      destruct (decide (i = encode a)).
+      { subst i. rewrite lookup_insert in Hr'. simplify_eq. do 2 split; eauto.
+        intros x y Hx Hy. simplify_map_eq.
+        destruct (decide (a ∈ l)).
+        { rewrite std_sta_update_multiple_lookup_in // in Hx. simplify_eq. reflexivity. }
+        rewrite std_sta_update_multiple_lookup_same /std_sta // in Hx. simplify_eq.
+        eapply rtc_once, convert_rel_of_rel. constructor. }
+      { rewrite lookup_insert_ne // in Hr'. rewrite Hr in Hr'. simplify_eq.
+        do 2 split; eauto. intros x y Hx Hy. rewrite lookup_insert_ne // in Hy.
+        rewrite Hx in Hy; simplify_eq. reflexivity. }
+  Qed.
+
+  (* TODO: unify with temp_resources from region_invariants_revocation.v? *)
+  Definition temporary_resources (mt: gmap Addr (gname * Perm)) W :=
+    ([∗ map] a↦γp ∈ mt, ∃ γpred v p φ,
+         ⌜γp = (γpred,p)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v
+         ∗ (if pwl p then future_pub_mono φ v else future_priv_mono φ v)
+         ∗ saved_pred_own γpred φ
+         ∗ ▷ φ (W, v)
+         ∗ sts_state_std (encode a) Temporary)%I.
+
+  Lemma open_region_world_static_to_temporary l m W :
+    rel_is_std W →
+    Forall (λ (a:Addr), (std_sta W) !! (encode a) = Some (encode (Static m))) l →
+    open_region_many l W
+    -∗
+    open_region_many l (std_update_multiple W l Temporary).
+  Proof.
+    intros. iApply open_region_many_monotone.
+    { admit. }
+    { eapply related_sts_pub_world_static_to_temporary; eauto. }
+  Admitted.
+
+  Lemma region_close_static_to_temporary (mt: gmap Addr (gname * Perm)) W:
+    open_region_many (elements (dom (gset Addr) mt)) W
+    ∗ temporary_resources mt W
+    ==∗
+    region W
+    ∗ ⌜∀ (a:Addr), a ∈ dom (gset Addr) mt →
+         (std_sta W) !! (encode a) = Some (encode Temporary)⌝.
+  Admitted.
 
   (* --------------------------------------------------------------------------------- *)
   (* ------------------ Allocate a Static region from a Revoked one ------------------ *)
