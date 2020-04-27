@@ -118,54 +118,55 @@ Section std_updates.
        + rewrite IHl1. simpl. rewrite decide_False; auto.
    Qed.
 
+   (* --------------------------------------------------------------------------------------------------------- *)
+   (* Lookup Lemmas: for each lookup lemma, we will have a version with addresses, and a version with positives *)
+   (* --------------------------------------------------------------------------------------------------------- *)
+
+   (* If an element is not in the update list, the state lookup is the same *)
+   Lemma std_sta_update_multiple_lookup_same_i W l ρ i :
+     i ∉ countable.encode <$> l -> (std_sta (std_update_multiple W l ρ)) !! i =
+             (std_sta W) !! i.
+   Proof.
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hne Hnin].
+     rewrite lookup_insert_ne; auto.
+   Qed.
    Lemma std_sta_update_multiple_lookup_same W l ρ (a : Addr) :
      a ∉ l -> (std_sta (std_update_multiple W l ρ)) !! (countable.encode a) =
              (std_sta W) !! (countable.encode a).
    Proof.
      intros Hnin.
-     induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hne Hnin].
-     rewrite lookup_insert_ne; auto.
-     intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+     apply std_sta_update_multiple_lookup_same_i.
+     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
+     apply encode_inj in Heq. 
+     subst; contradiction.
    Qed.
+   (* ------------------------------------------------------------ *)
 
-   Lemma std_sta_update_multiple_lookup_in W l ρ (a : Addr) :
-     a ∈ l -> (std_sta (std_update_multiple W l ρ)) !! (countable.encode a) = Some (countable.encode ρ).
+   (* If an element is in the update list, the state lookup corresponds to the update value *)
+   Lemma std_sta_update_multiple_lookup_in_i W l ρ i :
+     i ∈ countable.encode <$> l -> (std_sta (std_update_multiple W l ρ)) !! i = Some (countable.encode ρ).
    Proof.
      intros Hnin.
      induction l; auto; first inversion Hnin.
      apply elem_of_cons in Hnin as [Hne | Hnin].
-     - subst a0. rewrite lookup_insert; auto.
-     - destruct (decide (a = a0));[subst a0; rewrite lookup_insert; auto|].
-       rewrite lookup_insert_ne;auto. intros Hcontr. apply encode_inj in Hcontr. congruence. 
+     - subst i. rewrite lookup_insert; auto.
+     - destruct (decide (countable.encode a = i));[subst i; rewrite lookup_insert; auto|].
+       rewrite lookup_insert_ne;auto. 
    Qed.
-
-   Lemma std_rel_update_multiple_lookup_same W l ρ (a : Addr) :
-     a ∉ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
-             (std_rel W) !! (countable.encode a).
+   Lemma std_sta_update_multiple_lookup_in W l ρ (a : Addr) :
+     a ∈ l -> (std_sta (std_update_multiple W l ρ)) !! (countable.encode a) = Some (countable.encode ρ).
    Proof.
      intros Hnin.
-     induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hne Hnin].
-     rewrite lookup_insert_ne; auto.
-     intros Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+     apply std_sta_update_multiple_lookup_in_i.
+     apply elem_of_list_fmap. exists a; auto. 
    Qed.
+   (* ------------------------------------------------------------ *)
 
-   Lemma std_rel_update_multiple_lookup_std W l ρ (a : Addr) :
-     a ∈ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
-             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
-   Proof.
-     intros Hin.
-     induction l; first inversion Hin.
-     apply elem_of_cons in Hin as [Heq | Hin].
-     - subst a. simpl. by rewrite lookup_insert. 
-     - destruct (decide (a = a0));[subst a; by rewrite lookup_insert|].
-       rewrite lookup_insert_ne;[apply IHl; auto|].
-       intro Hcontr. apply encode_inj in Hcontr. congruence. 
-   Qed.
-
-   Lemma std_rel_update_multiple_lookup_same_i W l ρ i :
-     i ∉ (countable.encode <$> l) -> (std_rel (std_update_multiple W l ρ)) !! i =
+   (* If an element is not in the update list, the rel lookup is the same *)
+   Lemma std_rel_update_multiple_lookup_same_i W l ρ i:
+     i ∉ countable.encode <$> l -> (std_rel (std_update_multiple W l ρ)) !! i =
              (std_rel W) !! i.
    Proof.
      intros Hnin.
@@ -173,7 +174,19 @@ Section std_updates.
      apply not_elem_of_cons in Hnin as [Hne Hnin].
      rewrite lookup_insert_ne; auto.
    Qed.
+   Lemma std_rel_update_multiple_lookup_same W l ρ (a : Addr) :
+     a ∉ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
+             (std_rel W) !! (countable.encode a).
+   Proof.
+     intros Hnin.
+     apply std_rel_update_multiple_lookup_same_i.
+     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
+     apply encode_inj in Heq. 
+     subst; contradiction.
+   Qed.
+   (* ------------------------------------------------------------ *)
 
+   (* If an element is in the update list, the rel lookup corresponds to the update value *)
    Lemma std_rel_update_multiple_lookup_std_i W l ρ i :
      i ∈ (countable.encode <$> l) -> (std_rel (std_update_multiple W l ρ)) !! i =
              Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
@@ -185,26 +198,46 @@ Section std_updates.
      - destruct (decide (countable.encode a = i));[subst i; by rewrite lookup_insert|].
        rewrite lookup_insert_ne;[apply IHl; auto|auto].
    Qed. 
+   Lemma std_rel_update_multiple_lookup_std W l ρ (a : Addr) :
+     a ∈ l -> (std_rel (std_update_multiple W l ρ)) !! (countable.encode a) =
+             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
+   Proof.
+     intros Hin.
+     apply std_rel_update_multiple_lookup_std_i.
+     apply elem_of_list_fmap. exists a; auto. 
+   Qed.
+   (* ------------------------------------------------------------ *)
    
+   (* domains *)
+   Lemma std_update_multiple_not_in_sta_i W l ρ i :
+     i ∉ countable.encode <$> l → i ∈ dom (gset positive) (std_sta W) ↔
+                                  i ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
+   Proof. 
+     intros Hnin.
+     induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
+     split.
+     - intros Hin. simpl. rewrite dom_insert.
+       apply elem_of_union. right. apply IHl; auto. 
+     - simpl. rewrite dom_insert. intros Hin.
+       apply elem_of_union in Hin as [Hcontr | Hin].
+       + apply elem_of_singleton in Hcontr. subst. contradiction. 
+       + apply IHl; auto.
+   Qed. 
    Lemma std_update_multiple_not_in_sta W l ρ (a : Addr) :
      a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_sta W) ↔
              (countable.encode a) ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
    Proof. 
      intros Hnin.
-     induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
-     split.
-     - intros Hin. simpl. rewrite dom_insert.
-       apply elem_of_union. right. apply IHl; auto. 
-     - simpl. rewrite dom_insert. intros Hin.
-       apply elem_of_union in Hin as [Hcontr | Hin].
-       + apply elem_of_singleton in Hcontr. apply encode_inj in Hcontr. subst; contradiction.
-       + apply IHl; auto.
-   Qed. 
-       
-   Lemma std_update_multiple_not_in_rel W l ρ (a : Addr) :
-     a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_rel W) ↔
-             (countable.encode a) ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)). 
+     apply std_update_multiple_not_in_sta_i. 
+     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
+     apply encode_inj in Heq. 
+     subst; contradiction.
+   Qed.
+   
+   Lemma std_update_multiple_not_in_rel_i W l ρ i :
+     i ∉ countable.encode <$> l → i ∈ dom (gset positive) (std_rel W) ↔
+             i ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)). 
    Proof. 
      intros Hnin.
      induction l; auto.
@@ -214,9 +247,22 @@ Section std_updates.
        apply elem_of_union. right. apply IHl; auto. 
      - simpl. rewrite dom_insert. intros Hin.
        apply elem_of_union in Hin as [Hcontr | Hin].
-       + apply elem_of_singleton in Hcontr. apply encode_inj in Hcontr. subst; contradiction.
+       + apply elem_of_singleton in Hcontr. subst. contradiction. 
        + apply IHl; auto.
-   Qed. 
+   Qed.
+   Lemma std_update_multiple_not_in_rel W l ρ (a : Addr) :
+     a ∉ l → (countable.encode a) ∈ dom (gset positive) (std_rel W) ↔
+             (countable.encode a) ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)). 
+   Proof. 
+     intros Hnin.
+     apply std_update_multiple_not_in_rel_i. 
+     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
+     apply encode_inj in Heq. 
+     subst; contradiction.
+   Qed.
+   
+   (* ---------------------------------------------------------------------------- *)
+   (* Some helper lemmas for various lemmas about using multiple updates in region *)
      
    Lemma related_sts_pub_update_multiple W l ρ :
      NoDup l →
@@ -267,7 +313,24 @@ Section std_updates.
    Proof.
      apply std_update_multiple_lookup. 
    Qed. 
-     
+
+
+   (* Multiple updates does not change dom, as long as the updated elements are a subset of original dom *)
+   Lemma std_update_multiple_dom_equal W l ρ :
+     (∀ i : positive, i ∈ countable.encode <$> l → i ∈ dom (gset positive) (std_sta W)) -> 
+     dom (gset positive) (std_sta W) = dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
+   Proof.
+     intros Hsub.
+     induction l; auto. 
+     rewrite /= /std_update.
+     rewrite dom_insert_L.
+     assert (countable.encode a ∈ countable.encode <$> a :: l) as Hin.
+     { apply elem_of_list_fmap. exists a. split;auto. apply elem_of_cons. by left. }
+     pose proof (Hsub _ Hin) as Hain. etrans;[apply IHl|].
+     - intros i Hi. apply Hsub. apply elem_of_cons. by right. 
+     - set_solver.
+   Qed. 
+   
    Lemma std_update_multiple_dom_top_sta W n ρ a :
      a ≠ top ->
      countable.encode a ∉ dom (gset positive) (std_sta W) →

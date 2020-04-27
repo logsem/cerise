@@ -1529,13 +1529,13 @@ Section heap.
 
   (* ---------------------------------------------------------------------------------------- *)
   (* ------------------- A REVOKED W IS MONOTONE WRT PRIVATE FUTURE WORLD ------------------- *)
-  
-  Lemma monotone_revoke_list_region_def_mono M Mρ W W' :
-    ⌜related_sts_priv_world W W'⌝ -∗ ⌜dom_equal (std_sta W') M⌝ -∗
-     sts_full_world sts_std (revoke W) -∗ region_map_def M Mρ (revoke W) -∗
-     sts_full_world sts_std (revoke W) ∗ region_map_def M Mρ (revoke W').
+
+  Lemma monotone_revoke_list_region_def_mono M Mρ W W1 W2 :
+    ⌜related_sts_priv_world W1 W2⌝ -∗
+     sts_full_world sts_std (revoke W) -∗ region_map_def M Mρ W1 -∗
+     sts_full_world sts_std (revoke W) ∗ region_map_def M Mρ W2.
   Proof.
-    iIntros (Hrelated Hdom) "Hfull Hr".
+    iIntros (Hrelated) "Hfull Hr".
     iDestruct (big_sepM_exists with "Hr") as (m') "Hr".
     iDestruct (big_sepM2_sep with "Hr") as "[HMρ Hr]".
     iAssert (∀ a ρ, ⌜m' !! a = Some ρ⌝ → ⌜ρ ≠ Temporary⌝)%I as %Htemp.
@@ -1557,9 +1557,20 @@ Section heap.
     iDestruct "Ha" as (γpred v p φ) "(Heq & HpO & Ha & #Hmono & Hpred & Hφ)".
     iFrame. 
     iExists _,_,_,_; iFrame "∗ #".
-    iNext. iApply "Hmono";[|iFrame].
-    iPureIntro. apply revoke_monotone; auto.
+    iNext. iApply "Hmono";[|iFrame]. auto. 
     Unshelve. apply _. 
+  Qed.
+  
+  Lemma monotone_revoke_list_region_def_mono_same M Mρ W W' :
+    ⌜related_sts_priv_world W W'⌝ -∗ 
+     sts_full_world sts_std (revoke W) -∗ region_map_def M Mρ (revoke W) -∗
+     sts_full_world sts_std (revoke W) ∗ region_map_def M Mρ (revoke W').
+  Proof.
+    iIntros (Hrelated) "Hfull Hr".
+    iDestruct (sts_full_world_std (revoke W) with "[] [$Hfull]") as %Hstd.
+    { iPureIntro. split;apply related_sts_priv_refl. }
+    iApply (monotone_revoke_list_region_def_mono with "[] Hfull Hr").
+    iPureIntro. apply revoke_monotone; auto.
   Qed.
 
   (* ---------------------------------------------------------------------------------------- *)
