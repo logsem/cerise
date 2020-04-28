@@ -18,10 +18,6 @@ Module cap_lang.
   | RWX
   | RWLX.
 
-  Lemma perm_eq_dec:
-    forall (p1 p2: Perm), {p1 = p2} + {p1 <> p2}.
-  Proof. destruct p1; destruct p2; auto. Qed.
-
   Inductive Locality: Type :=
   | Global
   | Local.
@@ -48,11 +44,14 @@ Module cap_lang.
     | None => inl 0%Z
     end.
 
-  Instance perm_dec_eq (p p' : Perm) : Decision (p = p') := _.
-  Instance local_dec_eq (l l' : Locality) : Decision (l = l') := _.  Proof. solve_decision. Qed.
-  Instance cap_dec_eq (c c' : Cap) : Decision (c = c').
-  Proof.
-    repeat (refine (prod_eq_dec _ _); unfold EqDecision; intros); solve_decision. Qed.
+  Instance perm_eq_dec : EqDecision Perm.
+  Proof. solve_decision. Defined.
+  Instance local_eq_dec : EqDecision Locality.
+  Proof. solve_decision. Defined.
+  Instance cap_eq_dec : EqDecision Cap.
+  Proof. solve_decision. Defined.
+  Instance word_eq_dec : EqDecision Word.
+  Proof. solve_decision. Defined.
 
   Notation "mem !m! a" := (MemLocate mem a) (at level 20).
   Notation "reg !r! r" := (RegLocate reg r) (at level 20).
@@ -849,9 +848,6 @@ Local Hint Unfold language.irreducible.
 
 Global Instance dec_pc c : Decision (isCorrectPC c).
 Proof. apply isCorrectPC_dec. Qed.
-
-Global Instance perm_eq_decide : EqDecision Perm.
-Proof. exact perm_eq_dec. Qed.
 
 (* There is probably a more general instance to be stated there...*)
 Instance Reflexive_ofe_equiv_Word : (Reflexive (ofe_equiv (leibnizO Word))).

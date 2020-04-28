@@ -20,20 +20,6 @@ Section cap_lang_rules.
     regs !! r = Some (inr ((p, g), b, e, a)) ∧
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true.
 
-  Local Instance option_dec_eq `(A_dec : ∀ x y : B, Decision (x = y)) (o o': option B) : Decision (o = o').
-  Proof. solve_decision. Qed.
-
-  Global Instance reg_allows_load_dec_eq  (regs : Reg) (r : RegName) p g b e a : Decision (reg_allows_load regs r p g b e a).
-  Proof.
-    unfold reg_allows_load. destruct (regs !! r). destruct s.
-    - right. intros Hfalse; destruct Hfalse; by exfalso.
-    - assert (Decision (Some (inr (A:=Z) p0) = Some (inr (p, g, b, e, a)))) as Edec.
-      refine (option_dec_eq _ _ _). intros.
-      refine (sum_eq_dec _ _); unfold EqDecision; intros. refine (cap_dec_eq x0 y0).
-      solve_decision.
-    - solve_decision.
-  Qed.
-
   Inductive Load_failure (regs: Reg) (r1 r2: RegName) (mem : PermMem):=
   | Load_fail_const z:
       regs !! r2 = Some (inl z) ->
