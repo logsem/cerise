@@ -287,6 +287,13 @@ Section STS.
     etrans;eauto. 
   Qed.
 
+  (* reflexivity lemams for sts pairs *)
+  Lemma related_sts_priv_world_refl W : related_sts_priv_world W W.
+  Proof. split; apply related_sts_priv_refl. Qed.
+
+  Lemma related_sts_pub_world_refl W : related_sts_pub_world W W.
+  Proof. split; apply related_sts_pub_refl. Qed.
+
   (* Helper functions for transitivity of sts pairs *)
   Lemma related_sts_pub_priv_trans_world W W' W'' :
     related_sts_pub_world W W' -> related_sts_priv_world W' W'' ->

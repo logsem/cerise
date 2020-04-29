@@ -1322,29 +1322,6 @@ Section heap.
     rewrite revoke_list_dom. apply revoke_list_related_sts_priv.
     done. 
   Qed.
-    
-  (* If a full private future world of W is standard, then W is standard *)
-  Lemma sts_full_world_std W W' :
-    (⌜related_sts_priv_world W W'⌝
-      -∗ sts_full_world sts_std W'
-    → ⌜rel_is_std W⌝)%I. 
-  Proof.
-    iIntros (Hrelated) "Hfull".
-    iDestruct "Hfull" as "[[% [% _] ] _]".
-    iPureIntro.
-    intros i Hx.
-    destruct Hrelated as [ (Hdom_std & Hdom_rel & Htransition) _].
-    assert ((∀ x : positive, x ∈ (dom (gset positive) W.1.2) → x ∈ (dom (gset positive) W'.1.2))) as H_std_elem_rel;
-      [by apply elem_of_subseteq|].
-    assert (i ∈ dom (gset positive) W.1.2) as H_i_rel; [by apply elem_of_dom|].
-    specialize (H_std_elem_rel i H_i_rel).
-    apply elem_of_dom in H_std_elem_rel as [ [r1' r2'] Hr'].
-    apply elem_of_dom in H_i_rel as [ [r1 r2] Hr].
-    specialize (Htransition i r1 r2 r1' r2' Hr Hr') as (Heq1 & Heq2 & _).
-    assert (is_Some (W'.1.2 !! i)) as Hsome'; eauto.    
-    rewrite H4 in Hr'; auto.
-    by inversion Hr'; subst. 
-  Qed.
 
   (* Helper lemmas for reasoning about a revoked domain *)
 
@@ -1545,9 +1522,8 @@ Section heap.
       iDestruct (sts_full_state_std with "Hfull Hstate") as %Hρ.
       iPureIntro. eapply revoke_lookup_non_temp; eauto. 
     }
-    iDestruct (sts_full_world_std (revoke W) with "[] [$Hfull]") as %Hstd.
-    { iPureIntro. split;apply related_sts_priv_refl. }
-    iFrame. 
+    iDestruct (sts_full_world_std (revoke W) with "Hfull") as %Hstd.
+    iFrame.
     iApply big_sepM_exists. iExists m'.
     iApply big_sepM2_sep. iFrame. 
     iApply (big_sepM2_mono with "Hr").
@@ -1567,8 +1543,7 @@ Section heap.
      sts_full_world sts_std (revoke W) ∗ region_map_def M Mρ (revoke W').
   Proof.
     iIntros (Hrelated) "Hfull Hr".
-    iDestruct (sts_full_world_std (revoke W) with "[] [$Hfull]") as %Hstd.
-    { iPureIntro. split;apply related_sts_priv_refl. }
+    iDestruct (sts_full_world_std (revoke W) with "Hfull") as %Hstd.
     iApply (monotone_revoke_list_region_def_mono with "[] Hfull Hr").
     iPureIntro. apply revoke_monotone; auto.
   Qed.
@@ -1973,7 +1948,7 @@ Section heap.
     sts_full_world sts_std W ∗ region W ==∗ sts_full_world sts_std (revoke W) ∗ region (revoke W).
   Proof.
     iIntros "[HW Hr]".
-    iDestruct (sts_full_world_std W W with "[] HW") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|]. 
+    iDestruct (sts_full_world_std W with "HW") as %Hstd.
     iMod (monotone_revoke_sts_full_world with "[$HW $Hr]") as "[HW Hr]".
     rewrite region_eq /region_def.
     iDestruct "Hr" as (M Mρ) "(HM & % & % & Hpreds)". 
@@ -1991,7 +1966,7 @@ Section heap.
                      ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝.
   Proof.
     iIntros (Hdup) "(Hl & HW & Hr)".
-    iDestruct (sts_full_world_std W W with "[] HW") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    iDestruct (sts_full_world_std W with "HW") as %Hstd.
     iAssert (⌜Forall (λ a, std_sta W !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I as %Htemps.
     { iDestruct (big_sepL_forall with "Hl") as %Htemps.
       iPureIntro. apply Forall_lookup. done. }
@@ -2015,7 +1990,7 @@ Section heap.
                      ∗ ⌜(std_sta (revoke W)) !! (countable.encode a) = Some (countable.encode Revoked)⌝.
   Proof.
     iIntros (Hdup) "(Hl & HW & Hr)".
-    iDestruct (sts_full_world_std W W with "[] HW") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    iDestruct (sts_full_world_std W with "HW") as %Hstd.
     iAssert (⌜Forall (λ a, std_sta W !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I as %Htemps.
     { iDestruct (big_sepL_sep with "Hl") as "[Htemps Hrel]".
       iDestruct (big_sepL_forall with "Htemps") as %Htemps.
@@ -2535,7 +2510,7 @@ Section heap.
       iMod ("IH" $! Hnin with "Hl Hfull Hr") as "(Hfull & Hr)"; auto.
       iClear "IH".
       destruct W as [ [Wstd_sta Wstd_rel] Wloc].
-      iDestruct (sts_full_world_std with "[] Hfull") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+      iDestruct (sts_full_world_std with "Hfull") as %Hstd.
       iDestruct "Hx" as (a HO) "(Hx & Hmono & Hφ)".
       iDestruct "Hr" as (M Mρ) "(HM & #Hdom & #Hdom' & Hr)". iDestruct "Hdom" as %Hdom. iDestruct "Hdom'" as %Hdom'.
       rewrite rel_eq /rel_def REL_eq RELS_eq. iDestruct "Hrel" as (γpred) "[HREL Hpred]".
@@ -2695,13 +2670,13 @@ Section heap.
        ==∗ (sts_full_world sts_std (close_list (countable.encode <$> l) W') ∗ region (close_list (countable.encode <$> l) W')))%I.
   Proof.
     iIntros (Hrelated) "(Hsts & Hr & Htemp)".
-    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    iDestruct (sts_full_world_std with "Hsts") as %Hstd.
     assert (related_sts_pub_world W' (close_list (countable.encode <$> l) W')) as Hrelated'.
     { apply close_list_related_sts_pub; auto. }
     assert (dom (gset positive) (std_sta W') = dom (gset positive) (std_sta (close_list (countable.encode <$> l) W'))) as Heq.
     { apply close_list_dom_eq. }
     iDestruct (region_monotone $! Heq Hrelated' with "Hr") as "Hr". clear Hrelated'. 
     iMod (close_list_consolidate _ _ l with "[] [] [$Hr $Hsts $Htemp]") as "[Hsts Hr]";[auto|eauto|iFrame;done].
-  Qed. 
-  
-End heap. 
+  Qed.
+
+End heap.
