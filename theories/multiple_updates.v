@@ -213,17 +213,21 @@ Section std_updates.
    Lemma std_update_multiple_not_in_sta_i W l ρ i :
      i ∉ encode <$> l → i ∈ dom (gset positive) (std_sta W) ↔
                                   i ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
-   Proof. 
-     intros Hnin.
+   Proof.
+     intros Hnin. induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hneq Hnin].
+     rewrite /= dom_insert. set_solver.
+   Qed.
+   Lemma std_update_multiple_in_sta_i W (l: list Addr) ρ i :
+     Forall (λ (a:Addr), is_Some (std_sta W !! encode a)) l →
+     i ∈ dom (gset positive) (std_sta W) ↔ i ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)).
+   Proof.
+     intros Hl.
      induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
-     split.
-     - intros Hin. simpl. rewrite dom_insert.
-       apply elem_of_union. right. apply IHl; auto. 
-     - simpl. rewrite dom_insert. intros Hin.
-       apply elem_of_union in Hin as [Hcontr | Hin].
-       + apply elem_of_singleton in Hcontr. subst. contradiction. 
-       + apply IHl; auto.
+     apply Forall_cons_1 in Hl as [Ha Hll].
+     cbn. rewrite dom_insert. split; [ set_solver |].
+     rewrite elem_of_union elem_of_singleton. intros [-> | Hi]; [| set_solver].
+     rewrite -elem_of_gmap_dom //.
    Qed.
    Lemma std_update_multiple_not_in_sta W l ρ (a : Addr) :
      a ∉ l → (encode a) ∈ dom (gset positive) (std_sta W) ↔
@@ -235,21 +239,13 @@ Section std_updates.
      apply encode_inj in Heq. 
      subst; contradiction.
    Qed.
-   
    Lemma std_update_multiple_not_in_rel_i W l ρ i :
      i ∉ encode <$> l → i ∈ dom (gset positive) (std_rel W) ↔
              i ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)). 
-   Proof. 
-     intros Hnin.
-     induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hneq Hnin]. 
-     split.
-     - intros Hin. simpl. rewrite dom_insert.
-       apply elem_of_union. right. apply IHl; auto. 
-     - simpl. rewrite dom_insert. intros Hin.
-       apply elem_of_union in Hin as [Hcontr | Hin].
-       + apply elem_of_singleton in Hcontr. subst. contradiction. 
-       + apply IHl; auto.
+   Proof.
+     intros Hnin. induction l; auto.
+     apply not_elem_of_cons in Hnin as [Hneq Hnin].
+     rewrite /= dom_insert. set_solver.
    Qed.
    Lemma std_update_multiple_not_in_rel W l ρ (a : Addr) :
      a ∉ l → (encode a) ∈ dom (gset positive) (std_rel W) ↔
