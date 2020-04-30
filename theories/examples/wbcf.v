@@ -1186,7 +1186,7 @@ Section wbcf.
            previously given (for instance the old sp). Rather than opening the stack, we need to REVOKE the region. 
            revoking the region thus allows us to PRIVATELY update the world. 
          *)
-        iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|]. 
+        iDestruct (sts_full_world_std with "Hsts") as %Hstd.
         iMod (monotone_revoke_keep W'' (region_addrs (a-210) (a-250)) with "[$Hsts $Hex Hstack_adv]")
           as "(Hsts & Hex & Hstack_adv_r)".
         { apply NoDup_ListNoDup, region_addrs_NoDup. }

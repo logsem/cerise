@@ -1268,7 +1268,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
        updates to it. We do not care about the stack resources, 
        as it currently in the revoked state. 
      *)
-    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd;[iPureIntro;split;apply related_sts_priv_refl|].
+    iDestruct (sts_full_world_std with "Hsts") as %Hstd.
     iAssert (⌜exists M, dom_equal (std_sta W) M⌝)%I as %Hdom.
     { rewrite region_eq /region_def. iDestruct "Hr" as (M) "(_ & % & _)". eauto. }
     apply extract_temps_split with (l:=region_addrs b_r e_r) in Hdom as [l' [Hdup Hiff] ];
@@ -1300,7 +1300,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
      *)
     iPrologue l Hprog_length "Hprog".
     apply contiguous_between_cons_inv_first in Hf2 as Heq. subst a_first. 
-    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd';[iPureIntro;split;apply related_sts_priv_refl|].
+    iDestruct (sts_full_world_std with "Hsts") as %Hstd'.
     assert (withinBounds (RWX, Global, d, d', d) = true) as Hwb.
     { isWithinBounds;[lia|]. revert Hd; clear. solve_addr. }
     iAssert (▷ (PC ↦ᵣ inr (pc_p, pc_g, pc_b, pc_e, a1)
@@ -1502,7 +1502,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
       iFrame. 
     }
     (* Next we close the adversary stack region so that it is Temporary *)
-    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd'';[iPureIntro;split;apply related_sts_priv_refl|]. 
+    iDestruct (sts_full_world_std with "Hsts") as %Hstd''.
     iMod (monotone_close _ (region_addrs stack_own_last e_r) RWLX (λ Wv, interp Wv.1 Wv.2)
             with "[$Hsts $Hr Hstack_adv]") as "[Hsts Hex]".
     { rewrite Hstack_eq. iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_val']".
@@ -1583,7 +1583,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
     { iApply fundamental. iLeft; auto. iExists RX. iSplit;[iPureIntro;apply PermFlows_refl|]. 
       iApply (adv_monotone with "Hadv_val"); auto. }
     (* We are now ready to show that all registers point to a valid word *)
-    iDestruct (sts_full_world_std with "[] Hsts") as %Hstd'';[iPureIntro;split;apply related_sts_priv_refl|].     
+    iDestruct (sts_full_world_std with "Hsts") as %Hstd''.
     iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W'' (r !r! r1))%I
       with "[-Hsts Hr Hmaps Hvalid Hna Hφ]" as "Hreg".
     { iIntros (r1).
@@ -1938,7 +1938,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         { iNext. iExists Released. iFrame. }
         iAssert (sts_full_world sts_std (revoke W4)) with "Hsts" as "Hsts". 
         (* now that we have privately updated our resources, we can close the region invariant for the adv stack *)
-        iDestruct (sts_full_world_std with "[] Hsts") as %Hstd3;[iPureIntro;split;apply related_sts_priv_refl|].
+        iDestruct (sts_full_world_std with "Hsts") as %Hstd3.
         (* to make the proofs easier, we assert that stack_end is indeed the last element of the stack *)
         assert (list.last (a2 :: a3 :: a4 :: stack_own_b :: stack_own) = Some stack_own_end) as Hlast.
         { apply contiguous_between_link_last with a2 stack_own_last; [auto|apply gt_Sn_O|].
@@ -2095,7 +2095,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
               * simpl in Hsome. apply Hrevoked. apply elem_of_list_lookup; eauto.  
         }   
         (* We are now ready to show that all registers point to a valid word *)
-        iDestruct (sts_full_world_std with "[] Hsts") as %Hstd5;[iPureIntro;split;apply related_sts_priv_refl|].     
+        iDestruct (sts_full_world_std with "Hsts") as %Hstd5.
         iAssert (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) W5 (r2 !r! r1))%I
           with "[-Hsts Hr Hmaps Hvalid Hna]" as "Hreg".
         { iIntros (r1).
@@ -2298,7 +2298,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             (* Before we can return to the adversary, we must clear the stack and registers. This will 
                allow us to release the local frame, and show we are in a public future world by reinstating 
                the full stack invariant *)
-            iDestruct (sts_full_world_std with "[] Hsts") as %Hstd6;[iPureIntro;split;apply related_sts_priv_refl|].     
+            iDestruct (sts_full_world_std with "Hsts") as %Hstd6.
             iMod (monotone_revoke_keep_alt _ (region_addrs stack_own_end e_r) with "[$Hsts $Hr]") as "(Hsts & Hr & Hstack_adv)";[apply NoDup_ListNoDup, region_addrs_NoDup|..]. 
             { iClear "Hreg' Hfull' full Hlocal Hrelj Hf4 Hrel Hinv Hadv_val Hfull2 Hfull3 Hlocal_1 Hrelk Hreg3".
               iAssert ( [∗ list] a39 ∈ region_addrs stack_own_end e_r, ⌜std_sta W6 !! countable.encode a39 = Some (countable.encode Temporary)⌝

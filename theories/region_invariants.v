@@ -751,6 +751,17 @@ Section heap.
     f_equal. by apply IHks.
   Qed.
 
+  Lemma delete_list_permutation {A B} `{Countable A, EqDecision A}
+        (l1 l2: list A) (m: gmap A B):
+    l1 ≡ₚ l2 → delete_list l1 m = delete_list l2 m.
+  Proof.
+    induction 1.
+    { reflexivity. }
+    { cbn. rewrite IHPermutation //. }
+    { cbn. rewrite delete_commute //. }
+    { rewrite IHPermutation1 //. }
+  Qed.
+
   Definition open_region_many_def (l : list Addr) (W : WORLD) : iProp Σ :=
     (∃ M Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
                     ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
@@ -769,6 +780,15 @@ Section heap.
     iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
     iSplitR; auto.
     iApply region_map_monotone; eauto.
+  Qed.
+
+  Lemma open_region_many_permutation l1 l2 W:
+    l1 ≡ₚ l2 → (open_region_many l1 W -∗ open_region_many l2 W)%I.
+  Proof.
+    intros Hperm.
+    rewrite open_region_many_eq /open_region_many_def.
+    iIntros "H". iDestruct "H" as (? ?) "(? & % & % & ?)".
+    rewrite !(delete_list_permutation l1 l2) //. iExists _,_. iFrame. eauto.
   Qed.
 
    Lemma region_open_prepare l W :
@@ -1115,7 +1135,37 @@ Section heap.
     specialize (Hrelated i _ _ _ _ Hi Hr') as (-> & -> & Hrelated).
     eauto. 
   Qed.
-  
+
+  (* If a full private future world of W is standard, then W is standard *)
+  Lemma sts_full_world_priv_std W W' :
+    (⌜related_sts_priv_world W W'⌝
+      -∗ sts_full_world sts_std W'
+    → ⌜rel_is_std W⌝)%I.
+  Proof.
+    iIntros (Hrelated) "Hfull".
+    iDestruct "Hfull" as "[[% [% _] ] _]".
+    iPureIntro.
+    intros i Hx.
+    destruct Hrelated as [ (Hdom_std & Hdom_rel & Htransition) _].
+    assert ((∀ x : positive, x ∈ (dom (gset positive) W.1.2) → x ∈ (dom (gset positive) W'.1.2))) as H_std_elem_rel;
+      [by apply elem_of_subseteq|].
+    assert (i ∈ dom (gset positive) W.1.2) as H_i_rel; [by apply elem_of_dom|].
+    specialize (H_std_elem_rel i H_i_rel).
+    apply elem_of_dom in H_std_elem_rel as [ [r1' r2'] Hr'].
+    apply elem_of_dom in H_i_rel as [ [r1 r2] Hr].
+    specialize (Htransition i r1 r2 r1' r2' Hr Hr') as (Heq1 & Heq2 & _).
+    assert (is_Some (W'.1.2 !! i)) as Hsome'; eauto.
+    rewrite H4 in Hr'; auto.
+    by inversion Hr'; subst.
+  Qed.
+
+  Lemma sts_full_world_std W :
+    sts_full_world sts_std W -∗ ⌜rel_is_std W⌝.
+  Proof.
+    iIntros. iApply sts_full_world_priv_std; eauto. iPureIntro.
+    apply related_sts_priv_world_refl.
+  Qed.
+
   Lemma std_rel_pub_Permanent x :
     (convert_rel std_rel_pub) (encode Permanent) x → x = encode Permanent.
   Proof.
