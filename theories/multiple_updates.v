@@ -329,8 +329,29 @@ Section std_updates.
      pose proof (Hsub _ Hin) as Hain. etrans;[apply IHl|].
      - intros i Hi. apply Hsub. apply elem_of_cons. by right. 
      - set_solver.
+   Qed.
+
+   (* In general, the domain is a subset of the updated domain *)
+   Lemma std_update_multiple_sta_dom_subseteq W l ρ :
+     dom (gset positive) (std_sta W) ⊆ dom (gset positive) (std_sta (std_update_multiple W l ρ)).
+   Proof.
+     apply elem_of_subseteq. intros x Hx.
+     destruct (decide (x ∈ countable.encode <$> l)). 
+     - apply elem_of_gmap_dom. exists (countable.encode ρ).
+       apply std_sta_update_multiple_lookup_in_i; auto.
+     - apply std_update_multiple_not_in_sta_i; auto.
+   Qed.
+   Lemma std_update_multiple_rel_dom_subseteq W l ρ :
+     dom (gset positive) (std_rel W) ⊆ dom (gset positive) (std_rel (std_update_multiple W l ρ)).
+   Proof.
+     apply elem_of_subseteq. intros x Hx.
+     destruct (decide (x ∈ countable.encode <$> l)). 
+     - apply elem_of_gmap_dom. eexists. 
+       apply std_rel_update_multiple_lookup_std_i; auto.
+     - apply std_update_multiple_not_in_rel_i; auto.
    Qed. 
-   
+ 
+   (* lemmas for updating a repetition of top *)
    Lemma std_update_multiple_dom_top_sta W n ρ a :
      a ≠ top ->
      countable.encode a ∉ dom (gset positive) (std_sta W) →
