@@ -624,12 +624,11 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
       Rather, we are updating all the Static regions back into Temporary ones *)
    Lemma related_pub_local_2 W W' W3 W6 b e l l' l1 l2 m1 m2 i j c c' :
      W' = ((revoke_std_sta W.1.1,W.1.2),(<[i:=countable.encode false]> W.2.1,W.2.2))
-     -> (∃ M, dom_equal W6.1.1 M)
      -> (b <= c < e)%a ∧ (b <= c' < e)%a
      (* l is the list of all revoked resources in W *)
-     -> (forall (a : Addr), W.1.1 !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l)
+     -> (forall i, W.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l)
      (* l' is the list of all addition revoked resources in W3 (other than [c,e)) *)
-     -> (forall (a : Addr), W3.1.1 !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l')
+     -> (forall i, W3.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l')
      (* m1 and m2 are the maps containing the local frame and the rest of the temporary resources *)
      -> (l = l1 ++ (region_addrs b e) ∧ l' = l2 ++ (region_addrs c e) ∧
         elements (dom (gset Addr) m1) = l1 ++ l2 ∧ elements (dom (gset Addr) m2) = region_addrs b c')
@@ -638,8 +637,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
      (* i is the awkward invariant *)
      → W.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv)
      -> (∃ (b : bool), W.2.1 !! i = Some (countable.encode b))
-     (* the final world W6 is standard *)
-     -> rel_is_std W6             
+     (* all worlds are standard *)
+     -> rel_is_std W ∧ rel_is_std W3 ∧ rel_is_std W6             
      → related_sts_pub_world
          (close_list_std_sta (countable.encode <$> region_addrs c e) W'.1.1, W'.1.2,
           (<[j:=countable.encode Live]> W'.2.1,
@@ -649,7 +648,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1),W3.2.2)) (region_addrs b c') (Static m2)) (l1 ++ l2) (Static m1)) W6
      → related_sts_pub_world W (std_update_temp_multiple W6 (l ++ l')).
    Proof.
-     intros Heq Hdom [Hbounds1 Hbounds2] Hiff1 Hiff2 Happ Hj1 Hj2 Hawk [x Hawki] HstdW6 Hrelated1 Hrelated2. 
+     intros Heq [Hbounds1 Hbounds2] Hiff1 Hiff2 Happ Hj1 Hj2 Hawk [x Hawki] (HstdW1 & HstdW3 & HstdW6) Hrelated1 Hrelated2. 
      subst W'.
      destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
      destruct W3 as [ [Wstd_sta3 Wstd_rel3] [Wloc_sta3 Wloc_rel3] ]. 
@@ -675,7 +674,78 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
        split;[|split].
        + etrans;[|apply std_update_multiple_sta_dom_subseteq]. auto. 
        + etrans;eauto. etrans;[|apply std_update_multiple_rel_dom_subseteq]. etrans;eauto.
-       + admit.
+       + intros k r1 r2 r1' r2' Hr Hr'.
+         assert (is_Some (Wstd_rel3 !! k)) as [ [s1 s2] Hs].
+         { apply elem_of_gmap_dom. apply elem_of_subseteq in Hstd_rel_dom1. apply Hstd_rel_dom1. 
+           assert (k ∈ dom (gset positive) Wstd_rel) as Hin;[apply elem_of_gmap_dom;eauto|auto]. } 
+         specialize (Hstd_related1 k r1 r2 s1 s2 Hr Hs) as [Heq1 [Heq2 Hstd_related1] ]. subst.
+         destruct (decide (k ∈ countable.encode <$> l ++ l')). 
+         * (* k is a revoked element, which is updated to static at the end *)
+           assert (is_Some (Wstd_rel6 !! k)) as [ [r6 r6'] Hr6]. 
+           { apply elem_of_gmap_dom. apply elem_of_subseteq in Hsub'; apply Hsub'. apply elem_of_gmap_dom;eauto. }
+           edestruct Hstd_related2 with (i0:=k) as [Heq1 [Heq2 Hrelated2] ];[|eauto|]. 
+           { destruct (decide (k ∈ countable.encode <$> l1 ++ l2)).
+             - rewrite std_rel_update_multiple_lookup_std_i;auto.
+             - rewrite std_rel_update_multiple_lookup_same_i;auto.
+               destruct (decide (k ∈ countable.encode <$> region_addrs b c')).
+               + rewrite std_rel_update_multiple_lookup_std_i;auto.
+               + rewrite std_rel_update_multiple_lookup_same_i;auto. rewrite /std_rel /=.
+                 apply HstdW3. eauto.
+           }
+           rewrite std_rel_update_multiple_lookup_std_i in Hr';auto. inversion Hr';subst.
+           assert (is_Some (Wstd_rel !! k)) as Hsome;eauto. apply HstdW1 in Hsome. rewrite Hsome in Hr. 
+           inversion Hr; subst. 
+           repeat split;auto.
+           intros x0 y Hx0 Hy. rewrite std_sta_update_multiple_lookup_in_i in Hy;auto. inversion Hy; subst.
+           (* apply elem_of_list_fmap in e0 as [a [Heqa e0] ]. subst. *)
+           rewrite fmap_app in e0. apply elem_of_app in e0 as [Hl | Hl']. 
+           ** (* k is a revoked element in W, which means it is Temporary *)
+             apply Hiff1 in Hl; auto. rewrite Hl in Hx0; inversion Hx0; subst. left.
+           ** (* k is a revoked element in W3, which means it is Temporary in W3 *)
+             apply Hiff2 in Hl'; auto.
+             (* if x0 is temp we are done *)
+             destruct (decide (x0 = countable.encode Temporary));[subst;left|].
+             (* o/w it will get revoked, then possibly closed: either case we are in a public future world *)
+             assert (Wstd_sta !! k ≠ Some (countable.encode Temporary)) as Hne;[congruence|].
+             rewrite -revoke_monotone_lookup_same in Hx0; auto.
+             (* if x0 is revoked we are done *)
+             destruct (decide (x0 = countable.encode Revoked));[subst;right with (countable.encode Temporary);[|left]|].
+             exists Revoked,Temporary. repeat split;auto. constructor.
+             (* otherwise we know that Temporary is in a public future state to x0 by the first related1 *)
+             assert (revoke_std_sta Wstd_sta !! k ≠ Some (countable.encode Revoked)) as Hne';[congruence|].
+             rewrite (close_list_std_sta_same_alt _ (countable.encode <$> region_addrs c e)) in Hx0; auto. 
+         * (* if k is never a revoked element, we can apply its transitions during the two future world relations *)
+           destruct Happ as [-> [-> _] ]. repeat rewrite fmap_app in n.
+           apply not_elem_of_app in n as [Hn1 Hn2].
+           apply not_elem_of_app in Hn1 as [Hl1 Hbe].
+           apply not_elem_of_app in Hn2 as [Hl2 Hce].
+           assert (Hbe' := Hbe). 
+           rewrite (region_addrs_split _ c') in Hbe;[|revert Hbounds2;clear;solve_addr].
+           rewrite fmap_app in Hbe. apply not_elem_of_app in Hbe as [Hbc' Hc'e].
+           rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr';auto.
+           2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
+           edestruct Hstd_related2 with (i0:=k) as [Heq1 [Heq2 Hrelated2] ];[|eauto|]. 
+           { rewrite std_rel_update_multiple_lookup_same_i;[|rewrite fmap_app; apply not_elem_of_app;auto].
+             rewrite std_rel_update_multiple_lookup_same_i; auto. eauto. }
+           subst. repeat split;auto.
+           intros x0 y Hx0 Hy.
+           assert (k ∈ dom (gset positive) Wstd_sta3) as Hin3. 
+           { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom.
+             apply close_list_std_sta_is_Some. rewrite -revoke_std_sta_lookup_Some. eauto. }
+           apply elem_of_dom in Hin3 as [y3 Hy3].
+           trans y3.
+           ** apply Hstd_related1; auto. rewrite -close_list_std_sta_same; auto.
+              rewrite revoke_monotone_lookup_same;auto.
+              intros Hcontr. apply Hiff1 in Hcontr. rewrite fmap_app in Hcontr.
+              apply elem_of_app in Hcontr as [Hcontr | Hcontr]; done. 
+           ** rewrite std_sta_update_multiple_lookup_same_i in Hy.
+              2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
+              apply Hrelated2; auto.
+              rewrite std_sta_update_multiple_lookup_same_i;[|rewrite fmap_app;apply not_elem_of_app;split;auto]. 
+              rewrite std_sta_update_multiple_lookup_same_i;[|auto].
+              rewrite -close_list_std_sta_same; auto. rewrite revoke_monotone_lookup_same;auto.
+              intros Hcontr. apply Hiff2 in Hcontr. rewrite fmap_app in Hcontr.
+              apply elem_of_app in Hcontr as [Hcontr | Hcontr]; done.
      - (* owned resources *)
        destruct Hrelated1 as [_ Hloc_related1]. 
        destruct Hrelated2 as [_ Hloc_related2]. simpl in *. 
@@ -689,357 +759,35 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
        + rewrite std_update_multiple_loc_rel /=. etrans;[|apply Hloc_rel_dom2]. 
          repeat rewrite std_update_multiple_loc_rel /=. etrans;[|apply Hloc_rel_dom1].
          rewrite dom_insert_L;clear;set_solver. 
-       + 
-
-
-         
-   (*
-   Lemma related_pub_local_2 W W' W3 W6 b e l i k j c c' :
-     W' = ((revoke_std_sta W.1.1,W.1.2),(<[i:=countable.encode false]> W.2.1,W.2.2))
-     -> (∃ M, dom_equal W6.1.1 M)
-     -> (forall (a : Addr), W.1.1 !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l)
-     -> (b <= c < e)%a ∧ (b <= c' < e)%a -> (∃ l', l = l' ++ (region_addrs b e))
-     -> j ∉ dom (gset positive) W'.2.1 → j ∉ dom (gset positive) W'.2.2
-     → k ∉ dom (gset positive) (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1)) → k ∉ dom (gset positive) W3.2.2
-     → W.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv)
-     -> (∃ (b : bool), W.2.1 !! i = Some (countable.encode b))
-     -> rel_is_std W6             
-     → related_sts_pub_world
-         (close_list_std_sta (countable.encode <$> region_addrs c e) W'.1.1, W'.1.2,
-          (<[j:=countable.encode Live]> W'.2.1,
-           <[j:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> W'.2.2)) W3
-     → related_sts_pub_world
-         (close_list_std_sta (countable.encode <$> region_addrs c' e)
-                             (revoke_std_sta W3.1.1), W3.1.2,
-          (<[k:=countable.encode Live]>
-           (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1)),
-           <[k:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> W3.2.2)) W6
-     → related_sts_pub_world W (close_list_std_sta (countable.encode <$> l) (revoke_std_sta W6.1.1),
-                                W6.1.2, (<[k:=countable.encode Released]> W6.2.1, W6.2.2)).
-   Proof.
-     intros Heq Hdom Hiff1 Hbounds Happ Hj1 Hj2 Hk1 Hk2 Hawk [x Hawki] HstdW6 Hrelated1 Hrelated2. 
-     subst W'. 
-     destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
-     destruct W3 as [ [Wstd_sta3 Wstd_rel3] [Wloc_sta3 Wloc_rel3] ]. 
-     destruct W6 as [ [Wstd_sta6 Wstd_rel6] [Wloc_sta6 Wloc_rel6] ].
-     simpl in *.
-     split; simpl. 
-     - destruct Hrelated1 as [Hstd_related1 _]. 
-       destruct Hrelated2 as [Hstd_related2 _]. simpl in *. 
-       destruct Hstd_related2 as [Hstd_sta_dom2 [Hstd_rel_dom2 Hstd_related2] ].
-       destruct Hstd_related1 as [Hstd_sta_dom1 [Hstd_rel_dom1 Hstd_related1] ].
-       assert (dom (gset positive) Wstd_sta ⊆ dom (gset positive) Wstd_sta6) as Hsub.
-       { rewrite -close_list_dom_eq -revoke_dom_eq in Hstd_sta_dom2.
-         rewrite -close_list_dom_eq -revoke_dom_eq in Hstd_sta_dom1. etrans;eauto. }
-       split;[|split].
-       + rewrite -close_list_dom_eq -revoke_dom_eq. auto. 
-       + etrans;eauto. 
-       + intros i0 r1 r2 r1' r2' Hr Hr'.
-         assert (i0 ∈ dom (gset positive) Wstd_rel3) as Hin.
-         { apply elem_of_subseteq in Hstd_rel_dom1. apply Hstd_rel_dom1. apply elem_of_dom. eauto. }
-         apply elem_of_dom in Hin as [ [r3 r3'] Hr3].
-         specialize (Hstd_related2 i0 r3 r3' r1' r2' Hr3 Hr') as [Heq1 [Heq2 Hstd_related2] ]. subst. 
-         specialize (Hstd_related1 i0 r1 r2 r1' r2' Hr Hr3) as [Heq1 [Heq2 Hstd_related1] ]. subst.
-         repeat (split;auto).
-         assert (rel_is_std_i (Wstd_sta6, Wstd_rel6, (Wloc_sta6, Wloc_rel6)) i0) as Hstd6.
-         { apply HstdW6. eauto. }
-         rewrite Hstd6 in Hr'. inversion Hr'. subst. intros x' y Hx' Hy.
-         assert (∃ (a : Addr), countable.encode a = i0) as [a Ha].
-         { revert Hdom Hsub Hx'. clear. intros [M HM] Hsub Hx'.
-           apply elem_of_subseteq in Hsub.
-           assert (i0 ∈ dom (gset positive) Wstd_sta).
-           { apply elem_of_dom. eauto. }
-           specialize (Hsub _ H). apply elem_of_dom in Hsub.
-           rewrite /dom_equal in HM. apply HM in Hsub as [a [Ha _] ]. eauto. 
-         } subst. 
-         destruct (decide (a ∈ l)).
-         ++ apply Hiff1 in e0 as Htemp1.
-            rewrite Htemp1 in Hx'. inversion Hx'; subst.
-            destruct (decide (a ∈ (region_addrs c e))),(decide (a ∈ (region_addrs c' e))). 
-            +++ apply revoke_lookup_Temp in Htemp1.
-                apply close_list_std_sta_revoked with (l:=countable.encode <$> region_addrs c e) in Htemp1;
-                  [|apply elem_of_list_fmap;eauto]. 
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta3) as Hin3. 
-                { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin3 as [y3 Hy3].
-                specialize (Hstd_related1 _ _ Htemp1 Hy3). 
-                apply std_rel_pub_rtc_Temporary in Hstd_related1;auto. subst. 
-                apply revoke_lookup_Temp in Hy3.
-                apply close_list_std_sta_revoked with (l:=countable.encode <$> region_addrs c' e) in Hy3;
-                  [|apply elem_of_list_fmap;eauto]. 
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin6 as [y6 Hy6].
-                specialize (Hstd_related2 _ _ Hy3 Hy6).
-                apply std_rel_pub_rtc_Temporary in Hstd_related2;auto. subst.
-                apply revoke_lookup_Temp in Hy6.
-                apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                  [|apply elem_of_list_fmap;eauto].
-                rewrite Hy in Hy6. inversion Hy6. subst. left.
-            +++ apply revoke_lookup_Temp in Htemp1.
-                apply close_list_std_sta_revoked with (l:=countable.encode <$> region_addrs c e) in Htemp1;
-                  [|apply elem_of_list_fmap;eauto]. 
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta3) as Hin3. 
-                { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin3 as [y3 Hy3].
-                specialize (Hstd_related1 _ _ Htemp1 Hy3). 
-                apply std_rel_pub_rtc_Temporary in Hstd_related1;auto. subst. 
-                apply revoke_lookup_Temp in Hy3.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3.
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin6 as [y6 Hy6].
-                specialize (Hstd_related2 _ _ Hy3 Hy6). 
-                apply std_rel_pub_rtc_Revoked in Hstd_related2 as [Htemporary | Hrevoked];auto. 
-                ++++ subst. apply revoke_lookup_Temp in Hy6.
-                     apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                       [|apply elem_of_list_fmap;eauto].
-                     rewrite Hy in Hy6. inversion Hy6. subst. left.
-                ++++ subst. apply revoke_lookup_Revoked in Hy6.
-                     apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                       [|apply elem_of_list_fmap;eauto].
-                     rewrite Hy in Hy6. inversion Hy6. subst. left.
-                ++++ intros Hcontr. apply elem_of_list_fmap in Hcontr.
-                     destruct Hcontr as [y' [Heq Hcontr] ]. 
-                     apply encode_inj in Heq. subst. contradiction.
-            +++ apply revoke_lookup_Temp in Htemp1.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c e)) in Htemp1.
-                2: { intros Hcontr. apply elem_of_list_fmap in Hcontr.
-                     destruct Hcontr as [y' [Heq Hcontr] ]. apply encode_inj in Heq. subst. contradiction. }
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta3) as Hin3. 
-                { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin3 as [y3 Hy3].
-                specialize (Hstd_related1 _ _ Htemp1 Hy3). 
-                apply std_rel_pub_rtc_Revoked in Hstd_related1 as [Htemp | Hrev];auto; subst. 
-                ++++ apply revoke_lookup_Temp in Hy3.
-                     apply (close_list_std_sta_revoked _ (countable.encode <$> region_addrs c' e)) in Hy3.
-                     2: { apply elem_of_list_fmap. eauto. }
-                     assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                     { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                     apply elem_of_dom in Hin6 as [y6 Hy6].
-                     specialize (Hstd_related2 _ _ Hy3 Hy6). 
-                     apply std_rel_pub_rtc_Temporary in Hstd_related2 as Heq;auto. subst.
-                      apply revoke_lookup_Temp in Hy6.
-                      apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                        [|apply elem_of_list_fmap;eauto].
-                      rewrite Hy in Hy6. inversion Hy6. subst. left.
-                ++++ apply revoke_lookup_Revoked in Hy3.
-                     apply (close_list_std_sta_revoked _ (countable.encode <$> region_addrs c' e)) in Hy3.
-                     2: { apply elem_of_list_fmap. eauto. }
-                     assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                     { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                     apply elem_of_dom in Hin6 as [y6 Hy6].
-                     specialize (Hstd_related2 _ _ Hy3 Hy6). 
-                     apply std_rel_pub_rtc_Temporary in Hstd_related2 as Heq;auto. subst.
-                      apply revoke_lookup_Temp in Hy6.
-                      apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                        [|apply elem_of_list_fmap;eauto].
-                      rewrite Hy in Hy6. inversion Hy6. subst. left.
-            +++ apply revoke_lookup_Temp in Htemp1.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c e)) in Htemp1.
-                2: { intros Hcontr. apply elem_of_list_fmap in Hcontr.
-                     destruct Hcontr as [y' [Heq Hcontr] ]. apply encode_inj in Heq. subst. contradiction. }
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta3) as Hin3. 
-                { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin3 as [y3 Hy3].
-                specialize (Hstd_related1 _ _ Htemp1 Hy3). 
-                apply std_rel_pub_rtc_Revoked in Hstd_related1 as [Htemp | Hrev];auto; subst. 
-                ++++ apply revoke_lookup_Temp in Hy3.
-                     rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3.
-                     2: { intros Hcontr. apply elem_of_list_fmap in Hcontr.
-                          destruct Hcontr as [y' [Heq Hcontr] ]. apply encode_inj in Heq. subst. contradiction. }
-                     assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                     { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                     apply elem_of_dom in Hin6 as [y6 Hy6].
-                     specialize (Hstd_related2 _ _ Hy3 Hy6). 
-                     apply std_rel_pub_rtc_Revoked in Hstd_related2 as [Htemp | Hrev];auto; subst. 
-                     { apply revoke_lookup_Temp in Hy6.
-                       apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                         [|apply elem_of_list_fmap;eauto].
-                       rewrite Hy in Hy6. inversion Hy6. subst. left. }
-                     { apply revoke_lookup_Revoked in Hy6.
-                       apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                         [|apply elem_of_list_fmap;eauto].
-                       rewrite Hy in Hy6. inversion Hy6. subst. left. }
-                ++++ apply revoke_lookup_Revoked in Hy3.
-                     rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3.
-                     2: { intros Hcontr. apply elem_of_list_fmap in Hcontr.
-                          destruct Hcontr as [y' [Heq Hcontr] ]. apply encode_inj in Heq. subst. contradiction. }
-                     assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                     { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                     apply elem_of_dom in Hin6 as [y6 Hy6].
-                     specialize (Hstd_related2 _ _ Hy3 Hy6). 
-                     apply std_rel_pub_rtc_Revoked in Hstd_related2 as [Htemp | Hrev];auto; subst. 
-                     { apply revoke_lookup_Temp in Hy6.
-                       apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                         [|apply elem_of_list_fmap;eauto].
-                       rewrite Hy in Hy6. inversion Hy6. subst. left. }
-                     { apply revoke_lookup_Revoked in Hy6.
-                       apply close_list_std_sta_revoked with (l:=countable.encode <$> l) in Hy6;
-                         [|apply elem_of_list_fmap;eauto].
-                       rewrite Hy in Hy6. inversion Hy6. subst. left. }
-         ++ assert (a ∉ region_addrs c e) as Hnin.
-            { intros Hcontr. destruct Happ as [l' Happ]; subst.
-              apply not_elem_of_app in n as [Hl' Hbe]. 
-              rewrite (region_addrs_split _ c _) in Hbe;[|solve_addr].
-              apply not_elem_of_app in Hbe as [_ Hn]. contradiction. }
-            assert (a ∉ region_addrs c' e) as Hnin'. 
-            { intros Hcontr. destruct Happ as [l' Happ]; subst.
-              apply not_elem_of_app in n as [Hl' Hbe]. 
-              rewrite (region_addrs_split _ c' _) in Hbe;[|solve_addr].
-              apply not_elem_of_app in Hbe as [_ Hn]. contradiction. }
-            assert (Wstd_sta !! countable.encode a ≠ Some (countable.encode Temporary)) as Hne.
-            { intros Hcontr. apply Hiff1 in Hcontr. contradiction. }
-            assert (x' ≠ countable.encode Temporary) as Hne'.
-            { intros Hcontr; subst. contradiction. }
-            rewrite -revoke_monotone_lookup_same in Hx'; auto. 
-            rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c e)) in Hx'. 
-            2: { intro Hcontr. apply elem_of_list_fmap in Hcontr as [a' [Ha' Hcontr] ]. 
-                 apply encode_inj in Ha'. inversion Ha'. subst. contradiction. }
-            assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta3) as Hin3. 
-            { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom. eauto. }
-            apply elem_of_dom in Hin3 as [y3 Hy3].
-            specialize (Hstd_related1 _ _ Hx' Hy3).
-            assert (countable.encode a ∉ countable.encode <$> l) as Hninl.
-            { intro Hcontr. apply elem_of_list_fmap in Hcontr as [a' [Ha' Hcontr] ].
-              destruct Happ as [l' Happ]; subst. apply not_elem_of_app in n as [Hl' Hbe]. 
-              apply encode_inj in Ha'. inversion Ha'. subst.
-              apply elem_of_app in Hcontr as [Hcontr | Hcontr]; contradiction. }
-            apply std_rel_pub_rtc_not_temp_cases in Hstd_related1 as [ [Heq1 Heq2] | [ [m [Heq1 Heq2] ] | Heq] ]. 
-            +++ subst. apply revoke_lookup_Temp in Hy3.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3; auto. 
-                 2: { intro Hcontr. apply elem_of_list_fmap in Hcontr as [a' [Ha' Hcontr] ]. 
-                      apply encode_inj in Ha'. inversion Ha'. subst. contradiction. }
-                 assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                 { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                 apply elem_of_dom in Hin6 as [y6 Hy6].
-                 specialize (Hstd_related2 _ _ Hy3 Hy6).
-                 apply std_rel_pub_rtc_Revoked in Hstd_related2 as [Htemp | Hrev];auto. 
-                 ++++ subst. apply revoke_lookup_Temp in Hy6.
-                      rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6; auto. 
-                      rewrite Hy6 in Hy. inversion Hy. left. 
-                 ++++ subst. apply revoke_lookup_Revoked in Hy6.
-                      rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6;auto. 
-                      rewrite Hy6 in Hy. inversion Hy. left.
-            +++ subst. apply revoke_lookup_Temp in Hy3.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3; auto. 
-                 2: { intro Hcontr. apply elem_of_list_fmap in Hcontr as [a' [Ha' Hcontr] ]. 
-                      apply encode_inj in Ha'. inversion Ha'. subst. contradiction. }
-                 assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                 { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                 apply elem_of_dom in Hin6 as [y6 Hy6].
-                 specialize (Hstd_related2 _ _ Hy3 Hy6).
-                 apply std_rel_pub_rtc_Revoked in Hstd_related2 as [Htemp | Hrev];auto. 
-                 ++++ subst. apply revoke_lookup_Temp in Hy6.
-                      rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6; auto. 
-                      rewrite Hy6 in Hy. inversion Hy. subst.
-                      right with (countable.encode Temporary).
-                      repeat eexists. constructor.
-                      right with (countable.encode Revoked);[|left]. repeat eexists. 
-                 ++++ subst. apply revoke_lookup_Revoked in Hy6.
-                      rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6;auto. 
-                      rewrite Hy6 in Hy. inversion Hy. left.
-            +++ subst. clear Hne. 
-                assert (Wstd_sta3 !! countable.encode a ≠ Some (countable.encode Temporary)) as Hne.
-                { intros Hcontr. rewrite Hy3 in Hcontr. inversion Hcontr. subst. contradiction. }
-                rewrite -revoke_monotone_lookup_same in Hy3; auto.
-                rewrite (close_list_std_sta_same _ (countable.encode <$> region_addrs c' e)) in Hy3. 
-                2: { intro Hcontr. apply elem_of_list_fmap in Hcontr as [a' [Ha' Hcontr] ]. 
-                     apply encode_inj in Ha'. inversion Ha'. subst. contradiction. }
-                assert ((countable.encode a) ∈ dom (gset positive) Wstd_sta6) as Hin6. 
-                { apply elem_of_subseteq in Hstd_sta_dom2. apply Hstd_sta_dom2. apply elem_of_dom. eauto. }
-                apply elem_of_dom in Hin6 as [y6 Hy6].
-                specialize (Hstd_related2 _ _ Hy3 Hy6).
-                apply std_rel_pub_rtc_not_temp_cases in Hstd_related2 as [ [Heq1 Heq2] | Heq]. 
-                ++++ subst. apply revoke_lookup_Temp in Hy6.
-                     rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6;auto. 
-                     rewrite Hy6 in Hy. inversion Hy. left. 
-                ++++ subst. clear Hne. 
-                     assert (Wstd_sta6 !! countable.encode a ≠ Some (countable.encode Temporary)) as Hne.
-                     { intros Hcontr. rewrite Hy6 in Hcontr. inversion Hcontr. contradiction. }
-                     rewrite -revoke_monotone_lookup_same in Hy6; auto.
-                     rewrite (close_list_std_sta_same _ (countable.encode <$> l)) in Hy6; auto. 
-                     rewrite Hy6 in Hy. inversion Hy. left. 
-     - destruct Hrelated1 as [_ Hloc_related1]. 
-       destruct Hrelated2 as [_ Hloc_related2]. simpl in *. 
-       destruct Hloc_related2 as [Hloc_sta_dom2 [Hloc_rel_dom2 Hloc_related2] ].
-       destruct Hloc_related1 as [Hloc_sta_dom1 [Hloc_rel_dom1 Hloc_related1] ].
-       split;[|split]. 
-       + apply insert_id in Hawki. rewrite -Hawki.
-         assert (dom (gset positive) (<[i:=countable.encode x]> Wloc_sta) ⊆
-                     dom (gset positive) (<[j:=countable.encode Live]> (<[i:=countable.encode false]> Wloc_sta))) as Hsub. 
-         { trans (dom (gset positive) (<[i:=countable.encode false]> Wloc_sta));[repeat rewrite dom_insert;done|]. 
-           repeat rewrite dom_insert. apply union_subseteq_r. }
-         etrans;[apply Hsub|]. 
-         etrans;[apply Hloc_sta_dom1|]. 
-         assert (k ∈ dom (gset positive) Wloc_sta6) as Hin. 
-         { apply elem_of_subseteq in Hloc_sta_dom2. apply Hloc_sta_dom2. apply elem_of_dom.
-           rewrite lookup_insert; eauto. }
-         rewrite dom_insert.
-         trans (dom (gset positive) Wloc_sta6);[|apply union_subseteq_r].
-         etrans;[|apply Hloc_sta_dom2].
-         repeat rewrite dom_insert. repeat rewrite union_assoc. apply union_subseteq_r.
-       + etrans;[|apply Hloc_rel_dom2].
-         trans (dom (gset positive) (<[j:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> Wloc_rel));
-           [rewrite dom_insert;apply union_subseteq_r|].
-         etrans;[apply Hloc_rel_dom1|]. rewrite dom_insert. apply union_subseteq_r.
-       + intros i0 r1 r2 r1' r2' Hr Hr'. 
-         destruct (decide (i0 = j)). 
-         { subst. assert (j ∈ dom (gset positive) Wloc_rel) as Hcontr.
-           apply elem_of_dom. eauto. contradiction. }
-         destruct (decide (i0 = k)). 
-         { subst. assert (k ∈ dom (gset positive) Wloc_rel3) as Hcontr;[|contradiction].
-           assert (k ∈ dom (gset positive) Wloc_rel) as Hk4;[apply elem_of_dom;eauto|]. 
-           apply elem_of_subseteq in Hloc_rel_dom1. apply Hloc_rel_dom1.
-           apply elem_of_dom. rewrite lookup_insert_ne; auto. eauto. 
-         }
-         destruct (decide (i0 = i)). 
-         { subst. assert (i ∈ dom (gset positive) Wloc_rel3) as Hin3.
-           { apply elem_of_subseteq in Hloc_rel_dom1. apply Hloc_rel_dom1. apply elem_of_dom.
-             rewrite lookup_insert_ne;auto. eauto. }
-           apply elem_of_dom in Hin3 as [ [r3 r3'] Hr3]. 
-           specialize (Hloc_related1 i r1 r2 r3 r3'). 
-           rewrite lookup_insert_ne in Hloc_related1; auto.
-           destruct Hloc_related1 as [Heq1 [Heq2 Hloc_related1] ]; auto. subst.
-           specialize (Hloc_related2 i r3 r3' r1' r2').
-           rewrite lookup_insert_ne in Hloc_related2; auto.
-           destruct Hloc_related2 as [Heq1 [Heq2 Hloc_related2] ]; auto. subst.
-           rewrite Hawk in Hr. inversion Hr. subst.
-           repeat (split;auto).
-           intros x0 y Hx0 Hy.
-           rewrite lookup_insert_ne in Hy; auto.
-           specialize (Hloc_related2 (countable.encode true) y).
-           assert (rtc (convert_rel awk_rel_pub) (countable.encode true) y) as Htrue.
-           { apply Hloc_related2; auto. do 2 (rewrite lookup_insert_ne; auto). apply lookup_insert. }
-           apply rtc_rel_pub in Htrue;auto. subst. rewrite Hawki in Hx0. inversion Hx0. subst.
-           destruct x;[left|right with (countable.encode true);[|left] ].
-           exists false, true. repeat (split;auto). by left. 
-         }
-         subst. assert (i0 ∈ dom (gset positive) Wloc_rel3) as Hin3.
-         { apply elem_of_subseteq in Hloc_rel_dom1. apply Hloc_rel_dom1. apply elem_of_dom.
-           rewrite lookup_insert_ne;auto. eauto. }
-         apply elem_of_dom in Hin3 as [ [r3 r3'] Hr3]. 
-         specialize (Hloc_related1 i0 r1 r2 r3 r3'). 
-         rewrite lookup_insert_ne in Hloc_related1; auto.
-         specialize (Hloc_related1 Hr Hr3) as [Heq1 [Heq2 Hloc_related1] ]. subst. 
-         specialize (Hloc_related2 i0 r3 r3' r1' r2'). 
-         rewrite lookup_insert_ne in Hloc_related2;auto.
-         specialize (Hloc_related2 Hr3 Hr') as [Heq1 [Heq2 Hloc_related2] ]. subst. 
-         repeat (split;auto).
-         intros x0 y Hx0 Hy.
-         assert (i0 ∈ dom (gset positive) Wloc_sta3) as Hin3'. 
-         { apply elem_of_subseteq in Hloc_sta_dom1. apply Hloc_sta_dom1. apply elem_of_dom.
-           repeat rewrite lookup_insert_ne;auto. eauto. }
-         apply elem_of_dom in Hin3' as [x0' Hx0']. 
-         specialize (Hloc_related1 x0 x0'). 
-         assert (rtc r1' x0 x0') as Hrtc1.
-         { apply Hloc_related1; auto. repeat (rewrite lookup_insert_ne;auto). }
-         specialize (Hloc_related2 x0' y). 
-         assert (rtc r1' x0' y) as Hrtc2.
-         { apply Hloc_related2; auto. repeat (rewrite lookup_insert_ne;auto). rewrite lookup_insert_ne in Hy; auto. }
-         etrans; eauto. 
+       + rewrite std_update_multiple_loc_sta std_update_multiple_loc_rel /=.
+         repeat rewrite std_update_multiple_loc_sta std_update_multiple_loc_rel /= in Hloc_related2.
+         intros k r1 r2 r1' r2' Hr Hr'.
+         assert (is_Some (Wloc_rel3 !! k)) as [ [s1 s2] Hs].
+         { apply elem_of_gmap_dom. apply elem_of_subseteq in Hloc_rel_dom1; apply Hloc_rel_dom1.
+           assert (k ∈ dom (gset positive) Wloc_rel) as Hin;[apply elem_of_gmap_dom;eauto|].
+           rewrite dom_insert_L. revert Hin. clear. set_solver. }
+         assert (j ≠ k) as Hne.
+         { intros Hcontr;subst. assert (k ∈ dom (gset positive) Wloc_rel); [|done].
+           apply elem_of_dom. eauto. }
+         edestruct Hloc_related1 with (i0:=k) as [Heq1 [Heq2 Hrelated] ];[rewrite lookup_insert_ne;eauto|eauto|subst]. 
+         edestruct Hloc_related2 with (i0:=k) as [Heq1 [Heq2 Hrelated'] ];[eauto|eauto|subst]. 
+         repeat split;auto. intros x0 y Hx0 Hy. rewrite lookup_insert_ne in Hrelated;auto.
+         assert (is_Some (Wloc_sta3 !! k)) as [y3 Hy3].
+         { apply elem_of_gmap_dom. apply elem_of_subseteq in Hloc_sta_dom1; apply Hloc_sta_dom1.
+           assert (k ∈ dom (gset positive) Wloc_sta) as Hin;[apply elem_of_gmap_dom;eauto|].
+           repeat rewrite dom_insert_L. revert Hin. clear. set_solver. }
+         rewrite lookup_insert_ne in Hrelated';auto.
+         destruct (decide (i = k));[subst|].
+         * rewrite Hawk in Hr. inversion Hr; subst.           
+           rewrite lookup_insert in Hrelated. rewrite lookup_insert in Hrelated'.
+           rewrite Hawki in Hx0. inversion Hx0;subst.
+           destruct x;[apply Hrelated'; auto|].
+           etrans;[|apply Hrelated']; auto. right with (countable.encode true);[|left].
+           exists false,true. repeat split;auto. by constructor. 
+         * rewrite lookup_insert_ne in Hrelated;auto. rewrite lookup_insert_ne in Hrelated';auto.
+           etrans;[apply Hrelated|apply Hrelated']; eauto.
    Qed. 
-    *)
+         
             
    (* The proof will also go through a number of register states, the following lemmas
       are useful for each of those states *)
@@ -1318,7 +1066,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
       with "[HPC Hinstr Hr_env Hr Hsts]" as "Hstore_step".
     { iIntros "Hcont". 
       (* store r_env 0 *)
-      iInv ι as (x) "[>Hstate Hb]" "Hcls".
+      iInv ι ias (x) "[>Hstate Hb]" "Hcls".
       destruct x; iDestruct "Hb" as ">Hb".
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
           [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC a0 a_last|iContiguous_next Hf2 0|auto|auto|..].
