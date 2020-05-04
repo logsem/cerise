@@ -790,10 +790,6 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
            etrans;[apply Hrelated|apply Hrelated']; eauto.
    Qed. 
          
-            
-   (* The proof will also go through a number of register states, the following lemmas
-      are useful for each of those states *)
-  Admitted.
 
   Lemma registers_mapsto_resources pc_w stk_w rt0_w adv_w pc_w' :
     ([∗ list] r_i ∈ list_difference all_registers [PC; r_stk; r_t0; r_adv], r_i ↦ᵣ inl 0%Z)
@@ -1069,7 +1065,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
       with "[HPC Hinstr Hr_env Hr Hsts]" as "Hstore_step".
     { iIntros "Hcont". 
       (* store r_env 0 *)
-      iInv ι ias (x) "[>Hstate Hb]" "Hcls".
+      iInv ι as (x) "[>Hstate Hb]" "Hcls".
       destruct x; iDestruct "Hb" as ">Hb".
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
           [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC a0 a_last|iContiguous_next Hf2 0|auto|auto|..].
@@ -1544,7 +1540,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         { rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(_ & % & _)". iPureIntro. eauto. }
         iAssert (⌜Forall (λ a, W3.1.1 !! countable.encode a = Some (countable.encode Temporary))
                   (region_addrs stack_own_last e_r)⌝)%I as %Hstack_adv_tmp.
-        { admit. (* todo: lemma? *) }
+        { iApply region_state_pwl_forall_temp. iApply (big_sepL_mono with "Hstack_adv_tmp").
+          iIntros (k y Hk) "[Htemp Hrel]". iFrame. iExact "Hrel". } 
         apply extract_temps_split with (l:=region_addrs stack_own_last e_r) in Hdom as [l'' [Hdup' Hiff'] ].
         2: { apply NoDup_ListNoDup, region_addrs_NoDup. }
         2: { apply Hstack_adv_tmp. }

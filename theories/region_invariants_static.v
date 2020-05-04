@@ -330,8 +330,10 @@ Section heap.
   Proof.
     intros. iApply open_region_many_monotone.
     { apply elem_of_equiv_L. intro.
-      eapply std_update_multiple_in_sta_i.
-      eapply List.Forall_impl; eauto. intro. cbn. eauto. }
+      rewrite -std_update_multiple_dom_equal; auto.
+      intros i Hi. apply elem_of_gmap_dom.
+      apply elem_of_list_fmap in Hi as [y [Heq Hy] ]. subst. 
+      eexists. eapply Forall_forall in H4; eauto. }
     { eapply related_sts_pub_world_static_to_temporary; eauto. }
   Qed.
 

@@ -37,6 +37,12 @@ Section std_updates.
      induction l; auto. 
    Qed.
 
+   Lemma std_update_multiple_loc W l ρ :
+     (std_update_multiple W l ρ).2 = W.2. 
+   Proof.
+     induction l; auto. 
+   Qed.
+
    Lemma std_update_multiple_std_rel_eq W l ρ :
      rel_is_std W ->
      ∀ i, is_Some(W.1.2 !! i) -> W.1.2 !! i = (std_update_multiple W l ρ).1.2 !! i.
@@ -542,8 +548,19 @@ Section std_updates.
 
    Lemma std_update_multiple_revoke_commute W (l: list Addr) ρ :
      ρ ≠ Temporary →
-     Forall (λ a, std_sta W !! encode a ≠ Some (encode Temporary)) l →
+     Forall (λ a, std_sta W !! countable.encode a ≠ Some (countable.encode Temporary)) l →
      std_update_multiple (revoke W) l ρ = revoke (std_update_multiple W l ρ).
-   Admitted.
-
+   Proof.
+     intros Hne Hforall.
+     induction l; auto; simpl.
+     rewrite IHl;[|apply list.Forall_cons in Hforall as [_ Hforall];eauto]. 
+     rewrite /std_update /revoke /loc /std_rel /std_sta /=. repeat f_equiv.
+     apply map_leibniz. intros i. apply leibniz_equiv_iff.
+     destruct (decide (countable.encode a = i)).
+     - subst. rewrite lookup_insert revoke_monotone_lookup_same;rewrite lookup_insert; auto.
+       intros Hcontr; inversion Hcontr as [Hcontr']. apply countable.encode_inj in Hcontr'. done.
+     - rewrite lookup_insert_ne;auto.
+       apply revoke_monotone_lookup. rewrite lookup_insert_ne;auto.
+   Qed. 
+             
 End std_updates.
