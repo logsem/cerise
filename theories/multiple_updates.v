@@ -272,7 +272,7 @@ Section std_updates.
      - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup].
        apply list.Forall_cons in Hforall as [ [Ha_std Ha_rel] Hforall].
        eapply related_sts_pub_trans_world;[apply IHl; auto|].
-       apply related_sts_pub_world_fresh; auto. 
+       apply related_sts_pub_world_fresh; auto.
        + intros Hcontr. apply std_update_multiple_not_in_sta in Hcontr; auto. 
          intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
        + intros Hcontr. apply std_update_multiple_not_in_rel in Hcontr; auto. 
@@ -524,5 +524,13 @@ Section std_updates.
        split;auto. apply not_elem_of_singleton.
        intros Hcontr. apply encode_inj in Hcontr. contradiction.
    Qed. 
+
+   (* commuting updates and revoke *)
+
+   Lemma std_update_multiple_revoke_commute W (l: list Addr) ρ :
+     ρ ≠ Temporary →
+     Forall (λ a, std_sta W !! encode a ≠ Some (encode Temporary)) l →
+     std_update_multiple (revoke W) l ρ = revoke (std_update_multiple W l ρ).
+   Admitted.
 
 End std_updates.

@@ -17,7 +17,8 @@ Section heap.
      - one that turns a revoked region into a static region
    *)
 
-  (* Auxiliary definitions on maps and delete_list -- should be moved elsewhere *)
+  (* ------------------------------------------------------------------------ *)
+  (* Auxiliary definitions on maps and delete_list; should be moved elsewhere *)
 
   Definition map_difference_het
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
@@ -534,13 +535,13 @@ Section heap.
    *)
 
   (* (1) assert that the states are all curently Revoked + delete them from the region map *)
-  Lemma region_revoked_to_static_preamble W M Mρ (m: gmap Addr (Perm * Word)) φ :
+  Lemma region_revoked_to_static_preamble W M Mρ (m: gmap Addr (Perm * Word)) :
     region_map_def M Mρ W -∗
-    ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ) -∗
+    ([∗ map] a↦pv ∈ m, ∃ p v φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ) -∗
     RELS M -∗
     region_map_def (M ∖∖ m) (Mρ ∖∖ m) W
     ∗ RELS M
-    ∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) Revoked).
+    ∗ ([∗ map] a↦pv ∈ m, ∃ p v φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) Revoked).
   Proof.
     iIntros "Hr Hmap HM".
     iInduction (m) as [|x l] "IH" using map_ind. 
@@ -549,7 +550,7 @@ Section heap.
     - rewrite difference_het_insert_r difference_het_insert_r.
       iDestruct (big_sepM_insert with "Hmap") as "[Hx Hmap]";auto.
       iDestruct ("IH" with "Hr Hmap HM") as "(Hr & HM & Hmap)". iClear "IH".
-      iDestruct "Hx" as (p v Heq Hne) "[Hx Hrel]".
+      iDestruct "Hx" as (p v φ Heq Hne) "[Hx Hrel]".
       rewrite rel_eq /rel_def REL_eq /REL_def RELS_eq /RELS_def.
       iDestruct "Hrel" as (γpred) "#(Hγpred & Hφ)".
       iDestruct (reg_in γrel (M) with "[$HM $Hγpred]") as %HMeq.
@@ -575,7 +576,7 @@ Section heap.
       iDestruct (region_map_delete_nonstatic with "Hr") as "Hr";[intros;by rewrite Hρ|]. 
       iFrame. iSplitL "Hr". 
       { rewrite delete_insert;[|by rewrite lookup_delete]. iFrame. }
-      iApply big_sepM_insert;auto. iFrame. iExists p,v. repeat iSplit;auto.
+      iApply big_sepM_insert;auto. iFrame. iExists p,v,φ. repeat iSplit;auto.
   Qed.
 
   (* (2) update the full sts for all addresses in the static region *)
@@ -614,14 +615,14 @@ Section heap.
   (* m' represents the part of the map which has been closed thus far. This lemma can be applied to m' = m, 
      where we would need to establish that indeed all adresses in the domain of (m \\ m) are Static (that is 
      to say that none of the addresses in the beginning are Static) *)
-  Lemma region_revoked_to_static_close_mid W M Mρ m m' φ :
+  Lemma region_revoked_to_static_close_mid W M Mρ m m' :
     dom (gset Addr) m ⊆ dom (gset Addr) m' ->
     (forall a ρ, m !! a = Some ρ -> m' !! a = Some ρ) ->
     (∀ a, is_Some(m !! a) -> is_Some(M !! a)) ->
     (∀ a' : Addr, a' ∈ dom (gset Addr) (m' ∖∖ m) → ((Mρ ∖∖ m) !! a' = Some (Static m'))) ->
     dom (gset Addr) M ⊆ dom (gset Addr) Mρ ->
     region_map_def (M ∖∖ m) (Mρ ∖∖ m) W
-    -∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) (Static m'))
+    -∗ ([∗ map] a↦pv ∈ m, ∃ p v φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) (Static m'))
     -∗ ∃ Mρ', region_map_def M Mρ' W
             ∗ ⌜dom (gset Addr) Mρ' = dom (gset Addr) Mρ⌝
             ∗ ⌜∀ a' : Addr, a' ∈ dom (gset Addr) m' → Mρ' !! a' = Some (Static m')⌝.
@@ -632,7 +633,7 @@ Section heap.
       repeat rewrite difference_het_empty in Hmid. auto. 
     - iIntros (HmM Hmid Hdom). rewrite difference_het_insert_r difference_het_insert_r.
       iDestruct (big_sepM_insert with "Hmap") as "[Hx Hmap]";auto.
-      iDestruct "Hx" as (p v Heq Hne) "(Hx & #Hrel & Hstate)".
+      iDestruct "Hx" as (p v φ Heq Hne) "(Hx & #Hrel & Hstate)".
       repeat rewrite difference_het_delete_assoc.
       iAssert (region_map_def (delete x M ∖∖ m) (<[x:=Static m']> Mρ ∖∖ m) W) with "[Hr]" as "Hr".
       { iApply (big_sepM_mono with "Hr").
@@ -696,11 +697,11 @@ Section heap.
     rewrite HMeq. rewrite lookup_insert. eauto.
   Qed.
 
-  Lemma region_revoked_to_static_close W M Mρ m φ :
+  Lemma region_revoked_to_static_close W M Mρ m :
     dom (gset Addr) M = dom (gset Addr) Mρ ->
     RELS M
     -∗ region_map_def (M ∖∖ m) (Mρ ∖∖ m) W
-    -∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) (Static m))
+    -∗ ([∗ map] a↦pv ∈ m, ∃ p v φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ ∗ sts_state_std (encode a) (Static m))
     -∗ RELS M ∗ ∃ Mρ, region_map_def M Mρ W
                    ∗ ⌜∀ a' : Addr, a' ∈ dom (gset Addr) m → Mρ !! a' = Some (Static m)⌝
                    ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝.
@@ -708,18 +709,18 @@ Section heap.
     iIntros (Hdom) "HM Hr Hmap".
     iDestruct (RELS_sub with "HM [Hmap]") as %Hsub.
     { iApply (big_sepM_mono with "Hmap"). iIntros (a x Hx) "Ha".
-      iDestruct "Ha" as (p v Heq Hne) "(_ & Hrel & _)". eauto. 
+      iDestruct "Ha" as (p v φ Heq Hne) "(_ & Hrel & _)". eauto.
     }
     iDestruct (region_revoked_to_static_close_mid _ _ _ _ m with "Hr Hmap") as "HH"; auto.
     { rewrite difference_het_eq_empty dom_empty_L. intros a' Hin. set_solver. }
     { rewrite Hdom. set_solver. }
     iFrame. iDestruct "HH" as (Mρ') "(? & % & ?)". iExists _. iFrame. iPureIntro. congruence. 
   Qed.
-  
-  Lemma region_revoked_to_static φ W (m: gmap Addr (Perm * Word)) : 
+
+  Lemma region_revoked_to_static W (m: gmap Addr (Perm * Word)) :
     (sts_full_world sts_std (revoke W)
     ∗ region (revoke W)
-    ∗ ([∗ map] a↦pv ∈ m, ∃ p v, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ)
+    ∗ ([∗ map] a↦pv ∈ m, ∃ p v φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ)
     ==∗ (sts_full_world sts_std (std_update_multiple (revoke W) (elements (dom (gset Addr) m)) (Static m))
       ∗ region (std_update_multiple (revoke W) (elements (dom (gset Addr) m)) (Static m))))%I.
   Proof.
@@ -728,10 +729,11 @@ Section heap.
     iDestruct "Hr" as (M Mρ) "(HM & #Hdom & #Hdom' & Hr)".
     iDestruct "Hdom" as %Hdom. iDestruct "Hdom'" as %Hdom'.
     iDestruct (region_revoked_to_static_preamble with "Hr Hmap HM") as "(Hr & HM & Hmap)".
-    iAssert ([∗ map] a↦pv ∈ m, (∃ (p : Perm) (v : Word), ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ)
+    iAssert ([∗ map] a↦pv ∈ m, (∃ (p : Perm) (v : Word) φ, ⌜pv = (p, v)⌝ ∗ ⌜p ≠ O⌝ ∗ a ↦ₐ[p] v ∗ rel a p φ)
                                  ∗ sts_state_std (encode a) Revoked)%I with "[Hmap]" as "Hmap".
-    { iApply (big_sepM_mono with "Hmap"). iIntros (a x Hx) "Hx". iDestruct "Hx" as (p v Heq Hne) "(Ha & Hrel & Hstate)".
-      iFrame. iExists _,_. iFrame. auto. }
+    { iApply (big_sepM_mono with "Hmap"). iIntros (a x Hx) "Hx".
+      iDestruct "Hx" as (p v φ Heq Hne) "(Ha & Hrel & Hstate)".
+      iFrame. iExists _,_,_. iFrame. auto. }
     iDestruct (sts_full_world_std with "Hfull") as %Hstd.
     iAssert (⌜Forall (λ a : Addr, std_sta (revoke W) !! encode a = Some (encode Revoked)) (elements (dom (gset Addr) m))⌝%I)
       as %Hforall.
@@ -739,7 +741,7 @@ Section heap.
       apply elem_of_elements in Hx.
       apply elem_of_gmap_dom in Hx as [pw Hpw]. 
       iDestruct (big_sepM_delete with "Hmap") as "[[Hx Hstate] Hmap]";[apply Hpw|].
-      iDestruct "Hx" as (p v Heq Hne) "(Hx & #Hrel)". destruct pw;inversion Heq; subst. 
+      iDestruct "Hx" as (p v φ Heq Hne) "(Hx & #Hrel)". destruct pw;inversion Heq; subst.
       iDestruct (sts_full_state_std with "Hfull Hstate") as %Hlookup. auto. 
     }
     iDestruct (monotone_revoke_list_region_def_mono with "[] Hfull Hr") as "[Hfull Hr]".
@@ -747,10 +749,10 @@ Section heap.
     iDestruct (big_sepM_sep with "Hmap") as "[Hmap Hstates]". 
     iMod (region_revoked_to_static_states _ _ m with "[$Hfull $Hstates]") as "[Hfull Hstates]". 
     iModIntro.
-    iDestruct (region_revoked_to_static_close with "HM Hr [Hmap Hstates]") as "[HM Hr]";auto. 
+    iDestruct (region_revoked_to_static_close with "HM Hr [Hmap Hstates]") as "[HM Hr]";auto.
     { iDestruct (big_sepM_sep with "[$Hmap $Hstates]") as "Hmap".
       iApply (big_sepM_mono with "Hmap"). iIntros (a x Hx) "[Hx Hstate]".
-      iDestruct "Hx" as (p v Heq Hne) "(Ha & Hrel)". iExists _,_. iFrame. auto. 
+      iDestruct "Hx" as (p v φ Heq Hne) "(Ha & Hrel)". iExists _,_. iFrame. iFrame. auto.
     }
     iDestruct "Hr" as (Mρ') "[Hr #Hforall]". iDestruct "Hforall" as %[Hforall' HdomMρ'].
     iFrame. 
