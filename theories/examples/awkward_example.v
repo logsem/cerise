@@ -1722,6 +1722,9 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
              ... but quite tedious.
              Could we make it easier with well chosen auxiliary lemmas?
            *)
+          
+          
+          
           admit. }
 
         (* Allocate a static region to hold the temporary leftovers *)
