@@ -448,6 +448,27 @@ Section heap.
     iFrame.
   Qed.
 
+  (* In this version the user is only required to show that the resources are valid in the updated world *)
+  Lemma region_close_static_to_temporary_alt (m: gmap Addr (Perm * Word)) W :
+    open_region_many (elements (dom (gset Addr) m)) W
+    ∗ sts_full_world sts_std W
+    ∗ ([∗ map] a↦pv ∈ m, ∃ p _v φ, ⌜forall Wv, Persistent (φ Wv)⌝ ∗
+         ⌜pv = (p, _v)⌝ ∗ temp_resources (std_update_multiple W (elements (dom (gset Addr) m)) Temporary) φ a p ∗ rel a p φ)
+    ∗ sts_state_std_many m (Static m)
+    ==∗
+    sts_full_world sts_std (std_update_multiple W (elements (dom (gset Addr) m)) Temporary)
+    ∗ region (std_update_multiple W (elements (dom (gset Addr) m)) Temporary).
+  Proof.
+    iIntros "(HR & Hsts & Hres & Hst)".
+    iDestruct (sts_full_world_std with "Hsts") as %?.
+    iDestruct (sts_full_state_std_many with "[Hsts Hst]") as %?. by iFrame.
+    iDestruct (region_static_to_temporary_states with "[Hsts Hst]") as ">[Hsts Hst]".
+      by iFrame.
+    iModIntro.
+    iDestruct (open_region_world_static_to_temporary with "HR") as "HR"; eauto.
+    iDestruct (region_close_temporary_many with "[HR Hres Hst Hsts]") as "(?&?)"; iFrame.
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ------------------ Allocate a Static region from a Revoked one ------------------ *)
 
