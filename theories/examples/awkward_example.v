@@ -1278,7 +1278,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                                                                        inr (pc_p, pc_g, pc_b, pc_e, s_last);
                                                                        inr (RWLX, Local, a2, e_r, stack_own_end)] ]]
                                   ∗ ([∗ list] x ∈ l', (∃ (x0 : Perm) (x1 : prodO STS STS * Word → iProp Σ),
-                                                          temp_resources W x1 x x0 ∗ rel x x0 x1)
+                                                          ⌜∀ Wv : prodO STS STS * Word, Persistent (x1 Wv)⌝
+                                                        ∗ temp_resources W x1 x x0 ∗ rel x x0 x1)
                                                         ∗ ⌜std_sta (revoke W) !! countable.encode x = Some (countable.encode Revoked)⌝)
                          | Released => emp
                          end 
@@ -1711,10 +1712,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* FIXME: this is tedious *)
         match goal with |- context [ [[a4,stack_own_end]]↦ₐ[RWLX][[ ?instrs ]]%I ] =>
           set m_frame : gmap Addr (Perm * Word) :=
-                          list_to_map (zip (region_addrs a4 stack_own_end)
-                                           (map (λ v, (RWLX, v)) instrs))
+                          list_to_map (zip (region_addrs a2 stack_own_end)
+                                           (map (λ v, (RWLX, v)) (inr (RWX, Global, d, d', d)
+                                                                      :: inr (E, g_ret, b_ret, e_ret, a_ret)
+                                                                      :: instrs)))
         end.
-        iDestruct (region_revoked_to_static _ m_frame with "[$Hsts $Hr Hstack_own]") as ">[Hsts Hr]".
+        iDestruct (region_revoked_to_static _ m_frame with "[$Hsts $Hr Hstack_own Hb_r Ha2]") as ">[Hsts Hr]".
         { (* should be doable, perhaps by induction on (region_addrs a4 stack_own_end), using:
              + "Hstack_val", after spliting it to start from a4, to get the [rel]s
              + "Hstack_own" to get the pointsto
@@ -1731,8 +1734,10 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* tedious *)
         iAssert (∃ (m': gmap Addr (Perm * Word)),
                   ⌜dom (gset Addr) m' = list_to_set l'⌝ ∗
-                  ([∗ map] a↦pv ∈ m', ∃ p v φ, ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
-                  ([∗ list] a ∈ l', ∃ p φ v, (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+                  ([∗ map] a↦pv ∈ m', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                                ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
+                  ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
                                            φ (W, v) ∗ rel a p φ ∗
                                            ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝
                   )
@@ -1740,7 +1745,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         { admit. }
 
         (* XXX *)
-        assert (Persistent ([∗ list] a ∈ l', ∃ p φ v, (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+        assert (Persistent ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
                                            φ (W, v) ∗ rel a p φ ∗
                                            ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝
                   ))%I by admit.
@@ -1748,8 +1754,10 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
 
         iAssert (∃ (m'': gmap Addr (Perm * Word)),
                   ⌜dom (gset Addr) m'' = list_to_set l''⌝ ∗
-                  ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
-                  ([∗ list] a ∈ l'', ∃ p φ v, (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+                  ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                                 ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
+                  ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
                                            φ (W, v) ∗ rel a p φ ∗
                                            ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
                                   !! countable.encode a = Some (countable.encode Revoked)⌝
@@ -1757,7 +1765,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                 )%I with "[Hrest']" as (m'' Hdom_m'') "(Hrest'_1 & Hrest'_2)".
         { admit. }
 
-        assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+        assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
                                            φ (W, v) ∗ rel a p φ ∗
                                            ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
                                   !! countable.encode a = Some (countable.encode Revoked)⌝
@@ -1993,9 +2002,40 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             (* prove continuation *)
             iAlways.
             iIntros (r3 W6 Hrelated6).
-            iNext. iSimpl. 
+            iNext.
+            (* we want to distinguish between the case where the local stack frame is Static (step through 
+               continuation) and where the local stack frame is temporary (apply FTLR) *)
+            assert ((std_sta W6) !! (countable.encode a2) = Some (countable.encode Temporary) ∨
+                    (std_sta W6) !! (countable.encode a2) = Some (countable.encode (Static m_frame)))
+              as [Hm_frame_static | Hm_frame_temp].
+            { admit. }
+            { iSimpl. 
+              iIntros "(#[Hfull3 Hreg3] & Hmreg' & Hr & Hsts & Hna)". 
+              iSplit; [auto|rewrite /interp_conf].
+              (* first we want to assert that if a2 is Temporary, the remaining addresses are also temporary *)
+              iAssert (⌜∀ a : Addr, a ∈ dom (gset Addr) m_frame → temporary W6 a⌝)%I as %Hm_frame_temp_all.
+              { (* use fact that if the address is in a public future state, it is either Static or Temp. 
+                   If it is temp we are done. If it is static then we can use the full_sts_static_all lemma 
+                   to assert that a2 is also in state Static, which leads to a contradiction, as we are in the 
+                   case where it should be Temporary *)
+                admit. }
+              iDestruct (fundamental W6 r3 RX Local a2 e_r a4 with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
+              { iSimpl. iExists RWLX. iSplit;[auto|].
+                iApply (big_sepL_mono with "Hstack_val").
+                iIntros (k y Hk) "Hrel". iFrame. iPureIntro.
+                rewrite (region_addrs_split _ stack_own_end) in Hk. 
+                split;[left|].
+                - admit.
+                - admit.
+                - admit.
+              }
+              iFrame. 
+            }
+            (* Now we are in the case where m_frame is still static. We will have to open the region and step through
+               the continuation as usual. *)
+            iSimpl. 
             iIntros "(#[Hfull3 Hreg3] & Hmreg' & Hr & Hsts & Hna)". 
-            iSplit; [auto|rewrite /interp_conf]. 
+            iSplit; [auto|rewrite /interp_conf].
             (* get the PC, currently pointing to the activation record *)
             iDestruct (big_sepM_delete _ _ PC with "Hmreg'") as "[HPC Hmreg']";[rewrite lookup_insert; eauto|].
             iAssert (⌜∃ M, dom_equal W6.1.1 M⌝)%I as %Hdom_equal.
@@ -2007,19 +2047,18 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             iGet_genpur_reg_map r3 r_adv "Hmreg'" "Hfull3" "[Hr_adv Hmreg']".
             iGet_genpur_reg_map r3 r_env "Hmreg'" "Hfull3" "[Hr_env Hmreg']".
             iGet_genpur_reg_map r3 r_t0 "Hmreg'" "Hfull3" "[Hr_t0 Hmreg']".
-
-
-            (* now todo: open the static region for the stack, instead of the invariant *)
-
-            (* we open the local stack *)
-            iMod (na_inv_open logrel_nais ⊤ ⊤ with "Hlocal_1 Hna") as "(Hframe & Hna & Hcls)";auto.
-            (* we need to assert that the local state is Live *)
-            iDestruct (bi.later_exist with "Hframe") as (x) "[>Hstate Hframe]". 
-            iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hj'.
-            iDestruct (sts_full_rel_loc with "Hsts Hrelk") as %Hrel'. 
-            assert (x = Live) as ->.
-            { apply (local_state_related_sts_pub W5 W6 k); auto; rewrite /W5 /= lookup_insert; auto. }
-            iDestruct "Hframe" as "(>Hb_r & >Ha2 & >Hframe & Hrest)". 
+            
+            (* Open the static region for the local stack frame *)
+            iDestruct (region_open_static with "[$Hr $Hsts]") as "(Hr & Hsts & Hstates & Hframe & %)";
+              [apply Hm_frame_temp|].
+            rewrite /static_resources /m_frame.
+            iAssert ( a2 ↦ₐ[RWLX] inr (RWX, Global, d, d', d)
+                    ∗ a3 ↦ₐ[RWLX] inr (E, g_ret, b_ret, e_ret, a_ret)
+                    ∗ [[a4,stack_own_end]] ↦ₐ[RWLX] 
+                           [[ [inl w_1; inl w_2; inl w_3; inl w_4a; inl w_4b; inl w_4c;
+                               inr (pc_p, pc_g, pc_b, pc_e, a27); inr (RWLX, Local, a2, e_r, stack_new)] ]])%I
+              with "[Hframe]" as "(Ha2 & Ha3 & Hframe)".
+            { (* TODO: change the m_frame definition to include a2 and a3 *) admit. }
             (* prepare the new stack value *)
             assert (∃ stack_new_1, (stack_new_1 + 1)%a = Some stack_new) as [stack_new_1 Hstack_new_1].
             { revert Hstack_own_bound' Hstack_new. clear. intros H. destruct (stack_own_b + 5)%a eqn:Hsome;[|solve_addr].
