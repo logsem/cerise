@@ -90,6 +90,11 @@ Section std_updates.
      - apply (std_update_multiple_swap_head W l y x).
      - by rewrite IHHperm1 IHHperm2.
    Qed.
+
+   Global Instance std_update_multiple_Permutation W ρ :
+     Proper (Permutation ==> eq) (λ l, std_update_multiple W l ρ).
+   Proof. intros y1 y2 Hperm. simpl. by apply std_update_multiple_permutation. Defined.
+
    
    Lemma remove_dups_swap_head {A : Type} `{EqDecision A} (a1 a2 : A) (l : list A) :
      remove_dups (a1 :: a2 :: l) ≡ₚ remove_dups (a2 :: a1 :: l).
@@ -561,6 +566,24 @@ Section std_updates.
        intros Hcontr; inversion Hcontr as [Hcontr']. apply countable.encode_inj in Hcontr'. done.
      - rewrite lookup_insert_ne;auto.
        apply revoke_monotone_lookup. rewrite lookup_insert_ne;auto.
-   Qed. 
-             
+   Qed.
+
+   (* std_update_multiple and app *)
+
+   Lemma std_update_multiple_app W (l1 l2 : list Addr) ρ :
+     std_update_multiple W (l1 ++ l2) ρ = std_update_multiple (std_update_multiple W l1 ρ) l2 ρ.
+   Proof.
+     induction l2; auto.
+     - by rewrite app_nil_r /=. 
+     - rewrite std_update_multiple_swap /=. f_equal. auto. 
+   Qed.
+
+   Lemma std_update_multiple_app_commute W (l1 l2 : list Addr) ρ :
+     std_update_multiple W (l1 ++ l2) ρ = std_update_multiple W (l2 ++ l1) ρ.
+   Proof.
+     induction l2.
+     - by rewrite app_nil_r /=.
+     - rewrite std_update_multiple_swap /=. by rewrite IHl2. 
+   Qed.
+       
 End std_updates.

@@ -628,16 +628,35 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
 
    (* a core difference with the previous version of the lemma: we are not closing the world at the end. 
       Rather, we are updating all the Static regions back into Temporary ones *)
+   (*
+     (* related_sts_pub_world
+                (close_list_std_sta (countable.encode <$> region_addrs stack_own_last e_r) (revoke_std_sta W.1.1), W.1.2,
+                (<[j:=countable.encode Live]> (<[i:=countable.encode false]> W.2.1),
+                <[j:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> W.2.2)) W3 
+
+related_sts_pub_world
+                (close_list (countable.encode <$> region_addrs stack_own_end e_r)
+                   (std_update_multiple
+                      (std_update_multiple
+                         (revoke
+                            (W3.1.1, std_rel (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)),
+                            (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1), W3.2.2)))
+                         (elements (dom (gset Addr) m_frame)) (Static m_frame)) (elements (dom (gset Addr) (m' ∪ m'')))
+                      (Static (m' ∪ m'')))) W6*)
+    *)
+   
    Lemma related_pub_local_2 W W' W3 W6 b e l l' l1 l2 m1 m2 i j c c' :
      W' = ((revoke_std_sta W.1.1,W.1.2),(<[i:=countable.encode false]> W.2.1,W.2.2))
      -> (b <= c < e)%a ∧ (b <= c' < e)%a
+     (* dom_equal, so that we know that positives in W6 are encoded addresses *)
+     -> (exists M, dom_equal (std_sta W) M)
      (* l is the list of all revoked resources in W *)
-     -> (forall i, W.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l)
+     -> (forall a : Addr, W.1.1 !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l)
      (* l' is the list of all addition revoked resources in W3 (other than [c,e)) *)
-     -> (forall i, W3.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l')
+     -> (forall a : Addr, W3.1.1 !! (countable.encode a) = Some (countable.encode Temporary) <-> a ∈ l')
      (* m1 and m2 are the maps containing the local frame and the rest of the temporary resources *)
-     -> (l = l1 ++ (region_addrs b e) ∧ l' = l2 ++ (region_addrs c e) ∧
-        elements (dom (gset Addr) m1) = l1 ++ l2 ∧ elements (dom (gset Addr) m2) = region_addrs b c')
+     -> (l ≡ₚl1 ++ (region_addrs b e) ∧ l' ≡ₚl2 ++ (region_addrs c e) ∧
+        elements (dom (gset Addr) m1) ≡ₚl1 ++ l2 ∧ elements (dom (gset Addr) m2) ≡ₚregion_addrs b c')
      (* j is a fresh invariant *)
      -> j ∉ dom (gset positive) W'.2.1 → j ∉ dom (gset positive) W'.2.2
      (* i is the awkward invariant *)
@@ -646,15 +665,20 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
      (* all worlds are standard *)
      -> rel_is_std W ∧ rel_is_std W3 ∧ rel_is_std W6             
      → related_sts_pub_world
-         (close_list_std_sta (countable.encode <$> region_addrs c e) W'.1.1, W'.1.2,
-          (<[j:=countable.encode Live]> W'.2.1,
-           <[j:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> W'.2.2)) W3
+         (close_list_std_sta (countable.encode <$> region_addrs c e) (revoke_std_sta W.1.1), W.1.2,
+          (<[j:=countable.encode Live]> (<[i:=countable.encode false]> W.2.1),
+           <[j:=(convert_rel local_rel_pub, convert_rel local_rel_priv)]> W.2.2)) W3
      → related_sts_pub_world
-         (std_update_multiple (std_update_multiple (close_list_std_sta (countable.encode <$> region_addrs c' e) (revoke_std_sta W3.1.1), W3.1.2,
-          (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1),W3.2.2)) (region_addrs b c') (Static m2)) (l1 ++ l2) (Static m1)) W6
-     → related_sts_pub_world W (std_update_temp_multiple W6 (l ++ l')).
+         (close_list (countable.encode <$> region_addrs c' e)
+                     (std_update_multiple
+                        (std_update_multiple
+                           (revoke
+                              (W3.1.1, std_rel (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)),
+                               (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1), W3.2.2)))
+                           (elements (dom (gset Addr) m2)) (Static m2)) (elements (dom (gset Addr) m1)) (Static m1))) W6
+     → related_sts_pub_world W (std_update_temp_multiple W6 ((l1 ++ l2) ++ (region_addrs b c'))).
    Proof.
-     intros Heq [Hbounds1 Hbounds2] Hiff1 Hiff2 Happ Hj1 Hj2 Hawk [x Hawki] (HstdW1 & HstdW3 & HstdW6) Hrelated1 Hrelated2. 
+     intros Heq [Hbounds1 Hbounds2] Hdom Hiff1 Hiff2 Happ Hj1 Hj2 Hawk [x Hawki] (HstdW1 & HstdW3 & HstdW6) Hrelated1 Hrelated2. 
      subst W'.
      destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
      destruct W3 as [ [Wstd_sta3 Wstd_rel3] [Wloc_sta3 Wloc_rel3] ]. 
@@ -670,8 +694,9 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
        assert (dom (gset positive) Wstd_sta ⊆ dom (gset positive) Wstd_sta6) as Hsub.
        { rewrite -close_list_dom_eq -revoke_dom_eq in Hstd_sta_dom1. etrans;eauto.
          etrans;[|apply Hstd_sta_dom2].
+         rewrite -close_list_dom_eq. 
          repeat (etrans;[|apply std_update_multiple_sta_dom_subseteq]).
-         rewrite -close_list_dom_eq -revoke_dom_eq. done. 
+         rewrite -revoke_dom_eq. done. 
        }
        assert (dom (gset positive) Wstd_rel ⊆ dom (gset positive) Wstd_rel6) as Hsub'.
        { etrans;eauto. etrans;[|apply Hstd_rel_dom2].
@@ -685,18 +710,20 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
          { apply elem_of_gmap_dom. apply elem_of_subseteq in Hstd_rel_dom1. apply Hstd_rel_dom1. 
            assert (k ∈ dom (gset positive) Wstd_rel) as Hin;[apply elem_of_gmap_dom;eauto|auto]. } 
          specialize (Hstd_related1 k r1 r2 s1 s2 Hr Hs) as [Heq1 [Heq2 Hstd_related1] ]. subst.
-         destruct (decide (k ∈ countable.encode <$> l ++ l')). 
+         destruct (decide (k ∈ countable.encode <$> (l1 ++ l2) ++ (region_addrs b c'))). 
          * (* k is a revoked element, which is updated to static at the end *)
            assert (is_Some (Wstd_rel6 !! k)) as [ [r6 r6'] Hr6]. 
            { apply elem_of_gmap_dom. apply elem_of_subseteq in Hsub'; apply Hsub'. apply elem_of_gmap_dom;eauto. }
+           destruct Happ as (Heq1' & Heq2' & Heq3' & Heq4'). 
            edestruct Hstd_related2 with (i0:=k) as [Heq1 [Heq2 Hrelated2] ];[|eauto|]. 
            { destruct (decide (k ∈ countable.encode <$> l1 ++ l2)).
-             - rewrite std_rel_update_multiple_lookup_std_i;auto.
+             - revert e1. rewrite -Heq3' =>e1. rewrite std_rel_update_multiple_lookup_std_i;auto.
              - rewrite std_rel_update_multiple_lookup_same_i;auto.
                destruct (decide (k ∈ countable.encode <$> region_addrs b c')).
-               + rewrite std_rel_update_multiple_lookup_std_i;auto.
+               + revert e1. rewrite -Heq4' =>e1. rewrite std_rel_update_multiple_lookup_std_i;auto.
                + rewrite std_rel_update_multiple_lookup_same_i;auto. rewrite /std_rel /=.
-                 apply HstdW3. eauto.
+                 apply HstdW3. eauto. rewrite Heq4'. done. 
+               + rewrite Heq3'. done. 
            }
            rewrite std_rel_update_multiple_lookup_std_i in Hr';auto. inversion Hr';subst.
            assert (is_Some (Wstd_rel !! k)) as Hsome;eauto. apply HstdW1 in Hsome. rewrite Hsome in Hr. 
@@ -705,53 +732,118 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
            intros x0 y Hx0 Hy. rewrite std_sta_update_multiple_lookup_in_i in Hy;auto. inversion Hy; subst.
            (* apply elem_of_list_fmap in e0 as [a [Heqa e0] ]. subst. *)
            rewrite fmap_app in e0. apply elem_of_app in e0 as [Hl | Hl']. 
-           ** (* k is a revoked element in W, which means it is Temporary *)
-             apply Hiff1 in Hl; auto. rewrite Hl in Hx0; inversion Hx0; subst. left.
-           ** (* k is a revoked element in W3, which means it is Temporary in W3 *)
-             apply Hiff2 in Hl'; auto.
-             (* if x0 is temp we are done *)
-             destruct (decide (x0 = countable.encode Temporary));[subst;left|].
-             (* o/w it will get revoked, then possibly closed: either case we are in a public future world *)
-             assert (Wstd_sta !! k ≠ Some (countable.encode Temporary)) as Hne;[congruence|].
-             rewrite -revoke_monotone_lookup_same in Hx0; auto.
-             (* if x0 is revoked we are done *)
-             destruct (decide (x0 = countable.encode Revoked));[subst;right with (countable.encode Temporary);[|left]|].
-             exists Revoked,Temporary. repeat split;auto. constructor.
-             (* otherwise we know that Temporary is in a public future state to x0 by the first related1 *)
-             assert (revoke_std_sta Wstd_sta !! k ≠ Some (countable.encode Revoked)) as Hne';[congruence|].
-             rewrite (close_list_std_sta_same_alt _ (countable.encode <$> region_addrs c e)) in Hx0; auto. 
-         * (* if k is never a revoked element, we can apply its transitions during the two future world relations *)
-           destruct Happ as [-> [-> _] ]. repeat rewrite fmap_app in n.
-           apply not_elem_of_app in n as [Hn1 Hn2].
-           apply not_elem_of_app in Hn1 as [Hl1 Hbe].
-           apply not_elem_of_app in Hn2 as [Hl2 Hce].
-           assert (Hbe' := Hbe). 
-           rewrite (region_addrs_split _ c') in Hbe;[|revert Hbounds2;clear;solve_addr].
-           rewrite fmap_app in Hbe. apply not_elem_of_app in Hbe as [Hbc' Hc'e].
+           ** (* k is either a revoked elements in l1, or l2 *)
+             rewrite fmap_app in Hl. apply elem_of_app in Hl as [Hl | Hl'].
+             *** (* k is a revoked element in W, which means it is Temporary in W *)
+               assert (Wstd_sta !! k = Some (countable.encode Temporary)) as Htemp.
+               { apply elem_of_list_fmap in Hl as [y [-> Ha] ].
+                 apply Hiff1. rewrite Heq1'. apply elem_of_app. by left. }
+               rewrite Htemp in Hx0; inversion Hx0; subst. left.
+             *** (* k is a revoked element in W3, which means it is Temporary in W3 *)
+               assert (Wstd_sta3 !! k = Some (countable.encode Temporary)) as Htemp.
+               { apply elem_of_list_fmap in Hl' as [y [-> Ha] ].
+                 apply Hiff2. rewrite Heq2'. apply elem_of_app. by left. }
+               (* if x0 is temp we are done *)
+               destruct (decide (x0 = countable.encode Temporary));[subst;left|].
+               (* o/w it will get revoked, then possibly closed: either case we are in a public future world *)
+               assert (Wstd_sta !! k ≠ Some (countable.encode Temporary)) as Hne;[congruence|].
+               rewrite -revoke_monotone_lookup_same in Hx0; auto.
+               (* if x0 is revoked we are done *)
+               destruct (decide (x0 = countable.encode Revoked));[subst;right with (countable.encode Temporary);[|left]|].
+               exists Revoked,Temporary. repeat split;auto. constructor.
+               (* otherwise we know that Temporary is in a public future state to x0 by the first related1 *)
+               assert (revoke_std_sta Wstd_sta !! k ≠ Some (countable.encode Revoked)) as Hne';[congruence|].
+               rewrite (close_list_std_sta_same_alt _ (countable.encode <$> region_addrs c e)) in Hx0; auto.
+           ** (* k is a revoked element in [b,c'] *)
+             assert (Wstd_sta !! k = Some (countable.encode Temporary)) as Htemp.
+             { apply elem_of_list_fmap in Hl' as [y [-> Ha] ].
+               apply Hiff1. rewrite Heq1'. apply elem_of_app. right.
+               rewrite (region_addrs_split _ c');[|revert Hbounds2;clear;solve_addr]. 
+               apply elem_of_app. by left.
+             }
+             rewrite Htemp in Hx0; inversion Hx0; subst. left.
+         * destruct Happ as [Heq1' [Heq2' [Heqapp1 Heqapp2] ] ]. repeat rewrite fmap_app in n.
+           apply not_elem_of_app in n as [Hn1 Hbc'].
+           apply not_elem_of_app in Hn1 as [Hl1 Hl2].
            rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr';auto.
            2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
            edestruct Hstd_related2 with (i0:=k) as [Heq1 [Heq2 Hrelated2] ];[|eauto|]. 
-           { rewrite std_rel_update_multiple_lookup_same_i;[|rewrite fmap_app; apply not_elem_of_app;auto].
-             rewrite std_rel_update_multiple_lookup_same_i; auto. eauto. }
+           { rewrite std_rel_update_multiple_lookup_same_i;[|rewrite Heqapp1 fmap_app; apply not_elem_of_app;auto].
+             rewrite std_rel_update_multiple_lookup_same_i; [|rewrite Heqapp2; auto]. eauto. }
            subst. repeat split;auto.
            intros x0 y Hx0 Hy.
+           assert (exists a : Addr, k = countable.encode a) as [a Heqa].
+           { destruct Hdom as [M Hdom]. destruct Hdom with k as [Hdom1 Hdom2]. 
+             assert (is_Some (Wstd_sta !! k)) as Hsome; eauto.
+             apply Hdom1 in Hsome as [a [Heqa _] ]. eauto. 
+           } 
            assert (k ∈ dom (gset positive) Wstd_sta3) as Hin3. 
            { apply elem_of_subseteq in Hstd_sta_dom1. apply Hstd_sta_dom1. apply elem_of_dom.
              apply close_list_std_sta_is_Some. rewrite -revoke_std_sta_lookup_Some. eauto. }
+           
            apply elem_of_dom in Hin3 as [y3 Hy3].
-           trans y3.
-           ** apply Hstd_related1; auto. rewrite -close_list_std_sta_same; auto.
-              rewrite revoke_monotone_lookup_same;auto.
-              intros Hcontr. apply Hiff1 in Hcontr. rewrite fmap_app in Hcontr.
-              apply elem_of_app in Hcontr as [Hcontr | Hcontr]; done. 
-           ** rewrite std_sta_update_multiple_lookup_same_i in Hy.
-              2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
-              apply Hrelated2; auto.
-              rewrite std_sta_update_multiple_lookup_same_i;[|rewrite fmap_app;apply not_elem_of_app;split;auto]. 
-              rewrite std_sta_update_multiple_lookup_same_i;[|auto].
-              rewrite -close_list_std_sta_same; auto. rewrite revoke_monotone_lookup_same;auto.
-              intros Hcontr. apply Hiff2 in Hcontr. rewrite fmap_app in Hcontr.
-              apply elem_of_app in Hcontr as [Hcontr | Hcontr]; done.
+           (* we have two more cases, either k is an element of the stack passed on to adv call 2, 
+              or k was never a revoked element *)
+           destruct (decide (k ∈ countable.encode <$> region_addrs c' e)). 
+           ** (* k is an element of the stack and was revoked in W *)
+             assert (Wstd_sta !! k = Some (countable.encode Temporary)) as Htemp.
+             { subst. 
+               apply Hiff1. rewrite Heq1'. apply elem_of_app. right.
+               rewrite (region_addrs_split _ c');[|revert Hbounds2;clear;solve_addr]. 
+               apply elem_of_app. right. revert e0. clear. set_solver. 
+             }
+             rewrite Htemp in Hx0; inversion Hx0; subst.
+             rewrite std_sta_update_multiple_lookup_same_i in Hy.
+             2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
+             destruct (decide ((countable.encode a) ∈ countable.encode <$> region_addrs c e)) as [Hce | Hce]. 
+             *** (* if k is in [c,e], we know its temporary by Hiff2 *)
+               apply Hrelated2; auto.
+               apply close_list_std_sta_revoked; auto. 
+               rewrite std_sta_update_multiple_lookup_same_i;auto. 
+               2: { rewrite Heqapp1. rewrite fmap_app. apply not_elem_of_app;split;auto. }
+               rewrite std_sta_update_multiple_lookup_same_i;[|rewrite Heqapp2;auto]. 
+               rewrite /revoke /std_sta /=. apply revoke_lookup_Temp; auto.
+               apply Hiff2. rewrite Heq2'. revert Hce; clear; set_solver. 
+             *** (* otherwise we must assert that it could have been revoked, then closed before the second call *)
+               assert (rtc r1' (countable.encode Revoked) y3) as Hrelated.
+               { apply Hstd_related1; auto. rewrite -close_list_std_sta_same; auto.
+                 apply revoke_lookup_Temp; auto. }
+               apply Hrelated2; auto. apply close_list_std_sta_revoked; auto.
+               rewrite std_sta_update_multiple_lookup_same_i;auto. 
+               2: { rewrite Heqapp1. rewrite fmap_app. apply not_elem_of_app;split;auto. }
+               rewrite std_sta_update_multiple_lookup_same_i;[|rewrite Heqapp2;auto]. 
+               apply revoke_lookup_Revoked; auto.
+                assert (is_Some (Wstd_rel !! (countable.encode a))) as Hsome;eauto.
+               apply HstdW1 in Hsome. rewrite Hsome in Hr; inversion Hr; subst.
+               apply std_rel_pub_rtc_Revoked in Hrelated; auto.
+               destruct Hrelated as [Htempy3 | Hrevy3];subst;auto.
+               apply Hiff2 in Hy3. exfalso. revert Hy3. rewrite Heq2' =>Hy3. 
+               apply elem_of_app in Hy3 as [Hcontr | Hcontr];[revert Hcontr Hl2; clear;set_solver|
+                                                              revert Hcontr Hce; clear;set_solver].
+           ** (* if k is never a revoked element, we can apply its transitions during the two future world relations *)
+             assert (k ∉ countable.encode <$> region_addrs b e) as Hbe.
+             { rewrite (region_addrs_split _ c'). rewrite fmap_app. apply not_elem_of_app. auto.
+               revert Hbounds2. clear. solve_addr. }
+             assert (k ∉ countable.encode <$> region_addrs c e) as Hce.
+             { rewrite (region_addrs_split _ c) in Hbe. rewrite fmap_app in Hbe. apply not_elem_of_app in Hbe as [Hbc Hce].
+               auto. revert Hbounds1. clear. solve_addr. }
+             trans y3.
+             *** apply Hstd_related1; auto. rewrite -close_list_std_sta_same; auto.
+                 rewrite revoke_monotone_lookup_same;auto.
+                 intros Hcontr. subst. 
+                 apply Hiff1 in Hcontr. revert Hcontr. rewrite Heq1' =>Hcontr. 
+                 apply elem_of_app in Hcontr as [Hcontr | Hcontr];[revert Hcontr Hl1; clear;set_solver|
+                                                                   revert Hcontr Hbe; clear;set_solver].
+             *** rewrite std_sta_update_multiple_lookup_same_i in Hy.
+                 2: { repeat rewrite fmap_app. repeat (apply not_elem_of_app;split;auto). }
+                 apply Hrelated2; auto.
+                 rewrite -close_list_std_sta_same; auto. 
+                 rewrite std_sta_update_multiple_lookup_same_i;[|rewrite Heqapp1 fmap_app;apply not_elem_of_app;split;auto].
+                 rewrite std_sta_update_multiple_lookup_same_i;[|rewrite Heqapp2; auto].
+                 rewrite revoke_monotone_lookup_same;auto.
+                 intros Hcontr. subst. apply Hiff2 in Hcontr. revert Hcontr. rewrite Heq2' =>Hcontr.
+                 apply elem_of_app in Hcontr as [Hcontr | Hcontr];[revert Hcontr Hl2; clear;set_solver|
+                                                                   revert Hcontr Hce; clear;set_solver].
      - (* owned resources *)
        destruct Hrelated1 as [_ Hloc_related1]. 
        destruct Hrelated2 as [_ Hloc_related2]. simpl in *. 
@@ -1022,6 +1114,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
     iDestruct (sts_full_world_std with "Hsts") as %Hstd.
     iAssert (⌜exists M, dom_equal (std_sta W) M⌝)%I as %Hdom.
     { rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(_ & % & _)". eauto. }
+    assert (Hdom_copy := Hdom). 
     apply extract_temps_split with (l:=region_addrs b_r e_r) in Hdom as [l' [Hdup Hiff] ];
       [|apply NoDup_ListNoDup,region_addrs_NoDup|apply Forall_and in Htemp as [Htemp _];apply Htemp].
     iMod (monotone_revoke_keep_some W _ (region_addrs b_r e_r) with "[$Hsts $Hr]") as "[Hsts [Hr [Hrest Hstack] ] ]";[apply Hdup|..].
@@ -1762,7 +1855,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                                                  ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
                   ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
                                            (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
+                                           φ (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)), v)
+                                           ∗ rel a p φ ∗
                                            ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
                                   !! countable.encode a = Some (countable.encode Revoked)⌝
                   )
@@ -1771,7 +1865,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
 
         assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
                                            (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
+                                           φ (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)), v)
+                                           ∗ rel a p φ ∗
                                            ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
                                   !! countable.encode a = Some (countable.encode Revoked)⌝
                   ))%I by admit.
@@ -2503,7 +2598,36 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                static. In case they are temporary, the std_update_temporary yields the same map. If they are still static, 
                we must open the region, and go through a state update. This update will be possible by establishing 
                that we will indeed be in a public future world! *)
-            
+
+            (*   -> (forall i, W.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l)
+     (* l' is the list of all addition revoked resources in W3 (other than [c,e)) *)
+     -> (forall i, W3.1.1 !! i = Some (countable.encode Temporary) <-> i ∈ countable.encode <$> l')
+     (* m1 and m2 are the maps containing the local frame and the rest of the temporary resources *)
+     -> (l = l1 ++ (region_addrs b e) ∧ l' = l2 ++ (region_addrs c e) ∧
+        elements (dom (gset Addr) m1) = l1 ++ l2 ∧ elements (dom (gset Addr) m2) = region_addrs b c')
+     (* j is a fresh invariant *)
+     -> j ∉ dom (gset positive) W'.2.1 → j ∉ dom (gset positive) W'.2.2 *)
+            assert (related_sts_pub_world W (std_update_multiple
+                                               (std_update_multiple W6 (elements (dom (gset Addr) m_frame)) Temporary)
+                                               (elements (dom (gset Addr) (m' ∪ m''))) Temporary)) as Hrelated7.
+            { revert Hrelated6. rewrite /W5 /W4; intros Hrelated6. 
+              
+              rewrite dom_union_L. 
+              assert (elements (dom (gset Addr) m' ∪ dom (gset Addr) m'') ≡ₚ (elements (dom (gset Addr) m') ++
+                                                                               elements (dom (gset Addr) m''))) as Hperm.
+              { apply elements_disj_union. rewrite Hdom_m' Hdom_m''. admit. }
+              erewrite std_update_multiple_permutation;[|apply Hperm]. 
+              rewrite -std_update_multiple_app std_update_multiple_app_commute.
+              revert H3 H4 H5 H6 Hw3rel Hrelated3.
+              rewrite /W''. rewrite /revoke /close_list /std_sta /std_rel /loc /=.
+              intros.
+              assert (elements (dom (gset Addr) m_frame) = region_addrs a2 stack_own_end) as Heq;[admit|]. rewrite Heq.
+              eapply related_pub_local_2 with (b:=a2);[..|apply Hrelated3|apply Hrelated6]; eauto; simpl; auto.
+              - revert Hwb2 Hwb3. clear. intros Hwb2 Hwb3.
+                apply withinBounds_le_addr in Hwb2.
+                apply withinBounds_le_addr in Hwb3. solve_addr.
+              - rewrite Hdom_m' Hdom_m''. repeat split;auto. 
+            }
 
 
 
