@@ -891,6 +891,16 @@ paper, and allow us to emulate their examples.
 This section describes the steps involved in proving the robust safety theorem
 stated above in some more detail.
 
+\subsection{Basics}
+
+\begin{itemize}
+\item Define types for traces
+\item Create a regular authoritative resource algebra over traces (we can refine this later on)
+\item Parameterize everything by the MMIO = Set(Loc)? locations?
+\item Formalize traces in the operational semantics $\rightarrow$ choose how we want to formalize MMIO with respect to memory
+\item Formalize traces in the state interpretation
+\end{itemize}
+
 \subsection{Adapting WP and the FTLR}
 The $\I{Load}$ and $\I{Store}$ cases will require new WP rules, that do not mention
 points-to chunks but mention the trace resource instead (and specifically, we
