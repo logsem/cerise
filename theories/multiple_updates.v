@@ -185,6 +185,19 @@ Section std_updates.
    Qed.
    (* ------------------------------------------------------------ *)
 
+   (* if W at a is_Some, the the updated W at a is_Some *)
+   Lemma std_sta_update_multiple_is_Some W l ρ i :
+     is_Some (std_sta W !! i) -> is_Some (std_sta (std_update_multiple W l ρ) !! i).
+   Proof.
+     intros Hsome.
+     destruct (decide (i ∈ countable.encode <$> l)).
+     - exists (countable.encode ρ). by apply std_sta_update_multiple_lookup_in_i.
+     - rewrite std_sta_update_multiple_lookup_same_i;auto.
+   Qed. 
+
+   (* ------------------------------------------------------------ *)
+
+
    (* If an element is not in the update list, the rel lookup is the same *)
    Lemma std_rel_update_multiple_lookup_same_i W l ρ i:
      i ∉ countable.encode <$> l -> (std_rel (std_update_multiple W l ρ)) !! i =
@@ -585,5 +598,21 @@ Section std_updates.
      - by rewrite app_nil_r /=.
      - rewrite std_update_multiple_swap /=. by rewrite IHl2. 
    Qed.
-       
+
+   (* Helper lemmas about permutation *)
+
+   Lemma elements_permutation A C `{Empty C, Union C, Singleton A C, Elements A C,ElemOf A C, EqDecision A, FinSet A C} (l: list A) :
+     NoDup l ->
+     elements (list_to_set l) ≡ₚl.
+   Proof. 
+     intros Hdup.
+     induction l. 
+     - by rewrite /= elements_empty. 
+     - apply NoDup_cons_iff in Hdup as [Hnin Hdup].
+       rewrite /= elements_union_singleton; auto. 
+       apply not_elem_of_list_to_set.
+       intros Hcontr. apply elem_of_list_In in Hcontr.
+       done.
+   Qed.        
+     
 End std_updates.
