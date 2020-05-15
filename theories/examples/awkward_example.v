@@ -30,6 +30,88 @@ Proof.
         apply elem_of_cons. by right.
 Qed.
 
+Lemma region_mapsto_cons b b' e w ws p :
+  (b + 1)%a = Some b' → (b' <= e)%a →
+  [[b, e]] ↦ₐ [p] [[ w :: ws ]] ⊣⊢ b ↦ₐ[p] w ∗ [[b', e]] ↦ₐ [p] [[ ws ]]).
+Proof.
+  intros. SearchAbout (_ + 1)%a region_addrs.
+  rewrite /region_mapsto.
+  rewrite (region_addrs_decomposition b0 b0 e0).
+  2: revert H5 H6; clear; intros; split; solve_addr.
+  rewrite interp_weakening.region_addrs_empty /=.
+  2: clear; solve_addr.
+  rewrite (_: ^(b0 + 1) = b')%a.
+  2: revert H5 H6; clear; intros; solve_addr.
+  eauto.
+Qed.
+
+Lemma elements_list_to_set {A} `{Countable A} (l: list A) :
+  NoDup l →
+  elements (list_to_set l : gset A) ≡ₚ l.
+Proof.
+  induction l.
+  - intros. rewrite list_to_set_nil elements_empty //.
+  - intros ND. rewrite list_to_set_cons elements_union_singleton.
+    + rewrite IHl //. eauto using NoDup_cons_12.
+    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_11.
+Qed.
+
+Definition lists_to_static_region (l1: list Addr) (l2: list Word) (p: Perm): gmap Addr (Perm * Word) :=
+  list_to_map (zip l1 (map (λ w, (p, w)) l2)).
+
+Lemma lists_to_static_region_cons a w l1 l2 p :
+  lists_to_static_region (a :: l1) (w :: l2) p =
+  <[ a := (p, w) ]> (lists_to_static_region l1 l2 p).
+Proof. reflexivity. Qed.
+
+Lemma lists_to_static_region_lookup_None l1 l2 p a :
+  a ∉ l1 → lists_to_static_region l1 l2 p !! a = None.
+Proof.
+  revert l2. induction l1; eauto; []. intros l2 [? ?]%not_elem_of_cons.
+  destruct l2.
+  { cbn. eauto. }
+  { rewrite lists_to_static_region_cons. rewrite lookup_insert_None. eauto. }
+Qed.
+
+Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
+  is_Some ((list_to_map l : gmap A B) !! a) ↔ a ∈ l.*1.
+Proof.
+  induction l.
+  - cbn. split; by inversion 1.
+  - cbn. rewrite lookup_insert_is_Some' elem_of_cons.
+    split; intros [HH|HH]; eauto; rewrite -> IHl in *; auto.
+Qed.
+
+Lemma lists_to_static_region_dom l1 l2 p :
+  length l1 = length l2 →
+  dom (gset Addr) (lists_to_static_region l1 l2 p) = list_to_set l1.
+Proof.
+  intros Hlen. apply elem_of_equiv_L. intros x.
+  rewrite /lists_to_static_region elem_of_dom elem_of_list_to_set.
+  split. by intros [? ?%elem_of_list_to_map_2%elem_of_zip_l].
+  intros Hx.
+  destruct (elem_of_list_lookup_1 _ _ Hx) as [xi Hxi].
+  pose proof (lookup_lt_Some _ _ _ Hxi).
+  rewrite list_to_map_lookup_is_Some fst_zip // map_length. lia.
+Qed.
+
+Lemma big_sepL2_to_static_region {Σ: gFunctors} l1 l2 p (Φ : _ → _ → iProp Σ) Ψ :
+  NoDup l1 →
+  □ (∀ a w, ⌜a ∈ l1⌝ -∗ ⌜w ∈ l2⌝ -∗ Φ a w -∗ Ψ a (p, w)) -∗
+  ([∗ list] a;w ∈ l1;l2, Φ a w) -∗
+  ([∗ map] a↦pv ∈ lists_to_static_region l1 l2 p, Ψ a pv).
+Proof.
+  revert l2. induction l1; intros l2 ND.
+  { cbn in *. iIntros "_ _". by iApply big_sepM_empty. }
+  { iIntros "#Ha H". iDestruct (big_sepL2_cons_inv_l with "H") as (w l2' ->) "[HΦ H]".
+    rewrite lists_to_static_region_cons. iApply big_sepM_insert.
+    by apply lists_to_static_region_lookup_None, NoDup_cons_11.
+    iSplitL "HΦ". { iApply "Ha"; try (iPureIntro; constructor). auto. }
+    iApply IHl1; auto.
+    by eauto using NoDup_cons_12.
+    iModIntro. iIntros. iApply "Ha"; auto; iPureIntro; by constructor. }
+Qed.
+
 Section awkward_example.
 Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
@@ -2483,78 +2565,93 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* fact: l', l'', [a4,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
 
         (* Allocate a static region to hold our frame *)
-        (* FIXME: this is tedious *)
-        match goal with |- context [ [[a4,stack_own_end]]↦ₐ[RWLX][[ ?instrs ]]%I ] =>
-          set m_frame : gmap Addr (Perm * Word) :=
-                          list_to_map (zip (region_addrs a2 stack_own_end)
-                                           (map (λ v, (RWLX, v)) (inr (RWX, Global, d, d', d)
-                                                                      :: inr (E, g_ret, b_ret, e_ret, a_ret)
-                                                                      :: instrs)))
-        end.
-        iDestruct (region_revoked_to_static _ m_frame with "[$Hsts $Hr Hstack_own Hb_r Ha2]") as ">[Hsts Hr]".
-        { (* should be doable, perhaps by induction on (region_addrs a4 stack_own_end), using:
-             + "Hstack_val", after spliting it to start from a4, to get the [rel]s
-             + "Hstack_own" to get the pointsto
 
-             ... but quite tedious.
-             Could we make it easier with well chosen auxiliary lemmas?
-           *)
-          
-          
-          
-          admit. }
+        (* first, put together again the resources for the frame *)
+
+        iDestruct (region_mapsto_cons with "[Ha2 Hstack_own]") as "Hstack_own".
+        3: { iFrame. } admit. admit.
+        iDestruct (region_mapsto_cons with "[Hb_r Hstack_own]") as "Hstack_own".
+        3: { iFrame. } admit. admit.
+
+        (* we'll need that later to reason on the fact that the [zip] in the definition of
+           m_frame indeed fully uses both lists *)
+        iDestruct (big_sepL2_length with "Hstack_own") as "%".
+
+        match goal with |- context [ [[a2,stack_own_end]]↦ₐ[RWLX][[ ?instrs ]]%I ] =>
+          set m_frame := lists_to_static_region (region_addrs a2 stack_own_end) instrs RWLX
+        end.
+
+        iDestruct (region_revoked_to_static _ m_frame with "[$Hsts $Hr Hstack_own]") as ">[Hsts Hr]".
+        {
+          iApply (big_sepL2_to_static_region with "[] Hstack_own").
+          admit. (* fix region_addrs_NoDup to use NoDup from stdpp *)
+          iModIntro. iIntros (a' w' Ha' Hw') "Ha'w'".
+          iExists RWLX, w', (λ (W: prodO STS STS * Word), (interp W.1) W.2).
+          iSplitR. by iPureIntro; eauto using interp_persistent.
+          iSplitR. by iPureIntro; reflexivity.
+          iSplitR. by iPureIntro; auto.
+          iFrame. iApply (big_sepL_elem_of with "Hstack_val").
+          admit. (* lemmas missing? *) }
 
         (* Allocate a static region to hold the temporary leftovers *)
         (* tedious *)
+
+        (* extract persistent resources from Hrest *)
+        assert (Persistent (
+                    [∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+                                           φ (W, v) ∗ rel a p φ ∗
+                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I).
+        admit.
+
+        iAssert ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+                                           φ (W, v) ∗ rel a p φ ∗
+                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I
+                as "#Hrest_1".
+        { iApply (big_sepL_impl with "Hrest []"). iIntros (? ? ?). iModIntro.
+          iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)".
+          unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)".
+          iExists _,_,_. iFrame. iPureIntro. eauto. }
+
         iAssert (∃ (m': gmap Addr (Perm * Word)),
                   ⌜dom (gset Addr) m' = list_to_set l'⌝ ∗
                   ([∗ map] a↦pv ∈ m', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                                ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
-                  ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝
-                  )
-                )%I with "[Hrest]" as (m' Hdom_m') "(Hrest_1 & Hrest_2)".
-        { admit. }
-
-        (* XXX *)
-        assert (Persistent ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝
-                  ))%I by admit.
-        iDestruct "Hrest_2" as "#Hrest_2".
-
-        iAssert (∃ (m'': gmap Addr (Perm * Word)),
-                  ⌜dom (gset Addr) m'' = list_to_set l''⌝ ∗
-                  ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                                 ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) ∗
-                  ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)), v)
-                                           ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
-                                  !! countable.encode a = Some (countable.encode Revoked)⌝
-                  )
-                )%I with "[Hrest']" as (m'' Hdom_m'') "(Hrest'_1 & Hrest'_2)".
+                                                ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ)
+                )%I with "[Hrest]" as (m' Hdom_m') "Hrest_2".
         { admit. }
 
         assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
                                            (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)), v)
+                                           φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v)
                                            ∗ rel a p φ ∗
                                            ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
                                   !! countable.encode a = Some (countable.encode Revoked)⌝
-                  ))%I by admit.
-        iDestruct "Hrest'_2" as "#Hrest'_2".
+                  ))%I.
+        admit.
+
+        iAssert ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
+                                           φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v)
+                                           ∗ rel a p φ ∗
+                                           ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
+                                  !! countable.encode a = Some (countable.encode Revoked)⌝
+                  )%I as "#Hrest'_1".
+        { iApply (big_sepL_impl with "Hrest' []"). iIntros (? ? ?). iModIntro.
+          iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)".
+          unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)".
+          iExists _,_,_. iFrame. iSplitR. iPureIntro; auto. iPureIntro. auto. }
+
+        iAssert (∃ (m'': gmap Addr (Perm * Word)),
+                  ⌜dom (gset Addr) m'' = list_to_set l''⌝ ∗
+                  ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
+                                                 ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ)
+                )%I with "[Hrest']" as (m'' Hdom_m'') "Hrest'_2".
+        { admit. }
 
         assert (Forall (λ (a:Addr), std_sta W4 !! countable.encode a ≠ Some (countable.encode Temporary))
                   (elements (dom (gset Addr) m_frame))) as ?.
-        { rewrite (_: dom (gset Addr) m_frame = list_to_set (region_addrs a4 stack_own_end)).
-          2: admit.
-          rewrite (_: elements (list_to_set (region_addrs a4 stack_own_end)) ≡ₚ region_addrs a4 stack_own_end).
-          2: admit.
+        { rewrite lists_to_static_region_dom elements_list_to_set.
           (* this holds because:
              - std_sta W4 = std_sta W3 (by cbn)
              - std_sta W3 !! a = Some Temporary  iff  a ∈ l'' ∨ a ∈ region_addrs stack_own_last e_r (by Hiff')
