@@ -134,6 +134,19 @@ Proof.
   rewrite list_to_map_lookup_is_Some fst_zip // map_length. lia.
 Qed.
 
+Lemma lists_to_static_perms_region_dom l1 l2 :
+  length l1 = length l2 →
+  dom (gset Addr) (lists_to_static_region_perms l1 l2) = list_to_set l1.
+Proof.
+  intros Hlen. apply elem_of_equiv_L. intros x.
+  rewrite /lists_to_static_region elem_of_dom elem_of_list_to_set.
+  split. by intros [? ?%elem_of_list_to_map_2%elem_of_zip_l].
+  intros Hx.
+  destruct (elem_of_list_lookup_1 _ _ Hx) as [xi Hxi].
+  pose proof (lookup_lt_Some _ _ _ Hxi).
+  rewrite list_to_map_lookup_is_Some fst_zip //. lia.
+Qed.
+
 Lemma big_sepL2_to_static_region {Σ: gFunctors} l1 l2 p (Φ : _ → _ → iProp Σ) Ψ :
   NoDup l1 →
   □ (∀ a w, ⌜a ∈ l1⌝ -∗ ⌜w ∈ l2⌝ -∗ Φ a w -∗ Ψ a (p, w)) -∗
@@ -2200,14 +2213,16 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
        l_frame indeed fully uses both lists *)
     iDestruct (big_sepL2_length with "Hstack_own") as %Hlength_stack_own1.
     
-    (* Allocate the static region containing the local stack frame and leftovers *)  
+    (* Allocate the static region containing the local stack frame and leftovers *)
+    assert (NoDup (region_addrs a2 stack_own_last ++ l')) as Hdup1.
+    { rewrite Permutation_app_comm.
+      rewrite Hstack_eq in Hdup. apply region_addrs_of_contiguous_between in Hcont1.
+      rewrite Hcont1 app_assoc in Hdup. by apply NoDup_app in Hdup as [Hdup _]. }
     iDestruct (region_revoked_to_static (W.1, (<[i:=countable.encode false]> W.2.1, W.2.2)) m_static1
                  with "[Hsts Hr Hstack_own Hrest]") as ">[Hsts Hr]".
     { rewrite HeqW' /revoke. iFrame. rewrite /region_mapsto. 
       iApply (big_sepL2_to_static_region_perms _ _ (λ a p w, a ↦ₐ[p] w)%I with "[] [Hstack_own Hrest]").
-      - rewrite Permutation_app_comm.
-        rewrite Hstack_eq in Hdup. apply region_addrs_of_contiguous_between in Hcont1.
-        rewrite Hcont1 app_assoc in Hdup. by apply NoDup_app in Hdup as [Hdup _].         
+      - auto. 
       - iAlways.
         iIntros (k y [p wy] Hin1 Hin2) "Hy /=".
         iExists p,wy.
@@ -2238,6 +2253,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         
     (* Next we close the adversary stack region so that it is Temporary *)
     iDestruct (sts_full_world_std with "Hsts") as %Hstd''.
+    iDestruct (big_sepL2_length with "Hrest_valid") as %Hlength_rest. 
     iMod (monotone_close _ (region_addrs stack_own_last e_r) RWLX (λ Wv, interp Wv.1 Wv.2)
             with "[$Hsts $Hr Hstack_adv]") as "[Hsts Hr]".
     { rewrite Hstack_eq. iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_val']".
@@ -2249,8 +2265,19 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         + by repeat (rewrite fixpoint_interp1_eq /=).
       - iApply big_sepL_sep; iFrame "#". iApply big_sepL_forall. iPureIntro.
         rewrite Hstack_eq in Hrevoked. apply Forall_app in Hrevoked as [_ Hrevoked]. 
-        intros k x Hsome. (* need to use the lemma what says that elem_of is xor with an app or region_addrs *)
-        admit. 
+        intros k x Hsome.
+        assert (x ∉ (region_addrs a2 stack_own_last) ++ l') as Hnin.
+        { apply elem_of_list_lookup_2 in Hsome.
+          apply region_addrs_of_contiguous_between in Hcont1. 
+          rewrite Hstack_eq Hcont1 app_assoc in Hdup.
+          revert Hdup. rewrite Permutation_app_comm =>Hdup. apply NoDup_app in Hdup as [_ [Hnin _] ].
+          apply Hnin in Hsome. rewrite Permutation_app_comm. auto. 
+        }
+        rewrite std_sta_update_multiple_lookup_same /std_sta /=.
+        apply Forall_lookup_1 with (i0:=k) (x0:=x) in Hrevoked as [Hrevoked _];auto.
+        rewrite HeqW' in Hrevoked. auto.
+        rewrite lists_to_static_perms_region_dom.
+        rewrite elements_list_to_set;auto. repeat rewrite app_length. auto. 
     }
     
     (* Resulting world *)
@@ -2314,9 +2341,31 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           iFrame. iPureIntro;split.
           - apply close_list_std_sta_revoked.
             + apply elem_of_list_fmap. eexists _; split;[eauto|]. apply elem_of_list_lookup; eauto.
-            + revert Hrevoked. rewrite Forall_forall =>Hrevoked. admit. 
+            + revert Hrevoked. rewrite Forall_forall =>Hrevoked.
+              assert (y ∉ (region_addrs a2 stack_own_last) ++ l') as Hnin.
+              { apply elem_of_list_lookup_2 in Hsome.
+                apply region_addrs_of_contiguous_between in Hcont1. 
+                rewrite Hstack_eq Hcont1 app_assoc in Hdup.
+                revert Hdup. rewrite Permutation_app_comm =>Hdup. apply NoDup_app in Hdup as [_ [Hnin _] ].
+                apply Hnin in Hsome. rewrite Permutation_app_comm. auto. 
+              }
+              rewrite std_sta_update_multiple_lookup_same /std_sta /=. rewrite HeqW' in Hrevoked. 
+              apply Hrevoked. apply elem_of_list_lookup. eauto.
+              rewrite lists_to_static_perms_region_dom.
+              rewrite elements_list_to_set;auto. repeat rewrite app_length. auto. 
           - revert Hrevoked. rewrite Forall_forall =>Hrevoked.
-            rewrite /region_std. admit. 
+            assert (y ∉ (region_addrs a2 stack_own_last) ++ l') as Hnin.
+            { apply elem_of_list_lookup_2 in Hsome.
+              apply region_addrs_of_contiguous_between in Hcont1. 
+              rewrite Hstack_eq Hcont1 app_assoc in Hdup.
+              revert Hdup. rewrite Permutation_app_comm =>Hdup. apply NoDup_app in Hdup as [_ [Hnin _] ].
+              apply Hnin in Hsome. rewrite Permutation_app_comm. auto. 
+            }
+            rewrite /region_std. rewrite /W'' /rel_is_std_i /close_list /std_rel /=. 
+            rewrite std_rel_update_multiple_lookup_same /std_sta /=. rewrite HeqW' in Hrevoked.
+            apply Hrevoked. apply elem_of_list_lookup. eauto.
+            rewrite lists_to_static_perms_region_dom.
+            rewrite elements_list_to_set;auto. repeat rewrite app_length. auto. 
         }
         iFrame "Hstack_adv_val". 
         iAlways.
