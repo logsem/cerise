@@ -47,6 +47,53 @@ Section region_macros.
          iFrame. eauto.        
    Qed.
 
+   Lemma region_addrs_exists_zip {A B C: Type} (a : list A) (φ : A → B → C -> iProp Σ) :
+     (([∗ list] a0 ∈ a, (∃ b0 c0, φ a0 b0 c0)) ∗-∗
+      (∃ (ws : list (B * C)), [∗ list] a0;bc0 ∈ a;ws, φ a0 bc0.1 bc0.2))%I.
+   Proof.
+     iSplit. 
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn". 
+       + iExists []. done.
+       + iDestruct "Ha" as "[Ha0 Ha]".
+         iDestruct "Ha0" as (w0 p0) "Ha0". 
+         iDestruct ("IHn" with "Ha") as (ws) "Ha'".
+         iExists ((w0,p0) :: ws). iFrame.
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn". 
+       + done. 
+       + iDestruct "Ha" as (ws) "Ha".
+         destruct ws;[by iApply bi.False_elim|]. 
+         iDestruct "Ha" as "[Ha0 Ha]". 
+         iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto. 
+         iFrame. eauto.        
+   Qed.
+
+   Lemma region_addrs_exists2 {A B C: Type} (a : list A) (b : list B) (φ : A → B → C -> iProp Σ) :
+     (([∗ list] a0;b0 ∈ a;b, (∃ c0, φ a0 b0 c0)) ∗-∗
+      (∃ (ws : list C), ⌜length ws = length b⌝ ∗ [∗ list] a0;bc0 ∈ a;(zip b ws), φ a0 bc0.1 bc0.2))%I.
+   Proof.
+     iSplit. 
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn" forall (b). 
+       + iExists []. iDestruct (big_sepL2_length with "Ha") as %Hlength. 
+         destruct b;inversion Hlength. iSplit;auto. 
+       + iDestruct (big_sepL2_length with "Ha") as %Hlength.
+         destruct b; [inversion Hlength|]. 
+         iDestruct "Ha" as "[Ha0 Ha]".
+         iDestruct "Ha0" as (w0) "Ha0". 
+         iDestruct ("IHn" with "Ha") as (ws Hlen) "Ha'".
+         iExists (w0 :: ws). simpl. iSplit;auto. iFrame. 
+     - iIntros "Ha".
+       iInduction (a) as [ | a0] "IHn" forall (b). 
+       + iDestruct "Ha" as (ws Hlen) "Ha". 
+         iDestruct (big_sepL2_length with "Ha") as %Hlength. destruct b,ws;inversion Hlength; done. 
+       + iDestruct "Ha" as (ws Hlen) "Ha".
+         destruct ws,b;try by iApply bi.False_elim. simpl. 
+         iDestruct "Ha" as "[Ha0 Ha]". iDestruct (big_sepL2_length with "Ha") as %Hlength.
+         iDestruct ("IHn" with "[Ha]") as "Ha'"; iFrame; eauto. 
+   Qed.
+
    Lemma big_sepL2_to_big_sepL_r {A B : Type} (φ : B → iProp Σ) (l1 : list A) l2 :
      length l1 = length l2 →
      (([∗ list] _;y2 ∈ l1;l2, φ y2) ∗-∗
@@ -67,6 +114,30 @@ Section region_macros.
        + iDestruct "Hl2" as "[Hy2 Hl2]".
          destruct l1; inversion Hlen. 
          iDestruct ("IHn" $! l1 with "Hl2") as "Hl2".
+         iFrame. iApply "Hl2". auto. 
+   Qed.
+
+   Lemma big_sepL2_to_big_sepL_l {A B : Type} (φ : A → iProp Σ) (l1 : list A)
+         (l2 : list B) :
+     length l1 = length l2 →
+     (([∗ list] y1;_ ∈ l1;l2, φ y1) ∗-∗
+     ([∗ list] y ∈ l1, φ y))%I. 
+   Proof.
+     iIntros (Hlen). 
+     iSplit. 
+     - iIntros "Hl2". iRevert (Hlen). 
+       iInduction (l1) as [ | y1] "IHn" forall (l2); iIntros (Hlen). 
+       + done.
+       + destruct l2;[by iApply bi.False_elim|]. 
+         iDestruct "Hl2" as "[$ Hl2]". 
+         iApply ("IHn" with "Hl2"). auto. 
+     - iIntros "Hl2". 
+       iRevert (Hlen). 
+       iInduction (l1) as [ | y1] "IHn" forall (l2); iIntros (Hlen). 
+       + destruct l2; inversion Hlen. done.
+       + iDestruct "Hl2" as "[Hy2 Hl2]".
+         destruct l2; inversion Hlen. 
+         iDestruct ("IHn" $! l2 with "Hl2") as "Hl2".
          iFrame. iApply "Hl2". auto. 
    Qed.
 
