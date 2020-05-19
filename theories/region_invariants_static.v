@@ -472,6 +472,23 @@ Section heap.
   (* --------------------------------------------------------------------------------- *)
   (* ------------------ Allocate a Static region from a Revoked one ------------------ *)
 
+  Lemma related_sts_pub_world_static W W' m i :
+    rel_is_std_i W i ->
+    (std_sta W !! i) = Some (countable.encode (Static m)) ->
+    related_sts_pub_world W W' ->
+    (std_sta W' !! i) = Some (countable.encode (Static m)) ∨ (std_sta W' !! i) = Some (countable.encode Temporary).
+  Proof.
+    intros Hrel Hsta [ [Hdom1 [Hdom2 Hrelated_std] ] _].
+    assert (is_Some (std_rel W' !! i)) as [ [r1' r2'] Hr']. 
+    { apply elem_of_gmap_dom. assert (i ∈ dom (gset positive) (std_rel W));[apply elem_of_gmap_dom;eauto|]. set_solver. }
+    eapply Hrelated_std in Hr' as [Heq1 [Heq2 Hrelated] ];[subst|eauto]. 
+    assert (is_Some (std_sta W' !! i)) as [y Hy]. 
+    { apply elem_of_gmap_dom. assert (i ∈ dom (gset positive) (std_sta W));[apply elem_of_gmap_dom;eauto|]. set_solver. }
+    eapply Hrelated in Hsta;[|eauto].
+    eapply std_rel_pub_rtc_Static in Hsta;[|eauto].
+    destruct Hsta as [-> | ->];auto. 
+  Qed. 
+    
   Lemma related_sts_priv_world_static W l (m' : gmap Addr (Perm * Word)) :
     rel_is_std W -> 
     Forall (λ a : Addr, (std_sta W) !! (encode a) = Some (encode Revoked)) l →

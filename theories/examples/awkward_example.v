@@ -181,18 +181,47 @@ Proof.
     iModIntro. iIntros. iApply ("Ha" $! (S k)); auto; iPureIntro. }
 Qed.
 
+Lemma static_region_perms_to_big_sepL2 {Σ: gFunctors} l1 l2 (Φ : _ → _ → _ -> iProp Σ) Ψ :
+  NoDup l1 → length l1 = length l2 ->
+  □ (∀ k a w, ⌜l1 !! k = Some a⌝ -∗ ⌜l2 !! k = Some w⌝ -∗ Ψ a w -∗ Φ a w.1 w.2) -∗
+  ([∗ map] a↦pv ∈ lists_to_static_region_perms l1 l2, Ψ a pv) -∗
+  ([∗ list] a;w ∈ l1;l2, Φ a w.1 w.2). 
+Proof.
+  revert l2. induction l1; intros l2 ND Hlen.
+  { cbn in *. iIntros "_ _". destruct l2;[|inversion Hlen]. done. }
+  { iIntros "#Ha H". destruct l2;[inversion Hlen|]. iDestruct (big_sepM_delete with "H") as "[Hψ H]". 
+    rewrite lists_to_static_region_perms_cons. apply lookup_insert.
+    iSplitL "Hψ". { iApply ("Ha" $! 0); try (iPureIntro; constructor). destruct p;simpl. eauto. }
+    iApply IHl1; auto.
+    by eauto using NoDup_cons_12.
+    iModIntro. iIntros. iApply ("Ha" $! (S k)); auto; iPureIntro.
+    rewrite lists_to_static_region_perms_cons.
+    rewrite delete_insert. auto. by apply lists_to_static_region_perms_lookup_None, NoDup_cons_11. }
+Qed.
+
 Lemma big_sepL2_zip_repeat {Σ: gFunctors} {A B C : Type} l1 l2 (Φ : A → B -> C -> iProp Σ) (b : B) :
-  (([∗ list] y1;y2 ∈ l1;l2, Φ y1 b y2) -∗
+  (([∗ list] y1;y2 ∈ l1;l2, Φ y1 b y2) ∗-∗
   [∗ list] y1;y2 ∈ l1;(zip (repeat b (length l2)) l2), Φ y1 y2.1 y2.2)%I. 
 Proof.
-  iIntros "Hl".
-  iInduction l1 as [|a l1] "IH" forall (l2).
-  - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
-    destruct l2;[|inversion Hlength]. done.
-  - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
-    destruct l2;[inversion Hlength|].
-    iDestruct "Hl" as "[Hy Hl]".
-    simpl. iFrame. by iApply "IH". 
+  iSplit.
+  { iIntros "Hl".
+    iInduction l1 as [|a l1] "IH" forall (l2).
+    - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
+      destruct l2;[|inversion Hlength]. done.
+    - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
+      destruct l2;[inversion Hlength|].
+      iDestruct "Hl" as "[Hy Hl]".
+      simpl. iFrame. by iApply "IH".
+  }
+  { iIntros "Hl".
+    iInduction l1 as [|a l1] "IH" forall (l2).
+    - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
+      destruct l2;[|inversion Hlength]. done.
+    - iDestruct (big_sepL2_length with "Hl") as %Hlength. 
+      destruct l2;[inversion Hlength|].
+      iDestruct "Hl" as "[Hy Hl]".
+      simpl. iFrame. by iApply "IH".
+  }
 Qed.     
 
 (* Helper lemma to extract registers from a big_sepL2 *)
@@ -2389,12 +2418,63 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iAlways.
         iIntros (r' W3 Hrelated3).
         iNext.
+
+        (* We start by asserting that the adversary stack is still temporary *)
+        iAssert ([∗ list] a ∈ (region_addrs stack_own_last e_r),
+                 ⌜W3.1.1 !! countable.encode a = Some (countable.encode Temporary)⌝
+                    ∗ rel a RWLX (λ Wv : prodO STS STS * Word, ((fixpoint interp1) Wv.1) Wv.2)
+                )%I as "#Hstack_adv_tmp".
+        { rewrite Hstack_eq.
+          iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_adv]".
+          iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hr".
+          rewrite /read_write_cond. iFrame. iPureIntro.
+          assert (region_state_pwl W3 y) as Hlookup;[|auto].
+          revert Hrevoked; rewrite HeqW' Forall_forall =>Hrevoked.
+          apply region_state_pwl_monotone with W''; eauto.
+          - apply related_sts_rel_std with W;auto.
+            revert Htemp. rewrite Forall_forall =>Htemp. apply Htemp.
+            rewrite Hstack_eq. apply elem_of_app. right. 
+            apply elem_of_list_lookup;eauto. 
+          - rewrite /W'' /region_state_pwl /std_sta /=.
+            apply close_list_std_sta_revoked; [apply elem_of_list_fmap_1, elem_of_list_lookup; eauto|].
+            assert (y ∉ (region_addrs a2 stack_own_last) ++ l') as Hnin.
+            { apply elem_of_list_lookup_2 in Hsome.
+              apply region_addrs_of_contiguous_between in Hcont1. 
+              rewrite Hstack_eq Hcont1 app_assoc in Hdup.
+              revert Hdup. rewrite Permutation_app_comm =>Hdup. apply NoDup_app in Hdup as [_ [Hnin _] ].
+              apply Hnin in Hsome. rewrite Permutation_app_comm. auto. 
+            }
+            rewrite std_sta_update_multiple_lookup_same /std_sta /=. 
+              apply Hrevoked. rewrite Hstack_eq. apply elem_of_app; right. apply elem_of_list_lookup. eauto.
+              rewrite lists_to_static_perms_region_dom.
+              rewrite elements_list_to_set;auto. repeat rewrite app_length. auto. 
+        }
+        iDestruct (big_sepL_sep with "Hstack_adv_tmp") as "[Htemp _]". 
+        iDestruct (big_sepL_forall with "Htemp") as %HtempW3. iClear "Htemp". 
+        
         (* we want to distinguish between the case where the local stack frame is Static (step through 
            continuation) and where the local stack frame is temporary (apply FTLR) *)
-        assert ((std_sta W3) !! (countable.encode a2) = Some (countable.encode Temporary) ∨
-                (std_sta W3) !! (countable.encode a2) = Some (countable.encode (Static m_static1)))
-          as [Hm_frame_static | Hm_frame_temp].
-        { admit. }
+        assert (forall a, a ∈ region_addrs a2 stack_own_last ++ l' ->
+                  (std_sta W3) !! (countable.encode a) = Some (countable.encode Temporary) ∨
+                  (std_sta W3) !! (countable.encode a) = Some (countable.encode (Static m_static1)))
+          as Hcases.
+        { intros a' Hin. apply or_comm,related_sts_pub_world_static with W'';auto.
+          - apply std_rel_update_multiple_lookup_std_i. 
+            rewrite lists_to_static_perms_region_dom;[|repeat rewrite app_length;rewrite Hlength_rest;auto].
+            rewrite elements_list_to_set;auto. apply elem_of_list_fmap. repeat eexists. auto. 
+          - assert (std_sta (std_update_multiple (revoke (W.1, (<[i:=countable.encode false]> W.2.1, W.2.2)))
+                            (elements (dom (gset Addr) m_static1)) (Static m_static1)) !! countable.encode a' =
+                    Some (countable.encode (Static m_static1))) as Hlookup. 
+            { apply std_sta_update_multiple_lookup_in_i.
+              rewrite lists_to_static_perms_region_dom;[|repeat rewrite app_length;rewrite Hlength_rest;auto].
+              rewrite elements_list_to_set;auto. apply elem_of_list_fmap. repeat eexists. auto. }
+            rewrite -close_list_std_sta_same_alt;auto. rewrite Hlookup. intros Hcontr;inversion Hcontr as [heq].
+            apply encode_inj in heq. done. 
+        }
+        assert (a2 ∈ region_addrs a2 stack_own_last ++ l') as Ha2in.
+        { apply elem_of_app. left. apply elem_of_list_lookup. exists 0.
+          apply region_addrs_of_contiguous_between in Hcont1 as <-. auto. }
+        apply Hcases in Ha2in as [Hm_temp | Hm_static].
         { iSimpl. 
           iIntros "(#[Hfull3 Hreg3] & Hmreg' & Hr & Hsts & Hna)". 
           iSplit; [auto|rewrite /interp_conf].
@@ -2404,19 +2484,45 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                If it is temp we are done. If it is static then we can use the full_sts_static_all lemma 
                to assert that a2 is also in state Static, which leads to a contradiction, as we are in the 
                case where it should be Temporary *)
-            admit. }
+            iIntros (a'). rewrite /m_static1. 
+            rewrite lists_to_static_perms_region_dom;[|repeat rewrite app_length;rewrite Hlength_rest;auto].
+            iIntros (Hin). apply elem_of_list_to_set in Hin. 
+            pose proof (Hcases a' Hin) as [Htemp' | Hstatic].
+            - rewrite /temporary. rewrite Htemp'. auto.
+            - iDestruct (full_sts_static_all with "Hsts Hr") as %Hforall;[eauto|]. exfalso.
+              assert (a2 ∈ dom (gset Addr) m_static1) as Hin'.
+              { rewrite lists_to_static_perms_region_dom;[|repeat rewrite app_length;rewrite Hlength_rest;auto].
+                apply elem_of_list_to_set. apply elem_of_app. left. apply elem_of_list_lookup. exists 0.
+                apply region_addrs_of_contiguous_between in Hcont1 as <-. auto. }
+              apply Hforall in Hin'. rewrite /static Hm_temp in Hin'. apply encode_inj in Hin'. done. 
+          }
           iDestruct (fundamental W3 r' RX Local a2 e_r stack_own_b with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
           { iSimpl. iExists RWLX. iSplit;[auto|].
             iApply (big_sepL_mono with "Hstack_val").
-            iIntros (k y Hk) "Hrel". iFrame. iPureIntro.
-            rewrite (region_addrs_split _ stack_own_end) in Hk. 
+            iIntros (k y Hk) "Hrel". iFrame. iPureIntro.            
             split;[left|].
-            - admit.
-            - admit.
-            - admit.
+            - (* first we assert that the region is all in state temporary *)
+              rewrite (region_addrs_split _ stack_own_last) in Hk. 
+              assert (y ∈ region_addrs a2 stack_own_last ++ region_addrs stack_own_last e_r) as Hk'.
+              { apply elem_of_list_lookup. eauto. }
+              apply elem_of_app in Hk' as [Hframe | Hadv].
+              + assert (y ∈ dom (gset Addr) m_static1) as Hk'.
+                { rewrite lists_to_static_perms_region_dom;[|repeat rewrite app_length;rewrite Hlength_rest;auto].
+                  apply elem_of_list_to_set. apply elem_of_app. by left. }
+                apply Hm_frame_temp_all in Hk'. rewrite /temporary in Hk'.
+                destruct (W3.1.1 !! countable.encode y) eqn:Hsome;[subst;auto|inversion Hk'].
+              + apply elem_of_list_lookup in Hadv as [j Hj]. by apply HtempW3 with j. 
+              + split. 
+                * rewrite /le_addr. trans stack_own_b;[|revert Hstack_own_bound;clear;solve_addr].
+                  apply contiguous_between_middle_bounds with (i:=3) (ai:=stack_own_b) in Hcont1 as [Hle _];auto.
+                * apply contiguous_between_bounds in Hcont2. auto. 
+            - apply related_sts_rel_std with W.
+              eapply related_sts_priv_pub_trans_world;[apply HWW''|apply Hrelated3]. 
+              revert Htemp. rewrite Forall_forall =>Htemp. apply Htemp. apply elem_of_list_lookup;eauto. 
           }
           iFrame. 
         }
+        
         (* Now we are in the case where m_static1 is still static. We will have to open the region and step through
            the continuation as usual. *)
         iSimpl. 
@@ -2434,22 +2540,6 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* We will need to step through the activation record. We will therefore have to revoke m_static1. 
            Since this is a private transition, we must first revoke W3. *)
 
-        (* we assert that the adversary stack is still temporary *)
-        iAssert ([∗ list] a ∈ (region_addrs stack_own_last e_r),
-                 ⌜W3.1.1 !! countable.encode a = Some (countable.encode Temporary)⌝
-                    ∗ rel a RWLX (λ Wv : prodO STS STS * Word, ((fixpoint interp1) Wv.1) Wv.2)
-                )%I as "#Hstack_adv_tmp".
-        { rewrite Hstack_eq.
-          iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_adv]".
-          iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hr".
-          rewrite /read_write_cond. iFrame. iPureIntro.
-          assert (region_state_pwl W3 y) as Hlookup;[|auto].
-          revert Hrevoked; rewrite HeqW' Forall_forall =>Hrevoked.
-          apply region_state_pwl_monotone with W''; eauto.
-          - rewrite /W''. admit. 
-          - rewrite /W'' /region_state_pwl /std_sta /=.
-            apply close_list_std_sta_revoked; [apply elem_of_list_fmap_1, elem_of_list_lookup; eauto|].
-            admit. }
         iAssert (⌜exists M, dom_equal W3.1.1 M⌝)%I as %Hdom.
         { rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(_ & % & _)". iPureIntro. eauto. }
         iAssert (⌜Forall (λ a, W3.1.1 !! countable.encode a = Some (countable.encode Temporary))
@@ -2479,7 +2569,18 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* finally we split up the static resources into the local stack frame and l' *)
         iAssert ([[a2,stack_own_last]] ↦ₐ[RWLX] [[l_frame]]
                 ∗ [∗ list] a;pw ∈ l';pws, a ↦ₐ[pw.1] pw.2)%I with "[Hm_static1_resources]" as "[Hframe Hl']".
-        { admit. }
+        { rewrite /m_static1. 
+          rewrite /region_mapsto.
+          iAssert (([∗ list] y1;y2 ∈ region_addrs a2 stack_own_last;zip (repeat RWLX (length l_frame)) l_frame, y1 ↦ₐ[y2.1] y2.2)
+                     ∗ ([∗ list] a11;pw ∈ l';pws, a11 ↦ₐ[pw.1] pw.2))%I with "[-]" as "[H $]".
+          { iApply (big_sepL2_app' _ _ _ (λ k a pv, a ↦ₐ[pv.1] pv.2))%I;auto.
+            iApply (static_region_perms_to_big_sepL2 _ _ (λ a p w, a ↦ₐ[p] w) with "[] Hm_static1_resources")%I. 
+            auto. repeat rewrite app_length. rewrite Hlength_rest. auto.
+            iAlways. auto. 
+          }
+          iApply (big_sepL2_zip_repeat _ _ (λ a p w, a ↦ₐ[p] w) with "H")%I.           
+        }
+
         (* we isolate the activation record from the frame *)
         iDestruct (region_mapsto_cons with "Hframe") as "[Ha2 Hframe]"; [iContiguous_next Hcont1 0|..].
         { apply contiguous_between_middle_bounds with (i:=1) (ai:=a3) in Hcont1;auto. revert Hcont1;clear;solve_addr. }
@@ -2753,6 +2854,10 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           iApply (big_sepL2_app with "Hscall [-]"). iFrame.
         }
 
+        (* we separate the points to chunk from the persistent parts of the leftovers l'' *)
+        iDestruct (temp_resources_split with "Hrest'") as (pws') "[#Hrest_valid' [#Hrev Hrest']]".
+        iDestruct "Hrev" as %Hrev'.
+        
         (* fact: l', l'', [a4,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
 
         (* Allocate a static region to hold our frame *)
