@@ -44,6 +44,20 @@ Section std_updates.
      induction l; auto. 
    Qed.
 
+   Lemma std_update_multiple_proj_eq W Wloc l ρ :
+     ((std_update_multiple W l ρ).1, Wloc) = std_update_multiple (W.1,Wloc) l ρ.
+   Proof.
+     destruct W as [Wsta Wloc']. simpl. induction l; auto. 
+     simpl. rewrite -IHl. auto.
+   Qed.
+
+   Lemma std_update_multiple_std_sta_eq W Wloc l ρ :
+     (std_update_multiple W l ρ).1.1 = (std_update_multiple (W.1, Wloc) l ρ).1.1.
+   Proof.
+     destruct W as [Wsta Wloc']. simpl. induction l; auto. 
+     simpl. rewrite -IHl. auto.
+   Qed.
+   
    Lemma std_update_multiple_std_rel_eq W l ρ :
      rel_is_std W ->
      ∀ i, is_Some(W.1.2 !! i) -> W.1.2 !! i = (std_update_multiple W l ρ).1.2 !! i.
@@ -312,7 +326,7 @@ Section std_updates.
        + intros Hcontr. apply std_update_multiple_not_in_rel in Hcontr; auto. 
          intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
    Qed.
-
+     
    Lemma std_update_multiple_rel_is_std W l ρ :
      rel_is_std W ->
      rel_is_std (std_update_multiple W l ρ).
@@ -380,6 +394,52 @@ Section std_updates.
      - apply elem_of_gmap_dom. eexists. 
        apply std_rel_update_multiple_lookup_std_i; auto.
      - apply std_update_multiple_not_in_rel_i; auto.
+   Qed.
+
+   Lemma std_update_multiple_std_sta_dom_monotone W W' l ρ :
+     dom (gset positive) (std_sta W) ⊆ dom (gset positive) (std_sta W') ->
+     dom (gset positive) (std_sta (std_update_multiple W l ρ)) ⊆ dom (gset positive) (std_sta (std_update_multiple W' l ρ)).
+   Proof.
+     induction l;auto. 
+     simpl. repeat rewrite dom_insert_L. set_solver.
+   Qed.
+
+   Lemma std_update_multiple_std_rel_dom_monotone W W' l ρ :
+     dom (gset positive) (std_rel W) ⊆ dom (gset positive) (std_rel W') ->
+     dom (gset positive) (std_rel (std_update_multiple W l ρ)) ⊆ dom (gset positive) (std_rel (std_update_multiple W' l ρ)).
+   Proof.
+     induction l;auto. 
+     simpl. repeat rewrite dom_insert_L. set_solver.
+   Qed. 
+     
+   Lemma std_update_mutiple_related_monotone W W' l ρ :
+     related_sts_pub_world W W' ->
+     related_sts_pub_world (std_update_multiple W l ρ) (std_update_multiple W' l ρ).
+   Proof.
+     intros Hrelated.
+     destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
+     destruct W' as [ [Wstd_sta' Wstd_rel'] [Wloc_sta' Wloc_rel'] ]. 
+     destruct Hrelated as [ [Hstd_dom1 [Hstd_dom2 Hstd_related] ] Hloc_related].
+     simpl in *.
+     split;[clear Hloc_related|by repeat rewrite std_update_multiple_loc_rel std_update_multiple_loc_sta].
+     split;[|split].
+     - apply std_update_multiple_std_sta_dom_monotone. auto.
+     - apply std_update_multiple_std_rel_dom_monotone. auto.
+     - intros i r1 r2 r1' r2' Hr Hr'.
+       destruct (decide (i ∈ encode <$> l)).
+       + rewrite std_rel_update_multiple_lookup_std_i in Hr;auto.
+         rewrite std_rel_update_multiple_lookup_std_i in Hr';auto.
+         inversion Hr; inversion Hr'; subst. repeat split;auto.
+         intros x y Hx Hy.
+         rewrite std_sta_update_multiple_lookup_in_i in Hx;auto.
+         rewrite std_sta_update_multiple_lookup_in_i in Hy;auto.
+         inversion Hx; inversion Hy; subst. left.
+       + rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr;auto.
+         rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr';auto.
+         edestruct (Hstd_related) as [Heq1 [Heq2 Hrelated] ];[apply Hr|apply Hr'|subst].
+         repeat split;auto. intros x y Hx Hy.
+         rewrite std_sta_update_multiple_lookup_same_i /std_sta /= in Hx;auto.
+         rewrite std_sta_update_multiple_lookup_same_i /std_sta /= in Hy;auto.
    Qed. 
  
    (* lemmas for updating a repetition of top *)

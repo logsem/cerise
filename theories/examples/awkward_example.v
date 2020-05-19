@@ -753,13 +753,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
      - rewrite lookup_insert_ne in Hy;auto. rewrite Hx in Hy; inversion Hy; subst. left.
    Qed. 
      
-   Lemma related_pub_local_1 W i (x : bool) :
-     W.2.1 !! i = Some (countable.encode x) ->
-     W.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv) ->
-     related_sts_pub_world W (W.1, (<[i:=countable.encode true]> W.2.1, W.2.2)).
+   Lemma related_pub_local_1 Wloc i (x : bool) :
+     Wloc.1 !! i = Some (countable.encode x) ->
+     Wloc.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv) ->
+     related_sts_pub Wloc.1 (<[i:=countable.encode true]> Wloc.1) Wloc.2 Wloc.2.
    Proof.
      intros Hx Hrel.
-     split;[apply related_sts_pub_refl|simpl].
      split;[apply dom_insert_subseteq|split;[auto|] ].
      intros j r1 r2 r1' r2' Hr Hr'.
      rewrite Hr in Hr'. inversion Hr'; subst; repeat (split;auto).
@@ -2287,8 +2286,15 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
                (std_update_multiple (revoke (W.1, (<[i:=countable.encode false]> W.2.1, W.2.2)))
                   (elements (dom (gset Addr) m_static1)) (Static m_static1)))). 
     assert (related_sts_priv_world W' W'') as HW'W''.
-    { (* admit: need lemma about the private future world of revoked to static *)
-      admit. 
+    { rewrite HeqW'. eapply related_sts_priv_pub_trans_world;[|apply close_list_related_sts_pub;auto].
+      apply related_sts_priv_world_static; auto. 
+      apply Forall_forall.
+      rewrite /m_static1 lists_to_static_perms_region_dom; [|repeat rewrite app_length;rewrite Hlength_rest;auto].
+      intros x Hin. revert Hin. rewrite elements_list_to_set; auto. intros Hin.
+      apply elem_of_app in Hin as [Hin | Hin].
+      - revert Hrevoked. rewrite HeqW' Forall_forall =>Hrevoked. apply Hrevoked.
+        apply region_addrs_of_contiguous_between in Hcont1. rewrite Hstack_eq Hcont1. apply elem_of_app; by left.
+      - revert Hrev. rewrite Forall_forall =>Hrev. apply Hrev. auto.       
     }
     assert (related_sts_priv_world W W'') as HWW''.
     { eapply related_sts_priv_trans_world;[apply revoke_related_sts_priv;auto|].
@@ -2382,7 +2388,38 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* prove continuation *)
         iAlways.
         iIntros (r' W3 Hrelated3).
-        iNext. iSimpl. 
+        iNext.
+        (* we want to distinguish between the case where the local stack frame is Static (step through 
+           continuation) and where the local stack frame is temporary (apply FTLR) *)
+        assert ((std_sta W3) !! (countable.encode a2) = Some (countable.encode Temporary) ∨
+                (std_sta W3) !! (countable.encode a2) = Some (countable.encode (Static m_static1)))
+          as [Hm_frame_static | Hm_frame_temp].
+        { admit. }
+        { iSimpl. 
+          iIntros "(#[Hfull3 Hreg3] & Hmreg' & Hr & Hsts & Hna)". 
+          iSplit; [auto|rewrite /interp_conf].
+          (* first we want to assert that if a2 is Temporary, the remaining addresses are also temporary *)
+          iAssert (⌜∀ a : Addr, a ∈ dom (gset Addr) m_static1 → temporary W3 a⌝)%I as %Hm_frame_temp_all.
+          { (* use fact that if the address is in a public future state, it is either Static or Temp. 
+               If it is temp we are done. If it is static then we can use the full_sts_static_all lemma 
+               to assert that a2 is also in state Static, which leads to a contradiction, as we are in the 
+               case where it should be Temporary *)
+            admit. }
+          iDestruct (fundamental W3 r' RX Local a2 e_r stack_own_b with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
+          { iSimpl. iExists RWLX. iSplit;[auto|].
+            iApply (big_sepL_mono with "Hstack_val").
+            iIntros (k y Hk) "Hrel". iFrame. iPureIntro.
+            rewrite (region_addrs_split _ stack_own_end) in Hk. 
+            split;[left|].
+            - admit.
+            - admit.
+            - admit.
+          }
+          iFrame. 
+        }
+        (* Now we are in the case where m_static1 is still static. We will have to open the region and step through
+           the continuation as usual. *)
+        iSimpl. 
         iIntros "(#[Hfull' Hreg'] & Hmreg' & Hr & Hsts & Hna)". 
         iSplit; [auto|rewrite /interp_conf].
         (* get the PC, currently pointing to the activation record *)
@@ -2393,19 +2430,70 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iGet_genpur_reg_map r' r_adv "Hmreg'" "Hfull'" "[Hr_adv Hmreg']".
         iGet_genpur_reg_map r' r_t0 "Hmreg'" "Hfull'" "[Hr_t0 Hmreg']".
         iGet_genpur_reg_map r' r_env "Hmreg'" "Hfull'" "[Hr_env Hmreg']".
-        (* we open the local stack *)
-        iMod (na_inv_open logrel_nais ⊤ ⊤ with "Hlocal Hna") as "(Hframe & Hna & Hcls)";auto.
-        (* we need to assert that the local state is Live *)
-        iDestruct (bi.later_exist with "Hframe") as (x) "[>Hstate Hframe]". 
-        iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hj.
-        iDestruct (sts_full_rel_loc with "Hsts Hrelj") as %Hrel. 
-        assert (x = Live) as ->.
-        { apply (local_state_related_sts_pub W'' W3 j);auto; rewrite /W'' /= lookup_insert; auto. }
-        iDestruct "Hframe" as "(>Hb_r & >Ha2 & >Ha3 & >Hframe & Hrest)". 
+
+        (* We will need to step through the activation record. We will therefore have to revoke m_static1. 
+           Since this is a private transition, we must first revoke W3. *)
+
+        (* we assert that the adversary stack is still temporary *)
+        iAssert ([∗ list] a ∈ (region_addrs stack_own_last e_r),
+                 ⌜W3.1.1 !! countable.encode a = Some (countable.encode Temporary)⌝
+                    ∗ rel a RWLX (λ Wv : prodO STS STS * Word, ((fixpoint interp1) Wv.1) Wv.2)
+                )%I as "#Hstack_adv_tmp".
+        { rewrite Hstack_eq.
+          iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_adv]".
+          iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hr".
+          rewrite /read_write_cond. iFrame. iPureIntro.
+          assert (region_state_pwl W3 y) as Hlookup;[|auto].
+          revert Hrevoked; rewrite HeqW' Forall_forall =>Hrevoked.
+          apply region_state_pwl_monotone with W''; eauto.
+          - rewrite /W''. admit. 
+          - rewrite /W'' /region_state_pwl /std_sta /=.
+            apply close_list_std_sta_revoked; [apply elem_of_list_fmap_1, elem_of_list_lookup; eauto|].
+            admit. }
+        iAssert (⌜exists M, dom_equal W3.1.1 M⌝)%I as %Hdom.
+        { rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(_ & % & _)". iPureIntro. eauto. }
+        iAssert (⌜Forall (λ a, W3.1.1 !! countable.encode a = Some (countable.encode Temporary))
+                  (region_addrs stack_own_last e_r)⌝)%I as %Hstack_adv_tmp.
+        { iApply region_state_pwl_forall_temp. iApply (big_sepL_mono with "Hstack_adv_tmp").
+          iIntros (k y Hk) "[Htemp Hrel]". iFrame. iExact "Hrel". } 
+        apply extract_temps_split with (l:=region_addrs stack_own_last e_r) in Hdom as [l'' [Hdup' Hiff'] ].
+        2: { apply NoDup_ListNoDup, region_addrs_NoDup. }
+        2: { apply Hstack_adv_tmp. }
+
+        (* we revoke W3, and keep a list of leftovers l'' *)
+        iMod (monotone_revoke_keep_some _ l'' (region_addrs stack_own_last e_r)
+                with "[Hstack_adv_tmp $Hr $Hsts]") as "(Hsts & Hr & Hrest' & Hstack_adv)".
+        assumption. iSplit.
+        { (* TODO: lemma for that? *)
+          iApply big_sepL_forall. iPureIntro. intros n. simpl. intros x Hsome. apply Hiff'. apply elem_of_app; left.
+          apply elem_of_list_lookup. eauto. }
+          by iApply "Hstack_adv_tmp".
+
+        (* With a revoked W3 we can now revoke the frozen stack frame and leftovers l' *)
+        iAssert (sts_full_world sts_std (std_update_multiple (revoke W3) (elements (dom (gset Addr) m_static1)) Revoked)
+               ∗ region (std_update_multiple (revoke W3) (elements (dom (gset Addr) m_static1)) Revoked)
+               ∗ ([∗ map] a↦pv ∈ m_static1, a ↦ₐ[pv.1] pv.2))%I
+          with "[Hr Hsts]" as "(Hsts & Hr & Hm_static1_resources)".
+        { admit. }
+
+        (* finally we split up the static resources into the local stack frame and l' *)
+        iAssert ([[a2,stack_own_last]] ↦ₐ[RWLX] [[l_frame]]
+                ∗ [∗ list] a;pw ∈ l';pws, a ↦ₐ[pw.1] pw.2)%I with "[Hm_static1_resources]" as "[Hframe Hl']".
+        { admit. }
+        (* we isolate the activation record from the frame *)
+        iDestruct (region_mapsto_cons with "Hframe") as "[Ha2 Hframe]"; [iContiguous_next Hcont1 0|..].
+        { apply contiguous_between_middle_bounds with (i:=1) (ai:=a3) in Hcont1;auto. revert Hcont1;clear;solve_addr. }
+        iDestruct (region_mapsto_cons with "Hframe") as "[Ha3 Hframe]"; [iContiguous_next Hcont1 1|..].
+        { apply contiguous_between_middle_bounds with (i:=2) (ai:=a4) in Hcont1;auto. revert Hcont1;clear;solve_addr. }
+        iDestruct (region_mapsto_cons with "Hframe") as "[Ha4 Hframe]"; [iContiguous_next Hcont1 2|..].
+        { apply contiguous_between_middle_bounds with (i:=3) (ai:=stack_own_b) in Hcont1;auto.
+          revert Hcont1;clear;solve_addr. }
+        
         (* prepare the new stack value *)
         assert (exists stack_new, (stack_new + 1)%a = Some stack_own_end) as [stack_new Hstack_new].
         { revert Hstack_own_bound'. clear. intros H. destruct (stack_own_b + 6)%a eqn:Hsome;[|solve_addr].
           exists a. solve_addr. }
+        
         (* step through instructions in activation record *)
         iApply (scall_epilogue_spec with "[-]"); last iFrame "Hframe HPC";
           [|done|iContiguous_next Hcont_rest0 0|apply Hstack_new|revert Hstack_own_bound Hstack_own_bound'; clear; solve_addr|..].
@@ -2414,7 +2502,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         }
         iSplitL "Hr_t1";[iNext;eauto|]. iSplitL "Hr_stk";[iNext;eauto|]. 
         iNext. iIntros "(HPC & Hr_stk & Hr_t1 & Hframe)".
-        iDestruct "Hr_t1" as (wrt1) "Hr_t1". 
+        iDestruct "Hr_t1" as (wrt1) "Hr_t1".
+        
         (* we can now step through the rest of the program *)
         (* to do that wee need to open the non atomic invariant of the program *)
         iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls')";[solve_ndisj..|]. 
@@ -2446,44 +2535,49 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iDestruct (big_sepL2_app_inv _ [a13;a14;a15] (a16::rest0) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
         clear Hpop. assert ((a4 + (0 - 1))%a = Some a3) as Hpop.
         { rewrite -(addr_add_assoc a3 _ 1);[apply addr_add_0|iContiguous_next Hcont1 1]. }
-        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_adv Ha3"];
+        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_adv Ha4"];
           [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl|iContiguous_bounds_withinBounds a2 stack_own_last|auto|
            iContiguous_next Hcont_rest0 3|iContiguous_next Hcont_rest0 4|iContiguous_next Hcont_rest0 5|apply Hpop|].
-        iNext. iIntros "(HPC & Hpop & Hr_adv & Ha3 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
+        iNext. iIntros "(HPC & Hpop & Hr_adv & Ha4 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
         (* pop r_stk r_self *)
         do 3 (destruct rest0; [inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a16;a17;a18] (a19::rest0) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
         clear Hpop. assert ((a3 + (0 - 1))%a = Some a2) as Hpop.
         { rewrite -(addr_add_assoc a2 _ 1);[apply addr_add_0|iContiguous_next Hcont1 0]. }
-        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_t0 Ha2"];
+        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_t0 Ha3"];
           [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl|iContiguous_bounds_withinBounds a2 stack_own_last|auto|
            iContiguous_next Hcont_rest0 6|iContiguous_next Hcont_rest0 7|iContiguous_next Hcont_rest0 8|apply Hpop|].
-        iNext. iIntros "(HPC & Hpop & Hr_t0 & Ha2 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
+        iNext. iIntros "(HPC & Hpop & Hr_t0 & Ha3 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
         (* pop r_stk r_env *)
         do 3 (destruct rest0; [inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a19;a20;a21] (a22::rest0) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
         clear Hpop. assert ((a2 + (0 - 1))%a = Some b_r') as Hpop.
         { rewrite -(addr_add_assoc b_r' _ 1);[apply addr_add_0|auto]. }
-        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_env Hb_r"];
+        iApply (pop_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_env Ha2"];
           [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl|iContiguous_bounds_withinBounds a2 stack_own_last|auto|
            iContiguous_next Hcont_rest0 9|iContiguous_next Hcont_rest0 10|iContiguous_next Hcont_rest0 11|apply Hpop|].
         iNext. iIntros "(HPC & Hpop & Hr_env & Hb_r & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
         (* store r_env 1 *)
         iPrologue rest0 Hrest_length "Hprog".
-        (* Storing 1 will always constitute a public future world of W3 *)
+        (* Storing 1 will always constitute a public future world of 
+           std_update_multiple (revoke W3) dom(m_static1) Revoked *)
         iAssert (∀ φ, ▷ (PC ↦ᵣ inr (pc_p, pc_g, pc_b, pc_e, a23)
                        ∗ r_env ↦ᵣ inr (RWX, Global, d, d', d)
                        ∗ a22 ↦ₐ[pc_p] store_z r_env 1
-                       ∗ region (W3.1,(<[i:=countable.encode true]> W3.2.1,W3.2.2))
-                       ∗ sts_full_world sts_std (W3.1,(<[i:=countable.encode true]> W3.2.1,W3.2.2))
-                       ∗ ⌜(∃ y, W3.2.1 !! i = Some (countable.encode y)) ∧ W3.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv)⌝
+                       ∗ region (std_update_multiple (revoke (W3.1,(<[i:=countable.encode true]> W3.2.1,W3.2.2)))
+                                                     (elements (dom (gset Addr) m_static1)) Revoked)
+                       ∗ sts_full_world sts_std (std_update_multiple (revoke (W3.1,(<[i:=countable.encode true]> W3.2.1,W3.2.2)))
+                                                     (elements (dom (gset Addr) m_static1)) Revoked)
+                       ∗ ⌜(∃ y : bool, W3.2.1 !! i = Some (countable.encode y)) ∧ W3.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv)⌝
                        -∗ WP Seq (Instr Executable) {{ v, φ v }})
                    -∗ WP Instr Executable {{ v, WP fill [SeqCtx] (of_val v) {{ v, φ v }} }})%I
           with "[HPC Hinstr Hr_env Hr Hsts]" as "Hstore_step".
         { iIntros (φ') "Hφ".
           iInv ι as (y) "[>Hstate Hb]" "Hcls".
           iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hlookup.
-          iDestruct (sts_full_rel_loc with "Hsts Hrel") as %Hrellookup. 
+          iDestruct (sts_full_rel_loc with "Hsts Hrel") as %Hrellookup.
+          rewrite std_update_multiple_loc_sta in Hlookup.
+          rewrite std_update_multiple_loc_rel in Hrellookup. 
           destruct y; iDestruct "Hb" as ">Hb".
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
               [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
@@ -2491,9 +2585,10 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod ("Hcls" with "[Hstate Hd]") as "_".
             { iNext. iExists true. iFrame. }
-            iModIntro. iApply wp_pure_step_later;auto;iNext. iApply "Hφ". iFrame.
+            iModIntro. iApply wp_pure_step_later;auto;iNext. iApply "Hφ". iFrame.            
             rewrite (insert_id _ i);[|auto].
-            destruct W3 as [W3_std [W3_loc_pub W3_lo_priv] ]. iFrame. eauto. 
+            destruct W3 as [W3_std [W3_loc_pub W3_lo_priv] ]. iFrame.
+            eauto. 
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
               [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
                iContiguous_next Hcont_rest0 12|auto|].
@@ -2502,8 +2597,13 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             iMod ("Hcls" with "[Hstate Hd]") as "_".
             { iNext. iExists true. iFrame. }
             iModIntro. iApply wp_pure_step_later;auto;iNext. iApply "Hφ".
-            iFrame. iSplitL;[|eauto]. iApply (region_monotone with "[] [] Hr");[auto|..].
-            iPureIntro. apply related_pub_local_1 with false; auto. 
+            rewrite std_update_multiple_loc_sta std_update_multiple_loc_rel std_update_multiple_proj_eq.
+            iFrame. 
+            iSplitL;[|eauto]. iApply (region_monotone with "[] [] Hr").
+            + iPureIntro. rewrite /revoke /std_sta /std_rel /loc /=. erewrite std_update_multiple_std_sta_eq. eauto. 
+            + iPureIntro. apply std_update_mutiple_related_monotone.
+              split;[apply related_sts_pub_refl|].
+              rewrite /= /loc. apply related_pub_local_1 with false; auto.
         }
         iApply "Hstore_step". iNext. iIntros "(HPC & Hr_env & Hinstr & Hr & Hsts & #HW3lookup)".
         iDestruct "HW3lookup" as %[HW3lookup Hw3rel]. 
@@ -2517,49 +2617,11 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* push r_stk r_self *)
         do 2 (destruct rest0;[inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a25;a26] (a27::rest0) with "Hprog") as "[Hpush Hprog]";[simpl;auto|]. 
-        iApply (push_r_spec);[..|iFrame "HPC Hr_stk Hpush Hr_t0 Ha2"];
+        iApply (push_r_spec);[..|iFrame "HPC Hr_stk Hpush Hr_t0 Ha3"];
           [split;iCorrectPC s_last a_last|apply PermFlows_refl|iContiguous_bounds_withinBounds a2 stack_own_last|iContiguous_next Hcont_rest0 15|
            iContiguous_next Hcont_rest0 16|iContiguous_next Hcont1 0|..].
-        iNext. iIntros "(HPC & Hpush & Hr_stk & Hr_self & Ha2)". iCombine "Hpush" "Hprog_done" as "Hprog_done". 
+        iNext. iIntros "(HPC & Hpush & Hr_stk & Hr_self & Ha3)". iCombine "Hpush" "Hprog_done" as "Hprog_done". 
         (* SECOND SCALL *)
-        iAssert ([∗ list] a ∈ (region_addrs stack_own_last e_r),
-                 ⌜W3.1.1 !! countable.encode a = Some (countable.encode Temporary)⌝
-                    ∗ rel a RWLX (λ Wv : prodO STS STS * Word, ((fixpoint interp1) Wv.1) Wv.2)
-                )%I as "#Hstack_adv_tmp".
-        { rewrite Hstack_eq.
-          iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_adv]".
-          iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hr".
-          rewrite /read_write_cond. iFrame. iPureIntro.
-          assert (region_state_pwl W3 y) as Hlookup;[|auto].
-          revert Hrevoked; rewrite Forall_forall =>Hrevoked.
-          apply region_state_pwl_monotone with W''; eauto.
-          - apply Hrevoked. rewrite Hstack_eq.
-            apply elem_of_app;right.
-            apply elem_of_list_lookup. eauto.
-          - rewrite /W'' /region_state_pwl /std_sta /=.
-            apply close_list_std_sta_revoked; [apply elem_of_list_fmap_1, elem_of_list_lookup; eauto|].
-            apply Hrevoked. rewrite Hstack_eq.
-            apply elem_of_app;right.
-            apply elem_of_list_lookup. eauto. }
-
-        (* before invoking the scall spec, we need to revoke the adversary stack region *)
-        iAssert (⌜exists M, dom_equal W3.1.1 M⌝)%I as %Hdom.
-        { rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(_ & % & _)". iPureIntro. eauto. }
-        iAssert (⌜Forall (λ a, W3.1.1 !! countable.encode a = Some (countable.encode Temporary))
-                  (region_addrs stack_own_last e_r)⌝)%I as %Hstack_adv_tmp.
-        { iApply region_state_pwl_forall_temp. iApply (big_sepL_mono with "Hstack_adv_tmp").
-          iIntros (k y Hk) "[Htemp Hrel]". iFrame. iExact "Hrel". } 
-        apply extract_temps_split with (l:=region_addrs stack_own_last e_r) in Hdom as [l'' [Hdup' Hiff'] ].
-        2: { apply NoDup_ListNoDup, region_addrs_NoDup. }
-        2: { apply Hstack_adv_tmp. }
-
-        iMod (monotone_revoke_keep_some _ l'' (region_addrs stack_own_last e_r)
-                with "[Hstack_adv_tmp $Hr $Hsts]") as "(Hsts & Hr & Hrest' & Hstack_adv)".
-        assumption. iSplit.
-        { (* TODO: lemma for that? *)
-          iApply big_sepL_forall. iPureIntro. intros n. simpl. intros x Hsome. apply Hiff'. apply elem_of_app; left.
-          apply elem_of_list_lookup. eauto. }
-        by iApply "Hstack_adv_tmp". 
 
         (* we now want to extract the final element of the local stack, which will now be handed off to the adversary *)
         do 2 (iDestruct (big_sepL_sep with "Hstack_adv") as "[Hstack_adv _]").
@@ -2590,7 +2652,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           rewrite Hstack_localeq. 
           iExists (_ :: ws_adv'). iFrame. 
         }
-        iAssert (▷ (∃ ws_own : list Word, [[a4,stack_own_end]]↦ₐ[RWLX][[ws_own]]))%I with "[Hframe Ha3]" as ">Hstack_own".
+        iAssert (▷ (∃ ws_own : list Word, [[a4,stack_own_end]]↦ₐ[RWLX][[ws_own]]))%I with "[Hframe Ha4]" as ">Hstack_own".
         { iNext. 
           iExists ((inr (E, Global, b, e, a)) :: _). rewrite /region_mapsto.
           assert ([a4] ++ region_addrs stack_own_b stack_own_end = region_addrs a4 stack_own_end) as <-.
@@ -2673,8 +2735,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
           [apply jmp_i|apply PermFlows_refl|iCorrectPC a27 a_last|..].
         iEpilogue "(HPC & Hinstr & Hr_adv)". iSimpl in "HPC".
-        (* again we are jumping to unknown code. We will now need to close all our invariants so we can reestablish the FTLR 
-           on the new state *)
+        (* again we are jumping to unknown code. We will now need to close all our invariants so we can 
+           reestablish the FTLR on the new state *)
         (* we close the invariant for our program *)
         iMod ("Hcls'" with "[Hprog_done Hprog Hinstr Hscall $Hna]") as "Hna".
         { iNext. iDestruct "Hprog_done" as "(Hpush2 & push1 & Ha19 & Hpop1 & Hpop2 & Hpop3 &
@@ -2690,27 +2752,6 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           rewrite Hrest_app1. 
           iApply (big_sepL2_app with "Hscall [-]"). iFrame.
         }
-        (* lets define the world before we close the adv stack invariant *)
-        evar (W4 : prod (prod STS_states STS_rels) (prod STS_states STS_rels)).
-        instantiate (W4 := (W3.1.1, std_rel (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)),
-                            (<[j:=countable.encode Released]> (<[i:=countable.encode true]> W3.2.1), W3.2.2))).
-        assert (related_sts_priv_world (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)) W4) as Hrelated4.
-        { apply related_priv_local_2;auto. }
-        (* Since the current region is revoked, we can privately update it *)
-        iAssert (sts_full_world sts_std (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2))) ∗ region (revoke W4))%I with "[Hsts Hr]" as "[Hsts Hr]".
-        { rewrite region_eq /region_def.
-          iDestruct "Hr" as (M Mρ) "(HM & % & % & Hr)".
-          iApply bi.sep_exist_l. iExists (M). 
-          iAssert (⌜dom_equal (std_sta (revoke W4)) M⌝)%I as "#Hdom";[|iFrame "Hdom HM"].
-          { iPureIntro. rewrite /W4 /std_sta /=. auto. }
-          iDestruct (monotone_revoke_list_region_def_mono_same $! Hrelated4 with "Hsts Hr") as "[Hsts Hr]".
-          iFrame. iExists _. iFrame. by rewrite -dom_equal_revoke.
-        }
-        (* before we close our stack invariants, we want to privately update our local stack invariant *)
-        iMod (sts_update_loc _ j Live Released with "Hsts Hstate") as "[Hsts Hstate]".
-        iMod ("Hcls" with "[Hstate $Hna]") as "Hna".
-        { iNext. iExists Released. iFrame. }
-        iAssert (sts_full_world sts_std (revoke W4)) with "Hsts" as "Hsts".
 
         (* fact: l', l'', [a4,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
 
