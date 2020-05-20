@@ -977,22 +977,22 @@ Section heap.
         left. }
   Qed.
 
-  Lemma region_static_to_revoked W (l: Addr) (m: gmap Addr (Perm * Word)) :
+  Lemma region_static_to_revoked W (a: Addr) (m: gmap Addr (Perm * Word)) :
     let W' := std_update_multiple (revoke W) (elements (dom (gset Addr) m)) Revoked in
-    std_sta W !! encode l = Some (encode (Static m)) →
+    std_sta W !! encode a = Some (encode (Static m)) →
     sts_full_world sts_std (revoke W)
     ∗ region (revoke W)
     ==∗
     sts_full_world sts_std W'
     ∗ region W'
     ∗ static_resources m
-    ∗ ⌜l ∈ dom (gset Addr) m⌝.
+    ∗ ⌜a ∈ dom (gset Addr) m⌝.
   Proof.
-    iIntros (W' Hl) "(Hsts & Hr)".
+    iIntros (W' Ha) "(Hsts & Hr)".
     rewrite region_eq /region_def. iDestruct "Hr" as (M Mρ) "(? & % & Hdom & Hr)".
     iDestruct "Hdom" as %Hdom.
-    assert (std_sta (revoke W) !! encode l = Some (encode (Static m))) as Hl'.
-    { rewrite revoke_monotone_lookup_same' //. rewrite Hl.
+    assert (std_sta (revoke W) !! encode a = Some (encode (Static m))) as Hl'.
+    { rewrite revoke_monotone_lookup_same' //. rewrite Ha.
       intros ?%Some_eq_inj%encode_inj. congruence. }
     iDestruct (region_map_has_static_addr with "[$Hr $Hsts]") as %[HmM ?]; eauto.
 
