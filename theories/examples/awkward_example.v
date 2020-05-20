@@ -2859,7 +2859,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iDestruct "Hrev" as %Hrev'.
         
         (* fact: l', l'', [a2,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
-        
+        (* we can use separation logic to prove the following two asserts, simplifying upcoming proofs *)
+        iAssert (⌜region_addrs a2 e_r ## l' ++ l''⌝)%I as %Hdisj.
+        admit. 
+        iAssert (⌜NoDup (region_addrs a2 stack_own_end ++ l' ++ l'')⌝)%I as %Hdup''. 
+        admit.
+
         (* Allocate a static region to hold our frame *)
 
         (* first, put together again the resources for the frame *)
@@ -2872,6 +2877,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* we'll need that later to reason on the fact that the [zip] in the definition of
            m_frame indeed fully uses both lists *)
         iDestruct (big_sepL2_length with "Hstack_own") as %Hlength_stack_own2.
+        iDestruct (big_sepL2_length with "Hrest'") as %Hlength_rest''.
         
         match goal with |- context [ [[a2,stack_own_end]]↦ₐ[RWLX][[ ?instrs ]]%I ] =>
           set l_frame2 := instrs
@@ -2970,10 +2976,24 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
 
         (* now that we have privately updated our resources, we can close the region invariant for the adv stack *)
         iDestruct (sts_full_world_std with "Hsts") as %Hstd3.
-        (* to make the proofs easier, we assert that stack_end is indeed the last element of the stack *)
+
         assert (list.last (a2 :: a3 :: a4 :: stack_own_b :: stack_own) = Some stack_own_end) as Hlast.
         { apply contiguous_between_link_last with a2 stack_own_last; [auto|apply gt_Sn_O|].
           revert Hstack_own_bound Hstack_own_bound'; clear. solve_addr. }
+
+        (* To make some of the future proofs easier, let's make certain assertions about stack_own_last *)
+        assert (stack_own_last ∉ elements (dom (gset Addr) m_static2)) as Hnin2.
+        { rewrite lists_to_static_perms_region_dom.
+          2: { repeat rewrite app_length. rewrite Hlength_rest Hlength_rest''. auto. }
+          rewrite elements_list_to_set;auto.
+          assert (stack_own_last ∈ region_addrs stack_own_end e_r) as Hin.
+          { apply elem_of_list_lookup. exists 1. rewrite -Hstack_localeq. rewrite lookup_app_r;[simpl|clear;simpl;lia].
+            apply region_addrs_first;auto. apply withinBounds_le_addr in Hwb2 as [_ ?]. auto. }
+          assert (stack_own_last ∈ region_addrs a2 e_r) as Hin'.
+          { rewrite Hstack_eq. rewrite Hlocal_stackeq. apply elem_of_app. right. }
+          apply not_elem_of_app. split.
+          - apply region_addrs_xor_elem_of with (c:=stack_own_end) in Hin. 
+        }
 
         (* This is not necessary anymore: we know that stack_own_end is an element of dom(static1), which makes it 
            revoked in the current world *)
@@ -3001,25 +3021,25 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         
 
         (* finally we can now close the region: a_last' will be in state revoked in revoke(W3) *)
-        assert (∀ k x, ([stack_own_end] ++ region_addrs stack_own_last e_r) !! k = Some x ->
-                       revoke_std_sta W3.1.1 !! countable.encode x = Some (countable.encode Revoked)) as Hlookup_revoked.
-        { intros k x Hsome.
-          rewrite Hstack_eq in Hrevoked. apply Forall_app in Hrevoked as [Hrevoked_last Hrevoked].
-          destruct k. 
-          + apply (Forall_lookup_1 _ _ (length (a2 :: a3 :: a4 :: stack_own_b :: stack_own) - 1) stack_own_end)
-              in Hrevoked_last as [Hrel_last Hlookup_last]; [auto|by rewrite -last_lookup].
-            inversion Hsome; subst.
-            destruct Ha as [Hrevoked_a | Htemporary_a]; [by apply revoke_lookup_Revoked|by apply revoke_lookup_Temp].
-          + apply revoke_lookup_Temp. inversion Hsome. 
-            apply (Forall_lookup_1 _ _ k x) in Hrevoked as [Hstd_x Hrevoked_x]; auto. 
-            apply region_state_pwl_monotone with W''; auto.
-            rewrite /W'' /region_state_pwl /std_sta /=.
-            apply close_list_std_sta_revoked; auto. 
-            apply elem_of_list_fmap. exists x. split; auto. apply elem_of_list_lookup_2 with k. auto.
-        }
+        (* assert (∀ k x, ([stack_own_end] ++ region_addrs stack_own_last e_r) !! k = Some x -> *)
+        (*                revoke_std_sta W3.1.1 !! countable.encode x = Some (countable.encode Revoked)) as Hlookup_revoked. *)
+        (* { intros k x Hsome. *)
+        (*   rewrite Hstack_eq in Hrevoked. apply Forall_app in Hrevoked as [Hrevoked_last Hrevoked]. *)
+        (*   destruct k.  *)
+        (*   + apply (Forall_lookup_1 _ _ (length (a2 :: a3 :: a4 :: stack_own_b :: stack_own) - 1) stack_own_end) *)
+        (*       in Hrevoked_last as [Hrel_last Hlookup_last]; [auto|by rewrite -last_lookup]. *)
+        (*     inversion Hsome; subst. *)
+        (*     destruct Ha as [Hrevoked_a | Htemporary_a]; [by apply revoke_lookup_Revoked|by apply revoke_lookup_Temp]. *)
+        (*   + apply revoke_lookup_Temp. inversion Hsome.  *)
+        (*     apply (Forall_lookup_1 _ _ k x) in Hrevoked as [Hstd_x Hrevoked_x]; auto.  *)
+        (*     apply region_state_pwl_monotone with W''; auto. *)
+        (*     rewrite /W'' /region_state_pwl /std_sta /=. *)
+        (*     apply close_list_std_sta_revoked; auto.  *)
+        (*     apply elem_of_list_fmap. exists x. split; auto. apply elem_of_list_lookup_2 with k. auto. *)
+        (* } *)
         iMod (monotone_close _ (region_addrs stack_own_end e_r) RWLX (λ Wv, interp Wv.1 Wv.2)
                 with "[$Hsts $Hr Hstack_adv ]") as "[Hsts Hr]".
-        { iClear "Hreg' Hfull' full Hlocal Hrelj Hf4 Hrel Hinv Hadv_val".
+        { iClear "Hreg' Hfull' full Hf4 Hrel Hinv Hadv_val".
           rewrite Hstack_eq. 
           iDestruct (region_addrs_zeroes_trans with "Hstack_adv") as "Hstack_adv".
           rewrite /region_mapsto -Hstack_localeq.
@@ -3036,7 +3056,9 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
               * iAlways. iIntros (W1 W2 Hrelated12) "HW1 /=". by repeat (rewrite fixpoint_interp1_eq /=).
               * by repeat (rewrite fixpoint_interp1_eq /=).
           - iApply big_sepL_sep; iFrame "#". iSplit;[auto|]. iApply big_sepL_forall. iPureIntro.
-            hnf. intros.
+            hnf. intros x a' Hin.
+            destruct x.
+            + inversion Hin;subst. rewrite std_sta_update_multiple_lookup_same.
             (* XXX *)
             rewrite std_sta_update_multiple_lookup_same. 2: admit.
             rewrite std_sta_update_multiple_lookup_same. 2: admit.
