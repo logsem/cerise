@@ -2858,106 +2858,115 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iDestruct (temp_resources_split with "Hrest'") as (pws') "[#Hrest_valid' [#Hrev Hrest']]".
         iDestruct "Hrev" as %Hrev'.
         
-        (* fact: l', l'', [a4,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
-
+        (* fact: l', l'', [a2,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
+        
         (* Allocate a static region to hold our frame *)
 
         (* first, put together again the resources for the frame *)
 
-        iDestruct (region_mapsto_cons with "[Ha2 Hstack_own]") as "Hstack_own".
-        3: { iFrame. } admit. admit.
-        iDestruct (region_mapsto_cons with "[Hb_r Hstack_own]") as "Hstack_own".
-        3: { iFrame. } admit. admit.
+        iDestruct (region_mapsto_cons with "[$Ha3 $Hstack_own]") as "Hstack_own";
+          [iContiguous_next Hcont1 1|..]. admit. 
+        iDestruct (region_mapsto_cons with "[$Hb_r $Hstack_own]") as "Hstack_own";
+          [iContiguous_next Hcont1 0|..]. admit. 
 
         (* we'll need that later to reason on the fact that the [zip] in the definition of
            m_frame indeed fully uses both lists *)
-        iDestruct (big_sepL2_length with "Hstack_own") as "%".
-
+        iDestruct (big_sepL2_length with "Hstack_own") as %Hlength_stack_own2.
+        
         match goal with |- context [ [[a2,stack_own_end]]↦ₐ[RWLX][[ ?instrs ]]%I ] =>
-          set m_frame := lists_to_static_region (region_addrs a2 stack_own_end) instrs RWLX
+          set l_frame2 := instrs
         end.
+        set m_static2 := lists_to_static_region_perms (region_addrs a2 stack_own_end ++ l' ++ l'')
+                                                  ((zip (repeat RWLX (length l_frame2)) l_frame2) ++ pws ++ pws').
 
-        iDestruct (region_revoked_to_static _ m_frame with "[$Hsts $Hr Hstack_own]") as ">[Hsts Hr]".
-        {
-          iApply (big_sepL2_to_static_region with "[] Hstack_own").
+        rewrite std_update_multiple_revoke_commute;auto.
+        2: { admit. }
+        
+        iDestruct (region_revoked_to_static _ m_static2 with "[$Hsts $Hr Hstack_own Hl' Hrest']") as ">[Hsts Hr]".
+        { iApply (big_sepL2_to_static_region_perms _ _ (λ a p w, a ↦ₐ[p] w)%I with "[] [Hstack_own Hrest' Hl']").
           admit. (* fix region_addrs_NoDup to use NoDup from stdpp *)
-          iModIntro. iIntros (a' w' Ha' Hw') "Ha'w'".
-          iExists RWLX, w', (λ (W: prodO STS STS * Word), (interp W.1) W.2).
-          iSplitR. by iPureIntro; eauto using interp_persistent.
-          iSplitR. by iPureIntro; reflexivity.
-          iSplitR. by iPureIntro; auto.
-          iFrame. iApply (big_sepL_elem_of with "Hstack_val").
-          admit. (* lemmas missing? *) }
-
+          iModIntro. iIntros (k a' w' Ha' Hw') "Ha'w'".
+          admit.
+          admit. 
+          (* iExists w'.1, w'.2, (λ (W: prodO STS STS * Word), (interp W.1) W.2). *)
+          (* iSplitR. by iPureIntro; eauto using interp_persistent. *)
+          (* iSplitR. by iPureIntro; reflexivity. *)
+          (* iSplitR. by iPureIntro; auto. *)
+          (* iFrame. iApply (big_sepL_elem_of with "Hstack_val"). *)
+          (* admit. (* lemmas missing? *) *) }
+        
+        rewrite -std_update_multiple_revoke_commute;auto.
+        2: { admit. }
+        
         (* Allocate a static region to hold the temporary leftovers *)
         (* tedious *)
 
         (* extract persistent resources from Hrest *)
-        assert (Persistent (
-                    [∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I).
-        admit.
+        (* assert (Persistent ( *)
+        (*             [∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                    (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗ *)
+        (*                                    φ (W, v) ∗ rel a p φ ∗ *)
+        (*                                    ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I). *)
+        (* admit. *)
 
-        iAssert ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W, v) ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I
-                as "#Hrest_1".
-        { iApply (big_sepL_impl with "Hrest []"). iIntros (? ? ?). iModIntro.
-          iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)".
-          unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)".
-          iExists _,_,_. iFrame. iPureIntro. eauto. }
+        (* iAssert ([∗ list] a ∈ l', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                    (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗ *)
+        (*                                    φ (W, v) ∗ rel a p φ ∗ *)
+        (*                                    ⌜std_sta (revoke W) !! countable.encode a = Some (countable.encode Revoked)⌝)%I *)
+        (*         as "#Hrest_1". *)
+        (* { iApply (big_sepL_impl with "Hrest []"). iIntros (? ? ?). iModIntro. *)
+        (*   iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)". *)
+        (*   unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)". *)
+        (*   iExists _,_,_. iFrame. iPureIntro. eauto. } *)
 
-        iAssert (∃ (m': gmap Addr (Perm * Word)),
-                  ⌜dom (gset Addr) m' = list_to_set l'⌝ ∗
-                  ([∗ map] a↦pv ∈ m', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                                ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ)
-                )%I with "[Hrest]" as (m' Hdom_m') "Hrest_2".
-        { admit. }
+        (* iAssert (∃ (m': gmap Addr (Perm * Word)), *)
+        (*           ⌜dom (gset Addr) m' = list_to_set l'⌝ ∗ *)
+        (*           ([∗ map] a↦pv ∈ m', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                         ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) *)
+        (*         )%I with "[Hrest]" as (m' Hdom_m') "Hrest_2". *)
+        (* { admit. } *)
 
-        assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v)
-                                           ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
-                                  !! countable.encode a = Some (countable.encode Revoked)⌝
-                  ))%I.
-        admit.
+        (* assert (Persistent ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                    (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗ *)
+        (*                                    φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v) *)
+        (*                                    ∗ rel a p φ ∗ *)
+        (*                                    ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2))) *)
+        (*                           !! countable.encode a = Some (countable.encode Revoked)⌝ *)
+        (*           ))%I. *)
+        (* admit. *)
 
-        iAssert ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                           (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗
-                                           φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v)
-                                           ∗ rel a p φ ∗
-                                           ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2)))
-                                  !! countable.encode a = Some (countable.encode Revoked)⌝
-                  )%I as "#Hrest'_1".
-        { iApply (big_sepL_impl with "Hrest' []"). iIntros (? ? ?). iModIntro.
-          iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)".
-          unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)".
-          iExists _,_,_. iFrame. iSplitR. iPureIntro; auto. iPureIntro. auto. }
+        (* iAssert ([∗ list] a ∈ l'', ∃ p φ v, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                    (if pwl p then future_pub_mono φ v else future_priv_mono φ v) ∗ *)
+        (*                                    φ (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2), v) *)
+        (*                                    ∗ rel a p φ ∗ *)
+        (*                                    ⌜std_sta (revoke (W3.1, (<[i:=countable.encode true]> W3.2.1, W3.2.2))) *)
+        (*                           !! countable.encode a = Some (countable.encode Revoked)⌝ *)
+        (*           )%I as "#Hrest'_1". *)
+        (* { iApply (big_sepL_impl with "Hrest' []"). iIntros (? ? ?). iModIntro. *)
+        (*   iIntros "[HH %]". iDestruct "HH" as (? ?) "(% & Ht & ?)". *)
+        (*   unfold temp_resources. iDestruct "Ht" as (? ?) "(?&?&?)". *)
+        (*   iExists _,_,_. iFrame. iSplitR. iPureIntro; auto. iPureIntro. auto. } *)
 
-        iAssert (∃ (m'': gmap Addr (Perm * Word)),
-                  ⌜dom (gset Addr) m'' = list_to_set l''⌝ ∗
-                  ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗
-                                                 ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ)
-                )%I with "[Hrest']" as (m'' Hdom_m'') "Hrest'_2".
-        { admit. }
+        (* iAssert (∃ (m'': gmap Addr (Perm * Word)), *)
+        (*           ⌜dom (gset Addr) m'' = list_to_set l''⌝ ∗ *)
+        (*           ([∗ map] a↦pv ∈ m'', ∃ p v φ, ⌜∀ Wv : prodO STS STS * Word, Persistent (φ Wv)⌝ ∗ *)
+        (*                                          ⌜pv = (p,v)⌝ ∗ ⌜p≠O⌝ ∗ a↦ₐ[p] v ∗ rel a p φ) *)
+        (*         )%I with "[Hrest']" as (m'' Hdom_m'') "Hrest'_2". *)
+        (* { admit. } *)
 
-        assert (Forall (λ (a:Addr), std_sta W4 !! countable.encode a ≠ Some (countable.encode Temporary))
-                  (elements (dom (gset Addr) m_frame))) as ?.
-        { rewrite lists_to_static_region_dom elements_list_to_set.
-          (* this holds because:
-             - std_sta W4 = std_sta W3 (by cbn)
-             - std_sta W3 !! a = Some Temporary  iff  a ∈ l'' ∨ a ∈ region_addrs stack_own_last e_r (by Hiff')
-             - region_addrs a4 stack_own_end is disjoint from l'' and region_addrs stack_own_last e_r *)
-          admit. }
+        (* assert (Forall (λ (a:Addr), std_sta W4 !! countable.encode a ≠ Some (countable.encode Temporary)) *)
+        (*           (elements (dom (gset Addr) m_frame))) as ?. *)
+        (* { rewrite lists_to_static_region_dom elements_list_to_set. *)
+        (*   (* this holds because: *)
+        (*      - std_sta W4 = std_sta W3 (by cbn) *)
+        (*      - std_sta W3 !! a = Some Temporary  iff  a ∈ l'' ∨ a ∈ region_addrs stack_own_last e_r (by Hiff') *)
+        (*      - region_addrs a4 stack_own_end is disjoint from l'' and region_addrs stack_own_last e_r *) *)
+        (*   admit. } *)
 
-        iDestruct (region_revoked_to_static _ (m' ∪ m'') with "[Hsts Hr Hrest_1 Hrest'_1]") as ">[Hsts Hr]".
-        { rewrite std_update_multiple_revoke_commute. 2: congruence. 2: by auto.
-          iFrame. rewrite big_sepM_union. iFrame. admit. }
-        rewrite -std_update_multiple_revoke_commute; auto; [].
+        (* iDestruct (region_revoked_to_static _ (m' ∪ m'') with "[Hsts Hr Hrest_1 Hrest'_1]") as ">[Hsts Hr]". *)
+        (* { rewrite std_update_multiple_revoke_commute. 2: congruence. 2: by auto. *)
+        (*   iFrame. rewrite big_sepM_union. iFrame. admit. } *)
+        (* rewrite -std_update_multiple_revoke_commute; auto; []. *)
 
         (* now that we have privately updated our resources, we can close the region invariant for the adv stack *)
         iDestruct (sts_full_world_std with "Hsts") as %Hstd3.
@@ -2965,20 +2974,32 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         assert (list.last (a2 :: a3 :: a4 :: stack_own_b :: stack_own) = Some stack_own_end) as Hlast.
         { apply contiguous_between_link_last with a2 stack_own_last; [auto|apply gt_Sn_O|].
           revert Hstack_own_bound Hstack_own_bound'; clear. solve_addr. }
+
+        (* This is not necessary anymore: we know that stack_own_end is an element of dom(static1), which makes it 
+           revoked in the current world *)
+        
         (* we start by asserting that the state of stack_own_end was indeed revoked in the world prior to the call *)
-        assert (std_sta W'' !! countable.encode (stack_own_end) = Some (countable.encode Revoked) ∧ rel_is_std_i W'' (countable.encode stack_own_end)) as [Ha Hstd_a].
-        { rewrite Hstack_eq in Hrevoked. apply Forall_app in Hrevoked as [Hrevoked_last Hrevoked].
-          apply (Forall_lookup_1 _ _ (length (a2 :: a3 :: a4 :: stack_own_b :: stack_own) - 1) stack_own_end)
-            in Hrevoked_last as [Hrel_last Hlookup_last]; [auto|by rewrite -last_lookup].
-          rewrite /W'' /std_sta /rel_is_std_i /std_rel /=. split; auto.
-          rewrite -close_list_std_sta_same; auto.
-          assert (stack_own_end ∉ region_addrs_aux stack_own_last (region_size stack_own_last e_r)) as Hnin.
-          { rewrite /region_addrs. apply region_addrs_not_elem_of. revert Hstack_own_bound Hstack_own_bound'. clear. solve_addr. }
-          intros Hcontr. apply elem_of_list_fmap in Hcontr as [y  [Hy Hcont] ]. 
-          apply encode_inj in Hy; subst. contradiction.
-        }
+
+        (* the following does not hold anymore: it was static rather than revoked *)
+        (* assert (std_sta W'' !! countable.encode (stack_own_end) = Some (countable.encode Revoked) ∧ *)
+        (*         rel_is_std_i W'' (countable.encode stack_own_end)) as [Ha Hstd_a]. *)
+        (* { rewrite Hstack_eq in Hrevoked. apply Forall_app in Hrevoked as [Hrevoked_last Hrevoked]. *)
+        (*   apply (Forall_lookup_1 _ _ (length (a2 :: a3 :: a4 :: stack_own_b :: stack_own) - 1) stack_own_end) *)
+        (*     in Hrevoked_last as [Hrel_last Hlookup_last]; [auto|by rewrite -last_lookup]. *)
+        (*   rewrite /W'' /std_sta /rel_is_std_i /std_rel /=. *)
+        (*   split; auto. *)
+        (*   rewrite -close_list_std_sta_same; auto. *)
+        (*   assert (stack_own_end ∉ region_addrs_aux stack_own_last (region_size stack_own_last e_r)) as Hnin. *)
+        (*   { rewrite /region_addrs. apply region_addrs_not_elem_of. revert Hstack_own_bound Hstack_own_bound'. *)
+        (*     clear. solve_addr. } *)
+        (*   intros Hcontr. apply elem_of_list_fmap in Hcontr as [y  [Hy Hcont] ].  *)
+        (*   apply encode_inj in Hy; subst. contradiction. *)
+        (* } *)
         (* as a result we know that it is now either temporary or revoked (in the public future world W3) *)
-        apply (region_state_Revoked_monotone _ _ _ Hstd_a Hrelated3) in Ha.
+        (* apply (region_state_Revoked_monotone _ _ _ Hstd_a Hrelated3) in Ha. *)
+
+        
+
         (* finally we can now close the region: a_last' will be in state revoked in revoke(W3) *)
         assert (∀ k x, ([stack_own_end] ++ region_addrs stack_own_last e_r) !! k = Some x ->
                        revoke_std_sta W3.1.1 !! countable.encode x = Some (countable.encode Revoked)) as Hlookup_revoked.
