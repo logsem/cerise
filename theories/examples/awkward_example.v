@@ -2559,26 +2559,20 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           apply elem_of_list_lookup. eauto. }
           by iApply "Hstack_adv_tmp".
 
-        (* With a revoked W3 we can now revoke the frozen stack frame and leftovers l' *)
-        iAssert (sts_full_world sts_std (std_update_multiple (revoke W3) (elements (dom (gset Addr) m_static1)) Revoked)
-               ∗ region (std_update_multiple (revoke W3) (elements (dom (gset Addr) m_static1)) Revoked)
-               ∗ ([∗ map] a↦pv ∈ m_static1, a ↦ₐ[pv.1] pv.2))%I
-          with "[Hr Hsts]" as "(Hsts & Hr & Hm_static1_resources)".
-        { admit. }
+        iDestruct (region_static_to_revoked with "[$Hr $Hsts]") as ">(Hsts & Hr & Hm_static1_resources & _)". eauto.
 
         (* finally we split up the static resources into the local stack frame and l' *)
         iAssert ([[a2,stack_own_last]] ↦ₐ[RWLX] [[l_frame]]
                 ∗ [∗ list] a;pw ∈ l';pws, a ↦ₐ[pw.1] pw.2)%I with "[Hm_static1_resources]" as "[Hframe Hl']".
-        { rewrite /m_static1. 
-          rewrite /region_mapsto.
+        { rewrite /m_static1 /region_mapsto /static_resources.
           iAssert (([∗ list] y1;y2 ∈ region_addrs a2 stack_own_last;zip (repeat RWLX (length l_frame)) l_frame, y1 ↦ₐ[y2.1] y2.2)
                      ∗ ([∗ list] a11;pw ∈ l';pws, a11 ↦ₐ[pw.1] pw.2))%I with "[-]" as "[H $]".
           { iApply (big_sepL2_app' _ _ _ (λ k a pv, a ↦ₐ[pv.1] pv.2))%I;auto.
             iApply (static_region_perms_to_big_sepL2 _ _ (λ a p w, a ↦ₐ[p] w) with "[] Hm_static1_resources")%I. 
             auto. repeat rewrite app_length. rewrite Hlength_rest. auto.
-            iAlways. auto. 
+            iAlways. iIntros (? ? ? ? ?) "HH". iDestruct "HH" as (? ? ->) "?". auto.
           }
-          iApply (big_sepL2_zip_repeat _ _ (λ a p w, a ↦ₐ[p] w) with "H")%I.           
+          iApply (big_sepL2_zip_repeat _ _ (λ a p w, a ↦ₐ[p] w) with "H")%I.
         }
 
         (* we isolate the activation record from the frame *)
@@ -2589,12 +2583,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iDestruct (region_mapsto_cons with "Hframe") as "[Ha4 Hframe]"; [iContiguous_next Hcont1 2|..].
         { apply contiguous_between_middle_bounds with (i:=3) (ai:=stack_own_b) in Hcont1;auto.
           revert Hcont1;clear;solve_addr. }
-        
+
         (* prepare the new stack value *)
         assert (exists stack_new, (stack_new + 1)%a = Some stack_own_end) as [stack_new Hstack_new].
         { revert Hstack_own_bound'. clear. intros H. destruct (stack_own_b + 6)%a eqn:Hsome;[|solve_addr].
           exists a. solve_addr. }
-        
+
         (* step through instructions in activation record *)
         iApply (scall_epilogue_spec with "[-]"); last iFrame "Hframe HPC";
           [|done|iContiguous_next Hcont_rest0 0|apply Hstack_new|revert Hstack_own_bound Hstack_own_bound'; clear; solve_addr|..].
@@ -2604,7 +2598,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iSplitL "Hr_t1";[iNext;eauto|]. iSplitL "Hr_stk";[iNext;eauto|]. 
         iNext. iIntros "(HPC & Hr_stk & Hr_t1 & Hframe)".
         iDestruct "Hr_t1" as (wrt1) "Hr_t1".
-        
+
         (* we can now step through the rest of the program *)
         (* to do that wee need to open the non atomic invariant of the program *)
         iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls')";[solve_ndisj..|]. 

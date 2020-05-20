@@ -667,7 +667,7 @@ Section heap.
         * subst. eauto. 
         * rewrite lookup_insert_ne in Hx;eauto. 
   Qed.
-  
+
   Lemma revoke_lookup_Some W (i : positive) :
     is_Some ((std_sta W) !! i) ↔ is_Some ((std_sta (revoke W)) !! i).
   Proof.
@@ -676,7 +676,7 @@ Section heap.
   Qed.
 
   Lemma revoke_lookup_None W (i : positive) :
-    (std_sta W) !! i = None <-> (std_sta (revoke W)) !! i = None.
+    (std_sta W) !! i = None ↔ (std_sta (revoke W)) !! i = None.
   Proof.
     split.
     - intros Hnone. apply eq_None_not_Some.
@@ -916,7 +916,7 @@ Section heap.
       rewrite lookup_insert_ne;auto.
   Qed.
 
-  
+
   Lemma revoke_list_lookup_non_temp (Wstd_sta : STS_states) (l : list positive) (i : positive) (ρ : region_type) :
     i ∈ l →
     (revoke_list_std_sta l Wstd_sta) !! i = Some (countable.encode ρ) → ρ ≠ Temporary.
@@ -1035,6 +1035,11 @@ Section heap.
         rewrite /revoke_std_sta fmap_insert lookup_insert_ne;auto.
         rewrite lookup_insert_ne;auto. 
   Qed.
+
+  Lemma revoke_monotone_lookup_same' (W:WORLD) (i: positive) :
+    std_sta W !! i ≠ Some (countable.encode Temporary) ->
+    std_sta (revoke W) !! i = std_sta W !! i.
+  Proof. cbn. eauto using revoke_monotone_lookup_same. Qed.
 
   Lemma anti_revoke_lookup_Revoked Wstd_sta i :
     (revoke_std_sta Wstd_sta) !! i = Some (countable.encode Revoked) ->
