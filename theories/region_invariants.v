@@ -578,33 +578,33 @@ Section heap.
     auto.
   Qed.
 
-  Lemma full_sts_Mρ_agree W M Mρ (l: Addr) (ρ: region_type) :
+  Lemma full_sts_Mρ_agree W M Mρ (ρ: region_type) :
     (* NB: only the forward direction of dom_equal (std_sta W) M is actually needed *)
     dom_equal (std_sta W) M →
-    (* NB: only one direction of this is needed, and only for the reverse
+    (* NB: only one direction of this assumption is needed, and only for the reverse
        direction of the lemma *)
     dom (gset Addr) Mρ = dom (gset Addr) M →
     sts_full_world sts_std W -∗
     region_map_def M Mρ W -∗
-    ⌜ (std_sta W) !! (encode l) = Some (encode ρ) ↔ Mρ !! l = Some ρ ⌝.
+    ⌜∀ a:Addr, (std_sta W) !! (encode a) = Some (encode ρ) ↔ Mρ !! a = Some ρ⌝.
   Proof.
     iIntros (HWM HMMρ) "Hfull Hr".
-    unfold dom_equal in HWM. specialize (HWM (encode l)).
-    iAssert (⌜ std_sta W !! encode l = Some (encode ρ) ⌝ → ⌜ Mρ !! l = Some ρ ⌝)%I as %?.
-    { iIntros (Hlρ). destruct HWM as [HWM _].
-      feed destruct HWM as (a & ?%encode_injective & [γp Hγp]). by eauto. subst a.
+    unfold dom_equal in HWM.
+    iAssert (∀ a:Addr, ⌜ std_sta W !! encode a = Some (encode ρ) ⌝ → ⌜ Mρ !! a = Some ρ ⌝)%I as %?.
+    { iIntros (a Haρ). specialize (HWM (encode a)). destruct HWM as [HWM _].
+      feed destruct HWM as (a' & ?%encode_injective & [γp Hγp]). by eauto. subst a.
       iDestruct (big_sepM_lookup with "Hr") as (ρ' Hρ') "(Hst & _)"; eauto; [].
-      iDestruct (sts_full_state_std with "Hfull Hst") as %Hlρ'.
+      iDestruct (sts_full_state_std with "Hfull Hst") as %Haρ'.
       enough (ρ = ρ') by (subst; eauto). apply encode_injective.
-      rewrite Hlρ in Hlρ'. congruence. }
-    iAssert (⌜ Mρ !! l = Some ρ ⌝ → ⌜ std_sta W !! encode l = Some (encode ρ) ⌝)%I as %?.
-    { iIntros (HMρl).
-      assert (is_Some (M !! l)) as [γp Hγp].
+      rewrite Haρ in Haρ'. congruence. }
+    iAssert (∀ a:Addr, ⌜ Mρ !! a = Some ρ ⌝ → ⌜ std_sta W !! encode a = Some (encode ρ) ⌝)%I as %?.
+    { iIntros (a HMρa).
+      assert (is_Some (M !! a)) as [γp Hγp].
       { rewrite elem_of_gmap_dom -HMMρ -elem_of_gmap_dom. eauto. }
       iDestruct (big_sepM_lookup with "Hr") as (ρ' Hρ') "(Hst & _)"; eauto; [].
-      iDestruct (sts_full_state_std with "Hfull Hst") as %Hlρ'.
-      enough (ρ = ρ') by (subst; eauto). rewrite HMρl in Hρ'. congruence. }
-    eauto.
+      iDestruct (sts_full_state_std with "Hfull Hst") as %Haρ'.
+      enough (ρ = ρ') by (subst; eauto). rewrite HMρa in Hρ'. congruence. }
+    iPureIntro. intros. split; eauto.
   Qed.
 
   Lemma full_sts_static_all W m (l : Addr) :
@@ -617,7 +617,7 @@ Section heap.
     rewrite region_eq /region_def.
     iDestruct "Hr" as (M Mρ) "(HM & #Hdom1 & #Hdom2 & Hr)".
     iDestruct "Hdom1" as %Hdom1. iDestruct "Hdom2" as %Hdom2.
-    iDestruct (full_sts_Mρ_agree _ _ _ l (Static m) with "Hsts Hr") as %[Hag _]; auto.
+    iDestruct (full_sts_Mρ_agree _ _ _ (Static m) with "Hsts Hr") as %[Hag _]; auto.
     pose proof (Hag Hstatic) as Hl. 
     iIntros (a Hdom).
     assert (∃ a0 : Addr, encode a0 = encode l ∧ is_Some (M !! a0)) as [a0 [Heq [γp Hsome] ] ].
@@ -631,7 +631,7 @@ Section heap.
     iDestruct "Hl" as (p' v Hpv' Hne') "[Hl #Hall]". iDestruct "Hall" as %Hall.
     iDestruct (big_sepM_delete _ _ l with "[$Hr Hl Hstate]") as "Hr";[eauto|..].
     { iExists ρ. iSplitR;subst;auto. iFrame. iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame. auto. }
-    iDestruct (full_sts_Mρ_agree _ _ _ a (Static m) with "Hsts Hr") as %[_ Hag']; auto.
+    iDestruct (full_sts_Mρ_agree _ _ _ (Static m) with "Hsts Hr") as %[_ Hag']; auto.
     iPureIntro.
     rewrite /static.
     pose proof (Hall _ Hdom) as Ha. 
