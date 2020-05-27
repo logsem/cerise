@@ -2919,13 +2919,6 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iDestruct (temp_resources_split with "Hrest'") as (pws') "[#Hrest_valid' [#Hrev Hrest']]".
         iDestruct "Hrev" as %Hrev'.
 
-        (* fact: l', l'', [a2,stack_own_end] and [stack_own_end, e_r] are all disjoint... *)
-        (* we can use separation logic to prove the following two asserts, simplifying upcoming proofs *)
-        iAssert (⌜region_addrs a2 e_r ## l' ++ l''⌝)%I as %Hdisj.
-        admit. 
-        iAssert (⌜NoDup (region_addrs a2 stack_own_end ++ l' ++ l'')⌝)%I as %Hdup''.
-        admit.
-
         (* Allocate a static region to hold our frame *)
 
         (* first, put together again the resources for the frame *)
@@ -2951,50 +2944,74 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         2: { rewrite /std_sta. cbn [fst]. eapply Forall_impl; [ apply HForall_static1 |].
              intros ? HH. cbn in HH. rewrite HH. intros ?%Some_eq_inj%encode_inj. congruence. }
 
-        iDestruct (region_revoked_to_static _ m_static2 with "[$Hsts $Hr Hstack_own Hl' Hrest']") as ">[Hsts Hr]".
-        { iDestruct (region_mapsto_to_nO with "Hstack_own") as "Hstack_own"; [congruence|].
+        (* fact: l', l'', [a2,stack_own_end] and [stack_own_end, e_r] are all
+           disjoint. We will need these facts for later. We can derive them now
+           from separation logic and the fact that pointsto (with non-O perm)
+           are exclusive... *)
 
-          iAssert ([∗ list] a;pw ∈ l';pws, ∃ φ, a ↦ₐ<pw.1> pw.2 ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a pw.1 φ)%I
-            with "[Hl']" as "Hl'".
-          { iDestruct (big_sepL2_sep with "[Hrest_valid $Hl']") as "Hl'". by iApply "Hrest_valid".
-            iApply (big_sepL2_mono with "Hl'"). cbn. iIntros (k a' pw ? ?) "[H1 H2]".
-            iDestruct "H2" as (? ? ?) "(? & ? & ?)". iExists _. iFrame. eauto. }
+        set static_res := (λ a p w, ∃ φ, a ↦ₐ<p> w ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a p φ)%I.
 
-          iAssert ([∗ list] a;pw ∈ l'';pws', ∃ φ, a ↦ₐ<pw.1> pw.2 ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a pw.1 φ)%I
-            with "[Hrest']" as "Hrest'".
-          { iDestruct (big_sepL2_sep with "[Hrest_valid' $Hrest']") as "Hrest'". by iApply "Hrest_valid'".
-            iApply (big_sepL2_mono with "Hrest'"). cbn. iIntros (k a' pw ? ?) "[H1 H2]".
-            iDestruct "H2" as (? ? ?) "(? & ? & ?)". iExists _. iFrame. eauto. }
+        (* static_res includes a non-O pointsto, therefore it is exclusive *)
+        iAssert (⌜∀ a p1 w1 p2 w2, static_res a p1 w1 -∗ static_res a p2 w2 -∗ False⌝)%I as %Hstatic_res_excl.
+        { iIntros (? ? ? ? ?) "". iPureIntro. iIntros "H1 H2". iDestruct "H1" as (?) "[[? %] _]".
+          iDestruct "H2" as (?) "[[? %] _]". iApply (cap_duplicate_false with "[$]"). split; assumption. }
 
-          iAssert ([∗ list] a;w ∈ (region_addrs a2 stack_own_end);l_frame2,
-                      ∃ φ, a ↦ₐ<RWLX> w ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a RWLX φ)%I
-            with "[Hstack_own]" as "Hstack_own".
-          { iDestruct (big_sepL2_sep with "[Hstack_val $Hstack_own]") as "Hstack_own".
-            { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
-              iDestruct (big_sepL_app with "Hstack_val") as "(Hstack_val' & _)".
-              iApply big_sepL2_to_big_sepL_l. eauto. iApply "Hstack_val'". }
-            iApply (big_sepL2_mono with "Hstack_own"). iIntros (? ? ? ? ?) "(? & ?)".
-            iExists _. iFrame. iPureIntro. intros. apply interp_persistent. }
+        iAssert ([∗ list] a;pw ∈ l';pws, static_res a pw.1 pw.2)%I with "[Hl']" as "Hl'".
+        { iDestruct (big_sepL2_sep with "[Hrest_valid $Hl']") as "Hl'". by iApply "Hrest_valid".
+          iApply (big_sepL2_mono with "Hl'"). cbn. iIntros (k a' pw ? ?) "[H1 H2]".
+          iDestruct "H2" as (? ? ?) "(? & ? & ?)". iExists _. iFrame. eauto. }
 
-          iAssert ([∗ list] a;pw ∈ static2_addrs;static2_instrs,
-                     (∃ φ, a↦ₐ<pw.1> pw.2 ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a pw.1 φ))%I
-            with "[Hstack_own Hl' Hrest']" as "Hstatic".
-          { rewrite /static2_addrs /static2_instrs.
-            rewrite -big_sepL2_app'. 2: by rewrite length_zip_l //.
-            rewrite -big_sepL2_app'; [| eauto]. iFrame.
-            iApply (big_sepL2_zip_repeat _ _ (λ a p w, ∃ φ, a↦ₐ<p> w ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a p φ)%I RWLX
-                      with "Hstack_own"). }
+        iAssert ([∗ list] a;pw ∈ l'';pws', static_res a pw.1 pw.2)%I with "[Hrest']" as "Hrest'".
+        { iDestruct (big_sepL2_sep with "[Hrest_valid' $Hrest']") as "Hrest'". by iApply "Hrest_valid'".
+          iApply (big_sepL2_mono with "Hrest'"). cbn. iIntros (k a' pw ? ?) "[H1 H2]".
+          iDestruct "H2" as (? ? ?) "(? & ? & ?)". iExists _. iFrame. eauto. }
 
-          iAssert (⌜NoDup static2_addrs⌝)%I as %?.
-          { iApply (NoDup_of_sepL2_exclusive with "[] Hstatic").
-            iIntros (? ? ?) "H1 H2". iDestruct "H1" as (?) "([? %] & _)". iDestruct "H2" as (?) "([? %] & _)".
-            iApply (cap_duplicate_false with "[$]"). split; assumption. }
+        iAssert ([∗ list] a;w ∈ (region_addrs a2 stack_own_end);l_frame2, static_res a RWLX w)%I
+          with "[Hstack_own]" as "Hstack_own".
+        { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+          iDestruct (big_sepL_app with "Hstack_val") as "[Hstack_val' _]".
+          iDestruct (big_sepL2_sep with "[Hstack_val' $Hstack_own]") as "Hstack_own".
+          { iApply big_sepL2_to_big_sepL_l. auto. iApply "Hstack_val'". }
+          iApply (big_sepL2_mono with "Hstack_own"). iIntros (? ? ? ? ?) "(? & ?)". unfold static_res.
+          iExists _. iFrame. iSplitR; [iPureIntro; congruence|]. iPureIntro. intro; apply interp_persistent. }
 
-          iApply (big_sepL2_to_static_region_perms _ _ (λ a p w, ∃ φ, a↦ₐ<p> w ∗ ⌜∀Wv, Persistent (φ Wv)⌝ ∗ rel a p φ)%I
-                    with "[] Hstatic"). assumption.
-          { iModIntro. iIntros (? ? pw ? ?) "H". iDestruct "H" as (?) "([? ?] & ? & ?)". iExists _,_,_. iFrame.
-            iPureIntro. destruct pw; auto. }
-        }
+        iDestruct (big_sepL2_app with "Hl' Hrest'") as "Hl'_rest'".
+
+        (* we will need that later *)
+        iAssert (⌜NoDup (region_addrs a2 e_r ++ l' ++ l'')⌝)%I as %Hstack_l'_l''_NoDup.
+        { iAssert ([∗ list] a;w ∈ (region_addrs stack_own_end e_r);region_addrs_zeroes stack_own_end e_r, static_res a RWLX w)%I
+            with "[Hstack_adv]" as "Hstack_adv".
+          { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+            iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_val']".
+            iDestruct (big_sepL2_sep with "[Hstack_val' $Hstack_adv]") as "Hstack_adv".
+            { iApply big_sepL2_to_big_sepL_l.
+              (* TODO: region_addrs_length, region_addrs_zeroes_length *)
+              by rewrite /region_addrs !region_addrs_aux_length /region_addrs_zeroes repeat_length //.
+              iApply "Hstack_val'". }
+            iApply (big_sepL2_mono with "Hstack_adv"). iIntros (? ? ? ? ?) "(? & ?)". unfold static_res.
+            iExists _. iFrame. iSplitR; [iPureIntro; congruence|]. iPureIntro. intro; apply interp_persistent. }
+
+          iApply (NoDup_of_sepL2_exclusive with "[] [Hstack_own Hstack_adv Hl'_rest']").
+          2: { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+               iDestruct (big_sepL2_app with "Hstack_own Hstack_adv") as "Hstack".
+               iDestruct (big_sepL2_zip_repeat with "Hstack") as "Hstack".
+               iDestruct (big_sepL2_app with "Hstack Hl'_rest'") as "HH". iApply "HH". }
+          iIntros (? [? ?] [? ?]). iApply Hstatic_res_excl. }
+
+        (* Allocate the static region; for that we only need the part of Hstack we own *)
+        iAssert ([∗ list] a;pw ∈ static2_addrs;static2_instrs, static_res a pw.1 pw.2)%I
+          with "[Hstack_own Hl'_rest']" as "Hstatic".
+        { iDestruct (big_sepL2_zip_repeat with "Hstack_own") as "Hstack_own".
+          iApply (big_sepL2_app with "Hstack_own Hl'_rest'"). }
+
+        iAssert (⌜NoDup static2_addrs⌝)%I as %Hstatic2_addrs_NoDup.
+        { iApply (NoDup_of_sepL2_exclusive with "[] Hstatic").
+          iIntros (? [? ?] [? ?]) "". iApply Hstatic_res_excl. }
+
+        iDestruct (region_revoked_to_static _ m_static2 with "[$Hsts $Hr Hstatic]") as ">[Hsts Hr]".
+        { iApply (big_sepL2_to_static_region_perms with "[] Hstatic"). assumption.
+          iModIntro. iIntros (? ? pw ? ?) "H". iDestruct "H" as (?) "([? ?] & ? & ?)".
+          iExists _,_,_. iFrame. iPureIntro. destruct pw; auto. }
 
         rewrite -std_update_multiple_revoke_commute;auto.
         2: { admit. }
@@ -3021,7 +3038,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           apply not_elem_of_app. split.
           - apply region_addrs_xor_elem_of with (c:=stack_own_end) in Hin' as [ [Hin' Hnin] | [Hin' Hnin] ];auto.
             eapply withinBounds_le_addr. apply Hwb3. 
-          - apply elem_of_disjoint in Hdisj. apply Hdisj in Hin'. auto. 
+          - rewrite NoDup_app in Hstack_l'_l''_NoDup |- *. intros (_ & HH & _). by apply HH.
         }
         assert (∀ a, a ∈ region_addrs stack_own_last e_r -> a ∉ elements (dom (gset Addr) m_static1)) as Hnin1.
         { rewrite lists_to_static_perms_region_dom.
@@ -3032,8 +3049,9 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           { rewrite Hstack_eq. apply elem_of_app;right. auto. } 
           apply not_elem_of_app. split.
           - apply region_addrs_xor_elem_of with (c:=stack_own_last) in Hin' as [ [Hin' Hnin] | [Hin' Hnin] ];auto.
-            eapply withinBounds_le_addr. apply Hwb2. 
-          - apply elem_of_disjoint in Hdisj. apply Hdisj in Hin'. revert Hin';clear. set_solver. 
+            eapply withinBounds_le_addr. apply Hwb2.
+          - rewrite NoDup_app in Hstack_l'_l''_NoDup |- *. intros (_ & HH & _).
+            by eapply (not_elem_of_app l' l''), HH.
         }
 
         match goal with |- context [ region ?W ] => set W4 := W end.
