@@ -45,3 +45,4 @@ theories/examples/malloc.v
 theories/examples/stack_macros.v
 theories/examples/contiguous.v
 theories/examples/scall.v
+theories/examples/awkward_example.v

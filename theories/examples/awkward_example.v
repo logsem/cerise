@@ -1952,19 +1952,10 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
   Definition region_type_temporary W (a : Addr) :=
     (std_sta W) !! (encode a) = Some (encode Temporary).
 
-  (* TODO: move *)
+  (* TODO: move? *)
   Definition mapsto_nO (a: Addr) (p: Perm) (w: Word) := (a ↦ₐ[p] w ∗ ⌜p ≠ O⌝)%I.
   Notation "a ↦ₐ < p > w" := (mapsto_nO a p w)
     (at level 20, p at level 50, format "a  ↦ₐ < p >  w") : bi_scope.
-
-  Lemma region_mapsto_to_nO (b e: Addr) (p: Perm) (ws: list Word) :
-    p ≠ O →
-    [[b,e]] ↦ₐ [p] [[ws]] -∗
-    ([∗ list] k↦a;w ∈ (region_addrs b e);ws, a ↦ₐ<p> w)%I.
-  Proof.
-    intros. rewrite /region_mapsto. iIntros "H".
-    iApply (big_sepL2_mono with "H"). intros. cbn. rewrite /mapsto_nO. eauto.
-  Qed.
 
    (* the following spec is for the f4 subroutine of the awkward example, jumped to after dynamically allocating into r_env *)
   Lemma f4_spec W pc_p pc_g pc_b pc_e (* PC *)
