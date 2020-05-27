@@ -29,7 +29,7 @@ Section fundamental.
     → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
     → region_std W a
     → std_sta W !! countable.encode a = Some (countable.encode ρ)
-    → ρ ≠ Revoked 
+    → (ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g))
     → p' ≠ O
     → (cap_lang.decode w = cap_lang.Add dst r1 r2 \/
        cap_lang.decode w = Sub dst r1 r2 \/
@@ -78,7 +78,7 @@ Section fundamental.
                                            ∗ na_own logrel_nais ⊤
                                            ∗ sts_full_world sts_std W' ∗ region W' }} }}.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -98,6 +98,7 @@ Section fundamental.
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       simplify_map_eq.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+      { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
       iApply ("IH" $! _ (<[dst:=_]> (<[PC:=_]> r)) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }

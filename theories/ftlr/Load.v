@@ -26,7 +26,7 @@ Section fundamental.
   Definition region_open_resources W l ls p φ v (bl : bool): iProp Σ :=
     (∃ ρ,
      sts_state_std (countable.encode l) ρ
-    ∗ ⌜ρ ≠ Revoked⌝
+    ∗ ⌜ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)⌝
     ∗ open_region_many (l :: ls) W
     ∗ ⌜p ≠ O⌝
     ∗ (if bl then monotonicity_guarantees_region ρ v p φ ∗ φ (W, v)
@@ -93,9 +93,10 @@ Section fundamental.
          iDestruct (region_open_prepare with "Hr") as "Hr".
          iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H3 as [Hregion' [ρ' [Hstd' Hnotrevoked'] ] ].
+         destruct H3 as [Hregion' [ρ' [Hstd' [Hnotrevoked' Hnotstatic'] ] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
+         { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
          { apply not_elem_of_cons. split; auto. apply not_elem_of_nil. }
          iExists p0', w0. iSplitL "Ha0"; auto. iSplitR; auto. unfold region_open_resources.
          iExists ρ'. iFrame "%". iFrame. by iFrame "#".
@@ -197,9 +198,11 @@ Section fundamental.
     case_decide as Hdec. destruct Hdec as [Hallows Heq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
        iDestruct "HLoadRes" as (p'1 w0) "[-> [% HLoadRes] ]".
-       iDestruct "HLoadRes" as (ρ1) "(Hstate' & % & Hr & % & (Hfuture & #HV) & Hrel')".
+       iDestruct "HLoadRes" as (ρ1) "(Hstate' & #Hrev & Hr & % & (Hfuture & #HV) & Hrel')".
+       iDestruct "Hrev" as %[Hnotrevoked Hnotstatic]. 
        rewrite memMap_resource_2ne; last auto. iDestruct "Hmem" as  "[Ha1 $]".
        iDestruct (region_close_next with "[$Hr $Ha1 $Hrel' $Hstate' $Hfuture]") as "Hr"; eauto.
+       { intros [g Hg]; specialize (Hnotstatic g); contradiction. }
        { apply not_elem_of_cons; split; [auto|apply not_elem_of_nil]. }
        iDestruct (region_open_prepare with "Hr") as "$".
        rewrite lookup_insert in Ha0; inversion Ha0. all: done.
@@ -216,7 +219,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst src : RegName) :
     ftlr_instr W r p p' g b e a w (Load dst src) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -282,6 +285,7 @@ Section fundamental.
       }
 
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+      { destruct ρ;auto;[|specialize (Hnotstatic g1)];contradiction. }
       iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.

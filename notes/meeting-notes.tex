@@ -1,0 +1,67 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+
+\title{Capability Machine Meetings}
+
+\begin{document}
+
+\maketitle
+
+\section{Week 6}
+
+Status report of mechanisation: 
+
+\begin{itemize}
+\item FTLR is done
+\item Two examples are done (one that depends on LSE, another that depends on WBCF)
+\end{itemize}
+
+Current work on mechanisation (during week 6): 
+
+\begin{itemize}
+\item Thomas: refactoring the FTLR Store case (one goal is to find out if there is a nicer way to prove each FTLR case, another is to consolidate certain equivalent definitions)
+\item A\"{i}na: creating a spec for scall, and use that spec for much shorter proof of the examples. This involves also generalising the examples over some contiguous region of memory. 
+\end{itemize}
+
+Steps needed to mechanise uninitialised capabilities: 
+
+\begin{enumerate}
+\item Update the operational semantics
+\item Design the ghost state
+\item Weakest precondition rules (either update existing ones or create new ones) 
+\item Define the logical relation for the new U permission
+\item FTLR (either update existing instructions or prove new cases) 
+\item Make a new calling convention and prove that it satisfies the scall spec
+\end{enumerate}
+
+Alix will start out by updating the operational semantics. \\
+During week 7, Thomas and A\"{i}na will determine the ghost state and the new LR definition. After that the weakest precondition/FTLR work (Alix/Thomas) can be done in parallel with the new calling convention (A\"{i}na)
+\\[0.5em]
+In week 8, we will discuss more concretely what refactoring is needed to get the work into a more presentable state. 
+\\[1em]
+Reading list: 
+\begin{itemize}
+\item OPCL paper (Arma\"{e}lle has offered to present the paper), Thomas can give a small presentation of the work he did in expanding the Iris implementation to handle effects (printing)
+\item The high level benefits of low level sandboxing 
+\item Benjamin Pierce ongoing work on property-based testing of a stack-protection micropolicy: 
+\footnote{
+\url{https://prosecco.gforge.inria.fr/personal/hritcu/talks/2017-12-18-Secure-Compilation-Infoiasi.pdf}} \footnote{\url{https://web.cs.wpi.edu/~rjwalls/nesd/slides/SullivanDraperNESDFall2016Dover.pdf}} \footnote{\url{https://semiwiki.com/ip/arm/7839-dover-microsystems-spins-new-approach-to-security/}}
+
+\end{itemize}
+
+SAIL: 
+\begin{itemize}
+\item Arma\"{e}lle will look into SAIL
+\item One goal is to investigate how the current idealised machine can be extended to make it more realistic. To start out with this extension could be to add one of the following: 
+	\begin{itemize}
+		\item Virtual memory
+    		\item Memory mapped I/O	
+	\end{itemize}
+\end{itemize}
+
+In general, we should think about more security related properties (other than LSE and WBCF) that we can enforce with capabilities, and how to make the properties understandable for non PL people. 
+
+
+\end{document}

@@ -28,7 +28,7 @@ Section fundamental.
     → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
     → region_std W a
     → std_sta W !! countable.encode a = Some (countable.encode ρ)
-    → ρ ≠ Revoked 
+    → ρ ≠ Revoked ∧ (∀ m, ρ ≠ Static m) 
     → p' ≠ O
     → cap_lang.decode w = i
     -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,

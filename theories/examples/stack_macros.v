@@ -982,7 +982,6 @@ Section stack_macros.
       iSplitL "Hrt"; eauto.
   Qed.
 
-
   Lemma mclear_spec (a : list Addr) (r : RegName)
         (a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r : Addr) a' φ :
     contiguous_between a a_first a' →
