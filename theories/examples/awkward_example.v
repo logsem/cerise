@@ -2924,9 +2924,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         (* first, put together again the resources for the frame *)
 
         iDestruct (region_mapsto_cons with "[$Ha3 $Hstack_own]") as "Hstack_own";
-          [iContiguous_next Hcont1 1|..]. admit. 
+          [iContiguous_next Hcont1 1|..].
+        { revert Hstack_own_bound1. clear; solve_addr. }
         iDestruct (region_mapsto_cons with "[$Hb_r $Hstack_own]") as "Hstack_own";
-          [iContiguous_next Hcont1 0|..]. admit. 
+          [iContiguous_next Hcont1 0|..].
+        { have: (a3 + 1 = Some a4)%a. by iContiguous_next Hcont1 1. revert Hstack_own_bound1.
+          clear; solve_addr. }
 
         (* we'll need that later to reason on the fact that the [zip] in the definition of
            m_frame indeed fully uses both lists *)
@@ -2966,9 +2969,12 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           iApply (big_sepL2_mono with "Hrest'"). cbn. iIntros (k a' pw ? ?) "[H1 H2]".
           iDestruct "H2" as (? ? ?) "(? & ? & ?)". iExists _. iFrame. eauto. }
 
+        assert (a2 <= stack_own_end ∧ stack_own_end <= e_r)%a.
+        { move: (withinBounds_le_addr _ _ _ _ _ Hwb3). clear; solve_addr. }
+
         iAssert ([∗ list] a;w ∈ (region_addrs a2 stack_own_end);l_frame2, static_res a RWLX w)%I
           with "[Hstack_own]" as "Hstack_own".
-        { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+        { rewrite (region_addrs_split a2 stack_own_end e_r) //.
           iDestruct (big_sepL_app with "Hstack_val") as "[Hstack_val' _]".
           iDestruct (big_sepL2_sep with "[Hstack_val' $Hstack_own]") as "Hstack_own".
           { iApply big_sepL2_to_big_sepL_l. auto. iApply "Hstack_val'". }
@@ -2981,7 +2987,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
         iAssert (⌜NoDup (region_addrs a2 e_r ++ l' ++ l'')⌝)%I as %Hstack_l'_l''_NoDup.
         { iAssert ([∗ list] a;w ∈ (region_addrs stack_own_end e_r);region_addrs_zeroes stack_own_end e_r, static_res a RWLX w)%I
             with "[Hstack_adv]" as "Hstack_adv".
-          { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+          { rewrite (region_addrs_split a2 stack_own_end e_r) //.
             iDestruct (big_sepL_app with "Hstack_val") as "[_ Hstack_val']".
             iDestruct (big_sepL2_sep with "[Hstack_val' $Hstack_adv]") as "Hstack_adv".
             { iApply big_sepL2_to_big_sepL_l.
@@ -2992,7 +2998,7 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             iExists _. iFrame. iSplitR; [iPureIntro; congruence|]. iPureIntro. intro; apply interp_persistent. }
 
           iApply (NoDup_of_sepL2_exclusive with "[] [Hstack_own Hstack_adv Hl'_rest']").
-          2: { rewrite (region_addrs_split a2 stack_own_end e_r). 2: admit.
+          2: { rewrite (region_addrs_split a2 stack_own_end e_r) //.
                iDestruct (big_sepL2_app with "Hstack_own Hstack_adv") as "Hstack".
                iDestruct (big_sepL2_zip_repeat with "Hstack") as "Hstack".
                iDestruct (big_sepL2_app with "Hstack Hl'_rest'") as "HH". iApply "HH". }
@@ -3014,7 +3020,8 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
           iExists _,_,_. iFrame. iPureIntro. destruct pw; auto. }
 
         rewrite -std_update_multiple_revoke_commute;auto.
-        2: { admit. }
+        2: { rewrite /std_sta. cbn [fst]. eapply Forall_impl; [ apply HForall_static1 |].
+             intros ? HH. cbn in HH. rewrite HH. intros ?%Some_eq_inj%encode_inj. congruence. }
 
         (* now that we have privately updated our resources, we can close the region invariant for the adv stack *)
         assert (list.last (a2 :: a3 :: a4 :: stack_own_b :: stack_own) = Some stack_own_end) as Hlast.
@@ -3905,6 +3912,6 @@ Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
     iDestruct "Htest" as (r0 W6) "(Hr0 & Hregr0 & % & Hna & Hsts)". 
     iExists _,_. iFrame.
     iPureIntro. eapply related_sts_priv_trans_world;[apply HWW''|auto].
-  Admitted.
+  Qed.
 
 End awkward_example.
