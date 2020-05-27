@@ -10,18 +10,48 @@ Import uPred.
 Definition relUR : ucmraT := gmapUR Addr (agreeR (leibnizO (gname * Perm))).
 Definition relT := gmap Addr (leibnizO (gname * Perm)). 
 
+(* We will first define the standard STS for the shared part of the heap *)
+Inductive region_type :=
+| Temporary
+| Permanent
+| Revoked.
+
+Global Instance region_type_EqDecision : EqDecision region_type :=
+    (fun x y => match x, y with
+             | Temporary, Temporary
+             | Permanent, Permanent
+             | Revoked, Revoked => left eq_refl
+             | _, _ => ltac:(right; auto)
+             end).
+Global Instance region_type_finite : finite.Finite region_type :=
+    (finite.enc_finite
+       (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
+       (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
+       3%nat
+       ltac:(destruct x; cbv; auto)
+       ltac:(destruct x; cbv; auto)
+       ltac:(do 2 (destruct i; try lia))).
+Global Instance region_type_countable : Countable region_type.
+Proof. apply finite.finite_countable. Qed.
+
+Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
+Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
+Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
+
+
 Class heapG Σ := HeapG {
   heapG_invG : invG Σ;
-  heapG_saved_pred :> savedPredG Σ (((STS_states * STS_rels) * (STS_states * STS_rels)) * Word);
+  heapG_saved_pred :> savedPredG Σ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word);
   heapG_rel :> inG Σ (authR relUR);
-  γrel : gname
-                   }.
+  γrel : gname}.
 
 Section heap.
-  Context `{heapG Σ, memG Σ, regG Σ, STSG Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (prodO STS STS). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
   
   Definition REL_def l p γ : iProp Σ := own γrel (◯ {[ l := to_agree (γ,p) ]}).
@@ -34,7 +64,7 @@ Section heap.
   Definition RELS := proj1_sig RELS_aux.
   Definition RELS_eq : @RELS = @RELS_def := proj2_sig RELS_aux.
 
-  Definition rel_def (l : Addr) (p : Perm) (φ : (WORLD * Word) -> iProp Σ) : iProp Σ :=
+  Definition rel_def (l : Addr) (p : Perm) (φ : ((STS_std_states Addr region_type * (STS_states * STS_rels)) * Word) -> iProp Σ) : iProp Σ :=
     (∃ (γpred : gnameO), REL l p γpred 
                        ∗ saved_pred_own γpred φ)%I.
   Definition rel_aux : { x | x = @rel_def }. by eexists. Qed.
@@ -45,55 +75,26 @@ Section heap.
     Persistent (rel l p φ).
   Proof. rewrite rel_eq /rel_def REL_eq /REL_def. apply _. Qed.
   
-  Definition future_pub_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
+  Definition future_pub_mono (φ : (WORLD * Word) -> iProp Σ) (v  : Word) : iProp Σ :=
     (□ ∀ W W', ⌜related_sts_pub_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
   Definition future_priv_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
     (□ ∀ W W', ⌜related_sts_priv_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
-  (* We will first define the standard STS for the shared part of the heap *)
-  Inductive region_type :=
-  | Temporary
-  | Permanent
-  | Revoked.
-
-  Global Instance region_type_EqDecision : EqDecision region_type :=
-    (fun x y => match x, y with
-             | Temporary, Temporary
-             | Permanent, Permanent
-             | Revoked, Revoked => left eq_refl
-             | _, _ => ltac:(right; auto)
-             end).
-  Global Instance region_type_finite : finite.Finite region_type :=
-    (finite.enc_finite
-       (fun x => match x with Temporary => 0%nat | Permanent => 1%nat | _ => 2%nat end)
-       (fun n => match n with 0%nat => Temporary | 1%nat => Permanent | _ => Revoked end)
-       3%nat
-       ltac:(destruct x; cbv; auto)
-       ltac:(destruct x; cbv; auto)
-       ltac:(do 2 (destruct i; try lia))).
-  Global Instance region_type_countable : Countable region_type.
-  Proof. apply finite.finite_countable. Qed.
-
-  Definition std_rel_pub := λ a b, (a = Revoked ∧ b = Temporary).
-  Definition std_rel_priv := λ a b, a = Temporary ∨ b = Permanent.
-  Global Instance sts_std : STS_STD region_type := {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
-
+  
   (* Some practical shorthands for projections *)
   Definition std W := W.1.
   Definition loc W := W.2.
-  Definition std_sta W := W.1.1.
-  Definition std_rel W := W.1.2.
 
   (* The following predicates states that the std relations map in the STS collection is standard according to sts_std *)
-  Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
-                                                        convert_rel (Rpriv : relation region_type)). 
-  Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i).
+  (* Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type), *)
+  (*                                                       convert_rel (Rpriv : relation region_type)).  *)
+  (* Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i). *)
 
   (* ------------------------------------------- DOM_EQUAL ----------------------------------------- *)
   (* dom_equal : we require the domain of the STS standard collection and the memory map to be equal *)
 
-  Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
+  (*Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
     ∀ (i : positive), is_Some (Wstd_sta !! i) ↔ (∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)).
 
   Lemma dom_equal_empty : dom_equal ∅ ∅.
@@ -126,14 +127,14 @@ Section heap.
         rewrite lookup_insert_ne in Hz; auto.
         intros Ha; congruence. 
       }
-  Qed.
+  Qed.*)
 
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------- REGION_MAP ---------------------------------------- *)
   (* ----------------------------------------------------------------------------------------------- *)
   
   Definition region_map_def M W :=
-    ([∗ map] a↦γp ∈ M, ∃ ρ, sts_state_std (countable.encode a) ρ ∗
+    ([∗ map] a↦γp ∈ M, ∃ ρ, sts_state_std a ρ ∗
                             match ρ with
                             | Temporary => ∃ γpred (v : Word) (p : Perm) φ,
                                                ⌜γp = (γpred,p)⌝
@@ -155,7 +156,7 @@ Section heap.
                             end)%I. 
         
   Definition region_def W : iProp Σ := 
-    (∃ (M : relT), RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+    (∃ (M : relT), RELS M ∗ ⌜dom (gset Addr) W.1 = dom (gset Addr) M⌝
                          ∗ region_map_def M W)%I. 
   Definition region_aux : { x | x = @region_def }. by eexists. Qed.
   Definition region := proj1_sig region_aux.
@@ -214,37 +215,36 @@ Section heap.
      we will rely on assumptions on the current state of that location *)
   
   Definition temporary (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (countable.encode l) with
-    | Some ρ => ρ = countable.encode Temporary
+    match W.1 !! l with
+    | Some ρ => ρ = Temporary
     | _ => False
     end.
   Definition permanent (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (countable.encode l) with
-    | Some ρ => ρ = countable.encode Permanent
+    match W.1 !! l with
+    | Some ρ => ρ = Permanent
     | _ => False
     end.
   Definition revoked (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (countable.encode l) with
-    | Some ρ => ρ = countable.encode Revoked
+    match W.1 !! l with
+    | Some ρ => ρ = Revoked
     | _ => False
     end.
 
   (* Definition and notation for updating a standard or local state in the STS collection *)
-  Definition std_update (W : WORLD) (l : Addr) (a : region_type) (r1 r2 : region_type → region_type -> Prop) : WORLD :=
-    ((<[countable.encode l := countable.encode a]>W.1.1,
-      <[countable.encode l := (convert_rel r1,convert_rel r2)]>W.1.2), W.2). 
+  Definition std_update (W : WORLD) (l : Addr) (a : region_type) : WORLD :=
+    (<[l := a]>W.1, W.2). 
   Definition loc_update (W : WORLD) (l : Addr) (a : region_type) (r1 r2 : region_type → region_type -> Prop) : WORLD :=
     (W.1,(<[countable.encode l := countable.encode a]>W.2.1,
           <[countable.encode l := (convert_rel r1,convert_rel r2)]>W.2.2)).
 
-  Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
+  Notation "<s[ a := ρ ]s> W" := (std_update W a ρ) (at level 10, format "<s[ a := ρ ]s> W").
   Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
 
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
   
   Definition open_region_def (a : Addr) (W : WORLD) : iProp Σ :=
-    (∃ (M : relT), RELS M ∗ ⌜dom_equal (std_sta W) M⌝ ∗ region_map_def (delete a M) W)%I. 
+    (∃ (M : relT), RELS M ∗ ⌜dom (gset Addr) W.1 = dom (gset Addr) M⌝ ∗ region_map_def (delete a M) W)%I. 
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
   Definition open_region := proj1_sig open_region_aux.
   Definition open_region_eq : @open_region = @open_region_def := proj2_sig open_region_aux.
@@ -253,12 +253,12 @@ Section heap.
   (* ------------------------- LEMMAS FOR OPENING THE REGION MAP ----------------------------------- *)
 
   Lemma region_open_temp_pwl W l p φ :
-    (std_sta W) !! (countable.encode l) = Some (countable.encode Temporary) →
+    (std W) !! l = Some Temporary →
     pwl p = true →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (countable.encode l) Temporary
+           ∗ sts_full_world W
+           ∗ sts_state_std l Temporary
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_pub_mono φ v
@@ -274,11 +274,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
+    inversion H0; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
@@ -299,12 +299,12 @@ Section heap.
   Qed.
 
   Lemma region_open_temp_nwl W l p φ :
-    (std_sta W) !! (countable.encode l) = Some (countable.encode Temporary) →
+    (std W) !! l = Some Temporary →
     pwl p = false →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (countable.encode l) Temporary
+           ∗ sts_full_world W
+           ∗ sts_state_std l Temporary
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_priv_mono φ v
@@ -320,11 +320,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
+    inversion H0; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".  
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
@@ -345,11 +345,11 @@ Section heap.
   Qed.
 
   Lemma region_open_perm W l p φ :
-    (std_sta W) !! (countable.encode l) = Some (countable.encode Permanent) →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    (std W) !! l = Some Permanent →
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (countable.encode l) Permanent              
+           ∗ sts_full_world W
+           ∗ sts_state_std l Permanent              
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_priv_mono φ v
@@ -365,11 +365,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     1: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & #Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst.
+    inversion H0; subst.
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists v. iFrame.
     iSplitR "Hφv". 
@@ -391,11 +391,11 @@ Section heap.
 
   Lemma region_open W l p φ (ρ : region_type) :
     ρ ≠ Revoked →
-    (std_sta W) !! (countable.encode l) = Some (countable.encode ρ) →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    (std W) !! l = Some ρ →
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (countable.encode l) ρ              
+           ∗ sts_full_world W
+           ∗ sts_state_std l ρ              
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ (▷ if (decide (ρ = Temporary ∧ pwl p = true))
@@ -417,7 +417,7 @@ Section heap.
   (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v :
     pwl p = true →
-    sts_state_std (countable.encode l) Temporary
+    sts_state_std l Temporary
                   ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
@@ -436,7 +436,7 @@ Section heap.
 
   Lemma region_close_temp_nwl W l φ p v :
     pwl p = false →
-    sts_state_std (countable.encode l) Temporary
+    sts_state_std l Temporary
                   ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
@@ -454,7 +454,7 @@ Section heap.
   Qed.
 
   Lemma region_close_perm W l φ p v :
-    sts_state_std (countable.encode l) Permanent
+    sts_state_std l Permanent
                   ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
@@ -473,7 +473,7 @@ Section heap.
 
   Lemma region_close W l φ p v (ρ : region_type) :
     ρ ≠ Revoked →
-    sts_state_std (countable.encode l) ρ
+    sts_state_std l ρ
                   ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗
                   (if (decide (ρ = Temporary ∧ pwl p = true))
                    then future_pub_mono φ v
@@ -525,7 +525,7 @@ Section heap.
   Qed. 
 
   Definition open_region_many_def (l : list Addr) (W : WORLD) : iProp Σ :=
-    (∃ M, RELS M ∗ ⌜dom_equal (std_sta W) M⌝ ∗ region_map_def (delete_list l M) W)%I.
+    (∃ M, RELS M ∗ ⌜dom (gset Addr) (std W) = dom (gset Addr) M⌝ ∗ region_map_def (delete_list l M) W)%I.
   Definition open_region_many_aux : { x | x = @open_region_many_def }. by eexists. Qed.
   Definition open_region_many := proj1_sig open_region_many_aux.
   Definition open_region_many_eq : @open_region_many = @open_region_many_def := proj2_sig open_region_many_aux.
@@ -548,12 +548,12 @@ Section heap.
 
   Lemma region_open_next_temp_pwl W φ ls l p :
     l ∉ ls →
-    (std_sta W) !! (countable.encode l) = Some (countable.encode Temporary) ->
+    (std W) !! l = Some Temporary ->
     pwl p = true →
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
                      ∃ v, open_region_many (l :: ls) W
-                        ∗ sts_full_world sts_std W
-                        ∗ sts_state_std (countable.encode l) Temporary
+                        ∗ sts_full_world W
+                        ∗ sts_state_std l Temporary
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
                         ∗ ▷ future_pub_mono φ v
@@ -572,11 +572,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
+    inversion H0; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists _. iFrame.
     iSplitR "Hφv". 
@@ -597,12 +597,12 @@ Section heap.
 
   Lemma region_open_next_temp_nwl W φ ls l p :
     l ∉ ls →
-    (std_sta W) !! (countable.encode l) = Some (countable.encode Temporary) ->
+    (std W) !! l = Some Temporary ->
     pwl p = false →
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
                      ∃ v, open_region_many (l :: ls) W
-                        ∗ sts_full_world sts_std W
-                        ∗ sts_state_std (countable.encode l) Temporary
+                        ∗ sts_full_world W
+                        ∗ sts_state_std l Temporary
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
                         ∗ ▷ future_priv_mono φ v
@@ -621,11 +621,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
+    inversion H0; subst. rewrite Hpwl. iDestruct "Hmono" as "#Hmono".
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists _. iFrame.
     iSplitR "Hφv". 
@@ -645,10 +645,10 @@ Section heap.
   Qed.
   
   Lemma region_open_next_perm W φ ls l p :
-    l ∉ ls → (std_sta W) !! (countable.encode l) = Some (countable.encode Permanent) -> 
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
-                     ∃ v, sts_full_world sts_std W
-                        ∗ sts_state_std (countable.encode l) Permanent
+    l ∉ ls → (std W) !! l = Some Permanent -> 
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
+                     ∃ v, sts_full_world W
+                        ∗ sts_state_std l Permanent
                         ∗ open_region_many (l :: ls) W
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
@@ -668,11 +668,11 @@ Section heap.
     iDestruct "Hpreds" as "[Hl Hpreds]".
     iDestruct "Hl" as (ρ) "[Hstate Hl]". destruct ρ. 
     1: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }
+         rewrite Htemp in Hcontr. inversion Hcontr. }
     2: { iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-         rewrite Htemp in Hcontr. inversion Hcontr. apply countable.encode_inj in H5. done. }    
+         rewrite Htemp in Hcontr. inversion Hcontr. }    
     iDestruct "Hl" as (γpred' v p' φ') "(% & % & Hl & #Hmono & #Hφ' & Hφv)".  
-    inversion H4; subst. 
+    inversion H0; subst. 
     iDestruct (saved_pred_agree _ _ _ (W,v) with "Hφ Hφ'") as "#Hφeq".
     iExists _. iFrame.
     iSplitR "Hφv". 
@@ -694,7 +694,7 @@ Section heap.
   Lemma region_close_next_temp_pwl W φ ls l p v :
     l ∉ ls ->
     pwl p = true →
-    sts_state_std (countable.encode l) Temporary ∗
+    sts_state_std l Temporary ∗
                   open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
                   -∗ open_region_many ls W.
   Proof.
@@ -716,7 +716,7 @@ Section heap.
   Lemma region_close_next_temp_nwl W φ ls l p v :
     l ∉ ls ->
     pwl p = false →
-    sts_state_std (countable.encode l) Temporary ∗
+    sts_state_std l Temporary ∗
                   open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
                   -∗ open_region_many ls W.
   Proof.
@@ -737,7 +737,7 @@ Section heap.
 
   Lemma region_close_next_perm W φ ls l p v :
     l ∉ ls ->
-    sts_state_std (countable.encode l) Permanent ∗
+    sts_state_std l Permanent ∗
                   open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
                   -∗ open_region_many ls W.
   Proof.
@@ -760,7 +760,7 @@ Section heap.
     (match ρ with
      | Temporary => if pwl p then future_pub_mono else future_priv_mono
      | Permanent => future_priv_mono
-     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     | Revoked => λ (_ : WORLD * Word → iProp Σ) (_ : Word), True
      end φ w)%I.
 
   Definition monotonicity_guarantees_decide ρ w p φ:=
@@ -769,15 +769,15 @@ Section heap.
      else future_priv_mono φ w)%I.
 
    Lemma region_open_next
-        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
-        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (W : WORLD)
+        (φ : WORLD * Word → iProp Σ)
         (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
     l ∉ ls
-    → std_sta W !! countable.encode l = Some (countable.encode ρ)
-    → open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W
+    → (std W) !! l = Some ρ
+    → open_region_many ls W ∗ rel l p φ ∗ sts_full_world W
                        -∗ ∃ v : Word,
-        sts_full_world sts_std W
-                       ∗ sts_state_std (countable.encode l) ρ
+        sts_full_world W
+                       ∗ sts_state_std l ρ
                        ∗ open_region_many (l :: ls) W
                        ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ monotonicity_guarantees_region ρ v p φ ∗
                        ▷ φ (W, v).
@@ -794,11 +794,11 @@ Section heap.
   Qed.
 
   Lemma region_close_next
-        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
-        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (W : WORLD)
+        (φ : WORLD * Word → iProp Σ)
         (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type) (Hρnotrevoked : ρ <> Revoked):
     l ∉ ls
-    → sts_state_std (countable.encode l) ρ
+    → sts_state_std l ρ
                     ∗ open_region_many (l :: ls) W
                     ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ monotonicity_guarantees_region ρ v p φ ∗ ▷ φ (W, v) ∗ rel l p φ -∗
                     open_region_many ls W.
@@ -815,92 +815,89 @@ Section heap.
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------- LEMMAS ABOUT STD TRANSITIONS -------------------------- *)
   
-  Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
-    is_Some ((std_sta W) !! (countable.encode a)) →
-    sts_full_world sts_std W -∗ ⌜rel_is_std_i W (countable.encode a)⌝.
-  Proof. 
-    iIntros (Hsome) "[[% [% _] ] _]".
-    iPureIntro. apply elem_of_subseteq in H3.
-    apply elem_of_gmap_dom in Hsome. 
-    specialize (H3 _ Hsome).
-    specialize (H4 (countable.encode a)). apply H4. 
-    apply elem_of_gmap_dom. auto.
-  Qed.
+  (* Lemma full_sts_world_is_Some_rel_std W (a : Addr) : *)
+  (*   is_Some ((std W) !! a) → *)
+  (*   sts_full_world sts_std W -∗ ⌜rel_is_std_i W (countable.encode a)⌝. *)
+  (* Proof.  *)
+  (*   iIntros (Hsome) "[[% [% _] ] _]". *)
+  (*   iPureIntro. apply elem_of_subseteq in H3. *)
+  (*   apply elem_of_gmap_dom in Hsome.  *)
+  (*   specialize (H3 _ Hsome). *)
+  (*   specialize (H4 (countable.encode a)). apply H4.  *)
+  (*   apply elem_of_gmap_dom. auto. *)
+  (* Qed. *)
 
-  Lemma related_sts_preserve_std W W' :
-    related_sts_priv_world W W' →
-    rel_is_std W →
-    (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W' i). 
-  Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
-    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
-    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hstd i Hi. simpl in *.
-    apply elem_of_gmap_dom in Hi. apply elem_of_subseteq in Hdom_rel.
-    specialize (Hdom_rel _ Hi).
-    apply elem_of_gmap_dom in Hdom_rel as [ [r1' r2'] Hr'].
-    apply elem_of_gmap_dom in Hi as Hr.
-    specialize (Hstd _ Hr). destruct Hr as [x Hr]. 
-    specialize (Hrelated i _ _ _ _ Hstd Hr') as (Heq1 & Heq2 & Hrelated). 
-    rewrite /std_rel /=. subst. auto.
-  Qed.
+  (* Lemma related_sts_preserve_std W W' : *)
+  (*   related_sts_priv_world W W' → *)
+  (*   rel_is_std W → *)
+  (*   (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W' i).  *)
+  (* Proof. *)
+  (*   destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl. *)
+  (*   destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl. *)
+  (*   intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hstd i Hi. simpl in *. *)
+  (*   apply elem_of_gmap_dom in Hi. apply elem_of_subseteq in Hdom_rel. *)
+  (*   specialize (Hdom_rel _ Hi). *)
+  (*   apply elem_of_gmap_dom in Hdom_rel as [ [r1' r2'] Hr']. *)
+  (*   apply elem_of_gmap_dom in Hi as Hr. *)
+  (*   specialize (Hstd _ Hr). destruct Hr as [x Hr].  *)
+  (*   specialize (Hrelated i _ _ _ _ Hstd Hr') as (Heq1 & Heq2 & Hrelated).  *)
+  (*   rewrite /std_rel /=. subst. auto. *)
+  (* Qed. *)
 
-  Lemma related_sts_rel_std W W' i :
-    related_sts_priv_world W W' →
-    rel_is_std_i W i → rel_is_std_i W' i.
-  Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
-    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
-    rewrite /rel_is_std_i. 
-    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hi. simpl in *.
-    assert (is_Some (Wstd_rel' !! i)) as [ [r1' r2'] Hr'].
-    { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_rel.
-      apply Hdom_rel. apply elem_of_gmap_dom. eauto. }
-    specialize (Hrelated i _ _ _ _ Hi Hr') as (-> & -> & Hrelated).
-    eauto. 
-  Qed.
+  (* Lemma related_sts_rel_std W W' i : *)
+  (*   related_sts_priv_world W W' → *)
+  (*   rel_is_std_i W i → rel_is_std_i W' i. *)
+  (* Proof. *)
+  (*   destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl. *)
+  (*   destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl. *)
+  (*   rewrite /rel_is_std_i.  *)
+  (*   intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hi. simpl in *. *)
+  (*   assert (is_Some (Wstd_rel' !! i)) as [ [r1' r2'] Hr']. *)
+  (*   { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_rel. *)
+  (*     apply Hdom_rel. apply elem_of_gmap_dom. eauto. } *)
+  (*   specialize (Hrelated i _ _ _ _ Hi Hr') as (-> & -> & Hrelated). *)
+  (*   eauto.  *)
+  (* Qed. *)
   
   Lemma std_rel_pub_Permanent x :
-    (convert_rel std_rel_pub) (countable.encode Permanent) x → x = countable.encode Permanent.
+    std_rel_pub Permanent x → x = Permanent.
   Proof.
     intros Hrel.
     inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+    subst. done. 
   Qed.
 
   Lemma std_rel_pub_rtc_Permanent x y :
-    x = countable.encode Permanent →
-    rtc (convert_rel std_rel_pub) x y → y = countable.encode Permanent.
+    x = Permanent →
+    rtc std_rel_pub x y → y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_pub_Permanent in H3.
+    subst. apply std_rel_pub_Permanent in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_priv_Permanent x :
-    (convert_rel std_rel_priv) (countable.encode Permanent) x → x = countable.encode Permanent.
+    std_rel_priv Permanent x → x = Permanent.
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb; subst; auto. apply encode_inj in Heqρ. inversion Heqρ.
+    inversion Hrel; done. 
   Qed.
 
   Lemma std_rel_priv_rtc_Permanent x y :
-    x = countable.encode Permanent →
-    rtc (convert_rel std_rel_priv) x y → y = countable.encode Permanent.
+    x = Permanent →
+    rtc std_rel_priv x y → y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_priv_Permanent in H3.
+    subst. apply std_rel_priv_Permanent in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_rtc_Permanent x y :
-    x = countable.encode Permanent →
-    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
-    y = countable.encode Permanent.
+    x = Permanent →
+    rtc (λ x0 y0 : region_type, std_rel_pub x0 y0 ∨ std_rel_priv x0 y0) x y →
+    y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc as [|x y z Hrel];auto.
@@ -910,58 +907,58 @@ Section heap.
   Qed. 
       
   Lemma std_rel_pub_Temporary x :
-    (convert_rel std_rel_pub) (countable.encode Temporary) x → x = countable.encode Temporary.
+    std_rel_pub Temporary x → x = Temporary.
   Proof.
     intros Hrel.
     inversion Hrel as [ρ Hb].
     destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. apply encode_inj in Heqρ. inversion Heqρ.
+    subst. auto. 
   Qed.
 
   Lemma std_rel_pub_rtc_Temporary x y :
-    x = countable.encode Temporary →
-    rtc (convert_rel std_rel_pub) x y → y = countable.encode Temporary.
+    x = Temporary →
+    rtc std_rel_pub x y → y = Temporary.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_pub_Temporary in H3.
+    subst. apply std_rel_pub_Temporary in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_pub_Revoked x :
-    (convert_rel std_rel_pub) (countable.encode Revoked) x → x = countable.encode Temporary (* ∨ x = countable.encode Revoked *).
+    std_rel_pub Revoked x → x = Temporary (* ∨ x = countable.encode Revoked *).
   Proof.
     intros Hrel.
     inversion Hrel as [ρ Hb].
     destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb. subst. auto.
+    subst. auto. 
   Qed.
 
   Lemma std_rel_pub_rtc_Revoked x y :
-    x = countable.encode Revoked →
-    rtc (convert_rel std_rel_pub) x y → y = countable.encode Temporary ∨ y = countable.encode Revoked.
+    x = Revoked →
+    rtc std_rel_pub x y → y = Temporary ∨ y = Revoked.
   Proof.
     intros Hx Hrtc.
     inversion Hrtc; subst; auto. 
-    apply std_rel_pub_Revoked in H3. subst. 
-    apply std_rel_pub_rtc_Temporary in H4; auto. 
+    apply std_rel_pub_Revoked in H. subst. 
+    apply std_rel_pub_rtc_Temporary in H0; auto. 
   Qed. 
 
-  Lemma std_rel_exist x y :
-    (∃ (ρ : region_type), countable.encode ρ = x) → 
-    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
-    ∃ (ρ : region_type), y = countable.encode ρ. 
-  Proof.
-    intros Hsome Hrel.
-    induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|].
-    destruct H3 as [Hpub | Hpriv].
-    - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
-      apply IHHrel. eauto.
-    - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
-      apply IHHrel. eauto.
-  Qed.
+  (* Lemma std_rel_exist x y : *)
+  (*   (∃ (ρ : region_type), countable.encode ρ = x) →  *)
+  (*   rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y → *)
+  (*   ∃ (ρ : region_type), y = countable.encode ρ.  *)
+  (* Proof. *)
+  (*   intros Hsome Hrel. *)
+  (*   induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|]. *)
+  (*   destruct H3 as [Hpub | Hpriv]. *)
+  (*   - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
+  (*     apply IHHrel. eauto. *)
+  (*   - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
+  (*     apply IHHrel. eauto. *)
+  (* Qed. *)
   
 End heap.
 
-Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
+Notation "<s[ a := ρ ]s> W" := (std_update W a ρ) (at level 10, format "<s[ a := ρ ]s> W").
 Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
