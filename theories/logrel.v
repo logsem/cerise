@@ -373,7 +373,7 @@ Section logrel.
     readAllowed p = true ->
     withinBounds (p, l, b, e, a) = true ->
     interp W (inr (p, l, b, e, a)) -∗
-           ⌜region_std W a /\ ∃ ρ, std_sta W !! countable.encode a = Some (countable.encode ρ) /\ ρ <> Revoked⌝.
+           ⌜region_std W a /\ ∃ ρ, std_sta W !! countable.encode a = Some (countable.encode ρ) /\ ρ <> Revoked ∧ (∀ g, ρ ≠ Static g)⌝.
   Proof.
     intros. iIntros "Hvalid".
     eapply withinBounds_le_addr in H4.
@@ -392,6 +392,7 @@ Section logrel.
     - destruct l; auto.
       iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split;eauto.
     - iDestruct "Hvalid" as (p) "[% [H H']]".
       iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
       iPureIntro. split; eauto.
@@ -405,6 +406,7 @@ Section logrel.
     - destruct l; auto.
       iDestruct "Hvalid" as (p) "[% [H H']]".
       iDestruct (extract_from_region_inv with "H") as "[_ [% %]]"; eauto.
+      iPureIntro. split;eauto.
   Qed.
 
   Definition region_conditions W p g b e:=

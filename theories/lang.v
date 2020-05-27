@@ -853,6 +853,63 @@ Proof. apply isCorrectPC_dec. Qed.
 Instance Reflexive_ofe_equiv_Word : (Reflexive (ofe_equiv (leibnizO Word))).
 Proof. intro; reflexivity. Qed.
 
+(* Countable instances *)
+
+Instance perm_countable : Countable Perm.
+Proof.
+  set encode := fun p => match p with
+    | O => 1
+    | RO => 2
+    | RW => 3
+    | RWL => 4
+    | RX => 5
+    | E => 6
+    | RWX => 7
+    | RWLX => 8
+    end%positive.
+  set decode := fun n => match n with
+    | 1 => Some O
+    | 2 => Some RO
+    | 3 => Some RW
+    | 4 => Some RWL
+    | 5 => Some RX
+    | 6 => Some E
+    | 7 => Some RWX
+    | 8 => Some RWLX
+    | _ => None
+    end%positive.
+  eapply (Build_Countable _ _ encode decode).
+  intro p. destruct p; reflexivity.
+Qed.
+
+Instance locality_countable : Countable Locality.
+Proof.
+  set encode := fun l => match l with
+    | Local => 1
+    | Global => 2
+    end%positive.
+  set decode := fun n => match n with
+    | 1 => Some Local
+    | 2 => Some Global
+    | _ => None
+    end%positive.
+  eapply (Build_Countable _ _ encode decode).
+  intro l. destruct l; reflexivity.
+Qed.
+
+Instance cap_countable : Countable Cap.
+Proof.
+  (* NB: this relies on the fact that cap_eq_dec has been Defined, because the
+  eq decision we have for Cap has to match the one used in the conclusion of the
+  lemma... *)
+  apply prod_countable.
+Qed.
+
+Instance word_countable : Countable Word.
+Proof. apply sum_countable. Qed.
+
+(****)
+
 Definition get_addr_pointsto (w : Word) (conf : ExecConf) : option Word :=
   match w with
   | inl z => None

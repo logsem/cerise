@@ -76,7 +76,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
     ftlr_instr W r p p' g b e a w (Restrict dst r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd Hnotrevoked HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -107,6 +107,7 @@ Section fundamental.
         rewrite lookup_insert in HPC. inv HPC.
         rewrite lookup_insert in H3. inv H3.
         rewrite H8 in H6. iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+        { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
         destruct (PermFlowsTo RX p'') eqn:Hpft.
         { assert (Hpg: p'' = RX ∨ p'' = RWX ∨ p'' = RWLX ∧ g'' = Local).
           { destruct p''; simpl in Hpft; eauto; try discriminate.
@@ -139,6 +140,7 @@ Section fundamental.
       rewrite lookup_insert in HPC. inv HPC.
       rewrite lookup_insert_ne in H3; auto.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
+      { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
       iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
       - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
       - iIntros (ri Hri). rewrite /RegLocate.

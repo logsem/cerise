@@ -295,17 +295,18 @@ Section monotone.
 
   (*Lemma that allows switching between the two different formulations of monotonicity, to alleviate the effects of inconsistencies*)
   Lemma switch_monotonicity_formulation ρ w p φ:
-      ρ ≠ Revoked →
+      ρ ≠ Revoked → (∀ m, ρ ≠ Static m) ->
       monotonicity_guarantees_region ρ w p φ ≡ monotonicity_guarantees_decide (Σ := Σ) ρ w p φ.
   Proof.
-    intros. unfold monotonicity_guarantees_region, monotonicity_guarantees_decide.
+    intros Hrev Hsta. unfold monotonicity_guarantees_region, monotonicity_guarantees_decide.
     iSplit; iIntros "HH".
     - destruct ρ.
-      * destruct (pwl p) ; intros.
+      * simpl. destruct (pwl p) ; intros.
         destruct (decide (Temporary = Temporary ∧ true = true)). auto. assert (Temporary = Temporary ∧ true = true); auto. by congruence.
         destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
       *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
       * by intros.
+      * specialize (Hsta g). done. 
     - intros. destruct ρ.
       * destruct (pwl p).
         destruct (decide (Temporary = Temporary ∧ true = true)). auto.
@@ -313,6 +314,7 @@ Section monotone.
         destruct (decide (Temporary = Temporary ∧ false = true)). destruct a; by exfalso. auto.
       *  destruct (decide (Permanent = Temporary ∧ pwl p = true)). destruct a; by exfalso. auto.
       * by iPureIntro.
+      * specialize (Hsta g); done. 
   Qed.
 
 
@@ -354,7 +356,8 @@ Proof.
       destruct H3. rewrite Hstd in H4. inversion H4.
       apply (f_equal (countable.decode (A:=region_type))) in H6.
       do 2 rewrite countable.decode_encode in H6. by inversion H6.
-  - auto.
+         - auto.
+         - auto. 
 Qed.
 
 (* Analogous, but now we have the general monotonicity statement in case an integer z is written *)
@@ -375,7 +378,8 @@ Proof.
         by iApply interp_monotone_nl.
   - iAlways. simpl. iIntros (W0 W1) "% HIW0".
       by iApply interp_monotone_nl.
-  - trivial.
+  - auto.
+  - auto. 
 Qed.
 
 
