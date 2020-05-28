@@ -6,12 +6,13 @@ From cap_machine Require Import ftlr_base monotone.
 From cap_machine.rules Require Import rules_Jmp.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -23,7 +24,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (r0 : RegName):
     ftlr_instr W r p p' g b e a w (Jmp r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -108,8 +109,8 @@ Section fundamental.
             iDestruct "Hwsrc" as "#H".
             iAssert (future_world l W W) as "Hfuture".
             { destruct l; iPureIntro.
-              - destruct W. split; apply related_sts_priv_refl.
-              - destruct W. split; apply related_sts_pub_refl. }
+              - destruct W. apply related_sts_priv_refl_world.
+              - destruct W. apply related_sts_pub_refl_world. }
             iSpecialize ("H" $! _ _ with "Hfuture").
             iNext.
             iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.

@@ -7,12 +7,13 @@ From cap_machine Require Import addr_reg.
 From cap_machine.rules Require Import rules_Subseg.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -33,9 +34,9 @@ Section fundamental.
     (b <= a0 /\ a1 <= e)%a.
   Proof.
     rewrite /isWithin.
-    intros. repeat (apply andb_true_iff in H3; destruct H3).
-    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H6).
-    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H4).
+    intros. repeat (apply andb_true_iff in H; destruct H).
+    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H0).
+    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H2).
     auto.
   Qed.
 
@@ -46,7 +47,7 @@ Section fundamental.
       in_range a b' e' ->
       in_range a b e.
   Proof.
-    intros. destruct H5. unfold in_range.
+    intros. destruct H1. unfold in_range.
     unfold le_addr in *. unfold lt_addr in *.
     lia.
   Qed.
@@ -55,7 +56,7 @@ Section fundamental.
       p <> E ->
       (b <= b')%a ->
       (e' <= e)%a ->
-      □ ▷ (∀ (a7 : leibnizO (STS * STS)) (a8 : Reg) (a9 : Perm) (a10 : Locality) 
+      □ ▷ (∀ (a7 : WORLD) (a8 : Reg) (a9 : Perm) (a10 : Locality) 
              (a11 a12 a13 : Addr),
               full_map a8
                        -∗ (∀ r1 : RegName,
@@ -67,7 +68,7 @@ Section fundamental.
                                   end)
                        -∗ registers_mapsto (<[PC:=inr (a9, a10, a11, a12, a13)]> a8)
                        -∗ region a7
-                       -∗ sts_full_world sts_std a7
+                       -∗ sts_full_world a7
                        -∗ na_own logrel_nais ⊤
                        -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
               → □ (∃ p'0 : Perm,
@@ -76,8 +77,7 @@ Section fundamental.
                          read_write_cond a14 p'0 interp
                          ∧ ⌜if pwl a9
                             then region_state_pwl a7 a14
-                            else region_state_nwl a7 a14 a10⌝
-                                 ∧ ⌜region_std a7 a14⌝)) -∗ 
+                            else region_state_nwl a7 a14 a10⌝)) -∗ 
                   interp_conf a7) -∗
       (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
       (fixpoint interp1) W (inr (p, l, b', e', a)).
@@ -92,7 +92,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r1 r2 : Z + RegName):
     ftlr_instr W r p p' g b e a w (Subseg dst r1 r2) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -114,12 +114,12 @@ Section fundamental.
 
       destruct (reg_eq_dec PC dst).
       { subst dst. repeat rewrite insert_insert in HPC |- *.
-        rewrite !lookup_insert in HPC H3; inv HPC; inv H3.
+        rewrite !lookup_insert in HPC H; inv HPC; inv H.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
         iAlways. iExists p'. iSplitR; auto.
-        generalize (isWithin_implies _ _ _ _ H7). intros [A B].
+        generalize (isWithin_implies _ _ _ _ H3). intros [A B].
         destruct (Z_le_dec b'' e'').
         + rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
           iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
@@ -130,7 +130,7 @@ Section fundamental.
           unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia. }
       { rewrite lookup_insert_ne in HPC; auto.
         rewrite lookup_insert in HPC.
-        rewrite lookup_insert_ne in H3; auto. inv HPC.
+        rewrite lookup_insert_ne in H; auto. inv HPC.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
@@ -143,8 +143,8 @@ Section fundamental.
           destruct (reg_eq_dec ri dst).
           + subst ri. rewrite lookup_insert.
             iDestruct ("Hreg" $! dst Hri) as "Hdst".
-            generalize (isWithin_implies _ _ _ _ H7). intros [A B].
-            rewrite H3. iApply subseg_interp_preserved; eauto.
+            generalize (isWithin_implies _ _ _ _ H3). intros [A B].
+            rewrite H. iApply subseg_interp_preserved; eauto.
           + repeat rewrite lookup_insert_ne; auto.
             iApply "Hreg"; auto. } }
   Qed.

@@ -7,12 +7,13 @@ From cap_machine.rules Require Import rules_Store.
 Import uPred.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -27,8 +28,7 @@ Section fundamental.
        read_write_cond a p' interp
        ∧ ⌜if pwl p
           then region_state_pwl W a
-          else region_state_nwl W a g⌝
-               ∧ ⌜region_std W a⌝) -∗
+          else region_state_nwl W a g⌝) -∗
       ((fixpoint interp1) W) (inr (p, g, b, e, a0)).
   Proof.
     iIntros (Hpf Hp) "#HEC #HR".
@@ -40,8 +40,8 @@ Section fundamental.
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
   Definition region_open_resources W l ls p φ (v : Word): iProp Σ :=
     (∃ ρ,
-        sts_state_std (countable.encode l) ρ
-    ∗ ⌜std_sta W !! countable.encode l = Some (countable.encode ρ)⌝
+        sts_state_std l ρ
+    ∗ ⌜std W !! l = Some ρ⌝
     ∗ ⌜ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)⌝
     ∗ open_region_many (l :: ls) W
     ∗ ⌜p ≠ O⌝
@@ -56,7 +56,7 @@ Section fundamental.
       pose (Hrar' := Hrar).
       destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
       * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        rewrite H4 H5 H6 H7 H8 in Hrar; auto.
+        subst;auto. 
       * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
   Qed.
 
@@ -78,7 +78,7 @@ Section fundamental.
          else  ⌜mem = <[pc_a:=(pc_p,pc_w)]> ∅⌝ ∗ open_region pc_a W ∗ ⌜PermFlows p pc_p⌝ )
     else  ⌜mem = <[pc_a:=(pc_p,pc_w)]> ∅⌝ ∗ open_region pc_a W)%I.
 
-  Lemma interp_hpf_eq (W : leibnizO (STS * STS)) (r : leibnizO Reg) (r1 : RegName)
+  Lemma interp_hpf_eq (W : WORLD) (r : leibnizO Reg) (r1 : RegName)
         p g b e a pc_p pc_g pc_b pc_e pc_p' w storev:
     reg_allows_store (<[PC:=inr (pc_p, pc_g, pc_b, pc_e, a)]> r) r1 p g b e a storev
     → PermFlows pc_p pc_p'
@@ -87,7 +87,7 @@ Section fundamental.
         -∗ ⌜PermFlows p pc_p'⌝.
   Proof.
     destruct (decide (r1 = PC)).
-    - subst r1. iIntros. destruct H3 as (H3 & _). simplify_map_eq; auto.
+    - subst r1. iIntros. destruct H as (H3 & _). simplify_map_eq; auto.
     - iIntros ((Hsomer1 & Hwa & Hwb & Hloc) Hfl) "Hreg Hinva".
       iDestruct ("Hreg" $! r1 n) as "Hr1". simplify_map_eq. rewrite /RegLocate Hsomer1.
       iDestruct (read_allowed_inv _ a with "Hr1") as (p'' Hfl') "#Harel'"; auto.
@@ -100,7 +100,7 @@ Section fundamental.
   Qed.
 
   Lemma create_store_res:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
       (g : Locality) (b e a : Addr) (r1 : RegName) (r2 : Z + RegName) (p0 : Perm)
       (g0 : Locality) (b0 e0 a0 : Addr)(storev : Word),
       read_reg_inr (<[PC:=inr (p, g, b, e, a)]> r) r1 p0 g0 b0 e0 a0
@@ -109,9 +109,9 @@ Section fundamental.
       → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
           -∗ read_write_cond a p' interp
           -∗ open_region a W
-          -∗ sts_full_world sts_std W
+          -∗ sts_full_world W
           -∗ allow_store_res W r1 r2 (<[PC:=inr (p, g, b, e, a)]> r) a p'
-          ∗ sts_full_world sts_std W.
+          ∗ sts_full_world W.
   Proof.
     intros W r p p' g b e a r1 r2 p0 g0 b0 e0 a0 storev HVr1 Hfl Hwoa.
     iIntros "#Hreg #Hinva Hr Hsts".
@@ -135,7 +135,7 @@ Section fundamental.
          iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
          { by apply writeA_implies_readA. }
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H3 as [Hregion' [ρ' [Hstd' [Hnotrevoked' Hnotstatic'] ] ] ].
+         destruct H as [ρ' [Hstd' [Hnotrevoked' Hnotstatic'] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -147,7 +147,7 @@ Section fundamental.
   Qed.
 
   Lemma store_res_implies_mem_map:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p' : Perm)
        (a : Addr) (w : Word) (r1 : RegName) (r2 : Z + RegName),
       allow_store_res W r1 r2 r a p'
       -∗ a ↦ₐ[p'] w
@@ -185,7 +185,7 @@ Section fundamental.
     Qed.
 
   Lemma mem_map_implies_pure_conds:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
       (g : Locality) (b e a : Addr) (w : Word) (r1 : RegName) (r2 : Z + RegName)
       (mem0 : PermMem),
         p' ≠ O →
@@ -220,7 +220,7 @@ Section fundamental.
      PermFlows p p'
      → word_of_argument r r2 = Some storev
      → reg_allows_store r r1 p g b e a storev
-     → std_sta W !! countable.encode a = Some (countable.encode ρ)
+     → std W !! a = Some ρ
      → ((fixpoint interp1) W) (inr (p,g,b,e,a))
        -∗ monotonicity_guarantees_region ρ storev p' interpC.
    Proof.
@@ -233,18 +233,18 @@ Section fundamental.
        destruct (r !! r0); inversion Hwoa; clear Hwoa; subst w.
        iApply (interp_monotone_generalW with "[HInt]" ); eauto.
        apply orb_true_iff. destruct Hloc.
-       *  cbn in H3. left. by apply negb_true_iff.
-       *  right. apply pwl_implies_RWL_RWLX in H3. by destruct H3 as [-> | ->].
+       *  cbn in H. left. by apply negb_true_iff.
+       *  right. apply pwl_implies_RWL_RWLX in H. by destruct H as [-> | ->].
   Qed.
 
   (* Note that we turn in all information that we might have on the monotonicity of the current PC value, so that in the proof of the ftlr case itself, we do not have to worry about whether the PC was written to or not when we close the last location pc_a in the region *)
    Lemma mem_map_recover_res:
-    ∀ (W : leibnizO (STS * STS)) (r : Reg) (p' : Perm)
+    ∀ (W : WORLD) (r : Reg) (p' : Perm)
        (pc_w : Word) (r1 : RegName) (r2 : Z + RegName) (p0 p'0 pc_p pc_p' : Perm)
        (g0 pc_g : Locality) (b0 e0 a0 pc_b pc_e pc_a : Addr) (mem0 : PermMem) (oldv storev : Word) (ρ : region_type),
       word_of_argument (<[PC:=inr (pc_p, pc_g, pc_b, pc_e, pc_a)]> r) r2 = Some storev
       → reg_allows_store (<[PC:=inr (pc_p, pc_g, pc_b, pc_e, pc_a)]> r) r1 p0 g0 b0 e0 a0 storev
-      → std_sta W !! countable.encode pc_a = Some (countable.encode ρ)
+      → std W !! pc_a = Some ρ
       → mem0 !! a0 = Some (p'0, oldv) (*?*)
       → allow_store_mem W r1 r2 (<[PC:=inr (pc_p, pc_g, pc_b, pc_e, pc_a)]> r) pc_a pc_p' pc_w mem0
         -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
@@ -258,8 +258,8 @@ Section fundamental.
     intros W r p' pc_w r1 r2 p0 p'0 pc_p pc_p' g0 pc_g b0 e0 a0 pc_b pc_e pc_a mem0 oldv storev ρ Hwoa Hras Hstdst Ha0.
     iIntros "HStoreMem #Hreg #HVPCr #Hpc_w Hpcmono Hmem".
     iDestruct "HStoreMem" as (p1 g1 b1 e1 a1 storev1) "[% [% HStoreRes] ]".
-    destruct (store_inr_eq Hras H3) as (<- & <- &<- &<- &<-).
-    rewrite Hwoa in H4; inversion H4; simplify_eq.
+    destruct (store_inr_eq Hras H) as (<- & <- &<- &<- &<-).
+    rewrite Hwoa in H0; inversion H0; simplify_eq.
     case_decide as Hallows.
     - iAssert (((fixpoint interp1) W) (inr (p0,g0,b0,e0,a0)))%I with "[HVPCr Hreg]" as "#HVr1".
       { destruct Hras as [Hreg _]. destruct (decide (r1 = PC)).
@@ -294,14 +294,14 @@ Section fundamental.
          rewrite lookup_insert in Ha0; inversion Ha0; simplify_eq.
          iExists storev1. iFrame.
          iDestruct (storev_interp_mono with "HVr1") as "Hr1Mono"; eauto.
-    - by exfalso.
+    - by exfalso. 
    Qed.
 
   Lemma store_case(W : WORLD) (r : leibnizO Reg) (p p' : Perm) (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (src : Z + RegName) :
     ftlr_instr W r p p' g b e a w (Store dst src) ρ.
 
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -366,21 +366,18 @@ Section fundamental.
          iAlways. iExists p'. iSplitR; auto.
          unfold future_world; destruct g; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "Hinv"); intros; simpl.
          (*g is global*)
-         - iIntros "[HA [% %]]". iSplitL "HA"; auto.
-           iPureIntro; split.
-           + destruct (pwl p) eqn:Hppwl.
-             * (do 2 try destruct Hp as [ | Hp]); last by (destruct Hp; exfalso).
-               all: (rewrite H12 in Hppwl; simpl in Hppwl; by exfalso).
-             * by apply (region_state_nwl_monotone_nl _ _ y H11 Hfuture H10).
-           + eapply related_sts_rel_std; eauto.
+         - iIntros "[HA %]". iSplitL "HA"; auto.
+           iPureIntro. 
+           destruct (pwl p) eqn:Hppwl.
+           * (do 2 try destruct Hp as [ | Hp]); last by (destruct Hp; exfalso).
+             all: (rewrite H7 in Hppwl; simpl in Hppwl; by exfalso).
+           * eapply (region_state_nwl_monotone_nl);eauto.
          (*g is local*)
-         - iIntros "[HA [% %]]". iSplitL "HA"; auto.
-           iPureIntro; split.
-           +  destruct (pwl p).
-              * apply (region_state_pwl_monotone _ _ y H11 Hfuture H10); auto.
-              * apply (region_state_nwl_monotone _ _ y Local H11 Hfuture H10); auto.
-           + apply related_sts_pub_priv_world in Hfuture.
-             eapply related_sts_rel_std; eauto.
+         - iIntros "[HA %]". iSplitL "HA"; auto.
+           iPureIntro. 
+           destruct (pwl p).
+           * eapply (region_state_pwl_monotone); eauto.
+           * eapply (region_state_nwl_monotone _ _ y Local); eauto.
       }
 
       (* From this, derive value relation for the current PC*)

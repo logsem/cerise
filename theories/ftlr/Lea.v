@@ -7,12 +7,13 @@ From cap_machine Require Import rules_base.
 From cap_machine.rules Require Import rules_Lea.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -25,14 +26,14 @@ Section fundamental.
     (fixpoint interp1) W (inr (p, l, a2, a1, a3)).
   Proof.
     repeat rewrite fixpoint_interp1_eq. simpl. iIntros "HA".
-    destruct p; auto; congruence.
+    destruct p,l; auto; congruence.
   Qed.
 
   Lemma lea_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
     ftlr_instr W r p p' g b e a w (cap_lang.Lea dst r0) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
