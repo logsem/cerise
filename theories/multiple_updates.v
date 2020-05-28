@@ -9,14 +9,19 @@ Section std_updates.
   (* --------------------------------------------------------------------------------- *)
   (* ----------------------- UPDATING MULTIPLE REGION STATES ------------------------- *)
 
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (prodO STS STS). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
   
   Fixpoint std_update_multiple W l ρ :=
     match l with
     | [] => W
-    | a :: l => std_update (std_update_multiple W l ρ) a ρ std_rel_pub std_rel_priv
+    | a :: l => std_update (std_update_multiple W l ρ) a ρ
     end.
    
    (* Fixpoint std_update_temp_multiple W l := *)
@@ -52,37 +57,23 @@ Section std_updates.
    Qed.
 
    Lemma std_update_multiple_std_sta_eq W Wloc l ρ :
-     (std_update_multiple W l ρ).1.1 = (std_update_multiple (W.1, Wloc) l ρ).1.1.
+     (std_update_multiple W l ρ).1 = (std_update_multiple (W.1, Wloc) l ρ).1.
    Proof.
      destruct W as [Wsta Wloc']. simpl. induction l; auto. 
      simpl. rewrite -IHl. auto.
    Qed.
    
-   Lemma std_update_multiple_std_rel_eq W l ρ :
-     rel_is_std W ->
-     ∀ i, is_Some(W.1.2 !! i) -> W.1.2 !! i = (std_update_multiple W l ρ).1.2 !! i.
-   Proof.
-     induction l; auto.
-     intros Hrel. intros i Hsome. simpl.     
-     destruct (decide (encode a = i));[subst;rewrite lookup_insert Hrel;auto|].
-     rewrite lookup_insert_ne;auto.
-   Qed. 
-
    Lemma std_update_multiple_swap_head W l a1 a2 ρ :
      std_update_multiple W (a1 :: a2 :: l) ρ = std_update_multiple W (a2 :: a1 :: l) ρ.
    Proof.
      induction l.
      - simpl. destruct (decide (a1 = a2)); subst.
        + done.
-       + rewrite /std_update. 
-         assert (encode a1 ≠ encode a2).
-         { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
-         repeat rewrite (insert_commute _ (encode a1) (encode a2)); auto.
+       + rewrite /std_update.
+         repeat rewrite (insert_commute _ a1 a2); auto.
      - destruct (decide (a1 = a2)); subst;[done|].
-       assert (encode a1 ≠ encode a2).
-       { intro Hcontr. apply encode_inj in Hcontr. subst; done. }
        simpl. rewrite /std_update.
-       repeat rewrite (insert_commute _ (encode a1) (encode a2)) ; auto.
+       repeat rewrite (insert_commute _ a1 a2) ; auto.
    Qed. 
        
    Lemma std_update_multiple_swap W l1 a l2 ρ :
@@ -160,115 +151,55 @@ Section std_updates.
 
    (* If an element is not in the update list, the state lookup is the same *)
    Lemma std_sta_update_multiple_lookup_same_i W l ρ i :
-     i ∉ encode <$> l -> (std_sta (std_update_multiple W l ρ)) !! i =
-             (std_sta W) !! i.
+     i ∉ l -> (std (std_update_multiple W l ρ)) !! i =
+             (std W) !! i.
    Proof.
      intros Hnin.
      induction l; auto.
      apply not_elem_of_cons in Hnin as [Hne Hnin].
      rewrite lookup_insert_ne; auto.
    Qed.
-   Lemma std_sta_update_multiple_lookup_same W l ρ (a : Addr) :
-     a ∉ l -> (std_sta (std_update_multiple W l ρ)) !! (encode a) =
-             (std_sta W) !! (encode a).
-   Proof.
-     intros Hnin.
-     apply std_sta_update_multiple_lookup_same_i.
-     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
-     apply encode_inj in Heq. 
-     subst; contradiction.
-   Qed.
+
    (* ------------------------------------------------------------ *)
 
    (* If an element is in the update list, the state lookup corresponds to the update value *)
    Lemma std_sta_update_multiple_lookup_in_i W l ρ i :
-     i ∈ encode <$> l -> (std_sta (std_update_multiple W l ρ)) !! i = Some (encode ρ).
+     i ∈ l -> (std (std_update_multiple W l ρ)) !! i = Some ρ.
    Proof.
      intros Hnin.
      induction l; auto; first inversion Hnin.
      apply elem_of_cons in Hnin as [Hne | Hnin].
      - subst i. rewrite lookup_insert; auto.
-     - destruct (decide (encode a = i));[subst i; rewrite lookup_insert; auto|].
+     - destruct (decide (a = i));[subst i; rewrite lookup_insert; auto|].
        rewrite lookup_insert_ne;auto. 
    Qed.
-   Lemma std_sta_update_multiple_lookup_in W l ρ (a : Addr) :
-     a ∈ l -> (std_sta (std_update_multiple W l ρ)) !! (encode a) = Some (encode ρ).
-   Proof.
-     intros Hnin.
-     apply std_sta_update_multiple_lookup_in_i.
-     apply elem_of_list_fmap. exists a; auto. 
-   Qed.
+
    (* ------------------------------------------------------------ *)
 
    (* if W at a is_Some, the the updated W at a is_Some *)
    Lemma std_sta_update_multiple_is_Some W l ρ i :
-     is_Some (std_sta W !! i) -> is_Some (std_sta (std_update_multiple W l ρ) !! i).
+     is_Some (std W !! i) -> is_Some (std (std_update_multiple W l ρ) !! i).
    Proof.
      intros Hsome.
-     destruct (decide (i ∈ countable.encode <$> l)).
-     - exists (countable.encode ρ). by apply std_sta_update_multiple_lookup_in_i.
+     destruct (decide (i ∈ l)).
+     - exists ρ. by apply std_sta_update_multiple_lookup_in_i.
      - rewrite std_sta_update_multiple_lookup_same_i;auto.
    Qed. 
 
    (* ------------------------------------------------------------ *)
-
-
-   (* If an element is not in the update list, the rel lookup is the same *)
-   Lemma std_rel_update_multiple_lookup_same_i W l ρ i:
-     i ∉ encode <$> l -> (std_rel (std_update_multiple W l ρ)) !! i =
-             (std_rel W) !! i.
-   Proof.
-     intros Hnin.
-     induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hne Hnin].
-     rewrite lookup_insert_ne; auto.
-   Qed.
-   Lemma std_rel_update_multiple_lookup_same W l ρ (a : Addr) :
-     a ∉ l -> (std_rel (std_update_multiple W l ρ)) !! (encode a) =
-             (std_rel W) !! (encode a).
-   Proof.
-     intros Hnin.
-     apply std_rel_update_multiple_lookup_same_i.
-     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
-     apply encode_inj in Heq. 
-     subst; contradiction.
-   Qed.
-   (* ------------------------------------------------------------ *)
-
-   (* If an element is in the update list, the rel lookup corresponds to the update value *)
-   Lemma std_rel_update_multiple_lookup_std_i W l ρ i :
-     i ∈ (encode <$> l) -> (std_rel (std_update_multiple W l ρ)) !! i =
-             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
-   Proof.
-     intros Hin.
-     induction l; first inversion Hin.
-     apply elem_of_cons in Hin as [Heq | Hin].
-     - subst i. simpl. by rewrite lookup_insert. 
-     - destruct (decide (encode a = i));[subst i; by rewrite lookup_insert|].
-       rewrite lookup_insert_ne;[apply IHl; auto|auto].
-   Qed. 
-   Lemma std_rel_update_multiple_lookup_std W l ρ (a : Addr) :
-     a ∈ l -> (std_rel (std_update_multiple W l ρ)) !! (encode a) =
-             Some (convert_rel (Rpub : relation region_type), convert_rel (Rpriv : relation region_type)).
-   Proof.
-     intros Hin.
-     apply std_rel_update_multiple_lookup_std_i.
-     apply elem_of_list_fmap. exists a; auto. 
-   Qed.
-   (* ------------------------------------------------------------ *)
    
    (* domains *)
    Lemma std_update_multiple_not_in_sta_i W l ρ i :
-     i ∉ encode <$> l → i ∈ dom (gset positive) (std_sta W) ↔
-                                  i ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
+     i ∉ l → i ∈ dom (gset Addr) (std W) ↔
+               i ∈ dom (gset Addr) (std (std_update_multiple W l ρ)). 
    Proof.
      intros Hnin. induction l; auto.
      apply not_elem_of_cons in Hnin as [Hneq Hnin].
      rewrite /= dom_insert. set_solver.
    Qed.
    Lemma std_update_multiple_in_sta_i W (l: list Addr) ρ i :
-     Forall (λ (a:Addr), is_Some (std_sta W !! encode a)) l →
-     i ∈ dom (gset positive) (std_sta W) ↔ i ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)).
+     Forall (λ (a:Addr), is_Some (std W !! a)) l →
+     i ∈ dom (gset Addr) (std W) ↔ i ∈ dom (gset Addr) (std (std_update_multiple W l ρ)).
    Proof.
      intros Hl.
      induction l; auto.
@@ -278,32 +209,12 @@ Section std_updates.
      rewrite -elem_of_gmap_dom //.
    Qed.
    Lemma std_update_multiple_not_in_sta W l ρ (a : Addr) :
-     a ∉ l → (encode a) ∈ dom (gset positive) (std_sta W) ↔
-             (encode a) ∈ dom (gset positive) (std_sta (std_update_multiple W l ρ)).
+     a ∉ l → a ∈ dom (gset Addr) (std W) ↔
+             a ∈ dom (gset Addr) (std (std_update_multiple W l ρ)).
    Proof. 
      intros Hnin.
      apply std_update_multiple_not_in_sta_i. 
-     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
-     apply encode_inj in Heq. 
-     subst; contradiction.
-   Qed.
-   Lemma std_update_multiple_not_in_rel_i W l ρ i :
-     i ∉ encode <$> l → i ∈ dom (gset positive) (std_rel W) ↔
-             i ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)). 
-   Proof.
-     intros Hnin. induction l; auto.
-     apply not_elem_of_cons in Hnin as [Hneq Hnin].
-     rewrite /= dom_insert. set_solver.
-   Qed.
-   Lemma std_update_multiple_not_in_rel W l ρ (a : Addr) :
-     a ∉ l → (encode a) ∈ dom (gset positive) (std_rel W) ↔
-             (encode a) ∈ dom (gset positive) (std_rel (std_update_multiple W l ρ)).
-   Proof. 
-     intros Hnin.
-     apply std_update_multiple_not_in_rel_i. 
-     intros Hcontr. apply elem_of_list_fmap in Hcontr as [y [Heq Hy] ].
-     apply encode_inj in Heq. 
-     subst; contradiction.
+     intros Hcontr. contradiction.
    Qed.
    
    (* ---------------------------------------------------------------------------- *)
@@ -311,66 +222,49 @@ Section std_updates.
      
    Lemma related_sts_pub_update_multiple W l ρ :
      NoDup l →
-     Forall (λ a, (encode a) ∉ dom (gset positive) (std_sta W) ∧
-                  (encode a) ∉ dom (gset positive) (std_rel W)) l →
+     Forall (λ a, a ∉ dom (gset Addr) (std W)) l →
      related_sts_pub_world W (std_update_multiple W l ρ).
    Proof.
      intros Hdup Hforall. induction l.
-     - split; apply related_sts_pub_refl. 
+     - apply related_sts_pub_refl_world. 
      - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup].
-       apply list.Forall_cons in Hforall as [ [Ha_std Ha_rel] Hforall].
+       apply list.Forall_cons in Hforall as [ Ha_std Hforall].
        eapply related_sts_pub_trans_world;[apply IHl; auto|].
        apply related_sts_pub_world_fresh; auto.
-       + intros Hcontr. apply std_update_multiple_not_in_sta in Hcontr; auto. 
-         intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
-       + intros Hcontr. apply std_update_multiple_not_in_rel in Hcontr; auto. 
-         intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
+       intros Hcontr. apply std_update_multiple_not_in_sta in Hcontr; auto. 
+       intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
    Qed.
-     
-   Lemma std_update_multiple_rel_is_std W l ρ :
-     rel_is_std W ->
-     rel_is_std (std_update_multiple W l ρ).
-   Proof.
-     intros Hrel.
-     intros i [x Hx].
-     destruct (decide (i ∈ encode <$> l)).
-     - eapply std_rel_update_multiple_lookup_std_i in e. eauto.
-     - apply std_rel_update_multiple_lookup_same_i with (W:=W) (ρ:=ρ) in n.
-       rewrite /rel_is_std_i. rewrite n. apply Hrel. rewrite n in Hx. eauto.
-   Qed. 
-       
+         
    Lemma std_update_multiple_lookup W l ρ k y :
      l !! k = Some y ->
-     std_sta (std_update_multiple W l ρ) !! encode y = Some (encode ρ)
-     ∧ region_std (std_update_multiple W l ρ) y.
+     std (std_update_multiple W l ρ) !! y = Some ρ.
    Proof.
      intros Helem.
      apply elem_of_list_lookup_2 in Helem.
      apply elem_of_list_split in Helem as [l1 [l2 Heq] ].
-     rewrite Heq std_update_multiple_swap /= /std_update. split. 
-     - rewrite /std_sta /=. apply lookup_insert.
-     - rewrite /region_std /rel_is_std_i /std_rel /=. apply lookup_insert.
+     rewrite Heq std_update_multiple_swap /= /std_update. 
+     rewrite /std /=. rewrite lookup_insert. auto. 
    Qed. 
    
    Lemma std_update_temp_multiple_lookup W l k y :
      l !! k = Some y →
-     region_state_pwl (std_update_temp_multiple W l) y ∧ region_std (std_update_temp_multiple W l) y.
+     region_state_pwl (std_update_temp_multiple W l) y.
    Proof.
      apply std_update_multiple_lookup. 
-   Qed. 
-
+   Qed.
+   
 
    (* Multiple updates does not change dom, as long as the updated elements are a subset of original dom *)
    Lemma std_update_multiple_dom_equal W l ρ :
-     (∀ i : positive, i ∈ encode <$> l → i ∈ dom (gset positive) (std_sta W)) ->
-     dom (gset positive) (std_sta W) = dom (gset positive) (std_sta (std_update_multiple W l ρ)). 
+     (∀ i : Addr, i ∈ l → i ∈ dom (gset Addr) (std W)) ->
+     dom (gset Addr) (std W) = dom (gset Addr) (std (std_update_multiple W l ρ)). 
    Proof.
      intros Hsub.
      induction l; auto. 
      rewrite /= /std_update.
      rewrite dom_insert_L.
-     assert (encode a ∈ encode <$> a :: l) as Hin.
-     { apply elem_of_list_fmap. exists a. split;auto. apply elem_of_cons. by left. }
+     assert (a ∈ a :: l) as Hin.
+     { apply elem_of_cons. by left. }
      pose proof (Hsub _ Hin) as Hain. etrans;[apply IHl|].
      - intros i Hi. apply Hsub. apply elem_of_cons. by right. 
      - set_solver.
@@ -378,98 +272,57 @@ Section std_updates.
 
    (* In general, the domain is a subset of the updated domain *)
    Lemma std_update_multiple_sta_dom_subseteq W l ρ :
-     dom (gset positive) (std_sta W) ⊆ dom (gset positive) (std_sta (std_update_multiple W l ρ)).
+     dom (gset Addr) (std W) ⊆ dom (gset Addr) (std (std_update_multiple W l ρ)).
    Proof.
      apply elem_of_subseteq. intros x Hx.
-     destruct (decide (x ∈ encode <$> l)).
-     - apply elem_of_gmap_dom. exists (encode ρ).
+     destruct (decide (x ∈ l)).
+     - apply elem_of_gmap_dom. exists ρ.
        apply std_sta_update_multiple_lookup_in_i; auto.
      - apply std_update_multiple_not_in_sta_i; auto.
    Qed.
-   Lemma std_update_multiple_rel_dom_subseteq W l ρ :
-     dom (gset positive) (std_rel W) ⊆ dom (gset positive) (std_rel (std_update_multiple W l ρ)).
-   Proof.
-     apply elem_of_subseteq. intros x Hx.
-     destruct (decide (x ∈ encode <$> l)).
-     - apply elem_of_gmap_dom. eexists. 
-       apply std_rel_update_multiple_lookup_std_i; auto.
-     - apply std_update_multiple_not_in_rel_i; auto.
-   Qed.
 
    Lemma std_update_multiple_std_sta_dom_monotone W W' l ρ :
-     dom (gset positive) (std_sta W) ⊆ dom (gset positive) (std_sta W') ->
-     dom (gset positive) (std_sta (std_update_multiple W l ρ)) ⊆ dom (gset positive) (std_sta (std_update_multiple W' l ρ)).
+     dom (gset Addr) (std W) ⊆ dom (gset Addr) (std W') ->
+     dom (gset Addr) (std (std_update_multiple W l ρ)) ⊆ dom (gset Addr) (std (std_update_multiple W' l ρ)).
    Proof.
      induction l;auto. 
      simpl. repeat rewrite dom_insert_L. set_solver.
    Qed.
-
-   Lemma std_update_multiple_std_rel_dom_monotone W W' l ρ :
-     dom (gset positive) (std_rel W) ⊆ dom (gset positive) (std_rel W') ->
-     dom (gset positive) (std_rel (std_update_multiple W l ρ)) ⊆ dom (gset positive) (std_rel (std_update_multiple W' l ρ)).
-   Proof.
-     induction l;auto. 
-     simpl. repeat rewrite dom_insert_L. set_solver.
-   Qed. 
      
    Lemma std_update_mutiple_related_monotone W W' l ρ :
      related_sts_pub_world W W' ->
      related_sts_pub_world (std_update_multiple W l ρ) (std_update_multiple W' l ρ).
    Proof.
      intros Hrelated.
-     destruct W as [ [Wstd_sta Wstd_rel] [Wloc_sta Wloc_rel] ].
-     destruct W' as [ [Wstd_sta' Wstd_rel'] [Wloc_sta' Wloc_rel'] ]. 
-     destruct Hrelated as [ [Hstd_dom1 [Hstd_dom2 Hstd_related] ] Hloc_related].
+     destruct W as [ Wstd_sta [Wloc_sta Wloc_rel] ].
+     destruct W' as [ Wstd_sta' [Wloc_sta' Wloc_rel'] ]. 
+     destruct Hrelated as [ [Hstd_dom1 Hstd_related ] Hloc_related].
      simpl in *.
      split;[clear Hloc_related|by repeat rewrite std_update_multiple_loc_rel std_update_multiple_loc_sta].
-     split;[|split].
+     split. 
      - apply std_update_multiple_std_sta_dom_monotone. auto.
-     - apply std_update_multiple_std_rel_dom_monotone. auto.
-     - intros i r1 r2 r1' r2' Hr Hr'.
-       destruct (decide (i ∈ encode <$> l)).
-       + rewrite std_rel_update_multiple_lookup_std_i in Hr;auto.
-         rewrite std_rel_update_multiple_lookup_std_i in Hr';auto.
-         inversion Hr; inversion Hr'; subst. repeat split;auto.
-         intros x y Hx Hy.
-         rewrite std_sta_update_multiple_lookup_in_i in Hx;auto.
+     - intros i x y Hx Hy.
+       destruct (decide (i ∈ l)).
+       + rewrite std_sta_update_multiple_lookup_in_i in Hx;auto.
          rewrite std_sta_update_multiple_lookup_in_i in Hy;auto.
          inversion Hx; inversion Hy; subst. left.
-       + rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr;auto.
-         rewrite std_rel_update_multiple_lookup_same_i /std_rel /= in Hr';auto.
-         edestruct (Hstd_related) as [Heq1 [Heq2 Hrelated] ];[apply Hr|apply Hr'|subst].
-         repeat split;auto. intros x y Hx Hy.
-         rewrite std_sta_update_multiple_lookup_same_i /std_sta /= in Hx;auto.
-         rewrite std_sta_update_multiple_lookup_same_i /std_sta /= in Hy;auto.
+       + rewrite std_sta_update_multiple_lookup_same_i /std /= in Hx;auto.
+         rewrite std_sta_update_multiple_lookup_same_i /std /= in Hy;auto.
+         apply Hstd_related with i; auto. 
    Qed. 
  
    (* lemmas for updating a repetition of top *)
    Lemma std_update_multiple_dom_top_sta W n ρ a :
      a ≠ top ->
-     encode a ∉ dom (gset positive) (std_sta W) →
-     encode a ∉ dom (gset positive) (std_sta (std_update_multiple W (repeat top n) ρ)).
+     a ∉ dom (gset Addr) (std W) →
+     a ∉ dom (gset Addr) (std (std_update_multiple W (repeat top n) ρ)).
    Proof.
      intros Hne Hnin.
      induction n; auto.
      simpl. rewrite dom_insert. apply not_elem_of_union.
      split.
      + apply not_elem_of_singleton.
-       intros Hcontr. apply encode_inj in Hcontr.
-       subst. done.
-     + apply IHn.
-   Qed.
-
-   Lemma std_update_multiple_dom_top_rel W n ρ a :
-     a ≠ top ->
-     encode a ∉ dom (gset positive) (std_rel W) →
-     encode a ∉ dom (gset positive) (std_rel (std_update_multiple W (repeat top n) ρ)).
-   Proof.
-     intros Hne Hnin.
-     induction n; auto.
-     simpl. rewrite dom_insert. apply not_elem_of_union.
-     split.
-     + apply not_elem_of_singleton.
-       intros Hcontr. apply encode_inj in Hcontr.
-       subst. done.
+       intros Hcontr. done. 
      + apply IHn.
    Qed.
 
@@ -482,8 +335,8 @@ Section std_updates.
 
    Lemma std_update_multiple_dom_sta_i W n ρ a i :
      a ≠ top → (i > 0)%Z →
-     encode a ∉ dom (gset positive) (std_sta W) →
-     encode a ∉ dom (gset positive) (std_sta (std_update_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n) ρ)).
+     a ∉ dom (gset Addr) (std W) →
+     a ∉ dom (gset Addr) (std (std_update_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n) ρ)).
    Proof.
      intros Hneq Hgt. 
      destruct (a + i)%a eqn:Hsome.
@@ -494,38 +347,13 @@ Section std_updates.
        simpl. rewrite dom_insert. apply not_elem_of_union.
        split.
        + apply not_elem_of_singleton.
-         intros Hcontr. apply encode_inj in Hcontr.
-         subst. rewrite /lt_addr in Hlt. lia.  
+         intros Hcontr. subst. rewrite /lt_addr in Hlt. lia.  
        + destruct (a1 + 1)%a eqn:Ha2; simpl. 
          ++ apply IHn with (j + 1)%Z. 
             +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
             +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
          ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
      - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_sta; auto.
-   Qed.
-
-   Lemma std_update_multiple_dom_rel_i W n ρ a i :
-     a ≠ top → (i > 0)%Z →
-     encode a ∉ dom (gset positive) (std_rel W) →
-     encode a ∉ dom (gset positive) (std_rel (std_update_multiple W (region_addrs_aux (get_addr_from_option_addr (a + i)%a) n) ρ)).
-   Proof.
-      intros Hneq Hgt. 
-     destruct (a + i)%a eqn:Hsome.
-     - simpl.
-       assert (a < a0)%a as Hlt;[by apply next_lt_i with i|].
-       intros Hnin.
-       revert Hlt Hsome. generalize i a0. induction n; auto; intros j a1 Hlt Hsome. 
-       simpl. rewrite dom_insert. apply not_elem_of_union.
-       split.
-       + apply not_elem_of_singleton.
-         intros Hcontr. apply encode_inj in Hcontr.
-         subst. rewrite /lt_addr in Hlt. lia.  
-       + destruct (a1 + 1)%a eqn:Ha2; simpl. 
-         ++ apply IHn with (j + 1)%Z. 
-            +++ apply next_lt in Ha2. rewrite /lt_addr in Hlt. rewrite /lt_addr. lia.
-            +++ apply (incr_addr_trans a a1 a2 j 1) in Hsome; auto.
-         ++ rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
-     - simpl. rewrite region_addrs_aux_top. apply std_update_multiple_dom_top_rel; auto.
    Qed.
 
    Lemma incr_addr_is_Some_weak a n :
@@ -538,10 +366,10 @@ Section std_updates.
      clear H x Hsome. lia. 
    Qed.
 
-   Lemma std_sta_update_multiple_insert W (a b a' l : Addr) ρ i r r' :
+   Lemma std_sta_update_multiple_insert W (a b a' l : Addr) ρ i :
      (a' < a)%a →
-     std_sta (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) !! (encode l) =
-     std_sta (std_update (std_update_multiple W (region_addrs a b) ρ) a' i r r') !! (encode l).
+     std (std_update_multiple (std_update W a' i) (region_addrs a b) ρ) !! l =
+     std (std_update (std_update_multiple W (region_addrs a b) ρ) a' i) !! l.
    Proof.
      intros Hlt. 
      destruct (decide (l ∈ region_addrs a b)).
@@ -549,59 +377,26 @@ Section std_updates.
        { intros ->. apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
          rewrite /region_addrs // in e. }
        apply elem_of_list_lookup in e as [n Hsome].
-       assert (std_sta (std_update_multiple W (region_addrs a b) ρ) !! encode l = Some (encode ρ)
-               ∧ region_std (std_update_multiple W (region_addrs a b) ρ) l) as [Hpwl _].
+       assert (std (std_update_multiple W (region_addrs a b) ρ) !! l = Some ρ) as Hpwl.
        { apply std_update_multiple_lookup with n. auto. }
-       assert (std_sta (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) !! encode l = Some (encode ρ)
-               ∧ region_std (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) l) as [Hpwl' _].
+       assert (std (std_update_multiple (std_update W a' i) (region_addrs a b) ρ) !! l = Some ρ) as Hpwl'.
        { apply std_update_multiple_lookup with n. auto. }
        rewrite /region_state_pwl /= in Hpwl. rewrite /region_state_pwl /= in Hpwl'.
        rewrite -Hpwl in Hpwl'. rewrite Hpwl'. 
        rewrite lookup_insert_ne; auto. 
-       intros Hcontr. apply encode_inj in Hcontr. subst. contradiction.
-     - rewrite std_sta_update_multiple_lookup_same; auto. 
-       destruct (decide (encode a' = encode l)).
-       + rewrite /std_update /std_sta /= e. do 2 rewrite lookup_insert. done.
-       + rewrite /std_update /std_sta /=. rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne; auto.
-         rewrite std_sta_update_multiple_lookup_same; auto.
+     - rewrite std_sta_update_multiple_lookup_same_i; auto. 
+       destruct (decide ( a' =  l)).
+       + rewrite /std_update /std /= e. do 2 rewrite lookup_insert. done.
+       + rewrite /std_update /std /=. rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne; auto.
+         rewrite std_sta_update_multiple_lookup_same_i; auto.
    Qed.
-
-   Lemma std_rel_update_multiple_insert W (a b a' l : Addr) ρ i r r' :
-     (a' < a)%a →
-     std_rel (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) !! (encode l) =
-     std_rel (std_update (std_update_multiple W (region_addrs a b) ρ) a' i r r') !! (encode l).
-   Proof.
-     intros Hlt. 
-     destruct (decide (l ∈ region_addrs a b)).
-     - assert (l ≠ a') as Hne.
-       { intros ->. apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
-         rewrite /region_addrs // in e. }
-       apply elem_of_list_lookup in e as [n Hsome].
-       assert (std_sta (std_update_multiple W (region_addrs a b) ρ) !! encode l = Some (encode ρ)
-               ∧ region_std (std_update_multiple W (region_addrs a b) ρ) l) as [_ Hstd].
-       { apply std_update_multiple_lookup with n. auto. }
-       assert (std_sta (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) !! encode l = Some (encode ρ)
-               ∧ region_std (std_update_multiple (std_update W a' i r r') (region_addrs a b) ρ) l) as [_ Hstd'].
-       { apply std_update_multiple_lookup with n. auto. }
-       rewrite /region_std /rel_is_std_i /= in Hstd. rewrite /region_std /rel_is_std_i /= in Hstd'.
-       rewrite -Hstd in Hstd'. rewrite Hstd'. 
-       rewrite lookup_insert_ne; auto. 
-       intros Hcontr. apply encode_inj in Hcontr. subst. contradiction.
-     - rewrite std_rel_update_multiple_lookup_same; auto. 
-       destruct (decide (encode a' = encode l)).
-       + rewrite /std_update /std_rel /= e. do 2 rewrite lookup_insert. done.
-       + rewrite /std_update /std_rel /=. rewrite lookup_insert_ne;auto. rewrite lookup_insert_ne; auto.
-         rewrite std_rel_update_multiple_lookup_same; auto.
-   Qed. 
        
-   Lemma std_update_multiple_dom_insert W (a b a' : Addr) i r :
+   Lemma std_update_multiple_dom_insert W (a b a' : Addr) i :
      (a' < a)%a →
      Forall (λ a : Addr,
-                   (encode a ∉ dom (gset positive) (std_sta W))
-                   ∧ encode a ∉ dom (gset positive) (std_rel W)) (region_addrs a b) →
+                   (a ∉ dom (gset Addr) (std W))) (region_addrs a b) →
      Forall (λ a : Addr,
-                   (encode a ∉ dom (gset positive) (<[encode a' := i]> W.1.1))
-                   ∧ encode a ∉ dom (gset positive) (<[encode a' := r]> W.1.2)) (region_addrs a b).
+                   (a ∉ dom (gset Addr) (<[ a' := i]> W.1))) (region_addrs a b).
    Proof.
      intros Hlt. 
      do 2 (rewrite list.Forall_forall). intros Hforall.  
@@ -610,32 +405,29 @@ Section std_updates.
      { intros Hcontr; subst.
        apply region_addrs_not_elem_of with _ (region_size a b) _ in Hlt.
        rewrite /region_addrs // in Hin. }
-     destruct Hforall with x as [Hsta Hrel];auto. split.
-     - rewrite dom_insert. apply not_elem_of_union.
-       split;auto. apply not_elem_of_singleton.
-       intros Hcontr. apply encode_inj in Hcontr. contradiction. 
-     - rewrite dom_insert. apply not_elem_of_union.
-       split;auto. apply not_elem_of_singleton.
-       intros Hcontr. apply encode_inj in Hcontr. contradiction.
+     apply Hforall with x in Hin.
+     rewrite dom_insert. apply not_elem_of_union.
+     split;auto. apply not_elem_of_singleton.
+     intros Hcontr. contradiction. 
    Qed. 
 
    (* commuting updates and revoke *)
 
    Lemma std_update_multiple_revoke_commute W (l: list Addr) ρ :
      ρ ≠ Temporary →
-     Forall (λ a, std_sta W !! encode a ≠ Some (encode Temporary)) l →
+     Forall (λ a, std W !! a ≠ Some (Temporary)) l →
      std_update_multiple (revoke W) l ρ = revoke (std_update_multiple W l ρ).
    Proof.
      intros Hne Hforall.
      induction l; auto; simpl.
      rewrite IHl;[|apply list.Forall_cons in Hforall as [_ Hforall];eauto]. 
-     rewrite /std_update /revoke /loc /std_rel /std_sta /=. repeat f_equiv.
-     apply map_leibniz. intros i. apply leibniz_equiv_iff.
-     destruct (decide (encode a = i)).
+     rewrite /std_update /revoke /loc /std /=. repeat f_equiv.
+     eapply (map_leibniz (M:=gmap Addr) (A:=region_type)). intros i. apply leibniz_equiv_iff.
+     destruct (decide (a = i)).
      - subst. rewrite lookup_insert revoke_monotone_lookup_same;rewrite lookup_insert; auto.
-       intros Hcontr; inversion Hcontr as [Hcontr']. apply encode_inj in Hcontr'. done.
+       intros Hcontr; inversion Hcontr as [Hcontr']. done. 
      - rewrite lookup_insert_ne;auto.
-       apply revoke_monotone_lookup. rewrite lookup_insert_ne;auto.
+       apply revoke_monotone_lookup. rewrite lookup_insert_ne;auto. Unshelve. apply _. 
    Qed.
 
    (* std_update_multiple and app *)
