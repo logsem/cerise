@@ -249,7 +249,7 @@ Section stack_macros.
     ([∗ list] a_i;w_i ∈ a;(fetch_instrs f), a_i ↦ₐ[p] w_i)%I. 
 
   (* fetch spec *)
-  Lemma fetch_spec f a pc_p pc_p' pc_g pc_b pc_e a_first a_last b_link e_link a_link entry_a wentry φ :
+  Lemma fetch_spec f a pc_p pc_p' pc_g pc_b pc_e a_first a_last b_link e_link a_link entry_a wentry φ w1 w2 w3:
     isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
     PermFlows pc_p pc_p' ->
     contiguous_between a a_first a_last ->
@@ -260,9 +260,9 @@ Section stack_macros.
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
     ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
     ∗ ▷ entry_a ↦ₐ[RW] wentry
-    ∗ ▷ (∃ w1, r_t1 ↦ᵣ w1)
-    ∗ ▷ (∃ w2, r_t2 ↦ᵣ w2)
-    ∗ ▷ (∃ w3, r_t3 ↦ᵣ w3)
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ fetch f a pc_p'
@@ -275,10 +275,7 @@ Section stack_macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros (Hvpc Hfl Hcont Hwb Hentry) "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    iDestruct "Hr_t1" as (w1) "Hr_t1".
-    iDestruct "Hr_t2" as (w2) "Hr_t2".
-    iDestruct "Hr_t3" as (w3) "Hr_t3".
-    iDestruct (big_sepL2_length with "Hprog") as %Hlength. 
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     (* move r_t1 PC *)
@@ -380,8 +377,8 @@ Section stack_macros.
     iFrame. 
     repeat iDestruct "Hprog_done" as "[$ Hprog_done]". 
     iFrame.
-  Qed. 
-    
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- MALLOC ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
@@ -398,17 +395,18 @@ Section stack_macros.
     move_r r_t0 r_t2;
     move_z r_t2 0;
     move_z r_t3 0].
-  
+
   Definition malloc f_m size a p : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(malloc_instrs f_m size), a_i ↦ₐ[p] w_i)%I. 
-  
+
   (* malloc spec *)
-  Lemma malloc_spec W size cont a pc_p pc_p' pc_g pc_b pc_e a_first a_last b_link e_link a_link f_m a_entry wsr φ :
-    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
-    PermFlows pc_p pc_p' ->
-    contiguous_between a a_first a_last ->
-    withinBounds (RW, Global, b_link, e_link, a_entry) = true ->
-    (a_link + f_m)%a = Some a_entry ->
+  Lemma malloc_spec W size cont a pc_p pc_p' pc_g pc_b pc_e a_first a_last b_link e_link a_link f_m a_entry rmap φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last →
+    PermFlows pc_p pc_p' →
+    contiguous_between a a_first a_last →
+    withinBounds (RW, Global, b_link, e_link, a_entry) = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
 
     (* malloc program and subroutine *)
     ▷ malloc f_m size a pc_p'
@@ -419,7 +417,7 @@ Section stack_macros.
     (* register state *)
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
-    ∗ ▷ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; wsr, r_i ↦ᵣ w_i)
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* current world *)
     ∗ ▷ region W
     ∗ ▷ sts_full_world sts_std W
@@ -430,9 +428,8 @@ Section stack_macros.
             (* the newly allocated region *)
             ∗ (∃ (b e : Addr), ⌜(e - b = size)%Z⌝ ∧ r_t1 ↦ᵣ inr (RWX,Global,b,e,b)
             ∗ [[b,e]] ↦ₐ[RWX] [[region_addrs_zeroes b e]]
-            ∗ r_t0 ↦ᵣ cont ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z
-            ∗ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0;r_t1;r_t2;r_t3];
-              (delete 0 (delete 0 (delete 0 wsr))), r_i ↦ᵣ w_i)
+            ∗ r_t0 ↦ᵣ cont
+            ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (delete r_t1 rmap))), r_i ↦ᵣ w_i)
             (* the newly allocated region is fresh in the current world *)
             ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
                       ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝
@@ -442,13 +439,16 @@ Section stack_macros.
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hvpc Hfl Hcont Hwb Ha_entry) "(>Hprog & #Hmalloc & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hr & Hsts & Hφ)".
+    iIntros (Hvpc Hfl Hcont Hwb Ha_entry Hrmap_dom)
+            "(>Hprog & #Hmalloc & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hr & Hsts & Hφ)".
     (* extract necessary registers from regs *)
-    iDestruct (big_sepL2_length with "Hregs") as %Hlength'.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    iDestruct (big_sepL2_extract_l 0 r_t1 with "Hregs") as "[Hregs Hr_t1]";[rewrite /all_registers /=;auto|].
-    iDestruct (big_sepL2_extract_l 0 r_t2 with "Hregs") as "[Hregs Hr_t2]";[rewrite /all_registers /=;auto|].
-    iDestruct (big_sepL2_extract_l 0 r_t3 with "Hregs") as "[Hregs Hr_t3]";[rewrite /all_registers /=;auto|].
+    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]"; eauto.
+    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]". by rewrite lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]". by rewrite !lookup_delete_ne //.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     (* fetch f *)
@@ -507,35 +507,25 @@ Section stack_macros.
       [apply jmp_i|apply Hfl|iCorrectPC link a_last|]. 
     iEpilogue "(HPC & Hi & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* we are now ready to use the malloc subroutine spec. For this we prepare the registers *)
-    iApply (malloc_subroutine_spec W). iFrame "Hr_t0 HPC Hr_t1". iSplitR;[done|].
-    simpl in Hlength'. 
-    assert (is_Some (wsr !! 0)) as Hsome;[apply lookup_lt_is_Some_2;lia|].
-    apply length_delete in Hsome. rewrite -Hlength' /= in Hsome.
-    assert (is_Some ((delete 0 wsr) !! 0)) as Hsome';[apply lookup_lt_is_Some_2;lia|].
-    apply length_delete in Hsome'. rewrite Hsome /= in Hsome'.
-    iSplitL "Hregs Hr_t2 Hr_t3".
-    { assert ([r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31]
-  = delete 0 ([r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31]))
-        as ->;[auto|].      
-      iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t3]") as "Hregs"; auto.
-      assert ([r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31]
-       = delete 0 ([r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14;
-                    r_t15; r_t16; r_t17; r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25;
-                    r_t26; r_t27; r_t28; r_t29; r_t30; r_t31])) as ->;[auto|].
-      rewrite delete_insert_list. 
-      iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t2]") as "Hregs"; auto.
-      rewrite insert_length. auto.
-    }
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
+      by rewrite lookup_delete.
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
+      by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete.
+    rewrite (insert_delete _ r_t3) (insert_commute _ r_t2 r_t3) // (insert_delete _ r_t2).
+    iApply (malloc_subroutine_spec W). iFrame "Hr_t0 HPC Hr_t1 Hregs". iSplitR;[done|].
+    iSplitR.
+    { iPureIntro. rewrite !dom_insert_L dom_delete_L Hrmap_dom difference_difference_L.
+      rewrite singleton_union_difference_L all_registers_union_l.
+      rewrite singleton_union_difference_L all_registers_union_l.
+      f_equal. set_solver. }
     iNext. iIntros "(Hregs & Hr_t0 & HPC & Hbe) /=".
-    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe & %)".   
-    iDestruct (big_sepL2_extract 0 with "Hregs") as "[Hregs Hr_t2]";[eauto|apply list_lookup_insert|].
-    { rewrite insert_length. lia. }
-    iDestruct (big_sepL2_extract 0 with "Hregs") as "[Hregs Hr_t3] /=";[eauto|..].
-    { rewrite list_insert_commute; auto. rewrite -delete_insert_list. apply list_lookup_insert.
-      rewrite length_delete;[|apply lookup_lt_is_Some_2]; rewrite insert_length; lia. }
+    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe & %)".
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]".
+      by rewrite lookup_insert_ne // lookup_insert //.
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
+      by rewrite lookup_delete_ne // lookup_insert //.
+    rewrite (insert_commute _ r_t3 r_t2) // !delete_insert_delete
+            delete_commute // delete_insert_delete.
     (* move r_t0 r_t2 *)
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t0 $Hr_t2]");
@@ -558,11 +548,15 @@ Section stack_macros.
     iApply "Hφ".
     iFrame "HPC". iSplitL "Hprog_done".
     { rewrite Heqapp. repeat (iDestruct "Hprog_done" as "[$ Hprog_done]"). iFrame. done. }
-    iFrame "Hpc_b Ha_entry". 
-    iExists b,e. iFrame "Hbe Hr_t0 Hr_t2 Hr_t3 Hr_t1 Hr Hsts". iSplitR;[auto|]. iSplitL;[|auto].
-    rewrite insert_delete_list -delete_insert_list insert_delete_list. iFrame.
-  Qed.     
-      
+    iFrame "Hpc_b Ha_entry".
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
+      by rewrite lookup_delete //. rewrite insert_delete.
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
+      by rewrite lookup_insert_ne // lookup_delete.
+    rewrite insert_commute // insert_delete.
+    iExists b,e. iFrame "Hbe Hr_t0 Hr_t1 Hr Hsts". iSplitR;[auto|]. iSplitL;[|auto]. iFrame.
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------- STACK MACROS AND THEIR SPECS -------------------------- *)
   (* --------------------------------------------------------------------------------- *)
@@ -1790,53 +1784,18 @@ Section stack_macros.
   Definition crtcls f_m a p : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(crtcls_instrs f_m), a_i ↦ₐ[p] w_i)%I.
 
-  (* TODO; move this up with the others *)
-  Lemma delete_0_1 {A : Type} (a : list A) :
-    delete 0 (delete 1 a) = delete 0 (delete 0 a).
-  Proof.
-    destruct a; auto. 
-  Qed.
-
-  Lemma delete_1_0 {A : Type} (a : list A) :
-    delete 1 (delete 0 a) = delete 0 (delete 2 a).
-  Proof.
-    destruct a; auto. 
-  Qed.
-
-  Lemma delete_insert_list_swap_le {A : Type} i j (l : list A) (a : A) :
-    j ≤ i -> 
-    <[i := a]> (delete j l) = delete j (<[S i := a]> l).
-  Proof.
-    revert i j. induction l; intros i j Hle. 
-    - done.
-    - simpl in *. destruct j; auto. simpl.
-      destruct i;[inversion Hle|simpl]. 
-      f_equiv. rewrite IHl. auto. lia. 
-  Qed.
-
-  Lemma delete_insert_list_swap_gt {A : Type} i j (l : list A) (a : A) :
-    i < j -> 
-    <[i := a]> (delete j l) = delete j (<[i := a]> l).
-  Proof.
-    revert i j. induction l; intros i j Hle. 
-    - done.
-    - simpl in *. destruct j; try lia. 
-      destruct i; inversion Hle; subst; simpl; try lia; auto. 
-      f_equiv. rewrite IHl. auto. lia.
-      f_equiv. rewrite IHl. auto. lia. 
-  Qed.
-
   (* crtcls spec *)
   Lemma crtcls_spec W f_m wvar wcode a pc_p pc_p' pc_g pc_b pc_e
-        a_first a_last b_link a_link e_link a_entry wsr cont φ :
-    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
-    PermFlows pc_p pc_p' ->
-    contiguous_between a a_first a_last ->
-    withinBounds (RW, Global, b_link, e_link, a_entry) = true ->
-    (a_link + f_m)%a = Some a_entry ->
-    isLocalWord wcode = false -> (* the closure must be a Global Word! *)
-    isLocalWord wvar = false -> (* the closure must be a Global Word! *) 
-        
+        a_first a_last b_link a_link e_link a_entry rmap cont φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last →
+    PermFlows pc_p pc_p' →
+    contiguous_between a a_first a_last →
+    withinBounds (RW, Global, b_link, e_link, a_entry) = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    isLocalWord wcode = false → (* the closure must be a Global Word! *)
+    isLocalWord wvar = false → (* the closure must be a Global Word! *)
+
 
       ▷ crtcls f_m a pc_p'
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
@@ -1846,7 +1805,9 @@ Section stack_macros.
     ∗ ▷ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,a_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
-    ∗ ▷ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; <[0:=wcode]> (<[1:=wvar]> wsr), r_i ↦ᵣ w_i)
+    ∗ ▷ r_t1 ↦ᵣ wcode
+    ∗ ▷ r_t2 ↦ᵣ wvar
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* current world *)
     ∗ ▷ region W
     ∗ ▷ sts_full_world sts_std W
@@ -1856,10 +1817,10 @@ Section stack_macros.
             ∗ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,a_m)
             (* the newly allocated region *)
             ∗ (∃ (b e : Addr), ⌜(e - b = 8)%Z⌝ ∧ r_t1 ↦ᵣ inr (E,Global,b,e,b)
-            ∗ [[b,e]] ↦ₐ[RWX] [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]] 
+            ∗ [[b,e]] ↦ₐ[RWX] [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]]
             ∗ r_t0 ↦ᵣ cont
-            ∗ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC; r_t0; r_t1];
-              delete 0 (<[1:=inl 0%Z]> (<[2:=inl 0%Z]> (<[3:=inl 0%Z]> (<[4:=inl 0%Z]> wsr)))), r_i ↦ᵣ w_i)
+            ∗ r_t2 ↦ᵣ inl 0%Z
+            ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t5:=inl 0%Z]> rmap)), r_i ↦ᵣ w_i)
             (* the newly allocated region is fresh in the current world *)
             ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
                       ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝
@@ -1869,74 +1830,65 @@ Section stack_macros.
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hvpc Hfl Hcont Hwb Ha_entry Hlocal Hlocal') "(>Hprog & >HPC & #Hmalloc & >Hpc_b & >Ha_entry & >Hr_t0 & >Hregs & Hr & Hsts & Hφ)".
+    iIntros (Hvpc Hfl Hcont Hwb Ha_entry Hrmap_dom Hlocal Hlocal')
+            "(>Hprog & >HPC & #Hmalloc & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hr & Hsts & Hφ)".
     (* get some registers out of regs *)
-    iDestruct (big_sepL2_length with "Hregs") as %Hlength'. simpl in Hlength'. 
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    iDestruct (big_sepL2_extract 0 r_t1 with "Hregs") as "[Hregs Hr_t1]";
-      [rewrite /all_registers /=;auto|apply list_lookup_insert;rewrite insert_length in Hlength';lia|].
-    iDestruct (big_sepL2_extract 0 r_t2 with "Hregs") as "[Hregs Hr_t2]";
-      [rewrite /all_registers /=;auto|rewrite insert_delete_list -delete_insert_list; apply list_lookup_insert|].
-    { rewrite length_delete;repeat rewrite insert_length in Hlength';[lia|apply lookup_lt_is_Some_2;lia]. }
-    iDestruct (big_sepL2_extract_l 1 r_t4 with "Hregs") as "[Hregs Hr_t4]";[rewrite /all_registers /=;auto|].
-    iDestruct (big_sepL2_extract_l 1 r_t5 with "Hregs") as "[Hregs Hr_t5]";[rewrite /all_registers /=;auto|].
+    assert (is_Some (rmap !! r_t4)) as [rv4 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]"; eauto.
+    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]". by rewrite lookup_delete_ne //.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     (* move r_t4 r_t1 *)
-    iDestruct "Hr_t4" as (w4) "Hr_t4".
     destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t4 $Hr_t1]");
       [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto|].
     iEpilogue "(HPC & Hprog_done & Hr_t4 & Hr_t1)".
     (* move r_t5 r_t2 *)
-    iDestruct "Hr_t5" as (w5) "Hr_t5".
     destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t5 $Hr_t2]");
       [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 1|auto|].
     iEpilogue "(HPC & Hi & Hr_t5 & Hr_t2)"; iCombine "Hi Hprog_done" as "Hprog_done".
     assert (contiguous_between (a0 :: l) a0 a_last) as Hcont'.
-    { inversion Hcont; subst. inversion H8; subst.
-      assert ((a' + 1)%a = Some a0) as Hnext;[iContiguous_next Hcont 1|]. rewrite Hnext in H7.
-      inversion H7; subst. done. }
+    { apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)].
+      apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)].
+      pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst. apply Hcont. }
     (* malloc 8 *)
-    iDestruct (contiguous_between_program_split with "Hprog") as (malloc_prog rest link)
-                                                                   "(Hmalloc_prog & Hprog & #Hcont)";[apply Hcont'|].
+    iDestruct (contiguous_between_program_split with "Hprog") as
+        (malloc_prog rest link) "(Hmalloc_prog & Hprog & #Hcont)";[apply Hcont'|].
     iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
     (* we start by putting the registers back together *)
-    iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t5]") as "Hregs"; auto. 
-    { simpl. rewrite insert_delete_list -delete_insert_list insert_delete_list.
-      repeat rewrite insert_length in Hlength'.
-      assert (0 < strings.length (delete 0 wsr)) as Hlt;[rewrite length_delete;[lia|apply lookup_lt_is_Some_2;lia]|]. 
-      repeat rewrite length_delete;[lia|apply lookup_lt_is_Some_2;try lia..].
-      repeat (rewrite length_delete;[|apply lookup_lt_is_Some_2;lia]). lia. 
-    } 
-    rewrite insert_delete_list -delete_insert_list insert_delete_list.
-    rewrite (delete_1_0 (delete 0 wsr)) delete_insert_list delete_1_0. 
-    iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t2]") as "Hregs"; auto. 
-    { simpl. rewrite insert_length. repeat rewrite insert_length in Hlength'.
-      repeat rewrite length_delete;[lia|apply lookup_lt_is_Some_2;try lia..].
-      repeat (rewrite length_delete;[|apply lookup_lt_is_Some_2;lia]). lia. 
-    }
-    rewrite delete_insert_list_swap_le;[|lia].
-    rewrite delete_insert_list_swap_gt;[|lia]. 
-    iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t4]") as "Hregs"; auto. 
-    { simpl. repeat rewrite insert_length. repeat rewrite insert_length in Hlength'.
-      rewrite length_delete;[lia|apply lookup_lt_is_Some_2;try lia..]. }
-    repeat (rewrite delete_insert_list_swap_le;[|lia]). 
-    iDestruct (big_sepL2_close_l with "[$Hregs $Hr_t1]") as "Hregs"; auto. 
-    { simpl. repeat rewrite insert_length. by repeat rewrite insert_length in Hlength'. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs".
+      by rewrite lookup_delete_ne // lookup_delete.
+      rewrite delete_commute // insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs".
+      by rewrite lookup_insert_ne // lookup_delete.
+      rewrite insert_commute // insert_delete.
+    assert (∀ (r:RegName), r ∈ ({[PC;r_t0;r_t1;r_t2]} : gset RegName) → rmap !! r = None) as Hnotin_rmap.
+    { intros r Hr. eapply (@not_elem_of_dom _ _ (gset RegName)). typeclasses eauto.
+      rewrite Hrmap_dom. set_solver. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs".
+      by rewrite !lookup_insert_ne //; apply Hnotin_rmap; set_solver.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs".
+      by rewrite !lookup_insert_ne //; apply Hnotin_rmap; set_solver.
     (* apply the malloc spec *)
     iApply (malloc_spec with "[$HPC $Hmalloc_prog $Hpc_b $Ha_entry $Hr_t0 $Hregs Hr Hsts Hprog Hφ Hprog_done]");
-      [|apply Hfl|apply Hcont_fetch|apply Hwb|apply Ha_entry|]. 
+      [|apply Hfl|apply Hcont_fetch|apply Hwb|apply Ha_entry|..].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest.
       apply contiguous_between_incr_addr with (i:=2) (ai:=a0) in Hcont;auto.
       revert Hcont Hcont_rest Hmid; clear. solve_addr. }
-    iSplitR;[auto|]. iFrame "Hr Hsts". 
+    { rewrite !dom_insert_L. rewrite Hrmap_dom.
+      repeat (rewrite singleton_union_difference_L all_registers_union_l).
+      f_equal. set_solver. }
+    iSplitR;[auto|]. iFrame "Hr Hsts".
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe)".
-    iDestruct "Hbe" as (b e Hbe) "(Hr_t1& Hbe & Hr_t0 & Hr_t2 & Hr_t3 & Hregs & % & Hr & Hsts)".
+    iDestruct "Hbe" as (b e Hbe) "(Hr_t1& Hbe & Hr_t0 & Hregs & % & Hr & Hsts)".
+    rewrite delete_insert_delete (insert_commute _ r_t2 r_t3) //.
+    rewrite (delete_insert_ne _ r_t1 r_t2) // insert_insert.
     (* we now want to infer a list of contiguous addresses between b and e *)
     assert (b < e)%a as Hlt;[solve_addr|]. 
     assert (contiguous (region_addrs b e)) as Hcontbe';[apply region_addrs_contiguous|].
@@ -2056,42 +2008,8 @@ Section stack_macros.
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* store r_t1 r_t4 *)
     (* first we must extract r_t4 *)
-    (* the nicest way to do this is to put some registers back into the list first *)
-    rewrite insert_delete_list. 
-    iAssert ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0;r_t1];
-            delete 0 (<[1:=inl 0%Z]> (<[2:=inl 0%Z]> (<[3:=wcode]> (<[4:=wvar]> wsr)))), 
-            r_i ↦ᵣ w_i)%I with "[Hregs Hr_t2 Hr_t3]" as "Hregs". 
-    { assert ([r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-                               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31] = delete 0 [r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-                               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31]) as ->;[auto|]. 
-      
-      iDestruct (big_sepL2_close_l 0 with "[$Hregs $Hr_t3]") as "Hregs"; auto. 
-      { simpl. 
-        repeat rewrite insert_length in Hlength'.
-        assert (0 < strings.length (delete 0 wsr)) as Hlt'
-        ;[rewrite length_delete;[lia|apply lookup_lt_is_Some_2;lia]|]. 
-        repeat rewrite length_delete;repeat rewrite insert_length;[lia|apply lookup_lt_is_Some_2..].
-        repeat rewrite insert_length;lia. 
-        repeat (rewrite length_delete;[repeat rewrite insert_length;lia|apply lookup_lt_is_Some_2;repeat rewrite insert_length;lia]). 
-      }
-      rewrite delete_insert_list. 
-      assert ([r_t3;r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-                               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31] = delete 0 [r_t2;r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-                               r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31]) as ->;[auto|].
-      iDestruct (big_sepL2_close_l 0 with "[$Hregs $Hr_t2]") as "Hregs"; auto. 
-      { simpl. rewrite insert_length. repeat rewrite insert_length in Hlength'.
-        repeat rewrite length_delete;repeat rewrite insert_length;[lia|apply lookup_lt_is_Some_2..].
-        repeat rewrite insert_length; lia. 
-      }
-      repeat rewrite delete_insert_list. 
-      rewrite (list_insert_commute _ 3 1). rewrite (list_insert_commute _ 2 1). 
-      rewrite list_insert_insert. iFrame. auto. auto.
-    } 
-    iDestruct (big_sepL2_extract 2 r_t4 with "Hregs") as "[Hregs Hr_t4]";[rewrite /all_registers /=;auto|..].
-    { do 3 (rewrite -delete_insert_list_swap_le;[|clear;lia]). do 2 (rewrite list_lookup_insert_ne;auto).
-      apply list_lookup_insert. repeat rewrite insert_length in Hlength'.
-      repeat rewrite length_delete;repeat rewrite insert_length;[lia|apply lookup_lt_is_Some_2..].
-      rewrite insert_length;lia. }
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]".
+      by rewrite !lookup_insert_ne // lookup_delete_ne // lookup_insert //.
     (* then we can store *)
     destruct l';[inversion Hlength_rest|]. 
     iPrologue "Hprog". 
@@ -2116,18 +2034,9 @@ Section stack_macros.
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* store r_t1 r_t5 *)
     (* first we must extract r_t5 *)
-    (* the nicest way to do that is to first put r_t4 back in *)
-    iDestruct (big_sepL2_close_l 2 with "[$Hregs $Hr_t4]") as "Hregs"; auto. 
-    { simpl. repeat rewrite insert_length in Hlength'.
-      repeat rewrite length_delete;repeat rewrite insert_length;[lia|apply lookup_lt_is_Some_2..].
-      repeat rewrite insert_length; lia. 
-    }
-    iDestruct (big_sepL2_extract 3 r_t5 with "Hregs") as "[Hregs Hr_t5]";[rewrite /all_registers /=;auto|..].
-    { repeat (rewrite -delete_insert_list_swap_le;[|lia]).
-      do 4 (rewrite list_lookup_insert_ne; auto).
-      apply list_lookup_insert. repeat rewrite insert_length in Hlength'.
-      rewrite length_delete;[lia|apply lookup_lt_is_Some_2..]. lia.
-    }
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]".
+      rewrite lookup_delete_ne // !lookup_insert_ne // lookup_delete_ne //
+              lookup_insert_ne // lookup_insert //.
     (* then we can store *)
     destruct l';[inversion Hlength_rest|]. 
     iPrologue "Hprog". 
@@ -2143,12 +2052,11 @@ Section stack_macros.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t5]");
       [apply move_z_i|apply Hfl|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 16|auto..]. 
     iEpilogue "(HPC & Hi & Hr_t5)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* let's close the registers again *)
-    iDestruct (big_sepL2_close_l 3 with "[$Hregs $Hr_t5]") as "Hregs"; auto. 
-    { simpl. repeat rewrite insert_length in Hlength'. rewrite insert_length. 
-      repeat rewrite length_delete;repeat rewrite insert_length;[lia|apply lookup_lt_is_Some_2..].
-      repeat rewrite insert_length; lia. 
-    }
+    (* put r_t4 and r_t5 back *)
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs". by rewrite lookup_delete.
+    rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs". by rewrite lookup_insert_ne // lookup_delete.
+    rewrite -(delete_insert_ne _ r_t4) // insert_delete.
     iClear "Hbe".
     (* lea r_t1 -7 *)
     destruct h;[|inversion Hlengthbe]. 
@@ -2179,12 +2087,13 @@ Section stack_macros.
     iFrame "Hr_t1 Hr_t0".
     iSplitL "Heb".
     { rewrite -Heqh. repeat iDestruct "Heb" as "[$ Heb]". iFrame. done. }
-    iFrame "Hr Hsts". iSplitL;[|auto]. 
-    repeat (rewrite delete_insert_list_swap_le;[|lia]). 
-    rewrite (list_insert_commute _ 3 1);auto. rewrite (list_insert_commute _ 4 1);auto.
-    rewrite (list_insert_commute _ 3 2);auto. rewrite (list_insert_commute _ 4 2);auto.
-    rewrite list_insert_insert. rewrite (list_insert_commute _ 4 3);auto.
-    rewrite list_insert_insert. iFrame.
-  Qed. 
-    
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]".
+      by do 3 (rewrite lookup_insert_ne //); rewrite lookup_insert //.
+    iFrame "Hr Hsts Hr_t2". iSplitL;[|auto].
+    repeat (rewrite delete_insert_ne //; []). rewrite delete_insert_delete.
+    rewrite !delete_insert_ne // !delete_notin; [| apply Hnotin_rmap; set_solver ..].
+    do 2 (rewrite (insert_commute _ r_t4) //). rewrite insert_insert.
+    do 2 (rewrite (insert_commute _ r_t5) //). rewrite insert_insert. eauto.
+  Qed.
+
 End stack_macros.

@@ -46,6 +46,7 @@ Require Import Eqdep_dec List.
        r_t14;r_t15;r_t16;r_t17;r_t18;r_t19;r_t20;r_t21;r_t22;r_t23;r_t24;r_t25;r_t26;
          r_t27;r_t28;r_t29;r_t30;r_t31;PC].
 
+  Definition all_registers_s : gset RegName := list_to_set all_registers.
 
   (* Instructions and their decodings *)
   (* A special register for the stack pointer, different from PC *)
@@ -378,6 +379,25 @@ Require Import Eqdep_dec List.
        destruct (decide_rel elem_of a l2);[contradiction|].
        done.
    Qed.
+
+   Lemma all_registers_s_correct r:
+     r ∈ all_registers_s.
+   Proof.
+     rewrite /all_registers_s elem_of_list_to_set.
+     apply all_registers_correct.
+   Qed.
+
+   Lemma all_registers_union_l s :
+     s ∪ all_registers_s = all_registers_s.
+   Proof.
+     eapply (anti_symm _). 2: set_solver.
+     rewrite elem_of_subseteq. intros ? _.
+     apply all_registers_s_correct.
+   Qed.
+
+   Lemma all_registers_union_r s :
+     all_registers_s ∪ s = all_registers_s.
+   Proof. rewrite union_comm_L. apply all_registers_union_l. Qed.
 
   (* Some additional helper lemmas about region_addrs *)
 

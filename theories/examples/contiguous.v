@@ -46,6 +46,11 @@ Section Contiguous.
     { intros. exfalso. eapply contiguous_between_vacuous; eauto. solve_addr. }
   Qed.
 
+  Lemma contiguous_between_cons_inv a b e ai :
+    contiguous_between (a :: ai) b e →
+    a = b ∧ ∃ a', (a+1)%a = Some a' ∧ contiguous_between ai a' e.
+  Proof. inversion 1; eauto. Qed.
+
   Lemma contiguous_between_cons_inv_first l a a' b :
     contiguous_between (a' :: l) a b →
     a' = a.

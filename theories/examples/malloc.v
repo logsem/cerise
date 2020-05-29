@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules logrel addr_reg_sample region_macros. 
+From cap_machine Require Import rules logrel addr_reg_sample.
 
 Section malloc.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
@@ -26,19 +26,20 @@ Section malloc.
 
   Global Parameter malloc_subroutine : list Word.
   Global Parameter malloc_γ : namespace. 
-  
-  Global Axiom malloc_subroutine_spec : forall (W : WORLD) (size : Z) (continuation : Word) wsr φ, 
-  ( (* the malloc subroutine and parameters *)
+
+  Global Axiom malloc_subroutine_spec : forall (W : WORLD) (size : Z) (continuation : Word) rmap φ,
+  (  (* the malloc subroutine and parameters *)
        inv malloc_γ ([[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine]])
      ∗ r_t0 ↦ᵣ continuation
      (* the PC points to the malloc subroutine *)
      ∗ PC ↦ᵣ inr (RX,Global,b_m,e_m,a_m)
      ∗ r_t1 ↦ᵣ inl size
-    (* we pass control of all general purpose registers *)
-     ∗ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0;r_t1]; wsr, r_i ↦ᵣ w_i)
-    (* continuation *)
-     ∗ ▷ ((([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0;r_t1]; wsr, r_i ↦ᵣ w_i)
-        ∗ r_t0 ↦ᵣ continuation                                                                                     
+     (* we pass control of all general purpose registers *)
+     ∗ ⌜dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]}⌝
+     ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+     (* continuation *)
+     ∗ ▷ ((([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+        ∗ r_t0 ↦ᵣ continuation
         ∗ PC ↦ᵣ continuation
         (* the newly allocated region *)
         ∗ ∃ (b e : Addr), ⌜(e - b = size)%Z⌝ ∧ r_t1 ↦ᵣ inr (RWX,Global,b,e,b)
@@ -49,6 +50,5 @@ Section malloc.
                       ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝)
         -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
-  
-End malloc.   
-  
+
+End malloc.
