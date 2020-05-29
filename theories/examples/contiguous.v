@@ -594,9 +594,9 @@ Section Contiguous.
   Qed.
 *)
 
-  Context `{memG Σ, regG Σ, STSG Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
 
   (* Note that we are assuming that both prog1 and prog2 are nonempty *)
   Lemma contiguous_between_program_split prog1 prog2 (φ : Addr → Word → iProp Σ) a i j :

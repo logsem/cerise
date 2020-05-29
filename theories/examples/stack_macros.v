@@ -5,10 +5,15 @@ From cap_machine Require Import rules logrel fundamental monotone.
 From cap_machine Require Export addr_reg_sample region_macros contiguous malloc.
 
 Section stack_macros.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
+  Implicit Types W : WORLD.
+  
   (* ---------------------------- Helper Lemmas --------------------------------------- *)
   (* TODO: move to lang *)
   Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
@@ -422,7 +427,7 @@ Section stack_macros.
     ∗ ▷ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; wsr, r_i ↦ᵣ w_i)
     (* current world *)
     ∗ ▷ region W
-    ∗ ▷ sts_full_world sts_std W
+    ∗ ▷ sts_full_world W
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ malloc f_m size a pc_p'
             ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
@@ -434,10 +439,9 @@ Section stack_macros.
             ∗ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0;r_t1;r_t2;r_t3];
               (delete 0 (delete 0 (delete 0 wsr))), r_i ↦ᵣ w_i)
             (* the newly allocated region is fresh in the current world *)
-            ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
-                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝
+            ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝
             ∗ region W
-            ∗ sts_full_world sts_std W)
+            ∗ sts_full_world W)
             -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -744,7 +748,7 @@ Section stack_macros.
     destruct ws; inversion rws.
     iDestruct (big_sepL2_cons with "Hreg") as "[Hr Hreg]".
     destruct a.
-    - inversion H4; symmetry in H6; apply (nil_length_inv) in H6.
+    - inversion H0; symmetry in H2; apply (nil_length_inv) in H2.
       inversion Hhd. subst.
       iApply (wp_move_success_z _ _ _ _ _ a1 with "[HPC Ha1 Hr]");
         eauto;first apply move_z_i; first iCorrectPC a1 an.
@@ -752,8 +756,8 @@ Section stack_macros.
       { apply (not_elem_of_cons) in Hne as [Hne _]. apply Hne. }
       iFrame. iNext. iIntros "(HPC & Han & Hr) /=".
       iApply wp_pure_step_later; auto; iNext.
-      iApply "Hφ". iFrame. destruct r0; inversion H6. done.
-    - destruct r0; inversion H4. inversion Hhd; subst.
+      iApply "Hφ". iFrame. destruct r0; inversion H2. done.
+    - destruct r0; inversion H0. inversion Hhd; subst.
       iApply (wp_move_success_z _ _ _ _ _ a1 a _ r with "[HPC Ha1 Hr]")
       ; eauto; first apply move_z_i; first iCorrectPC a1 an.
       { iContiguous_next Ha 0. }
@@ -763,8 +767,8 @@ Section stack_macros.
       rewrite -/(map _ _) -/(rclear_instrs _).
       iApply ("IH" with "[Hreg] [HPC] [Hrclear] [Hφ Ha1 Hr]"); iFrame.
       + iExists (ws). iFrame.
-      + simpl. rewrite H6. iFrame.
-      + simpl. rewrite H6.
+      + simpl. rewrite H2. iFrame.
+      + simpl. rewrite H2.
         iNext. iIntros "(HPC & Hreg & Hrclear)".
         iApply "Hφ". iFrame.
       + iPureIntro. by apply not_elem_of_cons in Hne as [_ Hne].
@@ -950,8 +954,8 @@ Section stack_macros.
       + by rewrite Ha_r'.
       + assert (updatePcPerm (inr (p, g, b, e, a1)) = (inr (p, g, b, e, a1))).
         { rewrite /updatePcPerm. destruct p; auto.
-          inversion Hvpc1; destruct H9 as [Hc | [Hc | Hc] ]; inversion Hc. }
-        rewrite H3. iFrame.
+          inversion Hvpc1; destruct H5 as [Hc | [Hc | Hc] ]; inversion Hc. }
+        rewrite H. iFrame.
       + cbn. assert (b_r + z + 1 = b_r + (z + 1)%nat)%Z as ->;[lia|]. iFrame.
       + iNext.
         iIntros "(HPC & Hregion & Hrt & Hrt5 & Ha3 & Ha4 & Ha5 & Ha6 & Ha1 & Hrt2 & Hrt1 & Ha2 & Hrt4 & Hrt3)".
@@ -1103,7 +1107,7 @@ Section stack_macros.
     { have: (isCorrectPC (inr (p, g, b, e, a_first))).
       { apply Hvpc. eapply contiguous_between_middle_bounds'; eauto. constructor. }
       inversion 1; subst.
-      destruct H19 as [? | [? | ?] ]; subst; auto. }
+      destruct H15 as [? | [? | ?] ]; subst; auto. }
     iApply (wp_lea_success_z _ _ _ _ _ a7 a8 _ r_t2 p _ _ _ a6 10 a_end with "[HPC Hi Hr_t2]");
       first apply lea_z_i; first apply Hfl1; first iCorrectPC a_first a'; auto.
     { iContiguous_next Hnext 8. }
@@ -1128,8 +1132,8 @@ Section stack_macros.
     iFrame. iEpilogue "(HPC & Ha9 & Hr_t3)".
     iCombine "Ha9 Hprog_done" as "Hprog_done".
     (* iter *)
-    clear H4 H5 H6 H7 H8 H9 H10 H11 H12 H13.
-    do 5 iPrologue_pre. clear H4 H5 H6 H7.
+    clear H0 H1 H2 H3 H4 H5 H6 H7 H8 H9.
+    do 5 iPrologue_pre. clear H0 H1 H2 H3.
     iDestruct "Hprog" as "[Hi1 Hprog]".
     iDestruct "Hprog" as "[Hi2 Hprog]".
     iDestruct "Hprog" as "[Hi3 Hprog]".
@@ -1849,7 +1853,7 @@ Section stack_macros.
     ∗ ▷ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_t0]; <[0:=wcode]> (<[1:=wvar]> wsr), r_i ↦ᵣ w_i)
     (* current world *)
     ∗ ▷ region W
-    ∗ ▷ sts_full_world sts_std W
+    ∗ ▷ sts_full_world W
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ crtcls f_m a pc_p'
             ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
@@ -1861,10 +1865,9 @@ Section stack_macros.
             ∗ ([∗ list] r_i;w_i ∈ list_difference all_registers [PC; r_t0; r_t1];
               delete 0 (<[1:=inl 0%Z]> (<[2:=inl 0%Z]> (<[3:=inl 0%Z]> (<[4:=inl 0%Z]> wsr)))), r_i ↦ᵣ w_i)
             (* the newly allocated region is fresh in the current world *)
-            ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
-                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝
+            ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝
             ∗ region W
-            ∗ sts_full_world sts_std W)
+            ∗ sts_full_world W)
             -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -1897,9 +1900,9 @@ Section stack_macros.
       [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 1|auto|].
     iEpilogue "(HPC & Hi & Hr_t5 & Hr_t2)"; iCombine "Hi Hprog_done" as "Hprog_done".
     assert (contiguous_between (a0 :: l) a0 a_last) as Hcont'.
-    { inversion Hcont; subst. inversion H8; subst.
-      assert ((a' + 1)%a = Some a0) as Hnext;[iContiguous_next Hcont 1|]. rewrite Hnext in H7.
-      inversion H7; subst. done. }
+    { inversion Hcont; subst. inversion H4; subst.
+      assert ((a' + 1)%a = Some a0) as Hnext;[iContiguous_next Hcont 1|]. rewrite Hnext in H3.
+      inversion H3; subst. done. }
     (* malloc 8 *)
     iDestruct (contiguous_between_program_split with "Hprog") as (malloc_prog rest link)
                                                                    "(Hmalloc_prog & Hprog & #Hcont)";[apply Hcont'|].

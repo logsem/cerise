@@ -3,12 +3,13 @@ From iris.proofmode Require Import tactics.
 From cap_machine Require Import rules logrel addr_reg_sample region_macros. 
 
 Section malloc.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -45,8 +46,7 @@ Section malloc.
         ∗ [[b,e]] ↦ₐ[RWX] [[region_addrs_zeroes b e]]
         (* the allocated region is guaranteed to be fresh in the provided world *)
         (* TODO: remove this is we can prove it *)
-        ∗ ⌜Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W)
-                      ∧ (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs b e)⌝)
+        ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝)
         -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   

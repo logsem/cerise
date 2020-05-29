@@ -5,10 +5,19 @@ From cap_machine Require Import rules logrel.
 From cap_machine Require Export addr_reg_sample region_invariants_revocation multiple_updates. 
 
 Section region_macros.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
+  Implicit Types W : WORLD.
+
+  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
+  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
+  Implicit Types w : (leibnizO Word).
+  Implicit Types interp : (D).
 
   (* TODO: move this to folder that will contain all the files about region *)
   (* Currently, this file contains: 
@@ -198,21 +207,20 @@ Section region_macros.
    
    Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
      p ≠ O → is_Some (a + (Z.of_nat n - 1))%a →
-     Forall (λ a, (countable.encode a) ∉ dom (gset positive) (std_sta W) ∧
-                  (countable.encode a) ∉ dom (gset positive) (std_rel W)) (region_addrs_aux a n) →
+     Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs_aux a n) →
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
        -∗ region W
-       -∗ sts_full_world sts_std W
-     ={E}=∗ ([∗ list] x ∈ region_addrs_aux a n, read_write_cond x p (fixpoint interp1))
+       -∗ sts_full_world W
+     ={E}=∗ ([∗ list] x ∈ region_addrs_aux a n, read_write_cond x p interp)
          ∗ region (std_update_temp_multiple W (region_addrs_aux a n))
-         ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs_aux a n)).
+         ∗ sts_full_world (std_update_temp_multiple W (region_addrs_aux a n)).
    Proof.
      iInduction (n) as [| n] "IHn" forall (a W).
      - simpl. iIntros (_ _ _) "_ Hr Hsts". iFrame. done. 
      - iIntros (Hne Hnext Hforall) "Hlist Hr Hsts".
        iDestruct "Hlist" as "[Ha Hlist]".
        simpl in Hforall.
-       apply list.Forall_cons in Hforall as [ [Hasta Harel] Hforall].
+       apply list.Forall_cons in Hforall as [ Hasta Hforall].
        destruct (pwl p) eqn:Hpwl. 
        + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
          { iIntros (W'). rewrite fixpoint_interp1_eq. eauto. }
@@ -230,7 +238,6 @@ Section region_macros.
          iMod (extend_region_temp_pwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
                  with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
          { apply (std_update_multiple_dom_sta_i _ (S n) _ _ 1); auto; lia. }
-         { apply (std_update_multiple_dom_rel_i _ (S n) _ _ 1); auto; lia. } 
          { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
          iFrame. done.
        + iAssert (∀ W, interp W (inl 0%Z))%I as "#Hav".
@@ -249,7 +256,6 @@ Section region_macros.
          iMod (extend_region_temp_nwl E _ a p (inl 0%Z) (λ Wv, interp Wv.1 Wv.2)
                  with "[] Hsts Hr Ha Hav") as "(Hr & Ha & Hsts)"; auto.
          { apply (std_update_multiple_dom_sta_i _ (S n) _ _ 1); auto; lia. }
-         { apply (std_update_multiple_dom_rel_i _ (S n) _ _ 1); auto; lia. }
          { iAlways. iIntros (W1 W2 Hrelated) "Hv /=". do 2 (rewrite fixpoint_interp1_eq /=). done. }
          iFrame. done.
    Qed.
@@ -276,7 +282,7 @@ Section region_macros.
        induction l; inversion Hl.
        destruct (decide (a = k)); [subst;apply elem_of_list_here|]. 
        apply elem_of_cons. right.
-       apply IHl. rewrite lookup_insert_ne in H5; auto.
+       apply IHl. simplify_map_eq. auto. 
    Qed.
 
    Lemma region_addrs_zeroes_valid_aux n W : 
@@ -322,14 +328,12 @@ Section region_macros.
 
    Lemma region_addrs_zeroes_alloc E W (a b : Addr) p :
      p ≠ O → 
-     Forall (λ a0 : Addr, (countable.encode a0 ∉ dom (gset positive) (std_sta W))
-                          ∧ countable.encode a0 ∉ dom (gset positive) (std_rel W))
-            (region_addrs a b) →
+     Forall (λ a0 : Addr, (a0 ∉ dom (gset Addr) (std W))) (region_addrs a b) →
      ([∗ list] y1;y2 ∈ region_addrs a b;region_addrs_zeroes a b, y1 ↦ₐ[p] y2)
-       ∗ region W ∗ sts_full_world sts_std W
-     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1))
+       ∗ region W ∗ sts_full_world W
+     ={E}=∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p interp)
          ∗ region (std_update_temp_multiple W (region_addrs a b))
-         ∗ sts_full_world sts_std (std_update_temp_multiple W (region_addrs a b)).
+         ∗ sts_full_world (std_update_temp_multiple W (region_addrs a b)).
    Proof.
      iIntros (Hne Hforall) "[Hlist [Hr Hsts] ]".
      iDestruct (region_addrs_zeroes_trans with "Hlist") as "Hlist". 
@@ -416,18 +420,18 @@ Section region_macros.
      (∃ a', (a + (Z.of_nat n))%a = Some a') →
      region_addrs_aux a n ## l ->
      pwl p = true ->
-     (Forall (λ a, (std_sta W) !! countable.encode a = Some (countable.encode Temporary)) (region_addrs_aux a n)) ->
+     (Forall (λ a, (std W) !! a = Some Temporary) (region_addrs_aux a n)) ->
      open_region_many l W
-     -∗ sts_full_world sts_std W
+     -∗ sts_full_world W
      -∗ ([∗ list] a0 ∈ region_addrs_aux a n, read_write_cond a0 p (fixpoint interp1))
      -∗ ([∗ list] a0 ∈ region_addrs_aux a n,
          (∃ w : Word, a0 ↦ₐ[p] w
                          ∗ ▷ (fixpoint interp1) W w
                          ∗ ⌜p ≠ O⌝
                          ∗ ▷ future_pub_mono (λ Wv, (fixpoint interp1) Wv.1 Wv.2) w
-                         ∗ sts_state_std (countable.encode a0) Temporary))
+                         ∗ sts_state_std a0 Temporary))
      ∗ open_region_many (region_addrs_aux a n ++ l) W
-     ∗ sts_full_world sts_std W.
+     ∗ sts_full_world W.
    Proof.
      iInduction (n) as [| n] "IHn" forall (a l).
      - iIntros (Hne Hdisj Hpwl Hforall) "Hr Hsts #Hinv /=".
@@ -459,7 +463,7 @@ Section region_macros.
 
    Lemma region_state_pwl_forall_temp W (l : list Addr) (φ : Addr → iProp Σ) :
      (([∗ list] a ∈ l, φ a ∧ ⌜region_state_pwl W a⌝) -∗
-     ⌜Forall (λ a, (std_sta W) !! countable.encode a = Some (countable.encode Temporary)) l⌝)%I.
+     ⌜Forall (λ a, (std W) !! a = Some Temporary) l⌝)%I.
    Proof.
      iIntros "Hl".
      iInduction (l) as [|x l] "IH".
@@ -475,7 +479,7 @@ Section region_macros.
      region_addrs a b ## l →
      pwl p = true ->
      open_region_many l W
-     -∗ sts_full_world sts_std W
+     -∗ sts_full_world W
      -∗ ([∗ list] a0 ∈ region_addrs a b, read_write_cond a0 p (fixpoint interp1)
                                          ∧ ⌜region_state_pwl W a0⌝)
      -∗ ([∗ list] a0 ∈ region_addrs a b,
@@ -483,9 +487,9 @@ Section region_macros.
                          ∗ ▷ (fixpoint interp1) W w
                          ∗ ⌜p ≠ O⌝
                          ∗ ▷ future_pub_mono (λ Wv, (fixpoint interp1) Wv.1 Wv.2) w
-                         ∗ sts_state_std (countable.encode a0) Temporary))
+                         ∗ sts_state_std a0 Temporary))
      ∗ open_region_many (region_addrs a b ++ l) W
-     ∗ sts_full_world sts_std W.
+     ∗ sts_full_world W.
    Proof.
      rewrite /region_addrs.
      iIntros (Ha' Hdiff Hpwl) "Hr Hsts #Hinv".
