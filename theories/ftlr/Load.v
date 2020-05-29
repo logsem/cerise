@@ -8,12 +8,13 @@ Require Import Coq.Logic.Decidable.
 Import uPred.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -25,7 +26,7 @@ Section fundamental.
    The boolean bl can be used to keep track of whether or not we have applied a wp lemma *)
   Definition region_open_resources W l ls p φ v (bl : bool): iProp Σ :=
     (∃ ρ,
-     sts_state_std (countable.encode l) ρ
+     sts_state_std l ρ
     ∗ ⌜ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)⌝
     ∗ open_region_many (l :: ls) W
     ∗ ⌜p ≠ O⌝
@@ -42,7 +43,7 @@ Section fundamental.
       pose (Hrar' := Hrar).
       destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
       * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        rewrite H4 H5 H6 H7 H8 in Hrar; auto.
+        subst. auto. 
       * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
   Qed.
 
@@ -61,20 +62,20 @@ Section fundamental.
     else  ⌜mem = <[pc_a:=(pc_p,pc_w)]> ∅⌝ ∗ open_region pc_a W)%I.
 
   Lemma create_load_res:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
       (g : Locality) (b e a : Addr) (src : RegName) (p0 : Perm)
       (g0 : Locality) (b0 e0 a0 : Addr),
       read_reg_inr (<[PC:=inr (p, g, b, e, a)]> r) src p0 g0 b0 e0 a0
       → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) W) (r !r! r1))
           -∗ open_region a W
-          -∗ sts_full_world sts_std W
+          -∗ sts_full_world W
           -∗ allow_load_res W src (<[PC:=inr (p, g, b, e, a)]> r) a
-          ∗ sts_full_world sts_std W.
+          ∗ sts_full_world W.
   Proof.
     intros W r p p' g b e a src p0 g0 b0 e0 a0 HVsrc.
     iIntros "#Hreg Hr Hsts".
     do 5 (iApply sep_exist_r; iExists _). iFrame "%".
-    case_decide. 1: destruct H3 as [Hallows Haeq].
+    case_decide. 1: destruct H as [Hallows Haeq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
          apply andb_prop in Hwb as [Hle Hge].
          rewrite /leb_addr in Hle,Hge.
@@ -93,7 +94,7 @@ Section fundamental.
          iDestruct (region_open_prepare with "Hr") as "Hr".
          iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H3 as [Hregion' [ρ' [Hstd' [Hnotrevoked' Hnotstatic'] ] ] ].
+         destruct H as [ρ' [Hstd [Hnotrevoked' Hnotstatic'] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -104,7 +105,7 @@ Section fundamental.
   Qed.
 
   Lemma load_res_implies_mem_map:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p' : Perm)
        (a : Addr) (w : Word) (src : RegName),
       allow_load_res W src r a
       -∗ a ↦ₐ[p'] w
@@ -135,7 +136,7 @@ Section fundamental.
     Qed.
 
   Lemma mem_map_implies_pure_conds:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p' : Perm)
        (a : Addr) (w : Word) (src : RegName)
       (mem0 : PermMem),
         p' ≠ O →
@@ -159,11 +160,11 @@ Section fundamental.
       iExists p1,g1,b1,e1,a1. iSplitR; auto.
       case_decide as Hdec1; last by done.
       apply not_and_r in Hdec as [|]; first by exfalso.
-      iExists p',w. apply dec_stable in H4 as <-. by rewrite lookup_insert.
+      iExists p',w. apply dec_stable in H0 as <-. by rewrite lookup_insert.
   Qed.
 
   Lemma allow_load_mem_later:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
       (g : Locality) (b e a : Addr) (w : Word) (src : RegName)
       (mem0 : PermMem),
       allow_load_mem W src r a p' w mem0 false
@@ -180,7 +181,7 @@ Section fundamental.
   Qed.
 
   Lemma mem_map_recover_res:
-    ∀ (W : leibnizO (STS * STS)) (r : leibnizO Reg) (p' : Perm)
+    ∀ (W : WORLD) (r : leibnizO Reg) (p' : Perm)
        (a : Addr) (w : Word) (src : RegName)  (p0 p'0 : Perm)
       (g0 : Locality) (b0 e0 a0 : Addr) (mem0 : PermMem) (loadv : Word),
       reg_allows_load r src p0 g0 b0 e0 a0
@@ -194,7 +195,7 @@ Section fundamental.
     intros W r p' a w src p0 p'0 g0 b0 e0 a0 mem0 loadv Hrar Ha0.
     iIntros "HLoadMem #Hw Hmem".
     iDestruct "HLoadMem" as (p1 g1 b1 e1 a1) "[% HLoadRes]".
-    destruct (load_inr_eq Hrar H3) as (<- & <- &<- &<- &<-).
+    destruct (load_inr_eq Hrar H) as (<- & <- &<- &<- &<-).
     case_decide as Hdec. destruct Hdec as [Hallows Heq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
        iDestruct "HLoadRes" as (p'1 w0) "[-> [% HLoadRes] ]".
@@ -208,7 +209,7 @@ Section fundamental.
        rewrite lookup_insert in Ha0; inversion Ha0. all: done.
     - apply not_and_r in Hdec as [|].
       * by exfalso.
-      * apply dec_stable in H4 as <-.
+      * apply dec_stable in H0 as <-.
         iDestruct "HLoadRes" as "[-> $ ]".
         rewrite -memMap_resource_1.
         rewrite lookup_insert in Ha0. inversion Ha0. by iFrame.
@@ -219,7 +220,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst src : RegName) :
     ftlr_instr W r p p' g b e a w (Load dst src) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -277,7 +278,7 @@ Section fundamental.
       2 : {
         assert (x ≠ RX ∧ x ≠ RWX ∧ x ≠ RWLX). split; last split; by auto.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
-        { rewrite H7. by rewrite lookup_insert. }
+        { subst. by rewrite lookup_insert. }
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
         iApply wp_pure_step_later; auto. iNext. iApply wp_value.
@@ -306,19 +307,19 @@ Section fundamental.
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
        { destruct (decide (PC = dst)); simplify_eq.
          - destruct o as [HRX | [HRWX | HRWLX] ]; auto.
-           rewrite lookup_insert in H5; inversion H5. rewrite HRWLX.
+           rewrite lookup_insert in H1; inversion H1. rewrite HRWLX.
            iDestruct (writeLocalAllowed_implies_local _ RWLX with "[HLVInterp]") as "%"; auto.
-           destruct x0; unfold isLocal in H7; first by congruence.
+           destruct x0; unfold isLocal in H3; first by congruence.
            iPureIntro; do 2 right; auto.
-         - rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5.
-           by rewrite -H8 -H9.
+         - rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1.
+           by rewrite -H4 -H5.
        }
        { iAlways.
          destruct (decide (PC = dst)); simplify_eq.
-         - rewrite lookup_insert in H5; inversion H5. rewrite (fixpoint_interp1_eq W).
+         - rewrite lookup_insert in H1; inversion H1. rewrite (fixpoint_interp1_eq W).
            iApply readAllowed_implies_region_conditions; auto.
            { destruct o as [o | [o | o] ]; rewrite o; auto . }
-         - iExists p'. rewrite lookup_insert_ne in H5; last by auto. rewrite lookup_insert in H5; inversion H5. iSplitR; first by rewrite -H8. auto.
+         - iExists p'. rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1. iSplitR; first by rewrite -H4. auto.
        }
     }
     { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }

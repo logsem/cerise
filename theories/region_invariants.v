@@ -14,18 +14,38 @@ Import uPred.
 Definition relUR : ucmraT := gmapUR Addr (agreeR (leibnizO (gname * Perm))).
 Definition relT := gmap Addr (leibnizO (gname * Perm)). 
 
+(* We will first define the standard STS for the shared part of the heap *)
+Inductive region_type :=
+| Temporary
+| Permanent
+| Revoked
+| Static of gmap Addr (Perm * Word).
+
+Inductive std_rel_pub : region_type -> region_type -> Prop :=
+| Std_pub_Revoked_Temporary : std_rel_pub Revoked Temporary
+| Std_pub_Static_Temporary m : std_rel_pub (Static m) Temporary.
+
+Inductive std_rel_priv : region_type -> region_type -> Prop :=
+| Std_priv_from_Temporary ρ : std_rel_priv Temporary ρ
+| Std_priv_Revoked_Permanent : std_rel_priv Revoked Permanent.
+
+Global Instance sts_std : STS_STD region_type :=
+    {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
+
 Class heapG Σ := HeapG {
   heapG_invG : invG Σ;
-  heapG_saved_pred :> savedPredG Σ (((STS_states * STS_rels) * (STS_states * STS_rels)) * Word);
+  heapG_saved_pred :> savedPredG Σ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word);
   heapG_rel :> inG Σ (authR relUR);
   γrel : gname
 }.
 
 Section heap.
-  Context `{heapG Σ, memG Σ, regG Σ, STSG Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (prodO STS STS). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
   
   Definition REL_def l p γ : iProp Σ := own γrel (◯ {[ l := to_agree (γ,p) ]}).
@@ -38,30 +58,12 @@ Section heap.
   Definition RELS := proj1_sig RELS_aux.
   Definition RELS_eq : @RELS = @RELS_def := proj2_sig RELS_aux.
 
-  Definition rel_def (l : Addr) (p : Perm) (φ : (WORLD * Word) -> iProp Σ) : iProp Σ :=
+  Definition rel_def (l : Addr) (p : Perm) (φ : ((STS_std_states Addr region_type * (STS_states * STS_rels)) * Word) -> iProp Σ) : iProp Σ :=
     (∃ (γpred : gnameO), REL l p γpred 
                        ∗ saved_pred_own γpred φ)%I.
   Definition rel_aux : { x | x = @rel_def }. by eexists. Qed.
   Definition rel := proj1_sig rel_aux.
   Definition rel_eq : @rel = @rel_def := proj2_sig rel_aux.
-
-  Global Instance rel_persistent l p (φ : (WORLD * Word) -> iProp Σ) :
-    Persistent (rel l p φ).
-  Proof. rewrite rel_eq /rel_def REL_eq /REL_def. apply _. Qed.
-  
-  Definition future_pub_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
-    (□ ∀ W W', ⌜related_sts_pub_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
-
-  Definition future_priv_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
-    (□ ∀ W W', ⌜related_sts_priv_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
-
-  (* We will first define the standard STS for the shared part of the heap *)
-  Inductive region_type :=
-  | Temporary
-  | Permanent
-  | Revoked
-  | Static of gmap Addr (Perm * Word)
-  .
 
   Global Instance region_type_EqDecision : EqDecision region_type :=
     (fun x y => match x, y with
@@ -75,57 +77,52 @@ Section heap.
   Global Instance region_type_countable : Countable region_type.
   Proof.
     set encode := fun ty => match ty with
-      | Temporary => 1
-      | Permanent => 2
-      | Revoked => 3
-      | Static m => 3 + encode m
-      end%positive.
+                         | Temporary => 1
+                         | Permanent => 2
+                         | Revoked => 3
+                         | Static m => 3 + (encode m)
+                         end%positive.
     set decode := (fun n =>
-      if decide (n = 1) then Some Temporary
-      else if decide (n = 2) then Some Permanent
-      else if decide (n = 3) then Some Revoked
-      else
-        match decode (n-3) with
-        | Some m => Some (Static m)
-        | None => None
-        end)%positive.
+                     if decide (n = 1) then Some Temporary
+                     else if decide (n = 2) then Some Permanent
+                          else if decide (n = 3) then Some Revoked
+                               else
+                                 match decode (n-3) with
+                                 | Some m => Some (Static m)
+                                 | None => None
+                                 end)%positive.
     eapply (Build_Countable _ _ encode decode).
     intro ty. destruct ty; try reflexivity.
     unfold encode, decode.
     repeat match goal with |- context [ decide ?x ] =>
-      destruct (decide x); [ exfalso; lia |] end.
+                           destruct (decide x); [ exfalso; lia |] end.
     rewrite Pos.add_comm Pos.add_sub decode_encode //.
   Qed.
 
-  Inductive std_rel_pub : region_type -> region_type -> Prop :=
-    | Std_pub_Revoked_Temporary : std_rel_pub Revoked Temporary
-    | Std_pub_Static_Temporary m : std_rel_pub (Static m) Temporary
-    .
+  Global Instance rel_persistent l p (φ : (WORLD * Word) -> iProp Σ) :
+    Persistent (rel l p φ).
+  Proof. rewrite rel_eq /rel_def REL_eq /REL_def. apply _. Qed.
+  
+  Definition future_pub_mono (φ : (WORLD * Word) -> iProp Σ) (v  : Word) : iProp Σ :=
+    (□ ∀ W W', ⌜related_sts_pub_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
-  Inductive std_rel_priv : region_type -> region_type -> Prop :=
-    | Std_priv_from_Temporary ρ : std_rel_priv Temporary ρ
-    | Std_priv_Revoked_Permanent : std_rel_priv Revoked Permanent
-    .
-
-  Global Instance sts_std : STS_STD region_type :=
-    {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
+  Definition future_priv_mono (φ : (WORLD * Word) -> iProp Σ) v : iProp Σ :=
+    (□ ∀ W W', ⌜related_sts_priv_world W W'⌝ → φ (W,v) -∗ φ (W',v))%I.
 
   (* Some practical shorthands for projections *)
   Definition std W := W.1.
   Definition loc W := W.2.
-  Definition std_sta W := W.1.1.
-  Definition std_rel W := W.1.2.
 
   (* The following predicates states that the std relations map in the STS collection is standard according to sts_std *)
-  Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type),
-                                                        convert_rel (Rpriv : relation region_type)).
-  Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i).
+  (* Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type), *)
+  (*                                                       convert_rel (Rpriv : relation region_type)).  *)
+  (* Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i). *)
 
   (* ------------------------------------------- DOM_EQUAL ----------------------------------------- *)
   (* dom_equal : we require the domain of the STS standard collection and the memory map to be equal *)
 
-  Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
-    ∀ (i : positive), is_Some (Wstd_sta !! i) ↔ (∃ (a : Addr), encode a = i ∧ is_Some (M !! a)).
+  (*Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
+    ∀ (i : positive), is_Some (Wstd_sta !! i) ↔ (∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)).
 
   Lemma dom_equal_empty : dom_equal ∅ ∅.
   Proof.
@@ -166,28 +163,28 @@ Section heap.
   Proof.
     unfold dom_equal. intros HH1 Hdom.
     intros i. rewrite elem_of_gmap_dom -Hdom -elem_of_gmap_dom //.
-  Qed.
+  Qed.*)
 
   (* Asserting that a location is in a specific state in a given World *)
 
   Definition temporary (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (encode l) with
-    | Some ρ => ρ = encode Temporary
+    match W.1 !! l with
+    | Some ρ => ρ = Temporary
     | _ => False
     end.
   Definition permanent (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (encode l) with
-    | Some ρ => ρ = encode Permanent
+    match W.1 !! l with
+    | Some ρ => ρ = Permanent
     | _ => False
     end.
   Definition revoked (W : WORLD) (l : Addr) :=
-    match W.1.1 !! (encode l) with
-    | Some ρ => ρ = encode Revoked
+    match W.1 !! l with
+    | Some ρ => ρ = Revoked
     | _ => False
     end.
   Definition static (W : WORLD) (m: gmap Addr (Perm * Word)) (l : Addr) :=
-    match std_sta W !! (encode l) with
-    | Some ρ => ρ = encode (Static m)
+    match W.1 !! l with
+    | Some ρ => ρ = (Static m)
     | _ => False
     end.
 
@@ -197,7 +194,7 @@ Section heap.
 
   Definition region_map_def M (Mρ: gmap Addr region_type) W :=
     ([∗ map] a↦γp ∈ M, ∃ ρ, ⌜Mρ !! a = Some ρ⌝ ∗
-                            sts_state_std (encode a) ρ ∗
+                            sts_state_std a ρ ∗
                             ∃ γpred p φ, ⌜γp = (γpred,p)⌝ ∗ ⌜∀ Wv, Persistent (φ Wv)⌝ ∗ saved_pred_own γpred φ ∗
                             match ρ with
                             | Temporary => ∃ (v : Word),
@@ -221,7 +218,7 @@ Section heap.
                             end)%I.
 
   Definition region_def W : iProp Σ := 
-    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom (gset Addr) W.1 = dom (gset Addr) M⌝
                             ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
                             ∗ region_map_def M Mρ W)%I. 
   Definition region_aux : { x | x = @region_def }. by eexists. Qed.
@@ -278,14 +275,13 @@ Section heap.
 
 
   (* Definition and notation for updating a standard or local state in the STS collection *)
-  Definition std_update (W : WORLD) (l : Addr) (a : region_type) (r1 r2 : region_type → region_type -> Prop) : WORLD :=
-    ((<[encode l := encode a]>W.1.1,
-      <[encode l := (convert_rel r1,convert_rel r2)]>W.1.2), W.2).
+  Definition std_update (W : WORLD) (l : Addr) (a : region_type) : WORLD :=
+    (<[ l := a]>W.1, W.2).
   Definition loc_update (W : WORLD) (l : Addr) (a : region_type) (r1 r2 : region_type → region_type -> Prop) : WORLD :=
     (W.1,(<[encode l := encode a]>W.2.1,
           <[encode l := (convert_rel r1,convert_rel r2)]>W.2.2)).
 
-  Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
+  Notation "<s[ a := ρ ]s> W" := (std_update W a ρ) (at level 10, format "<s[ a := ρ ]s> W").
   Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").
 
   (* ------------------------------------------------------------------- *)
@@ -321,13 +317,13 @@ Section heap.
   Qed. 
 
   Lemma region_monotone W W' :
-    (⌜dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W')⌝ →
+    (⌜dom (gset Addr) W.1 = dom (gset Addr) W'.1⌝ →
      ⌜related_sts_pub_world W W'⌝ → region W -∗ region W')%I.
   Proof.
     iIntros (Hdomeq Hrelated) "HW". rewrite region_eq.
     iDestruct "HW" as (M Mρ) "(HM & % & % & Hmap)".
     iExists M, Mρ. iFrame.
-    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR; [iPureIntro;congruence|]. 
     iSplitR;[auto|].
     iApply region_map_monotone; eauto.
   Qed.
@@ -336,7 +332,7 @@ Section heap.
   (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
 
   Definition open_region_def (a : Addr) (W : WORLD) : iProp Σ :=
-    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+    (∃ (M : relT) Mρ, RELS M ∗ ⌜dom (gset Addr) W.1 = dom (gset Addr) M⌝
                             ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
                             ∗ region_map_def (delete a M) (delete a Mρ) W)%I.
   Definition open_region_aux : { x | x = @open_region_def }. by eexists. Qed.
@@ -345,13 +341,13 @@ Section heap.
 
   (* open_region is monotone wrt public future worlds *)
   Lemma open_region_monotone l W W':
-    dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W') →
+    dom (gset Addr) W.1 = dom (gset Addr) W'.1 →
     related_sts_pub_world W W' →
     (open_region l W -∗ open_region l W')%I.
   Proof.
     iIntros (Hdomeq Hrelated) "HW". rewrite open_region_eq /open_region_def.
     iDestruct "HW" as (M Mρ) "(Hm & % & % & Hmap)". iExists M, Mρ. iFrame.
-    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR;[iPureIntro;congruence|]. 
     iSplitR; auto.
     iApply region_map_monotone; eauto.
   Qed.
@@ -381,12 +377,12 @@ Section heap.
   Qed.
 
   Lemma region_open_temp_pwl W l p φ :
-    (std_sta W) !! (encode l) = Some (encode Temporary) →
+    (std W) !! l = Some Temporary →
     pwl p = true →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (encode l) Temporary
+           ∗ sts_full_world W
+           ∗ sts_state_std l Temporary
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_pub_mono φ v
@@ -427,12 +423,12 @@ Section heap.
   Qed.
 
   Lemma region_open_temp_nwl W l p φ :
-    (std_sta W) !! (encode l) = Some (encode Temporary) →
+    (std W) !! l = Some Temporary →
     pwl p = false →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (encode l) Temporary
+           ∗ sts_full_world W
+           ∗ sts_state_std l Temporary
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_priv_mono φ v
@@ -473,11 +469,11 @@ Section heap.
   Qed.
 
   Lemma region_open_perm W l p φ :
-    (std_sta W) !! (encode l) = Some (encode Permanent) →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    (std W) !! l = Some Permanent →
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (encode l) Permanent
+           ∗ sts_full_world W
+           ∗ sts_state_std l Permanent              
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_priv_mono φ v
@@ -519,11 +515,11 @@ Section heap.
 
   Lemma region_open W l p φ (ρ : region_type) :
     ρ = Temporary ∨ ρ = Permanent →
-    (std_sta W) !! (encode l) = Some (encode ρ) →
-    rel l p φ ∗ region W ∗ sts_full_world sts_std W -∗
+    (std W) !! l = Some ρ →
+    rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
-           ∗ sts_full_world sts_std W
-           ∗ sts_state_std (encode l) ρ
+           ∗ sts_full_world W
+           ∗ sts_state_std l ρ              
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ (▷ if (decide (ρ = Temporary ∧ pwl p = true))
@@ -580,24 +576,25 @@ Section heap.
 
   Lemma full_sts_Mρ_agree W M Mρ (ρ: region_type) :
     (* NB: only the forward direction of dom_equal (std_sta W) M is actually needed *)
-    dom_equal (std_sta W) M →
-    (* NB: only one direction of this assumption is needed, and only for the reverse
-       direction of the lemma *)
+    dom (gset Addr) (std W) = dom (gset Addr) M →
+    (* NB: only one direction of this assumption is needed, and only for the reverse *)
+  (*      direction of the lemma *)
     dom (gset Addr) Mρ = dom (gset Addr) M →
-    sts_full_world sts_std W -∗
+    sts_full_world W -∗
     region_map_def M Mρ W -∗
-    ⌜∀ a:Addr, (std_sta W) !! (encode a) = Some (encode ρ) ↔ Mρ !! a = Some ρ⌝.
+    ⌜∀ a:Addr, (std W) !! a = Some ρ ↔ Mρ !! a = Some ρ⌝.
   Proof.
     iIntros (HWM HMMρ) "Hfull Hr".
-    unfold dom_equal in HWM.
-    iAssert (∀ a:Addr, ⌜ std_sta W !! encode a = Some (encode ρ) ⌝ → ⌜ Mρ !! a = Some ρ ⌝)%I as %?.
-    { iIntros (a Haρ). specialize (HWM (encode a)). destruct HWM as [HWM _].
-      feed destruct HWM as (a' & ?%encode_injective & [γp Hγp]). by eauto. subst a.
+    iAssert (∀ a:Addr, ⌜ std W !! a = Some ρ ⌝ → ⌜ Mρ !! a = Some ρ ⌝)%I as %?.
+    { iIntros (a Haρ).
+      assert (is_Some (M !! a)) as [γp Hγp].
+      { apply elem_of_gmap_dom.
+        rewrite -HWM. apply elem_of_gmap_dom. eauto. }
       iDestruct (big_sepM_lookup with "Hr") as (ρ' Hρ') "(Hst & _)"; eauto; [].
       iDestruct (sts_full_state_std with "Hfull Hst") as %Haρ'.
       enough (ρ = ρ') by (subst; eauto). apply encode_injective.
       rewrite Haρ in Haρ'. congruence. }
-    iAssert (∀ a:Addr, ⌜ Mρ !! a = Some ρ ⌝ → ⌜ std_sta W !! encode a = Some (encode ρ) ⌝)%I as %?.
+    iAssert (∀ a:Addr, ⌜ Mρ !! a = Some ρ ⌝ → ⌜ std W !! a = Some ρ ⌝)%I as %?.
     { iIntros (a HMρa).
       assert (is_Some (M !! a)) as [γp Hγp].
       { rewrite elem_of_gmap_dom -HMMρ -elem_of_gmap_dom. eauto. }
@@ -608,8 +605,8 @@ Section heap.
   Qed.
 
   Lemma full_sts_static_all W m (l : Addr) :
-    (std_sta W) !! (encode l) = Some (encode (Static m)) →
-    sts_full_world sts_std W -∗
+    (std W) !! l = Some (Static m) →
+    sts_full_world W -∗
     region W -∗
     ⌜forall a, a ∈ dom (gset Addr) m -> static W m a⌝.
   Proof. 
@@ -620,9 +617,8 @@ Section heap.
     iDestruct (full_sts_Mρ_agree _ _ _ (Static m) with "Hsts Hr") as %[Hag _]; auto.
     pose proof (Hag Hstatic) as Hl. 
     iIntros (a Hdom).
-    assert (∃ a0 : Addr, encode a0 = encode l ∧ is_Some (M !! a0)) as [a0 [Heq [γp Hsome] ] ].
-    { apply Hdom1. eauto. }
-    apply encode_inj in Heq. subst a0.
+    assert (is_Some (M !! l)) as [γp Hsome].
+    { apply elem_of_gmap_dom. rewrite -Hdom1. apply elem_of_gmap_dom. eauto. }
     rewrite /region_map_def.
     iDestruct (big_sepM_delete _ _ l with "Hr") as "[Hl Hr]";[eauto|].
     iDestruct "Hl" as (ρ Hρ) "(Hstate & Hρ)".
@@ -634,15 +630,15 @@ Section heap.
     iDestruct (full_sts_Mρ_agree _ _ _ (Static m) with "Hsts Hr") as %[_ Hag']; auto.
     iPureIntro.
     rewrite /static.
-    pose proof (Hall _ Hdom) as Ha. 
+    pose proof (Hall _ Hdom) as Ha. rewrite /std in Hag'. 
     pose proof (Hag' Ha) as ->. auto. 
   Qed.
 
   (* Closing the region without updating the sts collection *)
   Lemma region_close_temp_pwl W l φ p v `{forall Wv, Persistent (φ Wv)} :
     pwl p = true →
-    sts_state_std (encode l) Temporary
-    ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+    sts_state_std l Temporary
+                  ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
     rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
@@ -663,8 +659,8 @@ Section heap.
 
   Lemma region_close_temp_nwl W l φ p v `{forall Wv, Persistent (φ Wv)} :
     pwl p = false →
-    sts_state_std (encode l) Temporary
-    ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+    sts_state_std l Temporary
+                  ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
     rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
@@ -683,9 +679,9 @@ Section heap.
     rewrite HMeq !insert_delete !dom_insert_L Hdomρ. set_solver.
   Qed.
 
-  Lemma region_close_perm W l φ p v `{forall Wv, Persistent (φ Wv)} :
-    sts_state_std (encode l) Permanent
-    ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+  Lemma region_close_perm W l φ p v `{forall Wv, Persistent (φ Wv)}:
+    sts_state_std l Permanent
+                  ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
     -∗ region W.
   Proof.
     rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
@@ -707,7 +703,7 @@ Section heap.
 
   Lemma region_close W l φ p v (ρ : region_type) `{forall Wv, Persistent (φ Wv)} :
     ρ = Temporary ∨ ρ = Permanent →
-    sts_state_std (encode l) ρ
+    sts_state_std l ρ
                   ∗ open_region l W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗
                   (if (decide (ρ = Temporary ∧ pwl p = true))
                    then future_pub_mono φ v
@@ -770,7 +766,7 @@ Section heap.
   Qed.
 
   Definition open_region_many_def (l : list Addr) (W : WORLD) : iProp Σ :=
-    (∃ M Mρ, RELS M ∗ ⌜dom_equal (std_sta W) M⌝
+    (∃ M Mρ, RELS M ∗ ⌜dom (gset Addr) (std W) = dom (gset Addr) M⌝
                     ∗ ⌜dom (gset Addr) Mρ = dom (gset Addr) M⌝
                     ∗ region_map_def (delete_list l M) (delete_list l Mρ) W)%I.
   Definition open_region_many_aux : { x | x = @open_region_many_def }. by eexists. Qed.
@@ -778,13 +774,13 @@ Section heap.
   Definition open_region_many_eq : @open_region_many = @open_region_many_def := proj2_sig open_region_many_aux.
 
   Lemma open_region_many_monotone l W W':
-    dom (gset positive) (std_sta W) = dom (gset positive) (std_sta W') →
+    dom (gset Addr) (std W) = dom (gset Addr) (std W') →
     related_sts_pub_world W W' →
     (open_region_many l W -∗ open_region_many l W')%I.
   Proof.
     iIntros (Hdomeq Hrelated) "HW". rewrite open_region_many_eq /open_region_many_def.
     iDestruct "HW" as (M Mρ) "(Hm & % & % & Hmap)". iExists M, Mρ. iFrame.
-    iSplitR. { iPureIntro. eapply dom_equal_change_l; eauto. }
+    iSplitR;[iPureIntro;congruence|]. 
     iSplitR; auto.
     iApply region_map_monotone; eauto.
   Qed.
@@ -816,12 +812,12 @@ Section heap.
 
   Lemma region_open_next_temp_pwl W φ ls l p :
     l ∉ ls →
-    (std_sta W) !! (encode l) = Some (encode Temporary) ->
+    (std W) !! l = Some Temporary ->
     pwl p = true →
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
                      ∃ v, open_region_many (l :: ls) W
-                        ∗ sts_full_world sts_std W
-                        ∗ sts_state_std (encode l) Temporary
+                        ∗ sts_full_world W
+                        ∗ sts_state_std l Temporary
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
                         ∗ ▷ future_pub_mono φ v
@@ -866,12 +862,12 @@ Section heap.
 
   Lemma region_open_next_temp_nwl W φ ls l p :
     l ∉ ls →
-    (std_sta W) !! (encode l) = Some (encode Temporary) ->
+    (std W) !! l = Some Temporary ->
     pwl p = false →
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
                      ∃ v, open_region_many (l :: ls) W
-                        ∗ sts_full_world sts_std W
-                        ∗ sts_state_std (encode l) Temporary
+                        ∗ sts_full_world W
+                        ∗ sts_state_std l Temporary
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
                         ∗ ▷ future_priv_mono φ v
@@ -915,10 +911,10 @@ Section heap.
   Qed.
 
   Lemma region_open_next_perm W φ ls l p :
-    l ∉ ls → (std_sta W) !! (encode l) = Some (encode Permanent) ->
-    open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W -∗
-                     ∃ v, sts_full_world sts_std W
-                        ∗ sts_state_std (encode l) Permanent
+    l ∉ ls → (std W) !! l = Some Permanent -> 
+    open_region_many ls W ∗ rel l p φ ∗ sts_full_world W -∗
+                     ∃ v, sts_full_world W
+                        ∗ sts_state_std l Permanent
                         ∗ open_region_many (l :: ls) W
                         ∗ l ↦ₐ[p] v
                         ∗ ⌜p ≠ O⌝
@@ -964,9 +960,9 @@ Section heap.
   Lemma region_close_next_temp_pwl W φ ls l p v `{forall Wv, Persistent (φ Wv)} :
     l ∉ ls ->
     pwl p = true →
-    sts_state_std (encode l) Temporary
-    ∗ open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
-    -∗ open_region_many ls W.
+    sts_state_std l Temporary ∗
+                  open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_pub_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+                  -∗ open_region_many ls W.
   Proof.
     rewrite open_region_many_eq /open_region_many_def.
     iIntros (Hnin Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
@@ -991,9 +987,9 @@ Section heap.
   Lemma region_close_next_temp_nwl W φ ls l p v `{forall Wv, Persistent (φ Wv)} :
     l ∉ ls ->
     pwl p = false →
-    sts_state_std (encode l) Temporary
-    ∗ open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
-    -∗ open_region_many ls W.
+    sts_state_std l Temporary ∗
+                  open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+                  -∗ open_region_many ls W.
   Proof.
     rewrite open_region_many_eq /open_region_many_def.
     iIntros (Hnin Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
@@ -1016,9 +1012,9 @@ Section heap.
 
   Lemma region_close_next_perm W φ ls l p v `{forall Wv, Persistent (φ Wv)} :
     l ∉ ls ->
-    sts_state_std (encode l) Permanent
-    ∗ open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
-    -∗ open_region_many ls W.
+    sts_state_std l Permanent ∗
+                  open_region_many (l::ls) W ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ future_priv_mono φ v ∗ ▷ φ (W,v) ∗ rel l p φ
+                  -∗ open_region_many ls W.
   Proof.
     rewrite open_region_many_eq /open_region_many_def. 
     iIntros (Hnin) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel)".
@@ -1042,8 +1038,8 @@ Section heap.
     (match ρ with
      | Temporary => if pwl p then future_pub_mono else future_priv_mono
      | Permanent => future_priv_mono
-     | Revoked => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
-     | Static _ => λ (_ : prodO STS STS * Word → iProp Σ) (_ : Word), True
+     | Revoked => λ (_ : WORLD * Word → iProp Σ) (_ : Word), True
+     | Static _ => λ (_ :WORLD * Word → iProp Σ) (_ : Word), True
      end φ w)%I.
 
   Definition monotonicity_guarantees_decide ρ w p φ:=
@@ -1052,16 +1048,16 @@ Section heap.
      else future_priv_mono φ w)%I.
 
    Lemma region_open_next
-        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
-        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (W : WORLD)
+        (φ : WORLD * Word → iProp Σ)
         (ls : list Addr) (l : Addr) (p : Perm) (ρ : region_type)
         (Hρnotrevoked : ρ <> Revoked) (Hρnotstatic : ¬ exists g, ρ = Static g):
     l ∉ ls
-    → std_sta W !! encode l = Some (encode ρ)
-    → open_region_many ls W ∗ rel l p φ ∗ sts_full_world sts_std W
+    → std W !! l = Some ρ
+    → open_region_many ls W ∗ rel l p φ ∗ sts_full_world W
                        -∗ ∃ v : Word,
-        sts_full_world sts_std W
-                       ∗ sts_state_std (encode l) ρ
+        sts_full_world W
+                       ∗ sts_state_std l ρ
                        ∗ open_region_many (l :: ls) W
                        ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ ▷ monotonicity_guarantees_region ρ v p φ ∗
                        ▷ φ (W, v).
@@ -1079,13 +1075,13 @@ Section heap.
   Qed.
 
   Lemma region_close_next
-        (W : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)))
-        (φ : prodO (leibnizO (STS_states * STS_rels)) (leibnizO (STS_states * STS_rels)) * Word → iProp Σ)
+        (W : WORLD)
+        (φ : WORLD * Word → iProp Σ)
         `{forall Wv, Persistent (φ Wv)}
         (ls : list Addr) (l : Addr) (p : Perm) (v : Word) (ρ : region_type)
         (Hρnotrevoked : ρ <> Revoked) (Hρnotstatic : ¬ exists g, ρ = Static g):
     l ∉ ls
-    → sts_state_std (encode l) ρ
+    → sts_state_std l ρ
                     ∗ open_region_many (l :: ls) W
                     ∗ l ↦ₐ[p] v ∗ ⌜p ≠ O⌝ ∗ monotonicity_guarantees_region ρ v p φ ∗ ▷ φ (W, v) ∗ rel l p φ -∗
                     open_region_many ls W.
@@ -1103,7 +1099,7 @@ Section heap.
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------- LEMMAS ABOUT STD TRANSITIONS -------------------------- *)
   
-  Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
+  (*Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
     is_Some ((std_sta W) !! (encode a)) →
     sts_full_world sts_std W -∗ ⌜rel_is_std_i W (encode a)⌝.
   Proof. 
@@ -1175,50 +1171,46 @@ Section heap.
   Proof.
     iIntros. iApply sts_full_world_priv_std; eauto. iPureIntro.
     apply related_sts_priv_world_refl.
-  Qed.
+  Qed.*)
 
   Lemma std_rel_pub_Permanent x :
-    (convert_rel std_rel_pub) (encode Permanent) x → x = encode Permanent.
+    std_rel_pub Permanent x → x = Permanent.
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb;subst;apply encode_inj in Heqρ;inversion Heqρ.
+    inversion Hrel.
   Qed.
 
   Lemma std_rel_pub_rtc_Permanent x y :
-    x = encode Permanent →
-    rtc (convert_rel std_rel_pub) x y → y = encode Permanent.
+    x = Permanent →
+    rtc std_rel_pub x y → y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_pub_Permanent in H3.
+    subst. apply std_rel_pub_Permanent in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_priv_Permanent x :
-    (convert_rel std_rel_priv) (encode Permanent) x → x = encode Permanent.
+    std_rel_priv Permanent x → x = Permanent.
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb; subst; auto. apply encode_inj in Heqρ. inversion Heqρ.
+    inversion Hrel; done. 
   Qed.
 
   Lemma std_rel_priv_rtc_Permanent x y :
-    x = encode Permanent →
-    rtc (convert_rel std_rel_priv) x y → y = encode Permanent.
+    x = Permanent →
+    rtc std_rel_priv x y → y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_priv_Permanent in H3.
+    subst. apply std_rel_priv_Permanent in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_rtc_Permanent x y :
-    x = encode Permanent →
-    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
-    y = encode Permanent.
+    x = Permanent →
+    rtc (λ x0 y0 : region_type, std_rel_pub x0 y0 ∨ std_rel_priv x0 y0) x y →
+    y = Permanent.
   Proof.
     intros Hx Hrtc.
     induction Hrtc as [|x y z Hrel];auto.
@@ -1228,77 +1220,71 @@ Section heap.
   Qed. 
       
   Lemma std_rel_pub_Temporary x :
-    (convert_rel std_rel_pub) (encode Temporary) x → x = encode Temporary.
+    std_rel_pub Temporary x → x = Temporary.
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb;subst;apply encode_inj in Heqρ;inversion Heqρ.
+    inversion Hrel. 
   Qed.
 
   Lemma std_rel_pub_rtc_Temporary x y :
-    x = encode Temporary →
-    rtc (convert_rel std_rel_pub) x y → y = encode Temporary.
+    x = Temporary →
+    rtc std_rel_pub x y → y = Temporary.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_pub_Temporary in H3.
+    subst. apply std_rel_pub_Temporary in H.
     apply IHHrtc. auto.
   Qed.
 
   Lemma std_rel_pub_Revoked x :
-    (convert_rel std_rel_pub) (encode Revoked) x → x = encode Temporary (* ∨ x = encode Revoked *).
+    std_rel_pub Revoked x → x = Temporary (* ∨ x = countable.encode Revoked *).
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb;subst;auto.
+    inversion Hrel. auto. 
   Qed.
 
   Lemma std_rel_pub_rtc_Revoked x y :
-    x = encode Revoked →
-    rtc (convert_rel std_rel_pub) x y → y = encode Temporary ∨ y = encode Revoked.
+    x = Revoked →
+    rtc std_rel_pub x y → y = Temporary ∨ y = Revoked.
   Proof.
     intros Hx Hrtc.
     inversion Hrtc; subst; auto. 
-    apply std_rel_pub_Revoked in H3. subst. 
-    apply std_rel_pub_rtc_Temporary in H4; auto. 
-  Qed.
+    apply std_rel_pub_Revoked in H. subst. 
+    apply std_rel_pub_rtc_Temporary in H0; auto. 
+  Qed. 
+
+  (* Lemma std_rel_exist x y : *)
+  (*   (∃ (ρ : region_type), countable.encode ρ = x) →  *)
+  (*   rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y → *)
+  (*   ∃ (ρ : region_type), y = countable.encode ρ.  *)
+  (* Proof. *)
+  (*   intros Hsome Hrel. *)
+  (*   induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|]. *)
+  (*   destruct H3 as [Hpub | Hpriv]. *)
+  (*   - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
+  (*     apply IHHrel. eauto. *)
+  (*   - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
+  (*     apply IHHrel. eauto. *)
+  (* Qed. *)
 
   Lemma std_rel_pub_Static x g :
-    (convert_rel std_rel_pub) (encode (Static g)) x → x = encode Temporary (* ∨ x = encode Revoked *).
+    std_rel_pub (Static g) x → x = Temporary (* ∨ x = encode Revoked *).
   Proof.
     intros Hrel.
-    inversion Hrel as [ρ Hb].
-    destruct Hb as [b [Heqρ [Heqb Hρb] ] ].
-    subst. inversion Hρb;subst;auto.
+    inversion Hrel. auto. 
   Qed.
 
   Lemma std_rel_pub_rtc_Static x y g :
-    x = encode (Static g) →
-    rtc (convert_rel std_rel_pub) x y → y = encode Temporary ∨ y = encode (Static g).
+    x = (Static g) →
+    rtc std_rel_pub x y → y = Temporary ∨ y = (Static g).
   Proof.
     intros Hx Hrtc.
     inversion Hrtc; subst; auto. 
-    apply std_rel_pub_Static in H3. subst. 
-    apply std_rel_pub_rtc_Temporary in H4; auto. 
+    apply std_rel_pub_Static in H. subst. 
+    apply std_rel_pub_rtc_Temporary in H0; auto. 
   Qed. 
-
-  Lemma std_rel_exist x y :
-    (∃ (ρ : region_type), encode ρ = x) →
-    rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y →
-    ∃ (ρ : region_type), y = encode ρ.
-  Proof.
-    intros Hsome Hrel.
-    induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|].
-    destruct H3 as [Hpub | Hpriv].
-    - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
-      apply IHHrel. eauto.
-    - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ].
-      apply IHHrel. eauto.
-  Qed.
   
 End heap.
 
-Notation "<s[ a := ρ , r ]s> W" := (std_update W a ρ r.1 r.2) (at level 10, format "<s[ a := ρ , r ]s> W").
+Notation "<s[ a := ρ ]s> W" := (std_update W a ρ) (at level 10, format "<s[ a := ρ ]s> W").
 Notation "<l[ a := ρ , r ]l> W" := (loc_update W a ρ r.1 r.2) (at level 10, format "<l[ a := ρ , r ]l> W").

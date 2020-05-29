@@ -4,9 +4,9 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel stack_macros.
 
 Section scall.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   (* Macro for stack calling. Note that the prologue and epilogue does
      not include storing and loading private state on the stack. *)

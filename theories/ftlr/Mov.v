@@ -6,12 +6,13 @@ From cap_machine Require Import ftlr_base monotone.
 From cap_machine.rules Require Import rules_Mov.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -23,7 +24,7 @@ Section fundamental.
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (src : Z + RegName):
     ftlr_instr W r p p' g b e a w (Mov dst src) ρ.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion Hstd [Hnotrevoked Hnotstatic] HO Hi.
+    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
     iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
     iIntros "Hr Hstate Ha HPC Hmap".
     rewrite delete_insert_delete.
@@ -47,14 +48,14 @@ Section fundamental.
       destruct (reg_eq_dec dst PC).
       { subst dst. rewrite lookup_insert in HPC. inv HPC.
         repeat rewrite insert_insert.
-        destruct src; simpl in H3; try discriminate.
+        destruct src; simpl in *; try discriminate.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[|specialize (Hnotstatic g0)];contradiction. }
         destruct (reg_eq_dec PC r0).
-        { subst r0. rewrite lookup_insert in H3. inv H3.
+        { subst r0. rewrite lookup_insert in H. inv H.
           iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto. }
-        { rewrite lookup_insert_ne in H3; auto.
-          rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H3.
+        { rewrite lookup_insert_ne in H; auto.
+          rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H.
           destruct (PermFlowsTo RX p'') eqn:Hpft.
           - iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
             + destruct p''; simpl in Hpft; auto.
@@ -83,11 +84,11 @@ Section fundamental.
         - iIntros (ri Hri).
           destruct (reg_eq_dec ri dst).
           + subst ri. rewrite /RegLocate lookup_insert.
-            destruct src; simpl in H3.
-            * inv H3; repeat rewrite fixpoint_interp1_eq; auto.
+            destruct src; simpl in H.
+            * inv H; repeat rewrite fixpoint_interp1_eq; auto.
             * destruct (reg_eq_dec PC r0).
               { subst r0.
-                - rewrite lookup_insert in H3. inv H3.
+                - rewrite lookup_insert in H. inv H.
                   rewrite (fixpoint_interp1_eq _ (inr (_, g'', b'', e'', a''))) /=.
                   iAssert (□ exec_cond W b'' e'' g'' p'' (fixpoint interp1))%I as "#Hexec".
                   { iAlways. rewrite /exec_cond. iIntros (a' r' W' Hin) "#Hfuture".
@@ -97,24 +98,21 @@ Section fundamental.
                     iApply ("IH" with "[Hmap] [Hreg'] [Hfull] [Hx] [Hsts] [Hown]"); iFrame "#"; eauto.
                     iAlways. iExists p'. iSplitR; auto.
                     unfold future_world; destruct g''; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "Hinv"); intros; simpl.
-                    - iIntros "[HA [% %]]". iSplitL "HA"; auto.
-                      iPureIntro; split.
-                      + assert (pwl p'' = false) by (destruct Hp as [Hp | [Hp | [Hp Hcontr] ] ]; subst p''; try congruence; auto).
-                        rewrite H6 in H4. rewrite H6.
-                        eelim (region_state_nwl_monotone_nl _ _ y _ Hfuture H4). auto.
-                      + eapply related_sts_rel_std; eauto.
-                    - iIntros "[HA [% %]]". iSplitL "HA"; auto.
-                      iPureIntro; split.
-                      + destruct (pwl p'').
-                        * eapply region_state_pwl_monotone; eauto.
-                        * eapply (region_state_nwl_monotone _ _ _ Local _ Hfuture H4); eauto.
-                      + eapply rel_is_std_i_monotone; eauto.
+                    - iIntros "[HA %]". iSplitL "HA"; auto.
+                      assert (pwl p'' = false) by (destruct Hp as [Hp | [Hp | [Hp Hcontr] ] ]; subst p''; try congruence; auto).
+                      rewrite H1 in H0. rewrite H1.
+                        eelim (region_state_nwl_monotone_nl _ _ y Hfuture); auto.
+                    - iIntros "[HA %]". iSplitL "HA"; auto.
+                      iPureIntro.
+                      destruct (pwl p'').
+                      * eapply region_state_pwl_monotone; eauto.
+                      * eapply (region_state_nwl_monotone _ _ _ Local Hfuture H0). 
                   }
                 destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; subst p''; try subst g'';
                   (iExists p'; iSplitR;[auto|]; iFrame "Hinv Hexec"). }
-              rewrite lookup_insert_ne in H3; auto.
+              rewrite lookup_insert_ne in H; auto.
               iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0".
-              rewrite H3. auto.
+              rewrite H. auto.
           + repeat rewrite /RegLocate lookup_insert_ne; auto.
             iApply "Hreg"; auto.
       }

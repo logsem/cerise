@@ -5,12 +5,13 @@ From stdpp Require Import base.
 From cap_machine Require Export logrel region_invariants.
 
 Section fundamental.
-  Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation WORLD := (leibnizO (STS * STS)). 
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
   Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
@@ -47,8 +48,7 @@ Section fundamental.
     ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX ∧ g = Local⌝) →
     (∃ p', ⌜PermFlows p p'⌝ ∧
            ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
-                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝
-                                             ∧ ⌜region_std W a⌝)) →
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)) →
      interp_expression r W (inr ((p,g),b,e,a)))%I.
   Proof.
     iIntros (Hp) "#Hinv /=".
@@ -65,9 +65,9 @@ Section fundamental.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
-      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hstate_a & Hrel_a)"; auto.
-      iDestruct "Hstate_a" as %Hstate_a; iDestruct "Hrel_a" as %Hrel_a.
-      assert (∃ (ρ : region_type), (std_sta W) !! (countable.encode a) = Some (countable.encode ρ) ∧ ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)) as [ρ [Hρ [Hne Hne'] ] ].
+      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hstate_a)"; auto.
+      iDestruct "Hstate_a" as %Hstate_a. 
+      assert (∃ (ρ : region_type), (std W) !! a = Some ρ ∧ ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)) as [ρ [Hρ [Hne Hne'] ] ].
       { destruct (pwl p),g; eauto. destruct Hstate_a as [Htemp | Hperm];eauto. }      
       iDestruct (region_open W a p' with "[$Hinva $Hr $Hsts]") 
         as (w) "(Hr & Hsts & Hstate & Ha & % & Hmono & #Hw) /=";[|apply Hρ|]. 
@@ -144,7 +144,7 @@ Section fundamental.
         rewrite insert_insert. iNext. iIntros (_). 
         iExists (<[PC:=inr (p, g, b, e, a)]> r),W. iFrame.
         iAssert (⌜related_sts_priv_world W W⌝)%I as "#Hrefl". 
-        { iPureIntro. split; apply related_sts_priv_refl. }
+        { iPureIntro. apply related_sts_priv_refl_world. }
         iFrame "#".
         iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, g, b, e, a)]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
