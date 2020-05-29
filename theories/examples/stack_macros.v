@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel fundamental monotone.
+From cap_machine Require Import rules logrel monotone.
 From cap_machine Require Export addr_reg_sample region_macros contiguous malloc.
 
 Section stack_macros.
