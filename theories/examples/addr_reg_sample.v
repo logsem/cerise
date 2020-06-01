@@ -399,6 +399,12 @@ Require Import Eqdep_dec List.
      all_registers_s ∪ s = all_registers_s.
    Proof. rewrite union_comm_L. apply all_registers_union_l. Qed.
 
+   Lemma all_registers_subseteq s :
+     s ⊆ all_registers_s.
+   Proof.
+     rewrite elem_of_subseteq. intros ? _. apply all_registers_s_correct.
+   Qed.
+
   (* Some additional helper lemmas about region_addrs *)
 
   Definition region_addrs_zeroes (b e : Addr) : list Word :=

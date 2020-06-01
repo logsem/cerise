@@ -711,72 +711,72 @@ Section stack_macros.
      containing the instructions for the clear: |a| = |r| *)
   Definition rclear_instrs (r : list RegName) := map (λ r_i, move_z r_i 0) r.
 
+  Lemma rclear_instrs_cons rr r: rclear_instrs (rr :: r) = move_z rr 0 :: rclear_instrs r.
+  Proof. reflexivity. Qed.
+
   Definition rclear (a : list Addr) (p : Perm) (r : list RegName) : iProp Σ :=
       ([∗ list] k↦a_i;w_i ∈ a;(rclear_instrs r), a_i ↦ₐ[p] w_i)%I.
 
-  Lemma rclear_spec (a : list Addr) (r : list RegName) p p' g b e a1 an φ :
+  Lemma rclear_spec (a : list Addr) (r: list RegName) (rmap : gmap RegName Word) p p' g b e a1 an φ :
     contiguous_between a a1 an →
     ¬ PC ∈ r → hd_error a = Some a1 →
     isCorrectPC_range p g b e a1 an →
     PermFlows p p' →
+    list_to_set r = dom (gset RegName) rmap →
 
-      ▷ (∃ ws, ([∗ list] k↦r_i;w_i ∈ r;ws, r_i ↦ᵣ w_i))
+      ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a1)
     ∗ ▷ rclear a p' r
-    ∗ ▷ (PC ↦ᵣ inr ((p,g),b,e,an) ∗ ([∗ list] k↦r_i ∈ r, r_i ↦ᵣ inl 0%Z)
+    ∗ ▷ (PC ↦ᵣ inr ((p,g),b,e,an) ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ inl 0%Z)
             ∗ rclear a p' r -∗
             WP Seq (Instr Executable) {{ φ }})
     ⊢ WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Ha Hne Hhd Hvpc Hfl) "(>Hreg & >HPC & >Hrclear & Hφ)".
+    iIntros (Ha Hne Hhd Hvpc Hfl Hrdom) "(>Hreg & >HPC & >Hrclear & Hφ)".
     iDestruct (big_sepL2_length with "Hrclear") as %Har.
-    iRevert (Hne Har Hhd Hvpc Ha).
-    iInduction (a) as [| a1'] "IH" forall (r a1 an). iIntros (Hne Har Hhd Hvpc Ha).
-    by inversion Hhd; simplify_eq.
-    iDestruct "Hreg" as (ws) "Hreg".
-    iIntros (Hne Har Hhd Hvpc Ha).
+    iRevert (Hne Har Hhd Hvpc Ha Hrdom).
+    iInduction (a) as [| a1'] "IH" forall (r rmap a1 an).
+    { iIntros (Hne Har Hhd Hvpc Ha Hrdom). by inversion Hhd; simplify_eq. }
+    iIntros (Hne Har Hhd Hvpc Ha Hrdom).
     iApply (wp_bind (fill [SeqCtx])). rewrite /rclear /=.
     (* rewrite -(beq_nat_refl (length r)).  *)destruct r; inversion Har.
+    rewrite rclear_instrs_cons.
     iDestruct (big_sepL2_cons with "Hrclear") as "[Ha1 Hrclear]".
-    iDestruct (big_sepL2_length with "Hreg") as %rws.
-    destruct ws; inversion rws.
-    iDestruct (big_sepL2_cons with "Hreg") as "[Hr Hreg]".
+    rewrite list_to_set_cons in Hrdom.
+    assert (is_Some (rmap !! r)) as [rv ?].
+    { rewrite elem_of_gmap_dom -Hrdom. set_solver. }
+    iDestruct (big_sepM_delete _ _ r with "Hreg") as "[Hr Hreg]". eauto.
+    pose proof (contiguous_between_cons_inv _ _ _ _ Ha) as [-> [a2 [? Hcont'] ] ].
+    iApply (wp_move_success_z with "[$HPC $Hr $Ha1]");
+      [apply move_z_i|apply Hfl|iCorrectPC a1 an|eauto|..].
+    { apply (not_elem_of_cons) in Hne as [Hne _]. apply Hne. }
+    iNext. iIntros "(HPC & Ha1 & Hr)". iApply wp_pure_step_later; auto. iNext.
     destruct a.
-    - inversion H0; symmetry in H2; apply (nil_length_inv) in H2.
-      inversion Hhd. subst.
-      iApply (wp_move_success_z _ _ _ _ _ a1 with "[HPC Ha1 Hr]");
-        eauto;first apply move_z_i; first iCorrectPC a1 an.
-      { eapply contiguous_between_last; eauto. }
-      { apply (not_elem_of_cons) in Hne as [Hne _]. apply Hne. }
-      iFrame. iNext. iIntros "(HPC & Han & Hr) /=".
-      iApply wp_pure_step_later; auto; iNext.
-      iApply "Hφ". iFrame. destruct r0; inversion H2. done.
-    - destruct r0; inversion H0. inversion Hhd; subst.
-      iApply (wp_move_success_z _ _ _ _ _ a1 a _ r with "[HPC Ha1 Hr]")
-      ; eauto; first apply move_z_i; first iCorrectPC a1 an.
-      { iContiguous_next Ha 0. }
-      { by apply not_elem_of_cons in Hne as [Hne _]. }
-      iFrame. iNext. iIntros "(HPC & Ha1 & Hr) /=".
-      iApply wp_pure_step_later; auto. iNext.
-      rewrite -/(map _ _) -/(rclear_instrs _).
-      iApply ("IH" with "[Hreg] [HPC] [Hrclear] [Hφ Ha1 Hr]"); iFrame.
-      + iExists (ws). iFrame.
-      + simpl. rewrite H2. iFrame.
-      + simpl. rewrite H2.
-        iNext. iIntros "(HPC & Hreg & Hrclear)".
-        iApply "Hφ". iFrame.
-      + iPureIntro. by apply not_elem_of_cons in Hne as [_ Hne].
-      + iPureIntro. simpl. congruence.
-      + auto.
-      + iPureIntro.
-        intros a' [? Ha'].
-        assert (a1 <= a')%a as Hlow.
-        { enough (a1 <= a)%a by solve_addr.
-          eapply contiguous_between_middle_bounds'; eauto. repeat constructor. }
-        by specialize (Hvpc a' (conj Hlow Ha')).
-      + iPureIntro. inversion Ha; subst.
-        assert (a = a') as ->. eapply contiguous_between_cons_inv_first; eauto.
-        auto.
+    { iApply "Hφ". iFrame. inversion Hcont'; subst. iFrame.
+      destruct r0; inversion Har. simpl in Hrdom.
+      iApply (big_sepM_delete _ _ r). eauto.
+      rewrite (_: delete r rmap = ∅). rewrite !big_sepM_empty. eauto.
+      apply map_empty. intro. eapply (@not_elem_of_dom _ _ (gset RegName)).
+      typeclasses eauto. rewrite dom_delete_L -Hrdom. set_solver. }
+
+    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont') as ->.
+    assert (PC ∉ r0). { apply not_elem_of_cons in Hne as [? ?]. auto. }
+
+    destruct (decide (r ∈ r0)).
+    { iDestruct (big_sepM_insert with "[$Hreg $Hr]") as "Hreg".
+        by rewrite lookup_delete. rewrite insert_delete.
+      iApply ("IH" with "Hreg HPC Hrclear [Hφ Ha1]"); eauto.
+      { iNext. iIntros "(? & Hreg & ?)". iApply "Hφ". iFrame.
+        iApply (big_sepM_delete _ _ r). eauto.
+        iDestruct (big_sepM_delete _ _ r with "Hreg") as "[? ?]".
+        rewrite lookup_insert //. iFrame. rewrite delete_insert_delete //. }
+      { iPureIntro. intros ? [? ?]. apply Hvpc. solve_addr. }
+      { iPureIntro. rewrite dom_insert_L -Hrdom. set_solver. } }
+    { iApply ("IH" with "Hreg HPC Hrclear [Hφ Ha1 Hr]"); eauto.
+      { iNext. iIntros "(? & ? & ?)". iApply "Hφ". iFrame.
+        iApply (big_sepM_delete _ _ r). eauto. iFrame. }
+      { iPureIntro. intros ? [? ?]. apply Hvpc. solve_addr. }
+      { iPureIntro. rewrite dom_delete_L -Hrdom. set_solver. } }
   Qed.
 
   (* -------------------------------------- MCLEAR ----------------------------------- *)
@@ -981,7 +981,8 @@ Section stack_macros.
   Qed.
 
   Lemma mclear_spec (a : list Addr) (r : RegName)
-        (a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r : Addr) a' φ :
+        (a_first a6' a_end : Addr) p p' g b e p_r p_r' g_r (b_r e_r a_r : Addr) a'
+        w1 w2 w3 w4 w5 w6 ws φ :
     contiguous_between a a_first a' →
     (* We will assume that we are not trying to clear memory in a *)
     r ≠ PC ∧ writeAllowed p_r = true →
@@ -996,13 +997,13 @@ Section stack_macros.
      (mclear a p' r 10 2
     ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a_first)
     ∗ ▷ r ↦ᵣ inr ((p_r,g_r),b_r,e_r,a_r)
-    ∗ ▷ (∃ w4, r_t4 ↦ᵣ w4)
-    ∗ ▷ (∃ w1, r_t1 ↦ᵣ w1)
-    ∗ ▷ (∃ w2, r_t2 ↦ᵣ w2)
-    ∗ ▷ (∃ w3, r_t3 ↦ᵣ w3)
-    ∗ ▷ (∃ w5, r_t5 ↦ᵣ w5)
-    ∗ ▷ (∃ w6, r_t6 ↦ᵣ w6)
-    ∗ ▷ (∃ ws, [[ b_r , e_r ]] ↦ₐ[p_r'] [[ ws ]])
+    ∗ ▷ r_t4 ↦ᵣ w4
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ r_t3 ↦ᵣ w3
+    ∗ ▷ r_t5 ↦ᵣ w5
+    ∗ ▷ r_t6 ↦ᵣ w6
+    ∗ ▷ ([[ b_r , e_r ]] ↦ₐ[p_r'] [[ ws ]])
     ∗ ▷ (PC ↦ᵣ inr ((p,g),b,e,a')
             ∗ r_t1 ↦ᵣ inl 0%Z
             ∗ r_t2 ↦ᵣ inl 0%Z
@@ -1018,13 +1019,6 @@ Section stack_macros.
   Proof.
     iIntros (Hnext [Hne Hwa] Hjnz_off Hvpc Hfl1 Hfl2 Hle)
             "(Hmclear & >HPC & >Hr & >Hr_t4 & >Hr_t1 & >Hr_t2 & >Hr_t3 & >Hr_t5 & >Hr_t6 & >Hregion & Hφ)".
-    iDestruct "Hr_t4" as (w4) "Hr_t4".
-    iDestruct "Hr_t1" as (w1) "Hr_t1".
-    iDestruct "Hr_t2" as (w2) "Hr_t2".
-    iDestruct "Hr_t3" as (w3) "Hr_t3".
-    iDestruct "Hr_t5" as (w5) "Hr_t5".
-    iDestruct "Hr_t6" as (w6) "Hr_t6".
-    (* destruct Hne as (Hne1 & Hne2 & Hne3 & Hwa). *)
     iAssert (⌜((length a) =? (length (mclear_instrs r _ _)) = true)%nat⌝)%I as %Hlen.
     { destruct (((length a) =? (length (mclear_instrs r _ _)))%nat) eqn:Hlen; auto.
       rewrite /mclear Hlen. by iApply bi.False_elim. }
@@ -1134,7 +1128,6 @@ Section stack_macros.
     iDestruct "Hprog" as "[Hi4 Hprog]".
     iDestruct "Hprog" as "[Hi5 Hprog]".
     iDestruct "Hprog" as "[Hi6 Hprog]".
-    iDestruct "Hregion" as (ws) "Hregion".
     iApply (mclear_iter_spec a10 a11 a12 a13 a14 a15 b_r e_r b_r _
                         0 p p' g b e r_t4 r_t1 r_t5 r_t6 r_t2 r_t3 _ p_r p_r' g_r
               with "[-]"); auto.

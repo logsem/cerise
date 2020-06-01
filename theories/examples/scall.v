@@ -16,102 +16,13 @@ Section scall.
     repeat (apply not_elem_of_cons in Hne;
             (let Hneq := fresh "Hneq" in destruct Hne as [Hneq Hne])); auto.
 
-  Ltac iNotElemOfList :=
-    repeat (apply not_elem_of_cons; split;[auto|]); apply not_elem_of_nil.
-
-  Lemma gen_pur_reg_length r1 :
-    r1 ∉ [PC;r_stk] →
-    strings.length (list_difference all_registers [PC; r_stk; r1]) = RegNum - 1.
-  Proof.
-    intros Hne.
-    assert (r1 ∈ all_registers) as Hr1;[apply all_registers_correct|].
-    assert ([PC; r_stk; r1] = [PC; r_stk] ++ [r1]) as Heq; first done.
-    rewrite Heq.
-    rewrite list_difference_app.
-    assert (r1 ∈ (list_difference all_registers [PC; r_stk])).
-    { simpl.
-      rewrite /all_registers in Hr1.
-      (* apply elem_of_cons in Hr1 as [Hcontr | Hr1]. *)
-      assert
-        ([r_t0;r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11;
-          r_t12; r_t13; r_t14; r_t15; r_t16; r_t17; r_t18; r_t19; r_t20; r_t21; r_t22;
-          r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30; r_t31; PC] =
-         [r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11;
-          r_t12; r_t13; r_t14; r_t15; r_t16; r_t17; r_t18; r_t19; r_t20; r_t21; r_t22;
-          r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30] ++ [r_t31; PC]) as Hreq; auto.
-      rewrite Hreq in Hr1. clear Hreq.
-      iRegNotEq Hne.
-      apply elem_of_app in Hr1 as [Hr1 | Hcontr]; auto.
-      apply elem_of_cons in Hcontr as [? | Hcontr]; first contradiction.
-      apply elem_of_list_singleton in Hcontr; contradiction.
-    }
-    rewrite list_difference_length; auto.
-    simpl.
-    repeat (apply NoDup_cons; first discharge_not_or).
-    apply NoDup_nil.
-  Qed.
-
-   Lemma gen_pur_reg_extract {A : Type} `{EqDecision A} (a : A) (l1 l2 : list A) :
-    a ∉ l2 → a ∉ l1 ->
-    list_difference (a :: l1) l2 =
-    a :: list_difference l1 (a :: l2).
+   (* TODO: move *)
+   Lemma list_to_set_difference A {_: EqDecision A} {_: Countable A} (l1 l2: list A):
+     (list_to_set (list_difference l1 l2): gset A) = (list_to_set l1: gset A) ∖ (list_to_set l2: gset A).
    Proof.
      revert l2. induction l1.
-     - intros l2 Hl2 _. simpl. destruct (decide_rel elem_of a l2); done.
-     - intros l2 Hl2 Hl1.
-       apply not_elem_of_cons in Hl1 as [Hen Hnin].
-       simpl.
-       destruct (decide_rel elem_of a l2);[done|].
-       destruct (decide_rel elem_of a0 l2).
-       + destruct (decide_rel elem_of a0 (a :: l2));[apply elem_of_cons in e0 as [Hcontr | Hcontr]; try done|].
-         ++ rewrite list_difference_skip; auto.
-         ++ apply not_elem_of_cons in n0 as [_ Hcontr]. done.
-       + destruct (decide_rel elem_of a0 (a :: l2));[apply elem_of_cons in e as [Hcontr | Hcontr]; try done|].
-         rewrite list_difference_skip; auto.
-   Qed.
-
-   Lemma gen_pur_app r1 :
-    r1 ∉ [PC;r_stk;r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t6] →
-    list_difference all_registers [PC; r_stk; r1] =
-    r_t0 :: r_t1 :: r_t2 :: r_t3 :: r_t4 :: r_t5 :: r_t6 :: (list_difference all_registers [r_t0; r_t1;r_t2;r_t3;r_t4;r_t5;r_t6;PC; r_stk; r1]).
-   Proof.
-    intros Hne.
-    iRegNotEq Hne.
-    assert (r1 ∈ all_registers) as Hr1;[apply all_registers_correct|].
-    repeat (rewrite gen_pur_reg_extract;[|iNotElemOfList|iNotElemOfList];f_equiv).
-    assert ([r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r1] = [r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6] ++ [PC; r_stk; r1]) as Happ;[auto|].
-    rewrite Happ.
-    rewrite list_difference_app.
-    assert ((list_difference all_registers [r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]) =
-            [r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16; r_t17;
-             r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28;
-             r_t29; r_t30; r_t31;PC]) as ->;[auto|].
-    do 7 (rewrite list_difference_skip;[|iNotElemOfList]). done.
-   Qed.
-
-   Lemma gen_pur_app' r1 :
-    r1 ∉ [PC;r_stk;r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t6] →
-    list_difference all_registers [PC; r_stk; r_t0; r1] =
-    r_t1 :: r_t2 :: r_t3 :: r_t4 :: r_t5 :: r_t6 :: (list_difference all_registers [r_t1;r_t2;r_t3;r_t4;r_t5;r_t6;PC; r_stk; r_t0; r1]).
-   Proof.
-    intros Hne.
-    iRegNotEq Hne.
-    assert (r1 ∈ all_registers) as Hr1;[apply all_registers_correct|].
-
-    assert ([PC; r_stk; r_t0; r1] = [PC; r_stk; r_t0] ++ [r1]) as ->;[auto|].
-    rewrite list_difference_app.
-    assert ([r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r_t0; r1] = [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6] ++ [PC; r_stk; r_t0; r1]) as Happ;[auto|].
-    assert (list_difference all_registers [PC; r_stk; r_t0] =
-            [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16;
-             r_t17; r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30]) as ->;[auto|].
-    repeat (rewrite gen_pur_reg_extract;[|iNotElemOfList|iNotElemOfList];f_equiv).
-    assert (r_t1 :: r_t2 :: r_t3 :: r_t4 :: r_t5 :: r_t6 :: [PC; r_stk; r_t0] ++ [r1] =
-            [r_t1;r_t2;r_t3;r_t4;r_t5;r_t6;PC; r_stk; r_t0] ++ [r1]) as ->;[auto|].
-    rewrite (list_difference_app _ _ [r1]).
-    assert (list_difference all_registers [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r_t0] =
-            [r_t7; r_t8; r_t9; r_t10; r_t11; r_t12; r_t13; r_t14; r_t15; r_t16;
-             r_t17; r_t18; r_t19; r_t20; r_t21; r_t22; r_t23; r_t24; r_t25; r_t26; r_t27; r_t28; r_t29; r_t30]) as ->;[auto|].
-    do 6 (rewrite list_difference_skip;[|iNotElemOfList]). done.
+     - intro. cbn [list_difference list_to_set]. set_solver.
+     - intros l2. cbn [list_difference list_to_set]. destruct (decide_rel elem_of a l2); set_solver.
    Qed.
 
   (* the prologue pushes the activation code, the old pc and stack points,
@@ -161,11 +72,6 @@ Section scall.
   Ltac iContiguous_next Ha index :=
     apply contiguous_of_contiguous_between in Ha;
     generalize (contiguous_spec _ Ha index); auto.
-
-  Ltac iGet_genpur_reg Hr_gen Hwsr wsr ptr :=
-     let w := fresh "wr" in
-     destruct wsr as [? | w wsr]; first (by inversion Hwsr);
-     iDestruct Hr_gen as ptr.
 
   Ltac iPrologue l Hl prog :=
     destruct l; [by inversion Hl|];
@@ -242,13 +148,16 @@ Section scall.
         (* scall parameters *) a a_first (*a_last*) p' epilogue_off r1
         (* program counter *) p g b e
         (* stack capability *) b_r e_r a_r
-        (* continuation *) φ :
+        (* continuation *) φ
+        (* register contents *) rmap
+        ws_own (* local stack *) ws_adv (* adv stack *) :
     isCorrectPC_range p g b e a_first a_cont →
     withinBounds ((RWLX, Local), b_r, e_r, a_act) = true -> withinBounds ((RWLX, Local), b_r, e_r, b_r_adv) = true →
     (0%a <= e_r)%Z ∧ (0%a <= b_r)%Z → (* This assumption can be removed once we update addresses to be nats *)
     contiguous_between a a_first a_cont →
     PermFlows p p' →
     r1 ∉ [PC;r_stk;r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t6] →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_stk; r1 ]} →
 
     (a_r + 1)%a = Some a_act →
     (a_act + 7)%a = Some a_r_adv →
@@ -259,13 +168,13 @@ Section scall.
     (▷ scall_prologue a p' epilogue_off r1
    ∗ ▷ PC ↦ᵣ inr ((p,g),b,e,a_first)
    ∗ ▷ r_stk ↦ᵣ inr ((RWLX,Local),b_r,e_r,a_r)
-   ∗ ▷ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_stk;r1]; wsr, r_i ↦ᵣ w_i)
-   ∗ ▷ (∃ ws_own, [[a_act, b_r_adv]]↦ₐ[RWLX][[ws_own]]) (* local stack *)
-   ∗ ▷ (∃ ws_adv, [[b_r_adv, e_r]]↦ₐ[RWLX][[ws_adv]]) (* adv stack *)
+   ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+   ∗ ▷ ([[a_act, b_r_adv]]↦ₐ[RWLX][[ws_own]]) (* local stack *)
+   ∗ ▷ ([[b_r_adv, e_r]]↦ₐ[RWLX][[ws_adv]]) (* adv stack *)
    ∗ ▷ (PC ↦ᵣ inr (p,g,b,e,a_cont)
             ∗ r_stk ↦ᵣ inr ((RWLX,Local),b_r_adv,e_r,a_r_adv)
             ∗ r_t0 ↦ᵣ inr ((E,Local),b_r,e_r,a_act)
-            ∗ ([∗ list] r_i ∈ list_difference all_registers [PC;r_stk;r_t0;r1], r_i ↦ᵣ inl 0%Z)
+            ∗ ([∗ map] r_i↦_ ∈ delete r_t0 rmap, r_i ↦ᵣ inl 0%Z)
             ∗ [[ a_act, b_r_adv ]]↦ₐ[RWLX][[ [inl w_1;
                                              inl w_2;
                                              inl w_3;
@@ -279,8 +188,8 @@ Section scall.
             WP Seq (Instr Executable) {{ φ }})
    ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (Hvpc1 Hwb1 Hwb2 Hnonzero Ha Hfl Hne Hact Hadva Hadvb Hcont Heoff)
-            "(>Hprog & >HPC & >Hr_stk & >Hr1 & >Hgen_reg & >Hstack & Hφ)".
+    iIntros (Hvpc1 Hwb1 Hwb2 Hnonzero Ha Hfl Hne Hrmap Hact Hadva Hadvb Hcont Heoff)
+            "(>Hprog & >HPC & >Hr_stk & >Hregs & >Hgen_reg & >Hstack & Hφ)".
     assert (withinBounds ((RWLX, Local), b_r, e_r, a_r_adv) = true) as Hwb3.
     { apply andb_true_iff.
       apply andb_true_iff in Hwb2 as [Hba Hae]. apply andb_true_iff in Hwb1 as [Hbact Hacte].
@@ -288,7 +197,12 @@ Section scall.
       assert (a_r_adv ≤ b_r_adv)%Z as Hle;[apply incr_addr_le with a_act 7 8;auto;lia|].
       assert (a_act ≤ a_r_adv)%Z as Hle';[apply next_le_i with 7;auto;lia|]. lia.
     }
-    iDestruct "Hgen_reg" as (ws_own) "Hgen_reg".
+    assert (Hin_rmap: ∀ r, r ∈ [r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6] → is_Some (rmap !! r)).
+    { intros r Hr. rewrite elem_of_gmap_dom Hrmap elem_of_difference.
+      split; [apply all_registers_s_correct|]. rewrite !not_elem_of_union !not_elem_of_singleton.
+      rewrite !elem_of_cons elem_of_nil in Hr |- * => Hr. split. naive_solver.
+      intros <-. apply Hne. rewrite !elem_of_cons elem_of_nil. repeat destruct Hr as [|Hr]; tauto. }
+
     rewrite /scall_prologue.
     (* prepare the local stack for storing the activation record, old PC and old SP *)
     assert (∃ a1 a2 a3 a4 a5 a6 a7 a8, [a1;a2;a3;a4;a5;a6;a7;a8] = region_addrs a_act b_r_adv)
@@ -356,12 +270,11 @@ Section scall.
     clear Ha5 Ha4 Ha3 Ha0 Ha6.
     (* PUSH OLD PC *)
     (* some general purpose registers *)
-    iDestruct "Hr1" as (wsr) "Hr_gen".
-    iDestruct (big_sepL2_length with "Hr_gen") as %Hreglength.
-    rewrite (gen_pur_reg_length r1) /= in Hreglength;[|iRegNotEq Hne;iNotElemOfList].
-    rewrite gen_pur_app;[|auto].
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hrt0 Hr_gen]".
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hrt1 Hr_gen]".
+    assert (is_Some (rmap !! r_t0)) as [rv0 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hrt0 Hregs]"; eauto.
+    assert (is_Some (rmap !! r_t1)) as [rv1 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hrt1 Hregs]".
+      by rewrite lookup_delete_ne //.
     (* move r_t1 PC *)
     do 2 (destruct a_rest0; [inversion Hlength|]).
     match goal with H: contiguous_between (?a' :: _) ?a _ |- _ =>
@@ -455,7 +368,9 @@ Section scall.
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hi".
     (* gete r_t2 r_stk *)
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t2 Hr_gen]".
+    assert (is_Some (rmap !! r_t2)) as [rv2 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]".
+      by rewrite !lookup_delete_ne //.
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_Get_success with "[$HPC $Hinstr Hr_t2 Hr_stk]");
       [apply gete_i| eauto | apply Hfl| |iContiguous_next Ha 23|auto| |iSimpl|]; eauto.
@@ -493,7 +408,19 @@ Section scall.
     assert (ai + 10 = Some aj)%a.
     { rewrite (_: 10%Z = Z.of_nat (10 : nat)).
       eapply contiguous_between_incr_addr_middle; [eapply Hcont21|..]. all: eauto. }
-    iApply (mclear_spec with "[-]"); last (rewrite /region_mapsto; iFrame "HPC Hr_stk Hstack");
+    assert (is_Some (rmap !! r_t3)) as [rv3 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
+      by rewrite !lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t4)) as [rv4 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]".
+      by rewrite !lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t5)) as [rv5 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]".
+      by rewrite !lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t6)) as [rv6 ?] by (apply Hin_rmap; repeat constructor).
+    iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]".
+      by rewrite !lookup_delete_ne //.
+    iApply (mclear_spec with "[- $HPC $Hr_stk $Hstack $Hr_t1 $Hr_t2 $Hr_t3 $Hr_t4 $Hr_t5 $Hr_t6]");
       [ apply Hcont21 | ..]; eauto.
     { intros ak Hak. apply Hvpc1.
       have: (a_first <= a18)%a. iContiguous_bounds a_first a_cont.
@@ -504,22 +431,30 @@ Section scall.
     rewrite /mclear.
     destruct (strings.length mclear_addrs =? strings.length (mclear_instrs r_stk 10 2))%nat eqn:Hcontr;
       [|rewrite Hmclear_length in Hcontr;inversion Hcontr].
-    iFrame "Hmclear".
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t3 Hr_gen]".
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t4 Hr_gen]".
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t5 Hr_gen]".
-    iGet_genpur_reg "Hr_gen" Hreglength wsr "[Hr_t6 Hr_gen]".
-    iSplitL "Hr_t4". iNext; eauto.
-    iSplitL "Hr_t1". iNext; eauto.
-    iSplitL "Hr_t2". iNext; eauto.
-    iSplitL "Hr_t3". iNext; eauto.
-    iSplitL "Hr_t5". iNext; eauto.
-    iSplitL "Hr_t6". iNext; eauto.
-    iNext. iIntros "(HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t6 & Hr_stk & Hstack_adv & Hmclear)".
+    iFrame "Hmclear". iNext.
+    iIntros "(HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t6 & Hr_stk & Hstack_adv & Hmclear)".
     (* RCLEAR *)
     iDestruct (big_sepL2_length with "Hrclear") as %Hrclear_length.
     rewrite map_length helper1 in Hrclear_length;[|iRegNotEq Hne|apply all_registers_correct].
-    iApply (rclear_spec with "[-]"); last (iFrame "HPC Hrclear").
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs".
+      repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
+      repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
+    iApply (rclear_spec with "[- $Hregs]"); last (iFrame "HPC Hrclear").
     { eauto. }
     { apply not_elem_of_list; apply elem_of_cons; by left. }
     { destruct rclear_addrs; inversion Hcont22; eauto. inversion Hrclear_length. }
@@ -528,36 +463,24 @@ Section scall.
       have: (a18 <= rclear_first)%a by eapply contiguous_between_bounds; eauto.
       revert Ha'1; clear; solve_addr. }
     { apply Hfl. }
-    iSplitL "Hr_t1 Hr_t2 Hr_t3 Hr_t4 Hr_t5 Hr_t6 Hr_gen".
-    { iNext. iApply region_addrs_exists.
-      rewrite gen_pur_app';[|iRegNotEq Hne;iNotElemOfList].
-      iSplitL "Hr_t1";[eauto|].
-      iSplitL "Hr_t2";[eauto|].
-      iSplitL "Hr_t3";[eauto|].
-      iSplitL "Hr_t4";[eauto|].
-      iSplitL "Hr_t5";[eauto|].
-      iSplitL "Hr_t6";[eauto|].
-      iApply region_addrs_exists.
-      assert ([r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk] ++ r_t0 :: [r1] =
-              [r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r_t0; r1]) as Heq';[auto|].
-      assert ([r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r_t0; r1] ≡ₚ
-              [r_t0; r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; PC; r_stk; r1]) as Hperm.
-      { rewrite -Heq'. rewrite -Permutation_middle. done. }
-      apply list_difference_Permutation with all_registers _ _ in Hperm. rewrite Hperm.
-      iExists wsr. iFrame.
-    }
-    iNext. iIntros "(HPC & Hgen_reg & Hrclear)".
-    iApply "Hφ". rewrite epp_local_e. iFrame "HPC Hr_stk Hr_t0 Hgen_reg Hstack_adv".
+    { rewrite !dom_insert_L list_to_set_difference -/all_registers_s.
+      rewrite !dom_delete_L Hrmap !difference_difference_L !singleton_union_difference_L
+              !all_registers_union_l.
+      f_equal. revert Hne. clear. set_solver. }
+    iNext. iIntros "(HPC & Hregs & Hrclear)".
+    iApply "Hφ". rewrite epp_local_e. iFrame "HPC Hr_stk Hr_t0 Hstack_adv".
+    iSplitL "Hregs".
+    { iDestruct (big_sepM_dom with "Hregs") as "Hregs". iApply big_sepM_dom.
+      rewrite big_opS_proper'. iApply "Hregs". reflexivity.
+      rewrite !dom_insert_L !dom_delete_L Hrmap.
+      rewrite !difference_difference_L !singleton_union_difference_L !all_registers_union_l.
+      f_equal. revert Hne. clear. set_solver. }
     iSplitL "Hact_frame".
-    - iDestruct "Hact_frame" as "(Ha_r_adv & Ha7 & Ha6 & Ha5 & Ha4 & Ha3 & Ha2 & Ha_act)".
-      iFrame. done.
-    - rewrite Happeq'.
-      iDestruct "Hi" as "(Ha17 & Ha16 & Ha15 & Ha14 & Ha13 & Ha12 & Ha11 & Ha10 & Ha9 &
-                          Ha8 & Ha1 & Ha0 & Ha & Hpush6 & Hpush5 & Hpush4 & Hpush3 & Hpush0 & Hpush2)".
-      iFrame. 
+    { iDestruct "Hact_frame" as "(?&?&?&?&?&?&?&?)". by iFrame. }
+    { rewrite Happeq'. repeat (iDestruct "Hi" as "(?&Hi)"). by iFrame. }
   Qed.
 
-  Lemma scall_epilogue_spec stack_own_b stack_own_e s_last stack_new
+  Lemma scall_epilogue_spec stack_own_b stack_own_e s_last stack_new rt1w rstkw
         (* reinstated PC *) pc_p pc_g pc_b pc_e pc_cont pc_next
         (* reinstated stack *) p_r g_r b_r e_r 
         (* current PC *) p g φ :
@@ -569,8 +492,8 @@ Section scall.
     (s_last + 1)%a = Some stack_own_e ->
 
     (▷ PC ↦ᵣ inr (p, g, b_r, e_r, stack_own_b)
-       ∗ ▷ (∃ rt1w, r_t1 ↦ᵣ rt1w)
-       ∗ ▷ (∃ rstkw, r_stk ↦ᵣ rstkw)
+       ∗ ▷ r_t1 ↦ᵣ rt1w
+       ∗ ▷ r_stk ↦ᵣ rstkw
        ∗ ▷ ([[stack_own_b,stack_own_e]]↦ₐ[p_r][[
                 [inl w_1; inl w_2; inl w_3; inl w_4a; inl w_4b; inl w_4c; 
                  inr (pc_p, pc_g, pc_b, pc_e, pc_cont);
@@ -588,8 +511,6 @@ Section scall.
        ⊢ WP Seq (Instr Executable) {{ φ }})%I. 
   Proof.
     iIntros (Hvpc Hfl Hnext Hstack1 Hstack2) "(>HPC & >Hr_t1 & >Hr_stk & >Hframe & Hφ)". 
-    iDestruct "Hr_t1" as (rt1w) "Hr_t1". 
-    iDestruct "Hr_stk" as (rstkw) "Hr_stk". 
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hframe") as %Hframe_length.
     set (l := region_addrs stack_own_b stack_own_e) in *.
