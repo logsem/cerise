@@ -134,6 +134,8 @@ Section awkward_example_preamble.
     cbv in x. exact x.
   Defined.
 
+  Definition awkN : namespace := nroot .@ "awkN".
+
   Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_g pc_b pc_e
         ai pc_p' a_first a_end b_link e_link a_link a_entry ai_awk awk_first awk_end p_awk
         r_adv a_move:
@@ -280,10 +282,29 @@ Section awkward_example_preamble.
     (* jmp *)
     iPrologue "Hprog".
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest'') as ->.
+    assert (ai_rest' = []) as -> by (inversion Hlen'; eauto using nil_length_inv).
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply jmp_i|apply Hfl|..].
     { admit. }
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+
+    iDestruct (sts_alloc_loc _ false awk_rel_pub awk_rel_priv with "Hsts") as ">HH".
+    iDestruct "HH" as (i) "(Hsts & % & % & Hst_i & #Hrel_i)".
+
+    match goal with |- context [ sts_full_world ?W ] => set W2 := W end.
+
+    iDestruct (inv_alloc awkN _ (awk_inv i b_cell) with "[Hb_cell Hst_i]") as ">#Hawk_inv".
+    { iNext. rewrite /awk_inv. iExists false. iFrame. }
+
+    iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
+    { rewrite /interp fixpoint_interp1_eq /= /enter_cond. iModIntro.
+      iIntros (r' W3 HW3) "". iNext. rewrite /interp_expr /=.
+      iIntros "([Hr'_full #Hr'_valid] & Hregs' & Hr & Hsts & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
+      iSplitR; [auto|]. rewrite /interp_conf.
+
+      rewrite /registers_mapsto.
+      iApply (f4_spec with "[]").
+      all: admit. }
 
     unshelve iSpecialize ("Hr_valid" $! r_t0 _). done.
     rewrite /(RegLocate _ r_t0) Hr0.

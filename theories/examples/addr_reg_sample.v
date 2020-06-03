@@ -84,6 +84,7 @@ Require Import Eqdep_dec List.
   Parameter subseg_r_r : RegName → RegName → RegName → Word.
   Parameter jnz : RegName → RegName → Word.
   Parameter lt_r_r : RegName → RegName → RegName → Word.
+  Parameter lt_z_r : RegName → Z → RegName → Word.
   Parameter jmp : RegName → Word.
   Parameter halt : Word.
   Parameter fail_end : Word.
@@ -91,7 +92,8 @@ Require Import Eqdep_dec List.
   Axiom halt_i : cap_lang.decode (halt) = Halt.
   Axiom fail_end_i : cap_lang.decode (fail_end) = Fail.
   Axiom jnz_i : ∀ r1 r2, cap_lang.decode (jnz r1 r2) = Jnz r1 r2.
-  Axiom lt_i : ∀ dst r1 r2, cap_lang.decode (lt_r_r dst r1 r2) = Lt dst (inr r1) (inr r2).
+  Axiom lt_r_r_i : ∀ dst r1 r2, cap_lang.decode (lt_r_r dst r1 r2) = Lt dst (inr r1) (inr r2).
+  Axiom lt_z_r_i : ∀ dst x r2, cap_lang.decode (lt_z_r dst x r2) = Lt dst (inl x) (inr r2).
   Axiom jmp_i : ∀ r, cap_lang.decode (jmp r) = Jmp r.
   Axiom lea_z_i : ∀ r z, cap_lang.decode (lea_z r z) = Lea r (inl z).
   Axiom lea_r_i : ∀ r1 r2, cap_lang.decode (lea_r r1 r2) = Lea r1 (inr r2).

@@ -68,6 +68,20 @@ Section Contiguous.
       - eauto. }
   Qed.
 
+  Lemma contiguous_between_middle_to_end (a: list Addr) (a0 an: Addr) i ai k :
+    contiguous_between a a0 an →
+    a !! i = Some ai →
+    i + k = length a →
+    (ai + k)%a = Some an.
+  Proof.
+    intros * Ha. revert i k ai. induction Ha; [done |].
+    intros [| i] k ai; cbn.
+    { intros. simplify_eq. enough ((a' + length l)%a = Some b) by solve_addr.
+      inversion Ha; subst; cbn. solve_addr.
+      apply (IHHa 0); eauto. }
+    { eauto. }
+  Qed.
+
   Lemma contiguous_between_of_region_addrs_aux l a b n :
     l = region_addrs_aux a n →
     (a + n)%a = Some b →

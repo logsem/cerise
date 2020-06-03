@@ -219,6 +219,13 @@ Module cap_lang.
     | _ => w
     end.
 
+  Lemma updatePcPerm_cap_non_E p g b e a :
+    p ≠ E →
+    updatePcPerm (inr (p, g, b, e, a)) = inr (p, g, b, e, a).
+  Proof.
+    intros HnE. cbn. destruct p; auto. contradiction.
+  Qed.
+
   Definition nonZero (w: Word): bool :=
     match w with
     | inr _ => true

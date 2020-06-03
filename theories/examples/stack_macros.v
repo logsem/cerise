@@ -895,7 +895,7 @@ Section stack_macros.
     iDestruct "Hprog" as "[Hi Hprog]".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_add_sub_lt_success_r_r _ rt3 _ _ _ _ a1 _ _ _ rt2 _ rt1 _ _
-      with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply lt_i | | | apply Hfl1 | ..]; eauto.
+      with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply lt_r_r_i | | | apply Hfl1 | ..]; eauto.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     rewrite /region_mapsto /region_addrs.
@@ -1612,13 +1612,125 @@ Section stack_macros.
       iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont". 
   Qed.
 
+  (* --------------------------------------- REQSIZE ----------------------------------- *)
+  (* This macro checks that the capability in r covers a memory range of size
+     (i.e. e-b) greater than [minsize]. *)
+
+  Definition reqsize_instrs r (minsize: Z) :=
+    [getb r_t1 r;
+     gete r_t2 r;
+     sub_r_r r_t1 r_t2 r_t1;
+     lt_z_r r_t1 minsize r_t1;
+     move_r r_t2 PC;
+     lea_z r_t2 4;
+     jnz r_t2 r_t1;
+     fail_end].
+
+  Definition reqsize r minsize a p : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(reqsize_instrs r minsize), a_i ↦ₐ[p] w_i)%I.
+
+  Lemma reqsize_spec r minsize a pc_p pc_p' pc_g pc_b pc_e a_first a_last r_p r_g r_b r_e r_a w1 w2 φ :
+    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last →
+    PermFlows pc_p pc_p' →
+    contiguous_between a a_first a_last →
+
+      ▷ reqsize r minsize a pc_p'
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
+    ∗ ▷ r ↦ᵣ inr (r_p, r_g, r_b, r_e, r_a)
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ (if (minsize <? (r_e - r_b)%a)%Z then
+           (∃ w1 w2,
+            reqsize r minsize a pc_p'
+            ∗ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last)
+            ∗ r ↦ᵣ inr (r_p, r_g, r_b, r_e, r_a)
+            ∗ r_t1 ↦ᵣ w1
+            ∗ r_t2 ↦ᵣ w2)
+           -∗ WP Seq (Instr Executable) {{ φ }}
+        else φ FailedV)
+    ⊢
+    WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hfl Hcont) "(>Hprog & >HPC & >Hr & >Hr1 & >Hr2 & Hcont)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength. simpl in *.
+    iAssert (⌜r ≠ PC⌝)%I as %Hne.
+    { iIntros (->). iApply (regname_dupl_false with "HPC Hr"). }
+    destruct a as [| a l];[done|].
+    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
+    assert (pc_p ≠ E).
+    { (* FIXME: hackish *)
+      assert (isCorrectPC (inr (pc_p, pc_g, pc_b, pc_e, a_first))) as HH.
+      iCorrectPC a_first a_last. inversion HH; subst. intros ->.
+      repeat match goal with H: _ ∨ _ |- _ => destruct H end; congruence. }
+    (* getb r_t1 r *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr1]");
+      [apply getb_i|auto|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..];
+      simpl.
+    iEpilogue "(HPC & Hi & Hr & Hr1)". iRename "Hi" into "Hprog_done".
+    (* gete r_t2 r *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr2]");
+      [apply gete_i|auto|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 1|auto..];
+      simpl.
+    iEpilogue "(HPC & Hi & Hr & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* sub_r_r r_t1 r_t2 r_t1 *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_add_sub_lt_success_r_dst with "[$HPC $Hi $Hr2 $Hr1]");
+      [apply sub_r_r_i|done|iContiguous_next Hcont 2|apply Hfl|iCorrectPC a_first a_last|..];
+      simpl.
+    iEpilogue "(HPC & Hi & Hr2 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* lt_z_r r_t1 minsize r_t1 *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_add_sub_lt_success_z_dst with "[$HPC $Hi $Hr1]");
+      [apply lt_z_r_i|done|iContiguous_next Hcont 3|apply Hfl|iCorrectPC a_first a_last|..];
+      simpl.
+    iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* move_r r_t2 PC *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr2]");
+      [apply move_r_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 4|auto..].
+    iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* lea_z r_t2 4 *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr2]");
+      [apply lea_z_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 5|try done..].
+    { change 4%Z with (Z.of_nat (4%nat)).
+      (* FIXME: a bit annoying to have to specify the index manually *)
+      eapply (contiguous_between_middle_to_end _ _ _ 4); eauto. }
+    iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* jnz r_t2 r_t1 *)
+    destruct l as [| ? l];[done|].
+    iPrologue "Hprog".
+    destruct (minsize <? r_e - r_b)%Z eqn:Htest; simpl.
+    { iApply (wp_jnz_success_jmp with "[$HPC $Hr2 $Hr1 $Hi]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|done|..].
+      iEpilogue "(HPC & Hi & Hr2 & Hr1)". iApply "Hcont". iExists _,_.
+      rewrite updatePcPerm_cap_non_E //. iFrame.
+      iDestruct "Hprog_done" as "(?&?&?&?&?&?)". iFrame. }
+    { iApply (wp_jnz_success_next with "[$HPC $Hr2 $Hr1 $Hi]");
+        [apply jnz_i|apply Hfl|iCorrectPC a_first a_last|iContiguous_next Hcont 6|..].
+      iEpilogue "(HPC & Hi & Hr2 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      (* fail_end *)
+      iPrologue "Hprog".
+      iApply (wp_fail with "[$HPC $Hi]");
+        [apply fail_end_i|apply Hfl|iCorrectPC a_first a_last|..].
+      iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont". }
+  Qed.
 
   (* -------------------------------------- PREPSTACK ---------------------------------- *)
   (* The following macro first checks whether r is a capability with permission RWLX. Next
      if it is, it will move the pointer to the bottom of its range *)
 
-  Definition prepstack_instrs r :=
+  Definition prepstack_instrs r (minsize: Z) :=
     reqperm_instrs r (encodePerm RWLX) ++
+    reqsize_instrs r minsize ++
     [getb r_t1 r;
     geta r_t2 r;
     sub_r_r r_t1 r_t1 r_t2;
@@ -1628,15 +1740,15 @@ Section stack_macros.
     move_z r_t1 0;
     move_z r_t2 0].
 
-  Definition prepstack r a p : iProp Σ :=
-    ([∗ list] a_i;w_i ∈ a;(prepstack_instrs r), a_i ↦ₐ[p] w_i)%I. 
+  Definition prepstack r minsize a p : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(prepstack_instrs r minsize), a_i ↦ₐ[p] w_i)%I.
 
-  Lemma prepstack_spec r a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
+  Lemma prepstack_spec r minsize a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
     isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
     PermFlows pc_p pc_p' ->
     contiguous_between a a_first a_last ->
 
-      ▷ prepstack r a pc_p'
+      ▷ prepstack r minsize a pc_p'
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
     ∗ ▷ r ↦ᵣ w
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
@@ -1645,9 +1757,11 @@ Section stack_macros.
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
     ∗ ▷ (if isPermWord w RWLX then
            ∃ l b e a' b', ⌜w = inr (RWLX,l,b,e,a')⌝ ∧ ⌜(b' + 1)%a = Some b⌝ ∧
-          (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ prepstack r a pc_p' ∗
-            r ↦ᵣ inr (RWLX,l,b,e,b') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
-            -∗ WP Seq (Instr Executable) {{ φ }})
+           if (minsize <? e - b)%Z then
+             (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ prepstack r minsize a pc_p' ∗
+              r ↦ᵣ inr (RWLX,l,b,e,b') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
+              -∗ WP Seq (Instr Executable) {{ φ }})
+           else φ FailedV
         else φ FailedV)
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -1670,58 +1784,71 @@ Section stack_macros.
     assert (isCorrectPC_range pc_p pc_g pc_b pc_e link a_last) as Hvpc_rest.
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. solve_addr. }
+    (* reqsize *)
+    iDestruct (contiguous_between_program_split with "Hprog")
+      as (reqsize_prog rest' link') "(Hreqsize & Hprog & #Hcont)";[apply Hcont_rest|].
+    iDestruct "Hcont" as %(Hcont_reqsize & Hcont_rest' & Heqapp' & Hlink').
+    iApply (reqsize_spec with "[- $HPC $Hreqsize $Hr $Hr_t1 $Hr_t2]");
+      [|apply Hfl|eauto|].
+    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
+      apply contiguous_between_bounds in Hcont_rest'. solve_addr. }
+    iNext. destruct (minsize <? e - b)%Z; auto.
+    iIntros "H". iDestruct "H" as (w1 w2) "(Hreqsize & HPC & Hr & Hr_t1 & Hr_t2)".
+    assert (isCorrectPC_range pc_p pc_g pc_b pc_e link' a_last) as Hvpc_rest'.
+    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
+      apply contiguous_between_bounds in Hcont_rest. solve_addr. }
     (* getb r_t1 r *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength'.
-    do 2 (destruct rest;[inversion Hlength'|]). 
+    do 2 (destruct rest';[inversion Hlength'|]). 
     iPrologue "Hprog".
-    apply contiguous_between_cons_inv_first in Hcont_rest as Heq; subst. 
+    apply contiguous_between_cons_inv_first in Hcont_rest' as Heq; subst.
     iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t1]");
-      [apply getb_i|auto|apply Hfl|iCorrectPC link a_last|iContiguous_next Hcont_rest 0|auto..].
+      [apply getb_i|auto|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 0|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* geta r_t2 r *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t2]");
-      [apply geta_i|auto|apply Hfl|iCorrectPC link a_last|iContiguous_next Hcont_rest 1|auto..].
+      [apply geta_i|auto|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 1|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t2) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* sub r_t1 r_t1 r_t2 *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_r with "[$HPC $Hi $Hr_t2 $Hr_t1]");
-      [apply sub_r_r_i|auto|iContiguous_next Hcont_rest 2|apply Hfl|iCorrectPC link a_last|..].
+      [apply sub_r_r_i|auto|iContiguous_next Hcont_rest' 2|apply Hfl|iCorrectPC link' a_last|..].
     iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r r_t1 *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     assert ((a' + (b - a'))%a = Some b) as Hlea;[solve_addr|].
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr_t1 $Hr]");
-      [apply lea_r_i|apply Hfl|iCorrectPC link a_last|iContiguous_next Hcont_rest 3|apply Hlea|auto..]. 
+      [apply lea_r_i|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 3|apply Hlea|auto..].
     iEpilogue "(HPC & Hi & Hr_t1 & Hr)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* sub r_t1 0 1 *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_z_z with "[$HPC $Hi $Hr_t1]");
-      [apply sub_z_z_i|auto|iContiguous_next Hcont_rest 4|apply Hfl|iCorrectPC link a_last|..].
+      [apply sub_z_z_i|auto|iContiguous_next Hcont_rest' 4|apply Hfl|iCorrectPC link' a_last|..].
     iEpilogue "(HPC & Hi & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r r_t1 *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     assert ((b + (0 - 1))%a = Some b') as Hlea';[solve_addr|].
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr_t1 $Hr]");
-      [apply lea_r_i|apply Hfl|iCorrectPC link a_last|iContiguous_next Hcont_rest 5|apply Hlea'|auto..]. 
+      [apply lea_r_i|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 5|apply Hlea'|auto..].
     iEpilogue "(HPC & Hi & Hr_t1 & Hr)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* move r_t1 0 *)
-    destruct rest;[inversion Hlength'|]. 
+    destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]"); 
-      [apply move_z_i|apply Hfl|iCorrectPC link a_last|iContiguous_next Hcont_rest 6|auto|..].
+      [apply move_z_i|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 6|auto|..].
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* move r_t2 0 *)
-    destruct rest;[|inversion Hlength']. 
+    destruct rest';[|inversion Hlength'].
     iPrologue "Hprog".
-    apply contiguous_between_last with (ai:=a5) in Hcont_rest as Hlast;[|auto]. 
+    apply contiguous_between_last with (ai:=a5) in Hcont_rest' as Hlast;[|auto].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]"); 
-      [apply move_z_i|apply Hfl|iCorrectPC link a_last|apply Hlast|auto|..].
+      [apply move_z_i|apply Hfl|iCorrectPC link' a_last|apply Hlast|auto|..].
     iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     iApply "Hφ". iFrame.
     repeat (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi"). 
