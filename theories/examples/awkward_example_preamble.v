@@ -5,7 +5,7 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      rules logrel fundamental region_invariants
      region_invariants_revocation region_invariants_static.
-From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example.
+From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example_helpers awkward_example.
 From stdpp Require Import countable.
 
 Lemma big_sepM_to_big_sepL2 {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
@@ -134,6 +134,7 @@ Section awkward_example_preamble.
     cbv in x. exact x.
   Defined.
 
+  
   Definition awkN : namespace := nroot .@ "awkN".
 
   Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_g pc_b pc_e
@@ -279,6 +280,13 @@ Section awkward_example_preamble.
     iNext. iIntros "(HPC & Hregs & Hrclear)". iCombine "Hrclear" "Hprog_done" as "Hprog_done".
     iDestruct (big_sepL2_length with "Hprog") as %Hlen'.
     destruct ai_rest'; [by inversion Hlen'|].
+    (* in preparation of jumping, we allocate the new awkward invariant and sts *)
+    iDestruct (sts_alloc_loc _ false awk_rel_pub awk_rel_priv with "Hsts") as ">HH".
+    iDestruct "HH" as (i) "(Hsts & % & % & Hst_i & #Hrel_i)".
+    iDestruct (inv_alloc awkN _ (awk_inv i b_cell) with "[Hb_cell Hst_i]") as ">#Hawk_inv".
+    { iNext. rewrite /awk_inv. iExists false. iFrame. }
+    (* call the resulting world W2 *)
+    match goal with |- context [ sts_full_world ?W ] => set W2 := W end.
     (* jmp *)
     iPrologue "Hprog".
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest'') as ->.
@@ -286,21 +294,13 @@ Section awkward_example_preamble.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply jmp_i|apply Hfl|..].
     { admit. }
-    iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-
-    iDestruct (sts_alloc_loc _ false awk_rel_pub awk_rel_priv with "Hsts") as ">HH".
-    iDestruct "HH" as (i) "(Hsts & % & % & Hst_i & #Hrel_i)".
-
-    match goal with |- context [ sts_full_world ?W ] => set W2 := W end.
-
-    iDestruct (inv_alloc awkN _ (awk_inv i b_cell) with "[Hb_cell Hst_i]") as ">#Hawk_inv".
-    { iNext. rewrite /awk_inv. iExists false. iFrame. }
-
+    (* TODO: We need to allocate all the relevant non atomic invariants *)
+    (* the current state of registers is valid *)
     iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
     { rewrite /interp fixpoint_interp1_eq /= /enter_cond. iModIntro.
       iIntros (r' W3 HW3) "". iNext. rewrite /interp_expr /=.
       iIntros "([Hr'_full #Hr'_valid] & Hregs' & Hr & Hsts & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
-      iSplitR; [auto|]. rewrite /interp_conf.
+      iSplitR; [auto|]. rewrite /interp_conf. 
 
       rewrite /registers_mapsto.
       iApply (f4_spec with "[]").
@@ -308,9 +308,43 @@ Section awkward_example_preamble.
 
     unshelve iSpecialize ("Hr_valid" $! r_t0 _). done.
     rewrite /(RegLocate _ r_t0) Hr0.
-    rewrite fixpoint_interp1_eq {1}/interp1.
+    
+    iAssert (((fixpoint interp1) W2) r0) as "#Hr_valid2". 
+    { iApply (interp_monotone with "[] Hr_valid"). iPureIntro. apply related_sts_pub_world_fresh_loc; auto. }
+    set r' : gmap RegName Word :=
+      <[r_t0  := r0]>
+      (<[r_t1 := inr (E, Global, b_cls, e_cls, b_cls)]>
+       (create_gmap_default (list_difference all_registers [r_t0;r_t1]) (inl 0%Z))).
 
+    (* either we fail, or we use the continuation in rt0 *)
+    iDestruct (jmp_or_fail_spec with "Hr_valid2") as "Hcont".
+    destruct (decide (isCorrectPC (updatePcPerm r0))). 
+    2 : { iEpilogue "(HPC & Hi & Hr0)". iApply "Hcont". iFrame "HPC". iIntros (Hcontr);done. }
+    iDestruct "Hcont" as (p g b e a3 Heq) "#Hcont". 
+    simplify_eq. 
+    
+    iAssert (future_world g W2 W2) as "Hfuture".
+    { destruct g; iPureIntro. apply related_sts_priv_refl_world. apply related_sts_pub_refl_world. }
+    iSpecialize ("Hcont" $! r W2 with "Hfuture"). 
 
+    (* prepare the continuation *)
+    iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    iSpecialize ("Hcont" with "[Hsts Hr Hregs HPC Hr0 Hr1 HnaI]").
+    { iFrame. iDestruct (region_monotone with "[] [] Hr") as "$";
+                [auto|iPureIntro;apply related_sts_pub_world_fresh_loc; auto|].
+      (* register manipulation *)
+      admit. }
+    
+    (* apply the continuation *)
+    iDestruct "Hcont" as "[_ Hcallback_now]".
+    iApply wp_wand_l. iFrame "Hcallback_now". 
+    iIntros (v) "Hφ".
+    iIntros (Hne).
+    iDestruct ("Hφ" $! Hne) as (r0 W') "(Hfull & Hregs & #Hrelated & Hna & Hsts & Hr)". 
+    iExists r0,W'. iFrame.
+    iDestruct "Hrelated" as %Hrelated. iPureIntro.
+    eapply related_sts_pub_priv_trans_world;[|eauto]. 
+    apply related_sts_pub_world_fresh_loc; auto.
 
   Admitted.
 

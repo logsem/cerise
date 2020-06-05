@@ -2436,8 +2436,6 @@ Section awkward_example.
         set m_static2 := lists_to_static_region_perms static2_addrs static2_instrs.
 
         rewrite std_update_multiple_revoke_commute;auto.
-        2: { rewrite /std. cbn [fst]. eapply Forall_impl; [ apply HForall_static1 |].
-             intros ? HH. cbn in HH. rewrite HH. intros ?%Some_eq_inj. congruence. }
 
         (* fact: l', l'', [a2,stack_own_end] and [stack_own_end, e_r] are all
            disjoint. We will need these facts for later. We can derive them now
@@ -2512,8 +2510,6 @@ Section awkward_example.
           iExists _,_,_. iFrame. iPureIntro. destruct pw; auto. }
 
         rewrite -std_update_multiple_revoke_commute;auto.
-        2: { rewrite /std. cbn [fst]. eapply Forall_impl; [ apply HForall_static1 |].
-             intros ? HH. cbn in HH. rewrite HH. intros ?%Some_eq_inj. congruence. }
 
         (* now that we have privately updated our resources, we can close the region invariant for the adv stack *)
         assert (list.last (a2 :: a3 :: a4 :: stack_own_b :: stack_own) = Some stack_own_end) as Hlast.

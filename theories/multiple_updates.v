@@ -415,12 +415,11 @@ Section std_updates.
 
    Lemma std_update_multiple_revoke_commute W (l: list Addr) ρ :
      ρ ≠ Temporary →
-     Forall (λ a, std W !! a ≠ Some (Temporary)) l →
      std_update_multiple (revoke W) l ρ = revoke (std_update_multiple W l ρ).
    Proof.
-     intros Hne Hforall.
+     intros Hne.
      induction l; auto; simpl.
-     rewrite IHl;[|apply list.Forall_cons in Hforall as [_ Hforall];eauto]. 
+     rewrite IHl. 
      rewrite /std_update /revoke /loc /std /=. repeat f_equiv.
      eapply (map_leibniz (M:=gmap Addr) (A:=region_type)). intros i. apply leibniz_equiv_iff.
      destruct (decide (a = i)).
