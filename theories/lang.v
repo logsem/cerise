@@ -337,7 +337,7 @@ Module cap_lang.
     PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
   Definition isWithin (n1 n2 b e: Addr) : bool :=
-    ((0 <=? b) && (b <=? n1) && (0 <=? n2) && (n2 <=? e))%a.
+    ((b <=? n1) && (n2 <=? e))%a.
 
   Definition exec (i: instr) (φ: ExecConf): Conf :=
     match i with
@@ -580,7 +580,7 @@ Module cap_lang.
       | inl _ => (Failed, φ)
       | inr (_, _, _, a) =>
         match a with
-        | A a' _ => updatePC (update_reg φ dst (inl a'))
+        | A a' _ _ => updatePC (update_reg φ dst (inl a'))
         end
       end
     | GetB dst r =>
@@ -588,7 +588,7 @@ Module cap_lang.
       | inl _ => (Failed, φ)
       | inr (_, b, _, _) =>
         match b with
-        | A b' _ => updatePC (update_reg φ dst (inl b'))
+        | A b' _ _ => updatePC (update_reg φ dst (inl b'))
         end
       end
     | GetE dst r =>
@@ -596,7 +596,7 @@ Module cap_lang.
       | inl _ => (Failed, φ)
       | inr (_, _, e, _) =>
         match e with
-        | A e' _ => updatePC (update_reg φ dst (inl e'))
+        | A e' _ _ => updatePC (update_reg φ dst (inl e'))
         end
       end
     | GetP dst r =>

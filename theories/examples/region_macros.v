@@ -206,7 +206,7 @@ Section region_macros.
    (* -------------------- ALLOCATING A NEW REGION OF ZEROES ------------------ *)
    
    Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
-     p ≠ O → is_Some (a + (Z.of_nat n - 1))%a →
+     p ≠ O → is_Some (a + (Z.of_nat n))%a →
      Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs_aux a n) →
      ([∗ list] a0 ∈ region_addrs_aux a n, a0 ↦ₐ[p] inl 0%Z)
        -∗ region W

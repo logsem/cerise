@@ -36,7 +36,7 @@ Section fundamental.
     rewrite /isWithin.
     intros. repeat (apply andb_true_iff in H; destruct H).
     generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H0).
-    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H2).
+    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H).
     auto.
   Qed.
 

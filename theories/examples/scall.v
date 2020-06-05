@@ -153,7 +153,6 @@ Section scall.
         ws_own (* local stack *) ws_adv (* adv stack *) :
     isCorrectPC_range p g b e a_first a_cont →
     withinBounds ((RWLX, Local), b_r, e_r, a_act) = true -> withinBounds ((RWLX, Local), b_r, e_r, b_r_adv) = true →
-    (0%a <= e_r)%Z ∧ (0%a <= b_r)%Z → (* This assumption can be removed once we update addresses to be nats *)
     contiguous_between a a_first a_cont →
     PermFlows p p' →
     r1 ∉ [PC;r_stk;r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t6] →
@@ -188,7 +187,7 @@ Section scall.
             WP Seq (Instr Executable) {{ φ }})
    ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (Hvpc1 Hwb1 Hwb2 Hnonzero Ha Hfl Hne Hrmap Hact Hadva Hadvb Hcont Heoff)
+    iIntros (Hvpc1 Hwb1 Hwb2 Ha Hfl Hne Hrmap Hact Hadva Hadvb Hcont Heoff)
             "(>Hprog & >HPC & >Hr_stk & >Hregs & >Hgen_reg & >Hstack & Hφ)".
     assert (withinBounds ((RWLX, Local), b_r, e_r, a_r_adv) = true) as Hwb3.
     { apply andb_true_iff.
@@ -378,10 +377,19 @@ Section scall.
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t2)" "Hinstr" "Hi".
     (* subseg r_stk r_t1 r_t2 *)
     assert (z_to_addr (a_r_adv + 1) = Some b_r_adv) as Hb_r_adv.
-    { assert ((a_r_adv + 1)%a = Some b_r_adv) as temp;[rewrite -(addr_add_assoc a_act _ 7);auto|auto]. }
+    { revert HH. clear. intros.
+      rewrite /z_to_addr.
+      destruct (Z_le_dec (a_r_adv + 1)%Z MemNum),(Z_le_dec 0 (a_r_adv + 1)%Z);
+        solve_addr. 
+    }
     assert (z_to_addr e_r = Some e_r) as He_r.
-    { rewrite /z_to_addr. destruct (Z_le_dec e_r MemNum);destruct e_r;[f_equiv;by apply z_of_eq|].
-      exfalso. clear Hwb1 Hwb2 Hwb3 Hnonzero. simpl in n. revert fin. rewrite Z.leb_le. done. }
+    { rewrite /z_to_addr. destruct (Z_le_dec e_r MemNum),(Z_le_dec 0 e_r);
+                            destruct e_r;[f_equiv;by apply z_of_eq|
+                                          exfalso;clear Hwb1 Hwb2 Hwb3;simpl in n;try simpl in l..].
+      revert n pos. rewrite Z.leb_le. done.
+      revert l fin. rewrite Z.leb_le. done.
+      simpl in n0. revert n pos. rewrite Z.leb_le. done.
+    }
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_subseg_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 $Hr_t2]");
       [apply subseg_r_r_i|apply Hfl| |eauto|auto|auto|..].

@@ -7,11 +7,11 @@ Definition MemNum: Z := 2000000.
 (* ------------------------------------ ADDR -------------------------------------------*)
 
 Inductive Addr: Type :=
-| A (z : Z) (fin: Z.leb z MemNum = true).
+| A (z : Z) (fin: Z.leb z MemNum = true) (pos: Z.leb 0 z = true).
 
 Definition z_of (a: Addr): Z :=
   match a with
-  | A z _ => z
+  | A z _ _ => z
   end.
 
 Coercion z_of: Addr >-> Z.
@@ -21,7 +21,7 @@ Lemma z_of_eq a1 a2 :
   a1 = a2.
 Proof.
   destruct a1, a2; cbn. intros ->.
-  f_equal; apply eq_proofs_unicity; decide equality.
+  repeat f_equal; apply eq_proofs_unicity; decide equality.
 Qed.
 
 Lemma eq_z_of a1 a2 :
@@ -41,9 +41,12 @@ Defined.
 
 Definition z_to_addr (z : Z) : option Addr.
 Proof.
-  destruct (Z_le_dec z MemNum).
+  destruct (Z_le_dec z MemNum),(Z_le_dec 0 z).
   - apply (Z.leb_le z MemNum) in l.
-    exact (Some (A z l)).
+    apply (Z.leb_le 0 z) in l0.
+    exact (Some (A z l l0)).
+  - exact None.
+  - exact None.
   - exact None.
 Defined.
 
@@ -58,8 +61,10 @@ Proof.
   intro r. destruct r; auto.
   rewrite decode_encode.
   unfold z_to_addr. simpl.
-  destruct (Z_le_dec z MemNum).
-  - do 2 f_equal. apply eq_proofs_unicity. decide equality.
+  destruct (Z_le_dec z MemNum),(Z_le_dec 0 z).
+  - repeat f_equal; apply eq_proofs_unicity; decide equality.
+  - exfalso. by apply (Z.leb_le 0 z) in pos.
+  - exfalso. by apply (Z.leb_le z MemNum) in fin.
   - exfalso. by apply (Z.leb_le z MemNum) in fin.
 Qed.
 
@@ -75,9 +80,8 @@ Definition ltb_addr : Addr → Addr → bool :=
   λ a1 a2, Z.ltb a1 a2.
 Definition eqb_addr : Addr → Addr → bool :=
   λ a1 a2, Z.eqb a1 a2.
-Definition za : Addr := A 0%Z eq_refl.
-Definition special_a : Addr := A (-42)%Z eq_refl.
-Definition top : Addr := A MemNum eq_refl.
+Definition za : Addr := A 0%Z eq_refl eq_refl.
+Definition top : Addr := A MemNum eq_refl eq_refl.
 Delimit Scope Addr_scope with a.
 Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
 Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
@@ -86,7 +90,6 @@ Notation "a1 < a2" := (lt_addr a1 a2): Addr_scope.
 Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
 Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
 Notation "0" := (za) : Addr_scope.
-Notation "- 42" := (special_a) : Addr_scope.
 
 Global Instance Addr_le_dec : RelDecision le_addr.
 Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
@@ -94,10 +97,14 @@ Global Instance Addr_lt_dec : RelDecision lt_addr.
 Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
 
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
-  if (Z_le_dec (a + z)%Z MemNum) then Some (A (a + z)%Z _) else None.
+  if (Z_le_dec (a + z)%Z MemNum) then
+    if (Z_le_dec 0 (a + z)%Z) then Some (A (a + z)%Z _ _) else None else None.
 Next Obligation.
   intros. apply Z.leb_le; auto.
 Defined.
+Next Obligation.
+  intros. apply Z.leb_le; auto.
+Defined. 
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
 Definition get_addr_from_option_addr : option Addr → Addr :=
@@ -110,23 +117,22 @@ Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Add
 
 (** zify-like tactic to send arithmetic on adresses into Z ******)
 
-Lemma addr_spec (a: Addr) : (a <= MemNum)%Z.
-Proof. destruct a. cbn. rewrite Z.leb_le in fin. lia. Qed.
+Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
+Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
 
 Lemma incr_addr_spec (a: Addr) (z: Z) :
   (exists (a': Addr),
-    (a + z)%a = Some a' /\ a + z <= MemNum /\ (a':Z) = a + z)%Z
+    (a + z)%a = Some a' /\ a + z <= MemNum /\ 0 ≤ a + z ∧ (a':Z) = a + z)%Z
   \/
-  ((a + z)%a = None /\ a + z > MemNum)%Z.
+  ((a + z)%a = None /\ (a + z > MemNum ∨ a + z < 0))%Z.
 Proof.
   unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum); [ left | right ].
-  { eexists. repeat split; lia. }
-  { split; auto; lia. }
+  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); [ left | right; split; auto; try lia..].
+  eexists. repeat split; lia. 
 Qed.
 
 Ltac incr_addr_as_spec a x :=
-  generalize (incr_addr_spec a x); intros [(?&?&?&?)|(?&?)];
+  generalize (incr_addr_spec a x); intros [(?&?&?&?&?)|(?&[?|?])];
   let ax := fresh "ax" in
   set (ax := (incr_addr a x)) in *;
   clearbody ax; subst ax.
@@ -197,7 +203,7 @@ Ltac zify_addr_op_branching_hyps_step :=
 Ltac zify_addr_ty_step :=
   lazymatch goal with
   | a : Addr |- _ =>
-    generalize (addr_spec a); intro;
+    generalize (addr_spec a); intros [? ?];
     let z := fresh "z" in
     set (z := (z_of a)) in *;
     clearbody z;
@@ -255,6 +261,12 @@ Ltac solve_addr :=
   );
   solve_addr_close_proof.
 
+Goal forall a : Addr,
+    (a + -(a + 3))%a = None.
+Proof.
+  intros. solve_addr.
+Qed. 
+
 Goal forall (a a' b b' : Addr),
   (a + 1)%a = Some a' ->
   (b + 1)%a = Some b' ->
@@ -264,6 +276,7 @@ Proof.
   repeat zify_addr_op_goal_step.
   (* Check that we can actually terminate early before translating the whole
      context. *)
+  solve_addr_close_proof.
   solve_addr_close_proof.
   solve_addr_close_proof.
 Qed.
@@ -383,11 +396,11 @@ Proof. intros ? [? ?] ?. solve_addr. Qed.
 
 Lemma addr_next_le (a e : Addr) :
   (a < e)%Z → ∃ a', (a + 1)%a = Some a'.
-Proof. intros. zify_addr; eauto. exfalso. lia. Qed.
+Proof. intros. zify_addr; eauto. exfalso. lia. lia. Qed.
 
 Lemma addr_next_lt (a e : Addr) :
   (a < e)%Z -> ∃ a', (a + 1)%a = Some a'.
-Proof. intros. zify_addr; eauto. exfalso. lia. Qed.
+Proof. intros. zify_addr; eauto. exfalso. lia. lia. Qed.
 
 Lemma addr_next_lt_gt_contr (a e a' : Addr) :
   (a < e)%Z → (a + 1)%a = Some a' → (e < a')%Z → False.
@@ -401,10 +414,10 @@ Lemma addr_abs_next (a e a' : Addr) :
   (a + 1)%a = Some a' → (a < e)%Z → (Z.abs_nat (e - a) - 1) = (Z.abs_nat (e - a')).
 Proof. solve_addr. Qed.
 
-Lemma addr_unique a a' fin fin' :
-  a = a' → A a fin = A a' fin'.
+Lemma addr_unique a a' fin fin' pos pos' :
+  a = a' → A a fin pos = A a' fin' pos'.
 Proof.
-  intros ->. f_equal. apply eq_proofs_unicity. decide equality.
+  intros ->. repeat f_equal; apply eq_proofs_unicity; decide equality.
 Qed.
 
 Lemma incr_addr_trans (a1 a2 a3 : Addr) (z1 z2 : Z) :
@@ -433,7 +446,7 @@ Lemma incr_addr_ne_top a z a' :
 Proof. intros. intro. solve_addr. Qed.
 
 Lemma get_addrs_from_option_addr_comm a i k :
-  (k >= 0)%Z ->
+  (k >= 0)%Z -> (i >= 0)%Z ->
   (^(^(a + i) + k)%a) =
   (^(a + (i + k)%Z)%a).
 Proof. solve_addr. Qed.

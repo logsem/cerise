@@ -215,8 +215,7 @@ Section Contiguous.
       { simpl. destruct tl; auto. }
       apply IHa with hd an' in Ha'; auto.
       + assert (a0' ≤ hd)%Z.
-        {  rewrite /incr_addr in Hnext.
-           destruct (Z_le_dec (a0' + 1)%Z MemNum); inversion Hnext. simpl. omega. }
+        {  solve_addr. }
         apply Z.le_trans with hd; auto.
       + eauto using contiguous_weak.
   Qed.
@@ -334,8 +333,7 @@ Section Contiguous.
     intros Hcond Hi Hsi.
     pose proof (contiguous_spec _ Hcond i a0 a1) as Hcond'; simpl in Hcond'.
     apply Hcond' in Hi; try rewrite Nat.add_1_r; auto.
-    rewrite /incr_addr in Hi.
-    destruct (Z_le_dec (a0 + 1)%Z MemNum); inversion Hi. simpl. omega.
+    solve_addr. 
   Qed.
 
   Lemma contiguous_between_incr_addr (a: list Addr) (i : nat) a0 ai an :

@@ -101,7 +101,7 @@ Section region.
      - simpl. apply not_elem_of_cons; split.
        + intro. apply Hne. solve_addr.
        + rewrite get_addrs_from_option_addr_comm.
-         apply IHn; omega. done.
+         apply IHn; omega. omega. omega. 
    Qed.
 
    Lemma region_addrs_not_elem_of a n :

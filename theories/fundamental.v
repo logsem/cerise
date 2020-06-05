@@ -41,7 +41,7 @@ Section fundamental.
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
   
-  Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl).
+  Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl eq_refl).
 
   (*TODO: change to region_conditions *)
   Theorem fundamental W r p g b e (a : Addr) :

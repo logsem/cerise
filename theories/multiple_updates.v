@@ -361,9 +361,11 @@ Section std_updates.
    Proof.
      intros Hsome.
      rewrite /incr_addr in Hsome. rewrite /incr_addr.
-     destruct (Z_le_dec (a + S (S n))%Z MemNum); inversion Hsome; try discriminate.
-     destruct (Z_le_dec (a + S n)%Z MemNum); eauto.
-     clear H x Hsome. lia. 
+     destruct (Z_le_dec (a + S (S n))%Z MemNum),(Z_le_dec 0 (a + S (S n)))%Z; inversion Hsome; try discriminate.
+     - destruct (Z_le_dec (a + S n)%Z MemNum),(Z_le_dec 0 (a + S n)%Z); eauto;
+         clear H x Hsome;zify_addr;lia.
+     - destruct (Z_le_dec (a + S n)%Z MemNum),(Z_le_dec 0 (a + S n)%Z); eauto;
+         clear H x Hsome;zify_addr;lia.
    Qed.
 
    Lemma std_sta_update_multiple_insert W (a b a' l : Addr) ρ i :
