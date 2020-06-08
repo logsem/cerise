@@ -1743,6 +1743,42 @@ Section stack_macros.
   Definition prepstack r minsize a p : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(prepstack_instrs r minsize), a_i ↦ₐ[p] w_i)%I.
 
+  Definition cap_size (w : Word) : Z :=
+    match w with
+    | inr (_,_,b,e,_) => (e - b)%Z
+    | _ => 0%Z
+    end.
+
+  Definition bound_check (w : Word) : option Addr :=
+    match w with 
+    | inr (_,_,b,_,_) => (b + (-1))%a
+    | _ => None
+    end. 
+
+  (* TODO: move this to the rules_Lea.v file. *)
+  Lemma wp_Lea_fail_none Ep pc_p pc_g pc_b pc_e pc_a w r1 rv p g b e a z pc_p' :
+    cap_lang.decode w = Lea r1 (inr rv) →
+    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    (a + z)%a = None ->
+     
+     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
+           ∗ ▷ pc_a ↦ₐ[pc_p'] w
+           ∗ ▷ r1 ↦ᵣ inr ((p,g),b,e,a)
+           ∗ ▷ rv ↦ᵣ inl z }}}
+       Instr Executable @ Ep
+     {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hfl Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+  
   Lemma prepstack_spec r minsize a w pc_p pc_p' pc_g pc_b pc_e a_first a_last φ :
     isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
     PermFlows pc_p pc_p' ->
@@ -1756,11 +1792,13 @@ Section stack_macros.
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
     ∗ ▷ (if isPermWord w RWLX then
-           ∃ l b e a' b', ⌜w = inr (RWLX,l,b,e,a')⌝ ∧ ⌜(b' + 1)%a = Some b⌝ ∧
-           if (minsize <? e - b)%Z then
-             (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ prepstack r minsize a pc_p' ∗
-              r ↦ᵣ inr (RWLX,l,b,e,b') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
-              -∗ WP Seq (Instr Executable) {{ φ }})
+           if (minsize <? cap_size w)%Z then
+             if (decide (is_Some (bound_check w))) then 
+               (∃ l b e a' b', ⌜w = inr (RWLX,l,b,e,a')⌝ ∧ ⌜(b' + 1)%a = Some b⌝ ∧
+                PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ prepstack r minsize a pc_p' ∗
+                   r ↦ᵣ inr (RWLX,l,b,e,b') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z)
+                 -∗ WP Seq (Instr Executable) {{ φ }}
+             else φ FailedV
            else φ FailedV
         else φ FailedV)
     ⊢
@@ -1777,9 +1815,10 @@ Section stack_macros.
     iApply (reqperm_spec with "[$HPC $Hreqperm $Hr $Hr_t1 $Hr_t2 Hφ Hprog]"); [|apply Hfl|apply Hcont_reqperm|]. 
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. solve_addr. }
-    iNext. destruct (isPermWord w RWLX); auto.
-    iDestruct "Hφ" as (l b e a' b' Heq Hnext) "Hφ".
-    subst. iExists l,b,e,a'. iSplit; auto.
+    iNext. destruct (isPermWord w RWLX) eqn:Hperm; auto.
+    destruct w as [z | [ [ [ [p g] b] e] a'] ];[inversion Hperm|].
+    destruct p;inversion Hperm.
+    iExists _,_,_,_;iSplit;[eauto|]. 
     iIntros "(HPC & Hprog_done & Hr & Hr_t1 & Hr_t2)".
     assert (isCorrectPC_range pc_p pc_g pc_b pc_e link a_last) as Hvpc_rest.
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
@@ -1792,7 +1831,7 @@ Section stack_macros.
       [|apply Hfl|eauto|].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest'. solve_addr. }
-    iNext. destruct (minsize <? e - b)%Z; auto.
+    iNext. simpl. destruct (minsize <? e - b)%Z; auto.
     iIntros "H". iDestruct "H" as (w1 w2) "(Hreqsize & HPC & Hr & Hr_t1 & Hr_t2)".
     assert (isCorrectPC_range pc_p pc_g pc_b pc_e link' a_last) as Hvpc_rest'.
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
@@ -1833,7 +1872,12 @@ Section stack_macros.
     (* lea r r_t1 *)
     destruct rest';[inversion Hlength'|].
     iPrologue "Hprog".
-    assert ((b + (0 - 1))%a = Some b') as Hlea';[solve_addr|].
+    (* if lea fails we go to φ FailedV *)
+    destruct (b + -1)%a as [b'|] eqn:Hb; simpl.
+    2: { iApply (wp_Lea_fail_none with "[$HPC $Hi $Hr_t1 $Hr]");
+           [apply lea_r_i|apply Hfl|iCorrectPC link' a_last|apply Hb|..].
+         iEpilogue "_". iApply wp_value. iApply "Hφ". }
+    assert ((b + (0 - 1))%a = Some b') as Hlea';[revert Hb;clear;solve_addr|].
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr_t1 $Hr]");
       [apply lea_r_i|apply Hfl|iCorrectPC link' a_last|iContiguous_next Hcont_rest' 5|apply Hlea'|auto..].
     iEpilogue "(HPC & Hi & Hr_t1 & Hr)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
@@ -1846,13 +1890,15 @@ Section stack_macros.
     (* move r_t2 0 *)
     destruct rest';[|inversion Hlength'].
     iPrologue "Hprog".
-    apply contiguous_between_last with (ai:=a5) in Hcont_rest' as Hlast;[|auto].
+    apply contiguous_between_last with (ai:=a12) in Hcont_rest' as Hlast;[|auto].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]"); 
       [apply move_z_i|apply Hfl|iCorrectPC link' a_last|apply Hlast|auto|..].
-    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    iApply "Hφ". iFrame.
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    assert ((b' + 1)%a = Some b) as Hb';[revert Hlea';clear;solve_addr|]. 
+    iApply "Hφ". iExists _,_,_,_,_. iSplit;[eauto|]. iSplit;[iPureIntro;apply Hb'|]. 
+    iFrame. rewrite Heqapp. 
     repeat (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi"). 
-    iFrame "Hprog_done". 
+    iFrame "Hprog_done". iFrame. done.
   Qed.
 
   (* ---------------------------------------- CRTCLS ------------------------------------ *)
