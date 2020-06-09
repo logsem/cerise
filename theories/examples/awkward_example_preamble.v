@@ -28,6 +28,28 @@ Proof.
     iDestruct "IHl" as (ys) "IHl". iExists (v0 :: ys). cbn. iFrame.
 Qed.
 
+Lemma big_sepL2_split_at {Σ : gFunctors} {A B: Type} `{EqDecision A} `{Countable A}
+      (k: nat) (l1: list A) (l2: list B) (φ : A → B → iProp Σ):
+  ([∗ list] a;b ∈ l1;l2, φ a b) -∗
+  ([∗ list] a;b ∈ (take k l1);(take k l2), φ a b) ∗ ([∗ list] a;b ∈ (drop k l1);(drop k l2), φ a b).
+Proof.
+  iIntros "H".
+  iDestruct (big_sepL2_length with "H") as %?.
+  rewrite -{1}(take_drop k l1) -{1}(take_drop k l2).
+  iDestruct (big_sepL2_app' with "H") as "[? ?]".
+  { rewrite !take_length. lia. }
+  iFrame.
+Qed.
+
+Lemma regmap_full_dom (r: gmap RegName Word):
+  (∀ x, is_Some (r !! x)) →
+  dom (gset RegName) r = all_registers_s.
+Proof.
+  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  - intros rr _. apply all_registers_s_correct.
+  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
+Qed.
+
 (* TODO: move to lang.v *)
 Lemma le_addr_withinBounds p l b e a:
   (b <= a)%a → (a < e)%a →
@@ -134,12 +156,14 @@ Section awkward_example_preamble.
     cbv in x. exact x.
   Defined.
 
-  
   Definition awkN : namespace := nroot .@ "awkN".
+  Definition awk_invN : namespace := awkN .@ "inv".
+  Definition awk_codeN : namespace := awkN .@ "code".
+  Definition awk_clsN : namespace := awkN .@ "cls".
 
   Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_g pc_b pc_e
-        ai pc_p' a_first a_end b_link e_link a_link a_entry ai_awk awk_first awk_end p_awk
-        r_adv a_move:
+        ai pc_p' a_first a_end b_link e_link a_link a_entry ai_awk awk_first awk_end
+        a_move:
 
     isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_end →
     PermFlows pc_p pc_p' →
@@ -154,7 +178,7 @@ Section awkward_example_preamble.
     awkward_preamble f_m offset_to_awkward ai pc_p'
 
     (* Code of the awkward example itself *)
-    ∗ awkward_example ai_awk p_awk r_adv 65
+    ∗ awkward_example ai_awk pc_p r_adv 65
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
@@ -173,15 +197,15 @@ Section awkward_example_preamble.
     rewrite /full_map.
     iSplitR; auto. rewrite /interp_conf.
 
+    (* put the code for the awkward example in an invariant *)
+    iDestruct (na_inv_alloc logrel_nais _ awk_codeN with "Hawk") as ">#Hawk".
+
     rewrite /registers_mapsto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
       by rewrite lookup_insert //. rewrite delete_insert_delete //.
     destruct (Hr_full r_t0) as [r0 Hr0].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr0 Hregs]". by rewrite !lookup_delete_ne//.
-    assert (dom (gset RegName) r = all_registers_s) as Hdom_r.
-    { apply (anti_symm _); rewrite elem_of_subseteq.
-      - intros rr _. apply all_registers_s_correct.
-      - intros rr _. rewrite -elem_of_gmap_dom. apply Hr_full. }
+    pose proof (regmap_full_dom _ Hr_full) as Hdom_r.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
 
     (* malloc 1 *)
@@ -259,6 +283,7 @@ Section awkward_example_preamble.
     iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & Hregs & #Hcls_fresh & Hr & Hsts)".
     iDestruct "Hcls_fresh" as %Hcls_fresh.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest'.
+    iDestruct (na_inv_alloc logrel_nais _ awk_clsN with "Hbe_cls") as ">#Hcls_inv".
     (* rclear *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (ai_rclear ai_rest' a_rclear_end) "(Hrclear & Hprog & #Hcont)"; eauto.
@@ -295,20 +320,146 @@ Section awkward_example_preamble.
       [apply jmp_i|apply Hfl|..].
     { admit. }
     (* TODO: We need to allocate all the relevant non atomic invariants *)
+
     (* the current state of registers is valid *)
     iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
     { rewrite /interp fixpoint_interp1_eq /= /enter_cond. iModIntro.
       iIntros (r' W3 HW3) "". iNext. rewrite /interp_expr /=.
       iIntros "([Hr'_full #Hr'_valid] & Hregs' & Hr & Hsts & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
-      iSplitR; [auto|]. rewrite /interp_conf. 
+      pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
+      iSplitR; [auto|]. rewrite /interp_conf.
+
+      iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>Hcls & Hna & Hcls_close)";
+        [auto..|].
 
       rewrite /registers_mapsto.
-      iApply (f4_spec with "[]").
-      all: admit. }
+      rewrite -insert_delete.
+      iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
+      destruct (Hr'_full r_t1) as [r1v ?].
+      iDestruct (big_sepM_delete _ _ r_t1 with "Hregs'") as "[Hr1 Hregs']".
+        by rewrite lookup_delete_ne //.
+      destruct (Hr'_full r_env) as [renvv ?].
+      iDestruct (big_sepM_delete _ _ r_env with "Hregs'") as "[Hrenv Hregs']".
+        by rewrite !lookup_delete_ne //.
+      (* Step through the closure code *)
+      (* TODO: the part where we step through the closure initialization code
+         should be moved to a separate lemma in stack_macros *)
+      iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
+      rewrite /region_mapsto.
+      assert (b_cls + 8 = Some e_cls)%a as Hbe.
+      { rewrite region_addrs_length /region_size in Hcls_len.
+        revert Hcls_len; clear; solve_addr. }
+      assert (contiguous_between (region_addrs b_cls e_cls) b_cls e_cls) as Hcont_cls.
+      { apply contiguous_between_of_region_addrs; auto. revert Hbe; clear; solve_addr. }
+      pose proof (region_addrs_NoDup b_cls e_cls) as Hcls_nodup.
+      iDestruct (big_sepL2_split_at 6 with "Hcls") as "[Hcls_code Hcls_data]".
+      cbn [take drop].
+      destruct (region_addrs b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
+      pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_cls). subst.
+      assert (isCorrectPC_range RX Global b_cls e_cls b_cls e_cls).
+      { unfold isCorrectPC_range. intros ? [? ?]. constructor; try split; auto. }
+      do 7 (destruct ll as [| ? ll]; [by inversion Hcls_len|]).
+      destruct ll;[| by inversion Hcls_len]. cbn [take drop].
+      iDestruct "Hcls_data" as "(Hcls_ptr & Hcls_env & _)".
+      (* move r_t1 PC *)
+      iPrologue "Hcls_code". rewrite -j_1.
+      iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]");
+        [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
+         iContiguous_next Hcont_cls 0 | done | ..].
+      iEpilogue "(HPC & Hprog_done & Hr1)".
+      (* lea r_t1 7 *)
+      iPrologue "Hprog". rewrite -j_2.
+      iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
+        [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
+         iContiguous_next Hcont_cls 1 | | done | done | ..].
+      { eapply contiguous_between_incr_addr_middle' with (i:=0); eauto.
+        cbn. clear. lia. }
+      iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
+      (* load r_env r_t1 *)
+      apply NoDup_ListNoDup in Hcls_nodup.
+      iPrologue "Hprog". rewrite -j_3.
+      (* FIXME: tedious & fragile *)
+      assert ((a9 =? a4)%a = false) as H_4_9.
+      { apply Z.eqb_neq. intros Heqb. assert (a9 = a4) as ->. revert Heqb; clear; solve_addr.
+        exfalso. by pose proof (NoDup_lookup _ 2 7 _ Hcls_nodup eq_refl eq_refl). }
+      iApply (wp_load_success with "[$HPC $Hi $Hrenv $Hr1 Hcls_env]");
+        [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
+         split;[done|] | iContiguous_next Hcont_cls 2 | ..].
+      { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
+        by eapply le_addr_withinBounds; eauto. repeat constructor. }
+      { rewrite H_4_9. iFrame. eauto. }
+      iEpilogue "(HPC & Hrenv & Hi & Hr1 & Hcls_env)". rewrite H_4_9.
+      iCombine "Hi Hprog_done" as "Hprog_done".
+      (* lea r_t1 (-1) *)
+      iPrologue "Hprog". rewrite -j_4.
+      iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
+        [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
+         iContiguous_next Hcont_cls 3 | | done | done | ..].
+      { assert ((a8 + 1)%a = Some a9) as HH. by iContiguous_next Hcont_cls 6.
+        instantiate (1 := a8). revert HH. clear; solve_addr. }
+      iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
+      (* load r_t1 r_t1 *)
+      iPrologue "Hprog". rewrite -j_5.
+      (* FIXME: tedious & fragile *)
+      assert ((a8 =? a6)%a = false) as H_8_6.
+      { apply Z.eqb_neq. intros Heqb. assert (a8 = a6) as ->. revert Heqb; clear; solve_addr.
+        exfalso. by pose proof (NoDup_lookup _ 4 6 _ Hcls_nodup eq_refl eq_refl). }
+      iApply (wp_load_success_same with "[$HPC $Hi $Hr1 Hcls_ptr]");
+        [(* FIXME *) auto | rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
+         split;[done|] | iContiguous_next Hcont_cls 4 | ..].
+      { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
+        by eapply le_addr_withinBounds; eauto. repeat constructor. }
+      { rewrite H_8_6. iFrame. eauto. }
+      iEpilogue "(HPC & Hr1 & Hi & Hcls_ptr)". rewrite H_8_6.
+      iCombine "Hi Hprog_done" as "Hprog_done".
+      (* jmp r_t1 *)
+      iPrologue "Hprog". rewrite -j_6.
+      iApply (wp_jmp_success with "[$HPC $Hi $Hr1]");
+        [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls | .. ].
+      iEpilogue "(HPC & Hi & Hr1)".
+      rewrite updatePcPerm_cap_non_E. 2: admit.
+
+      (* close the invariant for the closure *)
+      iDestruct ("Hcls_close" with "[Hprog_done $Hna Hi Hcls_env Hcls_ptr]") as ">Hna".
+      { repeat iDestruct "Hprog_done" as "(?&Hprog_done)". iNext. iFrame. eauto. }
+
+      iDestruct (big_sepM_insert with "[$Hregs' $Hr1]") as "Hregs'".
+        by rewrite lookup_delete_ne // lookup_delete //.
+        rewrite -delete_insert_ne // insert_delete.
+      destruct (Hr'_full r_t0) as [r0v Hr0v].
+      iDestruct (big_sepM_delete _ _ r_t0 with "Hregs'") as "[Hr0 Hregs']".
+        by rewrite lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
+      destruct (Hr'_full r_adv) as [radvv Hradvv].
+      iDestruct (big_sepM_delete _ _ r_adv with "Hregs'") as "[Hradv Hregs']".
+        by rewrite !lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
+      destruct (Hr'_full r_stk) as [rstkv Hrstkv].
+      iDestruct (big_sepM_delete _ _ r_stk with "Hregs'") as "[Hrstk Hregs']".
+        by rewrite !lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
+
+      iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr]").
+      { admit. }
+      { admit. }
+      { revert Hbe_cell; clear; solve_addr. }
+      { rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom_r'.
+        rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
+        f_equal. clear. set_solver. }
+      iSplitL. iExists awkN; iApply "Hawk_inv".
+      iSplitL.
+      { unshelve iSpecialize ("Hr'_valid" $! r_stk _); [done|].
+        rewrite /(RegLocate r' r_stk) Hrstkv. iApply "Hr'_valid". }
+      iSplitL.
+      { unshelve iSpecialize ("Hr'_valid" $! r_adv _); [done|].
+        rewrite /(RegLocate r' r_adv) Hradvv. iApply "Hr'_valid". }
+      iSplitL.
+      { unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|].
+        rewrite /(RegLocate r' r_t0) Hr0v. iApply "Hr'_valid". }
+      { iExists _; iApply "Hawk". }
+      { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
+    }
 
     unshelve iSpecialize ("Hr_valid" $! r_t0 _). done.
     rewrite /(RegLocate _ r_t0) Hr0.
-    
+
     iAssert (((fixpoint interp1) W2) r0) as "#Hr_valid2". 
     { iApply (interp_monotone with "[] Hr_valid"). iPureIntro. apply related_sts_pub_world_fresh_loc; auto. }
     set r' : gmap RegName Word :=
@@ -322,7 +473,7 @@ Section awkward_example_preamble.
     2 : { iEpilogue "(HPC & Hi & Hr0)". iApply "Hcont". iFrame "HPC". iIntros (Hcontr);done. }
     iDestruct "Hcont" as (p g b e a3 Heq) "#Hcont". 
     simplify_eq. 
-    
+
     iAssert (future_world g W2 W2) as "Hfuture".
     { destruct g; iPureIntro. apply related_sts_priv_refl_world. apply related_sts_pub_refl_world. }
     iSpecialize ("Hcont" $! r W2 with "Hfuture"). 
@@ -334,7 +485,7 @@ Section awkward_example_preamble.
                 [auto|iPureIntro;apply related_sts_pub_world_fresh_loc; auto|].
       (* register manipulation *)
       admit. }
-    
+
     (* apply the continuation *)
     iDestruct "Hcont" as "[_ Hcallback_now]".
     iApply wp_wand_l. iFrame "Hcallback_now". 

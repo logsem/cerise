@@ -1915,10 +1915,10 @@ Section stack_macros.
   Parameter v5 : Z.
   Parameter v6 : Z. 
   Axiom j_1 : cap_lang.encode (Mov r_t1 (inr PC)) = inl v1.
-  Axiom j_2 : cap_lang.encode (Lea r_t1 (inl (-2)%Z)) = inl v2.
+  Axiom j_2 : cap_lang.encode (Lea r_t1 (inl 7%Z)) = inl v2.
   Axiom j_3 : cap_lang.encode (Load r_env r_t1) = inl v3.
-  Axiom j_4 : cap_lang.encode (Lea r_t1 (inl 1%Z)) = inl v4.
-  Axiom j_5 : cap_lang.encode (Load r_stk r_t1) = inl v5.
+  Axiom j_4 : cap_lang.encode (Lea r_t1 (inl (-1)%Z)) = inl v4.
+  Axiom j_5 : cap_lang.encode (Load r_t1 r_t1) = inl v5.
   Axiom j_6 : cap_lang.encode (Jmp r_t1) = inl v6.
   (* encodings of enter capability permission pair *)
   Parameter global_e : Z. 
