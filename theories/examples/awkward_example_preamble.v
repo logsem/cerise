@@ -161,11 +161,11 @@ Section awkward_example_preamble.
   Definition awk_codeN : namespace := awkN .@ "code".
   Definition awk_clsN : namespace := awkN .@ "cls".
 
-  Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_g pc_b pc_e
+  Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_b pc_e
         ai pc_p' a_first a_end b_link e_link a_link a_entry ai_awk awk_first awk_end
         a_move:
 
-    isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_end →
+    isCorrectPC_range pc_p Global pc_b pc_e a_first a_end →
     PermFlows pc_p pc_p' →
     contiguous_between ai a_first a_end →
     withinBounds (RW, Global, b_link, e_link, a_entry) = true →
@@ -187,7 +187,7 @@ Section awkward_example_preamble.
     ∗ a_entry ↦ₐ[RW] (inr (E, Global, b_m, e_m, a_m))
 
     -∗
-    interp_expr interp r W (inr (pc_p, pc_g, pc_b, pc_e, a_first)).
+    interp_expr interp r W (inr (pc_p, Global, pc_b, pc_e, a_first)).
   Proof.
     rewrite /interp_expr /=.
     iIntros (Hvpc Hfl Hcont Hwb_malloc Ha_entry Ha_lea H_awk_offset Hcont_awk)
@@ -208,13 +208,29 @@ Section awkward_example_preamble.
     pose proof (regmap_full_dom _ Hr_full) as Hdom_r.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
 
+    assert (pc_p ≠ E).
+    { (* HACKISH *) intros ->. unshelve epose proof (Hvpc a_first _) as HPC.
+      pose proof (contiguous_between_length _ _ _ Hcont) as HH. rewrite Hlength in HH.
+      simpl in HH. revert HH; clear; solve_addr. inversion HPC; subst. naive_solver. }
+
     (* malloc 1 *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (ai_malloc ai_rest a_malloc_end) "(Hmalloc & Hprog & #Hcont)"; [apply Hcont|].
     iDestruct "Hcont" as %(Hcont_malloc & Hcont_rest & Heqapp & Hlink).
+    iDestruct (big_sepL2_length with "Hmalloc") as %Hai_malloc_len.
+    assert (isCorrectPC_range pc_p Global pc_b pc_e a_first a_malloc_end) as Hvpc1.
+    { intros ? [HH1 HH2]. apply Hvpc.
+      generalize (contiguous_between_bounds _ _ _ Hcont_rest).
+      revert HH1 HH2; clear; solve_addr. }
+    assert (isCorrectPC_range pc_p Global pc_b pc_e a_malloc_end a_end) as Hvpc2.
+    { intros ? [HH1 HH2]. apply Hvpc.
+      generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
+      revert HH1 HH2; clear; solve_addr. }
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hr $Hsts]");
       [|apply Hfl|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry|..].
-    { admit. }
+    { intros ? [HH1 HH2]. apply Hvpc.
+      generalize (contiguous_between_bounds _ _ _ Hcont_rest).
+      revert HH1 HH2; clear; solve_addr. }
     { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
     iSplitR. iApply "Hinv_malloc". iNext.
     iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH)".
@@ -228,13 +244,13 @@ Section awkward_example_preamble.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
 
     destruct ai_rest as [| a l]; [by inversion Hlength|].
-    assert (a_malloc_end = a) as ->. admit.
+    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest) as ->.
     (* store_z r_t1 0 *)
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hr1 $Hi $Hcell]");
-      [eapply store_z_i|apply Hfl|constructor| |iContiguous_next Hcont_rest 0|..].
-    { admit. }
+      [eapply store_z_i|apply Hfl|constructor|iCorrectPC a_malloc_end a_end|
+       iContiguous_next Hcont_rest 0|..].
     { split; auto. apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
     iEpilogue "(HPC & Hprog_done & Hr1 & Hb_cell)". iCombine "Hprog_done" "Hmalloc" as "Hprog_done".
     (* move_r r_t2 r_t1 *)
@@ -243,25 +259,26 @@ Section awkward_example_preamble.
     destruct l as [| a_move' l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg _ _ _ _ _ _ _ _ r_t2 _ r_t1 with "[$HPC $Hi $Hr1 $Hr2]");
-      [eapply move_r_i|apply Hfl| |iContiguous_next Hcont_rest 1|done|..].
-    { admit. }
+      [eapply move_r_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 1|done|..].
     iEpilogue "(HPC & Hi & Hr2 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move_r r_t1 PC *)
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]");
-      [eapply move_r_i|apply Hfl| |iContiguous_next Hcont_rest 2|done|..].
-    { admit. }
+      [eapply move_r_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 2|done|..].
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea_z r_t1 offset_to_awkward *)
     assert (a_move' = a_move) as ->.
-    { admit. }
+    { assert ((a_first + (length ai_malloc + 2))%a = Some a_move') as HH.
+      { rewrite Hai_malloc_len /= in Hlink |- *.
+        generalize (contiguous_between_incr_addr_middle _ _ _ 0 2 _ _ Hcont_rest eq_refl eq_refl).
+        revert Hlink; clear; solve_addr. }
+      revert HH Ha_lea. rewrite Hai_malloc_len. cbn. clear. solve_addr. }
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ awk_first with "[$HPC $Hi $Hr1]");
-      [eapply lea_z_i|apply Hfl| |iContiguous_next Hcont_rest 3|assumption|done|..].
-    { admit. }
-    { admit. }
+      [eapply lea_z_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 3
+       |assumption|done|done|..].
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* crtcls *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -271,13 +288,11 @@ Section awkward_example_preamble.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls & Hcont_rest' & Heqapp' & Hlink').
     iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $Hr $Hsts]");
-      [|apply Hfl|apply Hcont_crtcls|apply Hwb_malloc|apply Ha_entry|..].
+      [|apply Hfl|apply Hcont_crtcls|apply Hwb_malloc|apply Ha_entry| |done|done|..].
     { admit. }
     { rewrite dom_delete_L dom_insert_L !dom_delete_L Hdom_r.
       rewrite !difference_difference_L singleton_union_difference_L all_registers_union_l.
       clear. set_solver. }
-    { admit. }
-    { admit. }
     iSplitR. iApply "Hinv_malloc". iNext.
     iIntros "(HPC & Hcrtcls & Hpc_b & Ha_entry & HH)".
     iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & Hregs & #Hcls_fresh & Hr & Hsts)".
@@ -379,45 +394,45 @@ Section awkward_example_preamble.
       apply NoDup_ListNoDup in Hcls_nodup.
       iPrologue "Hprog". rewrite -j_3.
       (* FIXME: tedious & fragile *)
-      assert ((a9 =? a4)%a = false) as H_4_9.
-      { apply Z.eqb_neq. intros Heqb. assert (a9 = a4) as ->. revert Heqb; clear; solve_addr.
+      assert ((a8 =? a3)%a = false) as H_3_8.
+      { apply Z.eqb_neq. intros Heqb. assert (a8 = a3) as ->. revert Heqb; clear; solve_addr.
         exfalso. by pose proof (NoDup_lookup _ 2 7 _ Hcls_nodup eq_refl eq_refl). }
       iApply (wp_load_success with "[$HPC $Hi $Hrenv $Hr1 Hcls_env]");
         [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
          split;[done|] | iContiguous_next Hcont_cls 2 | ..].
       { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
         by eapply le_addr_withinBounds; eauto. repeat constructor. }
-      { rewrite H_4_9. iFrame. eauto. }
-      iEpilogue "(HPC & Hrenv & Hi & Hr1 & Hcls_env)". rewrite H_4_9.
+      { rewrite H_3_8. iFrame. eauto. }
+      iEpilogue "(HPC & Hrenv & Hi & Hr1 & Hcls_env)". rewrite H_3_8.
       iCombine "Hi Hprog_done" as "Hprog_done".
       (* lea r_t1 (-1) *)
       iPrologue "Hprog". rewrite -j_4.
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
         [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
          iContiguous_next Hcont_cls 3 | | done | done | ..].
-      { assert ((a8 + 1)%a = Some a9) as HH. by iContiguous_next Hcont_cls 6.
-        instantiate (1 := a8). revert HH. clear; solve_addr. }
+      { assert ((a7 + 1)%a = Some a8) as HH. by iContiguous_next Hcont_cls 6.
+        instantiate (1 := a7). revert HH. clear; solve_addr. }
       iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
       (* load r_t1 r_t1 *)
       iPrologue "Hprog". rewrite -j_5.
       (* FIXME: tedious & fragile *)
-      assert ((a8 =? a6)%a = false) as H_8_6.
-      { apply Z.eqb_neq. intros Heqb. assert (a8 = a6) as ->. revert Heqb; clear; solve_addr.
+      assert ((a7 =? a5)%a = false) as H_7_5.
+      { apply Z.eqb_neq. intros Heqb. assert (a7 = a5) as ->. revert Heqb; clear; solve_addr.
         exfalso. by pose proof (NoDup_lookup _ 4 6 _ Hcls_nodup eq_refl eq_refl). }
       iApply (wp_load_success_same with "[$HPC $Hi $Hr1 Hcls_ptr]");
         [(* FIXME *) auto | rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls |
          split;[done|] | iContiguous_next Hcont_cls 4 | ..].
       { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
         by eapply le_addr_withinBounds; eauto. repeat constructor. }
-      { rewrite H_8_6. iFrame. eauto. }
-      iEpilogue "(HPC & Hr1 & Hi & Hcls_ptr)". rewrite H_8_6.
+      { rewrite H_7_5. iFrame. eauto. }
+      iEpilogue "(HPC & Hr1 & Hi & Hcls_ptr)". rewrite H_7_5.
       iCombine "Hi Hprog_done" as "Hprog_done".
       (* jmp r_t1 *)
       iPrologue "Hprog". rewrite -j_6.
       iApply (wp_jmp_success with "[$HPC $Hi $Hr1]");
         [rewrite decode_encode_inv // | done | iCorrectPC b_cls e_cls | .. ].
       iEpilogue "(HPC & Hi & Hr1)".
-      rewrite updatePcPerm_cap_non_E. 2: admit.
+      rewrite updatePcPerm_cap_non_E //;[].
 
       (* close the invariant for the closure *)
       iDestruct ("Hcls_close" with "[Hprog_done $Hna Hi Hcls_env Hcls_ptr]") as ">Hna".
@@ -436,8 +451,8 @@ Section awkward_example_preamble.
       iDestruct (big_sepM_delete _ _ r_stk with "Hregs'") as "[Hrstk Hregs']".
         by rewrite !lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
 
-      iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr]").
-      { admit. }
+      iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr]");
+        [|apply Hcont_awk|..].
       { admit. }
       { revert Hbe_cell; clear; solve_addr. }
       { rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom_r'.
