@@ -77,6 +77,12 @@ Section Capabilities.
       destruct c3; by cbv.
   Qed.
 
+  Lemma LeastPermUpd_atleast w:
+    PermFlows RW (LeastPermUpd w).
+  Proof.
+    destruct w as [|c]; cbn. constructor.
+    destruct_cap c. case_match; constructor.
+  Qed.
 
   Inductive CapR : relation (Word * Perm) :=
   | P_res w p1 p2 : PermFlows p1 p2 → CapR (w,p2) (w,p1)
@@ -615,13 +621,16 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_heap_update_cap (σ : gmap Addr Word) (a : Addr) (p : Perm) (w w' : Word) :
-    p ≠ O →
     PermFlows (LeastPermUpd w') p →
     gen_heap_ctx σ -∗ a ↦ₐ[p] w ==∗ gen_heap_ctx (<[a:=w']> σ) ∗ a ↦ₐ[p] w'.
   Proof.
-    iIntros (Ho Hf) "Hσ Ha".
+    iIntros (Hf) "Hσ Ha".
     iDestruct "Ha" as (γ_cap) "Ha". iApply bi.sep_exist_l. iExists γ_cap.
     do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
+    assert (p ≠ O) as Ho.
+    { assert (PermFlows RW p) as Hflp.
+      by etransitivity; eauto using LeastPermUpd_atleast.
+      inversion Hflp; destruct p; eauto. }
     iDestruct "Ha" as "(Hex & Hal & [Ha | %])"; [|contradiction].
     iMod (MonRef_update (A:=A) with "Hex") as "[$ $]"; eauto.
     { right with (w',p); [|left]. by constructor. }
@@ -866,12 +875,7 @@ Section cap_lang_rules.
   Proof.
     intros.
     rewrite (memMap_delete l) //. iIntros "Hh [Hl Hmap]".
-    iMod (gen_heap_update_cap with "Hh Hl") as "[Hh Hl]".
-    { destruct v.
-      - cbv in H3. intros contr. by rewrite contr in H3.
-      - destruct c,p0,p0,p0. destruct l0; cbv in H3. all: intros contr; by rewrite contr in H3.
-    }
-    { exact H3. }
+    iMod (gen_heap_update_cap with "Hh Hl") as "[Hh Hl]"; eauto.
     iModIntro.
     iSplitL "Hh"; eauto.
     iApply (memMap_delete l); first by rewrite lookup_insert.
