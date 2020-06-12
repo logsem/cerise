@@ -8,26 +8,6 @@ From cap_machine Require Import
 From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example_helpers awkward_example.
 From stdpp Require Import countable.
 
-Lemma big_sepM_to_big_sepL2 {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
-      (r : gmap A B) (lr : list A) (φ : A → B → iProp Σ) :
-  NoDup lr →
-  (∀ r0, r0 ∈ lr → is_Some (r !! r0)) →
-  ([∗ map] k↦y ∈ r, φ k y) -∗ ∃ ys, ([∗ list] k;y ∈ lr;ys, φ k y).
-Proof.
-  iInduction (lr) as [ | r0 ] "IHl" forall (r); iIntros (Hdup Hlookup) "Hmap".
-  - iExists []. done.
-  - assert (is_Some (r !! r0)) as Hr0.
-    { apply Hlookup. constructor. }
-    destruct Hr0 as [v0 ?].
-    iDestruct (big_sepM_delete _ _ r0 with "Hmap") as "(H & Hmap)"; eauto.
-    iSpecialize ("IHl" with "[] [] Hmap").
-    { iPureIntro. by eapply NoDup_cons_12. }
-    { iPureIntro. intros rr Hrr. rewrite lookup_delete_ne.
-      { apply Hlookup. by constructor. }
-      intros ->. eapply NoDup_cons_11; eauto. }
-    iDestruct "IHl" as (ys) "IHl". iExists (v0 :: ys). cbn. iFrame.
-Qed.
-
 Lemma regmap_full_dom (r: gmap RegName Word):
   (∀ x, is_Some (r !! x)) →
   dom (gset RegName) r = all_registers_s.
