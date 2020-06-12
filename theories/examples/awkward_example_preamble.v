@@ -502,29 +502,59 @@ Section awkward_example_preamble.
     iDestruct "Hcont" as (p g b e a3 Heq) "#Hcont". 
     simplify_eq. 
 
-    iAssert (future_world g W2 W2) as "Hfuture".
+    iAssert (future_world g W2 W2) as "#Hfuture".
     { destruct g; iPureIntro. apply related_sts_priv_refl_world. apply related_sts_pub_refl_world. }
-    iSpecialize ("Hcont" $! r W2 with "Hfuture"). 
+    iAssert (∀ r, ▷ ((interp_expr interp r) W2 (updatePcPerm (inr (p, g, b, e, a3)))))%I with "[Hcont]" as "Hcont'".
+    { iIntros. iApply "Hcont". iApply "Hfuture". }
 
     (* prepare the continuation *)
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-    iSpecialize ("Hcont" with "[Hsts Hr Hregs HPC Hr0 Hr1 HnaI]").
-    { iFrame. iDestruct (region_monotone with "[] [] Hr") as "$";
-                [auto|iPureIntro;apply related_sts_pub_world_fresh_loc; auto|].
-      (* register manipulation *)
-      admit. }
 
+    (* Put the registers back in the map *)
+    iAssert ([∗ map] r↦w ∈ (create_gmap_default (list_difference all_registers [PC; r_t0; r_t1]) (inl 0%Z)),
+             r ↦ᵣ w)%I with "[Hregs]" as "Hregs".
+    { iApply (big_sepM_mono (λ r w, r ↦ᵣ inl 0%Z)%I). intros k w.
+      intros [? ->]%create_gmap_default_lookup_is_Some. auto.
+      iDestruct (big_sepM_dom with "Hregs") as "Hregs". iApply big_sepM_dom.
+      rewrite big_opS_proper'. iApply "Hregs". done.
+      rewrite create_gmap_default_dom list_to_set_difference -/all_registers_s.
+      repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r.
+      rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
+      f_equal. clear. set_solver. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs"; [done|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs"; [done|].
+    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs"; [done|].
+    rewrite -(insert_insert _ PC _ (inl 0%Z)).
+    match goal with |- context [ ([∗ map] k↦y ∈ <[PC:=_]> ?r, _)%I ] => set r'' := r end.
+    iAssert (full_map r'') as %Hr''_full.
+    { rewrite /full_map. iIntros (rr). iPureIntro. rewrite elem_of_gmap_dom /r''.
+      rewrite 3!dom_insert_L create_gmap_default_dom list_to_set_difference -/all_registers_s.
+      generalize (all_registers_s_correct rr). clear; set_solver. }
+    iSpecialize ("Hcont'" $! r'' with "[Hsts Hr Hregs HnaI]").
+    { iFrame.
+      iDestruct (region_monotone with "[] [] Hr") as "$";
+        [auto|iPureIntro; apply related_sts_pub_world_fresh_loc; auto|]. iFrame.
+      rewrite /interp_reg. iSplit; [iPureIntro; apply Hr''_full|].
+      iIntros (rr Hrr).
+      assert (is_Some (r'' !! rr)) as [rrv Hrrv] by apply Hr''_full.
+      rewrite /RegLocate Hrrv. rewrite /r'' in Hrrv.
+      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [_ Hrrv] ].
+      { subst rr. by exfalso. }
+      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
+      { subst rr rrv. iApply "Hr_valid2". }
+      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
+      { subst rr rrv. iApply "Hvalid_cls". }
+      apply create_gmap_default_lookup_is_Some in Hrrv as [_ ->].
+      rewrite /interp /=. rewrite (fixpoint_interp1_eq W2 (inl 0%Z)). auto. }
     (* apply the continuation *)
-    iDestruct "Hcont" as "[_ Hcallback_now]".
-    iApply wp_wand_l. iFrame "Hcallback_now". 
-    iIntros (v) "Hφ".
-    iIntros (Hne).
-    iDestruct ("Hφ" $! Hne) as (r0 W') "(Hfull & Hregs & #Hrelated & Hna & Hsts & Hr)". 
+    iDestruct "Hcont'" as "[_ Hcallback_now]".
+    iApply wp_wand_l. iFrame "Hcallback_now".
+    iIntros (v) "Hφ". iIntros (Hne).
+    iDestruct ("Hφ" $! Hne) as (r0 W') "(Hfull & Hregs & #Hrelated & Hna & Hsts & Hr)".
     iExists r0,W'. iFrame.
     iDestruct "Hrelated" as %Hrelated. iPureIntro.
-    eapply related_sts_pub_priv_trans_world;[|eauto]. 
+    eapply related_sts_pub_priv_trans_world;[|eauto].
     apply related_sts_pub_world_fresh_loc; auto.
-
-  Admitted.
+  Qed.
 
 End awkward_example_preamble.
