@@ -319,6 +319,12 @@ Section awkward_example_preamble.
       revert Ha1_after_malloc Hlink'. clear; solve_addr. }
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr2]") as "Hregs".
       by rewrite !lookup_insert_ne // lookup_delete.
+     (* /!\ This manual assert and the manual unfolding of rclear is needed.
+        Otherwise Qed runs in a loop when checking that [rclear ...] and
+        the type of "Hrclear" ([∗ list] ...) are convertible *)
+    iAssert (rclear (a_crtcls_end :: ai_rclear) pc_p' (list_difference all_registers [PC; r_t0; r_t1]))
+               with "[Hrclear]" as "Hrclear".
+    { rewrite /rclear. iApply "Hrclear". }
     iApply (rclear_spec with "[- $HPC $Hrclear $Hregs]");
       [apply Hcont_rclear| | | |apply Hfl|..].
     { apply not_elem_of_list; repeat constructor. }
