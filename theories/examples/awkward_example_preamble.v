@@ -59,6 +59,15 @@ Proof.
   unfold le_addr, lt_addr in *. rewrite Z.leb_le Z.ltb_lt. lia.
 Qed.
 
+(* TODO: move *)
+Lemma isCorrectPC_range_restrict p g b e a0 an a0' an' :
+  isCorrectPC_range p g b e a0 an →
+  (a0 <= a0')%a ∧ (an' <= an)%a →
+  isCorrectPC_range p g b e a0' an'.
+Proof.
+  intros HR [? ?] a' [? ?]. apply HR. solve_addr.
+Qed.
+
 Section awkward_example_preamble.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
@@ -172,6 +181,7 @@ Section awkward_example_preamble.
     (a_link + f_m)%a = Some a_entry →
     (a_first + awkward_preamble_move_offset)%a = Some a_move →
     (a_move + offset_to_awkward)%a = Some awk_first →
+    isCorrectPC_range pc_p Global pc_b pc_e awk_first awk_end →
     contiguous_between ai_awk awk_first awk_end →
 
     (* Code of the preamble *)
@@ -190,7 +200,7 @@ Section awkward_example_preamble.
     interp_expr interp r W (inr (pc_p, Global, pc_b, pc_e, a_first)).
   Proof.
     rewrite /interp_expr /=.
-    iIntros (Hvpc Hfl Hcont Hwb_malloc Ha_entry Ha_lea H_awk_offset Hcont_awk)
+    iIntros (Hvpc Hfl Hcont Hwb_malloc Ha_entry Ha_lea H_awk_offset Hvpc_awk Hcont_awk)
             "(Hprog & Hawk & #Hinv_malloc & Hpc_b & Ha_entry)
              ([#Hr_full #Hr_valid] & Hregs & Hr & Hsts & HnaI)".
     iDestruct "Hr_full" as %Hr_full.
@@ -219,18 +229,13 @@ Section awkward_example_preamble.
     iDestruct "Hcont" as %(Hcont_malloc & Hcont_rest & Heqapp & Hlink).
     iDestruct (big_sepL2_length with "Hmalloc") as %Hai_malloc_len.
     assert (isCorrectPC_range pc_p Global pc_b pc_e a_first a_malloc_end) as Hvpc1.
-    { intros ? [HH1 HH2]. apply Hvpc.
-      generalize (contiguous_between_bounds _ _ _ Hcont_rest).
-      revert HH1 HH2; clear; solve_addr. }
+    { eapply isCorrectPC_range_restrict. apply Hvpc.
+      generalize (contiguous_between_bounds _ _ _ Hcont_rest). clear; solve_addr. }
     assert (isCorrectPC_range pc_p Global pc_b pc_e a_malloc_end a_end) as Hvpc2.
-    { intros ? [HH1 HH2]. apply Hvpc.
-      generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
-      revert HH1 HH2; clear; solve_addr. }
+    { eapply isCorrectPC_range_restrict. apply Hvpc.
+      generalize (contiguous_between_bounds _ _ _ Hcont_malloc). clear; solve_addr. }
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hr $Hsts]");
-      [|apply Hfl|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry|..].
-    { intros ? [HH1 HH2]. apply Hvpc.
-      generalize (contiguous_between_bounds _ _ _ Hcont_rest).
-      revert HH1 HH2; clear; solve_addr. }
+      [apply Hvpc1|apply Hfl|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry|..].
     { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
     iSplitR. iApply "Hinv_malloc". iNext.
     iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH)".
@@ -287,9 +292,12 @@ Section awkward_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_]). 2: eapply Hcont_rest.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls & Hcont_rest' & Heqapp' & Hlink').
+    assert (a_malloc_end <= a1)%a as Ha1_after_malloc.
+    { eapply contiguous_between_middle_bounds'. apply Hcont_rest. repeat constructor. }
     iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $Hr $Hsts]");
       [|apply Hfl|apply Hcont_crtcls|apply Hwb_malloc|apply Ha_entry| |done|done|..].
-    { admit. }
+    { eapply isCorrectPC_range_restrict. apply Hvpc2. split; auto.
+      eapply contiguous_between_bounds. apply Hcont_rest'. }
     { rewrite dom_delete_L dom_insert_L !dom_delete_L Hdom_r.
       rewrite !difference_difference_L singleton_union_difference_L all_registers_union_l.
       clear. set_solver. }
@@ -306,13 +314,17 @@ Section awkward_example_preamble.
     iDestruct (big_sepL2_length with "Hrclear") as %Hrclear_len.
     destruct ai_rclear; [by inversion Hrclear_len|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rclear) as ->.
+    assert (a_malloc_end <= a_crtcls_end)%a as Hcrtcls_end_after_malloc.
+    { generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
+      revert Ha1_after_malloc Hlink'. clear; solve_addr. }
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr2]") as "Hregs".
       by rewrite !lookup_insert_ne // lookup_delete.
     iApply (rclear_spec with "[- $HPC $Hrclear $Hregs]");
       [apply Hcont_rclear| | | |apply Hfl|..].
     { apply not_elem_of_list; repeat constructor. }
     { reflexivity. }
-    { admit. }
+    { eapply isCorrectPC_range_restrict. apply Hvpc2. split; auto.
+      eapply contiguous_between_bounds. apply Hcont_rest''. }
     { rewrite list_to_set_difference -/all_registers_s.
       repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r.
       rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
@@ -333,8 +345,10 @@ Section awkward_example_preamble.
     assert (ai_rest' = []) as -> by (inversion Hlen'; eauto using nil_length_inv).
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply jmp_i|apply Hfl|..].
-    { admit. }
-    (* TODO: We need to allocate all the relevant non atomic invariants *)
+    { apply Hvpc2.
+      generalize (contiguous_between_middle_bounds'
+        _ a_rclear_end _ _ Hcont_rest'' ltac:(repeat constructor)).
+      revert Hcrtcls_end_after_malloc Hlink''. clear; solve_addr. }
 
     (* the current state of registers is valid *)
     iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
@@ -452,8 +466,7 @@ Section awkward_example_preamble.
         by rewrite !lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
 
       iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr]");
-        [|apply Hcont_awk|..].
-      { admit. }
+        [apply Hvpc_awk|apply Hcont_awk|..].
       { revert Hbe_cell; clear; solve_addr. }
       { rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom_r'.
         rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
