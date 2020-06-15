@@ -127,16 +127,19 @@ Section awkward_example_preamble.
   Definition awk_invN : namespace := awkN .@ "inv".
   Definition awk_codeN : namespace := awkN .@ "code".
   Definition awk_clsN : namespace := awkN .@ "cls".
+  Definition awk_env : namespace := awkN .@ "env". 
 
-  Lemma awkward_preamble_spec (f_m offset_to_awkward: Z) (r: Reg) W pc_p pc_b pc_e
-        ai pc_p' a_first a_end b_link e_link a_link a_entry ai_awk awk_first awk_end
+  Lemma awkward_preamble_spec (f_m f_a offset_to_awkward: Z) (r: Reg) W pc_p pc_b pc_e
+        ai pc_p' a_first a_end b_link e_link a_link a_entry a_entry' fail_cap ai_awk awk_first awk_end
         a_move:
 
     isCorrectPC_range pc_p Global pc_b pc_e a_first a_end →
     PermFlows pc_p pc_p' →
     contiguous_between ai a_first a_end →
     withinBounds (RW, Global, b_link, e_link, a_entry) = true →
+    withinBounds (RW, Global, b_link, e_link, a_entry') = true →
     (a_link + f_m)%a = Some a_entry →
+    (a_link + f_a)%a = Some a_entry' →
     (a_first + awkward_preamble_move_offset)%a = Some a_move →
     (a_move + offset_to_awkward)%a = Some awk_first →
     isCorrectPC_range pc_p Global pc_b pc_e awk_first awk_end →
@@ -146,20 +149,21 @@ Section awkward_example_preamble.
     awkward_preamble f_m offset_to_awkward ai pc_p'
 
     (* Code of the awkward example itself *)
-    ∗ awkward_example ai_awk pc_p r_adv 65
+    ∗ awkward_example ai_awk pc_p' f_a r_adv 65
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
     ∗ inv malloc_γ ([[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine]])
     ∗ pc_b ↦ₐ[pc_p'] (inr (RW, Global, b_link, e_link, a_link))
     ∗ a_entry ↦ₐ[RW] (inr (E, Global, b_m, e_m, a_m))
+    ∗ a_entry' ↦ₐ[RW] fail_cap
 
     -∗
     interp_expr interp r W (inr (pc_p, Global, pc_b, pc_e, a_first)).
   Proof.
     rewrite /interp_expr /=.
-    iIntros (Hvpc Hfl Hcont Hwb_malloc Ha_entry Ha_lea H_awk_offset Hvpc_awk Hcont_awk)
-            "(Hprog & Hawk & #Hinv_malloc & Hpc_b & Ha_entry)
+    iIntros (Hvpc Hfl Hcont Hwb_malloc Hwb_assert Ha_entry Ha_entry' Ha_lea H_awk_offset Hvpc_awk Hcont_awk)
+            "(Hprog & Hawk & #Hinv_malloc & Hpc_b & Ha_entry & Ha_entry')
              ([#Hr_full #Hr_valid] & Hregs & Hr & Hsts & HnaI)".
     iDestruct "Hr_full" as %Hr_full.
     rewrite /full_map.
@@ -301,6 +305,10 @@ Section awkward_example_preamble.
     iDestruct "HH" as (i) "(Hsts & % & % & Hst_i & #Hrel_i)".
     iDestruct (inv_alloc awkN _ (awk_inv i b_cell) with "[Hb_cell Hst_i]") as ">#Hawk_inv".
     { iNext. rewrite /awk_inv. iExists false. iFrame. }
+    (* we also allocate a non atomic invariant for the environment table *)
+    iMod (na_inv_alloc logrel_nais _ awk_env
+                       (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry' ↦ₐ[RW] fail_cap)%I
+            with "[$Ha_entry' $Hpc_b]") as "#Henv". 
     (* call the resulting world W2 *)
     match goal with |- context [ sts_full_world ?W ] => set W2 := W end.
     (* jmp *)
@@ -357,12 +365,13 @@ Section awkward_example_preamble.
       iDestruct (big_sepM_delete _ _ r_stk with "Hregs'") as "[Hrstk Hregs']".
         by rewrite !lookup_delete_ne // lookup_insert_ne // lookup_delete_ne //.
 
-      iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr]");
-        [apply Hvpc_awk|apply Hcont_awk|..].
+      iApply (f4_spec with "[$HPC $Hr0 $Hradv $Hrenv $Hrstk $Hregs' $Hrel_i $Hna $Hsts $Hr $Henv $Hawk]");
+        [apply Hvpc_awk|auto|apply Hcont_awk|apply Hwb_assert|apply Ha_entry'|..].
       { revert Hbe_cell; clear; solve_addr. }
       { rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom_r'.
         rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
         f_equal. clear. set_solver. }
+      { solve_ndisj. }
       iSplitL. iExists awkN; iApply "Hawk_inv".
       iSplitL.
       { unshelve iSpecialize ("Hr'_valid" $! r_stk _); [done|].
@@ -370,10 +379,8 @@ Section awkward_example_preamble.
       iSplitL.
       { unshelve iSpecialize ("Hr'_valid" $! r_adv _); [done|].
         rewrite /(RegLocate r' r_adv) Hradvv. iApply "Hr'_valid". }
-      iSplitL.
-      { unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|].
-        rewrite /(RegLocate r' r_t0) Hr0v. iApply "Hr'_valid". }
-      { iExists _; iApply "Hawk". }
+      unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|].
+      rewrite /(RegLocate r' r_t0) Hr0v. iApply "Hr'_valid". 
       { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
     }
 
