@@ -653,11 +653,16 @@ Section awkward_example.
      mclear_instrs r_stk 10 2 ++
      rclear_instrs (list_difference all_registers [PC;r_t0]) ++
      [jmp r_t0].
-   
+
+   Definition awkward_instrs_length : Z.
+   Proof.
+     set x := length (awkward_instrs r_t0 0 (* dummy *)).
+     cbv in x. exact x.
+   Defined.
+
    Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) epilogue_off : iProp Σ :=
      ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
 
-   
    Definition awk_inv i a :=
      (∃ x:bool, sts_state_loc (A:=Addr) i x
            ∗ if x

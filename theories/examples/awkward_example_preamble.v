@@ -123,6 +123,12 @@ Section awkward_example_preamble.
     cbv in x. exact x.
   Defined.
 
+  Definition awkward_preamble_instrs_length : Z.
+  Proof.
+    set x := length (awkward_preamble_instrs 0 0 (* dummy *)).
+    cbv in x. exact x.
+  Defined.
+
   Definition awkN : namespace := nroot .@ "awkN".
   Definition awk_invN : namespace := awkN .@ "inv".
   Definition awk_codeN : namespace := awkN .@ "code".
