@@ -605,20 +605,9 @@ Section awkward_example.
     repeat (rewrite -(delete_insert_ne _ reg); [|auto]);
     iDestruct (big_sepM_insert _ _ reg with Hgen_ptrn) as Hgen;[apply lookup_delete|iFrame|rewrite insert_delete].
   
-   (* Recall that the malloc subroutine lies in b_m e_m *)
-
-   (* assume that r1 contains an executable pointer to the malloc subroutine *)
-   (* Definition awkward_preamble_instrs r1 offset_to_awkward := *)
-   (*   [move_r r_t0 PC; *)
-   (*   lea_z r_t0 3; *)
-   (*   jmp r1; *)
-   (*   move_r r_self PC; *)
-   (*   lea_z r_self offset_to_awkward; *)
-   (*   jmp r_self]. *)
-   
   (* assume r1 contains an executable pointer to adversarial code *)
   (* f_a is the offset to the failure subroutine in the environment table *)
-  (* by convention the environment table is in the bottom address of the PC *)
+  (* by convention a pointer to the linking table is at the bottom address of the PC *)
   Definition awkward_instrs f_a (r1 : RegName) epilogue_off :=
      reqglob_instrs r1 ++
      prepstack_instrs r_stk 11 ++
