@@ -421,7 +421,7 @@ Section stack_macros.
     load_r r_t1 r_t1; 
     store_z r_t1 1;
     move_z r_t1 0;
-    fail_end].
+    halt].
 
   Definition assert_fail a p :=
     ([∗ list] a_i;w_i ∈ a;(assert_fail_instrs), a_i ↦ₐ[p] w_i)%I. 
@@ -553,7 +553,7 @@ Section stack_macros.
       
       Seq (Instr Executable)
       
-    {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
+    {{{ RET HaltedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ inr (RX, Global, f_b, f_e,^(f_a_last + (-1))%a)
          ∗ assert_r_z a f_a r z pc_p' ∗ assert_fail a' RX
          ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] inr (E,Global,f_b,f_e,f_a_first)
@@ -634,12 +634,12 @@ Section stack_macros.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]");
       [apply move_z_i|apply PermFlows_refl|iCorrectPC f_a_first f_a_last|iContiguous_next Hcont' 4|auto|].     
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* Fail *)
+    (* Halt *)
     destruct a';[|inversion Hlength'].
     apply contiguous_between_last with (ai:=a5) in Hcont' as Hlink';[|auto].
     iPrologue "Hprog".
-    iApply (wp_fail with "[$HPC $Hi]");
-      [apply fail_end_i|apply PermFlows_refl|iCorrectPC f_a_first f_a_last|].
+    iApply (wp_halt with "[$HPC $Hi]");
+      [apply halt_i|apply PermFlows_refl|iCorrectPC f_a_first f_a_last|].
     iEpilogue "(HPC & Hi)".
     iApply wp_value. iApply "Hφ".
     iFrame. iSplitL "Hr".
