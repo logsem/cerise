@@ -657,14 +657,19 @@ Section awkward_example.
      [jmp r_t0].
 
    (* TODO: possibly add fail subroutine to awkward example? *)
-  
+
+   Definition awkward_instrs_length : Z.
+   Proof.
+     set x := length (awkward_instrs r_t0 0 (* dummy *)).
+     cbv in x. exact x.
+   Defined.
+
    (* Definition awkward_preamble a p r1 offset_to_awkward := *)
    (*   ([∗ list] a_i;w_i ∈ a;(awkward_preamble_instrs r1 offset_to_awkward), a_i ↦ₐ[p] w_i)%I. *)
    
    Definition awkward_example (a : list Addr) (p : Perm) (r1 : RegName) epilogue_off : iProp Σ :=
      ([∗ list] a_i;w_i ∈ a;(awkward_instrs r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
 
-   
    Definition awk_inv i a :=
      (∃ x:bool, sts_state_loc (A:=Addr) i x
            ∗ if x
