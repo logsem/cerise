@@ -656,7 +656,7 @@ Section awkward_example.
 
    Definition awkward_instrs_length : Z.
    Proof.
-     set x := length (awkward_instrs r_t0 0 (* dummy *)).
+     set x := length (awkward_instrs 0 r_t0 0 (* dummy *)).
      cbv in x. exact x.
    Defined.
 
