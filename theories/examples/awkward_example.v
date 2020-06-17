@@ -605,17 +605,19 @@ Section awkward_example.
     repeat (rewrite -(delete_insert_ne _ reg); [|auto]);
     iDestruct (big_sepM_insert _ _ reg with Hgen_ptrn) as Hgen;[apply lookup_delete|iFrame|rewrite insert_delete].
   
+  Definition awkward_epilogue_off := 65%Z.
+
   (* assume r1 contains an executable pointer to adversarial code *)
   (* f_a is the offset to the failure subroutine in the environment table *)
   (* by convention a pointer to the linking table is at the bottom address of the PC *)
-  Definition awkward_instrs f_a (r1 : RegName) epilogue_off :=
+  Definition awkward_instrs f_a (r1 : RegName) :=
      reqglob_instrs r1 ++
      prepstack_instrs r_stk 11 ++
      [store_z r_env 0] ++
      push_r_instrs r_stk r_env ++
      push_r_instrs r_stk r_t0 ++
      push_r_instrs r_stk r1 ++
-     scall_prologue_instrs epilogue_off r1 ++
+     scall_prologue_instrs awkward_epilogue_off r1 ++
      [jmp r1;
      sub_z_z r_t1 0 7;
      lea_r r_stk r_t1] ++
@@ -625,7 +627,7 @@ Section awkward_example.
      [store_z r_env 1] ++
      push_r_instrs r_stk r_env ++
      push_r_instrs r_stk r_t0 ++ 
-     scall_prologue_instrs epilogue_off r1 ++
+     scall_prologue_instrs awkward_epilogue_off r1 ++
      [jmp r1;
      sub_z_z r_t1 0 7;
      lea_r r_stk r_t1] ++
@@ -643,14 +645,11 @@ Section awkward_example.
      rclear_instrs (list_difference all_registers [PC;r_t0]) ++
      [jmp r_t0].
 
-   Definition awkward_instrs_length : Z.
-   Proof.
-     set x := length (awkward_instrs 0 r_t0 0 (* dummy *)).
-     cbv in x. exact x.
-   Defined.
+   Definition awkward_instrs_length : Z :=
+     Eval cbv in (length (awkward_instrs 0 r_adv)).
 
-   Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) epilogue_off : iProp Σ :=
-     ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
+   Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) : iProp Σ :=
+     ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1), a_i ↦ₐ[p] w_i)%I.
 
    Definition awk_inv i a :=
      (∃ x:bool, sts_state_loc (A:=Addr) i x
@@ -1529,7 +1528,7 @@ Section awkward_example.
       (* callback validity *)
       ∗ interp W wret
       (* trusted code *)
-      ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv 65)
+      ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv)
       (* linking table *)
       ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] fail_cap)
       (* we start out with arbitrary sts *)
@@ -1827,7 +1826,7 @@ Section awkward_example.
     { rewrite !dom_insert_L !dom_delete_L !Hrmap_dom !singleton_union_difference_L
               !difference_diag_L !all_registers_union_l !difference_difference_L.
       f_equal. clear. set_solver. }
-    { assert (12 + 65 = 77)%Z as ->;[done|]. rewrite Hscall_length in Hlink'. done. }
+    { assert (12 + awkward_epilogue_off = 77)%Z as ->;[done|]. rewrite Hscall_length in Hlink'. done. }
     iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hstack_adv & Hscall)".
     iDestruct (big_sepL2_length with "Hf2") as %Hf2_length. simpl in Hf2_length.
     assert (isCorrectPC_range pc_p pc_g pc_b pc_e s_last a_last) as Hvpc1.
@@ -2244,7 +2243,7 @@ Section awkward_example.
         iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls')";[solve_ndisj..|]. 
         rewrite Heqapp Hrest_app. repeat rewrite app_assoc. repeat rewrite app_comm_cons. rewrite app_assoc.
 
-        iDestruct (mapsto_decomposition _ _ _ (take 122 (awkward_instrs f_a r_adv 65)) with "Hprog")
+        iDestruct (mapsto_decomposition _ _ _ (take 122 (awkward_instrs f_a r_adv)) with "Hprog")
           as "[Hprog_done [Ha Hprog] ]". 
         { simpl. repeat rewrite app_length /=.
           rewrite Hscall_length Hprepstack_length Hreqglob_length. auto. }
@@ -2453,7 +2452,7 @@ Section awkward_example.
         { repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r'.
           rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
           f_equal. clear. set_solver. }
-        { assert (12 + 65 = 77)%Z as ->;[done|]. rewrite Hscall_length1 in Hlink2. done. }
+        { assert (12 + awkward_epilogue_off = 77)%Z as ->;[done|]. rewrite Hscall_length1 in Hlink2. done. }
         iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hstack_adv & Hscall)".
         iDestruct (big_sepL2_length with "Hprog") as %Hrest_length1. simpl in Hrest_length1.
         assert (isCorrectPC_range pc_p pc_g pc_b pc_e s_last1 a_last) as Hvpc2.
@@ -2938,7 +2937,7 @@ Section awkward_example.
                                                    push_r_instrs r_stk r_env ++
                                                    push_r_instrs r_stk r_t0 ++
                                                    push_r_instrs r_stk r_adv ++
-                                                   scall_prologue_instrs 65 r_adv ++
+                                                   scall_prologue_instrs awkward_epilogue_off r_adv ++
                                                    [jmp r_adv;
                                                     sub_z_z r_t1 0 7;
                                                     lea_r r_stk r_t1] ++
@@ -2948,7 +2947,7 @@ Section awkward_example.
                                                    [store_z r_env 1] ++
                                                    push_r_instrs r_stk r_env ++
                                                    push_r_instrs r_stk r_t0 ++
-                                                   scall_prologue_instrs 65 r_adv) with "Hprog")
+                                                   scall_prologue_instrs awkward_epilogue_off r_adv) with "Hprog")
               as "[Hprog_done [Ha Hprog] ]". 
             { simpl. inversion Hscall_length as [Heq]. inversion Hscall_length1 as [Heq']. rewrite app_length Heq /=. rewrite Heq'. repeat rewrite app_length. rewrite Hreqglob_length Hprepstack_length. simpl. repeat f_equiv. rewrite Heq. done. }
             (* let's prove some practical lemmas before continuing *)

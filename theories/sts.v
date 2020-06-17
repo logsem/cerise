@@ -27,16 +27,21 @@ Class STS_STD (B : Type) :=
     Rpriv : relation B;}.
 
 (** The CMRA for the sts collection. *)
-Class STSG A B Σ {eqd: EqDecision A} {count: Countable A} :=
+Class STS_preG A B Σ `{EqDecision A, Countable A} :=
+  { sts_pre_state_inG :> inG Σ sts_stateUR;
+    sts_pre_std_state_inG :> inG Σ (sts_std_stateUR A B);
+    sts_pre_rel_inG :> inG Σ sts_relUR; }.
+
+Class STSG A B Σ `{EqDecision A, Countable A} :=
   { sts_state_inG :> inG Σ sts_stateUR;
     sts_std_state_inG :> inG Σ (sts_std_stateUR A B);
     sts_rel_inG :> inG Σ sts_relUR;
     γs_std : gname;
     γs_loc : gname;
-    γr_std : gname;
     γr_loc : gname;}.
 
 Section definitionsS.
+
   Context {A B C D: Type} {Σ : gFunctors} {eqa: EqDecision A} {count: Countable A}
           {sts_std: STS_STD B} {eqc : EqDecision C} {countC: Countable C}
           {eqd : EqDecision D} {countD: Countable D} {stsg : STSG A B Σ}.
@@ -45,7 +50,6 @@ Section definitionsS.
   Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
   
-
   Program Definition sts_state_std (i : A) (x : B) : iProp Σ
     := own (γs_std (A:=A)) (◯ {[ i := Excl x ]}).
 
@@ -168,6 +172,28 @@ Proof.
   apply encode_injective in HH1.
   apply encode_injective in HH2. subst; eauto.
 Qed.
+
+Section pre_STS.
+  Context {A B C D: Type} {Σ : gFunctors} {eqa: EqDecision A} {count: Countable A}
+          {sts_std: STS_STD B} {eqc : EqDecision C} {countC: Countable C}
+          {eqd : EqDecision D} {countD: Countable D} {sts_preg: STS_preG A B Σ}.
+
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation STS_STD := (leibnizO (STS_std_states A B)).
+  Notation WORLD := (prodO STS_STD STS).
+
+  Lemma gen_sts_init :
+    (|==> ∃ (stsg : STSG A B Σ), sts_full_world ((∅, (∅, ∅)) : WORLD))%I.
+  Proof.
+    iMod (own_alloc (A:=sts_std_stateUR A B) (● ∅)) as (γsstd) "Hstd". by apply auth_auth_valid.
+    iMod (own_alloc (A:=sts_stateUR) (● ∅)) as (γs) "Hs". by apply auth_auth_valid.
+    iMod (own_alloc (A:=sts_relUR) (● ∅)) as (γr) "Hr". by apply auth_auth_valid.
+    iModIntro. iExists (Build_STSG _ _ _ _ _ _ _ _ _ γsstd γs γr).
+    rewrite /sts_full_world /sts_full_std /sts_full /=.
+    rewrite !map_fmap_empty. iFrame.
+  Qed.
+
+End pre_STS.
 
 Section STS.
   Context {A B C D: Type} {Σ : gFunctors} {eqa: EqDecision A} {count: Countable A}

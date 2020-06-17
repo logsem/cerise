@@ -26,7 +26,6 @@ Class logrel_na_invs Σ :=
   {
     logrel_na_invG :> na_invG Σ;
     logrel_nais : na_inv_pool_name;
-    wγ : gname
   }.
 
 (** interp : is a unary logical relation. *)

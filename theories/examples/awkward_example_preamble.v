@@ -96,9 +96,9 @@ Section awkward_example_preamble.
      instruction. Will be used later to compute [offset_to_awkward]. *)
   (* This is somewhat overengineered, but could be easily generalized to compute
      offsets for other programs if needed. *)
-  Definition awkward_preamble_move_offset : Z.
+  Definition awkward_preamble_move_offset_ : Z.
   Proof.
-    unshelve notypeclasses refine (let x := _ : Z in _). {
+    unshelve refine (let x := _ : Z in _). {
       set instrs := awkward_preamble_instrs 0 0.
       assert (sig (λ l1, ∃ l2, instrs = l1 ++ l2)) as [l1 _]; [do 2 eexists | exact (length l1)].
 
@@ -120,14 +120,14 @@ Section awkward_example_preamble.
               | _ => eapply step_cons end).
       eapply stop.
     }
-    cbv in x. exact x.
+    exact x.
   Defined.
 
-  Definition awkward_preamble_instrs_length : Z.
-  Proof.
-    set x := length (awkward_preamble_instrs 0 0 (* dummy *)).
-    cbv in x. exact x.
-  Defined.
+  Definition awkward_preamble_move_offset : Z :=
+    Eval cbv in awkward_preamble_move_offset_.
+
+  Definition awkward_preamble_instrs_length : Z :=
+    Eval cbv in (length (awkward_preamble_instrs 0 0)).
 
   Definition awkN : namespace := nroot .@ "awkN".
   Definition awk_invN : namespace := awkN .@ "inv".
@@ -155,7 +155,7 @@ Section awkward_example_preamble.
     awkward_preamble f_m offset_to_awkward ai pc_p'
 
     (* Code of the awkward example itself *)
-    ∗ awkward_example ai_awk pc_p' f_a r_adv 65
+    ∗ awkward_example ai_awk pc_p' f_a r_adv
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
@@ -246,7 +246,8 @@ Section awkward_example_preamble.
       { rewrite Hai_malloc_len /= in Hlink |- *.
         generalize (contiguous_between_incr_addr_middle _ _ _ 0 2 _ _ Hcont_rest eq_refl eq_refl).
         revert Hlink; clear; solve_addr. }
-      revert HH Ha_lea. rewrite Hai_malloc_len. cbn. clear. solve_addr. }
+      revert HH Ha_lea. rewrite Hai_malloc_len. cbn. clear.
+      unfold awkward_preamble_move_offset. solve_addr. }
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ awk_first with "[$HPC $Hi $Hr1]");

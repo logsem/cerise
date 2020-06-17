@@ -32,6 +32,12 @@ Inductive std_rel_priv : region_type -> region_type -> Prop :=
 Global Instance sts_std : STS_STD region_type :=
     {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
 
+Class heapPreG Σ := HeapPreG {
+  heapPreG_invG : invG Σ;
+  heapPreG_saved_pred :> savedPredG Σ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word);
+  heapPreG_rel :> inG Σ (authR relUR);
+}.
+
 Class heapG Σ := HeapG {
   heapG_invG : invG Σ;
   heapG_saved_pred :> savedPredG Σ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word);
@@ -39,20 +45,14 @@ Class heapG Σ := HeapG {
   γrel : gname
 }.
 
-Section heap.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
-  Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
-  Notation WORLD := (prodO STS_STD STS). 
-  Implicit Types W : WORLD.
-  
+Section REL_defs.
+  Context {Σ:gFunctors} {heapg : heapG Σ}.
+
   Definition REL_def l p γ : iProp Σ := own γrel (◯ {[ l := to_agree (γ,p) ]}).
   Definition REL_aux : { x | x = @REL_def }. by eexists. Qed.
   Definition REL := proj1_sig REL_aux.
   Definition REL_eq : @REL = @REL_def := proj2_sig REL_aux.
-  
+
   Definition RELS_def (M : relT) : iProp Σ := own γrel (● (to_agree <$> M : relUR)).
   Definition RELS_aux : { x | x = @RELS_def }. by eexists. Qed.
   Definition RELS := proj1_sig RELS_aux.
@@ -64,6 +64,29 @@ Section heap.
   Definition rel_aux : { x | x = @rel_def }. by eexists. Qed.
   Definition rel := proj1_sig rel_aux.
   Definition rel_eq : @rel = @rel_def := proj2_sig rel_aux.
+End REL_defs.
+
+Section heapPre.
+  Context {Σ:gFunctors} {heappreg : heapPreG Σ}.
+
+  Lemma heap_init :
+    (|==> ∃ (heapg: heapG Σ), RELS (∅ : relT))%I.
+  Proof.
+    iMod (own_alloc (A:= (authR relUR)) (● (to_agree <$> (∅: relT) : relUR))) as (γ) "H".
+    { rewrite map_fmap_empty. by apply auth_auth_valid. }
+    iModIntro. iExists (HeapG _ heapPreG_invG _ _ γ). rewrite RELS_eq /RELS_def. done.
+  Qed.
+
+End heapPre.
+
+Section heap.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Notation STS := (leibnizO (STS_states * STS_rels)).
+  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
+  Notation WORLD := (prodO STS_STD STS).
+  Implicit Types W : WORLD.
 
   Global Instance region_type_EqDecision : EqDecision region_type :=
     (fun x y => match x, y with

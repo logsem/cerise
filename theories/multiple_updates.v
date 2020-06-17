@@ -219,22 +219,25 @@ Section std_updates.
    
    (* ---------------------------------------------------------------------------- *)
    (* Some helper lemmas for various lemmas about using multiple updates in region *)
-     
+
    Lemma related_sts_pub_update_multiple W l ρ :
-     NoDup l →
      Forall (λ a, a ∉ dom (gset Addr) (std W)) l →
      related_sts_pub_world W (std_update_multiple W l ρ).
    Proof.
-     intros Hdup Hforall. induction l.
+     intros Hforall. induction l.
      - apply related_sts_pub_refl_world. 
-     - simpl. apply NoDup_cons_iff in Hdup as [Ha Hdup].
+     - simpl.
        apply list.Forall_cons in Hforall as [ Ha_std Hforall].
        eapply related_sts_pub_trans_world;[apply IHl; auto|].
+       destruct (decide (a ∈ l)).
+       { rewrite (_: <s[a:=ρ]s>(std_update_multiple W l ρ) = std_update_multiple W l ρ) /=.
+         by apply related_sts_pub_refl_world.
+         rewrite /std_update insert_id /=. by destruct (std_update_multiple W l ρ).
+         by apply std_sta_update_multiple_lookup_in_i. }
        apply related_sts_pub_world_fresh; auto.
-       intros Hcontr. apply std_update_multiple_not_in_sta in Hcontr; auto. 
-       intros Hcontr'; apply elem_of_list_In in Hcontr'; contradiction.
+       intros Hcontr. apply std_update_multiple_not_in_sta in Hcontr; auto.
    Qed.
-         
+
    Lemma std_update_multiple_lookup W l ρ k y :
      l !! k = Some y ->
      std (std_update_multiple W l ρ) !! y = Some ρ.
