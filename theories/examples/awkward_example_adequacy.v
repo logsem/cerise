@@ -511,6 +511,8 @@ Section Adequacy.
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hstk & Hr0 & Hrothers).
 
+    (* Specialize the expression relation, showing that registers are valid *)
+
     iSpecialize ("HE" with "[Hreg Hr Hsts Hna]").
     { iFrame. iSplit; cycle 1.
       { iFrame. rewrite /registers_mapsto. by rewrite insert_id. }
@@ -545,6 +547,8 @@ Section Adequacy.
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
         destruct rw; [| by inversion Hncap].
         by rewrite Hrw fixpoint_interp1_eq /=. } }
+
+    (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
 
     iDestruct "HE" as "[_ HWP]". unfold interp_conf.
 
