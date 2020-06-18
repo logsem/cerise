@@ -2542,7 +2542,7 @@ Section awkward_example.
             iDestruct (big_sepL2_sep with "[Hstack_val' $Hstack_adv]") as "Hstack_adv".
             { iApply big_sepL2_to_big_sepL_l.
               (* TODO: region_addrs_length, region_addrs_zeroes_length *)
-              by rewrite /region_addrs !region_addrs_aux_length /region_addrs_zeroes repeat_length //.
+              by rewrite /region_addrs !region_addrs_aux_length /region_addrs_zeroes replicate_length //.
               iApply "Hstack_val'". }
             iApply (big_sepL2_mono with "Hstack_adv"). iIntros (? ? ? ? ?) "(? & ? & ?)". unfold static_res.
             unfold read_write_cond. iExists _. iFrame. iSplitR; [iPureIntro; congruence|].

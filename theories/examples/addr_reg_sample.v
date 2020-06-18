@@ -80,6 +80,7 @@ Require Import Eqdep_dec List.
   Parameter add_r_z : RegName → RegName → Z → Word.
   Parameter sub_r_r : RegName → RegName → RegName → Word.
   Parameter sub_r_z : RegName → RegName → Z → Word.
+  Parameter sub_z_r : RegName → Z → RegName → Word.
   Parameter sub_z_z : RegName → Z → Z → Word.
   Parameter subseg_r_r : RegName → RegName → RegName → Word.
   Parameter jnz : RegName → RegName → Word.
@@ -113,6 +114,7 @@ Require Import Eqdep_dec List.
   Axiom sub_r_r_i : ∀ r1 r2 r3, cap_lang.decode (sub_r_r r1 r2 r3) = cap_lang.Sub r1 (inr r2) (inr r3).
   Axiom sub_z_z_i : ∀ r1 z1 z2, cap_lang.decode (sub_z_z r1 z1 z2) = cap_lang.Sub r1 (inl z1) (inl z2).
   Axiom sub_r_z_i : ∀ r1 r2 z1, cap_lang.decode (sub_r_z r1 r2 z1) = cap_lang.Sub r1 (inr r2) (inl z1).
+  Axiom sub_z_r_i : ∀ r1 r2 z1, cap_lang.decode (sub_z_r r1 z1 r2) = cap_lang.Sub r1 (inl z1) (inr r2).
   Axiom subseg_r_r_i : ∀ r1 r2 r3, cap_lang.decode (subseg_r_r r1 r2 r3) = Subseg r1 (inr r2) (inr r3).
   (* encodings of restore code *)
   Axiom i_1 : cap_lang.encode (Mov r_t1 (inr PC)) = inl w_1.
@@ -410,13 +412,17 @@ Require Import Eqdep_dec List.
   (* Some additional helper lemmas about region_addrs *)
 
   Definition region_addrs_zeroes (b e : Addr) : list Word :=
-    repeat (inl 0%Z) (region_size b e).
+    replicate (region_size b e) (inl 0%Z).
 
   Lemma region_addrs_zeroes_lookup (b e : Addr) i y :
     region_addrs_zeroes b e !! i = Some y → y = inl 0%Z.
+  Proof. apply lookup_replicate. Qed.
+
+  Lemma region_addrs_zeroes_split (b a e: Addr) :
+    (b <= a)%a ∧ (a <= e)%a →
+    region_addrs_zeroes b e = region_addrs_zeroes b a ++ region_addrs_zeroes a e.
   Proof.
-    rewrite /region_addrs_zeroes. intros Hlookup.
-    apply repeat_spec with (region_size b e).
-    apply elem_of_list_In.
-    by apply elem_of_list_lookup_2 with i.
+    intros. rewrite /region_addrs_zeroes.
+    rewrite (region_size_split a). 2: solve_addr.
+    rewrite replicate_plus //.
   Qed.

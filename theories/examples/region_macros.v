@@ -179,7 +179,7 @@ Section region_macros.
    (* --------------------------------------------------------------------------------- *)
   
    Lemma stack_split (b e a : Addr) (p : Perm) (w1 w2 : list Word) :
-     (b ≤ a < e)%Z →
+     (b ≤ a ≤ e)%Z →
      (length w1) = (region_size b a) →
      ([[b,e]]↦ₐ[p][[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ[p][[w1]] ∗ [[a,e]]↦ₐ[p][[w2]])%I.
    Proof with try (rewrite /region_size; solve_addr).
@@ -286,7 +286,7 @@ Section region_macros.
    Qed.
 
    Lemma region_addrs_zeroes_valid_aux n W : 
-     ([∗ list] y ∈ repeat (inl 0%Z) n, ▷ (fixpoint interp1) W y)%I.
+     ([∗ list] y ∈ replicate n (inl 0%Z), ▷ (fixpoint interp1) W y)%I.
    Proof. 
      iInduction (n) as [| n] "IHn".
      - done.
@@ -300,14 +300,13 @@ Section region_macros.
                                         ▷ (fixpoint interp1) W y2)%I.
    Proof.
      rewrite /region_addrs /region_addrs_zeroes.
-     iApply (big_sepL2_to_big_sepL_r _ _ (repeat (inl 0%Z) (region_size a b))).
-     - rewrite region_addrs_aux_length.
-       rewrite repeat_length. done.
+     iApply (big_sepL2_to_big_sepL_r _ _ (region_addrs_zeroes a b)).
+     - rewrite region_addrs_aux_length replicate_length //.
      - iApply region_addrs_zeroes_valid_aux.
    Qed. 
      
    Lemma region_addrs_zeroes_trans_aux (a b : Addr) p n :
-     ([∗ list] y1;y2 ∈ region_addrs_aux a n;repeat (inl 0%Z) n, y1 ↦ₐ[p] y2)
+     ([∗ list] y1;y2 ∈ region_addrs_aux a n;replicate n (inl 0%Z), y1 ↦ₐ[p] y2)
        -∗ [∗ list] y1 ∈ region_addrs_aux a n, y1 ↦ₐ[p] inl 0%Z.
    Proof.
      iInduction (n) as [| n] "IHn" forall (a); first auto.

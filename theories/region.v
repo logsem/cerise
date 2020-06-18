@@ -22,7 +22,7 @@ Section region.
   Proof. rewrite /region_size. solve_addr. Qed.
 
   Lemma region_size_split (a b e : Addr) :
-    (b ≤ a < e)%Z →
+    (b ≤ a ≤ e)%Z →
     region_size b e = region_size b a + region_size a e.
   Proof. intros [? ?]. rewrite /region_size. solve_addr. Qed.
 

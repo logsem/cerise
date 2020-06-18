@@ -213,6 +213,18 @@ Module cap_lang.
       + apply Z.le_trans with a0; auto.*)
   Qed.
 
+  Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
+    isCorrectPC (inr (p, g, b, e, a0))
+    → isCorrectPC (inr (p, g, b, e, a2))
+    → (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z
+    → isCorrectPC (inr (p, g, b, e, a1)).
+  Proof.
+    intros Hvpc0 Hvpc2 [Hle0 Hle2].
+    apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
+    - apply isCorrectPC_bounds with a0 a2; auto.
+    - apply z_of_eq in Heq2. rewrite Heq2. auto.
+  Qed.
+
   Definition updatePcPerm (w: Word): Word :=
     match w with
     | inr ((E, g), b, e, a) => inr ((RX, g), b, e, a)
@@ -254,6 +266,46 @@ Module cap_lang.
   Proof.
     intros HH. inversion HH; subst.
     rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
+  Qed.
+
+  Lemma isWithinBounds_bounds_alt p g b e (a0 a1 a2 : Addr) :
+    withinBounds (p,g,b,e,a0) = true ->
+    withinBounds (p,g,b,e,a2) = true ->
+    (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z ->
+    withinBounds (p,g,b,e,a1) = true.
+  Proof.
+    intros Hwb0 Hwb2 [Hle0 Hle2].
+    rewrite /withinBounds.
+    apply andb_true_iff.
+    apply andb_true_iff in Hwb0 as [Hleb0 Hlea0].
+    apply andb_true_iff in Hwb2 as [Hleb2 Hlea2].
+    split; rewrite /leb_addr /ltb_addr; first [ apply Z.leb_le | apply Z.ltb_lt ].
+    - apply Z.leb_le in Hleb0. apply Z.ltb_lt in Hlea0. lia.
+    - apply Z.leb_le in Hleb2. apply Z.ltb_lt in Hlea2. lia.
+  Qed.
+
+  Lemma isWithinBounds_bounds_alt' p g b e (a0 a1 a2 : Addr) :
+    withinBounds (p,g,b,e,a0) = true ->
+    withinBounds (p,g,b,e,a2) = true ->
+    (a0 ≤ a1)%Z ∧ (a1 < a2)%Z ->
+    withinBounds (p,g,b,e,a1) = true.
+  Proof.
+    intros Hwb0 Hwb2 [Hle0 Hle2].
+    rewrite /withinBounds.
+    apply andb_true_iff.
+    apply andb_true_iff in Hwb0 as [Hleb0 Hlea0].
+    apply andb_true_iff in Hwb2 as [Hleb2 Hlea2].
+    split; rewrite /leb_addr /ltb_addr; first [ apply Z.leb_le | apply Z.ltb_lt ].
+    - apply Z.leb_le in Hleb0. apply Z.ltb_lt in Hlea0. lia.
+    - apply Z.leb_le in Hleb2. apply Z.ltb_lt in Hlea2. lia.
+  Qed.
+
+  Lemma le_addr_withinBounds p l b e a:
+    (b <= a)%a → (a < e)%a →
+    withinBounds (p, l, b, e, a) = true .
+  Proof.
+    intros. eapply andb_true_iff. unfold ltb_addr, leb_addr.
+    unfold le_addr, lt_addr in *. rewrite Z.leb_le Z.ltb_lt. lia.
   Qed.
 
   Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
