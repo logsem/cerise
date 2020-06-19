@@ -43,16 +43,21 @@ Class memory_layout := {
 
   (* malloc routine *)
   (* TODO: more general malloc spec *)
-(*
+
   malloc_start : Addr;
+  malloc_memptr : Addr;
+  malloc_mem_start : Addr;
   malloc_end : Addr;
 
-  malloc_size :
-    (malloc_start + length malloc_subroutine)%a
-    = Some malloc_end; *)
-  malloc_size :
-    (b_m + length malloc_subroutine)%a
-    = Some e_m;
+  malloc_code_size :
+    (malloc_start + length malloc_subroutine_instrs)%a
+    = Some malloc_memptr;
+
+  malloc_memptr_size :
+    (malloc_memptr + 1)%a = Some malloc_mem_start;
+
+  malloc_mem_size :
+    (malloc_mem_start <= malloc_end)%a;
 
   (* fail routine *)
   fail_start : Addr;
@@ -84,7 +89,9 @@ Class memory_layout := {
         [fail_flag];
         region_addrs link_table_start link_table_end;
         region_addrs fail_start fail_end;
-        region_addrs b_m e_m;
+        region_addrs malloc_mem_start malloc_end;
+        [malloc_memptr];
+        region_addrs malloc_start malloc_memptr;
         region_addrs adv_start adv_end;
         region_addrs stack_start stack_end;
         region_addrs awk_body_start awk_region_end;
@@ -122,9 +129,15 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
       ∪ mkregion adv_start adv_end
           (* adversarial code: any code or data, but no capabilities (see condition below) *)
           adv_val
-      ∪ mkregion b_m e_m
+      ∪ mkregion malloc_start malloc_memptr
           (* code for the malloc subroutine *)
-          malloc_subroutine
+          malloc_subroutine_instrs
+      ∪ list_to_map
+          (* Capability to malloc's memory pool, used by the malloc subroutine *)
+          [(malloc_memptr, inr (RWX, Global, malloc_memptr, malloc_end, malloc_mem_start))]
+      ∪ mkregion malloc_mem_start malloc_end
+          (* Malloc's memory pool, initialized to zero *)
+          (region_addrs_zeroes malloc_mem_start malloc_end)
       ∪ mkregion fail_start fail_end
           ((* code for the failure subroutine *)
             assert_fail_instrs ++
@@ -132,7 +145,7 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
            [inr (RW, Global, fail_flag, fail_flag_next, fail_flag)])
       ∪ mkregion link_table_start link_table_end
           (* link table, with pointers to the malloc and failure subroutines *)
-          [inr (E, Global, b_m, e_m, a_m);
+          [inr (E, Global, malloc_start, malloc_end, malloc_start);
            inr (E, Global, fail_start, fail_end, fail_start)]
       ∪ list_to_map [(fail_flag, inl 0%Z)] (* failure flag, initially set to 0 *)
   ∧
@@ -252,13 +265,14 @@ Section Adequacy.
   Ltac disjoint_map_to_list :=
     rewrite (@map_disjoint_dom _ _ (gset Addr)) ?dom_union_L;
     eapply disjoint_mono_l;
-    repeat lazymatch goal with
-           | |- _ ∪ _ ⊆ _ =>
-             etransitivity; [ eapply union_mono_l; apply dom_mkregion_incl
-                            | eapply union_mono_r ]
-           | |- _ ⊆ _ => first [ apply dom_mkregion_incl
-                               | by rewrite dom_list_to_map_singleton ]
-           end;
+    rewrite ?dom_list_to_map_singleton;
+    repeat (
+      try lazymatch goal with
+          | |- _ ∪ _ ⊆ _ =>
+            etransitivity; [ eapply union_mono_l | eapply union_mono_r ]
+          end;
+      [ first [ apply dom_mkregion_incl | reflexivity ] |..]
+    );
     try match goal with |- _ ## dom _ (mkregion _ _ _) =>
       eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
     rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
@@ -338,6 +352,7 @@ Section Adequacy.
   Qed.
 
   Definition flagN : namespace := nroot .@ "awk" .@ "fail_flag".
+  Definition mallocN : namespace := nroot .@ "awk" .@ "malloc".
 
   Lemma awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory m →
@@ -387,9 +402,17 @@ Section Adequacy.
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_fail & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail]".
     { disjoint_map_to_list. set_solver +Hdisj_fail. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc. }
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_mem & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
+    { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_memptr & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
+    { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
+    iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
+      by apply lookup_empty. cbn [fst snd].
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_code & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
+    { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
@@ -404,20 +427,25 @@ Section Adequacy.
     { disjoint_map_to_list. set_solver +Hdisj_awk_preamble. }
     iDestruct (big_sepM_insert with "Hawk_link") as "[Hawk_link _]". by apply lookup_empty.
     cbn [fst snd].
-    clear Hdisj_fail_flag Hdisj_link_table Hdisj_fail Hdisj_malloc Hdisj_adv Hdisj_stack
-      Hdisj_awk_body Hdisj_awk_preamble.
+    clear Hdisj_fail_flag Hdisj_link_table Hdisj_fail Hdisj_malloc_mem Hdisj_malloc_memptr
+          Hdisj_malloc_code Hdisj_adv Hdisj_stack Hdisj_awk_body Hdisj_awk_preamble.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
     iDestruct (mkregion_prepare RW with "Hlink_table") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare RW with "Hfail") as ">Hfail". by apply fail_size.
-    iDestruct (mkregion_prepare p_m with "Hmalloc") as ">Hmalloc". by apply malloc_size.
+    iDestruct (mkregion_prepare RWX with "Hmalloc_mem") as ">Hmalloc_mem".
+    { rewrite replicate_length /region_size. clear.
+      generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
+    iMod (MonRefAlloc _ _ RWX with "Hmalloc_memptr") as "Hmalloc_memptr".
+    iDestruct (mkregion_prepare RX with "Hmalloc_code") as ">Hmalloc_code".
+      by apply malloc_code_size.
     iDestruct (mkregion_prepare RWX with "Hadv") as ">Hadv". by apply adv_size.
     iDestruct (mkregion_prepare RWLX with "Hstack") as ">Hstack". by apply stack_size.
     iDestruct (mkregion_prepare RWX with "Hawk_preamble") as ">Hawk_preamble".
       by apply awk_preamble_size.
     iDestruct (mkregion_prepare RWX with "Hawk_body") as ">Hawk_body". by apply awk_body_size.
-    iMod (MonRefAlloc _ _ RWX (* FIXME?? *) with "Hawk_link") as "Hawk_link".
+    iMod (MonRefAlloc _ _ RWX (* FIXME: RO instead?? *) with "Hawk_link") as "Hawk_link".
     rewrite -/(awkward_example _ _ _ _) -/(awkward_preamble _ _ _ _).
     rewrite -/(region_mapsto b_m e_m p_m malloc_subroutine).
 
@@ -438,7 +466,11 @@ Section Adequacy.
     (* Allocate relevant invariants *)
 
     iMod (inv_alloc flagN ⊤ (fail_flag ↦ₐ inl 0%Z) with "Hfail_flag")%I as "#Hinv_fail_flag".
-    iMod (inv_alloc malloc_γ ⊤ with "Hmalloc") as "#Hinv_malloc".
+    iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
+            with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
+    { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
+      iFrame. iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
+      clear; solve_addr. }
 
     (* Allocate a permanent region for the adversary code *)
 
@@ -489,7 +521,8 @@ Section Adequacy.
         generalize awk_linking_ptr_size awk_preamble_size awk_body_size. revert Ha1 Ha2; clear.
         unfold awkward_instrs_length, awkward_preamble_instrs_length. solve_addr. }
 
-      iApply (Spec with "[$]"); try eassumption.
+      iApply (Spec with "[$Hinv_malloc $Hawk_body $Hawk_preamble $Hawk_link $Hlink1 $Hlink2]");
+        try eassumption.
       - done.
       - apply contiguous_between_region_addrs. generalize awk_preamble_size; clear.
         unfold awkward_preamble_instrs_length. solve_addr.

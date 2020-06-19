@@ -80,7 +80,7 @@ Section awkward_example_preamble.
   (* [offset_to_awkward] is the offset between the [move_r r_t1 PC] instruction
   and the code of the awkward example *)
   Definition awkward_preamble_instrs (f_m offset_to_awkward: Z) :=
-    malloc_instrs f_m 1 ++
+    malloc_instrs f_m 1%nat ++
     [store_z r_t1 0;
      move_r r_t2 r_t1;
      move_r r_t1 PC;
@@ -136,8 +136,8 @@ Section awkward_example_preamble.
   Definition awk_env : namespace := awkN .@ "env". 
 
   Lemma awkward_preamble_spec (f_m f_a offset_to_awkward: Z) (r: Reg) W pc_p pc_b pc_e
-        ai pc_p' a_first a_end b_link e_link a_link a_entry a_entry' fail_cap ai_awk awk_first awk_end
-        a_move:
+        ai pc_p' a_first a_end b_link e_link a_link a_entry a_entry'
+        mallocN b_m e_m fail_cap ai_awk awk_first awk_end a_move:
 
     isCorrectPC_range pc_p Global pc_b pc_e a_first a_end →
     PermFlows pc_p pc_p' →
@@ -159,9 +159,9 @@ Section awkward_example_preamble.
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
-    ∗ inv malloc_γ ([[b_m,e_m]] ↦ₐ[p_m] [[malloc_subroutine]])
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ pc_b ↦ₐ[pc_p'] (inr (RW, Global, b_link, e_link, a_link))
-    ∗ a_entry ↦ₐ[RW] (inr (E, Global, b_m, e_m, a_m))
+    ∗ a_entry ↦ₐ[RW] (inr (E, Global, b_m, e_m, b_m))
     ∗ a_entry' ↦ₐ[RW] fail_cap
 
     -∗
@@ -187,9 +187,9 @@ Section awkward_example_preamble.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
 
     assert (pc_p ≠ E).
-    { (* HACKISH *) intros ->. unshelve epose proof (Hvpc a_first _) as HPC.
-      pose proof (contiguous_between_length _ _ _ Hcont) as HH. rewrite Hlength in HH.
-      simpl in HH. revert HH; clear; solve_addr. inversion HPC; subst. naive_solver. }
+    { eapply isCorrectPC_range_perm_non_E. eapply Hvpc.
+      pose proof (contiguous_between_length _ _ _ Hcont) as HH. rewrite Hlength /= in HH.
+      revert HH; clear; solve_addr. }
 
     (* malloc 1 *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -202,19 +202,17 @@ Section awkward_example_preamble.
     assert (isCorrectPC_range pc_p Global pc_b pc_e a_malloc_end a_end) as Hvpc2.
     { eapply isCorrectPC_range_restrict. apply Hvpc.
       generalize (contiguous_between_bounds _ _ _ Hcont_malloc). clear; solve_addr. }
-    iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hr $Hsts]");
-      [apply Hvpc1|apply Hfl|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry|..].
+    rewrite -/(malloc _ _ _ _).
+    iApply (wp_wand with "[-]").
+    iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hr $Hsts $Hinv_malloc $HnaI]");
+      [apply Hvpc1|apply Hfl|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry| |auto|lia|..].
     { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
-    iSplitR. iApply "Hinv_malloc". iNext.
-    iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH)".
-    iDestruct "HH" as (b_cell e_cell Hbe_cell)
-                      "(Hr1 & Hcell & Hr0 & Hregs & #Hcell_fresh & Hr & Hsts)".
-    iDestruct "Hcell_fresh" as %Hcell_fresh.
+    iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs & Hr & Hsts)".
+    iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
     (* TODO: change the postcondition of malloc to produce (b+size = Some e) instead of a subtraction? *)
     iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
-    rewrite region_addrs_single in Hcell_fresh. 2: revert Hbe_cell; clear; solve_addr.
-    rewrite ->Forall_singleton in Hcell_fresh.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
+    2: { iIntros (?) "[HH | ->]". iApply "HH". iIntros (Hv). inversion Hv. }
 
     destruct ai_rest as [| a l]; [by inversion Hlength|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest) as ->.
@@ -263,17 +261,18 @@ Section awkward_example_preamble.
     iDestruct "Hcont" as %(Hcont_crtcls & Hcont_rest' & Heqapp' & Hlink').
     assert (a_malloc_end <= a1)%a as Ha1_after_malloc.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest. repeat constructor. }
-    iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $Hr $Hsts]");
-      [|apply Hfl|apply Hcont_crtcls|apply Hwb_malloc|apply Ha_entry| |done|done|..].
+    iApply (wp_wand with "[-]").
+    iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $Hr $Hsts $HnaI $Hinv_malloc]");
+      [|apply Hfl|apply Hcont_crtcls|apply Hwb_malloc|apply Ha_entry| |done|done|auto|..].
     { eapply isCorrectPC_range_restrict. apply Hvpc2. split; auto.
       eapply contiguous_between_bounds. apply Hcont_rest'. }
-    { rewrite dom_delete_L dom_insert_L !dom_delete_L Hdom_r.
+    { rewrite dom_delete_L !dom_insert_L !dom_delete_L Hdom_r.
       rewrite !difference_difference_L singleton_union_difference_L all_registers_union_l.
-      clear. set_solver. }
-    iSplitR. iApply "Hinv_malloc". iNext.
-    iIntros "(HPC & Hcrtcls & Hpc_b & Ha_entry & HH)".
-    iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & Hregs & #Hcls_fresh & Hr & Hsts)".
-    iDestruct "Hcls_fresh" as %Hcls_fresh.
+      rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
+      f_equal. set_solver-. }
+    2: { iIntros (?) "[ H | -> ]". iApply "H". iIntros (HC). congruence. }
+    iNext. iIntros "(HPC & Hcrtcls & Hpc_b & Ha_entry & HH)".
+    iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & HnaI & Hregs & Hr & Hsts)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest'.
     iDestruct (na_inv_alloc logrel_nais _ awk_clsN with "Hbe_cls") as ">#Hcls_inv".
     (* rclear *)
@@ -331,7 +330,7 @@ Section awkward_example_preamble.
 
     (* the current state of registers is valid *)
     iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
-    { rewrite /interp fixpoint_interp1_eq /= /enter_cond. iModIntro.
+    { rewrite /interp fixpoint_interp1_eq. iModIntro. rewrite /enter_cond.
       iIntros (r' W3 HW3) "". iNext. rewrite /interp_expr /=.
       iIntros "([Hr'_full #Hr'_valid] & Hregs' & Hr & Hsts & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
       pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.

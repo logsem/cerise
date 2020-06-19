@@ -739,3 +739,12 @@ Proof.
   assert (isCorrectPC (inr (p, g, b, e, a0))) as HH by (apply Hr; solve_addr).
   inversion HH; auto.
 Qed.
+
+Lemma isCorrectPC_range_perm_non_E p g b e a0 an :
+  isCorrectPC_range p g b e a0 an →
+  (a0 < an)%a →
+  p ≠ E.
+Proof.
+  intros HH1 HH2. pose proof (isCorrectPC_range_perm _ _ _ _ _ _ HH1 HH2).
+  naive_solver.
+Qed.
