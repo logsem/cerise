@@ -28,7 +28,7 @@ Section fundamental.
                 ([∗ list] a ∈ (region_addrs b e),
                  (read_write_cond a p' interp) ∧
                  ⌜if pwl p then region_state_pwl W a else region_state_nwl W a l⌝) ∗
-                (□ match p with RX | RWX | RWLX => exec_cond W b e l p interp | _ => True end) ∗
+                (* (□ match p with RX | RWX | RWLX => exec_cond W b e l p interp | _ => True end) ∗ *)
                 (⌜if pwl p then l = Local else True⌝)))%I).
   Proof.
     iSplit.
@@ -37,11 +37,11 @@ Section fundamental.
       destruct (perm_eq_dec p E); subst; simpl; auto.
       destruct p; simpl; try congruence; auto; try (iDestruct "HA" as (p') "[HA HB]"; eauto; fail); try (iDestruct "HA" as (p') "(HA & HB & HC)"; eauto; fail); destruct l; auto.
       - iDestruct "HA" as (p') "[HA HB]"; eauto.
-      - iDestruct "HA" as (p') "[HA [HB HC]]"; eauto. }
+      - iDestruct "HA" as (p') "[HA HB]"; eauto. }
     { iIntros "A".
       destruct (perm_eq_dec p O); subst; simpl; auto.
       destruct (perm_eq_dec p E); subst; simpl; auto.
-      iDestruct "A" as (p') "(A & B & C & %)".
+      iDestruct "A" as (p') "(A & B & %)".
       destruct p; simpl in *; try congruence; subst; eauto. }
   Qed.
 
@@ -142,7 +142,7 @@ Section fundamental.
     destruct (perm_eq_dec p O).
     { subst p; destruct p'; simpl in Hp; try tauto. }
     destruct (perm_eq_dec p E); try congruence.
-    iDestruct "HA" as (p'') "[% [#A [#B %]]]".
+    iDestruct "HA" as (p'') "[% [#A %]]".
     destruct (perm_eq_dec p' E).
     { (* p' = E *) subst p'. iAlways.
       rewrite /enter_cond /interp_expr /=.
@@ -175,34 +175,6 @@ Section fundamental.
           * eapply related_sts_priv_refl_world.
           * eapply related_sts_pub_refl_world.
       - rewrite (region_addrs_empty b' e'); auto. solve_addr. }
-    iSplit.
-    { iModIntro. assert ((p' = RX \/ p' = RWX \/ p' = RWLX) \/ (p' <> RX /\ p' <> RWX /\ p' <> RWLX)) as Hp'.
-      { destruct p'; auto; right; repeat split; auto; try congruence. }
-      destruct Hp' as [Hp' | Hp'].
-      - assert (Hpis: p = RX \/ p = RWX \/ p = RWLX).
-        { destruct Hp' as [-> | [-> | ->] ]; destruct p; simpl in Hp; try tauto. }
-        iAssert (exec_cond W b' e' l' p' (fixpoint interp1)) as "C".
-        { (* iAssert (exec_cond W b e l p (fixpoint interp1)) as "C".
-          { destruct Hpis as [-> | [-> | ->] ]; auto. } *)
-          rewrite /exec_cond /interp_expr /=. iClear "B".
-          iIntros (x r W' Hin) " #Hfuture". iNext.
-          iIntros "[[Hfull Hmap] [Hreg [Hregion [Hsts Hown]]]]".
-          iSplitR; auto. rewrite /interp_conf.
-          iApply ("IH" with "Hfull Hmap Hreg Hregion Hsts Hown"); eauto.
-          - destruct Hp' as [-> | [-> | ->] ]; auto. iPureIntro; right; right.
-            split; auto.
-            destruct l'; auto. destruct p; simpl in Hp; try tauto.
-            simpl in *. subst l; simpl in Hl. tauto.
-          - iAlways. iExists p''; iSplit; auto. destruct (Addr_le_dec b' e').
-            + rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
-              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k y Hy) "[#Y %]".
-              repeat iSplitR; auto.
-              iApply (region_state_future with "Hfuture"); eauto.             
-            + rewrite (region_addrs_empty b' e'); auto. solve_addr. }
-        destruct p'; auto.
-      - destruct Hp' as [Hp1 [Hp2 Hp3] ].
-        destruct p'; auto; try congruence. }
     case_eq (pwl p'); intros; auto.
     assert (pwl p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
     rewrite HP in H0; subst l. destruct l'; simpl in Hl; auto.

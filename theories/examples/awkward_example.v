@@ -1599,7 +1599,7 @@ Section awkward_example.
     (* If the stack is Global, validity is false *)
     destruct l0;[by rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val"|].
     rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val".
-    iDestruct "Hstack_val" as (p0 Hperm) "[Hstack_region _]". destruct p0;inversion Hperm. clear Hperm.
+    iDestruct "Hstack_val" as (p0 Hperm) "Hstack_region". destruct p0;inversion Hperm. clear Hperm.
     iAssert (⌜Forall (λ a, region_type_temporary W a) (region_addrs b_r e_r)⌝)%I as %Htemp.
     { iDestruct (big_sepL_and with "Hstack_region") as "[Hstack_rel Hstack_pwl]".
       iDestruct (big_sepL_forall with "Hstack_pwl") as %Hforall.
@@ -2051,13 +2051,6 @@ Section awkward_example.
             rewrite elements_list_to_set;auto. repeat rewrite app_length. auto. 
         }
         iFrame "Hstack_adv_val". 
-        iAlways.
-        rewrite /exec_cond.
-        iIntros (y r' W3 Hay Hrelated3). iNext.
-        iApply fundamental.
-        + iRight. iRight. done.
-        + iExists RWLX. iSplit; auto. 
-          iApply (adv_stack_monotone with "Hstack_adv_val"); auto. 
       - (* continuation *)
         iIntros (_).
         assert (r !! r_t0 = Some (inr (E, Local, a0, e_r, stack_own_b))) as Hr_t0; auto. 
@@ -2782,13 +2775,6 @@ Section awkward_example.
                                                              ∧ ⌜region_state_pwl W5 a⌝)%I as "#Hstack_adv_val'". 
             { iApply (big_sepL_mono with "Hstack_adv_val"). iIntros (g y Hsome) "(Hr & Hrev)". iFrame. }
             iFrame "Hstack_adv_val'". 
-            iAlways.
-            rewrite /exec_cond.
-            iIntros (y r3 W6 Hay Hrelated6). iNext.
-            iApply fundamental.
-            + iRight. iRight. done.
-            + iExists RWLX. iSplit; auto. 
-              iApply (adv_stack_monotone with "Hstack_adv_val'"); auto. 
           - (* continuation *)
             iIntros (_). clear Hr_t0. 
             assert (r2 !! r_t0 = Some (inr (E, Local, a0, e_r, a3))) as Hr_t0; auto. 

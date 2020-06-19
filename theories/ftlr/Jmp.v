@@ -98,7 +98,7 @@ Section fundamental.
           destruct c,p0,p0,p0,p0; try congruence.
           + inv Heq. rewrite (fixpoint_interp1_eq _ (inr _)).
             simpl. rewrite /read_write_cond.
-            iDestruct "Hwsrc" as (q) "[% [H1 H2]]".
+            iDestruct "Hwsrc" as (q) "[% H1]".
             iNext.
             iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
             { destruct ρ;auto;[|specialize (Hnotstatic g0)];contradiction. }
@@ -134,7 +134,7 @@ Section fundamental.
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
           simpl.
-          iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
+          iDestruct "Hwsrc" as (p'') "[% H1]".
           iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
         - iNext.
           iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
@@ -147,7 +147,7 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           rewrite (fixpoint_interp1_eq _ (inr _)).
-          simpl. destruct l; auto. iDestruct "Hwsrc" as (p'') "[% [H1 H2]]".
+          simpl. destruct l; auto. iDestruct "Hwsrc" as (p'') "[% H1]".
           iApply ("IH" with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); iFrame "#"; eauto.
           Unshelve. auto. auto. auto.
       }

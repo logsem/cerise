@@ -62,8 +62,8 @@ Section fundamental.
               repeat rewrite fixpoint_interp1_eq. simpl.
               destruct g''; auto.
             + iModIntro.
-              destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; try (iDestruct "Hr0" as (px) "[% [H2 H3]]"; iExists px; try split; auto).
-              destruct g''; auto. iDestruct "Hr0" as (px) "[% [H2 H3]]"; iExists px; try split; auto.
+              destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; try (iDestruct "Hr0" as (px) "[% H2]"; iExists px; try split; auto).
+              destruct g''; auto. iDestruct "Hr0" as (px) "[% H2]"; iExists px; try split; auto.
           - iApply (wp_bind (fill [SeqCtx])).
             iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
             iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct p''; simpl in Hpft; try discriminate; eauto|].
@@ -90,24 +90,6 @@ Section fundamental.
               { subst r0.
                 - rewrite lookup_insert in H. inv H.
                   rewrite (fixpoint_interp1_eq _ (inr (_, g'', b'', e'', a''))) /=.
-                  iAssert (□ exec_cond W b'' e'' g'' p'' (fixpoint interp1))%I as "#Hexec".
-                  { iAlways. rewrite /exec_cond. iIntros (a' r' W' Hin) "#Hfuture".
-                    iNext. rewrite /interp_expr /=.
-                    iIntros "[[Hmap Hreg'] [Hfull [Hx [Hsts Hown]]]]".
-                    iSplitR; eauto.
-                    iApply ("IH" with "[Hmap] [Hreg'] [Hfull] [Hx] [Hsts] [Hown]"); iFrame "#"; eauto.
-                    iAlways. iExists p'. iSplitR; auto.
-                    unfold future_world; destruct g''; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "Hinv"); intros; simpl.
-                    - iIntros "[HA %]". iSplitL "HA"; auto.
-                      assert (pwl p'' = false) by (destruct Hp as [Hp | [Hp | [Hp Hcontr] ] ]; subst p''; try congruence; auto).
-                      rewrite H1 in H0. rewrite H1.
-                        eelim (region_state_nwl_monotone_nl _ _ y Hfuture); auto.
-                    - iIntros "[HA %]". iSplitL "HA"; auto.
-                      iPureIntro.
-                      destruct (pwl p'').
-                      * eapply region_state_pwl_monotone; eauto.
-                      * eapply (region_state_nwl_monotone _ _ _ Local Hfuture H0). 
-                  }
                 destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; subst p''; try subst g'';
                   (iExists p'; iSplitR;[auto|]; iFrame "Hinv Hexec"). }
               rewrite lookup_insert_ne in H; auto.

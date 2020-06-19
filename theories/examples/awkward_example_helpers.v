@@ -2,7 +2,7 @@ From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import
-     rules logrel region_invariants region_invariants_revocation region_invariants_static.
+     rules logrel region_invariants fundamental region_invariants_revocation region_invariants_static.
 
 
 Section awkward_helpers.
@@ -83,22 +83,18 @@ Section awkward_helpers.
       destruct H1 as [-> | [-> | ->] ]. 
       + destruct p0; simpl in H; simplify_eq.
         * iExists _,_,_,_,_; iSplit;[eauto|]. iAlways.
-          rewrite /= fixpoint_interp1_eq /=.
-          iDestruct "Hw" as (p Hflows) "[_ Hexec]".
+          iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
           iApply exec_wp;auto.
         * iExists _,_,_,_,_; iSplit;[eauto|]. iAlways.
           rewrite /= fixpoint_interp1_eq /=.
           iExact "Hw". 
       + destruct p0; simpl in H; simplify_eq.
         iExists _,_,_,_,_; iSplit;[eauto|]. iAlways.
-        rewrite /= fixpoint_interp1_eq /=.
-        iDestruct "Hw" as (p Hflows) "[_ Hexec]".
+        iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
         iApply exec_wp;auto.
       + destruct p0; simpl in H; simplify_eq.
         iExists _,_,_,_,_; iSplit;[eauto|]. iAlways.
-        rewrite /= fixpoint_interp1_eq /=.
-        destruct l;[done|]. 
-        iDestruct "Hw" as (p Hflows) "[_ Hexec]".
+        iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|].           
         iApply exec_wp;auto.
     - iIntros "[Hfailed HPC]".
       iApply (wp_bind (fill [SeqCtx])).
