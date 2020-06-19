@@ -163,7 +163,7 @@ Section logrel.
                            ∃ p, ⌜PermFlows RX p⌝ ∗
                                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_nwl W a g⌝)
-                                 ∗ □ exec_cond W b e g RX interp
+                                 (* ∗ □ exec_cond W b e g RX interp *)
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -179,7 +179,7 @@ Section logrel.
                            ∃ p, ⌜PermFlows RWX p⌝ ∗
                                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_nwl W a g⌝)
-                                 ∗ □ exec_cond W b e g RWX interp
+                                 (* ∗ □ exec_cond W b e g RWX interp *)
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -188,7 +188,7 @@ Section logrel.
                            ∃ p, ⌜PermFlows RWLX p⌝ ∗
                                  ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_pwl W a⌝)
-                                 ∗ □ exec_cond W b e Local RWLX interp
+                                 (* ∗ □ exec_cond W b e Local RWLX interp *)
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -263,13 +263,13 @@ Section logrel.
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p; auto.
     apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. apply sep_ne; auto.
+    apply sep_ne; auto. (* apply sep_ne; auto. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
-    - solve_proper_prepare.
-      by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive.
+    (* - solve_proper_prepare. *)
+    (*   by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive. *)
   Qed.
   Global Instance interp_cap_E_contractive :
     Contractive (interp_cap_E).
@@ -283,17 +283,17 @@ Section logrel.
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
-    rewrite /interp_cap_RWX.
+    rewrite /interp_cap_RWX. 
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p; auto.
     apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. apply sep_ne.
+    apply sep_ne; auto. (* apply sep_ne. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
-    - solve_proper_prepare.
-      by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive.
+    (* - solve_proper_prepare. *)
+    (*   by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive. *)
   Qed.
   Global Instance interp_cap_RWLX_contractive :
     Contractive (interp_cap_RWLX).
@@ -302,13 +302,13 @@ Section logrel.
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p, l; auto.
     apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. apply sep_ne.
+    apply sep_ne; auto. (* apply sep_ne. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
-    - solve_proper_prepare.
-      by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive.
+    (* - solve_proper_prepare. *)
+    (*   by apply affinely_ne; apply persistently_ne; apply exec_cond_contractive. *)
   Qed.
 
   Global Instance interp1_contractive :
@@ -402,18 +402,18 @@ Section logrel.
     - destruct l; auto.
       iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
-    - iDestruct "Hvalid" as (p) "[% [H H']]".
+    - iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
       iPureIntro. 
       destruct l; simpl in H2; eauto.
       destruct H2; eauto.
-    - iDestruct "Hvalid" as (p) "[% [H H']]".
+    - iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
       iPureIntro.
       destruct l; simpl in H2; eauto.
       destruct H2; eauto.
     - destruct l; auto.
-      iDestruct "Hvalid" as (p) "[% [H H']]".
+      iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
   Qed.
 
@@ -450,7 +450,7 @@ Section logrel.
     - iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
     - by exfalso.
-    - iDestruct "Hvalid" as (p) "[% [H _] ]".
+    - iDestruct "Hvalid" as (p) "[% H]".
       iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
   Qed.
 

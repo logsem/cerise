@@ -564,11 +564,7 @@ Section Adequacy.
           { iApply (big_sepL_mono with "Hadv"). iIntros (k v Hkv). cbn.
             iIntros "H". rewrite /read_write_cond /=. iFrame. iPureIntro.
             eapply std_sta_update_multiple_lookup_in_i, elem_of_list_lookup_2; eauto. }
-          iSplitR; auto. iSplit. iApply "Hrwcond". iModIntro.
-          unfold exec_cond. iIntros. iNext. iApply fundamental; auto.
-          iExists RWX. iSplit; auto.
-          iApply (big_sepL_mono with "Hrwcond"). intros. cbn. iIntros "[? %]". iFrame.
-          iPureIntro. eapply region_state_nwl_monotone_nl; eauto. }
+          iSplitR; auto. }
 
         (* Stack *)
         destruct (decide (r = r_stk)) as [ -> |].

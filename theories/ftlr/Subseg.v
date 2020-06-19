@@ -54,6 +54,7 @@ Section fundamental.
 
   Lemma subseg_interp_preserved W p l b b' e e' a :
       p <> E ->
+
       (b <= b')%a ->
       (e' <= e)%a ->
       □ ▷ (∀ (a7 : WORLD) (a8 : Reg) (a9 : Perm) (a10 : Locality) 

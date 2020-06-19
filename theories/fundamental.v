@@ -161,4 +161,22 @@ Section fundamental.
      iNext. iIntros (Hcontr); inversion Hcontr.
   Qed.
 
+  (* the execute condition can be regained using the FTLR on read allowed permissions *)
+  Lemma interp_exec_cond W p g b e a :
+     p = RX ∨ p = RWX ∨ p = RWLX ->
+    interp W (inr (p,g,b,e,a)) -∗ exec_cond W b e g p interp.
+  Proof.
+    iIntros (Hra) "#Hw".
+    iIntros (a0 r W' Hin) "#Hfuture". iAlways.
+    destruct g.
+    - iDestruct (interp_monotone_nl with "Hfuture [] Hw") as "Hw'";[auto|].
+      iDestruct (readAllowed_implies_region_conditions with "Hw'") as "Hread_cond";[destruct Hra as [-> | [-> | ->] ];auto|].
+      iApply fundamental;[|eauto]. destruct Hra as [-> | [-> | ->] ];auto.
+      rewrite fixpoint_interp1_eq /=. done.
+    - iDestruct (interp_monotone with "Hfuture Hw") as "Hw'".
+      iDestruct (readAllowed_implies_region_conditions with "Hw'") as "Hread_cond";[destruct Hra as [-> | [-> | ->] ];auto|].
+      iApply fundamental;[|eauto]. destruct Hra as [-> | [-> | ->] ];auto.
+  Qed. 
+  
+  
 End fundamental.

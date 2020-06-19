@@ -23,7 +23,6 @@ Section fundamental.
 
   Lemma execcPC_implies_interp W p p' g b e a0:
     PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX ∧ g = Local →
-    □ exec_cond W b e g p (fixpoint interp1) -∗
       ([∗ list] a ∈ region_addrs b e,
        read_write_cond a p' interp
        ∧ ⌜if pwl p
@@ -31,10 +30,10 @@ Section fundamental.
           else region_state_nwl W a g⌝) -∗
       ((fixpoint interp1) W) (inr (p, g, b, e, a0)).
   Proof.
-    iIntros (Hpf Hp) "#HEC #HR".
+    iIntros (Hpf Hp) "#HR".
     rewrite (fixpoint_interp1_eq _ (inr _)).
     (do 2 try destruct Hp as [ | Hp]). 3:destruct Hp.
-    all:subst; iExists p' ; by do 2 (iSplit; [auto | ]).
+    all:subst; iExists p' ; by (iSplit; [auto | ]).
   Qed.
 
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
@@ -356,32 +355,8 @@ Section fundamental.
       destruct Hincr as (?&?&?&?&?&?&?&?&?).
       iApply wp_pure_step_later; auto. iNext.
 
-      (* Derive the fact that the execution condition holds for PC *)
-      iAssert (□ exec_cond W b e g p (fixpoint interp1))%I as "HexeccPC".
-      {  iAlways;rewrite /exec_cond;iIntros (a' r' W' Hin) "#Hfuture".
-         iNext; rewrite /interp_expr /=.
-         iIntros "[[Hmap Hreg'] [Hfull [Hx [Hsts Hown]]]]".
-         iSplitR; eauto.
-         iApply ("IH" with "[Hmap] [Hreg'] [Hfull] [Hx] [Hsts] [Hown]"); iFrame "#"; eauto.
-         iAlways. iExists p'. iSplitR; auto.
-         unfold future_world; destruct g; iDestruct "Hfuture" as %Hfuture; iApply (big_sepL_mono with "Hinv"); intros; simpl.
-         (*g is global*)
-         - iIntros "[HA %]". iSplitL "HA"; auto.
-           iPureIntro. 
-           destruct (pwl p) eqn:Hppwl.
-           * (do 2 try destruct Hp as [ | Hp]); last by (destruct Hp; exfalso).
-             all: (rewrite H7 in Hppwl; simpl in Hppwl; by exfalso).
-           * eapply (region_state_nwl_monotone_nl);eauto.
-         (*g is local*)
-         - iIntros "[HA %]". iSplitL "HA"; auto.
-           iPureIntro. 
-           destruct (pwl p).
-           * eapply (region_state_pwl_monotone); eauto.
-           * eapply (region_state_nwl_monotone _ _ y Local); eauto.
-      }
-
       (* From this, derive value relation for the current PC*)
-      iDestruct (execcPC_implies_interp _ _ _ _ _ _ a  with "HexeccPC Hinv") as "HVPC"; eauto.
+      iDestruct (execcPC_implies_interp _ _ _ _ _ _ a  with "Hinv") as "HVPC"; eauto.
 
       iDestruct (switch_monotonicity_formulation with "Hmono") as "Hmono"; auto.
       
