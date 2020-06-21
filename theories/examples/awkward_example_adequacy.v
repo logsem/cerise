@@ -42,8 +42,6 @@ Class memory_layout := {
   adv_end : Addr;
 
   (* malloc routine *)
-  (* TODO: more general malloc spec *)
-
   malloc_start : Addr;
   malloc_memptr : Addr;
   malloc_mem_start : Addr;
