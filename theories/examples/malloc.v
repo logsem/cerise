@@ -140,6 +140,11 @@ Section SimpleMalloc.
     { apply contiguous_between_of_region_addrs; eauto.
       rewrite /malloc_subroutine_instrs_length in Hb_bm. solve_addr. }
 
+    assert (HPC: ∀ a, a ∈ ai → isCorrectPC (inr (RX, Global, b, e, a))).
+    { intros a Ha.
+      pose proof (contiguous_between_middle_bounds' _ _ _ _ Hcont Ha) as [? ?].
+      constructor; eauto. solve_addr. }
+
     (* move r_t2 PC *)
     destruct ai as [|a l];[inversion Hprog_len|].
     destruct l as [|? l];[inversion Hprog_len|].
@@ -147,14 +152,14 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr2]");
       [apply move_r_i|done| |iContiguous_next Hcont 0|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hprog_done & Hr2)".
     (* lea r_t2 malloc_instrs_length *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr2]");
       [apply lea_z_i|done| |iContiguous_next Hcont 1|done|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t2 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -167,8 +172,11 @@ Section SimpleMalloc.
     iApply (wp_load_success_same with "[$HPC $Hi $Hr2 Hmemptr]");
       [auto(*FIXME*)|apply load_r_i|done| |split;try done
        |iContiguous_next Hcont 2|..].
-    { admit. }
-    { admit. }
+    { apply HPC; repeat constructor. }
+    { apply le_addr_withinBounds.
+      - generalize (contiguous_between_length _ _ _ Hcont). cbn.
+        clear; solve_addr.
+      - revert Hbm_am Ham_e; solve_addr. }
     { rewrite Hbm_a; iFrame. done. }
     rewrite Hbm_a. iEpilogue "(HPC & Hr2 & Hi & Hmemptr)".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -177,7 +185,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr3 $Hr2]");
       [apply geta_i|done|done| |iContiguous_next Hcont 3|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     cbn [rules_Get.denote].
     (* lea_r r_t2 r_t1 *)
@@ -194,7 +202,7 @@ Section SimpleMalloc.
         by rewrite !lookup_insert_ne // lookup_empty.
       iApply (wp_lea with "[$Hregs $Hi]");
         [apply lea_r_i|done| |done|..].
-      { admit. }
+      { apply HPC; repeat constructor. }
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| Hfail].
@@ -203,14 +211,14 @@ Section SimpleMalloc.
         iApply wp_value. auto. } }
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr2 $Hr1]");
       [apply lea_r_i|done| |iContiguous_next Hcont 4|done|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr1 & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* geta r_t1 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr1 $Hr2]");
       [apply geta_i|done|done| |iContiguous_next Hcont 5|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr2 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     cbn [rules_Get.denote].
     (* move r_t4 r_t2 *)
@@ -218,7 +226,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr4 $Hr2]");
       [apply move_r_i|done| |iContiguous_next Hcont 6|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr4 & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* subseg r_t4 r_t3 r_t1 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -236,7 +244,7 @@ Section SimpleMalloc.
         by rewrite !lookup_insert_ne // lookup_empty.
       iApply (wp_Subseg with "[$Hregs $Hi]");
         [apply subseg_r_r_i|done| |done|..].
-      { admit. }
+      { apply HPC; repeat constructor. }
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| Hfail].
@@ -246,7 +254,7 @@ Section SimpleMalloc.
       { cbn. iApply wp_pure_step_later; auto. iNext. iApply wp_value. auto. } }
     iApply (wp_subseg_success with "[$HPC $Hi $Hr4 $Hr3 $Hr1]");
       [apply subseg_r_r_i|done| |split;apply z_to_addr_z_of|done|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     { iContiguous_next Hcont 7. }
     iEpilogue "(HPC & Hi & Hr3 & Hr1 & Hr4)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* sub r_t3 r_t3 r_t1 *)
@@ -254,7 +262,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_r with "[$HPC $Hi $Hr1 $Hr3]");
       [apply sub_r_r_i|done|iContiguous_next Hcont 8|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     cbn [denote].
     (* lea r_t4 r_t3 *)
@@ -262,7 +270,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr4 $Hr3]");
       [apply lea_r_i|done| |iContiguous_next Hcont 9| |done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     { transitivity (Some a_m); auto. clear; solve_addr. }
     iEpilogue "(HPC & Hi & Hr3 & Hr4)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t3 r_t2 *)
@@ -270,14 +278,14 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr3 $Hr2]");
       [apply move_r_i|done| |iContiguous_next Hcont 10|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr3 & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* sub r_t1 0 r_t1 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_z_dst with "[$HPC $Hi $Hr1]");
       [apply sub_z_r_i|done|iContiguous_next Hcont 11|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     cbn [denote].
     (* lea r_t3 r_t1 *)
@@ -285,7 +293,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr3 $Hr1]");
       [apply lea_r_i|done| |iContiguous_next Hcont 12| |done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     { transitivity (Some 0)%a; auto. clear; solve_addr. }
     iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* getb r_t1 r_t3 *)
@@ -293,7 +301,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr1 $Hr3]");
       [apply getb_i|done|done| |iContiguous_next Hcont 13|done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr3 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     cbn [rules_Get.denote].
     (* lea r_t3 r_t1 *)
@@ -301,7 +309,7 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr3 $Hr1]");
       [apply lea_r_i|done| |iContiguous_next Hcont 14| |done|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     { transitivity (Some b_m)%a; auto. clear; solve_addr. }
     iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* store r_t3 r_t2 *)
@@ -309,42 +317,45 @@ Section SimpleMalloc.
     iPrologue "Hprog".
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr2 $Hr3 $Hmemptr]");
       [apply store_r_i|done|done| |iContiguous_next Hcont 15|split;try done|auto|..].
-    { admit. }
-    { admit. }
+    { apply HPC; repeat constructor. }
+    { apply le_addr_withinBounds.
+      - generalize (contiguous_between_length _ _ _ Hcont). cbn.
+        clear; solve_addr.
+      - revert Hbm_am Ham_e; solve_addr. }
     iEpilogue "(HPC & Hi & Hr2 & Hr3 & Hmemptr)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t1 r_t4 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr1 $Hr4]");
       [apply move_r_i|done| |iContiguous_next Hcont 16|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr1 & Hr4)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t2 0 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr2]");
       [apply move_z_i|done| |iContiguous_next Hcont 17|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t3 0 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr3]");
       [apply move_z_i|done| |iContiguous_next Hcont 18|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t4 0 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr4]");
       [apply move_z_i|done| |iContiguous_next Hcont 19|done|..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr4)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* jmp r_t0 *)
     iPrologue "Hprog".
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply jmp_i|done| |..].
-    { admit. }
+    { apply HPC; repeat constructor. }
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* continuation *)
     destruct l;[|inversion Hprog_len].
@@ -381,7 +392,7 @@ Section SimpleMalloc.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
       iExists a_m, a_m'. iFrame. auto. }
     { auto. }
-  Admitted.
+  Qed.
 
 End SimpleMalloc.
 
