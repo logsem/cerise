@@ -352,7 +352,7 @@ Section Adequacy.
   Definition flagN : namespace := nroot .@ "awk" .@ "fail_flag".
   Definition mallocN : namespace := nroot .@ "awk" .@ "malloc".
 
-  Lemma awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  Lemma awkward_example_adequacy' `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory m →
     is_initial_registers reg →
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
@@ -591,3 +591,20 @@ Section Adequacy.
   Admitted.
 
 End Adequacy.
+
+(* TODO: move *)
+Existing Instance subG_MonRefIGΣ.
+
+Theorem awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  is_initial_memory m →
+  is_initial_registers reg →
+  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+  m' !! fail_flag = Some (inl 0%Z).
+Proof.
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              @MonRefΣ (leibnizO _) CapR_rtc; na_invΣ
+              (* insert missing Σs here (for STSG and heapG) *)
+      ]).
+  eapply (@awkward_example_adequacy' Σ); try typeclasses eauto.
+  all: admit.
+Admitted.
