@@ -337,7 +337,6 @@ Section Adequacy.
     iIntros "H".
     iDestruct (big_sepL2_mono with "H") as "H".
     { intros. apply MonRefAlloc. }
-    SearchAbout "bupd" "sepL".
     iDestruct (big_sepL2_bupd with "H") as "H". eauto.
   Qed.
 
@@ -592,7 +591,7 @@ Section Adequacy.
 
 End Adequacy.
 
-(* TODO: move *)
+(* FIXME: why is this necessary? *)
 Existing Instance subG_MonRefIGΣ.
 
 Theorem awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
@@ -602,9 +601,9 @@ Theorem awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (e
   m' !! fail_flag = Some (inl 0%Z).
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
-              @MonRefΣ (leibnizO _) CapR_rtc; na_invΣ
-              (* insert missing Σs here (for STSG and heapG) *)
+              @MonRefΣ (leibnizO _) CapR_rtc; na_invΣ;
+              STS_preΣ Addr region_type; heapPreΣ;
+              savedPredΣ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word)
       ]).
-  eapply (@awkward_example_adequacy' Σ); try typeclasses eauto.
-  all: admit.
-Admitted.
+  eapply (@awkward_example_adequacy' Σ); typeclasses eauto.
+Qed.

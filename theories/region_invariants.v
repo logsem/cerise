@@ -33,7 +33,7 @@ Global Instance sts_std : STS_STD region_type :=
     {| Rpub := std_rel_pub; Rpriv := std_rel_priv |}.
 
 Class heapPreG Σ := HeapPreG {
-  heapPreG_invG : invG Σ;
+  heapPreG_invPreG : invPreG Σ;
   heapPreG_saved_pred :> savedPredG Σ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word);
   heapPreG_rel :> inG Σ (authR relUR);
 }.
@@ -44,6 +44,16 @@ Class heapG Σ := HeapG {
   heapG_rel :> inG Σ (authR relUR);
   γrel : gname
 }.
+
+Definition heapPreΣ :=
+  #[ GFunctor (authR relUR) ].
+
+Instance subG_heapPreΣ {Σ}:
+  subG heapPreΣ Σ →
+  invPreG Σ →
+  subG (savedPredΣ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word)) Σ →
+  heapPreG Σ.
+Proof. solve_inG. Qed.
 
 Section REL_defs.
   Context {Σ:gFunctors} {heapg : heapG Σ}.
@@ -74,7 +84,8 @@ Section heapPre.
   Proof.
     iMod (own_alloc (A:= (authR relUR)) (● (to_agree <$> (∅: relT) : relUR))) as (γ) "H".
     { rewrite map_fmap_empty. by apply auth_auth_valid. }
-    iModIntro. iExists (HeapG _ heapPreG_invG _ _ γ). rewrite RELS_eq /RELS_def. done.
+    iMod (@wsat.wsat_alloc _ heapPreG_invPreG) as (HI) "?".
+    iModIntro. iExists (HeapG _ HI _ _ γ). rewrite RELS_eq /RELS_def. done.
   Qed.
 
 End heapPre.

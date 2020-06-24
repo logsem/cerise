@@ -40,6 +40,20 @@ Class STSG A B Σ `{EqDecision A, Countable A} :=
     γs_loc : gname;
     γr_loc : gname;}.
 
+Definition STS_preΣ A B `{EqDecision A, Countable A} :=
+  #[ GFunctor sts_stateUR;
+     GFunctor (sts_std_stateUR A B);
+     GFunctor sts_relUR ].
+
+Instance subG_STS_preΣ A B `{EqDecision A, Countable A} {Σ} :
+  subG (STS_preΣ A B) Σ → STS_preG A B Σ.
+Proof.
+  (* hack: solve_inG does not currently unfold [subG X _] where X has more than
+     4 parameters. We have 5. *)
+  set f := STS_preΣ A B. unfold STS_preΣ in f.
+  solve_inG.
+Qed.
+
 Section definitionsS.
 
   Context {A B C D: Type} {Σ : gFunctors} {eqa: EqDecision A} {count: Countable A}
