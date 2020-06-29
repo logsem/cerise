@@ -553,15 +553,15 @@ Section Adequacy.
            fundamental theorem. *)
         destruct (decide (r = r_t0)) as [ -> |].
         { rewrite /RegLocate Hr0 fixpoint_interp1_eq /=.
-          iExists RWX.
           iAssert
             ([∗ list] a ∈ region_addrs adv_start adv_end,
-               read_write_cond a RWX (fixpoint interp1) ∧ ⌜std W1 !! a = Some Permanent⌝)%I
+              ∃ p : Perm, ⌜PermFlows RWX p⌝
+                        ∗ read_write_cond a p (fixpoint interp1) ∧ ⌜std W1 !! a = Some Permanent⌝)%I
             as "#Hrwcond".
           { iApply (big_sepL_mono with "Hadv"). iIntros (k v Hkv). cbn.
-            iIntros "H". rewrite /read_write_cond /=. iFrame. iPureIntro.
+            iIntros "H". rewrite /read_write_cond /=. iExists RWX. iFrame. iSplit;auto. iPureIntro.
             eapply std_sta_update_multiple_lookup_in_i, elem_of_list_lookup_2; eauto. }
-          iSplitR; auto. }
+          auto. }
 
         (* Stack *)
         destruct (decide (r = r_stk)) as [ -> |].

@@ -1543,7 +1543,12 @@ Section awkward_example.
     (* If the stack is Global, validity is false *)
     destruct l0;[by rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val"|].
     rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val".
-    iDestruct "Hstack_val" as (p0 Hperm) "Hstack_region". destruct p0;inversion Hperm. clear Hperm.
+    iAssert ([∗ list] a0 ∈ region_addrs b_r e_r, read_write_cond a0 RWLX (fixpoint interp1)
+                                                 ∧ ⌜region_state_pwl W a0⌝)%I as "#Hstack_region".
+    { iApply (big_sepL_mono with "Hstack_val").
+      iIntros (k y Hk) "H". iDestruct "H" as (p0 Hperm) "Hw". destruct p0;inversion Hperm.
+      iFrame. 
+    }
     iAssert (⌜Forall (λ a, region_type_temporary W a) (region_addrs b_r e_r)⌝)%I as %Htemp.
     { iDestruct (big_sepL_and with "Hstack_region") as "[Hstack_rel Hstack_pwl]".
       iDestruct (big_sepL_forall with "Hstack_pwl") as %Hforall.
@@ -1972,8 +1977,10 @@ Section awkward_example.
       - iIntros "%". contradiction.
       - assert (r !! r_stk = Some (inr (RWLX, Local, stack_own_last, e_r, stack_own_end))) as Hr_stk; auto. 
         rewrite /RegLocate Hr_stk !fixpoint_interp1_eq. 
-        iIntros (_). iExists RWLX. iSplitR; [auto|].
-        iAssert ([∗ list] a ∈ region_addrs stack_own_last e_r, read_write_cond a RWLX (fixpoint interp1)
+        iIntros (_). 
+        iAssert ([∗ list] a ∈ region_addrs stack_own_last e_r, ∃ p0 : Perm,
+                                                    ⌜PermFlows RWLX p0⌝
+                                                    ∗ read_write_cond a p0 (fixpoint interp1)
                              ∧ ⌜region_state_pwl W'' a⌝)%I as "#Hstack_adv_val". 
         { rewrite Hstack_eq1. 
           iDestruct (big_sepL_app with "Hstack_region") as "[_ Hstack_val']".
@@ -1981,7 +1988,7 @@ Section awkward_example.
           iIntros (k y Hsome) "[Hy _]".
           rewrite Hstack_eq1 in Hrevoked.
           apply Forall_app in Hrevoked as [_ Hrevoked].
-          iFrame. iPureIntro. 
+          iExists RWLX. iFrame. iSplit;[auto|]. iPureIntro. 
           apply close_list_std_sta_revoked.
           +  apply elem_of_list_lookup; eauto.
           + revert Hrevoked. rewrite Forall_forall =>Hrevoked.
@@ -2077,9 +2084,9 @@ Section awkward_example.
               apply Hforall in Hin'. rewrite /static Hm_temp in Hin'. done. 
           }
           iDestruct (fundamental W3 r' RX Local a0 e_r stack_own_b with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
-          { iSimpl. iExists RWLX. iSplit;[auto|].
+          { iSimpl.
             iApply (big_sepL_mono with "Hstack_region").
-            iIntros (k y Hk) "[Hrel _]". iFrame. iPureIntro.            
+            iIntros (k y Hk) "[Hrel _]". iExists RWLX. iSplit;[auto|]. iFrame. iPureIntro.            
             left.
             (* we assert that the region is all in state temporary *)
             rewrite (region_addrs_split _ stack_own_last) in Hk. 
@@ -2729,10 +2736,13 @@ Section awkward_example.
           - iIntros "%". contradiction.
           - assert (r2 !! r_stk = Some (inr (RWLX, Local, stack_own_end, e_r, stack_new))) as Hr_stk; auto. 
             rewrite /RegLocate Hr_stk. repeat rewrite fixpoint_interp1_eq. 
-            iIntros (_). iExists RWLX. iSplitR; [auto|].
-            iAssert ([∗ list] a ∈ region_addrs stack_own_end e_r, read_write_cond a RWLX (fixpoint interp1)
-                                                             ∧ ⌜region_state_pwl W5 a⌝)%I as "#Hstack_adv_val'". 
-            { iApply (big_sepL_mono with "Hstack_adv_val"). iIntros (g y Hsome) "(Hr & Hrev)". iFrame. }
+            iIntros (_).
+            iAssert ([∗ list] a ∈ region_addrs stack_own_end e_r, ∃ p0 : Perm,
+                                                   ⌜PermFlows RWLX p0⌝
+                                                   ∗ read_write_cond a p0 (fixpoint interp1)
+                                                   ∧ ⌜region_state_pwl W5 a⌝)%I as "#Hstack_adv_val'". 
+            { iApply (big_sepL_mono with "Hstack_adv_val"). iIntros (g y Hsome) "(Hr & Hrev)".
+              iExists RWLX. iFrame. auto. }
             iFrame "Hstack_adv_val'". 
           - (* continuation *)
             iIntros (_). clear Hr_t0. 
@@ -2791,9 +2801,9 @@ Section awkward_example.
                   apply Hforall in Hin'. rewrite /static Hm_temp' in Hin'. done. 
               }
               iDestruct (fundamental W6 r3 RX Local a0 e_r a3 with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
-              { iSimpl. iExists RWLX. iSplit;[auto|].
+              { iSimpl. 
                 iApply (big_sepL_mono with "Hstack_region").
-                iIntros (k y Hk) "[Hrel _]". iFrame. iPureIntro.            
+                iIntros (k y Hk) "[Hrel _]". iExists RWLX. iFrame. iSplit;auto. iPureIntro.            
                 left. 
                 (* we assert that the region is all in state temporary *)
                 rewrite (region_addrs_split _ stack_own_end) in Hk. 
