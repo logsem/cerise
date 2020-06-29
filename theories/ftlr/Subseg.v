@@ -72,13 +72,13 @@ Section fundamental.
                        -∗ sts_full_world a7
                        -∗ na_own logrel_nais ⊤
                        -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
-              → □ (∃ p'0 : Perm,
-                      ⌜PermFlows a9 p'0⌝
-                      ∧ ([∗ list] a14 ∈ region_addrs a11 a12, 
+              → □ ([∗ list] a14 ∈ region_addrs a11 a12,
+                   ∃ p'0 : Perm,
+                      ⌜PermFlows a9 p'0⌝ ∗
                          read_write_cond a14 p'0 interp
                          ∧ ⌜if pwl a9
                             then region_state_pwl a7 a14
-                            else region_state_nwl a7 a14 a10⌝)) -∗ 
+                            else region_state_nwl a7 a14 a10⌝) -∗ 
                   interp_conf a7) -∗
       (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
       (fixpoint interp1) W (inr (p, l, b', e', a)).
@@ -120,7 +120,7 @@ Section fundamental.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
-        iAlways. iExists p'. iSplitR; auto.
+        iAlways. 
         generalize (isWithin_implies _ _ _ _ H3). intros [A B].
         destruct (Z_le_dec b'' e'').
         + rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.

@@ -21,19 +21,20 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma execcPC_implies_interp W p p' g b e a0:
-    PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX ∧ g = Local →
-      ([∗ list] a ∈ region_addrs b e,
+  Lemma execcPC_implies_interp W p g b e a0:
+    p = RX ∨ p = RWX ∨ p = RWLX ∧ g = Local →
+    ([∗ list] a ∈ region_addrs b e,
+     ∃ p', ⌜PermFlows p p'⌝ ∗
        read_write_cond a p' interp
        ∧ ⌜if pwl p
           then region_state_pwl W a
           else region_state_nwl W a g⌝) -∗
       ((fixpoint interp1) W) (inr (p, g, b, e, a0)).
   Proof.
-    iIntros (Hpf Hp) "#HR".
+    iIntros (Hp) "#HR".
     rewrite (fixpoint_interp1_eq _ (inr _)).
     (do 2 try destruct Hp as [ | Hp]). 3:destruct Hp.
-    all:subst; iExists p' ; by (iSplit; [auto | ]).
+    all:subst; auto. 
   Qed.
 
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
@@ -356,7 +357,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto. iNext.
 
       (* From this, derive value relation for the current PC*)
-      iDestruct (execcPC_implies_interp _ _ _ _ _ _ a  with "Hinv") as "HVPC"; eauto.
+      iDestruct (execcPC_implies_interp _ _ _ _ _ a  with "Hinv") as "HVPC"; eauto.
 
       iDestruct (switch_monotonicity_formulation with "Hmono") as "Hmono"; auto.
       

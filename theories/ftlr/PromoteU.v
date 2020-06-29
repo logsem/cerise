@@ -28,27 +28,26 @@ Section fundamental.
     iIntros "#IH A". destruct (isU p) eqn:HisU.
     - rewrite !fixpoint_interp1_eq /=. destruct p; simpl in *; try congruence; auto.
       + destruct g.
-        * iDestruct "A" as (p) "[% A]".
-          iExists p; iSplit; [auto|].
+        * (* iDestruct "A" as (p) "[% A]". *)
+          (* iExists p; iSplit; [auto|]. *)
           iApply (big_sepL_submseteq with "A").
           destruct (Addr_le_dec b (min a e)).
           { rewrite (region_addrs_split b (min a e) e); [|solve_addr].
             eapply submseteq_inserts_r. auto. }
           { rewrite region_addrs_empty; [|solve_addr].
             eapply submseteq_nil_l. }
-        * iDestruct "A" as (p) "[% [A B]]". auto.
-      + destruct g; auto. iDestruct "A" as (p) "[% [A B]]". auto.
+        * iDestruct "A" as "[A B]". auto.
+      + destruct g; auto. iDestruct "A" as "[A B]". auto.
       + destruct g.
-        * iDestruct "A" as (p) "[% #A]".
-          iExists p; iSplit; [auto|].
+        * iDestruct "A" as "#A".
           iApply (big_sepL_submseteq with "A").
           destruct (Addr_le_dec b (min a e)).
           { rewrite (region_addrs_split b (min a e) e); [|solve_addr].
             eapply submseteq_inserts_r. auto. }
           { rewrite region_addrs_empty; [|solve_addr].
             eapply submseteq_nil_l. }
-        * iDestruct "A" as (p) "[% [#A #B]]". auto.
-      + destruct g; auto. iDestruct "A" as (p) "[% [A B]]". auto.
+        * iDestruct "A" as "[#A #B]". auto.
+      + destruct g; auto. iDestruct "A" as "[A B]". auto.
     - iApply (interp_weakening with "IH"); eauto; try solve_addr.
       + rewrite HisU; auto.
       + destruct p; simpl in HisU; simpl; auto; congruence.
@@ -99,11 +98,10 @@ Section fundamental.
       { iModIntro. destruct (reg_eq_dec PC dst).
         - subst dst. rewrite !lookup_insert in H0 H1. inv H1. inv H0.
           assert (promote_perm p0 = p0) as -> by (destruct Hp as [-> | [-> | [-> ->] ] ]; auto).
-          iExists p'. iSplit; auto.
           rewrite (isWithin_region_addrs_decomposition x1 (min x3 e0) x1 e0); try solve_addr.
           rewrite !big_sepL_app. iDestruct "Hinv" as "[A1 [A2 A3]]". auto.
         - rewrite lookup_insert_ne in H1; auto. rewrite lookup_insert in H1.
-          inv H1. iExists p'. iSplit; auto. } }
+          inv H1. auto. } }
   Qed.
 
  End fundamental.

@@ -42,13 +42,15 @@ Section fundamental.
           -∗ sts_full_world a0
           -∗ na_own logrel_nais ⊤
           -∗ ⌜a2 = RX ∨ a2 = RWX ∨ (a2 = RWLX /\ a3 = Local)⌝
-             → □ (∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝
-                                ∧ ([∗ list] a7 ∈ region_addrs a4 a5, read_write_cond a7 p'0 interp
+             → □ ([∗ list] a7 ∈ region_addrs a4 a5, ∃ p'0 : Perm, ⌜PermFlows a2 p'0⌝ ∗
+                                                                   read_write_cond a7 p'0 interp
                                                                      ∧ ⌜if pwl a2
                                                                         then region_state_pwl a0 a7
-                                                                        else region_state_nwl a0 a7 a3⌝))
+                                                                        else region_state_nwl a0 a7 a3⌝)
                  -∗ interp_conf a0)
-    -∗ ([∗ list] a0 ∈ region_addrs b e, read_write_cond a0 p' interp
+    -∗ ([∗ list] a0 ∈ region_addrs b e, ∃ p'0 : Perm,
+                                           ⌜PermFlows p p'0⌝
+                                        ∗ read_write_cond a0 p'0 interp
                                         ∧ ⌜if pwl p
                                            then region_state_pwl W a0
                                            else region_state_nwl W a0 g⌝)

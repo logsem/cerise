@@ -142,8 +142,7 @@ Section logrel.
   Program Definition interp_cap_RO (interp : D) : D :=
     λne W w, (match w with
               | inr ((RO,g),b,e,a) =>
-                ∃ p, ⌜PermFlows RO p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
+                [∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RO p⌝ ∗ (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -152,8 +151,7 @@ Section logrel.
   Program Definition interp_cap_RW (interp : D) : D :=
     λne W w, (match w with
               | inr ((RW,g),b,e,a) =>
-                ∃ p, ⌜PermFlows RW p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
+                [∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RW p⌝ ∗ (read_write_cond a p interp) ∧ ⌜region_state_nwl W a g⌝
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -161,16 +159,14 @@ Section logrel.
   Program Definition interp_cap_RWL (interp : D) : D :=
     λne W w, (match w with
               | inr ((RWL,Local),b,e,a) =>
-                ∃ p, ⌜PermFlows RWL p⌝ ∗
-                      [∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝
+                      [∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RWL p⌝ ∗ (read_write_cond a p interp) ∧ ⌜region_state_pwl W a⌝
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_cap_RX (interp : D) : D :=
     λne W w, (match w with inr ((RX,g),b,e,a) =>
-                           ∃ p, ⌜PermFlows RX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                           ([∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RX p⌝ ∗ (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_nwl W a g⌝)
                                  (* ∗ □ exec_cond W b e g RX interp *)
              | _ => False end)%I.
@@ -185,8 +181,7 @@ Section logrel.
 
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne W w, (match w with inr ((RWX,g),b,e,a) =>
-                           ∃ p, ⌜PermFlows RWX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                           ([∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RWX p⌝ ∗ (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_nwl W a g⌝)
                                  (* ∗ □ exec_cond W b e g RWX interp *)
              | _ => False end)%I.
@@ -194,8 +189,7 @@ Section logrel.
 
   Program Definition interp_cap_RWLX (interp : D) : D :=
     λne W w, (match w with inr ((RWLX,Local),b,e,a) =>
-                           ∃ p, ⌜PermFlows RWLX p⌝ ∗
-                                 ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p interp)
+                           ([∗ list] a ∈ (region_addrs b e), ∃ p, ⌜PermFlows RWLX p⌝ ∗ (read_write_cond a p interp)
                                                                    ∧ ⌜region_state_pwl W a⌝)
                                  (* ∗ □ exec_cond W b e Local RWLX interp *)
              | _ => False end)%I.
@@ -204,13 +198,11 @@ Section logrel.
   Program Definition interp_cap_URW (interp : D) : D :=
     λne W w, (match w with
               | inr ((URW,Local),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URW) p⌝ ∗
-                      ([∗ list] a' ∈ (region_addrs b (min a e)), (read_write_cond a' p interp)
+                ([∗ list] a' ∈ (region_addrs b (min a e)), ∃ p, ⌜PermFlows (promote_perm URW) p⌝ ∗ (read_write_cond a' p interp)
                                                                  ∧ ⌜region_state_nwl W a' Local⌝) ∗
-                      ([∗ list] a' ∈ (region_addrs (max b a) e), (read_write_cond a' p interp) ∧ ⌜region_state_U W a'⌝)
+                ([∗ list] a' ∈ (region_addrs (max b a) e), ∃ p, ⌜PermFlows (promote_perm URW) p⌝ ∗ (read_write_cond a' p interp) ∧ ⌜region_state_U W a'⌝)
               | inr ((URW,Global),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URW) p⌝ ∗
-                      [∗ list] a' ∈ (region_addrs b e), (read_write_cond a' p interp) ∧ ⌜region_state_nwl W a' Global⌝
+                [∗ list] a' ∈ (region_addrs b e), ∃ p, ⌜PermFlows (promote_perm URW) p⌝ ∗ (read_write_cond a' p interp) ∧ ⌜region_state_nwl W a' Global⌝
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper;auto.
@@ -218,10 +210,9 @@ Section logrel.
   Program Definition interp_cap_URWL (interp : D) : D :=
     λne W w, (match w with
               | inr ((URWL,Local),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URWL) p⌝ ∗
-                      ([∗ list] a' ∈ (region_addrs b (min a e)), (read_write_cond a' p interp)
+                ([∗ list] a' ∈ (region_addrs b (min a e)), ∃ p, ⌜PermFlows (promote_perm URWL) p⌝ ∗ (read_write_cond a' p interp)
                                                                  ∧ ⌜region_state_pwl W a'⌝) ∗
-                      ([∗ list] a' ∈ (region_addrs (max b a) e), (read_write_cond a' p interp) ∧
+                ([∗ list] a' ∈ (region_addrs (max b a) e), ∃ p, ⌜PermFlows (promote_perm URWL) p⌝ ∗ (read_write_cond a' p interp) ∧
                                                                  ⌜region_state_U_pwl W a'⌝)
               | _ => False
               end)%I.
@@ -230,15 +221,13 @@ Section logrel.
   Program Definition interp_cap_URWX (interp : D) : D :=
     λne W w, (match w with
               | inr ((URWX,Local),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URWX) p⌝ ∗
-                      ([∗ list] a' ∈ (region_addrs b (min a e)), (read_write_cond a' p interp)
+                ([∗ list] a' ∈ (region_addrs b (min a e)), ∃ p, ⌜PermFlows (promote_perm URWX) p⌝ ∗ (read_write_cond a' p interp)
                                                                  ∧ ⌜region_state_nwl W a' Local⌝)
                       (* ∗ □ exec_cond W b (min a e) Local RWX interp *)
-                      ∗ ([∗ list] a' ∈ (region_addrs (max b a) e), (read_write_cond a' p interp)
+               ∗ ([∗ list] a' ∈ (region_addrs (max b a) e), ∃ p, ⌜PermFlows (promote_perm URWX) p⌝ ∗ (read_write_cond a' p interp)
                                                                    ∧ ⌜region_state_U W a'⌝)
               | inr ((URWX,Global),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URWX) p⌝ ∗
-                      ([∗ list] a' ∈ (region_addrs b e), (read_write_cond a' p interp)
+                ([∗ list] a' ∈ (region_addrs b e), ∃ p, ⌜PermFlows (promote_perm URWX) p⌝ ∗ (read_write_cond a' p interp)
                                                                  ∧ ⌜region_state_nwl W a' Global⌝)
                       (* ∗ □ exec_cond W b e Global RWX interp *)
              | _ => False end)%I.
@@ -247,11 +236,10 @@ Section logrel.
   Program Definition interp_cap_URWLX (interp : D) : D :=
     λne W w, (match w with
               | inr ((URWLX,Local),b,e,a) =>
-                ∃ p, ⌜PermFlows (promote_perm URWLX) p⌝ ∗
-                      ([∗ list] a' ∈ (region_addrs b (min a e)), (read_write_cond a' p interp)
+                ([∗ list] a' ∈ (region_addrs b (min a e)), ∃ p, ⌜PermFlows (promote_perm URWLX) p⌝ ∗ (read_write_cond a' p interp)
                                                                  ∧ ⌜region_state_pwl W a'⌝)
                       (* ∗ □ exec_cond W b (min a e) Local RWLX interp *)
-                      ∗ ([∗ list] a' ∈ (region_addrs (max b a) e), (read_write_cond a' p interp) ∧
+                ∗ ([∗ list] a' ∈ (region_addrs (max b a) e), ∃ p, ⌜PermFlows (promote_perm URWLX) p⌝ ∗ (read_write_cond a' p interp) ∧
                                                                    ⌜region_state_U_pwl W a'⌝)
              | _ => False end)%I.
   Solve All Obligations with solve_proper;auto.
@@ -285,9 +273,9 @@ Section logrel.
     Contractive (interp_cap_RO).
   Proof. solve_proper_prepare.
          destruct x1; auto. destruct c, p, p, p, p; auto.
+         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          apply exist_ne. rewrite /pointwise_relation; intros.
          apply sep_ne; auto.
-         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
          apply and_ne; auto.
          apply exist_ne =>γ. apply sep_ne; auto.
@@ -296,9 +284,9 @@ Section logrel.
   Global Instance interp_cap_RW_contractive :
     Contractive (interp_cap_RW).
   Proof. solve_proper_prepare. destruct x1; auto. destruct c, p, p, p, p; auto.
+         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          apply exist_ne. rewrite /pointwise_relation; intros.
          apply sep_ne; auto.
-         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
          apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
          simpl. f_equiv. solve_contractive.
@@ -307,9 +295,9 @@ Section logrel.
     Contractive (interp_cap_RWL).
   Proof. solve_proper_prepare.
          destruct x1; auto. destruct c, p, p, p, p, l; auto.
+         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          apply exist_ne. rewrite /pointwise_relation; intros.
          apply sep_ne; auto.
-         apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
          apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
          simpl. f_equiv. solve_contractive.
@@ -330,10 +318,10 @@ Section logrel.
     rewrite /interp_cap_RX.
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p; auto.
-    apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. (* apply sep_ne; auto. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto. (* apply sep_ne; auto. *)
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
     (* - solve_proper_prepare. *)
@@ -354,10 +342,10 @@ Section logrel.
     rewrite /interp_cap_RWX. 
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p; auto.
-    apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. (* apply sep_ne. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto. (* apply sep_ne. *)
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
     (* - solve_proper_prepare. *)
@@ -369,10 +357,10 @@ Section logrel.
     rewrite /interp_cap_RWLX.
     solve_proper_prepare.
     destruct x1; auto. destruct c, p, p, p, p, l; auto.
-    apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. (* apply sep_ne. *)
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto. (* apply sep_ne. *)
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
     (* - solve_proper_prepare. *)
@@ -381,20 +369,23 @@ Section logrel.
   Global Instance interp_cap_URW_contractive :
     Contractive (interp_cap_URW).
   Proof. solve_proper_prepare. destruct x1; auto. destruct_cap c; destruct c; destruct c3; auto.
-         - apply exist_ne. rewrite /pointwise_relation; intros.
+         - apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
+           apply exist_ne. rewrite /pointwise_relation; intros.
            apply sep_ne; auto.
-           apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
            rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
            apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
            simpl. f_equiv. solve_contractive.
-         - apply exist_ne. rewrite /pointwise_relation; intros.
-           apply sep_ne; auto. apply sep_ne; auto.
+         - apply sep_ne; auto.
            apply big_opL_ne; auto; rewrite /pointwise_relation; intros.
+           apply exist_ne. rewrite /pointwise_relation; intros.
+           apply sep_ne; auto.
            rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
            apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
            simpl. f_equiv. solve_contractive.
            apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
            rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
+           apply exist_ne. rewrite /pointwise_relation; intros.
+           apply sep_ne; auto.
            apply and_ne; auto. apply exist_ne => γ. apply sep_ne; auto.
            simpl. f_equiv. solve_contractive.
   Qed.
@@ -402,14 +393,16 @@ Section logrel.
     Contractive (interp_cap_URWL).
   Proof. solve_proper_prepare.
          destruct x1; auto. destruct_cap c. destruct c; auto. destruct c3; auto.
-         apply exist_ne. rewrite /pointwise_relation; intros.
-         apply sep_ne; auto. apply sep_ne; auto.
+         apply sep_ne; auto.
          apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
-         rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
+         apply exist_ne. rewrite /pointwise_relation; intros.
+         apply sep_ne; auto. rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
          apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
          simpl. f_equiv. solve_contractive.
          apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
          rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
+         apply exist_ne. rewrite /pointwise_relation; intros.
+         apply sep_ne; auto. 
          apply and_ne; auto. apply exist_ne => γ. apply sep_ne; auto.
          simpl. f_equiv. solve_contractive.
   Qed.
@@ -419,19 +412,22 @@ Section logrel.
     rewrite /interp_cap_URWX.
     solve_proper_prepare.
     destruct x1; auto. destruct_cap c; destruct c; destruct c3; auto.
-    - apply exist_ne. rewrite /pointwise_relation; intros.
-      apply sep_ne; auto.
-      rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
+    - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto.
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
-    - apply exist_ne. rewrite /pointwise_relation; intros.
-      apply sep_ne; auto. apply sep_ne; auto.
+    - apply sep_ne; auto.
       + apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
+        apply exist_ne. rewrite /pointwise_relation; intros.
+        apply sep_ne; auto.
         rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
         apply and_ne; auto. apply exist_ne =>γ. apply sep_ne; auto.
         simpl. f_equiv. solve_contractive.
       + apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
+        apply exist_ne. rewrite /pointwise_relation; intros.
+        apply sep_ne; auto. 
         rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
         apply and_ne; auto. apply exist_ne => γ. apply sep_ne; auto.
         simpl. f_equiv. solve_contractive.
@@ -442,13 +438,16 @@ Section logrel.
     rewrite /interp_cap_URWLX.
     solve_proper_prepare.
     destruct x1; auto. destruct_cap c; destruct c; auto. destruct c3; auto.
-    apply exist_ne. rewrite /pointwise_relation; intros.
-    apply sep_ne; auto. apply sep_ne.
+    apply sep_ne.
     - rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply big_opL_ne; auto. intros ? ?.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto. 
       apply and_ne;auto. apply exist_ne =>γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
     - apply big_opL_ne; auto. rewrite /pointwise_relation; intros.
+      apply exist_ne. rewrite /pointwise_relation; intros.
+      apply sep_ne; auto. 
       rewrite /read_write_cond rel_eq /rel_def /saved_pred_own.
       apply and_ne; auto. apply exist_ne => γ. apply sep_ne; auto.
       simpl. f_equiv. solve_contractive.
@@ -506,16 +505,12 @@ Section logrel.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p,g; try contradiction;
-    try (iDestruct "Hinterp" as (p) "[Hleast Hinterp]");
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
-    iExists _; iFrame;
-    try (iDestruct (extract_from_region_inv_2 with "Hinterp") as (w) "[ [Hinv _] _]"; eauto);
-    try (iDestruct (extract_from_region_inv with "Hinterp") as "[Hinv _]"; eauto).
+    try (iDestruct (extract_from_region_inv with "Hinterp") as (p Hflows) "[Hinv _]"; [eauto|iExists _;iSplit;eauto]).
     - done.
     - done.
-      Unshelve. exact RWL. exact RWLX.
   Qed.
-
+  
   Lemma writeLocalAllowed_implies_local W p l b e a:
     pwl p = true ->
     interp W (inr (p, l, b, e, a)) -∗ ⌜isLocal l = true⌝.
@@ -531,42 +526,35 @@ Section logrel.
     interp W (inr (p, l, b, e, a)) -∗
            ⌜∃ ρ, std W !! a = Some ρ ∧ ρ <> Revoked ∧ (∀ g, ρ ≠ Static g)⌝.
   Proof.
-    intros. iIntros "Hvalid".
+    intros. iIntros "H".
     eapply withinBounds_le_addr in H0.
     unfold interp; rewrite fixpoint_interp1_eq /=.
     destruct p; simpl in H; try congruence.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
       iPureIntro. 
       destruct l; simpl in H2; eauto.
       destruct H2; eauto.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
       iPureIntro. 
       destruct l; simpl in H2; eauto.
       destruct H2; eauto.
     - destruct l; auto.
-      iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
-      iPureIntro. 
-      destruct l; simpl in H2; eauto.
-      destruct H2; eauto.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+      iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
       iPureIntro.
       destruct l; simpl in H2; eauto.
       destruct H2; eauto.
-    - destruct l; auto.
-      iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
+      iPureIntro.
+      destruct l; simpl in H2; eauto.
+      destruct H2; eauto.
+    - destruct l;auto.
+      iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
   Qed.
 
   Definition region_conditions W p g b e:=
-  (∃ p', ⌜PermFlows p p'⌝ ∧
-           ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
-                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝))%I.
+  ([∗ list] a ∈ (region_addrs b e), ∃ p', ⌜PermFlows p p'⌝ ∗ (read_write_cond a p' interp)
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)%I.
 
   Lemma readAllowed_implies_region_conditions W p l b e a:
     readAllowed p = true ->
@@ -575,9 +563,7 @@ Section logrel.
     intros. iIntros "Hvalid".
     unfold interp; rewrite fixpoint_interp1_eq /=.
     unfold region_conditions.
-    destruct p; simpl in H; try congruence; destruct l; auto.
-    all: iDestruct "Hvalid" as (p) "[% Hvalid]"; iExists p; iSplitR; auto.
-    all: iDestruct "Hvalid" as "[Hvalid _]"; auto.
+    destruct p; simpl in H; try congruence; destruct l; simpl; auto.
   Qed.
 
 
@@ -593,42 +579,37 @@ Section logrel.
     unfold interp; rewrite fixpoint_interp1_eq /=.
     destruct p; simpl in H; try congruence; destruct l.
     - by exfalso.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "Hvalid") as (? ?) "[_ %]"; eauto.
     - by exfalso.
-    - iDestruct "Hvalid" as (p) "[% H]".
-      iDestruct (extract_from_region_inv with "H") as "[_ %]"; eauto.
+    - iDestruct (extract_from_region_inv with "Hvalid") as (? ?) "[_ %]"; eauto.
   Qed.
 
   Lemma interp1_eq interp (W: WORLD) p l b e a:
     ((interp1 interp W (inr (p, l, b, e, a))) ≡
              (if perm_eq_dec p O then True else
              if perm_eq_dec p E then □ enter_cond W b e a l interp else
-               (∃ p', ⌜PermFlows (promote_perm p) p'⌝ ∗
-                ([∗ list] a ∈ region_addrs b (if isU p && isLocal l then (min a e) else e),
+               ([∗ list] a ∈ region_addrs b (if isU p && isLocal l then (min a e) else e),
+                ∃ p', ⌜PermFlows (promote_perm p) p'⌝ ∗
                  (read_write_cond a p' interp) ∧
                  ⌜if pwlU p then region_state_pwl W a else region_state_nwl W a l⌝) ∗
                 (*(□ match p with RX | RWX | RWLX => exec_cond W b e l p interp | URWX | URWLX => exec_cond W b (if isLocal l then min a e else e) l (promote_perm p) interp | _ => True end) ∗*)
                 (⌜if pwlU p then l = Local else True⌝) ∗
-                (if isU p && isLocal l then [∗ list] a ∈ region_addrs (max b a) e, read_write_cond a p' interp ∧ ⌜if pwlU p then region_state_U_pwl W a else region_state_U W a⌝ else emp%I)))%I).
+                (if isU p && isLocal l then [∗ list] a ∈ region_addrs (max b a) e,
+                                            ∃ p', ⌜PermFlows (promote_perm p) p'⌝ ∗ read_write_cond a p' interp ∧ ⌜if pwlU p then region_state_U_pwl W a else region_state_U W a⌝ else emp%I))%I).
   Proof.
     iSplit.
     { iIntros "HA".
       destruct (perm_eq_dec p O); subst; simpl; auto.
       destruct (perm_eq_dec p E); subst; simpl; auto.
-      destruct p; simpl; try congruence; auto; try (iDestruct "HA" as (p') "[HA HB]"; eauto; fail); try (iDestruct "HA" as (p') "(HA & HB & HC)"; eauto; fail); destruct l; auto.
-      - iDestruct "HA" as (p') "[HA HB]"; eauto.
-      - iDestruct "HA" as (p') "[HA HB]"; eauto.
-      - iDestruct "HA" as (p') "[% HB]"; eauto.
-      - iDestruct "HA" as (p') "[% [HB HC]]"; eauto.
-      - iDestruct "HA" as (p') "[% [HB HC]]"; eauto.
-      - iDestruct "HA" as (p') "[% HB]"; eauto.
-      - iDestruct "HA" as (p') "[% [HB HC]]"; eauto.
-      - iDestruct "HA" as (p') "[% [HB HC]]"; eauto. }
+      destruct p; simpl; try congruence; auto; destruct l;auto. 
+      - iDestruct "HA" as "[HA HB]"; eauto.
+      - iDestruct "HA" as "[HA HB]"; eauto.
+      - iDestruct "HA" as "[Ha HB]"; eauto.
+      - iDestruct "HA" as "[HB HC]"; eauto. }
     { iIntros "A".
       destruct (perm_eq_dec p O); subst; simpl; auto.
       destruct (perm_eq_dec p E); subst; simpl; auto.
-      iDestruct "A" as (p') "(% & B & % & C)".
+      iDestruct "A" as "(B & % & C)".
       destruct p; simpl in *; try congruence; subst; eauto; destruct l; eauto. }
   Qed.
 

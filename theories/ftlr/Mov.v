@@ -62,8 +62,8 @@ Section fundamental.
               repeat rewrite fixpoint_interp1_eq. simpl.
               destruct g''; auto.
             + iModIntro.
-              destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; try (iDestruct "Hr0" as (px) "[% H2]"; iExists px; try split; auto).
-              destruct g''; auto. iDestruct "Hr0" as (px) "[% H2]"; iExists px; try split; auto.
+              destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; auto.
+              destruct g''; auto. 
           - iApply (wp_bind (fill [SeqCtx])).
             iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
             iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct p''; simpl in Hpft; try discriminate; eauto|].
@@ -91,7 +91,7 @@ Section fundamental.
                 - rewrite lookup_insert in H. inv H.
                   rewrite (fixpoint_interp1_eq _ (inr (_, g'', b'', e'', a''))) /=.
                 destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; subst p''; try subst g'';
-                  (iExists p'; iSplitR;[auto|]; iFrame "Hinv Hexec"). }
+                  (iFrame "Hinv Hexec"). }
               rewrite lookup_insert_ne in H; auto.
               iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0".
               rewrite H. auto.

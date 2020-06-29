@@ -318,7 +318,8 @@ Section fundamental.
          - rewrite lookup_insert in H1; inversion H1. rewrite (fixpoint_interp1_eq W).
            iApply readAllowed_implies_region_conditions; auto.
            { destruct o as [o | [o | o] ]; rewrite o; auto . }
-         - iExists p'. rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1. iSplitR; first by rewrite -H4. auto.
+         - (* iExists p'. *) rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1.
+           rewrite -H4. auto.  
        }
     }
     { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }

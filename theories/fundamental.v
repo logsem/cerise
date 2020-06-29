@@ -46,9 +46,8 @@ Section fundamental.
   (*TODO: change to region_conditions *)
   Theorem fundamental W r p g b e (a : Addr) :
     ((⌜p = RX⌝ ∨ ⌜p = RWX⌝ ∨ ⌜p = RWLX ∧ g = Local⌝) →
-    (∃ p', ⌜PermFlows p p'⌝ ∧
-           ([∗ list] a ∈ (region_addrs b e), (read_write_cond a p' interp)
-                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝)) →
+     ([∗ list] a ∈ (region_addrs b e), ∃ p', ⌜PermFlows p p'⌝ ∗ (read_write_cond a p' interp)
+                                             ∧ ⌜if pwl p then region_state_pwl W a else region_state_nwl W a g⌝) →
      interp_expression r W (inr ((p,g),b,e,a)))%I.
   Proof.
     iIntros (Hp) "#Hinv /=".
@@ -64,8 +63,7 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
-      iDestruct "Hinv" as (p' Hfp) "Hinv". 
-      iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hstate_a)"; auto.
+      iDestruct (extract_from_region_inv _ _ a with "Hinv") as (p' Hfp) "(Hinva & Hstate_a)"; auto.
       iDestruct "Hstate_a" as %Hstate_a. 
       assert (∃ (ρ : region_type), (std W) !! a = Some ρ ∧ ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g))
         as [ρ [Hρ [Hne Hne'] ] ].

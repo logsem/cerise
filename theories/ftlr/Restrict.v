@@ -44,13 +44,13 @@ Section fundamental.
             -∗ sts_full_world a7
             -∗ na_own logrel_nais ⊤
             -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
-            → □ (∃ p'0 : Perm,
-                    ⌜PermFlows a9 p'0⌝
-                    ∧ ([∗ list] a14 ∈ region_addrs a11 a12, 
+            → □ ([∗ list] a14 ∈ region_addrs a11 a12,
+                 ∃ p'0 : Perm,
+                    ⌜PermFlows a9 p'0⌝ ∗
                        read_write_cond a14 p'0 interp
                        ∧ ⌜if pwl a9
                           then region_state_pwl a7 a14
-                          else region_state_nwl a7 a14 a10⌝)) -∗ 
+                          else region_state_nwl a7 a14 a10⌝) -∗ 
                 interp_conf a7) -∗
     (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
     (fixpoint interp1) W (inr (p', l', b, e, a)).
@@ -117,17 +117,17 @@ Section fundamental.
             destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; try discriminate.
             subst g0; destruct g''; simpl in H3; auto; discriminate. }
           rewrite H4. iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
-          iAlways. iExists p'. iSplitR.
-          - destruct (andb_true_eq _ _ ltac:(symmetry in H2; exact H2)).
-            iPureIntro. eapply PermFlows_trans with p0; auto. symmetry; exact H.
-          - iApply (big_sepL_mono with "Hinv"); simpl; intros.
-            iIntros "[H %]". iSplitL; auto.
-            iPureIntro. 
-            destruct (andb_true_eq _ _ ltac:(symmetry in H2; exact H2)); simpl in *.
-            destruct (locality_eq_dec g'' g0).
-            * subst g0. destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; destruct Hpg as [Hp' | [ Hp' | [Hp' Hg' ] ] ]; subst; simpl in *; simpl; try congruence; auto.
-            * destruct g''; destruct g0; simpl in *; try congruence.
-              destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; destruct Hpg as [Hp' | [ Hp' | [Hp' Hg' ] ] ]; subst; simpl in *; simpl; try congruence; auto. }
+          iAlways. iApply (big_sepL_mono with "Hinv"); simpl; intros.
+          iIntros "H". iDestruct "H" as (? ?) "[H %]". iExists H3. iSplitR; auto.
+          { destruct (andb_true_eq _ _ ltac:(symmetry in H2; exact H2)).
+            iPureIntro. eapply PermFlows_trans with p0; auto. symmetry; exact H7. }
+          iSplitL;auto. 
+          iPureIntro. 
+          destruct (andb_true_eq _ _ ltac:(symmetry in H2; exact H2)); simpl in *.
+          destruct (locality_eq_dec g'' g0).
+          * subst g0. destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; destruct Hpg as [Hp' | [ Hp' | [Hp' Hg' ] ] ]; subst; simpl in *; simpl; try congruence; auto.
+          * destruct g''; destruct g0; simpl in *; try congruence.
+            destruct Hp as [Hp | [ Hp | [Hp Hl] ] ]; destruct Hpg as [Hp' | [ Hp' | [Hp' Hg' ] ] ]; subst; simpl in *; simpl; try congruence; auto. }
         { iApply (wp_bind (fill [SeqCtx])).
           iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
          rewrite H4.

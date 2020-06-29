@@ -34,33 +34,25 @@ Section fundamental.
     intros. rewrite /interp fixpoint_interp1_eq /=. iIntros "H".
     assert (p = URW \/ p = URWL \/ p = URWX \/ p = URWLX) as [-> | [-> | [-> | ->] ] ] by (destruct p; simpl in H0; auto; congruence); simpl.
     - destruct g.
-      + iDestruct "H" as (p') "[A B]".
-        iExists p'; iFrame.
-        iDestruct (extract_from_region_inv with "B") as "[C %]"; try iFrame; auto; [solve_addr|].
-        iPureIntro; auto. eauto.
-      + iDestruct "H" as (p') "[A [B C]]".
-        iExists p'; iFrame.
-        iDestruct (extract_from_region_inv with "B") as "[D %]"; try iFrame; auto.
-        iPureIntro; auto. destruct H1; eauto.
+      + iDestruct (extract_from_region_inv with "H") as (p' ?) "[C %]";try (iExists p'; iFrame; auto);[solve_addr|].
+        iSplit;auto. iPureIntro; auto. eauto.
+      + iDestruct "H" as "[B C]".
+        iDestruct (extract_from_region_inv with "B") as (p' ?) "[D %]"; try (iExists p'; iFrame); auto.
+        iSplit;auto. iPureIntro; auto. destruct H2; eauto.
     - destruct g; auto.
-      iDestruct "H" as (p') "[A [B C]]".
-      iExists p'; iFrame.
-      iDestruct (extract_from_region_inv with "B") as "[D %]"; try iFrame; auto.
+      iDestruct "H" as "[B C]".
+      iDestruct (extract_from_region_inv with "B") as (p' ?) "[D %]"; try (iExists p'; iFrame); auto.
       iPureIntro; eauto.
     - destruct g.
-      + iDestruct "H" as (p') "[A B]".
-        iExists p'; iFrame.
-        iDestruct (extract_from_region_inv with "B") as "[D %]"; try iFrame; auto; [solve_addr|].
-        iPureIntro; auto. eauto.
-      + iDestruct "H" as (p') "[A [B C]]".
-        iExists p'; iFrame.
-        iDestruct (extract_from_region_inv with "B") as "[E %]"; try iFrame; auto.
-        iPureIntro; auto. destruct H1; eauto.
+      + iDestruct (extract_from_region_inv with "H") as (p' Hfl) "[D %]"; try (iExists p'; iFrame); auto; [solve_addr|].
+        iSplit;auto. iPureIntro; auto. eauto.
+      + iDestruct "H" as "[B C]".
+        iDestruct (extract_from_region_inv with "B") as (p' Hfl) "[E %]"; try (iExists p'; iFrame); auto.
+        iSplit;auto. iPureIntro; auto. destruct H1; eauto.
     - destruct g; auto.
-      iDestruct "H" as (p') "[A [B C]]".
-      iExists p'; iFrame.
-      iDestruct (extract_from_region_inv with "B") as "[D %]"; try iFrame; auto.
-      iPureIntro; simpl in H1; eauto.
+      iDestruct "H" as "[B C]".
+      iDestruct (extract_from_region_inv with "B") as (p' Hfl) "[D %]"; try (iExists p'; iFrame); auto.
+      iSplit;auto. iPureIntro; simpl in H1; eauto.
   Qed.
 
   Definition region_open_resources W l ls p φ v (bl : bool): iProp Σ :=

@@ -87,7 +87,7 @@ Section fundamental.
               + rewrite lookup_insert_ne in H0; auto.
                 iDestruct ("Hreg" $! r1 n) as "Hr1".
                 rewrite /RegLocate H0. rewrite (fixpoint_interp1_eq _ (inr _)).
-                destruct p0; simpl in *; try discriminate; try (iDestruct "Hr1" as (p0) "[HA HB]"; eauto).
+                destruct p0; simpl in *; try discriminate; eauto.
                 destruct g1; auto; iDestruct "Hr1" as (p0) "[HA HB]"; eauto. }
           { assert (r1 <> PC) as HPCnr1 by (intro; subst r1; rewrite lookup_insert in H0; inv H0; destruct Hp as [? | [? | [? ?] ] ]; discriminate).
             rewrite lookup_insert_ne in H0; auto.

@@ -36,13 +36,13 @@ Section fundamental.
                      -∗ sts_full_world a7
                      -∗ na_own logrel_nais ⊤
                      -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
-            → □ (∃ p'0 : Perm,
-                    ⌜PermFlows a9 p'0⌝
-                    ∧ ([∗ list] a14 ∈ region_addrs a11 a12, 
-                       read_write_cond a14 p'0 interp
+            → □ ([∗ list] a14 ∈ region_addrs a11 a12,
+                 ∃ p'0 : Perm,
+                   ⌜PermFlows a9 p'0⌝
+                      ∗ read_write_cond a14 p'0 interp
                        ∧ ⌜if pwl a9
                           then region_state_pwl a7 a14
-                          else region_state_nwl a7 a14 a10⌝)) -∗ 
+                          else region_state_nwl a7 a14 a10⌝) -∗ 
                 interp_conf a7))%I.
 
   (* TODO: move to region.v *)
@@ -153,7 +153,7 @@ Section fundamental.
     destruct (perm_eq_dec p O).
     { subst p; destruct p'; simpl in Hp; try tauto. }
     destruct (perm_eq_dec p E); try congruence.
-    iDestruct "HA" as (p'') "[% [#A [% #C]]]".
+    iDestruct "HA" as "[#A [% #C]]".
     destruct (perm_eq_dec p' E).
     { (* p' = E *) subst p'. iAlways.
       assert (HisU: isU p = false).
@@ -163,44 +163,55 @@ Section fundamental.
       iIntros "[[Hfull Hmap] [Hreg [Hregion [Hsts Hown]]]]".
       iSplitR; auto. rewrite /interp_conf.
       iApply ("IH" with "Hfull Hmap Hreg Hregion Hsts Hown"); eauto.
-      iAlways. simpl. assert (Hflows: PermFlows RX p'').
-      { eapply PermFlows_trans; eauto.
-        destruct p; simpl in *; auto; try congruence; try tauto; reflexivity. }
-      iExists p''; iSplitR; eauto. destruct (Addr_le_dec b' e').
+      iAlways. simpl. destruct (Addr_le_dec b' e').
       - rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
         rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-        iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+        iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+        iDestruct "Hw" as (p'' Hflows) "[#X %]".
+        assert (Hflows': PermFlows RX p'').
+        { eapply PermFlows_trans; eauto.
+          destruct p; simpl in *; auto; try congruence; try tauto; reflexivity. }
+        iExists p''; iSplitR; eauto.
         repeat iSplitR; auto.
         iApply (region_state_nwl_future with "Hfuture"); eauto.
       - rewrite (region_addrs_empty b' e'); auto. solve_addr. }
-    assert (Hpfl: PermFlows (promote_perm p') p'').
-    { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
-    assert (Hpfl2: PermFlows p' p'').
-    { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
-      eapply promote_perm_flows. }
-    iExists p''; iSplitR; auto. iSplit.
+    iSplit.
     { destruct (isU p') eqn:HisU'.
       { destruct (isU p) eqn:HisU.
         - destruct l; destruct l'; simpl.
           + destruct (Addr_le_dec b' e').
             { rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
               rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              assert (Hpfl2: PermFlows p' p'').
+              { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+                eapply promote_perm_flows. }
+              iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
               + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H1. iPureIntro. auto.
+                rewrite HP in H0. iPureIntro. auto.
               + iApply (region_state_nwl_future W W Global Global); eauto.
                 simpl. iPureIntro. eapply related_sts_priv_refl_world. }
             { rewrite (region_addrs_empty b' e'); auto. solve_addr. }
           + destruct (Addr_le_dec b' (min a' e')).
             { rewrite (isWithin_region_addrs_decomposition b' (min a' e') b e). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              assert (Hpfl2: PermFlows p' p'').
+              { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+                eapply promote_perm_flows. }
+              iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
               * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H1. iPureIntro. auto.
+                rewrite HP in H0. iPureIntro. auto.
               * iApply (region_state_nwl_future W W Global Local); eauto.
                 simpl. iPureIntro. eapply related_sts_pub_refl_world. }
             { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
@@ -208,11 +219,18 @@ Section fundamental.
           + destruct (Addr_le_dec b' (min a' e')).
             { rewrite (isWithin_region_addrs_decomposition b' (min a' e') b (min a e)). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              assert (Hpfl2: PermFlows p' p'').
+              { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+                eapply promote_perm_flows. }
+              iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
               * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H1. iPureIntro. auto.
+                rewrite HP in H0. iPureIntro. auto.
               * iApply (region_state_nwl_future W W Local Local); eauto.
                 simpl; iPureIntro. eapply related_sts_pub_refl_world. }
             { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
@@ -220,22 +238,36 @@ Section fundamental.
           { destruct (Addr_le_dec b' e').
             + rewrite (isWithin_region_addrs_decomposition b' e' b e). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              assert (Hpfl2: PermFlows p' p'').
+              { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+                eapply promote_perm_flows. }
+              iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
               * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H1. iPureIntro. auto.
+                rewrite HP in H0. iPureIntro. auto.
               * iApply (region_state_nwl_future W W l Global); eauto.
                 simpl; iPureIntro. eapply related_sts_priv_refl_world.
             + rewrite (region_addrs_empty b' e'); auto. solve_addr. }
           { destruct (Addr_le_dec b' (min a' e')).
             + rewrite (isWithin_region_addrs_decomposition b' (min a' e') b e). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              assert (Hpfl2: PermFlows p' p'').
+              { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+                eapply promote_perm_flows. }
+              iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
               * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H1. iPureIntro. auto.
+                rewrite HP in H0. iPureIntro. auto.
               * iApply (region_state_nwl_future W W l Local); eauto.
                 simpl; iPureIntro; eapply related_sts_pub_refl_world.
             + rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. } }
@@ -245,11 +277,18 @@ Section fundamental.
       destruct (Addr_le_dec b' e').
       - rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
         rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-        iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+        iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "Hw".
+        iDestruct "Hw" as (p'' Hflows) "[#X %]".
+        assert (Hpfl: PermFlows (promote_perm p') p'').
+        { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+        assert (Hpfl2: PermFlows p' p'').
+        { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+          eapply promote_perm_flows. }
+        iExists p''; iSplitR; auto.
         repeat iSplit; auto.
         case_eq (pwlU p'); intros.
         + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-          rewrite HP in H1. iPureIntro. auto.
+          rewrite HP in H0. iPureIntro. auto.
         + iApply region_state_nwl_future; eauto.
           destruct l'; iPureIntro.
           * eapply related_sts_priv_refl_world.
@@ -258,10 +297,10 @@ Section fundamental.
     iSplit.
     { case_eq (pwlU p'); intros; auto.
       assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-      rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto. auto. }
+      rewrite HP in H; subst l. destruct l'; simpl in Hl; try tauto. auto. }
     { case_eq (pwlU p'); intros; auto.
       - assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-        rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto.
+        rewrite HP in H; subst l. destruct l'; simpl in Hl; try tauto.
         destruct (isU p') eqn:HisU'; auto. simpl.
         destruct (isU p) eqn:HisU; simpl.
         + destruct (Addr_le_dec (max b' a') e').
@@ -273,23 +312,48 @@ Section fundamental.
                 rewrite !big_sepL_app. rewrite (region_addrs_empty e' e'); [simpl; iFrame "#"|solve_addr].
                 assert (Heq: min a e = max b a) by solve_addr. rewrite Heq.
                 rewrite (isWithin_region_addrs_decomposition (max b' a') (max b a) b (max b a)). 2: solve_addr.
-                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
-                iApply (big_sepL_impl with "A2"); auto.
-                iAlways; iIntros (k y Hy) "[#Y %]".
-                iFrame "#". iPureIntro. left; auto.
+                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]". iFrame "#". 
+                repeat iSplit;auto.
+                + iApply (big_sepL_impl with "A2"); auto.
+                  iAlways; iIntros (k x Hx) "Hw".
+                  iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                  assert (Hpfl: PermFlows (promote_perm p') p'').
+                  { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                  iExists _. iSplit;eauto. iFrame "#". iPureIntro. left; auto.
+                + iApply (big_sepL_impl with "C2"); auto.
+                  iAlways; iIntros (k x Hx) "Hw".
+                  iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                  assert (Hpfl: PermFlows (promote_perm p') p'').
+                  { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                  iExists _. iSplit;eauto. 
               - rewrite (isWithin_region_addrs_decomposition (max b' a') e' b (min a e)). 2: solve_addr.
                 rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
                 iApply (big_sepL_impl with "A2"); auto.
-                iAlways; iIntros (k y Hy) "[#Y %]".
+                iAlways; iIntros (k x Hx) "Hw".
+                iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                assert (Hpfl: PermFlows (promote_perm p') p'').
+                { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                iExists _. iSplit;eauto. 
                 iFrame "#". iPureIntro. left; auto. }
             { rewrite (isWithin_region_addrs_decomposition (max b' a') e' (max b a) e). 2: solve_addr.
-              rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]". auto. }
+              rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]".
+              iApply (big_sepL_impl with "C2"); auto.
+              iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              iExists _. iSplit;eauto. 
+            }
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
         + destruct (Addr_le_dec (max b' a') e').
           * rewrite HP. rewrite (isWithin_region_addrs_decomposition (max b' a') e' b e). 2: solve_addr.
             rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
             iApply (big_sepL_impl with "A2"); auto.
-            iAlways; iIntros (k y Hy) "[#Y %]".
+            iAlways; iIntros (k x Hx) "Hw".
+            iDestruct "Hw" as (p'' Hflows) "[#X %]".
+            assert (Hpfl: PermFlows (promote_perm p') p'').
+            { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+            iExists _. iSplit;eauto. 
             iFrame "#". iPureIntro. left; auto.
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
       - destruct (isU p') eqn:HisU'; simpl; auto.
@@ -307,42 +371,62 @@ Section fundamental.
                 rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
                 iSplitR.
                 + iApply (big_sepL_impl with "A2"); auto.
-                  iAlways; iIntros (k y Hy) "[#Y %]".
+                  iAlways; iIntros (k x Hx) "Hw".
+                  iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                  assert (Hpfl: PermFlows (promote_perm p') p'').
+                  { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                  iExists _. iSplit;eauto. 
                   iFrame "#". iPureIntro. destruct (pwlU p).
                   { left; auto. }
-                  { destruct l; simpl in H2; auto.
+                  { destruct l; simpl in H1; auto.
                     - right; left; auto.
-                    - destruct H2; [left|right;left]; auto. }
+                    - destruct H1; [left|right;left]; auto. }
                 + iSplitL; auto. iApply (big_sepL_impl with "C2"); auto.
-                  iAlways; iIntros (k y Hy) "[#Y %]". iFrame "#".
+                  iAlways; iIntros (k x Hx) "Hw".
+                  iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                  assert (Hpfl: PermFlows (promote_perm p') p'').
+                  { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                  iExists _. iSplit;eauto. iFrame "X". 
                   iPureIntro; 
-                  destruct p; simpl in H2; auto; destruct H2; rewrite /region_state_U; auto.
+                  destruct p; simpl in H1; auto; destruct H1; rewrite /region_state_U; auto.
               - rewrite (isWithin_region_addrs_decomposition (max b' a') e' b (min a e)). 2: solve_addr.
                 rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
                 iApply (big_sepL_impl with "A2"); auto.
-                iAlways; iIntros (k y Hy) "[#Y %]".
+                iAlways; iIntros (k x Hx) "Hw".
+                iDestruct "Hw" as (p'' Hflows) "[#X %]".
+                assert (Hpfl: PermFlows (promote_perm p') p'').
+                { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+                iExists _. iSplit;eauto.
                 iFrame "#". iPureIntro. destruct (pwlU p).
                 + left; auto.
-                + destruct l; simpl in H2; auto.
+                + destruct l; simpl in H1; auto.
                   * right; left; auto.
-                  * destruct H2; [left|right;left]; auto. }
+                  * destruct H1; [left|right;left]; auto. }
             { rewrite (isWithin_region_addrs_decomposition (max b' a') e' (max b a) e). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]". auto.
               iApply (big_sepL_impl with "C2"); auto.
-              iAlways; iIntros (k y Hy) "[#Y %]". iFrame "#".
+              iAlways; iIntros (k x Hx) "Hw".
+              iDestruct "Hw" as (p'' Hflows) "[#X %]".
+              assert (Hpfl: PermFlows (promote_perm p') p'').
+              { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+              iExists _. iSplit;eauto. iFrame "#".
               iPureIntro; 
-              destruct p; simpl in H2; auto; destruct H2; rewrite /region_state_U; auto. }
+              destruct p; simpl in H1; auto; destruct H1; rewrite /region_state_U; auto. }
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
         + destruct (Addr_le_dec (max b' a') e').
           * rewrite (isWithin_region_addrs_decomposition (max b' a') e' b e). 2: solve_addr.
             rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
             iApply (big_sepL_impl with "A2"); auto.
-            iAlways; iIntros (k y Hy) "[#Y %]".
+            iAlways; iIntros (k x Hx) "Hw".
+            iDestruct "Hw" as (p'' Hflows) "[#X %]".
+            assert (Hpfl: PermFlows (promote_perm p') p'').
+            { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+            iExists _. iSplit;eauto.
             iFrame "#". iPureIntro. destruct (pwlU p).
             { left; auto. }
-            { destruct l; simpl in H2; auto.
+            { destruct l; simpl in H1; auto.
               - right; left; auto.
-              - destruct H2; [left|right;left]; auto. }
+              - destruct H1; [left|right;left]; auto. }
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr. }
   Qed.
 
