@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel stack_macros.
+From cap_machine Require Import rules logrel stack_macros_helpers stack_macros.
 
 Section scall.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -54,7 +54,7 @@ Section scall.
     subseg_r_r r_stk r_t1 r_t2] ++
     (* clear the unused part of the stack *)
     (* mclear r_stk: *)
-    mclear_instrs r_stk 10 2 ++ (* 10 and 2 correspond to the offsets to iter in a contiguous mclear *)
+    mclear_instrs r_stk ++ (* 10 and 2 correspond to the offsets to iter in a contiguous mclear *)
     rclear_instrs (list_difference all_registers [PC;r_stk;r_t0;r1]).
 
   (* Tactic for destructing a list into elements *)
@@ -294,13 +294,17 @@ Section scall.
       [apply lea_z_i|apply Hfl| |iContiguous_next Ha 13|apply Hepilogue|auto|..].
     { iCorrectPC a_first a_cont. }
     { eapply isCorrectPC_range_npE; eauto. iContiguous_bounds a_first a_cont. }
+    { apply contiguous_between_length in Ha.
+      apply isCorrectPC_range_perm in Hvpc1; [|revert Ha; clear; solve_addr].
+      destruct Hvpc1 as [-> | [-> | ->] ]; auto. }
     iEpilogue "(HPC & Hinstr & Hrt_1)" "Hinstr" "Hi".
     (* PUSH R_T1 *)
     (* lea r_stk 1 *)
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_lea_success_z with "[$Hinstr $Hr_stk $HPC]");
-      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 14|iContiguous_next Hcontiguous 5|auto|auto|].
+      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 14|iContiguous_next Hcontiguous 5|auto..].
     { iCorrectPC a_first a_cont. }
+    { simpl;auto. }
     iEpilogue "(HPC & Hinstr & Hr_stk)" "Hinstr" "Hi".
     (* store r_stk r_t1 *)
     iPrologue a_rest0 Hlength "Hprog".
@@ -314,7 +318,7 @@ Section scall.
     (* lea r_stk 1 *)
     iPrologue a_rest0 Hlength "Hprog".
     iApply (wp_lea_success_z with "[$Hinstr $Hr_stk $HPC]");
-      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 16|iContiguous_next Hcontiguous 6|auto|auto|].
+      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 16|iContiguous_next Hcontiguous 6|auto|auto|simpl;auto|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_stk)" "Hinstr" "Hi".
     (* store r_stk r_stk *)
@@ -345,6 +349,7 @@ Section scall.
     { iCorrectPC a_first a_cont. }
     { eapply contiguous_between_incr_addr_middle' with (i := 7); 
         [ eapply Hcontiguous | eauto; cbn; lia .. ]. }
+    { simpl;auto. }
     iEpilogue "(HPC & Hinstr & Hr_t0)" "Hinstr" "Hi".
     (* restrict r_t0 (Local,E) *)
     iPrologue a_rest0 Hlength "Hprog".
@@ -437,7 +442,7 @@ Section scall.
     { apply PermFlows_refl. }
     { apply withinBounds_le_addr in Hwb2. revert Hwb2; clear; solve_addr. }
     rewrite /mclear.
-    destruct (strings.length mclear_addrs =? strings.length (mclear_instrs r_stk 10 2))%nat eqn:Hcontr;
+    destruct (strings.length mclear_addrs =? strings.length (mclear_instrs r_stk))%nat eqn:Hcontr;
       [|rewrite Hmclear_length in Hcontr;inversion Hcontr].
     iFrame "Hmclear". iNext.
     iIntros "(HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t6 & Hr_stk & Hstack_adv & Hmclear)".
@@ -545,6 +550,9 @@ Section scall.
       [rewrite -i_2; apply decode_encode_inv|apply Hfl| |iContiguous_next Hcont 1|apply Hincr|auto|..].
     { iCorrectPC stack_own_b stack_own_e. }
     { eapply isCorrectPC_range_npE; eauto. iContiguous_bounds stack_own_b stack_own_e. }
+    { apply contiguous_between_length in Hcont.
+      apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
+      destruct Hvpc as [-> | [-> | ->] ]; auto. }
     iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hframe_past". 
     (* load r_stk r_t1 *)
     iPrologue l Hframe_length "Hprog".
@@ -593,6 +601,7 @@ Section scall.
       [rewrite -i_4b; apply decode_encode_inv|apply Hfl| |iContiguous_next Hcont 4|apply Hdecr|auto|..].
     { iCorrectPC stack_own_b stack_own_e. }
     { destruct p_r; auto. destruct p; inversion Hfl; inversion Hvpc_b as [?????? [Hcontr | [Hcontr | Hcontr] ] ]; done. }
+    { destruct p_r; auto; revert Hdecr; clear; solve_addr. }
     iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_stk)" "Hinstr" "Hframe_past".
     (* Load PC r_t1 *)
     iApply (wp_bind (fill [SeqCtx])). 

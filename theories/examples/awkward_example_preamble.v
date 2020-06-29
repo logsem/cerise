@@ -251,6 +251,8 @@ Section awkward_example_preamble.
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ awk_first with "[$HPC $Hi $Hr1]");
       [eapply lea_z_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 3
        |assumption|done|done|..].
+    { destruct (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc) as [-> | [-> | ->] ]; auto.
+      generalize (contiguous_between_middle_bounds _ (length ai_malloc) a_malloc_end _ _ Hcont ltac:(subst ai; rewrite list_lookup_middle; auto)). clear. solve_addr. }
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* crtcls *)
     iDestruct (contiguous_between_program_split with "Hprog") as

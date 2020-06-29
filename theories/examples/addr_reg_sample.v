@@ -57,9 +57,11 @@ Require Import Eqdep_dec List.
   (* Restore code encodings *)
   Parameter w_1 : Z.
   Parameter w_2 : Z.
+  Parameter w_2_U : Z.
   Parameter w_3 : Z.
   Parameter w_4a : Z.
   Parameter w_4b : Z.
+  Parameter w_4b_U : Z.
   Parameter w_4c : Z.
   Parameter local_e : Z.
   (* Instruction encodings *)
@@ -123,6 +125,22 @@ Require Import Eqdep_dec List.
   Axiom i_4a : cap_lang.encode (Sub (r_t1) (inl 0%Z) (inl 1%Z)) = inl w_4a.
   Axiom i_4b : cap_lang.encode (Lea r_stk (inr r_t1)) = inl w_4b.
   Axiom i_4c : cap_lang.encode (Load PC r_stk) = inl w_4c.
+  (* Alternative versions of instructions in the uninitialized setting *)
+  Axiom i_2_U : cap_lang.encode (Lea r_t1 (inl 6%Z)) = inl w_2_U.
+  Axiom i_4b_U : cap_lang.encode (LoadU PC r_stk (inr r_t1)) = inl w_4b_U.
+
+  (* instructions for U-rules *)
+  (* StoreU *)
+  Parameter storeU_z_r : RegName -> Z -> RegName -> Word.
+  Parameter storeU_z_z : RegName -> Z -> Z -> Word.
+  Axiom storeU_z_r_i : ∀ r1 z r2, cap_lang.decode (storeU_z_r r1 z r2) = cap_lang.StoreU r1 (inl z) (inr r2).
+  Axiom storeU_z_z_i : ∀ r1 z1 z2, cap_lang.decode (storeU_z_z r1 z1 z2) = cap_lang.StoreU r1 (inl z1) (inl z2).
+  (* LoadU *)
+  Parameter loadU_r_z : RegName -> RegName -> Z -> Word.
+  Axiom loadU_r_z_i : forall r1 r2 z, cap_lang.decode (loadU_r_z r1 r2 z) = cap_lang.LoadU r1 r2 (inl z).
+  Parameter promoteU : RegName → Word.
+  Axiom promoteU_i : ∀ r1, cap_lang.decode (promoteU r1) = cap_lang.PromoteU r1.
+  
 
   (* encodings of return pointer permission pair *)
   Axiom epp_local_e : cap_lang.decodePermPair local_e = (E,Local).

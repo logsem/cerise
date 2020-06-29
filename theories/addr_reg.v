@@ -29,6 +29,11 @@ Lemma eq_z_of a1 a2 :
   z_of a1 = z_of a2.
 Proof. destruct a1; destruct a2. congruence. Qed.
 
+Lemma z_of_neq a1 a2 :
+  z_of a1 <> z_of a2 ->
+  a1 <> a2.
+Proof. red; intros. apply H. rewrite H0; reflexivity. Qed.
+
 Lemma neq_z_of a1 a2 :
   a1 ≠ a2 → (z_of a1) ≠ (z_of a2).
 Proof. intros. intros Heq%z_of_eq. congruence. Qed.
@@ -107,6 +112,38 @@ Next Obligation.
 Defined. 
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
+Definition max (a1 a2: Addr): Addr :=
+  if Addr_le_dec a1 a2 then a2 else a1.
+
+Definition min (a1 a2: Addr): Addr :=
+  if Addr_le_dec a1 a2 then a1 else a2.
+
+Lemma min_addr_spec (a1 a2: Addr):
+  exists a, min a1 a2 = a /\ (a: Z) = Z.min (a1: Z) (a2: Z).
+Proof.
+  exists (min a1 a2); split; auto.
+  unfold min. destruct (Addr_le_dec a1 a2); unfold le_addr in *; lia.
+Qed.
+
+Ltac min_addr_as_spec a1 a2 :=
+  generalize (min_addr_spec a1 a2); intros [? [? ?]];
+  let ax := fresh "ax" in
+  set (ax := (min a1 a2)) in *;
+  clearbody ax; subst ax.
+
+Lemma max_addr_spec (a1 a2: Addr):
+  exists a, max a1 a2 = a /\ (a: Z) = Z.max (a1: Z) (a2: Z).
+Proof.
+  exists (max a1 a2); split; auto.
+  unfold max. destruct (Addr_le_dec a1 a2); unfold le_addr in *; lia.
+Qed.
+
+Ltac max_addr_as_spec a1 a2 :=
+  generalize (max_addr_spec a1 a2); intros [? [? ?]];
+  let ax := fresh "ax" in
+  set (ax := (max a1 a2)) in *;
+  clearbody ax; subst ax.
+
 Definition get_addr_from_option_addr : option Addr → Addr :=
   λ e_opt, match e_opt with
            | Some e => e
@@ -148,6 +185,10 @@ Ltac zify_addr_op_nonbranching_step :=
     apply z_of_eq
   | H : @eq Addr ?a ?a' |- _ =>
     apply eq_z_of in H
+  | |- not (@eq Addr ?a ?a') =>
+    apply z_of_neq
+  | H : not (@eq Addr ?a ?a') |- _ =>
+    apply neq_z_of in H
   | |- @eq (option Addr) (Some _) (Some _) =>
     f_equal
   | H : @eq (option Addr) (Some _) (Some _) |- _ =>
@@ -182,6 +223,14 @@ Ltac zify_addr_op_nonbranching_step :=
     unfold eqb_addr
   | H : context [ eqb_addr _ _ ] |- _ =>
     unfold eqb_addr in H
+  | H : context [ min ?a1 ?a2 ] |- _ =>
+    min_addr_as_spec a1 a2
+  | |- context [ min ?a1 ?a2 ] =>
+    min_addr_as_spec a1 a2
+  | H : context [ max ?a1 ?a2 ] |- _ =>
+    max_addr_as_spec a1 a2
+  | |- context [ max ?a1 ?a2 ] =>
+    max_addr_as_spec a1 a2
   end.
 
 Ltac zify_addr_nonbranching_step :=

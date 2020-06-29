@@ -3,7 +3,6 @@ From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps list.
 From cap_machine Require Export addr_reg.
 
-
 Ltac inv H := inversion H; clear H; subst.
 
 Module cap_lang.
@@ -16,7 +15,17 @@ Module cap_lang.
   | RX
   | E
   | RWX
-  | RWLX.
+  | RWLX
+  | URW
+  | URWL
+  | URWX
+  | URWLX.
+
+  Definition isU (p: Perm) :=
+    match p with
+    | URW | URWL | URWX | URWLX => true
+    | _ => false
+    end.
 
   Inductive Locality: Type :=
   | Global
@@ -85,7 +94,13 @@ Module cap_lang.
   | GetE (dst r: RegName)
   | GetA (dst r: RegName)
   | Fail
-  | Halt.
+  | Halt
+  (* Load value at src + offs into dst *)
+  | LoadU (dst src: RegName) (offs: Z + RegName)
+  (* Load value in src to dst + offs *)
+  | StoreU (dst: RegName) (offs src: Z + RegName)
+  (* Promote the uninitialized capability in dst *)
+  | PromoteU (dst: RegName).
 
   (* Use fundamental theorem of arithmetic/unique prime factorization theorem to define them ? *)
   Axiom decode: Word -> instr.
@@ -116,16 +131,22 @@ Module cap_lang.
         (b <= a < e)%a ->
         p = RX \/ p = RWX \/ p = RWLX ->
         isCorrectPC (inr ((p, g), b, e, a)).
-  (* doesn't make sense anymore with finite memory *)
-  (*| isCorrectPC_intro_infinity:
-      forall p g (b a : Addr),
-        (b <= a)%a ->
-        p = RX \/ p = RWX \/ p = RWLX ->
-        isCorrectPC (inr ((p, g), b, top, a)).*)
 
   Definition reg (ϕ: ExecConf) := fst ϕ.
 
   Definition mem (ϕ: ExecConf) := snd ϕ.
+
+  Definition pwl p : bool :=
+    match p with
+    | RWLX | RWL => true
+    | _ => false
+    end.
+
+  Definition pwlU p : bool :=
+    match p with
+    | RWLX | RWL | URWLX | URWL => true
+    | _ => false
+    end.
 
   Definition executeAllowed (p: Perm): bool :=
     match p with
@@ -133,6 +154,7 @@ Module cap_lang.
     | _ => false
     end.
 
+  (* Uninitialized capabilities are neither read nor write allowed *)
   Definition readAllowed (p: Perm): bool :=
     match p with
     | RWX | RWLX | RX | RW | RWL | RO => true
@@ -145,16 +167,9 @@ Module cap_lang.
     | _ => false
     end.
 
-  Definition pwl p : bool :=
-    match p with
-    | RWLX | RWL => true
-    | _ => false
-    end.
-
   Lemma writeA_implies_readA p :
     writeAllowed p = true → readAllowed p = true.
   Proof. destruct p; auto. Qed.
-
 
   Lemma pwl_implies_RWL_RWLX p :
     pwl p = true → p = RWL ∨ p = RWLX.
@@ -162,7 +177,6 @@ Module cap_lang.
     intros. destruct p; try by exfalso.
     by left. by right.
   Qed.
-
 
   Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -203,14 +217,6 @@ Module cap_lang.
       + destruct H1 as [Hb He]. destruct H2 as [Hb2 He2]. split.
         { apply Z.le_trans with a0; auto. }
         { apply Z.lt_trans with a2; auto. }
-      (* + destruct H1 as [Hb He]. split.
-        { apply Z.le_trans with a0; auto. }
-        { apply Z.lt_le_trans with a2; auto. destruct a2; simpl. by apply Z.leb_le. }
-    - subst. apply isCorrectPC_intro_infinity; auto.
-      inversion Hvpc2; subst.
-      + destruct H2 as [Hb2 He2].
-        apply Z.le_trans with a0; auto.
-      + apply Z.le_trans with a0; auto.*)
   Qed.
 
   Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
@@ -372,7 +378,7 @@ Module cap_lang.
              | _ => false
              end
     | RO => match p2 with
-           | E | O => false
+           | E | O | URW | URWL | URWX | URWLX => false
            | _ => true
            end
     | RW => match p2 with
@@ -383,13 +389,143 @@ Module cap_lang.
             | RWL | RWLX => true
             | _ => false
             end
+    | URW => match p2 with
+            | URW | URWL | URWX | URWLX | RW | RWX | RWL | RWLX => true
+            | _ => false
+            end
+    | URWL => match p2 with
+             | URWL | RWL | RWLX | URWLX => true
+             | _ => false
+             end
+    | URWX => match p2 with
+             | URWX | RWX | RWLX | URWLX => true
+             | _ => false
+             end
+    | URWLX => match p2 with
+              | URWLX | RWLX => true
+              | _ => false
+              end
     end.
+
+  (* Sanity check *)
+  Lemma PermFlowsToTransitive:
+    transitive _ PermFlowsTo.
+  Proof.
+    red; intros; destruct x; destruct y; destruct z; try congruence; auto.
+  Qed.
+
+  (* Sanity check 2 *)
+  Lemma PermFlowsToReflexive:
+    forall p, PermFlowsTo p p.
+  Proof.
+    intros; destruct p; auto.
+  Qed.
 
   Definition PermPairFlowsTo (pg1 pg2: Perm * Locality): bool :=
     PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
   Definition isWithin (n1 n2 b e: Addr) : bool :=
     ((b <=? n1) && (n2 <=? e))%a.
+
+  Definition canStore (p: Perm) (w: Word): bool :=
+    match w with
+    | inl _ => true
+    | inr ((_, g), _, _, _) => if isLocal g then
+                                 if pwl p then true
+                                 else false
+                               else true
+    end.
+
+  Definition canStoreU (p: Perm) (w: Word): bool :=
+    match w with
+    | inl _ => true
+    | inr ((_, g), _, _, _) => if isLocal g then
+                                 if pwlU p then true
+                                 else false
+                               else true
+    end.
+
+  Definition promote_perm (p: Perm): Perm :=
+    match p with
+    | URW => RW
+    | URWL => RWL
+    | URWX => RWX
+    | URWLX => RWLX
+    | _ => p
+    end.
+
+  Inductive access_kind: Type :=
+  | LoadU_access (b e a: Addr) (offs: Z): access_kind
+  | StoreU_access (b e a: Addr) (offs: Z): access_kind.
+
+  Definition verify_access (a: access_kind): option Addr :=
+    match a with
+    | LoadU_access b e a offs =>
+      match (a + offs)%a with
+      | None => None
+      | Some a' => if Addr_le_dec b a' then
+                    if Addr_lt_dec a' a then
+                      if Addr_le_dec a e then
+                        Some a' else None else None else None
+      end
+    | StoreU_access b e a offs =>
+      match (a + offs)%a with
+      | None => None
+      | Some a' => if Addr_le_dec b a' then
+                    if Addr_le_dec a' a then
+                      if Addr_lt_dec a e then
+                        Some a' else None else None else None
+      end
+    end.
+
+  Lemma verify_access_spec:
+    forall a a',
+      (verify_access a = Some a') <->
+      (match a with
+       | LoadU_access b e a offs =>
+         (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' < a)%a /\ (a <= e)%a
+       | StoreU_access b e a offs =>
+         (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' <= a)%a /\ (a < e)%a
+       end).
+  Proof.
+    intros; split; intros.
+    - destruct a; simpl in H; destruct (a + offs)%a as [a1|] eqn:Ha; intros; try congruence;
+      repeat match goal with
+             | H: context [if ?t then _ else _] |- _ => destruct t
+             end; inv H; auto.
+    - destruct a; destruct H as [Ha [A [B C]]]; simpl; rewrite Ha;
+      repeat match goal with
+             | |- context [if ?t then _ else _] => destruct t
+             end; tauto.
+  Qed.
+
+  (*--- z_of_argument ---*)
+
+  Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
+    match a with
+    | inl z => Some z
+    | inr r =>
+      match regs !! r with
+      | Some (inl z) => Some z
+      | _ => None
+      end
+    end.
+
+  Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
+    z_of_argument regs arg = Some z →
+    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+  Proof.
+    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  Qed.
+
+  Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
+    z_of_argument regs arg = Some z →
+    regs ⊆ regs' →
+    (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
+  Proof.
+    unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+    intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+  Qed.
 
   Definition exec (i: instr) (φ: ExecConf): Conf :=
     match i with
@@ -404,6 +540,7 @@ Module cap_lang.
       match RegLocate (reg φ) src with
       | inl n => (Failed, φ)
       | inr ((p, g), b, e, a) =>
+        (* Fails for U cap *)
         if readAllowed p && withinBounds ((p, g), b, e, a) then updatePC (update_reg φ dst (MemLocate (mem φ) a))
         else (Failed, φ)
       end
@@ -411,22 +548,16 @@ Module cap_lang.
       match RegLocate (reg φ) dst with
       | inl n => (Failed, φ)
       | inr ((p, g), b, e, a) =>
-        if writeAllowed p && withinBounds ((p, g), b, e, a) then
-          match RegLocate (reg φ) src with
-          | inl n => updatePC (update_mem φ a (RegLocate (reg φ) src))
-          | inr ((_, g'), _, _, _) => if isLocal g' then
-                                       match p with
-                                       | RWLX | RWL => updatePC (update_mem φ a (RegLocate (reg φ) src))
-                                       | _ => (Failed, φ)
-                                       end
-                                     else updatePC (update_mem φ a (RegLocate (reg φ) src))
-          end
+        (* Fails for U cap *)
+        if writeAllowed p && withinBounds ((p, g), b, e, a) && canStore p (RegLocate (reg φ) src) then
+          updatePC (update_mem φ a (RegLocate (reg φ) src))
         else (Failed, φ)
       end
     | Store dst (inl n) =>
       match RegLocate (reg φ) dst with
       | inl n => (Failed, φ)
       | inr ((p, g), b, e, a) =>
+        (* Fails for U cap *)
         if writeAllowed p && withinBounds ((p, g), b, e, a) then updatePC (update_mem φ a (inl n)) else (Failed, φ)
       end
     | Mov dst (inl n) => updatePC (update_reg φ dst (inl n))
@@ -437,6 +568,14 @@ Module cap_lang.
       | inr ((p, g), b, e, a) =>
         match p with
         | E => (Failed, φ)
+        (* Make sure that we can only decrease pointer for uninitialized capabilities *)
+        | URW | URWL | URWX | URWLX => match (a + n)%a with
+                                      | Some a' => if Addr_le_dec a' a then
+                                                    let c := ((p, g), b, e, a') in
+                                                    updatePC (update_reg φ dst (inr c))
+                                                  else (Failed, φ)
+                                      | None => (Failed, φ)
+                                      end
         | _ => match (a + n)%a with
                | Some a' => let c := ((p, g), b, e, a') in
                             updatePC (update_reg φ dst (inr c))
@@ -450,6 +589,18 @@ Module cap_lang.
       | inr ((p, g), b, e, a) =>
         match p with
         | E => (Failed, φ)
+        (* Make sure that we can only decrease pointer for uninitialized capabilities *)
+        | URW | URWL | URWX | URWLX => match RegLocate (reg φ) r with
+                                      | inr _ => (Failed, φ)
+                                      | inl n => match (a + n)%a with
+                                                | Some a' =>
+                                                  if Addr_le_dec a' a then
+                                                    let c := ((p, g), b, e, a') in
+                                                    updatePC (update_reg φ dst (inr c))
+                                                  else (Failed, φ)
+                                                | None => (Failed, φ)
+                                                end
+                   end
         | _ => match RegLocate (reg φ) r with
               | inr _ => (Failed, φ)
               | inl n => match (a + n)%a with
@@ -666,6 +817,50 @@ Module cap_lang.
       | inl _ => updatePC (update_reg φ dst (inl 0%Z))
       | inr _ => updatePC (update_reg φ dst (inl 1%Z))
       end
+    | LoadU rdst rsrc offs =>
+      match RegLocate (reg φ) rsrc with
+      | inl _ => (Failed, φ)
+      | inr ((p, g), b, e, a) =>
+        if isU p then
+          match z_of_argument (reg φ) offs with
+          | None => (Failed, φ)
+          | Some noffs => match verify_access (LoadU_access b e a noffs) with
+                         | None => (Failed, φ)
+                         | Some a' => updatePC (update_reg φ rdst (MemLocate (mem φ) a'))
+                         end
+          end
+        else (Failed, φ)
+      end
+    | StoreU dst offs src =>
+      let w := match src with
+               | inl n => inl n
+               | inr rsrc => (RegLocate (reg φ) rsrc)
+               end in
+      match RegLocate (reg φ) dst with
+      | inl _ => (Failed, φ)
+      | inr ((p, g), b, e, a) =>
+        if isU p && canStoreU p w then
+          match z_of_argument (reg φ) offs with
+          | None => (Failed, φ)
+          | Some noffs => match verify_access (StoreU_access b e a noffs) with
+                         | None => (Failed, φ)
+                         | Some a' => if addr_eq_dec a a' then
+                                       match (a + 1)%a with
+                                       | Some a => updatePC (update_reg (update_mem φ a' w) dst (inr ((p, g), b, e, a)))
+                                       | None => (Failed, φ)
+                                       end
+                                     else updatePC (update_mem φ a' w)
+                         end
+          end
+        else (Failed, φ)
+      end
+    | PromoteU dst =>
+      match RegLocate (reg φ) dst with
+      | inr ((p, g), b, e, a) =>
+        if perm_eq_dec p E then (Failed, φ)
+        else updatePC (update_reg φ dst (inr ((promote_perm p, g), b, min a e, a)))
+      | inl _ => (Failed, φ)
+      end
     end.
 
   Inductive step: Conf -> Conf -> Prop :=
@@ -821,7 +1016,6 @@ Module cap_lang.
     | SeqCtx => Seq e
     end.
 
-
   Inductive prim_step: expr -> state -> list Empty_set -> expr -> state -> list expr -> Prop :=
   | PS_no_fork_instr σ e' σ' :
       step (Executable, σ) (e', σ') → prim_step (Instr Executable) σ [] (Instr e') σ' []
@@ -925,6 +1119,10 @@ Proof.
     | E => 6
     | RWX => 7
     | RWLX => 8
+    | URW => 9
+    | URWL => 10
+    | URWX => 11
+    | URWLX => 12
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
@@ -935,6 +1133,10 @@ Proof.
     | 6 => Some E
     | 7 => Some RWX
     | 8 => Some RWLX
+    | 9 => Some URW
+    | 10 => Some URWL
+    | 11 => Some URWX
+    | 12 => Some URWLX
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).
@@ -1038,46 +1240,6 @@ Proof.
   eapply head_reducible_from_step. eauto.
 Qed.
 
-Section macros.
-
-  Variables RT1 RT2 RT3: RegName.
-
-  Definition Fname := Z.
-
-  Variable f_malloc: Fname.
-
-  Definition fetch (r: RegName) (f: Fname): list instr :=
-    [
-      Mov r (inr PC);
-      GetB RT1 r;
-      GetA RT2 r;
-      Sub RT1 (inr RT2) (inr RT2);
-      Lea r (inr RT1);
-      Load r r;
-      Lea r (inl f);
-      Mov RT1 (inl 0%Z);
-      Mov RT2 (inl 0%Z);
-      Load r r
-    ].
-
-  Definition malloc (r: RegName) (n: Z): list instr :=
-    fetch r f_malloc ++
-    [
-      Mov (R 1 eq_refl) (inl n);
-      Mov RT1 (inr (R 0 eq_refl));
-      Mov (R 0 eq_refl) (inr PC);
-      Lea (R 0 eq_refl) (inl 4%Z);
-      Restrict (R 0 eq_refl) (inl (encodePerm E));
-      Jmp r;
-      Mov r (inr (R 1 eq_refl));
-      Mov (R 0 eq_refl) (inr RT1);
-      Mov (R 1 eq_refl) (inl 0%Z);
-      Mov RT1 (inl 0%Z)
-    ].
-
-      (* TODO others macro *)
-End macros.
-
 (* Destruct pairs & capabilities *)
 
 Ltac destruct_pair_l c n :=
@@ -1089,48 +1251,3 @@ Ltac destruct_pair_l c n :=
 
 Ltac destruct_cap c :=
   destruct_pair_l c 4.
-
-
-(* Require Coq.Logic.FunctionalExtensionality. *)
-
-(* Section ExamplePrograms. *)
-
-(*   Fixpoint make_prog_mem_aux (l: list instr) (k: Mem) (n: Z): Mem := *)
-(*     match l with *)
-(*     | nil => k *)
-(*     | i::l => make_prog_mem_aux l (fun a => if addr_eq_dec a n then encode i else k a) (n + 1) *)
-(*     end. *)
-
-(*   Definition make_prog_mem (l: list instr): Mem := *)
-(*     make_prog_mem_aux l (fun _ => inl 0%Z) 0. *)
-
-(*   Definition R0 := R 0 eq_refl. *)
-
-(*   Definition loop_mem: Mem := make_prog_mem [Jmp PC]. *)
-
-(*   Definition init_reg: Reg := *)
-(*     fun r => match r with *)
-(*           | PC => inr ((RX, Global), 0%Z, None, 0%Z) *)
-(*           | _ => inl 0%Z *)
-(*           end. *)
-
-(*   Definition loop_init_execconf : ExecConf := (init_reg, loop_mem). *)
-(*   Definition loop_init_conf: Conf := Normal loop_init_execconf. *)
-
-(*   Lemma loop_is_loop: *)
-(*     forall n, starN step n loop_init_conf loop_init_execconf loop_init_conf loop_init_execconf. *)
-(*   Proof. *)
-(*     induction n; econstructor. *)
-(*     - econstructor 2; eauto. *)
-(*       simpl. econstructor 2; eauto. lia. *)
-(*     - simpl. replace (loop_mem 0%Z) with (encode (Jmp PC)) by reflexivity. *)
-(*       rewrite cap_lang.decode_encode_inv. simpl. *)
-(*       unfold update_reg. simpl. *)
-(*       assert ((fun x => if reg_eq_dec x PC then inr (RX, Global, 0%Z, None, 0%Z) else init_reg x) = init_reg). *)
-(*       { apply FunctionalExtensionality.functional_extensionality. intros. *)
-(*         destruct (reg_eq_dec x PC); auto. *)
-(*         subst x. reflexivity. } *)
-(*       rewrite H. exact IHn. *)
-(*   Qed. *)
-
-(* End ExamplePrograms. *)

@@ -19,7 +19,7 @@ Inductive region_type :=
 | Temporary
 | Permanent
 | Revoked
-| Static of gmap Addr (Perm * Word).
+| Static of gmap Addr Word.
 
 Inductive std_rel_pub : region_type -> region_type -> Prop :=
 | Std_pub_Revoked_Temporary : std_rel_pub Revoked Temporary
@@ -108,29 +108,38 @@ Section heap.
              | _, _ => ltac:(right; auto)
              end).
 
+  Global Instance divide_dec : forall p1 p2, Decision (Pos.divide p1 p2).
+  Proof.
+    intros p1 p2.
+    destruct (Znumtheory.Zdivide_dec (Z.pos p1) (Z.pos p2)).
+    - left. by apply Pos2Z.inj_divide.
+    - right. intros Hcontr. apply Pos2Z.inj_divide in Hcontr. done.
+  Qed. 
+    
   Global Instance region_type_countable : Countable region_type.
   Proof.
     set encode := fun ty => match ty with
                          | Temporary => 1
                          | Permanent => 2
                          | Revoked => 3
-                         | Static m => 3 + (encode m)
+                         | Static m => 4 + (encode m)
                          end%positive.
     set decode := (fun n =>
                      if decide (n = 1) then Some Temporary
                      else if decide (n = 2) then Some Permanent
                           else if decide (n = 3) then Some Revoked
                                else
-                                 match decode (n-3) with
+                                 match (decode (n-4)) with
                                  | Some m => Some (Static m)
                                  | None => None
-                                 end)%positive.
+                                 end)%positive. 
     eapply (Build_Countable _ _ encode decode).
-    intro ty. destruct ty; try reflexivity.
-    unfold encode, decode.
-    repeat match goal with |- context [ decide ?x ] =>
-                           destruct (decide x); [ exfalso; lia |] end.
-    rewrite Pos.add_comm Pos.add_sub decode_encode //.
+    intro ty. destruct ty; try reflexivity;
+    unfold encode, decode;
+    repeat (match goal with |- context [ decide ?x ] =>
+                           destruct (decide x); [ exfalso; lia | ] end;
+            try rewrite Pos.add_comm; try rewrite Pos.add_sub; try rewrite decode_encode //).
+    auto. 
   Qed.
 
   Global Instance rel_persistent l p (φ : (WORLD * Word) -> iProp Σ) :
@@ -216,9 +225,14 @@ Section heap.
     | Some ρ => ρ = Revoked
     | _ => False
     end.
-  Definition static (W : WORLD) (m: gmap Addr (Perm * Word)) (l : Addr) :=
+  Definition static (W : WORLD) (m: gmap Addr Word) (l : Addr) :=
     match W.1 !! l with
     | Some ρ => ρ = (Static m)
+    | _ => False
+    end.
+  Definition uninitialized (W : WORLD) (w:Word) (l : Addr) :=
+    match W.1 !! l with
+    | Some ρ => ρ = Static {[l:=w]}
     | _ => False
     end.
 
@@ -243,7 +257,7 @@ Section heap.
                                              ∗ a ↦ₐ[p] v
                                              ∗ future_priv_mono φ v
                                              ∗ ▷ φ (W,v)
-                            | Static m => ∃ p v, ⌜m !! a = Some (p, v)⌝
+                            | Static m => ∃ v, ⌜m !! a = Some v⌝
                                              ∗ ⌜p ≠ O⌝
                                              ∗ a ↦ₐ[p] v
                                              ∗ ⌜∀ a', a' ∈ dom (gset Addr) m →
@@ -347,8 +361,8 @@ Section heap.
       iPureIntro.
       by apply related_sts_pub_priv_world.
     - done.
-    - done. 
-  Qed. 
+    - done.
+    Qed. 
 
   Lemma region_monotone W W' :
     (⌜dom (gset Addr) W.1 = dom (gset Addr) W'.1⌝ →
@@ -361,6 +375,22 @@ Section heap.
     iSplitR;[auto|].
     iApply region_map_monotone; eauto.
   Qed.
+
+
+  Lemma uninitialized_related_sts_pub_world l W w :
+    (std W) !! l = Some (Static {[l:=w]}) ->
+    related_sts_pub_world W (<s[ l := Temporary ]s> W).
+  Proof.
+    intros. split;[|apply related_sts_pub_refl].
+    split. 
+    - rewrite dom_insert_L. set_solver. 
+    - intros i x y Hx Hy.
+      destruct (decide (i = l)).
+      + subst. simplify_map_eq.
+        right with Temporary;[|left].
+        constructor.
+      + simplify_map_eq. left.
+  Qed. 
 
   (* ----------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------- OPEN_REGION --------------------------------------- *)
@@ -401,14 +431,39 @@ Section heap.
     { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
     iFrame. destruct ρ; try by iFrame.
     iDestruct "HH" as (γpred p φ Heq Hpers) "(#Hsavedφ & Hl)".
-    iDestruct "Hl" as (v Hne) "(% & Hmono & Hφ & Hothers)".
+    iDestruct "Hl" as (v) "(% & Hmono & Hφ & Hothers)".
     iExists _,_,_. do 2 (iSplitR;[eauto|]).
     iDestruct "Hothers" as %Hothers. iFrame "#". 
-    iExists _, _. iSplitR; eauto. iFrame. iPureIntro.
+    iExists _. iSplitR; eauto. iFrame. iPureIntro.
     intros a' Ha'. destruct (decide (a' = l)).
     { subst. exfalso. apply Hothers in Ha'. congruence. }
     { by simplify_map_eq. }
   Qed.
+
+  Lemma region_map_delete_singleton M Mρ W l :
+    (∃ w, Mρ !! l = Some (Static {[l:=w]})) ->
+    region_map_def (delete l M) Mρ W -∗
+    region_map_def (delete l M) (delete l Mρ) W.
+  Proof.
+    iIntros (Hl) "Hr". iApply (big_sepM_mono with "Hr").
+    iIntros (a γr Ha) "HH". iDestruct "HH" as (ρ Hρ) "(Hsts & HH)".
+    iExists ρ.
+    iSplitR; eauto.
+    { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
+    iFrame. destruct ρ; try by iFrame.
+    iDestruct "HH" as (γpred p φ Heq Hpers) "(#Hsavedφ & Hl)".
+    iDestruct "Hl" as (v) "(% & Hmono & Hφ & Hothers)".
+    iExists _,_,_. do 2 (iSplitR;[eauto|]).
+    iDestruct "Hothers" as %Hothers. iFrame "#". 
+    iExists _. iSplitR; eauto. iFrame. iPureIntro.
+    intros a' Ha'. destruct (decide (a' = l)).
+    { subst. destruct Hl as [w Hl].
+      exfalso. assert (l ≠ a) as Hne;[intros Hcontr;subst;rewrite lookup_delete in Ha;inversion Ha|].
+      apply Hothers in Ha'. rewrite Hl in Ha'. inversion Ha'. subst g.
+      rewrite lookup_insert_ne in H;auto. inversion H. 
+    } 
+    { by simplify_map_eq. }
+  Qed.     
 
   Lemma region_open_temp_pwl W l p φ :
     (std W) !! l = Some Temporary →
@@ -423,7 +478,7 @@ Section heap.
            ∗ ▷ φ (W,v).
   Proof.
     iIntros (Htemp Hpwl) "(Hrel & Hreg & Hfull)".
-    rewrite rel_eq region_eq /rel_def /region_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def. 
+    rewrite rel_eq region_eq /rel_def /region_def REL_eq RELS_eq /REL_def /RELS_def /region_map_def.
     iDestruct "Hrel" as (γpred) "#(Hγpred & Hφ)".
     iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
     (* assert that γrel = γrel' *)
@@ -547,6 +602,35 @@ Section heap.
       + iNext. iRewrite "Hφeq". iFrame "∗ #".
   Qed.
 
+  Lemma region_open_uninit W l v:
+    (std W) !! l = Some (Static {[l:=v]}) →
+    region W ∗ sts_full_world W -∗
+        ∃ p, open_region l W
+           ∗ sts_full_world W
+           ∗ sts_state_std l (Static {[l:=v]})
+           ∗ l ↦ₐ[p] v
+           ∗ ⌜p ≠ O⌝.
+  Proof.
+    iIntros (Htemp) "(Hreg & Hfull)".
+    rewrite region_eq /region_def /region_map_def. 
+    iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
+    assert (is_Some(M !! l)) as [γp HX].
+    { apply elem_of_gmap_dom. rewrite -H. apply elem_of_gmap_dom. eauto. }
+    iDestruct (big_sepM_delete with "Hpreds") as "[Hl Hpreds]"; eauto.
+    iDestruct "Hl" as (ρ) "[ % [Hstate Hl] ]". destruct ρ.
+    1,2,3,4,5: iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr. 
+    1,2,3,5: rewrite Htemp in Hcontr; by inversion Hcontr. 
+    iDestruct "Hl" as (γpred' p' φ) "(% & #Hpers & #Hsaved & Hl)".
+    iDestruct "Hl" as (v' Hlookup Hneq) "[Hl _]". 
+    inversion H2; subst. rewrite Htemp in Hcontr. inversion Hcontr;subst g.
+    rewrite lookup_insert in Hlookup. inversion Hlookup. 
+    iExists p'. iFrame.
+    iSplitL; auto.
+    rewrite open_region_eq /open_region_def.
+    iExists _. rewrite RELS_eq /RELS_def. iFrame "∗ #". iExists Mρ.
+    repeat iSplit;auto. iApply region_map_delete_singleton; eauto. 
+  Qed.
+
   Lemma region_open W l p φ (ρ : region_type) :
     ρ = Temporary ∨ ρ = Permanent →
     (std W) !! l = Some ρ →
@@ -588,10 +672,10 @@ Section heap.
     { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
     iFrame. destruct ρ; try by iFrame.
     iDestruct "HH" as (γpred' p' φ' HH1 Hpers) "(#Hφ' & Hl)".
-    iDestruct "Hl" as (p v HH2 Hne) "(Hl & Hothers)".
+    iDestruct "Hl" as (v HH2 Hne) "(Hl & Hothers)".
     iDestruct "Hothers" as %Hothers.
     iExists _, _,_. iSplitR; eauto. iFrame "∗ #". iSplitR;auto.
-    iExists _,_. iFrame. repeat iSplit;auto. iPureIntro.
+    iExists _. iFrame. repeat iSplit;auto. iPureIntro.
     intros a' Ha'. apply Hothers in Ha'.
     destruct (decide (a' = l)); by simplify_map_eq.
   Qed.
@@ -605,6 +689,40 @@ Section heap.
     rewrite {1}(_: delete l Mρ = delete l (<[ l := ρ ]> Mρ)). 2: by rewrite delete_insert_delete//.
     iDestruct (region_map_undelete_nonstatic with "HH") as "HH".
     { intro. simplify_map_eq. congruence. }
+    auto.
+  Qed.
+
+  (* We can apply the same reasoning to singleton static regions (i.e. uninitialised regions) *)
+
+  Lemma region_map_undelete_singleton M Mρ W l :
+    (∃ w, Mρ !! l = Some (Static {[l:=w]})) →
+    region_map_def (delete l M) (delete l Mρ) W -∗
+    region_map_def (delete l M) Mρ W.
+  Proof.
+    iIntros (Hl) "Hr". iApply (big_sepM_mono with "Hr").
+    iIntros (a γr Ha) "HH". iDestruct "HH" as (ρ Hρ) "(Hsts & HH)".
+    iExists ρ.
+    iSplitR; eauto.
+    { iPureIntro. destruct (decide (a = l)); simplify_map_eq/=. congruence. }
+    iFrame. destruct ρ; try by iFrame.
+    iDestruct "HH" as (γpred' p' φ' HH1 Hpers) "(#Hφ' & Hl)".
+    iDestruct "Hl" as (v HH2 Hne) "(Hl & Hothers)".
+    iDestruct "Hothers" as %Hothers.
+    iExists _, _,_. iSplitR; eauto. iFrame "∗ #". iSplitR;auto.
+    iExists _. iFrame. repeat iSplit;auto. iPureIntro.
+    intros a' Ha'. apply Hothers in Ha'.
+    destruct (decide (a' = l)); by simplify_map_eq.
+  Qed.
+
+  Lemma region_map_insert_singleton ρ M Mρ W l :
+    (∃ w, ρ = Static {[l:=w]}) →
+    region_map_def (delete l M) (delete l Mρ) W -∗
+    region_map_def (delete l M) (<[ l := ρ ]> Mρ) W.
+  Proof.
+    iIntros (?) "HH".
+    rewrite {1}(_: delete l Mρ = delete l (<[ l := ρ ]> Mρ)). 2: by rewrite delete_insert_delete//.
+    iDestruct (region_map_undelete_singleton with "HH") as "HH".
+    { simplify_map_eq. destruct H. exists x. congruence. }
     auto.
   Qed.
 
@@ -658,9 +776,9 @@ Section heap.
     iDestruct "Hl" as (ρ Hρ) "(Hstate & Hρ)".
     rewrite Hl in Hρ. inversion Hρ.
     iDestruct "Hρ" as (γpred p φ Hpv Hpers) "(#Hsaved & Hl)".
-    iDestruct "Hl" as (p' v Hpv' Hne') "[Hl #Hall]". iDestruct "Hall" as %Hall.
+    iDestruct "Hl" as (v Hpv' Hne') "[Hl #Hall]". iDestruct "Hall" as %Hall.
     iDestruct (big_sepM_delete _ _ l with "[$Hr Hl Hstate]") as "Hr";[eauto|..].
-    { iExists ρ. iSplitR;subst;auto. iFrame. iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame. auto. }
+    { iExists ρ. iSplitR;subst;auto. iFrame. iExists _,_,_. repeat iSplit;eauto. }
     iDestruct (full_sts_Mρ_agree _ _ _ (Static m) with "Hsts Hr") as %[_ Hag']; auto.
     iPureIntro.
     rewrite /static.
@@ -711,6 +829,78 @@ Section heap.
     iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
     rewrite -HMeq. iFrame. iSplitR; eauto. iPureIntro.
     rewrite HMeq !insert_delete !dom_insert_L Hdomρ. set_solver.
+  Qed.
+
+  Lemma region_close_uninit_pwl E W l φ p w v `{forall Wv, Persistent (φ Wv)} :
+    pwl p = true →
+    sts_state_std l (Static {[l:=w]})
+    ∗ open_region l W
+    ∗ l ↦ₐ[p] v
+    ∗ ⌜p ≠ O⌝
+    ∗ future_pub_mono φ v
+    ∗ ▷ φ (W,v) (* Maybe φ (<l[ l := Temporary, (Rpub, Rpriv) ]l> W, v) *)
+    ∗ rel l p φ
+    ∗ sts_full_world W
+    ={E}=∗ region (<s[ l := Temporary ]s> W) ∗ sts_full_world (<s[ l := Temporary ]s> W).
+  Proof.
+    rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
+            REL_eq RELS_eq /RELS_def /REL_def.
+    iIntros (Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & #Hφ & #Hrel & Hfull)".
+    iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+    iDestruct "Hreg_open" as (M Mρ) "(HM & % & % & Hpreds)".
+    iDestruct (sts_full_state_std with "Hfull Hstate") as "%".
+    iDestruct (sts_update_std with "Hfull Hstate") as ">[Hfull Hstate]".
+    iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
+    iModIntro. iFrame. 
+    iDestruct (region_map_insert_nonstatic Temporary with "Hpreds") as "Hpreds";[intros;auto|]. 
+    iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
+      first by rewrite lookup_delete.
+    { iFrame. iExists Temporary. iFrame.
+      iSplit;[iPureIntro;apply lookup_insert|]. 
+      iExists γpred, p, _. iFrame "∗ #". repeat iSplitR; auto.
+      iExists _. iFrame. iSplit;auto. rewrite Hpwl. auto. }
+    assert (Hpub: related_sts_pub_world W (<s[l:=Temporary ]s>W)).
+    { eapply (uninitialized_related_sts_pub_world l W); eauto. }
+    iDestruct (region_map_monotone $! Hpub with "test") as "HMdef"; eauto.
+    rewrite -HMeq. iExists M,_; iFrame. iPureIntro.
+    repeat rewrite dom_insert_L. assert (l ∈ dom (gset Addr) W.1) as Hin;[apply elem_of_gmap_dom;eauto|].
+    split;[rewrite -H1| rewrite H2 -H1];set_solver. 
+  Qed.
+
+  Lemma region_close_uninit_nwl E W l φ p w v `{forall Wv, Persistent (φ Wv)} :
+    pwl p = false →
+    sts_state_std l (Static {[l:=w]})
+    ∗ open_region l W
+    ∗ l ↦ₐ[p] v
+    ∗ ⌜p ≠ O⌝
+    ∗ future_priv_mono φ v
+    ∗ ▷ φ (W,v) (* Maybe φ (<l[ l := Temporary, (Rpub, Rpriv) ]l> W, v) *)
+    ∗ rel l p φ
+    ∗ sts_full_world W
+    ={E}=∗ region (<s[ l := Temporary ]s> W) ∗ sts_full_world (<s[ l := Temporary ]s> W).
+  Proof.
+    rewrite open_region_eq rel_eq region_eq /open_region_def /rel_def /region_def
+            REL_eq RELS_eq /RELS_def /REL_def.
+    iIntros (Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & #Hφ & #Hrel & Hfull)".
+    iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+    iDestruct "Hreg_open" as (M Mρ) "(HM & % & % & Hpreds)".
+    iDestruct (sts_full_state_std with "Hfull Hstate") as "%".
+    iDestruct (sts_update_std with "Hfull Hstate") as ">[Hfull Hstate]".
+    iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
+    iModIntro. iFrame. 
+    iDestruct (region_map_insert_nonstatic Temporary with "Hpreds") as "Hpreds";[intros;auto|]. 
+    iDestruct (big_sepM_insert _ (delete l M) l with "[-HM]") as "test";
+      first by rewrite lookup_delete.
+    { iFrame. iExists Temporary. iFrame.
+      iSplit;[iPureIntro;apply lookup_insert|]. 
+      iExists γpred, p, _. iFrame "∗ #". repeat iSplitR; auto.
+      iExists _. iFrame. iSplit;auto. rewrite Hpwl. auto. }
+    assert (Hpub: related_sts_pub_world W (<s[l:=Temporary ]s>W)).
+    { eapply (uninitialized_related_sts_pub_world l W); eauto. }
+    iDestruct (region_map_monotone $! Hpub with "test") as "HMdef"; eauto.
+    rewrite -HMeq. iExists M,_; iFrame. iPureIntro.
+    repeat rewrite dom_insert_L. assert (l ∈ dom (gset Addr) W.1) as Hin;[apply elem_of_gmap_dom;eauto|].
+    split;[rewrite -H1| rewrite H2 -H1];set_solver. 
   Qed.
 
   Lemma region_close_perm W l φ p v `{forall Wv, Persistent (φ Wv)}:
@@ -788,6 +978,16 @@ Section heap.
     f_equal. by apply IHks.
   Qed.
 
+  Lemma lookup_delete_list_notin {K V : Type} `{Countable K, EqDecision K}
+        (ks : list K) (m : gmap K V) (l : K) :
+    l ∉ ks →
+    (delete_list ks m) !! l = m !! l.
+  Proof.
+    intros; induction ks; simpl; auto.
+    eapply not_elem_of_cons in H0. destruct H0.
+    rewrite lookup_delete_ne; auto.
+  Qed.
+  
   Lemma delete_list_permutation {A B} `{Countable A, EqDecision A}
         (l1 l2: list A) (m: gmap A B):
     l1 ≡ₚ l2 → delete_list l1 m = delete_list l2 m.
@@ -991,6 +1191,34 @@ Section heap.
         iRewrite "Hφeq". iFrame.
   Qed.
 
+  Lemma region_open_next_uninit W w ls l:
+    l ∉ ls →
+    (std W) !! l = Some (Static {[l:=w]}) →
+    open_region_many ls W ∗ sts_full_world W -∗
+        ∃ p, open_region_many (l :: ls) W
+           ∗ sts_full_world W
+           ∗ sts_state_std l (Static {[l:=w]})
+           ∗ l ↦ₐ[p] w
+           ∗ ⌜p ≠ O⌝.
+  Proof.
+    iIntros (Hnin Htemp) "(Hreg & Hfull)".
+    rewrite open_region_many_eq /open_region_many_def /= /region_map_def. 
+    iDestruct "Hreg" as (M Mρ) "(HM & % & % & Hpreds)".
+    assert (is_Some (M !! l)) as [γp HX].
+    { apply elem_of_gmap_dom. rewrite -H. apply elem_of_gmap_dom. eauto. }
+    iDestruct (big_sepM_delete with "Hpreds") as "[Hl Hpreds]"; eauto.
+    { rewrite lookup_delete_list_notin; eauto. }
+    iDestruct "Hl" as (ρ) "[% [Hstate Hl] ]". destruct ρ.
+    1,2,3,4,5: iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
+    1,2,3,5: rewrite Htemp in Hcontr; by inversion Hcontr.
+    iDestruct "Hl" as (γpred p φ Heq Hpers) "[#Hsaved Hl]".
+    iDestruct "Hl" as (v Hlookup Hne) "[Hl _]".
+    rewrite Htemp in Hcontr. inversion Hcontr; subst g. 
+    iExists p. rewrite lookup_insert in Hlookup;inversion Hlookup. iFrame. iSplit;auto. 
+    iExists _,_. iFrame "∗ #".
+    iDestruct (region_map_delete_singleton with "Hpreds") as "Hpreds"; eauto. 
+  Qed.
+  
   Lemma region_close_next_temp_pwl W φ ls l p v `{forall Wv, Persistent (φ Wv)} :
     l ∉ ls ->
     pwl p = true →
@@ -1044,6 +1272,105 @@ Section heap.
     rewrite HMeq !insert_delete !dom_insert_L Hdomρ. set_solver.
   Qed.
 
+  Lemma region_close_next_uninit_pwl E W ls l φ p w v `{forall Wv, Persistent (φ Wv)} :
+    l ∉ ls ->
+    pwl p = true →
+    sts_state_std l (Static {[l:=w]})
+    ∗ open_region_many (l::ls) W
+    ∗ l ↦ₐ[p] v
+    ∗ ⌜p ≠ O⌝
+    ∗ future_pub_mono φ v
+    ∗ ▷ φ (W,v) (* Maybe φ (<l[ l := Temporary, (Rpub, Rpriv) ]l> W, v) *)
+    ∗ rel l p φ
+    ∗ sts_full_world W
+    ={E}=∗ open_region_many ls (<s[ l := Temporary ]s> W) ∗ sts_full_world (<s[ l := Temporary ]s> W).
+  Proof.
+    rewrite open_region_many_eq rel_eq /open_region_many_def /rel_def /region_def
+            REL_eq RELS_eq /RELS_def /REL_def.
+    iIntros (Hnin Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel & Hfull)".
+    iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+    iDestruct "Hreg_open" as (M Mρ) "(HM & % & % & Hpreds)".
+    iDestruct (sts_full_state_std with "Hfull Hstate") as "%".
+    iDestruct (sts_update_std with "Hfull Hstate") as ">[Hfull Hstate]".
+    iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
+    iModIntro. iSplitR "Hfull".
+    { iDestruct (big_sepM_insert _ (delete l (delete_list ls M)) l with "[-HM]") as "Hmap_def";
+        first by rewrite lookup_delete.
+      { simpl. iDestruct (region_map_insert_nonstatic Temporary with "Hpreds") as "Hpreds". by congruence.
+        iFrame. iExists Temporary. iFrame.
+        iSplit;[iPureIntro;apply lookup_insert|].
+        iExists γpred, p, _. iFrame "∗ #". repeat iSplitR; auto.
+        iExists v. iFrame.
+        rewrite Hpwl. auto. }
+      assert (Hpub: related_sts_pub_world W (<s[l:=Temporary]s>W)).
+      { eapply (uninitialized_related_sts_pub_world l W); eauto. }
+      iDestruct (region_map_monotone $! Hpub with "Hmap_def") as "HMdef"; eauto.
+      iExists M,(<[l:=Temporary]>Mρ); iFrame. rewrite HMeq.
+      repeat rewrite dom_insert_L. rewrite dom_delete_L. 
+      assert (l ∈ dom (gset Addr) W.1) as Hin;[apply elem_of_gmap_dom;eauto|].
+      assert ({[l]} ∪ dom (gset Addr) (std W) ∖ {[l]} = dom (gset Addr) (std W)) as Heq.
+      { rewrite union_comm_L difference_union_L. set_solver. }
+      repeat iSplit. 
+      - iPureIntro.
+        rewrite -H1. set_solver.
+      - iPureIntro.
+        rewrite H2 -H1. 
+        set_solver.
+      - repeat rewrite insert_delete. rewrite delete_list_insert; auto.
+        rewrite insert_insert. rewrite delete_list_insert; auto. }
+    iFrame. 
+  Qed.
+
+  Lemma region_close_next_uninit_nwl E W ls l φ p w v `{forall Wv, Persistent (φ Wv)} :
+    l ∉ ls ->
+    pwl p = false →
+    sts_state_std l (Static {[l:=w]})
+    ∗ open_region_many (l::ls) W
+    ∗ l ↦ₐ[p] v
+    ∗ ⌜p ≠ O⌝
+    ∗ future_priv_mono φ v
+    ∗ ▷ φ (W,v) (* Maybe φ (<l[ l := Temporary, (Rpub, Rpriv) ]l> W, v) *)
+    ∗ rel l p φ
+    ∗ sts_full_world W
+    ={E}=∗ open_region_many ls (<s[ l := Temporary ]s> W) ∗ sts_full_world (<s[ l := Temporary ]s> W).
+  Proof.
+    rewrite open_region_many_eq rel_eq /open_region_many_def /rel_def /region_def
+            REL_eq RELS_eq /RELS_def /REL_def.
+    iIntros (Hnin Hpwl) "(Hstate & Hreg_open & Hl & % & #Hmono & Hφ & #Hrel & Hfull)".
+    iDestruct "Hrel" as (γpred) "#[Hγpred Hφ_saved]".
+    iDestruct "Hreg_open" as (M Mρ) "(HM & % & % & Hpreds)".
+    iDestruct (sts_full_state_std with "Hfull Hstate") as "%".
+    iDestruct (sts_update_std with "Hfull Hstate") as ">[Hfull Hstate]".
+    iDestruct (reg_in γrel M with "[$HM $Hγpred]") as %HMeq.
+    iModIntro. iSplitR "Hfull".
+    { iDestruct (big_sepM_insert _ (delete l (delete_list ls M)) l with "[-HM]") as "Hmap_def";
+        first by rewrite lookup_delete.
+      { simpl. iDestruct (region_map_insert_nonstatic Temporary with "Hpreds") as "Hpreds". by congruence.
+        iFrame. iExists Temporary. iFrame.
+        iSplit;[iPureIntro;apply lookup_insert|].
+        iExists γpred, p, _. iFrame "∗ #". repeat iSplitR; auto.
+        iExists v. iFrame.
+        rewrite Hpwl. auto. }
+      assert (Hpub: related_sts_pub_world W (<s[l:=Temporary]s>W)).
+      { eapply (uninitialized_related_sts_pub_world l W); eauto. }
+      iDestruct (region_map_monotone $! Hpub with "Hmap_def") as "HMdef"; eauto.
+      iExists M,(<[l:=Temporary]>Mρ); iFrame. rewrite HMeq.
+      repeat rewrite dom_insert_L. rewrite dom_delete_L. 
+      assert (l ∈ dom (gset Addr) W.1) as Hin;[apply elem_of_gmap_dom;eauto|].
+      assert ({[l]} ∪ dom (gset Addr) (std W) ∖ {[l]} = dom (gset Addr) (std W)) as Heq.
+      { rewrite union_comm_L difference_union_L. set_solver. }
+      repeat iSplit. 
+      - iPureIntro.
+        rewrite -H1. set_solver.
+      - iPureIntro.
+        rewrite H2 -H1. 
+        set_solver.
+      - repeat rewrite insert_delete. rewrite delete_list_insert; auto.
+        rewrite insert_insert. rewrite delete_list_insert; auto. }
+    iFrame. 
+  Qed.
+
+  
   Lemma region_close_next_perm W φ ls l p v `{forall Wv, Persistent (φ Wv)} :
     l ∉ ls ->
     sts_state_std l Permanent ∗
@@ -1251,7 +1578,7 @@ Section heap.
     subst. destruct Hrel as [Hrel | Hrel].
     - apply std_rel_pub_Permanent in Hrel. auto.
     - apply std_rel_priv_Permanent in Hrel. auto. 
-  Qed. 
+  Qed.
       
   Lemma std_rel_pub_Temporary x :
     std_rel_pub Temporary x → x = Temporary.
@@ -1282,7 +1609,7 @@ Section heap.
     rtc std_rel_pub x y → y = Temporary ∨ y = Revoked.
   Proof.
     intros Hx Hrtc.
-    inversion Hrtc; subst; auto. 
+    inversion Hrtc; subst; auto.
     apply std_rel_pub_Revoked in H. subst. 
     apply std_rel_pub_rtc_Temporary in H0; auto. 
   Qed. 

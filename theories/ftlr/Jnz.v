@@ -56,7 +56,7 @@ Section fundamental.
       rewrite lookup_insert in HPC. inv HPC.
       rewrite !insert_insert.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hnotstatic g)]; try contradiction. }
       iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto. }
     { simplify_map_eq. iApply wp_pure_step_later; auto.
       rewrite !insert_insert.
@@ -73,7 +73,7 @@ Section fundamental.
           destruct_cap c. assert (Heq: (if perm_eq_dec p0 p1 then True else p0 = RX /\ p1 = E) /\ g0 = g1 /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) by (destruct (perm_eq_dec p0 p1); destruct p1; inv Hw; simpl in Hpft; try congruence; auto; repeat split; auto).
           clear Hw. destruct (perm_eq_dec p0 p1); [subst p1; destruct Heq as (_ & -> & -> & -> & ->)| destruct Heq as ((-> & ->) & -> & -> & -> & ->)].
           { iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-             { destruct ρ;auto;[|specialize (Hnotstatic g0)];contradiction. }
+             { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
             iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
             - destruct p0; simpl in Hpft; auto; try discriminate.
               destruct (reg_eq_dec r1 PC).
@@ -94,7 +94,7 @@ Section fundamental.
             iDestruct ("Hreg" $! r1 HPCnr1) as "Hr1".
             rewrite /RegLocate H0. rewrite (fixpoint_interp1_eq _ (inr _)) /=.
             iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-            { destruct ρ;auto;[|specialize (Hnotstatic g0)];contradiction. }
+            { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
             rewrite /enter_cond.
             rewrite /interp_expr /=.
             iDestruct "Hr1" as "#H".

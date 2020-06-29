@@ -2,8 +2,8 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Import ftlr_base.
-From cap_machine Require Import rules_base.
+From cap_machine Require Import ftlr_base monotone.
+From cap_machine Require Import rules_base interp_weakening.
 From cap_machine.rules Require Import rules_Lea.
 
 Section fundamental.
@@ -21,14 +21,6 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma interp_cap_preserved W p l a2 a1 a0 a3 (Hne: p <> cap_lang.E):
-    (fixpoint interp1) W (inr (p, l, a2, a1, a0)) -∗
-    (fixpoint interp1) W (inr (p, l, a2, a1, a3)).
-  Proof.
-    repeat rewrite fixpoint_interp1_eq. simpl. iIntros "HA".
-    destruct p,l; auto; congruence.
-  Qed.
-
   Lemma lea_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
         (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r0 : Z + RegName):
     ftlr_instr W r p p' g b e a w (cap_lang.Lea dst r0) ρ.
@@ -45,7 +37,7 @@ Section fundamental.
       apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst ? Hz Hoffset HincrPC |].
+    destruct HSpec as [ * Hdst ? Hz Hoffset HUa HincrPC |].
     { apply incrementPC_Some_inv in HincrPC as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs').
 
       assert (p'' = p ∧ g'' = g ∧ b'' = b ∧ e'' = e) as (-> & -> & -> & ->).
@@ -53,15 +45,18 @@ Section fundamental.
 
       iApply wp_pure_step_later; auto. iNext.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g1)];contradiction. }
-      iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH".
+      { destruct ρ;auto;[..|specialize (Hnotstatic g1)];contradiction. }
+      iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri Hri). subst regs'.
         erewrite locate_ne_reg; [ | | reflexivity]; auto.
         destruct (decide (ri = dst)).
         { subst ri. unshelve iSpecialize ("Hreg" $! dst _); eauto.
           erewrite locate_eq_reg; [ | reflexivity]; auto. simplify_map_eq.
-          rewrite /RegLocate Hdst. iApply interp_cap_preserved; auto. }
+          rewrite /RegLocate Hdst. iApply interp_weakening; eauto; try solve_addr.
+          - destruct p0; simpl; auto.
+          - eapply PermFlowsToReflexive.
+          - destruct g0; auto. }
         { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }

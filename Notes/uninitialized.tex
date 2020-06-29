@@ -1,0 +1,108 @@
+\documentclass[a4paper, 10pt]{article}
+\topmargin-4.0cm
+
+\usepackage[english]{babel}
+\usepackage{csquotes}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{lastpage}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{calc}
+\usepackage{xcolor}
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+\usepackage{tikz-cd}
+\usepackage{interval}
+
+\usepackage{newpxtext}
+\usepackage{newpxmath}
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\begin{document}
+\lhead{}
+\rhead{}
+\renewcommand{\headrulewidth}{0pt} 
+\renewcommand{\footrulewidth}{0pt}
+
+\newcommand\code[1]{\textsf{#1}}
+
+\begin{center}
+  {\LARGE \bf Notes on uninitialized capabilities}\\
+  {\small (to explore design possibilities and keep track of decisions)}
+\end{center}
+
+\section{Operational semantics}
+
+We introduce new ``uninitialized'' counterparts to the standard RWLX, RWL, RWX and RW permissions as follows.
+
+\begin{figure}[!h]
+  \begin{center}
+    \begin{tikzcd}[tips=false,column sep=1em,row sep=1.5em]
+      & \text{RWLX} \ar[dashed,blue]{d} \ar{dl} \ar{dr} & & & \\
+      \text{RWL} \ar[dashed,blue]{d} \ar{dr} & {\color{blue} \text{URWLX}} \ar[dashed,blue]{dl} \ar[dashed,blue]{dr} & \text{RWX} \ar{dl} \ar{dr} \ar[dashed,blue]{d} & &\\
+           {\color{blue} \text{URWL}} \ar[dashed,blue]{dr} & \text{RW} \ar{dr} \ar[dashed,blue]{d} & {\color{blue} \text{URWX}} \ar[dashed,blue]{dl} & \text{RX} \ar{dl} \ar{d} & \\
+           & {\color{blue} \text{URW}} \ar[dashed,blue]{dr} & \text{RO} \ar{d} & \text{E} \ar{dl} & \\
+           & & \text{O} & & \\
+    \end{tikzcd}
+  \end{center}
+  \caption{Permission hierarchy with new permissions in {\color{blue} blue}.}
+\end{figure}
+
+Uninitialized capabilities with authority over range $\interval[open right]{b}{e}$ and current address pointer $a$ have their counterpart's permission over range $\interval[open right]{b}{a}$ (actually $\interval[open right]{b}{\max(b, \min(a, e))}$ to be strictly correct), and need to write first to $a$ in order to increase the address pointer.
+
+\subsection{Impact of current instructions}
+
+We need to check the semantics of any instructions that can use capabilities in order to make sure that nothing strange can happen. The list of such instructions is the following: \code{Jmp}, \code{Jnz}, \code{Load}, \code{Store}, \code{Restrict}, \code{Subseg}, \code{Lea}, \code{IsPtr} and all \code{Get}.
+
+We split the instructions in the following cases:
+\begin{itemize}
+  \itemsep0pt
+\item It seems fairly clear that among those instructions, \code{IsPtr} and all \code{Get} instructions need not be changed.
+\item For \code{Jmp} and \code{Jnz}, the current implementation is that the uninitialized capability would get copied into the PC register, and the machine would get stuck at the next step since the permission isn't one of RX, RWX or RWLX. This seems fine.
+\item For \code{Load} and \code{Store}, we forbid the use of uninitialized capabilities with them and explain the reason in \ref{new}.
+\item \code{Restrict} doesn't seem to need any change even with the new lattice.
+\item For \code{Subseg}, the current implementation allows to go from a capability with range $\interval[open right]{b}{e}$ to $\interval[open right]{b'}{e'}$ if $\interval[open right]{b'}{e'} \subseteq \interval[open right]{b}{e}$. It assumes that the other instructions will have enough check to make sure that nothing bad happens even if the current address $a$ the capability points to is out of $\interval[open right]{b'}{e'}$.
+\item For \code{Lea}, we need to make sure that we can only decrease the current address pointed to for uninitialized capabilities.
+\end{itemize}
+
+\subsection{\label{new}New instructions}
+We cannot directly use uninitialized capabilities for reading (loading) in our setting as the read permission is informally given only on range $\interval[open right]{b}{a}$, and we do not have a way to provide an offset argument to the \code{Load} instruction lest we modify its semantics entirely (but possible).
+
+We have thus implemented the following instruction: {\color{blue}\code{LoadU dst src offs}} checks that register \code{src} contains an uninitialized capability currently pointing to address $a$, and that $a' = a + \code{offs}$ is within $\interval[open right]{b}{a}$ (e.g., $b \leq a' < a$). Furthermore, we also need to check that $\interval[open right]{b}{a} \subseteq \interval[open right]{b}{e}$ (e.g., $b\leq a\leq e$). If the checks are passed, then the instruction loads the word contained at address $a'$ into register \code{dst}.
+
+Similarly, we have implemented an instruction {\color{blue}\code{StoreU dst offs src}} which works in a similar fashion. It checks that \code{dst} contains an uninitialized capability with current address $a$, and that $a' = a + \code{offs}$ is such that $b \leq a' \leq a < e$. Furthermore, if $a' = a$ (e.g., $\code{offs} = 0$), the capability in \code{dst} is incremented. Obviously, regular checks concerning local words apply (e.g., if \code{src} contains a local word, the capability given by \code{dst} must have be allowed to write local words).
+
+It would be nice to also modify the regular \code{Load} and \code{Store} operations to also take an offset argument if not only for symmetry's sake. Another design possibility is to remove the increment mechanism from \code{StoreU} and allows the regular \code{Store} instruction (without offset) to use uninitialized capabilities and increment them.
+
+Finally, in order to be able to implement a calling convention, we also implemented a {\color{blue}\code{PromoteU dst}} instruction which semantics is to take a capability $(p, l, b, e, a)$ and transforms it into $(\hat{p}, l, b, \min{a}{e}, b)$ where $\hat{p}$ is X if $p = \text{UX}$ and is $p$ otherwise, it fails if $p = E$ though (similarly to \code{Restrict}, \code{Subseg} and \code{Lea}).
+
+\begin{remark}
+  We could get away with only implementing the \code{PromoteU} instruction and allows the regular \code{Store} instruction to use uninitialized capabilities and increment it. But this seems quite unpleasant to program with as one would need to write a bunch of data and promote the capability before having free read write permission on some chunk of memory.
+\end{remark}
+
+\subsection{Calling convention}
+
+The calling convention should not change too much, except that the stack capability is now URWLX instead of RWLX. Consequently, in order to create the callback code on the stack, one needs write the code using the stack capability, copy it to another register, then use \code{PromoteU} to obtain a RWLX capability that can be restricted into an E capability.
+
+\begin{remark}
+  Allowing to directly restrict an URWLX or URWX capability to an E capability would be unsafe: one could use it to recover read-write permission on the uninitialized part of the capability.
+\end{remark}
+
+%% \section{Ghost state and resources}
+
+%% Might be useful to have some notes on that whenever someones does it ?
+
+\end{document}

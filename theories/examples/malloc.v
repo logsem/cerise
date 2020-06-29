@@ -160,6 +160,7 @@ Section SimpleMalloc.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr2]");
       [apply lea_z_i|done| |iContiguous_next Hcont 1|done|done|done|..].
     { apply HPC; repeat constructor. }
+    { simpl; auto. }
     iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t2 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -212,6 +213,7 @@ Section SimpleMalloc.
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr2 $Hr1]");
       [apply lea_r_i|done| |iContiguous_next Hcont 4|done|done|done|..].
     { apply HPC; repeat constructor. }
+    { simpl; auto. }
     iEpilogue "(HPC & Hi & Hr1 & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* geta r_t1 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -272,6 +274,7 @@ Section SimpleMalloc.
       [apply lea_r_i|done| |iContiguous_next Hcont 9| |done|done|..].
     { apply HPC; repeat constructor. }
     { transitivity (Some a_m); auto. clear; solve_addr. }
+    { simpl; auto. }
     iEpilogue "(HPC & Hi & Hr3 & Hr4)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t3 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -295,6 +298,7 @@ Section SimpleMalloc.
       [apply lea_r_i|done| |iContiguous_next Hcont 12| |done|done|..].
     { apply HPC; repeat constructor. }
     { transitivity (Some 0)%a; auto. clear; solve_addr. }
+    { simpl; auto. }
     iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* getb r_t1 r_t3 *)
     destruct l as [|? l];[inversion Hprog_len|].
@@ -311,6 +315,7 @@ Section SimpleMalloc.
       [apply lea_r_i|done| |iContiguous_next Hcont 14| |done|done|..].
     { apply HPC; repeat constructor. }
     { transitivity (Some b_m)%a; auto. clear; solve_addr. }
+    { simpl; auto. }
     iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* store r_t3 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].

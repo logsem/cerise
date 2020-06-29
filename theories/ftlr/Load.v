@@ -4,7 +4,6 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel.
 From cap_machine Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Load.
-Require Import Coq.Logic.Decidable.
 Import uPred.
 
 Section fundamental.
@@ -27,7 +26,7 @@ Section fundamental.
   Definition region_open_resources W l ls p φ v (bl : bool): iProp Σ :=
     (∃ ρ,
      sts_state_std l ρ
-    ∗ ⌜ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)⌝
+    ∗ ⌜ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)⌝ 
     ∗ open_region_many (l :: ls) W
     ∗ ⌜p ≠ O⌝
     ∗ (if bl then monotonicity_guarantees_region ρ v p φ ∗ φ (W, v)
@@ -94,7 +93,7 @@ Section fundamental.
          iDestruct (region_open_prepare with "Hr") as "Hr".
          iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H as [ρ' [Hstd [Hnotrevoked' Hnotstatic'] ] ].
+         destruct H as [ρ' [Hstd [Hnotrevoked' Hnotstatic' ] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -286,7 +285,7 @@ Section fundamental.
       }
 
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g1)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hnotstatic g1)];contradiction. }
       iApply ("IH" $! _ regs' with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.

@@ -1,4 +1,4 @@
-From cap_machine.ftlr Require Export Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Store Restrict Subseg.
+From cap_machine.ftlr Require Export Jmp Jnz Get AddSubLt IsPtr Lea Load Mov Store Restrict Subseg LoadU StoreU PromoteU.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -67,11 +67,12 @@ Section fundamental.
       iDestruct "Hinv" as (p' Hfp) "Hinv". 
       iDestruct (extract_from_region_inv _ _ a with "Hinv") as "(Hinva & Hstate_a)"; auto.
       iDestruct "Hstate_a" as %Hstate_a. 
-      assert (∃ (ρ : region_type), (std W) !! a = Some ρ ∧ ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g)) as [ρ [Hρ [Hne Hne'] ] ].
+      assert (∃ (ρ : region_type), (std W) !! a = Some ρ ∧ ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g))
+        as [ρ [Hρ [Hne Hne'] ] ].
       { destruct (pwl p),g; eauto. destruct Hstate_a as [Htemp | Hperm];eauto. }      
       iDestruct (region_open W a p' with "[$Hinva $Hr $Hsts]") 
         as (w) "(Hr & Hsts & Hstate & Ha & % & Hmono & #Hw) /=";[|apply Hρ|]. 
-      { destruct ρ;auto;[|specialize (Hne' g0)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hne' g0)]; contradiction. }
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
         first apply (lookup_insert _ _ (inr (p, g, b, e, a))).
       destruct (cap_lang.decode w) eqn:Hi. (* proof by cases on each instruction *)
@@ -136,7 +137,7 @@ Section fundamental.
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=". 
         iDestruct (region_close _ _ _ _ _ ρ with "[$Hr $Ha $Hstate $Hmono]") as "Hr";[auto|iFrame "#"; auto|].
-        { destruct ρ;auto;[|specialize (Hne' g0)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hne' g0)];contradiction. }
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
@@ -151,6 +152,12 @@ Section fundamental.
           - subst r0; rewrite lookup_insert; eauto.
           - rewrite lookup_insert_ne; auto. }            
         iFrame.
+      + (* LoadU *)
+        iApply (loadU_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); try iAssumption; eauto.
+      + (* StoreU *)
+        iApply (storeU_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); try iAssumption; eauto.
+      + (* PromoteU *)
+        iApply (promoteU_case with "[] [] [] [] [Hmono] [] [Hsts] [Hown] [Hr] [Hstate] [Ha] [HPC] [Hmap]"); try iAssumption; eauto.
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (inr (p, g, b, e, a))). 

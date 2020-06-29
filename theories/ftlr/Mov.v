@@ -50,7 +50,7 @@ Section fundamental.
         repeat rewrite insert_insert.
         destruct src; simpl in *; try discriminate.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[|specialize (Hnotstatic g0)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
         destruct (reg_eq_dec PC r0).
         { subst r0. rewrite lookup_insert in H. inv H.
           iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto. }
@@ -74,7 +74,7 @@ Section fundamental.
       { rewrite lookup_insert_ne in HPC; auto.
         rewrite lookup_insert in HPC. inv HPC.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ (<[dst:=w0]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.

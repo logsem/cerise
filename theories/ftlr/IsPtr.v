@@ -44,7 +44,7 @@ Section fundamental.
       assert (dst <> PC) as HdstPC. { intros ->. simplify_map_eq. }
       simplify_map_eq.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
       iApply ("IH" $! _ (<[dst:= _]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]");
         try iClear "IH"; eauto.
       { cbn; intro. repeat (rewrite lookup_insert_is_Some'; right); eauto. }

@@ -85,6 +85,7 @@ Section fundamental.
   Proof.
     intros Hne Hb He. iIntros "#IH Hinterp".
     iApply (interp_weakening with "IH Hinterp"); eauto.
+    - destruct (isU p); solve_addr.
     - destruct p; reflexivity.
     - destruct l; reflexivity.
   Qed.
@@ -117,7 +118,7 @@ Section fundamental.
       { subst dst. repeat rewrite insert_insert in HPC |- *.
         rewrite !lookup_insert in HPC H; inv HPC; inv H.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
         iAlways. iExists p'. iSplitR; auto.
         generalize (isWithin_implies _ _ _ _ H3). intros [A B].
@@ -133,7 +134,7 @@ Section fundamental.
         rewrite lookup_insert in HPC.
         rewrite lookup_insert_ne in H; auto. inv HPC.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.

@@ -27,9 +27,7 @@ Section cap_lang_rules.
     - apply isLocal_RWL in HiLW; rewrite HiLW.
       destruct HLocal as [Hcontr | Hpwl]; first by exfalso.
       apply pwl_implies_RWL_RWLX in Hpwl.
-      destruct Hpwl as [-> | ->]; first by auto.
-      assert (PermFlows RWL RWLX); auto.
-        by apply (PermFlows_trans _ _ _ H1 HPFp).
+      destruct Hpwl as [-> | ->]; eapply PermFlows_trans; eauto; econstructor.
     - apply not_isLocal_WL in HiLW; rewrite HiLW.
       cbv in Hwa.
       refine (PermFlows_trans _ _ _ _ HPFp).
@@ -261,7 +259,7 @@ Section cap_lang_rules.
        - cbv in HLW; by exfalso.
        - destruct (word_of_argument_inr _ _ _ HSVr) as (r0 & -> & Hr0s).
          destruct (isLocalWord_cap_isLocal _ HLW) as (p' & g' & b' & e' & a' & -> & HIL).
-         option_locate_mr m r. rewrite Hrr0 HIL in Hstep.
+         option_locate_mr m r. rewrite /canStore Hrr0 HIL in Hstep.
          destruct p; try by exfalso. all: by inversion Hstep.
       }
       iFailWP "Hφ" Store_fail_invalid_locality.
@@ -465,7 +463,7 @@ Section cap_lang_rules.
      }
     Qed.
 
-    Lemma wp_store_success_same E pc_p pc_g pc_b pc_e pc_a pc_a' w dst z w'
+   Lemma wp_store_success_same E pc_p pc_g pc_b pc_e pc_a pc_a' w dst z w'
          p g b e pc_p' :
      cap_lang.decode w = Store dst (inl z) →
      PermFlows pc_p pc_p' →

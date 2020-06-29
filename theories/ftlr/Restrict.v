@@ -58,6 +58,7 @@ Section fundamental.
     intros HpnotE Hp. iIntros "#IH HA".
     destruct (andb_true_eq _ _ ltac:(symmetry in Hp; exact Hp)).
     simpl in H, H0. iApply (interp_weakening with "IH HA"); eauto; try solve_addr.
+    - destruct (isU p); solve_addr.
     - rewrite <- H. auto.
     - rewrite <- H0. auto.
   Qed.
@@ -107,7 +108,7 @@ Section fundamental.
         rewrite lookup_insert in HPC. inv HPC.
         rewrite lookup_insert in H. inv H.
         rewrite H4 in H2. iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         destruct (PermFlowsTo RX p'') eqn:Hpft.
         { assert (Hpg: p'' = RX ∨ p'' = RWX ∨ p'' = RWLX ∧ g'' = Local).
           { destruct p''; simpl in Hpft; eauto; try discriminate.
@@ -140,7 +141,7 @@ Section fundamental.
       rewrite lookup_insert in HPC. inv HPC.
       rewrite lookup_insert_ne in H; auto.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
       iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
       - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
       - iIntros (ri Hri). rewrite /RegLocate.

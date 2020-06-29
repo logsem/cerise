@@ -28,7 +28,7 @@ Section fundamental.
     → PermFlows p p'
     → (if pwl p then region_state_pwl W a else region_state_nwl W a g)
     → std W !! a = Some ρ
-    → ρ ≠ Revoked ∧ (∀ m, ρ ≠ Static m) 
+    → ρ ≠ Revoked ∧ (∀ m, ρ ≠ Static m)
     → p' ≠ O
     → cap_lang.decode w = i
     -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,

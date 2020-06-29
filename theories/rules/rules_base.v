@@ -40,9 +40,9 @@ Section Capabilities.
   Definition PermFlows : Perm → Perm → Prop := λ p1 p2, PermFlowsTo p1 p2 = true.
   Definition LeastPermUpd (w : Word) : Perm :=
     match w with
-    | inl _ => RW
-    | inr ((_,Global),_,_,_) => RW
-    | _ => RWL
+    | inl _ => URW
+    | inr ((_,Global),_,_,_) => URW
+    | _ => URWL
     end.
 
   Lemma PermFlows_refl : ∀ p, PermFlows p p.
@@ -60,7 +60,7 @@ Section Capabilities.
 
   (* It could have been better to define the second in terms of the first here *)
   Lemma isLocal_RWL w:
-    isLocalWord w = true → LeastPermUpd w = RWL.
+    isLocalWord w = true → LeastPermUpd w = URWL.
   Proof.
     intros HiLW. destruct w.
     - cbv in HiLW. by exfalso.
@@ -69,7 +69,7 @@ Section Capabilities.
   Qed.
 
   Lemma not_isLocal_WL w:
-    isLocalWord w = false → LeastPermUpd w = RW.
+    isLocalWord w = false → LeastPermUpd w = URW.
   Proof.
     intros HiLW. destruct w.
     - auto.
@@ -78,7 +78,7 @@ Section Capabilities.
   Qed.
 
   Lemma LeastPermUpd_atleast w:
-    PermFlows RW (LeastPermUpd w).
+    PermFlows URW (LeastPermUpd w).
   Proof.
     destruct w as [|c]; cbn. constructor.
     destruct_cap c. case_match; constructor.
@@ -628,7 +628,7 @@ Section cap_lang_rules.
     iDestruct "Ha" as (γ_cap) "Ha". iApply bi.sep_exist_l. iExists γ_cap.
     do 2 rewrite MonRefMapsto_eq /MonRefMapsto_def /=.
     assert (p ≠ O) as Ho.
-    { assert (PermFlows RW p) as Hflp.
+    { assert (PermFlows URW p) as Hflp.
       by etransitivity; eauto using LeastPermUpd_atleast.
       inversion Hflp; destruct p; eauto. }
     iDestruct "Ha" as "(Hex & Hal & [Ha | %])"; [|contradiction].
@@ -1071,34 +1071,6 @@ Ltac iFailWP Hcont fail_case_name :=
     destruct (decide (r1 = r2)); simplify_eq; auto.
   Qed.
 
-(*--- z_of_argument ---*)
-
-Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
-  match a with
-  | inl z => Some z
-  | inr r =>
-    match regs !! r with
-    | Some (inl z) => Some z
-    | _ => None
-    end
-  end.
-
-Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
-Proof.
-  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-Qed.
-
-Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
-  regs ⊆ regs' →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
-Proof.
-  unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
-Qed.
-
 (*--- word_of_argument ---*)
 
 Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
@@ -1179,6 +1151,9 @@ Definition regs_of (i: instr): gset RegName :=
   | Load r1 r2 => {[ r1; r2 ]}
   | Store r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | Jnz r1 r2 => {[ r1; r2 ]}
+  | LoadU dst src offs => {[ dst; src ]} ∪ regs_of_argument offs
+  | StoreU dst offs src => {[ dst ]} ∪ regs_of_argument offs  ∪ regs_of_argument src
+  | PromoteU dst => {[ dst ]}
   | _ => ∅
   end.
 

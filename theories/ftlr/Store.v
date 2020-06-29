@@ -134,7 +134,7 @@ Section fundamental.
          iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
          { by apply writeA_implies_readA. }
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H as [ρ' [Hstd' [Hnotrevoked' Hnotstatic'] ] ].
+         destruct H as [ρ' [Hstd' [Hnotrevoked' Hnotstatic' ] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -215,7 +215,7 @@ Section fundamental.
       case_decide as Hdec1; last by done. by exfalso.
   Qed.
 
-   Lemma storev_interp_mono W (r : Reg) (r1 : RegName) (r2 : Z + RegName) p g b e a p' ρ storev:
+  Lemma storev_interp_mono W (r : Reg) (r1 : RegName) (r2 : Z + RegName) p g b e a p' ρ storev:
      PermFlows p p'
      → word_of_argument r r2 = Some storev
      → reg_allows_store r r1 p g b e a storev
@@ -366,7 +366,7 @@ Section fundamental.
       iDestruct (switch_monotonicity_formulation with "Hmono") as "Hmono"; auto.
 
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[|specialize (Hnotstatic g1)];contradiction. }
+      { destruct ρ;auto;[..|specialize (Hnotstatic g1)];contradiction. }
       simplify_map_eq.
 
       iApply ("IH" with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); auto.
@@ -376,5 +376,6 @@ Section fundamental.
     { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }
     Unshelve. all: auto.
   Qed.
+
 
 End fundamental.

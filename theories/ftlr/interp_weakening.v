@@ -20,31 +20,6 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma interp1_eq interp (W: WORLD) p l b e a:
-    ((interp1 interp W (inr (p, l, b, e, a))) ≡
-             (if perm_eq_dec p O then True else
-             if perm_eq_dec p E then □ enter_cond W b e a l interp else
-               (∃ p', ⌜PermFlows p p'⌝ ∗
-                ([∗ list] a ∈ (region_addrs b e),
-                 (read_write_cond a p' interp) ∧
-                 ⌜if pwl p then region_state_pwl W a else region_state_nwl W a l⌝) ∗
-                (* (□ match p with RX | RWX | RWLX => exec_cond W b e l p interp | _ => True end) ∗ *)
-                (⌜if pwl p then l = Local else True⌝)))%I).
-  Proof.
-    iSplit.
-    { iIntros "HA".
-      destruct (perm_eq_dec p O); subst; simpl; auto.
-      destruct (perm_eq_dec p E); subst; simpl; auto.
-      destruct p; simpl; try congruence; auto; try (iDestruct "HA" as (p') "[HA HB]"; eauto; fail); try (iDestruct "HA" as (p') "(HA & HB & HC)"; eauto; fail); destruct l; auto.
-      - iDestruct "HA" as (p') "[HA HB]"; eauto.
-      - iDestruct "HA" as (p') "[HA HB]"; eauto. }
-    { iIntros "A".
-      destruct (perm_eq_dec p O); subst; simpl; auto.
-      destruct (perm_eq_dec p E); subst; simpl; auto.
-      iDestruct "A" as (p') "(A & B & %)".
-      destruct p; simpl in *; try congruence; subst; eauto. }
-  Qed.
-
   Definition IH: iProp Σ :=
     (□ ▷ (∀ (a7 : WORLD) (a8 : Reg) (a9 : Perm) (a10 : Locality) 
            (a11 a12 a13 : Addr),
@@ -83,17 +58,17 @@ Section fundamental.
   (* TODO: Move in monotone ? *)
   Lemma region_state_nwl_future W W' l l' p a:
     LocalityFlowsTo l' l ->
-    (if pwl p then l = Local else True) ->
+    (if pwlU p then l = Local else True) ->
     (@future_world Σ l' W W') -∗
-    ⌜if pwl p then region_state_pwl W a else region_state_nwl W a l⌝ -∗
+    ⌜if pwlU p then region_state_pwl W a else region_state_nwl W a l⌝ -∗
     ⌜region_state_nwl W' a l'⌝.
   Proof.
     intros Hlflows Hloc. iIntros "Hfuture %".
     destruct l'; simpl; iDestruct "Hfuture" as "%"; iPureIntro.
     - assert (l = Global) as -> by (destruct l; simpl in Hlflows; tauto).
-      destruct (pwl p); try congruence.
+      destruct (pwlU p) eqn:HpwlU; try congruence.
       eapply region_state_nwl_monotone_nl; eauto.
-    - destruct (pwl p).
+    - destruct (pwlU p).
       + subst l. left. eapply region_state_pwl_monotone; eauto.
       + generalize (region_state_nwl_monotone _ _ _ _ H a0).
         destruct l; auto.
@@ -102,14 +77,14 @@ Section fundamental.
   Lemma region_state_future W W' l l' p p' a:
     PermFlowsTo p' p ->
     LocalityFlowsTo l' l ->
-    (if pwl p then l = Local else True) ->
+    (if pwlU p then l = Local else True) ->
     (@future_world Σ l' W W') -∗
-    ⌜if pwl p then region_state_pwl W a else region_state_nwl W a l⌝ -∗
-    ⌜if pwl p' then region_state_pwl W' a else region_state_nwl W' a l'⌝.
+    ⌜if pwlU p then region_state_pwl W a else region_state_nwl W a l⌝ -∗
+    ⌜if pwlU p' then region_state_pwl W' a else region_state_nwl W' a l'⌝.
   Proof.
     intros Hpflows Hlflows Hloc. iIntros "Hfuture %".
-    case_eq (pwl p'); intros.
-    - assert (pwl p = true) as Hpwl.
+    case_eq (pwlU p'); intros.
+    - assert (pwlU p = true) as Hpwl.
       { destruct p, p'; simpl in H; try congruence; simpl in Hpflows; try tauto. }
       rewrite Hpwl in a0, Hloc. subst l.
       destruct l'; simpl in Hlflows; try tauto.
@@ -126,7 +101,43 @@ Section fundamental.
     destruct (Is_true_reflect (PermFlowsTo p p')); auto.
   Qed.
 
-  Lemma interp_weakening W p p' l l' b b' e e' a a':
+  Lemma localityflowsto_futureworld l l' W W':
+    LocalityFlowsTo l' l ->
+    (@future_world Σ l' W W' -∗
+     @future_world Σ l W W').
+  Proof.
+    intros; destruct l, l'; auto.
+    rewrite /future_world; iIntros "%".
+    iPureIntro. eapply related_sts_pub_priv_world; auto.
+  Qed.
+
+  Lemma promote_perm_flows_monotone p p':
+    PermFlowsTo p p' ->
+    PermFlowsTo (promote_perm p) (promote_perm p').
+  Proof.
+    destruct p, p'; simpl; tauto.
+  Qed.
+
+  Lemma promote_perm_flows p:
+    PermFlowsTo p (promote_perm p).
+  Proof.
+    destruct p; simpl; tauto.
+  Qed.
+
+  Lemma promote_perm_pwl p:
+    pwl (promote_perm p) = pwlU p.
+  Proof.
+    destruct p; reflexivity.
+  Qed.
+
+  Instance if_persistent (PROP: bi) (b: bool) (φ1 φ2: PROP) (H1: Persistent φ1) (H2: Persistent φ2):
+    Persistent (if b then φ1 else φ2).
+  Proof.
+    destruct b; auto.
+  Qed.
+
+  Lemma interp_weakening W p p' l l' b b' e e' a a'
+        (HU: if isU p then (a' <= a)%a else True):
       p <> E ->
       (b <= b')%a ->
       (e' <= e)%a ->
@@ -142,10 +153,12 @@ Section fundamental.
     destruct (perm_eq_dec p O).
     { subst p; destruct p'; simpl in Hp; try tauto. }
     destruct (perm_eq_dec p E); try congruence.
-    iDestruct "HA" as (p'') "[% [#A %]]".
+    iDestruct "HA" as (p'') "[% [#A [% #C]]]".
     destruct (perm_eq_dec p' E).
     { (* p' = E *) subst p'. iAlways.
-      rewrite /enter_cond /interp_expr /=.
+      assert (HisU: isU p = false).
+      { destruct p; simpl in Hp; simpl; auto; tauto. }
+      rewrite !HisU /enter_cond /interp_expr /=.
       iIntros (r W') "#Hfuture". iNext.
       iIntros "[[Hfull Hmap] [Hreg [Hregion [Hsts Hown]]]]".
       iSplitR; auto. rewrite /interp_conf.
@@ -160,24 +173,177 @@ Section fundamental.
         repeat iSplitR; auto.
         iApply (region_state_nwl_future with "Hfuture"); eauto.
       - rewrite (region_addrs_empty b' e'); auto. solve_addr. }
-    assert (Hpfl: PermFlows p' p'') by (eapply PermFlows_trans; eauto; eapply PermFlowsToPermFlows; eauto).
+    assert (Hpfl: PermFlows (promote_perm p') p'').
+    { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
+    assert (Hpfl2: PermFlows p' p'').
+    { eapply PermFlows_trans; eauto. eapply PermFlowsToPermFlows.
+      eapply promote_perm_flows. }
     iExists p''; iSplitR; auto. iSplit.
-    { destruct (Addr_le_dec b' e').
+    { destruct (isU p') eqn:HisU'.
+      { destruct (isU p) eqn:HisU.
+        - destruct l; destruct l'; simpl.
+          + destruct (Addr_le_dec b' e').
+            { rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
+              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              repeat iSplit; auto.
+              case_eq (pwlU p'); intros.
+              + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+                rewrite HP in H1. iPureIntro. auto.
+              + iApply (region_state_nwl_future W W Global Global); eauto.
+                simpl. iPureIntro. eapply related_sts_priv_refl_world. }
+            { rewrite (region_addrs_empty b' e'); auto. solve_addr. }
+          + destruct (Addr_le_dec b' (min a' e')).
+            { rewrite (isWithin_region_addrs_decomposition b' (min a' e') b e). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              repeat iSplit; auto.
+              case_eq (pwlU p'); intros.
+              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+                rewrite HP in H1. iPureIntro. auto.
+              * iApply (region_state_nwl_future W W Global Local); eauto.
+                simpl. iPureIntro. eapply related_sts_pub_refl_world. }
+            { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
+          + simpl in Hl. elim Hl.
+          + destruct (Addr_le_dec b' (min a' e')).
+            { rewrite (isWithin_region_addrs_decomposition b' (min a' e') b (min a e)). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              repeat iSplit; auto.
+              case_eq (pwlU p'); intros.
+              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+                rewrite HP in H1. iPureIntro. auto.
+              * iApply (region_state_nwl_future W W Local Local); eauto.
+                simpl; iPureIntro. eapply related_sts_pub_refl_world. }
+            { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
+        - simpl. destruct l'; simpl.
+          { destruct (Addr_le_dec b' e').
+            + rewrite (isWithin_region_addrs_decomposition b' e' b e). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              repeat iSplit; auto.
+              case_eq (pwlU p'); intros.
+              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+                rewrite HP in H1. iPureIntro. auto.
+              * iApply (region_state_nwl_future W W l Global); eauto.
+                simpl; iPureIntro. eapply related_sts_priv_refl_world.
+            + rewrite (region_addrs_empty b' e'); auto. solve_addr. }
+          { destruct (Addr_le_dec b' (min a' e')).
+            + rewrite (isWithin_region_addrs_decomposition b' (min a' e') b e). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+              iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
+              repeat iSplit; auto.
+              case_eq (pwlU p'); intros.
+              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+                rewrite HP in H1. iPureIntro. auto.
+              * iApply (region_state_nwl_future W W l Local); eauto.
+                simpl; iPureIntro; eapply related_sts_pub_refl_world.
+            + rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. } }
+      assert (HisU: isU p = false).
+      { destruct p', p; simpl in *; try tauto; try congruence. }
+      rewrite !HisU. simpl.
+      destruct (Addr_le_dec b' e').
       - rewrite (isWithin_region_addrs_decomposition b' e' b e); try solve_addr.
         rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
         iApply (big_sepL_impl with "A2"); auto. iAlways; iIntros (k x Hx) "[#X %]".
         repeat iSplit; auto.
-        case_eq (pwl p'); intros.
-        + assert (pwl p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+        case_eq (pwlU p'); intros.
+        + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
           rewrite HP in H1. iPureIntro. auto.
         + iApply region_state_nwl_future; eauto.
           destruct l'; iPureIntro.
           * eapply related_sts_priv_refl_world.
           * eapply related_sts_pub_refl_world.
       - rewrite (region_addrs_empty b' e'); auto. solve_addr. }
-    case_eq (pwl p'); intros; auto.
-    assert (pwl p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-    rewrite HP in H0; subst l. destruct l'; simpl in Hl; auto.
+    iSplit.
+    { case_eq (pwlU p'); intros; auto.
+      assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+      rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto. auto. }
+    { case_eq (pwlU p'); intros; auto.
+      - assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
+        rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto.
+        destruct (isU p') eqn:HisU'; auto. simpl.
+        destruct (isU p) eqn:HisU; simpl.
+        + destruct (Addr_le_dec (max b' a') e').
+          * rewrite HP. destruct (Addr_lt_dec (max b' a') (max b a)).
+            { destruct (Addr_le_dec (max b a) e').
+              - rewrite (isWithin_region_addrs_decomposition (max b a) e' (max b a) e). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]".
+                rewrite (isWithin_region_addrs_decomposition (max b a) e' (max b' a') e'). 2: solve_addr.
+                rewrite !big_sepL_app. rewrite (region_addrs_empty e' e'); [simpl; iFrame "#"|solve_addr].
+                assert (Heq: min a e = max b a) by solve_addr. rewrite Heq.
+                rewrite (isWithin_region_addrs_decomposition (max b' a') (max b a) b (max b a)). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+                iApply (big_sepL_impl with "A2"); auto.
+                iAlways; iIntros (k y Hy) "[#Y %]".
+                iFrame "#". iPureIntro. left; auto.
+              - rewrite (isWithin_region_addrs_decomposition (max b' a') e' b (min a e)). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+                iApply (big_sepL_impl with "A2"); auto.
+                iAlways; iIntros (k y Hy) "[#Y %]".
+                iFrame "#". iPureIntro. left; auto. }
+            { rewrite (isWithin_region_addrs_decomposition (max b' a') e' (max b a) e). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]". auto. }
+          * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
+        + destruct (Addr_le_dec (max b' a') e').
+          * rewrite HP. rewrite (isWithin_region_addrs_decomposition (max b' a') e' b e). 2: solve_addr.
+            rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+            iApply (big_sepL_impl with "A2"); auto.
+            iAlways; iIntros (k y Hy) "[#Y %]".
+            iFrame "#". iPureIntro. left; auto.
+          * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
+      - destruct (isU p') eqn:HisU'; simpl; auto.
+        destruct (isLocal l') eqn:Hl'; auto.
+        destruct (isU p && isLocal l) eqn:X.
+        + destruct (Addr_le_dec (max b' a') e').
+          * destruct (Addr_lt_dec (max b' a') (max b a)).
+            { destruct (Addr_le_dec (max b a) e').
+              - rewrite (isWithin_region_addrs_decomposition (max b a) e' (max b a) e). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]".
+                rewrite (isWithin_region_addrs_decomposition (max b a) e' (max b' a') e'). 2: solve_addr.
+                rewrite !big_sepL_app. rewrite (region_addrs_empty e' e'); [simpl; iFrame "#"|solve_addr].
+                assert (Heq: min a e = max b a) by solve_addr. rewrite Heq.
+                rewrite (isWithin_region_addrs_decomposition (max b' a') (max b a) b (max b a)). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+                iSplitR.
+                + iApply (big_sepL_impl with "A2"); auto.
+                  iAlways; iIntros (k y Hy) "[#Y %]".
+                  iFrame "#". iPureIntro. destruct (pwlU p).
+                  { left; auto. }
+                  { destruct l; simpl in H2; auto.
+                    - right; left; auto.
+                    - destruct H2; [left|right;left]; auto. }
+                + iSplitL; auto. iApply (big_sepL_impl with "C2"); auto.
+                  iAlways; iIntros (k y Hy) "[#Y %]". iFrame "#".
+                  iPureIntro; 
+                  destruct p; simpl in H2; auto; destruct H2; rewrite /region_state_U; auto.
+              - rewrite (isWithin_region_addrs_decomposition (max b' a') e' b (min a e)). 2: solve_addr.
+                rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+                iApply (big_sepL_impl with "A2"); auto.
+                iAlways; iIntros (k y Hy) "[#Y %]".
+                iFrame "#". iPureIntro. destruct (pwlU p).
+                + left; auto.
+                + destruct l; simpl in H2; auto.
+                  * right; left; auto.
+                  * destruct H2; [left|right;left]; auto. }
+            { rewrite (isWithin_region_addrs_decomposition (max b' a') e' (max b a) e). 2: solve_addr.
+              rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]". auto.
+              iApply (big_sepL_impl with "C2"); auto.
+              iAlways; iIntros (k y Hy) "[#Y %]". iFrame "#".
+              iPureIntro; 
+              destruct p; simpl in H2; auto; destruct H2; rewrite /region_state_U; auto. }
+          * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
+        + destruct (Addr_le_dec (max b' a') e').
+          * rewrite (isWithin_region_addrs_decomposition (max b' a') e' b e). 2: solve_addr.
+            rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
+            iApply (big_sepL_impl with "A2"); auto.
+            iAlways; iIntros (k y Hy) "[#Y %]".
+            iFrame "#". iPureIntro. destruct (pwlU p).
+            { left; auto. }
+            { destruct l; simpl in H2; auto.
+              - right; left; auto.
+              - destruct H2; [left|right;left]; auto. }
+          * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr. }
   Qed.
 
 End fundamental.
