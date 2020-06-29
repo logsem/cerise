@@ -2261,7 +2261,16 @@ Section awkward_example.
     (* If the stack is Global, validity is false *)
     destruct gstk;[by rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val"|].
     rewrite fixpoint_interp1_eq;iSimpl in "Hstack_val".
-    iDestruct "Hstack_val" as (p0 Hperm) "[Hstack_region Hstack_end]". destruct p0;inversion Hperm. clear Hperm.
+    iAssert ([∗ list] a'0 ∈ region_addrs bstk (min astk estk), read_write_cond a'0 RWLX (fixpoint interp1)
+                                                               ∧ ⌜region_state_pwl W a'0⌝)%I as "#Hstack_region".
+    { iDestruct "Hstack_val" as "[Hstack_region _]".
+      iApply (big_sepL_mono with "Hstack_region").
+      iIntros (k y Hk) "H". iDestruct "H" as (p0 Hperm) "Hw". destruct p0;inversion Hperm. iFrame. }
+    iAssert ([∗ list] a'0 ∈ region_addrs (max bstk astk) estk, read_write_cond a'0 RWLX (fixpoint interp1)
+                                                               ∧ ⌜region_state_U_pwl W a'0⌝)%I as "#Hstack_end".
+    { iDestruct "Hstack_val" as "[_ Hstack_end]".
+      iApply (big_sepL_mono with "Hstack_end").
+      iIntros (k y Hk) "H". iDestruct "H" as (p0 Hperm) "Hw". destruct p0;inversion Hperm. iFrame. }
     destruct (region_addrs_split3 _ _ _ Hsize) as [asplit [Hstksplit Hspliteq] ].
     set (ltempsplit := (@list_filter Addr (region_type_temporary W) (region_type_temporary_dec W) (region_addrs bstk asplit))).
     set (ltemp := (@list_filter Addr (region_type_temporary W) (region_type_temporary_dec W) (region_addrs bstk estk))).
@@ -2962,17 +2971,15 @@ Section awkward_example.
       - iIntros "%". contradiction.
       - assert (r !! r_stk = Some (inr (URWLX, Local, stack_own_last, estk, stack_own_last))) as Hr_stk; auto. 
         rewrite /RegLocate Hr_stk !fixpoint_interp1_eq. 
-        iIntros (_). iExists RWLX. iSplitR; [auto|].
+        iIntros (_). 
         assert (Hmin1: min stack_own_last estk = stack_own_last).
         { revert Hsize Hspliteq. clear. rewrite /region_size; solve_addr. }
-        rewrite !Hmin1. replace (max stack_own_last stack_own_last) with stack_own_last by (clear; solve_addr).
+        iSimpl. rewrite !Hmin1. replace (max stack_own_last stack_own_last) with stack_own_last by (clear; solve_addr).
         rewrite (interp_weakening.region_addrs_empty stack_own_last stack_own_last); [|clear; solve_addr].
-        rewrite big_sepL_nil. iAssert (□ exec_cond W''' stack_own_last stack_own_last Local RWLX (fixpoint interp1))%I as "HH".
-        { iAlways; rewrite /exec_cond; iIntros. inv a9. exfalso.
-          revert H0 H1; clear. solve_addr. } iFrame.
+        rewrite big_sepL_nil.
         rewrite Hstksplit. iDestruct (big_sepL_app with "Hstackallrel") as "[Hstackallrel1 Hstackallrel2]". iSplitR; auto.
         iApply (big_sepL_impl with "Hstackallrel2").
-        iAlways. iIntros. iSplit; auto. iPureIntro.
+        iAlways. iIntros. iExists RWLX. iSplit;auto. iSplit; auto. iPureIntro.
         rewrite /region_state_U_pwl. right.
         eapply HrestpwlU. eapply elem_of_list_lookup. eauto.
       - (* continuation *)
@@ -3052,10 +3059,10 @@ Section awkward_example.
               apply Hforall in Hin'. rewrite /static Hm_temp in Hin'. done. 
           }
           iDestruct (fundamental W3 r' RX Local a0 stack_own_last stack_own_b with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
-          { iSimpl. iExists RWLX. iSplit;[auto|].
+          { iSimpl. 
             rewrite Hstksplit. iDestruct (big_sepL_app with "Hstackallrel") as "[H1 H2]".
             iApply (big_sepL_impl with "H1").
-            iAlways. iIntros. iSplit; auto.
+            iAlways. iIntros. iExists RWLX. iSplit;auto. iSplit; auto.
             iPureIntro. left.
             (* we assert that the region is all in state temporary *)
             assert (x ∈ dom (gset Addr) m_static1) as Hk'.
@@ -3931,13 +3938,13 @@ Section awkward_example.
           - iIntros "%". contradiction.
           - assert (r2 !! r_stk = Some (inr (URWLX, Local, stack_own_end, estk, stack_own_end))) as Hr_stk; auto. 
             rewrite /RegLocate Hr_stk. repeat rewrite fixpoint_interp1_eq.
-            iIntros (_). iExists RWLX. iSplitR; [auto|].
+            iIntros (_). iSimpl. 
             replace (min stack_own_end estk) with stack_own_end by (revert H0; clear; solve_addr).
             replace (max stack_own_end stack_own_end) with stack_own_end by (clear; solve_addr).
             rewrite (interp_weakening.region_addrs_empty stack_own_end stack_own_end); [|clear; solve_addr].
             rewrite big_sepL_nil. iSplitR; auto.
             iApply (big_sepL_mono with "Hstack_adv_val").
-            simpl. iIntros (k y Hky) "[$ %]".
+            simpl. iIntros (k y Hky) "[H %]". iExists RWLX. iFrame. iSplit;[auto|]. 
             iPureIntro. right. auto.
           - (* continuation *)
             iIntros (_). clear Hr_t0. 
@@ -4021,7 +4028,7 @@ Section awkward_example.
               }
               iDestruct (fundamental W6 r3 RX Local a0 stack_own_end a3 with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..].
               (* iDestruct (fundamental W6 r3 RX Local a0 estk a3 with "[] [] [-]") as "[_ Hcont]";[by iLeft| |iFrame "∗ #"|..]. *)
-              { iSimpl. iExists RWLX. iSplit;[auto|].
+              { iSimpl. 
                 rewrite Hstksplit. iDestruct (big_sepL_app with "Hstackallrel") as "[A _]".
                 assert (region_addrs a0 stack_own_last = region_addrs a0 stack_own_end ++ [stack_own_end]) as ->.
                 { apply withinBounds_le_addr in Hwb3.
@@ -4032,7 +4039,7 @@ Section awkward_example.
                 }
                 iDestruct (big_sepL_app with "A") as "[B _]".
                 iApply (big_sepL_mono with "B").
-                iIntros (k y Hky) "Hrel". iFrame. iPureIntro.            
+                iIntros (k y Hky) "Hrel". iExists RWLX. iSplit;[auto|]. iFrame. iPureIntro.            
                 left. 
                 (* we assert that the region is all in state temporary *)
                 assert (y ∈ region_addrs a0 stack_own_end) as Hk'.
@@ -4151,55 +4158,6 @@ Section awkward_example.
                                                           rclear_instrs (list_difference all_registers [PC;r_t0]) ++
                                                           [jmp r_t0]) as ->;[auto|].
             iDestruct "Hprog" as "[Ha Hprog]".
-            
-    (* works here *)
-            (* Compute (length (reqglob_instrs r_adv ++ *)
-            (*                                        prepstackU_instrs r_stk 10 ++  *)
-            (*                                        [store_z r_env 0] ++ *)
-            (*                                        [pushU_r_instr r_stk r_env] ++ *)
-            (*                                        [pushU_r_instr r_stk r_t0] ++ *)
-            (*                                        [pushU_r_instr r_stk r_adv] ++ *)
-            (*                                        scallU_prologue_instrs 40 r_adv ++ *)
-            (*                                        [jmp r_adv; *)
-            (*                                         storeU_z_z r_stk 0 0; *)
-            (*                                         sub_z_z r_t1 0 7; *)
-            (*                                         lea_r r_stk r_t1] ++ *)
-            (*                                        popU_instrs r_stk r_adv ++ *)
-            (*                                        popU_instrs r_stk r_t0 ++ *)
-            (*                                        popU_instrs r_stk r_env ++ *)
-            (*                                        [store_z r_env 1] ++ *)
-            (*                                        [pushU_r_instr r_stk r_env] ++ *)
-            (*                                        [pushU_r_instr r_stk r_t0] ++ *)
-            (*                                        scallU_prologue_instrs 40 r_adv)). *)
-            (* (take 146 (awkward_instrs r_adv 40)) *)
-            (* iDestruct (mapsto_decomposition _ _ _ (reqglob_instrs r_adv ++ *)
-            (*                                        prepstackU_instrs r_stk 10 ++  *)
-            (*                                        [store_z r_env 0] ++ *)
-            (*                                        [pushU_r_instr r_stk r_env] ++ *)
-            (*                                        [pushU_r_instr r_stk r_t0] ++ *)
-            (*                                        [pushU_r_instr r_stk r_adv] ++ *)
-            (*                                        scallU_prologue_instrs 40 r_adv ++ *)
-            (*                                        [jmp r_adv; *)
-            (*                                         storeU_z_z r_stk 0 0; *)
-            (*                                         sub_z_z r_t1 0 7; *)
-            (*                                         lea_r r_stk r_t1] ++ *)
-            (*                                        popU_instrs r_stk r_adv ++ *)
-            (*                                        popU_instrs r_stk r_t0 ++ *)
-            (*                                        popU_instrs r_stk r_env ++ *)
-            (*                                        [store_z r_env 1] ++ *)
-            (*                                        [pushU_r_instr r_stk r_env] ++ *)
-            (*                                        [pushU_r_instr r_stk r_t0] ++ *)
-            (*                                        scallU_prologue_instrs 40 r_adv) with "Hprog") *)
-            (*   as "[Hprog_done [Ha Hprog] ]".  *)
-            (* { simpl. inversion Hscall_length as [Heq]. inversion Hscall_length1 as [Heq']. rewrite app_length Heq /=. rewrite Heq'. repeat rewrite app_length. rewrite Hreqglob_length Hprepstack_length. simpl. repeat f_equiv. rewrite Heq. done. } *)
-            (* does not work here *)
-            
-            (* let's prove some practical lemmas before continuing *)
-            (* assert (last (rest1_first :: a27 :: rest1) = Some a_last) as Hlast1. *)
-            (* { rewrite Hrest_app in Hlast. repeat rewrite app_comm_cons in Hlast. *)
-            (*   rewrite -last_app_eq in Hlast;[|simpl;apply gt_Sn_O]. *)
-            (*   rewrite Hrest_app1 in Hlast. repeat rewrite app_comm_cons in Hlast. *)
-            (*   by rewrite -last_app_eq in Hlast;[|simpl;apply gt_Sn_O]. } *)
             iCombine "Ha" "Hprog_done" as "Hprog_done".
             (* sub r_t1 0 6 *)
             iPrologue rest2 Hrest_length1 "Hprog".
