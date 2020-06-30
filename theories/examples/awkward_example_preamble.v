@@ -5,7 +5,7 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      rules logrel fundamental region_invariants
      region_invariants_revocation region_invariants_static.
-From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example_helpers awkward_example.
+From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example_helpers awkward_example_u.
 From stdpp Require Import countable.
 
 Lemma regmap_full_dom (r: gmap RegName Word):
@@ -155,7 +155,7 @@ Section awkward_example_preamble.
     awkward_preamble f_m offset_to_awkward ai pc_p'
 
     (* Code of the awkward example itself *)
-    ∗ awkward_example ai_awk pc_p' f_a r_adv
+    ∗ awkward_example ai_awk pc_p' f_a r_adv 40
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
