@@ -551,7 +551,7 @@ Section awkward_example.
    
    (* assume r1 contains an executable pointer to adversarial code *)
   (* assume r0 contains an executable pointer to the awkward example *)
-  Definition awkward_instrs (r1 : RegName) epilogue_off :=
+  Definition awkward_instrs f_a (r1 : RegName) epilogue_off :=
      reqglob_instrs r1 ++
      prepstackU_instrs r_stk 10 (* 11 *) ++ (* Are those hardcoded numbers correct ?? *)
      [store_z r_env 0] ++
@@ -576,11 +576,8 @@ Section awkward_example.
      popU_instrs r_stk r_t0 ++
      popU_instrs r_stk r_env ++
      (* assert that the cap in r_env points to 1 *)
-     [load_r r1 r_env;
-     move_r r_t1 PC;
-     lea_z r_t1 61 (*62*); (* offset to assertion failure. for now this is the adress after the program *)
-     sub_r_z r1 r1 1;
-     jnz r_t1 r1] ++
+     [load_r r1 r_env] ++ 
+     assert_r_z_instrs f_a r1 1 ++
      (* in this version, we clear only the local stack frame before returning *)
      (* first we prepare the stack to only point to the local stack frame *)
      [getb r_t1 r_stk;
@@ -595,8 +592,8 @@ Section awkward_example.
    (* Definition awkward_preamble a p r1 offset_to_awkward := *)
    (*   ([∗ list] a_i;w_i ∈ a;(awkward_preamble_instrs r1 offset_to_awkward), a_i ↦ₐ[p] w_i)%I. *)
    
-   Definition awkward_example (a : list Addr) (p : Perm) (r1 : RegName) epilogue_off : iProp Σ :=
-     ([∗ list] a_i;w_i ∈ a;(awkward_instrs r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
+   Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) epilogue_off : iProp Σ :=
+     ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
 
    
    Definition awk_inv i a :=
@@ -2141,24 +2138,27 @@ Section awkward_example.
     (at level 20, p at level 50, format "a  ↦ₐ < p >  w") : bi_scope.
 
    (* the following spec is for the f4 subroutine of the awkward example, jumped to after dynamically allocating into r_env *)
-  Lemma f4_spec W pc_p pc_g pc_b pc_e (* PC *)
+  Lemma f4_spec W pc_p pc_p' pc_g pc_b pc_e (* PC *)
         wadv (* b e a *) (* adv *)
         wret (* g_ret b_ret e_ret a_ret *) (* return cap *)
         f4_addrs (* f2 *)
         d d' i (* dynamically allocated memory given by preamble, connected to invariant i *)
-        a_first a_last (* special adresses *) 
-        wstk (* (b_r e_r b_r' : Addr) *) (* stack *)
-        rmap (* registers *) :
+        a_first a_last (* special adresses *)
+        f_a b_link e_link a_link a_entry fail_cap (* linking table variables *)
+        wstk (* stack *)
+        rmap (* registers *)
+        ι1 ι2 (* invariant names *) :
 
     (* PC assumptions *)
     isCorrectPC_range pc_p pc_g pc_b pc_e a_first a_last ->
+    PermFlows pc_p pc_p' -> 
 
     (* Program adresses assumptions *)
     contiguous_between f4_addrs a_first a_last ->
     
-    (* Stack assumptions *)
-    (* region_size b_r e_r > 11 -> (* we must assume the stack is large enough for needed local state *) *)
-    (* (b_r' + 1)%a = Some b_r -> *)
+    (* Linking table assumptions *)
+    withinBounds (RW, Global, b_link, e_link, a_entry) = true →
+    (a_link + f_a)%a = Some a_entry ->
 
     (* malloc'ed memory assumption *)
     (d + 1)%a = Some d' ->
@@ -2166,9 +2166,8 @@ Section awkward_example.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_stk;r_adv;r_t0;r_env]} →
 
-    (* Finally, we must assume that the stack is currently in a temporary state *)
-    (* (forall (a : Addr), W.1.1 !! (encode a) = Some (encode Temporary) <-> a ∈ (region_addrs b_r e_r)) -> *)
-    (* Forall (λ a, region_type_temporary W a) (region_addrs b_r e_r) -> *)
+    (* The two invariants have different names *)
+    (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
     {{{ r_stk ↦ᵣ wstk
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a_first)
@@ -2188,7 +2187,9 @@ Section awkward_example.
       (* callback validity *)
       ∗ interp W wret
       (* trusted code *)
-      ∗ (∃ ι, na_inv logrel_nais ι (awkward_example f4_addrs pc_p r_adv (* 65 *) 40))
+      ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv 40)
+      (* linking table *)
+      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] fail_cap)
       (* we start out with arbitrary sts *)
       ∗ sts_full_world W
       ∗ region W
@@ -2201,10 +2202,8 @@ Section awkward_example.
                          ∗ sts_full_world W'
                          ∗ region W' }}}.
   Proof.
-    iIntros (Hvpc Hcont Hd Hrmap_dom φ)
-            "(Hr_stk & HPC & Hr_t0 & Hr_adv & Hr_env & Hgen_reg & #Hι & #Hrel & #Hstack_val & Hna & #Hadv_val & #Hcallback & Hprog & Hsts & Hr) Hφ".
-    iDestruct "Hprog" as (ιprog) "#Hf4". 
-    (* Now we step through the program *)
+    iIntros (Hvpc Hfl Hcont Hwb_table Hlink_table Hd Hrmap_dom Hne φ)
+            "(Hr_stk & HPC & Hr_t0 & Hr_adv & Hr_env & Hgen_reg & #Hι & #Hrel & #Hstack_val & Hna & #Hadv_val & #Hcallback & #Hf4 & #Htable & Hsts & Hr) Hφ".
     iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls)";[auto..|]. 
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct (f4_addrs);[inversion Hprog_length|].
@@ -2229,7 +2228,7 @@ Section awkward_example.
     iDestruct "Hcont" as %(Hcont_reqglob & Hcont_rest & Heqapp & Hlink).
     iDestruct (big_sepL2_length with "Hreqglob") as %Hreqglob_length. simpl in Hreqglob_length. 
     iApply (reqglob_spec with "[-]");
-      [|apply PermFlows_refl|apply Hcont_reqglob|iFrame "HPC Hreqglob Hr_adv Hr_t1 Hr_t2"]. 
+      [|apply Hfl|apply Hcont_reqglob|iFrame "HPC Hreqglob Hr_adv Hr_t1 Hr_t2"]. 
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. revert Hmid Hcont_rest;clear;solve_addr. }
     iNext. destruct (isGlobalWord wadv) eqn:Hglob;[|(* Failure *) iApply "Hφ";iIntros (Hcontr);inversion Hcontr].
@@ -2242,7 +2241,7 @@ Section awkward_example.
     iDestruct "Hcont" as %(Hcont_prepstack & Hcont_rest0 & Heqapp0 & Hlink0).
     iDestruct (big_sepL2_length with "Hprepstack") as %Hprepstack_length. simpl in Hprepstack_length.
     iApply (prepstackU_spec with "[-]");
-      [|apply PermFlows_refl|apply Hcont_prepstack|iFrame "HPC Hprepstack Hr_stk"].
+      [|apply Hfl|apply Hcont_prepstack|iFrame "HPC Hprepstack Hr_stk"].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest0. revert Hmid Hcont_rest0 Hlink;clear. solve_addr. }
     iSplitL "Hr_t1";[iNext;eauto|]. iSplitL "Hr_t2";[iNext;eauto|].
@@ -2410,7 +2409,7 @@ Section awkward_example.
     { isWithinBounds;[lia|]. revert Hd; clear. solve_addr. }
     iAssert (▷ (PC ↦ᵣ inr (pc_p, pc_g, pc_b, pc_e, a1)
               ∗ r_env ↦ᵣ inr (RWX, Global, d, d', d)
-              ∗ link0 ↦ₐ[pc_p] store_z r_env 0
+              ∗ link0 ↦ₐ[pc_p'] store_z r_env 0
               ∗ (∃ W'',⌜(∃ b : bool, W.2.1 !! i = Some (encode b))
                         ∧ W.2.2 !! i = Some (convert_rel awk_rel_pub, convert_rel awk_rel_priv)⌝ ∧ 
                     ⌜W'' = (W'.1,(<[i:=encode false]> W.2.1,W.2.2))⌝ ∧
@@ -2427,7 +2426,7 @@ Section awkward_example.
       iInv ι as (x) "[>Hstate Hb]" "Hcls".
       destruct x; iDestruct "Hb" as ">Hb".
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-          [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
+          [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
         iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
         (* we assert that updating the local state d to 0 is a private transition *)
         iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hlookup.
@@ -2471,7 +2470,7 @@ Section awkward_example.
         eapply Forall_impl;[apply Hrevoked2|].
         intros a2 Ha0_rev; auto.
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-          [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
+          [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
         iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
         (* use sts_state to assert that the current state of i is false *)
         iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hlookup.
@@ -2545,7 +2544,7 @@ Section awkward_example.
     iDestruct (big_sepL2_app_inv _ [a1] (a5::a6::rest0) with "Hprog") as "[Hpush Hprog]"; [simpl;auto|].
     iDestruct "Hpush" as "[Hpush _]".
     iApply (pushU_r_spec); [..|iFrame "HPC Hpush Hr_stk Hr_env Ha"];
-      [|apply PermFlows_refl|auto|iContiguous_next Hcont_rest0 1|iContiguous_next Hcont_rest0 1|auto|..].
+      [|apply Hfl|auto|iContiguous_next Hcont_rest0 1|iContiguous_next Hcont_rest0 1|auto|..].
     { iCorrectPC link0 a_last. }
     { iContiguous_next Hcont1 0. }
     iNext. iIntros "(HPC & Hpush & Hr_stk & Hr_env & Hb_r)". iCombine "Hpush" "Hprog_done" as "Hprog_done".
@@ -2555,7 +2554,7 @@ Section awkward_example.
     iDestruct "Hstack_own" as "[Ha2 Hstack_own]".
     iDestruct "Hpush" as "[Hpush _]".
     iApply (pushU_r_spec);[..|iFrame "HPC Hpush Hr_stk Hr_t0 Ha2"];
-      [|apply PermFlows_refl|auto| |
+      [|apply Hfl|auto| |
        iContiguous_next Hcont_rest0 2|iContiguous_next Hcont1 1|..].
     { iCorrectPC link0 a_last. }
     { iContiguous_bounds_withinBounds a0 stack_own_last. }
@@ -2566,7 +2565,7 @@ Section awkward_example.
     iDestruct "Hstack_own" as "[Ha3 Hstack_own]".
     iDestruct "Hpush" as "[Hpush _]".
     iApply (pushU_r_spec);[..|iFrame "HPC Hr_stk Hpush Hr_adv Ha3"];
-      [|apply PermFlows_refl| auto| |
+      [|apply Hfl| auto| |
        iContiguous_next Hcont_rest0 3|iContiguous_next Hcont1 2|..].
     { iCorrectPC link0 a_last. }
     { iContiguous_bounds_withinBounds a0 stack_own_last. }
@@ -2613,7 +2612,7 @@ Section awkward_example.
       enough (r_t0 ∉ dom (gset RegName) rmap) as HH by rewrite not_elem_of_dom // in HH.
       rewrite Hrmap_dom. rewrite not_elem_of_difference; right. set_solver. }
     iApply (scallU_prologue_spec with "[- $HPC $Hr_stk $Hscall $Hstack_own $Hgen_reg]");
-      [ | |apply Hwb2| |apply Hcont_scall|apply PermFlows_refl|iNotElemOfList|
+      [ | |apply Hwb2| |apply Hcont_scall|apply Hfl|iNotElemOfList|
         iContiguous_next Hcont1 2|apply Hstack_own_bound'|apply Hstack_own_bound| |done|..].
     { assert (s_last <= a_last)%a as Hle;[by apply contiguous_between_bounds in Hcont_rest1|].
       intros mid Hmid. apply isCorrectPC_inrange with link0 a_last; auto.
@@ -2773,47 +2772,13 @@ Section awkward_example.
       - rewrite /m_uninit1. iApply (big_sepM_mono with "HH").
         simpl; intros. iIntros "[[[A B] C] D]".
         iExists _, _. iFrame. iPureIntro. intros; eapply interp_persistent. }
-    
-    (* iMod (monotone_close _ (region_addrs stack_own_last e_r) RWLX (λ Wv, interp Wv.1 Wv.2) *)
-    (*         with "[$Hsts $Hr Hstack_adv]") as "[Hsts Hr]". *)
-    (* { rewrite Hstack_eq1. iDestruct (big_sepL_app with "Hstack_region") as "[_ Hstack_val']". *)
-    (*   iApply big_sepL_sep. iSplitL. *)
-    (*   - iDestruct (region_addrs_zeroes_trans with "Hstack_adv") as "Hstack_adv". *)
-    (*     iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hy". *)
-    (*     iExists (inl 0%Z). iSplitR;auto. iFrame. simpl. iSplit. *)
-    (*     + iAlways. iIntros (W1 W2 Hrelated12) "HW1 /=". by repeat (rewrite fixpoint_interp1_eq /=). *)
-    (*     + by repeat (rewrite fixpoint_interp1_eq /=). *)
-    (*   - iDestruct (big_sepL_and with "Hstack_region") as "[Hstack_rel Hstack_pwl]". *)
-    (*     rewrite /read_write_cond. *)
-    (*      iDestruct (big_sepL_app with "Hstack_rel") as "[_ Hstack_rel']". *)
-    (*      iApply big_sepL_sep; iFrame "#". iApply big_sepL_forall. iPureIntro. *)
-    (*     rewrite Hstack_eq1 in Hrevoked. apply Forall_app in Hrevoked as [_ Hrevoked].  *)
-    (*     intros k x Hsome. *)
-    (*     assert (x ∉ (region_addrs a0 stack_own_last) ++ l') as Hnin. *)
-    (*     { apply elem_of_list_lookup_2 in Hsome. *)
-    (*       apply region_addrs_of_contiguous_between in Hcont1.  *)
-    (*       rewrite Hstack_eq1 Hcont1 app_assoc in Hdup. *)
-    (*       revert Hdup. rewrite Permutation_app_comm =>Hdup. apply NoDup_app in Hdup as [_ [Hnin _] ]. *)
-    (*       apply Hnin in Hsome. rewrite Permutation_app_comm. auto.  *)
-    (*     } *)
-    (*     rewrite std_sta_update_multiple_lookup_same_i /std /=. *)
-    (*     apply Forall_lookup_1 with (i0:=k) (x0:=x) in Hrevoked as Hrevoked;auto. *)
-    (*     rewrite HeqW' in Hrevoked. auto. *)
-    (*     rewrite lists_to_static_perms_region_dom. *)
-    (*     rewrite elements_list_to_set;auto. repeat rewrite app_length. auto.  *)
-    (* } *)
-    
+
     (* Resulting world *)
     set W''' := (override_uninitializedW m_uninit1
               (revoke
                  (std_update_multiple (std (std_update_multiple W luninitsplit Revoked), (<[i:=encode false]> W.2.1, W.2.2))
                     (elements (dom (gset Addr) m_static1)) (Static m_static1)))).
     
-    (* evar (W'' : prod (STS_std_states Addr region_type) (prod STS_states STS_rels)). *)
-    (* instantiate (W'' := *)
-    (*    (close_list (region_addrs stack_own_last e_r) *)
-    (*            (std_update_multiple (revoke (W.1, (<[i:=encode false]> W.2.1, W.2.2))) *)
-    (*               (elements (dom (gset Addr) m_static1)) (Static m_static1)))).  *)
     assert (related_sts_priv_world W'' W''') as HW'W''.
     { rewrite HeqW' /W''' /W' /= std_update_multiple_revoke_commute /=; auto.
       rewrite -std_update_multiple_revoke_commute /=; auto.
@@ -2884,7 +2849,7 @@ Section awkward_example.
     iPrologue rest1 Hrest_length "Hf2".
     apply contiguous_between_cons_inv_first in Hcont_rest1 as Heq. subst a8. 
     iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
-      [apply jmp_i|apply PermFlows_refl|iCorrectPC s_last a_last|..].
+      [apply jmp_i|apply Hfl|iCorrectPC s_last a_last|..].
     (* before applying the epilogue, we want to distinguish between a correct or incorrect resulting PC *)
     destruct (decide (isCorrectPC (updatePcPerm (inr (p, Global, b, e, a')))));
       [rewrite decide_True;auto|rewrite decide_False;auto]. 
@@ -3186,15 +3151,11 @@ Section awkward_example.
         (* to do that wee need to open the non atomic invariant of the program *)
         iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls')";[solve_ndisj..|]. 
         rewrite Heqapp Hrest_app. repeat rewrite app_assoc. repeat rewrite app_comm_cons. rewrite app_assoc.
-
-        iDestruct (mapsto_decomposition _ _ pc_p (take 85 (awkward_instrs r_adv 40)) with "Hprog")
+        
+        iDestruct (mapsto_decomposition _ _ pc_p' (take 85 (awkward_instrs f_a r_adv 40)) with "Hprog")
           as "[Hprog_done [Ha Hprog] ]".
         { simpl. repeat rewrite app_length /=.
           rewrite Hscall_length Hprepstack_length Hreqglob_length. auto. }
-        (* let's prove some practical lemmas before continuing *)
-        (* assert (last (rest0_first :: a9 :: rest0) = Some a_last) as Hlast0. *)
-        (* { rewrite Hrest_app in Hlast. repeat rewrite app_comm_cons in Hlast. *)
-        (*   by rewrite -last_app_eq in Hlast; [|simpl;lia]. } *)
         iCombine "Ha" "Hprog_done" as "Hprog_done".
         (* Ustore r_stk 0 0 *)
         iApply (wp_bind (fill [SeqCtx])).
@@ -3229,14 +3190,14 @@ Section awkward_example.
         assert (stack_own_end + 1 = Some stack_own_last)%a as Hstack_own_end_incr.
         { revert Hstack_own_bound Hstack_own_bound' Hstack_new; clear. solve_addr. }         
         iApply (rules_StoreU_derived.wp_storeU_success_0_z with "[$HPC $Hi $Hr_stk $Hstack_own_end]");
-          [apply storeU_z_z_i|apply PermFlows_refl|auto|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 1|
+          [apply storeU_z_z_i|apply Hfl|auto|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 1|
            auto|auto|apply Hstack_own_end_incr|..]. 
         iEpilogue "(HPC & Hinstr & Hr_stk & Hstack_own_end)".
         iCombine "Hinstr" "Hprog_done" as "Hprog_done".
         (* sub r_t1 0 7 *)
         iPrologue rest1 Hrest_length "Hprog".
         iApply (wp_add_sub_lt_success_z_z with "[$HPC $Hr_t1 $Hinstr]");
-          [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest1 2|apply PermFlows_refl|iCorrectPC s_last a_last|..]. 
+          [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest1 2|apply Hfl|iCorrectPC s_last a_last|..]. 
         iEpilogue "(HPC & Hinstr & Hr_t1)".
         iCombine "Hinstr" "Hprog_done" as "Hprog_done".
         (* lea r_stk r_t1 *)
@@ -3245,7 +3206,7 @@ Section awkward_example.
         { assert ((a3 + 1)%a = Some stack_own_b) as Ha0;[iContiguous_next Hcont1 2|].
           revert Ha0 Hstack_own_bound' Hstack_own_end_incr. clear. solve_addr. } 
         iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Hinstr]");
-          [apply lea_r_i|apply PermFlows_refl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 3| |auto..].
+          [apply lea_r_i|apply Hfl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 3| |auto..].
         { simpl. assert ((a3 + 1)%a = Some stack_own_b) as Ha0;[iContiguous_next Hcont1 2|].
           revert Ha0 Hstack_own_bound' Hstack_new. clear.
           revert Hpop. instantiate (1 := stack_own_b). clear. intros. solve_addr. }
@@ -3260,7 +3221,7 @@ Section awkward_example.
         { eapply contiguous_between_of_region_addrs; eauto.
           revert Hspliteq. clear. rewrite /region_size. solve_addr. }
         iApply (popU_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_adv Ha4"];
-          [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl| econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
+          [split;[|split];iCorrectPC s_last a_last| apply Hfl| econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
            iContiguous_next Hcont_rest1 4|iContiguous_next Hcont_rest1 5|iContiguous_next Hcont_rest1 6| |].
         { iContiguous_next Hcont_rest2 2. }
         iNext. iIntros "(HPC & Hpop & Hr_adv & Ha4 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
@@ -3268,14 +3229,14 @@ Section awkward_example.
         do 3 (destruct rest1; [inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a13;a14;a15] (a16::rest1) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
         iApply (popU_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_t0 Ha3"];
-          [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl| econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
+          [split;[|split];iCorrectPC s_last a_last| apply Hfl| econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
            iContiguous_next Hcont_rest1 7|iContiguous_next Hcont_rest1 8|iContiguous_next Hcont_rest1 9|iContiguous_next Hcont_rest2 1|].
         iNext. iIntros "(HPC & Hpop & Hr_t0 & Ha3 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
         (* pop r_stk r_env *)
         do 3 (destruct rest1; [inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a16;a17;a18] (a19::rest1) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
         iApply (popU_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_env Ha2"];
-          [split;[|split];iCorrectPC s_last a_last| apply PermFlows_refl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
+          [split;[|split];iCorrectPC s_last a_last| apply Hfl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|
            iContiguous_next Hcont_rest1 10|iContiguous_next Hcont_rest1 11|iContiguous_next Hcont_rest1 12|iContiguous_next Hcont_rest2 0|].
         iNext. iIntros "(HPC & Hpop & Hr_env & Hb_r & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
         (* store r_env 1 *)
@@ -3284,7 +3245,7 @@ Section awkward_example.
            std_update_multiple (revoke W3) dom(m_static1) Revoked *)
         iAssert (∀ φ, ▷ (PC ↦ᵣ inr (pc_p, pc_g, pc_b, pc_e, (* a23*) a20)
                        ∗ r_env ↦ᵣ inr (RWX, Global, d, d', d)
-                       ∗ a19 (*a22*) ↦ₐ[pc_p] store_z r_env 1
+                       ∗ a19 (*a22*) ↦ₐ[pc_p'] store_z r_env 1
                        ∗ region (std_update_multiple (revoke (W3.1,(<[i:=encode true]> W3.2.1,W3.2.2)))
                                                      (elements (dom (gset Addr) m_static1)) Revoked)
                        ∗ sts_full_world (std_update_multiple (revoke (W3.1,(<[i:=encode true]> W3.2.1,W3.2.2)))
@@ -3301,7 +3262,7 @@ Section awkward_example.
           rewrite std_update_multiple_loc_rel in Hrellookup. 
           destruct y; iDestruct "Hb" as ">Hb".
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-              [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
+              [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
                iContiguous_next Hcont_rest1 13|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod ("Hcls" with "[Hstate Hd]") as "_".
@@ -3311,7 +3272,7 @@ Section awkward_example.
             destruct W3 as [W3_std [W3_loc_pub W3_lo_priv] ]. iFrame.
             eauto. 
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-              [apply store_z_i|apply PermFlows_refl|apply PermFlows_refl|iCorrectPC s_last a_last|
+              [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
                iContiguous_next Hcont_rest1 13|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod (sts_update_loc _ _ _ true with "Hsts Hstate") as "[Hsts Hstate]".
@@ -3334,29 +3295,20 @@ Section awkward_example.
         iDestruct (big_sepL2_app_inv _ [a20] (a21::rest1) with "Hprog") as "[Hpush Hprog]";[simpl;auto|].
         iDestruct "Hpush" as "[Hpush _]".
         iApply (pushU_r_spec);[..|iFrame "HPC Hr_stk Hpush Hr_env Hb_r"];
-          [iCorrectPC s_last a_last|apply PermFlows_refl|econstructor|auto|iContiguous_next Hcont_rest1 14|iContiguous_next Hcont_rest2 0|auto|..].
+          [iCorrectPC s_last a_last|apply Hfl|econstructor|auto|iContiguous_next Hcont_rest1 14|iContiguous_next Hcont_rest2 0|auto|..].
         iNext. iIntros "(HPC & Hpush & Hr_stk & Hr_env & Hb_r)". iCombine "Hpush" "Hprog_done" as "Hprog_done".
         (* push r_stk r_self *)
         (destruct rest1;[inversion Hrest_length|]).
         iDestruct (big_sepL2_app_inv _ [a21] (a22::rest1) with "Hprog") as "[Hpush Hprog]";[simpl;auto|].
         iDestruct "Hpush" as "[Hpush _]".
         iApply (pushU_r_spec);[..|iFrame "HPC Hr_stk Hpush Hr_t0 Ha3"];
-          [iCorrectPC s_last a_last|apply PermFlows_refl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|iContiguous_next Hcont_rest1 15|..]. iContiguous_next Hcont_rest2 1.
+          [iCorrectPC s_last a_last|apply Hfl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|iContiguous_next Hcont_rest1 15|..]. iContiguous_next Hcont_rest2 1.
         iNext. iIntros "(HPC & Hpush & Hr_stk & Hr_self & Ha3)". iCombine "Hpush" "Hprog_done" as "Hprog_done". 
         (* SECOND SCALL *)
 
         (* we now want to extract the final element of the local stack, which will now be handed off to the adversary *)
         (iDestruct (big_sepL_sep with "Hstack_adv") as "[Hstack_adv Hstack_adv_revoked]").
         (iDestruct (big_sepL_sep with "Hstack_adv") as "[Hstack_adv _]").
-        
-        (* We don't need the ws_adv points to in the uninitialized case *)
-        (* iAssert (∃ ws_adv : list Word, [[stack_own_end,estk]]↦ₐ[RWLX][[ws_adv]])%I with "[Hstack_adv Hlast']" as (ws_adv'') "Hstack_adv". *)
-        (* { iDestruct (region_addrs_exists with "Hstack_adv") as (ws_adv') "Hstack_adv". *)
-        (*   iDestruct (big_sepL2_sep with "Hstack_adv") as "[_ Hstack_adv]". iDestruct (big_sepL2_sep with "Hstack_adv") as "[Hstack_adv _]". *)
-        (*   iDestruct (mapsto_decomposition _ _ _ [inr (RWLX, Local, a0, estk, stack_own_end)] with "[$Hstack_adv $Hlast']") as "Hstack_adv";[auto|..]. *)
-        (*   rewrite Hstack_localeq.  *)
-        (*   iExists (_ :: ws_adv'). iFrame.  *)
-        (* } *)
         iAssert (∃ ws_own : list Word, [[a3,stack_own_end]]↦ₐ[RWLX][[ws_own]])%I with "[Hframe Ha4]" as (ws_own'') "Hstack_own".
         { iExists ((inr (p, Global, b, e, a')) :: _). rewrite /region_mapsto.
           assert ([a3] ++ region_addrs stack_own_b stack_own_end = region_addrs a3 stack_own_end) as <-.
@@ -3409,7 +3361,7 @@ Section awkward_example.
           apply (anti_symm _); [apply all_registers_subseteq|]. rewrite elem_of_subseteq.
           intros x _. rewrite -elem_of_gmap_dom. apply Hfull'. }
         iApply (scallU_prologue_spec with "[- $HPC $Hr_stk $Hmreg' $Hscall $Hstack_own]");
-          [| |apply Hwb3| |apply Hcont_scall1|apply PermFlows_refl|
+          [| |apply Hwb3| |apply Hcont_scall1|apply Hfl|
            iNotElemOfList| iContiguous_next Hcont1 2|apply Hstack_own_bound1'|apply Hstack_own_bound1|
            | done |..].
         { assert (s_last1 <= a_last)%a as Hle;[by apply contiguous_between_bounds in Hcont_rest2|].
@@ -3585,8 +3537,6 @@ Section awkward_example.
 
         rewrite -std_update_multiple_revoke_commute;auto.
 
-        
-
         (* To make some of the future proofs easier, let's make certain assertions about addresses in adv frame *)
         assert (∀ a, a ∈ region_addrs stack_own_end estk -> a ∉ elements (dom (gset Addr) m_static2)) as Hnin2.
         { rewrite lists_to_static_region_dom.
@@ -3621,12 +3571,10 @@ Section awkward_example.
             by eapply (not_elem_of_app l' l''), HH.
         }
         
-
         match goal with |- context [ region ?W ] => set W4 := W end.
 
         (* finally we can now close the region: a_last' will be in state revoked in revoke(W3) *)
         assert (∀ x, x ∈ ([stack_own_end] ++ ltempadv3) ->
-                       (*([stack_own_end] ++ region_addrs stack_own_last estk) ->*)
                        W4.1 !! x = Some Revoked) as Hlookup_revoked.
         { intros x Hsome.
           rewrite std_sta_update_multiple_lookup_same_i;auto.
@@ -3648,31 +3596,6 @@ Section awkward_example.
             apply Hnin1. eapply elem_of_list_filter. eauto.
         }
         
-        (* Need to turn the revoked into uninitialized instead *)
-        (* iMod (monotone_close _ (region_addrs stack_own_end estk) RWLX (λ Wv, interp Wv.1 Wv.2) *)
-        (*         with "[$Hsts $Hr Hstack_adv ]") as "[Hsts Hr]". *)
-        (* { iClear "Hreg' Hfull' full Hf4 Hrel Hinv Hadv_val". *)
-        (*   rewrite !Hstksplit.  *)
-        (*   iDestruct (region_addrs_zeroes_trans with "Hstack_adv") as "Hstack_adv". *)
-        (*   rewrite /region_mapsto -Hstack_localeq. *)
-        (*   iDestruct (big_sepL_app with "Hstack_adv") as "[ [Hs_last' _] Hstack_adv]".  *)
-        (*   iDestruct (big_sepL_app with "Hstack_region") as "[Hstack_last Hstack_val']". *)
-        (*   iDestruct (big_sepL_lookup _ _ (length (a0 :: a2 :: a3 :: stack_own_b :: stack_own) - 1) stack_own_end with "Hstack_last") as "[Hs_last_val _]";[by rewrite -last_lookup|]. *)
-        (*   iApply big_sepL_sep. iSplitL. *)
-        (*   - iApply big_sepL_app. iSplitL "Hs_last'".  *)
-        (*     + iSimpl. iSplit;[|auto]. iExists (inl 0%Z). iSplitR;auto. iFrame. iSplit. *)
-        (*       * iAlways. iIntros (W1 W2 Hrelated12) "HW1". by repeat (rewrite fixpoint_interp1_eq). *)
-        (*       * by repeat (rewrite fixpoint_interp1_eq). *)
-        (*     + iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Hsome) "Hy". *)
-        (*       iExists (inl 0%Z). iSplitR;auto. iFrame. iSplit. *)
-        (*       * iAlways. iIntros (W1 W2 Hrelated12) "HW1". by repeat (rewrite fixpoint_interp1_eq). *)
-        (*       * by repeat (rewrite fixpoint_interp1_eq). *)
-        (*   - iDestruct (big_sepL_and with "Hstack_val'") as "[Hstack_rel _]".  *)
-        (*     iApply big_sepL_sep; iFrame "#". iSplit;[auto|]. iApply big_sepL_forall. iPureIntro. *)
-        (*     hnf. intros x a'' Hin. *)
-        (*     apply Hlookup_revoked. apply elem_of_list_lookup. eauto.  *)
-        (* } *)
-
         iDestruct (region_addrs_exists with "Hstack_adv") as (wsadv3) "Hstack_adv".
         iDestruct (big_sepL2_length with "Hstack_adv") as %Hlengthstackadv.
         (* We remember the fact that the words in m_uninit2 are valid *)
@@ -3806,8 +3729,6 @@ Section awkward_example.
         }
 
         (* we can now finally monotonically update the region to match the new sts collection *)
-        (* iDestruct (region_monotone _ W5 with "[] [] Hex") as "Hr";[rewrite /std_sta /=;auto|auto|..]. *)
-        (* iAssert (sts_full_world sts_std W5) with "Hsts" as "Hsts". *)
         iDestruct (sts_full_rel_loc with "Hsts Hrel") as %Hreli.
         (* We choose the r *)
         set r2 : gmap RegName Word :=
@@ -3825,7 +3746,7 @@ Section awkward_example.
         iDestruct ("Hadv_cont" $! r2 W5 Hrelated5') as "Hadv_contW5".     
         (* we do the actual jump *)
         iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
-          [apply jmp_i|apply PermFlows_refl|iCorrectPC a22 a_last|..].
+          [apply jmp_i|apply Hfl|iCorrectPC a22 a_last|..].
         iEpilogue "(HPC & Hinstr & Hr_adv)". iSimpl in "HPC".
 
         (* We have all the resources of r *)
@@ -3856,13 +3777,6 @@ Section awkward_example.
           iApply (big_sepL2_app with "Hscall [-]"). iFrame.
         }
 
-        
-        (* iAssert (interp_expression r2 W5 (inr (RX, Global, b, e, a))) *)
-        (*   as "Hvalid".  *)
-        (* { iApply fundamental. iLeft; auto. iExists RX. iSplit;[iPureIntro;apply PermFlows_refl|].  *)
-        (*   iApply (adv_monotone with "Hadv_val").  *)
-        (*   eapply related_sts_priv_trans_world;[|apply Hrelated5]. *)
-        (*     by eapply related_sts_priv_pub_trans_world;[|apply Hrelated3]. } *)
         (* the adversary stack is valid in the W5 *)
         iAssert ([∗ list] a ∈ region_addrs stack_own_end estk,
                  read_write_cond a RWLX (fixpoint interp1)
@@ -4136,21 +4050,18 @@ Section awkward_example.
             iAssert ([∗ list] a_i;w_i ∈ ((((reqperm_prog ++ preptack_prog) ++ link0 :: a1 :: a5 :: a6 :: scall_prologue) ++
                                  s_last :: a8 :: astore :: a9 :: a10 :: a11 :: a12 :: a13 :: a14 :: a15 :: a16 :: a17 :: a18 :: a19
                                  :: a20 :: a21 :: scall_prologue_first1 :: scall_prologue1) ++ (a22 :: a23 :: rest2));
-                     (take 146 (awkward_instrs r_adv 40)) ++ (drop 146 (awkward_instrs r_adv 40)), a_i ↦ₐ[pc_p] w_i)%I
+                     (take 146 (awkward_instrs f_a r_adv 40)) ++ (drop 146 (awkward_instrs f_a r_adv 40)), a_i ↦ₐ[pc_p'] w_i)%I
               with "[Hprog]" as "Hprog".
             { rewrite take_drop. iApply "Hprog". }
             iDestruct (mapsto_decomposition with "Hprog") as "[Hprog_done Hprog]".
             { simpl. inversion Hscall_length as [Heq]. inversion Hscall_length1 as [Heq']. rewrite app_length Heq /=. rewrite Heq'. repeat rewrite app_length. rewrite Hreqglob_length Hprepstack_length. simpl. repeat f_equiv. rewrite Heq. simpl. done. }
-            assert (drop 146 (awkward_instrs r_adv 40) = [jmp r_adv;
+            assert (drop 146 (awkward_instrs f_a r_adv 40) = [jmp r_adv;
                                                           sub_z_z r_t1 0 6;
                                                           lea_r r_stk r_t1] ++
                                                           popU_instrs r_stk r_t0 ++
                                                           popU_instrs r_stk r_env ++
-                                                          [load_r r_adv r_env;
-                                                           move_r r_t1 PC;
-                                                           lea_z r_t1 61;
-                                                           sub_r_z r_adv r_adv 1;
-                                                           jnz r_t1 r_adv] ++
+                                                          [load_r r_adv r_env] ++
+                                                          assert_r_z_instrs f_a r_adv 1 ++
                                                           [getb r_t1 r_stk;
                                                            add_r_z r_t2 r_t1 9;
                                                            subseg_r_r r_stk r_t1 r_t2] ++ 
@@ -4162,7 +4073,7 @@ Section awkward_example.
             (* sub r_t1 0 6 *)
             iPrologue rest2 Hrest_length1 "Hprog".
             iApply (wp_add_sub_lt_success_z_z with "[$HPC Hr_t1 $Hinstr]");
-              [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest2 1|apply PermFlows_refl|iCorrectPC a22 a_last|
+              [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest2 1|apply Hfl|iCorrectPC a22 a_last|
                iSimpl;iFrame;eauto|].
             iEpilogue "(HPC & Hinstr & Hr_t1)".
             iCombine "Hinstr" "Hprog_done" as "Hprog_done".
@@ -4173,7 +4084,7 @@ Section awkward_example.
               assert ((a2 + 1)%a = Some a3) as Hincr';[iContiguous_next Hcont1 1|].
               revert Hstack_own_bound1' Hincr Hincr' Hstack_new_1. clear. solve_addr. }
             iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Hinstr]");
-              [apply lea_r_i|apply PermFlows_refl|iCorrectPC a22 a_last|
+              [apply lea_r_i|apply Hfl|iCorrectPC a22 a_last|
                iContiguous_next Hcont_rest2 2|apply Hpop1|auto..].
             { simpl; auto. revert Hpop1; clear; solve_addr. }
             iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_stk)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
@@ -4183,14 +4094,14 @@ Section awkward_example.
             clear Hpop1. assert ((a2 + (-1))%a = Some a0) as Hpop1.
             { rewrite -(addr_add_assoc a0 _ 1);[apply addr_add_0|iContiguous_next Hcont1 0]. }
             iApply (popU_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_t0 Ha3"];
-              [split;[|split];iCorrectPC a22 a_last|apply PermFlows_refl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|iContiguous_next Hcont_rest2 3|iContiguous_next Hcont_rest2 4|iContiguous_next Hcont_rest2 5| |].
+              [split;[|split];iCorrectPC a22 a_last|apply Hfl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|iContiguous_next Hcont_rest2 3|iContiguous_next Hcont_rest2 4|iContiguous_next Hcont_rest2 5| |].
             { iContiguous_next Hcont_rest2' 1. }
             iNext. iIntros "(HPC & Hpop & Hr_t0 & Ha3 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
             (* pop r_stk r_env *)
             do 3 (destruct rest2; [inversion Hrest_length1|]).
             iDestruct (big_sepL2_app_inv _ [a28;a29;a30] (a31::rest2) with "Hprog") as "[Hpop Hprog]";[simpl;auto|].
             iApply (popU_spec); [..|iFrame "HPC Hr_stk Hr_t1 Hpop Hr_env Ha2"];
-              [split;[|split];iCorrectPC a22 a_last|apply PermFlows_refl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|iContiguous_next Hcont_rest2 6|iContiguous_next Hcont_rest2 7|iContiguous_next Hcont_rest2 8|iContiguous_next Hcont_rest2' 0|].
+              [split;[|split];iCorrectPC a22 a_last|apply Hfl|econstructor|iContiguous_bounds_withinBounds a0 stack_own_last|auto|iContiguous_next Hcont_rest2 6|iContiguous_next Hcont_rest2 7|iContiguous_next Hcont_rest2 8|iContiguous_next Hcont_rest2' 0|].
             iNext. iIntros "(HPC & Hpop & Hr_env & Ha2 & Hr_stk & Hr_t1)". iCombine "Hpop" "Hprog_done" as "Hprog_done".
             (* we have now arrived at the final load of the environment. we must here assert that the loaded
                value is indeed 1. We are able to show this since W6 is a public future world of W5, in which 
@@ -4201,7 +4112,7 @@ Section awkward_example.
             iPrologue rest2 Hrest_length1 "Hprog".
             iAssert (∀ φ, ▷ (PC ↦ᵣ inr (pc_p, pc_g, pc_b, pc_e, a32 (* a37 *))
                                 ∗ r_env ↦ᵣ inr (RWX, Global, d, d', d)
-                                ∗ a31 (* a36 *) ↦ₐ[pc_p] load_r r_adv r_env
+                                ∗ a31 (* a36 *) ↦ₐ[pc_p'] load_r r_adv r_env
                                 ∗ sts_full_world W6
                                 ∗ r_adv ↦ᵣ inl 1%Z
                                 -∗ WP Seq (Instr Executable) {{ v, φ v }})
@@ -4214,15 +4125,16 @@ Section awkward_example.
               { apply related_pub_lookup_local with W5 W6 i;auto. repeat rewrite std_update_multiple_loc_sta.
                 apply lookup_insert. }
               iDestruct "Hb" as ">Hb".
-              iAssert (⌜(d =? a31)%a = false⌝)%I as %Hne.
+              iAssert (⌜(d =? a31)%a = false⌝)%I as %Hne'.
               { destruct (d =? a31)%a eqn:Heq;auto. apply Z.eqb_eq,z_of_eq in Heq. rewrite Heq.
                 iDestruct (cap_duplicate_false with "[$Hinstr $Hb]") as "Hfalse";[|done].
                 eapply isCorrectPC_contiguous_range with (a := a) in Hvpc;[|eauto|];last (by apply elem_of_cons;left).
-                destruct pc_p;auto.
+                destruct pc_p';auto.
+                destruct pc_p;inversion Hfl. 
                 inversion Hvpc as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
               iApply (wp_load_success with "[$HPC $Hinstr $Hr_adv $Hr_env Hb]");
-                [apply load_r_i|apply PermFlows_refl|iCorrectPC a22 a_last
-                 |auto|iContiguous_next Hcont_rest2 9|rewrite Hne;iFrame;iPureIntro;apply PermFlows_refl|rewrite Hne].
+                [apply load_r_i|apply Hfl|iCorrectPC a22 a_last
+                 |auto|iContiguous_next Hcont_rest2 9|rewrite Hne';iFrame;iPureIntro;apply PermFlows_refl|rewrite Hne'].
               iNext. iIntros "(HPC & Hr_adv & Ha36 & Hr_env & Hd)".
               iMod ("Hcls" with "[Hstate Hd]") as "_".
               { iNext. iExists true. iFrame. }
@@ -4232,52 +4144,50 @@ Section awkward_example.
             iApply "Hload_step".
             iNext. iIntros "(HPC & Hr_env & Ha36 & Hsts & Hr_adv)".
             (* We can now assert that r_adv indeed points to 1 *)
-            (* move r_t1 PC *)
-            (* does not work here *)
-            iPrologue rest2 Hrest_length1 "Hprog". 
-            iApply (wp_move_success_reg_fromPC with "[$HPC $Hr_t1 $Hinstr]");
-              [apply move_r_i|apply PermFlows_refl|iCorrectPC a22 a_last|
-               iContiguous_next Hcont_rest2 10|auto|..].
-            iEpilogue "(HPC & Hinstr & Hr_t1)". iCombine "Hinstr" "Hprog_done" as "Hprog_done". 
-            (* lea r_t1 5 *)
-            iPrologue rest2 Hrest_length1 "Hprog". 
-            do 2 (destruct rest2;[inversion Hrest_length1|]).
-            assert ((a32 + 61)%a = Some a_last) as Hincr.
-            { revert Hcont_rest2 Hrest_length1. clear. intros Hcont_rest1 Hrest_length1.
-              assert ((a22 + 10)%a = Some a32);[eapply contiguous_between_incr_addr with (i:=10) (ai:=a32) in Hcont_rest1;auto|].
-              apply contiguous_between_length in Hcont_rest1. solve_addr. }
-            iApply (wp_lea_success_z with "[$HPC $Hinstr $Hr_t1]");
-              [apply lea_z_i|apply PermFlows_refl|iCorrectPC a22 a_last|
-               iContiguous_next Hcont_rest2 11|apply Hincr|auto|..].
-            { apply isCorrectPC_range_npE in Hvpc; auto. revert Hcont;clear; intros H. apply contiguous_between_length in H. solve_addr. }
-            { apply contiguous_between_length in Hcont_rest1.
-              apply isCorrectPC_range_perm in Hvpc1; [|revert Hcont_rest1; clear; solve_addr].
-              destruct Hvpc1 as [-> | [-> | ->] ]; auto. }
-            iEpilogue "(HPC & Hinstr & Hr_t1)". iCombine "Hinstr" "Hprog_done" as "Hprog_done". 
-            (* sub r_adv r_adv 1 *)
-            iDestruct "Hprog" as "[Hinstr Hprog]". iApply (wp_bind (fill [SeqCtx])).
-            iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hinstr $Hr_adv]");
-              [apply sub_r_z_i|right;left;eauto|iContiguous_next Hcont_rest2 12|apply PermFlows_refl|iCorrectPC a22 a_last|..]. 
-            iEpilogue "(HPC & Hinstr & Hr_adv)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
-            (* jnz r_self *)
-            iDestruct "Hprog" as "[Hinstr Hprog]". iApply (wp_bind (fill [SeqCtx])).
-            iApply (wp_jnz_success_next with "[$HPC $Hinstr $Hr_t1 $Hr_adv]");
-              [apply jnz_i|apply PermFlows_refl|iCorrectPC a22 a_last|iContiguous_next Hcont_rest2 13|..].
-            iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_adv)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".  
+            assert (contiguous_between (a32 :: rest2) a32 a_last) as Hcont_rest2_weak.
+            { apply contiguous_between_incr_addr with (i:=10) (ai:=a32) in Hcont_rest2 as Hincr;auto. 
+              eapply (contiguous_between_app _ [a22;a23;a24;a25;a26;a27;a28;a29;a30;a31] (a32 :: rest2) _ _ a32)
+                in Hcont_rest2 as [_ Hcont_rest2];eauto. }
+            iDestruct (contiguous_between_program_split with "Hprog") as (assert_prog rest3' link3')
+                                                                   "(Hfetch & Hprog & #Hcont)";[apply Hcont_rest2_weak|].
+            iDestruct "Hcont" as %(Hcont_assert & Hcont_rest3' & Heqapp3' & Hlink3').
+            iGet_genpur_reg_map r3 r_t3 "Hmreg'" "Hfull3" "[Hr_t3 Hmreg']".
+            iMod (na_inv_open with "Htable Hna") as "[ [>Hpc_b >Ha_entry] [Hna Hcls] ]";[revert Hne;clear;solve_ndisj..|].
+            iApply (assert_r_z_success with "[-]");[..|iFrame "HPC Hpc_b Ha_entry Hfetch Hr_adv"];
+              [|apply Hfl|apply Hcont_assert|auto|auto|auto|..].
+            { intros mid Hmid. apply isCorrectPC_inrange with a22 a_last; auto.
+              apply contiguous_between_bounds in Hcont_rest2_weak.
+              apply contiguous_between_incr_addr with (i:=10) (ai:=a32) in Hcont_rest2 as Hincr;auto. 
+              apply contiguous_between_bounds in Hcont_rest3'.
+              revert Hincr Hcont_rest3' Hcont_rest2_weak Hmid; clear. intros. solve_addr. }
+            iSplitL "Hr_t1";[iExists _;iFrame|].
+            iSplitL "Hr_t2";[iExists _;iFrame|].
+            iSplitL "Hr_t3";[iExists _;iFrame|].
+            iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_adv & HPC & Hassert & Hpc_b & Ha_entry)".
+            iMod ("Hcls" with "[$Hna $Hpc_b $Ha_entry]") as "Hna". 
+            iDestruct (big_sepL2_length with "Hprog") as %Hrest_length2.
+            iDestruct (big_sepL2_length with "Hassert") as %Hassert_length.
+            assert (isCorrectPC_range pc_p pc_g pc_b pc_e link3' a_last) as Hvpc3.
+            { intros mid Hmid. apply isCorrectPC_inrange with a22 a_last; auto.
+              apply contiguous_between_incr_addr with (i:=10) (ai:=a32) in Hcont_rest2 as Hincr;auto.
+              revert Hincr Hassert_length Hlink3' Hmid; clear. intros. solve_addr. }
+            
             (* Since the assertion succeeded, we are now ready to jump back to the adv who called us *)
             (* Before we can return to the adversary, we must clear the local stack frame and registers. This will 
                allow us to release the local frame, and show we are in a public future world by reinstating 
                the full stack invariant *)
             (* we must prepare the stack capability so that we only clear the local stack frame *)
             (* getb r_t1 r_stk *)
-            iPrologue rest2 Hrest_length1 "Hprog". 
+            destruct rest3';[inversion Hrest_length2|].
+            apply contiguous_between_cons_inv_first in Hcont_rest3' as Heq. subst link3'. 
+            iPrologue rest3' Hrest_length2 "Hprog".
             iApply (wp_Get_success with "[$HPC $Hinstr $Hr_stk $Hr_t1]");
-              [apply getb_i|auto|apply PermFlows_refl|iCorrectPC a22 a_last|iContiguous_next Hcont_rest2 14|auto..].
+              [apply getb_i|auto|apply Hfl|iCorrectPC a33 a_last|iContiguous_next Hcont_rest3' 0|auto..].
             iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t1)"; iSimpl in "Hr_t1"; iCombine "Hinstr" "Hprog_done" as "Hprog_done".
             (* add_r_z r_t2 r_t1 8 *)
-            iPrologue rest2 Hrest_length1 "Hprog".
-            iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hinstr $Hr_t2 $Hr_t1]");
-              [apply add_r_z_i|by left|iContiguous_next Hcont_rest2 15|apply PermFlows_refl|iCorrectPC a22 a_last|..].
+            iPrologue rest3' Hrest_length2 "Hprog".
+            iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hinstr $Hr_t1 $Hr_t2]");
+              [apply add_r_z_i|by left|iContiguous_next Hcont_rest3' 1|apply Hfl|iCorrectPC a33 a_last|..].
             iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_t2)"; iSimpl in "Hr_t2"; iCombine "Hinstr" "Hprog_done" as "Hprog_done". 
             (* subseg r_stk r_t1 r_t2 *)
             assert (z_to_addr a0 = Some a0) as Ha2.
@@ -4303,11 +4213,11 @@ Section awkward_example.
               destruct (Z.leb_le (z1 + 9) MemNum); try lia. 
               destruct (Z.leb_le 0 (z1 + 9)); try lia.
               f_equal. eapply z_of_eq. reflexivity. }
-            iPrologue rest2 Hrest_length1 "Hprog".
+            iPrologue rest3' Hrest_length2 "Hprog".
             iApply (wp_subseg_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 $Hr_t2]");
-              [apply subseg_r_r_i|apply PermFlows_refl|iCorrectPC a22 a_last|
+              [apply subseg_r_r_i|apply Hfl|iCorrectPC a33 a_last|
                split;[apply Ha2|apply Ha2_stack_own_end']|
-               auto|auto| |iContiguous_next Hcont_rest2 16|..].
+               auto|auto| |iContiguous_next Hcont_rest3' 2|..].
             { rewrite !andb_true_iff !Z.leb_le. apply withinBounds_le_addr in Hwb2.
               assert ((a0 + 3)%a = Some stack_own_b) as Ha2_stack_own_b.
               { apply (contiguous_between_incr_addr _ 3 _ stack_own_b) in Hcont1; auto. }
@@ -4325,8 +4235,8 @@ Section awkward_example.
               iFrame. 
             }
             (* We are now ready to clear the stack *)
-            assert (contiguous_between (a39 :: rest2) a39 a_last) as Hcont_weak.
-            { repeat (inversion Hcont_rest2 as [|????? Hcont_rest2'']; subst; auto; clear Hcont_rest2; rename Hcont_rest2'' into Hcont_rest2). }
+            assert (contiguous_between (a36 :: rest3') a36 a_last) as Hcont_weak.
+            { repeat (inversion Hcont_rest3' as [|????? Hcont_rest2'']; subst; auto; clear Hcont_rest3'; rename Hcont_rest2'' into Hcont_rest3'). }
             iDestruct (contiguous_between_program_split with "Hprog") as (mclear_addrs rclear_addrs rclear_first)
                                                                            "(Hmclear & Hrclear & #Hcont)"; [eauto|].
             iDestruct "Hcont" as %(Hcont_mclear & Hcont_rest3 & Hstack_eq2 & Hlink3).
@@ -4338,17 +4248,17 @@ Section awkward_example.
             assert (ai + 9 = Some aj)%a.
             { rewrite (_: 9%Z = Z.of_nat (9 : nat)).
               eapply contiguous_between_incr_addr_middle; [eapply Hcont_mclear|..]. all: eauto. }
-            assert (a39 < rclear_first)%a as Hcontlt2.
+            assert (a36 < rclear_first)%a as Hcontlt2.
             { revert Hmclear_length Hlink3. clear. solve_addr. }
-            assert (a22 <= a39)%a as Hcontge2.
-            { apply region_addrs_of_contiguous_between in Hcont_scall1. subst.
-              revert Hscall_length1 Hcont_rest2 Hcontlt1 Hcontlt2. clear =>Hscall_length Hf2 Hcontlt Hcontlt2.
-              apply contiguous_between_middle_bounds with (i := 17) (ai := a39) in Hf2;[solve_addr|auto].
+            assert (a22 <= a36)%a as Hcontge2.
+            { apply region_addrs_of_contiguous_between in Hcont_scall1. subst. 
+              revert Hscall_length1 Hcont_rest2 Hcontlt1 Hcontlt2 Hassert_length. rewrite Heqapp3'.
+              clear =>Hscall_length Hf2 Hcontlt Hcontlt2 Hassert_length.
+              apply contiguous_between_middle_bounds with (i := 26) (ai := a36) in Hf2;[solve_addr|auto].
+              simpl in *. assert (16 = 13 + 3) as ->;[lia|]. rewrite lookup_app_r;[|lia].
+                by rewrite Hassert_length /=.
             }
 
-            (* does not work here *)
-            
-            iGet_genpur_reg_map r3 r_t3 "Hmreg'" "Hfull3" "[Hr_t3 Hmreg']".
             iGet_genpur_reg_map r3 r_t4 "Hmreg'" "Hfull3" "[Hr_t4 Hmreg']".
             iGet_genpur_reg_map r3 r_t5 "Hmreg'" "Hfull3" "[Hr_t5 Hmreg']".
             iGet_genpur_reg_map r3 r_t6 "Hmreg'" "Hfull3" "[Hr_t6 Hmreg']".
@@ -4366,8 +4276,7 @@ Section awkward_example.
               intros mid Hmid. apply isCorrectPC_inrange with link0 a_last; auto.
               revert Hle Hcontlt1 Hcontge1 Hcontlt Hcontge Hmid Hcontlt2 Hcontge2. clear; intros. split; try solve_addr.
             }
-            { apply PermFlows_refl. }
-            { apply withinBounds_le_addr in Hwb3 as [? _]. auto. }
+            { destruct H0 as [? _]. auto. }
             { clear. solve_addr. }
             rewrite /mclear.
             destruct (strings.length mclear_addrs =? strings.length (mclearU_instrs r_stk))%nat eqn:Hcontr;
@@ -4408,7 +4317,7 @@ Section awkward_example.
                                                                            "(Hrclear & Hjmp & #Hcont)"; [eauto|].
             iDestruct "Hcont" as %(Hcont_rclear & Hcont_rest4 & Hstack_eq3 & Hlink4).
             clear Hrclear_length. iDestruct (big_sepL2_length with "Hrclear") as %Hrclear_length.
-            assert (a40 < jmp_addr)%a as Hcontlt3.
+            assert (a37 < jmp_addr)%a as Hcontlt3.
             { revert Hrclear_length Hlink4. clear. rewrite /all_registers /=. solve_addr. }
             iAssert (⌜dom (gset RegName) r3 = all_registers_s⌝)%I as %Hdom_r3.
             { iDestruct "Hfull3" as %Hfull3. iPureIntro. apply (anti_symm _); [apply all_registers_subseteq|].
@@ -4421,12 +4330,11 @@ Section awkward_example.
               intros mid Hmid. apply isCorrectPC_inrange with link0 a_last; auto.
               revert Hle Hcontlt1 Hcontge1 Hcontlt Hcontge Hmid Hcontlt2 Hcontge2 Hcontlt3. clear; intros. split; solve_addr.
             }
-            { apply PermFlows_refl. }
+            { apply Hfl. }
             { rewrite list_to_set_difference -/all_registers_s.
               repeat rewrite ?dom_delete_L ?dom_insert_L. rewrite Hdom_r3.
               rewrite !all_registers_union_l !difference_difference_L. f_equal. clear. set_solver. }
             iNext. iIntros "(HPC & Hmreg' & Hrclear)".
-
             
     
             (* we must now invoke the callback validity of the adversary. This means we must show we 
@@ -4585,7 +4493,7 @@ Section awkward_example.
                   iApply (big_sepL2_app with "[Hrest]").
                   * iApply (big_sepL2_mono with "Hrest").
                     iIntros (k a'' pw Ha' Hpw) "[Ha' Hr]".
-                    iDestruct "Hr" as (p0 φ0 Hpers Hne) "(Hφ & #Hrel & mono)".
+                    iDestruct "Hr" as (p0 φ0 Hpers Hne') "(Hφ & #Hrel & mono)".
                     iDestruct "Ha'" as (p1 φ1) "[#Hrel' Ha'']". 
                     rewrite /ψ. simpl.
                     iDestruct (rel_agree _ p0 p1 with "[$Hrel $Hrel']") as "[% _]". subst p0. 
@@ -4603,7 +4511,7 @@ Section awkward_example.
                       iFrame "∗ #". auto. }
                   * iApply (big_sepL2_mono with "Hrest'").
                     iIntros (k a'' pw Ha' Hpw) "[Ha' Hr]".
-                    iDestruct "Hr" as (p0 φ0 Hpers Hne) "(Hφ & #Hrel & mono)".
+                    iDestruct "Hr" as (p0 φ0 Hpers Hne') "(Hφ & #Hrel & mono)".
                     iDestruct "Ha'" as (p1 φ1) "[#Hrel' Ha'']".
                     iDestruct (rel_agree _ p0 p1 with "[$Hrel $Hrel']") as "[% _]". subst p1. 
                     rewrite /ψ. simpl. iExists p0,φ0.
@@ -4676,7 +4584,7 @@ Section awkward_example.
             apply contiguous_between_cons_inv_first in Hcont_rest4 as Heq; subst jmp_addr.
             iDestruct "Hjmp" as "[Hinstr _]". iApply (wp_bind (fill [SeqCtx])).
             iApply (wp_jmp_success with "[$HPC $Hinstr $Hr_t0]");
-              [apply jmp_i|apply PermFlows_refl|..].
+              [apply jmp_i|apply Hfl|..].
             { (* apply contiguous_between_bounds in Hcont_rest3 as Hle. *)
               inversion Hcont_rest4 as [| a'' b' c' l3 Hnext Hcont_rest5 Heq Hnil Heq'].
               inversion Hcont_rest5; subst. 
@@ -4703,15 +4611,17 @@ Section awkward_example.
             iEpilogue "(HPC & Hinstr & Hrt0)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
             
             (* We close the program Iris invariant *)
-            iMod ("Hcls'" with "[$Hna Hprog_done Hmclear Hrclear Ha36]") as "Hna". 
-            { iNext. iDestruct "Hprog_done" as "(Ha46 & Ha43 & Ha42 & Ha41 & Ha40 & Ha39 & Ha38 & Ha37 & 
-                                                 Hpop2 & Hpop1 & Ha29 & Ha28 & Ha27 & Hprog_done)".
+            iMod ("Hcls'" with "[$Hna Hprog_done Hmclear Hrclear Ha36 Hassert]") as "Hna". 
+            { iNext. iDestruct "Hprog_done" as "(Ha38 & Ha35 & Ha34 & Ha33 &
+                                                 Hpop2 & Hpop1 & Ha24 & Ha23 & Ha22 & Hprog_done)".
               iApply (big_sepL2_app with "Hprog_done [-]").
-              iFrame "Ha27 Ha28 Ha29". 
+              iFrame "Ha22 Ha23 Ha24". 
               iApply (big_sepL2_app with "Hpop1 [-]").
               iApply (big_sepL2_app with "Hpop2 [-]").
-              iFrame "Ha37 Ha38 Ha39 Ha40 Ha36". rewrite Hstack_eq2 Hstack_eq3.
-              iFrame "Ha41 Ha42 Ha43". 
+              iFrame "Ha36".
+              rewrite Heqapp3' Hstack_eq2 Hstack_eq3.
+              iApply (big_sepL2_app with "Hassert [-]").
+              iFrame "Ha33 Ha34 Ha35". 
               iApply (big_sepL2_app with "Hmclear [-]").
               iApply (big_sepL2_app with "Hrclear [-]").
               iFrame. done.
@@ -4729,7 +4639,7 @@ Section awkward_example.
                 exists (inl 0%Z). apply create_gmap_default_lookup.
                 apply elem_of_list_difference. split;[apply all_registers_correct|].
                 repeat (apply not_elem_of_cons; split;[auto|try apply not_elem_of_nil]).
-              - iIntros (r0 Hne). rewrite /RegLocate.
+              - iIntros (r0 Hne'). rewrite /RegLocate.
                 rewrite /r4 lookup_insert_ne;auto.
                 destruct (decide (r_t0 = r0));[subst;rewrite lookup_insert|].
                 + iApply (interp_monotone $! Hrelated7).
@@ -4826,7 +4736,7 @@ Section awkward_example.
         eapply related_sts_priv_trans_world;[apply HWW''|auto].
         apply related_sts_priv_refl_world. 
       - (* in this case we can infer that r1 points to 0, since it is in the list diff *)
-        iIntros (Hne). 
+        iIntros (Hne'). 
         assert (r !r! r1 = inl 0%Z) as Hr1.
         { rewrite /RegLocate.
           destruct (r !! r1) eqn:Hsome; rewrite Hsome; last done. rewrite /r in Hsome. 
