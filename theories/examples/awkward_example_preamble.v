@@ -155,7 +155,7 @@ Section awkward_example_preamble.
     awkward_preamble f_m offset_to_awkward ai pc_p'
 
     (* Code of the awkward example itself *)
-    ∗ awkward_example ai_awk pc_p' f_a r_adv 40
+    ∗ awkward_example ai_awk pc_p' f_a r_adv
 
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
