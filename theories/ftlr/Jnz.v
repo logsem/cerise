@@ -3,12 +3,13 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base.
-From cap_machine.rules Require Import rules_Jnz.
+From cap_machine.rules Require Import rules_base rules_Jnz.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -50,11 +51,8 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
+      end. simplify_map_eq. rewrite insert_insert.
       iApply wp_pure_step_later; auto. iNext.
-
-      rewrite lookup_insert in HPC. inv HPC.
-      rewrite !insert_insert.
       iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
       { destruct ρ;auto;[..|specialize (Hnotstatic g)]; try contradiction. }
       iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto. }
@@ -77,22 +75,22 @@ Section fundamental.
             iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
             - destruct p0; simpl in Hpft; auto; try discriminate.
               destruct (reg_eq_dec r1 PC).
-              + subst r1. rewrite lookup_insert in H0; inv H0; auto.
-              + rewrite lookup_insert_ne in H0; auto.
+              + subst r1. simplify_map_eq; auto.
+              + simplify_map_eq.
                 iDestruct ("Hreg" $! r1 n) as "Hr1".
-                rewrite /RegLocate H0. rewrite (fixpoint_interp1_eq _ (inr _)).
+                rewrite /RegLocate H1. rewrite (fixpoint_interp1_eq _ (inr _)).
                 simpl; destruct g1; auto.
             - destruct (reg_eq_dec r1 PC).
-              + subst r1. rewrite lookup_insert in H0; inv H0; auto.
-              + rewrite lookup_insert_ne in H0; auto.
+              + subst r1. simplify_map_eq. auto.
+              + simplify_map_eq.
                 iDestruct ("Hreg" $! r1 n) as "Hr1".
-                rewrite /RegLocate H0. rewrite (fixpoint_interp1_eq _ (inr _)).
+                rewrite /RegLocate H1. rewrite (fixpoint_interp1_eq _ (inr _)).
                 destruct p0; simpl in *; try discriminate; eauto.
                 destruct g1; auto; iDestruct "Hr1" as (p0) "[HA HB]"; eauto. }
-          { assert (r1 <> PC) as HPCnr1 by (intro; subst r1; rewrite lookup_insert in H0; inv H0; destruct Hp as [? | [? | [? ?] ] ]; discriminate).
-            rewrite lookup_insert_ne in H0; auto.
-            iDestruct ("Hreg" $! r1 HPCnr1) as "Hr1".
-            rewrite /RegLocate H0. rewrite (fixpoint_interp1_eq _ (inr _)) /=.
+          { assert (r1 <> PC) as HPCnr1.
+            { intro; subst r1; simplify_map_eq. naive_solver. }
+            simplify_map_eq. iDestruct ("Hreg" $! r1 HPCnr1) as "Hr1".
+            rewrite /RegLocate H1. rewrite (fixpoint_interp1_eq _ (inr _)) /=.
             iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
             { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
             rewrite /enter_cond.
@@ -107,7 +105,7 @@ Section fundamental.
         iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC").
-        - intro. inv H2. destruct H9 as [-> | [-> | ->] ]; simpl in Hpft; discriminate.
+        - intros HH. inv HH. naive_solver.
         - iNext. iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
           iApply wp_value.

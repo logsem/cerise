@@ -63,7 +63,7 @@ Proof.
   rewrite /region_mapsto.
   rewrite (region_addrs_decomposition b b e).
   2: revert Hb' Hb'e; clear; intros; split; solve_addr.
-  rewrite interp_weakening.region_addrs_empty /=.
+  rewrite region_addrs_empty /=.
   2: clear; solve_addr.
   rewrite (_: ^(b + 1) = b')%a.
   2: revert Hb' Hb'e; clear; intros; solve_addr.
@@ -238,7 +238,8 @@ Qed.
 Section awkward_example.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -712,96 +713,6 @@ Section awkward_example.
    (* a core difference with the previous version of the lemma: we are not closing the world at the end. 
       Rather, we are updating all the Static regions back into Temporary ones *)
 
-   (* TODO: move these to region.v file *)
-   Lemma region_addrs_weak n a b e :
-     a ∈ region_addrs_aux b (S n) ->
-     (b + n)%a = Some e -> 
-     a ≠ e ->
-     a ∈ region_addrs_aux b n.
-   Proof.
-     revert b. induction n;intros b Hin Hb Hne.
-     - simpl in Hin. apply elem_of_list_singleton in Hin. subst.
-       rewrite addr_add_0 in Hb. inversion Hb. contradiction.
-     - simpl. destruct (decide (a = b)).
-       + subst. apply elem_of_cons. by left.
-       + apply elem_of_cons. right.
-         simpl in Hin. apply elem_of_cons in Hin.
-         destruct Hin as [Hcontr | Hin];[contradiction|]. 
-         apply IHn;auto. solve_addr.
-   Qed. 
-   
-   Lemma region_addrs_elem_of_lt (a b e : Addr) n :
-    a ∈ region_addrs_aux b n -> (b + n)%a = Some e -> (a < e)%a.
-   Proof.
-     rewrite /region_addrs. intros Hin.
-     revert e. induction n; intros e.
-     - inversion Hin.
-     - intros He. 
-       assert (exists e', (b + n)%a = Some e') as [e' He'].
-       { rewrite Nat2Z.inj_succ in He. 
-         assert (Z.succ n = n + 1)%Z as Heq;[lia|]. rewrite Heq in He.
-         destruct (b + n)%a eqn:Hsome.
-         { rewrite (addr_add_assoc _ a0) in He;auto. eauto. }
-         exfalso. solve_addr.
-       } 
-       destruct n. 
-       + rewrite addr_add_0 in He'. inversion He'. subst.
-         simpl in Hin. apply elem_of_list_singleton in Hin. subst.
-         solve_addr.
-       + destruct (decide (a = e'));[subst;solve_addr|].
-         rewrite /lt_addr. trans e';[|solve_addr]. 
-         apply IHn;auto. apply region_addrs_weak with (e:=e');auto. 
-   Qed.
-
-   Lemma region_addrs_elem_of_ge (a b : Addr) n :
-    a ∈ region_addrs_aux b n -> (b <= a)%a.
-   Proof.
-     rewrite /region_addrs.
-     revert b. induction n;intros b Hin. 
-     - inversion Hin.
-     - simpl in Hin.
-       apply elem_of_cons in Hin as [Heq | Hin]. 
-       + subst. solve_addr. 
-       + rewrite /le_addr. trans ^(b + 1)%a;[solve_addr|]. 
-         apply IHn;auto.
-   Qed.
-   
-   Lemma region_addrs_not_elem_of_le a (n : nat) :
-     forall b a', (b + n)%a = Some a -> (a <= a')%a -> a' ∉ (region_addrs_aux b n).
-   Proof.
-     induction n.
-     - intros b a' Ha' Hle. apply not_elem_of_nil.
-     - intros b a' Ha' Hle. apply not_elem_of_cons.
-       split.
-       + intros Hcontr;subst. solve_addr. 
-       + apply IHn;solve_addr. 
-   Qed.
-   
-   Lemma region_addrs_xor_elem_of (a b c e : Addr) :
-     (b <= c < e)%Z -> 
-     a ∈ region_addrs b e ->
-     (a ∈ region_addrs b c ∧ a ∉ region_addrs c e) ∨ (a ∉ region_addrs b c ∧ a ∈ region_addrs c e).
-   Proof.
-     intros Hbounds Ha.
-     rewrite (region_addrs_split _ c) in Ha;auto.
-     apply elem_of_app in Ha as [Hbc | Hce]. 
-     - left. split;auto. apply region_addrs_not_elem_of.
-       eapply region_addrs_elem_of_lt;eauto.
-       assert (contiguous_between (region_addrs b c) b c).
-       { apply contiguous_between_of_region_addrs; auto. solve_addr. }
-       apply elem_of_list_lookup in Hbc as [k Hk].
-       rewrite -region_addrs_length. 
-       apply contiguous_between_length;auto. 
-     - right. split;auto.
-       assert (contiguous_between (region_addrs b c) b c).
-       { apply contiguous_between_of_region_addrs; auto. solve_addr. }
-       apply region_addrs_not_elem_of_le with (a:=c).
-       + rewrite -region_addrs_length. 
-         apply contiguous_between_length;auto. 
-       + apply region_addrs_elem_of_ge with (region_size c e);auto. 
-     - solve_addr. 
-   Qed.        
-
    (* Shorthand definition for an adress being currently temporary/revoked *)
    Definition region_type_revoked W (a : Addr) :=
      (std W) !! a = Some Revoked.
@@ -1154,7 +1065,7 @@ Section awkward_example.
              { intros Hcontr%elem_of_elements. apply Hm_uninit2 in Hcontr as [ [_ Hcontr] | Hcontr]; try done.
                destruct (decide (c <= c'))%Z.
                - assert (max c c' = c') as Heq;[revert l0;clear;solve_addr|].
-                 rewrite interp_weakening.region_addrs_empty in Hcontr;auto. inversion Hcontr. 
+                 rewrite region_addrs_empty in Hcontr;auto. inversion Hcontr.
                - rewrite (region_addrs_split _ c') in Hbc;[|revert Hbounds2 Hbounds1 n0;clear;solve_addr].
                  apply not_elem_of_app in Hbc as [_ Hc'c]. done.  
              }
@@ -1373,7 +1284,7 @@ Section awkward_example.
                  { rewrite Htemp in Hx0; inversion Hx0. left. }
                  assert (min c c' = c') as Heq.
                  { destruct (decide (c <= c'))%Z.
-                   - rewrite interp_weakening.region_addrs_empty in Hcc';[inversion Hcc'|auto]. 
+                   - rewrite region_addrs_empty in Hcc';[inversion Hcc'|auto].
                    - revert n;clear;solve_addr. }
                  assert (a ∉ dom (gset Addr) m_uninit1) as Hin.
                  { intros Hcontr%Hm_uninit1. destruct Hcontr as [Htemp Hcontr].
@@ -1484,7 +1395,7 @@ Section awkward_example.
                apply Hm_uninit2 in e1 as [ [Htemp _] | Hc'c].
                { rewrite Htemp in Hx0. inversion Hx0. left. }
                assert (c' <= c)%Z as Hle.
-               { destruct (decide (c' <= c)%Z);auto. rewrite interp_weakening.region_addrs_empty in Hc'c;auto.
+               { destruct (decide (c' <= c)%Z);auto. rewrite region_addrs_empty in Hc'c;auto.
                  inversion Hc'c. revert n0. clear. solve_addr. }
                assert (min c c' = c') as Heq;[revert Hle;clear;solve_addr|]. 
                assert (a ∈ elements (dom (gset Addr) m1)) as Hin1.
@@ -1580,7 +1491,7 @@ Section awkward_example.
              { intros Hcontr%elem_of_elements. apply Hm_uninit2 in Hcontr as [ [_ Hcontr] | Hcontr]; try done.
                destruct (decide (c <= c'))%Z.
                - assert (max c c' = c') as Heq;[revert l0;clear;solve_addr|].
-                 rewrite interp_weakening.region_addrs_empty in Hcontr;auto. inversion Hcontr. 
+                 rewrite region_addrs_empty in Hcontr;auto. inversion Hcontr.
                - rewrite (region_addrs_split _ c') in Hbc;[|revert Hbounds2 Hbounds1 n0;clear;solve_addr].
                  apply not_elem_of_app in Hbc as [_ Hc'c]. done.  
              }
@@ -1678,7 +1589,7 @@ Section awkward_example.
        apply elem_of_app in Huninit2 as [Hc'c | Hce].
        + assert (is_Some (W.1 !! a)) as [x Ha].
          { revert Hstack; rewrite Forall_forall =>Hstack.
-           destruct (decide (c <= c'))%Z;[rewrite interp_weakening.region_addrs_empty in Hc'c;auto;inversion Hc'c|]. 
+           destruct (decide (c <= c'))%Z;[rewrite region_addrs_empty in Hc'c;auto;inversion Hc'c|].
            assert (a ∈ region_addrs b e) as Hbe.
            { rewrite (region_addrs_split _ c');[|revert Hbounds n;clear;solve_addr].
              rewrite (region_addrs_split c' c);[|revert Hbounds n;clear;solve_addr].
@@ -1921,57 +1832,6 @@ Section awkward_example.
   Proof.
     rewrite /region_type_uninitialized /revoke /revoke_std_sta /=.
     intros [w H]. rewrite lookup_fmap H /=. eauto.
-  Qed.
-
-  (* TODO: move to region_addrs *)
-  Lemma region_addrs_split2 b e a:
-    region_addrs b e = region_addrs b (min a e) ++ region_addrs (max b a) e.
-  Proof.
-    destruct (addr_eq_dec (min a e) (max b a)).
-    - rewrite e0 -region_addrs_split; auto.
-      split; solve_addr.
-    - destruct (Addr_le_dec (min a e) b).
-      + rewrite (interp_weakening.region_addrs_empty b (min a e)); auto.
-        destruct (Addr_le_dec a b).
-        * replace (max b a) with b by solve_addr. auto.
-        * replace (max b a) with a in n by solve_addr.
-          assert (e <= b)%a by solve_addr.
-          rewrite (interp_weakening.region_addrs_empty b e); auto.
-          rewrite interp_weakening.region_addrs_empty; auto. solve_addr.
-      + replace (max b a) with a by solve_addr.
-        destruct (Addr_le_dec e a).
-        * rewrite (interp_weakening.region_addrs_empty a e); auto.
-          replace (min a e) with e by solve_addr; auto.
-          rewrite app_nil_r. auto.
-        * replace (min a e) with a by solve_addr.
-          rewrite -region_addrs_split; auto. solve_addr.
-  Qed.
-
-  (* TODO: move to region_addrs *)
-  Lemma region_addrs_split3 b e n:
-    region_size b e > n ->
-    exists a, region_addrs b e = region_addrs b a ++ region_addrs a e /\ region_size b a = n.
-  Proof.
-    intros Hsize. rewrite /region_size in Hsize.
-    assert (exists a, (b + n)%a = Some a) as [a Ha].
-    { rewrite /incr_addr. destruct (Z_le_dec (b + n)%Z MemNum); [|solve_addr].
-      destruct (Z_le_dec 0 (b + n)%Z); [eauto|solve_addr]. }
-    exists a. split; [|rewrite /region_size; solve_addr].
-    eapply region_addrs_split. split; solve_addr.
-  Qed.
-
-  (* TODO: move to region_addrs *)
-  Lemma region_addrs_submseteq b b' e e':
-    (b' <= b)%a ->
-    (e <= e')%a ->
-    region_addrs b e ⊆+ region_addrs b' e'.
-  Proof.
-    intros. destruct (Addr_le_dec b e).
-    - rewrite (region_addrs_split b' b e'); [|solve_addr].
-      rewrite (region_addrs_split b e e'); [|solve_addr].
-      eapply submseteq_middle.
-    - rewrite interp_weakening.region_addrs_empty; [|solve_addr].
-      eapply submseteq_nil_l.
   Qed.
 
   (* Need to update stdpp :'( *)
@@ -2283,7 +2143,7 @@ Section awkward_example.
       intros. eapply elem_of_list_filter.
       eapply elem_of_list_In; eauto. }
     assert (Hdupuninit: NoDup luninitsplit).
-    { eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup. }
+    { eapply NoDup_filter, region_addrs_NoDup. }
     (* iAssert (⌜Forall (λ a, region_type_temporary W a) (region_addrs bstk (min astk estk))⌝)%I as %Htempforall. *)
     (* { iDestruct (big_sepL_and with "Hstack_region") as "[Hstack_rel Hstack_pwl]". *)
     (*   iDestruct (big_sepL_forall with "Hstack_pwl") as %Hforall. *)
@@ -2310,7 +2170,7 @@ Section awkward_example.
        as it currently in the revoked state. 
      *)
     pose proof (extract_temps_split W ltemp) as [l' [Hdup Hiff] ];
-      [apply NoDup_filter,NoDup_ListNoDup,region_addrs_NoDup|apply Htemp'|].
+      [apply NoDup_filter,region_addrs_NoDup|apply Htemp'|].
     iMod (monotone_revoke_keep_some W _ ltemp with "[$Hsts $Hr]") as "[Hsts [Hr [Hrest Hstack] ] ]";[apply Hdup|..].
     { iSplit.
       - iApply big_sepL_forall. iPureIntro. intros n. simpl. intros x Hsome. apply Hiff. apply elem_of_app; left.
@@ -2367,7 +2227,7 @@ Section awkward_example.
           * iDestruct (big_sepL_elem_of with "Hstack_region") as "[_ %]"; eauto.
           * iDestruct (big_sepL_elem_of with "Hstack_end") as "[_ %]"; eauto. }
         iApply (big_sepL_merge with "[$Hstack] [$Huninitstack]").
-        { eapply NoDup_ListNoDup,region_addrs_NoDup. }
+        { eapply region_addrs_NoDup. }
         { intros. destruct (HHH _ H) as [HH|HH].
           - left. eapply elem_of_list_filter; auto.
           - right. eapply elem_of_list_filter; auto. }
@@ -2418,7 +2278,7 @@ Section awkward_example.
       iInv ι as (x) "[>Hstate Hb]" "Hcls".
       destruct x; iDestruct "Hb" as ">Hb".
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-          [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
+          [apply decode_encode_instrW_inv|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
         iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
         (* we assert that updating the local state d to 0 is a private transition *)
         iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hlookup.
@@ -2462,7 +2322,7 @@ Section awkward_example.
         eapply Forall_impl;[apply Hrevoked2|].
         intros a2 Ha0_rev; auto.
       - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-          [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
+          [apply decode_encode_instrW_inv|apply Hfl|apply PermFlows_refl|iCorrectPC link0 a_last|iContiguous_next Hcont_rest0 0|auto|auto|..].
         iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
         (* use sts_state to assert that the current state of i is false *)
         iDestruct (sts_full_state_loc with "Hsts Hstate") as %Hlookup.
@@ -2690,7 +2550,7 @@ Section awkward_example.
           eapply B; eauto.
         + assert (std W !! x = Some Temporary) by (eapply Hiff, elem_of_app; auto).
           destruct H1; congruence.
-      - eapply NoDup_ListNoDup, region_addrs_NoDup. }
+      - eapply region_addrs_NoDup. }
 
     iAssert (([∗ list] a'0 ∈ region_addrs a0 estk, read_write_cond a'0 RWLX (fixpoint interp1)) ∗ ⌜Forall (λ a : Addr, region_type_temporary W a \/ region_type_uninitialized W a) (region_addrs a0 estk)⌝)%I as "[#Hstackallrel %]".
     { rewrite (region_addrs_split2 a0 estk astk). rewrite big_sepL_app. iSplit.
@@ -2760,7 +2620,7 @@ Section awkward_example.
     set m_uninit1 : gmap Addr Word := list_to_map (zip ltemprest wsrest).    
     iMod (region_revoked_to_uninitialized _ m_uninit1 with "[$Hsts $Hr Hstackrest]") as "[Hsts Hr]".
     { iDestruct (big_sepL2_to_big_sepM with "Hstackrest") as "HH".
-      - eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup.
+      - eapply NoDup_filter, region_addrs_NoDup.
       - rewrite /m_uninit1. iApply (big_sepM_mono with "HH").
         simpl; intros. iIntros "[[[A B] C] D]".
         iExists _, _. iFrame. iPureIntro. intros; eapply interp_persistent. }
@@ -2841,7 +2701,7 @@ Section awkward_example.
     iPrologue rest1 Hrest_length "Hf2".
     apply contiguous_between_cons_inv_first in Hcont_rest1 as Heq. subst a8. 
     iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
-      [apply jmp_i|apply Hfl|iCorrectPC s_last a_last|..].
+      [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC s_last a_last|..].
     (* before applying the epilogue, we want to distinguish between a correct or incorrect resulting PC *)
     destruct (decide (isCorrectPC (updatePcPerm (inr (p, Global, b, e, a')))));
       [rewrite decide_True;auto|rewrite decide_False;auto]. 
@@ -2932,7 +2792,7 @@ Section awkward_example.
         assert (Hmin1: min stack_own_last estk = stack_own_last).
         { revert Hsize Hspliteq. clear. rewrite /region_size; solve_addr. }
         iSimpl. rewrite !Hmin1. replace (max stack_own_last stack_own_last) with stack_own_last by (clear; solve_addr).
-        rewrite (interp_weakening.region_addrs_empty stack_own_last stack_own_last); [|clear; solve_addr].
+        rewrite (region_addrs_empty stack_own_last stack_own_last); [|clear; solve_addr].
         rewrite big_sepL_nil.
         rewrite Hstksplit. iDestruct (big_sepL_app with "Hstackallrel") as "[Hstackallrel1 Hstackallrel2]". iSplitR; auto.
         iApply (big_sepL_impl with "Hstackallrel2").
@@ -3056,7 +2916,7 @@ Section awkward_example.
         { iPureIntro. eapply Forall_forall. intros. eapply elem_of_list_filter in H0.
           destruct H0; exact H0. }
         pose proof (extract_temps_split W3 ltempadv3) as [l'' [Hdup' Hiff'] ].
-        { eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup. }
+        { eapply NoDup_filter, region_addrs_NoDup. }
         { apply Hstack_adv_tmp. }
         
         (* we revoke W3, and keep a list of leftovers l'' *)
@@ -3069,7 +2929,7 @@ Section awkward_example.
         { iDestruct (big_sepL_submseteq with "Hstack_adv_tmp") as "Hstack_adv_tmp'".
           - instantiate (1 := ltempadv3).
             eapply NoDup_submseteq.
-            + eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup.
+            + eapply NoDup_filter, region_addrs_NoDup.
             + eapply elem_of_list_filter.
           - iApply (big_sepL_impl with "Hstack_adv_tmp'").
             iAlways. iIntros (k x Hxin) "[_ $]". iPureIntro.
@@ -3182,14 +3042,14 @@ Section awkward_example.
         assert (stack_own_end + 1 = Some stack_own_last)%a as Hstack_own_end_incr.
         { revert Hstack_own_bound Hstack_own_bound' Hstack_new; clear. solve_addr. }         
         iApply (rules_StoreU_derived.wp_storeU_success_0_z with "[$HPC $Hi $Hr_stk $Hstack_own_end]");
-          [apply storeU_z_z_i|apply Hfl|auto|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 1|
+          [apply decode_encode_instrW_inv|apply Hfl|auto|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 1|
            auto|auto|apply Hstack_own_end_incr|..]. 
         iEpilogue "(HPC & Hinstr & Hr_stk & Hstack_own_end)".
         iCombine "Hinstr" "Hprog_done" as "Hprog_done".
         (* sub r_t1 0 7 *)
         iPrologue rest1 Hrest_length "Hprog".
         iApply (wp_add_sub_lt_success_z_z with "[$HPC $Hr_t1 $Hinstr]");
-          [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest1 2|apply Hfl|iCorrectPC s_last a_last|..]. 
+          [apply decode_encode_instrW_inv|right;left;eauto|iContiguous_next Hcont_rest1 2|apply Hfl|iCorrectPC s_last a_last|..].
         iEpilogue "(HPC & Hinstr & Hr_t1)".
         iCombine "Hinstr" "Hprog_done" as "Hprog_done".
         (* lea r_stk r_t1 *)
@@ -3198,7 +3058,7 @@ Section awkward_example.
         { assert ((a3 + 1)%a = Some stack_own_b) as Ha0;[iContiguous_next Hcont1 2|].
           revert Ha0 Hstack_own_bound' Hstack_own_end_incr. clear. solve_addr. } 
         iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Hinstr]");
-          [apply lea_r_i|apply Hfl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 3| |auto..].
+          [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest1 3| |auto..].
         { simpl. assert ((a3 + 1)%a = Some stack_own_b) as Ha0;[iContiguous_next Hcont1 2|].
           revert Ha0 Hstack_own_bound' Hstack_new. clear.
           revert Hpop. instantiate (1 := stack_own_b). clear. intros. solve_addr. }
@@ -3254,7 +3114,7 @@ Section awkward_example.
           rewrite std_update_multiple_loc_rel in Hrellookup. 
           destruct y; iDestruct "Hb" as ">Hb".
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-              [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
+              [apply decode_encode_instrW_inv|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
                iContiguous_next Hcont_rest1 13|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod ("Hcls" with "[Hstate Hd]") as "_".
@@ -3264,7 +3124,7 @@ Section awkward_example.
             destruct W3 as [W3_std [W3_loc_pub W3_lo_priv] ]. iFrame.
             eauto. 
           - iApply (wp_store_success_z with "[$HPC $Hinstr $Hr_env $Hb]");
-              [apply store_z_i|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
+              [apply decode_encode_instrW_inv|apply Hfl|apply PermFlows_refl|iCorrectPC s_last a_last|
                iContiguous_next Hcont_rest1 13|auto|].
             iNext. iIntros "(HPC & Hinstr & Hr_env & Hd)".
             iMod (sts_update_loc _ _ _ true with "Hsts Hstate") as "[Hsts Hstate]".
@@ -3459,7 +3319,7 @@ Section awkward_example.
         (* we will need that later *)
         iAssert (⌜NoDup (region_addrs a0 estk ++ l' ++ l'')⌝)%I as %Hstack_l'_l''_NoDup.
         { rewrite NoDup_app. repeat iSplit.
-          - iPureIntro. eapply NoDup_ListNoDup, region_addrs_NoDup.
+          - iPureIntro. eapply region_addrs_NoDup.
           - rewrite (region_addrs_split a0 stack_own_end estk); auto.
             iIntros (x Hin1 Hin2). eapply elem_of_app in Hin1.
             destruct Hin1 as [Hin1|Hin1].
@@ -3738,7 +3598,7 @@ Section awkward_example.
         iDestruct ("Hadv_cont" $! r2 W5 Hrelated5') as "Hadv_contW5".     
         (* we do the actual jump *)
         iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
-          [apply jmp_i|apply Hfl|iCorrectPC a22 a_last|..].
+          [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC a22 a_last|..].
         iEpilogue "(HPC & Hinstr & Hr_adv)". iSimpl in "HPC".
 
         (* We have all the resources of r *)
@@ -3847,7 +3707,7 @@ Section awkward_example.
             iIntros (_). iSimpl. 
             replace (min stack_own_end estk) with stack_own_end by (revert H0; clear; solve_addr).
             replace (max stack_own_end stack_own_end) with stack_own_end by (clear; solve_addr).
-            rewrite (interp_weakening.region_addrs_empty stack_own_end stack_own_end); [|clear; solve_addr].
+            rewrite (region_addrs_empty stack_own_end stack_own_end); [|clear; solve_addr].
             rewrite big_sepL_nil. iSplitR; auto.
             iApply (big_sepL_mono with "Hstack_adv_val").
             simpl. iIntros (k y Hky) "[H %]". iExists RWLX. iFrame. iSplit;[auto|]. 
@@ -4065,7 +3925,7 @@ Section awkward_example.
             (* sub r_t1 0 6 *)
             iPrologue rest2 Hrest_length1 "Hprog".
             iApply (wp_add_sub_lt_success_z_z with "[$HPC Hr_t1 $Hinstr]");
-              [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest2 1|apply Hfl|iCorrectPC a22 a_last|
+              [apply decode_encode_instrW_inv|right;left;eauto|iContiguous_next Hcont_rest2 1|apply Hfl|iCorrectPC a22 a_last|
                iSimpl;iFrame;eauto|].
             iEpilogue "(HPC & Hinstr & Hr_t1)".
             iCombine "Hinstr" "Hprog_done" as "Hprog_done".
@@ -4076,7 +3936,7 @@ Section awkward_example.
               assert ((a2 + 1)%a = Some a3) as Hincr';[iContiguous_next Hcont1 1|].
               revert Hstack_own_bound1' Hincr Hincr' Hstack_new_1. clear. solve_addr. }
             iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Hinstr]");
-              [apply lea_r_i|apply Hfl|iCorrectPC a22 a_last|
+              [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC a22 a_last|
                iContiguous_next Hcont_rest2 2|apply Hpop1|auto..].
             { simpl; auto. revert Hpop1; clear; solve_addr. }
             iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_stk)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
@@ -4125,7 +3985,7 @@ Section awkward_example.
                 destruct pc_p;inversion Hfl. 
                 inversion Hvpc as [?????? [Hcontr | [Hcontr | Hcontr] ] ];inversion Hcontr. }
               iApply (wp_load_success with "[$HPC $Hinstr $Hr_adv $Hr_env Hb]");
-                [apply load_r_i|apply Hfl|iCorrectPC a22 a_last
+                [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC a22 a_last
                  |auto|iContiguous_next Hcont_rest2 9|rewrite Hne';iFrame;iPureIntro;apply PermFlows_refl|rewrite Hne'].
               iNext. iIntros "(HPC & Hr_adv & Ha36 & Hr_env & Hd)".
               iMod ("Hcls" with "[Hstate Hd]") as "_".
@@ -4174,12 +4034,12 @@ Section awkward_example.
             apply contiguous_between_cons_inv_first in Hcont_rest3' as Heq. subst link3'. 
             iPrologue rest3' Hrest_length2 "Hprog".
             iApply (wp_Get_success with "[$HPC $Hinstr $Hr_stk $Hr_t1]");
-              [apply getb_i|auto|apply Hfl|iCorrectPC a33 a_last|iContiguous_next Hcont_rest3' 0|auto..].
+              [apply decode_encode_instrW_inv|auto|apply Hfl|iCorrectPC a33 a_last|iContiguous_next Hcont_rest3' 0|auto..].
             iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t1)"; iSimpl in "Hr_t1"; iCombine "Hinstr" "Hprog_done" as "Hprog_done".
             (* add_r_z r_t2 r_t1 8 *)
             iPrologue rest3' Hrest_length2 "Hprog".
             iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hinstr $Hr_t1 $Hr_t2]");
-              [apply add_r_z_i|by left|iContiguous_next Hcont_rest3' 1|apply Hfl|iCorrectPC a33 a_last|..].
+              [apply decode_encode_instrW_inv|by left|iContiguous_next Hcont_rest3' 1|apply Hfl|iCorrectPC a33 a_last|..].
             iEpilogue "(HPC & Hinstr & Hr_t1 & Hr_t2)"; iSimpl in "Hr_t2"; iCombine "Hinstr" "Hprog_done" as "Hprog_done". 
             (* subseg r_stk r_t1 r_t2 *)
             assert (z_to_addr a0 = Some a0) as Ha2.
@@ -4207,7 +4067,7 @@ Section awkward_example.
               f_equal. eapply z_of_eq. reflexivity. }
             iPrologue rest3' Hrest_length2 "Hprog".
             iApply (wp_subseg_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 $Hr_t2]");
-              [apply subseg_r_r_i|apply Hfl|iCorrectPC a33 a_last|
+              [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC a33 a_last|
                split;[apply Ha2|apply Ha2_stack_own_end']|
                auto|auto| |iContiguous_next Hcont_rest3' 2|..].
             { rewrite !andb_true_iff !Z.leb_le. apply withinBounds_le_addr in Hwb2.
@@ -4576,7 +4436,7 @@ Section awkward_example.
             apply contiguous_between_cons_inv_first in Hcont_rest4 as Heq; subst jmp_addr.
             iDestruct "Hjmp" as "[Hinstr _]". iApply (wp_bind (fill [SeqCtx])).
             iApply (wp_jmp_success with "[$HPC $Hinstr $Hr_t0]");
-              [apply jmp_i|apply Hfl|..].
+              [apply decode_encode_instrW_inv|apply Hfl|..].
             { (* apply contiguous_between_bounds in Hcont_rest3 as Hle. *)
               inversion Hcont_rest4 as [| a'' b' c' l3 Hnext Hcont_rest5 Heq Hnil Heq'].
               inversion Hcont_rest5; subst. 

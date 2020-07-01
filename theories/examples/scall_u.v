@@ -7,7 +7,8 @@ From cap_machine.rules Require Import rules_StoreU_derived rules_LoadU_derived r
 Section scall.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   (* Macro for stack calling when the stack capability is uninitialized. Note that the prologue and epilogue does not include storing and loading private state on the stack. *)
 
@@ -146,7 +147,7 @@ Section scall.
 
   Lemma invert_incr_addr (a1 a2: Addr) (z:Z):
         (a1 + z)%a = Some a2 → (a2 + (- z))%a = Some a1.
-Proof. solve_addr. Qed.
+  Proof. solve_addr. Qed.
 
   Lemma scallU_prologue_spec
         (* adress arithmetic *) a_r_adv b_r_adv a_cont
@@ -191,7 +192,7 @@ Proof. solve_addr. Qed.
             WP Seq (Instr Executable) {{ φ }})
    ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
- iIntros (Hvpc1 Hwb1 Hwb2 Hnonzero Ha Hfl Hne Hrmap Hadva Hadvb Hcont Heoff)
+    iIntros (Hvpc1 Hwb1 Hwb2 Hnonzero Ha Hfl Hne Hrmap Hadva Hadvb Hcont Heoff)
             "(>Hprog & >HPC & >Hr_stk & >Hregs & >Hgen_reg & Hφ)".
     assert (withinBounds ((RWLX, Local), b_r, e_r, a_r_adv) = true) as Hwb3.
     { apply andb_true_iff.
@@ -279,7 +280,7 @@ Proof. solve_addr. Qed.
     iDestruct "Hprog" as "[Hinstr Hprog]".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_move_success_reg_fromPC with "[$Hinstr $Hrt1 $HPC]");
-      [apply move_r_i|apply Hfl| |iContiguous_next Ha 5|auto|].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Ha 5|auto|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hi".
     (* lea r_t1 epilogue_off *)
@@ -289,7 +290,7 @@ Proof. solve_addr. Qed.
     { rewrite -Hcont (addr_add_assoc _ a);[auto|].
       eapply (contiguous_between_incr_addr _ 5); eauto. }
     iApply (wp_lea_success_z with "[$Hinstr $Hr_t1 $HPC]");
-      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 6|apply Hepilogue|auto|..].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Ha 6|apply Hepilogue|auto|..].
     { iCorrectPC a_first a_cont. }
     { eapply isCorrectPC_range_npE; eauto. iContiguous_bounds a_first a_cont. }
     { apply contiguous_between_length in Ha.
@@ -324,13 +325,13 @@ Proof. solve_addr. Qed.
     (* move r_t0 r_stk *)
     iPrologue a_rest Hlength "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hinstr $Hrt0 $Hr_stk]");
-      [apply move_r_i|apply Hfl| |iContiguous_next Ha 9|auto|].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Ha 9|auto|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t0 & Hr_stk)" "Hinstr" "Hi".
     (* promoteU r_t0 *)
     iPrologue a_rest Hlength "Hprog".
     iApply (wp_promoteU_success with "[$HPC $Hinstr $Hr_t0]");
-      [apply promoteU_i |apply Hfl| |auto |iContiguous_next Ha 10|].
+      [apply decode_encode_instrW_inv|apply Hfl| |auto |iContiguous_next Ha 10|].
     { iCorrectPC a_first a_cont. }
     iEpilogue "(HPC & Hinstr & Hr_t0)" "Hinstr" "Hi".
     assert ((min b_r_adv e_r) = b_r_adv) as ->.
@@ -346,7 +347,7 @@ Proof. solve_addr. Qed.
       intro HH; assert (a = a_r_adv); [ revert HH Hadva Hadvb; clear; solve_addr |];
       subst a end.
     iApply (wp_lea_success_z with "[$HPC $Hinstr $Hr_t0]");
-      [apply lea_z_i|apply Hfl| |iContiguous_next Ha 11| |auto..].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Ha 11| |auto..].
     { iCorrectPC a_first a_cont. }
     { eapply invert_incr_addr in Hadvb. done.  }
     { by cbn. }
@@ -354,14 +355,15 @@ Proof. solve_addr. Qed.
     (* restrict r_t0 (Local,E) *)
     iPrologue a_rest Hlength "Hprog".
     iApply (wp_restrict_success_z with "[$HPC $Hinstr $Hr_t0]");
-      [apply restrict_r_z|apply Hfl| |iContiguous_next Ha 12|rewrite epp_local_e;auto|auto|auto|].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Ha 12| |auto|auto|].
     { iCorrectPC a_first a_cont. }
+    { rewrite decode_encode_permPair_inv. auto. }
     iEpilogue "(HPC & Hinstr & Hr_t0)" "Hinstr" "Hi".
     (* RESTRICT STACK CAP *)
     (* geta r_t1 r_stk *)
     iPrologue a_rest Hlength "Hprog".
     iApply (wp_Get_success with "[$HPC $Hinstr Hr_t1 Hr_stk]");
-      [apply geta_i|eauto|apply Hfl| |iContiguous_next Ha 13|auto| |iSimpl|]; eauto.
+      [apply decode_encode_instrW_inv|eauto|apply Hfl| |iContiguous_next Ha 13|auto| |iSimpl|]; eauto.
     { iCorrectPC a_first a_cont. } { iFrame. }
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t1)" "Hinstr" "Hi".
     (* gete r_t2 r_stk *)
@@ -370,7 +372,7 @@ Proof. solve_addr. Qed.
       by rewrite !lookup_delete_ne //.
     iPrologue a_rest Hlength "Hprog".
     iApply (wp_Get_success with "[$HPC $Hinstr Hr_t2 Hr_stk]");
-      [apply gete_i| eauto | apply Hfl| |iContiguous_next Ha 14|auto| |iSimpl|]; eauto.
+      [apply decode_encode_instrW_inv| eauto | apply Hfl| |iContiguous_next Ha 14|auto| |iSimpl|]; eauto.
     { iCorrectPC a_first a_cont. } { iFrame. }
     iEpilogue "(HPC & Hinstr & Hr_stk & Hr_t2)" "Hinstr" "Hi".
     (* subseg r_stk r_t1 r_t2 *)
@@ -402,7 +404,7 @@ Proof. solve_addr. Qed.
     iDestruct "Hmclear" as "[Hinstr _]".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_subseg_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 $Hr_t2]");
-      [apply subseg_r_r_i|apply Hfl| |eauto|auto|auto|..].
+      [apply decode_encode_instrW_inv|apply Hfl| |eauto|auto|auto|..].
     { iCorrectPC a_first a_cont. }
     { rewrite !andb_true_iff !Z.leb_le. repeat split; try lia.
       eapply withinBounds_le_addr; eauto. }
@@ -432,7 +434,7 @@ Proof. solve_addr. Qed.
               !all_registers_union_l.
       f_equal. revert Hne. clear. set_solver. }
     iNext. iIntros "(HPC & Hregs & Hrclear)".
-    iApply "Hφ". rewrite epp_local_e. iFrame "HPC Hr_stk Hr_t0".
+    iApply "Hφ". rewrite decode_encode_permPair_inv. iFrame "HPC Hr_stk Hr_t0".
     iSplitL "Hregs".
     { iDestruct (big_sepM_dom with "Hregs") as "Hregs". iApply big_sepM_dom.
       rewrite big_opS_proper'. iApply "Hregs". reflexivity.
@@ -493,7 +495,7 @@ Proof. solve_addr. Qed.
     iPrologue l Hframe_length "Hframe".
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a.
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hinstr $Hr_t1]");
-      [rewrite -i_1; apply decode_encode_inv|apply Hfl| |iContiguous_next Hcont 0|auto|].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Hcont 0|auto|].
     { iCorrectPC stack_own_b stack_own_e. }
     iAssert (emp)%I as "Hframe_past";[done|].
     iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hframe_past".
@@ -502,7 +504,7 @@ Proof. solve_addr. Qed.
     assert ((stack_own_b + 6)%a = Some s_last) as Hincr.
     { revert Hstack_bounds Hframe_length Hstack2; clear; solve_addr. }
     iApply (wp_lea_success_z with "[$HPC $Hinstr $Hr_t1]");
-      [rewrite -i_2_U; apply decode_encode_inv|apply Hfl| |iContiguous_next Hcont 1|apply Hincr|auto|..].
+      [apply decode_encode_instrW_inv|apply Hfl| |iContiguous_next Hcont 1|apply Hincr|auto|..].
     { iCorrectPC stack_own_b stack_own_e. }
     { eapply isCorrectPC_range_npE; eauto. iContiguous_bounds stack_own_b stack_own_e. }
     { apply contiguous_between_length in Hcont.
@@ -527,7 +529,7 @@ Proof. solve_addr. Qed.
         eapply (contiguous_between_incr_addr_middle _ _ _ 2 4 _ _ Hcont); auto. }
       apply Z.eqb_neq. revert Hincr'; clear; solve_addr. }
     iApply (wp_load_success with "[$HPC $Hinstr $Hr_stk $Hr_t1 Hlast]").
-    rewrite -i_3; apply decode_encode_inv. apply Hfl.
+    apply decode_encode_instrW_inv. apply Hfl.
     iCorrectPC stack_own_b stack_own_e.
     { split.
       - unshelve epose proof (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc _)
@@ -541,7 +543,7 @@ Proof. solve_addr. Qed.
     (* sub r_t1 0 1 *)
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_add_sub_lt_success_z_z with "[$HPC Hr_t1 $Hinstr1]");
-      [rewrite -i_4a; apply decode_encode_inv| | | apply Hfl | | iFrame;eauto|..]; eauto.
+      [apply decode_encode_instrW_inv| | | apply Hfl | | iFrame;eauto|..]; eauto.
     assert ((a1 + 1)%a = Some a2) as ->;[iContiguous_next Hcont 3|]. eauto.
     { iCorrectPC stack_own_b stack_own_e. }
     iEpilogue "(HPC & Hinstr & Hr_t1)" "Hinstr" "Hframe_past".
@@ -549,7 +551,7 @@ Proof. solve_addr. Qed.
     iApply (wp_bind (fill [SeqCtx])).
       rewrite Hne.
     iApply ( wp_loadU_success_reg_to_PC with "[$HPC $Hr_t1 $Hr_stk $Hinstr2 $Hinstr3]");
-      [rewrite -i_4b_U; apply decode_encode_inv|apply Hfl| apply Hfl'| | apply HUstk | | apply Hnext | apply Hstack1 | ..];auto.
+      [apply decode_encode_instrW_inv|apply Hfl| apply Hfl'| | apply HUstk | | apply Hnext | apply Hstack1 | ..];auto.
     { iCorrectPC stack_own_b stack_own_e. }
     { rewrite /withinBounds. rewrite /withinBounds in Hwb. rewrite andb_true_iff. apply andb_true_iff in Hwb as [Hle Hlt]. split.
       * assert ((stack_own_b + 5)%a = Some stack_new) as Hso. solve_addr. apply next_le_i in Hso; last done.

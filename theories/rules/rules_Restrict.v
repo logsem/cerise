@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -63,7 +64,7 @@ Section cap_lang_rules.
       Restrict_spec regs dst src regs' FailedV.
 
   Lemma wp_Restrict Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
-    cap_lang.decode w = Restrict dst src ->
+    decodeInstrW w = Restrict dst src ->
 
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -82,8 +83,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -147,7 +147,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_restrict_success_reg_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w rv z a' pc_p' :
-    cap_lang.decode w = Restrict PC (inr rv) →
+    decodeInstrW w = Restrict PC (inr rv) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
@@ -182,7 +182,7 @@ Section cap_lang_rules.
 
    Lemma wp_restrict_success_reg Ep pc_p pc_g pc_b pc_e pc_a pc_a' w r1 rv p g b e a z
          pc_p' :
-     cap_lang.decode w = Restrict r1 (inr rv) →
+     decodeInstrW w = Restrict r1 (inr rv) →
      PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
@@ -218,7 +218,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_restrict_success_z_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w z pc_p' :
-     cap_lang.decode w = Restrict PC (inl z) →
+     decodeInstrW w = Restrict PC (inl z) →
      PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
@@ -251,7 +251,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_restrict_success_z Ep pc_p pc_g pc_b pc_e pc_a pc_a' w r1 p g b e a z pc_p' :
-     cap_lang.decode w = Restrict r1 (inl z) →
+     decodeInstrW w = Restrict r1 (inl z) →
      PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →

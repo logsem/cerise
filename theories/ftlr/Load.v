@@ -9,7 +9,8 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -74,7 +75,7 @@ Section fundamental.
     intros W r p p' g b e a src p0 g0 b0 e0 a0 HVsrc.
     iIntros "#Hreg Hr Hsts".
     do 5 (iApply sep_exist_r; iExists _). iFrame "%".
-    case_decide. 1: destruct H as [Hallows Haeq].
+    case_decide as Hdec. 1: destruct Hdec as [Hallows Haeq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
          apply andb_prop in Hwb as [Hle Hge].
          rewrite /leb_addr in Hle,Hge.
@@ -91,9 +92,9 @@ Section fundamental.
          iDestruct "Hconds" as (p0' Hfl') "Hrel'".
 
          iDestruct (region_open_prepare with "Hr") as "Hr".
-         iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
+         iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as %HH; eauto.
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H as [ρ' [Hstd [Hnotrevoked' Hnotstatic' ] ] ].
+         destruct HH as [ρ' [Hstd [Hnotrevoked' Hnotstatic' ] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -158,8 +159,8 @@ Section fundamental.
       iSplitR. by rewrite lookup_insert.
       iExists p1,g1,b1,e1,a1. iSplitR; auto.
       case_decide as Hdec1; last by done.
-      apply not_and_r in Hdec as [|]; first by exfalso.
-      iExists p',w. apply dec_stable in H0 as <-. by rewrite lookup_insert.
+      apply not_and_r in Hdec as [| <-%dec_stable]; first by exfalso.
+      iExists p',w. by rewrite lookup_insert.
   Qed.
 
   Lemma allow_load_mem_later:
@@ -194,7 +195,7 @@ Section fundamental.
     intros W r p' a w src p0 p'0 g0 b0 e0 a0 mem0 loadv Hrar Ha0.
     iIntros "HLoadMem #Hw Hmem".
     iDestruct "HLoadMem" as (p1 g1 b1 e1 a1) "[% HLoadRes]".
-    destruct (load_inr_eq Hrar H) as (<- & <- &<- &<- &<-).
+    destruct (load_inr_eq Hrar H0) as (<- & <- &<- &<- &<-).
     case_decide as Hdec. destruct Hdec as [Hallows Heq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
        iDestruct "HLoadRes" as (p'1 w0) "[-> [% HLoadRes] ]".
@@ -206,10 +207,9 @@ Section fundamental.
        { apply not_elem_of_cons; split; [auto|apply not_elem_of_nil]. }
        iDestruct (region_open_prepare with "Hr") as "$".
        rewrite lookup_insert in Ha0; inversion Ha0. all: done.
-    - apply not_and_r in Hdec as [|].
+    - apply not_and_r in Hdec as [| <-%dec_stable].
       * by exfalso.
-      * apply dec_stable in H0 as <-.
-        iDestruct "HLoadRes" as "[-> $ ]".
+      * iDestruct "HLoadRes" as "[-> $ ]".
         rewrite -memMap_resource_1.
         rewrite lookup_insert in Ha0. inversion Ha0. by iFrame.
   Qed.
@@ -306,20 +306,17 @@ Section fundamental.
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
        { destruct (decide (PC = dst)); simplify_eq.
          - destruct o as [HRX | [HRWX | HRWLX] ]; auto.
-           rewrite lookup_insert in H1; inversion H1. rewrite HRWLX.
+           subst; simplify_map_eq.
            iDestruct (writeLocalAllowed_implies_local _ RWLX with "[HLVInterp]") as "%"; auto.
-           destruct x0; unfold isLocal in H3; first by congruence.
+           destruct x0; unfold isLocal in *; first by congruence.
            iPureIntro; do 2 right; auto.
-         - rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1.
-           by rewrite -H4 -H5.
+         - simplify_map_eq. iPureIntro. naive_solver.
        }
        { iAlways.
          destruct (decide (PC = dst)); simplify_eq.
-         - rewrite lookup_insert in H1; inversion H1. rewrite (fixpoint_interp1_eq W).
-           iApply readAllowed_implies_region_conditions; auto.
-           { destruct o as [o | [o | o] ]; rewrite o; auto . }
-         - (* iExists p'. *) rewrite lookup_insert_ne in H1; last by auto. rewrite lookup_insert in H1; inversion H1.
-           rewrite -H4. auto.  
+         - simplify_map_eq. rewrite (fixpoint_interp1_eq W).
+           iApply readAllowed_implies_region_conditions; auto. naive_solver.
+         - (* iExists p'. *) simplify_map_eq. auto.
        }
     }
     { iApply wp_pure_step_later; auto. iNext. iApply wp_value; auto. iIntros; discriminate. }

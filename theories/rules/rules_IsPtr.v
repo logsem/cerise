@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -33,7 +34,7 @@ Section cap_lang_rules.
       IsPtr_spec regs dst src regs' FailedV.
 
   Lemma wp_IsPtr Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
-    cap_lang.decode w = IsPtr dst src ->
+    decodeInstrW w = IsPtr dst src ->
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
     regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -52,7 +53,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
     { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+      inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -92,7 +93,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_IsPtr_successPC E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w' pc_p' :
-    cap_lang.decode w = IsPtr dst PC →
+    decodeInstrW w = IsPtr dst PC →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
     dst ≠ PC →
@@ -121,7 +122,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_IsPtr_success E pc_p pc_g pc_b pc_e pc_a pc_a' w dst r wr w' pc_p' :
-     cap_lang.decode w = IsPtr dst r →
+     decodeInstrW w = IsPtr dst r →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      dst ≠ PC →
@@ -155,7 +156,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_IsPtr_success_dst E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w' pc_p' :
-     cap_lang.decode w = IsPtr dst dst →
+     decodeInstrW w = IsPtr dst dst →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      dst ≠ PC →

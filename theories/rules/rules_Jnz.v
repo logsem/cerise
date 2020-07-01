@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -34,7 +35,7 @@ Section cap_lang_rules.
       Jnz_spec regs dst src (<[PC := updatePcPerm w' ]> regs) NextIV.
 
   Lemma wp_Jnz Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
-    cap_lang.decode w = Jnz dst src ->
+    decodeInstrW w = Jnz dst src ->
 
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -53,8 +54,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -88,7 +88,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_g pc_b pc_e pc_a w w1 w2 pc_p' :
-    cap_lang.decode w = Jnz r1 r2 →
+    decodeInstrW w = Jnz r1 r2 →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
@@ -122,7 +122,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_jmp2 E r2 pc_p pc_g pc_b pc_e pc_a w w2 pc_p' :
-    cap_lang.decode w = Jnz r2 r2 →
+    decodeInstrW w = Jnz r2 r2 →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
@@ -154,7 +154,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_jmpPC E pc_p pc_g pc_b pc_e pc_a w pc_p' :
-    cap_lang.decode w = Jnz PC PC →
+    decodeInstrW w = Jnz PC PC →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
@@ -176,7 +176,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_g pc_b pc_e pc_a w w2 pc_p' :
-    cap_lang.decode w = Jnz PC r2 →
+    decodeInstrW w = Jnz PC r2 →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
@@ -208,7 +208,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_g pc_b pc_e pc_a w w1 pc_p' :
-    cap_lang.decode w = Jnz r1 PC →
+    decodeInstrW w = Jnz r1 PC →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
     {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
@@ -232,7 +232,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jnz_success_next E r1 r2 pc_p pc_g pc_b pc_e pc_a pc_a' w w1 pc_p' :
-    cap_lang.decode w = Jnz r1 r2 →
+    decodeInstrW w = Jnz r1 r2 →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
 

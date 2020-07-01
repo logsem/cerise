@@ -6,7 +6,8 @@ From cap_machine Require Export logrel.
 Section fundamental.
  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -30,7 +31,7 @@ Section fundamental.
     → std W !! a = Some ρ
     → ρ ≠ Revoked ∧ (∀ m, ρ ≠ Static m)
     → p' ≠ O
-    → cap_lang.decode w = i
+    → decodeInstrW w = i
     -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,
              full_map a1
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) a0) (a1 !r! r1))

@@ -3,12 +3,13 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base monotone.
-From cap_machine.rules Require Import rules_Mov.
+From cap_machine.rules Require Import rules_base rules_Mov.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -52,15 +53,15 @@ Section fundamental.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
         destruct (reg_eq_dec PC r0).
-        { subst r0. rewrite lookup_insert in H. inv H.
+        { subst r0. simplify_map_eq.
           iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto. }
-        { rewrite lookup_insert_ne in H; auto.
-          rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H.
+        { simplify_map_eq.
+          rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0.
           destruct (PermFlowsTo RX p'') eqn:Hpft.
           - iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
             + destruct p''; simpl in Hpft; auto.
               repeat rewrite fixpoint_interp1_eq. simpl.
-              destruct g''; auto.
+              destruct g''; auto. 
             + iModIntro.
               destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; auto.
               destruct g''; auto. 
@@ -84,17 +85,16 @@ Section fundamental.
         - iIntros (ri Hri).
           destruct (reg_eq_dec ri dst).
           + subst ri. rewrite /RegLocate lookup_insert.
-            destruct src; simpl in H.
-            * inv H; repeat rewrite fixpoint_interp1_eq; auto.
+            destruct src; simplify_map_eq.
+            * repeat rewrite fixpoint_interp1_eq; auto.
             * destruct (reg_eq_dec PC r0).
               { subst r0.
-                - rewrite lookup_insert in H. inv H.
+                - simplify_map_eq. 
                   rewrite (fixpoint_interp1_eq _ (inr (_, g'', b'', e'', a''))) /=.
                 destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; subst p''; try subst g'';
                   (iFrame "Hinv Hexec"). }
-              rewrite lookup_insert_ne in H; auto.
-              iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0".
-              rewrite H. auto.
+              simplify_map_eq.
+              iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0. auto.
           + repeat rewrite /RegLocate lookup_insert_ne; auto.
             iApply "Hreg"; auto.
       }

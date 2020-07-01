@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -17,7 +18,7 @@ Section cap_lang_rules.
   Implicit Types ms : gmap Addr Word.
 
   Lemma wp_jmp_success E pc_p pc_g pc_b pc_e pc_a w r w' pc_p':
-    cap_lang.decode w = Jmp r →
+    decodeInstrW w = Jmp r →
     PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
@@ -35,8 +36,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr0 Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
-      destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
     iDestruct (@gen_heap_valid with "Hr0 Hr") as %Hr_r0.
@@ -51,7 +51,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_jmp_successPC E pc_p pc_g pc_b pc_e pc_a w pc_p' :
-    cap_lang.decode w = Jmp PC →
+    decodeInstrW w = Jmp PC →
     PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
@@ -67,8 +67,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; cbn.
     iDestruct "Hσ1" as "[Hr0 Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
-      destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.

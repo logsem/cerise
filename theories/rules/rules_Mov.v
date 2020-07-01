@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -27,7 +28,7 @@ Section cap_lang_rules.
       Mov_spec regs dst src regs' FailedV.
 
   Lemma wp_Mov Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
-    cap_lang.decode w = Mov dst src ->
+    decodeInstrW w = Mov dst src ->
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
     regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -46,7 +47,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
     { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+      inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -90,7 +91,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_z E pc_p pc_g pc_b pc_e pc_a pc_a' w r1 wr1 z pc_p' :
-    cap_lang.decode w = Mov r1 (inl z) →
+    decodeInstrW w = Mov r1 (inl z) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
@@ -121,7 +122,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w r1 wr1 rv wrv pc_p' :
-    cap_lang.decode w = Mov r1 (inr rv) →
+    decodeInstrW w = Mov r1 (inr rv) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
@@ -154,7 +155,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_reg_same E pc_p pc_g pc_b pc_e pc_a pc_a' w r1 wr1 pc_p' :
-    cap_lang.decode w = Mov r1 (inr r1) →
+    decodeInstrW w = Mov r1 (inr r1) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
@@ -185,7 +186,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_reg_samePC E pc_p pc_g pc_b pc_e pc_a pc_a' w pc_p' :
-    cap_lang.decode w = Mov PC (inr PC) →
+    decodeInstrW w = Mov PC (inr PC) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
@@ -213,7 +214,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_reg_toPC E pc_p pc_g pc_b pc_e pc_a w r1 p g b e a a' pc_p' :
-    cap_lang.decode w = Mov PC (inr r1) →
+    decodeInstrW w = Mov PC (inr r1) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (a + 1)%a = Some a' →
@@ -243,7 +244,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_move_success_reg_fromPC E pc_p pc_g pc_b pc_e pc_a pc_a' w r1 wr1 pc_p' :
-    cap_lang.decode w = Mov r1 (inr PC) →
+    decodeInstrW w = Mov r1 (inr PC) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →

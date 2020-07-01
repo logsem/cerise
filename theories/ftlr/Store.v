@@ -9,7 +9,8 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -87,7 +88,7 @@ Section fundamental.
         -∗ ⌜PermFlows p pc_p'⌝.
   Proof.
     destruct (decide (r1 = PC)).
-    - subst r1. iIntros. destruct H as (H3 & _). simplify_map_eq; auto.
+    - subst r1. iIntros ([? ?] ?). simplify_map_eq; auto.
     - iIntros ((Hsomer1 & Hwa & Hwb & Hloc) Hfl) "Hreg Hinva".
       iDestruct ("Hreg" $! r1 n) as "Hr1". simplify_map_eq. rewrite /RegLocate Hsomer1.
       iDestruct (read_allowed_inv _ a with "Hr1") as (p'' Hfl') "#Harel'"; auto.
@@ -132,10 +133,10 @@ Section fundamental.
          rewrite /read_write_cond.
 
          iDestruct (region_open_prepare with "Hr") as "Hr".
-         iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as "%"; eauto.
+         iDestruct (readAllowed_valid_cap_implies with "Hvsrc") as %HH; eauto.
          { by apply writeA_implies_readA. }
          { rewrite /withinBounds /leb_addr Hle Hge. auto. }
-         destruct H as [ρ' [Hstd' [Hnotrevoked' Hnotstatic' ] ] ].
+         destruct HH as [ρ' [Hstd' [Hnotrevoked' Hnotstatic' ] ] ].
          (* We can finally frame off Hsts here, since it is no longer needed after opening the region*)
          iDestruct (region_open_next _ _ _ a0 p0' ρ' with "[$Hrel' $Hr $Hsts]") as (w0) "($ & Hstate' & Hr & Ha0 & % & Hfuture & #Hval)"; eauto.
          { intros [g1 Hcontr]. specialize (Hnotstatic' g1); contradiction. }
@@ -234,7 +235,7 @@ Section fundamental.
        iApply (interp_monotone_generalW with "[HInt]" ); eauto.
        apply orb_true_iff. destruct Hloc.
        *  cbn in H. left. by apply negb_true_iff.
-       *  right. apply pwl_implies_RWL_RWLX in H. by destruct H as [-> | ->].
+       *  right. naive_solver.
   Qed.
 
   (* Note that we turn in all information that we might have on the monotonicity of the current PC value, so that in the proof of the ftlr case itself, we do not have to worry about whether the PC was written to or not when we close the last location pc_a in the region *)
@@ -258,8 +259,8 @@ Section fundamental.
     intros W r p' pc_w r1 r2 p0 p'0 pc_p pc_p' g0 pc_g b0 e0 a0 pc_b pc_e pc_a mem0 oldv storev ρ Hwoa Hras Hstdst Ha0.
     iIntros "HStoreMem #Hreg #HVPCr #Hpc_w Hpcmono Hmem".
     iDestruct "HStoreMem" as (p1 g1 b1 e1 a1 storev1) "[% [% HStoreRes] ]".
-    destruct (store_inr_eq Hras H) as (<- & <- &<- &<- &<-).
-    rewrite Hwoa in H0; inversion H0; simplify_eq.
+    destruct (store_inr_eq Hras H0) as (<- & <- &<- &<- &<-).
+    rewrite Hwoa in H1; inversion H1; simplify_eq.
     case_decide as Hallows.
     - iAssert (((fixpoint interp1) W) (inr (p0,g0,b0,e0,a0)))%I with "[HVPCr Hreg]" as "#HVr1".
       { destruct Hras as [Hreg _]. destruct (decide (r1 = PC)).

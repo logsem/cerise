@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{HM: memG Σ, HR: regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -71,7 +72,7 @@ Section cap_lang_rules.
     Lea_spec regs r1 rv regs' FailedV.
 
    Lemma wp_lea Ep pc_p pc_g pc_b pc_e pc_a pc_p' r1 w arg (regs: Reg) :
-     cap_lang.decode w = Lea r1 arg →
+     decodeInstrW w = Lea r1 arg →
      PermFlows pc_p pc_p' →
      isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
      regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -89,8 +90,7 @@ Section cap_lang_rules.
      iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
      iDestruct "Hσ1" as "[Hr Hm]".
      assert (pc_p' ≠ O).
-     { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst;
-      destruct H5 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+     { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
      iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
      pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
@@ -200,7 +200,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_lea_success_reg_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w rv z a' pc_p' :
-     cap_lang.decode w = Lea PC (inr rv) →
+     decodeInstrW w = Lea PC (inr rv) →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
@@ -229,11 +229,11 @@ Section cap_lang_rules.
        iApply (regs_of_map_2 with "Hmap"); eauto. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence.
-       inv Hvpc. destruct H6 as [-> | [-> | ->]]; tauto. }
+       inv Hvpc. naive_solver. }
    Qed.
 
    Lemma wp_lea_success_reg Ep pc_p pc_g pc_b pc_e pc_a pc_a' w r1 rv p g b e a z a' pc_p' :
-     cap_lang.decode w = Lea r1 (inr rv) →
+     decodeInstrW w = Lea r1 (inr rv) →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
@@ -274,7 +274,7 @@ Section cap_lang_rules.
    Qed.
 
    Lemma wp_lea_success_z_PC Ep pc_p pc_g pc_b pc_e pc_a pc_a' w z a' pc_p' :
-     cap_lang.decode w = Lea PC (inl z) →
+     decodeInstrW w = Lea PC (inl z) →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
@@ -300,11 +300,11 @@ Section cap_lang_rules.
        rewrite !insert_insert. iApply (regs_of_map_1 with "Hmap"); eauto. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence.
-       inv Hvpc. destruct H5 as [-> | [-> | ->]]; tauto. }
+       inv Hvpc. naive_solver. }
    Qed.
 
    Lemma wp_lea_success_z Ep pc_p pc_g pc_b pc_e pc_a pc_a' w r1 p g b e a z a' pc_p' :
-     cap_lang.decode w = Lea r1 (inl z) →
+     decodeInstrW w = Lea r1 (inl z) →
      PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →

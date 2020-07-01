@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types a b : Addr.
@@ -68,7 +69,7 @@ Section cap_lang_rules.
 
   
   Lemma wp_Subseg Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src1 src2 regs :
-    cap_lang.decode w = Subseg dst src1 src2 ->
+    decodeInstrW w = Subseg dst src1 src2 ->
 
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -87,8 +88,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -181,11 +181,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success E pc_p pc_g pc_b pc_e pc_a w dst r1 r2 p g b e a n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg dst (inr r1) (inr r2) →
+    decodeInstrW w = Subseg dst (inr r1) (inr r2) →
     PermFlows pc_p pc_p' → 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    p ≠ cap_lang.E →
+    p ≠ machine_base.E →
     dst ≠ PC →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -223,11 +223,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_same E pc_p pc_g pc_b pc_e pc_a w dst r1 p g b e a n1 a1 pc_p' pc_a' :
-    cap_lang.decode w = Subseg dst (inr r1) (inr r1) →
+    decodeInstrW w = Subseg dst (inr r1) (inr r1) →
     PermFlows pc_p pc_p' → 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 →
-    p ≠ cap_lang.E →
+    p ≠ machine_base.E →
     dst ≠ PC →
     isWithin a1 a1 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -263,11 +263,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_l E pc_p pc_g pc_b pc_e pc_a w dst r2 p g b e a n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg dst (inl n1) (inr r2) →
+    decodeInstrW w = Subseg dst (inl n1) (inr r2) →
     PermFlows pc_p pc_p' → 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    p ≠ cap_lang.E →
+    p ≠ machine_base.E →
     dst ≠ PC →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -303,11 +303,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_r E pc_p pc_g pc_b pc_e pc_a w dst r1 p g b e a n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg dst (inr r1) (inl n2) →
+    decodeInstrW w = Subseg dst (inr r1) (inl n2) →
     PermFlows pc_p pc_p' → 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    p ≠ cap_lang.E →
+    p ≠ machine_base.E →
     dst ≠ PC →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -343,11 +343,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_lr E pc_p pc_g pc_b pc_e pc_a w dst p g b e a n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg dst (inl n1) (inl n2) →
+    decodeInstrW w = Subseg dst (inl n1) (inl n2) →
     PermFlows pc_p pc_p' → 
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    p ≠ cap_lang.E →
+    p ≠ machine_base.E →
     dst ≠ PC →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -380,11 +380,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_pc E pc_p pc_g pc_b pc_e pc_a w r1 r2 n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg PC (inr r1) (inr r2) →
+    decodeInstrW w = Subseg PC (inr r1) (inr r2) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    pc_p ≠ cap_lang.E →
+    pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
@@ -418,11 +418,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_pc_same E pc_p pc_g pc_b pc_e pc_a w r1 n1 a1 pc_p' pc_a' :
-    cap_lang.decode w = Subseg PC (inr r1) (inr r1) →
+    decodeInstrW w = Subseg PC (inr r1) (inr r1) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 →
-    pc_p ≠ cap_lang.E →
+    pc_p ≠ machine_base.E →
     isWithin a1 a1 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
@@ -454,11 +454,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_pc_l E pc_p pc_g pc_b pc_e pc_a w r2 n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg PC (inl n1) (inr r2) →
+    decodeInstrW w = Subseg PC (inl n1) (inr r2) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    pc_p ≠ cap_lang.E →
+    pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
@@ -490,11 +490,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_pc_r E pc_p pc_g pc_b pc_e pc_a w r1 n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg PC (inr r1) (inl n2) →
+    decodeInstrW w = Subseg PC (inr r1) (inl n2) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    pc_p ≠ cap_lang.E →
+    pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
@@ -526,11 +526,11 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_subseg_success_pc_lr E pc_p pc_g pc_b pc_e pc_a w n1 n2 a1 a2 pc_p' pc_a' :
-    cap_lang.decode w = Subseg PC (inl n1) (inl n2) →
+    decodeInstrW w = Subseg PC (inl n1) (inl n2) →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
-    pc_p ≠ cap_lang.E →
+    pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     

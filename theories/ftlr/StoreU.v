@@ -9,7 +9,8 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -359,10 +360,11 @@ Section fundamental.
   Qed.
 
   Global Instance exi_uninit_eqdec l : Decision (∃ w : leibnizO Word, ρ' = Static {[l:=w]}).
-  Proof. destruct 0;[right|right|right|];[intros [? ?];done..|].
-         destruct (g !! l) eqn:Hsome;[|right];[|intros [? ?];simplify_map_eq].
-         destruct (decide (g = {[l:=w]}));[left|right];subst;eauto. intros [? ?]. simplify_map_eq. 
-  Qed. 
+  Proof.
+    intros ρ; destruct ρ;[right|right|right|];[intros [? ?];done..|].
+    destruct (g !! l) eqn:Hsome;[|right];[|intros [? ?];simplify_map_eq].
+    destruct (decide (g = {[l:=w]}));[left|right];subst;eauto. intros [? ?]. simplify_map_eq.
+  Qed.
 
   Lemma storeU_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm) (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (rdst : RegName) (offs rsrc : Z + RegName):
     ftlr_instr W r p p' g b e a w (StoreU rdst offs rsrc) ρ.

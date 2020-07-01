@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
 (* From cap_machine.rules Require Export rules. *)
-From cap_machine Require Export lang region region_invariants.
+From cap_machine Require Export cap_lang region region_invariants.
 From iris.algebra Require Import gmap agree auth.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 Import uPred.
@@ -32,7 +32,8 @@ Class logrel_na_invs Σ :=
 Section logrel.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -526,28 +527,24 @@ Section logrel.
     interp W (inr (p, l, b, e, a)) -∗
            ⌜∃ ρ, std W !! a = Some ρ ∧ ρ <> Revoked ∧ (∀ g, ρ ≠ Static g)⌝.
   Proof.
-    intros. iIntros "H".
-    eapply withinBounds_le_addr in H0.
+    intros Hp Hb. iIntros "H".
+    eapply withinBounds_le_addr in Hb.
     unfold interp; rewrite fixpoint_interp1_eq /=.
-    destruct p; simpl in H; try congruence.
-    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
-      iPureIntro. 
-      destruct l; simpl in H2; eauto.
-      destruct H2; eauto.
-    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
-      iPureIntro. 
-      destruct l; simpl in H2; eauto.
-      destruct H2; eauto.
+    destruct p; simpl in Hp; try congruence.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ H]"; eauto.
+      iDestruct "H" as %HH. iPureIntro. destruct l; eauto. simpl in HH.
+      destruct HH; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ H]"; eauto.
+      iDestruct "H" as %HH. iPureIntro. destruct l; eauto. simpl in HH.
+      destruct HH; eauto.
     - destruct l; auto.
       iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
-    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
-      iPureIntro.
-      destruct l; simpl in H2; eauto.
-      destruct H2; eauto.
-    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
-      iPureIntro.
-      destruct l; simpl in H2; eauto.
-      destruct H2; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ H]"; eauto.
+      iDestruct "H" as %HH. iPureIntro. destruct l; eauto. simpl in HH.
+      destruct HH; eauto.
+    - iDestruct (extract_from_region_inv with "H") as (p ?) "[_ H]"; eauto.
+      iDestruct "H" as %HH. iPureIntro. destruct l; eauto. simpl in HH.
+      destruct HH; eauto.
     - destruct l;auto.
       iDestruct (extract_from_region_inv with "H") as (p ?) "[_ %]"; eauto.
   Qed.
@@ -563,7 +560,7 @@ Section logrel.
     intros. iIntros "Hvalid".
     unfold interp; rewrite fixpoint_interp1_eq /=.
     unfold region_conditions.
-    destruct p; simpl in H; try congruence; destruct l; simpl; auto.
+    destruct p; simpl in *; try congruence; destruct l; simpl; auto.
   Qed.
 
 
@@ -573,11 +570,11 @@ Section logrel.
     interp W (inr (p, l, b, e, a)) -∗
            ⌜std W !! a = Some Temporary⌝.
   Proof.
-    intros. iIntros "Hvalid".
+    intros Hp Hb. iIntros "Hvalid".
     iAssert (⌜isLocal l = true⌝)%I as "%". by iApply writeLocalAllowed_implies_local.
-    eapply withinBounds_le_addr in H0.
+    eapply withinBounds_le_addr in Hb.
     unfold interp; rewrite fixpoint_interp1_eq /=.
-    destruct p; simpl in H; try congruence; destruct l.
+    destruct p; simpl in Hp; try congruence; destruct l.
     - by exfalso.
     - iDestruct (extract_from_region_inv with "Hvalid") as (? ?) "[_ %]"; eauto.
     - by exfalso.

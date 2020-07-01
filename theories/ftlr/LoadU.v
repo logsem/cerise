@@ -9,7 +9,8 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -236,7 +237,6 @@ Section fundamental.
           inv H7. destruct (addr_eq_dec a a').
           * subst a'. rewrite lookup_insert in H6. inv H6.
             destruct o as [-> | [-> | ->] ]; auto.
-            rewrite fixpoint_interp1_eq /=. destruct x0; auto.
           * destruct o as [-> | [-> | ->] ]; auto.
             rewrite !fixpoint_interp1_eq /=. destruct x0; auto.
         + rewrite lookup_insert_ne in H7; auto.
