@@ -5,6 +5,9 @@ From cap_machine Require Import
      rules logrel fundamental region_invariants
      region_invariants_revocation region_invariants_static region_invariants_uninitialized.
 From cap_machine.examples Require Import region_macros stack_macros stack_macros_u stack_macros_helpers scall_u malloc awkward_example_helpers.
+(* This is a dummy dependency, to avoid having both awkward_example files built
+   in parallel, as they use a lot of memory *)
+From cap_machine.examples Require awkward_example.
 From stdpp Require Import countable.
 
 Lemma big_sepM_to_big_sepL {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
@@ -537,28 +540,20 @@ Section awkward_example.
   Ltac iClose_genpur_reg_map reg Hgen_ptrn Hgen :=
     repeat (rewrite -(delete_insert_ne _ reg); [|auto]);
     iDestruct (big_sepM_insert _ _ reg with Hgen_ptrn) as Hgen;[apply lookup_delete|iFrame|rewrite insert_delete].
-  
-   (* Recall that the malloc subroutine lies in b_m e_m *)
 
-   (* assume that r1 contains an executable pointer to the malloc subroutine *)
-   (* Definition awkward_preamble_instrs r1 offset_to_awkward := *)
-   (*   [move_r r_t0 PC; *)
-   (*   lea_z r_t0 3; *)
-   (*   jmp r1; *)
-   (*   move_r r_self PC; *)
-   (*   lea_z r_self offset_to_awkward; *)
-   (*   jmp r_self]. *)
-   
-   (* assume r1 contains an executable pointer to adversarial code *)
-  (* assume r0 contains an executable pointer to the awkward example *)
-  Definition awkward_instrs f_a (r1 : RegName) epilogue_off :=
+  Definition awkward_epilogue_off := 40%Z.
+
+  (* assume r1 contains an executable pointer to adversarial code *)
+  (* f_a is the offset to the failure subroutine in the environment table *)
+  (* by convention a pointer to the linking table is at the bottom address of the PC *)
+  Definition awkward_instrs f_a (r1 : RegName) :=
      reqglob_instrs r1 ++
      prepstackU_instrs r_stk 10 (* 11 *) ++ (* Are those hardcoded numbers correct ?? *)
      [store_z r_env 0] ++
      [pushU_r_instr r_stk r_env] ++
      [pushU_r_instr r_stk r_t0] ++
      [pushU_r_instr r_stk r1] ++
-     scallU_prologue_instrs epilogue_off r1 ++
+     scallU_prologue_instrs awkward_epilogue_off r1 ++
      [jmp r1;
      storeU_z_z r_stk 0 0; (* we clear the part of the stack which is different from next stack frame *)
      sub_z_z r_t1 0 7 (* 7 since we have increased the bound by one with the above store *);
@@ -569,7 +564,7 @@ Section awkward_example.
      [store_z r_env 1] ++
      [pushU_r_instr r_stk r_env] ++
      [pushU_r_instr r_stk r_t0] ++ 
-     scallU_prologue_instrs epilogue_off r1 ++
+     scallU_prologue_instrs awkward_epilogue_off r1 ++
      [jmp r1;
      sub_z_z r_t1 0 6 (* 7 *);
      lea_r r_stk r_t1] ++
@@ -587,15 +582,12 @@ Section awkward_example.
      rclear_instrs (list_difference all_registers [PC;r_t0]) ++
      [jmp r_t0].
 
-   (* TODO: possibly add fail subroutine to awkward example? *)
-  
-   (* Definition awkward_preamble a p r1 offset_to_awkward := *)
-   (*   ([∗ list] a_i;w_i ∈ a;(awkward_preamble_instrs r1 offset_to_awkward), a_i ↦ₐ[p] w_i)%I. *)
-   
-   Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) epilogue_off : iProp Σ :=
-     ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1 epilogue_off), a_i ↦ₐ[p] w_i)%I.
+   Definition awkward_instrs_length : Z :=
+     Eval cbv in (length (awkward_instrs 0 r_adv)).
 
-   
+   Definition awkward_example (a : list Addr) (p : Perm) f_a (r1 : RegName) : iProp Σ :=
+     ([∗ list] a_i;w_i ∈ a;(awkward_instrs f_a r1), a_i ↦ₐ[p] w_i)%I.
+
    Definition awk_inv i a :=
      (∃ x:bool, sts_state_loc (A:=Addr) i x
            ∗ if x
@@ -2187,7 +2179,7 @@ Section awkward_example.
       (* callback validity *)
       ∗ interp W wret
       (* trusted code *)
-      ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv 40)
+      ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv)
       (* linking table *)
       ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] fail_cap)
       (* we start out with arbitrary sts *)
@@ -2198,7 +2190,7 @@ Section awkward_example.
       {{{ v, RET v; ⌜v = HaltedV⌝ →
                     ∃ r W', full_map r ∧ registers_mapsto r
                          ∗ ⌜related_sts_priv_world W W'⌝
-                         ∗ na_own logrel_nais ⊤                           
+                         ∗ na_own logrel_nais ⊤
                          ∗ sts_full_world W'
                          ∗ region W' }}}.
   Proof.
@@ -2622,7 +2614,7 @@ Section awkward_example.
     { rewrite !dom_insert_L !dom_delete_L !Hrmap_dom !singleton_union_difference_L
               !difference_diag_L !all_registers_union_l !difference_difference_L.
       f_equal. clear. set_solver. }
-    { assert (5 + 40 = 45)%Z as ->;[done|]. rewrite Hscall_length in Hlink'. done. }
+    { assert (5 + awkward_epilogue_off = 45)%Z as ->;[done|]. rewrite Hscall_length in Hlink'. done. }
     iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hscall)".
     iDestruct (big_sepL2_length with "Hf2") as %Hf2_length. simpl in Hf2_length.
     assert (isCorrectPC_range pc_p pc_g pc_b pc_e s_last a_last) as Hvpc1.
@@ -3152,7 +3144,7 @@ Section awkward_example.
         iMod (na_inv_open with "Hf4 Hna") as "(>Hprog & Hna & Hcls')";[solve_ndisj..|]. 
         rewrite Heqapp Hrest_app. repeat rewrite app_assoc. repeat rewrite app_comm_cons. rewrite app_assoc.
         
-        iDestruct (mapsto_decomposition _ _ pc_p' (take 85 (awkward_instrs f_a r_adv 40)) with "Hprog")
+        iDestruct (mapsto_decomposition _ _ pc_p' (take 85 (awkward_instrs f_a r_adv)) with "Hprog")
           as "[Hprog_done [Ha Hprog] ]".
         { simpl. repeat rewrite app_length /=.
           rewrite Hscall_length Hprepstack_length Hreqglob_length. auto. }
@@ -3372,7 +3364,7 @@ Section awkward_example.
         { repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r'.
           rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
           f_equal. clear. set_solver. }
-        { assert (5 + 40 = 45)%Z as ->;[done|]. rewrite Hscall_length1 in Hlink2. done. }
+        { assert (5 + awkward_epilogue_off = 45)%Z as ->;[done|]. rewrite Hscall_length1 in Hlink2. done. }
         iNext. iIntros "(HPC & Hr_stk & Hr_t0 & Hr_gen & Hstack_own & Hscall)".
         iDestruct (big_sepL2_length with "Hprog") as %Hrest_length1. simpl in Hrest_length1.
         assert (isCorrectPC_range pc_p pc_g pc_b pc_e s_last1 a_last) as Hvpc2.
@@ -4050,12 +4042,12 @@ Section awkward_example.
             iAssert ([∗ list] a_i;w_i ∈ ((((reqperm_prog ++ preptack_prog) ++ link0 :: a1 :: a5 :: a6 :: scall_prologue) ++
                                  s_last :: a8 :: astore :: a9 :: a10 :: a11 :: a12 :: a13 :: a14 :: a15 :: a16 :: a17 :: a18 :: a19
                                  :: a20 :: a21 :: scall_prologue_first1 :: scall_prologue1) ++ (a22 :: a23 :: rest2));
-                     (take 146 (awkward_instrs f_a r_adv 40)) ++ (drop 146 (awkward_instrs f_a r_adv 40)), a_i ↦ₐ[pc_p'] w_i)%I
+                     (take 146 (awkward_instrs f_a r_adv)) ++ (drop 146 (awkward_instrs f_a r_adv)), a_i ↦ₐ[pc_p'] w_i)%I
               with "[Hprog]" as "Hprog".
             { rewrite take_drop. iApply "Hprog". }
             iDestruct (mapsto_decomposition with "Hprog") as "[Hprog_done Hprog]".
             { simpl. inversion Hscall_length as [Heq]. inversion Hscall_length1 as [Heq']. rewrite app_length Heq /=. rewrite Heq'. repeat rewrite app_length. rewrite Hreqglob_length Hprepstack_length. simpl. repeat f_equiv. rewrite Heq. simpl. done. }
-            assert (drop 146 (awkward_instrs f_a r_adv 40) = [jmp r_adv;
+            assert (drop 146 (awkward_instrs f_a r_adv) = [jmp r_adv;
                                                           sub_z_z r_t1 0 6;
                                                           lea_r r_stk r_t1] ++
                                                           popU_instrs r_stk r_t0 ++

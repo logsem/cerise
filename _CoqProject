@@ -60,5 +60,6 @@ theories/examples/scall.v
 theories/examples/scall_u.v
 theories/examples/awkward_example_helpers.v
 theories/examples/awkward_example.v
+theories/examples/awkward_example_u.v
 theories/examples/awkward_example_preamble.v
 theories/examples/awkward_example_adequacy.v

@@ -5,9 +5,10 @@ From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
 From cap_machine Require Import
      rules logrel fundamental region_invariants sts
-     region_invariants_revocation region_invariants_static.
+     region_invariants_revocation region_invariants_static
+     region_invariants_uninitialized.
 From cap_machine.examples Require Import
-     stack_macros malloc awkward_example awkward_example_preamble.
+     stack_macros malloc awkward_example_u awkward_example_preamble.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
@@ -158,7 +159,7 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
   reg !! PC = Some (inr (RX, Global, awk_region_start, awk_region_end, awk_preamble_start)) ∧
-  reg !! r_stk = Some (inr ((*TODO: U*)RWLX, Local, stack_start, stack_end, stack_start)) ∧
+  reg !! r_stk = Some (inr (URWLX, Local, stack_start, stack_end, stack_start)) ∧
   reg !! r_t0 = Some (inr (RWX, Global, adv_start, adv_end, adv_start)) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_stk; r_t0 ]} : gset RegName) →
     ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
@@ -217,6 +218,133 @@ Section WorldUpdates.
       iModIntro. cbn. iFrame. }
   Qed.
 
+  Lemma extend_region_static_single E W l p v φ `{∀ Wv, Persistent (φ Wv)}:
+     p ≠ O →
+     l ∉ dom (gset Addr) (std W) →
+     (sts_full_world W -∗ region W -∗ l ↦ₐ[p] v
+     ={E}=∗
+     region (<s[l := Static {[l := v]}]s>W)
+     ∗ rel l p φ
+     ∗ sts_full_world (<s[l := Static {[l := v]} ]s>W))%I.
+  Proof.
+    iIntros (Hpne Hnone1) "Hfull Hreg Hl".
+    rewrite region_eq rel_eq /region_def /rel_def.
+    iDestruct "Hreg" as (M Mρ) "(Hγrel & HdomM & HdomMρ & Hpreds)".
+    iDestruct "HdomM" as %HdomM. iDestruct "HdomMρ" as %HdomMρ.
+    rewrite RELS_eq /RELS_def.
+    (* destruct on M !! l *)
+    destruct (M !! l) eqn:HRl.
+    { (* The location is not in the map *)
+      iDestruct (big_sepM_delete _ _ _ _ HRl with "Hpreds") as "[Hl' _]".
+      iDestruct "Hl'" as (ρ' Hl) "[Hstate Hl']".
+      iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
+      apply (not_elem_of_dom W.1 l) in Hnone1.
+      rewrite Hcontr in Hnone1. done.
+    }
+    (* if not, we need to allocate a new saved pred using φ,
+       and extend R with l := pred *)
+    iMod (saved_pred_alloc φ) as (γpred) "#Hφ'".
+    iMod (own_update _ _ (● (<[l:=to_agree (γpred,_)]> (to_agree <$> M : relUR)) ⋅ ◯ ({[l:=to_agree (γpred,_)]}))
+            with "Hγrel") as "[HR #Hγrel]".
+    { apply auth_update_alloc.
+      apply (alloc_singleton_local_update (to_agree <$> M)); last done.
+      rewrite lookup_fmap. rewrite HRl. done.
+    }
+    (* we also need to extend the World with a new temporary region *)
+    iMod (sts_alloc_std_i W l (Static {[l:=v]})
+            with "[] Hfull") as "(Hfull & Hstate)"; auto.
+    eapply (related_sts_pub_world_fresh W l (Static {[l:=v]})) in Hnone1 as Hrelated; auto.
+    iDestruct (region_map_monotone $! Hrelated with "Hpreds") as "Hpreds'".
+    iModIntro. rewrite bi.sep_exist_r. iExists _.
+    rewrite -fmap_insert.
+    iFrame "HR". iFrame.
+    iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|].
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HdomM. auto.
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HdomMρ. auto.
+    - iApply big_sepM_insert; auto.
+      iSplitR "Hpreds'".
+      { iExists (Static {[l:=v]}). iFrame.
+        iSplitR;[iPureIntro;apply lookup_insert|].
+        iExists γpred,_,φ. iSplitR;[auto|]. iFrame "∗ #".
+        iSplitR;[done|]. iExists _. iFrame. repeat iSplit;auto.
+        iPureIntro. apply lookup_singleton.
+        iPureIntro. intro. rewrite dom_singleton elem_of_singleton.
+        intros ->. apply lookup_insert. }
+      iApply (big_sepM_mono with "Hpreds'").
+      iIntros (a x Ha) "Hρ".
+      iDestruct "Hρ" as (ρ Hρ) "[Hstate Hρ]".
+      iExists ρ.
+      assert (a ≠ l) as Hne;[intros Hcontr;subst a;rewrite HRl in Ha; inversion Ha|].
+      rewrite lookup_insert_ne;auto. iSplitR;[auto|]. iFrame.
+      destruct ρ; iFrame.
+      iDestruct "Hρ" as (γpred0 p0 φ0 Heq Hpers) "[Hsaved Hl]".
+      iDestruct "Hl" as (v0 Hg Hne') "[Ha #Hall]". iDestruct "Hall" as %Hall.
+      iExists _,_,_. repeat iSplit;eauto. iExists v0. iFrame. iSplit;auto. iPureIntro. split;auto.
+      eapply static_extend_preserve; eauto.
+    - iExists γpred. iFrame "#".
+      rewrite REL_eq /REL_def.
+      done.
+  Qed.
+
+  Lemma dom_map_imap_full {K A B}
+        `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
+        (f: K -> A -> option B) (m: gmap K A):
+    (∀ k a, m !! k = Some a → is_Some (f k a)) →
+    dom (gset K) (map_imap f m) = dom (gset K) m.
+  Proof.
+    intros Hf.
+    apply elem_of_equiv_L. intros k.
+    rewrite -!elem_of_gmap_dom map_lookup_imap.
+    destruct (m !! k) eqn:Hmk.
+    - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
+    - cbn. split; inversion 1; congruence.
+  Qed.
+
+  Lemma override_uninitializedW_dom' W (m: gmap Addr Word) :
+    dom (gset Addr) (override_uninitializedW m W).1 =
+    dom (gset Addr) m ∪ dom (gset Addr) W.1.
+  Proof.
+    rewrite /override_uninitializedW /override_uninitialized.
+    rewrite dom_union_L dom_difference_het.
+    rewrite dom_map_imap_full. 2: by intros; eauto.
+    set Dm := dom (gset Addr) m.
+    set DW := dom (gset Addr) W.1. clearbody Dm DW.
+    rewrite elem_of_equiv_L. intro x.
+    rewrite !elem_of_union !elem_of_difference.
+    split.
+    - intros [? | [? ?] ]. auto. auto.
+    - intros [? | ?]. auto. destruct (decide (x ∈ Dm)); auto.
+  Qed.
+
+  Lemma extend_region_static_single_sepM E W (m: gmap Addr Word) p φ `{∀ Wv, Persistent (φ Wv)}:
+     p ≠ O →
+     (∀ k, is_Some (m !! k) → std W !! k = None) →
+     (sts_full_world W -∗ region W -∗
+     ([∗ map] k↦v ∈ m, k ↦ₐ[p] v)
+
+     ={E}=∗
+
+     region (override_uninitializedW m W)
+     ∗ ([∗ map] k↦_ ∈ m, rel k p φ)
+     ∗ sts_full_world (override_uninitializedW m W))%I.
+  Proof.
+    induction m using map_ind.
+    { intros. rewrite !override_uninitializedW_empty !big_sepM_empty.
+      iIntros. by iFrame. }
+    { iIntros (? HnW) "Hsts Hr H". rewrite big_sepM_insert //.
+      iDestruct "H" as "(Hk & Hm)".
+      rewrite !override_uninitializedW_insert.
+      iMod (IHm with "Hsts Hr Hm") as "(Hr & Hm & Hsts)"; auto.
+      { intros. apply HnW. rewrite lookup_insert_is_Some.
+        destruct (decide (i = k)); auto. }
+      iDestruct (extend_region_static_single with "Hsts Hr Hk")
+        as ">(Hr & Hrel & Hsts)"; auto.
+      { rewrite override_uninitializedW_dom'.
+        rewrite not_elem_of_union !not_elem_of_dom. split; auto.
+        apply HnW. rewrite lookup_insert //. eauto. }
+      iFrame. iModIntro. iApply big_sepM_insert; eauto. }
+  Qed.
+
 End WorldUpdates.
 
 Section Adequacy.
@@ -242,6 +370,49 @@ Section Adequacy.
       - cbn. rewrite dom_empty_L. done.
       - cbn [list_to_set zip zip_with list_to_map foldr fst snd]. rewrite dom_insert_L.
         set_solver. }
+  Qed.
+
+  Lemma dom_mkregion_incl_rev a e l:
+    (a + length l = Some e)%a →
+    list_to_set (region_addrs a e) ⊆ dom (gset Addr) (mkregion a e l).
+  Proof.
+    rewrite /mkregion. intros Hl.
+    assert (length (region_addrs a e) = length l) as Hl'.
+    { rewrite region_addrs_length /region_size. solve_addr. }
+    clear Hl. revert Hl'. generalize (region_addrs a e). induction l.
+    { intros. rewrite zip_with_nil_r /=. rewrite dom_empty_L.
+      destruct l; [| inversion Hl']. cbn. apply empty_subseteq. }
+    { intros ll Hll. destruct ll as [| x ll]; [by inversion Hll|].
+      cbn [list_to_set zip zip_with list_to_map foldr fst snd].
+      rewrite dom_insert_L. cbn in Hll. apply Nat.succ_inj in Hll.
+      specialize (IHl ll Hll). set_solver. }
+  Qed.
+
+  Lemma dom_mkregion_eq a e l:
+    (a + length l = Some e)%a →
+    dom (gset Addr) (mkregion a e l) = list_to_set (region_addrs a e).
+  Proof.
+    intros Hlen. apply (anti_symm _).
+    - apply dom_mkregion_incl.
+    - by apply dom_mkregion_incl_rev.
+  Qed.
+
+  Lemma in_dom_mkregion a e l k:
+    k ∈ dom (gset Addr) (mkregion a e l) →
+    k ∈ region_addrs a e.
+  Proof.
+    intros H.
+    pose proof (dom_mkregion_incl a e l) as HH.
+    rewrite elem_of_subseteq in HH |- * => HH.
+    specialize (HH _ H). eapply elem_of_list_to_set; eauto.
+  Qed.
+
+  Lemma in_dom_mkregion' a e l k:
+    (a + length l = Some e)%a →
+    k ∈ region_addrs a e →
+    k ∈ dom (gset Addr) (mkregion a e l).
+  Proof.
+    intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
   Qed.
 
   Lemma disjoint_mono_l A C `{ElemOf A C} (X Y Z: C) : X ⊆ Y → Y ## Z → X ## Z.
@@ -338,6 +509,15 @@ Section Adequacy.
     iDestruct (big_sepL2_mono with "H") as "H".
     { intros. apply MonRefAlloc. }
     iDestruct (big_sepL2_bupd with "H") as "H". eauto.
+  Qed.
+
+  Lemma MonRefAlloc_sepM `{memG Σ} (p:Perm) (m: gmap Addr Word) :
+    ([∗ map] k↦v ∈ m, k ↦ₐ v) ==∗ ([∗ map] k↦v ∈ m, k ↦ₐ[p] v).
+  Proof.
+    iIntros "H".
+    iDestruct (big_sepM_mono with "H") as "H".
+    { intros. apply MonRefAlloc. }
+    iDestruct (big_sepM_bupd with "H") as "H". eauto.
   Qed.
 
   Lemma mkregion_prepare `{memG Σ} p (a e: Addr) l :
@@ -438,7 +618,9 @@ Section Adequacy.
     iDestruct (mkregion_prepare RX with "Hmalloc_code") as ">Hmalloc_code".
       by apply malloc_code_size.
     iDestruct (mkregion_prepare RWX with "Hadv") as ">Hadv". by apply adv_size.
-    iDestruct (mkregion_prepare RWLX with "Hstack") as ">Hstack". by apply stack_size.
+    (* Keep the stack as a sepM, it'll be easier to allocate the corresponding
+       uninitialized region later. *)
+    iDestruct (MonRefAlloc_sepM RWLX with "Hstack") as ">Hstack".
     iDestruct (mkregion_prepare RWX with "Hawk_preamble") as ">Hawk_preamble".
       by apply awk_preamble_size.
     iDestruct (mkregion_prepare RWX with "Hawk_body") as ">Hawk_body". by apply awk_body_size.
@@ -476,6 +658,19 @@ Section Adequacy.
       rewrite /= !dom_empty_L //. repeat iSplit; eauto.
       rewrite /region_map_def. by rewrite big_sepM_empty. }
 
+    iAssert (⌜∀ k,
+      is_Some (mkregion stack_start stack_end stack_val !! k) →
+      k ∉ region_addrs adv_start adv_end⌝)%I
+    as %Hstack_adv_disj.
+    { iIntros (k Hk Hk'). destruct Hk.
+      iDestruct (big_sepM_lookup _ _ k with "Hstack") as "Hk"; eauto.
+      apply elem_of_list_lookup in Hk'. destruct Hk' as [i Hi].
+      iDestruct (big_sepL2_length with "Hadv") as %Hlen.
+      destruct (lookup_lt_is_Some_2 adv_val i).
+      { rewrite -Hlen. apply lookup_lt_is_Some_1. eauto. }
+      iDestruct (big_sepL2_lookup _ _ _ i with "Hadv") as "Hk'"; eauto.
+      iApply (cap_duplicate_false with "[$Hk $Hk']"). done. }
+
     iMod (extend_region_perm_sepL2 _ _ _ _ RWX (λ Wv, interp Wv.1 Wv.2)
             with "Hsts Hr [Hadv]") as "(Hr & Hadv & Hsts)".
     3: { iApply (big_sepL2_mono with "Hadv").
@@ -492,9 +687,22 @@ Section Adequacy.
 
     set W1 := (std_update_multiple W0 (region_addrs adv_start adv_end) Permanent).
 
+    iMod (extend_region_static_single_sepM _ _ _ RWLX (λ Wv, interp Wv.1 Wv.2)
+            with "Hsts Hr Hstack") as "(Hr & Hstack & Hsts)"; auto.
+    { intros ? ?%Hstack_adv_disj. rewrite /W1.
+      rewrite std_sta_update_multiple_lookup_same_i //. }
+    iDestruct (big_sepM_to_big_sepL _ (region_addrs stack_start stack_end) with "Hstack")
+      as "Hstack".
+    { rewrite NoDup_ListNoDup. apply region_addrs_NoDup. }
+    { intros a Ha. eapply in_dom_mkregion' in Ha; [| apply stack_size].
+      apply elem_of_gmap_dom in Ha; auto. }
+    iDestruct "Hstack" as "#Hstack".
+
+    set W2 := (override_uninitializedW (mkregion stack_start stack_end stack_val) W1).
+
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
-    iAssert (((interp_expr interp reg) W1) (inr (RX, Global, awk_region_start, awk_region_end, awk_preamble_start)))
+    iAssert (((interp_expr interp reg) W2) (inr (RX, Global, awk_region_start, awk_region_end, awk_preamble_start)))
       with "[Hawk_preamble Hawk_body Hinv_malloc Hawk_link Hlink1 Hlink2]" as "HE".
     { assert (isCorrectPC_range RX Global awk_region_start awk_region_end
                                 awk_preamble_start awk_body_start).
@@ -556,17 +764,30 @@ Section Adequacy.
           iAssert
             ([∗ list] a ∈ region_addrs adv_start adv_end,
               ∃ p : Perm, ⌜PermFlows RWX p⌝
-                        ∗ read_write_cond a p (fixpoint interp1) ∧ ⌜std W1 !! a = Some Permanent⌝)%I
+                        ∗ read_write_cond a p (fixpoint interp1) ∧ ⌜std W2 !! a = Some Permanent⌝)%I
             as "#Hrwcond".
           { iApply (big_sepL_mono with "Hadv"). iIntros (k v Hkv). cbn.
             iIntros "H". rewrite /read_write_cond /=. iExists RWX. iFrame. iSplit;auto. iPureIntro.
-            eapply std_sta_update_multiple_lookup_in_i, elem_of_list_lookup_2; eauto. }
+            rewrite override_uninitializedW_lookup_nin.
+            { eapply std_sta_update_multiple_lookup_in_i, elem_of_list_lookup_2; eauto. }
+            intro Hv. eapply Hstack_adv_disj. by rewrite elem_of_gmap_dom //.
+            eapply elem_of_list_lookup_2; eauto. }
           auto. }
 
-        (* Stack *)
+        (* Stack: trivially valid because fully uninitialized *)
         destruct (decide (r = r_stk)) as [ -> |].
         { rewrite /RegLocate Hstk fixpoint_interp1_eq /=.
-          admit. (* TODO: true with a URWLX, completely uninitialized stack *) }
+          rewrite (interp_weakening.region_addrs_empty stack_start (min _ _)) /=.
+          2: clear; solve_addr. iSplitR; [auto|].
+          rewrite (_: max stack_start stack_start = stack_start). 2: clear; solve_addr.
+          iApply (big_sepL_mono with "Hstack").
+          iIntros (? ? Hk) "H". iDestruct "H" as (?) "?".
+          rewrite /read_write_cond /region_state_U_pwl. iExists _. iFrame.
+          iSplitL; [done|]. iPureIntro. right.
+          assert (is_Some (mkregion stack_start stack_end stack_val !! y)) as [? ?].
+          { rewrite elem_of_gmap_dom //. apply in_dom_mkregion'. apply stack_size.
+            eapply elem_of_list_lookup_2; eauto. }
+          unfold W2. eexists. erewrite override_uninitializedW_lookup_some; eauto. }
 
         (* Other registers *)
         rewrite /RegLocate.
@@ -587,7 +808,7 @@ Section Adequacy.
     iInv flagN as ">Hflag" "Hclose".
     iDestruct (gen_heap_valid with "Hmem' Hflag") as %Hm'_flag.
     iModIntro. iPureIntro. apply Hm'_flag.
-  Admitted.
+  Qed.
 
 End Adequacy.
 

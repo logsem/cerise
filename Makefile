@@ -1,3 +1,6 @@
+.PHONY: all coq clean
+all: coq
+
 fundamental: Makefile.coq
 	$(MAKE) -f Makefile.coq pretty-timed only TGTS="theories/fundamental.vo"
 
