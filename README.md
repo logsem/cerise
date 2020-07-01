@@ -23,7 +23,7 @@ It is possible to use `make fundamental` (without `-jN`) instead that will only 
 
 ## Documentation
 
-TODO: add a Makefile target to create html files out of the code. Use [coqdoc-js](https://github.com/coq-community/coqdocjs) ?
+Documentation generated using Coqdoc can be created using `make html`. The html files will be available in the `html/` folder.
 
 ## Organization
 
