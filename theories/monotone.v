@@ -7,7 +7,8 @@ Import uPred.
 Section monotone.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -391,8 +392,8 @@ Proof.
     destruct g.
     + by iApply interp_monotone_nl.
     + (*Trick here: value relation leads to a contradiction if p0 is WL, since then its region cannot be permanent*)
-      iDestruct ( writeLocalAllowed_valid_cap_implies with "Hvdst" ) as "%"; eauto.
-      rewrite Hstd in H. inversion H.
+      iDestruct ( writeLocalAllowed_valid_cap_implies with "Hvdst" ) as %Ha; eauto.
+      rewrite Hstd in Ha. inversion Ha.
   - auto.
   - auto.
 Qed.

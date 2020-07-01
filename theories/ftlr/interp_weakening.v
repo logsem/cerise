@@ -8,7 +8,8 @@ From cap_machine Require Import addr_reg.
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -45,16 +46,6 @@ Section fundamental.
                           else region_state_nwl a7 a14 a10⌝) -∗ 
                 interp_conf a7))%I.
 
-  (* TODO: move to region.v *)
-  Lemma region_addrs_empty b e:
-    (e <= b)%a ->
-    region_addrs b e = nil.
-  Proof.
-    intros. rewrite /region_addrs /region_size /=.
-    replace (Z.to_nat (e - b)) with 0 by solve_addr.
-    reflexivity.
-  Qed.
-
   (* TODO: Move in monotone ? *)
   Lemma region_state_nwl_future W W' l l' p a:
     LocalityFlowsTo l' l ->
@@ -64,13 +55,13 @@ Section fundamental.
     ⌜region_state_nwl W' a l'⌝.
   Proof.
     intros Hlflows Hloc. iIntros "Hfuture %".
-    destruct l'; simpl; iDestruct "Hfuture" as "%"; iPureIntro.
+    destruct l'; simpl; iDestruct "Hfuture" as %Hf; iPureIntro.
     - assert (l = Global) as -> by (destruct l; simpl in Hlflows; tauto).
       destruct (pwlU p) eqn:HpwlU; try congruence.
       eapply region_state_nwl_monotone_nl; eauto.
     - destruct (pwlU p).
       + subst l. left. eapply region_state_pwl_monotone; eauto.
-      + generalize (region_state_nwl_monotone _ _ _ _ H a0).
+      + generalize (region_state_nwl_monotone _ _ _ _ Hf a0).
         destruct l; auto.
   Qed.
 
@@ -192,8 +183,8 @@ Section fundamental.
               iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
-              + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H0. iPureIntro. auto.
+              + assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+                rewrite HP in H1. iPureIntro. auto.
               + iApply (region_state_nwl_future W W Global Global); eauto.
                 simpl. iPureIntro. eapply related_sts_priv_refl_world. }
             { rewrite (region_addrs_empty b' e'); auto. solve_addr. }
@@ -210,8 +201,8 @@ Section fundamental.
               iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
-              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H0. iPureIntro. auto.
+              * assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+                rewrite HP in H1. iPureIntro. auto.
               * iApply (region_state_nwl_future W W Global Local); eauto.
                 simpl. iPureIntro. eapply related_sts_pub_refl_world. }
             { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
@@ -229,8 +220,8 @@ Section fundamental.
               iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
-              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H0. iPureIntro. auto.
+              * assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+                rewrite HP in H1. iPureIntro. auto.
               * iApply (region_state_nwl_future W W Local Local); eauto.
                 simpl; iPureIntro. eapply related_sts_pub_refl_world. }
             { rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. }
@@ -248,8 +239,8 @@ Section fundamental.
               iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
-              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H0. iPureIntro. auto.
+              * assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+                rewrite HP in H1. iPureIntro. auto.
               * iApply (region_state_nwl_future W W l Global); eauto.
                 simpl; iPureIntro. eapply related_sts_priv_refl_world.
             + rewrite (region_addrs_empty b' e'); auto. solve_addr. }
@@ -266,8 +257,8 @@ Section fundamental.
               iExists p''; iSplitR; auto.
               repeat iSplit; auto.
               case_eq (pwlU p'); intros.
-              * assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-                rewrite HP in H0. iPureIntro. auto.
+              * assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+                rewrite HP in H1. iPureIntro. auto.
               * iApply (region_state_nwl_future W W l Local); eauto.
                 simpl; iPureIntro; eapply related_sts_pub_refl_world.
             + rewrite (region_addrs_empty b' (min a' e')); auto. solve_addr. } }
@@ -287,8 +278,8 @@ Section fundamental.
         iExists p''; iSplitR; auto.
         repeat iSplit; auto.
         case_eq (pwlU p'); intros.
-        + assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-          rewrite HP in H0. iPureIntro. auto.
+        + assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+          rewrite HP in H1. iPureIntro. auto.
         + iApply region_state_nwl_future; eauto.
           destruct l'; iPureIntro.
           * eapply related_sts_priv_refl_world.
@@ -296,11 +287,11 @@ Section fundamental.
       - rewrite (region_addrs_empty b' e'); auto. solve_addr. }
     iSplit.
     { case_eq (pwlU p'); intros; auto.
-      assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-      rewrite HP in H; subst l. destruct l'; simpl in Hl; try tauto. auto. }
+      assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+      rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto. auto. }
     { case_eq (pwlU p'); intros; auto.
-      - assert (pwlU p = true) as HP by (destruct p, p'; simpl in Hp; inv Hp; simpl in *; auto; try congruence).
-        rewrite HP in H; subst l. destruct l'; simpl in Hl; try tauto.
+      - assert (pwlU p = true) as HP by (destruct p, p'; naive_solver).
+        rewrite HP in H0; subst l. destruct l'; simpl in Hl; try tauto.
         destruct (isU p') eqn:HisU'; auto. simpl.
         destruct (isU p) eqn:HisU; simpl.
         + destruct (Addr_le_dec (max b' a') e').
@@ -380,7 +371,7 @@ Section fundamental.
                   { left; auto. }
                   { destruct l; simpl in H1; auto.
                     - right; left; auto.
-                    - destruct H1; [left|right;left]; auto. }
+                    - destruct H2; [left|right;left]; auto. }
                 + iSplitL; auto. iApply (big_sepL_impl with "C2"); auto.
                   iAlways; iIntros (k x Hx) "Hw".
                   iDestruct "Hw" as (p'' Hflows) "[#X %]".
@@ -388,7 +379,7 @@ Section fundamental.
                   { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
                   iExists _. iSplit;eauto. iFrame "X". 
                   iPureIntro; 
-                  destruct p; simpl in H1; auto; destruct H1; rewrite /region_state_U; auto.
+                  destruct p; simpl in H1; auto; destruct H2; rewrite /region_state_U; auto.
               - rewrite (isWithin_region_addrs_decomposition (max b' a') e' b (min a e)). 2: solve_addr.
                 rewrite !big_sepL_app. iDestruct "A" as "[A1 [A2 A3]]".
                 iApply (big_sepL_impl with "A2"); auto.
@@ -401,7 +392,7 @@ Section fundamental.
                 + left; auto.
                 + destruct l; simpl in H1; auto.
                   * right; left; auto.
-                  * destruct H1; [left|right;left]; auto. }
+                  * destruct H2; [left|right;left]; auto. }
             { rewrite (isWithin_region_addrs_decomposition (max b' a') e' (max b a) e). 2: solve_addr.
               rewrite !big_sepL_app. iDestruct "C" as "[C1 [C2 C3]]". auto.
               iApply (big_sepL_impl with "C2"); auto.
@@ -411,7 +402,7 @@ Section fundamental.
               { eapply PermFlowsToPermFlows. eapply PermFlowsToTransitive; eauto. eapply promote_perm_flows_monotone; eauto. }
               iExists _. iSplit;eauto. iFrame "#".
               iPureIntro; 
-              destruct p; simpl in H1; auto; destruct H1; rewrite /region_state_U; auto. }
+              destruct p; simpl in H2; auto; destruct H2; rewrite /region_state_U; auto. }
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr.
         + destruct (Addr_le_dec (max b' a') e').
           * rewrite (isWithin_region_addrs_decomposition (max b' a') e' b e). 2: solve_addr.
@@ -424,9 +415,9 @@ Section fundamental.
             iExists _. iSplit;eauto.
             iFrame "#". iPureIntro. destruct (pwlU p).
             { left; auto. }
-            { destruct l; simpl in H1; auto.
+            { destruct l; simpl in H2; auto.
               - right; left; auto.
-              - destruct H1; [left|right;left]; auto. }
+              - destruct H2; [left|right;left]; auto. }
           * rewrite (region_addrs_empty (max b' a') e'); auto. solve_addr. }
   Qed.
 

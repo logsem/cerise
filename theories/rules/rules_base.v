@@ -1,8 +1,8 @@
-From cap_machine Require Export lang mono_ref sts.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac auth.
+From cap_machine Require Export cap_lang mono_ref sts.
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
@@ -16,7 +16,7 @@ Class regG Σ := RegG {
 
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{memG Σ, regG Σ} : irisG cap_lang Σ := {
+Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisG cap_lang Σ := {
   iris_invG := mem_invG;
   state_interp σ κs _ := ((gen_heap_ctx σ.1) ∗ (gen_heap_ctx σ.2))%I;
   fork_post _ := True%I;
@@ -37,26 +37,12 @@ Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a 1 w) (at level 20) : bi_s
    update according to its permission *)
 Section Capabilities.
 
-  Definition PermFlows : Perm → Perm → Prop := λ p1 p2, PermFlowsTo p1 p2 = true.
   Definition LeastPermUpd (w : Word) : Perm :=
     match w with
     | inl _ => URW
     | inr ((_,Global),_,_,_) => URW
     | _ => URWL
     end.
-
-  Lemma PermFlows_refl : ∀ p, PermFlows p p.
-  Proof.
-    rewrite /PermFlows /PermFlowsTo.
-    destruct p; auto.
-  Qed.
-
-  Lemma PermFlows_trans P1 P2 P3 :
-    PermFlows P1 P2 → PermFlows P2 P3 → PermFlows P1 P3.
-  Proof.
-    intros Hp1 Hp2. rewrite /PermFlows /PermFlowsTo.
-    destruct P1,P3,P2; simpl; auto; contradiction.
-  Qed.
 
   (* It could have been better to define the second in terms of the first here *)
   Lemma isLocal_RWL w:
@@ -271,48 +257,8 @@ Ltac option_locate_r m :=
   repeat option_locate_r_once m.
 
 
-
-Ltac inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep Hpc_new1 :=
-  match goal with
-  | H : cap_lang.prim_step (Instr Executable) (r, m) _ ?e1 ?σ2 _ |- _ =>
-    let σ := fresh "σ" in
-    let e' := fresh "e'" in
-    let σ' := fresh "σ'" in
-    let Hstep' := fresh "Hstep'" in
-    let He0 := fresh "He0" in
-    let Ho := fresh "Ho" in
-    let He' := fresh "H"e' in
-    let Hσ' := fresh "H"σ' in
-    let Hefs := fresh "Hefs" in
-    let φ0 := fresh "φ" in
-    let p0 := fresh "p" in
-    let g0 := fresh "g" in
-    let b0 := fresh "b" in
-    let e2 := fresh "e" in
-    let a0 := fresh "a" in
-    let i := fresh "i" in
-    let c0 := fresh "c" in
-    let HregPC := fresh "HregPC" in
-    let Hi := fresh "H"i in
-    let Hexec := fresh "Hexec" in
-    inversion Hstep as [ σ e' σ' Hstep' He0 Hσ Ho He' Hσ' Hefs |?|?|?];
-    inversion Hstep' as [φ0 | φ0 p0 g0 b0 e2 a0 i c0 HregPC ? Hi Hexec];
-    (simpl in *; try congruence );
-    subst e1 σ2 φ0 σ' e' σ; try subst c0; simpl in *;
-    try (rewrite HPC in HregPC;
-         inversion HregPC;
-         repeat match goal with
-                | H : _ = p0 |- _ => destruct H
-                | H : _ = g0 |- _ => destruct H
-                | H : _ = b0 |- _ => destruct H
-                | H : _ = e2 |- _ => destruct H
-                | H : _ = a0 |- _ => destruct H
-                end ; destruct Hi ; clear HregPC ;
-         rewrite Hpc_a Hinstr /= ;
-         rewrite Hpc_a Hinstr in Hstep)
-  end.
-
 Section cap_lang_rules.
+  Context `{MachineParameters}.
   Context `{memG Σ, regG Σ, MonRefG (leibnizO _) CapR_rtc Σ,
             World: MonRefG (leibnizO _) RelW Σ}.
   Implicit Types P Q : iProp Σ.
@@ -616,8 +562,7 @@ Section cap_lang_rules.
     iFrame.
     iDestruct "Ha" as "[Ha | %]".
     - iLeft. by iFrame.
-    - rewrite H2 in Hfl. destruct p'; inversion Hfl.
-      by iRight.
+    - subst. destruct p'; inversion Hfl. by iRight.
   Qed.
 
   Lemma gen_heap_update_cap (σ : gmap Addr Word) (a : Addr) (p : Perm) (w w' : Word) :
@@ -637,17 +582,6 @@ Section cap_lang_rules.
     by iMod (gen_heap_update with "Hσ Ha") as "[$ $]".
   Qed.
 
-  Lemma cap_lang_determ:
-    forall e1 σ1 κ κ' e2 e2' σ2 σ2' efs efs',
-      cap_lang.prim_step e1 σ1 κ e2 σ2 efs ->
-      cap_lang.prim_step e1 σ1 κ' e2' σ2' efs' ->
-      κ = κ' /\ e2 = e2' /\ σ2 = σ2' /\ efs = efs'.
-  Proof.
-    intros. inv H2; inv H3; auto.
-    inv H2; inv H4; auto; try congruence.
-    rewrite H7 in H6; inv H6. auto.
-  Qed.
-
   Lemma wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
     to_val e1 = None →
     (∀ (σ1:cap_lang.state) κ κs n, state_interp σ1 (κ ++ κs) n ={E}=∗
@@ -663,12 +597,11 @@ Section cap_lang_rules.
     - rewrite /head_reducible /=.
       iExists κ', e2, σ2, efs. auto.
     - iNext. iIntros (? ? ?) "H".
-      iDestruct "H" as %?.
-      iDestruct "H1" as %?.
-      destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ H4 H3) as [Heq1 [Heq2 [Heq3 Heq4]]].
+      iDestruct "H" as %Hs1.
+      iDestruct "H1" as %Hs2.
+      destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ Hs1 Hs2) as [Heq1 [Heq2 [Heq3 Heq4]]].
       subst a; subst a0; subst a1.
-      iMod "H2". iModIntro. iFrame.
-      inv H3; auto.
+      iMod "H2". iModIntro. iFrame. inv Hs1; auto.
   Qed.
 
   (* -------------- predicates on memory maps -------------------------- *)
@@ -754,7 +687,7 @@ Section cap_lang_rules.
        ⌜ if  (a2 =? a1)%a
        then mem =  (<[a1:=(p1',w1)]> ∅)
        else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
-)%I ⊣⊢ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
+    )%I ⊣⊢ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
   Proof.
     destruct (a2 =? a1)%a eqn:Heq.
     - apply Z.eqb_eq, z_of_eq in Heq. rewrite memMap_resource_1.
@@ -773,7 +706,7 @@ Section cap_lang_rules.
        ⌜ if  (a2 =? a1)%a
        then mem =  (<[a1:=(p1',w1)]> ∅)
        else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
-) -∗ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
+    ) -∗ (a1 ↦ₐ[p1'] w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ[p2'] w2) .
   Proof.
     iIntros. by rewrite memMap_resource_2gen.
   Qed.
@@ -786,7 +719,7 @@ Section cap_lang_rules.
        ⌜if  (a2 =? a1)%a
        then mem =  (<[a1:=(p1',w1)]> ∅)
        else mem = <[a1:=(p1',w1)]> (<[a2:=(p2',w2)]> ∅)⌝
-)%I.
+    )%I.
   Proof.
     iIntros "Hc1 Hc2".
     destruct (a2 =? a1)%a eqn:Heq.
@@ -821,31 +754,6 @@ Section cap_lang_rules.
     iIntros (a p' r1 r2 w mem0 r m Hpnz Hmem_pc) "Hm Hmem".
     iDestruct (memMap_delete a with "Hmem") as "[Hpc_a Hmem]"; eauto.
     iDestruct (gen_heap_valid_cap with "Hm Hpc_a") as %?; auto.
-  Qed.
-
-  Lemma readAllowed_nonO p p' :
-    PermFlows p p' → readAllowed p = true → p' ≠ O.
-  Proof.
-    intros Hfl' Hra. destruct p'; auto. destruct p; inversion Hfl'. inversion Hra.
-  Qed.
-
-  Lemma writeAllowed_nonO p p' :
-    PermFlows p p' → writeAllowed p = true → p' ≠ O.
-  Proof.
-    intros Hfl' Hra. apply writeA_implies_readA in Hra. by apply (readAllowed_nonO p p').
-  Qed.
-
-  Lemma PCPerm_nonO p p' :
-    PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX → p' ≠ O.
-  Proof.
-    intros Hfl Hvpc. destruct p'; auto. destruct p; inversion Hfl.
-    destruct Hvpc as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr.
-  Qed.
-
-  Lemma correctPC_nonO p p' g b e a :
-    PermFlows p p' → isCorrectPC (inr (p,g,b,e,a)) → p' ≠ O.
-  Proof.
-    intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
   Qed.
 
   Lemma mem_v_implies_m_v:
@@ -900,18 +808,11 @@ Section cap_lang_rules.
     option_locate_mr m r.
     rewrite -HrPC in Hnpc.
     iApply fupd_frame_l.
-    iSplit.
-    + rewrite /reducible.
-      iExists [], (Instr Failed : cap_lang.expr), (r,m), [].
-      iPureIntro.
-      constructor.
-      apply (step_exec_fail (r,m)); eauto.
-    + (* iMod (fupd_intro_mask' ⊤) as "H"; eauto. *)
-      iModIntro.
-      iIntros (e1 σ2 efs Hstep).
-      inv_head_step_advanced m r HPC Hpc_a Hinstr Hstep HPC.
-      iFrame. iNext.
-      iModIntro. iSplitR; auto. iApply "Hϕ". iFrame.
+    iSplit. by iPureIntro; apply normal_always_head_reducible.
+    iModIntro. iIntros (e1 σ2 efs Hstep).
+    apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
+    eapply step_fail_inv in Hstep as [-> ->]; eauto.
+    iNext. iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
   Qed.
 
   (* Subcases for respecitvely permissions and bounds *)
@@ -945,7 +846,7 @@ Section cap_lang_rules.
   (* ----------------------------------- ATOMIC RULES -------------------------------- *)
 
   Lemma wp_halt E pc_p pc_g pc_b pc_e pc_a w pc_p' :
-    cap_lang.decode w = Halt →
+    decodeInstrW w = Halt →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
@@ -961,28 +862,17 @@ Section cap_lang_rules.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid_cap with "Hm Hpca") as %?.
     { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst;
-        destruct H9 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
-    option_locate_mr m r.
+      inversion Hvpc; subst. naive_solver. }
     iModIntro.
-    iSplitR.
-    - rewrite /reducible.
-      iExists [],(Instr Halted),(r,m),[].
-      iPureIntro.
-      constructor.
-      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a Halt
-                             (Halted,_));
-        eauto; simpl; try congruence.
-    - iIntros (e2 σ2 efs Hstep).
-      inv_head_step_advanced m r HrPC Hmpc_a Hinstr Hstep HrPC.
-      iFrame.
-      iNext. iModIntro. iSplitR; eauto.
-      iApply "Hφ".
-      iFrame.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iIntros (e2 σ2 efs Hstep).
+    eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
+    eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
+    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_fail E pc_p pc_g pc_b pc_e pc_a w pc_p' :
-    cap_lang.decode w = Fail →
+    decodeInstrW w = Fail →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
 
@@ -998,24 +888,13 @@ Section cap_lang_rules.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid_cap with "Hm Hpca") as %?.
     { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst;
-        destruct H9 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
-    option_locate_mr m r.
+      inversion Hvpc; subst. naive_solver. }
     iModIntro.
-    iSplitR.
-    - rewrite /reducible.
-      iExists [],(Instr Failed),(r,m),[].
-      iPureIntro.
-      constructor.
-      apply (step_exec_instr (r,m) pc_p pc_g pc_b pc_e pc_a Fail
-                             (Failed,_));
-        eauto; simpl; try congruence.
-    - iIntros (e2 σ2 efs Hstep).
-      inv_head_step_advanced m r HrPC Hmpc_a Hinstr Hstep HrPC.
-      iFrame.
-      iNext. iModIntro. iSplitR; eauto.
-      iApply "Hφ".
-      iFrame.
+    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iIntros (e2 σ2 efs Hstep).
+    eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
+    eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
+    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
    Qed.
 
   (* ----------------------------------- PURE RULES ---------------------------------- *)
@@ -1141,7 +1020,7 @@ Definition regs_of (i: instr): gset RegName :=
   | GetB r1 r2 => {[ r1; r2 ]}
   | GetE r1 r2 => {[ r1; r2 ]}
   | GetA r1 r2 => {[ r1; r2 ]}
-  | cap_lang.Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | IsPtr dst src => {[ dst; src ]}

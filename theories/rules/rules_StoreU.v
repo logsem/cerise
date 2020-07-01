@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -98,7 +99,7 @@ Section cap_lang_rules.
   Lemma wp_storeU Ep
      pc_p pc_g pc_b pc_e pc_a pc_p'
      rdst rsrc offs w wsrc mem regs :
-   cap_lang.decode w = StoreU rdst offs rsrc →
+   decodeInstrW w = StoreU rdst offs rsrc →
    pc_p' ≠ O →
    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -177,7 +178,7 @@ Section cap_lang_rules.
      assert (Hzofargeq: z_of_argument r offs = z_of_argument regs offs).
      { rewrite /z_of_argument; destruct offs; auto.
        feed destruct (Hri r0) as [? [?]]. by set_solver+.
-       rewrite H2 H3; auto. }
+       rewrite H3 H4; auto. }
      rewrite Hzofargeq in Hstep.
 
      Local Opaque verify_access.

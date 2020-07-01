@@ -29,7 +29,8 @@ Qed.
 Section awkward_example_preamble.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Ltac iPrologue prog :=
     iDestruct prog as "[Hi Hprog]";
@@ -54,15 +55,6 @@ Section awkward_example_preamble.
     generalize (contiguous_spec _ Ha index); auto.
 
   (**************)
-
-  Lemma region_addrs_single b e:
-    (b+1)%a = Some e →
-    region_addrs b e = [b].
-  Proof.
-    intros. rewrite /region_addrs.
-    rewrite (_: region_size b e = 1) //= /region_size.
-    solve_addr.
-  Qed.
 
   Lemma region_mapsto_single b e p l:
     (b+1)%a = Some e →
@@ -220,7 +212,7 @@ Section awkward_example_preamble.
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hr1 $Hi $Hcell]");
-      [eapply store_z_i|apply Hfl|constructor|iCorrectPC a_malloc_end a_end|
+      [apply decode_encode_instrW_inv|apply Hfl|constructor|iCorrectPC a_malloc_end a_end|
        iContiguous_next Hcont_rest 0|..].
     { split; auto. apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
     iEpilogue "(HPC & Hprog_done & Hr1 & Hb_cell)". iCombine "Hprog_done" "Hmalloc" as "Hprog_done".
@@ -230,13 +222,13 @@ Section awkward_example_preamble.
     destruct l as [| a_move' l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg _ _ _ _ _ _ _ _ r_t2 _ r_t1 with "[$HPC $Hi $Hr1 $Hr2]");
-      [eapply move_r_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 1|done|..].
+      [eapply decode_encode_instrW_inv|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 1|done|..].
     iEpilogue "(HPC & Hi & Hr2 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move_r r_t1 PC *)
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]");
-      [eapply move_r_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 2|done|..].
+      [eapply decode_encode_instrW_inv|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 2|done|..].
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea_z r_t1 offset_to_awkward *)
     assert (a_move' = a_move) as ->.
@@ -249,7 +241,7 @@ Section awkward_example_preamble.
     destruct l as [| ? l]; [by inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ awk_first with "[$HPC $Hi $Hr1]");
-      [eapply lea_z_i|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 3
+      [eapply decode_encode_instrW_inv|apply Hfl|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 3
        |assumption|done|done|..].
     { destruct (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc) as [-> | [-> | ->] ]; auto.
       generalize (contiguous_between_middle_bounds _ (length ai_malloc) a_malloc_end _ _ Hcont ltac:(subst ai; rewrite list_lookup_middle; auto)). clear. solve_addr. }
@@ -324,7 +316,7 @@ Section awkward_example_preamble.
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest'') as ->.
     assert (ai_rest' = []) as -> by (inversion Hlen'; eauto using nil_length_inv).
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
-      [apply jmp_i|apply Hfl|..].
+      [apply decode_encode_instrW_inv|apply Hfl|..].
     { apply Hvpc2.
       generalize (contiguous_between_middle_bounds'
         _ a_rclear_end _ _ Hcont_rest'' ltac:(repeat constructor)).

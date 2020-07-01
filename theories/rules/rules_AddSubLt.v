@@ -1,11 +1,12 @@
-From cap_machine Require Import rules_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac.
+From cap_machine Require Import machine_base rules_base.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -27,14 +28,14 @@ Section cap_lang_rules.
 
   Definition denote (i: instr) (n1 n2: Z): Z :=
     match i with
-    | cap_lang.Add _ _ _ => (n1 + n2)%Z
+    | Add _ _ _ => (n1 + n2)%Z
     | Sub _ _ _ => (n1 - n2)%Z
     | Lt _ _ _ => (Z.b2z (n1 <? n2)%Z)
     | _ => 0%Z
     end.
 
   Definition is_AddSubLt (i: instr) (r: RegName) (arg1 arg2: Z + RegName) :=
-    i = cap_lang.Add r arg1 arg2 ∨
+    i = Add r arg1 arg2 ∨
     i = Sub r arg1 arg2 ∨
     i = Lt r arg1 arg2.
 
@@ -74,7 +75,7 @@ Section cap_lang_rules.
     econstructor; eapply get_fail_case; eauto.
 
   Lemma wp_AddSubLt Ep i pc_p pc_g pc_b pc_e pc_a pc_p' w dst arg1 arg2 regs :
-    cap_lang.decode w = i →
+    decodeInstrW w = i →
     is_AddSubLt i dst arg1 arg2 →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -84,7 +85,7 @@ Section cap_lang_rules.
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
-        ⌜ AddSubLt_spec (cap_lang.decode w) regs dst arg1 arg2 regs' retv ⌝ ∗
+        ⌜ AddSubLt_spec (decodeInstrW w) regs dst arg1 arg2 regs' retv ⌝ ∗
           pc_a ↦ₐ[pc_p'] w ∗
           [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
@@ -93,8 +94,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -163,7 +163,7 @@ Section cap_lang_rules.
   (* Derived specifications *)
 
   Lemma wp_add_sub_lt_success_z_z E dst pc_p pc_g pc_b pc_e pc_a w wdst ins n1 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
@@ -195,7 +195,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_r_z E dst pc_p pc_g pc_b pc_e pc_a w wdst ins r1 n1 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
@@ -230,7 +230,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_z_r E dst pc_p pc_g pc_b pc_e pc_a w wdst ins n1 r2 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
@@ -265,7 +265,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_r_r E dst pc_p pc_g pc_b pc_e pc_a w wdst ins r1 n1 r2 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr (pc_p,pc_g,pc_b,pc_e,pc_a)) ->
@@ -302,7 +302,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_r_r_same E dst pc_p pc_g pc_b pc_e pc_a w wdst ins r n pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r) (inr r) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr (pc_p,pc_g,pc_b,pc_e,pc_a)) ->
@@ -337,7 +337,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_dst_z E dst pc_p pc_g pc_b pc_e pc_a w ins n1 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
@@ -369,7 +369,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_z_dst E dst pc_p pc_g pc_b pc_e pc_a w ins n1 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) ->
@@ -401,7 +401,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_dst_r E dst pc_p pc_g pc_b pc_e pc_a w ins n1 r2 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr (pc_p,pc_g,pc_b,pc_e,pc_a)) ->
@@ -436,7 +436,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_r_dst E dst pc_p pc_g pc_b pc_e pc_a w ins r1 n1 n2 pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr (pc_p,pc_g,pc_b,pc_e,pc_a)) ->
@@ -471,7 +471,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_add_sub_lt_success_dst_dst E dst pc_p pc_g pc_b pc_e pc_a w ins n pc_p' pc_a' :
-    cap_lang.decode w = ins →
+    decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlows pc_p pc_p' → isCorrectPC (inr (pc_p,pc_g,pc_b,pc_e,pc_a)) ->
@@ -506,7 +506,7 @@ End cap_lang_rules.
 
 (* Hints to automate proofs of is_AddSubLt *)
 Lemma is_AddSubLt_Add dst arg1 arg2 :
-  is_AddSubLt (cap_lang.Add dst arg1 arg2) dst arg1 arg2.
+  is_AddSubLt (Add dst arg1 arg2) dst arg1 arg2.
 Proof. intros; unfold is_AddSubLt; eauto. Qed.
 Lemma is_AddSubLt_Sub dst arg1 arg2 :
   is_AddSubLt (Sub dst arg1 arg2) dst arg1 arg2.

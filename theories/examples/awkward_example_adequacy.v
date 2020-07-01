@@ -13,7 +13,7 @@ From cap_machine.examples Require Import
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
-Class memory_layout := {
+Class memory_layout `{MachineParameters} := {
   (* awkward example: preamble & body *)
   awk_region_start : Addr;
   awk_preamble_start : Addr;
@@ -164,11 +164,11 @@ Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
   (∀ (r: RegName), r ∉ ({[ PC; r_stk; r_t0 ]} : gset RegName) →
     ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
-Lemma initial_registers_full_map `{memory_layout} reg :
+Lemma initial_registers_full_map `{MachineParameters, memory_layout} reg :
   is_initial_registers reg →
   (∀ r, is_Some (reg !! r)).
 Proof.
-  intros (HPC & Hstk & H0 & Hothers) r.
+  intros (HPC & Hstk & Hr0 & Hothers) r.
   destruct (decide (r = PC)) as [->|]. by eauto.
   destruct (decide (r = r_stk)) as [->|]. by eauto.
   destruct (decide (r = r_t0)) as [->|]. by eauto.
@@ -179,7 +179,8 @@ Qed.
 Section WorldUpdates.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}
+          `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -356,6 +357,7 @@ Section Adequacy.
   Context {na_invg: na_invG Σ}.
   Context {sts_preg: STS_preG Addr region_type Σ}.
   Context {heappreg: heapPreG Σ}.
+  Context `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -446,27 +448,6 @@ Section Adequacy.
       eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
     rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
     apply list_to_set_disj.
-
-  Lemma region_addrs_cons a e :
-    (a < e)%a →
-    region_addrs a e = a :: region_addrs (^(a+1))%a e.
-  Proof.
-    intros. rewrite (region_addrs_decomposition a a). 2: solve_addr.
-    rewrite /region_addrs region_size_0 //. solve_addr.
-  Qed.
-
-  Lemma elem_of_region_addrs (a b e: Addr):
-    a ∈ region_addrs b e ↔ (b <= a)%a ∧ (a < e)%a.
-  Proof.
-    rewrite /region_addrs /region_size.
-    set n := Z.to_nat (e - b). have: (n = Z.to_nat (e - b)) by reflexivity.
-    clearbody n. revert n a b e. induction n.
-    { intros. cbn. rewrite elem_of_nil. solve_addr. }
-    { intros. cbn. rewrite elem_of_cons (IHn a _ e). 2: solve_addr.
-      split. intros [ -> | ]; solve_addr. intros [Hba ?].
-      apply Zle_lt_or_eq in Hba. destruct Hba; [| subst]. solve_addr.
-      assert (b = a) by solve_addr. subst. solve_addr. }
-  Qed.
 
   Lemma contiguous_between_region_addrs a e :
     (a <= e) %a → contiguous_between (region_addrs a e) a e.
@@ -626,7 +607,6 @@ Section Adequacy.
     iDestruct (mkregion_prepare RWX with "Hawk_body") as ">Hawk_body". by apply awk_body_size.
     iMod (MonRefAlloc _ _ RWX (* FIXME: RO instead?? *) with "Hawk_link") as "Hawk_link".
     rewrite -/(awkward_example _ _ _ _) -/(awkward_preamble _ _ _ _).
-    rewrite -/(region_mapsto b_m e_m p_m malloc_subroutine).
 
     (* Split the link table *)
 
@@ -693,7 +673,7 @@ Section Adequacy.
       rewrite std_sta_update_multiple_lookup_same_i //. }
     iDestruct (big_sepM_to_big_sepL _ (region_addrs stack_start stack_end) with "Hstack")
       as "Hstack".
-    { rewrite NoDup_ListNoDup. apply region_addrs_NoDup. }
+    { apply region_addrs_NoDup. }
     { intros a Ha. eapply in_dom_mkregion' in Ha; [| apply stack_size].
       apply elem_of_gmap_dom in Ha; auto. }
     iDestruct "Hstack" as "#Hstack".
@@ -777,7 +757,7 @@ Section Adequacy.
         (* Stack: trivially valid because fully uninitialized *)
         destruct (decide (r = r_stk)) as [ -> |].
         { rewrite /RegLocate Hstk fixpoint_interp1_eq /=.
-          rewrite (interp_weakening.region_addrs_empty stack_start (min _ _)) /=.
+          rewrite (region_addrs_empty stack_start (min _ _)) /=.
           2: clear; solve_addr. iSplitR; [auto|].
           rewrite (_: max stack_start stack_start = stack_start). 2: clear; solve_addr.
           iApply (big_sepL_mono with "Hstack").
@@ -812,10 +792,10 @@ Section Adequacy.
 
 End Adequacy.
 
-(* FIXME: why is this necessary? *)
 Existing Instance subG_MonRefIGΣ.
 
-Theorem awkward_example_adequacy `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+Theorem awkward_example_adequacy `{MachineParameters} `{memory_layout}
+        (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory m →
   is_initial_registers reg →
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
@@ -828,3 +808,6 @@ Proof.
       ]).
   eapply (@awkward_example_adequacy' Σ); typeclasses eauto.
 Qed.
+
+(* Print Assumptions awkward_example_adequacy. *)
+(* -> Closed under the global context. *)

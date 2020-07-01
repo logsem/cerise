@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -145,7 +146,7 @@ Section cap_lang_rules.
    Lemma wp_load Ep
      pc_p pc_g pc_b pc_e pc_a pc_p'
      r1 r2 w mem regs :
-   cap_lang.decode w = Load r1 r2 →
+   decodeInstrW w = Load r1 r2 →
    pc_p' ≠ O →
    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
@@ -241,7 +242,7 @@ Section cap_lang_rules.
 
   Lemma wp_load_success E r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a'
         pc_p' p' :
-    cap_lang.decode w = Load r1 r2 →
+    decodeInstrW w = Load r1 r2 →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true →
@@ -264,7 +265,8 @@ Section cap_lang_rules.
             "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
     iDestruct (extract_sep_if_split with "Hr2a") as "[Hfl' Hr2a]".
-    iDestruct (memMap_resource_2gen_clater with "Hi Hr2a") as (mem) "[>Hmem %]".
+    iDestruct (memMap_resource_2gen_clater with "Hi Hr2a") as (mem) "[>Hmem Hmem']".
+    iDestruct "Hmem'" as %Hmem.
     pose proof (correctPC_nonO _ _ _ _ _ _ Hfl Hvpc) as Hpc_p'.
     iAssert (⌜if (a =? pc_a)%a then True else p' ≠ O⌝)%I with "[Hfl']" as %Hp'.
     {
@@ -275,22 +277,23 @@ Section cap_lang_rules.
 
     iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
-    { destruct (a =? pc_a)%a; rewrite H4; by simplify_map_eq. }
+    { destruct (a =? pc_a)%a; by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto. by simplify_map_eq. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
-       iApply "Hφ".
+       (* FIXME: fragile *)
        destruct H5 as [Hrr2 _]. simplify_map_eq.
        iDestruct (memMap_resource_2gen_d with "[Hmem]") as "[Hpc_a Ha]".
        {iExists mem; iSplitL; auto. }
        incrementPC_inv.
-       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ _ H4 H6) as Hloadv; eauto.
+       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ _ Hmem H6) as Hloadv; eauto.
        simplify_map_eq.
        rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
-       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto. iFrame. }
+       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto.
+       iApply "Hφ". iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence. }
@@ -298,7 +301,7 @@ Section cap_lang_rules.
 
   Lemma wp_load_success_same E r1 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a pc_a'
         pc_p' p' :
-    cap_lang.decode w = Load r1 r1 →
+    decodeInstrW w = Load r1 r1 →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     readAllowed p = true ∧ withinBounds ((p, g), b, e, a) = true →
@@ -319,7 +322,8 @@ Section cap_lang_rules.
             "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iDestruct (extract_sep_if_split with "Hr1a") as "[Hfl' Hr1a]".
-    iDestruct (memMap_resource_2gen_clater with "Hi Hr1a") as (mem) "[>Hmem %]".
+    iDestruct (memMap_resource_2gen_clater with "Hi Hr1a") as (mem) "[>Hmem Hmem']".
+    iDestruct "Hmem'" as %Hmem.
     pose proof (correctPC_nonO _ _ _ _ _ _ Hfl Hvpc) as Hpc_p'.
     iAssert (⌜if (a =? pc_a)%a then True else p' ≠ O⌝)%I with "[Hfl']" as %Hp'.
     {
@@ -330,7 +334,7 @@ Section cap_lang_rules.
 
     iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
-    { destruct (a =? pc_a)%a; rewrite H2; by simplify_map_eq. }
+    { destruct (a =? pc_a)%a; by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto. by simplify_map_eq. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
@@ -342,7 +346,7 @@ Section cap_lang_rules.
        iDestruct (memMap_resource_2gen_d with "[Hmem]") as "[Hpc_a Ha]".
        {iExists mem; iSplitL; auto. }
        incrementPC_inv.
-       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ _ H2 H4) as Hloadv; eauto.
+       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ _ Hmem H4) as Hloadv; eauto.
        simplify_map_eq.
        rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. }
@@ -354,7 +358,7 @@ Section cap_lang_rules.
   (* If a points to a capability, the load into PC success if its address can be incr *)
   Lemma wp_load_success_PC E r2 pc_p pc_g pc_b pc_e pc_a w
         p g b e a p' g' b' e' a' a'' pc_p' p'' :
-    cap_lang.decode w = Load PC r2 →
+    decodeInstrW w = Load PC r2 →
     PermFlows pc_p pc_p' →
     PermFlows p p'' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -388,7 +392,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ".
-       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       destruct H4 as [Hrr2 _]. simplify_map_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq.
@@ -400,7 +404,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_load_success_fromPC E r1 pc_p pc_g pc_b pc_e pc_a pc_a' w w'' pc_p' :
-    cap_lang.decode w = Load r1 PC →
+    decodeInstrW w = Load r1 PC →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
 
@@ -428,7 +432,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ".
-       destruct H2 as [Hrr2 _]. simplify_map_eq.
+       destruct H3 as [Hrr2 _]. simplify_map_eq.
        rewrite -memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
@@ -437,7 +441,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb].
-       destruct o; apply Is_true_false in H2. all:congruence.
+       destruct o; apply Is_true_false in H3. all:congruence.
      }
   Qed.
 

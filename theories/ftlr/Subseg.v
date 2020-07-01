@@ -4,12 +4,13 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base monotone region interp_weakening.
 From cap_machine Require Import addr_reg.
-From cap_machine.rules Require Import rules_Subseg.
+From cap_machine.rules Require Import rules_base rules_Subseg.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -33,11 +34,7 @@ Section fundamental.
     isWithin a0 a1 b e = true ->
     (b <= a0 /\ a1 <= e)%a.
   Proof.
-    rewrite /isWithin.
-    intros. repeat (apply andb_true_iff in H; destruct H).
-    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H0).
-    generalize (proj2 (reflect_iff _ _ (leb_addr_spec _ _)) H).
-    auto.
+    rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
   Qed.
 
   Lemma within_in_range:
@@ -47,9 +44,7 @@ Section fundamental.
       in_range a b' e' ->
       in_range a b e.
   Proof.
-    intros. destruct H1. unfold in_range.
-    unfold le_addr in *. unfold lt_addr in *.
-    lia.
+    intros * ? ? [? ?]. split; solve_addr.
   Qed.
 
   Lemma subseg_interp_preserved W p l b b' e e' a :
@@ -115,13 +110,12 @@ Section fundamental.
       iApply wp_pure_step_later; auto. iNext.
 
       destruct (reg_eq_dec PC dst).
-      { subst dst. repeat rewrite insert_insert in HPC |- *.
-        rewrite !lookup_insert in HPC H; inv HPC; inv H.
+      { subst dst. repeat rewrite insert_insert in HPC |- *. simplify_map_eq.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
         iAlways. 
-        generalize (isWithin_implies _ _ _ _ H3). intros [A B].
+        generalize (isWithin_implies _ _ _ _ H4). intros [A B].
         destruct (Z_le_dec b'' e'').
         + rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
           iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
@@ -130,9 +124,7 @@ Section fundamental.
         + replace (region_addrs b'' e'') with (nil: list Addr).
           rewrite big_sepL_nil. auto.
           unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia. }
-      { rewrite lookup_insert_ne in HPC; auto.
-        rewrite lookup_insert in HPC.
-        rewrite lookup_insert_ne in H; auto. inv HPC.
+      { simplify_map_eq.
         iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
         { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
         iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
@@ -145,8 +137,8 @@ Section fundamental.
           destruct (reg_eq_dec ri dst).
           + subst ri. rewrite lookup_insert.
             iDestruct ("Hreg" $! dst Hri) as "Hdst".
-            generalize (isWithin_implies _ _ _ _ H3). intros [A B].
-            rewrite H. iApply subseg_interp_preserved; eauto.
+            generalize (isWithin_implies _ _ _ _ H4). intros [A B]. 
+            rewrite H0. iApply subseg_interp_preserved; eauto.
           + repeat rewrite lookup_insert_ne; auto.
             iApply "Hreg"; auto. } }
   Qed.

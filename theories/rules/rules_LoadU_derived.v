@@ -7,6 +7,7 @@ From cap_machine.rules Require Import rules_LoadU.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -44,7 +45,7 @@ Section cap_lang_rules.
   (* load from the top *)
   Lemma wp_loadU_success E r1 r2 pc_p pc_g pc_b pc_e pc_a w w' w'' p g b e a a' pc_a'
         pc_p' p' :
-    cap_lang.decode w = LoadU r1 r2 (inl (-1)%Z) →
+    decodeInstrW w = LoadU r1 r2 (inl (-1)%Z) →
     PermFlows pc_p pc_p' →
     PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -84,8 +85,8 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        simplify_map_eq.
-       assert ((a0 + -1)%a = Some a) as Heq;[solve_addr|]. rewrite Heq in H8.
-       erewrite  wb_implies_verify_access in H8;eauto. simplify_eq. 
+       assert ((a0 + -1)%a = Some a) as Heq;[solve_addr|]. rewrite Heq in H9.
+       erewrite  wb_implies_verify_access in H9;eauto. simplify_eq. 
        simplify_map_eq. 
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
@@ -103,7 +104,7 @@ Section cap_lang_rules.
 
   (* load into PC from reg *)
   Lemma wp_loadU_success_reg_to_PC E r1 r2 pc_p pc_g pc_b pc_e pc_a w p g b e a a1 p' g' b' e' a' a'' pc_p' p'':
-    cap_lang.decode w = LoadU PC r1 (inr r2)  →
+    decodeInstrW w = LoadU PC r1 (inr r2)  →
     PermFlows pc_p pc_p' →
     PermFlows p p'' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -143,8 +144,8 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        simplify_map_eq.
-       assert ((a0 + -1)%a = Some a) as Heq;[solve_addr|]. rewrite Heq in H8.
-       erewrite  wb_implies_verify_access in H8;eauto. simplify_eq.
+       assert ((a0 + -1)%a = Some a) as Heq;[solve_addr|]. rewrite Heq in H9.
+       erewrite  wb_implies_verify_access in H9;eauto. simplify_eq.
        simplify_map_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.

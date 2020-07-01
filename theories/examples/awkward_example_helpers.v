@@ -8,7 +8,8 @@ From cap_machine Require Import
 Section awkward_helpers.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Ltac iPrologue prog :=
     iDestruct prog as "[Hi Hprog]";

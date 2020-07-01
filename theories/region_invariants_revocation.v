@@ -6,7 +6,8 @@ Import uPred.
 Section heap.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -124,7 +125,8 @@ Section heap.
   Proof.
     iIntros (Hpne Hnone1 Hpwl) "#Hmono Hfull Hreg Hl #Hφ".
     rewrite region_eq rel_eq /region_def /rel_def.
-    iDestruct "Hreg" as (M Mρ) "(Hγrel & % & % & Hpreds)".
+    iDestruct "Hreg" as (M Mρ) "(Hγrel & HMW & HMρ & Hpreds)".
+    iDestruct "HMW" as %HMW. iDestruct "HMρ" as %HMρ.
     rewrite RELS_eq /RELS_def. 
     (* destruct on M !! l *)
     destruct (M !! l) eqn:HRl.
@@ -153,8 +155,8 @@ Section heap.
     rewrite -fmap_insert. 
     iFrame "HR". iFrame "∗ #".
     iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|]. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H0. auto. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H1. auto. 
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMW. auto.
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMρ. auto.
     - iApply big_sepM_insert; auto.
       iSplitR "Hpreds'".
       { iExists Temporary. iFrame.
@@ -191,7 +193,8 @@ Section heap.
   Proof.
     iIntros (Hpne Hnone1 Hpwl) "#Hmono Hfull Hreg Hl #Hφ".
     rewrite region_eq rel_eq /region_def /rel_def.
-    iDestruct "Hreg" as (M Mρ) "(Hγrel & % & % & Hpreds)".
+    iDestruct "Hreg" as (M Mρ) "(Hγrel & HMW & HMρ & Hpreds)".
+    iDestruct "HMW" as %HMW. iDestruct "HMρ" as %HMρ.
     rewrite RELS_eq /RELS_def. 
     (* destruct on M !! l *)
     destruct (M !! l) eqn:HRl.
@@ -220,8 +223,8 @@ Section heap.
     rewrite -fmap_insert. 
     iFrame "HR". iFrame.
      iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|]. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H0. auto. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H1. auto. 
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMW. auto.
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMρ. auto.
     - iApply big_sepM_insert; auto.
       iSplitR "Hpreds'".
       { iExists Temporary. iFrame.
@@ -258,7 +261,8 @@ Section heap.
   Proof.
     iIntros (Hpne Hnone1) "#Hmono Hfull Hreg Hl #Hφ".
     rewrite region_eq rel_eq /region_def /rel_def.
-    iDestruct "Hreg" as (M Mρ) "(Hγrel & % & % & Hpreds)".
+    iDestruct "Hreg" as (M Mρ) "(Hγrel & HMW & HMρ & Hpreds)".
+    iDestruct "HMW" as %HMW. iDestruct "HMρ" as %HMρ.
     rewrite RELS_eq /RELS_def. 
     (* destruct on M !! l *)
     destruct (M !! l) eqn:HRl.
@@ -287,8 +291,8 @@ Section heap.
     rewrite -fmap_insert. 
     iFrame "HR". iFrame.
     iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|]. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H0. auto. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H1. auto. 
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMW. auto.
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMρ. auto.
     - iApply big_sepM_insert; auto.
       iSplitR "Hpreds'".
       { iExists Permanent. iFrame.
@@ -325,7 +329,8 @@ Section heap.
   Proof.
     iIntros (Hnone1) "Hfull Hreg".
     rewrite region_eq rel_eq /region_def /rel_def.
-    iDestruct "Hreg" as (M Mρ) "(Hγrel & % & % & Hpreds)".
+    iDestruct "Hreg" as (M Mρ) "(Hγrel & HMW & HMρ & Hpreds)".
+    iDestruct "HMW" as %HMW. iDestruct "HMρ" as %HMρ.
     rewrite RELS_eq /RELS_def. 
     (* destruct on M !! l *)
     destruct (M !! l) eqn:HRl.
@@ -354,8 +359,8 @@ Section heap.
     rewrite -fmap_insert. 
     iFrame "HR". iFrame.
     iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|]. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H0. auto. 
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite H1. auto. 
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMW. auto.
+    - iPureIntro. repeat rewrite dom_insert_L. rewrite HMρ. auto.
     - iApply big_sepM_insert; auto.
       iSplitR "Hpreds'".
       { iExists Revoked. iFrame. iSplitR. 
@@ -499,8 +504,7 @@ Section heap.
             case_eq (Wstd_sta !! a); intros.
             { destruct (decide (Temporary = r)).
               - subst. destruct (decide (i = a)). 
-                { subst;rewrite lookup_insert.
-                  rewrite H in H3. inversion H3. auto. }
+                { subst;rewrite lookup_insert. by simplify_map_eq. }
                 { rewrite lookup_insert_ne;auto. rewrite IHl H3.
                   destruct (in_dec addr_eq_dec i l);[auto|contradiction]. }
               - destruct r; try contradiction; rewrite IHl H3;
@@ -536,8 +540,7 @@ Section heap.
     rewrite revoke_list_std_sta_spec.
     intros; destruct (m !! i) as [x|] eqn:Hm; auto.
     destruct (in_dec addr_eq_dec i l); auto.
-    eapply elem_of_list_In in i0.
-    elim H; auto.
+    eapply elem_of_list_In in i0. by simplify_map_eq.
   Qed.
 
   Lemma revoke_list_dom_std_sta (Wstd_sta : gmap Addr region_type) :
@@ -627,8 +630,8 @@ Section heap.
   Proof.
     rewrite revoke_list_dom_std_sta. intros Hsome.
     rewrite revoke_list_std_sta_spec Hsome.
-    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:H.
-    - rewrite /revoke_i H. auto. 
+    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:HH.
+    - rewrite /revoke_i HH. auto.
     - elim n. eapply elem_of_list_In.
       eapply map_to_list_fst. eexists; by apply elem_of_map_to_list.
   Qed.
@@ -639,8 +642,8 @@ Section heap.
   Proof.
     rewrite revoke_list_dom_std_sta. intros Hsome.
     rewrite revoke_list_std_sta_spec Hsome.
-    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:H.
-    - rewrite /revoke_i H. auto. 
+    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:HH.
+    - rewrite /revoke_i HH. auto.
     - elim n. eapply elem_of_list_In.
       eapply map_to_list_fst. eexists; by apply elem_of_map_to_list.
   Qed.
@@ -651,8 +654,8 @@ Section heap.
   Proof.
     rewrite revoke_list_dom_std_sta. intros Hsome.
     rewrite revoke_list_std_sta_spec Hsome.
-    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:H.
-    - rewrite /revoke_i H. auto. 
+    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:HH.
+    - rewrite /revoke_i HH. auto.
     - elim n. eapply elem_of_list_In.
       eapply map_to_list_fst. eexists; by apply elem_of_map_to_list.
   Qed.
@@ -663,8 +666,8 @@ Section heap.
   Proof.
     rewrite revoke_list_dom_std_sta. intros Hsome.
     rewrite revoke_list_std_sta_spec Hsome.
-    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:H.
-    - rewrite /revoke_i H. auto. 
+    destruct (in_dec addr_eq_dec i (map_to_list Wstd_sta).*1) eqn:HH.
+    - rewrite /revoke_i HH. auto.
     - elim n. eapply elem_of_list_In.
       eapply map_to_list_fst. eexists; by apply elem_of_map_to_list.
   Qed. 
@@ -821,8 +824,7 @@ Section heap.
   Proof.
     intros Hx Hrtc.
     induction Hrtc ;auto.
-    subst. apply std_rel_priv_Static in H.
-    apply IHHrtc. auto.
+    subst. apply IHHrtc. apply std_rel_priv_Static; eauto.
   Qed.
   
   Lemma std_rel_priv_monotone x y x' y' Wstd_sta Wstd_sta' i :
@@ -1664,7 +1666,7 @@ Section heap.
       assert (i ∈ dom (gset Addr) (<[i:=x]> m)) as Hin.
       { apply elem_of_dom. rewrite lookup_insert; eauto. }
       assert (i ∉ l) as Hnin.
-      { intros Hcontr. apply Hiff in Hcontr. rewrite H in Hcontr. inversion Hcontr. }
+      { intros Hcontr. apply Hiff in Hcontr. simplify_map_eq. }
       destruct (decide (x = Temporary)); subst. 
       + exists (i :: l). split;[apply NoDup_cons;split;auto|].
         intros a0. destruct (decide (i = a0)); subst.

@@ -6,6 +6,7 @@ From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -74,7 +75,7 @@ Section cap_lang_rules.
       Get_spec i regs dst src regs' FailedV.
 
   Lemma wp_Get Ep pc_p pc_g pc_b pc_e pc_a pc_p' w get_i dst src regs :
-    cap_lang.decode w = get_i →
+    decodeInstrW w = get_i →
     is_Get get_i dst src →
 
     PermFlows pc_p pc_p' →
@@ -85,7 +86,7 @@ Section cap_lang_rules.
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
-        ⌜ Get_spec (cap_lang.decode w) regs dst src regs' retv ⌝ ∗
+        ⌜ Get_spec (decodeInstrW w) regs dst src regs' retv ⌝ ∗
         pc_a ↦ₐ[pc_p'] w ∗
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
@@ -94,8 +95,7 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; subst; destruct H7 as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr. }
+    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; subst; naive_solver. }
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
@@ -145,7 +145,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_Get_PC_success E get_i dst pc_p pc_g pc_b pc_e pc_a w wdst pc_a' pc_p' :
-    cap_lang.decode w = get_i →
+    decodeInstrW w = get_i →
     is_Get get_i dst PC →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' ->
@@ -176,7 +176,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_Get_same_success E get_i r pc_p pc_g pc_b pc_e pc_a w (c:Cap) pc_a' pc_p' :
-    cap_lang.decode w = get_i →
+    decodeInstrW w = get_i →
     is_Get get_i r r →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' ->
@@ -207,7 +207,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma wp_Get_success E get_i dst src pc_p pc_g pc_b pc_e pc_a w wdst csrc pc_a' pc_p' :
-    cap_lang.decode w = get_i →
+    decodeInstrW w = get_i →
     is_Get get_i dst src →
     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' ->

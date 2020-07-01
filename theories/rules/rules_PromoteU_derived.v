@@ -7,6 +7,7 @@ From cap_machine.rules Require Import rules_PromoteU.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -20,7 +21,7 @@ Section cap_lang_rules.
   (* load from the top *)
   Lemma wp_promoteU_success Ep r1 pc_p pc_g pc_b pc_e pc_a w p g b e a pc_a'
         pc_p':
-    cap_lang.decode w = PromoteU r1 →
+    decodeInstrW w = PromoteU r1 →
     PermFlows pc_p pc_p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
     p <> E ->

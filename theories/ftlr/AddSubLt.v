@@ -3,12 +3,14 @@ From cap_machine.rules Require Export rules_AddSubLt.
 From cap_machine.rules Require Import rules_base.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
-From stdpp Require Import base. 
+From stdpp Require Import base.
+From cap_machine Require Import machine_base.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -31,9 +33,9 @@ Section fundamental.
     → std W !! a = Some ρ
     → (ρ ≠ Revoked ∧ (∀ g, ρ ≠ Static g))
     → p' ≠ O
-    → (cap_lang.decode w = cap_lang.Add dst r1 r2 \/
-       cap_lang.decode w = Sub dst r1 r2 \/
-       cap_lang.decode w = Lt dst r1 r2)
+    → (decodeInstrW w = Add dst r1 r2 \/
+       decodeInstrW w = Sub dst r1 r2 \/
+       decodeInstrW w = Lt dst r1 r2)
     -> □ ▷ (∀ a0 a1 a2 a3 a4 a5 a6,
              full_map a1
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → ((fixpoint interp1) a0) (a1 !r! r1))

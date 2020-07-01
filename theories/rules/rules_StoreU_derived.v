@@ -7,6 +7,7 @@ From cap_machine.rules Require Import rules_StoreU.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr. 
@@ -46,7 +47,7 @@ Section cap_lang_rules.
   (* store and increment *)
   Lemma wp_storeU_success_0_reg E pc_p pc_g pc_b pc_e pc_a pc_a' w dst src w'
          p g b e a a' w'' pc_p' p' :
-    cap_lang.decode w = StoreU dst (inl 0%Z) (inr src) →
+    decodeInstrW w = StoreU dst (inl 0%Z) (inr src) →
     PermFlows pc_p pc_p' →
     PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -87,7 +88,7 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        simplify_map_eq.
-       erewrite wb_implies_verify_access in H10; eauto. simplify_eq. 
+       erewrite wb_implies_verify_access in H11; eauto. simplify_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        destruct (addr_eq_dec a'0 a'0);[|contradiction]. 
@@ -107,7 +108,7 @@ Section cap_lang_rules.
   (* store and increment from and to the same register *)
   Lemma wp_storeU_success_0_reg_same E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w'
          p g b e a a' pc_p' p' :
-    cap_lang.decode w = StoreU dst (inl 0%Z) (inr dst) →
+    decodeInstrW w = StoreU dst (inl 0%Z) (inr dst) →
     PermFlows pc_p pc_p' →
     PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -146,7 +147,7 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        simplify_map_eq.
-       erewrite wb_implies_verify_access in H8; eauto. simplify_eq.
+       erewrite wb_implies_verify_access in H9; eauto. simplify_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        destruct (addr_eq_dec a'0 a'0);[|contradiction].
@@ -165,7 +166,7 @@ Section cap_lang_rules.
 
     Lemma wp_storeU_success_0_z E pc_p pc_g pc_b pc_e pc_a pc_a' w dst z w'
          p g b e a a' pc_p' p' :
-    cap_lang.decode w = StoreU dst (inl 0%Z) (inl z) →
+    decodeInstrW w = StoreU dst (inl 0%Z) (inl z) →
     PermFlows pc_p pc_p' →
     PermFlows p p' →
     isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
@@ -204,7 +205,7 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        simplify_map_eq.
-       erewrite wb_implies_verify_access in H8; eauto. simplify_eq. 
+       erewrite wb_implies_verify_access in H9; eauto. simplify_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        destruct (addr_eq_dec a'0 a'0);[|contradiction]. 
