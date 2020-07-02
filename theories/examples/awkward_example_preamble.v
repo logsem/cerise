@@ -78,7 +78,6 @@ Section awkward_example_preamble.
      move_r r_t1 PC;
      lea_z r_t1 offset_to_awkward] ++
     crtcls_instrs f_m ++
-    rclear_instrs (list_difference all_registers [PC; r_t0; r_t1]) ++
     [jmp r_t0].
 
   Definition awkward_preamble f_m offset_to_awkward ai p :=
@@ -269,37 +268,6 @@ Section awkward_example_preamble.
     iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & HnaI & Hregs & Hr & Hsts)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest'.
     iDestruct (na_inv_alloc logrel_nais _ awk_clsN with "Hbe_cls") as ">#Hcls_inv".
-    (* rclear *)
-    iDestruct (contiguous_between_program_split with "Hprog") as
-        (ai_rclear ai_rest' a_rclear_end) "(Hrclear & Hprog & #Hcont)"; eauto.
-    iDestruct "Hcont" as %(Hcont_rclear & Hcont_rest'' & Heqapp'' & Hlink'').
-    iDestruct (big_sepL2_length with "Hrclear") as %Hrclear_len.
-    destruct ai_rclear; [by inversion Hrclear_len|].
-    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rclear) as ->.
-    assert (a_malloc_end <= a_crtcls_end)%a as Hcrtcls_end_after_malloc.
-    { generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
-      revert Ha1_after_malloc Hlink'. clear; solve_addr. }
-    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr2]") as "Hregs".
-      by rewrite !lookup_insert_ne // lookup_delete.
-     (* /!\ This manual assert and the manual unfolding of rclear is needed.
-        Otherwise Qed runs in a loop when checking that [rclear ...] and
-        the type of "Hrclear" ([∗ list] ...) are convertible *)
-    iAssert (rclear (a_crtcls_end :: ai_rclear) pc_p' (list_difference all_registers [PC; r_t0; r_t1]))
-               with "[Hrclear]" as "Hrclear".
-    { rewrite /rclear. iApply "Hrclear". }
-    iApply (rclear_spec with "[- $HPC $Hrclear $Hregs]");
-      [apply Hcont_rclear| | | |apply Hfl|..].
-    { apply not_elem_of_list; repeat constructor. }
-    { reflexivity. }
-    { eapply isCorrectPC_range_restrict. apply Hvpc2. split; auto.
-      eapply contiguous_between_bounds. apply Hcont_rest''. }
-    { rewrite list_to_set_difference -/all_registers_s.
-      repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r.
-      rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
-      f_equal. clear. set_solver. }
-    iNext. iIntros "(HPC & Hregs & Hrclear)". iCombine "Hrclear" "Hprog_done" as "Hprog_done".
-    iDestruct (big_sepL2_length with "Hprog") as %Hlen'.
-    destruct ai_rest'; [by inversion Hlen'|].
     (* in preparation of jumping, we allocate the new awkward invariant and sts *)
     iDestruct (sts_alloc_loc _ false awk_rel_pub awk_rel_priv with "Hsts") as ">HH".
     iDestruct "HH" as (i) "(Hsts & % & % & Hst_i & #Hrel_i)".
@@ -308,19 +276,21 @@ Section awkward_example_preamble.
     (* we also allocate a non atomic invariant for the environment table *)
     iMod (na_inv_alloc logrel_nais _ awk_env
                        (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry' ↦ₐ[RW] fail_cap)%I
-            with "[$Ha_entry' $Hpc_b]") as "#Henv". 
+            with "[$Ha_entry' $Hpc_b]") as "#Henv".
     (* call the resulting world W2 *)
     match goal with |- context [ sts_full_world ?W ] => set W2 := W end.
     (* jmp *)
+    destruct ai_rest as [| ? l']; [by inversion Hlength_rest'|].
+    destruct l'; [|by inversion Hlength_rest'].
     iPrologue "Hprog".
-    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest'') as ->.
-    assert (ai_rest' = []) as -> by (inversion Hlen'; eauto using nil_length_inv).
+    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest') as ->.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply decode_encode_instrW_inv|apply Hfl|..].
     { apply Hvpc2.
       generalize (contiguous_between_middle_bounds'
-        _ a_rclear_end _ _ Hcont_rest'' ltac:(repeat constructor)).
-      revert Hcrtcls_end_after_malloc Hlink''. clear; solve_addr. }
+        _ a_crtcls_end _ _ Hcont_rest' ltac:(repeat constructor)).
+      generalize (contiguous_between_bounds _ _ _ Hcont_rest').
+      revert Ha1_after_malloc Hlink'. clear; solve_addr. }
 
     (* the current state of registers is valid *)
     iAssert (interp W2 (inr (E, Global, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
@@ -384,18 +354,18 @@ Section awkward_example_preamble.
       { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
     }
 
-    unshelve iSpecialize ("Hr_valid" $! r_t0 _). done.
+    unshelve iPoseProof ("Hr_valid" $! r_t0 _) as "#Hr0_valid". done.
     rewrite /(RegLocate _ r_t0) Hr0.
 
-    iAssert (((fixpoint interp1) W2) r0) as "#Hr_valid2". 
-    { iApply (interp_monotone with "[] Hr_valid"). iPureIntro. apply related_sts_pub_world_fresh_loc; auto. }
+    iAssert (((fixpoint interp1) W2) r0) as "#Hr0_valid2".
+    { iApply (interp_monotone with "[] Hr0_valid"). iPureIntro. apply related_sts_pub_world_fresh_loc; auto. }
     set r' : gmap RegName Word :=
       <[r_t0  := r0]>
       (<[r_t1 := inr (E, Global, b_cls, e_cls, b_cls)]>
        (create_gmap_default (list_difference all_registers [r_t0;r_t1]) (inl 0%Z))).
 
     (* either we fail, or we use the continuation in rt0 *)
-    iDestruct (jmp_or_fail_spec with "Hr_valid2") as "Hcont".
+    iDestruct (jmp_or_fail_spec with "Hr0_valid2") as "Hcont".
     destruct (decide (isCorrectPC (updatePcPerm r0))). 
     2 : { iEpilogue "(HPC & Hi & Hr0)". iApply "Hcont". iFrame "HPC". iIntros (Hcontr);done. }
     iDestruct "Hcont" as (p g b e a3 Heq) "#Hcont". 
@@ -410,29 +380,33 @@ Section awkward_example_preamble.
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* Put the registers back in the map *)
-    iAssert ([∗ map] r↦w ∈ (create_gmap_default (list_difference all_registers [PC; r_t0; r_t1]) (inl 0%Z)),
-             r ↦ᵣ w)%I with "[Hregs]" as "Hregs".
-    { iApply (big_sepM_mono (λ r w, r ↦ᵣ inl 0%Z)%I). intros k w.
-      intros [? ->]%create_gmap_default_lookup_is_Some. auto.
-      iDestruct (big_sepM_dom with "Hregs") as "Hregs". iApply big_sepM_dom.
-      rewrite big_opS_proper'. iApply "Hregs". done.
-      rewrite create_gmap_default_dom list_to_set_difference -/all_registers_s.
-      repeat rewrite ?dom_insert_L ?dom_delete_L. rewrite Hdom_r.
-      rewrite !singleton_union_difference_L !all_registers_union_l !difference_difference_L.
-      f_equal. clear. set_solver. }
-    iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs"; [done|].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs"; [done|].
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs"; [done|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
+    { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete //. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs".
+    { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne //.
+      repeat (rewrite lookup_insert_ne //;[]). apply lookup_delete. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
+    { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne //.
+      repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne // lookup_delete //. }
+    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs".
+    { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne //.
+      repeat (rewrite lookup_insert_ne //;[]). do 2 rewrite lookup_delete_ne //.
+      apply lookup_delete. }
+    repeat (rewrite -(delete_insert_ne _ r_t2) //;[]). rewrite insert_delete.
+    repeat (rewrite -(delete_insert_ne _ r_t1) //;[]). rewrite insert_delete.
+    repeat (rewrite -(delete_insert_ne _ r_t0) //;[]). rewrite insert_delete.
+    repeat (rewrite -(delete_insert_ne _ PC) //;[]). rewrite insert_delete.
     rewrite -(insert_insert _ PC _ (inl 0%Z)).
     match goal with |- context [ ([∗ map] k↦y ∈ <[PC:=_]> ?r, _)%I ] => set r'' := r end.
     iAssert (full_map r'') as %Hr''_full.
     { rewrite /full_map. iIntros (rr). iPureIntro. rewrite elem_of_gmap_dom /r''.
-      rewrite 3!dom_insert_L create_gmap_default_dom list_to_set_difference -/all_registers_s.
+      rewrite 12!dom_insert_L regmap_full_dom //.
       generalize (all_registers_s_correct rr). clear; set_solver. }
+    assert (related_sts_pub_world W W2) as Hfuture2.
+    { apply related_sts_pub_world_fresh_loc; auto. }
     iSpecialize ("Hcont'" $! r'' with "[Hsts Hr Hregs HnaI]").
     { iFrame.
-      iDestruct (region_monotone with "[] [] Hr") as "$";
-        [auto|iPureIntro; apply related_sts_pub_world_fresh_loc; auto|]. iFrame.
+      iDestruct (region_monotone with "[] [] Hr") as "$"; auto.
       rewrite /interp_reg. iSplit; [iPureIntro; apply Hr''_full|].
       iIntros (rr Hrr).
       assert (is_Some (r'' !! rr)) as [rrv Hrrv] by apply Hr''_full.
@@ -440,11 +414,15 @@ Section awkward_example_preamble.
       rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [_ Hrrv] ].
       { subst rr. by exfalso. }
       rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
-      { subst rr rrv. iApply "Hr_valid2". }
+      { subst rr rrv. iApply "Hr0_valid2". }
       rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
       { subst rr rrv. iApply "Hvalid_cls". }
-      apply create_gmap_default_lookup_is_Some in Hrrv as [_ ->].
-      rewrite /interp /=. rewrite (fixpoint_interp1_eq W2 (inl 0%Z)). auto. }
+      repeat (
+        rewrite lookup_insert_Some in Hrrv |- *; move=> [ [? ?] | [? Hrrv] ];
+        [subst; by rewrite (fixpoint_interp1_eq W2 (inl 0%Z)) |]
+      ).
+      unshelve iSpecialize ("Hr_valid" $! rr _). by auto. rewrite Hrrv.
+      iApply (interp_monotone with "[] Hr_valid"). auto. }
     (* apply the continuation *)
     iDestruct "Hcont'" as "[_ Hcallback_now]".
     iApply wp_wand_l. iFrame "Hcallback_now".
