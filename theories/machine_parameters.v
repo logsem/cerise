@@ -8,9 +8,6 @@ Class MachineParameters := {
 
   decode_encode_instr_inv :
     forall (i: instr), decodeInstr (encodeInstr i) = i;
-  encode_decode_instr_not_fail :
-    forall (z: Z), decodeInstr z ≠ Fail →
-                   encodeInstr (decodeInstr z) = z;
 
   encodePerm : Perm → Z;
   encodePerm_inj : Inj eq eq encodePerm;
@@ -41,11 +38,3 @@ Definition encodeInstrW `{MachineParameters} : instr → Word :=
 Lemma decode_encode_instrW_inv `{MachineParameters} (i: instr):
   decodeInstrW (encodeInstrW i) = i.
 Proof. apply decode_encode_instr_inv. Qed.
-
-Lemma encode_decode_instrW_not_fail `{MachineParameters} (w: Word):
-  decodeInstrW w ≠ Fail → encodeInstrW (decodeInstrW w) = w.
-Proof.
-  destruct w; cbn.
-  - intros. unfold encodeInstrW. f_equal. apply encode_decode_instr_not_fail. auto.
-  - intros. congruence.
-Qed.

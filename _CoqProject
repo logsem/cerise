@@ -52,6 +52,7 @@ theories/ftlr/StoreU.v
 theories/ftlr/PromoteU.v
 theories/fundamental.v
 theories/examples/addr_reg_sample.v
+theories/examples/disjoint_regions_tactics.v
 theories/examples/region_macros.v
 theories/examples/malloc.v
 theories/examples/contiguous.v
@@ -65,3 +66,4 @@ theories/examples/awkward_example.v
 theories/examples/awkward_example_u.v
 theories/examples/awkward_example_preamble.v
 theories/examples/awkward_example_adequacy.v
+theories/examples/awkward_example_concrete.v

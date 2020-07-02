@@ -71,7 +71,7 @@ Proof.
   - exfalso. by apply (Z.leb_le 0 z) in pos.
   - exfalso. by apply (Z.leb_le z MemNum) in fin.
   - exfalso. by apply (Z.leb_le z MemNum) in fin.
-Qed.
+Defined.
 
 Definition le_lt_addr : Addr → Addr → Addr → Prop :=
   λ a1 a2 a3, (a1 <= a2 < a3)%Z.
@@ -353,7 +353,7 @@ Program Definition n_to_regname (n : nat) : option RegName :=
   if (nat_le_dec n RegNum) then Some (R n _) else None.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
-Qed.
+Defined.
 
 Global Instance reg_countable : Countable RegName.
 Proof.

@@ -8,6 +8,7 @@ From cap_machine Require Import
      region_invariants_revocation region_invariants_static
      region_invariants_uninitialized.
 From cap_machine.examples Require Import
+     disjoint_regions_tactics
      stack_macros malloc awkward_example_u awkward_example_preamble.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
@@ -107,46 +108,50 @@ Definition offset_to_awkward `{memory_layout} : Z :=
      of the preamble *)
   (awkward_preamble_instrs_length - awkward_preamble_move_offset)%Z.
 
-(* FIXME: the link table permission could be restricted to RO *)
+(* TODO: the link table permission could be restricted to RO *)
+Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : gmap Addr Word :=
+  (* pointer to the linking table *)
+    list_to_map [(awk_region_start,
+                  inr (RW, Global, link_table_start, link_table_end, link_table_start))]
+  ∪ mkregion awk_preamble_start awk_body_start
+       (* preamble: code that creates the awkward example closure *)
+      (awkward_preamble_instrs 0%Z (* offset to malloc in linking table *)
+         offset_to_awkward (* offset to the body of the example *))
+  ∪ mkregion awk_body_start awk_region_end
+       (* body of the awkward example, that will be encapsulated in the closure
+          created by the preamble *)
+      (awkward_instrs 1%Z (* offset to fail in the linking table *)
+         r_adv (* register used to call to arbitrary code *))
+  ∪ mkregion stack_start stack_end
+      (* initial content of the stack: can be anything *)
+      stack_val
+  ∪ mkregion adv_start adv_end
+      (* adversarial code: any code or data, but no capabilities (see condition below) *)
+      adv_val
+  ∪ mkregion malloc_start malloc_memptr
+      (* code for the malloc subroutine *)
+      malloc_subroutine_instrs
+  ∪ list_to_map
+      (* Capability to malloc's memory pool, used by the malloc subroutine *)
+      [(malloc_memptr, inr (RWX, Global, malloc_memptr, malloc_end, malloc_mem_start))]
+  ∪ mkregion malloc_mem_start malloc_end
+      (* Malloc's memory pool, initialized to zero *)
+      (region_addrs_zeroes malloc_mem_start malloc_end)
+  ∪ mkregion fail_start fail_end
+      ((* code for the failure subroutine *)
+        assert_fail_instrs ++
+       (* pointer to the "failure" flag, set to 1 by the routine *)
+       [inr (RW, Global, fail_flag, fail_flag_next, fail_flag)])
+  ∪ mkregion link_table_start link_table_end
+      (* link table, with pointers to the malloc and failure subroutines *)
+      [inr (E, Global, malloc_start, malloc_end, malloc_start);
+       inr (E, Global, fail_start, fail_end, fail_start)]
+  ∪ list_to_map [(fail_flag, inl 0%Z)] (* failure flag, initially set to 0 *)
+.
+
 Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   ∃ (adv_val stack_val: list Word),
-  m =   (* pointer to the linking table *)
-        list_to_map [(awk_region_start,
-                      inr (RW, Global, link_table_start, link_table_end, link_table_start))]
-      ∪ mkregion awk_preamble_start awk_body_start
-           (* preamble: code that creates the awkward example closure *)
-          (awkward_preamble_instrs 0%Z (* offset to malloc in linking table *)
-             offset_to_awkward (* offset to the body of the example *))
-      ∪ mkregion awk_body_start awk_region_end
-           (* body of the awkward example, that will be encapsulated in the closure
-              created by the preamble *)
-          (awkward_instrs 1%Z (* offset to fail in the linking table *)
-             r_adv (* register used to call to arbitrary code *))
-      ∪ mkregion stack_start stack_end
-          (* initial content of the stack: can be anything *)
-          stack_val
-      ∪ mkregion adv_start adv_end
-          (* adversarial code: any code or data, but no capabilities (see condition below) *)
-          adv_val
-      ∪ mkregion malloc_start malloc_memptr
-          (* code for the malloc subroutine *)
-          malloc_subroutine_instrs
-      ∪ list_to_map
-          (* Capability to malloc's memory pool, used by the malloc subroutine *)
-          [(malloc_memptr, inr (RWX, Global, malloc_memptr, malloc_end, malloc_mem_start))]
-      ∪ mkregion malloc_mem_start malloc_end
-          (* Malloc's memory pool, initialized to zero *)
-          (region_addrs_zeroes malloc_mem_start malloc_end)
-      ∪ mkregion fail_start fail_end
-          ((* code for the failure subroutine *)
-            assert_fail_instrs ++
-           (* pointer to the "failure" flag, set to 1 by the routine *)
-           [inr (RW, Global, fail_flag, fail_flag_next, fail_flag)])
-      ∪ mkregion link_table_start link_table_end
-          (* link table, with pointers to the malloc and failure subroutines *)
-          [inr (E, Global, malloc_start, malloc_end, malloc_start);
-           inr (E, Global, fail_start, fail_end, fail_start)]
-      ∪ list_to_map [(fail_flag, inl 0%Z)] (* failure flag, initially set to 0 *)
+  m = mk_initial_memory adv_val stack_val
   ∧
   (* the adversarial region in memory must only contain instructions, no
      capabilities (it can thus only access capabilities the awkward preamble
@@ -416,12 +421,6 @@ Section Adequacy.
   Proof.
     intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
   Qed.
-
-  Lemma disjoint_mono_l A C `{ElemOf A C} (X Y Z: C) : X ⊆ Y → Y ## Z → X ## Z.
-  Proof. intros * HXY. rewrite !elem_of_disjoint. eauto. Qed.
-
-  Lemma disjoint_mono_r A C `{ElemOf A C} (X Y Z: C) : X ⊆ Y → Z ## Y → Z ## X.
-  Proof. intros * HXY. rewrite !elem_of_disjoint. eauto. Qed.
 
   Lemma dom_list_to_map_singleton (x:Addr) (y:Word):
     dom (gset Addr) (list_to_map [(x, y)] : gmap Addr Word) = list_to_set [x].
@@ -808,6 +807,3 @@ Proof.
       ]).
   eapply (@awkward_example_adequacy' Σ); typeclasses eauto.
 Qed.
-
-(* Print Assumptions awkward_example_adequacy. *)
-(* -> Closed under the global context. *)

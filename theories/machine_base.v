@@ -358,6 +358,12 @@ Definition cap_size (w : Word) : Z :=
   | _ => 0%Z
   end.
 
+Definition is_cap (w: Word): bool :=
+  match w with
+  | inr _ => true
+  | inl _ => false
+  end.
+
 (* Bound checking *)
 
 Definition withinBounds (c: Cap): bool :=
@@ -546,7 +552,7 @@ Proof.
     end%positive.
   eapply (Build_Countable _ _ encode decode).
   intro p. destruct p; reflexivity.
-Qed.
+Defined.
 
 Instance locality_countable : Countable Locality.
 Proof.
@@ -561,7 +567,7 @@ Proof.
     end%positive.
   eapply (Build_Countable _ _ encode decode).
   intro l. destruct l; reflexivity.
-Qed.
+Defined.
 
 Instance cap_countable : Countable Cap.
 Proof.
@@ -569,10 +575,10 @@ Proof.
   eq decision we have for Cap has to match the one used in the conclusion of the
   lemma... *)
   apply prod_countable.
-Qed.
+Defined.
 
 Instance word_countable : Countable Word.
-Proof. apply sum_countable. Qed.
+Proof. apply sum_countable. Defined.
 
 Instance instr_countable : Countable instr.
 Proof.
@@ -629,4 +635,4 @@ Proof.
       end).
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
-Qed.
+Defined.

@@ -17,12 +17,6 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition is_cap (w: Word): bool :=
-    match w with
-    | inr _ => true
-    | inl _ => false
-    end.
-
   Inductive IsPtr_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
   | IsPtr_spec_success (w: Word):
       regs !! src = Some w →
