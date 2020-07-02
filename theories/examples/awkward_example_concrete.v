@@ -9,7 +9,19 @@ Open Scope Addr_scope.
 Notation "! x" := (^(z_to_addr x)%a) (at level 1).
 Local Obligation Tactic := try done.
 
-(* Encoders/decoders for instructions/perms using countable instances *)
+(* In this file, we instantiate the adequacy theorem for the awkward example
+   [awkward_example_adequacy] with a concrete machine model, concrete memory and
+   finally concrete untrusted example code.
+
+   The end result is a fully concrete machine configuration that we can run by
+   executing the semantics, and validate that it executes successfully.
+*)
+
+
+(** First, provide an instantiation for the [MachineParameters] parameter. *)
+
+(* We build encoders/decoders for instructions/perms using our existing
+   countable instances *)
 
 Definition encodeInstr (i: instr): Z := Zpos (encode i).
 Definition encodePerm (p: Perm): Z := Zpos (encode p).
@@ -43,6 +55,10 @@ Program Instance my_capability_machine : MachineParameters :=
     decodePermPair encodePermPair _.
 Next Obligation. intros. rewrite /decodeInstr /encodeInstr decode_encode //. Qed.
 Next Obligation. intros. rewrite /decodePermPair /encodePermPair decode_encode //. Qed.
+
+
+(** Second, build a concrete memory layout, with hopefully enough space for the
+    stack, malloc and the untrusted code; the regions are laid out contiguously. *)
 
 (* A simple concrete memory layout, with some hardcoded sizes *)
 Program Instance my_concrete_layout : memory_layout :=
@@ -120,6 +136,9 @@ Proof.
   inversion 1.
 Qed.
 
+(* Specialized adequacy theorem for this concrete machine and memory layout,
+   that holds for any untrusted code region that we can have in memory. *)
+
 Theorem concrete_machine_adequacy reg' m' es adv_code:
   length adv_code = 1000 →
   Forall (λ w, is_cap w = false) adv_code →
@@ -135,12 +154,18 @@ Proof.
 Qed.
 
 
-(*** Now, with a concrete adversary code. ***)
+(* Finally, instantiate that with a concrete untrusted ("adversary") code.
 
-(* A simple adversary program, that calls the awkward example closure then halts *)
-(* It gives to the awkward example a simple "adversary" closure that immediately returns *)
-(* r1 contains the awkward closure *)
-(* we pass our adversarial closure in r_adv, and our return pointer in r0 *)
+   This means that we can check that the whole setup runs successfully and does
+   not fail at some point. *)
+
+(* A simple program that calls the awkward example closure then halts upon
+   return.
+
+   The program passes to the awkward example a simple "adversary" closure in
+   register r_adv, and its return pointer in r0. Register r1 has been preloaded
+   with the closure for the awkward example.
+*)
 Definition adv_code :=
   [move_r r_adv PC;
    lea_z r_adv 6%Z;
@@ -158,6 +183,19 @@ Definition adv_code :=
 Definition adv_val :=
   adv_code ++ replicate (1000 - length adv_code) (inl 0%Z).
 
+(* By combining the adequacy theorem of the machine (concrete_machine_adequacy)
+   and the execution of the semantics, we obtain that:
+
+   - The machine executes successfully and gracefully halts without failing.
+     This means we successfully execute: the preamble, our untrusted code, the
+     awkward example, then back to our untrusted code which finally halts.
+
+   - The assert routine never fails: at every step of the execution [fail_flag]
+     remains set to zero (this is given by [concrete_machine_adequacy], here we
+     only assert it for the final state). Furthermore, were the assert routin to
+     fail, it would terminate the machine in the Fail state, which is also not
+     the case here.
+*)
 Theorem concrete_example_runs_and_gracefully_halts :
   ∃ reg' m',
   rtc erased_step
