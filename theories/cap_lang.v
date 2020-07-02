@@ -724,12 +724,6 @@ Proof. intro; reflexivity. Qed.
 
 (****)
 
-Definition get_addr_pointsto (w : Word) (conf : ExecConf) : option Word :=
-  match w with
-  | inl z => None
-  | inr ((p,g),b,e,a) => Some (MemLocate (mem conf) a)
-  end.
-
 Global Instance is_atomic_correct `{MachineParameters} s (e : expr) : is_atomic e → Atomic s e.
 Proof.
   intros Ha; apply strongly_atomic_atomic, ectx_language_atomic.

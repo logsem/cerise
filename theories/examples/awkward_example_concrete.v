@@ -1,6 +1,6 @@
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec.
-From cap_machine Require Import cap_lang machine_base.
+From cap_machine Require Import cap_lang machine_base machine_run.
 From cap_machine.examples Require Import
      stack_macros malloc awkward_example_u awkward_example_preamble
      awkward_example_adequacy disjoint_regions_tactics.
@@ -10,6 +10,11 @@ Notation "! x" := (^(z_to_addr x)%a) (at level 1).
 Local Obligation Tactic := try done.
 
 (* Encoders/decoders for instructions/perms using countable instances *)
+
+Definition encodeInstr (i: instr): Z := Zpos (encode i).
+Definition encodePerm (p: Perm): Z := Zpos (encode p).
+Definition encodeLoc (l: Locality): Z := Zpos (encode l).
+Definition encodePermPair (pl: Perm * Locality): Z := Zpos (encode pl).
 
 Definition decodeInstr (z: Z): instr :=
   match z with
@@ -21,15 +26,6 @@ Definition decodeInstr (z: Z): instr :=
   | _ => Fail
   end.
 
-Definition encodeInstr (i: instr): Z :=
-  Zpos (encode i).
-
-Definition encodePerm (p: Perm): Z :=
-  Zpos (encode p).
-
-Definition encodeLoc (l: Locality): Z :=
-  Zpos (encode l).
-
 Definition decodePermPair (z: Z): Perm * Locality :=
   match z with
   | Zpos p =>
@@ -39,9 +35,6 @@ Definition decodePermPair (z: Z): Perm * Locality :=
     end
   | _ => (O, Local)
   end.
-
-Definition encodePermPair (pl: Perm * Locality): Z :=
-  Zpos (encode pl).
 
 Program Instance my_capability_machine : MachineParameters :=
   @Build_MachineParameters
@@ -127,7 +120,7 @@ Proof.
   inversion 1.
 Qed.
 
-Theorem my_awkward_example_adequacy reg' m' es adv_code:
+Theorem concrete_machine_adequacy reg' m' es adv_code:
   length adv_code = 1000 →
   Forall (λ w, is_cap w = false) adv_code →
   rtc erased_step
@@ -139,4 +132,48 @@ Proof.
   apply awkward_example_adequacy.
   apply my_initial_memory_correct; auto.
   apply my_initial_registers_correct.
+Qed.
+
+
+(*** Now, with a concrete adversary code. ***)
+
+(* A simple adversary program, that calls the awkward example closure then halts *)
+(* It gives to the awkward example a simple "adversary" closure that immediately returns *)
+(* r1 contains the awkward closure *)
+(* we pass our adversarial closure in r_adv, and our return pointer in r0 *)
+Definition adv_code :=
+  [move_r r_adv PC;
+   lea_z r_adv 6%Z;
+   move_r r_t0 PC;
+   lea_z r_t0 3%Z;
+   jmp r_t1;
+   (* continuation *)
+   halt;
+   (* The "adversarial" closure passed to the awkward example, which it
+      invokes (two times). Here, we simply return to the caller. *)
+   jmp r_t0
+  ].
+
+(* Pad to fit within the adversary region of the fixed memory layout *)
+Definition adv_val :=
+  adv_code ++ replicate (1000 - length adv_code) (inl 0%Z).
+
+Theorem concrete_example_runs_and_gracefully_halts :
+  ∃ reg' m',
+  rtc erased_step
+      ([Seq (Instr Executable)], (my_initial_registers, my_initial_memory adv_val))
+      ([Instr Halted], (reg', m'))
+  ∧ m' !! fail_flag = Some (inl 0%Z).
+Proof.
+  edestruct (
+  machine_run_correct 1000 Executable
+    (my_initial_registers, my_initial_memory adv_val)
+  ) as [ [reg' m'] Hsteps].
+  { (* Run the capability machine! *)
+    vm_compute; reflexivity. }
+  exists reg', m'. split. apply Hsteps.
+  eapply concrete_machine_adequacy; [ | | eapply Hsteps].
+  { reflexivity. }
+  { rewrite Forall_app. split; [ repeat constructor |].
+    by apply Forall_replicate. }
 Qed.

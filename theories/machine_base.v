@@ -429,6 +429,35 @@ Proof.
     + right. red; intros HH; inversion HH; subst. naive_solver.
 Qed.
 
+Definition isCorrectPCb (w: Word): bool :=
+  match w with
+  | inl _ => false
+  | inr (p, g, b, e, a) =>
+    (b <=? a)%a && (a <? e)%a &&
+    (isPerm p RX || isPerm p RWX || isPerm p RWLX)
+  end.
+
+Lemma isCorrectPCb_isCorrectPC w :
+  isCorrectPCb w = true ↔ isCorrectPC w.
+Proof.
+  rewrite /isCorrectPCb. destruct w.
+  { split; try congruence. inversion 1. }
+  { destruct c as [[[[? ?] ?] ?] ?]. rewrite /leb_addr /ltb_addr.
+    rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
+    rewrite /isPerm !bool_decide_eq_true.
+    split.
+    { intros [? ?]. constructor. solve_addr. naive_solver. }
+    { inversion 1; subst. split. solve_addr. naive_solver. } }
+Qed.
+
+Lemma isCorrectPCb_nisCorrectPC w :
+  isCorrectPCb w = false ↔ ¬ isCorrectPC w.
+Proof.
+  destruct (isCorrectPCb w) eqn:HH.
+  { apply isCorrectPCb_isCorrectPC in HH. split; congruence. }
+  { split; auto. intros _. intros ?%isCorrectPCb_isCorrectPC. congruence. }
+Qed.
+
 Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
   isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
   readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
