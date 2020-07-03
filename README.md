@@ -88,7 +88,7 @@ In the operational semantics:
 In the model:
 
 | *name in paper* | *name in mechanization* |
-|-----------------+-------------------------|
+|-----------------|-------------------------|
 | Frozen          | Static                  |
 | statCollection  | full_sts_world          |
 | sharedResources | region                  |
