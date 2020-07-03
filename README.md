@@ -80,19 +80,15 @@ In the operational semantics:
 | *name in paper*   | *name in mechanization*   |
 |-------------------|---------------------------|
 | SingleStep        | Instr Executable          |
-| ----------------- | ------------------------- |
 | Done Standby      | Instr NextI               |
-| ----------------- | ------------------------- |
 | Done Halted       | Instr Halted              |
-| ----------------- | ------------------------- |
 | Done Failed       | Instr Failed              |
-| ----------------- | ------------------------- |
 | Repeat _          | Seq _                     |
 
 In the model:
 
-- Frozen => Static
-
-- stsCollection => full_sts_world
-
-- sharedResources => region
+| *name in paper* | *name in mechanization* |
+|-----------------+-------------------------|
+| Frozen          | Static                  |
+| statCollection  | full_sts_world          |
+| sharedResources | region                  |
