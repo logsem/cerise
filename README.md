@@ -90,5 +90,5 @@ In the model:
 | *name in paper* | *name in mechanization* |
 |-----------------|-------------------------|
 | Frozen          | Static                  |
-| statCollection  | full_sts_world          |
+| stsCollection   | full_sts_world          |
 | sharedResources | region                  |
