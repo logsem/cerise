@@ -77,15 +77,17 @@ Some definitions have different names from the paper.
 
 In the operational semantics: 
 
-- SingleStep => Instr Executable
-
-- Done Standby => Instr NextI
-
-- Done Halted => Instr Halted
-
-- Done Failed => Instr Failed
-
-- Repeat _ => Seq _
+| *name in paper*   | *name in mechanization*   |
+| ----------------- | ------------------------- |
+| SingleStep        | Instr Executable          |
+| ----------------- | ------------------------- |
+| Done Standby      | Instr NextI               |
+| ----------------- | ------------------------- |
+| Done Halted       | Instr Halted              |
+| ----------------- | ------------------------- |
+| Done Failed       | Instr Failed              |
+| ----------------- | ------------------------- |
+| Repeat _          | Seq _                     |
 
 In the model:
 
