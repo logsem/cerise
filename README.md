@@ -27,7 +27,11 @@ Documentation generated using Coqdoc can be created using `make html`. The html 
 
 ## Organization
 
-- lang.v : Contains the operational semantics, and the embedding of the capability machine language into Iris
+The organization of the `theories/` folder is as follows.
+
+- machine_base.v : Contains the syntax (permissions, capability, instructions, ...) of the capability machine.
+
+- cap_lang.v : Contains the operational semantics, and the embedding of the capability machine language into Iris.
 
 - rules_base.v : Contains some of the core resource algebras for the program logic, namely the definition for points to predicates with permissions. 
 
