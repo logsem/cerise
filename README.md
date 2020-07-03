@@ -78,7 +78,7 @@ Some definitions have different names from the paper.
 In the operational semantics: 
 
 | *name in paper*   | *name in mechanization*   |
-| ----------------- | ------------------------- |
+|-------------------|---------------------------|
 | SingleStep        | Instr Executable          |
 | ----------------- | ------------------------- |
 | Done Standby      | Instr NextI               |
