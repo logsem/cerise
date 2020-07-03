@@ -33,7 +33,13 @@ Documentation generated using Coqdoc can be created using `make html`. The html 
 
 - rules.v : Imports all the hoare triple rules for each instruction. These rules are separated into separate files (located in the rules folder)
 
-- region_invariants.v : Contains definitions for standard resources, and the shared resources map. Contains some lemmas for "opening" and "closing" the map, akin to opening and closing invariants. 
+- region_invariants.v : Contains definitions for standard resources, and the shared resources map *sharedResources*. Contains some lemmas for "opening" and "closing" the map, akin to opening and closing invariants. 
+
+- region_invariants_revocation.v : Contains lemmas for revoking standard resources (setting Temporary invariants to a Revoked state)
+
+- region_invariants_static.v : Contains lemmas for manipulating frozen standard resources
+
+- region_invariants_uninitialized.v : Contains lemmas for manipulating frozen standard singleton resources. These are specifically for manipulating the resources that are related to the interpretation of uninitialized capabilities. 
 
 - sts.v : Contains the definition of *stsCollection*, and associated lemmas. 
 
@@ -58,3 +64,16 @@ In the examples folder:
 - awkward_example_adequacy.v : Contains the proof of correctness of the awkward example, *Theorem 6.3*. 
 
 - awkward_example_concrete.v : Contains a concrete run of the awkward example applied to a closure of itself to showcase reentrancy. The file contains a proof that the run gracefully halts. 
+
+## Differences
+
+Some definitions have different names from the paper.
+
+*name in paper => name in mechanization*
+
+In the operational semantics: 
+
+In the model:
+- Frozen => Static
+- stsCollection => full_sts_world
+- sharedResources => region
