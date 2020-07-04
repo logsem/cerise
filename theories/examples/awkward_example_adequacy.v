@@ -108,11 +108,10 @@ Definition offset_to_awkward `{memory_layout} : Z :=
      of the preamble *)
   (awkward_preamble_instrs_length - awkward_preamble_move_offset)%Z.
 
-(* TODO: the link table permission could be restricted to RO *)
 Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : gmap Addr Word :=
   (* pointer to the linking table *)
     list_to_map [(awk_region_start,
-                  inr (RW, Global, link_table_start, link_table_end, link_table_start))]
+                  inr (RO, Global, link_table_start, link_table_end, link_table_start))]
   ∪ mkregion awk_preamble_start awk_body_start
        (* preamble: code that creates the awkward example closure *)
       (awkward_preamble_instrs 0%Z (* offset to malloc in linking table *)
@@ -589,7 +588,7 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare RW with "Hlink_table") as ">Hlink_table". by apply link_table_size.
+    iDestruct (mkregion_prepare RO with "Hlink_table") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare RW with "Hfail") as ">Hfail". by apply fail_size.
     iDestruct (mkregion_prepare RWX with "Hmalloc_mem") as ">Hmalloc_mem".
     { rewrite replicate_length /region_size. clear.
@@ -604,7 +603,7 @@ Section Adequacy.
     iDestruct (mkregion_prepare RWX with "Hawk_preamble") as ">Hawk_preamble".
       by apply awk_preamble_size.
     iDestruct (mkregion_prepare RWX with "Hawk_body") as ">Hawk_body". by apply awk_body_size.
-    iMod (MonRefAlloc _ _ RWX (* FIXME: RO instead?? *) with "Hawk_link") as "Hawk_link".
+    iMod (MonRefAlloc _ _ RWX with "Hawk_link") as "Hawk_link".
     rewrite -/(awkward_example _ _ _ _) -/(awkward_preamble _ _ _ _).
 
     (* Split the link table *)
