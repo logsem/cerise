@@ -53,7 +53,7 @@ The organization of the `theories/` folder is as follows.
 
 - fundamental.v : Contains *Theorem 6.1: fundamental theorem of logical relations*. Each case (one for each instruction) is proved in a separate file (located in the `ftlr` folder), which are all imported and applied in this file.
 
-In the examples folder:
+In the `examples` folder:
 
 - stack_macros.v and stack_macros_u.v : Contain specifications for some useful macros, the former for a RWLX stack and the latter for a URWLX stack.
 
