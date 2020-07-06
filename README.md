@@ -1,75 +1,161 @@
-This directory contains the Coq mechanization accompanying the submission Efficient and Provable Local Capability Revocation using Uninitialized Capabilities.
+This directory contains the Coq mechanization accompanying the submission
+"Efficient and Provable Local Capability Revocation using Uninitialized
+Capabilities".
 
-## Installation
+# Building the proofs
 
-The development has been built using:
+## Installing the dependencies
 
-- OCaml >= X.Y.Z
-- Coq >= X.Y.Z
-- Iris 3.2.0
+You need to have [opam](https://opam.ocaml.org/) >= 2.0 installed.
 
-These dependencies can be installed using [opam](https://opam.ocaml.org/).
+The development is known to compile with Coq 8.9.1 and Iris 3.2.0. To install
+those, two options:
 
-    opam install coq.X.Y.Z
+- **Option 1**: create a fresh *local* opam switch with everything needed:
+
+```
+   opam switch create -y --deps-only --repositories=default,coq-released=https://coq.inria.fr/opam/released .
+   eval $(opam env)
+```
+
+- **Option 2 (manual installation)**: if you already have an opam switch with
+  ocaml >= 4.02.3 and < 4.10:
+
+```
+    # Add the coq-released repo (skip if you already have it)
     opam repo add coq-released https://coq.inria.fr/opam/released
+    # Install Coq 8.9.1 (skip if already installed)
+    opam install coq.8.9.1
     opam update
     opam install coq-iris.3.2.0
+```
 
-The development can then be compiled using `make -jN` where N is the number of threads to use.
-Please be aware that the development may take up to 2h to compile depending on your computer.
-In particular, the files `theories/examples/{awkward_example, awkward_example_u}.v` can each take up to 25 minutes to compile.
+### Troubleshooting
 
-It is possible to use `make fundamental` (without `-jN`) instead that will only compile files up to the Fundamental Theorem, this can take up to only half an hour.
+For Option 1, if the invocation fails at some point, either remove the `_opam`
+directory and re-run the command (this will redo everything), or do `eval $(opam
+env)` and then `opam install -y --deps-only .` (this will continue from where it
+failed).
 
-## Documentation
+## Building
 
-Documentation generated using Coqdoc can be created using `make html`. The html files will be available in the `html/` folder.
+```
+make -jN  # replace N with the number of CPU cores of your machine
+```
 
-## Organization
+We recommend that you have **32Gb of RAM+swap**. Please be aware that the
+development takes around 1h to compile. In particular, the files
+`theories/examples/awkward_example{,_u}.v` can each take up to 25 minutes to
+compile.
+
+It is possible to run `make fundamental` to only build files up to the
+Fundamental Theorem. This usually takes up 20 minutes.
+
+# Documentation
+
+After building the development, documentation generated using Coqdoc can be
+created using `make html`. 
+
+Then, browse the `html/toc.html` file.
+
+# Organization
 
 The organization of the `theories/` folder is as follows.
 
-- machine_base.v : Contains the syntax (permissions, capability, instructions, ...) of the capability machine.
+## Operational semantics
 
-- cap_lang.v : Contains the operational semantics, and the embedding of the capability machine language into Iris.
+- `addr_reg.v`: Defines registers and the set of (finite) memory addresses.
 
-- rules_base.v : Contains some of the core resource algebras for the program logic, namely the definition for points to predicates with permissions.
+- `machine_base.v`: Contains the syntax (permissions, capability, instructions,
+  ...) of the capability machine.
 
-- rules.v : Imports all the Goare triple rules for each instruction. These rules are separated into separate files (located in the `rules` folder).
+- `machine_parameters.v`: Defines a number of "settings" for the machine, that
+  parameterize the whole development (e.g. the specific encoding scheme for
+  instructions, etc.).
 
-- region_invariants.v : Contains definitions for standard resources, and the shared resources map *sharedResources*. Contains some lemmas for "opening" and "closing" the map, akin to opening and closing invariants.
+- `cap_lang.v`: Defines the operational semantics of the machine, and the
+  embedding of the capability machine language into Iris.
 
-- region_invariants_revocation.v : Contains lemmas for revoking standard resources (setting *Temporary* invariants to a *Revoked* state).
+- `machine_run.v`: Defines an executable version of the operational semantics,
+  allowing to use them as an interpreter to run a concrete machine
+  configuration.
 
-- region_invariants_static.v : Contains lemmas for manipulating frozen standard resources.
+## Program logic
 
-- region_invariants_uninitialized.v : Contains lemmas for manipulating frozen standard singleton resources. These are specifically for manipulating the resources that are related to the interpretation of uninitialized capabilities.
+- `monocmra.v`, `mono_ref.v`: Definition of monotonic references in Iris, used
+  to define the points-to predicate for memory addresses.
 
-- sts.v : Contains the definition of *stsCollection*, and associated lemmas.
+- `region.v`: Auxiliary definitions to reason about consecutive range of
+  addresses and memory words.
 
-- logrel.v : Contains the definition of the logical relation.
+- `rules_base.v`: Contains some of the core resource algebras for the program
+  logic, namely the definition for points to predicates with permissions.
 
-- monotone.v : Contains the proofs for the monotonicity of the value relation with regards to public future worlds, and private future worlds for non local words.
+- `rules.v`: Imports all the Hoare triple rules for each instruction. These
+  rules are separated into separate files (located in the `rules/` folder).
 
-- fundamental.v : Contains *Theorem 6.1: fundamental theorem of logical relations*. Each case (one for each instruction) is proved in a separate file (located in the `ftlr` folder), which are all imported and applied in this file.
+## Logical relation
+
+- `multiple_updates.v`: Auxiliary definitions to reason about multiple updates
+  to a world.
+
+- `region_invariants.v`: Definitions for standard resources, and the shared
+  resources map *sharedResources*. Contains some lemmas for "opening" and
+  "closing" the map, akin to opening and closing invariants.
+
+- `region_invariants_revocation.v`: Lemmas for revoking standard resources
+  (setting *Temporary* invariants to a *Revoked* state).
+
+- `region_invariants_static.v`: Lemmas for manipulating frozen standard
+  resources.
+
+- `region_invariants_uninitialized.v`: Lemmas for manipulating frozen standard
+  singleton resources. These are specifically for manipulating the resources
+  that are related to the interpretation of uninitialized capabilities.
+
+- `sts.v`: The definition of *stsCollection*, and associated lemmas.
+
+- `logrel.v`: The definition of the logical relation.
+
+- `monotone.v`: Proof of the monotonicity of the value relation with regards to
+  public future worlds, and private future worlds for non local words.
+
+- `fundamental.v`: Contains *Theorem 6.1: fundamental theorem of logical
+  relations*. Each case (one for each instruction) is proved in a separate file
+  (located in the `ftlr/` folder), which are all imported and applied in this
+  file.
+
+## Case studies
 
 In the `examples` folder:
 
-- stack_macros.v and stack_macros_u.v : Contain specifications for some useful macros, the former for a RWLX stack and the latter for a URWLX stack.
+- `stack_macros.v` and `stack_macros_u.v`: Specifications for some useful
+  macros, the former for a RWLX stack and the latter for a URWLX stack.
 
-- scall.v scall_u.v : Contain the specification of a safe calling convention for a RWLX and URWLX stack respectively. Each specification is split up into two parts: the prologue is the specification for the code before the jump, the epilogue is the specification for the activation record.
+- `scall.v`, `scall_u.v`: Specification of a safe calling convention for a RWLX
+  and URWLX stack respectively. Each specification is split up into two parts:
+  the prologue is the specification for the code before the jump, the epilogue
+  is the specification for the activation record.
 
-- malloc.v : Contains a malloc implementation, and its specification.
+- `malloc.v`: A simple malloc implementation, and its specification.
 
-- awkward_example.v awkward_example_u.v : Contain the proof of safety of the awkward example (the former using scall with stack clearing, the latter using scallU without stack clearing), *Lemma 6.2*.
+- `awkward_example.v`, `awkward_example_u.v`: The proof of safety of the awkward
+  example (the former using scall with stack clearing, the latter using scallU
+  without stack clearing), corresponding to *Lemma 6.2*.
 
-- awkward_example_preamble.v : Contains the proof of safety of the preamble to the awkward example (in which a closure to the awkward example is dynamically allocated).
+- `awkward_example_preamble.v`: Proof of safety of the preamble to the awkward
+  example (in which a closure to the awkward example is dynamically allocated).
 
-- awkward_example_adequacy.v : Contains the proof of correctness of the awkward example, *Theorem 6.3*.
+- `awkward_example_adequacy.v`: Proof of correctness of the awkward example,
+  *Theorem 6.3*.
 
-- awkward_example_concrete.v : Contains a concrete run of the awkward example applied to a closure of itself to showcase reentrancy. The file contains a proof that the run gracefully halts.
+- `awkward_example_concrete.v`: A concrete instantiation of the correctness
+  theorem of the awkward example on a concrete machine, linked with a concrete
+  "adversarial program". Then, we also prove that this concrete machine
+  configurations indeed runs and gracefully halts.
 
-## Differences
+
+# Differences with the paper
 
 Some definitions have different names from the paper.
 
