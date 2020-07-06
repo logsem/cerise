@@ -1,7 +1,7 @@
 -Q theories/ cap_machine
 -arg -w -arg -several-object-files
-theories/examples/iris_extra.v
-theories/examples/stdpp_extra.v
+theories/iris_extra.v
+theories/stdpp_extra.v
 theories/monocmra.v
 theories/mono_ref.v
 theories/sts.v
@@ -16,6 +16,7 @@ theories/region_invariants.v
 theories/region_invariants_revocation.v
 theories/region_invariants_static.v
 theories/region_invariants_uninitialized.v
+theories/region_invariants_allocation.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v

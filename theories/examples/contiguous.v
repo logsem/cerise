@@ -118,6 +118,10 @@ Section Contiguous.
     rewrite /region_size. solve_addr.
   Qed.
 
+  Lemma contiguous_between_region_addrs a e :
+    (a <= e) %a → contiguous_between (region_addrs a e) a e.
+  Proof. intros; by apply contiguous_between_of_region_addrs. Qed.
+
   Lemma region_addrs_of_contiguous_between l a b :
     contiguous_between l a b →
     l = region_addrs a b.

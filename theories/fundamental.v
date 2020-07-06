@@ -183,6 +183,16 @@ Section fundamental.
       iDestruct (readAllowed_implies_region_conditions with "Hw'") as "Hread_cond";[destruct Hra as [-> | [-> | ->] ];auto|].
       iApply fundamental;[|eauto]. destruct Hra as [-> | [-> | ->] ];auto.
   Qed. 
-  
-  
+
+  Lemma fundamental_from_interp W p g b e a r :
+    p = RX ∨ p = RWX ∨ (p = RWLX ∧ g = Local) →
+    interp W (inr (p, g, b, e, a)) →
+    interp_expression r W (inr (p,g,b,e,a)).
+  Proof.
+    intros Hp HV. iApply fundamental; auto.
+    rewrite fixpoint_interp1_eq in HV |- * => HV.
+    iDestruct HV as "HV". clear HV.
+    destruct Hp as [-> | [-> | [ -> -> ] ] ]; eauto.
+  Qed.
+
 End fundamental.

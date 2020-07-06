@@ -54,3 +54,38 @@ Proof.
   induction 1; auto.
   simpl. destruct (decide (P x)); rewrite /filter; try congruence.
 Qed.
+
+Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
+      (m : gmap K V) (i : K) :
+  is_Some (m !! i) ↔ i ∈ dom (gset K) m.
+Proof.
+  split.
+  - intros [x Hsome].
+    apply elem_of_dom. eauto.
+  - intros Hin. by apply elem_of_dom in Hin.
+Qed.
+
+Lemma dom_map_imap_full {K A B}
+      `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
+      (f: K -> A -> option B) (m: gmap K A):
+  (∀ k a, m !! k = Some a → is_Some (f k a)) →
+  dom (gset K) (map_imap f m) = dom (gset K) m.
+Proof.
+  intros Hf.
+  apply elem_of_equiv_L. intros k.
+  rewrite -!elem_of_gmap_dom map_lookup_imap.
+  destruct (m !! k) eqn:Hmk.
+  - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
+  - cbn. split; inversion 1; congruence.
+Qed.
+
+Lemma dom_list_to_map_singleton {K V: Type} `{EqDecision K, Countable K} (x:K) (y:V):
+  dom (gset K) (list_to_map [(x, y)] : gmap K V) = list_to_set [x].
+Proof. rewrite dom_insert_L /= dom_empty_L. set_solver. Qed.
+
+Lemma list_to_set_disj {A} `{Countable A, EqDecision A} (l1 l2: list A) :
+  l1 ## l2 → (list_to_set l1: gset A) ## list_to_set l2.
+Proof.
+  intros * HH. rewrite elem_of_disjoint. intros x.
+  rewrite !elem_of_list_to_set. rewrite elem_of_disjoint in HH |- *. eauto.
+Qed.

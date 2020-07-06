@@ -602,6 +602,18 @@ Section region.
     eauto.
   Qed.
 
+  Lemma region_mapsto_single b e p l:
+    (b+1)%a = Some e →
+    [[b,e]] ↦ₐ[p] [[l]] -∗
+    ∃ v, b ↦ₐ[p] v ∗ ⌜l = [v]⌝.
+  Proof.
+    iIntros (Hbe) "H". rewrite /region_mapsto region_addrs_single //.
+    iDestruct (big_sepL2_length with "H") as %Hlen.
+    cbn in Hlen. destruct l as [|x l']; [by inversion Hlen|].
+    destruct l'; [| by inversion Hlen]. iExists x. cbn.
+    iDestruct "H" as "(H & _)". eauto.
+  Qed.
+
 End region.
 
 Global Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)

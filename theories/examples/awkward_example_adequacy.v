@@ -4,9 +4,10 @@ From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
 From cap_machine Require Import
+     stdpp_extra iris_extra
      rules logrel fundamental region_invariants sts
      region_invariants_revocation region_invariants_static
-     region_invariants_uninitialized.
+     region_invariants_uninitialized region_invariants_allocation.
 From cap_machine.examples Require Import
      disjoint_regions_tactics
      stack_macros malloc awkward_example_u awkward_example_preamble.
@@ -179,179 +180,6 @@ Proof.
   destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
 Qed.
 
-(* TODO: move elsewhere *)
-Section WorldUpdates.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}
-          `{MP: MachineParameters}.
-
-  Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
-  Notation WORLD := (prodO STS_STD STS).
-  Implicit Types W : WORLD.
-
-  Lemma extend_region_perm_sepL2 E W l1 l2 p φ `{∀ Wv, Persistent (φ Wv)}:
-     p ≠ O →
-     Forall (λ k, std W !! k = None) l1 →
-     (sts_full_world W -∗ region W -∗
-     ([∗ list] k;v ∈ l1;l2, k ↦ₐ[p] v ∗ φ (W, v) ∗ future_priv_mono φ v)
-
-     ={E}=∗
-
-     region (std_update_multiple W l1 Permanent)
-     ∗ ([∗ list] k ∈ l1, rel k p φ)
-     ∗ sts_full_world (std_update_multiple W l1 Permanent))%I.
-  Proof.
-    revert l2. induction l1.
-    { cbn. intros. iIntros "? ? ?". iFrame. eauto. }
-    { intros * ? [? ?]%Forall_cons_1. iIntros "Hsts Hr Hl".
-      iDestruct (big_sepL2_length with "Hl") as %Hlen.
-      iDestruct (NoDup_of_sepL2_exclusive with "[] Hl") as %[Hal1 ND]%NoDup_cons.
-      { iIntros (? ? ?) "(H1 & ? & ?) (H2 & ? & ?)".
-        iApply (cap_duplicate_false with "[$H1 $H2]"). auto. }
-      destruct l2; [ by inversion Hlen |].
-      iDestruct (big_sepL2_cons with "Hl") as "[(Ha & Hφ & #Hf) Hl]".
-      iMod (IHl1 with "Hsts Hr Hl") as "(Hr & ? & Hsts)"; auto.
-      iDestruct (extend_region_perm with "Hf Hsts Hr Ha [Hφ]") as ">(? & ? & ?)"; auto.
-      { rewrite -std_update_multiple_not_in_sta; auto.
-        rewrite not_elem_of_dom //. }
-      { iApply ("Hf" with "[] Hφ"). iPureIntro.
-        apply related_sts_pub_priv_world, related_sts_pub_update_multiple.
-        eapply Forall_impl; eauto.
-        intros. by rewrite not_elem_of_dom. }
-      iModIntro. cbn. iFrame. }
-  Qed.
-
-  Lemma extend_region_static_single E W l p v φ `{∀ Wv, Persistent (φ Wv)}:
-     p ≠ O →
-     l ∉ dom (gset Addr) (std W) →
-     (sts_full_world W -∗ region W -∗ l ↦ₐ[p] v
-     ={E}=∗
-     region (<s[l := Static {[l := v]}]s>W)
-     ∗ rel l p φ
-     ∗ sts_full_world (<s[l := Static {[l := v]} ]s>W))%I.
-  Proof.
-    iIntros (Hpne Hnone1) "Hfull Hreg Hl".
-    rewrite region_eq rel_eq /region_def /rel_def.
-    iDestruct "Hreg" as (M Mρ) "(Hγrel & HdomM & HdomMρ & Hpreds)".
-    iDestruct "HdomM" as %HdomM. iDestruct "HdomMρ" as %HdomMρ.
-    rewrite RELS_eq /RELS_def.
-    (* destruct on M !! l *)
-    destruct (M !! l) eqn:HRl.
-    { (* The location is not in the map *)
-      iDestruct (big_sepM_delete _ _ _ _ HRl with "Hpreds") as "[Hl' _]".
-      iDestruct "Hl'" as (ρ' Hl) "[Hstate Hl']".
-      iDestruct (sts_full_state_std with "Hfull Hstate") as %Hcontr.
-      apply (not_elem_of_dom W.1 l) in Hnone1.
-      rewrite Hcontr in Hnone1. done.
-    }
-    (* if not, we need to allocate a new saved pred using φ,
-       and extend R with l := pred *)
-    iMod (saved_pred_alloc φ) as (γpred) "#Hφ'".
-    iMod (own_update _ _ (● (<[l:=to_agree (γpred,_)]> (to_agree <$> M : relUR)) ⋅ ◯ ({[l:=to_agree (γpred,_)]}))
-            with "Hγrel") as "[HR #Hγrel]".
-    { apply auth_update_alloc.
-      apply (alloc_singleton_local_update (to_agree <$> M)); last done.
-      rewrite lookup_fmap. rewrite HRl. done.
-    }
-    (* we also need to extend the World with a new temporary region *)
-    iMod (sts_alloc_std_i W l (Static {[l:=v]})
-            with "[] Hfull") as "(Hfull & Hstate)"; auto.
-    eapply (related_sts_pub_world_fresh W l (Static {[l:=v]})) in Hnone1 as Hrelated; auto.
-    iDestruct (region_map_monotone $! Hrelated with "Hpreds") as "Hpreds'".
-    iModIntro. rewrite bi.sep_exist_r. iExists _.
-    rewrite -fmap_insert.
-    iFrame "HR". iFrame.
-    iSplitL;[iExists (<[l:=_]> Mρ);iSplitR;[|iSplitR]|].
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite HdomM. auto.
-    - iPureIntro. repeat rewrite dom_insert_L. rewrite HdomMρ. auto.
-    - iApply big_sepM_insert; auto.
-      iSplitR "Hpreds'".
-      { iExists (Static {[l:=v]}). iFrame.
-        iSplitR;[iPureIntro;apply lookup_insert|].
-        iExists γpred,_,φ. iSplitR;[auto|]. iFrame "∗ #".
-        iSplitR;[done|]. iExists _. iFrame. repeat iSplit;auto.
-        iPureIntro. apply lookup_singleton.
-        iPureIntro. intro. rewrite dom_singleton elem_of_singleton.
-        intros ->. apply lookup_insert. }
-      iApply (big_sepM_mono with "Hpreds'").
-      iIntros (a x Ha) "Hρ".
-      iDestruct "Hρ" as (ρ Hρ) "[Hstate Hρ]".
-      iExists ρ.
-      assert (a ≠ l) as Hne;[intros Hcontr;subst a;rewrite HRl in Ha; inversion Ha|].
-      rewrite lookup_insert_ne;auto. iSplitR;[auto|]. iFrame.
-      destruct ρ; iFrame.
-      iDestruct "Hρ" as (γpred0 p0 φ0 Heq Hpers) "[Hsaved Hl]".
-      iDestruct "Hl" as (v0 Hg Hne') "[Ha #Hall]". iDestruct "Hall" as %Hall.
-      iExists _,_,_. repeat iSplit;eauto. iExists v0. iFrame. iSplit;auto. iPureIntro. split;auto.
-      eapply static_extend_preserve; eauto.
-    - iExists γpred. iFrame "#".
-      rewrite REL_eq /REL_def.
-      done.
-  Qed.
-
-  Lemma dom_map_imap_full {K A B}
-        `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
-        (f: K -> A -> option B) (m: gmap K A):
-    (∀ k a, m !! k = Some a → is_Some (f k a)) →
-    dom (gset K) (map_imap f m) = dom (gset K) m.
-  Proof.
-    intros Hf.
-    apply elem_of_equiv_L. intros k.
-    rewrite -!elem_of_gmap_dom map_lookup_imap.
-    destruct (m !! k) eqn:Hmk.
-    - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
-    - cbn. split; inversion 1; congruence.
-  Qed.
-
-  Lemma override_uninitializedW_dom' W (m: gmap Addr Word) :
-    dom (gset Addr) (override_uninitializedW m W).1 =
-    dom (gset Addr) m ∪ dom (gset Addr) W.1.
-  Proof.
-    rewrite /override_uninitializedW /override_uninitialized.
-    rewrite dom_union_L dom_difference_het.
-    rewrite dom_map_imap_full. 2: by intros; eauto.
-    set Dm := dom (gset Addr) m.
-    set DW := dom (gset Addr) W.1. clearbody Dm DW.
-    rewrite elem_of_equiv_L. intro x.
-    rewrite !elem_of_union !elem_of_difference.
-    split.
-    - intros [? | [? ?] ]. auto. auto.
-    - intros [? | ?]. auto. destruct (decide (x ∈ Dm)); auto.
-  Qed.
-
-  Lemma extend_region_static_single_sepM E W (m: gmap Addr Word) p φ `{∀ Wv, Persistent (φ Wv)}:
-     p ≠ O →
-     (∀ k, is_Some (m !! k) → std W !! k = None) →
-     (sts_full_world W -∗ region W -∗
-     ([∗ map] k↦v ∈ m, k ↦ₐ[p] v)
-
-     ={E}=∗
-
-     region (override_uninitializedW m W)
-     ∗ ([∗ map] k↦_ ∈ m, rel k p φ)
-     ∗ sts_full_world (override_uninitializedW m W))%I.
-  Proof.
-    induction m using map_ind.
-    { intros. rewrite !override_uninitializedW_empty !big_sepM_empty.
-      iIntros. by iFrame. }
-    { iIntros (? HnW) "Hsts Hr H". rewrite big_sepM_insert //.
-      iDestruct "H" as "(Hk & Hm)".
-      rewrite !override_uninitializedW_insert.
-      iMod (IHm with "Hsts Hr Hm") as "(Hr & Hm & Hsts)"; auto.
-      { intros. apply HnW. rewrite lookup_insert_is_Some.
-        destruct (decide (i = k)); auto. }
-      iDestruct (extend_region_static_single with "Hsts Hr Hk")
-        as ">(Hr & Hrel & Hsts)"; auto.
-      { rewrite override_uninitializedW_dom'.
-        rewrite not_elem_of_union !not_elem_of_dom. split; auto.
-        apply HnW. rewrite lookup_insert //. eauto. }
-      iFrame. iModIntro. iApply big_sepM_insert; eauto. }
-  Qed.
-
-End WorldUpdates.
-
 Section Adequacy.
   Context (Σ: gFunctors).
   Context {inv_preg: invPreG Σ}.
@@ -421,16 +249,6 @@ Section Adequacy.
     intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
   Qed.
 
-  Lemma dom_list_to_map_singleton (x:Addr) (y:Word):
-    dom (gset Addr) (list_to_map [(x, y)] : gmap Addr Word) = list_to_set [x].
-  Proof. rewrite dom_insert_L /= dom_empty_L. set_solver. Qed.
-
-  Lemma list_to_set_disj (l1 l2: list Addr) : l1 ## l2 → (list_to_set l1: gset Addr) ## list_to_set l2.
-  Proof.
-    intros * HH. rewrite elem_of_disjoint. intros x.
-    rewrite !elem_of_list_to_set. rewrite elem_of_disjoint in HH |- *. eauto.
-  Qed.
-
   Ltac disjoint_map_to_list :=
     rewrite (@map_disjoint_dom _ _ (gset Addr)) ?dom_union_L;
     eapply disjoint_mono_l;
@@ -447,10 +265,6 @@ Section Adequacy.
     rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
     apply list_to_set_disj.
 
-  Lemma contiguous_between_region_addrs a e :
-    (a <= e) %a → contiguous_between (region_addrs a e) a e.
-  Proof. intros; by apply contiguous_between_of_region_addrs. Qed.
-
   Lemma mkregion_sepM_to_sepL2 (a e: Addr) l (φ: Addr → Word → iProp Σ) :
     (a + length l)%a = Some e →
     ([∗ map] k↦v ∈ mkregion a e l, φ k v) -∗ ([∗ list] k;v ∈ (region_addrs a e); l, φ k v).
@@ -464,39 +278,6 @@ Section Adequacy.
         intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_region_addrs] ]%elem_of_list_fmap.
         solve_addr. }
       iFrame. iApply (IHl with "H"). solve_addr. }
-  Qed.
-
-  (* TODO: move to iris? *)
-  Lemma big_sepL2_bupd
-     : ∀ (PROP : bi) (H : BiBUpd PROP) (A B : Type) (Φ : A → B → PROP) (l1 : list A) (l2: list B),
-         ([∗ list] k;x ∈ l1;l2, |==> Φ k x) -∗ |==> [∗ list] k;x ∈ l1;l2, Φ k x.
-  Proof.
-    intros. revert l2. induction l1 as [| x l1].
-    { intros. iIntros "H".
-      iDestruct (big_sepL2_length with "H") as %Hlen. cbn in Hlen.
-      destruct l2; [| by inversion Hlen]. cbn. eauto. }
-    { intros. iIntros "H".
-      iDestruct (big_sepL2_length with "H") as %Hlen. cbn in Hlen.
-      destruct l2; [by inversion Hlen |]. cbn. iDestruct "H" as "[>? H]".
-      iDestruct (IHl1 with "H") as ">?". iModIntro. iFrame. }
-  Qed.
-
-  Lemma MonRefAlloc_sepL2 `{memG Σ} (p:Perm) (l1: list Addr) (l2: list Word) :
-    ([∗ list] k;v ∈ l1;l2, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ l1;l2, k ↦ₐ[p] v).
-  Proof.
-    iIntros "H".
-    iDestruct (big_sepL2_mono with "H") as "H".
-    { intros. apply MonRefAlloc. }
-    iDestruct (big_sepL2_bupd with "H") as "H". eauto.
-  Qed.
-
-  Lemma MonRefAlloc_sepM `{memG Σ} (p:Perm) (m: gmap Addr Word) :
-    ([∗ map] k↦v ∈ m, k ↦ₐ v) ==∗ ([∗ map] k↦v ∈ m, k ↦ₐ[p] v).
-  Proof.
-    iIntros "H".
-    iDestruct (big_sepM_mono with "H") as "H".
-    { intros. apply MonRefAlloc. }
-    iDestruct (big_sepM_bupd with "H") as "H". eauto.
   Qed.
 
   Lemma mkregion_prepare `{memG Σ} p (a e: Addr) l :

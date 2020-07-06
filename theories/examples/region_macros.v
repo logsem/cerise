@@ -2,7 +2,8 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel.
-From cap_machine Require Export addr_reg_sample region_invariants_revocation multiple_updates.
+From cap_machine Require Export addr_reg_sample region_invariants_revocation
+     region_invariants_allocation multiple_updates.
 From cap_machine.examples Require Export iris_extra.
 
 Section region_macros.

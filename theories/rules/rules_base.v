@@ -2,7 +2,7 @@ From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac auth.
-From cap_machine Require Export cap_lang mono_ref sts.
+From cap_machine Require Export cap_lang mono_ref sts iris_extra.
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
@@ -127,13 +127,34 @@ Section Capabilities.
     MonRefMapsto l γ v = MonRefMapsto_def l γ v :=
     (MonRefMapsto_aux l γ v).(seal_eq).
 
+  Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
+              (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+
   Lemma MonRefAlloc l v p :
-    l ↦ₐ v ==∗ ∃ γ, MonRefMapsto l γ (v,p).
+    l ↦ₐ v ==∗ l ↦ₐ[p] v.
   Proof.
     iIntros "Hl".
     iMod (MonRef_alloc (A:=A)) as (γ) "[HE Hal]"; eauto.
     iModIntro. iExists _.
     rewrite MonRefMapsto_eq /MonRefMapsto_def. iFrame.
+  Qed.
+
+  Lemma MonRefAlloc_sepL2 (p:Perm) (l1: list Addr) (l2: list Word) :
+    ([∗ list] k;v ∈ l1;l2, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ l1;l2, k ↦ₐ[p] v).
+  Proof.
+    iIntros "H".
+    iDestruct (big_sepL2_mono with "H") as "H".
+    { intros. apply MonRefAlloc. }
+    iDestruct (big_sepL2_bupd with "H") as "H". eauto.
+  Qed.
+
+  Lemma MonRefAlloc_sepM (p:Perm) (m: gmap Addr Word) :
+    ([∗ map] k↦v ∈ m, k ↦ₐ v) ==∗ ([∗ map] k↦v ∈ m, k ↦ₐ[p] v).
+  Proof.
+    iIntros "H".
+    iDestruct (big_sepM_mono with "H") as "H".
+    { intros. apply MonRefAlloc. }
+    iDestruct (big_sepM_bupd with "H") as "H". eauto.
   Qed.
 
   Lemma MonRefDealloc l γ v p :

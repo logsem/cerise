@@ -402,3 +402,17 @@ Qed.
         rewrite fst_zip; auto. lia.
       + iFrame. iApply ("IH" $! l2 H5 with "B"); auto.
   Qed.
+
+  Lemma big_sepL2_bupd
+     : ∀ (PROP : bi) (H : BiBUpd PROP) (A B : Type) (Φ : A → B → PROP) (l1 : list A) (l2: list B),
+         ([∗ list] k;x ∈ l1;l2, |==> Φ k x) -∗ |==> [∗ list] k;x ∈ l1;l2, Φ k x.
+  Proof.
+    intros. revert l2. induction l1 as [| x l1].
+    { intros. iIntros "H".
+      iDestruct (big_sepL2_length with "H") as %Hlen. cbn in Hlen.
+      destruct l2; [| by inversion Hlen]. cbn. eauto. }
+    { intros. iIntros "H".
+      iDestruct (big_sepL2_length with "H") as %Hlen. cbn in Hlen.
+      destruct l2; [by inversion Hlen |]. cbn. iDestruct "H" as "[>? H]".
+      iDestruct (IHl1 with "H") as ">?". iModIntro. iFrame. }
+  Qed.

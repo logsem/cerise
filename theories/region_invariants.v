@@ -1,5 +1,5 @@
 From iris.algebra Require Import gmap agree auth.
-From cap_machine Require Export cap_lang sts rules_base.
+From cap_machine Require Export stdpp_extra cap_lang sts rules_base.
 From iris.proofmode Require Import tactics.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 (* import [stdpp.countable] before [cap_machine.lang]; this way [encode] and

@@ -1,6 +1,7 @@
 From iris.algebra Require Import auth agree gmap excl.
 From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import tactics.
+From cap_machine Require Import stdpp_extra.
 Import uPred.
 
 (** The CMRA for the heap of STS.
@@ -230,17 +231,6 @@ Section STS.
   Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
 
-  Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
-        (m : gmap K V) (i : K) :
-    is_Some (m !! i) ↔ i ∈ dom (gset K) m.  
-  Proof.
-    split.
-    - intros [x Hsome].
-      apply elem_of_dom. eauto.
-    - intros Hin.
-      by apply elem_of_dom in Hin. 
-  Qed. 
-      
   Lemma related_sts_pub_refl fs fr : related_sts_pub fs fs fr fr.
   Proof.
     split; [|split]; trivial.

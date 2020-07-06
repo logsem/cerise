@@ -1,6 +1,7 @@
 From iris.algebra Require Import gmap agree auth.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Export region_invariants multiple_updates region_invariants_revocation region_invariants_static sts.
+From cap_machine Require Export stdpp_extra region_invariants multiple_updates
+     region_invariants_revocation region_invariants_static sts.
 Require Import stdpp.countable.
 Import uPred.
 
@@ -200,6 +201,22 @@ Section heap.
      intros x Hx.
      apply override_uninitializedW_elem_of. auto.
    Qed. 
+
+   Lemma override_uninitializedW_dom' W (m: gmap Addr Word) :
+     dom (gset Addr) (override_uninitializedW m W).1 =
+     dom (gset Addr) m ∪ dom (gset Addr) W.1.
+   Proof.
+     rewrite /override_uninitializedW /override_uninitialized.
+     rewrite dom_union_L dom_difference_het.
+     rewrite dom_map_imap_full. 2: by intros; eauto.
+     set Dm := dom (gset Addr) m.
+     set DW := dom (gset Addr) W.1. clearbody Dm DW.
+     rewrite elem_of_equiv_L. intro x.
+     rewrite !elem_of_union !elem_of_difference.
+     split.
+     - intros [? | [? ?] ]. auto. auto.
+     - intros [? | ?]. auto. destruct (decide (x ∈ Dm)); auto.
+   Qed.
 
    Lemma related_sts_priv_world_override_uninitializedW W (m : gmap Addr Word) :
      Forall (λ a : Addr, ∃ ρ, (std W) !! a = Some ρ /\ ρ <> Permanent) (elements (dom (gset Addr) m)) →
