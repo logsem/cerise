@@ -17,15 +17,6 @@ Section scall.
     repeat (apply not_elem_of_cons in Hne;
             (let Hneq := fresh "Hneq" in destruct Hne as [Hneq Hne])); auto.
 
-   (* TODO: move *)
-   Lemma list_to_set_difference A {_: EqDecision A} {_: Countable A} (l1 l2: list A):
-     (list_to_set (list_difference l1 l2): gset A) = (list_to_set l1: gset A) ∖ (list_to_set l2: gset A).
-   Proof.
-     revert l2. induction l1.
-     - intro. cbn [list_difference list_to_set]. set_solver.
-     - intros l2. cbn [list_difference list_to_set]. destruct (decide_rel elem_of a l2); set_solver.
-   Qed.
-
   (* the prologue pushes the activation code, the old pc and stack points,
      sets up the return capability and adv stack capability, then jumps to adversary code *)
   (* r1 is the register containg the adversary capability *)
@@ -98,16 +89,6 @@ Section scall.
   Ltac iContiguous_bounds_withinBounds a0 an :=
     apply isWithinBounds_bounds_alt' with a0 an; auto; [];
     iContiguous_bounds a0 an.
-
-  Lemma isCorrectPC_range_npE p g b e a0 an :
-    isCorrectPC_range p g b e a0 an →
-    (a0 < an)%a →
-    p ≠ E.
-  Proof.
-    intros HH1 HH2. 
-    destruct (isCorrectPC_range_perm _ _ _ _ _ _ HH1 HH2) as [?| [?|?] ]; 
-      congruence.
-  Qed.
 
   Lemma push_z_instrs_extract a i j z prog p' :
     contiguous_between a i j →

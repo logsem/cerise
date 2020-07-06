@@ -17,15 +17,6 @@ Section scall.
     repeat (apply not_elem_of_cons in Hne;
             (let Hneq := fresh "Hneq" in destruct Hne as [Hneq Hne])); auto.
 
-   (* TODO: move *)
-   Lemma list_to_set_difference A {_: EqDecision A} {_: Countable A} (l1 l2: list A):
-     (list_to_set (list_difference l1 l2): gset A) = (list_to_set l1: gset A) ∖ (list_to_set l2: gset A).
-   Proof.
-     revert l2. induction l1.
-     - intro. cbn [list_difference list_to_set]. set_solver.
-     - intros l2. cbn [list_difference list_to_set]. destruct (decide_rel elem_of a l2); set_solver.
-   Qed.
-
   Definition scallU_prologue_instrs epilogue_off r1 :=
     (* push activation code *)
     [pushU_z_instr r_stk w_1;
@@ -99,16 +90,6 @@ Section scall.
     apply isWithinBounds_bounds_alt' with a0 an; auto; [];
     iContiguous_bounds a0 an.
 
-  Lemma isCorrectPC_range_npE p g b e a0 an :
-    isCorrectPC_range p g b e a0 an →
-    (a0 < an)%a →
-    p ≠ E.
-  Proof.
-    intros HH1 HH2.
-    destruct (isCorrectPC_range_perm _ _ _ _ _ _ HH1 HH2) as [?| [?|?] ];
-      congruence.
-  Qed.
-
   Lemma single_instr_extract a i j instr prog p' :
     contiguous_between a i j →
     ([∗ list] a_i;w_i ∈ a; (instr :: prog), a_i ↦ₐ[p'] w_i) -∗
@@ -138,16 +119,6 @@ Section scall.
     iDestruct "Hcont" as %(-> & Ha1 & Ha);
     iApply (pushU_z_spec with "[-]"); last iFrame "Hpush HPC Hr_stk Ha"; eauto;
     clear Ha1; last iRename "Hprog" into prog.
-
-  (* TODO: move to contiguous.v *)
-  Lemma contiguous_between_length_minus a i j :
-    contiguous_between a i j →
-    (j + - (length a) = Some i)%a.
-  Proof. induction 1; cbn; solve_addr. Qed.
-
-  Lemma invert_incr_addr (a1 a2: Addr) (z:Z):
-        (a1 + z)%a = Some a2 → (a2 + (- z))%a = Some a1.
-  Proof. solve_addr. Qed.
 
   Lemma scallU_prologue_spec
         (* adress arithmetic *) a_r_adv b_r_adv a_cont
@@ -420,7 +391,7 @@ Section scall.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs".
       repeat (rewrite lookup_delete_ne //;[]); apply lookup_delete.
       repeat (rewrite -delete_insert_ne //;[]); rewrite insert_delete.
- iApply (rclear_spec with "[- $Hregs]"); last (iFrame "HPC Hrclear").
+    iApply (rclear_spec with "[- $Hregs]"); last (iFrame "HPC Hrclear").
     { eauto. }
     { apply not_elem_of_list; apply elem_of_cons; by left. }
     { destruct rclear_addrs; inversion Hcont22; eauto. inversion Hrclear_length. }

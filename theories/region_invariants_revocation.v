@@ -1,6 +1,6 @@
 From iris.algebra Require Import gmap agree auth.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Export region_invariants.
+From cap_machine Require Export stdpp_extra iris_extra region_invariants.
 Import uPred. 
 
 Section heap.
@@ -320,20 +320,6 @@ Section heap.
     revoke W = revoke_list (map_to_list W.1).*1 W.
   Proof.
     by rewrite /revoke_list /= -revoke_list_dom_std_sta /revoke. 
-  Qed.
-
-  Lemma map_to_list_fst {A B : Type} `{EqDecision A, Countable A} (m : gmap A B) i :
-    i ∈ (map_to_list m).*1 ↔ (∃ x, (i,x) ∈ (map_to_list m)).
-  Proof.
-    split.
-    - intros Hi.
-      destruct (m !! i) eqn:Hsome.
-      + exists b. by apply elem_of_map_to_list.
-      + rewrite -(list_to_map_to_list m) in Hsome.
-        eapply not_elem_of_list_to_map in Hsome. done. 
-    - intros [x Hix].
-      apply elem_of_list_fmap.
-      exists (i,x). auto. 
   Qed.
 
   Lemma revoke_list_lookup_Some Wstd_sta l (a : Addr) :
@@ -789,36 +775,6 @@ Section heap.
       assert (a ∈ dom (gset Addr) M) as Hin.
       { rewrite -Hdom. apply elem_of_gmap_dom. eauto. }
       set_solver. 
-  Qed.
-
-  (* Helper lemma for reasoning about the current state of a region map *)
-  Lemma big_sepM_exists {A B C : Type} `{EqDecision A, Countable A} (m : gmap A B) (φ : A → C -> B → iProp Σ) :
-    (([∗ map] a↦b ∈ m, ∃ c, φ a c b) ∗-∗ (∃ (m' : gmap A C), [∗ map] a↦c;b ∈ m';m, φ a c b))%I.
-  Proof.
-    iSplit. 
-    - iIntros "Hmap".
-      iInduction (m) as [| a x m Hnone] "IH" using map_ind.
-      + iExists empty. done.
-      + iDestruct (big_sepM_insert with "Hmap") as "[Hc Hmap]"; auto.
-        iDestruct "Hc" as (c) "Hc".
-        iDestruct ("IH" with "Hmap") as (m') "Hmap".
-        iExists (<[a:=c]> m').
-        iApply (big_sepM2_insert_2 with "Hc").
-        iFrame.
-    - iIntros "Hmap".
-      iDestruct "Hmap" as (m') "Hmap". 
-      iInduction (m) as [| a x m Hnone] "IH" using map_ind forall (m').
-      + done.
-      + iDestruct (big_sepM2_dom with "Hmap") as %Hdom. 
-        assert (is_Some (m' !! a)) as [ρ Hρ].
-        { apply elem_of_gmap_dom. rewrite Hdom dom_insert_L.
-          apply elem_of_union_l, elem_of_singleton; auto. }    
-        rewrite -(insert_id m' a ρ); auto.
-        rewrite -insert_delete. 
-        iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete|auto|].
-        iApply big_sepM_insert;auto.
-        iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
-        iExists ρ. iFrame. 
   Qed.
 
   (* ---------------------------------------------------------------------------------------- *)

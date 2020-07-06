@@ -106,153 +106,6 @@ Section instr_encodings.
   Definition global_e := encodePermPair (E, Global).
 End instr_encodings.
 
- (* Helper lemmas on list differences *)
-
-Lemma not_elem_of_list {A : Type} `{EqDecision A} (a : A) (l x : list A) :
-  a ∈ x → a ∉ list_difference l x.
-Proof.
-  intros Hax.
-  rewrite /not.
-  intros Hal.
-  by apply elem_of_list_difference in Hal as [Ha' Hax_not].
-Qed.
-
-Lemma list_difference_nil {A : Type} `{EqDecision A} (l : list A) :
-  list_difference l [] = l.
-Proof.
-  induction l; auto.
-  simpl. f_equal.
-  apply IHl.
-Qed.
-
-Lemma list_difference_length_cons {A : Type} `{EqDecision A}
-      (l2 : list A) (a : A) :
-  list_difference [a] (a :: l2) = [].
-Proof.
-  simpl.
-  assert (a ∈ a :: l2); first apply elem_of_list_here.
-  destruct (decide_rel elem_of a (a :: l2)); auto; last contradiction.
-Qed.
-
-Lemma list_difference_skip {A : Type} `{EqDecision A}
-      (l1 l2 : list A) (b : A) :
-  ¬ (b ∈ l1) →
-  list_difference l1 (b :: l2) = list_difference l1 l2.
-Proof.
-  intros Hnin.
-  induction l1; auto.
-  apply not_elem_of_cons in Hnin.
-  destruct Hnin as [Hne Hl1].
-  simpl.
-  destruct (decide_rel elem_of a (b :: l2)).
-  - apply elem_of_cons in e.
-    destruct e as [Hcontr | Hl2]; first congruence.
-    destruct (decide_rel elem_of a l2); last contradiction.
-      by apply IHl1.
-  - apply not_elem_of_cons in n.
-    destruct n as [Hne' Hl2].
-    destruct (decide_rel elem_of a l2); first contradiction.
-    f_equal.
-      by apply IHl1.
-Qed.
-
-Lemma list_difference_nested {A : Type} `{EqDecision A}
-      (l1 l1' l2 : list A) (b : A) :
-  ¬ (b ∈ (l1 ++ l1')) →
-  list_difference (l1 ++ b :: l1') (b :: l2) = list_difference (l1 ++ l1') l2.
-Proof.
-  intros Hnotin.
-  induction l1.
-  - simpl.
-    assert (b ∈ (b :: l2)); first apply elem_of_list_here.
-    destruct (decide_rel elem_of b (b :: l2)); last contradiction.
-    rewrite list_difference_skip; auto.
-  - simpl in *.
-    apply not_elem_of_cons in Hnotin.
-    destruct Hnotin as [Hne Hnotin].
-    destruct (decide_rel elem_of a (b :: l2)).
-    + apply elem_of_cons in e.
-      destruct e as [Hcontr | Hl2]; first congruence.
-      destruct (decide_rel elem_of a l2); last contradiction.
-        by apply IHl1.
-    + apply not_elem_of_cons in n.
-      destruct n as [Hne' Hnotin'].
-      destruct (decide_rel elem_of a l2); first contradiction.
-      f_equal.
-        by apply IHl1.
-Qed.
-
-Lemma list_difference_length_ni  {A : Type} `{EqDecision A}
-      (l1 : list A) (b : A) :
-  ¬ (b ∈ l1) →
-  length (list_difference l1 [b]) = length l1.
-Proof.
-  intros Hna.
-  destruct l1; auto.
-  simpl.
-  apply not_elem_of_cons in Hna.
-  destruct Hna as [Hne Hna].
-  destruct (decide_rel elem_of a [b]).
-  - apply elem_of_list_singleton in e. congruence.
-  - simpl. rewrite list_difference_skip; auto.
-      by rewrite list_difference_nil.
-Qed.
-
-Lemma list_difference_length {A : Type} `{EqDecision A}
-      (l1 : list A) (b : A) :
-  b ∈ l1 →
-  NoDup l1 →
-  length (list_difference l1 [b]) =
-  length l1 - 1.
-Proof.
-  intros Ha Hndup.
-  induction l1; auto.
-  destruct (decide (b = a)).
-  - subst.
-    assert (a ∈ a :: l1); first apply elem_of_list_here.
-    apply NoDup_cons in Hndup as [Hni Hndup].
-    assert (¬ (a ∈ l1)) as Hni'.
-    { rewrite /not. intros Hin. contradiction. }
-    simpl.
-    assert (a ∈ [a]); first apply elem_of_list_here.
-    destruct (decide_rel elem_of a [a]); last contradiction.
-    rewrite -minus_n_O.
-    apply list_difference_length_ni; auto.
-  - simpl.
-    assert (¬ (a ∈ [b])).
-    { rewrite /not. intros Hin. apply elem_of_list_singleton in Hin. congruence. }
-    destruct (decide_rel elem_of a [b]); first contradiction.
-    rewrite -minus_n_O /=.
-    inversion Hndup; subst.
-    apply elem_of_cons in Ha.
-    destruct Ha as [Hcontr | Ha]; first congruence.
-    apply IHl1 in Ha as Heq; auto.
-    rewrite Heq.
-    destruct l1; first inversion Ha.
-    simpl. lia.
-Qed.
-
-Lemma list_difference_app {A : Type} `{EqDecision A}
-      (l1 l2 l2' : list A) :
-  list_difference l1 (l2 ++ l2') = list_difference (list_difference l1 l2) l2'.
-Proof.
-  induction l1; auto.
-  simpl. destruct (decide_rel elem_of a (l2 ++ l2')).
-  - apply elem_of_app in e as [Hl2 | Hl2'].
-    + destruct (decide_rel elem_of a l2); last contradiction.
-      apply IHl1.
-    + destruct (decide_rel elem_of a l2); first by apply IHl1.
-      simpl.
-      destruct (decide_rel elem_of a l2'); last contradiction.
-      apply IHl1.
-  - apply not_elem_of_app in n as [Hl2 Hl2'].
-    destruct (decide_rel elem_of a l2); first contradiction.
-    simpl.
-    destruct (decide_rel elem_of a l2'); first contradiction.
-    f_equal. apply IHl1.
-Qed.
-
-
 Lemma all_registers_NoDup :
   NoDup all_registers.
 Proof.
@@ -267,6 +120,7 @@ Qed.
 (* helper lemmas for the list of all registers *)
 
 (* a typical helper lemma for stack calls *)
+(* TODO: is this still necessary? *)
 Lemma helper1 r1 :
    r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 →
    r1 ∈ all_registers →
@@ -314,27 +168,6 @@ Proof.
       simpl in *. inversion fin.
 Qed.
 
-Lemma list_difference_Permutation {A : Type} `{EqDecision A} (l l1 l2 : list A) :
-  l1 ≡ₚ l2 -> list_difference l l1 = list_difference l l2.
-Proof.
-  intros Hl.
-  induction l; auto.
-  simpl. rewrite IHl.
-  destruct (decide_rel elem_of a l1).
-  - apply elem_of_list_In in e.
-    apply Permutation_in with _ _ _ a in Hl; auto.
-    apply elem_of_list_In in Hl.
-    destruct (decide_rel elem_of a l2);[|contradiction].
-    done.
-  - revert n; rewrite elem_of_list_In; intros n.
-    assert (¬ In a l2) as Hnin.
-    { intros Hcontr. apply Permutation_sym in Hl.
-      apply Permutation_in with _ _ _ a in Hl; auto. }
-    revert Hnin; rewrite -elem_of_list_In; intro Hnin.
-    destruct (decide_rel elem_of a l2);[contradiction|].
-    done.
-Qed.
-
 Lemma all_registers_s_correct r:
   r ∈ all_registers_s.
 Proof.
@@ -358,6 +191,15 @@ Lemma all_registers_subseteq s :
   s ⊆ all_registers_s.
 Proof.
   rewrite elem_of_subseteq. intros ? _. apply all_registers_s_correct.
+Qed.
+
+Lemma regmap_full_dom (r: gmap RegName Word):
+  (∀ x, is_Some (r !! x)) →
+  dom (gset RegName) r = all_registers_s.
+Proof.
+  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  - intros rr _. apply all_registers_s_correct.
+  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.
 
 (* Some additional helper lemmas about region_addrs *)

@@ -71,3 +71,4 @@ theories/examples/awkward_example_u.v
 theories/examples/awkward_example_preamble.v
 theories/examples/awkward_example_adequacy.v
 theories/examples/awkward_example_concrete.v
+theories/examples/lse.v

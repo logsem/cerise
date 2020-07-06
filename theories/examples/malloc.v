@@ -3,35 +3,25 @@ From iris.proofmode Require Import tactics.
 From cap_machine Require Import rules logrel addr_reg_sample.
 From cap_machine.examples Require Import contiguous.
 
+(* A toy malloc implementation *)
+
+(* The routine is initially provided a capability to a contiguous range of
+   memory. It implements a bump-pointer allocator, where all memory before the
+   pointer of the capability has been allocated, and all memory after is free.
+   Allocating corresponds to increasing the pointer and returning the
+   corresponding sub-slice.
+
+   There is no free: when all the available memory has been allocated, the
+   routine cannot allocate new memory and will fail instead.
+
+   This is obviously not very realistic, but is good enough for our simple case
+   studies. *)
+
 Section SimpleMalloc.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
           `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
-
-  Ltac iPrologue_pre :=
-    match goal with
-    | Hlen : length ?a = ?n |- _ =>
-      let a' := fresh "a" in
-      destruct a as [| a' a]; inversion Hlen; simpl
-    end.
-
-  Ltac iPrologue prog :=
-    (try iPrologue_pre);
-    iDestruct prog as "[Hi Hprog]";
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
 
   Definition malloc_subroutine_instrs' (offset: Z) :=
     [move_r r_t2 PC;
@@ -62,6 +52,30 @@ Section SimpleMalloc.
   Definition malloc_subroutine_instrs :=
     malloc_subroutine_instrs' malloc_subroutine_instrs_length.
 
+  Ltac iPrologue_pre :=
+    match goal with
+    | Hlen : length ?a = ?n |- _ =>
+      let a' := fresh "a" in
+      destruct a as [| a' a]; inversion Hlen; simpl
+    end.
+
+  Ltac iPrologue prog :=
+    (try iPrologue_pre);
+    iDestruct prog as "[Hi Hprog]";
+    iApply (wp_bind (fill [SeqCtx])).
+
+  Ltac iEpilogue prog :=
+    iNext; iIntros prog; iSimpl;
+    iApply wp_pure_step_later;auto;iNext.
+
+  Ltac iCorrectPC i j :=
+    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
+    cbn; solve [ repeat constructor ].
+
+  Ltac iContiguous_next Ha index :=
+    apply contiguous_of_contiguous_between in Ha;
+    generalize (contiguous_spec _ Ha index); auto.
+
   Definition malloc_inv (b e : Addr) : iProp Σ :=
     (∃ b_m a_m,
        [[b, b_m]] ↦ₐ[RX] [[ malloc_subroutine_instrs ]]
@@ -69,22 +83,6 @@ Section SimpleMalloc.
      ∗ [[a_m, e]] ↦ₐ[RWX] [[ region_addrs_zeroes a_m e ]]
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝
     )%I.
-
-  Lemma z_to_addr_z_of (a:Addr) :
-    z_to_addr a = Some a.
-  Proof.
-    generalize (addr_spec a); intros [? ?].
-    set (z := (z_of a)) in *.
-    unfold z_to_addr.
-    destruct (Z_le_dec z MemNum) eqn:?;
-    destruct (Z_le_dec 0 z) eqn:?.
-    { f_equal. apply z_of_eq. cbn. lia. }
-    all: lia.
-  Qed.
-
-  Lemma z_to_addr_eq_inv (a b:Addr) :
-    z_to_addr a = Some b → a = b.
-  Proof. rewrite z_to_addr_z_of. naive_solver. Qed.
 
   Lemma simple_malloc_subroutine_spec (size: Z) (cont: Word) b e rmap N E φ :
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
@@ -370,8 +368,7 @@ Section SimpleMalloc.
       rewrite andb_true_iff !Z.leb_le in Ha_m'_within |- *.
       revert Ha_m' Hsize; clear; solve_addr. }
     rewrite (region_addrs_zeroes_split _ a_m') //;[].
-    (* TODO: move/rename *)
-    iDestruct (region_macros.stack_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]"; auto.
+    iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]"; auto.
     { rewrite replicate_length //. }
     iDestruct ("Hinv_close" with "[Hprog_done Hmemptr Hmem $Hna]") as ">Hna".
     { iNext. iExists b_m, a_m'. iFrame.

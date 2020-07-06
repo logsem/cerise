@@ -106,6 +106,25 @@ Proof.
   - exact None.
 Defined.
 
+Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
+Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
+
+Lemma z_to_addr_z_of (a:Addr) :
+  z_to_addr a = Some a.
+Proof.
+  generalize (addr_spec a); intros [? ?].
+  set (z := (z_of a)) in *.
+  unfold z_to_addr.
+  destruct (Z_le_dec z MemNum) eqn:?;
+  destruct (Z_le_dec 0 z) eqn:?.
+  { f_equal. apply z_of_eq. cbn. lia. }
+  all: lia.
+Qed.
+
+Lemma z_to_addr_eq_inv (a b:Addr) :
+  z_to_addr a = Some b → a = b.
+Proof. rewrite z_to_addr_z_of. naive_solver. Qed.
+
 Global Instance addr_countable : Countable Addr.
 Proof.
   refine {| encode r := encode (z_of r) ;
@@ -205,9 +224,6 @@ Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Add
 
 (** Automation *)
 (*** A zify-like tactic to send arithmetic on adresses into Z ******)
-
-Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
-Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
 
 Lemma incr_addr_spec (a: Addr) (z: Z) :
   (exists (a': Addr),
@@ -515,4 +531,8 @@ Proof. solve_addr. Qed.
 Lemma incr_addr_of_z_i (a a' : Addr) i :
   (a + i)%a = Some a' →
   (a + i)%Z = a'.
+Proof. solve_addr. Qed.
+
+Lemma invert_incr_addr (a1 a2: Addr) (z:Z):
+      (a1 + z)%a = Some a2 → (a2 + (- z))%a = Some a1.
 Proof. solve_addr. Qed.

@@ -201,6 +201,11 @@ Section Contiguous.
     (i + length a = Some j)%a.
   Proof. induction 1; cbn; solve_addr. Qed.
 
+  Lemma contiguous_between_length_minus a i j :
+    contiguous_between a i j →
+    (j + - (length a) = Some i)%a.
+  Proof. induction 1; cbn; solve_addr. Qed.
+
   (* The first element of the contiguous list is less than or equal to the last *)
    Lemma incr_list_le (a : list Addr) (a0 an : Addr) :
     contiguous a →

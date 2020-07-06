@@ -5,47 +5,15 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      rules logrel fundamental region_invariants
      region_invariants_revocation region_invariants_static.
-From cap_machine.examples Require Import region_macros stack_macros scall malloc awkward_example_helpers awkward_example_u.
+From cap_machine.examples Require Import region_macros stack_macros scall malloc
+     awkward_example_helpers awkward_example_u.
 From stdpp Require Import countable.
-
-Lemma regmap_full_dom (r: gmap RegName Word):
-  (∀ x, is_Some (r !! x)) →
-  dom (gset RegName) r = all_registers_s.
-Proof.
-  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
-  - intros rr _. apply all_registers_s_correct.
-  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
-Qed.
 
 Section awkward_example_preamble.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
           `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
-
-  Ltac iPrologue prog :=
-    iDestruct prog as "[Hi Hprog]";
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac middle_lt prev index :=
-    match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _
-    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-    end.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
-
-  (**************)
 
   (* [f_m] is the offset of the malloc capability *)
   (* [offset_to_awkward] is the offset between the [move_r r_t1 PC] instruction
@@ -98,6 +66,28 @@ Section awkward_example_preamble.
 
   Definition awkward_preamble_instrs_length : Z :=
     Eval cbv in (length (awkward_preamble_instrs 0 0)).
+
+  Ltac iPrologue prog :=
+    iDestruct prog as "[Hi Hprog]";
+    iApply (wp_bind (fill [SeqCtx])).
+
+  Ltac iEpilogue prog :=
+    iNext; iIntros prog; iSimpl;
+    iApply wp_pure_step_later;auto;iNext.
+
+  Ltac middle_lt prev index :=
+    match goal with
+    | Ha_first : ?a !! 0 = Some ?a_first |- _
+    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
+    end.
+
+  Ltac iCorrectPC i j :=
+    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
+    cbn; solve [ repeat constructor ].
+
+  Ltac iContiguous_next Ha index :=
+    apply contiguous_of_contiguous_between in Ha;
+    generalize (contiguous_spec _ Ha index); auto.
 
   Definition awkN : namespace := nroot .@ "awkN".
   Definition awk_invN : namespace := awkN .@ "inv".

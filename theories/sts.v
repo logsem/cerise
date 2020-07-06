@@ -136,46 +136,6 @@ End definitionsS.
 Typeclasses Opaque sts_state_std sts_state_loc sts_rel_loc sts_full
             related_sts_pub related_sts_priv.
 
-Lemma rtc_implies {A : Type} (R Q : A → A → Prop) (x y : A) :
-  (∀ r q, R r q → Q r q) →
-  rtc R x y → rtc Q x y.
-Proof.
-  intros Himpl HR.
-  induction HR.
-  - done.
-  - apply Himpl in H.
-    apply rtc_once in H. 
-    apply rtc_transitive with y; auto.
-Qed.
-
-Lemma rtc_or_intro {A : Type} (R Q : A → A → Prop) (x y : A) :
-  rtc (λ a b, R a b) x y →
-  rtc (λ a b, R a b ∨ Q a b) x y.
-Proof.
-  intros HR. induction HR.
-  - done.
-  - apply rtc_transitive with y; auto. 
-    apply rtc_once. by left.
-Qed. 
-
-Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
-    rtc (λ a b, R a b) x y →
-    rtc (λ a b, Q a b ∨ R a b) x y.
-  Proof.
-    intros HR. induction HR.
-    - done.
-    - apply rtc_transitive with y; auto.
-      apply rtc_once. by right.
-  Qed.
-
-(* TODO: move to stdpp? *)
-Lemma encode_injective {A} `{EqDecision A} `{Countable A} (a b: A) :
-  encode a = encode b → a = b.
-Proof.
-  intro HH. assert (decode (encode a) = decode (encode b)) as HHH by rewrite HH//.
-  rewrite !decode_encode in HHH. congruence.
-Qed.
-
 Lemma convert_rel_of_rel {A} `{EqDecision A, Countable A} (R: A -> A -> Prop) x y:
   R x y → convert_rel R (encode x) (encode y).
 Proof. rewrite /convert_rel. eauto. Qed.
@@ -184,8 +144,8 @@ Lemma rel_of_convert_rel {A} `{EqDecision A, Countable A} (R: A -> A -> Prop) x 
   convert_rel R (encode x) (encode y) → R x y.
 Proof.
   rewrite /convert_rel. intros (?&?&HH1&HH2&?).
-  apply encode_injective in HH1.
-  apply encode_injective in HH2. subst; eauto.
+  apply encode_inj in HH1.
+  apply encode_inj in HH2. subst; eauto.
 Qed.
 
 Section pre_STS.

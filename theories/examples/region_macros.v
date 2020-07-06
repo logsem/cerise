@@ -22,43 +22,13 @@ Section region_macros.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (* Tthis file contains: 
-          - splitting a region address (for splitting stack)
-          - a definition for updating multiple region states (with some useful lemmas) 
+  (* This file contains:
+          - a definition for updating multiple region states (with some useful lemmas)
           - allocating a region of multiple addresses (and a definition of default region values)
           - opening a region of multiple addresses 
   *)
 
-  (* --------------------------------------------------------------------------------- *)
-  (* -------------------- USEFUL LEMMA FOR STACK MANIPULATION ------------------------ *)
-  (* --------------------------------------------------------------------------------- *)
 
-  
-   Lemma stack_split (b e a : Addr) (p : Perm) (w1 w2 : list Word) :
-     (b ≤ a ≤ e)%Z →
-     (length w1) = (region_size b a) →
-     ([[b,e]]↦ₐ[p][[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ[p][[w1]] ∗ [[a,e]]↦ₐ[p][[w2]])%I.
-   Proof with try (rewrite /region_size; solve_addr).
-     intros [Hba Hae] Hsize.
-     iSplit.
-     - iIntros "Hbe".
-       rewrite /region_mapsto /region_addrs.
-       rewrite (region_addrs_aux_decomposition _ _ (region_size b a))...
-       iDestruct (big_sepL2_app' with "Hbe") as "[Hba Ha'b]".
-       + by rewrite region_addrs_aux_length. 
-       + iFrame.
-         rewrite (_: ^(b + region_size b a)%a = a)...
-         rewrite (_: region_size a e = region_size b e - region_size b a)...
-         (* todo: turn these two into lemmas *)
-     - iIntros "[Hba Hae]".
-       rewrite /region_mapsto /region_addrs. (* todo: use a proper region splitting lemma *)
-       rewrite (region_addrs_aux_decomposition (region_size b e) _ (region_size b a))...
-       iApply (big_sepL2_app with "Hba [Hae]"); cbn.
-       rewrite (_: ^(b + region_size b a)%a = a)...
-       rewrite (_: region_size b e - region_size b a = region_size a e)...
-   Qed.
-
-  
    (* -------------------- ALLOCATING A NEW REGION OF ZEROES ------------------ *)
    
    Lemma region_addrs_zeroes_alloc_aux E a W p (n : nat) :
@@ -116,50 +86,7 @@ Section region_macros.
          iFrame. done.
    Qed.
 
-   (* creates a gmap with domain from the list, all pointing to a default value *)
-   Fixpoint create_gmap_default {K V : Type} `{Countable K}
-            (l : list K) (d : V) : gmap K V :=
-     match l with 
-     | [] => ∅
-     | k :: tl => <[k:=d]> (create_gmap_default tl d)
-     end.
-
-   Lemma create_gmap_default_lookup {K V : Type} `{Countable K}
-         (l : list K) (d : V) (k : K) :
-     k ∈ l ↔ (create_gmap_default l d) !! k = Some d.
-   Proof.
-     split.
-     - intros Hk.
-       induction l; inversion Hk.
-       + by rewrite lookup_insert.
-       + destruct (decide (a = k)); [subst; by rewrite lookup_insert|]. 
-         rewrite lookup_insert_ne; auto. 
-     - intros Hl.
-       induction l; inversion Hl.
-       destruct (decide (a = k)); [subst;apply elem_of_list_here|]. 
-       apply elem_of_cons. right.
-       apply IHl. simplify_map_eq. auto. 
-   Qed.
-
-   Lemma create_gmap_default_lookup_is_Some {K V} `{EqDecision K, Countable K} (l: list K) (d: V) x v:
-    create_gmap_default l d !! x = Some v → x ∈ l ∧ v = d.
-  Proof.
-    revert x v d. induction l as [| a l]; cbn.
-    - done.
-    - intros x v d. destruct (decide (a = x)) as [->|].
-      + rewrite lookup_insert. intros; simplify_eq. repeat constructor.
-      + rewrite lookup_insert_ne //. intros [? ?]%IHl. subst. repeat constructor; auto.
-  Qed.
-
-  Lemma create_gmap_default_dom {K V} `{EqDecision K, Countable K} (l: list K) (d: V):
-    dom (gset K) (create_gmap_default l d) = list_to_set l.
-  Proof.
-    induction l as [| a l].
-    - cbn. rewrite dom_empty_L //.
-    - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
-  Qed.
-
-   Lemma region_addrs_zeroes_valid_aux n W : 
+   Lemma region_addrs_zeroes_valid_aux n W :
      ([∗ list] y ∈ replicate n (inl 0%Z), ▷ (fixpoint interp1) W y)%I.
    Proof. 
      iInduction (n) as [| n] "IHn".
@@ -218,57 +145,6 @@ Section region_macros.
 
    (* ------------------------------ OPENING A REGION ----------------------------------- *)
 
-   Lemma disjoint_nil_l {A : Type} `{EqDecision A} (a : A) (l2 : list A) :
-     [] ## l2.
-   Proof.
-     apply elem_of_disjoint. intros x Hcontr. inversion Hcontr.
-   Qed.
-
-   Lemma disjoint_nil_r {A : Type} `{EqDecision A} (a : A) (l2 : list A) :
-     l2 ## [].
-   Proof.
-     apply elem_of_disjoint. intros x Hl Hcontr. inversion Hcontr.
-   Qed.
-   
-   Lemma disjoint_cons {A : Type} `{EqDecision A} (a : A) (l1 l2 : list A) :
-     a :: l1 ## l2 → a ∉ l2.
-   Proof.
-     rewrite elem_of_disjoint =>Ha.
-     assert (a ∈ a :: l1) as Hs; [apply elem_of_cons;auto;apply elem_of_nil|].
-     specialize (Ha a Hs). done.
-   Qed.
-
-   Lemma disjoint_weak {A : Type} `{EqDecision A} (a : A) (l1 l2 : list A) :
-     a :: l1 ## l2 → l1 ## l2.
-   Proof.
-     rewrite elem_of_disjoint =>Ha a' Hl1 Hl2.
-     assert (a' ∈ a :: l1) as Hs; [apply elem_of_cons;auto;apply elem_of_nil|].
-     specialize (Ha a' Hs Hl2). done.
-   Qed.
-
-   Lemma disjoint_swap {A : Type} `{EqDecision A} (a : A) (l1 l2 : list A) :
-     a ∉ l1 →
-     a :: l1 ## l2 -> l1 ## a :: l2.
-   Proof.
-     rewrite elem_of_disjoint =>Hnin Ha a' Hl1 Hl2.
-     destruct (decide (a' = a)).
-     - subst. contradiction.
-     - apply Ha with a'.
-       + apply elem_of_cons; by right.
-       + by apply elem_of_cons in Hl2 as [Hcontr | Hl2]; [contradiction|].
-   Qed.
-
-   Lemma delete_list_swap {A B : Type} `{EqDecision A, Countable A}
-         (a a' : A) (l1 l2 : list A) (M : gmap A B) :
-     delete a' (delete_list (l1 ++ a :: l2) M) =
-     delete a (delete a' (delete_list (l1 ++ l2) M)).
-   Proof.
-     induction l1.
-     - apply delete_commute.
-     - simpl. repeat rewrite (delete_commute _ _ a0).
-       f_equiv. apply IHl1.
-   Qed. 
-   
    Lemma open_region_many_swap a l1 l2 W :
      open_region_many (l1 ++ a :: l2) W ≡ open_region_many (a :: l1 ++ l2) W.
    Proof. 

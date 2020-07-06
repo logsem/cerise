@@ -691,7 +691,7 @@ Section heap.
         rewrite -HWM. apply elem_of_gmap_dom. eauto. }
       iDestruct (big_sepM_lookup with "Hr") as (ρ' Hρ') "(Hst & _)"; eauto; [].
       iDestruct (sts_full_state_std with "Hfull Hst") as %Haρ'.
-      enough (ρ = ρ') by (subst; eauto). apply encode_injective.
+      enough (ρ = ρ') by (subst; eauto). apply encode_inj.
       rewrite Haρ in Haρ'. congruence. }
     iAssert (∀ a:Addr, ⌜ Mρ !! a = Some ρ ⌝ → ⌜ std W !! a = Some ρ ⌝)%I as %?.
     { iIntros (a HMρa).
@@ -893,60 +893,6 @@ Section heap.
 
   (* ---------------------------------------------------------------------------------------- *)
   (* ----------------------- OPENING MULTIPLE LOCATIONS IN REGION --------------------------- *)
-
-  Fixpoint delete_list {K V : Type} `{Countable K, EqDecision K}
-             (ks : list K) (m : gmap K V) : gmap K V :=
-    match ks with
-    | k :: ks' => delete k (delete_list ks' m)
-    | [] => m
-    end.
-
-  Lemma delete_list_insert {K V : Type} `{Countable K, EqDecision K}
-        (ks : list K) (m : gmap K V) (l : K) (v : V) :
-    l ∉ ks →
-    delete_list ks (<[l:=v]> m) = <[l:=v]> (delete_list ks m).
-  Proof.
-    intros Hnin.
-    induction ks; auto.
-    simpl.
-    apply not_elem_of_cons in Hnin as [Hneq Hnin].
-    rewrite -delete_insert_ne; auto.
-    f_equal. by apply IHks.
-  Qed.
-
-  Lemma delete_list_delete {K V : Type} `{Countable K, EqDecision K}
-        (ks : list K) (m : gmap K V) (l : K) :
-    l ∉ ks →
-    delete_list ks (delete l m) = delete l (delete_list ks m).
-  Proof.
-    intros Hnin.
-    induction ks; auto.
-    simpl.
-    apply not_elem_of_cons in Hnin as [Hneq Hnin].
-    rewrite -delete_commute; auto.
-    f_equal. by apply IHks.
-  Qed.
-
-  Lemma lookup_delete_list_notin {K V : Type} `{Countable K, EqDecision K}
-        (ks : list K) (m : gmap K V) (l : K) :
-    l ∉ ks →
-    (delete_list ks m) !! l = m !! l.
-  Proof.
-    intros HH; induction ks; simpl; auto.
-    eapply not_elem_of_cons in HH. destruct HH.
-    rewrite lookup_delete_ne; auto.
-  Qed.
-  
-  Lemma delete_list_permutation {A B} `{Countable A, EqDecision A}
-        (l1 l2: list A) (m: gmap A B):
-    l1 ≡ₚ l2 → delete_list l1 m = delete_list l2 m.
-  Proof.
-    induction 1.
-    { reflexivity. }
-    { cbn. rewrite IHPermutation //. }
-    { cbn. rewrite delete_commute //. }
-    { rewrite IHPermutation1 //. }
-  Qed.
 
   Definition open_region_many_def (l : list Addr) (W : WORLD) : iProp Σ :=
     (∃ M Mρ, RELS M ∗ ⌜dom (gset Addr) (std W) = dom (gset Addr) M⌝
@@ -1469,7 +1415,7 @@ Section heap.
   Qed.
 
   Lemma std_rel_pub_Revoked x :
-    std_rel_pub Revoked x → x = Temporary
+    std_rel_pub Revoked x → x = Temporary.
   Proof.
     intros Hrel.
     inversion Hrel. auto. 
@@ -1486,7 +1432,7 @@ Section heap.
   Qed. 
 
   Lemma std_rel_pub_Static x g :
-    std_rel_pub (Static g) x → x = Temporary
+    std_rel_pub (Static g) x → x = Temporary.
   Proof.
     intros Hrel.
     inversion Hrel. auto. 
