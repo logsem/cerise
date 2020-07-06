@@ -17,15 +17,6 @@ Proof.
   - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.
 
-(* TODO: move *)
-Lemma isCorrectPC_range_restrict p g b e a0 an a0' an' :
-  isCorrectPC_range p g b e a0 an →
-  (a0 <= a0')%a ∧ (an' <= an)%a →
-  isCorrectPC_range p g b e a0' an'.
-Proof.
-  intros HR [? ?] a' [? ?]. apply HR. solve_addr.
-Qed.
-
 Section awkward_example_preamble.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
@@ -200,7 +191,6 @@ Section awkward_example_preamble.
     { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
     iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs & Hr & Hsts)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
-    (* TODO: change the postcondition of malloc to produce (b+size = Some e) instead of a subtraction? *)
     iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
     2: { iIntros (?) "[HH | ->]". iApply "HH". iIntros (Hv). inversion Hv. }

@@ -583,6 +583,25 @@ Section region.
     rewrite (drop_S _ (take n ws ++ drop n ws) n w (l2)); try congruence.
   Qed.
 
+  Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]") : bi_scope.
+
+  Lemma region_mapsto_cons
+      (b b' e : Addr) (w : Word) (ws : list Word) (p : Perm) :
+    (b + 1)%a = Some b' → (b' <= e)%a →
+    [[b, e]] ↦ₐ [p] [[ w :: ws ]] ⊣⊢ b ↦ₐ[p] w ∗ [[b', e]] ↦ₐ [p] [[ ws ]].
+  Proof.
+    intros Hb' Hb'e.
+    rewrite /region_mapsto.
+    rewrite (region_addrs_decomposition b b e).
+    2: revert Hb' Hb'e; clear; intros; split; solve_addr.
+    rewrite region_addrs_empty /=.
+    2: clear; solve_addr.
+    rewrite (_: ^(b + 1) = b')%a.
+    2: revert Hb' Hb'e; clear; intros; solve_addr.
+    eauto.
+  Qed.
+
 End region.
 
 Global Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)

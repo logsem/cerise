@@ -521,7 +521,8 @@ Section cap_lang_rules.
   (* --------------------------- CAPABILITY PREDICATE ------------------------------- *)
   (* Points to predicates for memory *)
   Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
-             (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+              (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+  Definition mapsto_nO (a: Addr) (p: Perm) (w: Word) := (a ↦ₐ[p] w ∗ ⌜p ≠ O⌝)%I.
 
   Lemma gen_heap_valid_cap
         (σ : gmap Addr Word) (a : Addr) (w : Word) (p : Perm) :
@@ -923,6 +924,8 @@ End cap_lang_rules.
 (* Points to predicates for memory *)
 Notation "a ↦ₐ [ p ] w" := (∃ cap_γ, MonRefMapsto a cap_γ (w,p))%I
   (at level 20, p at level 50, format "a  ↦ₐ [ p ]  w") : bi_scope.
+Notation "a ↦ₐ < p > w" := (mapsto_nO a p w)
+    (at level 20, p at level 50, format "a  ↦ₐ < p >  w") : bi_scope.
 
 (* Used to close the failing cases of the ftlr.
   - Hcont is the (iris) name of the closing hypothesis (usually "Hφ")

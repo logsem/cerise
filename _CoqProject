@@ -1,5 +1,7 @@
 -Q theories/ cap_machine
 -arg -w -arg -several-object-files
+theories/examples/iris_extra.v
+theories/examples/stdpp_extra.v
 theories/monocmra.v
 theories/mono_ref.v
 theories/sts.v

@@ -68,6 +68,49 @@ Section heap.
         inversion Hy; subst.
         left.
   Qed.
+  
+  Lemma related_sts_pub_fresh (W : STS) a ρ i:
+    i ∉ dom (gset positive) W.1 →
+    i ∉ dom (gset positive) W.2 →
+    related_sts_pub W.1 (<[i:=a]> W.1) W.2 (<[i:=ρ]> W.2).
+  Proof.
+    intros Hdom_sta Hdom_rel.
+    rewrite /related_sts_pub. split;[|split;[auto|] ].
+    - apply dom_insert_subseteq.
+    - apply dom_insert_subseteq.
+    - apply not_elem_of_dom in Hdom_sta.
+       apply not_elem_of_dom in Hdom_rel.
+       intros j r1 r2 r1' r2' Hr Hr'.
+       destruct (decide (j = i)).
+      + subst. rewrite Hr in Hdom_rel. done.
+      + rewrite lookup_insert_ne in Hr'; auto.
+        rewrite Hr in Hr'. inversion Hr'. repeat (split;auto).
+        intros x y Hx Hy.
+        rewrite lookup_insert_ne in Hy;auto.
+        rewrite Hx in Hy.
+        inversion Hy; inversion Hr'; subst.
+        left.
+  Qed.
+
+  Lemma related_sts_pub_world_fresh_loc W (i x : positive) r1 r2 :
+    i ∉ dom (gset positive) (loc W).1 →
+    i ∉ dom (gset positive) (loc W).2 →
+    related_sts_pub_world W (W.1,(<[i:=x]> W.2.1, <[i:= (r1,r2)]> W.2.2)).
+  Proof.
+    rewrite /loc. intros Hdom_sta Hdom_rel.
+    rewrite /related_sts_pub_world /=.
+    split;[apply related_sts_std_pub_refl|].
+    rewrite /related_sts_pub. split;[|split].
+    - rewrite dom_insert_L. set_solver.
+    - rewrite dom_insert_L. set_solver.
+    - apply (not_elem_of_dom (D:=gset positive) W.2.1 i) in Hdom_sta.
+      apply (not_elem_of_dom (D:=gset positive) W.2.2 i) in Hdom_rel.
+      intros j r1' r2' r1'' r2'' Hr' Hr''.
+      destruct (decide (j = i)).
+      + subst. rewrite Hdom_rel in Hr'. inversion Hr'.
+      + simplify_map_eq. repeat split;auto.
+        intros x' y Hx' Hy. simplify_map_eq. left. 
+  Qed.
 
   Lemma related_sts_pub_world_revoked_temp W a :
     (std W) !! a = Some Revoked ∨

@@ -859,7 +859,50 @@ Section stack_macros.
     iApply wp_pure_step_later; auto. iNext. iApply "Hφ". iFrame. done.
   Qed.
 
+  Lemma push_z_instrs_extract a i j z prog p' :
+    contiguous_between a i j →
+    ([∗ list] a_i;w_i ∈ a; (push_z_instrs r_stk z ++ prog), a_i ↦ₐ[p'] w_i) -∗
+    ∃ a' push2 a_rest,
+      (([∗ list] a_i;w_i ∈ [i; push2];push_z_instrs r_stk z, a_i ↦ₐ[p'] w_i) ∗
+       [∗ list] a_i;w_i ∈ a'; prog, a_i ↦ₐ[p'] w_i) ∗
+       ⌜ a = [i; push2] ++ a'
+         ∧ (i + 1 = Some push2)%a
+         ∧ (push2 + 1 = Some a_rest)%a
+         ∧ contiguous_between a' a_rest j ⌝.
+  Proof.
+    intros. iIntros "HH".
+    iDestruct (contiguous_between_program_split with "HH") as (a_push a' a_rest) "(Hpush & ? & #Hcont)"; eauto.
+    iDestruct "Hcont" as %(Hcont1 & ? & -> & Hrest).
+    iDestruct (big_sepL2_length with "Hpush") as %Hpushlength.
+    destruct (contiguous_2 a_push) as (push1 & push2 & -> & Ha12); auto.
+    { rewrite contiguous_iff_contiguous_between; eauto. }
+    assert (push1 = i) as ->. { inversion Hcont1; auto. }
+    iExists a', push2, a_rest. iFrame. iPureIntro. repeat split; eauto.
+    cbn in Hrest. revert Ha12 Hrest; clear. solve_addr.
+  Qed.
 
+  Lemma push_r_instrs_extract a i j r prog p' :
+    contiguous_between a i j →
+    ([∗ list] a_i;w_i ∈ a; (push_r_instrs r_stk r ++ prog), a_i ↦ₐ[p'] w_i) -∗
+    ∃ a' push2 a_rest,
+      (([∗ list] a_i;w_i ∈ [i; push2];push_r_instrs r_stk r, a_i ↦ₐ[p'] w_i) ∗
+       [∗ list] a_i;w_i ∈ a'; prog, a_i ↦ₐ[p'] w_i) ∗
+       ⌜ a = [i; push2] ++ a'
+         ∧ (i + 1 = Some push2)%a
+         ∧ (push2 + 1 = Some a_rest)%a
+         ∧ contiguous_between a' a_rest j ⌝.
+  Proof.
+    intros. iIntros "HH".
+    iDestruct (contiguous_between_program_split with "HH") as (a_push a' a_rest) "(Hpush & ? & #Hcont)"; eauto.
+    iDestruct "Hcont" as %(Hcont1 & ? & -> & Hrest).
+    iDestruct (big_sepL2_length with "Hpush") as %Hpushlength.
+    destruct (contiguous_2 a_push) as (push1 & push2 & -> & Ha12); auto.
+    { rewrite contiguous_iff_contiguous_between; eauto. }
+    assert (push1 = i) as ->. { inversion Hcont1; auto. }
+    iExists a', push2, a_rest. iFrame. iPureIntro. repeat split; eauto.
+    cbn in Hrest. revert Ha12 Hrest; clear. solve_addr.
+  Qed.
+  
   (* -------------------------------------- POP -------------------------------------- *)
   Definition pop_instrs r_stk r := [load_r r r_stk; sub_z_z r_t1 0 1; lea_r r_stk r_t1].
 

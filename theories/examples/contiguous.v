@@ -489,127 +489,6 @@ Section Contiguous.
       eapply contiguous_between_cons; eauto. }
   Qed.
 
-(*
-  (* the following lemma assumes that a1 and a2 are non empty.
-     if either are empty, the lemma holds trivially *)
-  Lemma contiguous_app a1 a2 a1_last a2_first :
-    ∀ a, a = a1 ++ a2 ->
-         list.last a1 = Some a1_last →
-         a2 !! 0 = Some a2_first →
-         contiguous a →
-         contiguous a1 ∧ contiguous a2 ∧ (a1_last + 1)%a = Some a2_first.
-  Proof.
-    induction a1 as [|a_first a1]; intros a Happ Hlast Hfirst Ha.
-    - split; [apply contiguous_nil|].
-      rewrite app_nil_l in Happ. subst. done.
-    - destruct a as [|a_first' a];[inversion Happ|].
-      split.
-      + inversion Happ.
-        destruct a1.
-        { intros i ai aj Hai Haj. rewrite PeanoNat.Nat.add_1_r /= in Haj. done. }
-        assert (last (a_first :: a0 :: a1) = last (a0 :: a1)) as Heq;[auto|].
-        rewrite Heq in Hlast.
-        intros i ai aj Hai Haj.
-        destruct i.
-        { rewrite /contiguous in Ha.
-          simpl in *; subst; inversion Hai; inversion Haj; subst.
-          apply Ha with 0; auto. }
-        apply contiguous_weak in Ha as Ha'.
-        specialize (IHa1 _ H1 Hlast Hfirst Ha') as [Ha1 _].
-        by specialize (Ha1 i ai aj Hai Haj).
-      + inversion Happ as [Heq].
-        apply contiguous_weak in Ha as Ha'.
-        destruct a1.
-        { simpl in Hlast. subst. rewrite app_nil_l in Ha. split; auto.
-          inversion Hlast; subst. rewrite /contiguous in Ha. apply Ha with 0; auto. }
-        assert (last (a_first :: a0 :: a1) = last (a0 :: a1)) as Heq';[auto|].
-        rewrite Heq' in Hlast.
-        by specialize (IHa1 a H Hlast Hfirst Ha') as [_ Ha2].
-  Qed.
-*)
-
-(*
-  Lemma last_app_region_addrs l1 a b :
-    length (region_addrs a b) > 0 ->
-    list.last (l1 ++ region_addrs a b) = Some b.
-  Proof.
-    intros Hlen (* Hcont *).
-    assert (a ≤ b)%Z.
-    { rewrite /region_addrs in Hlen. destruct (Z_le_dec a b); auto. simpl in Hlen; lia. }
-    rewrite -last_app_eq; auto. apply region_addrs_last; auto.
-  Qed.
-*)
-
-(*
-  (* the following lemmas lets us split a list of length at least n + 1 into two parts *)
-  Lemma take_n_last {A : Type} (a : list A) n :
-    0 < n < length a -> ∃ a_last, list.last (take n a) = Some a_last.
-  Proof.
-    intros Hlt.
-    rewrite -head_reverse.
-    assert (length (reverse (take n a)) > 0).
-    { rewrite reverse_length take_length. lia. }
-    destruct (reverse (take n a)); simpl; [|eauto].
-    inversion H.
-  Qed.
-
-  Lemma drop_n_first {A : Type} (a : list A) n :
-    n < length a -> ∃ a_first, (drop n a) !! 0 = Some a_first.
-  Proof.
-    intros Hlt.
-    rewrite lookup_drop PeanoNat.Nat.add_0_r.
-    apply lookup_lt_is_Some_2. done.
-  Qed.
-
-  Lemma app_split {A : Type} (a : list A) n :
-    0 < n < length a → ∃ a1 a2 a1_last a2_first, a = a1 ++ a2
-                                             ∧ length a1 = n
-                                             ∧ list.last a1 = Some a1_last
-                                             ∧ a2 !! 0 = Some a2_first.
-  Proof.
-    intros [Hlt Hgt].
-    exists (take n a),(drop n a).
-    destruct (take_n_last a n) as [a_last Ha_last]; auto.
-    destruct (drop_n_first a n) as [a_first Ha_first]; auto.
-    exists a_last, a_first. repeat (split;auto).
-    - by rewrite take_drop.
-    - rewrite take_length. lia.
-  Qed.
-*)
-
-(*
-  (* The following lemma splits a contiguous program into two parts *)
-  Context `{memG Σ, regG Σ, STSG Σ,
-            MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
-
-  (* Note that we are assuming that both prog1 and prog2 are nonempty *)
-  Lemma contiguous_program_split prog1 prog2 (φ : Addr → Word → iProp Σ) a :
-    contiguous a → 0 < length prog1 → 0 < length prog2 →
-    (([∗ list] a_i;w_i ∈ a;prog1 ++ prog2, φ a_i w_i) -∗
-    ∃ (a1 a2 : list Addr) (a1_last a2_first : Addr),
-      ([∗ list] a_i;w_i ∈ a1;prog1, φ a_i w_i)
-        ∗ ([∗ list] a_i;w_i ∈ a2;prog2, φ a_i w_i)
-        ∗ ⌜contiguous a1
-           ∧ contiguous a2
-           ∧ a = a1 ++ a2
-           ∧ list.last a1 = Some a1_last
-           ∧ a2 !! 0 = Some a2_first
-           ∧ (a1_last + 1)%a = Some a2_first⌝)%I.
-  Proof.
-    iIntros (Ha Hprog1 Hprog2) "Hprog".
-    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    destruct (app_split a (length prog1)) as (a1 & a2 & a1_last & a2_first & Happ & Ha1 & Hlast & Hfirst).
-    { split; auto. rewrite Hlength app_length. lia. }
-    iExists a1,a2,a1_last,a2_first.
-    rewrite Happ.
-    iDestruct (big_sepL2_app' with "Hprog") as "[Hprog1 Hprog2]"; auto.
-    iFrame.
-    iPureIntro.
-    destruct (contiguous_app a1 a2 a1_last a2_first a) as (Hca1 & Hca2 & Heq); auto.
-    repeat split;auto.
-  Qed.
-*)
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
@@ -644,38 +523,6 @@ Section Contiguous.
     rewrite take_length. repeat split; eauto. rewrite Nat.min_l; solve_addr.
   Qed.
 
-(*
-  Lemma contiguous_region_addrs a a_first a_last :
-    contiguous a -> a !! 0 = Some a_first -> list.last a = Some a_last ->
-    a = region_addrs a_first a_last.
-  Proof.
-    generalize a_first. induction a; intros a_first' Ha Hfirst Hlast.
-    - inversion Hfirst.
-    - simpl in Hfirst. inversion Hfirst; subst.
-      rewrite /region_addrs.
-      assert (a_first' <= a_last)%Z as Hle.
-      { apply incr_list_le with (a_first' :: a0); auto. }
-      destruct (Z_le_dec a_first' a_last);[|contradiction].
-      simpl. f_equiv.
-      destruct a0.
-      + inversion Hlast; subst.
-        rewrite Z.sub_diag /=. done.
-      + rewrite (Ha 0 _ a); auto. simpl.
-        specialize (IHa a).
-        rewrite /region_addrs in IHa.
-        assert (a <= a_last)%Z as Hle'.
-        { apply contiguous_weak in Ha. apply incr_list_le with (a :: a0); auto. }
-        destruct (Z_le_dec a a_last);[|contradiction].
-        assert (region_size a a_last = Z.abs_nat (a_last - a_first')) as <-.
-        { rewrite /region_size.
-          assert ((a_first' + 1)%a = Some a) as Hnext;[apply Ha with 0; auto|].
-          apply incr_addr_of_z_i in Hnext. rewrite -Hnext. lia.
-        }
-        apply contiguous_weak in Ha.
-        apply IHa; auto.
-  Qed.
-*)
-
   (* Helper lemma for contiguous lists of size 2: useful for the push macro *)
   Lemma contiguous_2 a :
     length a = 2 → contiguous a → ∃ a1 a2, a = [a1; a2] ∧ (a1 + 1)%a = Some a2.
@@ -703,6 +550,17 @@ Section Contiguous.
     split; [|split;[apply Ha' with 0|apply Ha' with 1] ];auto.
   Qed.
 
+  Lemma contiguous_between_inj l:
+    forall a1 b1 b2,
+      contiguous_between l a1 b1 ->
+      contiguous_between l a1 b2 ->
+      b1 = b2.
+  Proof.
+    induction l; intros.
+    - inv H; inv H0; auto.
+    - inv H; inv H0. rewrite H2 in H3; inv H3.
+      eapply IHl; eauto.
+  Qed.
 
 End Contiguous.
 
@@ -747,4 +605,12 @@ Lemma isCorrectPC_range_perm_non_E p g b e a0 an :
 Proof.
   intros HH1 HH2. pose proof (isCorrectPC_range_perm _ _ _ _ _ _ HH1 HH2).
   naive_solver.
+Qed.
+
+Lemma isCorrectPC_range_restrict p g b e a0 an a0' an' :
+  isCorrectPC_range p g b e a0 an →
+  (a0 <= a0')%a ∧ (an' <= an)%a →
+  isCorrectPC_range p g b e a0' an'.
+Proof.
+  intros HR [? ?] a' [? ?]. apply HR. solve_addr.
 Qed.

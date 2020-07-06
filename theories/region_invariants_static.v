@@ -1080,4 +1080,18 @@ Section heap.
     { rewrite Hdomρ' //. }
 Qed.
 
+  Lemma region_has_static_addr_Forall (W:WORLD) (a:Addr) (m: gmap Addr Word):
+    std W !! a = Some (Static m) →
+    region W ∗ sts_full_world W
+           -∗ ⌜Forall (λ a':Addr, std W !! a' = Some (Static m))
+           (elements (dom (gset Addr) m))⌝.
+  Proof.
+    iIntros (?) "(Hr & Hsts)". rewrite region_eq /region_def.
+    iDestruct "Hr" as (M Mρ) "(? & % & Hdom & Hr)". iDestruct "Hdom" as %Hdom.
+    iDestruct (full_sts_Mρ_agree with "Hsts Hr") as %Hagree; eauto.
+    
+    iDestruct (region_map_has_static_addr with "[$Hr $Hsts]") as %[HH ?]; eauto.
+    iPureIntro. rewrite -set_Forall_elements. intros x Hx. rewrite Hagree. auto.
+  Qed.
+  
 End heap.

@@ -480,6 +480,28 @@ Section STS.
     intros [Hstd Hloc].
     split; [apply related_sts_std_pub_priv|apply related_sts_pub_priv]; auto.
   Qed.
+
+  Lemma related_sts_priv_world_std_sta_is_Some W W' i :
+    related_sts_priv_world W W' -> is_Some ((W.1) !! i) -> is_Some ((W'.1) !! i).
+  Proof.
+    intros [ [Hdom1 _ ] _] Hsome.
+    apply elem_of_gmap_dom in Hsome.
+    apply elem_of_gmap_dom.
+    apply elem_of_subseteq in Hdom1. auto.
+  Qed.
+
+  Lemma related_sts_priv_world_std_sta_region_type W W' i ρ :
+    related_sts_priv_world W W' ->
+    (W.1) !! i = Some ρ ->
+    ∃ ρ', (W'.1) !! i = Some ρ'.
+  Proof.
+    intros Hrelated Hρ.
+    assert (is_Some ((W'.1) !! i)) as [x Hx].
+    { apply related_sts_priv_world_std_sta_is_Some with W; eauto. }
+    destruct Hrelated as [ [Hdom1 Hrevoked ] _].
+    specialize (Hrevoked _ _ _ Hρ Hx). simplify_eq. 
+    eauto. 
+  Qed.
     
   Lemma sts_full_rel_loc W i Q P :
     sts_full_world W -∗ sts_rel_loc (A:=A) i Q P -∗ ⌜W.2.2 !! i = Some (convert_rel Q,convert_rel P)⌝.

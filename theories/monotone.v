@@ -358,6 +358,38 @@ Section monotone.
       * by iPureIntro. 
   Qed.
 
+  (* The validity of regions are monotone wrt private/public future worlds *)
+  Lemma adv_monotone W W' b e :
+    related_sts_priv_world W W' →
+    (([∗ list] a ∈ region_addrs b e, read_write_cond a RX interp
+                      ∧ ⌜std W !! a = Some Permanent⌝)
+    -∗ ([∗ list] a ∈ region_addrs b e, read_write_cond a RX interp
+                      ∧ ⌜std W' !! a = Some Permanent⌝))%I.
+  Proof.
+    iIntros (Hrelated) "Hr".
+    iApply (big_sepL_mono with "Hr").
+    iIntros (k y Hsome) "(Hy & Hperm)". 
+    iFrame.
+    iDestruct "Hperm" as %Hperm.
+    iPureIntro. 
+    apply (region_state_nwl_monotone_nl _ W') in Hperm; auto.
+  Qed.
+
+  Lemma adv_stack_monotone W W' b e :
+    related_sts_pub_world W W' ->
+    (([∗ list] a ∈ region_addrs b e, read_write_cond a RWLX interp
+                                     ∧ ⌜region_state_pwl W a⌝)
+    -∗ ([∗ list] a ∈ region_addrs b e, read_write_cond a RWLX interp
+                                       ∧ ⌜region_state_pwl W' a⌝))%I.
+  Proof.
+    iIntros (Hrelated) "Hstack_adv". 
+    iApply (big_sepL_mono with "Hstack_adv").
+    iIntros (k y Hsome) "(Hr & Htemp)".
+    iDestruct "Htemp" as %Htemp. 
+    iFrame. iPureIntro. 
+    apply (region_state_pwl_monotone _ W') in Htemp; auto.
+  Qed. 
+
 Global Instance interp_ne n :
   Proper (dist n ==> dist n) (λ Wv : WORLD * (leibnizO Word), (interp Wv.1) Wv.2).
 Proof.
@@ -419,5 +451,7 @@ Proof.
   - trivial.
   - auto.
 Qed.
+
+
 
 End monotone.

@@ -466,6 +466,47 @@ Section std_updates.
        apply not_elem_of_list_to_set.
        intros Hcontr. apply elem_of_list_In in Hcontr.
        done.
-   Qed.        
+   Qed.
+
+   (* multiple updates and private relation *)
+   Lemma rtc_rel_priv x y:
+    x <> Permanent ->
+    rtc (λ x y : region_type, Rpub x y ∨ Rpriv x y) x y.
+  Proof.
+    intros; destruct x, y; try congruence;
+      repeat
+        (match goal with
+         | |- rtc (λ x y : region_type, Rpub x y ∨ Rpriv x y) ?X ?X => left
+         | |- rtc (λ x y : region_type, Rpub x y ∨ Rpriv x y) Temporary ?X => eright; [try (left; constructor); right; constructor|left]
+         | |- rtc (λ x y : region_type, Rpub x y ∨ Rpriv x y) ?X ?Y => right with Temporary; [try (left; constructor); right; constructor|]
+         | _ => idtac
+         end).
+  Qed.
+  
+  Lemma related_sts_priv_world_std_update_multiple W l ρ :
+    Forall (λ a : Addr, ∃ ρ, (std W) !! a = Some ρ /\ ρ <> Permanent) l →
+    related_sts_priv_world W (std_update_multiple W l ρ).
+  Proof.
+    intros Hforall.
+    induction l. 
+    - apply related_sts_priv_refl_world. 
+    - eapply related_sts_priv_trans_world;[apply IHl|].
+      + apply Forall_cons_1 in Hforall as [_ Hforall]. auto. 
+      + split;[|rewrite std_update_multiple_loc_rel;apply related_sts_priv_refl].
+        split. 
+        ++ rewrite /std_update dom_insert_L. set_solver.
+        ++ intros j x0 y Hx0 Hy.
+           destruct (decide (a = j)).
+           +++ subst. rewrite lookup_insert in Hy. inversion Hy; subst.
+               apply Forall_cons_1 in Hforall as [Hi _].
+               destruct (decide (j ∈ l)).
+               { rewrite std_sta_update_multiple_lookup_in_i in Hx0; auto. inversion Hx0. left. }
+               rewrite std_sta_update_multiple_lookup_same_i in Hx0; auto.
+               rewrite /revoke /std /= in Hi.
+               destruct Hi as [ρ [Hi Hi'] ].
+               rewrite Hi in Hx0. inversion Hx0; subst.
+               eapply rtc_rel_priv; auto.
+           +++ rewrite /= lookup_insert_ne in Hy;auto. rewrite Hx0 in Hy; inversion Hy; subst; left.
+  Qed.
      
 End std_updates.

@@ -2,7 +2,8 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel.
-From cap_machine Require Export addr_reg_sample region_invariants_revocation multiple_updates. 
+From cap_machine Require Export addr_reg_sample region_invariants_revocation multiple_updates.
+From cap_machine.examples Require Export iris_extra.
 
 Section region_macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -20,9 +21,7 @@ Section region_macros.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  (* TODO: move this to folder that will contain all the files about region *)
-  (* Currently, this file contains: 
-          - supplemental lemmas about big_sepL 
+  (* Tthis file contains: 
           - splitting a region address (for splitting stack)
           - a definition for updating multiple region states (with some useful lemmas) 
           - allocating a region of multiple addresses (and a definition of default region values)
@@ -30,154 +29,9 @@ Section region_macros.
   *)
 
   (* --------------------------------------------------------------------------------- *)
-  (* -------------------- USEFUL LEMMAS FOR STACK MANIPULATION ----------------------- *)
+  (* -------------------- USEFUL LEMMA FOR STACK MANIPULATION ------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* -------------------- SUPPLEMENTAL LEMMAS ABOUT BIGSEPL -------------------------- *)
-   
-   Lemma region_addrs_exists {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
-     (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
-      (∃ (ws : list B), [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
-   Proof.
-     iSplit. 
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn". 
-       + iExists []. done.
-       + iDestruct "Ha" as "[Ha0 Ha]".
-         iDestruct "Ha0" as (w0) "Ha0". 
-         iDestruct ("IHn" with "Ha") as (ws) "Ha'".
-         iExists (w0 :: ws). iFrame.
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn". 
-       + done. 
-       + iDestruct "Ha" as (ws) "Ha".
-         destruct ws;[by iApply bi.False_elim|]. 
-         iDestruct "Ha" as "[Ha0 Ha]". 
-         iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto. 
-         iFrame. eauto.        
-   Qed.
-
-   Lemma region_addrs_exists_zip {A B C: Type} (a : list A) (φ : A → B → C -> iProp Σ) :
-     (([∗ list] a0 ∈ a, (∃ b0 c0, φ a0 b0 c0)) ∗-∗
-      (∃ (ws : list (B * C)), [∗ list] a0;bc0 ∈ a;ws, φ a0 bc0.1 bc0.2))%I.
-   Proof.
-     iSplit. 
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn". 
-       + iExists []. done.
-       + iDestruct "Ha" as "[Ha0 Ha]".
-         iDestruct "Ha0" as (w0 p0) "Ha0". 
-         iDestruct ("IHn" with "Ha") as (ws) "Ha'".
-         iExists ((w0,p0) :: ws). iFrame.
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn". 
-       + done. 
-       + iDestruct "Ha" as (ws) "Ha".
-         destruct ws;[by iApply bi.False_elim|]. 
-         iDestruct "Ha" as "[Ha0 Ha]". 
-         iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto. 
-         iFrame. eauto.        
-   Qed.
-
-   Lemma region_addrs_exists2 {A B C: Type} (a : list A) (b : list B) (φ : A → B → C -> iProp Σ) :
-     (([∗ list] a0;b0 ∈ a;b, (∃ c0, φ a0 b0 c0)) ∗-∗
-      (∃ (ws : list C), ⌜length ws = length b⌝ ∗ [∗ list] a0;bc0 ∈ a;(zip b ws), φ a0 bc0.1 bc0.2))%I.
-   Proof.
-     iSplit. 
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn" forall (b). 
-       + iExists []. iDestruct (big_sepL2_length with "Ha") as %Hlength. 
-         destruct b;inversion Hlength. iSplit;auto. 
-       + iDestruct (big_sepL2_length with "Ha") as %Hlength.
-         destruct b; [inversion Hlength|]. 
-         iDestruct "Ha" as "[Ha0 Ha]".
-         iDestruct "Ha0" as (w0) "Ha0". 
-         iDestruct ("IHn" with "Ha") as (ws Hlen) "Ha'".
-         iExists (w0 :: ws). simpl. iSplit;auto. iFrame. 
-     - iIntros "Ha".
-       iInduction (a) as [ | a0] "IHn" forall (b). 
-       + iDestruct "Ha" as (ws Hlen) "Ha". 
-         iDestruct (big_sepL2_length with "Ha") as %Hlength. destruct b,ws;inversion Hlength; done. 
-       + iDestruct "Ha" as (ws Hlen) "Ha".
-         destruct ws,b;try by iApply bi.False_elim. simpl. 
-         iDestruct "Ha" as "[Ha0 Ha]". iDestruct (big_sepL2_length with "Ha") as %Hlength.
-         iDestruct ("IHn" with "[Ha]") as "Ha'"; iFrame; eauto. 
-   Qed.
-
-   Lemma big_sepL2_to_big_sepL_r {A B : Type} (φ : B → iProp Σ) (l1 : list A) l2 :
-     length l1 = length l2 →
-     (([∗ list] _;y2 ∈ l1;l2, φ y2) ∗-∗
-     ([∗ list] y ∈ l2, φ y))%I. 
-   Proof.
-     iIntros (Hlen). 
-     iSplit. 
-     - iIntros "Hl2". iRevert (Hlen). 
-       iInduction (l2) as [ | y2] "IHn" forall (l1); iIntros (Hlen). 
-       + done.
-       + destruct l1;[by iApply bi.False_elim|]. 
-         iDestruct "Hl2" as "[$ Hl2]". 
-         iApply ("IHn" with "Hl2"). auto. 
-     - iIntros "Hl2". 
-       iRevert (Hlen). 
-       iInduction (l2) as [ | y2] "IHn" forall (l1); iIntros (Hlen). 
-       + destruct l1; inversion Hlen. done.
-       + iDestruct "Hl2" as "[Hy2 Hl2]".
-         destruct l1; inversion Hlen. 
-         iDestruct ("IHn" $! l1 with "Hl2") as "Hl2".
-         iFrame. iApply "Hl2". auto. 
-   Qed.
-
-   Lemma big_sepL2_to_big_sepL_l {A B : Type} (φ : A → iProp Σ) (l1 : list A)
-         (l2 : list B) :
-     length l1 = length l2 →
-     (([∗ list] y1;_ ∈ l1;l2, φ y1) ∗-∗
-     ([∗ list] y ∈ l1, φ y))%I. 
-   Proof.
-     iIntros (Hlen). 
-     iSplit. 
-     - iIntros "Hl2". iRevert (Hlen). 
-       iInduction (l1) as [ | y1] "IHn" forall (l2); iIntros (Hlen). 
-       + done.
-       + destruct l2;[by iApply bi.False_elim|]. 
-         iDestruct "Hl2" as "[$ Hl2]". 
-         iApply ("IHn" with "Hl2"). auto. 
-     - iIntros "Hl2". 
-       iRevert (Hlen). 
-       iInduction (l1) as [ | y1] "IHn" forall (l2); iIntros (Hlen). 
-       + destruct l2; inversion Hlen. done.
-       + iDestruct "Hl2" as "[Hy2 Hl2]".
-         destruct l2; inversion Hlen. 
-         iDestruct ("IHn" $! l2 with "Hl2") as "Hl2".
-         iFrame. iApply "Hl2". auto. 
-   Qed.
-
-   Lemma big_sepL2_app'
-         (PROP : bi) (A B : Type) (Φ : nat → A → B → PROP) (l1 l2 : list A)
-         (l1' l2' : list B) :
-     (length l1) = (length l1') →
-    (([∗ list] k↦y1;y2 ∈ l1;l1', Φ k y1 y2)
-       ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (strings.length l1 + k) y1 y2))%I
-    ≡ ([∗ list] k↦y1;y2 ∈ (l1 ++ l2);(l1' ++ l2'), Φ k y1 y2)%I.
-   Proof.
-     intros Hlenl1.
-     iSplit.
-     - iIntros "[Hl1 Hl2]". iApply (big_sepL2_app with "Hl1 Hl2").
-     - iIntros "Happ".
-       iAssert (∃ l0' l0'' : list A,
-         ⌜(l1 ++ l2) = l0' ++ l0''⌝
-         ∧ ([∗ list] k↦y1;y2 ∈ l0';l1', Φ k y1 y2)
-             ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (strings.length l1' + k) y1 y2))%I
-                       with "[Happ]" as (l0' l0'') "(% & Happl0' & Happl0'')".
-       { by iApply (big_sepL2_app_inv_r with "Happ"). }
-       iDestruct (big_sepL2_length with "Happl0'") as %Hlen1.
-       iDestruct (big_sepL2_length with "Happl0''") as %Hlen2.
-       rewrite -Hlenl1 in Hlen1.
-       assert (l1 = l0' ∧ l2 = l0'') as [Heq1 Heq2]; first by apply app_inj_1.
-       simplify_eq; rewrite Hlenl1.
-       iFrame.
-   Qed.
-
-   (* --------------------------------------------------------------------------------- *)
   
    Lemma stack_split (b e a : Addr) (p : Perm) (w1 w2 : list Word) :
      (b ≤ a ≤ e)%Z →
@@ -285,6 +139,24 @@ Section region_macros.
        apply elem_of_cons. right.
        apply IHl. simplify_map_eq. auto. 
    Qed.
+
+   Lemma create_gmap_default_lookup_is_Some {K V} `{EqDecision K, Countable K} (l: list K) (d: V) x v:
+    create_gmap_default l d !! x = Some v → x ∈ l ∧ v = d.
+  Proof.
+    revert x v d. induction l as [| a l]; cbn.
+    - done.
+    - intros x v d. destruct (decide (a = x)) as [->|].
+      + rewrite lookup_insert. intros; simplify_eq. repeat constructor.
+      + rewrite lookup_insert_ne //. intros [? ?]%IHl. subst. repeat constructor; auto.
+  Qed.
+
+  Lemma create_gmap_default_dom {K V} `{EqDecision K, Countable K} (l: list K) (d: V):
+    dom (gset K) (create_gmap_default l d) = list_to_set l.
+  Proof.
+    induction l as [| a l].
+    - cbn. rewrite dom_empty_L //.
+    - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
+  Qed.
 
    Lemma region_addrs_zeroes_valid_aux n W : 
      ([∗ list] y ∈ replicate n (inl 0%Z), ▷ (fixpoint interp1) W y)%I.
