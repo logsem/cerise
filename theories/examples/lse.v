@@ -9,7 +9,8 @@ From stdpp Require Import countable.
 Section lse.
    Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}.
+          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
 
   Notation STS := (leibnizO (STS_states * STS_rels)).
   Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
@@ -141,16 +142,16 @@ Section lse.
     - rewrite e0 -region_addrs_split; auto.
       split; solve_addr.
     - destruct (Addr_le_dec (min a e) b).
-      + rewrite (interp_weakening.region_addrs_empty b (min a e)); auto.
+      + rewrite (region_addrs_empty b (min a e)); auto.
         destruct (Addr_le_dec a b).
         * replace (max b a) with b by solve_addr. auto.
         * replace (max b a) with a in n by solve_addr.
           assert (e <= b)%a by solve_addr.
-          rewrite (interp_weakening.region_addrs_empty b e); auto.
-          rewrite interp_weakening.region_addrs_empty; auto. solve_addr.
+          rewrite (region_addrs_empty b e); auto.
+          rewrite region_addrs_empty; auto. solve_addr.
       + replace (max b a) with a by solve_addr.
         destruct (Addr_le_dec e a).
-        * rewrite (interp_weakening.region_addrs_empty a e); auto.
+        * rewrite (region_addrs_empty a e); auto.
           replace (min a e) with e by solve_addr; auto.
           rewrite app_nil_r. auto.
         * replace (min a e) with a by solve_addr.
@@ -487,8 +488,8 @@ Section lse.
       ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a_first)
       ∗ f2 f2_addrs pc_p' r_t30 f_a
       (* linking table *)
-      ∗ (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-              ∗ a_entry ↦ₐ[RW] inr (E, Global, f_b, f_e, f_a_first))
+      ∗ (pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+              ∗ a_entry ↦ₐ[RO] inr (E, Global, f_b, f_e, f_a_first))
       (* failure subroutine *)
       ∗ (∃ ι, na_inv logrel_nais ι (∃ a', ⌜contiguous_between a' f_a_first f_a_last⌝
                                            ∗ assert_fail a' RX
@@ -545,9 +546,9 @@ Section lse.
       intros. eapply elem_of_list_filter.
       eapply elem_of_list_In; eauto. }
     assert (Hdupuninit: NoDup luninitsplit).
-    { eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup. }
+    { eapply NoDup_filter, NoDup_ListNoDup. apply NoDup_ListNoDup,region_addrs_NoDup. }
     pose proof (extract_temps_split W ltemp) as [l' [Hdup Hiff] ];
-      [apply NoDup_filter,NoDup_ListNoDup,region_addrs_NoDup|apply Htemp'|].
+      [apply NoDup_filter,NoDup_ListNoDup,NoDup_ListNoDup, region_addrs_NoDup|apply Htemp'|].
 
     (* we revoke all temporary regions in W *)
     iMod (monotone_revoke_keep_some W _ ltemp with "[$Hs $Hr]") as "[Hsts [Hr [Hrest Hstack] ] ]";[apply Hdup|..].
@@ -605,7 +606,7 @@ Section lse.
           rewrite -Hstksplit in a.
           iDestruct (big_sepL_elem_of with "Hstk_region") as "[_ %]"; eauto. }
         iApply (big_sepL_merge with "[$Hstack] [$Huninitstack]").
-        { eapply NoDup_ListNoDup,region_addrs_NoDup. }
+        { eapply NoDup_ListNoDup,NoDup_ListNoDup,region_addrs_NoDup. }
         { intros. destruct (HHH _ H) as [HH|HH].
           - left. eapply elem_of_list_filter; auto.
           - right. eapply elem_of_list_filter; auto. }
@@ -732,7 +733,7 @@ Section lse.
     set m_uninit1 : gmap Addr Word := list_to_map (zip ltemprest wsrest).
     iMod (region_revoked_to_uninitialized _ m_uninit1 with "[$Hsts $Hr Hstackrest]") as "[Hsts Hr]".
     { iDestruct (big_sepL2_to_big_sepM with "Hstackrest") as "HH".
-      - eapply NoDup_filter, NoDup_ListNoDup, region_addrs_NoDup.
+      - eapply NoDup_filter, NoDup_ListNoDup, NoDup_ListNoDup, region_addrs_NoDup.
       - rewrite /m_uninit1. iApply (big_sepM_mono with "HH").
         simpl; intros. iIntros "[(A & B & C & D) E]".
         iExists _, _. iFrame. iPureIntro. intros; eapply interp_persistent. }
@@ -827,7 +828,7 @@ Section lse.
     iPrologue rest Hrest_length "Hf2".
     apply contiguous_between_cons_inv_first in Hcont_rest as Heq. subst a0. 
     iApply (wp_jmp_success with "[$Hinstr $Hr_adv $HPC]");
-      [apply jmp_i|apply Hfl|iCorrectPC s_last a_last|..].
+      [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC s_last a_last|..].
     (* before applying the epilogue, we want to distinguish between a correct or incorrect resulting PC *)
     destruct (decide (isCorrectPC (updatePcPerm wadv))). 
     2: { iEpilogue "(HPC & _ & _)". iApply ("Hadv_cont" with "[Hφ $HPC]").
@@ -877,7 +878,7 @@ Section lse.
         assert (Hmin1: min stack_own_last e_r = stack_own_last).
         { apply withinBounds_le_addr in Hwb2. revert Hwb2. clear. solve_addr. }
         rewrite !Hmin1. replace (max stack_own_last stack_own_last) with stack_own_last by (clear; solve_addr).
-        rewrite (interp_weakening.region_addrs_empty stack_own_last stack_own_last); [|clear; solve_addr].
+        rewrite (region_addrs_empty stack_own_last stack_own_last); [|clear; solve_addr].
         rewrite big_sepL_nil. iSplitR;[auto|].
         iApply big_sepL_forall. iIntros (k x Hx).
         assert (x ∈ region_addrs a e_r) as Hin.
@@ -951,7 +952,7 @@ Section lse.
         iPrologue_pre rest Hf2_length. 
         iMod (na_inv_open with "Hprog Hna") as "[ [>Hinstr Hprog_rest] [Hna Hcls'] ]";[solve_ndisj..|].
         iApply (wp_add_sub_lt_success_z_z with "[$HPC $Hr_t1 $Hinstr]");
-          [apply sub_z_z_i|right;left;eauto|iContiguous_next Hcont_rest 1|apply Hfl|iCorrectPC s_last a_last|..]. 
+          [apply decode_encode_instrW_inv|right;left;eauto|iContiguous_next Hcont_rest 1|apply Hfl|iCorrectPC s_last a_last|..]. 
         iNext. iIntros "(HPC & Hinstr & Hr_t1)".
         iMod ("Hcls'" with "[$Hna $Hinstr $Hprog_rest]") as "Hna".
         iApply wp_pure_step_later;auto;iNext.
@@ -961,7 +962,7 @@ Section lse.
         assert ((stack_own_end + (0 - 6))%a = Some stack_own_b) as Hpop.
         { revert Hstack_own_bound' Hstack_new. clear. solve_addr. }
         iApply (wp_lea_success_reg with "[$HPC $Hr_t1 $Hr_stk $Ha80]");
-          [apply lea_r_i|apply Hfl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest 2|apply Hpop|auto..].
+          [apply decode_encode_instrW_inv|apply Hfl|iCorrectPC s_last a_last|iContiguous_next Hcont_rest 2|apply Hpop|auto..].
         { simpl. revert Hpop;clear;solve_addr. }
         iNext. iIntros "(HPC & Ha80 & Hr_t1 & Hr_stk)".
         iMod ("Hcls'" with "[$Hna $Ha79 $Ha80 $Hprog_rest]") as "Hna".
@@ -1004,7 +1005,7 @@ Section lse.
         destruct rest2;[inversion Hrest2|].
         apply contiguous_between_cons_inv_first in Hcont_rest2 as Heq. subst a8. 
         iMod (na_inv_open with "Hlink Hna") as "[ [>Hpc_b >Ha_entry] [Hna Hcls''] ]";[solve_ndisj..|]. 
-        iApply (assert_r_z_success with "[-]"); last iFrame "Hassert HPC Hr_t30 Hpc_b Ha_entry";auto;[|apply Hcont_rest1|].
+        iApply (assert_r_z_success with "[-]");last iFrame "Hassert HPC Hr_t30 Hpc_b Ha_entry";auto;[|apply Hcont_rest1|].
         { intros mid Hmid. apply isCorrectPC_inrange with s_last a_last; auto.
           apply contiguous_between_middle_bounds with (i:=6) (ai:=a7) in Hcont_rest;auto.
           apply contiguous_between_middle_bounds with (i:=0) (ai:=link0) in Hcont_rest2;auto.
@@ -1020,7 +1021,7 @@ Section lse.
         iApply (wp_bind (fill [SeqCtx])).
         iDestruct "Hhalt" as "[Hinstr _]". 
         iApply (wp_halt with "[$HPC $Hinstr]");
-          [apply halt_i|apply Hfl| |].
+          [apply decode_encode_instrW_inv|apply Hfl| |].
         { apply isCorrectPC_inrange with s_last a_last; auto.
           apply contiguous_between_middle_bounds with (i:=6) (ai:=a7) in Hcont_rest as Hle;auto.
           apply contiguous_between_bounds in Hcont_rest.
