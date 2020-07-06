@@ -157,58 +157,6 @@ Section heap.
   Definition std W := W.1.
   Definition loc W := W.2.
 
-  (* The following predicates states that the std relations map in the STS collection is standard according to sts_std *)
-  (* Definition rel_is_std_i W i := (std_rel W) !! i = Some (convert_rel (Rpub : relation region_type), *)
-  (*                                                       convert_rel (Rpriv : relation region_type)).  *)
-  (* Definition rel_is_std W := (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W i). *)
-
-  (* ------------------------------------------- DOM_EQUAL ----------------------------------------- *)
-  (* dom_equal : we require the domain of the STS standard collection and the memory map to be equal *)
-
-  (*Definition dom_equal (Wstd_sta : STS_states) (M : relT) :=
-    ∀ (i : positive), is_Some (Wstd_sta !! i) ↔ (∃ (a : Addr), countable.encode a = i ∧ is_Some (M !! a)).
-
-  Lemma dom_equal_empty : dom_equal ∅ ∅.
-  Proof.
-    rewrite /dom_equal =>a.
-    split; intros [x Hx]; [inversion Hx|destruct Hx as [_ Hx];by inversion Hx]. 
-  Qed.
-
-  Lemma dom_equal_insert Wstd_sta M (a : Addr) x y :
-    dom_equal Wstd_sta M → dom_equal (<[encode a := x]> Wstd_sta) (<[a := y]> M).
-  Proof.
-    intros Heq.
-    rewrite /dom_equal =>i.
-    split; intros [z Hz]. 
-    - destruct (decide ((encode a) = i)); subst.
-      { exists a. split;[auto|]. rewrite lookup_insert. eauto. }
-      { rewrite lookup_insert_ne in Hz; auto.
-        destruct Heq with i as [Heq_i _].
-        destruct Heq_i as [a' [Ha' HMa'] ]; eauto.
-        exists a'; split;[auto|]. rewrite lookup_insert_ne; auto.
-        intros Ha. subst. done. 
-      }
-    - destruct Hz as [Hi Hz]. 
-      destruct (decide ((encode a) = i)); subst.
-      { rewrite e. rewrite lookup_insert. eauto. }
-      { rewrite lookup_insert_ne;auto.
-        destruct Heq with (encode z) as [_ Heq_i].
-        apply Heq_i.
-        exists z. split; auto.
-        rewrite lookup_insert_ne in Hz; auto.
-        intros Ha; congruence. 
-      }
-  Qed.
-
-  Lemma dom_equal_change_l (W1 W2: STS_states) (M: relT):
-    dom_equal W1 M →
-    dom (gset positive) W1 = dom (gset positive) W2 →
-    dom_equal W2 M.
-  Proof.
-    unfold dom_equal. intros HH1 Hdom.
-    intros i. rewrite elem_of_gmap_dom -Hdom -elem_of_gmap_dom //.
-  Qed.*)
-
   (* Asserting that a location is in a specific state in a given World *)
 
   Definition temporary (W : WORLD) (l : Addr) :=
@@ -561,7 +509,7 @@ Section heap.
     rel l p φ ∗ region W ∗ sts_full_world W -∗
         ∃ v, open_region l W
            ∗ sts_full_world W
-           ∗ sts_state_std l Permanent              
+           ∗ sts_state_std l Permanent
            ∗ l ↦ₐ[p] v
            ∗ ⌜p ≠ O⌝
            ∗ ▷ future_priv_mono φ v
@@ -1459,80 +1407,6 @@ Section heap.
 
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------- LEMMAS ABOUT STD TRANSITIONS -------------------------- *)
-  
-  (*Lemma full_sts_world_is_Some_rel_std W (a : Addr) :
-    is_Some ((std_sta W) !! (encode a)) →
-    sts_full_world sts_std W -∗ ⌜rel_is_std_i W (encode a)⌝.
-  Proof. 
-    iIntros (Hsome) "[[% [% _] ] _]".
-    iPureIntro. apply elem_of_subseteq in H3.
-    apply elem_of_gmap_dom in Hsome. 
-    specialize (H3 _ Hsome).
-    specialize (H4 (encode a)). apply H4.
-    apply elem_of_gmap_dom. auto.
-  Qed.
-
-  Lemma related_sts_preserve_std W W' :
-    related_sts_priv_world W W' →
-    rel_is_std W →
-    (∀ i, is_Some ((std_rel W) !! i) → rel_is_std_i W' i). 
-  Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
-    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
-    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hstd i Hi. simpl in *.
-    apply elem_of_gmap_dom in Hi. apply elem_of_subseteq in Hdom_rel.
-    specialize (Hdom_rel _ Hi).
-    apply elem_of_gmap_dom in Hdom_rel as [ [r1' r2'] Hr'].
-    apply elem_of_gmap_dom in Hi as Hr.
-    specialize (Hstd _ Hr). destruct Hr as [x Hr]. 
-    specialize (Hrelated i _ _ _ _ Hstd Hr') as (Heq1 & Heq2 & Hrelated). 
-    rewrite /std_rel /=. subst. auto.
-  Qed.
-
-  Lemma related_sts_rel_std W W' i :
-    related_sts_priv_world W W' →
-    rel_is_std_i W i → rel_is_std_i W' i.
-  Proof.
-    destruct W as [ [Wstd_sta Wstd_rel] Wloc]; simpl.
-    destruct W' as [ [Wstd_sta' Wstd_rel'] Wloc']; simpl.
-    rewrite /rel_is_std_i. 
-    intros [ [Hdom_sta [Hdom_rel Hrelated] ] _] Hi. simpl in *.
-    assert (is_Some (Wstd_rel' !! i)) as [ [r1' r2'] Hr'].
-    { apply elem_of_gmap_dom. apply elem_of_subseteq in Hdom_rel.
-      apply Hdom_rel. apply elem_of_gmap_dom. eauto. }
-    specialize (Hrelated i _ _ _ _ Hi Hr') as (-> & -> & Hrelated).
-    eauto. 
-  Qed.
-
-  (* If a full private future world of W is standard, then W is standard *)
-  Lemma sts_full_world_priv_std W W' :
-    (⌜related_sts_priv_world W W'⌝
-      -∗ sts_full_world sts_std W'
-    → ⌜rel_is_std W⌝)%I.
-  Proof.
-    iIntros (Hrelated) "Hfull".
-    iDestruct "Hfull" as "[[% [% _] ] _]".
-    iPureIntro.
-    intros i Hx.
-    destruct Hrelated as [ (Hdom_std & Hdom_rel & Htransition) _].
-    assert ((∀ x : positive, x ∈ (dom (gset positive) W.1.2) → x ∈ (dom (gset positive) W'.1.2))) as H_std_elem_rel;
-      [by apply elem_of_subseteq|].
-    assert (i ∈ dom (gset positive) W.1.2) as H_i_rel; [by apply elem_of_dom|].
-    specialize (H_std_elem_rel i H_i_rel).
-    apply elem_of_dom in H_std_elem_rel as [ [r1' r2'] Hr'].
-    apply elem_of_dom in H_i_rel as [ [r1 r2] Hr].
-    specialize (Htransition i r1 r2 r1' r2' Hr Hr') as (Heq1 & Heq2 & _).
-    assert (is_Some (W'.1.2 !! i)) as Hsome'; eauto.
-    rewrite H4 in Hr'; auto.
-    by inversion Hr'; subst.
-  Qed.
-
-  Lemma sts_full_world_std W :
-    sts_full_world sts_std W -∗ ⌜rel_is_std W⌝.
-  Proof.
-    iIntros. iApply sts_full_world_priv_std; eauto. iPureIntro.
-    apply related_sts_priv_world_refl.
-  Qed.*)
 
   Lemma std_rel_pub_Permanent x :
     std_rel_pub Permanent x → x = Permanent.
@@ -1577,7 +1451,7 @@ Section heap.
     - apply std_rel_pub_Permanent in Hrel. auto.
     - apply std_rel_priv_Permanent in Hrel. auto. 
   Qed.
-      
+
   Lemma std_rel_pub_Temporary x :
     std_rel_pub Temporary x → x = Temporary.
   Proof.
@@ -1595,7 +1469,7 @@ Section heap.
   Qed.
 
   Lemma std_rel_pub_Revoked x :
-    std_rel_pub Revoked x → x = Temporary (* ∨ x = countable.encode Revoked *).
+    std_rel_pub Revoked x → x = Temporary
   Proof.
     intros Hrel.
     inversion Hrel. auto. 
@@ -1611,22 +1485,8 @@ Section heap.
     all: eauto. 
   Qed. 
 
-  (* Lemma std_rel_exist x y : *)
-  (*   (∃ (ρ : region_type), countable.encode ρ = x) →  *)
-  (*   rtc (λ x0 y0 : positive, convert_rel std_rel_pub x0 y0 ∨ convert_rel std_rel_priv x0 y0) x y → *)
-  (*   ∃ (ρ : region_type), y = countable.encode ρ.  *)
-  (* Proof. *)
-  (*   intros Hsome Hrel. *)
-  (*   induction Hrel; [destruct Hsome as [ρ Hsome]; eauto|]. *)
-  (*   destruct H3 as [Hpub | Hpriv]. *)
-  (*   - inversion Hpub as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
-  (*     apply IHHrel. eauto. *)
-  (*   - inversion Hpriv as [ρ [ρ' [Heq1 [Heq2 Hsome'] ] ] ]. *)
-  (*     apply IHHrel. eauto. *)
-  (* Qed. *)
-
   Lemma std_rel_pub_Static x g :
-    std_rel_pub (Static g) x → x = Temporary (* ∨ x = encode Revoked *).
+    std_rel_pub (Static g) x → x = Temporary
   Proof.
     intros Hrel.
     inversion Hrel. auto. 

@@ -24,12 +24,7 @@ Section std_updates.
     | a :: l => std_update (std_update_multiple W l ρ) a ρ
     end.
    
-   (* Fixpoint std_update_temp_multiple W l := *)
-   (*   match l with *)
-   (*   | [] => W *)
-   (*   | a :: l => std_update (std_update_temp_multiple W l) a Temporary std_rel_pub std_rel_priv *)
-   (*   end. *)
-   Definition std_update_temp_multiple W l := std_update_multiple W l Temporary. 
+   Definition std_update_temp_multiple W l := std_update_multiple W l Temporary.
 
    Lemma std_update_multiple_loc_sta W l ρ :
      (std_update_multiple W l ρ).2.1 = W.2.1.
