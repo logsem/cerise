@@ -1,10 +1,61 @@
 From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 From stdpp Require Import gmap fin_maps list.
 
+(* We assume a fixed set of registers, and a finite set of memory addresses.
+
+   The exact size of the address space does not matter, it could be made a
+   parameter of the machine.
+*)
+
 Definition RegNum: nat := 31.
 Definition MemNum: Z := 2000000.
 
-(* ------------------------------------ ADDR -------------------------------------------*)
+(* ---------------------------------- Registers ----------------------------------------*)
+
+Inductive RegName: Type :=
+| PC
+| R (n: nat) (fin: n <=? RegNum = true).
+
+Global Instance reg_eq_dec : EqDecision RegName.
+Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
+       destruct (nat_eq_dec n n0).
+       + subst n0. left.
+         assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
+         { intros. apply eq_proofs_unicity.
+           intros; destruct x; destruct y; auto. }
+         rewrite (H _ _ _ fin fin0). reflexivity.
+       + right. congruence.
+Defined.
+
+Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
+
+Program Definition n_to_regname (n : nat) : option RegName :=
+  if (nat_le_dec n RegNum) then Some (R n _) else None.
+Next Obligation.
+  intros. eapply Nat.leb_le; eauto.
+Defined.
+
+Global Instance reg_countable : Countable RegName.
+Proof.
+  refine {| encode r := encode match r with
+                               | PC => inl ()
+                               | R n fin => inr n
+                               end ;
+            decode n := match (decode n) with
+                        | Some (inl ()) => Some PC
+                        | Some (inr n) => n_to_regname n
+                        | None => None
+                        end ;
+            decode_encode := _ |}.
+  intro r. destruct r; auto.
+  rewrite decode_encode.
+  unfold n_to_regname.
+  destruct (nat_le_dec n RegNum).
+  - do 2 f_equal. apply eq_proofs_unicity. decide equality.
+  - exfalso. by apply (Nat.leb_le n RegNum) in fin.
+Defined.
+
+(* -------------------------------- Memory addresses -----------------------------------*)
 
 Inductive Addr: Type :=
 | A (z : Z) (fin: Z.leb z MemNum = true) (pos: Z.leb 0 z = true).
@@ -152,7 +203,8 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
 
 Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Addr_scope.
 
-(** zify-like tactic to send arithmetic on adresses into Z ******)
+(** Automation *)
+(*** A zify-like tactic to send arithmetic on adresses into Z ******)
 
 Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
 Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
@@ -329,51 +381,6 @@ Proof.
   solve_addr_close_proof.
   solve_addr_close_proof.
 Qed.
-
-(* ------------------------------------ REG --------------------------------------------*)
-
-Inductive RegName: Type :=
-| PC
-| R (n: nat) (fin: n <=? RegNum = true).
-
-Global Instance reg_eq_dec : EqDecision RegName.
-Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
-       destruct (nat_eq_dec n n0).
-       + subst n0. left.
-         assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
-         { intros. apply eq_proofs_unicity.
-           intros; destruct x; destruct y; auto. }
-         rewrite (H _ _ _ fin fin0). reflexivity.
-       + right. congruence.
-Defined.
-
-Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
-
-Program Definition n_to_regname (n : nat) : option RegName :=
-  if (nat_le_dec n RegNum) then Some (R n _) else None.
-Next Obligation.
-  intros. eapply Nat.leb_le; eauto.
-Defined.
-
-Global Instance reg_countable : Countable RegName.
-Proof.
-  refine {| encode r := encode match r with
-                               | PC => inl ()
-                               | R n fin => inr n
-                               end ;
-            decode n := match (decode n) with
-                        | Some (inl ()) => Some PC
-                        | Some (inr n) => n_to_regname n
-                        | None => None
-                        end ;
-            decode_encode := _ |}.
-  intro r. destruct r; auto.
-  rewrite decode_encode.
-  unfold n_to_regname.
-  destruct (nat_le_dec n RegNum).
-  - do 2 f_equal. apply eq_proofs_unicity. decide equality.
-  - exfalso. by apply (Nat.leb_le n RegNum) in fin.
-Defined.
 
 (* ------------------ *)
 (* Hack: modify [zify] to make it support [Z.to_nat] (used in the definition of
