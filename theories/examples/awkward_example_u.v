@@ -1247,7 +1247,7 @@ Section awkward_example.
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (awkward_example f4_addrs pc_p' f_a r_adv)
       (* linking table *)
-      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] fail_cap)
+      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RO] fail_cap)
       (* we start out with arbitrary sts *)
       ∗ sts_full_world W
       ∗ region W

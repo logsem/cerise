@@ -142,9 +142,9 @@ Section awkward_example_preamble.
     (*** Resources for malloc ***)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
-    ∗ pc_b ↦ₐ[pc_p'] (inr (RW, Global, b_link, e_link, a_link))
-    ∗ a_entry ↦ₐ[RW] (inr (E, Global, b_m, e_m, b_m))
-    ∗ a_entry' ↦ₐ[RW] fail_cap
+    ∗ pc_b ↦ₐ[pc_p'] (inr (RO, Global, b_link, e_link, a_link))
+    ∗ a_entry ↦ₐ[RO] (inr (E, Global, b_m, e_m, b_m))
+    ∗ a_entry' ↦ₐ[RO] fail_cap
 
     -∗
     interp_expr interp r W (inr (pc_p, Global, pc_b, pc_e, a_first)).
@@ -265,7 +265,7 @@ Section awkward_example_preamble.
     { iNext. rewrite /awk_inv. iExists false. iFrame. }
     (* we also allocate a non atomic invariant for the environment table *)
     iMod (na_inv_alloc logrel_nais _ awk_env
-                       (pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry' ↦ₐ[RW] fail_cap)%I
+                       (pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link) ∗ a_entry' ↦ₐ[RO] fail_cap)%I
             with "[$Ha_entry' $Hpc_b]") as "#Henv".
     (* call the resulting world W2 *)
     match goal with |- context [ sts_full_world ?W ] => set W2 := W end.

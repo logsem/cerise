@@ -200,8 +200,8 @@ Section stack_macros.
 
       ▷ fetch f a pc_p'
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-    ∗ ▷ entry_a ↦ₐ[RW] wentry
+    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+    ∗ ▷ entry_a ↦ₐ[RO] wentry
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
@@ -210,8 +210,8 @@ Section stack_macros.
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ fetch f a pc_p'
             (* the newly allocated region *)
             ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z
-            ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-            ∗ entry_a ↦ₐ[RW] wentry
+            ∗ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+            ∗ entry_a ↦ₐ[RO] wentry
             -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -374,15 +374,15 @@ Section stack_macros.
 
     ▷ assert_r_z a f_a r z pc_p'
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ[RW] fail_cap
+    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ[RO] fail_cap
     ∗ ▷ r ↦ᵣ w_r
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t3 ↦ᵣ w)
     ∗ ▷ (r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ r ↦ᵣ inl 0%Z
          ∗ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ assert_r_z a f_a r z pc_p'
-         ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] fail_cap
+         ∗ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RO] fail_cap
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -461,8 +461,8 @@ Section stack_macros.
     ∗ ▷ assert_fail a' RX
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
     (* linking table and assertion flag *)
-    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) (* the linking table capability *)
-    ∗ ▷ a_entry ↦ₐ[RW] inr (E,Global,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
+    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link) (* the linking table capability *)
+    ∗ ▷ a_entry ↦ₐ[RO] inr (E,Global,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
     ∗ ▷ a_env ↦ₐ[RX] inr (flag_p,Global,flag_b,flag_e,flag_a) (* the assertion flag capability *)
     ∗ ▷ (∃ w, flag_a ↦ₐ[flag_p'] w) (* the assertion flag *)
     (* registers *)
@@ -476,7 +476,7 @@ Section stack_macros.
     {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ inr (RX, Global, f_b, f_e,^(f_a_last + (-1))%a)
          ∗ assert_r_z a f_a r z pc_p' ∗ assert_fail a' RX
-         ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RW] inr (E,Global,f_b,f_e,f_a_first)
+         ∗ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link) ∗ a_entry ↦ₐ[RO] inr (E,Global,f_b,f_e,f_a_first)
          ∗ a_env ↦ₐ[RX] inr (flag_p,Global,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ[flag_p'] inl 1%Z }}}. 
   Proof.
     iIntros (Hvpc Hfl Hcont Hwb Htable Hvpc' Hcont' Henv Henvwb Hfl' [Hwb' Hwa] Hfailure φ) 
@@ -608,8 +608,8 @@ Section stack_macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ[RO] inr (E,Global,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
@@ -619,8 +619,8 @@ Section stack_macros.
     ∗ ▷ sts_full_world W
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ malloc f_m size a pc_p'
-         ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ[RO] inr (E,Global,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
@@ -2156,8 +2156,8 @@ Section stack_macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ[RO] inr (E,Global,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
@@ -2168,8 +2168,8 @@ Section stack_macros.
     ∗ ▷ sts_full_world W
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_g,pc_b,pc_e,a_last) ∗ crtcls f_m a pc_p'
-         ∗ pc_b ↦ₐ[pc_p'] inr (RW,Global,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ[RW] inr (E,Global,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ[pc_p'] inr (RO,Global,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ[RO] inr (E,Global,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,Global,b,e,b)
          ∗ [[b,e]] ↦ₐ[RWX] [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]]
