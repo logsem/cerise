@@ -143,15 +143,16 @@ In the `examples` folder:
 
 - `malloc.v`: A simple malloc implementation, and its specification.
 
-- `awkward_example.v`, `awkward_example_u.v`: The proof of safety of the awkward
-  example (the former using scall with stack clearing, the latter using scallU
-  without stack clearing), corresponding to *Lemma 6.2*.
+- `awkward_example.v`, `awkward_example_u.v`: The proof of safety for the body
+  of the awkward example (the former using scall with stack clearing, the latter
+  using scallU without stack clearing).
 
 - `awkward_example_preamble.v`: Proof of safety of the preamble to the awkward
-  example (in which a closure to the awkward example is dynamically allocated).
+  example (in which a closure to the body of the awkward example is dynamically
+  allocated). This corresponds to *Lemma 6.2*.
 
-- `awkward_example_adequacy.v`: Proof of correctness of the awkward example,
-  *Theorem 6.3*.
+- `awkward_example_adequacy.v`: Proof of correctness of the awkward example
+  against the operational semantics of the machine, *Theorem 6.3*.
 
 - `awkward_example_concrete.v`: A concrete instantiation of the correctness
   theorem of the awkward example on a concrete machine, linked with a concrete
