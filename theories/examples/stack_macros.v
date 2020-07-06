@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel monotone stack_macros_helpers.
-From cap_machine Require Export addr_reg_sample region_macros contiguous malloc.
+From cap_machine Require Export iris_extra addr_reg_sample region_macros contiguous malloc.
 
 Section stack_macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -15,130 +15,6 @@ Section stack_macros.
   Notation WORLD := (prodO STS_STD STS). 
   Implicit Types W : WORLD.
   
-  (* ---------------------------- Helper Lemmas --------------------------------------- *)
-  (* Helper lemma to extract registers from a big_sepL2 *)
-  Lemma big_sepL2_extract_l {A B : Type} (i : nat) (ai : A) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
-    a !! i = Some ai ->
-    (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
-     ([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ ∃ b, φ ai b)%I.
-  Proof. 
-    iIntros (Hsome) "Hl".
-    iDestruct (big_sepL2_length with "Hl") as %Hlength.      
-    assert (take i a ++ drop i a = a) as Heqa;[apply take_drop|]. 
-    assert (take i b ++ drop i b = b) as Heqb;[apply take_drop|]. 
-    rewrite -Heqa -Heqb.
-    iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]". 
-    { apply lookup_lt_Some in Hsome.
-      do 2 (rewrite take_length_le;[|lia]). done. 
-    }
-    apply take_drop_middle in Hsome as Hcons.
-    assert (ai :: drop (S i) a = drop i a) as Hh.
-    { apply app_inv_head with (take i a). congruence. }
-    rewrite -Hh.
-    iDestruct (big_sepL2_length with "Hdrop") as %Hlength'.      
-    destruct (drop i b);[inversion Hlength'|].
-    iDestruct "Hdrop" as "[Hφ Hdrop]".
-    iSplitR "Hφ";[|eauto].
-    rewrite Hcons. iDestruct (big_sepL2_app with "Htake Hdrop") as "Hl".
-    rewrite Heqb. rewrite (delete_take_drop a).
-    rewrite (delete_take_drop b).
-    assert (drop (S i) b = l) as Hb.
-    { apply app_inv_head with (take i b ++ [b0]). repeat rewrite -app_assoc.
-      repeat rewrite -cons_middle. rewrite (drop_S _ _ _ b0 l);auto.
-      apply app_inv_head with (take i b). rewrite Heqb. apply take_drop. }
-    rewrite Hb. iFrame. 
-  Qed.
-
-  Lemma big_sepL2_extract {A B : Type} (i : nat) (ai : A) (bi : B) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
-    a !! i = Some ai -> b !! i = Some bi ->
-    (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
-     ([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ φ ai bi)%I.
-  Proof. 
-    iIntros (Hsome Hsome') "Hl".
-    iDestruct (big_sepL2_length with "Hl") as %Hlength.      
-    assert (take i a ++ drop i a = a) as Heqa;[apply take_drop|]. 
-    assert (take i b ++ drop i b = b) as Heqb;[apply take_drop|]. 
-    rewrite -Heqa -Heqb.
-    iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]". 
-    { apply lookup_lt_Some in Hsome.
-      do 2 (rewrite take_length_le;[|lia]). done. 
-    }
-    apply take_drop_middle in Hsome as Hcons.
-    apply take_drop_middle in Hsome' as Hcons'.
-    assert (ai :: drop (S i) a = drop i a) as Hh.
-    { apply app_inv_head with (take i a). congruence. }
-    assert (bi :: drop (S i) b = drop i b) as Hhb.
-    { apply app_inv_head with (take i b). congruence. }
-    rewrite -Hh. rewrite -Hhb.
-    iDestruct "Hdrop" as "[Hφ Hdrop]".
-    iSplitR "Hφ";[|eauto].
-    rewrite Hcons. rewrite Hcons'. iDestruct (big_sepL2_app with "Htake Hdrop") as "Hl".
-    rewrite (delete_take_drop b). rewrite (delete_take_drop a). iFrame. 
-  Qed.
-
-  Lemma delete_eq {A : Type} (a : list A) i :
-    strings.length a ≤ i -> a = delete i a.
-  Proof.
-    revert i. induction a; intros i Hle.
-    - done.
-    - destruct i; [inversion Hle|].
-      simpl. f_equiv. apply IHa. simpl in Hle. lia.
-  Qed. 
-  
-  Lemma big_sepL2_close_l {A B : Type} (i : nat) (ai : A) (bi : B) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
-    length a = length b ->
-    a !! i = Some ai ->
-    (([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ φ ai bi -∗
-                                                               ([∗ list] a_i;b_i ∈ a;<[i:= bi]> b, φ a_i b_i) )%I.
-  Proof. 
-    iIntros (Hlen Hsome) "[Hl Hb]".
-    iDestruct (big_sepL2_length with "Hl") as %Hlength.
-    repeat rewrite delete_take_drop.
-    apply lookup_lt_Some in Hsome as Hlt.
-    assert (i < strings.length b) as Hlt';[lia|].
-    iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]". 
-    { repeat rewrite take_length. lia. }
-    apply take_drop_middle in Hsome as Hcons.
-    assert (ai :: drop (S i) a = drop i a) as Hh.
-    { apply app_inv_head with (take i a). rewrite Hcons. by rewrite take_drop. }
-    iAssert ([∗ list] y1;y2 ∈ ai :: drop (S i) a;bi :: drop (S i) b, φ y1 y2)%I
-      with "[Hb Hdrop]" as "Hdrop";[iFrame|].
-    rewrite Hh.
-    iDestruct (big_sepL2_app with "Htake Hdrop") as "Hab".
-    rewrite take_drop.
-    assert (take i b ++ bi :: drop (S i) b = <[i:=bi]> b) as ->;[|iFrame].
-    assert (<[i:=bi]> b !! i = Some bi) as Hsome'.
-    { apply list_lookup_insert. lia. }
-    apply take_drop_middle in Hsome'. rewrite -Hsome'.
-    rewrite take_insert;[|lia]. rewrite drop_insert;[|lia]. done. 
-  Qed.
-
-  Lemma delete_insert_list {A : Type} i (l : list A) (a : A) :
-    <[i := a]> (delete 0 l) = delete 0 (<[S i := a]> l).
-  Proof.
-    induction l.
-    - done.
-    - simpl in *. destruct l; auto. 
-  Qed.
-
-  Lemma insert_delete_list {A : Type} (l : list A) (a : A) :
-    delete 0 (<[0 := a]> l) = delete 0 l.
-  Proof.
-    induction l; done.
-  Qed.
-
-  Lemma big_sepL2_split_at {A B: Type} `{EqDecision A} `{Countable A}
-        (k: nat) (l1: list A) (l2: list B) (φ : A → B → iProp Σ):
-    ([∗ list] a;b ∈ l1;l2, φ a b) -∗
-    ([∗ list] a;b ∈ (take k l1);(take k l2), φ a b) ∗ ([∗ list] a;b ∈ (drop k l1);(drop k l2), φ a b).
-  Proof.
-    iIntros "H".
-    iDestruct (big_sepL2_length with "H") as %?.
-    rewrite -{1}(take_drop k l1) -{1}(take_drop k l2).
-    iDestruct (big_sepL2_app' with "H") as "[? ?]".
-    { rewrite !take_length. lia. }
-    iFrame.
-  Qed.
 
   (* -------------------------------- LTACS ------------------------------------------- *)
   Ltac iPrologue_pre :=
