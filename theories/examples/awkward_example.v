@@ -726,7 +726,7 @@ Section awkward_example.
   Definition region_type_temporary W (a : Addr) :=
     (std W) !! a = Some Temporary.
 
-   (* the following spec is for the f4 subroutine of the awkward example, jumped to after dynamically allocating into r_env *)
+   (* the following spec is for the f4 subroutine of the awkward example, jumped to after activating the closure *)
   Lemma f4_spec W pc_p pc_p' pc_g pc_b pc_e (* PC *)
         wadv (* adv *)
         wret (* return cap *)

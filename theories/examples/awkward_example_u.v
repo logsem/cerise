@@ -33,7 +33,7 @@ Section awkward_example.
   (* by convention a pointer to the linking table is at the bottom address of the PC *)
   Definition awkward_instrs f_a (r1 : RegName) :=
      reqglob_instrs r1 ++
-     prepstackU_instrs r_stk 10 (* 11 *) ++ (* Are those hardcoded numbers correct ?? *)
+     prepstackU_instrs r_stk 10 ++ 
      [store_z r_env 0] ++
      [pushU_r_instr r_stk r_env] ++
      [pushU_r_instr r_stk r_t0] ++
@@ -51,7 +51,7 @@ Section awkward_example.
      [pushU_r_instr r_stk r_t0] ++ 
      scallU_prologue_instrs awkward_epilogue_off r1 ++
      [jmp r1;
-     sub_z_z r_t1 0 6 (* 7 *);
+     sub_z_z r_t1 0 6;
      lea_r r_stk r_t1] ++
      popU_instrs r_stk r_t0 ++
      popU_instrs r_stk r_env ++
@@ -61,7 +61,7 @@ Section awkward_example.
      (* in this version, we clear only the local stack frame before returning *)
      (* first we prepare the stack to only point to the local stack frame *)
      [getb r_t1 r_stk;
-     add_r_z r_t2 r_t1 9 (* 10 *);
+     add_r_z r_t2 r_t1 9;
      subseg_r_r r_stk r_t1 r_t2] ++ 
      mclearU_instrs r_stk ++
      rclear_instrs (list_difference all_registers [PC;r_t0]) ++
@@ -1195,7 +1195,7 @@ Section awkward_example.
    Qed. 
   
    
- (* the following spec is for the f4 subroutine of the awkward example, jumped to after dynamically allocating into r_env *)
+ (* the following spec is for the f4 subroutine of the awkward example, jumped to after activating the closure *)
   Lemma f4_spec W pc_p pc_p' pc_g pc_b pc_e (* PC *)
         wadv (* b e a *) (* adv *)
         wret (* g_ret b_ret e_ret a_ret *) (* return cap *)
