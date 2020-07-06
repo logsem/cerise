@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 From cap_machine Require Import
-     rules logrel fundamental region_invariants.
+     rules logrel fundamental region_invariants multiple_updates region_invariants_uninitialized.
 From stdpp Require Import countable.
 
 Definition std_rel_pub_decb (x y: region_type): bool :=
@@ -164,4 +164,101 @@ Proof.
       red; intros. destruct H0. eapply H; eauto.
     + red; intros. destruct H0.
       eapply fold_std_rel_pub_decb in H1. congruence.
+Qed.
+
+Lemma imap_related_sts_pub_world
+      {A: Type} {eqa: EqDecision A} {count: Countable A}
+      W1 W2 f:
+  std W2 = map_imap f (std W1) ->
+  loc W2 = loc W1 ->
+  (forall k a, exists b, f k a = Some b /\ rtc std_rel_pub a b) ->
+  related_sts_pub_world W1 W2.
+Proof.
+  destruct W1, W2; simpl; intros; split; simpl.
+  - subst o1. split.
+    + red. red; intros.
+      eapply elem_of_gmap_dom in H.
+      eapply elem_of_gmap_dom.
+      destruct H. rewrite map_lookup_imap H /=.
+      destruct (H1 x x0) as [y0 [A0 A1] ]. rewrite A0.
+      eauto.
+    + intros. rewrite map_lookup_imap H /= in H2.
+      destruct (H1 i x) as [y0 [A0 A1] ]. rewrite A0 in H2; inv H2.
+      auto.
+  - inv H0; eapply related_sts_pub_refl.
+Qed.
+
+Lemma map_imap_2
+      {K : Type} {M : Type → Type} {H : FMap M} {H0 : ∀ A : Type, Lookup K A (M A)} {H1 : ∀ A : Type, Empty (M A)} 
+      {H2 : ∀ A : Type, PartialAlter K A (M A)} {H3 : OMap M} {H4 : Merge M} {H5 : ∀ A : Type, FinMapToList K A (M A)} 
+      {EqDecision0 : EqDecision K} `{FinMap K M}:
+  ∀ (A1 A2 B : Type) (f1 : K → A1 → option B) (f2 : K → A2 → option A1) (m : M A2),
+  map_imap f1 (map_imap f2 m) = map_imap (fun k v => f2 k v ≫= f1 k) m.
+Proof.
+  intros. eapply map_eq. intros.
+  rewrite !map_lookup_imap /=.
+  destruct (m !! i); simpl; auto.
+Qed.
+  
+Lemma std_update_multiple_imap W l ρ:
+  (forall a, a ∈ l -> is_Some (std W !! a)) ->
+  std_update_multiple W l ρ = (map_imap (fun k v => if decide (k ∈ l) then Some ρ else Some v)  (std W), loc W).
+Proof.
+  destruct W as [Wstd Wloc]. simpl.
+  induction l.
+  - simpl. rewrite map_imap_Some. reflexivity.
+  - simpl. intros. rewrite IHl /std_update /=.
+    + f_equal; auto.
+      generalize (map_imap_insert (λ (k : Addr) (v : region_type), if decide (k ∈ l) then Some ρ else Some v) a ρ Wstd).
+      replace (if decide (a ∈ l) then Some ρ else Some ρ) with (Some ρ) by (destruct (decide (a ∈ l)); auto). intros A.
+      rewrite -A. eapply (map_imap_ext (λ (k : Addr) (v : region_type), if decide (k ∈ l) then Some ρ else Some v) (λ (k : Addr) (v : region_type), if decide (k ∈ a :: l) then Some ρ else Some v) (<[a:=ρ]> Wstd) Wstd).
+      intros. destruct (addr_eq_dec a k).
+      * subst k. rewrite lookup_insert /=.
+        replace (if decide (a ∈ l) then Some ρ else Some ρ) with (Some ρ) by (destruct (decide (a ∈ l)); auto).
+        destruct (decide (a ∈ a :: l)).
+        { match goal with
+          | |- _ = _ <$> ?X => case_eq X; intros; simpl; auto
+          end.
+          eapply H in e. destruct e. rewrite H1 in H0. inv H0. }
+        { exfalso. eapply n. eapply elem_of_list_here. }
+      * rewrite lookup_insert_ne; auto. f_equal.
+        destruct (decide (k ∈ l)).
+        { destruct (decide (k ∈ a :: l)); auto.
+          exfalso. eapply n0. eapply elem_of_list_further. auto. }
+        destruct (decide (k ∈ a :: l)); auto.
+        { eapply elem_of_cons in e. exfalso. destruct e.
+          - eapply n; auto.
+          - eapply n0; auto. }
+    + intros. eapply H. eapply elem_of_list_further. auto.
+Qed.
+
+Lemma revoke_imap W:
+  revoke W = (map_imap (fun _ v => Some (revoke_i v)) (std W), loc W).
+Proof.
+  rewrite /revoke /revoke_std_sta. f_equal.
+  apply (map_eq _ (map_imap (λ (_ : Addr) (v : region_type), Some (revoke_i v)) (std W))).
+  intros. rewrite lookup_fmap map_lookup_imap /=.
+  match goal with
+  | |- _ = ?X ≫= _ => destruct X; simpl; auto
+  end.
+Qed.
+
+Lemma override_uninitializedW_imap m W:
+  dom (gset Addr) m ⊆ dom (gset Addr) (std W) ->
+  override_uninitializedW m W = (map_imap (fun k v => match m !! k with Some w => Some (Static {[k:=w]}) | None => Some v end) (std W), loc W).
+Proof.
+  intros. rewrite /override_uninitializedW. f_equal.
+  eapply (map_eq (override_uninitialized m (std W))).
+  intros. rewrite map_lookup_imap /=. case_eq (m !! i); intros; simpl.
+  - specialize (override_uninitializedW_lookup_some W _ _ _ H0) as A.
+    rewrite A. match goal with
+               | |- _ = ?X ≫= _ => case_eq X; intros; simpl; auto
+               end.
+    assert (is_Some (std W !! i)).
+    { eapply elem_of_gmap_dom. eapply H. eapply elem_of_gmap_dom. eauto. }
+    destruct H2; rewrite H2 in H1; inv H1.
+  - specialize (override_uninitializedW_lookup_none W _ _ H0) as A.
+    rewrite A /std. match goal with
+                    | |- _ = ?X ≫= _ => case_eq X; intros; simpl; auto
+                    end.
 Qed.
