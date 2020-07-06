@@ -181,4 +181,4 @@ In the model:
 
 In `scall.v` and `scall_u.v` : the scall macro is in both cases slightly unfolded, as it does not include the part of the calling convention which stores local state on the stack. That part is inlined into the awkward examples. 
 
-In `awkward_example_u.v`: in the mechanized version of the awkward example (uninitialized version), we clear the local stack frame in two stages: before the second call, we clear the part of the frame which is frozen during the first call, but passed to the adversary during the second call (i.e. a single address at the top of the first local stack frame), and before retuning to the caller we clear the rest the local stack frame which is frozen during the second call.
+In `awkward_example_u.v`: in the mechanized version of the awkward example (uninitialized version), we clear the local stack frame in two stages: before the second call, we clear the part of the frame which is frozen during the first call, but passed to the adversary during the second call (i.e. a single address at the top of the first local stack frame), and before returning to the caller we clear the rest of the local stack frame.
