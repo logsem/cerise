@@ -58,6 +58,8 @@ created using `make html`.
 
 Then, browse the `html/toc.html` file.
 
+Note that we have included a copy of the generated html files as a supplemental material. 
+
 # Organization
 
 The organization of the `theories/` folder is as follows.
@@ -136,6 +138,8 @@ In the `examples` folder:
   and URWLX stack respectively. Each specification is split up into two parts:
   the prologue is the specification for the code before the jump, the epilogue
   is the specification for the activation record.
+
+- `lse.v` : A small and simple example that relies on local state encapsulation. 
 
 - `malloc.v`: A simple malloc implementation, and its specification.
 
