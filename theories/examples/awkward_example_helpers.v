@@ -3,7 +3,7 @@ From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import
      rules logrel region_invariants fundamental region_invariants_revocation region_invariants_static.
-From cap_machine.examples Require Export stdpp_extra iris_extra.
+From cap_machine Require Export stdpp_extra iris_extra.
 
 
 (* Helper definitions for creating static regions *)
