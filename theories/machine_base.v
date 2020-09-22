@@ -8,22 +8,12 @@ Inductive Perm: Type :=
 | O
 | RO
 | RW
-| RWL
 | RX
 | E
-| RWX
-| RWLX
-| URW
-| URWL
-| URWX
-| URWLX.
-
-Inductive Locality: Type :=
-| Global
-| Local.
+| RWX.
 
 Definition Cap: Type :=
-  (Perm * Locality) * Addr * Addr * Addr.
+  Perm * Addr * Addr * Addr.
 
 Definition Word := (Z + Cap)%type.
 
@@ -40,76 +30,21 @@ Inductive instr: Type :=
 | Restrict (dst: RegName) (r: Z + RegName)
 | Subseg (dst: RegName) (r1 r2: Z + RegName)
 | IsPtr (dst r: RegName)
-| GetL (dst r: RegName)
 | GetP (dst r: RegName)
 | GetB (dst r: RegName)
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
 | Fail
-| Halt
-(* Load value at src + offs into dst *)
-| LoadU (dst src: RegName) (offs: Z + RegName)
-(* Load value in src to dst + offs *)
-| StoreU (dst: RegName) (offs src: Z + RegName)
-(* Promote the uninitialized capability in dst *)
-| PromoteU (dst: RegName).
+| Halt.
 
 (* Registers and memory: maps from register names/addresses to words *)
 
 Definition Reg := gmap RegName Word.
 Definition Mem := gmap Addr Word.
 
-
-(* Auxiliary definitions for localities *)
-
-Definition isLocal (l: Locality): bool :=
-  match l with
-  | Local => true
-  | _ => false
-  end.
-
-Definition isLocalWord (w : Word): bool :=
-  match w with
-  | inl _ => false
-  | inr ((_,l),_,_,_) => isLocal l
-  end.
-
-Lemma isLocalWord_cap_isLocal (c0:Cap):
-  isLocalWord (inr c0) = true →
-  ∃ p g b e a, c0 = (p,g,b,e,a) ∧ isLocal g = true.
-Proof.
-  intros. destruct c0, p, p, p.
-  cbv in H. destruct l; first by congruence.
-  eexists _, _, _, _, _. split; eauto.
-Qed.
-
-Definition isGlobal (l: Locality): bool :=
-  match l with
-  | Global => true
-  | _ => false
-  end.
-
-Definition isGlobalWord (w : Word): bool :=
-  match w with
-  | inl _ => false
-  | inr ((_,l),_,_,_) => isGlobal l
-  end.
-
-Lemma isGlobalWord_cap_isGlobal (w0:Word):
-  isGlobalWord w0 = true →
-  ∃ p g b e a, w0 = inr (p,g,b,e,a) ∧ isGlobal g = true.
-Proof.
-  intros. destruct w0;[done|].
-  destruct c, p, p, p.
-  cbv in H. destruct l; last done.
-  eexists _, _, _, _, _. split; eauto.
-Qed.
-
 (* EqDecision instances *)
 
 Instance perm_eq_dec : EqDecision Perm.
-Proof. solve_decision. Defined.
-Instance local_eq_dec : EqDecision Locality.
 Proof. solve_decision. Defined.
 Instance cap_eq_dec : EqDecision Cap.
 Proof. solve_decision. Defined.
@@ -120,75 +55,28 @@ Proof. solve_decision. Defined.
 
 
 (* Auxiliary definitions to work on permissions *)
-
-Definition isU (p: Perm) :=
-  match p with
-  | URW | URWL | URWX | URWLX => true
-  | _ => false
-  end.
-
-Definition pwl p : bool :=
-  match p with
-  | RWLX | RWL => true
-  | _ => false
-  end.
-
-Definition pwlU p : bool :=
-  match p with
-  | RWLX | RWL | URWLX | URWL => true
-  | _ => false
-  end.
-
 Definition executeAllowed (p: Perm): bool :=
   match p with
-  | RWX | RWLX | RX | E => true
+  | RWX | RX | E => true
   | _ => false
   end.
 
 (* Uninitialized capabilities are neither read nor write allowed *)
 Definition readAllowed (p: Perm): bool :=
   match p with
-  | RWX | RWLX | RX | RW | RWL | RO => true
+  | RWX | RX | RW | RO => true
   | _ => false
   end.
 
 Definition writeAllowed (p: Perm): bool :=
   match p with
-  | RWX | RWLX | RW | RWL => true
+  | RWX | RW => true
   | _ => false
-  end.
-
-Definition promote_perm (p: Perm): Perm :=
-  match p with
-  | URW => RW
-  | URWL => RWL
-  | URWX => RWX
-  | URWLX => RWLX
-  | _ => p
   end.
 
 Lemma writeA_implies_readA p :
   writeAllowed p = true → readAllowed p = true.
 Proof. destruct p; auto. Qed.
-
-Lemma pwl_implies_RWL_RWLX p :
-  pwl p = true → p = RWL ∨ p = RWLX.
-Proof.
-  intros. destruct p; try by exfalso.
-  by left. by right.
-Qed.
-
-Definition canStore (p: Perm) (w: Word): bool :=
-  match w with
-  | inl _ => true
-  | inr ((_, g), _, _, _) => if isLocal g then pwl p else true
-  end.
-
-Definition canStoreU (p: Perm) (w: Word): bool :=
-  match w with
-  | inl _ => true
-  | inr ((_, g), _, _, _) => if isLocal g then pwlU p else true
-  end.
 
 Definition isPerm p p' := @bool_decide _ (perm_eq_dec p p').
 
@@ -200,80 +88,47 @@ Proof. intros Hne. destruct p,p'; auto; congruence. Qed.
 Definition isPermWord (w : Word) (p : Perm): bool :=
   match w with
   | inl _ => false
-  | inr ((p',_),_,_,_) => isPerm p p'
+  | inr (p',_,_,_) => isPerm p p'
   end.
 
 Lemma isPermWord_cap_isPerm (w0:Word) p:
   isPermWord w0 p = true →
-  ∃ p' g b e a, w0 = inr (p',g,b,e,a) ∧ isPerm p p' = true.
+  ∃ p' b e a, w0 = inr (p',b,e,a) ∧ isPerm p p' = true.
 Proof.
   intros. destruct w0;[done|].
-  destruct c,p0,p0,p0.
+  destruct c,p0,p0.
   cbv in H. destruct p; try done;
-  eexists _, _, _, _, _; split; eauto.
+  eexists _, _, _, _; split; eauto.
 Qed.
 
 
-(* perm-flows-to: the locality and permission lattice.
+(* perm-flows-to: the permission lattice.
    "x flows to y" if x is lower than y in the lattice.
   *)
-
-Definition LocalityFlowsTo (l1 l2: Locality): bool :=
-  match l1 with
-  | Local => true
-  | Global => match l2 with
-             | Global => true
-             | _ => false
-             end
-  end.
 
 Definition PermFlowsTo (p1 p2: Perm): bool :=
   match p1 with
   | O => true
   | E => match p2 with
-        | E | RX | RWX | RWLX => true
+        | E | RX | RWX => true
         | _ => false
         end
   | RX => match p2 with
-         | RX | RWX | RWLX => true
+         | RX | RWX => true
          | _ => false
          end
   | RWX => match p2 with
-          | RWX | RWLX => true
+          | RWX => true
           | _ => false
           end
-  | RWLX => match p2 with
-           | RWLX => true
-           | _ => false
-           end
   | RO => match p2 with
-         | E | O | URW | URWL | URWX | URWLX => false
-         | _ => true
-         end
-  | RW => match p2 with
-         | RW | RWX | RWL | RWLX => true
+         | RO | RX | RW | RWX => true
          | _ => false
          end
-  | RWL => match p2 with
-          | RWL | RWLX => true
-          | _ => false
-          end
-  | URW => match p2 with
-          | URW | URWL | URWX | URWLX | RW | RWX | RWL | RWLX => true
-          | _ => false
-          end
-  | URWL => match p2 with
-           | URWL | RWL | RWLX | URWLX => true
-           | _ => false
-           end
-  | URWX => match p2 with
-           | URWX | RWX | RWLX | URWLX => true
-           | _ => false
-           end
-  | URWLX => match p2 with
-            | URWLX | RWLX => true
-            | _ => false
-            end
+  | RW => match p2 with
+         | RW | RWX => true
+         | _ => false
+         end
   end.
 
 (* Sanity check *)
@@ -289,9 +144,6 @@ Lemma PermFlowsToReflexive:
 Proof.
   intros; destruct p; auto.
 Qed.
-
-Definition PermPairFlowsTo (pg1 pg2: Perm * Locality): bool :=
-  PermFlowsTo (fst pg1) (fst pg2) && LocalityFlowsTo (snd pg1) (snd pg2).
 
 (* perm-flows-to as a predicate *)
 Definition PermFlows : Perm → Perm → Prop :=
@@ -324,10 +176,10 @@ Proof.
 Qed.
 
 Lemma PCPerm_nonO p p' :
-  PermFlows p p' → p = RX ∨ p = RWX ∨ p = RWLX → p' ≠ O.
+  PermFlows p p' → p = RX ∨ p = RWX → p' ≠ O.
 Proof.
   intros Hfl Hvpc. destruct p'; auto. destruct p; inversion Hfl.
-  destruct Hvpc as [Hcontr | [Hcontr | Hcontr]]; inversion Hcontr.
+  destruct Hvpc as [Hcontr | Hcontr]; inversion Hcontr.
 Qed.
 
 (* Helper definitions for capabilities *)
@@ -335,13 +187,13 @@ Qed.
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
   match w with
-  | inr ((E, g), b, e, a) => inr ((RX, g), b, e, a)
+  | inr (E, b, e, a) => inr (RX, b, e, a)
   | _ => w
   end.
 
-Lemma updatePcPerm_cap_non_E p g b e a :
+Lemma updatePcPerm_cap_non_E p b e a :
   p ≠ E →
-  updatePcPerm (inr (p, g, b, e, a)) = inr (p, g, b, e, a).
+  updatePcPerm (inr (p, b, e, a)) = inr (p, b, e, a).
 Proof.
   intros HnE. cbn. destruct p; auto. contradiction.
 Qed.
@@ -354,7 +206,7 @@ Definition nonZero (w: Word): bool :=
 
 Definition cap_size (w : Word) : Z :=
   match w with
-  | inr (_,_,b,e,_) => (e - b)%Z
+  | inr (_,b,e,_) => (e - b)%Z
   | _ => 0%Z
   end.
 
@@ -371,36 +223,36 @@ Definition withinBounds (c: Cap): bool :=
   | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
   end.
 
-Lemma withinBounds_true_iff p g b e a :
-  withinBounds (p, g, b, e, a) = true ↔ (b <= a)%a ∧ (a < e)%a.
+Lemma withinBounds_true_iff p b e a :
+  withinBounds (p, b, e, a) = true ↔ (b <= a)%a ∧ (a < e)%a.
 Proof.
   unfold withinBounds.
   rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
   rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
-Lemma withinBounds_le_addr p l b e a:
-  withinBounds (p, l, b, e, a) = true →
+Lemma withinBounds_le_addr p b e a:
+  withinBounds (p, b, e, a) = true →
   (b <= a)%a ∧ (a < e)%a.
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma isWithinBounds_bounds_alt p g b e (a0 a1 a2 : Addr) :
-  withinBounds (p,g,b,e,a0) = true →
-  withinBounds (p,g,b,e,a2) = true →
+Lemma isWithinBounds_bounds_alt p b e (a0 a1 a2 : Addr) :
+  withinBounds (p,b,e,a0) = true →
+  withinBounds (p,b,e,a2) = true →
   (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z →
-  withinBounds (p,g,b,e,a1) = true.
+  withinBounds (p,b,e,a1) = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma isWithinBounds_bounds_alt' p g b e (a0 a1 a2 : Addr) :
-  withinBounds (p,g,b,e,a0) = true →
-  withinBounds (p,g,b,e,a2) = true →
+Lemma isWithinBounds_bounds_alt' p b e (a0 a1 a2 : Addr) :
+  withinBounds (p,b,e,a0) = true →
+  withinBounds (p,b,e,a2) = true →
   (a0 ≤ a1)%Z ∧ (a1 < a2)%Z →
-  withinBounds (p,g,b,e,a1) = true.
+  withinBounds (p,b,e,a1) = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma le_addr_withinBounds p l b e a:
+Lemma le_addr_withinBounds p b e a:
   (b <= a)%a → (a < e)%a →
-  withinBounds (p, l, b, e, a) = true .
+  withinBounds (p, b, e, a) = true .
 Proof. rewrite withinBounds_true_iff //. Qed.
 
 
@@ -408,18 +260,18 @@ Proof. rewrite withinBounds_true_iff //. Qed.
 
 Inductive isCorrectPC: Word → Prop :=
 | isCorrectPC_intro:
-    forall p g (b e a : Addr),
+    forall p (b e a : Addr),
       (b <= a < e)%a →
-      p = RX \/ p = RWX \/ p = RWLX →
-      isCorrectPC (inr ((p, g), b, e, a)).
+      p = RX \/ p = RWX →
+      isCorrectPC (inr (p, b, e, a)).
 
 Lemma isCorrectPC_dec:
   forall w, { isCorrectPC w } + { not (isCorrectPC w) }.
 Proof.
   destruct w.
   - right. red; intros H. inversion H.
-  - destruct c as ((((p & g) & b) & e) & a).
-    case_eq (match p with RX | RWX | RWLX => true | _ => false end); intros.
+  - destruct c as (((p & b) & e) & a).
+    case_eq (match p with RX | RWX => true | _ => false end); intros.
     + destruct (Addr_le_dec b a).
       * destruct (Addr_lt_dec a e).
         { left. econstructor; simpl; eauto. by auto.
@@ -432,9 +284,9 @@ Qed.
 Definition isCorrectPCb (w: Word): bool :=
   match w with
   | inl _ => false
-  | inr (p, g, b, e, a) =>
+  | inr (p, b, e, a) =>
     (b <=? a)%a && (a <? e)%a &&
-    (isPerm p RX || isPerm p RWX || isPerm p RWLX)
+    (isPerm p RX || isPerm p RWX)
   end.
 
 Lemma isCorrectPCb_isCorrectPC w :
@@ -442,7 +294,7 @@ Lemma isCorrectPCb_isCorrectPC w :
 Proof.
   rewrite /isCorrectPCb. destruct w.
   { split; try congruence. inversion 1. }
-  { destruct c as [[[[? ?] ?] ?] ?]. rewrite /leb_addr /ltb_addr.
+  { destruct c as [[[? ?] ?] ?]. rewrite /leb_addr /ltb_addr.
     rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
@@ -458,37 +310,37 @@ Proof.
   { split; auto. intros _. intros ?%isCorrectPCb_isCorrectPC. congruence. }
 Qed.
 
-Lemma isCorrectPC_ra_wb pc_p pc_g pc_b pc_e pc_a :
-  isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
+  isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
   readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
 Proof.
   intros. inversion H; subst.
   - destruct H2. apply andb_prop_intro. split.
-    + destruct H6,pc_p; inversion H1; try inversion H2; auto; try congruence.
+    + destruct H5,pc_p; inversion H1; try inversion H2; auto; try congruence.
     + apply andb_prop_intro.
       split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
 Qed.
 
-Lemma not_isCorrectPC_perm p g b e a :
-  p ≠ RX ∧ p ≠ RWX ∧ p ≠ RWLX → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+Lemma not_isCorrectPC_perm p b e a :
+  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (inr (p,b,e,a)).
 Proof.
-  intros (Hrx & Hrwx & Hrwlx).
+  intros (Hrx & Hrwx).
   intros Hvpc. inversion Hvpc;
-    destruct H5 as [Hrx' | [Hrwx' | Hrwlx']]; contradiction.
+    destruct H4 as [Hrx' | Hrwx']; contradiction.
 Qed.
 
-Lemma not_isCorrectPC_bounds p g b e a :
- ¬ (b <= a < e)%a → ¬ isCorrectPC (inr ((p,g),b,e,a)).
+Lemma not_isCorrectPC_bounds p b e a :
+ ¬ (b <= a < e)%a → ¬ isCorrectPC (inr (p,b,e,a)).
 Proof.
   intros Hbounds.
   intros Hvpc. inversion Hvpc.
   by exfalso.
 Qed.
 
-Lemma isCorrectPC_bounds p g b e (a0 a1 a2 : Addr) :
-  isCorrectPC (inr (p, g, b, e, a0)) →
-  isCorrectPC (inr (p, g, b, e, a2)) →
-  (a0 ≤ a1 < a2)%Z → isCorrectPC (inr (p, g, b, e, a1)).
+Lemma isCorrectPC_bounds p b e (a0 a1 a2 : Addr) :
+  isCorrectPC (inr (p, b, e, a0)) →
+  isCorrectPC (inr (p, b, e, a2)) →
+  (a0 ≤ a1 < a2)%Z → isCorrectPC (inr (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle Hlt].
   inversion Hvpc0.
@@ -499,11 +351,11 @@ Proof.
       { apply Z.lt_trans with a2; auto. }
 Qed.
 
-Lemma isCorrectPC_bounds_alt p g b e (a0 a1 a2 : Addr) :
-  isCorrectPC (inr (p, g, b, e, a0))
-  → isCorrectPC (inr (p, g, b, e, a2))
+Lemma isCorrectPC_bounds_alt p b e (a0 a1 a2 : Addr) :
+  isCorrectPC (inr (p, b, e, a0))
+  → isCorrectPC (inr (p, b, e, a2))
   → (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z
-  → isCorrectPC (inr (p, g, b, e, a1)).
+  → isCorrectPC (inr (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
@@ -511,22 +363,22 @@ Proof.
   - apply z_of_eq in Heq2. rewrite Heq2. auto.
 Qed.
 
-Lemma isCorrectPC_withinBounds p g p' g' b e a :
-  isCorrectPC (inr (p, g, b, e, a)) →
-  withinBounds (p', g', b, e, a) = true.
+Lemma isCorrectPC_withinBounds p p' b e a :
+  isCorrectPC (inr (p, b, e, a)) →
+  withinBounds (p', b, e, a) = true.
 Proof.
   intros HH. inversion HH; subst.
   rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
-Lemma correctPC_nonO p p' g b e a :
-  PermFlows p p' → isCorrectPC (inr (p,g,b,e,a)) → p' ≠ O.
+Lemma correctPC_nonO p p' b e a :
+  PermFlows p p' → isCorrectPC (inr (p,b,e,a)) → p' ≠ O.
 Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
 Qed.
 
-Lemma in_range_is_correctPC p l b e a b' e' :
-  isCorrectPC (inr ((p,l),b,e,a)) →
+Lemma in_range_is_correctPC p b e a b' e' :
+  isCorrectPC (inr (p,b,e,a)) →
   (b' <= b)%a ∧ (e <= e')%a →
   (b' <= a)%a ∧ (a < e')%a.
 Proof.
@@ -554,48 +406,21 @@ Proof.
     | O => 1
     | RO => 2
     | RW => 3
-    | RWL => 4
-    | RX => 5
-    | E => 6
-    | RWX => 7
-    | RWLX => 8
-    | URW => 9
-    | URWL => 10
-    | URWX => 11
-    | URWLX => 12
+    | RX => 4
+    | E => 5
+    | RWX => 6
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
     | 2 => Some RO
     | 3 => Some RW
-    | 4 => Some RWL
-    | 5 => Some RX
-    | 6 => Some E
-    | 7 => Some RWX
-    | 8 => Some RWLX
-    | 9 => Some URW
-    | 10 => Some URWL
-    | 11 => Some URWX
-    | 12 => Some URWLX
+    | 4 => Some RX
+    | 5 => Some E
+    | 6 => Some RWX
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).
   intro p. destruct p; reflexivity.
-Defined.
-
-Instance locality_countable : Countable Locality.
-Proof.
-  set encode := fun l => match l with
-    | Local => 1
-    | Global => 2
-    end%positive.
-  set decode := fun n => match n with
-    | 1 => Some Local
-    | 2 => Some Global
-    | _ => None
-    end%positive.
-  eapply (Build_Countable _ _ encode decode).
-  intro l. destruct l; reflexivity.
 Defined.
 
 Instance cap_countable : Countable Cap.
@@ -625,16 +450,12 @@ Proof.
       | Restrict dst r => GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)]
       | Subseg dst r1 r2 => GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
       | IsPtr dst r => GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetL dst r => GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetP dst r => GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetB dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetE dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Fail => GenNode 17 []
       | Halt => GenNode 18 []
-      | LoadU dst src offs => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src); GenLeaf (inr offs)]
-      | StoreU dst offs src => GenNode 20 [GenLeaf (inl dst); GenLeaf (inr offs); GenLeaf (inr src)]
-      | PromoteU dst => GenNode 21 [GenLeaf (inl dst)]
       end).
   set (dec := fun e =>
       match e with
@@ -650,16 +471,12 @@ Proof.
       | GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)] => Restrict dst r
       | GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => Subseg dst r1 r2
       | GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)] => IsPtr dst r
-      | GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)] => GetL dst r
       | GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)] => GetP dst r
       | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
       | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
       | GenNode 17 [] => Fail
       | GenNode 18 [] => Halt
-      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src); GenLeaf (inr offs)] => LoadU dst src offs
-      | GenNode 20 [GenLeaf (inl dst); GenLeaf (inr offs); GenLeaf (inr src)] => StoreU dst offs src
-      | GenNode 21 [GenLeaf (inl dst)] => PromoteU dst
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

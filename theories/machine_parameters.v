@@ -11,15 +11,10 @@ Class MachineParameters := {
 
   encodePerm : Perm → Z;
   encodePerm_inj : Inj eq eq encodePerm;
+  decodePerm : Z → Perm;
 
-  encodeLoc : Locality → Z;
-  encodeLoc_inj : Inj eq eq encodeLoc;
-
-  decodePermPair : Z → Perm * Locality;
-  encodePermPair : Perm * Locality → Z;
-
-  decode_encode_permPair_inv :
-    forall pl, decodePermPair (encodePermPair pl) = pl;
+  decode_encode_perm_inv :
+    forall pl, decodePerm (encodePerm pl) = pl;
 }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify

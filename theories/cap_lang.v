@@ -45,15 +45,15 @@ Lemma mem_lookup_eq (m: Mem) (a: Addr) (v: Word) :
   m !m! a = v.
 Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
 
-Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p g b e a :
-  regs !r! r = inr ((p, g), b, e, a) →
-  regs !! r = Some (inr ((p, g), b, e, a)).
+Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p b e a :
+  regs !r! r = inr (p, b, e, a) →
+  regs !! r = Some (inr (p, b, e, a)).
 Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
 Qed.
 
-Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p g b e i :
-  m !m! a = inr ((p, g), b, e, i) →
-  m !! a = Some (inr ((p, g), b, e, i)).
+Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p b e i :
+  m !m! a = inr (p, b, e, i) →
+  m !! a = Some (inr (p, b, e, i)).
 Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
 Qed.
 
@@ -71,9 +71,9 @@ Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <
 
 Definition updatePC (φ: ExecConf): Conf :=
   match RegLocate (reg φ) PC with
-  | inr ((p, g), b, e, a) =>
+  | inr (p, b, e, a) =>
     match (a + 1)%a with
-    | Some a' => let φ' := (update_reg φ PC (inr ((p, g), b, e, a'))) in
+    | Some a' => let φ' := (update_reg φ PC (inr (p, b, e, a'))) in
                  (NextI, φ')
     | None => (Failed, φ)
     end
@@ -171,45 +171,37 @@ Section opsem.
     | Load dst src =>
       match RegLocate (reg φ) src with
       | inl n => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         (* Fails for U cap *)
-        if readAllowed p && withinBounds ((p, g), b, e, a) then updatePC (update_reg φ dst (MemLocate (mem φ) a))
+        if readAllowed p && withinBounds (p, b, e, a) then updatePC (update_reg φ dst (MemLocate (mem φ) a))
         else (Failed, φ)
       end
     | Store dst (inr src) =>
       match RegLocate (reg φ) dst with
       | inl n => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         (* Fails for U cap *)
-        if writeAllowed p && withinBounds ((p, g), b, e, a) && canStore p (RegLocate (reg φ) src) then
+        if writeAllowed p && withinBounds (p, b, e, a) then
           updatePC (update_mem φ a (RegLocate (reg φ) src))
         else (Failed, φ)
       end
     | Store dst (inl n) =>
       match RegLocate (reg φ) dst with
       | inl n => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         (* Fails for U cap *)
-        if writeAllowed p && withinBounds ((p, g), b, e, a) then updatePC (update_mem φ a (inl n)) else (Failed, φ)
+        if writeAllowed p && withinBounds (p, b, e, a) then updatePC (update_mem φ a (inl n)) else (Failed, φ)
       end
     | Mov dst (inl n) => updatePC (update_reg φ dst (inl n))
     | Mov dst (inr src) => updatePC (update_reg φ dst (RegLocate (reg φ) src))
     | Lea dst (inl n) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
-        (* Make sure that we can only decrease pointer for uninitialized capabilities *)
-        | URW | URWL | URWX | URWLX => match (a + n)%a with
-                                      | Some a' => if Addr_le_dec a' a then
-                                                    let c := ((p, g), b, e, a') in
-                                                    updatePC (update_reg φ dst (inr c))
-                                                  else (Failed, φ)
-                                      | None => (Failed, φ)
-                                      end
         | _ => match (a + n)%a with
-               | Some a' => let c := ((p, g), b, e, a') in
+               | Some a' => let c := (p, b, e, a') in
                             updatePC (update_reg φ dst (inr c))
                | None => (Failed, φ)
                end
@@ -218,26 +210,15 @@ Section opsem.
     | Lea dst (inr r) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         (* Make sure that we can only decrease pointer for uninitialized capabilities *)
-        | URW | URWL | URWX | URWLX => match RegLocate (reg φ) r with
-                                      | inr _ => (Failed, φ)
-                                      | inl n => match (a + n)%a with
-                                                | Some a' =>
-                                                  if Addr_le_dec a' a then
-                                                    let c := ((p, g), b, e, a') in
-                                                    updatePC (update_reg φ dst (inr c))
-                                                  else (Failed, φ)
-                                                | None => (Failed, φ)
-                                                end
-                   end
         | _ => match RegLocate (reg φ) r with
               | inr _ => (Failed, φ)
               | inl n => match (a + n)%a with
                          | Some a' =>
-                           let c := ((p, g), b, e, a') in
+                           let c := (p, b, e, a') in
                            updatePC (update_reg φ dst (inr c))
                          | None => (Failed, φ)
                          end
@@ -249,9 +230,9 @@ Section opsem.
       | inl _ => (Failed, φ)
       | inr (permPair, b, e, a) =>
         match permPair with
-        | (E, _) => (Failed, φ)
-        | _ => if PermPairFlowsTo (decodePermPair n) permPair then
-                updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+        | E => (Failed, φ)
+        | _ => if PermFlowsTo (decodePerm n) permPair then
+                updatePC (update_reg φ dst (inr (decodePerm n, b, e, a)))
               else (Failed, φ)
         end
       end
@@ -263,9 +244,9 @@ Section opsem.
         | inr _ => (Failed, φ)
         | inl n =>
           match permPair with
-          | (E, _) => (Failed, φ)
-          | _ => if PermPairFlowsTo (decodePermPair n) permPair then
-                  updatePC (update_reg φ dst (inr (decodePermPair n, b, e, a)))
+          | E => (Failed, φ)
+          | _ => if PermFlowsTo (decodePerm n) permPair then
+                  updatePC (update_reg φ dst (inr (decodePerm n, b, e, a)))
                 else (Failed, φ)
           end
         end
@@ -333,7 +314,7 @@ Section opsem.
     | Subseg dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ =>
@@ -346,7 +327,7 @@ Section opsem.
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then
-                  updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
+                  updatePC (update_reg φ dst (inr (p, a1, a2, a)))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end
@@ -357,7 +338,7 @@ Section opsem.
     | Subseg dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ =>
@@ -367,7 +348,7 @@ Section opsem.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
+                updatePC (update_reg φ dst (inr (p, a1, a2, a)))
                      else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -377,7 +358,7 @@ Section opsem.
     | Subseg dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ =>
@@ -387,7 +368,7 @@ Section opsem.
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
+                updatePC (update_reg φ dst (inr (p, a1, a2, a)))
               else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -397,14 +378,14 @@ Section opsem.
     | Subseg dst (inl n1) (inl n2) =>
       match RegLocate (reg φ) dst with
       | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
+      | inr (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ =>
           match z_to_addr n1, z_to_addr n2 with
           | Some a1, Some a2 =>
             if isWithin a1 a2 b e then
-              updatePC (update_reg φ dst (inr ((p, g), a1, a2, a)))
+              updatePC (update_reg φ dst (inr (p, a1, a2, a)))
             else (Failed, φ)
           | _,_ => (Failed, φ)
           end
@@ -437,61 +418,12 @@ Section opsem.
     | GetP dst r =>
       match RegLocate (reg φ) r with
       | inl _ => (Failed, φ)
-      | inr ((p, _), _, _, _) => updatePC (update_reg φ dst (inl (encodePerm p)))
-      end
-    | GetL dst r =>
-      match RegLocate (reg φ) r with
-      | inl _ => (Failed, φ)
-      | inr ((_, g), _, _, _) => updatePC (update_reg φ dst (inl (encodeLoc g)))
+      | inr (p, _, _, _) => updatePC (update_reg φ dst (inl (encodePerm p)))
       end
     | IsPtr dst r =>
       match RegLocate (reg φ) r with
       | inl _ => updatePC (update_reg φ dst (inl 0%Z))
       | inr _ => updatePC (update_reg φ dst (inl 1%Z))
-      end
-    | LoadU rdst rsrc offs =>
-      match RegLocate (reg φ) rsrc with
-      | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
-        if isU p then
-          match z_of_argument (reg φ) offs with
-          | None => (Failed, φ)
-          | Some noffs => match verify_access (LoadU_access b e a noffs) with
-                         | None => (Failed, φ)
-                         | Some a' => updatePC (update_reg φ rdst (MemLocate (mem φ) a'))
-                         end
-          end
-        else (Failed, φ)
-      end
-    | StoreU dst offs src =>
-      let w := match src with
-               | inl n => inl n
-               | inr rsrc => (RegLocate (reg φ) rsrc)
-               end in
-      match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr ((p, g), b, e, a) =>
-        if isU p && canStoreU p w then
-          match z_of_argument (reg φ) offs with
-          | None => (Failed, φ)
-          | Some noffs => match verify_access (StoreU_access b e a noffs) with
-                         | None => (Failed, φ)
-                         | Some a' => if addr_eq_dec a a' then
-                                       match (a + 1)%a with
-                                       | Some a => updatePC (update_reg (update_mem φ a' w) dst (inr ((p, g), b, e, a)))
-                                       | None => (Failed, φ)
-                                       end
-                                     else updatePC (update_mem φ a' w)
-                         end
-          end
-        else (Failed, φ)
-      end
-    | PromoteU dst =>
-      match RegLocate (reg φ) dst with
-      | inr ((p, g), b, e, a) =>
-        if perm_eq_dec p E then (Failed, φ)
-        else updatePC (update_reg φ dst (inr ((promote_perm p, g), b, min a e, a)))
-      | inl _ => (Failed, φ)
       end
     end.
 
@@ -501,8 +433,8 @@ Section opsem.
         not (isCorrectPC ((reg φ) !r! PC)) →
         step (Executable, φ) (Failed, φ)
   | step_exec_instr:
-      forall φ p g b e a i c,
-        RegLocate (reg φ) PC = inr ((p, g), b, e, a) →
+      forall φ p b e a i c,
+        RegLocate (reg φ) PC = inr (p, b, e, a) →
         isCorrectPC ((reg φ) !r! PC) →
         decodeInstrW ((mem φ) !m! a) = i →
         exec i φ = c →
@@ -525,9 +457,9 @@ Section opsem.
     intros * H1 H2; split; inv H1; inv H2; auto; try congruence.
   Qed.
 
-  Lemma step_exec_inv (r: Reg) p g b e a m w instr (c: ConfFlag) (σ: ExecConf) :
-    r !! PC = Some (inr ((p, g), b, e, a)) →
-    isCorrectPC (inr ((p, g), b, e, a)) →
+  Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) :
+    r !! PC = Some (inr (p,b, e, a)) →
+    isCorrectPC (inr (p, b, e, a)) →
     m !! a = Some w →
     decodeInstrW w = instr →
     step (Executable, (r, m)) (c, σ) →
