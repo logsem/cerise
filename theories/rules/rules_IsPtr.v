@@ -5,7 +5,7 @@ From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{memG Σ, regG Σ}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -27,31 +27,28 @@ Section cap_lang_rules.
       incrementPC (<[ dst := inl (if is_cap w then 1%Z else 0%Z) ]> regs) = None ->
       IsPtr_spec regs dst src regs' FailedV.
 
-  Lemma wp_IsPtr Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
+  Lemma wp_IsPtr Ep pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = IsPtr dst src ->
-    PermFlows pc_p pc_p' →
-    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (IsPtr dst src) ⊆ dom _ regs →
-    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+    
+    {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
         ⌜ IsPtr_spec regs dst src regs' retv ⌝ ∗
-          pc_a ↦ₐ[pc_p'] w ∗
+          pc_a ↦ₐ w ∗
           [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
-    assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl.
-      inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
@@ -78,7 +75,7 @@ Section cap_lang_rules.
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ m) in Hregs'
-      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
@@ -86,23 +83,22 @@ Section cap_lang_rules.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
   Qed.
 
-  Lemma wp_IsPtr_successPC E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w' pc_p' :
+  Lemma wp_IsPtr_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :
     decodeInstrW w = IsPtr dst PC →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
-    dst ≠ PC →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ w'
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
-          ∗ pc_a ↦ₐ[pc_p'] w
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          ∗ pc_a ↦ₐ w
           ∗ dst ↦ᵣ inl 1%Z }}}.
    Proof.
-     iIntros (Hinstr Hfl Hvpc Hpca' Hne ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
+     iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
      iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.
@@ -115,25 +111,24 @@ Section cap_lang_rules.
      { incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
-   Lemma wp_IsPtr_success E pc_p pc_g pc_b pc_e pc_a pc_a' w dst r wr w' pc_p' :
+   Lemma wp_IsPtr_success E pc_p pc_b pc_e pc_a pc_a' w dst r wr w' :
      decodeInstrW w = IsPtr dst r →
-     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     dst ≠ PC →
 
-       {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ ▷ pc_a ↦ₐ[pc_p'] w
+       {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ r ↦ᵣ wr
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
-           ∗ pc_a ↦ₐ[pc_p'] w
+           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           ∗ pc_a ↦ₐ w
            ∗ r ↦ᵣ wr
            ∗ dst ↦ᵣ inl (if is_cap wr then 1%Z else 0%Z) }}}.
    Proof.
-    iIntros (Hinstr Hfl Hvpc Hpc_a Hdst ϕ) "(>HPC & >Hpc_a & >Hr & >Hdst) Hφ".
+    iIntros (Hinstr Hvpc Hpc_a ϕ) "(>HPC & >Hpc_a & >Hr & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by rewrite !dom_insert; set_solver+.
@@ -149,23 +144,22 @@ Section cap_lang_rules.
       incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
-   Lemma wp_IsPtr_success_dst E pc_p pc_g pc_b pc_e pc_a pc_a' w dst w' pc_p' :
+   Lemma wp_IsPtr_success_dst E pc_p pc_b pc_e pc_a pc_a' w dst w' :
      decodeInstrW w = IsPtr dst dst →
-     PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     dst ≠ PC →
-
-       {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-             ∗ ▷ pc_a ↦ₐ[pc_p'] w
+     
+       {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
-           ∗ pc_a ↦ₐ[pc_p'] w
+           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           ∗ pc_a ↦ₐ w
            ∗ dst ↦ᵣ inl (if is_cap w' then 1%Z else 0%Z) }}}.
    Proof.
-     iIntros (Hinstr Hfl Hvpc Hpca' Hne ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
+     iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
      iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.

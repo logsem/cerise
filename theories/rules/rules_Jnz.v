@@ -5,7 +5,7 @@ From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{memG Σ, regG Σ}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -34,31 +34,28 @@ Section cap_lang_rules.
       nonZero w = true →
       Jnz_spec regs dst src (<[PC := updatePcPerm w' ]> regs) NextIV.
 
-  Lemma wp_Jnz Ep pc_p pc_g pc_b pc_e pc_a pc_p' w dst src regs :
+  Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Jnz dst src ->
-
-    PermFlows pc_p pc_p' →
-    isCorrectPC (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr ((pc_p, pc_g), pc_b, pc_e, pc_a)) →
+    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (Jnz dst src) ⊆ dom _ regs →
-    {{{ ▷ pc_a ↦ₐ[pc_p'] w ∗
+    
+    {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
         ⌜ Jnz_spec regs dst src regs' retv ⌝ ∗
-        pc_a ↦ₐ[pc_p'] w ∗
+        pc_a ↦ₐ w ∗
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
-    assert (pc_p' ≠ O).
-    { destruct pc_p'; auto. destruct pc_p; inversion Hfl. inversion Hvpc; naive_solver. }
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (@gen_heap_valid_cap with "Hm Hpc_a") as %Hpc_a; auto.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
@@ -81,29 +78,29 @@ Section cap_lang_rules.
       inv Hstep. iFrame. iApply "Hφ". iFrame. iPureIntro; econstructor; eauto. }
 
     destruct (incrementPC_success_updatePC _ m _ HX)
-      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & Ha_pc' & HuPC & ->).
+      as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=m) in HuPC; eauto. simplify_pair_eq.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 2; eauto.
   Qed.
 
-  Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_g pc_b pc_e pc_a w w1 w2 pc_p' :
+  Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_b pc_e pc_a w w1 w2 :
     decodeInstrW w = Jnz r1 r2 →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ w1
         ∗ ▷ r2 ↦ᵣ w2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPerm w1
-          ∗ pc_a ↦ₐ[pc_p'] w
+          ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ w1
           ∗ r2 ↦ᵣ w2 }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -121,21 +118,21 @@ Section cap_lang_rules.
      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
   Qed.
 
-  Lemma wp_jnz_success_jmp2 E r2 pc_p pc_g pc_b pc_e pc_a w w2 pc_p' :
+  Lemma wp_jnz_success_jmp2 E r2 pc_p pc_b pc_e pc_a w w2 :
     decodeInstrW w = Jnz r2 r2 →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r2 ↦ᵣ w2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPerm w2
-          ∗ pc_a ↦ₐ[pc_p'] w
+          ∗ pc_a ↦ₐ w
           ∗ r2 ↦ᵣ w2 }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -153,18 +150,18 @@ Section cap_lang_rules.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
-  Lemma wp_jnz_success_jmpPC E pc_p pc_g pc_b pc_e pc_a w pc_p' :
+  Lemma wp_jnz_success_jmpPC E pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Jnz PC PC →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w }}}
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ updatePcPerm (inr ((pc_p,pc_g),pc_b,pc_e,pc_a))
-          ∗ pc_a ↦ₐ[pc_p'] w }}}.
+          PC ↦ᵣ updatePcPerm (inr (pc_p,pc_b,pc_e,pc_a))
+          ∗ pc_a ↦ₐ w }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
     iDestruct (map_of_regs_1 with "HPC") as "Hmap".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -175,21 +172,21 @@ Section cap_lang_rules.
      iDestruct (regs_of_map_1 with "Hmap") as "?"; eauto; iFrame. }
   Qed.
 
-  Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_g pc_b pc_e pc_a w w2 pc_p' :
+  Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_b pc_e pc_a w w2 :
     decodeInstrW w = Jnz PC r2 →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     w2 ≠ inl 0%Z →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r2 ↦ᵣ w2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ updatePcPerm (inr ((pc_p,pc_g),pc_b,pc_e,pc_a))
-          ∗ pc_a ↦ₐ[pc_p'] w
+          PC ↦ᵣ updatePcPerm (inr (pc_p,pc_b,pc_e,pc_a))
+          ∗ pc_a ↦ₐ w
           ∗ r2 ↦ᵣ w2 }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -207,20 +204,20 @@ Section cap_lang_rules.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
-  Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_g pc_b pc_e pc_a w w1 pc_p' :
+  Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a w w1 :
     decodeInstrW w = Jnz r1 PC →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ w1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPerm w1
-          ∗ pc_a ↦ₐ[pc_p'] w
+          ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ w1 }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -231,23 +228,23 @@ Section cap_lang_rules.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
-  Lemma wp_jnz_success_next E r1 r2 pc_p pc_g pc_b pc_e pc_a pc_a' w w1 pc_p' :
+  Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_a' w w1 :
     decodeInstrW w = Jnz r1 r2 →
-    PermFlows pc_p pc_p' → isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,pc_a)) →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ ▷ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a)
-        ∗ ▷ pc_a ↦ₐ[pc_p'] w
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+        ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ w1
         ∗ ▷ r2 ↦ᵣ inl 0%Z }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,pc_a')
-          ∗ pc_a ↦ₐ[pc_p'] w
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ w1
           ∗ r2 ↦ᵣ inl 0%Z }}}.
   Proof.
-    iIntros (Hinstr Hfl Hvpc Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
     iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.

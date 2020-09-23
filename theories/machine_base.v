@@ -396,7 +396,7 @@ Ltac destruct_pair_l c n :=
   end.
 
 Ltac destruct_cap c :=
-  destruct_pair_l c 4.
+  destruct_pair_l c 3.
 
 (* Useful instances *)
 
