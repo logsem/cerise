@@ -3,7 +3,7 @@ From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug
 From iris.proofmode Require Import tactics.
 
 Section region.
-  Context `{MachineParameters, memG Σ, regG Σ, MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context `{MachineParameters, memG Σ, regG Σ}.
 
   (*------------------------- region_size ------------------------------------*)
 
@@ -425,8 +425,8 @@ Section region.
 
   (*--------------------------------------------------------------------------*)
 
-  Definition region_mapsto (b e : Addr) (p : Perm) (ws : list Word) : iProp Σ :=
-    ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↦ₐ[p] y2)%I.
+  Definition region_mapsto (b e : Addr) (ws : list Word) : iProp Σ :=
+    ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↦ₐ y2)%I.
 
   Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
     (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
@@ -435,22 +435,22 @@ Section region.
     (b <= a)%a ∧ (a < e)%a.
 
   Lemma mapsto_decomposition:
-    forall l1 l2 p ws1 ws2,
+    forall l1 l2 ws1 ws2,
       length l1 = length ws1 ->
-      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↦ₐ[p] y2)%I ⊣⊢
-      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ[p] y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ[p] y2)%I.
+      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↦ₐ y2)%I ⊣⊢
+      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ y2)%I.
   Proof. intros. rewrite big_sepL2_app' //. Qed.
 
-  Lemma extract_from_region b e p a ws φ :
+  Lemma extract_from_region b e a ws φ :
     let n := length (region_addrs b a) in
     (b <= a ∧ a < e)%a →
-    (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b a p (take n ws)
+        ∗ region_mapsto b a (take n ws)
         ∗ ([∗ list] w ∈ (take n ws), φ w)
-        ∗ a ↦ₐ[p] w ∗ φ w
-        ∗ region_mapsto (^(a+1))%a e p (drop (S n) ws)
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ region_mapsto (^(a+1))%a e (drop (S n) ws)
         ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I).
   Proof.
     intros. iSplit.
@@ -464,7 +464,7 @@ Section region.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
-      iDestruct (mapsto_decomposition _ _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
       case_eq (drop n ws); intros.
       + auto.
       + iDestruct "HA2" as "[HA2 HA3]".
@@ -478,16 +478,16 @@ Section region.
       rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame.
   Qed.
 
-  Lemma extract_from_region' b e a p ws φ `{!∀ x, Persistent (φ x)}:
+  Lemma extract_from_region' b e a ws φ `{!∀ x, Persistent (φ x)}:
     let n := length (region_addrs b a) in
     (b <= a ∧ a < e)%a →
-    (region_mapsto b e p ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b a p (take n ws)
+        ∗ region_mapsto b a (take n ws)
         ∗ ([∗ list] w ∈ ws, φ w)
-        ∗ a ↦ₐ[p] w ∗ φ w
-        ∗ region_mapsto (^(a+1))%a e p (drop (S n) ws))%I.
+        ∗ a ↦ₐ w ∗ φ w
+        ∗ region_mapsto (^(a+1))%a e (drop (S n) ws))%I.
   Proof.
     intros. iSplit.
     - iIntros "H".
@@ -543,13 +543,13 @@ Section region.
     rewrite (drop_S' _ (take n ws ++ drop n ws) n w (l2)); try congruence.
   Qed.
 
-  Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)
-            (at level 50, format "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]") : bi_scope.
+  Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
 
   Lemma region_mapsto_cons
-      (b b' e : Addr) (w : Word) (ws : list Word) (p : Perm) :
+      (b b' e : Addr) (w : Word) (ws : list Word) :
     (b + 1)%a = Some b' → (b' <= e)%a →
-    [[b, e]] ↦ₐ [p] [[ w :: ws ]] ⊣⊢ b ↦ₐ[p] w ∗ [[b', e]] ↦ₐ [p] [[ ws ]].
+    [[b, e]] ↦ₐ [[ w :: ws ]] ⊣⊢ b ↦ₐ w ∗ [[b', e]] ↦ₐ [[ ws ]].
   Proof.
     intros Hb' Hb'e.
     rewrite /region_mapsto.
@@ -562,10 +562,10 @@ Section region.
     eauto.
   Qed.
 
-  Lemma region_mapsto_single b e p l:
+  Lemma region_mapsto_single b e l:
     (b+1)%a = Some e →
-    [[b,e]] ↦ₐ[p] [[l]] -∗
-    ∃ v, b ↦ₐ[p] v ∗ ⌜l = [v]⌝.
+    [[b,e]] ↦ₐ [[l]] -∗
+    ∃ v, b ↦ₐ v ∗ ⌜l = [v]⌝.
   Proof.
     iIntros (Hbe) "H". rewrite /region_mapsto region_addrs_single //.
     iDestruct (big_sepL2_length with "H") as %Hlen.
@@ -574,10 +574,10 @@ Section region.
     iDestruct "H" as "(H & _)". eauto.
   Qed.
 
-  Lemma region_mapsto_split  (b e a : Addr) (p : Perm) (w1 w2 : list Word) :
+  Lemma region_mapsto_split  (b e a : Addr) (w1 w2 : list Word) :
      (b ≤ a ≤ e)%Z →
      (length w1) = (region_size b a) →
-     ([[b,e]]↦ₐ[p][[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ[p][[w1]] ∗ [[a,e]]↦ₐ[p][[w2]])%I.
+     ([[b,e]]↦ₐ[[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ[[w1]] ∗ [[a,e]]↦ₐ[[w2]])%I.
    Proof with try (rewrite /region_size; solve_addr).
      intros [Hba Hae] Hsize.
      iSplit.
@@ -600,8 +600,8 @@ Section region.
 
 End region.
 
-Global Notation "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]" := (region_mapsto b e p ws)
-            (at level 50, format "[[ b , e ]] ↦ₐ [ p ] [[ ws ]]") : bi_scope.
+Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
 
 Global Notation "[[ b , e ]] ⊂ₐ [[ b' , e' ]]" := (included b e b' e')
             (at level 50, format "[[ b , e ]] ⊂ₐ [[ b' , e' ]]") : bi_scope.

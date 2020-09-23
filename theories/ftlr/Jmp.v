@@ -2,50 +2,44 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine Require Import ftlr_base monotone.
+From cap_machine Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Jmp.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
-  Notation WORLD := (prodO STS_STD STS). 
-  Implicit Types W : WORLD.
-
-  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
-  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iProp Σ).
+  Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma jmp_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (r0 : RegName):
-    ftlr_instr W r p p' g b e a w (Jmp r0) ρ.
+
+  Lemma jmp_case (r : leibnizO Reg) (p : Perm)
+        (b e a : Addr) (w : Word) (r0 : RegName) (P : D):
+    ftlr_instr r p b e a w (Jmp r0) P.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
-    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
-    iIntros "Hr Hstate Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "#IH #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r0).
     * subst r0.
       iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame. 
-      iNext. iIntros "[HPC Ha] /=".
+      iNext. iIntros "[HPC Ha] /=". 
+      (* reconstruct invariant *)
+      iMod ("Hcls" with "[Ha HP]") as "_";[iExists w;iFrame|]. 
+      iModIntro. 
       iApply wp_pure_step_later; auto.
-      (* reconstruct regions *)
+      (* reconstruct registers *)
       iNext. 
       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-      (* close region *)
-      iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-      { destruct ρ;auto;[..|specialize (Hnotstatic g0)];contradiction. }
       (* apply IH *)
-      iApply ("IH" $! _ _ _ g _ _ a with "[] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
+      iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
       { iPureIntro. apply Hsome. }
-      destruct p; iFrame. 
-      destruct Hp as [Hp | [Hp | [Hp Hg] ] ]; congruence.
+      destruct Hp as [-> | ->]; iFrame.
+      rewrite fixpoint_interp1_eq /=. 
     * specialize Hsome with r0 as Hr0.
       destruct Hr0 as [wsrc Hsomesrc].
       iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hsrc Hmap]"; eauto.
