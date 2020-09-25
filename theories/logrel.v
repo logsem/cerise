@@ -220,15 +220,13 @@ Section logrel.
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
     (interp (inr (p,b,e,a)) →
-     (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp))%I.
+     (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if writeAllowed p then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction;
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
     try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-    - iDestruct "Hiff" as "[Hread Hwrite]". iFrame. 
-    - iDestruct "Hiff" as "[Hread Hwrite]". iFrame. 
   Qed.
 
   Lemma write_allowed_inv (a' a b e: Addr) p :
@@ -255,5 +253,88 @@ Section logrel.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hwrite". iFrame.
   Qed.
+
+  Definition writeAllowedWord (w : Word) : Prop :=
+    match w with
+    | inl _ => False
+    | inr (p,_,_,_) => writeAllowed p = true
+    end.
+
+  Definition hasValidAddress (w : Word) (a : Addr) : Prop :=
+    match w with
+    | inl _ => False
+    | inr (p,b,e,a') => (b ≤ a' ∧ a' < e)%Z ∧ a = a'
+    end. 
   
+  Definition writeAllowed_in_r_a r a := 
+    ∃ reg, writeAllowedWord (r !r! reg) ∧ hasValidAddress (r !r! reg) a.
+
+  From Coq Require Import Eqdep_dec.
+  
+  Global Instance reg_finite : finite.Finite RegName.
+  Proof. apply (finite.enc_finite (λ r : RegName, match r with
+                                                  | PC => S RegNum
+                                                  | addr_reg.R n fin => n
+                                                  end)
+                                   (λ n : nat, match n_to_regname n with | Some r => r | None => PC end)
+                                   (S (S RegNum))).
+         - intros x. destruct x;auto.
+           unfold n_to_regname. 
+           destruct (nat_le_dec n RegNum).
+           + do 2 f_equal. apply eq_proofs_unicity. decide equality.
+           + exfalso. by apply (Nat.leb_le n RegNum) in fin.
+         - intros x. 
+           + destruct x;[lia|]. apply leb_le in fin. lia.
+         - intros i Hlt. unfold n_to_regname.
+           destruct (nat_le_dec i RegNum);auto.
+           lia.
+  Qed.
+
+  Global Instance writeAllowedWord_dec: Decision (writeAllowedWord w).
+  Proof. intros w. destruct w;[right;auto|]. destruct c,p,p,p;simpl;apply _. Qed. 
+  
+  Global Instance hasValidAddress_dec : Decision (hasValidAddress w a).
+  Proof. intros w a. destruct w;[right;auto|]. destruct c,p,p,p;simpl;apply _. Qed. 
+                                                                            
+  Global Instance writeAllowed_in_r_a_Decidable : Decision (writeAllowed_in_r_a r a).
+  Proof.
+    intros r a. apply finite.exists_dec. 
+    intros x. destruct (r !! x) eqn:Hsome.
+    - rewrite /RegLocate. rewrite Hsome. apply _.
+    - rewrite /RegLocate Hsome. right;simpl. intros [??]. done. 
+  Qed.
+
+  Global Instance writeAllowed_in_r_a_Persistent : Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
+  Proof. intros. case_decide; apply _. Qed. 
+      
+  Lemma read_allowed_inv_regs (a' a b e: Addr) p r :
+    (b ≤ a' ∧ a' < e)%Z →
+    readAllowed p →
+    (interp_registers r -∗
+    interp (inr (p,b,e,a)) -∗
+     (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=inr (p,b,e,a)]> r) a') then write_cond P interp else emp))%I.
+  Proof.
+    iIntros (Hin Ra) "#Hregs #Hinterp".
+    rewrite /interp_registers /interp_reg /=.
+    iDestruct "Hregs" as "[Hfull Hregvalid]".
+    case_decide as Hinra.
+    - destruct Hinra as [reg [Hwa Ha] ]. 
+      destruct (decide (reg = PC)). 
+      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
+        rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
+        destruct p; try contradiction; inversion Hwa;
+          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
+        destruct (r !! reg) eqn:Hsome;rewrite Hsome in Ha Hwa;[|inversion Ha].
+        destruct w;[inversion Ha|]. destruct c,p0,p0. destruct Ha as [Hwba ->].
+        iSpecialize ("Hregvalid" $! _ n). rewrite /RegLocate Hsome. iClear "Hinterp".
+        rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
+        destruct p0; try contradiction; inversion Hwa;
+        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+    - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
+      destruct p; try contradiction; 
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+  Qed.
+   
 End logrel.

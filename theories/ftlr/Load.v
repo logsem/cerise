@@ -72,7 +72,7 @@ Section fundamental.
          iDestruct ("Hreg" $! src n) as "Hvsrc".
          rewrite lookup_insert_ne in Hrinr; last by congruence.
          rewrite /RegLocate Hrinr.
-         iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv Hconds]"; auto;
+         iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P. 
          iMod (inv_open (⊤ ∖ ↑logN.@a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
@@ -199,7 +199,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Load dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -281,7 +281,7 @@ Section fundamental.
           erewrite locate_eq_reg; [ | reflexivity]; auto.
           destruct (decide (a = a0)).
           - simplify_eq. iFrame "Hw".
-          - iClear "HLoadRes". rewrite decide_True. iFrame "#". auto. 
+          - iClear "HLoadRes". iClear "Hwrite". rewrite decide_True. iFrame "#". auto.
         }
         { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
           iApply "Hreg"; auto. }
@@ -296,11 +296,11 @@ Section fundamental.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).
            destruct (decide (a = a0)).
            + simplify_map_eq. 
-           + iClear "HLoadRes". rewrite decide_True;auto. iAlways.
+           + iClear "HLoadRes Hwrite". rewrite decide_True;auto. iAlways.
              rewrite !fixpoint_interp1_eq. 
-             destruct o as [-> | ->];iFrame "Hinterp". 
+             destruct o as [-> | ->]; iFrame "Hinterp". 
          - (* iExists p'. *) simplify_map_eq.
-           iAlways. iClear "Hw Hinterp". 
+           iAlways. iClear "Hw Hinterp Hwrite". 
            rewrite !fixpoint_interp1_eq /=. 
            destruct o as [-> | ->]; iFrame "Hinv". 
        }

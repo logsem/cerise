@@ -39,49 +39,64 @@ Section cap_lang_rules.
          split; auto.
   Qed.
 
-  Definition reg_allows_store (regs : Reg) (r : RegName) p b e a (storev : Word) :=
+  Definition reg_allows_store (regs : Reg) (r : RegName) p b e a :=
     regs !! r = Some (inr (p, b, e, a)) ∧
     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true.
 
-  Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word):=
+  Inductive Store_failure_store (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word):=
   | Store_fail_const z:
       regs !! r1 = Some(inl z) ->
-      Store_failure regs r1 r2 mem
+      Store_failure_store regs r1 r2 mem
   | Store_fail_bounds p b e a:
       regs !! r1 = Some(inr (p, b, e, a)) ->
       (writeAllowed p = false ∨ withinBounds (p, b, e, a) = false) →
-      Store_failure regs r1 r2 mem
-  | Store_fail_invalid_PC:
-      incrementPC (regs) = None ->
-      Store_failure regs r1 r2 mem
+      Store_failure_store regs r1 r2 mem
   .
 
+  Inductive Store_failure_incr (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word):=
+  | Store_fail_invalid_PC:
+      incrementPC (regs) = None ->
+      Store_failure_incr regs r1 r2 mem
+  .
+
+  (* Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word) := *)
+  (* | Store_fail_s : Store_failure_incr regs r1 r2 mem -> Store_failure regs r1 r2 mem *)
+  (* | Store_fail_i : Store_failure_store regs r1 r2 mem → Store_failure regs r1 r2 mem.  *)
+  
   Inductive Store_spec
     (regs: Reg) (r1 : RegName) (r2 : Z + RegName)
     (regs': Reg) (mem mem' : gmap Addr Word) : cap_lang.val → Prop
   :=
   | Store_spec_success p b e a storev oldv :
-    word_of_argument regs r2 = Some storev ->
-    reg_allows_store regs r1 p b e a storev  →
-    mem !! a = Some oldv →
-    mem' = (<[a := storev]> mem) →
-    incrementPC(regs) = Some regs' ->
-    Store_spec regs r1 r2 regs' mem mem' NextIV
-  | Store_spec_failure :
-    Store_failure regs r1 r2 mem ->
-    Store_spec regs r1 r2 regs' mem mem' FailedV.
+      word_of_argument regs r2 = Some storev ->
+      reg_allows_store regs r1 p b e a  →
+      mem !! a = Some oldv →
+      mem' = (<[a := storev]> mem) →
+      incrementPC(regs) = Some regs' ->
+      Store_spec regs r1 r2 regs' mem mem' NextIV
+  | Store_spec_failure_store :
+      mem' = mem →
+      Store_failure_store regs r1 r2 mem ->
+      Store_spec regs r1 r2 regs' mem mem' FailedV
+  | Store_spec_failure_incr p b e a storev oldv :
+      word_of_argument regs r2 = Some storev ->
+      reg_allows_store regs r1 p b e a  →
+      mem !! a = Some oldv →
+      mem' = (<[a := storev]> mem) →
+      Store_failure_incr regs r1 r2 mem ->
+      Store_spec regs r1 r2 regs' mem mem' FailedV.
+  
 
-
-  Definition allow_store_map_or_true (r1 : RegName) (r2 : Z + RegName) (regs : Reg) (mem : gmap Addr Word):=
-    ∃ p b e a storev,
-      read_reg_inr regs r1 p b e a ∧ word_of_argument regs r2 = Some storev ∧
-      if decide (reg_allows_store regs r1 p b e a storev) then
+  Definition allow_store_map_or_true (r1 : RegName) (regs : Reg) (mem : gmap Addr Word):=
+    ∃ p b e a,
+      read_reg_inr regs r1 p b e a ∧ 
+      if decide (reg_allows_store regs r1 p b e a) then
         ∃ w, mem !! a = Some w
       else True.
 
   Lemma allow_store_implies_storev:
     ∀ (r1 : RegName)(r2 : Z + RegName) (mem0 : gmap Addr Word) (r : Reg) (p : Perm) (b e a : Addr) storev,
-      allow_store_map_or_true r1 r2 r mem0
+      allow_store_map_or_true r1 r mem0
       → r !r! r1 = inr (p, b, e, a)
       → word_of_argument r r2 = Some storev
       → writeAllowed p = true
@@ -91,57 +106,54 @@ Section cap_lang_rules.
   Proof.
     intros r1 r2 mem0 r p b e a storev HaStore Hr2v Hwoa Hwa Hwb.
     unfold allow_store_map_or_true in HaStore.
-    destruct HaStore as (?&?&?&?&?&[Hrr | Hrl]&Hwo&Hmem).
+    destruct HaStore as (?&?&?&?&[Hrr | Hrl]&Hwo).
     - assert (Hrr' := Hrr). option_locate_mr_once m r.
       rewrite Hrr1 in Hr2v; inversion Hr2v; subst.
       case_decide as HAL.
       * auto.
       * unfold reg_allows_store in HAL.
-        destruct HAL. rewrite Hwo in Hwoa; inversion Hwoa. auto.
+        destruct HAL. inversion Hwoa. auto. 
     - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
   Qed.
 
   Lemma mem_eq_implies_allow_store_map:
-    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(r2 : Z + RegName)(w storev : Word) p b e a,
+    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(w : Word) p b e a,
       mem = <[a:=w]> ∅
       → regs !! r1 = Some (inr (p,b,e,a))
-      → word_of_argument regs r2 = Some storev
-      → allow_store_map_or_true r1 r2 regs mem.
+      → allow_store_map_or_true r1 regs mem.
   Proof.
-    intros regs mem r1 r2 w storev p b e a Hmem Hrr2 Hwoa.
-    exists p,b,e,a,storev; split.
+    intros regs mem r1 w p b e a Hmem Hrr2.
+    exists p,b,e,a; split.
     - left. by simplify_map_eq.
     - case_decide; last done.
-      split; auto. exists w. simplify_map_eq. auto.
+      exists w. simplify_map_eq. auto.
   Qed.
 
   Lemma mem_neq_implies_allow_store_map:
-    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(r2 : Z + RegName)(pc_a : Addr)
-      (w w' storev : Word) p b e a,
+    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(pc_a : Addr)
+      (w w' : Word) p b e a,
       a ≠ pc_a
       → mem = <[pc_a:=w]> (<[a:=w']> ∅)
       → regs !! r1 = Some (inr (p,b,e,a))
-      → word_of_argument regs r2 = Some storev
-      → allow_store_map_or_true r1 r2 regs mem.
+      → allow_store_map_or_true r1 regs mem.
   Proof.
-    intros regs mem r1 r2 pc_a w w' storev p b e a H4 Hrr2 Hwoa.
-    exists p,b,e,a,storev; split.
+    intros regs mem r1 pc_a w w' p b e a H4 Hrr2.
+    exists p,b,e,a; split.
     - left. by simplify_map_eq.
     - case_decide; last done.
-      split; auto. exists w'. simplify_map_eq. split; auto.
+      exists w'. simplify_map_eq. split; auto.
   Qed.
 
   Lemma mem_implies_allow_store_map:
-    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(r2 : Z + RegName)(pc_a : Addr)
-      (w w' storev : Word) p b e a,
+    ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(pc_a : Addr)
+      (w w' : Word) p b e a,
       (if (a =? pc_a)%a
        then mem = <[pc_a:=w]> ∅
        else mem = <[pc_a:=w]> (<[a:=w']> ∅))
       → regs !! r1 = Some (inr (p,b,e,a))
-      → word_of_argument regs r2 = Some storev
-      → allow_store_map_or_true r1 r2 regs mem.
+      → allow_store_map_or_true r1 regs mem.
   Proof.
-    intros regs mem r1 r2 pc_a w w' storev p b e a H4 Hrr2 Hwoa.
+    intros regs mem r1 pc_a w w' p b e a H4 Hrr2.
     destruct (a =? pc_a)%a eqn:Heq.
       + apply Z.eqb_eq, z_of_eq in Heq. subst a. eapply mem_eq_implies_allow_store_map; eauto.
       + apply Z.eqb_neq in Heq.  eapply mem_neq_implies_allow_store_map; eauto. congruence.
@@ -155,7 +167,7 @@ Section cap_lang_rules.
    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
    regs_of (Store r1 r2) ⊆ dom _ regs →
    mem !! pc_a = Some w →
-   allow_store_map_or_true r1 r2 regs mem →
+   allow_store_map_or_true r1 regs mem →
 
    {{{ (▷ [∗ map] a↦w ∈ mem, a ↦ₐ w) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
@@ -190,8 +202,9 @@ Section cap_lang_rules.
      destruct r1v as  [| (([p b] & e) & a) ] eqn:Hr1v.
      { (* Failure: r1 is not a capability *)
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
-         by (destruct r2; inversion Hstep; auto).
-       iFailWP "Hφ" Store_fail_const.
+           by (destruct r2; inversion Hstep; auto).
+       cbn; iFrame; iApply "Hφ"; iFrame.
+       iPureIntro. econstructor; eauto. econstructor; eauto. 
      }
 
      destruct (writeAllowed p && withinBounds (p, b, e, a)) eqn:HWA; rewrite HWA in Hstep.
@@ -244,7 +257,10 @@ Section cap_lang_rules.
         { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
         rewrite incrementPC_fail_updatePC /= in HH; auto.
         inversion HH.
-        iFailWP "Hφ" Store_fail_invalid_PC.
+        cbn; iFrame; iApply "Hφ"; iFrame.
+        iPureIntro. eapply Store_spec_failure_incr;eauto.
+        - split;eauto. 
+        - constructor. auto. 
       }
 
      (* Success *)
@@ -287,7 +303,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H3 as [Hrr2 _]. simplify_map_eq.
@@ -297,9 +313,14 @@ Section cap_lang_rules.
        rewrite !insert_insert.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H3; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H2. all:congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H3,H6; try incrementPC_inv; simplify_map_eq; eauto.
+       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
+       congruence. 
      }
    Qed.
 
@@ -330,7 +351,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -340,10 +361,13 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
-       - apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-         destruct o; last apply Is_true_false in H3; congruence.
-       - naive_solver. 
+       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
+       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
+       destruct o; last apply Is_true_false in H3; congruence.
+     }
+     { destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto.
+       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
+       congruence. 
      }
     Qed.
 
@@ -372,7 +396,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H3 as [Hrr2 _]. simplify_map_eq.
@@ -381,10 +405,14 @@ Section cap_lang_rules.
        simplify_map_eq.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
-     { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. destruct o . all: try congruence.
-       - apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-         apply Is_true_false in H2; congruence.
+      { (* Failure (contradiction) *)
+       destruct H3; try incrementPC_inv; simplify_map_eq; eauto.
+       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
+       destruct o; last apply Is_true_false in H2; congruence.
+     }
+     { destruct H3,H6; try incrementPC_inv; simplify_map_eq; eauto.
+       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
+       congruence. 
      }
     Qed.
 
@@ -416,7 +444,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -426,8 +454,11 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence.
+     }
+     { destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
      }
      Qed.
 
@@ -468,7 +499,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
@@ -488,9 +519,14 @@ Section cap_lang_rules.
          iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame.
      }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
+     { (* Failure (contradiction) *)
+       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
+     }
+
    Qed.
 
    Lemma wp_store_success_reg_same' E pc_p pc_b pc_e pc_a pc_a' w dst
@@ -521,7 +557,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -531,8 +567,11 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto. congruence. 
      }
    Qed.
 
@@ -566,7 +605,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H6 as [Hrr2 _]. simplify_map_eq.
@@ -576,8 +615,12 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H6; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H6,H9; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
      }
    Qed.
 
@@ -613,7 +656,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H7 as [Hrr2 _]. simplify_map_eq.
@@ -624,8 +667,12 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H7; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H7,H10; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
      }
     Qed.
 
@@ -659,7 +706,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
@@ -670,8 +717,12 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
      }
     Qed.
 
@@ -705,7 +756,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec as [ | * Hfail ].
+    destruct Hspec. 
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
@@ -716,8 +767,12 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
+     }
+     { (* Failure (contradiction) *)
+       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       congruence. 
      }
     Qed.
 
