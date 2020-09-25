@@ -2,23 +2,17 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Import ftlr_base monotone region interp_weakening.
+From cap_machine Require Import ftlr_base region interp_weakening.
 From cap_machine Require Import addr_reg.
 From cap_machine.rules Require Import rules_base rules_Subseg.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
-  Notation WORLD := (prodO STS_STD STS). 
-  Implicit Types W : WORLD.
-
-  Notation D := (WORLD -n> (leibnizO Word) -n> iProp Σ).
-  Notation R := (WORLD -n> (leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iProp Σ).
+  Notation R := ((leibnizO Reg) -n> iProp Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -47,51 +41,32 @@ Section fundamental.
     intros * ? ? [? ?]. split; solve_addr.
   Qed.
 
-  Lemma subseg_interp_preserved W p l b b' e e' a :
+  Lemma subseg_interp_preserved p b b' e e' a :
       p <> E ->
 
       (b <= b')%a ->
       (e' <= e)%a ->
-      □ ▷ (∀ (a7 : WORLD) (a8 : Reg) (a9 : Perm) (a10 : Locality) 
-             (a11 a12 a13 : Addr),
-              full_map a8
-                       -∗ (∀ r1 : RegName,
-                              ⌜r1 ≠ PC⌝
-                              → ((fixpoint interp1) a7)
-                                  match a8 !! r1 with
-                                  | Some w0 => w0
-                                  | None => inl 0%Z
-                                  end)
-                       -∗ registers_mapsto (<[PC:=inr (a9, a10, a11, a12, a13)]> a8)
-                       -∗ region a7
-                       -∗ sts_full_world a7
-                       -∗ na_own logrel_nais ⊤
-                       -∗ ⌜a9 = RX ∨ a9 = RWX ∨ a9 = RWLX ∧ a10 = Local⌝
-              → □ ([∗ list] a14 ∈ region_addrs a11 a12,
-                   ∃ p'0 : Perm,
-                      ⌜PermFlows a9 p'0⌝ ∗
-                         read_write_cond a14 p'0 interp
-                         ∧ ⌜if pwl a9
-                            then region_state_pwl a7 a14
-                            else region_state_nwl a7 a14 a10⌝) -∗ 
-                  interp_conf a7) -∗
-      (fixpoint interp1) W (inr (p, l, b, e, a)) -∗
-      (fixpoint interp1) W (inr (p, l, b', e', a)).
+      (□ ▷ (∀ a0 a1 a2 a3 a4,
+             full_map a0
+          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
+          -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
+          -∗ na_own logrel_nais ⊤
+          -∗ ⌜a1 = RX ∨ a1 = RWX⌝
+             → □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)) -∗
+      (fixpoint interp1) (inr (p, b, e, a)) -∗
+      (fixpoint interp1) (inr (p, b', e', a)).
   Proof.
     intros Hne Hb He. iIntros "#IH Hinterp".
     iApply (interp_weakening with "IH Hinterp"); eauto.
-    - destruct (isU p); solve_addr.
-    - destruct p; reflexivity.
-    - destruct l; reflexivity.
+    destruct p; reflexivity.
   Qed.
-
-  Lemma subseg_case (W : WORLD) (r : leibnizO Reg) (p p' : Perm)
-        (g : Locality) (b e a : Addr) (w : Word) (ρ : region_type) (dst : RegName) (r1 r2 : Z + RegName):
-    ftlr_instr W r p p' g b e a w (Subseg dst r1 r2) ρ.
+  
+  Lemma subseg_case (r : leibnizO Reg) (p : Perm)
+        (b e a : Addr) (w : Word) (dst : RegName) (r1 r2 : Z + RegName) (P:D):
+    ftlr_instr r p b e a w (Subseg dst r1 r2) P.
   Proof.
-    intros Hp Hsome i Hbae Hfp Hpwl Hregion [Hnotrevoked Hnotstatic] HO Hi.
-    iIntros "#IH #Hinv #Hreg #Hinva Hmono #Hw Hsts Hown".
-    iIntros "Hr Hstate Ha HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -102,32 +77,35 @@ Section fundamental.
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
-    { iApply wp_pure_step_later; auto. iNext.
+    { iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro;iNext].
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&g''&b''&e''&a''& ? & HPC & Z & Hregs')
+      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
       end. simplify_map_eq.
-      iApply wp_pure_step_later; auto. iNext.
-
+      iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro;iNext].
       destruct (reg_eq_dec PC dst).
       { subst dst. repeat rewrite insert_insert in HPC |- *. simplify_map_eq.
-        iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
-        iApply ("IH" $! _ r with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); try iClear "IH"; eauto.
+        iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
         iAlways. 
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
         destruct (Z_le_dec b'' e'').
-        + rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
-          iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
-          iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
-          iFrame "#".
-        + replace (region_addrs b'' e'') with (nil: list Addr).
-          rewrite big_sepL_nil. auto.
-          unfold region_addrs, region_size. rewrite Z_to_nat_nonpos //; lia. }
+        + rewrite !fixpoint_interp1_eq. destruct Hp as [-> | ->].
+          - iSimpl in "Hinv". rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
+            iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
+            iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
+            iFrame "#".
+          - iSimpl in "Hinv". rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
+            iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
+            iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
+            iFrame "#".
+        + rewrite !fixpoint_interp1_eq /=.
+          (destruct Hp as [-> | ->]; replace (region_addrs b'' e'') with (nil: list Addr);
+          try rewrite big_sepL_nil); auto; 
+          unfold region_addrs, region_size;rewrite Z_to_nat_nonpos //; lia. }
       { simplify_map_eq.
-        iDestruct (region_close with "[$Hstate $Hr $Ha $Hmono]") as "Hr"; eauto.
-        { destruct ρ;auto;[..|specialize (Hnotstatic g)];contradiction. }
-        iApply ("IH" $! _ (<[dst:=_]> _) with "[%] [] [Hmap] [$Hr] [$Hsts] [$Hown]"); eauto.
+        iApply ("IH" $! (<[dst:=_]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.
           destruct (reg_eq_dec dst x0); auto; right; split; auto.
@@ -140,7 +118,8 @@ Section fundamental.
             generalize (isWithin_implies _ _ _ _ H4). intros [A B]. 
             rewrite H0. iApply subseg_interp_preserved; eauto.
           + repeat rewrite lookup_insert_ne; auto.
-            iApply "Hreg"; auto. } }
+            iApply "Hreg"; auto.
+        - rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". } }
   Qed.
 
 End fundamental.
