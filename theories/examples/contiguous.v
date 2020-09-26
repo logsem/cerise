@@ -1,5 +1,4 @@
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import region_macros.
 From cap_machine Require Import addr_reg_sample.
 
 
@@ -499,9 +498,7 @@ Section Contiguous.
   Qed.
 
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ}.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}.
 
   (* Note that we are assuming that both prog1 and prog2 are nonempty *)
   Lemma contiguous_between_program_split prog1 prog2 (φ : Addr → Word → iProp Σ) a i j :
@@ -575,51 +572,51 @@ End Contiguous.
 
 Opaque contiguous.
 
-Definition isCorrectPC_range p g b e a0 an :=
-  ∀ ai, (a0 <= ai)%a ∧ (ai < an)%a → isCorrectPC (inr (p, g, b, e, ai)).
+Definition isCorrectPC_range p b e a0 an :=
+  ∀ ai, (a0 <= ai)%a ∧ (ai < an)%a → isCorrectPC (inr (p, b, e, ai)).
 
-Lemma isCorrectPC_inrange p g b (e a0 an a: Addr) :
-  isCorrectPC_range p g b e a0 an →
+Lemma isCorrectPC_inrange p b (e a0 an a: Addr) :
+  isCorrectPC_range p b e a0 an →
   (a0 <= a < an)%Z →
-  isCorrectPC (inr (p, g, b, e, a)).
+  isCorrectPC (inr (p, b, e, a)).
 Proof.
   unfold isCorrectPC_range. move=> /(_ a) HH ?. apply HH. eauto.
 Qed.
 
-Lemma isCorrectPC_contiguous_range p g b e a0 an a l :
-  isCorrectPC_range p g b e a0 an →
+Lemma isCorrectPC_contiguous_range p b e a0 an a l :
+  isCorrectPC_range p b e a0 an →
   contiguous_between l a0 an →
   a ∈ l →
-  isCorrectPC (inr (p, g, b, e, a)).
+  isCorrectPC (inr (p, b, e, a)).
 Proof.
   intros Hr Hc Hin.
   eapply isCorrectPC_inrange; eauto.
   eapply contiguous_between_middle_bounds'; eauto.
 Qed.
 
-Lemma isCorrectPC_range_perm p g b e a0 an :
-  isCorrectPC_range p g b e a0 an →
+Lemma isCorrectPC_range_perm p b e a0 an :
+  isCorrectPC_range p b e a0 an →
   (a0 < an)%a →
-  p = RX ∨ p = RWX ∨ p = RWLX.
+  p = RX ∨ p = RWX.
 Proof.
   intros Hr H0n.
-  assert (isCorrectPC (inr (p, g, b, e, a0))) as HH by (apply Hr; solve_addr).
+  assert (isCorrectPC (inr (p, b, e, a0))) as HH by (apply Hr; solve_addr).
   inversion HH; auto.
 Qed.
 
-Lemma isCorrectPC_range_perm_non_E p g b e a0 an :
-  isCorrectPC_range p g b e a0 an →
+Lemma isCorrectPC_range_perm_non_E p b e a0 an :
+  isCorrectPC_range p b e a0 an →
   (a0 < an)%a →
   p ≠ E.
 Proof.
-  intros HH1 HH2. pose proof (isCorrectPC_range_perm _ _ _ _ _ _ HH1 HH2).
+  intros HH1 HH2. pose proof (isCorrectPC_range_perm _ _ _ _ _ HH1 HH2).
   naive_solver.
 Qed.
 
-Lemma isCorrectPC_range_restrict p g b e a0 an a0' an' :
-  isCorrectPC_range p g b e a0 an →
+Lemma isCorrectPC_range_restrict p b e a0 an a0' an' :
+  isCorrectPC_range p b e a0 an →
   (a0 <= a0')%a ∧ (an' <= an)%a →
-  isCorrectPC_range p g b e a0' an'.
+  isCorrectPC_range p b e a0' an'.
 Proof.
   intros HR [? ?] a' [? ?]. apply HR. solve_addr.
 Qed.

@@ -1,16 +1,24 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel stack_macros_helpers stack_macros.
+From cap_machine Require Import rules logrel macros_helpers macros.
 
 Section scall.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {stsg : STSG Addr region_type Σ} {heapg : heapG Σ}
-          `{MonRef: MonRefG (leibnizO _) CapR_rtc Σ} {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  (* Macro for stack calling. Note that the prologue and epilogue does
-     not include storing and loading private state on the stack. *)
+  (* Macro for a heap based calling convention *)
+
+  (* 
+     The calling convention performs the following steps:
+     
+     1. It allocates heap space to store the activation record, the current r_env and the continuation
+     2. It creates a copy of the PC and moves it to point to the continuing instruction
+     3. It stores the activation record, r_env, and continuation 
+     4. It restricts the allocated capability to be an E capability (a closure)
+     5. It clears all registers except r1, rt_0 and the parameters
+   *)
 
   (* helper lemma for the length of the registers *)
   Ltac iRegNotEq Hne :=
