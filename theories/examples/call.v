@@ -3,7 +3,34 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros.
 
+
+Lemma big_sepM_to_big_sepL2 (PROP : bi) (A B : Type) `{EqDecision A} `{Countable A}
+      (φ: A -> B -> PROP) (m : gmap A B) l1 l2 :
+  (map_to_list m).*1 = l1 → (map_to_list m).*2 = l2 ->
+  (([∗ map] y1↦y2 ∈ m, φ y1 y2) -∗ ([∗ list] y1;y2 ∈ l1;l2, φ y1 y2))%I.
+Proof.
+  iIntros (Hl1 Hl2) "Hm". 
+  iInduction l1 as [|x l] "IH" forall (l2 m Hl1 Hl2). 
+  - rewrite /fst in Hl1. apply fmap_nil_inv in Hl1. rewrite Hl1 in Hl2. destruct l2;inversion Hl2.
+    apply map_to_list_empty_inv in Hl1. rewrite Hl1. rewrite big_sepM_empty /=. done.
+  - destruct l2.
+    + rewrite /fst in Hl2. apply fmap_nil_inv in Hl2. rewrite Hl2 in Hl1. inversion Hl1.
+    + simpl. apply fmap_cons_inv in Hl1 as [p [l' Hl1] ]. apply fmap_cons_inv in Hl2 as [p' [l'' Hl2] ]. 
+      destruct Hl1 as [Heqp [Heql Hl1] ]. destruct Hl2 as [Heqp' [Heql' Hl2] ]. 
+      subst. rewrite Hl1 in Hl2. inversion Hl2; subst.
+      assert (map_to_list m ≡ₚ p' :: l'').
+      { rewrite Hl1. done. } destruct p'. 
+      apply map_to_list_insert_inv in H0. 
+      rewrite H0.
+      assert (base.NoDup ((a, b) :: l'')).
+      { rewrite -Hl1. apply NoDup_map_to_list. }
+      apply NoDup_cons_11 in H1. 
+      iDestruct (big_sepM_insert with "Hm") as "[Ha Hm]".
+      { apply not_elem_of_list_to_map. rewrite /fmap. intros Hcontr.
+        eapply elem_of_list_fmap_2 in Hcontr as [? [? Hcontr ] ]. subst. Abort.
   
+
+
 Section scall.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
@@ -394,7 +421,12 @@ Section scall.
     iApply (malloc_spec with "[- $HPC $Hnainv $Hown $Hb $Ha_entry $Hmalloc_prog $Hr_t0 $Hparamslocalsgen]");auto;[|apply Hcont1|..].
     { eapply isCorrectPC_range_restrict;eauto. split;[clear;solve_addr|]. apply contiguous_between_bounds in Hcont2. auto. }
     iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hna & Hparamslocalsgen)".
-    iDestruct "Hregion" as (b_l e_l Hlocals_size) "(Hr_t1 & Hbl)". 
+    iDestruct "Hregion" as (b_l e_l Hlocals_size) "(Hr_t1 & Hbl)".
+
+    (* store locals *)
+    iDestruct (contiguous_between_program_split with "Hprog") as
+        (storelocals_prog rest2 link2) "(Hstorelocals_prog & Hprog & #Hcont2)";[apply Hcont2|].
+    iDestruct "Hcont2" as %(Hcont3 & Hcont4 & Heqapp2 & Hlink2).
     
     
     
