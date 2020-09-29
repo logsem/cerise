@@ -444,3 +444,113 @@ Section counter.
       iApply "Hφ". iIntros (Hcontr); inversion Hcontr. 
   Qed.
 
+
+  (* ----------------------------------- RESET -------------------------------------- *)
+  
+  Lemma reset_spec pc_p pc_b pc_e (* PC *)
+        wret (* return cap *)
+        reset_addrs (* program addresses *)
+        d d' (* dynamically allocated memory given by preamble *)
+        a_first a_last (* special adresses *)
+        rmap (* registers *)
+        ι1 (* invariant names *) :
+
+    (* PC assumptions *)
+    isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
+
+    (* Program adresses assumptions *)
+    contiguous_between reset_addrs a_first a_last ->
+    
+    (* malloc'ed memory assumption for the counter *)
+    (d + 1)%a = Some d' ->
+
+    (* footprint of the register map *)
+    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env]} →
+    
+    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+      ∗ r_t0 ↦ᵣ wret
+      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+      (* invariant for d *)
+      ∗ (∃ ι, inv ι (counter_inv d))
+      (* token which states all non atomic invariants are closed *)
+      ∗ na_own logrel_nais ⊤
+      (* callback validity *)
+      ∗ interp wret
+      (* trusted code *)
+      ∗ na_inv logrel_nais ι1 (reset reset_addrs)
+      (* the remaining registers are all valid *)
+      ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
+    }}}
+      Seq (Instr Executable)
+      {{{ v, RET v; ⌜v = HaltedV⌝ →
+                    ∃ r, full_map r ∧ registers_mapsto r
+                         ∗ na_own logrel_nais ⊤ }}}.
+  Proof.
+    iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hreset & #Hregs_val) Hφ". 
+    iDestruct "Hinv" as (ι) "#Hinv".
+    iMod (na_inv_open with "Hreset Hown") as "(>Hprog & Hown & Hcls)";auto.
+    iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
+    destruct_list reset_addrs.
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 
+    (* store r_env 0 *)
+    iPrologue "Hprog". 
+    iInv ι as (w) "[>Hd _]" "Hcls'". 
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_env $Hd]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..].
+    { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
+    iNext. iIntros "(HPC & Hprog_done & Hr_env & Hd)".
+    iMod ("Hcls'" with "[Hd]") as "_". 
+    { iNext. iExists _;iFrame. auto. }
+    iModIntro. iApply wp_pure_step_later;auto;iNext.
+    (* move r_env 0 *)
+    iPrologue "Hprog". 
+    iApply (wp_move_success_z with "[$HPC $Hi $Hr_env]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1|..].
+    iEpilogue "(HPC & Hi & Hr_env)". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    (* jmp r_t0 *)
+    iPrologue "Hprog". 
+    iApply (wp_jmp_success with "[$HPC $Hi $Hr_t0]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
+
+    (* we can now apply the jump or fail pattern *)
+    iDestruct (jmp_or_fail_spec with "Hcallback") as "Hcallback_now". 
+
+    (* reassemble registers *)
+    iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
+    { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+
+    destruct (decide (isCorrectPC (updatePcPerm wret))). 
+    - iDestruct "Hcallback_now" as (p b e a' Heq) "Hcallback'". 
+      simplify_eq.
+      iEpilogue "(HPC & Hi & Hr_t0)".
+      iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
+      { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$)". done. }
+      iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
+      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a')]> (<[r_env:=inl 0%Z]> rmap))). 
+      iDestruct ("Hcallback'" $! regs' with "[Hregs $Hown HPC]") as "[_ Hexpr]". 
+      { rewrite /registers_mapsto /regs'.
+        iSplit.
+        - iClear "Hcallback' Hregs HPC". rewrite /interp_reg /=. iSplit.
+          + iPureIntro.
+            intros r'. simpl.
+            consider_next_reg r' PC. consider_next_reg r' r_t0. consider_next_reg r' r_env.
+            apply elem_of_gmap_dom. rewrite Hdom. assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
+            revert n n0 n1 Hin;clear. set_solver.
+          + iIntros (r' Hne).
+            rewrite /RegLocate.
+            consider_next_reg r' PC. done. consider_next_reg r' r_t0. consider_next_reg r' r_env. rewrite !fixpoint_interp1_eq. done.
+            destruct (rmap !! r') eqn:Hsome;rewrite Hsome;[|rewrite !fixpoint_interp1_eq;done].
+            iDestruct (big_sepM_delete _ _ r' with "Hregs_val") as "[Hr _]";[eauto|]. iFrame "Hr".
+        - rewrite insert_insert. iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
+          rewrite delete_insert. iFrame.
+          repeat (rewrite lookup_insert_ne;auto). 
+          apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver.
+      }
+      rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr". 
+      iIntros (v). iApply "Hφ".
+    - iEpilogue "(HPC & Hi & Hr_t0)".
+      iApply "Hcallback_now". iFrame.
+      iApply "Hφ". iIntros (Hcontr); inversion Hcontr. 
+  Qed.
