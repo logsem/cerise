@@ -121,11 +121,12 @@ Section counter.
     (d + 1)%a = Some d' ->
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env]} →
+    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
     
     {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
       ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)
       ∗ (∃ ι, inv ι (counter_inv d))
@@ -143,17 +144,14 @@ Section counter.
                     ∃ r, full_map r ∧ registers_mapsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
-    iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hregs_val) Hφ". 
+    iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
     iMod (na_inv_open with "Hincr Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct_list incr_addrs.
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 
     (* Get a general purpose register *)
-    assert (is_Some (rmap !! r_t1)) as [w1 Hrt1].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
-      split;[apply all_registers_s_correct|clear;set_solver]. }
-    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[eauto|]. 
+    iDestruct "Hr_t1" as (w1) "Hr_t1". 
     (* load r_t1 r_env *)
     iPrologue "Hprog". rewrite /counter_inv. 
     iInv ι as (w) "[>Hd >#Hcond]" "Hcls'".
@@ -198,9 +196,10 @@ Section counter.
     (* close program invariant *)
     
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|]. 
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
+    { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     (* now we are ready to apply the jump or fail pattern *)
     destruct (decide (isCorrectPC (updatePcPerm wret))). 
     - iDestruct "Hcallback_now" as (p b e a Heq) "Hcallback'". 
@@ -209,7 +208,7 @@ Section counter.
       iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
       { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$&$)". done. }
       iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-      { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
       set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a)]> (<[r_env:=inl 0%Z]> (<[r_t1:=inl (z + 1)%Z]> (delete r_t1 rmap))))). 
       iDestruct ("Hcallback'" $! regs' with "[Hregs $Hown HPC]") as "[_ Hexpr]". 
       { rewrite /registers_mapsto /regs'.
@@ -220,7 +219,7 @@ Section counter.
             consider_next_reg r' PC. consider_next_reg r' r_t0. consider_next_reg r' r_env. rewrite insert_delete.
             consider_next_reg r' r_t1. 
             apply elem_of_gmap_dom. rewrite Hdom. assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
-            revert n n0 n1 Hin;clear. set_solver.
+            revert n n0 n1 n2 Hin;clear. set_solver.
           + iIntros (r Hne).
             rewrite /RegLocate.
             consider_next_reg r PC. done. consider_next_reg r r_t0. consider_next_reg r r_env. rewrite !fixpoint_interp1_eq. done.
@@ -228,7 +227,7 @@ Section counter.
             rewrite lookup_delete_ne;auto. destruct (rmap !! r) eqn:Hsome;rewrite Hsome;[|rewrite !fixpoint_interp1_eq;done].
             iDestruct (big_sepM_delete _ _ r with "Hregs_val") as "[Hr _]";[eauto|]. iFrame "Hr".
         - rewrite insert_insert. iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-          rewrite delete_insert. iFrame.
+          rewrite delete_insert. rewrite insert_delete. iFrame.
           repeat (rewrite lookup_insert_ne;auto). rewrite lookup_delete_ne;auto.
           apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver.
       }
@@ -554,3 +553,5 @@ Section counter.
       iApply "Hcallback_now". iFrame.
       iApply "Hφ". iIntros (Hcontr); inversion Hcontr. 
   Qed.
+
+End counter. 
