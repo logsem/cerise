@@ -104,9 +104,8 @@ Section counter.
         incr_addrs (* program addresses *)
         d d' (* dynamically allocated memory given by preamble *)
         a_first a_last (* special adresses *)
-        f_a b_link e_link a_link a_entry fail_cap (* linking table variables *)
         rmap (* registers *)
-        ι1 ι2 (* invariant names *) :
+        ι1 (* invariant names *) :
 
     (* PC assumptions *)
     isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
@@ -114,18 +113,11 @@ Section counter.
     (* Program adresses assumptions *)
     contiguous_between incr_addrs a_first a_last ->
     
-    (* Linking table assumptions *)
-    withinBounds (RW, b_link, e_link, a_entry) = true →
-    (a_link + f_a)%a = Some a_entry ->
-
     (* malloc'ed memory assumption for the counter *)
     (d + 1)%a = Some d' ->
 
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env]} →
-
-    (* The two invariants have different names *)
-    (up_close (B:=coPset) ι2 ## ↑ι1) ->
     
     {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
@@ -139,8 +131,6 @@ Section counter.
       ∗ interp wret
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (incr incr_addrs)
-      (* linking table *)
-      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap)
       (* the remaining registers are all valid *)
       ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
     }}}
@@ -149,7 +139,7 @@ Section counter.
                     ∃ r, full_map r ∧ registers_mapsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
-    iIntros (Hvpc Hcont Hwb Hlink Hd Hdom Hclose φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hlink & #Hregs_val) Hφ". 
+    iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
     iMod (na_inv_open with "Hincr Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
@@ -252,9 +242,9 @@ Section counter.
 
   (* ----------------------------------- READ -------------------------------------- *)
 
-  Lemma incr_spec pc_p pc_b pc_e (* PC *)
+  Lemma read_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
-        incr_addrs (* program addresses *)
+        read_addrs (* program addresses *)
         d d' (* dynamically allocated memory given by preamble *)
         a_first a_last (* special adresses *)
         f_a b_link e_link a_link a_entry fail_cap (* linking table variables *)
@@ -291,7 +281,7 @@ Section counter.
       (* callback validity *)
       ∗ interp wret
       (* trusted code *)
-      ∗ na_inv logrel_nais ι1 (incr incr_addrs)
+      ∗ na_inv logrel_nais ι1 (read read_addrs f_a)
       (* linking table *)
       ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap)
       (* the remaining registers are all valid *)
@@ -302,16 +292,16 @@ Section counter.
                     ∃ r, full_map r ∧ registers_mapsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
-    iIntros (Hvpc Hcont Hwb Hlink Hd Hdom Hclose φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hlink & #Hregs_val) Hφ". 
+    iIntros (Hvpc Hcont Hwb Hlink Hd Hdom Hclose φ) "(HPC & Hr_t0 & Hr_env & Hregs & Hinv & Hown & #Hcallback & #Hread & #Hlink & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
-    iMod (na_inv_open with "Hincr Hown") as "(>Hprog & Hown & Hcls)";auto.
+    iMod (na_inv_open with "Hread Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
-    destruct_list incr_addrs.
+    destruct_list read_addrs.
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 
     (* Get a general purpose register *)
     assert (is_Some (rmap !! r_t1)) as [w1 Hrt1].
     { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[eauto|]. 
-
+    
   
