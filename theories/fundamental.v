@@ -143,4 +143,67 @@ Section fundamental.
      iNext. iIntros (Hcontr); inversion Hcontr.
   Qed.
 
+  (* The fundamental theorem implies the exec_cond *)
+
+  Definition exec_cond b e p : iProp Σ :=
+    (□ ∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ interp_expression r (inr (p,b, e,a)))%I.
+
+  Lemma interp_exec_cond p b e a :
+     p = RX ∨ p = RWX ->
+    interp (inr (p,b,e,a)) -∗ exec_cond b e p.
+  Proof.
+    iIntros (Hra) "#Hw".
+    iIntros (a0 r Hin). iAlways. iNext.
+    iApply fundamental;[|eauto]. auto. 
+    rewrite !fixpoint_interp1_eq /=. destruct Hra as [-> | ->];done. 
+  Qed.
+
+  (* We can use the above fact to create a special "jump or fail pattern" when jumping to an unknown adversary *)
+  
+  Lemma exec_wp p b e a :
+    isCorrectPC (inr (p, b, e, a)) ->
+    exec_cond b e p -∗
+    ∀ r, ▷ (interp_expr interp r) (inr (p, b, e, a)).
+  Proof. 
+    iIntros (Hvpc) "#Hexec". 
+    rewrite /exec_cond /enter_cond. 
+    iIntros (r). 
+    assert (a ∈ₐ[[b,e]])%I as Hin. 
+    { rewrite /in_range. inversion Hvpc; subst. auto. }
+    iSpecialize ("Hexec" $! a r Hin).
+    iFrame "#". 
+  Qed.
+  
+  Lemma jmp_or_fail_spec w φ :
+     (interp w
+    -∗ (if decide (isCorrectPC (updatePcPerm w)) then
+          (∃ p b e a, ⌜w = inr (p,b,e,a)⌝
+          ∗ □ ∀ r, ▷ (interp_expr interp r) (updatePcPerm w))
+        else
+          φ FailedV ∗ PC ↦ᵣ updatePcPerm w -∗ WP Seq (Instr Executable) {{ φ }} ))%I.
+  Proof.
+    iIntros "#Hw".
+    destruct (decide (isCorrectPC (updatePcPerm w))). 
+    - inversion i.
+      destruct w;inversion H. destruct c,p0,p0; inversion H.
+      destruct H1 as [-> | ->]. 
+      + destruct p0; simpl in H; simplify_eq.
+        * iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+          iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
+          iApply exec_wp;auto.
+        * iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+          rewrite /= fixpoint_interp1_eq /=.
+          iExact "Hw". 
+      + destruct p0; simpl in H; simplify_eq.
+        iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+        iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
+        iApply exec_wp;auto.
+    - iIntros "[Hfailed HPC]".
+      iApply (wp_bind (fill [SeqCtx])).
+      iApply (wp_notCorrectPC with "HPC");eauto.
+      iNext. iIntros "_".
+      iApply wp_pure_step_later;auto;iNext.
+      iApply wp_value. iFrame.
+  Qed.
+  
 End fundamental.

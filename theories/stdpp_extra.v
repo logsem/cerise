@@ -65,6 +65,18 @@ Proof.
   - intros Hin. by apply elem_of_dom in Hin.
 Qed.
 
+Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
+      (m : gmap K V) (i : K) :
+  m !! i = None ↔ i ∉ dom (gset K) m.
+Proof.
+  split.
+  - intros Hnone. intros Hcontr%elem_of_gmap_dom.
+    rewrite Hnone in Hcontr. inversion Hcontr. congruence. 
+  - intros Hdom. destruct (m !! i) eqn:Hnone;auto.
+    assert (is_Some (m !! i)) as HisSome;eauto.
+    apply elem_of_gmap_dom in HisSome. contradiction.
+Qed. 
+  
 Lemma dom_map_imap_full {K A B}
       `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
       (f: K -> A -> option B) (m: gmap K A):
