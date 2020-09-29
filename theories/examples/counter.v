@@ -200,7 +200,7 @@ Section counter.
     apply (contiguous_between_last _ _ _ a3) in Hcont as Hlast;auto. 
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|]. 
-    
+    iDestruct (jmp_or_fail_spec with "Hcallback") as "Hcallback_now". 
     (* close program invariant *)
     
     (* reassemble registers *)
@@ -265,7 +265,7 @@ Section counter.
     isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
 
     (* Program adresses assumptions *)
-    contiguous_between incr_addrs a_first a_last ->
+    contiguous_between read_addrs a_first a_last ->
     
     (* Linking table assumptions *)
     withinBounds (RW, b_link, e_link, a_entry) = true →
