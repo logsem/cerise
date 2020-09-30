@@ -41,5 +41,6 @@ theories/examples/malloc.v
 theories/examples/contiguous.v
 theories/examples/macros_helpers.v
 theories/examples/macros.v
-theories/examples/scall.v
+theories/examples/call.v
 theories/examples/counter.v
+theories/examples/counter_preamble.v
