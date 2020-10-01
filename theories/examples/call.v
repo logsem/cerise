@@ -30,6 +30,14 @@ Proof.
       apply IHl with l'.
       destruct Hin as [Hcontr | Hin];[done|].
       auto. 
+Qed.
+
+Lemma length_fst_snd {A B} `{Countable A} (m : gmap A B) :
+  strings.length (map_to_list m).*1 = strings.length (map_to_list m).*2.
+Proof.
+  induction m using map_ind.
+  - rewrite map_to_list_empty. auto.
+  - rewrite map_to_list_insert;auto. simpl. auto.
 Qed. 
       
 Lemma map_to_list_delete {A B} `{Countable A} `{EqDecision A} (m : gmap A B) (i : A) (x : B) :
@@ -387,8 +395,8 @@ Section scall.
     5 + (strings.length (rclear_instrs (list_difference all_registers params))) - 3. 
 
   Definition call a f_m r1 locals params :=
-    ([∗ list] a_i;w ∈ a;(call_instrs f_m (offset_to_cont_call params) r1 locals params), a_i ↦ₐ w)%I. 
-
+    ([∗ list] a_i;w ∈ a;(call_instrs f_m (offset_to_cont_call params) r1 locals params), a_i ↦ₐ w)%I.
+  
   Lemma call_spec
         (* pc *) a p b e a_first a_last
         (* malloc *) f_m b_m e_m mallocN EN
@@ -512,6 +520,8 @@ Section scall.
         (malloc_prog rest1 link1) "(Hmalloc_prog & Hprog & #Hcont1)";[apply Hcont|].
     iDestruct "Hcont1" as %(Hcont1 & Hcont2 & Heqapp1 & Hlink1).
     rewrite -/(malloc _ _ _ _).
+    iApply (wp_wand_l _ _ _ (λne v, ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
+    { iIntros (v) "[H|H] /=";auto. }
     iApply (malloc_spec with "[- $HPC $Hnainv $Hown $Hb $Ha_entry $Hmalloc_prog $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont1|..].
     { eapply isCorrectPC_range_restrict;eauto. split;[clear;solve_addr|]. apply contiguous_between_bounds in Hcont2. auto. }
     iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hna & Hgenlocalsparams)".
@@ -532,13 +542,66 @@ Section scall.
         (storelocals_prog rest2 link2) "(Hstorelocals_prog & Hprog & #Hcont2)";[apply Hcont2|].
     iDestruct "Hcont2" as %(Hcont3 & Hcont4 & Heqapp2 & Hlink2).
     iApply (store_locals_spec _ _ _ _ ((map_to_list mlocals).*2) with "[- $HPC $Hstorelocals_prog $Hr_t1 $Hlocals]");[|apply Hcont3|auto..].
-    { admit. }
+    { eapply isCorrectPC_range_restrict;[apply Hvpc|].
+      apply contiguous_between_bounds in Hcont1.
+      apply contiguous_between_bounds in Hcont4. auto. }
     { clear -Hlocals_size. rewrite /region_size. solve_addr. }
-    { admit. }
-    { admit. }
+    { rewrite zip_fst_snd. auto. }
+    { apply length_fst_snd. }
     iSplitL "Hbl";[eauto|]. 
     iNext. iIntros "(HPC & Hr_t1 & Hmlocals & Hbl & Hstorelocals_prog)".
 
+    (* prepare for the rest of the program: new correct PC range, get length of rest2, and assert its first element is link2 *)
+    assert (isCorrectPC_range p b e link2 a_last) as Hvpc1.
+    { eapply isCorrectPC_range_restrict;[apply Hvpc|]. split;[|clear;solve_addr].
+      apply contiguous_between_bounds in Hcont1.
+      apply contiguous_between_bounds in Hcont3. clear -Hcont3 Hcont1 Hlink2. solve_addr. }
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog. 
+    destruct rest2 as [|? rest2];[inversion Hlength_prog|].
+    apply contiguous_between_cons_inv_first in Hcont4 as Heq; subst a0.
+
+    (* get some general purpose registers *)
+    iDestruct (big_sepM_delete with "Hgen") as "[Hr_t2 Hgen]";[apply lookup_insert|].
+
+    (* move r_t2 r_t1 *)
+    destruct rest2 as [|? rest2];[inversion Hlength_prog|].
+    iPrologue "Hprog". 
+    iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t2 $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC link2 a_last|iContiguous_next Hcont4 0|]. 
+    iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)". iCombine "Hstorelocals_prog Hmalloc" as "Hprog_done".
+    iCombine "Hi" "Hprog_done" as "Hprog_done". 
+
+    (* malloc 7 *)
+    (* prepare the registers *)
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t2]") as "Hgen";[apply lookup_delete|rewrite insert_delete insert_insert].
+    rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite -!delete_insert_ne;auto. 
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete]. 
+    iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|]. 
+    iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
+    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
+      apply map_disjoint_insert_l_2;[|apply map_disjoint_union_r_2];auto. apply lookup_union_None in Hnone as [? ?];auto. }
+    (* we assert the register state has the needed domain *)
+    assert (dom (gset RegName) (<[r_t1:=inr (RWX, b_l, e_l, e_l)]> (<[r_t2:=inr (RWX, b_l, e_l, e_l)]> (<[r_t3:=inl 0%Z]>
+            (<[r_t4:=inl 0%Z]> (<[r_t5:=inl 0%Z]> (<[r1:=wadv]> rmap))))) ∪ (mlocals ∪ mparams)) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq'. 
+    { rewrite dom_union_L 5!dom_insert_L.
+      assert ({[r_t1]} ∪ ({[r_t2]} ∪ ({[r_t3]} ∪ ({[r_t4]} ∪ ({[r_t5]}
+             ∪ dom (gset RegName) (<[r1:=wadv]> rmap))))) = dom (gset RegName) (<[r1:=wadv]> rmap)) as ->.
+      { clear -Hsub. rewrite dom_insert_L. set_solver. }
+      rewrite -dom_union_L -insert_union_l. auto. }    
     
+    (* prepare the program memory *)
+    iDestruct (contiguous_between_program_split with "Hprog") as
+        (malloc_prog2 rest3 link3) "(Hmalloc & Hprog & #Hcont5)".
+    { apply contiguous_between_cons_inv in Hcont4 as [?[? [? Hcont5] ] ].
+      apply contiguous_between_cons_inv_first in Hcont5 as Heq;subst x. apply Hcont5. }
+    iDestruct "Hcont5" as %(Hcont5 & Hcont6 & Heqapp3 & Hlink3).
+
+    (* apply malloc spec *)
+    iApply (malloc_spec 7 with "[- $HPC $Hnainv $Hna $Hb $Ha_entry $Hmalloc $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont5|clear;lia|].
+    { eapply isCorrectPC_range_restrict;eauto.
+      assert (link2 + 1 = Some a0)%a as Hnext;[iContiguous_next Hcont4 0|]. 
+      apply contiguous_between_bounds in Hcont6. clear -Hnext Hcont6. solve_addr. }
+    iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hna & Hgenlocalsparams)".
+    iDestruct "Hregion" as (b_l' e_l' Hact_size) "(Hr_t1 & Hbl')".
     
 End call.
