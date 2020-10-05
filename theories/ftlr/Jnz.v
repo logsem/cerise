@@ -66,7 +66,6 @@ Section fundamental.
           clear Hw. destruct (perm_eq_dec p0 p1); [subst p1; destruct Heq as (_ & -> & -> & ->)| destruct Heq as ((-> & ->) & -> & -> & ->)].
           { iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
-            - destruct p0; simpl in Hpft; auto; try discriminate.
             - destruct (reg_eq_dec r1 PC).
               + subst r1. simplify_map_eq. auto.
               + simplify_map_eq.

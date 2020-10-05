@@ -11,8 +11,20 @@ Section counter_example_preamble.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
+  Definition counter_instrs f_a :=
+    incr_instrs ++ (read_instrs f_a) ++ reset_instrs. 
+
   Definition counter f_a a :=
-    ([∗ list] a_i;w ∈ a;(incr_instrs ++ (read_instrs f_a) ++ reset_instrs), a_i ↦ₐ w )%I. 
+    ([∗ list] a_i;w ∈ a;(counter_instrs f_a), a_i ↦ₐ w )%I. 
+
+  Definition counter_instrs_length : Z :=
+    Eval cbv in (length (incr_instrs ++ (read_instrs 0) ++ reset_instrs)).
+  Definition incr_instrs_length : Z :=
+    Eval cbv in (length (incr_instrs)).
+  Definition read_instrs_length : Z :=
+    Eval cbv in (length (read_instrs 0)).
+  Definition reset_instrs_length : Z :=
+    Eval cbv in (length (reset_instrs)).
   
   (* [f_m] is the offset of the malloc capability *)
   (* [offset_to_counter] is the offset between the [move_r r_t1 PC] instruction
@@ -131,8 +143,8 @@ Section counter_example_preamble.
     interp (inr (E,b_cls,e_cls,b_cls)))%I. 
   Proof.
     iIntros (Hnp Hcont_incr Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
-    rewrite /interp fixpoint_interp1_eq. iModIntro. rewrite /enter_cond.
-    iIntros (r') "". iNext. rewrite /interp_expr /=.
+    rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
+    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
@@ -206,8 +218,8 @@ Section counter_example_preamble.
     interp (inr (E,b_cls',e_cls',b_cls')))%I. 
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell Hlink Hwb Hdisj) "#Hcounter_inv #Hincr #Hcls_inv #Hlink HnaI". 
-    rewrite /interp fixpoint_interp1_eq. iModIntro. rewrite /enter_cond.
-    iIntros (r') "". iNext. rewrite /interp_expr /=.
+    rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
+    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
@@ -276,8 +288,8 @@ Section counter_example_preamble.
     interp (inr (E,b_cls'',e_cls'',b_cls'')))%I. 
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
-    rewrite /interp fixpoint_interp1_eq. iModIntro. rewrite /enter_cond.
-    iIntros (r') "". iNext. rewrite /interp_expr /=.
+    rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
+    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
@@ -338,7 +350,7 @@ Section counter_example_preamble.
   Definition count_clsN : namespace := countN .@ "cls".
   Definition count_env : namespace := countN .@ "env". 
 
-  Lemma awkward_preamble_spec (f_m f_a offset_to_counter: Z) (r: Reg) pc_p pc_b pc_e
+  Lemma counter_preamble_spec (f_m f_a offset_to_counter: Z) (r: Reg) pc_p pc_b pc_e
         ai a_first a_end b_link e_link a_link a_entry a_entry'
         mallocN b_m e_m fail_cap ai_counter counter_first counter_end a_move:
 
@@ -819,4 +831,4 @@ Section counter_example_preamble.
     iExists r0. iFrame.
   Qed.
 
-End awkward_example_preamble.
+End counter_example_preamble.

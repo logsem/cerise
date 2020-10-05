@@ -163,7 +163,7 @@ Proof.
   - rewrite map_to_list_insert// dom_insert_L. simpl. rewrite IHm. auto.
 Qed. 
   
-Section scall.
+Section call.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.

@@ -30,8 +30,7 @@ Section fundamental.
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
           -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
-          -∗ ⌜a1 = RX ∨ a1 = RWX⌝
-             → □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)
+          -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)
     -∗ (fixpoint interp1) (inr (p, b, e, a)) 
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
     -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))

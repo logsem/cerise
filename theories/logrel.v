@@ -74,7 +74,7 @@ Section logrel.
   Proof. solve_proper. Qed.
   
   Program Definition enter_cond b e a : D -n> iProp Σ :=
-    λne interp, (∀ r, ▷ interp_expr interp r (inr (RX,b,e,a)))%I.
+    λne interp, (∀ r, ▷ □ interp_expr interp r (inr (RX,b,e,a)))%I.
   Solve Obligations with solve_proper.
   Global Instance enter_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond.
@@ -115,7 +115,7 @@ Section logrel.
 
   Program Definition interp_cap_E (interp : D) : D :=
     λne w, (match w with
-              | inr (E,b,e,a) => □ enter_cond b e a interp
+              | inr (E,b,e,a) => enter_cond b e a interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -336,5 +336,23 @@ Section logrel.
         try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
         try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
   Qed.
-   
+
+  (* Lemma for allocating invariants in a region *)
+  Lemma region_inv_alloc E l1 l2 :
+    ([∗ list] k;v ∈ l1;l2, k ↦ₐ v ∗ interp v) ={E}=∗
+    ([∗ list] k;_ ∈ l1;l2, inv (logN .@ k) (interp_ref_inv k interp)).
+  Proof.
+    revert l2. induction l1.
+    - iIntros (l2) "Hl".
+      iDestruct (big_sepL2_length with "Hl") as %Hlen.
+      destruct l2;[|inversion Hlen].
+      simpl. done. 
+    - iIntros (l2) "Hl".
+      iDestruct (big_sepL2_length with "Hl") as %Hlen.
+      destruct l2;[inversion Hlen|].
+      iDestruct "Hl" as "[Ha Hl]". 
+      simpl. iMod (IHl1 with "Hl") as "Hl".
+      iFrame. iApply inv_alloc. iNext. iExists w. iFrame.
+  Qed. 
+      
 End logrel.

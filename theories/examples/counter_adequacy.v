@@ -5,40 +5,33 @@ From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
-     rules logrel fundamental region_invariants sts
-     region_invariants_revocation region_invariants_static
-     region_invariants_uninitialized region_invariants_allocation.
+     rules logrel fundamental.
 From cap_machine.examples Require Import
-     disjoint_regions_tactics
-     stack_macros malloc awkward_example_u awkward_example_preamble.
+     macros malloc counter_preamble disjoint_regions_tactics.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Class memory_layout `{MachineParameters} := {
   (* awkward example: preamble & body *)
-  awk_region_start : Addr;
-  awk_preamble_start : Addr;
-  awk_body_start : Addr;
-  awk_region_end : Addr;
+  counter_region_start : Addr;
+  counter_preamble_start : Addr;
+  counter_body_start : Addr;
+  counter_region_end : Addr;
 
   (* pointer to the linking table, at the beginning of the region *)
-  awk_linking_ptr_size :
-    (awk_region_start + 1)%a = Some awk_preamble_start;
+  counter_linking_ptr_size :
+    (counter_region_start + 1)%a = Some counter_preamble_start;
 
   (* preamble code, that allocates the closure *)
-  awk_preamble_size :
-    (awk_preamble_start + awkward_preamble_instrs_length)%a
-    = Some awk_body_start;
+  counter_preamble_size :
+    (counter_preamble_start + counter_preamble_instrs_length)%a
+    = Some counter_body_start;
 
   (* code of the body, wrapped in the closure allocated by the preamble *)
-  awk_body_size :
-    (awk_body_start + awkward_instrs_length)%a
-    = Some awk_region_end;
-
-  (* stack *)
-  stack_start : Addr;
-  stack_end : Addr;
+  counter_body_size :
+    (counter_body_start + counter_instrs_length)%a
+    = Some counter_region_end;
 
   (* adversary code *)
   adv_start : Addr;
@@ -94,10 +87,9 @@ Class memory_layout `{MachineParameters} := {
         [malloc_memptr];
         region_addrs malloc_start malloc_memptr;
         region_addrs adv_start adv_end;
-        region_addrs stack_start stack_end;
-        region_addrs awk_body_start awk_region_end;
-        region_addrs awk_preamble_start awk_body_start;
-        [awk_region_start]
+        region_addrs counter_body_start counter_region_end;
+        region_addrs counter_preamble_start counter_body_start;
+        [counter_region_start]
        ];
 }.
 
@@ -105,26 +97,23 @@ Definition mkregion (r_start r_end: Addr) (contents: list Word): gmap Addr Word 
   list_to_map (zip (region_addrs r_start r_end) contents).
 
 Definition offset_to_awkward `{memory_layout} : Z :=
-  (* in this setup, the body of the awkward examples comes just after the code
+  (* in this setup, the body of the counter comes just after the code
      of the preamble *)
-  (awkward_preamble_instrs_length - awkward_preamble_move_offset)%Z.
+  (counter_preamble_instrs_length - counter_preamble_move_offset)%Z.
 
 Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : gmap Addr Word :=
   (* pointer to the linking table *)
-    list_to_map [(awk_region_start,
-                  inr (RO, Global, link_table_start, link_table_end, link_table_start))]
-  ∪ mkregion awk_preamble_start awk_body_start
+    list_to_map [(counter_region_start,
+                  inr (RO, link_table_start, link_table_end, link_table_start))]
+  ∪ mkregion counter_preamble_start counter_body_start
        (* preamble: code that creates the awkward example closure *)
-      (awkward_preamble_instrs 0%Z (* offset to malloc in linking table *)
+      (counter_preamble_instrs 0%Z (* offset to malloc in linking table *)
          offset_to_awkward (* offset to the body of the example *))
-  ∪ mkregion awk_body_start awk_region_end
-       (* body of the awkward example, that will be encapsulated in the closure
+  ∪ mkregion counter_body_start counter_region_end
+       (* body of the counter, that will be encapsulated in the closure
           created by the preamble *)
-      (awkward_instrs 1%Z (* offset to fail in the linking table *)
-         r_adv (* register used to call to arbitrary code *))
-  ∪ mkregion stack_start stack_end
-      (* initial content of the stack: can be anything *)
-      stack_val
+      (counter_instrs 1) (* offset to fail in the linking table *)
+      
   ∪ mkregion adv_start adv_end
       (* adversarial code: any code or data, but no capabilities (see condition below) *)
       adv_val
@@ -133,7 +122,7 @@ Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : g
       malloc_subroutine_instrs
   ∪ list_to_map
       (* Capability to malloc's memory pool, used by the malloc subroutine *)
-      [(malloc_memptr, inr (RWX, Global, malloc_memptr, malloc_end, malloc_mem_start))]
+      [(malloc_memptr, inr (RWX, malloc_memptr, malloc_end, malloc_mem_start))]
   ∪ mkregion malloc_mem_start malloc_end
       (* Malloc's memory pool, initialized to zero *)
       (region_addrs_zeroes malloc_mem_start malloc_end)
@@ -141,11 +130,11 @@ Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : g
       ((* code for the failure subroutine *)
         assert_fail_instrs ++
        (* pointer to the "failure" flag, set to 1 by the routine *)
-       [inr (RW, Global, fail_flag, fail_flag_next, fail_flag)])
+       [inr (RW, fail_flag, fail_flag_next, fail_flag)])
   ∪ mkregion link_table_start link_table_end
       (* link table, with pointers to the malloc and failure subroutines *)
-      [inr (E, Global, malloc_start, malloc_end, malloc_start);
-       inr (E, Global, fail_start, fail_end, fail_start)]
+      [inr (E, malloc_start, malloc_end, malloc_start);
+       inr (E, fail_start, fail_end, fail_start)]
   ∪ list_to_map [(fail_flag, inl 0%Z)] (* failure flag, initially set to 0 *)
 .
 
@@ -158,24 +147,20 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
      passes it through the registers) *)
   Forall (λ w, is_cap w = false) adv_val
   ∧
-  (adv_start + length adv_val)%a = Some adv_end
-  ∧
-  (stack_start + length stack_val)%a = Some stack_end.
+  (adv_start + length adv_val)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
-  reg !! PC = Some (inr (RX, Global, awk_region_start, awk_region_end, awk_preamble_start)) ∧
-  reg !! r_stk = Some (inr (URWLX, Local, stack_start, stack_end, stack_start)) ∧
-  reg !! r_t0 = Some (inr (RWX, Global, adv_start, adv_end, adv_start)) ∧
-  (∀ (r: RegName), r ∉ ({[ PC; r_stk; r_t0 ]} : gset RegName) →
+  reg !! PC = Some (inr (RX, counter_region_start, counter_region_end, counter_preamble_start)) ∧
+  reg !! r_t0 = Some (inr (RWX, adv_start, adv_end, adv_start)) ∧
+  (∀ (r: RegName), r ∉ ({[ PC; r_t0 ]} : gset RegName) →
     ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
 Lemma initial_registers_full_map `{MachineParameters, memory_layout} reg :
   is_initial_registers reg →
   (∀ r, is_Some (reg !! r)).
 Proof.
-  intros (HPC & Hstk & Hr0 & Hothers) r.
+  intros (HPC & Hr0 & Hothers) r.
   destruct (decide (r = PC)) as [->|]. by eauto.
-  destruct (decide (r = r_stk)) as [->|]. by eauto.
   destruct (decide (r = r_t0)) as [->|]. by eauto.
   destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
 Qed.
@@ -185,16 +170,10 @@ Section Adequacy.
   Context {inv_preg: invPreG Σ}.
   Context {mem_preg: gen_heapPreG Addr Word Σ}.
   Context {reg_preg: gen_heapPreG RegName Word Σ}.
-  Context {MonRef: @MonRefG (leibnizO _) CapR_rtc Σ}.
   Context {na_invg: na_invG Σ}.
-  Context {sts_preg: STS_preG Addr region_type Σ}.
-  Context {heappreg: heapPreG Σ}.
   Context `{MP: MachineParameters}.
 
-  Notation STS := (leibnizO (STS_states * STS_rels)).
-  Notation STS_STD := (leibnizO (STS_std_states Addr region_type)).
-  Notation WORLD := (prodO STS_STD STS).
-
+  
   Lemma dom_mkregion_incl a e l:
     dom (gset Addr) (mkregion a e l) ⊆ list_to_set (region_addrs a e).
   Proof.
@@ -280,18 +259,17 @@ Section Adequacy.
       iFrame. iApply (IHl with "H"). solve_addr. }
   Qed.
 
-  Lemma mkregion_prepare `{memG Σ} p (a e: Addr) l :
+  Lemma mkregion_prepare `{memG Σ} (a e: Addr) l :
     (a + length l)%a = Some e →
-    ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (region_addrs a e); l, k ↦ₐ[p] v).
+    ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (region_addrs a e); l, k ↦ₐ v).
   Proof.
     iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
-    iMod (MonRefAlloc_sepL2 with "H"). eauto.
   Qed.
 
   Definition flagN : namespace := nroot .@ "awk" .@ "fail_flag".
   Definition mallocN : namespace := nroot .@ "awk" .@ "malloc".
 
-  Lemma awkward_example_adequacy' `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  Lemma counter_adequacy' `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory m →
     is_initial_registers reg →
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
@@ -303,20 +281,20 @@ Section Adequacy.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
-    destruct Hm as (adv_val & stack_val & Hm & Hadv_val & adv_size & stack_size).
+    destruct Hm as (adv_val & stack_val & Hm & Hadv_val & adv_size).
     iMod (gen_heap_init (∅:Mem)) as (mem_heapg) "Hmem_ctx".
     iMod (gen_heap_init (∅:Reg)) as (reg_heapg) "Hreg_ctx".
-    unshelve iMod gen_sts_init as (stsg) "Hsts"; eauto. (*XX*)
-    set W0 := ((∅, (∅, ∅)) : WORLD).
-    iMod heap_init as (heapg) "HRELS".
+    (* unshelve iMod gen_sts_init as (stsg) "Hsts"; eauto. (*XX*) *)
+    (* set W0 := ((∅, (∅, ∅)) : WORLD). *)
+    (* iMod heap_init as (heapg) "HRELS". *)
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ Hinv reg_heapg.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-
+    
     pose proof (
-      @awkward_preamble_spec Σ memg regg stsg heapg MonRef logrel_na_invs
+      @counter_preamble_spec Σ memg regg logrel_na_invs
     ) as Spec.
 
     iMod (gen_heap_alloc_gen _ reg with "Hreg_ctx") as "(Hreg_ctx & Hreg & _)".
@@ -325,7 +303,7 @@ Section Adequacy.
       by apply map_disjoint_empty_r. rewrite right_id_L.
 
     (* Extract points-to for the various regions in memory *)
-
+      
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_fail_flag & Hdisjoint).
@@ -353,39 +331,31 @@ Section Adequacy.
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_stack & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hstack]".
-    { disjoint_map_to_list. set_solver +Hdisj_stack. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_awk_body & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hawk_body]".
-    { disjoint_map_to_list. set_solver +Hdisj_awk_body. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_awk_preamble & _).
-    iDestruct (big_sepM_union with "Hmem") as "[Hawk_link Hawk_preamble]".
-    { disjoint_map_to_list. set_solver +Hdisj_awk_preamble. }
-    iDestruct (big_sepM_insert with "Hawk_link") as "[Hawk_link _]". by apply lookup_empty.
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_body & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
+    { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_preamble & _).
+    iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
+    { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
+    iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
     cbn [fst snd].
     clear Hdisj_fail_flag Hdisj_link_table Hdisj_fail Hdisj_malloc_mem Hdisj_malloc_memptr
-          Hdisj_malloc_code Hdisj_adv Hdisj_stack Hdisj_awk_body Hdisj_awk_preamble.
+          Hdisj_malloc_code Hdisj_adv Hdisj_counter_body Hdisj_counter_preamble.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare RO with "Hlink_table") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare RW with "Hfail") as ">Hfail". by apply fail_size.
-    iDestruct (mkregion_prepare RWX with "Hmalloc_mem") as ">Hmalloc_mem".
+    iDestruct (mkregion_prepare with "Hlink_table") as ">Hlink_table". by apply link_table_size.
+    iDestruct (mkregion_prepare with "Hfail") as ">Hfail". by apply fail_size.
+    iDestruct (mkregion_prepare with "Hmalloc_mem") as ">Hmalloc_mem".
     { rewrite replicate_length /region_size. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iMod (MonRefAlloc _ _ RWX with "Hmalloc_memptr") as "Hmalloc_memptr".
-    iDestruct (mkregion_prepare RX with "Hmalloc_code") as ">Hmalloc_code".
+    iDestruct (mkregion_prepare with "Hmalloc_code") as ">Hmalloc_code".
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare RWX with "Hadv") as ">Hadv". by apply adv_size.
-    (* Keep the stack as a sepM, it'll be easier to allocate the corresponding
-       uninitialized region later. *)
-    iDestruct (MonRefAlloc_sepM RWLX with "Hstack") as ">Hstack".
-    iDestruct (mkregion_prepare RWX with "Hawk_preamble") as ">Hawk_preamble".
-      by apply awk_preamble_size.
-    iDestruct (mkregion_prepare RWX with "Hawk_body") as ">Hawk_body". by apply awk_body_size.
-    iMod (MonRefAlloc _ _ RWX with "Hawk_link") as "Hawk_link".
-    rewrite -/(awkward_example _ _ _ _) -/(awkward_preamble _ _ _ _).
+    iDestruct (mkregion_prepare with "Hadv") as ">Hadv". by apply adv_size.
+    iDestruct (mkregion_prepare with "Hcounter_preamble") as ">Hcounter_preamble".
+      by apply counter_preamble_size.
+    iDestruct (mkregion_prepare with "Hcounter_body") as ">Hcounter_body". by apply counter_body_size.
+    rewrite -/(counter _ _ _ _) -/(counter_preamble _ _ _ _).
 
     (* Split the link table *)
 
@@ -412,84 +382,57 @@ Section Adequacy.
 
     (* Allocate a permanent region for the adversary code *)
 
-    iAssert (region W0) with "[HRELS]" as "Hr".
-    { rewrite region_eq /region_def. iExists ∅, ∅. iFrame.
-      rewrite /= !dom_empty_L //. repeat iSplit; eauto.
-      rewrite /region_map_def. by rewrite big_sepM_empty. }
+    (* iAssert (⌜∀ k, *)
+    (*   is_Some (mkregion stack_start stack_end stack_val !! k) → *)
+    (*   k ∉ region_addrs adv_start adv_end⌝)%I *)
+    (* as %Hstack_adv_disj. *)
+    (* { iIntros (k Hk Hk'). destruct Hk. *)
+    (*   iDestruct (big_sepM_lookup _ _ k with "Hstack") as "Hk"; eauto. *)
+    (*   apply elem_of_list_lookup in Hk'. destruct Hk' as [i Hi]. *)
+    (*   iDestruct (big_sepL2_length with "Hadv") as %Hlen. *)
+    (*   destruct (lookup_lt_is_Some_2 adv_val i). *)
+    (*   { rewrite -Hlen. apply lookup_lt_is_Some_1. eauto. } *)
+    (*   iDestruct (big_sepL2_lookup _ _ _ i with "Hadv") as "Hk'"; eauto. *)
+    (*   iApply (cap_duplicate_false with "[$Hk $Hk']"). done. } *)
 
-    iAssert (⌜∀ k,
-      is_Some (mkregion stack_start stack_end stack_val !! k) →
-      k ∉ region_addrs adv_start adv_end⌝)%I
-    as %Hstack_adv_disj.
-    { iIntros (k Hk Hk'). destruct Hk.
-      iDestruct (big_sepM_lookup _ _ k with "Hstack") as "Hk"; eauto.
-      apply elem_of_list_lookup in Hk'. destruct Hk' as [i Hi].
-      iDestruct (big_sepL2_length with "Hadv") as %Hlen.
-      destruct (lookup_lt_is_Some_2 adv_val i).
-      { rewrite -Hlen. apply lookup_lt_is_Some_1. eauto. }
-      iDestruct (big_sepL2_lookup _ _ _ i with "Hadv") as "Hk'"; eauto.
-      iApply (cap_duplicate_false with "[$Hk $Hk']"). done. }
-
-    iMod (extend_region_perm_sepL2 _ _ _ _ RWX (λ Wv, interp Wv.1 Wv.2)
-            with "Hsts Hr [Hadv]") as "(Hr & Hadv & Hsts)".
-    3: { iApply (big_sepL2_mono with "Hadv").
+    iMod (region_inv_alloc with "[Hadv]") as "Hadv".
+    { iApply (big_sepL2_mono with "Hadv").
          intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
          pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
          destruct v2; [| by inversion Hncap].
-         rewrite fixpoint_interp1_eq /=. iSplit; eauto.
-         unfold future_priv_mono. iModIntro. iIntros.
-         rewrite !fixpoint_interp1_eq //=. }
-    done.
-    { rewrite Forall_lookup. intros. cbn.
-      eapply (@lookup_empty _ (gmap Addr)); typeclasses eauto. }
+         rewrite fixpoint_interp1_eq /=. done. }
     iDestruct "Hadv" as "#Hadv".
-
-    set W1 := (std_update_multiple W0 (region_addrs adv_start adv_end) Permanent).
-
-    iMod (extend_region_static_single_sepM _ _ _ RWLX (λ Wv, interp Wv.1 Wv.2)
-            with "Hsts Hr Hstack") as "(Hr & Hstack & Hsts)"; auto.
-    { intros ? ?%Hstack_adv_disj. rewrite /W1.
-      rewrite std_sta_update_multiple_lookup_same_i //. }
-    iDestruct (big_sepM_to_big_sepL _ (region_addrs stack_start stack_end) with "Hstack")
-      as "Hstack".
-    { apply region_addrs_NoDup. }
-    { intros a Ha. eapply in_dom_mkregion' in Ha; [| apply stack_size].
-      apply elem_of_gmap_dom in Ha; auto. }
-    iDestruct "Hstack" as "#Hstack".
-
-    set W2 := (override_uninitializedW (mkregion stack_start stack_end stack_val) W1).
-
+    
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
-    iAssert (((interp_expr interp reg) W2) (inr (RX, Global, awk_region_start, awk_region_end, awk_preamble_start)))
-      with "[Hawk_preamble Hawk_body Hinv_malloc Hawk_link Hlink1 Hlink2]" as "HE".
-    { assert (isCorrectPC_range RX Global awk_region_start awk_region_end
-                                awk_preamble_start awk_body_start).
+    iAssert ((interp_expr interp reg) (inr (RX, counter_region_start, counter_region_end, counter_preamble_start)))
+      with "[Hcounter_preamble Hcounter_body Hinv_malloc Hcounter_link Hlink1 Hlink2]" as "HE".
+    { assert (isCorrectPC_range RX counter_region_start counter_region_end
+                                counter_preamble_start counter_body_start).
       { intros a [Ha1 Ha2]. constructor; auto.
-        generalize awk_linking_ptr_size awk_preamble_size awk_body_size. revert Ha1 Ha2. clear.
-        unfold awkward_instrs_length, awkward_preamble_instrs_length. solve_addr. }
-      set awk_preamble_move_addr := ^(awk_preamble_start + awkward_preamble_move_offset)%a.
-      assert ((awk_preamble_start + awkward_preamble_move_offset)%a = Some awk_preamble_move_addr).
-      { clear. subst awk_preamble_move_addr.
-        generalize awk_preamble_size.
-        unfold awkward_preamble_instrs_length, awkward_preamble_move_offset.
-        generalize awk_preamble_start awk_body_start. solve_addr. }
-      assert (awk_preamble_move_addr + offset_to_awkward = Some awk_body_start)%a.
-      { generalize awk_preamble_size.
-        unfold awk_preamble_move_addr, offset_to_awkward, awkward_preamble_instrs_length.
-        unfold awkward_preamble_move_offset. clear.
-        generalize awk_preamble_start awk_body_start. solve_addr. }
-      assert (isCorrectPC_range RX Global awk_region_start awk_region_end
-                                awk_body_start awk_region_end).
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
+        unfold counter_instrs_length, counter_preamble_instrs_length. solve_addr. }
+      set counter_preamble_move_addr := ^(counter_preamble_start + counter_preamble_move_offset)%a.
+      assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
+      { clear. subst counter_preamble_move_addr.
+        generalize counter_preamble_size.
+        unfold counter_preamble_instrs_length, counter_preamble_move_offset.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (counter_preamble_move_addr + offset_to_awkward = Some counter_body_start)%a.
+      { generalize counter_preamble_size.
+        unfold counter_preamble_move_addr, offset_to_awkward, counter_preamble_instrs_length.
+        unfold counter_preamble_move_offset. clear.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (isCorrectPC_range RX counter_region_start counter_region_end
+                                counter_body_start counter_region_end).
       { intros a [Ha1 Ha2]. constructor; auto.
-        generalize awk_linking_ptr_size awk_preamble_size awk_body_size. revert Ha1 Ha2; clear.
-        unfold awkward_instrs_length, awkward_preamble_instrs_length. solve_addr. }
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
+        unfold counter_instrs_length, counter_preamble_instrs_length. solve_addr. }
 
-      iApply (Spec with "[$Hinv_malloc $Hawk_body $Hawk_preamble $Hawk_link $Hlink1 $Hlink2]");
+      iApply (Spec with "[$Hinv_malloc $Hcounter_body $Hcounter_preamble $Hcounter_link $Hlink1 $Hlink2]");
         try eassumption.
-      - done.
-      - apply contiguous_between_region_addrs. generalize awk_preamble_size; clear.
-        unfold awkward_preamble_instrs_length. solve_addr.
+      - apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
+        unfold counter_preamble_instrs_length. solve_addr.
       - apply le_addr_withinBounds. clear; solve_addr.
         generalize link_table_size; clear; solve_addr.
       - subst link_entry_fail. apply le_addr_withinBounds.
@@ -498,19 +441,19 @@ Section Adequacy.
       - clear; generalize link_table_start; solve_addr.
       - clear; subst link_entry_fail;
         generalize link_table_start link_table_end link_table_size; solve_addr.
-      - apply contiguous_between_region_addrs. generalize awk_body_size; clear.
-        unfold awkward_instrs_length. solve_addr. }
-
+      - apply contiguous_between_region_addrs. generalize counter_body_size; clear.
+        unfold counter_instrs_length. solve_addr. }
+    
     clear Hm Spec. rewrite /interp_expr /=.
 
     (* prepare registers *)
 
     unfold is_initial_registers in Hreg.
-    destruct Hreg as (HPC & Hstk & Hr0 & Hrothers).
+    destruct Hreg as (HPC & Hstk & Hrothers).
 
     (* Specialize the expression relation, showing that registers are valid *)
 
-    iSpecialize ("HE" with "[Hreg Hr Hsts Hna]").
+    iSpecialize ("HE" with "[Hreg Hna]").
     { iFrame. iSplit; cycle 1.
       { iFrame. rewrite /registers_mapsto. by rewrite insert_id. }
       { iSplit. iPureIntro; intros; by apply initial_registers_full_map.
@@ -519,35 +462,14 @@ Section Adequacy.
         (* r0 (return pointer to the adversary) is valid. Prove it using the
            fundamental theorem. *)
         destruct (decide (r = r_t0)) as [ -> |].
-        { rewrite /RegLocate Hr0 fixpoint_interp1_eq /=.
-          iAssert
-            ([∗ list] a ∈ region_addrs adv_start adv_end,
-              ∃ p : Perm, ⌜PermFlows RWX p⌝
-                        ∗ read_write_cond a p (fixpoint interp1) ∧ ⌜std W2 !! a = Some Permanent⌝)%I
-            as "#Hrwcond".
-          { iApply (big_sepL_mono with "Hadv"). iIntros (k v Hkv). cbn.
-            iIntros "H". rewrite /read_write_cond /=. iExists RWX. iFrame. iSplit;auto. iPureIntro.
-            rewrite override_uninitializedW_lookup_nin.
-            { eapply std_sta_update_multiple_lookup_in_i, elem_of_list_lookup_2; eauto. }
-            intro Hv. eapply Hstack_adv_disj. by rewrite elem_of_gmap_dom //.
-            eapply elem_of_list_lookup_2; eauto. }
-          auto. }
-
-        (* Stack: trivially valid because fully uninitialized *)
-        destruct (decide (r = r_stk)) as [ -> |].
         { rewrite /RegLocate Hstk fixpoint_interp1_eq /=.
-          rewrite (region_addrs_empty stack_start (min _ _)) /=.
-          2: clear; solve_addr. iSplitR; [auto|].
-          rewrite (_: max stack_start stack_start = stack_start). 2: clear; solve_addr.
-          iApply (big_sepL_mono with "Hstack").
-          iIntros (? ? Hk) "H". iDestruct "H" as (?) "?".
-          rewrite /read_write_cond /region_state_U_pwl. iExists _. iFrame.
-          iSplitL; [done|]. iPureIntro. right.
-          assert (is_Some (mkregion stack_start stack_end stack_val !! y)) as [? ?].
-          { rewrite elem_of_gmap_dom //. apply in_dom_mkregion'. apply stack_size.
-            eapply elem_of_list_lookup_2; eauto. }
-          unfold W2. eexists. erewrite override_uninitializedW_lookup_some; eauto. }
-
+          iDestruct (big_sepL2_length with "Hadv") as %Hadvlength. 
+          iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'";auto. 
+          iApply (big_sepL_mono with "Hadv'"). iIntros (k v Hkv). cbn.
+          iIntros "H". iExists (interp). iFrame.
+          iSplit;auto. 
+        }
+        
         (* Other registers *)
         rewrite /RegLocate.
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
@@ -571,9 +493,7 @@ Section Adequacy.
 
 End Adequacy.
 
-Existing Instance subG_MonRefIGΣ.
-
-Theorem awkward_example_adequacy `{MachineParameters} `{memory_layout}
+Theorem counter_adequacy `{MachineParameters} `{memory_layout}
         (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory m →
   is_initial_registers reg →
@@ -581,9 +501,6 @@ Theorem awkward_example_adequacy `{MachineParameters} `{memory_layout}
   m' !! fail_flag = Some (inl 0%Z).
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
-              @MonRefΣ (leibnizO _) CapR_rtc; na_invΣ;
-              STS_preΣ Addr region_type; heapPreΣ;
-              savedPredΣ (((STS_std_states Addr region_type) * (STS_states * STS_rels)) * Word)
-      ]).
-  eapply (@awkward_example_adequacy' Σ); typeclasses eauto.
+              na_invΣ]).
+  eapply (@counter_adequacy' Σ); typeclasses eauto.
 Qed.

@@ -40,16 +40,15 @@ Section fundamental.
 
   (*TODO: change to region_conditions *)
   Theorem fundamental r p b e (a : Addr) :
-    ((⌜p = RX⌝ ∨ ⌜p = RWX⌝) →
-     interp (inr (p,b,e,a)) →
+    (interp (inr (p,b,e,a)) →
      interp_expression r (inr (p,b,e,a)))%I.
   Proof.
-    iIntros (Hp) "#Hinv /=".
+    iIntros "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iSplit; eauto; simpl.
-    iRevert (Hp) "Hinv".
+    iRevert "Hinv".
     iLöb as "IH" forall (r p b e a).
-    iIntros (Hp) "#Hinv". 
+    iIntros "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (inr (p,b,e,a)))). 
@@ -57,6 +56,8 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
         unfold le_addr; omega. }
+      assert (p = RX ∨ p = RWX) as Hp.
+      { inversion i. subst. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=. 
       iInv (logN.@a) as (w) "[>Ha HP]" "Hcls". 
@@ -65,7 +66,7 @@ Section fundamental.
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto.
+          try iAssumption; eauto. 
       + (* Jnz *)
         iApply (jnz_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -146,39 +147,37 @@ Section fundamental.
   (* The fundamental theorem implies the exec_cond *)
 
   Definition exec_cond b e p : iProp Σ :=
-    (□ ∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ interp_expression r (inr (p,b, e,a)))%I.
+    (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (inr (p,b, e,a)))%I.
 
   Lemma interp_exec_cond p b e a :
-     p = RX ∨ p = RWX ->
-    interp (inr (p,b,e,a)) -∗ exec_cond b e p.
+    p ≠ E -> interp (inr (p,b,e,a)) -∗ exec_cond b e p.
   Proof.
-    iIntros (Hra) "#Hw".
-    iIntros (a0 r Hin). iAlways. iNext.
-    iApply fundamental;[|eauto]. auto. 
-    rewrite !fixpoint_interp1_eq /=. destruct Hra as [-> | ->];done. 
+    iIntros (Hnp) "#Hw".
+    iIntros (a0 r Hin). iNext. iAlways. 
+    iApply fundamental. 
+    rewrite !fixpoint_interp1_eq /=. destruct p; done. 
   Qed.
-
+  
   (* We can use the above fact to create a special "jump or fail pattern" when jumping to an unknown adversary *)
   
   Lemma exec_wp p b e a :
     isCorrectPC (inr (p, b, e, a)) ->
     exec_cond b e p -∗
-    ∀ r, ▷ (interp_expr interp r) (inr (p, b, e, a)).
+    ∀ r, ▷ □ (interp_expr interp r) (inr (p, b, e, a)).
   Proof. 
     iIntros (Hvpc) "#Hexec". 
     rewrite /exec_cond /enter_cond. 
     iIntros (r). 
     assert (a ∈ₐ[[b,e]])%I as Hin. 
     { rewrite /in_range. inversion Hvpc; subst. auto. }
-    iSpecialize ("Hexec" $! a r Hin).
-    iFrame "#". 
+    iSpecialize ("Hexec" $! a r Hin). iFrame "#". 
   Qed.
   
   Lemma jmp_or_fail_spec w φ :
      (interp w
     -∗ (if decide (isCorrectPC (updatePcPerm w)) then
           (∃ p b e a, ⌜w = inr (p,b,e,a)⌝
-          ∗ □ ∀ r, ▷ (interp_expr interp r) (updatePcPerm w))
+          ∗ ∀ r, ▷ □ (interp_expr interp r) (updatePcPerm w))
         else
           φ FailedV ∗ PC ↦ᵣ updatePcPerm w -∗ WP Seq (Instr Executable) {{ φ }} ))%I.
   Proof.
@@ -188,14 +187,14 @@ Section fundamental.
       destruct w;inversion H. destruct c,p0,p0; inversion H.
       destruct H1 as [-> | ->]. 
       + destruct p0; simpl in H; simplify_eq.
-        * iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+        * iExists _,_,_,_; iSplit;[eauto|].
           iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
           iApply exec_wp;auto.
-        * iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+        * iExists _,_,_,_; iSplit;[eauto|]. 
           rewrite /= fixpoint_interp1_eq /=.
           iExact "Hw". 
       + destruct p0; simpl in H; simplify_eq.
-        iExists _,_,_,_; iSplit;[eauto|]. iAlways.
+        iExists _,_,_,_; iSplit;[eauto|]. 
         iDestruct (interp_exec_cond with "Hw") as "Hexec";[auto|]. 
         iApply exec_wp;auto.
     - iIntros "[Hfailed HPC]".

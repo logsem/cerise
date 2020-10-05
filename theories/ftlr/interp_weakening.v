@@ -21,8 +21,7 @@ Section fundamental.
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
           -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
-          -∗ ⌜a1 = RX ∨ a1 = RWX⌝
-             → □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf))%I.
+          -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf))%I.
 
  
   (* TODO: Move somewhere ?*)
@@ -51,7 +50,7 @@ Section fundamental.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !region_addrs_empty;[|solve_addr]).
-         iAlways. iIntros (r). iNext. iIntros "([Hfull Hreg] & Hregs & Hna)". iSplit;auto.
+         iIntros (r). iNext. iAlways. iIntros "([Hfull Hreg] & Hregs & Hna)". iSplit;auto.
          iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iAlways.
          iClear "HA". by rewrite !fixpoint_interp1_eq /= !region_addrs_empty;[|solve_addr]. 
     }  
@@ -75,7 +74,7 @@ Section fundamental.
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       iApply (big_sepL_mono with "A2").
       iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - rewrite !fixpoint_interp1_eq. iAlways. iIntros (r). iNext. iIntros "([Hfull Hreg] & Hregs & Hna)". iSplit;auto.
+    - rewrite !fixpoint_interp1_eq. iIntros (r). iNext. iAlways. iIntros "([Hfull Hreg] & Hregs & Hna)". iSplit;auto.
       iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iAlways.
       destruct p; inversion Hp; try contradiction.
       + rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr].
@@ -88,6 +87,7 @@ Section fundamental.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
-  Qed. 
+  Qed.
+  
 
 End fundamental.

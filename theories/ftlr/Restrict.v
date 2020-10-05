@@ -23,8 +23,7 @@ Section fundamental.
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
           -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
-          -∗ ⌜a1 = RX ∨ a1 = RWX⌝
-             → □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)) -∗
+          -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)) -∗
     (fixpoint interp1) (inr (p, b, e, a)) -∗
     (fixpoint interp1) (inr (p', b, e, a)).
   Proof.
@@ -105,7 +104,7 @@ Section fundamental.
           iDestruct ("Hreg" $! dst Hri) as "Hdst".
           rewrite H0. iApply PermPairFlows_interp_preserved; eauto.
         + repeat rewrite lookup_insert_ne; auto.
-          iApply "Hreg"; auto.
+          iApply "Hreg"; auto. 
       - iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
   Qed.
 

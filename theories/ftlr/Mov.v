@@ -54,7 +54,6 @@ Section fundamental.
           rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0.
           destruct (PermFlowsTo RX p'') eqn:Hpft.
           - iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
-            + destruct p''; simpl in Hpft; auto.
             + iModIntro.
               destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; auto.
           - iApply (wp_bind (fill [SeqCtx])).

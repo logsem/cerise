@@ -51,7 +51,6 @@ Section fundamental.
         { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
-      { iPureIntro. tauto. }
       iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 

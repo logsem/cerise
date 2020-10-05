@@ -254,7 +254,7 @@ Section fundamental.
       iMod (mem_map_recover_res with "HLoadMem Hmem") as "[Ha #Hinterp]";[eauto|auto|iModIntro]. 
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
       
-      (* Exceptional success case: we do not apply the induction hypothesis in case we have a faulty PC*)
+      (* Exceptional success case: we do not apply the induction hypothesis in case we have a faulty PC *)
       destruct (decide (x = RX ∨ x = RWX)).
       2 : {
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
@@ -287,10 +287,6 @@ Section fundamental.
           iApply "Hreg"; auto. }
        }
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
-       { destruct (decide (PC = dst)); simplify_eq.
-         - destruct o as [HRX | HRWX]; auto.
-         - simplify_map_eq. iPureIntro. naive_solver.
-       }
        { iAlways.
          destruct (decide (PC = dst)); simplify_eq.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).

@@ -6,7 +6,6 @@ theories/addr_reg.v
 theories/machine_base.v
 theories/machine_parameters.v
 theories/cap_lang.v
-theories/machine_run.v
 theories/region.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
@@ -44,3 +43,5 @@ theories/examples/macros.v
 theories/examples/call.v
 theories/examples/counter.v
 theories/examples/counter_preamble.v
+theories/examples/disjoint_regions_tactics.v
+theories/examples/counter_adequacy.v
