@@ -453,7 +453,7 @@ Section call.
     lea_z r_t0 1;
     (* prepare and store continuation *)
     move_r r_t1 PC;
-    lea_z r_t1 offset_to_cont;
+    lea_z r_t1 (offset_to_cont - 1);
     store_r r_t0 r_t1;
     (* setup return capability *)
     lea_z r_t0 (-6);
@@ -477,11 +477,11 @@ Section call.
   Qed. 
   
   Lemma call_spec
+        (* call *) r1 mlocals mparams wadv
+        (* remaining registers *) (rmap rmap' : gmap RegName Word)
         (* pc *) a p b e a_first a_last
         (* malloc *) f_m b_m e_m mallocN EN
         (* linking *) b_link a_link e_link a_entry
-        (* call *) r1 mlocals mparams wadv
-        (* remaining registers *) (rmap rmap' : gmap RegName Word)
         (* cont *) φ :
     isCorrectPC_range p b e a_first a_last →
     contiguous_between a a_first a_last →
@@ -508,14 +508,15 @@ Section call.
     ∗ ▷ r1 ↦ᵣ wadv
     ∗ ▷ ([∗ map] r_i↦w_i ∈ mlocals, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ ((∃ b_c e_c b_l e_l, PC ↦ᵣ updatePcPerm wadv
+    ∗ ▷ ((∃ b_c e_c b_l e_l a_end, ⌜(a_end + 1)%a = Some a_last⌝
+            ∗ PC ↦ᵣ updatePcPerm wadv
             ∗ ([∗ map] r_i↦_ ∈ rmap', r_i ↦ᵣ inl 0%Z)
             ∗ ([∗ map] r_i↦w_i ∈ mparams, r_i ↦ᵣ w_i)
             ∗ b ↦ₐ inr (RO,b_link,e_link,a_link)
             ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
             ∗ r1 ↦ᵣ wadv
             ∗ r_t0 ↦ᵣ inr (E,b_c,e_c,b_c)
-            ∗ [[b_c,e_c]]↦ₐ[[ [inl hw_1;inl hw_2;inl hw_3;inl hw_4;inl hw_5;inr (RWX,b_l,e_l,e_l);inr (p,b,e,a_last)] ]]
+            ∗ [[b_c,e_c]]↦ₐ[[ [inl hw_1;inl hw_2;inl hw_3;inl hw_4;inl hw_5;inr (RWX,b_l,e_l,e_l);inr (p,b,e,a_end)] ]]
             ∗ [[b_l,e_l]]↦ₐ[[ (map_to_list mlocals).*2 ]]
             ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
             ∗ na_own logrel_nais EN)
@@ -682,7 +683,7 @@ Section call.
     iDestruct "Hcont5" as %(Hcont5 & Hcont6 & Heqapp3 & Hlink3).
 
     (* apply malloc spec *)
-    iApply (malloc_spec 7 with "[- $HPC $Hnainv $Hna $Hb $Ha_entry $Hmalloc $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont5|clear;lia|].
+    iApply (malloc_spec _ 7 with "[- $HPC $Hnainv $Hna $Hb $Ha_entry $Hmalloc $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont5|clear;lia|].
     { eapply isCorrectPC_range_restrict;eauto.
       assert (link2 + 1 = Some a0)%a as Hnext;[iContiguous_next Hcont4 0|]. 
       apply contiguous_between_bounds in Hcont6. clear -Hnext Hcont6. solve_addr. }
@@ -867,11 +868,26 @@ Section call.
       clear -Hle;simpl. lia.
       apply NoDup_map_to_list_fst, reg_eq_dec.
     }
+
+    assert (exists a_end, a19 + ((offset_to_cont_call (map_to_list mparams).*1) - 1) = Some a_end)%a as [a_end Hlea']. 
+    { clear -Hlea. revert Hlea.
+      rewrite /offset_to_cont_call. set (l := strings.length (rclear_instrs (list_difference all_registers (map_to_list mparams).*1))).
+      intros Hlea. destruct (a19 + ((6 + l - 3)%nat - 1))%a eqn:Hsome; eauto. simpl in Hsome, Hlea. exfalso.
+      rewrite /incr_addr in Hlea,Hsome.
+      generalize l Hlea Hsome; clear. intros l Hlea Hsome.
+      destruct (Z_le_dec (a19 + S (S (S l)))%Z MemNum); inversion Hlea.
+      destruct (Z_le_dec 0 (a19 + S (S (S l)))%Z); inversion Hlea.
+      assert (S (S (S l)) - 1 = S (S l))%Z as Hm;[lia|]. rewrite Hm in Hsome. 
+      destruct (Z_le_dec (a19 + (S (S l)))%Z MemNum),(Z_le_dec 0 (a19 + (S (S l)) )%Z); inversion Hsome.
+      zify_addr. lia.
+      zify_addr. lia.
+      zify_addr. lia.
+    } 
     
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 14|apply Hlea|..].
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 14|apply Hlea'|..].
     { eapply isCorrectPC_range_perm_non_E;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -889,12 +905,12 @@ Section call.
     iEpilogue "(HPC & Hi & Hr_t1 & Hr_t0 & Ha7)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* lea r_t0 -6 *)
-    assert (a17 + (-6) = Some b_l')%a as Hlea'.
+    assert (a17 + (-6) = Some b_l')%a as Hlea''.
     { apply contiguous_between_length_minus in Hcontbl'. clear -Hcontbl' Hllast. simpl in *. solve_addr. }
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t0]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 16|apply Hlea'|auto|..].
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 16|apply Hlea''|auto|..].
     iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* restrict r_t0 E *)
     destruct rest3 as [|? rest3].
@@ -1019,7 +1035,11 @@ Section call.
 
     (* continuation *)
     iApply "Hcont". 
-    iExists b_l',e_l',b_l,e_l. 
+    iExists b_l',e_l',b_l,e_l,a_end.
+    iSplitR.
+    { iPureIntro. revert Hlea Hlea'. clear.
+      rewrite /offset_to_cont_call. set (l := strings.length (rclear_instrs (list_difference all_registers (map_to_list mparams).*1))).
+      generalize l. clear. solve_addr. }
     iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna". 
     iSplitL "Hgenlocals".
     { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals").
