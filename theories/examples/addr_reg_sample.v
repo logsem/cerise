@@ -80,6 +80,7 @@ Section instr_encodings.
   Definition gete r1 r2 := encodeInstrW (GetE r1 r2).
   Definition getp r1 r2 := encodeInstrW (GetP r1 r2).
   Definition add_r_z r1 r2 z := encodeInstrW (Add r1 (inr r2) (inl z)).
+  Definition add_r_r r1 r2 r3 := encodeInstrW (Add r1 (inr r2) (inr r3)).
   Definition sub_r_r r1 r2 r3 := encodeInstrW (Sub r1 (inr r2) (inr r3)).
   Definition sub_r_z r1 r2 z := encodeInstrW (Sub r1 (inr r2) (inl z)).
   Definition sub_z_r r1 z r2 := encodeInstrW (Sub r1 (inl z) (inr r2)).
@@ -88,6 +89,7 @@ Section instr_encodings.
   Definition jnz r1 r2 := encodeInstrW (Jnz r1 r2).
   Definition lt_r_r r1 r2 r3 := encodeInstrW (Lt r1 (inr r2) (inr r3)).
   Definition lt_z_r r1 z r2 := encodeInstrW (Lt r1 (inl z) (inr r2)).
+  Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
   Definition jmp r := encodeInstrW (Jmp r).
   Definition halt := encodeInstrW Halt.
   Definition fail_end := encodeInstrW Fail.

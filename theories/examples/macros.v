@@ -1612,35 +1612,251 @@ Section macros.
   Definition v5 := encodeInstr (Load r_t1 r_t1).
   Definition v6 := encodeInstr (Jmp r_t1).
 
-  (* crtcls instructions *)
+  (* scrtcls: "static" crtcls. Requires a capability for the memory region where to write
+     the activation record.
+
+     It assumes the pointer to the region for the activation record is in r_t1, the
+     code pointer is in register rcode, and the data pointer in rdata.
+  *)
+  Definition scrtcls_instrs rcode rdata :=
+    [store_z r_t1 v1;
+     lea_z r_t1 1;
+     store_z r_t1 v2;
+     lea_z r_t1 1;
+     store_z r_t1 v3;
+     lea_z r_t1 1;
+     store_z r_t1 v4;
+     lea_z r_t1 1;
+     store_z r_t1 v5;
+     lea_z r_t1 1;
+     store_z r_t1 v6;
+     lea_z r_t1 1;
+     store_r r_t1 rcode;
+     move_z rcode 0;
+     lea_z r_t1 1;
+     store_r r_t1 rdata;
+     move_z rdata 0;
+     lea_z r_t1 (-7)%Z;
+     restrict_z r_t1 e].
+
+  Definition scrtcls rcode rdata a : iProp Σ :=
+    ([∗ list] a_i;w_i ∈ a;(scrtcls_instrs rcode rdata), a_i ↦ₐ w_i)%I.
+
+  (* crtcls: calls malloc to allocate memory for the activation record, then scrtcls. *)
   (* f_m denotes the offset to the malloc capability in the lookup table *)
   (* crtcls assumes that the code lies in register r_t1 and the variable lies in r_t2 *)
   Definition crtcls_instrs f_m :=
     [move_r r_t6 r_t1;
     move_r r_t7 r_t2] ++
     malloc_instrs f_m 8%nat ++
-    [store_z r_t1 v1;
-    lea_z r_t1 1;
-    store_z r_t1 v2;
-    lea_z r_t1 1;
-    store_z r_t1 v3;
-    lea_z r_t1 1;
-    store_z r_t1 v4;
-    lea_z r_t1 1;
-    store_z r_t1 v5;
-    lea_z r_t1 1;
-    store_z r_t1 v6;
-    lea_z r_t1 1;
-    store_r r_t1 r_t6;
-    move_z r_t6 0;
-    lea_z r_t1 1;
-    store_r r_t1 r_t7;
-    move_z r_t7 0;
-    lea_z r_t1 (-7)%Z;
-    restrict_z r_t1 e].
+    scrtcls_instrs r_t6 r_t7.
 
   Definition crtcls f_m a : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(crtcls_instrs f_m), a_i ↦ₐ w_i)%I.
+
+  (* scrtcls *)
+  Lemma scrtcls_spec rcode rdata wvar wcode a pc_p pc_b pc_e a_first a_last
+        act_b act_e act φ :
+    isCorrectPC_range pc_p pc_b pc_e a_first a_last →
+    contiguous_between a a_first a_last →
+    (act_b + 8)%a = Some act_e →
+
+      ▷ scrtcls rcode rdata a
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    (* register state *)
+    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_b, act_e, act_b)
+    ∗ ▷ rcode ↦ᵣ wcode
+    ∗ ▷ rdata ↦ᵣ wvar
+    (* memory for the activation record *)
+    ∗ ▷ ([[act_b,act_e]] ↦ₐ [[ act ]])
+    (* continuation *)
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ scrtcls rcode rdata a
+         ∗ r_t1 ↦ᵣ inr (E, act_b, act_e, act_b)
+         ∗ [[act_b,act_e]] ↦ₐ [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]]
+         ∗ rcode ↦ᵣ inl 0%Z
+         ∗ rdata ↦ᵣ inl 0%Z
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hact) "(>Hprog & >HPC & >Hr_t1 & >Hrcode & >Hrdata & >Hact & Hφ)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
+    assert (act_b < act_e)%a as Hlt;[solve_addr|].
+    feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    unfold region_mapsto.
+    remember (region_addrs act_b act_e) as acta.
+    assert (Hact_len_a : length acta = 8).
+    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    iDestruct (big_sepL2_length with "Hact") as %Hact_len.
+    rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
+    repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
+    destruct a as [|a l]; [inversion Hlength|].
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst a.
+    assert (∀ i a', acta !! i = Some a' → withinBounds (RWX, act_b, act_e, a') = true) as Hwbact.
+    { intros i a' Hsome. apply andb_true_intro. subst acta.
+      apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcont_act. 2: done.
+      apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr. }
+    (* store_z r_t1 v1 *)
+    destruct l; [inversion Hlength|].
+    destruct acta as [| a0 acta]; [inversion Hact_len_a|].
+    assert (a0 = act_b) as ->.
+    { feed pose proof (region_addrs_first act_b act_e) as HH. solve_addr.
+      rewrite -Heqacta /= in HH. by inversion HH. }
+    iDestruct "Hact" as "[Ha0 Hact]".
+    iPrologue "Hprog".
+    iApply (wp_store_success_z with "[$HPC $Hi $Ha0 $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..].
+    { split; auto. apply Hwbact with 0. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Hact')"; iRename "Hi" into "Hprog_done".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| a1 acta]; [inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1|
+       iContiguous_next Hcont_act 0|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store_z r_t1 v2 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha1 Hact]".
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..].
+    { split;auto. apply Hwbact with 1. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Ha1)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha1" "Hact'" as "Hact'".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|]. 
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3|
+       iContiguous_next Hcont_act 1|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store_z r_t1 v3 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha2 Hact]".
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha2]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
+    { split;auto. apply Hwbact with 2. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Ha2)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha2" "Hact'" as "Hact'".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 5|
+       iContiguous_next Hcont_act 2|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store_z r_t1 v4 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha3 Hact]".
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha3]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|..].
+    { split;auto. apply Hwbact with 3. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Ha3)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha3" "Hact'" as "Hact'".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 7|
+       iContiguous_next Hcont_act 3|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store_z r_t1 v5 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha4 Hact]".
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha4]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 8|..].
+    { split;auto. apply Hwbact with 4. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Ha4)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha4" "Hact'" as "Hact'".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 9|
+       iContiguous_next Hcont_act 4|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store_z r_t1 v6 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha5 Hact]".
+    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha5]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 10|..].
+    { split;auto. apply Hwbact with 5. auto. }
+    iEpilogue "(HPC & Hi & Hr_t1 & Ha5)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha5" "Hact'" as "Hact'".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 11|
+       iContiguous_next Hcont_act 5|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store r_t1 rcode *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha6 Hact]".
+    iApply (wp_store_success_reg with "[$HPC $Hi $Ha6 $Hrcode $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 12|..].
+    { split;auto. apply Hwbact with 6. auto. }
+    iEpilogue "(HPC & Hi & Hrcode & Hr_t1 & Ha6)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha6" "Hact'" as "Hact'".
+    (* move rcode 0 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_move_success_z with "[$HPC $Hi $Hrcode]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 13|auto..].
+    iEpilogue "(HPC & Hi & Hrcode)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* lea r_t1 1 *)
+    destruct l;[inversion Hlength|].
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 14|
+       iContiguous_next Hcont_act 6|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store r_t1 rdata *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iDestruct "Hact" as "[Ha7 Hact]".
+    iApply (wp_store_success_reg with "[$HPC $Hi $Ha7 $Hrdata $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 15|..].
+    { split;auto. apply Hwbact with 7. auto. }
+    iEpilogue "(HPC & Hi & Hrdata & Hr_t1 & Ha7)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha7" "Hact'" as "Hact'".
+    (* move rdata 0 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_move_success_z with "[$HPC $Hi $Hrdata]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 16|auto..].
+    iEpilogue "(HPC & Hi & Hrdata)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* lea r_t1 -7 *)
+    destruct l;[by inversion Hlength|].
+    destruct acta as [| ? acta];[| by inversion Hact_len_a].
+    iPrologue "Hprog".
+    apply contiguous_between_last with (ai:=a20) in Hcont_act as Hnext; auto.
+    assert ((a20 + (-7))%a = Some act_b) as Hlea.
+    { apply contiguous_between_length in Hcont_act. revert Hnext Hact; clear. solve_addr. }
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 17|apply Hlea|simpl;auto..].
+    iEpilogue "(HPC & Hi & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* restrict r_t1 (Global,E) *)
+    destruct l;[|by inversion Hlength].
+    apply contiguous_between_last with (ai:=a23) in Hcont as Hlast; auto.
+    iPrologue "Hprog". iClear "Hprog".
+    iApply (wp_restrict_success_z with "[$HPC $Hi $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast|auto..].
+    { rewrite decode_encode_perm_inv. auto. }
+    rewrite decode_encode_perm_inv.
+    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* continuation *)
+    iApply "Hφ".
+    iFrame "HPC". iSplitL "Hprog_done".
+    { do 21 iDestruct "Hprog_done" as "[$ Hprog_done]". iFrame. done. }
+    iFrame. do 7 iDestruct "Hact'" as "[$ Hact']". iFrame.
+  Qed.
 
   (* crtcls spec *)
   Lemma crtcls_spec f_m wvar wcode a pc_p pc_b pc_e
@@ -1744,211 +1960,36 @@ Section macros.
     rewrite (delete_insert_ne _ r_t1 r_t2) //.
     repeat (rewrite (insert_commute _ _ r_t2) //;[]).
     rewrite insert_insert.
-    (* we now want to infer a list of contiguous addresses between b and e *)
-    assert (b < e)%a as Hlt;[solve_addr|]. 
-    assert (contiguous (region_addrs b e)) as Hcontbe';[apply region_addrs_contiguous|].
-    apply contiguous_iff_contiguous_between in Hcontbe'. destruct Hcontbe' as [b' [e' Hcontbe] ].
-    assert (exists l, l = region_addrs b e) as [h Heqh];[eauto|].
-    rewrite -Heqh in Hcontbe.
-    rewrite /region_mapsto /region_addrs_zeroes -Heqh.
-    assert (region_size b e = 8) as ->.
-    { rewrite /region_size. revert Hbe; clear; solve_addr. }
-    simpl.
-    (* prepare the execution of the rest of the program *)
-    iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
-    assert (isCorrectPC_range pc_p pc_b pc_e link a_last) as Hvpc_rest.
-    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
-      apply contiguous_between_incr_addr with (i:=2) (ai:=a0) in Hcont;auto.
-      revert Hcont Hmid Hlink;clear. solve_addr. }
-    destruct rest as [|a1 l'];[inversion Hlength_rest|].
-    apply contiguous_between_cons_inv_first in Hcont_rest as Heq. subst link. 
-    iDestruct (big_sepL2_length with "Hbe") as %Hlengthbe. 
-    destruct h;[inversion Hlengthbe|]. 
-    apply region_addrs_first in Hlt as Hfirst. rewrite -Heqh in Hfirst; inversion Hfirst. subst a2.
-    apply contiguous_between_cons_inv_first in Hcontbe as Heq. subst b'. 
-    assert (∀ i a', (b :: h) !! i = Some a' -> withinBounds (RWX, b, e, a') = true) as Hwbbe.
-    { intros i a' Hsome. apply andb_true_intro.
-      apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcontbe;[|congruence].
-      apply lookup_lt_Some in Hsome. rewrite Heqh region_addrs_length in Hsome. 
-      revert Hsome Hcontbe Hbe. rewrite /region_size. clear; intros. split;[apply Z.leb_le|apply Z.ltb_lt];solve_addr.
-    }
-    iCombine "Hmalloc_prog" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v1 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 0|..].
-    { split;auto. apply Hwbbe with 0. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Heb)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 1|iContiguous_next Hcontbe 0|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v2 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 2|..].
-    { split;auto. apply Hwbbe with 1. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 3|iContiguous_next Hcontbe 1|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v3 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 4|..].
-    { split;auto. apply Hwbbe with 2. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 5|iContiguous_next Hcontbe 2|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v4 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 6|..].
-    { split;auto. apply Hwbbe with 3. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 7|iContiguous_next Hcontbe 3|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v5 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 8|..].
-    { split;auto. apply Hwbbe with 4. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 9|iContiguous_next Hcontbe 4|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 v6 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 10|..].
-    { split;auto. apply Hwbbe with 5. auto. }
-    iEpilogue "(HPC & Hi & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb". 
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 11|iContiguous_next Hcontbe 5|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 r_t6 *)
-    (* first we must extract r_t6 *)
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]".
       by rewrite !lookup_insert_ne // lookup_delete_ne // lookup_insert //.
-    (* then we can store *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t6 $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 12|..].
-    { split;auto. apply Hwbbe with 6. auto. }
-    iEpilogue "(HPC & Hi & Hr_t6 & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb".
-    (* move r_t6 0 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iApply (wp_move_success_z with "[$HPC $Hi $Hr_t6]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 13|auto..].
-    iEpilogue "(HPC & Hi & Hr_t6)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* lea r_t1 1 *)
-    destruct l';[inversion Hlength_rest|].
-    destruct h;[inversion Hlengthbe|]. 
-    iPrologue "Hprog". 
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 14|iContiguous_next Hcontbe 6|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* store r_t1 r_t7 *)
-    (* first we must extract r_t7 *)
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]".
       rewrite lookup_delete_ne // !lookup_insert_ne // lookup_delete_ne //
               lookup_insert_ne // lookup_insert //.
-    (* then we can store *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iDestruct "Hbe" as "[Hb Hbe]". 
-    iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t7 $Hr_t1 $Hb]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 15|..].
-    { split;auto. apply Hwbbe with 7. auto. }
-    iEpilogue "(HPC & Hi & Hr_t7 & Hr_t1 & Hb)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Hb" "Heb" as "Heb".
-    (* move r_t7 0 *)
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog". 
-    iApply (wp_move_success_z with "[$HPC $Hi $Hr_t7]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 16|auto..].
-    iEpilogue "(HPC & Hi & Hr_t7)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* put r_t6 and r_t7 back *)
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs". by rewrite lookup_delete.
-    rewrite insert_delete.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs". by rewrite lookup_insert_ne // lookup_delete.
-    rewrite -(delete_insert_ne _ r_t6) // insert_delete.
-    iClear "Hbe".
-    (* lea r_t1 -7 *)
-    destruct h;[|inversion Hlengthbe]. 
-    destruct l';[inversion Hlength_rest|]. 
-    iPrologue "Hprog".
-    apply contiguous_between_last with (ai:=a23) in Hcontbe as Hnext; auto.
-    assert ((a23 + (-7))%a = Some b) as Hlea.
-    { apply contiguous_between_length in Hcontbe. revert Hbe Hnext Hcontbe; clear. solve_addr. }
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|iContiguous_next Hcont_rest 17|apply Hlea|simpl;auto..].
-    iEpilogue "(HPC & Hi & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done". 
-    (* restrict r_t1 (Global,E) *)
-    destruct l';[|inversion Hlength_rest].
-    apply contiguous_between_last with (ai:=a26) in Hcont_rest as Hlast; auto.
-    iPrologue "Hprog". iClear "Hprog". 
-    iApply (wp_restrict_success_z with "[$HPC $Hi $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a1 a_last|apply Hlast|auto..].
-    { rewrite decode_encode_perm_inv. auto. }
-    rewrite decode_encode_perm_inv.
-    iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    iApply (scrtcls_spec with "[- $Hprog $HPC $Hr_t1 $Hr_t6 $Hr_t7 $Hbe]"); eauto.
+    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
+      apply contiguous_between_bounds in Hcont_rest.
+      apply contiguous_between_bounds in Hcont_fetch.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=a0) in Hcont; auto.
+      revert Hmid Hcont_rest Hcont_fetch Hcont ; clear. solve_addr. }
+    iNext. iIntros "(HPC & Hscrtcls_prog & Hr_t1 & Hact & Hr_t6 & Hr_t7)".
     (* continuation *)
-    iApply "Hφ".
-    iFrame "HPC Hpc_b Ha_entry". iSplitL "Hprog_done".
-    { rewrite Heqapp.
-      do 21 iDestruct "Hprog_done" as "[$ Hprog_done]". iFrame. done. 
-    }
-    iExists b,e. iSplitR;auto.
-    iFrame "Hr_t1 Hr_t0".
-    iSplitL "Heb".
-    { rewrite -Heqh. do 7 iDestruct "Heb" as "[$ Heb]". iFrame. done. }
+    iApply "Hφ". iFrame "HPC Hpc_b Ha_entry". iSplitL "Hprog_done Hmalloc_prog Hscrtcls_prog".
+    { rewrite Heqapp. iDestruct "Hprog_done" as "[? ?]". iFrame. }
+    iExists b,e. iSplitR;auto. iFrame.
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]".
-      by do 2 (rewrite lookup_insert_ne //); rewrite lookup_insert //.
-    iFrame "Hr_t2 Hna".
-    repeat (rewrite delete_insert_ne //; []). rewrite delete_insert_delete.
-    rewrite !delete_insert_ne // !delete_notin; [| apply Hnotin_rmap; set_solver ..].
-    repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite insert_insert.
-    repeat (rewrite (insert_commute _ r_t7) //;[]). rewrite insert_insert. eauto.
+      by do 2 (rewrite lookup_delete_ne //); rewrite lookup_insert //.
+    iFrame "Hr_t2".
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs".
+      by do 2 (rewrite lookup_delete_ne //); rewrite lookup_delete //.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
+      by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete //.
+    repeat (repeat (rewrite delete_insert_ne //; []); rewrite delete_insert_delete).
+    rewrite (delete_notin _ r_t1). 2: apply Hnotin_rmap; set_solver.
+    rewrite (delete_notin _ r_t2). 2: rewrite !lookup_delete_ne //; apply Hnotin_rmap; set_solver.
+    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete.
+    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete.
+    repeat (rewrite (insert_commute _ r_t7) //;[]).
+    repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite (insert_commute _ r_t6 r_t5) //.
   Qed.
 
   (* ------------------------------- Closure Activation --------------------------------- *)

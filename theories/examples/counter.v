@@ -56,9 +56,7 @@ Section counter.
     destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto]. 
 
   (* ----------------------------------------------------------------------------- *)
-  (* TODO: move to addr_reg_sample *)
-  Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
-  Definition r_ret := r_t31. 
+  Definition r_ret := r_t31.
   
 
   Definition incr_instrs :=
