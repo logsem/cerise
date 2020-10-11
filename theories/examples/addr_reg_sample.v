@@ -86,6 +86,7 @@ Section instr_encodings.
   Definition sub_z_r r1 z r2 := encodeInstrW (Sub r1 (inl z) (inr r2)).
   Definition sub_z_z r z1 z2 := encodeInstrW (Sub r (inl z1) (inl z2)).
   Definition subseg_r_r r1 r2 r3 := encodeInstrW (Subseg r1 (inr r2) (inr r3)).
+  Definition subseg_z_z r1 z1 z2 := encodeInstrW (Subseg r1 (inl z1) (inl z2)).
   Definition jnz r1 r2 := encodeInstrW (Jnz r1 r2).
   Definition lt_r_r r1 r2 r3 := encodeInstrW (Lt r1 (inr r2) (inr r3)).
   Definition lt_z_r r1 z r2 := encodeInstrW (Lt r1 (inl z) (inr r2)).

@@ -10,37 +10,6 @@ Section macros.
           `{MP: MachineParameters}.
   
 
-  (* -------------------------------- LTACS ------------------------------------------- *)
-  Ltac iPrologue_pre :=
-    match goal with
-    | Hlen : length ?a = ?n |- _ =>
-      let a' := fresh "a" in
-      destruct a as [| a' a]; inversion Hlen; simpl
-    end.
-
-  Ltac iPrologue prog :=
-    (try iPrologue_pre);
-    iDestruct prog as "[Hi Hprog]";
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac middle_lt prev index :=
-    match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _
-    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-    end.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
-
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- FETCH ------------------------------------- *)
   (* --------------------------------------------------------------------------------- *)
@@ -1612,6 +1581,9 @@ Section macros.
   Definition v5 := encodeInstr (Load r_t1 r_t1).
   Definition v6 := encodeInstr (Jmp r_t1).
 
+  Definition activation_instrs wcode wenv : list Word :=
+    [ inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv ].
+
   (* scrtcls: "static" crtcls. Requires a capability for the memory region where to write
      the activation record.
 
@@ -1672,7 +1644,7 @@ Section macros.
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ scrtcls rcode rdata a
          ∗ r_t1 ↦ᵣ inr (E, act_b, act_e, act_b)
-         ∗ [[act_b,act_e]] ↦ₐ [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]]
+         ∗ [[act_b,act_e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ rcode ↦ᵣ inl 0%Z
          ∗ rdata ↦ᵣ inl 0%Z
          -∗ WP Seq (Instr Executable) {{ φ }})
@@ -1886,7 +1858,7 @@ Section macros.
          ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b)
-         ∗ [[b,e]] ↦ₐ [[ [inl v1;inl v2;inl v3;inl v4;inl v5;inl v6;wcode;wvar] ]]
+         ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
          ∗ r_t2 ↦ᵣ inl 0%Z
          ∗ na_own logrel_nais EN
@@ -2001,11 +1973,11 @@ Section macros.
     PC ↦ᵣ inr (pc_p, b_cls, e_cls, b_cls)
     ∗ r_t1 ↦ᵣ r1v
     ∗ r_env ↦ᵣ renvv
-    ∗ [[b_cls, e_cls]]↦ₐ[[ [inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv] ]]
+    ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
     ∗ (  PC ↦ᵣ updatePcPerm wcode
        ∗ r_t1 ↦ᵣ wcode
        ∗ r_env ↦ᵣ wenv
-       ∗ [[b_cls, e_cls]]↦ₐ[[ [inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv] ]]
+       ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
        -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.

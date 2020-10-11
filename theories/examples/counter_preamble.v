@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules logrel fundamental. 
-From cap_machine.examples Require Import macros malloc counter.
+From cap_machine.examples Require Import macros macros_helpers malloc counter.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
@@ -104,26 +104,6 @@ Section counter_example_preamble.
     iDestruct prog as "[Hi Hprog]";
     iApply (wp_bind (fill [SeqCtx])).
 
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac middle_lt prev index :=
-                                   match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _
-    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-    end.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
-
-
-                                                  
   (* The following three lemmas show that the created closures are valid *)
   Lemma incr_closure_valid incr_prog restc count_incrN countN count_clsN b_cls e_cls b_cls' e_cls' b_cls'' e_cls''
         pc_p pc_b pc_e counter_first counter_end linkc linkc' b_cell e_cell :

@@ -62,60 +62,6 @@ Section callback.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  (* -------------------------------- LTACS ------------------------------------------- *)
-  
-  (* Tactic for destructing a list into elements *)
-  Ltac destruct_list l :=
-    match goal with
-    | H : strings.length l = _ |- _ =>
-      let a := fresh "a" in
-      let l' := fresh "l" in
-      destruct l as [|a l']; [inversion H|];
-      repeat (let a' := fresh "a" in
-              destruct l' as [|a' l'];[by inversion H|]);
-      destruct l'; [|by inversion H]
-    end.
-
-  Ltac iPrologue_pre :=
-    match goal with
-    | Hlen : length ?a = ?n |- _ =>
-      let a' := fresh "a" in
-      destruct a as [| a' a]; inversion Hlen; simpl
-    end.
-
-  Ltac iPrologue prog :=
-    (try iPrologue_pre);
-    iDestruct prog as "[Hi Hprog]";
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac middle_lt prev index :=
-    match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _
-    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-    end.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
-
-  Ltac disjoint_from_rmap rmap :=
-    match goal with
-    | Hsub : _ ⊆ dom (gset RegName) rmap |- _ !! ?r = _ => 
-      assert (is_Some (rmap !! r)) as [x Hx];[apply elem_of_gmap_dom;apply Hsub;constructor|];
-      apply map_disjoint_Some_l with rmap x;auto;apply map_disjoint_union_r_2;auto
-    end.
-  
-  Ltac iContiguous_le Ha index :=
-    eapply contiguous_between_middle_bounds with (i:=index) in Ha;eauto;clear -Ha;solve_addr.
-
   (* ---------------------------------------------------------------------------------- *)
   
   Fixpoint restore_locals_instrs r1 locals :=

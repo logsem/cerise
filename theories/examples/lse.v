@@ -73,52 +73,6 @@ Section roe.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  (* -------------------------------- LTACS -------------------------------------- *)
-  
-  (* Tactic for destructing a list into elements *)
-  Ltac destruct_list l :=
-    match goal with
-    | H : strings.length l = _ |- _ =>
-      let a := fresh "a" in
-      let l' := fresh "l" in
-      destruct l as [|a l']; [inversion H|];
-      repeat (let a' := fresh "a" in
-              destruct l' as [|a' l'];[by inversion H|]);
-      destruct l'; [|by inversion H]
-    end.
-
-  Ltac iPrologue_pre :=
-    match goal with
-    | Hlen : strings.length ?a = ?n |- _ =>
-      let a' := fresh "a" in
-      destruct a as [| a' a]; [inversion Hlen|]
-    end.
-
-  Ltac iPrologue prog :=
-    iDestruct prog as "[Hi Hprog]";
-    iApply (wp_bind (fill [SeqCtx])).
-
-  Ltac iEpilogue prog :=
-    iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
-
-  Ltac middle_lt prev index :=
-    match goal with
-    | Ha_first : ?a !! 0 = Some ?a_first |- _
-    => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-    end.
-
-  Ltac iCorrectPC i j :=
-    eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
-    cbn; solve [ repeat constructor ].
-
-  Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
-
-  Ltac consider_next_reg r1 r2 :=
-    destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto]. 
-
   (* ----------------------------------------------------------------------------- *)
   Definition ro := encodePerm RO.
   Definition roe_instrs f_m f_a r1 :=
