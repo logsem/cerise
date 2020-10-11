@@ -8,6 +8,8 @@ Section adder.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
+  Context (N: namespace).
+
   (* For simplicity, we assume here that we know in advance where the code of f
      is going to be in memory.
 
@@ -61,7 +63,7 @@ Section adder.
     ∗ ▷ r_t3 ↦ᵣ inr (RW, x, x', x)
     ∗ ▷ ([[ act_start, act_end ]] ↦ₐ [[ act0 ]])
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ updatePcPerm w0
+    ∗ ▷ (PC ↦ᵣ updatePcPerm w0 ∗ adder_g ag
          ∗ r_t0 ↦ᵣ w0
          ∗ r_t1 ↦ᵣ inr (E, act_start, act_end, act_start)
          ∗ r_t2 ↦ᵣ inl 0%Z
@@ -133,7 +135,181 @@ Section adder.
       revert Hcont Hlink; clear. solve_addr. }
     iEpilogue "(HPC & Hi & Hr0)".
     (* continuation *)
-    iApply "Hφ". iDestruct "Hprog_done" as "(? & ?)". iFrame.
+    iApply "Hφ". iDestruct "Hprog_done" as "(? & ? & ?)". iFrame.
+    rewrite Heqapp. iDestruct (big_sepL2_length with "Hscrtcls") as %?.
+    rewrite -big_sepL2_app' //. by iFrame.
+  Qed.
+
+  Lemma adder_f_spec af w0 x x' w1 w2 w3 φ :
+    contiguous_between af f_start f_end →
+    (x + 1)%a = Some x' →
+    (f_start <= f_end)%a →
+
+    inv N (∃ (n:Z), x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)
+    ∗ ▷ adder_f af
+    ∗ ▷ PC ↦ᵣ inr (RX, f_start, f_end, f_start)
+    ∗ ▷ r_t0 ↦ᵣ w0
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ r_t3 ↦ᵣ w3
+    ∗ ▷ r_env ↦ᵣ inr (RW, x, x', x)
+    (* continuation *)
+    ∗ ▷ ((∃ (k' n':Z),
+          PC ↦ᵣ updatePcPerm w0 ∗ adder_f af
+          ∗ r_t0 ↦ᵣ w0
+          ∗ r_t1 ↦ᵣ inl 0%Z
+          ∗ r_t2 ↦ᵣ inl k'
+          ∗ r_t3 ↦ᵣ inl n'
+          ∗ r_env ↦ᵣ inl 0%Z)
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
+  Proof.
+    iIntros (Hcont Hx Hf_start_end) "(#Hinv & >Hprog & >HPC & >Hr0 & >Hr1 & >Hr2 & >Hr3 & >Hrenv & Hφ)".
+    unfold adder_f.
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
+    remember af as af'.
+    destruct af' as [| a0 af'];[inversion Hlength|].
+    destruct af' as [| ? af'];[inversion Hlength|].
+    feed pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
+    assert (isCorrectPC_range RX f_start f_end f_start f_end).
+    { intros ? [? ?]. constructor; auto. solve_addr. }
+    (* move r_t1 PC *)
+    iPrologue "Hprog".
+    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 0|..].
+    iEpilogue "(HPC & Hi & Hr1)"; iRename "Hi" into "Hprog_done".
+    (* lea r_t1 7 *)
+    assert (∃ a_cleanup, (f_start + 7%nat)%a = Some a_cleanup) as [a_cleanup Ha_cleanup].
+    { assert (is_Some (af !! 7)) as [ac Hac].
+      { apply lookup_lt_is_Some_2. rewrite -Heqaf' Hlength /adder_f_instrs /=. lia. }
+      exists ac. eapply contiguous_between_incr_addr; eauto.
+      rewrite Heqaf' //. }
+    destruct af' as [| ? af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 1|..]; eauto.
+    iEpilogue "(HPC & Hi & Hr1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* lt r_t3 r_t2 0 *)
+    destruct af' as [| ? af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    destruct w2 as [z2|c2]; cycle 1.
+    { (* Failure case: the argument is not an integer *)
+      iDestruct (map_of_regs_3 with "HPC Hr3 Hr2") as "[Hmap %]".
+      iApply (wp_AddSubLt with "[$Hi $Hmap]"); rewrite ?decode_encode_instrW_inv; eauto.
+      { iCorrectPC f_start f_end. }
+      { erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. }
+      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+      destruct Hspec as [| * _]; [by exfalso; incrementPC_inv|].
+      iApply wp_pure_step_later; auto; iNext. iApply wp_value. auto. }
+    iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr3 $Hr2]");
+      [apply decode_encode_instrW_inv|done|iContiguous_next Hcont 2|iCorrectPC f_start f_end|..].
+    iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    cbn [rules_AddSubLt.denote].
+    (* Prove the internal continuation (a_cleanup) *)
+    iAssert (∀ (w1 we: Word) (k' n' : Z),
+      PC ↦ᵣ inr (RX, f_start, f_end, a_cleanup)
+      ∗ adder_f af
+      ∗ r_t0 ↦ᵣ w0
+      ∗ r_t1 ↦ᵣ w1
+      ∗ r_t2 ↦ᵣ inl k'
+      ∗ r_t3 ↦ᵣ inl n'
+      ∗ r_env ↦ᵣ we
+      -∗ WP Seq (Instr Executable) {{ φ }})%I with "[Hφ]" as "Hcleanup".
+    { iIntros (w2 we k' n') "(HPC & Hprog & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
+      rewrite -Heqaf' /adder_f.
+      do 3 (destruct af' as [| ? af'];[by inversion Hlength|]).
+      destruct af' as [| ac af'];[inversion Hlength|].
+      do 2 (destruct af' as [| ? af'];[inversion Hlength|]).
+      destruct af';[|by inversion Hlength].
+      assert (ac = a_cleanup) as ->.
+      { eapply contiguous_between_incr_addr with (i:=7) in Hcont. 2: done.
+        solve_addr. }
+      iDestruct "Hprog" as "[Hprog_done Hprog]".
+      do 6 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done").
+      (* move r_env 0 *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_z with "[$HPC $Hi $Hrenv]");
+        [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 7|..].
+      iEpilogue "(HPC & Hi & Hrenv)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      (* move r_t1 0 *)
+      iPrologue "Hprog".
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr1]");
+        [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 8|..].
+      iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      (* jmp r_t0 *)
+      iPrologue "Hprog".
+      iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
+        [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|..].
+      iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      (* continuation *)
+      iApply "Hφ". iExists k', n'. do 9 iDestruct "Hprog_done" as "[? Hprog_done]".
+      iFrame. }
+    (* jnz r_t1 r_t3 *)
+    destruct af' as [|? af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    destruct (decide (z2 < 0)%Z) as [Hz2|Hz2].
+    { (* jump to a_cleanup *)
+      iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr1 $Hr3]");
+        [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|..].
+      { apply Zlt_is_lt_bool in Hz2. rewrite Hz2 //=. }
+      iEpilogue "(HPC & Hi & Hr1 & Hr3)".
+      iApply (wp_wand with "[-]").
+      { iApply "Hcleanup". iFrame. rewrite /adder_f -Heqaf'.
+        do 2 iDestruct "Hprog_done" as "[? Hprog_done]". iFrame. }
+      eauto. }
+    assert (0 <= z2)%Z as Hz2' by lia.
+    apply Z.ltb_nlt in Hz2. rewrite Hz2 /=.
+    iApply (wp_jnz_success_next with "[$HPC $Hi $Hr1 $Hr3]");
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 3|..].
+    iEpilogue "(HPC & Hi & Hr1 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* load r_t3 r_env *)
+    destruct af' as [|? af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    (* Open the invariant to be able to read x *)
+    iInv "Hinv" as (n) "[>Hx >#Hxpos]" "Hclose".
+    iAssert (⌜(x =? a2)%a = false⌝)%I as %Hfalse.
+    { destruct (x =? a2)%a eqn:HH; eauto. apply Z.eqb_eq,z_of_eq in HH as ->.
+      iDestruct (mapsto_valid_2 with "Hi Hx") as %?. done. }
+    iApply (wp_load_success with "[$HPC $Hi $Hr3 $Hrenv Hx]");
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|..].
+    { split; [eauto|]. rewrite withinBounds_true_iff; solve_addr. }
+    { iContiguous_next Hcont 4. }
+    { rewrite Hfalse //. }
+    iNext. iIntros "(HPC & Hr3 & Hi & Hrenv & Hx)". rewrite Hfalse.
+    iMod ("Hclose" with "[Hx]") as "_".
+    { iNext. iExists n. iFrame; eauto. }
+    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iDestruct "Hxpos" as %Hnpos. clear Hfalse.
+    iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* add r_t3 r_t3 r_t2 *)
+    destruct af' as [|? af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_add_sub_lt_success_dst_r with "[$HPC $Hi $Hr2 $Hr3]");
+      [apply decode_encode_instrW_inv|done|iContiguous_next Hcont 5|iCorrectPC f_start f_end|..].
+    iEpilogue "(HPC & Hi & Hr2 & Hr3)". cbn [rules_AddSubLt.denote].
+    iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* store r_env r_t3 *)
+    destruct af' as [|ac af'];[inversion Hlength|].
+    iPrologue "Hprog".
+    (* Open the invariant again, this time to write the new value *)
+    iInv "Hinv" as (n') "[>Hx _]" "Hclose".
+    iApply (wp_store_success_reg with "[$HPC $Hi $Hr3 $Hx $Hrenv]");
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 6|..].
+    { split;[auto|]. rewrite withinBounds_true_iff; solve_addr. }
+    iNext. iIntros "(HPC & Hi & Hr3 & Hrenv & Hx)".
+    iMod ("Hclose" with "[Hx]") as "_".
+    { iNext. iExists (n + z2)%Z. iFrame. iPureIntro. lia. }
+    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iCombine "Hi" "Hprog_done" as "Hprog_done".
+    (* invoque the spec for the cleanup code established earlier *)
+    assert (ac = a_cleanup) as ->.
+    { eapply contiguous_between_incr_addr with (i:=7) in Hcont. 2: done.
+      solve_addr. }
+    iApply (wp_wand with "[-]").
+    { iApply "Hcleanup". iFrame. rewrite /adder_f -Heqaf'.
+      do 6 (iDestruct "Hprog_done" as "[? Hprog_done]"). iFrame. }
+    auto.
   Qed.
 
 End adder.
