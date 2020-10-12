@@ -73,6 +73,10 @@ Section roe.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
+  Ltac iPrologue prog :=
+    iDestruct prog as "[Hi Hprog]";
+    iApply (wp_bind (fill [SeqCtx])).
+
   (* ----------------------------------------------------------------------------- *)
   Definition ro := encodePerm RO.
   Definition roe_instrs f_m f_a r1 :=
