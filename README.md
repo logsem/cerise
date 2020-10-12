@@ -1,6 +1,14 @@
-This directory contains the Coq mechanization accompanying the submission
-"Efficient and Provable Local Capability Revocation using Uninitialized
-Capabilities".
+This repository contains the Coq mechanization of a capability machine and
+principles to reason about the interaction of known and unknown code.
+
+This branch contains a simplified machine and (much) simpler logical relation
+than in the main branch of the repository.
+
+We consider here a machine without local or uninitialized capabilities, and we
+reason solely about the the *local-state encapsulation* properties provided by
+E-capabilities (similar to CHERI "sealed" capabilities). This means that the
+logical relation can be made much simpler: in particular, it does not have an
+explicit notion of "worlds" and only needs to rely on standard Iris invariants.
 
 # Building the proofs
 
@@ -14,7 +22,7 @@ those, two options:
 - **Option 1**: create a fresh *local* opam switch with everything needed:
 
 ```
-   opam switch create -y --deps-only --repositories=default,coq-released=https://coq.inria.fr/opam/released .
+   opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.08.1
    eval $(opam env)
 ```
 
@@ -34,19 +42,13 @@ those, two options:
 
 For Option 1, if the invocation fails at some point, either remove the `_opam`
 directory and re-run the command (this will redo everything), or do `eval $(opam
-env)` and then `opam install -y --deps-only .` (this will continue from where it
-failed).
+env)` and then `opam install -y .` (this will continue from where it failed).
 
 ## Building
 
 ```
 make -jN  # replace N with the number of CPU cores of your machine
 ```
-
-We recommend that you have **32Gb of RAM+swap**. Please be aware that the
-development takes around 1h to compile. In particular, the files
-`theories/examples/awkward_example{,_u}.v` can each take up to 25 minutes to
-compile.
 
 It is possible to run `make fundamental` to only build files up to the
 Fundamental Theorem. This usually takes up 20 minutes.
@@ -84,43 +86,20 @@ The organization of the `theories/` folder is as follows.
 
 ## Program logic
 
-- `monocmra.v`, `mono_ref.v`: Definition of monotonic references in Iris, used
-  to define the points-to predicate for memory addresses.
-
 - `region.v`: Auxiliary definitions to reason about consecutive range of
   addresses and memory words.
 
-- `rules_base.v`: Contains some of the core resource algebras for the program
-  logic, namely the definition for points to predicates with permissions.
+- `rules/rules_base.v`: Contains some of the core resource algebras for the
+  program logic, namely the definition for points to predicates with
+  permissions.
 
-- `rules.v`: Imports all the Hoare triple rules for each instruction. These
-  rules are separated into separate files (located in the `rules/` folder).
+- `rules/rules.v`: Imports all the Hoare triple rules for each instruction.
+  These rules are separated into separate files (located in the `rules/`
+  folder).
 
 ## Logical relation
 
-- `multiple_updates.v`: Auxiliary definitions to reason about multiple updates
-  to a world.
-
-- `region_invariants.v`: Definitions for standard resources, and the shared
-  resources map *sharedResources*. Contains some lemmas for "opening" and
-  "closing" the map, akin to opening and closing invariants.
-
-- `region_invariants_revocation.v`: Lemmas for revoking standard resources
-  (setting *Temporary* invariants to a *Revoked* state).
-
-- `region_invariants_static.v`: Lemmas for manipulating frozen standard
-  resources.
-
-- `region_invariants_uninitialized.v`: Lemmas for manipulating frozen standard
-  singleton resources. These are specifically for manipulating the resources
-  that are related to the interpretation of uninitialized capabilities.
-
-- `sts.v`: The definition of *stsCollection*, and associated lemmas.
-
 - `logrel.v`: The definition of the logical relation.
-
-- `monotone.v`: Proof of the monotonicity of the value relation with regards to
-  public future worlds, and private future worlds for non local words.
 
 - `fundamental.v`: Contains *Theorem 6.1: fundamental theorem of logical
   relations*. Each case (one for each instruction) is proved in a separate file
@@ -131,38 +110,32 @@ The organization of the `theories/` folder is as follows.
 
 In the `examples` folder:
 
-- `stack_macros.v` and `stack_macros_u.v`: Specifications for some useful
-  macros, the former for a RWLX stack and the latter for a URWLX stack.
+- `macros.v`: Some useful macros and their proof (in particular, the `crtcls`
+  macro used to implement closures).
 
-- `scall.v`, `scall_u.v`: Specification of a safe calling convention for a RWLX
-  and URWLX stack respectively. Each specification is split up into two parts:
-  the prologue is the specification for the code before the jump, the epilogue
-  is the specification for the activation record.
+- `adder.v`, `adder_adequacy.v`: Simple example, detailed in the JFLA
+  submission. Exposes one closure that enables increasing the value of a
+  reference. The first file proves a separation-logic specification for the
+  system, and the "adequacy" file extracts it into a self-contained statement
+  depending only on the operational semantics.
 
-- `lse.v` : A small and simple example that relies on local state encapsulation. 
+- `malloc.v`: A simple malloc implementation, and its proof.
 
-- `malloc.v`: A simple malloc implementation, and its specification.
+- `counter.v`, `counter_preamble.v`, `counter_adequacy.v`: A counter, with an
+  increment, read, and reset closure. Relies on the malloc routine to allocate
+  its memory, and an "assert" routine to signal failure.
+  (which we then prove cannot happen)
 
-- `awkward_example.v`, `awkward_example_u.v`: The proof of safety for the body
-  of the awkward example (the former using scall with stack clearing, the latter
-  using scallU without stack clearing).
+- `call.v`, `callback.v`: ?
 
-- `awkward_example_preamble.v`: Proof of safety of the preamble to the awkward
-  example (in which a closure to the body of the awkward example is dynamically
-  allocated). This corresponds to *Lemma 6.2*.
-
-- `awkward_example_adequacy.v`: Proof of correctness of the awkward example
-  against the operational semantics of the machine, *Theorem 6.3*.
-
-- `awkward_example_concrete.v`: A concrete instantiation of the correctness
-  theorem of the awkward example on a concrete machine, linked with a concrete
-  "adversarial program". Then, we also prove that this concrete machine
-  configurations indeed runs and gracefully halts.
+- `lse.v`: Example showing how one can reason on capabilities with a RO
+  permission, and in particular obtain than their contents cannot change even
+  after being shared with an adversary.
 
 
 # Differences with the paper
 
-Some definitions have different names from the paper.
+Some definitions have different names than on paper.
 
 *name in paper => name in mechanization*
 
@@ -175,15 +148,3 @@ In the operational semantics:
 | Done Halted       | Instr Halted              |
 | Done Failed       | Instr Failed              |
 | Repeat _          | Seq _                     |
-
-In the model:
-
-| *name in paper* | *name in mechanization* |
-|-----------------|-------------------------|
-| Frozen          | Static                  |
-| stsCollection   | full_sts_world          |
-| sharedResources | region                  |
-
-In `scall.v` and `scall_u.v` : the scall macro is in both cases slightly unfolded, as it does not include the part of the calling convention which stores local state on the stack. That part is inlined into the awkward examples. 
-
-In `awkward_example_u.v`: in the mechanized version of the awkward example (uninitialized version), we clear the local stack frame in two stages: before the second call, we clear the part of the frame which is frozen during the first call, but passed to the adversary during the second call (i.e. a single address at the top of the first local stack frame), and before returning to the caller we clear the rest of the local stack frame (see Section 4.2 for further detail on clearing the local stack frame upon returning to an adversary call). 

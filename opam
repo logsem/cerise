@@ -4,7 +4,6 @@ opam-version: "2.0"
 maintainer: ""
 authors: [ "anonymous" ]
 depends: [
-  "ocaml-base-compiler" {= "4.08.1"}
   "coq" {= "8.9.1"}
   "coq-iris" {= "3.2.0"}
 ]

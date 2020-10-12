@@ -48,3 +48,5 @@ theories/examples/counter_preamble.v
 theories/examples/counter_adequacy.v
 theories/examples/adder.v
 theories/examples/adder_adequacy.v
+theories/examples/callback.v
+theories/examples/lse.v
