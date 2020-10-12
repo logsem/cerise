@@ -199,8 +199,7 @@ Section Adequacy.
       iIntros "?". iFrame. rewrite fixpoint_interp1_eq.
       assert (HH: r ∈ dom (gset RegName) rmap). by apply elem_of_gmap_dom; eauto.
       rewrite /rmap !dom_delete_L in HH.
-      destruct (Hrothers r) as [w' [? Hncap] ].
-      { subst rmap. set_solver+ HH. }
+      destruct (Hrothers r) as [w' [? Hncap] ]. { subst rmap. set_solver+ HH. }
       subst rmap. repeat (rewrite lookup_delete_ne in Hr; [|set_solver+ HH]).
       simplify_eq. destruct w'; [|by inversion Hncap]. eauto. }
 
