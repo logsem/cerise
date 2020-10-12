@@ -132,7 +132,9 @@ In the `examples` folder:
   its memory, and an "assert" routine to signal failure.
   (which we then prove cannot happen)
 
-- `call.v`, `callback.v`: ?
+- `call.v`, `callback.v`: A heap based calling convention: the calling convention 
+   invokes `malloc` to dynamically allocate heap space, store the activation 
+   record and the locals, and clear all non parameter and continuation registers. 
 
 - `lse.v`: Example showing how one can reason on capabilities with a RO
   permission, and in particular obtain than their contents cannot change even
