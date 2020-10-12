@@ -28,6 +28,8 @@ Section adder.
     scrtcls_instrs r_t2 r_t3 ++
     [jmp r_t0].
 
+  Definition adder_g_instrs_length := Eval cbv in (length adder_g_instrs).
+
   (* Closure body *)
   Definition adder_f_instrs :=
     [
@@ -42,6 +44,8 @@ Section adder.
       move_z r_t1 0;
       jmp r_t0
     ].
+
+  Definition adder_f_instrs_length := Eval cbv in (length adder_f_instrs).
 
   Definition adder_g a : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;adder_g_instrs, a_i ↦ₐ w_i)%I.
