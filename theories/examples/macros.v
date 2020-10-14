@@ -538,14 +538,14 @@ Section macros.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
       rewrite !difference_difference_L !singleton_union_difference_L !all_registers_union_l.
       f_equal. set_solver-. }
-    { lia. }
+    (* { lia. } *)
     iNext.
     rewrite updatePcPerm_cap_non_E.
     2: { eapply isCorrectPC_range_perm_non_E; eauto.
          generalize (contiguous_between_length _ _ _ Hcont_rest). cbn.
          clear; solve_addr. }
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
-    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)".
+    iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'. 
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
       by rewrite lookup_insert_ne // lookup_insert //.
       rewrite delete_insert_ne // delete_insert_delete.
@@ -714,14 +714,14 @@ Section macros.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
       rewrite !difference_difference_L !singleton_union_difference_L !all_registers_union_l.
       f_equal. set_solver-. }
-    { lia. }
+    (* { lia. } *)
     iNext.
     rewrite updatePcPerm_cap_non_E.
     2: { eapply isCorrectPC_range_perm_non_E; eauto.
          generalize (contiguous_between_length _ _ _ Hcont_rest). cbn.
          clear; solve_addr. }
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
-    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)".
+    iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize';subst size'.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
       by rewrite lookup_insert_ne // lookup_insert //.
       rewrite delete_insert_ne // delete_insert_delete.

@@ -98,7 +98,7 @@ Definition offset_to_awkward `{memory_layout} : Z :=
      of the preamble *)
   (counter_preamble_instrs_length - counter_preamble_move_offset)%Z.
 
-Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : gmap Addr Word :=
+Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr Word :=
   (* pointer to the linking table *)
     list_to_map [(counter_region_start,
                   inr (RO, link_table_start, link_table_end, link_table_start))]
@@ -112,8 +112,8 @@ Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : g
       (counter_instrs 1) (* offset to fail in the linking table *)
       
   ∪ mkregion adv_start adv_end
-      (* adversarial code: any code or data, but no capabilities (see condition below) *)
-      adv_val
+      (* adversarial code: any code or data, but no capabilities (see condition below) except for malloc *)
+      (adv_val ++ [inr (E, malloc_start, malloc_end, malloc_start)])
   ∪ mkregion malloc_start malloc_memptr
       (* code for the malloc subroutine *)
       malloc_subroutine_instrs
@@ -136,15 +136,15 @@ Definition mk_initial_memory `{memory_layout} (adv_val stack_val: list Word) : g
 .
 
 Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
-  ∃ (adv_val stack_val: list Word),
-  m = mk_initial_memory adv_val stack_val
+  ∃ (adv_val: list Word),
+  m = mk_initial_memory adv_val
   ∧
   (* the adversarial region in memory must only contain instructions, no
      capabilities (it can thus only access capabilities the awkward preamble
      passes it through the registers) *)
   Forall (λ w, is_cap w = false) adv_val
   ∧
-  (adv_start + length adv_val)%a = Some adv_end.
+  (adv_start + (length adv_val + 1)%nat)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
   reg !! PC = Some (inr (RX, counter_region_start, counter_region_end, counter_preamble_start)) ∧
@@ -185,7 +185,7 @@ Section Adequacy.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
-    destruct Hm as (adv_val & stack_val & Hm & Hadv_val & adv_size).
+    destruct Hm as (adv_val & Hm & Hadv_val & adv_size).
     iMod (gen_heap_init (∅:Mem)) as (mem_heapg) "Hmem_ctx".
     iMod (gen_heap_init (∅:Reg)) as (reg_heapg) "Hreg_ctx".
     (* unshelve iMod gen_sts_init as (stsg) "Hsts"; eauto. (*XX*) *)
@@ -255,7 +255,7 @@ Section Adequacy.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare with "Hmalloc_code") as ">Hmalloc_code".
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "Hadv") as ">Hadv". by apply adv_size.
+    iDestruct (mkregion_prepare with "Hadv") as ">Hadv". rewrite app_length /=. by apply adv_size.
     iDestruct (mkregion_prepare with "Hcounter_preamble") as ">Hcounter_preamble".
       by apply counter_preamble_size.
     iDestruct (mkregion_prepare with "Hcounter_body") as ">Hcounter_body". by apply counter_body_size.
@@ -283,7 +283,7 @@ Section Adequacy.
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
       iFrame. iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
       clear; solve_addr. }
-
+    iDestruct (simple_malloc_subroutine_valid with "Hinv_malloc") as "Hmalloc_val". 
     (* Allocate a permanent region for the adversary code *)
 
     (* iAssert (⌜∀ k, *)
@@ -299,12 +299,26 @@ Section Adequacy.
     (*   iDestruct (big_sepL2_lookup _ _ _ i with "Hadv") as "Hk'"; eauto. *)
     (*   iApply (cap_duplicate_false with "[$Hk $Hk']"). done. } *)
 
-    iMod (region_inv_alloc with "[Hadv]") as "Hadv".
-    { iApply (big_sepL2_mono with "Hadv").
-         intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
-         pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
-         destruct v2; [| by inversion Hncap].
-         rewrite fixpoint_interp1_eq /=. done. }
+    assert (contiguous_between (region_addrs adv_start adv_end) adv_start adv_end) as Hcont.
+    { apply contiguous_between_region_addrs. clear -adv_size. solve_addr. }
+    iDestruct (contiguous_between_program_split with "Hadv") as (adv_words malloc_word adv_end') "(Hadv & Hmalloc & #Hcont)";[eauto|]. 
+    iDestruct "Hcont" as %(Hcontadv & Hcontmalloc & Heqapp & Hlink).
+    iDestruct (big_sepL2_length with "Hmalloc") as %Hlen1. simpl in Hlen1.
+    iDestruct (big_sepL2_length with "Hadv") as %Hlen2. simpl in Hlen2.
+      
+    iMod (region_inv_alloc _ (adv_words ++ malloc_word)
+                           (adv_val ++ [inr (E, malloc_start, malloc_end, malloc_start)])
+            with "[Hadv Hmalloc]") as "Hadv".
+    { iApply (big_sepL2_app');[auto|]. 
+      iSplitL "Hadv". 
+      - iApply (big_sepL2_mono with "Hadv").
+        intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
+        pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
+        destruct v2; [| by inversion Hncap].
+        rewrite fixpoint_interp1_eq /=. done.
+      - destruct malloc_word;[inversion Hlen1|]. destruct malloc_word;[|inversion Hlen1].
+        iDestruct "Hmalloc" as "[Hmalloc _]". iFrame "∗ #". done. 
+    }
     iDestruct "Hadv" as "#Hadv".
     
     (* Apply the spec, obtain that the PC is in the expression relation *)
@@ -366,9 +380,9 @@ Section Adequacy.
         (* r0 (return pointer to the adversary) is valid. Prove it using the
            fundamental theorem. *)
         destruct (decide (r = r_t0)) as [ -> |].
-        { rewrite /RegLocate Hstk fixpoint_interp1_eq /=.
+        { rewrite /RegLocate Hstk !fixpoint_interp1_eq /=.
           iDestruct (big_sepL2_length with "Hadv") as %Hadvlength. 
-          iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'";auto. 
+          iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'";auto. rewrite -Heqapp. 
           iApply (big_sepL_mono with "Hadv'"). iIntros (k v Hkv). cbn.
           iIntros "H". iExists (interp). iFrame.
           iSplit;auto. 
@@ -378,7 +392,7 @@ Section Adequacy.
         rewrite /RegLocate.
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
         destruct rw; [| by inversion Hncap].
-        by rewrite Hrw fixpoint_interp1_eq /=. } }
+        by rewrite Hrw !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
 
