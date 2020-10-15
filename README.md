@@ -1,14 +1,20 @@
 This repository contains the Coq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
-This branch contains a simplified machine and (much) simpler logical relation
-than in the main branch of the repository.
+We consider here a machine with "enter" capabilities on top of the usual memory
+capabilities, and focus on reasoning about the *local-state encapsulation*
+properties they can enforce.
 
-We consider here a machine without local or uninitialized capabilities, and we
-reason solely about the the *local-state encapsulation* properties provided by
-E-capabilities (similar to CHERI "sealed" capabilities). This means that the
-logical relation can be made much simpler: in particular, it does not have an
-explicit notion of "worlds" and only needs to rely on standard Iris invariants.
+Enter capabilities are similar to CHERI "sealed" capabilities; they correspond
+to a specific usage mode of sealed capabilities in combination with the CCall
+instruction.
+
+We instantiate the Iris program logic to reason about programs running on the
+machine, and we use it to define a logical relation characterizing the behavior
+of unknown code. The logical relation is much simpler than what one would need
+do reason about more complex stack-like properties: in particular, we only need
+to rely on standard Iris invariants.
+
 
 # Building the proofs
 
