@@ -931,7 +931,7 @@ Section call.
       apply subseteq_difference_r. apply map_disjoint_dom;auto.
       apply subseteq_difference_r;[|apply all_registers_subseteq].
       apply elem_of_disjoint. intros x Hin Heq. destruct Hdisj5 as [? [? ?] ]. 
-      repeat (apply elem_of_union in Heq as [Heq | Heq];[try apply elem_of_singleton in Heq|apply elem_of_singleton in Heq];subst;try done).
+      repeat (apply elem_of_union in Heq as [Heq | Heq];[try apply elem_of_singleton_1 in Heq|apply elem_of_singleton_1 in Heq];subst;try done).
     }
 
     (* rclear *)

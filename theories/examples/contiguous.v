@@ -214,7 +214,7 @@ Section Contiguous.
      first inversion Hfirst.
     simpl in Hfirst. inversion Hfirst. subst.
     destruct al as [| hd tl ].
-    - inversion Hlast. omega.
+    - inversion Hlast. lia.
     - assert ((a0' :: hd :: tl) !! 0 = Some a0') as Ha0; auto.
       assert ((a0' :: hd :: tl) !! 1 = Some hd) as Ha; auto.
       apply (contiguous_spec _ Hcond) with 0 a0' hd in Ha0 as Hnext; auto.
@@ -236,7 +236,7 @@ Section Contiguous.
     - intros i' Hlen Hlast. inversion Hlast.
     - intros i' Hlen Hlast. destruct i'.
       + simpl. apply Hlast.
-      + simpl; simpl in Hlen. apply IHl; first omega.
+      + simpl; simpl in Hlen. apply IHl; first lia.
         assert (0 < length l) as Hl; first lia.
         destruct l; simpl in Hl; first by apply Nat.lt_irrefl in Hl. auto.
   Qed.

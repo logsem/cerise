@@ -40,7 +40,7 @@ Lemma AddrRegionsRange_single l b e :
 Proof.
   intros Hl l' a ->%elem_of_list_singleton ?%Hl. solve_addr.
 Qed.
-Hint Resolve 1 AddrRegionsRange_single : disj_regions.
+Hint Resolve AddrRegionsRange_single | 1 : disj_regions.
 
 Lemma AddrRegionsRange_cons l ll b e b' e' :
   AddrRegionRange l b e →
@@ -51,7 +51,7 @@ Proof.
   - intros ?%Hl. solve_addr.
   - intros ?%Hll; auto. solve_addr.
 Qed.
-Hint Resolve 10 AddrRegionsRange_cons : disj_regions.
+Hint Resolve AddrRegionsRange_cons | 10 : disj_regions.
 
 Instance Empty_list {A}: Empty (list A). exact []. Defined.
 Instance Union_list {A}: Union (list A). exact app. Defined.
@@ -91,7 +91,7 @@ Proof.
   cbn. unfold empty, Empty_list, disjoint_list, disjoint.
   unfold set_disjoint. intros * ? ?%elem_of_nil. auto.
 Qed.
-Hint Resolve 1 addr_range_disj_union_empty : disj_regions.
+Hint Resolve addr_range_disj_union_empty | 1 : disj_regions.
 
 Lemma addr_range_disj_range_union (l: list Addr) ll b e b' e':
   AddrRegionRange l b e →
@@ -108,7 +108,7 @@ Proof.
   unfold disjoint, disjoint_list, set_disjoint.
   intro. rewrite !elem_of_region_addrs. solve_addr.
 Qed.
-Hint Resolve 10 addr_range_disj_range_union : disj_regions.
+Hint Resolve addr_range_disj_range_union | 10 : disj_regions.
 
 Lemma addr_disjoint_list_empty : ## ([]: list (list Addr)).
 Proof. constructor. Qed.

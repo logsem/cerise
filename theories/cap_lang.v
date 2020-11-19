@@ -502,7 +502,7 @@ Section opsem.
     | NextIV => Instr NextI
     end.
 
-  Fixpoint to_val (e: expr): option val :=
+  Definition to_val (e: expr): option val :=
     match e with
     | Instr c =>
       match c with

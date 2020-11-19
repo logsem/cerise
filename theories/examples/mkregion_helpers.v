@@ -53,8 +53,8 @@ Proof.
   intros H.
   pose proof (dom_mkregion_incl a e l) as HH.
   rewrite elem_of_subseteq in HH |- * => HH.
-  specialize (HH _ H). eapply elem_of_list_to_set; eauto.
-  Unshelve. typeclasses eauto.
+  specialize (HH _ H). eapply @elem_of_list_to_set; eauto.
+  typeclasses eauto.
 Qed.
 
 Lemma in_dom_mkregion' a e l k:
