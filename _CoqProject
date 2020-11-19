@@ -19,7 +19,7 @@ theories/rules/rules_IsPtr.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
-theories/rules/rules.v
+theories/rules.v
 theories/logrel.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
