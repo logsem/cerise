@@ -82,7 +82,7 @@ Ltac disjoint_map_to_list :=
 
 Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (a e: Addr) l (φ: Addr → Word → iProp Σ) :
   (a + length l)%a = Some e →
-  ([∗ map] k↦v ∈ mkregion a e l, φ k v) -∗ ([∗ list] k;v ∈ (region_addrs a e); l, φ k v).
+  ⊢ ([∗ map] k↦v ∈ mkregion a e l, φ k v) -∗ ([∗ list] k;v ∈ (region_addrs a e); l, φ k v).
 Proof.
   rewrite /mkregion. revert a e. induction l as [| x l].
   { cbn. intros. rewrite zip_with_nil_r /=. assert (a = e) as -> by solve_addr.
@@ -97,7 +97,7 @@ Qed.
 
 Lemma mkregion_prepare `{memG Σ} (a e: Addr) l :
   (a + length l)%a = Some e →
-  ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (region_addrs a e); l, k ↦ₐ v).
+  ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (region_addrs a e); l, k ↦ₐ v).
 Proof.
   iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
 Qed.

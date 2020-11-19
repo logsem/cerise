@@ -48,7 +48,7 @@ Qed.
 Lemma big_sepL2_extract_l `{Σ : gFunctors} {A B : Type}
       (i : nat) (ai : A) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
   a !! i = Some ai ->
-  (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
+  ⊢ (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
     (∃ b', [∗ list] a_i;b_i ∈ (delete i a);b', φ a_i b_i) ∗ ∃ b, φ ai b)%I.
 Proof. 
   iIntros (Hsome) "Hl".
@@ -75,7 +75,7 @@ Qed.
 
 Lemma big_sepL2_extract_l' {Σ : gFunctors} {A B : Type} (i : nat) (ai : A) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
     a !! i = Some ai ->
-    (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
+    ⊢ (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
      ([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ ∃ b, φ ai b)%I.
 Proof.
   iIntros (Hsome) "Hl".
@@ -110,7 +110,7 @@ Qed.
 
 Lemma big_sepL2_extract' {Σ : gFunctors} {A B : Type} (i : nat) (ai : A) (bi : B) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
   a !! i = Some ai -> b !! i = Some bi ->
-  (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
+  ⊢ (([∗ list] a_i;b_i ∈ a;b, φ a_i b_i) -∗
    ([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ φ ai bi)%I.
 Proof.
   iIntros (Hsome Hsome') "Hl".
@@ -138,7 +138,7 @@ Qed.
 Lemma big_sepL2_close_l {Σ : gFunctors} {A B : Type} (i : nat) (ai : A) (bi : B) (a : list A) (b : list B) (φ : A -> B -> iProp Σ) :
   length a = length b ->
   a !! i = Some ai ->
-  (([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ φ ai bi -∗
+  ⊢ (([∗ list] a_i;b_i ∈ (delete i a);(delete i b), φ a_i b_i) ∗ φ ai bi -∗
                                                              ([∗ list] a_i;b_i ∈ a;<[i:= bi]> b, φ a_i b_i) )%I.
 Proof.
   iIntros (Hlen Hsome) "[Hl Hb]".
@@ -160,11 +160,11 @@ Proof.
   assert (<[i:=bi]> b !! i = Some bi) as Hsome'.
   { apply list_lookup_insert. lia. }
   apply take_drop_middle in Hsome'. rewrite -Hsome'.
-  rewrite take_insert;[|lia]. rewrite drop_insert;[|lia]. done.
+  rewrite take_insert;[|lia]. rewrite drop_insert_gt;[|lia]. done.
 Qed.
 
 Lemma region_addrs_exists `{Σ : gFunctors} {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
-     (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
+     ⊢ (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
       (∃ (ws : list B), [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
 Proof.
   iSplit. 
@@ -186,7 +186,7 @@ Proof.
 Qed.
 
 Lemma region_addrs_exists_zip `{Σ : gFunctors} {A B C: Type} (a : list A) (φ : A → B → C -> iProp Σ) :
-  (([∗ list] a0 ∈ a, (∃ b0 c0, φ a0 b0 c0)) ∗-∗
+  ⊢ (([∗ list] a0 ∈ a, (∃ b0 c0, φ a0 b0 c0)) ∗-∗
   (∃ (ws : list (B * C)), [∗ list] a0;bc0 ∈ a;ws, φ a0 bc0.1 bc0.2))%I.
 Proof.
   iSplit. 
@@ -208,7 +208,7 @@ Proof.
 Qed.
 
 Lemma region_addrs_exists2 `{Σ : gFunctors} {A B C: Type} (a : list A) (b : list B) (φ : A → B → C -> iProp Σ) :
-     (([∗ list] a0;b0 ∈ a;b, (∃ c0, φ a0 b0 c0)) ∗-∗
+     ⊢ (([∗ list] a0;b0 ∈ a;b, (∃ c0, φ a0 b0 c0)) ∗-∗
       (∃ (ws : list C), ⌜length ws = length b⌝ ∗ [∗ list] a0;bc0 ∈ a;(zip b ws), φ a0 bc0.1 bc0.2))%I.
 Proof.
   iSplit. 
@@ -234,7 +234,7 @@ Qed.
 
 Lemma big_sepL2_to_big_sepL_r `{Σ : gFunctors} {A B : Type} (φ : B → iProp Σ) (l1 : list A) l2 :
   length l1 = length l2 →
-  (([∗ list] _;y2 ∈ l1;l2, φ y2) ∗-∗
+  ⊢ (([∗ list] _;y2 ∈ l1;l2, φ y2) ∗-∗
                                  ([∗ list] y ∈ l2, φ y))%I. 
 Proof.
   iIntros (Hlen). 
@@ -258,7 +258,7 @@ Qed.
 Lemma big_sepL2_to_big_sepL_l `{Σ : gFunctors} {A B : Type} (φ : A → iProp Σ) (l1 : list A)
       (l2 : list B) :
   length l1 = length l2 →
-  (([∗ list] y1;_ ∈ l1;l2, φ y1) ∗-∗
+  ⊢ (([∗ list] y1;_ ∈ l1;l2, φ y1) ∗-∗
   ([∗ list] y ∈ l1, φ y))%I.
 Proof.
   iIntros (Hlen).
@@ -319,14 +319,14 @@ Proof.
 Qed.
 
 Lemma big_sepL_delete' {PROP: bi} {A: Type} (φ: A -> PROP) (l: list A):
-      forall k, (([∗ list] k0↦y ∈ l, if decide (k0 = k) then emp else φ y) -∗
+      forall k, ⊢ (([∗ list] k0↦y ∈ l, if decide (k0 = k) then emp else φ y) -∗
            ([∗ list] k0↦x0 ∈ delete k l, (λ (_ : nat) (x1 : A), φ x1) k0 x0))%I.
 Proof.
   iInduction (l) as [|x l] "IH"; simpl; auto; iIntros (k) "H".
   iDestruct "H" as "[H1 H2]".
   rewrite /delete /=. destruct k.
   - iApply (big_sepL_impl with "H2").
-    iClear "H1". iModIntro. iIntros. destruct (decide (S k = 0)); auto. lia.
+    iClear "H1". iModIntro. iIntros. destruct (decide (S k = 0)); auto.
   - simpl. iFrame. iApply ("IH" with "[H2]").
     iApply (big_sepL_impl with "H2").
     iModIntro; iIntros. destruct (decide (k0 = k)); destruct (decide (S k0 = S k)); auto; lia.
@@ -334,7 +334,7 @@ Qed.
 
 Lemma big_sepL_merge {PROP: bi} {A: Type} (l: list A) (HNoDup: NoDup l) (φ: A -> PROP) {Haffine: forall a, Affine (φ a)}:
   forall l1 l2, (forall a, a ∈ l -> a ∈ l1 \/ a ∈ l2) ->
-           (([∗ list] a ∈ l1, φ a) -∗
+           ⊢ (([∗ list] a ∈ l1, φ a) -∗
             ([∗ list] a ∈ l2, φ a) -∗
             ([∗ list] a ∈ l, φ a))%I.
 Proof.
@@ -378,7 +378,7 @@ Qed.
 Lemma big_sepL2_to_big_sepM (PROP : bi) (A B : Type) `{EqDecision A} `{Countable A}
       (φ: A -> B -> PROP) (l1: list A) (l2: list B):
       NoDup l1 ->
-      (([∗ list] y1;y2 ∈ l1;l2, φ y1 y2) -∗
+      ⊢ (([∗ list] y1;y2 ∈ l1;l2, φ y1 y2) -∗
       ([∗ map] y1↦y2 ∈ list_to_map (zip l1 l2), φ y1 y2))%I.
 Proof.
   revert l2. iInduction (l1) as [|x l1] "IH"; iIntros (l2 Hnd) "H".
@@ -410,7 +410,7 @@ Qed.
 
 (* Helper lemma for reasoning about the current state of a region map *)
 Lemma big_sepM_exists `{Σ : gFunctors} {A B C : Type} `{EqDecision A, Countable A} (m : gmap A B) (φ : A → C -> B → iProp Σ) :
-  (([∗ map] a↦b ∈ m, ∃ c, φ a c b) ∗-∗ (∃ (m' : gmap A C), [∗ map] a↦c;b ∈ m';m, φ a c b))%I.
+  ⊢ (([∗ map] a↦b ∈ m, ∃ c, φ a c b) ∗-∗ (∃ (m' : gmap A C), [∗ map] a↦c;b ∈ m';m, φ a c b))%I.
 Proof.
   iSplit.
   - iIntros "Hmap".

@@ -503,7 +503,7 @@ Section region.
 
   Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
     (b <= a ∧ a < e)%a →
-    (([∗ list] a' ∈ (region_addrs b e), φ a') →
+    ⊢ (([∗ list] a' ∈ (region_addrs b e), φ a') →
      φ a)%I.
   Proof.
     iIntros (Ha) "#Hreg".
@@ -516,7 +516,7 @@ Section region.
         `{!∀ x y, Persistent (φ x y)}:
     let n := length (region_addrs b a) in
     (b <= a ∧ a < e)%a →
-    (([∗ list] a';w' ∈ (region_addrs b e);ws, φ a' w') →
+    ⊢ (([∗ list] a';w' ∈ (region_addrs b e);ws, φ a' w') →
      ∃ w, φ a w ∗ ⌜ws = (take n ws) ++ w :: (drop (S n) ws)⌝)%I.
   Proof.
     iIntros (n Ha) "#Hreg".

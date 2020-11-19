@@ -34,8 +34,8 @@ Section logrel.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -59,21 +59,21 @@ Section logrel.
   Solve All Obligations with solve_proper.
   
   (* condition definitions *)
-  Program Definition read_cond (P : D) : D -n> iProp Σ :=
+  Program Definition read_cond (P : D) : D -n> iPropO Σ :=
     λne interp, (▷ □ ∀ (w : Word), P w -∗ interp w)%I.
   Solve Obligations with solve_proper.
   Global Instance read_cond_ne n :
     Proper (dist n ==> dist n ==> dist n) read_cond.
   Proof. solve_proper. Qed.
   
-  Program Definition write_cond (P : D) : D -n> iProp Σ :=
+  Program Definition write_cond (P : D) : D -n> iPropO Σ :=
     λne interp, (▷ □ ∀ (w : Word), interp w -∗ P w)%I.
   Solve Obligations with solve_proper.
   Global Instance write_cond_ne n :
     Proper (dist n ==> dist n ==> dist n) write_cond.
   Proof. solve_proper. Qed.
   
-  Program Definition enter_cond b e a : D -n> iProp Σ :=
+  Program Definition enter_cond b e a : D -n> iPropO Σ :=
     λne interp, (∀ r, ▷ □ interp_expr interp r (inr (RX,b,e,a)))%I.
   Solve Obligations with solve_proper.
   Global Instance enter_cond_ne n :
@@ -81,7 +81,7 @@ Section logrel.
   Proof. solve_proper. Qed.
 
   (* interp definitions *)
-  Program Definition interp_ref_inv (a : Addr) : D -n> iProp Σ := λne P, (∃ w, a ↦ₐ w ∗ P w)%I.
+  Program Definition interp_ref_inv (a : Addr) : D -n> iPropO Σ := λne P, (∃ w, a ↦ₐ w ∗ P w)%I.
   Solve Obligations with solve_proper.
 
   Definition logN : namespace := nroot .@ "logN".
@@ -219,8 +219,8 @@ Section logrel.
   Lemma read_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
-    (interp (inr (p,b,e,a)) →
-     (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if writeAllowed p then write_cond P interp else emp))%I.
+    ⊢ (interp (inr (p,b,e,a)) →
+      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if writeAllowed p then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
@@ -232,22 +232,22 @@ Section logrel.
   Lemma write_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     writeAllowed p →
-    (interp (inr (p,b,e,a)) →
-     inv (logN .@ a') (interp_ref_inv a' interp))%I.
+    ⊢ (interp (inr (p,b,e,a)) →
+      inv (logN .@ a') (interp_ref_inv a' interp))%I.
   Proof.
     iIntros (Hin Wa) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction.
     - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
-      iApply (inv_iff with "[] Hinv"). 
-      iNext. iAlways. iSplit.
+      iApply (inv_iff with "Hinv"). 
+      iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hwrite". iFrame.
     - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
-      iApply (inv_iff with "[] Hinv"). 
-      iNext. iAlways. iSplit.
+      iApply (inv_iff with "Hinv").
+      iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
@@ -310,9 +310,9 @@ Section logrel.
   Lemma read_allowed_inv_regs (a' a b e: Addr) p r :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
-    (interp_registers r -∗
-    interp (inr (p,b,e,a)) -∗
-     (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=inr (p,b,e,a)]> r) a') then write_cond P interp else emp))%I.
+    ⊢ (interp_registers r -∗
+      interp (inr (p,b,e,a)) -∗
+      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=inr (p,b,e,a)]> r) a') then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "#Hregs #Hinterp".
     rewrite /interp_registers /interp_reg /=.

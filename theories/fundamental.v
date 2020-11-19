@@ -9,14 +9,14 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
   Lemma extract_r_ex r (reg : RegName) :
     (∃ w, r !! reg = Some w) →
-    (([∗ map] r0↦w ∈ r, r0 ↦ᵣ w) → ∃ w, reg ↦ᵣ w)%I. 
+    ⊢ (([∗ map] r0↦w ∈ r, r0 ↦ᵣ w) → ∃ w, reg ↦ᵣ w)%I.
   Proof.
     intros [w Hw].
     iIntros "Hmap". iExists w. 
@@ -25,7 +25,7 @@ Section fundamental.
 
   Lemma extract_r reg (r : RegName) w :
     reg !! r = Some w →
-    (([∗ map] r0↦w ∈ reg, r0 ↦ᵣ w) →
+    ⊢ (([∗ map] r0↦w ∈ reg, r0 ↦ᵣ w) →
      (r ↦ᵣ w ∗ (∀ x', r ↦ᵣ x' -∗ [∗ map] k↦y ∈ <[r := x']> reg, k ↦ᵣ y)))%I.
   Proof.
     iIntros (Hw) "Hmap". 
@@ -40,7 +40,7 @@ Section fundamental.
 
   (*TODO: change to region_conditions *)
   Theorem fundamental r p b e (a : Addr) :
-    (interp (inr (p,b,e,a)) →
+    ⊢ (interp (inr (p,b,e,a)) →
      interp_expression r (inr (p,b,e,a)))%I.
   Proof.
     iIntros "#Hinv /=".
@@ -132,8 +132,8 @@ Section fundamental.
         iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
           - subst r0; rewrite lookup_insert; eauto.
-          - rewrite lookup_insert_ne; auto. }            
-        iFrame.
+          - rewrite lookup_insert_ne; auto. }
+        iFrame "HA".
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (inr (p, b, e, a))). 
@@ -153,7 +153,7 @@ Section fundamental.
     p ≠ E -> interp (inr (p,b,e,a)) -∗ exec_cond b e p.
   Proof.
     iIntros (Hnp) "#Hw".
-    iIntros (a0 r Hin). iNext. iAlways. 
+    iIntros (a0 r Hin). iNext. iModIntro. 
     iApply fundamental. 
     rewrite !fixpoint_interp1_eq /=. destruct p; done. 
   Qed.
@@ -174,7 +174,7 @@ Section fundamental.
   Qed.
   
   Lemma jmp_or_fail_spec w φ :
-     (interp w
+  ⊢ (interp w
     -∗ (if decide (isCorrectPC (updatePcPerm w)) then
           (∃ p b e a, ⌜w = inr (p,b,e,a)⌝
           ∗ ∀ r, ▷ □ (interp_expr interp r) (updatePcPerm w))

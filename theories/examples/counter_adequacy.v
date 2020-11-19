@@ -248,17 +248,17 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare with "Hlink_table") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "Hfail") as ">Hfail". by apply fail_size.
-    iDestruct (mkregion_prepare with "Hmalloc_mem") as ">Hmalloc_mem".
+    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
+    iDestruct (mkregion_prepare with "[$Hfail]") as ">Hfail". by apply fail_size.
+    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
     { rewrite replicate_length /region_size. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "Hmalloc_code") as ">Hmalloc_code".
+    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "Hadv") as ">Hadv". rewrite app_length /=. by apply adv_size.
-    iDestruct (mkregion_prepare with "Hcounter_preamble") as ">Hcounter_preamble".
+    iDestruct (mkregion_prepare with "[$Hadv]") as ">Hadv". rewrite app_length /=. by apply adv_size.
+    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "Hcounter_body") as ">Hcounter_body". by apply counter_body_size.
+    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
     rewrite -/(counter _ _ _ _) -/(counter_preamble _ _ _ _).
 
     (* Split the link table *)
@@ -283,7 +283,7 @@ Section Adequacy.
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
       iFrame. iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
       clear; solve_addr. }
-    iDestruct (simple_malloc_subroutine_valid with "Hinv_malloc") as "Hmalloc_val". 
+    iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "Hmalloc_val".
     (* Allocate a permanent region for the adversary code *)
 
     (* iAssert (⌜∀ k, *)
