@@ -723,7 +723,7 @@ Section wbcf.
         iSplitL "Hstack_adv".
         { iApply (big_sepL_mono with "Hstack_adv"). iIntros (k y Helem) "Hr". iFrame.
           iPureIntro. by apply std_update_temp_multiple_lookup with k. }
-        iAlways.
+        iModIntro.
         rewrite /exec_cond.
         iIntros (a0 r' W'' Ha0 Hrelated0). iNext.
         iApply fundamental.
@@ -741,7 +741,7 @@ Section wbcf.
         assert (r !! r_t0 = Some (inr (E, Local, a-200, a-250, a-202))) as Hr_t0; auto. 
         rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
         (* prove continuation *)
-        iAlways.
+        iModIntro.
         rewrite /enter_cond.
         iIntros (r' W'' Hrelated'').
         iNext. iSimpl. 
@@ -1303,7 +1303,7 @@ Section wbcf.
             iIntros (k y Hsome) "_ /=".
             assert (y = inl 0%Z) as ->;[by apply region_addrs_zeroes_lookup in Hsome|].
             iSplit.
-            + iAlways. iIntros (W1 W2 HW12) "_ /=". rewrite fixpoint_interp1_eq /=. done.
+            + iModIntro. iIntros (W1 W2 HW12) "_ /=". rewrite fixpoint_interp1_eq /=. done.
             + rewrite fixpoint_interp1_eq /=. done.            
           - iApply big_sepL_sep. rewrite /read_write_cond. iFrame "Hstack_adv".
             iApply big_sepL_forall. iPureIntro. simpl. 
@@ -1446,7 +1446,7 @@ Section wbcf.
         }
         iDestruct (full_sts_world_is_Some_rel_std _ (a-209) with "Hsts") as %Hstd209; [eauto|].         
         iMod (update_region_revoked_temp_pwl with "[] Hsts Hex Ha209 [] Hrel209") as "[Hex Hsts]"; auto. 
-        { iAlways. iIntros (W1 W2 Hpub) "Hv". do 2 (rewrite fixpoint_interp1_eq). done. }
+        { iModIntro. iIntros (W1 W2 Hpub) "Hv". do 2 (rewrite fixpoint_interp1_eq). done. }
         { iAssert (∀ W, interp W (inl 0%Z))%I as "Htrivial".
           { iIntros (W0). rewrite fixpoint_interp1_eq. auto. }
           iApply "Htrivial". 
@@ -1574,7 +1574,7 @@ Section wbcf.
             iFrame "Hstack_adv+". iSplit. 
             { iPureIntro. rewrite /region_state_pwl /region_std /rel_is_std_i /W'''.
               do 2 rewrite lookup_insert. auto. }
-            iAlways. 
+            iModIntro. 
             rewrite /exec_cond.
             iIntros (a0 r0 W4 Ha0 Hrelated5). iNext.
             iApply fundamental.
@@ -1612,7 +1612,7 @@ Section wbcf.
               as Hr_t0; auto. 
             rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
             (* prove continuation *)
-            iAlways.
+            iModIntro.
             rewrite /enter_cond.
             iIntros (r3 W4 Hrelated5).
             iNext. iSimpl. 
@@ -1833,7 +1833,7 @@ Section wbcf.
             assert (r'' !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto.
             rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
             iIntros (_). 
-            iAlways. rewrite /enter_cond.
+            iModIntro. rewrite /enter_cond.
             iIntros (r0 W6 Hrelated6). 
             iNext. iApply fundamental.
             iLeft. done.
@@ -1876,7 +1876,7 @@ Section wbcf.
         assert (r !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto. 
         rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
         iIntros (_). 
-        iAlways. rewrite /enter_cond.
+        iModIntro. rewrite /enter_cond.
         iIntros (r0 W6 Hrelated6). 
         iNext. iApply fundamental.
         iLeft. done.

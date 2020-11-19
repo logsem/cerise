@@ -11,8 +11,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -74,7 +74,7 @@ Section fundamental.
          rewrite /RegLocate Hrinr.
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
-         iExists P. 
+         iExists P.
          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
          rewrite /interp_ref_inv /=. iDestruct "Hrefinv" as (w) "[>Ha HP]".
          iExists w.
@@ -287,16 +287,16 @@ Section fundamental.
           iApply "Hreg"; auto. }
        }
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
-       { iAlways.
+       { iModIntro.
          destruct (decide (PC = dst)); simplify_eq.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).
            destruct (decide (a = a0)).
            + simplify_map_eq. 
-           + iClear "HLoadRes Hwrite". rewrite decide_True;auto. iAlways.
+           + iClear "HLoadRes Hwrite". rewrite decide_True;auto. iModIntro.
              rewrite !fixpoint_interp1_eq. 
              destruct o as [-> | ->]; iFrame "Hinterp". 
          - (* iExists p'. *) simplify_map_eq.
-           iAlways. iClear "Hw Hinterp Hwrite". 
+           iModIntro. iClear "Hw Hinterp Hwrite". 
            rewrite !fixpoint_interp1_eq /=. 
            destruct o as [-> | ->]; iFrame "Hinv". 
        }

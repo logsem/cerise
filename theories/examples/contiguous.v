@@ -503,7 +503,7 @@ Section Contiguous.
   (* Note that we are assuming that both prog1 and prog2 are nonempty *)
   Lemma contiguous_between_program_split prog1 prog2 (φ : Addr → Word → iProp Σ) a i j :
     contiguous_between a i j →
-    (([∗ list] a_i;w_i ∈ a;prog1 ++ prog2, φ a_i w_i) -∗
+    ⊢ (([∗ list] a_i;w_i ∈ a;prog1 ++ prog2, φ a_i w_i) -∗
     ∃ (a1 a2 : list Addr) (k: Addr),
       ([∗ list] a_i;w_i ∈ a1;prog1, φ a_i w_i)
         ∗ ([∗ list] a_i;w_i ∈ a2;prog2, φ a_i w_i)

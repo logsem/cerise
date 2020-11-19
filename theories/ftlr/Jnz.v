@@ -10,8 +10,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
   
@@ -46,7 +46,7 @@ Section fundamental.
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
       end. simplify_map_eq. rewrite insert_insert.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
-      iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iAlways.
+      iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iModIntro.
       rewrite !fixpoint_interp1_eq /=.
       destruct Hp as [-> | ->];iFrame "Hinv". }
     { simplify_map_eq. iApply wp_pure_step_later; auto.

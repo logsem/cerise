@@ -323,7 +323,7 @@ Section roe.
       consider_next_reg r r_t0;[|consider_next_reg r r_t7;[|consider_next_reg r r_adv] ].
       - (* continuation *) iClear "Hcallback_now Hwadv".
         rewrite !fixpoint_interp1_eq.
-        iIntros (r). iNext. iAlways.
+        iIntros (r). iNext. iModIntro.
         iIntros "([% #Hreg_val] & Hreg & Hown)". iSplit;auto.
         rewrite /interp_conf.
         (* get the registers we need *)
@@ -461,7 +461,7 @@ Section roe.
         rewrite decode_encode_perm_inv.
         rewrite !fixpoint_interp1_eq. iSimpl. apply region_addrs_single in Hincr. rewrite Hincr.
         iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = inl 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
-        iNext. iAlways. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. 
+        iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. 
       - (* the remaining 0'ed out capabilities *)
         destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (inl 0%Z : Word)) !! r) eqn:Hsome;rewrite Hsome.
         apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq. done. rewrite !fixpoint_interp1_eq. done. 
@@ -469,6 +469,6 @@ Section roe.
 
     (* conclude that the full program does not get stuck *)
     iApply (wp_wand with "Hconf");auto. 
-  Qed. 
+  Qed.
     
 End roe. 

@@ -10,8 +10,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -49,7 +49,7 @@ Section fundamental.
         destruct (reg_eq_dec PC r0).
         { subst r0. simplify_map_eq.
           iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
-          iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv". }
+          iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv". }
         { simplify_map_eq.
           rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0.
           destruct (PermFlowsTo RX p'') eqn:Hpft.
@@ -86,7 +86,7 @@ Section fundamental.
               iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0. auto.
           + repeat rewrite /RegLocate lookup_insert_ne; auto.
             iApply "Hreg"; auto.
-        - iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv".
+        - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv".
       }
     }
     Unshelve. all: auto.

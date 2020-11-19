@@ -10,8 +10,8 @@ Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -51,7 +51,7 @@ Section fundamental.
         { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
-      iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
+      iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iApply wp_value; auto. iNext. iIntros; discriminate. }

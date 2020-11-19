@@ -11,8 +11,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -87,7 +87,7 @@ Section fundamental.
       destruct (reg_eq_dec PC dst).
       { subst dst. repeat rewrite insert_insert in HPC |- *. simplify_map_eq.
         iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
-        iAlways. 
+        iModIntro. 
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
         destruct (Z_le_dec b'' e'').
         + rewrite !fixpoint_interp1_eq. destruct Hp as [-> | ->].

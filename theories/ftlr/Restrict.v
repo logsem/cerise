@@ -10,8 +10,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
   
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -81,7 +81,7 @@ Section fundamental.
         { assert (Hpg: (decodePerm n) = RX ∨ (decodePerm n) = RWX).
           { destruct (decodePerm n); simpl in Hpft; eauto; try discriminate. }
           iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]");auto. 
-          iAlways. rewrite !fixpoint_interp1_eq /=.
+          iModIntro. rewrite !fixpoint_interp1_eq /=.
           destruct Hpg as [Heq | Heq];destruct Hp as [Heq' | Heq'];rewrite Heq Heq';try iFrame "Hinv".
           - iApply (big_sepL_mono with "Hinv").
             iIntros (k y _) "H". iDestruct "H" as (P') "(H1 & H2 & H3)". iExists P'. iFrame. 
@@ -105,7 +105,7 @@ Section fundamental.
           rewrite H0. iApply PermPairFlows_interp_preserved; eauto.
         + repeat rewrite lookup_insert_ne; auto.
           iApply "Hreg"; auto. 
-      - iAlways. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
+      - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
   Qed.
 
 End fundamental.

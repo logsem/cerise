@@ -12,8 +12,8 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iProp Σ).
-  Notation R := ((leibnizO Reg) -n> iProp Σ).
+  Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
@@ -78,7 +78,7 @@ Section fundamental.
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #". 
-      iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|]. 
+      iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
       iDestruct "Hinv" as (w) "[>Ha0 #Hinv]". 
       iExists w. iFrame. done.
     - done.  

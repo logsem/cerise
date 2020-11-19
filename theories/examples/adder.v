@@ -366,7 +366,7 @@ Section adder.
     iAssert (interp (inr (E, act_start, act_end, act_start))) with "[Iprog_f Iact]"
       as "Hclosure".
     { iClear "Ew0 Hw0". rewrite /interp /= fixpoint_interp1_eq /=.
-      iIntros (rmap'). iNext. iAlways. iIntros "([Hrmap' #HrV] & Hregs & HnaI)".
+      iIntros (rmap'). iNext. iModIntro. iIntros "([Hrmap' #HrV] & Hregs & HnaI)".
       iDestruct "Hrmap'" as %Hrmap'. iSplit; eauto. rewrite /interp_conf.
       (* extract registers relevant for f from the map *)
       iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".

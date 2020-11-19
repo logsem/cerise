@@ -113,7 +113,7 @@ Section counter_example_preamble.
     contiguous_between restc linkc counter_end →
     (b_cell + 1)%a = Some e_cell →
     
-    (inv countN (counter_inv b_cell) -∗
+    ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_incrN ([∗ list] a_i;w_i ∈ incr_prog;incr_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
      ([[b_cls,e_cls]]↦ₐ[[ [inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; inr (pc_p, pc_b, pc_e, counter_first); inr (RWX, b_cell, e_cell, b_cell)] ]]
@@ -124,7 +124,7 @@ Section counter_example_preamble.
   Proof.
     iIntros (Hnp Hcont_incr Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
-    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
+    iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
@@ -187,7 +187,7 @@ Section counter_example_preamble.
     withinBounds (RW, b_link, e_link, a_entry') = true →
     (up_close (B:=coPset) count_env ## ↑count_readN) →
     
-    (inv countN (counter_inv b_cell) -∗
+    ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_readN ([∗ list] a_i;w_i ∈ read_prog;read_instrs f_a, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
      ([[b_cls,e_cls]]↦ₐ[[ [inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; inr (pc_p, pc_b, pc_e, counter_first); inr (RWX, b_cell, e_cell, b_cell)] ]]
@@ -199,7 +199,7 @@ Section counter_example_preamble.
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell Hlink Hwb Hdisj) "#Hcounter_inv #Hincr #Hcls_inv #Hlink HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
-    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
+    iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
@@ -258,7 +258,7 @@ Section counter_example_preamble.
     contiguous_between reset_prog linkc' counter_end →
     (b_cell + 1)%a = Some e_cell →
     
-    (inv countN (counter_inv b_cell) -∗
+    ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_resetN ([∗ list] a_i;w_i ∈ reset_prog;reset_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
      ([[b_cls,e_cls]]↦ₐ[[ [inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; inr (pc_p, pc_b, pc_e, counter_first); inr (RWX, b_cell, e_cell, b_cell)] ]]
@@ -269,7 +269,7 @@ Section counter_example_preamble.
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
-    iIntros (r') "". iNext. iAlways. rewrite /interp_expr /=.
+    iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
