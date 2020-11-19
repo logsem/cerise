@@ -39,7 +39,7 @@ those, two options:
     # Add the coq-released repo (skip if you already have it)
     opam repo add coq-released https://coq.inria.fr/opam/released
     # Install Coq 8.12 (skip if already installed)
-    opam install coq.8.12.1
+    opam install coq.8.12.0
     opam update
     opam install coq-iris.3.3.0
 ```
