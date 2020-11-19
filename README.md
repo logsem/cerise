@@ -22,7 +22,7 @@ to rely on standard Iris invariants.
 
 You need to have [opam](https://opam.ocaml.org/) >= 2.0 installed.
 
-The development is known to compile with Coq 8.9.1 and Iris 3.2.0. To install
+The development is known to compile with Coq 8.11 and Iris 3.3.0. To install
 those, two options:
 
 - **Option 1**: create a fresh *local* opam switch with everything needed:
@@ -33,15 +33,15 @@ those, two options:
 ```
 
 - **Option 2 (manual installation)**: if you already have an opam switch with
-  ocaml >= 4.02.3 and < 4.10:
+  ocaml >= 4.05.0 and < 4.12:
 
 ```
     # Add the coq-released repo (skip if you already have it)
     opam repo add coq-released https://coq.inria.fr/opam/released
-    # Install Coq 8.9.1 (skip if already installed)
-    opam install coq.8.9.1
+    # Install Coq 8.11 (skip if already installed)
+    opam install coq.8.11.2
     opam update
-    opam install coq-iris.3.2.0
+    opam install coq-iris.3.3.0
 ```
 
 ### Troubleshooting
