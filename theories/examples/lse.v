@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
+Require Import Eqdep_dec List.
 
 Lemma map_to_list_delete_fst {A B} `{Countable A} (m : gmap A B) (i : A) (x : B) :
   ∀ l, i :: l ≡ₚ(map_to_list m).*1 ->

@@ -2,7 +2,8 @@ From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac.
-From cap_machine Require Import machine_base rules_base.
+From cap_machine Require Import machine_base.
+From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ}.

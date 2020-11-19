@@ -1,6 +1,6 @@
 From cap_machine Require Export stdpp_extra cap_lang rules_base.
-From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 From iris.proofmode Require Import tactics.
+From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 
 Section region.
   Context `{MachineParameters, memG Σ, regG Σ}.
@@ -145,7 +145,7 @@ Section region.
 
   Lemma region_addrs_lt_top (a: Addr) n i ai :
     (a + (Z.of_nat i) < MemNum)%Z →
-    region_addrs_aux a n !! i = Some ai → ai ≠ top.
+    region_addrs_aux a n !! i = Some ai → ai ≠ addr_reg.top.
   Proof.
     intros Ha Hai.
     assert (length (region_addrs_aux a n) = n) as Hlen.

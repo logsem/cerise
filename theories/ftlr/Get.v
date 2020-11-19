@@ -2,8 +2,8 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine Require Import ftlr_base.
-From cap_machine.rules Require Export rules_Get.
+From cap_machine Require Export ftlr_base.
+From cap_machine.rules Require Export rules_Get rules_base.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}

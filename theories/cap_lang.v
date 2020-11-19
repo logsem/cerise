@@ -643,9 +643,9 @@ Hint Extern 5 (AsVal _) => eexists; eapply of_to_val; fast_done : typeclass_inst
 Hint Extern 10 (AsVal _) =>
 eexists; rewrite /IntoVal; eapply of_to_val; rewrite /= !to_of_val /=; solve [ eauto ] : typeclass_instances.
 
-Local Hint Resolve language.val_irreducible.
-Local Hint Resolve to_of_val.
-Local Hint Unfold language.irreducible.
+Local Hint Resolve language.val_irreducible : core.
+Local Hint Resolve to_of_val : core.
+Local Hint Unfold language.irreducible : core.
 
 Global Instance dec_pc c : Decision (isCorrectPC c).
 Proof. apply isCorrectPC_dec. Qed.
@@ -677,7 +677,7 @@ Ltac solve_atomic :=
   apply is_atomic_correct; simpl; repeat split;
     rewrite ?to_of_val; eapply mk_is_Some; fast_done.
 
-Hint Extern 0 (Atomic _ _) => solve_atomic.
+Hint Extern 0 (Atomic _ _) => solve_atomic : core.
 Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
 
 Lemma head_reducible_from_step `{MachineParameters} σ1 e2 σ2 :

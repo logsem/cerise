@@ -157,6 +157,7 @@ Definition eqb_addr : Addr → Addr → bool :=
   λ a1 a2, Z.eqb a1 a2.
 Definition za : Addr := A 0%Z eq_refl eq_refl.
 Definition top : Addr := A MemNum eq_refl eq_refl.
+Declare Scope Addr_scope.
 Delimit Scope Addr_scope with a.
 Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
 Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
@@ -397,31 +398,6 @@ Proof.
   solve_addr_close_proof.
   solve_addr_close_proof.
 Qed.
-
-(* ------------------ *)
-(* Hack: modify [zify] to make it support [Z.to_nat] (used in the definition of
-   [region_size]). *)
-(* TODO: remove the code below whenever we upgrade to Coq 8.11, as the issue has
-   been fixed upstream starting from Coq 8.11.
-*)
-
-Lemma Z_of_nat_zify : forall x, Z.of_nat (Z.to_nat x) = Z.max 0 x.
-Proof.
-  intros x. destruct x.
-  - rewrite Z2Nat.id; reflexivity.
-  - rewrite Z2Nat.inj_pos. lia.
-  - rewrite Z2Nat.inj_neg. lia.
-Qed.
-
-Ltac zify_nat_op_extended :=
-  match goal with
-  | H : context [ Z.of_nat (Z.to_nat ?a) ] |- _ => rewrite (Z_of_nat_zify a) in H
-  | |- context [ Z.of_nat (Z.to_nat ?a) ] => rewrite (Z_of_nat_zify a)
-  | _ => zify_nat_op
-  end.
-
-Global Ltac zify_nat ::=
-  repeat zify_nat_rel; repeat zify_nat_op_extended; unfold Z_of_nat' in *.
 
 (* --------------------------- BASIC LEMMAS --------------------------------- *)
 

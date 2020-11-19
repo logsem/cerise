@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules logrel addr_reg_sample fundamental.
+From cap_machine Require Import logrel addr_reg_sample fundamental rules.
 From cap_machine.examples Require Import contiguous.
 
 (* A toy malloc implementation *)

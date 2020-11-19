@@ -54,6 +54,7 @@ Proof.
   pose proof (dom_mkregion_incl a e l) as HH.
   rewrite elem_of_subseteq in HH |- * => HH.
   specialize (HH _ H). eapply elem_of_list_to_set; eauto.
+  Unshelve. typeclasses eauto.
 Qed.
 
 Lemma in_dom_mkregion' a e l k:
@@ -78,7 +79,7 @@ Ltac disjoint_map_to_list :=
   try match goal with |- _ ## dom _ (mkregion _ _ _) =>
     eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
   rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
-  apply list_to_set_disj.
+  apply stdpp_extra.list_to_set_disj.
 
 Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (a e: Addr) l (φ: Addr → Word → iProp Σ) :
   (a + length l)%a = Some e →

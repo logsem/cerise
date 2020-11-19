@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
+From cap_machine Require Import logrel macros_helpers macros rules.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel macros_helpers macros.
 
 
 Lemma NoDup_fst {A B : Type} (l : list (A*B)) :
