@@ -341,9 +341,9 @@ Section roe.
         iDestruct (big_sepM_delete _ _ r_t3 with "Hreg") as "[Hr_t3 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
 
         (* step through the activation record *)
-        iMod (na_inv_open with "Hprog Hown") as "[>Hprog' [Hown Hcls] ]";[solve_ndisj|solve_ndisj|].
+        iMod (na_inv_acc with "Hprog Hown") as "[>Hprog' [Hown Hcls] ]";[solve_ndisj|solve_ndisj|].
         iDestruct (big_sepL2_length with "Hprog'") as %Hlength_rest'. 
-        iMod (na_inv_open with "Hbec Hown") as "[Hbec' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
+        iMod (na_inv_acc with "Hbec Hown") as "[Hbec' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
         iApply (scall_epilogue_spec with "[- $HPC $Hbec' $Hr_t1 $Hr_t2]");[|apply Hnext|]. 
         { split;auto. }
         iNext. iIntros "(HPC & Hr_t1 & Hr_t2 & Hbec')".
@@ -357,7 +357,7 @@ Section roe.
         iRename "Hprog" into "Hprog_inv".
         (* lea r_t2 -1 *)
         iPrologue "Hprog'".
-        iMod (na_inv_open with "Hbel Hown") as "[>Hbel' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
+        iMod (na_inv_acc with "Hbel Hown") as "[>Hbel' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
         iDestruct (big_sepL2_length with "Hbel'") as %Hbl_length. 
         assert ((b_l + 1) = Some e_l)%a as Hbl_next. 
         { rewrite region_addrs_length /= /region_size in Hbl_length. clear -Hbl_length. solve_addr. }
@@ -423,7 +423,7 @@ Section roe.
           clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
         
         (* assert macro *)
-        iMod (na_inv_open with "Hlink Hown") as "[ (a_entry' & a_env & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|]. 
+        iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & a_env & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|]. 
         iApply (assert_r_z_success with "[- $HPC $Hassert_prog $pc_b $a_entry' $Hr_t0]");
           [apply Hvpc5|apply Hcont_assert|auto..].
         iSplitL "Hr_t1";[eauto|]. 

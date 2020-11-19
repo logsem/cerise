@@ -388,14 +388,14 @@ Section adder.
       by rewrite !lookup_delete_ne // lookup_insert_ne //.
       (* Access the activation record code by opening the corresponding invariant;
          then use the spec for the activation record *)
-      iDestruct (na_inv_open with "Iact HnaI") as ">(>Hact & HnaI & Hact_close)";
+      iDestruct (na_inv_acc with "Iact HnaI") as ">(>Hact & HnaI & Hact_close)";
         [auto..|].
       iApply (closure_activation_spec with "[- $HPC $Hr1 $Hrenv $Hact]"); auto.
       { intros ? ?. constructor; auto. }
       iIntros "(HPC & Hr1 & Hrenv & Hact)".
       iDestruct ("Hact_close" with "[$HnaI $Hact]") as ">HnaI". (* close the invariant *)
       (* Now, access the code of f and use its specification *)
-      iDestruct (na_inv_open with "Iprog_f HnaI") as ">(>Hprog_f & HnaI & Hprog_f_close)";
+      iDestruct (na_inv_acc with "Iprog_f HnaI") as ">(>Hprog_f & HnaI & Hprog_f_close)";
         [auto..|].
       iApply (wp_wand with "[-]").
       { iApply (adder_f_spec with "[- $HPC $Hr0 $Hr1 $Hr2 $Hr3 $Hrenv $Hprog_f]"); auto.

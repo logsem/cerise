@@ -148,7 +148,7 @@ Section SimpleMalloc.
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
     iIntros (Hrmap_dom (* Hsize *) HN) "(#Hinv & Hna & Hrmap & Hr0 & HPC & Hr1 & Hφ)".
-    iMod (na_inv_open with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
+    iMod (na_inv_acc with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
     rewrite /malloc_inv.
     iDestruct "Hmalloc" as (b_m a_m) "(Hprog & Hmemptr & Hmem & Hbounds)".
     iDestruct "Hbounds" as %[Hbm_am Ham_e].

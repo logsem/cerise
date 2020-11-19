@@ -98,7 +98,7 @@ Section counter.
   Proof.
     iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
-    iMod (na_inv_open with "Hincr Hown") as "(>Hprog & Hown & Hcls)";auto.
+    iMod (na_inv_acc with "Hincr Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct_list incr_addrs.
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 
@@ -246,7 +246,7 @@ Section counter.
   Proof.
     iIntros (Hvpc Hcont Hwb Hlink Hd Hdom Hclose φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hread & #Hlink & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
-    iMod (na_inv_open with "Hread Hown") as "(>Hprog & Hown & Hcls)";auto.
+    iMod (na_inv_acc with "Hread Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct read_addrs as [|a read_addrs];[inversion Hprog_length|]. 
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a.
@@ -300,7 +300,7 @@ Section counter.
                                                                    "(Hassert & Hprog & #Hcont)";[apply Hcont'|].
     iDestruct "Hcont" as %(Hcont_assert & Hcont_rest & Heqapp & Hlinkrest).
     iDestruct "Hcond" as %Hpos. 
-    iMod (na_inv_open with "Hlink Hown") as "[ [>Hpc_b >Ha_entry] [Hna Hcls'] ]";[revert Hclose;clear;solve_ndisj..|].
+    iMod (na_inv_acc with "Hlink Hown") as "[ [>Hpc_b >Ha_entry] [Hna Hcls'] ]";[revert Hclose;clear;solve_ndisj..|].
     iApply (assert_r_z_success with "[-]");[..|iFrame "HPC Hpc_b Ha_entry Hassert"];
       [|apply Hcont_assert|auto|auto|auto|..].
     { eapply isCorrectPC_range_restrict;[eauto|]. apply contiguous_between_bounds in Hcont_rest. split;auto.
@@ -439,7 +439,7 @@ Section counter.
   Proof.
     iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hreset & #Hregs_val) Hφ". 
     iDestruct "Hinv" as (ι) "#Hinv".
-    iMod (na_inv_open with "Hreset Hown") as "(>Hprog & Hown & Hcls)";auto.
+    iMod (na_inv_acc with "Hreset Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct_list reset_addrs.
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 

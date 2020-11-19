@@ -75,7 +75,7 @@ Section fundamental.
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P. 
-         iMod (inv_open (⊤ ∖ ↑logN.@a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
+         iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
          rewrite /interp_ref_inv /=. iDestruct "Hrefinv" as (w) "[>Ha HP]".
          iExists w.
          iAssert (▷ interp w)%I as "#Hw".

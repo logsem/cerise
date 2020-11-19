@@ -129,7 +129,7 @@ Section counter_example_preamble.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
     
-    iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
+    iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
     
     rewrite /registers_mapsto.
@@ -204,7 +204,7 @@ Section counter_example_preamble.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
     
-    iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
+    iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
     
     rewrite /registers_mapsto.
@@ -274,7 +274,7 @@ Section counter_example_preamble.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     iSplitR; [auto|]. rewrite /interp_conf.
     
-    iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
+    iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
     
     rewrite /registers_mapsto.

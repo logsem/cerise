@@ -785,11 +785,11 @@ Section wbcf.
         { do 5 (rewrite lookup_delete_ne; auto).
           rewrite lookup_insert_ne; eauto. }
         (* We start by opening the invariant for the program *)
-        iMod (na_inv_open logrel_nais ⊤ ⊤
+        iMod (na_inv_acc logrel_nais ⊤ ⊤
                           (regN.@(a-81, a-176)) with "Hprog Hna")
           as "(>Hf3 & Hna & Hcls')"; auto. 
         (* open the na invariant for the local stack content *)
-        iMod (na_inv_open logrel_nais ⊤ (⊤ ∖ ↑regN.@(a-81, a-176))
+        iMod (na_inv_acc logrel_nais ⊤ (⊤ ∖ ↑regN.@(a-81, a-176))
                           (regN.@(a-200, a-209)) with "Hlocal Hna")
           as "(Hstack & Hna & Hcls)"; [auto|solve_ndisj|].
         (* assert that the state of i is true *)
@@ -1650,11 +1650,11 @@ Section wbcf.
             { do 5 (rewrite lookup_delete_ne; auto).
               rewrite lookup_insert_ne; eauto. }
             (* We start by opening the invariant for the program *)
-            iMod (na_inv_open logrel_nais ⊤ ⊤
+            iMod (na_inv_acc logrel_nais ⊤ ⊤
                               (regN.@(a-81, a-176)) with "Hprog Hna")
               as "(>Hf3 & Hna & Hcls')"; auto. 
             (* open the na invariant for the local stack content *)
-            iMod (na_inv_open logrel_nais ⊤ (⊤ ∖ ↑regN.@(a-81, a-176))
+            iMod (na_inv_acc logrel_nais ⊤ (⊤ ∖ ↑regN.@(a-81, a-176))
                               (regN.@(a-200, a-209)) with "Hlocal Hna")
               as "(Hstack & Hna & Hcls)"; [auto|solve_ndisj|].
             (* By public future world, we can assert that the state of i is true *)
