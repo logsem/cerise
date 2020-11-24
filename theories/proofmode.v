@@ -11,8 +11,6 @@ From Ltac2 Require Import Ltac2.
 From Ltac2 Require Option Bool Constr.
 Set Default Proof Mode "Classic".
 
-(* Implicit Types Δ : envs (uPredI (iResUR Σ)). *)
-
 Section codefrag.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{MP: MachineParameters}.

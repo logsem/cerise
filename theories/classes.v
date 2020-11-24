@@ -48,37 +48,11 @@ Hint Mode AddrEq + + - : typeclass_instances.
 
 (* Other *)
 
-(* Instance InBounds_offsets (b: Addr) a (z z': Z) `{HI: AddrSafeIncr b z'}: *)
-(*   AsWeakAddrIncr a b z → *)
-(*   AddrOffsetLt z z' → *)
-(*   AddrOffsetLe 0 z → *)
-(*   InBounds b (b +: z')%a a. *)
-(* Proof. *)
-(*   intros -> ? ?. *)
-(*   unfold AddrOffsetLe,AddrOffsetLt, InBounds in *. solve_addr. *)
-(* Qed. *)
-
 Class ExecPCPerm p :=
   MkExecPcPerm: p = RX ∨ p = RWX.
 Hint Mode ExecPCPerm + : typeclass_instances.
 
 Existing Class PermFlows.
-
-(* Inductive TCAndT2 (P1: Prop) (P2: Type): Type := TCAndT2_intro : P1 → P2 → TCAndT2 P1 P2. *)
-(* Existing Class TCAndT2. *)
-(* Existing Instance TCAndT2_intro. *)
-
-(* Instance TCAnd_AddrSafeIncr_r P a z : *)
-(*   TCAndT2 P (AddrSafeIncr a z) → *)
-(*   AddrSafeIncr a z. *)
-(* Proof. destruct 1; auto. Qed. *)
-
-(* Instance NextAddr_offset (a: Addr) (z: Z) `{HI: AddrSafeIncr a z} (z': Z) *)
-(*   `{HH: TCAndT2 (CbvTC (z + 1)%Z z') (AddrSafeIncr a z')} : *)
-(*   NextAddr (a +: z)%a (a +: z')%a. *)
-(* Proof. *)
-(*   destruct HH as [<- H2]. unfold NextAddr. solve_addr. *)
-(* Qed. *)
 
 Class DecodeInstr `{MachineParameters} (w: Word) (i: instr) :=
   MkDecodeInstr: decodeInstrW w = i.
