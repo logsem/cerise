@@ -37,6 +37,12 @@ Inductive instr: Type :=
 | Fail
 | Halt.
 
+(* Convenient coercion when writing instructions *)
+Definition regn : RegName → (Z+RegName)%type := inr.
+Definition cst : Z → (Z+RegName)%type := inl.
+Coercion regn : RegName >-> sum.
+Coercion cst : Z >-> sum.
+
 (* Registers and memory: maps from register names/addresses to words *)
 
 Definition Reg := gmap RegName Word.

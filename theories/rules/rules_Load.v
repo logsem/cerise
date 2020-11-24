@@ -281,10 +281,64 @@ Section cap_lang_rules.
        destruct o. all: congruence. }
   Qed.
 
+  Lemma wp_load_success_notinstr E r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
+    decodeInstrW w = Load r1 r2 →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ w''
+          ∗ ▷ r2 ↦ᵣ inr (p,b,e,a)
+          ∗ ▷ a ↦ₐ w' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+             ∗ r1 ↦ᵣ w'
+             ∗ pc_a ↦ₐ w
+             ∗ r2 ↦ᵣ inr (p,b,e,a)
+             ∗ a ↦ₐ w' }}}.
+  Proof.
+    intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Hr2 & >Ha)".
+    destruct (a =? pc_a)%a eqn:Ha.
+    { rewrite (_: a = pc_a); cycle 1.
+      { unfold eqb_addr in Ha. apply Z.eqb_eq in Ha. solve_addr. }
+      by iDestruct (addr_dupl_false with "Ha Hpc_a") as "?". }
+    iIntros "Hφ". iApply (wp_load_success with "[$HPC $Hpc_a $Hr1 $Hr2 Ha]"); eauto.
+    rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ? & ?)". rewrite Ha.
+    iApply "Hφ". iFrame.
+  Qed.
+
+  Lemma wp_load_success_frominstr E r1 r2 pc_p pc_b pc_e pc_a w w'' p b e pc_a' :
+    decodeInstrW w = Load r1 r2 →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    readAllowed p = true ∧ withinBounds (p, b, e, pc_a) = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ w''
+          ∗ ▷ r2 ↦ᵣ inr (p,b,e,pc_a) }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+             ∗ r1 ↦ᵣ w
+             ∗ pc_a ↦ₐ w
+             ∗ r2 ↦ᵣ inr (p,b,e,pc_a) }}}.
+  Proof.
+    intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Hr2)".
+    iIntros "Hφ". iApply (wp_load_success with "[$HPC $Hpc_a $Hr1 $Hr2]"); eauto.
+    { unfold eqb_addr. rewrite Z.eqb_refl. eauto. }
+    iNext. iIntros "(? & ? & ? & ? & ?)". unfold eqb_addr. rewrite Z.eqb_refl.
+    iApply "Hφ". iFrame. Unshelve. eauto.
+  Qed.
+
   Lemma wp_load_success_same E r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r1 →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    readAllowed p = true →
+    withinBounds (p, b, e, a) = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
@@ -298,7 +352,7 @@ Section cap_lang_rules.
              ∗ pc_a ↦ₐ w
              ∗ (if (a =? pc_a)%a then emp else a ↦ₐ w') }}}. 
   Proof.
-    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ)
+    iIntros (Hinstr Hvpc Hra Hwb Hpca' φ)
             "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iDestruct (memMap_resource_2gen_clater with "Hi Hr1a") as (mem) "[>Hmem Hmem']".
@@ -326,6 +380,57 @@ Section cap_lang_rules.
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence. }
     Qed.
+
+  Lemma wp_load_success_same_notinstr E r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
+    decodeInstrW w = Load r1 r1 →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    readAllowed p = true →
+    withinBounds (p, b, e, a) = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ inr (p,b,e,a)
+          ∗ ▷ a ↦ₐ w' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+             ∗ r1 ↦ᵣ w'
+             ∗ pc_a ↦ₐ w
+             ∗ a ↦ₐ w' }}}.
+  Proof.
+    intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Ha)".
+    destruct (a =? pc_a)%a eqn:Ha.
+    { rewrite (_: a = pc_a); cycle 1.
+      { unfold eqb_addr in Ha. apply Z.eqb_eq in Ha. solve_addr. }
+      by iDestruct (addr_dupl_false with "Ha Hpc_a") as "?". }
+    iIntros "Hφ". iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]"); eauto.
+    rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ?)". rewrite Ha.
+    iApply "Hφ". iFrame.
+  Qed.
+
+  Lemma wp_load_success_same_frominstr E r1 pc_p pc_b pc_e pc_a w p b e pc_a' :
+    decodeInstrW w = Load r1 r1 →
+    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    readAllowed p = true →
+    withinBounds (p, b, e, pc_a) = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ inr (p,b,e,pc_a) }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+             ∗ r1 ↦ᵣ w
+             ∗ pc_a ↦ₐ w }}}.
+  Proof.
+    intros. iIntros "(>HPC & >Hpc_a & >Hr1)".
+    iIntros "Hφ". iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1]"); eauto.
+    { unfold eqb_addr. rewrite Z.eqb_refl. eauto. }
+    iNext. iIntros "(? & ? & ? & ?)". unfold eqb_addr. rewrite Z.eqb_refl.
+    iApply "Hφ". iFrame. Unshelve. eauto.
+  Qed.
 
   (* If a points to a capability, the load into PC success if its address can be incr *)
   Lemma wp_load_success_PC E r2 pc_p pc_b pc_e pc_a w

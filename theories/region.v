@@ -174,6 +174,19 @@ Section region.
         zify_addr; first [ by eauto | lia ].
   Qed.
 
+  Lemma region_addrs_aux_lookup_middle a0 ai (i n: nat) :
+    i < n →
+    (a0 + i)%a = Some ai →
+    region_addrs_aux a0 n !! i = Some ai.
+  Proof using.
+    revert i ai a0. induction n.
+    { intros. lia. }
+    { intros i ai a0 Hi Hai. cbn.
+      destruct i as [|i].
+      { cbn. solve_addr. }
+      { cbn. apply IHn. lia. solve_addr. } }
+  Qed.
+
   (*---------------------------- region_addrs --------------------------------*)
 
   Definition region_addrs (b e: Addr): list Addr :=
@@ -421,6 +434,18 @@ Section region.
       eapply submseteq_middle.
     - rewrite region_addrs_empty; [|solve_addr].
       eapply submseteq_nil_l.
+  Qed.
+
+  Lemma region_addrs_lookup_middle a0 an (i n: nat) :
+    i < n →
+    (a0 + n)%a = Some an →
+    (region_addrs a0 an) !! i = Some (a0 ^+ i)%a.
+  Proof using.
+    intros Hin Han.
+    rewrite /region_addrs.
+    rewrite (_: region_size a0 an = n); cycle 1.
+    { rewrite /region_size. solve_addr. }
+    apply region_addrs_aux_lookup_middle; eauto. solve_addr.
   Qed.
 
   (*--------------------------------------------------------------------------*)

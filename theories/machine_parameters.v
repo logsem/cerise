@@ -33,3 +33,6 @@ Definition encodeInstrW `{MachineParameters} : instr → Word :=
 Lemma decode_encode_instrW_inv `{MachineParameters} (i: instr):
   decodeInstrW (encodeInstrW i) = i.
 Proof. apply decode_encode_instr_inv. Qed.
+
+Definition encodeInstrsW `{MachineParameters} : list instr → list Word :=
+  map encodeInstrW.

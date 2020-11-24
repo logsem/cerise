@@ -8,6 +8,8 @@ theories/map_simpl.v
 theories/addr_reg.v
 theories/machine_base.v
 theories/machine_parameters.v
+theories/classes.v
+theories/class_instances.v
 theories/cap_lang.v
 theories/region.v
 theories/rules/rules_base.v
@@ -23,6 +25,10 @@ theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules.v
+theories/solve_pure.v
+theories/NamedProp.v
+theories/proofmode_instr_rules.v
+theories/proofmode.v
 theories/logrel.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v

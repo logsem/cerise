@@ -222,6 +222,7 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
            end.
 
 Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Addr_scope.
+Notation "a ^+ b" := (^ (a + b))%a (at level 50) : Addr_scope.
 
 (** Automation *)
 (*** A zify-like tactic to send arithmetic on adresses into Z ******)
