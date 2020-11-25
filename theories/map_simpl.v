@@ -118,52 +118,78 @@ Ltac2 rec reify_helper kk aa term :=
                       (constr:(@Ins $kk $aa (gmap $kk $aa) $k $a $rm), h)
   | delete ?k ?m => let (rm, h) := reify_helper kk aa m in
                    (constr:(@Del $kk $aa (gmap $kk $aa) $k $rm), h)
-  | ?m => (* let id := Option.get (Ident.of_string "x") in *)
-         (* let h := Fresh.in_goal id in *)
-         (* remember $m as $h; *)
-         (* let x := (Unsafe.make (Unsafe.Var (h))) in *)
-         (constr:(@Symb $kk $aa (gmap $kk $aa) $m), m)
+  | ?m => (constr:(@Symb $kk $aa (gmap $kk $aa) $m), m)
 end.
 
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
   ltac1:(lhs rhs |- replace lhs with rhs) (Ltac1.of_constr lhs) (Ltac1.of_constr rhs).
 
-(* Goal forall (m: gmap nat nat), (<[5 := 3]> m) = (<[5 := 3]> m). *)
-(*   etransitivity. *)
-(*   lazy_match! goal with *)
-(*   | [|- ?x = _] => let (x', h) := reify_helper 'nat 'nat x in *)
-(*                  replace_with x '(@denote _ _ _ _ $x') > [()| subst $h; reflexivity] *)
-(*   end. *)
-
-(*   lazy_match! goal with *)
-(*   | [|- ?x = _] => let (x', h) := reify_helper 'nat 'nat x in *)
-(*                  replace $x with  *)
-
-
-(*                  let c' := Pattern.instantiate c '1 in *)
-(*                              Message.print (Message.of_constr c') *)
-(*                               (* apply (simpl_rmap_correct _ _ _ _ $x'); vm_compute; subst $h; reflexivity *) *)
-(*   end. *)
-(*   cbn [denote]. auto. *)
-(* Qed. *)
-
 Goal <[5 := 2]> (<[5 := 3]> (∅: gmap nat nat)) = <[5 := 2]> (∅: gmap nat nat).
   lazy_match! goal with
-| [|- ?x = _] => let (x', m) := reify_helper 'nat 'nat x in
-               Message.print (Message.of_constr x);
-               Message.print (Message.of_constr x');
-               replace_with x '(@denote _ _ _ _ $x') > [() | reflexivity];
-               let id := Option.get (Ident.of_string "x") in
-               let h := Fresh.in_goal id in
-               remember $m as $h;
-               erewrite (@simpl_rmap_correct) > [() | vm_compute; subst $h; reflexivity];
-               cbn [denote]; subst $h
+  | [|- ?x = _] => let (x', m) := reify_helper 'nat 'nat x in
+                 replace_with x '(@denote _ _ _ _ $x') > [() | reflexivity];
+                 let id := Option.get (Ident.of_string "x") in
+                 let h := Fresh.in_goal id in
+                 remember $m as $h;
+                 erewrite (@simpl_rmap_correct) > [() | vm_compute; subst $h; reflexivity];
+                 cbn [denote]; subst $h
   end.
   reflexivity.
 Qed.
 
-Set Proof Mode "Classic".
+Ltac2 map_simpl_aux k a x :=
+  let (x', m) := reify_helper k a x in
+  Message.print (Message.of_constr k);
+  Message.print (Message.of_constr a);
+  Message.print (Message.of_constr x);
+  Message.print (Message.of_constr x');
+  Message.print (Message.of_constr '(@denote _ _ _ _ $x'));
+  replace_with x '(@denote _ _ _ _ $x') > [() | reflexivity];
+  let id := Option.get (Ident.of_string "x") in
+  let h := Fresh.in_goal id in
+  remember $m as $h;
+  erewrite (simpl_rmap_correct) > [() | vm_compute; subst $h; reflexivity];
+  cbn [denote]; subst $h.
 
+From iris.proofmode Require Import environments.
 
+Set Default Proof Mode "Classic".
 
+Ltac map_simpl name :=
+  match goal with
+  | |- context [ Esnoc _ (base.ident.INamed name) ([∗ map] _↦_ ∈ ?m, _)%I ] =>
+    match type of m with
+    | gmap ?K ?A =>
+      let f := ltac2:(k a m |- map_simpl_aux (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m))) in
+      f K A m
+    end
+  end.
 
+From iris.proofmode Require Import tactics.
+From cap_machine Require Import rules_base addr_reg_sample.
+
+Section test.
+  Context `{memG Σ, regG Σ}.
+
+  Lemma bar (w1 w2 w3: Word):
+    (denote RegName reg_eq_dec reg_countable
+            (Ins RegName r_t1 w1 (Ins RegName r_t2 w2 (Ins RegName r_t1 w3 (Symb RegName ∅))))) = denote RegName reg_eq_dec reg_countable
+    (Ins RegName (R 1 eq_refl) w2 (Ins RegName (R 2 eq_refl) w1 (Symb RegName ∅))).
+  Proof.
+    remember ∅ as HX.
+    erewrite simpl_rmap_correct.
+    2:{ vm_compute. subst HX. reflexivity. }
+    subst HX. reflexivity.
+    Fail Qed.
+  Admitted.
+
+  Lemma foo (w1 w2 w3: Word) :
+    ([∗ map] k↦y ∈ (<[r_t1:=w1]> (<[r_t2:=w2]> (<[r_t1:=w3]> ∅))), k ↦ᵣ y) -∗
+    r_t1 ↦ᵣ w1 ∗ r_t2 ↦ᵣ w2.
+  Proof.
+    iIntros "H".
+    map_simpl "H".
+    iDestruct (regs_of_map_2 with "H") as "H"; auto.
+  Admitted.
+
+End test.

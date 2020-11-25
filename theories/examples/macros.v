@@ -8,7 +8,7 @@ Section macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
-  
+
 
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- FETCH ------------------------------------- *)
@@ -24,10 +24,10 @@ Section macros.
     lea_z r_t1 f;
     move_z r_t2 0;
     move_z r_t3 0;
-    load_r r_t1 r_t1]. 
+    load_r r_t1 r_t1].
 
   Definition fetch f a : iProp Σ :=
-    ([∗ list] a_i;w_i ∈ a;(fetch_instrs f), a_i ↦ₐ w_i)%I. 
+    ([∗ list] a_i;w_i ∈ a;(fetch_instrs f), a_i ↦ₐ w_i)%I.
 
   (* fetch spec *)
   Lemma fetch_spec f a pc_p pc_b pc_e a_first a_last b_link e_link a_link entry_a wentry φ w1 w2 w3:
@@ -36,7 +36,7 @@ Section macros.
     withinBounds (RW, b_link, e_link, entry_a) = true ->
     (a_link + f)%a = Some entry_a ->
 
-      ▷ fetch f a 
+      ▷ fetch f a
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
     ∗ ▷ entry_a ↦ₐ wentry
@@ -45,7 +45,7 @@ Section macros.
     ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ fetch f a 
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ fetch f a
             (* the newly allocated region *)
             ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z
             ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
@@ -65,35 +65,35 @@ Section macros.
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto|..].
     iEpilogue "(HPC & Hprog_done & Hr_t1)".
     (* getb r_t2 r_t1 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr_t2 $Hr_t1]");
       [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|iContiguous_next Hcont 1|auto..].
-    iEpilogue "(HPC & Hi & Hr_t1 & Hr_t2) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t1 & Hr_t2) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* geta r_t3 r_t1 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_Get_success with "[$HPC $Hi $Hr_t3 $Hr_t1]");
       [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|iContiguous_next Hcont 2|auto..].
-    iEpilogue "(HPC & Hi & Hr_t1 & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t1 & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* sub r_t2 r_t2 r_t3 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_r with "[$HPC $Hi $Hr_t3 $Hr_t2]");
       [apply decode_encode_instrW_inv|auto|iContiguous_next Hcont 3|iCorrectPC a_first a_last|..].
-    iEpilogue "(HPC & Hi & Hr_t3 & Hr_t2) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t3 & Hr_t2) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea r_t1 r_t2 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
-    assert ((a_first + (pc_b - a_first))%a = Some pc_b) as Hlea;[solve_addr|]. 
+    assert ((a_first + (pc_b - a_first))%a = Some pc_b) as Hlea;[solve_addr|].
     iApply (wp_lea_success_reg with "[$HPC $Hi $Hr_t1 $Hr_t2]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|apply Hlea|auto..].
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | ->]; auto. }
-    iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t1 r_t1 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iAssert (⌜(pc_b ≠ a3)%Z⌝)%I as %Hneq.
     { iIntros (Hcontr);subst.
@@ -105,34 +105,34 @@ Section macros.
       assert (pc_b < pc_e)%Z as Hle.
       { eapply isCorrectPC_contiguous_range in Hvpc as Hwb';[|eauto|apply elem_of_cons;left;eauto].
         inversion Hwb'. solve_addr. }
-      apply isCorrectPC_range_perm in Hvpc as Heq; [|revert Hlen; clear; solve_addr].      
+      apply isCorrectPC_range_perm in Hvpc as Heq; [|revert Hlen; clear; solve_addr].
       split;[destruct Heq as [-> | ->]; auto|].
       apply andb_true_intro. split;[apply Z.leb_le;solve_addr|apply Z.ltb_lt;auto].
     }
     { destruct (pc_b =? a3)%a; [done|iFrame]. }
-    destruct ((pc_b =? a3)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr]. 
+    destruct ((pc_b =? a3)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr].
     iEpilogue "(HPC & Hr_t1 & Hi & Hpc_b)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea r_t1 f *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|apply Hentry|simpl;auto..].
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t2 0 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 7|auto|..].
     iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t3 0 *)
-    destruct l;[inversion Hlength|]. 
+    destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t3]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 8|auto|..].
     iEpilogue "(HPC & Hi & Hr_t3)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t1 r_t1 *)
     destruct l;[|inversion Hlength].
-    apply contiguous_between_last with (ai:=a7) in Hcont as Hlink;[|auto]. 
+    apply contiguous_between_last with (ai:=a7) in Hcont as Hlink;[|auto].
     iPrologue "Hprog".
     iAssert (⌜(entry_a ≠ a7)%Z⌝)%I as %Hneq'.
     { iIntros (Hcontr);subst.
@@ -140,12 +140,12 @@ Section macros.
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_entry]");
       [exact wentry|apply decode_encode_instrW_inv|iCorrectPC a_first a_last|auto|apply Hlink|..].
     { destruct (entry_a =? a7)%a; auto. }
-    destruct ((entry_a =? a7)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr]. 
+    destruct ((entry_a =? a7)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr].
     iEpilogue "(HPC & Hr_t1 & Hi & Hentry_a)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* continuation *)
     iApply "Hφ".
-    iFrame. 
-    do 9 iDestruct "Hprog_done" as "[$ Hprog_done]". 
+    iFrame.
+    do 9 iDestruct "Hprog_done" as "[$ Hprog_done]".
     iFrame.
   Qed.
 
@@ -153,37 +153,37 @@ Section macros.
   (* ------------------------------------- ASSERT ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* The assert macro relies on a convention for the failure flag. This file contains the 
+  (* The assert macro relies on a convention for the failure flag. This file contains the
      failure subroutine *)
 
   (* The convention for the failure flag: one address after the last instruction of the failure subroutine *)
-  (* failing the assert will set the flag to 1 and then crash the program to a Failed configuration. The flag 
+  (* failing the assert will set the flag to 1 and then crash the program to a Failed configuration. The flag
      capability is at one address after the instructions *)
   Definition assert_fail_instrs :=
     [move_r r_t1 PC;
     lea_z r_t1 6;
-    load_r r_t1 r_t1; 
+    load_r r_t1 r_t1;
     store_z r_t1 1;
     move_z r_t1 0;
     fail_end].
 
   Definition assert_fail a :=
-    ([∗ list] a_i;w_i ∈ a;(assert_fail_instrs), a_i ↦ₐ w_i)%I. 
+    ([∗ list] a_i;w_i ∈ a;(assert_fail_instrs), a_i ↦ₐ w_i)%I.
 
   (* f_a is the offset of the failure subroutine in the linking table *)
   (* assert r z asserts that the register r contains the integer z *)
   (* r is assumed not to be r_t1 *)
   Definition assert_r_z_instrs f_a r z :=
-    fetch_instrs f_a ++ 
+    fetch_instrs f_a ++
     [sub_r_z r r z;
     jnz r_t1 r;
     move_z r_t1 0].
 
   Definition assert_r_z a f_a r z :=
-    ([∗ list] a_i;w_i ∈ a;(assert_r_z_instrs f_a r z), a_i ↦ₐ w_i)%I. 
+    ([∗ list] a_i;w_i ∈ a;(assert_r_z_instrs f_a r z), a_i ↦ₐ w_i)%I.
 
   (* Spec for assertion success *)
-  (* Since we are not jumping to the failure subroutine, we do not need any assumptions 
+  (* Since we are not jumping to the failure subroutine, we do not need any assumptions
      about the failure subroutine *)
   Lemma assert_r_z_success a f_a r z pc_p pc_b pc_e a_first a_last
         b_link e_link a_link a_entry fail_cap w_r φ :
@@ -204,7 +204,7 @@ Section macros.
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t3 ↦ᵣ w)
     ∗ ▷ (r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ r ↦ᵣ inl 0%Z
-         ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ assert_r_z a f_a r z 
+         ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ assert_r_z a f_a r z
          ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
@@ -218,9 +218,9 @@ Section macros.
     iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
     iDestruct "Hr_t1" as (w1) "Hr_t1".
     iDestruct "Hr_t2" as (w2) "Hr_t2".
-    iDestruct "Hr_t3" as (w3) "Hr_t3". 
+    iDestruct "Hr_t3" as (w3) "Hr_t3".
     iApply (fetch_spec with "[$HPC $Hfetch $Hr_t1 $Hr_t2 $Hr_t3 $Ha_entry $Hpc_b Hφ Hprog Hr]");
-      [|apply Hcont_fetch|apply Hwb|apply Htable|]. 
+      [|apply Hcont_fetch|apply Hwb|apply Htable|].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. revert Hcont_rest Hmid; clear. solve_addr. }
     iNext. iIntros "(HPC & Hfetch& Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
@@ -231,18 +231,18 @@ Section macros.
     apply contiguous_between_cons_inv_first in Hcont_rest as Heq. subst a0.
     (* sub_r_z r r z *)
     destruct l';[inversion Hlength_rest|].
-    inversion Hsuccess. subst w_r.  
+    inversion Hsuccess. subst w_r.
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr]");
       [apply decode_encode_instrW_inv|right;left;eauto|iContiguous_next Hcont_rest 0|iCorrectPC link a_last|..].
-    iEpilogue "(HPC & Hi & Hr)"; iCombine "Hfetch" "Hi" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr)"; iCombine "Hfetch" "Hi" as "Hprog_done".
     (* jnz r_t1 r *)
-    rewrite /= Z.sub_diag. 
+    rewrite /= Z.sub_diag.
     destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t1 $Hr]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|iContiguous_next Hcont_rest 1|].
-    iEpilogue "(HPC & Hinstr & Hr_t1 & Hr)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".  
+    iEpilogue "(HPC & Hinstr & Hr_t1 & Hr)". iCombine "Hinstr" "Hprog_done" as "Hprog_done".
     (* move r_t1 0 *)
     destruct l';[|inversion Hlength_rest].
     apply contiguous_between_last with (ai:=a1) in Hcont_rest as Hlink';[|auto].
@@ -256,7 +256,7 @@ Section macros.
   Qed.
 
   (* Spec for assertion failure *)
-  (* When the assertion fails, the program jumps to the failure subroutine, sets the 
+  (* When the assertion fails, the program jumps to the failure subroutine, sets the
      flag (which by convention is one address after subroutine) and Fails *)
   Lemma assert_r_z_fail a f_a r z pc_p pc_b pc_e a_first a_last z_r
         b_link e_link a_link a_entry
@@ -279,7 +279,7 @@ Section macros.
 
     (* the assert and assert failure subroutine programs *)
     {{{ ▷ assert_r_z a f_a r z
-    ∗ ▷ assert_fail a' 
+    ∗ ▷ assert_fail a'
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
     (* linking table and assertion flag *)
     ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) (* the linking table capability *)
@@ -291,27 +291,27 @@ Section macros.
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t3 ↦ᵣ w) }}}
-      
+
       Seq (Instr Executable)
-      
+
     {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ inr (RX, f_b, f_e,^(f_a_last + (-1))%a)
-         ∗ assert_r_z a f_a r z ∗ assert_fail a' 
+         ∗ assert_r_z a f_a r z ∗ assert_fail a'
          ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ inr (E,f_b,f_e,f_a_first)
-         ∗ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ inl 1%Z }}}. 
+         ∗ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ inl 1%Z }}}.
   Proof.
-    iIntros (Hvpc Hcont Hwb Htable Hvpc' Hcont' Henv Henvwb [Hwb' Hwa] Hfailure φ) 
+    iIntros (Hvpc Hcont Hwb Htable Hvpc' Hcont' Henv Henvwb [Hwb' Hwa] Hfailure φ)
             "(>Hprog & >Hprog' & >HPC & >Hpc_b & >Ha_entry & >Ha_env & >Hflag & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3) Hφ".
-    iDestruct "Hflag" as (flag_w) "Hflag". 
+    iDestruct "Hflag" as (flag_w) "Hflag".
     (* fetch f *)
     iDestruct (contiguous_between_program_split with "Hprog") as (fetch_prog rest link)
                                                                    "(Hfetch & Hprog & #Hcont)";[apply Hcont|].
     iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
     iDestruct "Hr_t1" as (w1) "Hr_t1".
     iDestruct "Hr_t2" as (w2) "Hr_t2".
-    iDestruct "Hr_t3" as (w3) "Hr_t3". 
+    iDestruct "Hr_t3" as (w3) "Hr_t3".
     iApply (fetch_spec with "[$HPC $Hfetch $Hr_t1 $Hr_t2 $Hr_t3 $Ha_entry $Hpc_b Hφ Hprog Hr Hprog' Ha_env Hflag]");
-      [|apply Hcont_fetch|apply Hwb|apply Htable|]. 
+      [|apply Hcont_fetch|apply Hwb|apply Htable|].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. revert Hcont_rest Hmid; clear. solve_addr. }
     iNext. iIntros "(HPC & Hfetch& Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
@@ -325,7 +325,7 @@ Section macros.
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr]");
       [apply decode_encode_instrW_inv|right;left;eauto|iContiguous_next Hcont_rest 0|iCorrectPC link a_last|..].
-    iEpilogue "(HPC & Hi & Hr)"; iCombine "Hi" "Hfetch" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr)"; iCombine "Hi" "Hfetch" as "Hprog_done".
     (* jnz r_t1 r *)
     iPrologue "Hprog".
     iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr_t1 $Hr]");
@@ -333,17 +333,17 @@ Section macros.
     iEpilogue "(HPC & Hi & Hr_t1 & Hr)"; iSimpl in "HPC"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hprog" "Hprog_done" as "Hprog_done".
     (* FAILURE SUBROUTINE *)
-    iDestruct (big_sepL2_length with "Hprog'") as %Hlength'. 
+    iDestruct (big_sepL2_length with "Hprog'") as %Hlength'.
     destruct a';[inversion Hlength'|].
     apply contiguous_between_cons_inv_first in Hcont' as Heq. subst a1.
     (* move r_t1 PC *)
     destruct a';[inversion Hlength'|].
-    iAssert (⌜r_t1 ≠ PC⌝)%I as %Hne. 
+    iAssert (⌜r_t1 ≠ PC⌝)%I as %Hne.
     { iIntros (Hcontr). rewrite Hcontr. iDestruct (regname_dupl_false with "Hr_t1 HPC") as "H". done. }
     iPrologue "Hprog'".
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|iContiguous_next Hcont' 0|auto|..].
-    iEpilogue "(HPC & Hi & Hr_t1)". iRename "Hi" into "Hprog_done'". 
+    iEpilogue "(HPC & Hi & Hr_t1)". iRename "Hi" into "Hprog_done'".
     (* lea r_t1 5 *)
     destruct a';[inversion Hlength'|].
     iPrologue "Hprog".
@@ -357,17 +357,17 @@ Section macros.
     iPrologue "Hprog".
     iAssert (⌜(a_env =? a2)%a = false⌝)%I as %Hne'.
     { destruct (decide (a_env = a2)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-      iDestruct (mapsto_valid_2 with "Hi Ha_env") as %?. done. } 
+      iDestruct (mapsto_valid_2 with "Hi Ha_env") as %?. done. }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_env]");
       [|apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|split;auto|iContiguous_next Hcont' 2|
-       rewrite Hne';iFrame|rewrite Hne'];auto. 
+       rewrite Hne';iFrame|rewrite Hne'];auto.
     iEpilogue "(HPC & Hr_t1 & Hi & Ha_env)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* store r_t1 1 *)
     destruct a';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hflag]");
       [apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|iContiguous_next Hcont' 3|
-       split;auto|].    
+       split;auto|].
     iEpilogue "(HPC & Hi & Hr_t1 & Hflag)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t1 0 *)
     destruct a';[inversion Hlength'|].
@@ -389,16 +389,16 @@ Section macros.
     { eapply contiguous_between_last in Hcont';[|eauto]. revert Hlink' Hcont'. clear. solve_addr. }
     iFrame. rewrite Heqapp. iDestruct "Hprog_done'" as "(?&?)". iDestruct "Hprog_done" as "(?&?&?&?&?&?&?)".
     iFrame.
-  Qed. 
-    
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- MALLOC ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* malloc stores the result in r_t1, rather than a user chosen destination. 
+  (* malloc stores the result in r_t1, rather than a user chosen destination.
      f_m is the offset of the malloc capability *)
   Definition malloc_instrs f_m size :=
-    fetch_instrs f_m ++ 
+    fetch_instrs f_m ++
     [move_r r_t5 r_t0;
     move_r r_t3 r_t1;
     move_z r_t1 size;
@@ -409,7 +409,7 @@ Section macros.
     move_z r_t5 0].
 
   Definition malloc f_m size a : iProp Σ :=
-    ([∗ list] a_i;w_i ∈ a;(malloc_instrs f_m size), a_i ↦ₐ w_i)%I. 
+    ([∗ list] a_i;w_i ∈ a;(malloc_instrs f_m size), a_i ↦ₐ w_i)%I.
 
   (* malloc spec *)
   Lemma malloc_spec φ size cont a pc_p pc_b pc_e a_first a_last
@@ -434,7 +434,7 @@ Section macros.
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a 
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
          ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
          ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
          (* the newly allocated region *)
@@ -473,7 +473,7 @@ Section macros.
                                                                    "(Hfetch & Hprog & #Hcont)";[apply Hcont|].
     iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
     iApply (fetch_spec with "[- $HPC $Hfetch $Hr_t1 $Hr_t2 $Hr_t3 $Ha_entry $Hpc_b]");
-      [|apply Hcont_fetch|apply Hwb|apply Ha_entry|]. 
+      [|apply Hcont_fetch|apply Hwb|apply Ha_entry|].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. revert Hcont_rest Hmid; clear. solve_addr. }
     iNext. iIntros "(HPC & Hfetch& Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
@@ -483,13 +483,13 @@ Section macros.
     destruct rest as [|a l'];[inversion Hlength_rest|].
     apply contiguous_between_cons_inv_first in Hcont_rest as Heq. subst.
     (* move r_t5 r_t0 *)
-    destruct l';[inversion Hlength_rest|]. 
+    destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t5 $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|iContiguous_next Hcont_rest 0|auto|..].
     iEpilogue "(HPC & Hprog_done & Hr_t5 & Hr_t0)". iCombine "Hprog_done" "Hfetch" as "Hprog_done".
     (* move r_t3 r_t1 *)
-    destruct l';[inversion Hlength_rest|]. 
+    destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t3 $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|iContiguous_next Hcont_rest 1|auto|..].
@@ -516,13 +516,13 @@ Section macros.
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | -> ]; auto. }
-    iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* jmp r_t3 *)
     destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t3]");
-      [apply decode_encode_instrW_inv|iCorrectPC link a_last|]. 
-    iEpilogue "(HPC & Hi & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
+    iEpilogue "(HPC & Hi & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* we are now ready to use the malloc subroutine spec. For this we prepare the registers *)
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
       by rewrite lookup_delete_ne // lookup_delete.
@@ -545,7 +545,7 @@ Section macros.
          generalize (contiguous_between_length _ _ _ Hcont_rest). cbn.
          clear; solve_addr. }
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
-    iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'. 
+    iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
       by rewrite lookup_insert_ne // lookup_insert //.
       rewrite delete_insert_ne // delete_insert_delete.
@@ -561,7 +561,7 @@ Section macros.
     (* move r_t5 0 *)
     destruct l';[| by inversion Hlength_rest].
     iPrologue "Hprog".
-    apply contiguous_between_last with (ai:=a5) in Hcont_rest as Hlast;[|auto]. 
+    apply contiguous_between_last with (ai:=a5) in Hcont_rest as Hlast;[|auto].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t5]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|apply Hlast|auto|..].
     iEpilogue "(HPC & Hi & Hr_t5)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -610,7 +610,7 @@ Section macros.
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (ψ FailedV)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a 
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
          ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
          ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
          (* the newly allocated region *)
@@ -649,7 +649,7 @@ Section macros.
                                                                    "(Hfetch & Hprog & #Hcont)";[apply Hcont|].
     iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
     iApply (fetch_spec with "[- $HPC $Hfetch $Hr_t1 $Hr_t2 $Hr_t3 $Ha_entry $Hpc_b]");
-      [|apply Hcont_fetch|apply Hwb|apply Ha_entry|]. 
+      [|apply Hcont_fetch|apply Hwb|apply Ha_entry|].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest. revert Hcont_rest Hmid; clear. solve_addr. }
     iNext. iIntros "(HPC & Hfetch& Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
@@ -659,13 +659,13 @@ Section macros.
     destruct rest as [|a l'];[inversion Hlength_rest|].
     apply contiguous_between_cons_inv_first in Hcont_rest as Heq. subst.
     (* move r_t5 r_t0 *)
-    destruct l';[inversion Hlength_rest|]. 
+    destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t5 $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|iContiguous_next Hcont_rest 0|auto|..].
     iEpilogue "(HPC & Hprog_done & Hr_t5 & Hr_t0)". iCombine "Hprog_done" "Hfetch" as "Hprog_done".
     (* move r_t3 r_t1 *)
-    destruct l';[inversion Hlength_rest|]. 
+    destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t3 $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|iContiguous_next Hcont_rest 1|auto|..].
@@ -692,13 +692,13 @@ Section macros.
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | -> ]; auto. }
-    iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* jmp r_t3 *)
     destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t3]");
-      [apply decode_encode_instrW_inv|iCorrectPC link a_last|]. 
-    iEpilogue "(HPC & Hi & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
+    iEpilogue "(HPC & Hi & Hr_t3) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* we are now ready to use the malloc subroutine spec. For this we prepare the registers *)
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
       by rewrite lookup_delete_ne // lookup_delete.
@@ -737,7 +737,7 @@ Section macros.
     (* move r_t5 0 *)
     destruct l';[| by inversion Hlength_rest].
     iPrologue "Hprog".
-    apply contiguous_between_last with (ai:=a5) in Hcont_rest as Hlast;[|auto]. 
+    apply contiguous_between_last with (ai:=a5) in Hcont_rest as Hlast;[|auto].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t5]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|apply Hlast|auto|..].
     iEpilogue "(HPC & Hi & Hr_t5)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -758,10 +758,10 @@ Section macros.
     rewrite (insert_commute _ r_t3 r_t2) //.
     rewrite -(delete_insert_ne _ r_t3) // insert_delete.
     iFrame.
-    iExists b,e. iFrame. auto. iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. iApply "Hψ". iFrame. 
+    iExists b,e. iFrame. auto. iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. iApply "Hψ". iFrame.
   Qed.
 
-  
+
   (* -------------------------------------- RCLEAR ----------------------------------- *)
   (* the following macro clears registers in r. a denotes the list of addresses
      containing the instructions for the clear: |a| = |r| *)
@@ -1221,7 +1221,7 @@ Section macros.
       (* move r_t1 0 *)
       iPrologue "Hprog".
       iApply (wp_move_success_z _ _ _ _ a17 a18 _ r_t1 _ 0 with "[HPC Hi Hr_t1]");
-        first apply decode_encode_instrW_inv; 
+        first apply decode_encode_instrW_inv;
         first iCorrectPC a_first a'; auto.
       { iContiguous_next Hnext 18. }
       iFrame. iEpilogue "(HPC & Ha17 & Hr_t1)".
@@ -1242,7 +1242,7 @@ Section macros.
       (* move r_t5 0 *)
       iPrologue "Hprog".
       iApply (wp_move_success_z _ _ _ _ a20 a21 _ r_t5 _ 0 with "[HPC Hi Hr_t5]");
-        first apply decode_encode_instrW_inv; 
+        first apply decode_encode_instrW_inv;
         first iCorrectPC a_first a'; auto.
       { iContiguous_next Hnext 21. }
       iFrame. iEpilogue "(HPC & Ha20 & Hr_t5)".
@@ -1260,13 +1260,13 @@ Section macros.
   Qed.
 
 
-  
-  (* -------------------------------------- REQPERM ----------------------------------- *)
-  (* the following macro requires that a given registers contains a capability with a 
-     given (encoded) permission. If this is not the case, the macro goes to fail,
-     otherwise it continues *)  
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually 
+  (* -------------------------------------- REQPERM ----------------------------------- *)
+  (* the following macro requires that a given registers contains a capability with a
+     given (encoded) permission. If this is not the case, the macro goes to fail,
+     otherwise it continues *)
+
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
      require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
@@ -1295,7 +1295,7 @@ Section macros.
     decodeInstrW w = Lea r1 (inr rv) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
     (a + z)%a = None ->
-     
+
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
            ∗ ▷ r1 ↦ᵣ inr (p,b,e,a)
@@ -1316,7 +1316,7 @@ Section macros.
 
   (* ------------------------------- *)
 
-  
+
   Definition reqperm_instrs r z :=
     [getp r_t1 r;
     sub_r_z r_t1 r_t1 z;
@@ -1329,7 +1329,7 @@ Section macros.
     fail_end;
     move_z r_t1 0;
     move_z r_t2 0].
-  
+
   Definition reqperm r z a : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(reqperm_instrs r z), a_i ↦ₐ w_i)%I.
 
@@ -1358,103 +1358,103 @@ Section macros.
     { destruct (decide (r = PC)); auto; subst. iDestruct (regname_dupl_false with "HPC Hr") as %Hcontr. done. }
     iPrologue "Hprog".
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
-    destruct w. 
+    destruct w.
     { (* if w is an integer, the getL will fail *)
       iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");
         [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|..].
-      iEpilogue "_ /=". 
-      iApply wp_value. done. 
+      iEpilogue "_ /=".
+      iApply wp_value. done.
     }
     (* if w is a capability, the getL will succeed *)
-    destruct a as [|a l];[done|]. 
+    destruct a as [|a l];[done|].
     iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t1]");
       [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
-    destruct c,p,p. iSimpl in "Hr_t1". 
+    destruct c,p,p. iSimpl in "Hr_t1".
     (* sub r_t1 r_t1 (encodeLoc Global) *)
     destruct l;[done|].
-    iPrologue "Hprog". 
+    iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|auto|iContiguous_next Hcont 1|iCorrectPC a_first a_last|..].
-    iEpilogue "(HPC & Hi & Hr_t1)". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     iSimpl in "Hr_t1".
     (* move r_t2 PC *)
-    destruct l;[done|]. 
+    destruct l;[done|].
     iPrologue "Hprog".
-    iDestruct "Hr_t2" as (w2) "Hr_t2". 
+    iDestruct "Hr_t2" as (w2) "Hr_t2".
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|auto|..].
-    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea r_t2 6 *)
-    do 7 (destruct l;[done|]). destruct l; [|done]. 
-    assert ((a3 + 6)%a = Some a9) as Hlea. 
+    do 7 (destruct l;[done|]). destruct l; [|done].
+    assert ((a3 + 6)%a = Some a9) as Hlea.
     { apply (contiguous_between_incr_addr_middle _ _ _ 2 6 a3 a9) in Hcont; auto. }
     assert (pc_p ≠ E) as HneE.
     { apply isCorrectPC_range_perm in Hvpc as [Heq | Heq ]; subst; auto.
       apply (contiguous_between_middle_bounds _ 0 a_first) in Hcont as [_ Hlt]; auto. }
-    iPrologue "Hprog". 
+    iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3|apply Hlea|auto..].
-    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+    iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     destruct (decide (encodePerm p - encodePerm perm = 0))%Z.
     - (* p is perm *)
-      rewrite e. assert (p = perm);[apply encodePerm_inj;lia|subst]. 
+      rewrite e. assert (p = perm);[apply encodePerm_inj;lia|subst].
       iSimpl in "Hcont". rewrite isPerm_refl. iDestruct "Hcont" as (b e0 a' Heq) "Hφ". inversion Heq; subst.
-      iPrologue "Hprog". 
+      iPrologue "Hprog".
       iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
-      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)";iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* move_r r_t2 PC *)
       iPrologue "Hprog".
       iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 5|auto|..].
-      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* lea r_t2 3 *)
-      assert ((a6 + 4)%a = Some a10) as Hlea'. 
+      assert ((a6 + 4)%a = Some a10) as Hlea'.
       { apply (contiguous_between_incr_addr_middle _ _ _ 5 4 a6 a10) in Hcont; auto. }
-      iPrologue "Hprog". 
+      iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|apply Hlea'|auto..].
-      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* jmp r_t2 *)
       iPrologue "Hprog".
       iApply (wp_jmp_success with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|..].
-      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       assert (updatePcPerm (inr (pc_p, pc_b, pc_e, a10)) = (inr (pc_p, pc_b, pc_e, a10))) as ->.
       { destruct pc_p; auto. congruence. }
-      iDestruct "Hprog" as "[Hi Hprog]". iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iDestruct "Hprog" as "[Hi Hprog]". iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* move r_t1 0 *)
       iPrologue "Hprog".
-      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]"); 
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 9|auto|..].
-      iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* move r_t2 0 *)
       iPrologue "Hprog".
-      apply contiguous_between_last with (ai:=a11) in Hcont as Hnext;[|auto]. 
-      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]"); 
+      apply contiguous_between_last with (ai:=a11) in Hcont as Hnext;[|auto].
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hnext|auto|..].
-      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
+      iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       iApply "Hφ". iFrame "HPC Hr Hr_t1 Hr_t2".
-      do 10 (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi"). 
+      do 10 (iDestruct "Hprog_done" as "[Hi Hprog_done]"; iFrame "Hi").
       iFrame.
     - assert (p ≠ perm) as HneP.
       { intros Hcontr. subst. lia. }
-      iSimpl in "Hcont". rewrite isPerm_ne;[|auto]. 
+      iSimpl in "Hcont". rewrite isPerm_ne;[|auto].
       (* jnz r_t2 r_t1 *)
       iPrologue "Hprog".
       iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr_t2 $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|..].
       { intros Hcontr. inversion Hcontr. done. }
-      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
-      do 3 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done"). 
+      iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+      do 3 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done").
       (* fail *)
       iPrologue "Hprog".
       assert (updatePcPerm (inr (pc_p, pc_b, pc_e, a9)) = (inr (pc_p, pc_b, pc_e, a9))) as ->.
       { destruct pc_p; auto. congruence. }
       iApply (wp_fail with "[$HPC $Hi]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
-      iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont". 
+      iEpilogue "(HPC & Hi)". iApply wp_value. iApply "Hcont".
   Qed.
 
   (* --------------------------------------- REQSIZE ----------------------------------- *)
@@ -1478,14 +1478,14 @@ Section macros.
     isCorrectPC_range pc_p pc_b pc_e a_first a_last →
     contiguous_between a a_first a_last →
 
-      ▷ reqsize r minsize a 
+      ▷ reqsize r minsize a
     ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r ↦ᵣ inr (r_p, r_b, r_e, r_a)
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ (if (minsize <? (r_e - r_b)%a)%Z then
            (∃ w1 w2,
-            reqsize r minsize a 
+            reqsize r minsize a
             ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last)
             ∗ r ↦ᵣ inr (r_p, r_b, r_e, r_a)
             ∗ r_t1 ↦ᵣ w1
@@ -1568,9 +1568,9 @@ Section macros.
   Qed.
 
   (* ---------------------------------------- CRTCLS ------------------------------------ *)
-  (* The following macro creates a closure with one variable. A more general create closure would 
-     allow for more than one variable in the closure, but this is so far not necessary for our 
-     examples. The closure allocates a new region with a capability to the closure code, the closure 
+  (* The following macro creates a closure with one variable. A more general create closure would
+     allow for more than one variable in the closure, but this is so far not necessary for our
+     examples. The closure allocates a new region with a capability to the closure code, the closure
      variable, and the closure activation *)
 
   (* encodings of closure activation code *)
@@ -1698,7 +1698,7 @@ Section macros.
     iEpilogue "(HPC & Hi & Hr_t1 & Ha1)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha1" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
-    destruct acta as [| ? acta];[inversion Hact_len_a|]. 
+    destruct acta as [| ? acta];[inversion Hact_len_a|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3|
@@ -1853,7 +1853,7 @@ Section macros.
     ∗ ▷ r_t2 ↦ᵣ wvar
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a 
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a
          ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
          ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
          (* the newly allocated region *)
