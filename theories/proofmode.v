@@ -169,6 +169,8 @@ Class FramableRegisterPointsto (r: RegName) (w: Word) := {}.
 Hint Mode FramableRegisterPointsto + - : typeclass_instances.
 Class FramableMemoryPointsto (a: Addr) (w: Word) := {}.
 Hint Mode FramableMemoryPointsto + - : typeclass_instances.
+Class FramableCodefrag (a: Addr) (l: list Word) := {}.
+Hint Mode FramableCodefrag + - : typeclass_instances.
 
 Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
@@ -176,6 +178,10 @@ Instance FramableRegisterPointsto_default r w :
 
 Instance FramableMemoryPointsto_default a w :
   FramableMemoryPointsto a w
+| 100. Qed.
+
+Instance FramableCodefrag_default a l :
+  FramableCodefrag a l
 | 100. Qed.
 
 Instance FramableMachineResource_reg `{regG Σ} r w :
@@ -188,11 +194,16 @@ Instance FramableMachineResource_mem `{memG Σ} a w :
   FramableMachineResource (a ↦ₐ w).
 Qed.
 
+Instance FramableMachineResource_codefrag `{memG Σ} a l :
+  FramableCodefrag a l →
+  FramableMachineResource (codefrag a l).
+Qed.
+
 Definition framable_machine_hyp `{@FramableMachineHyp Σ Δ P i} := i.
 
 
 (* The auto-framing tactic *)
-Ltac2 Type hyp_table_kind := [ Reg | Mem ].
+Ltac2 Type hyp_table_kind := [ Reg | Mem | Codefrag ].
 
 Ltac2 assert_constr_eq (c1: constr) (c2: constr) :=
   match Constr.equal c1 c2 with
@@ -216,6 +227,7 @@ Ltac2 iFrameCapT (table: (constr * constr * hyp_table_kind) list ref) :=
         lazy_match! hh with
         | (?r ↦ᵣ _)%I => (r, Reg)
         | (?a ↦ₐ _)%I => (a, Mem)
+        | (codefrag ?a _) => (a, Codefrag)
         end in
       table.(contents) := (hname, lhs, kind) :: table.(contents)
     end;
@@ -332,6 +344,13 @@ Ltac2 name_cap_resource (name, lhs, kind) :=
       assert_constr_eq is_lhs 'true;
       ltac1:(x a name |- change (a ↦ₐ x)%I with (name ∷ (a ↦ₐ x))%I)
         (Ltac1.of_constr x) (Ltac1.of_constr a) (Ltac1.of_constr name)
+    end
+  | Codefrag =>
+    match! goal with [ |- context [ codefrag ?a ?l ] ] =>
+      let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
+      assert_constr_eq is_lhs 'true;
+      ltac1:(l a name |- change (codefrag a l) with (name ∷ (codefrag a l)))
+        (Ltac1.of_constr l) (Ltac1.of_constr a) (Ltac1.of_constr name)
     end
   end.
 
