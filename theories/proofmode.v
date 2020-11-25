@@ -42,7 +42,7 @@ Proof.
   rewrite /codefrag.
   destruct Hub as [? Hub].
   iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
-  eapply region_addrs_lookup_middle' with (n:=length cs).
+  eapply region_addrs_lookup_middle with (n:=length cs).
   { apply lookup_lt_is_Some_1; eauto. }
   { solve_addr. }
   iFrame.

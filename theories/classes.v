@@ -11,12 +11,15 @@ Class CbvTC {A} (x x': A) :=
   MkCbvTc: x = x'.
 
 (* Address regions *)
+(* XXX Should these be moved to the cap_pure hintsdb? *)
 
 Class ContiguousRegion (a: Addr) (z: Z): Prop :=
   MkContiguousRegion: is_Some (a + z)%a.
+Hint Mode ContiguousRegion + - : typeclass_instances.
 
 Class SubBounds (b e: Addr) (b' e': Addr) :=
   MkSubBounds: (b <= b')%a ∧ (b' <= e')%a ∧ (e' <= e)%a.
+Hint Mode SubBounds + + - - : typeclass_instances.
 
 Class InBounds (b e: Addr) (a: Addr) :=
   MkInBounds: (b <= a)%a ∧ (a < e)%a.

@@ -105,11 +105,6 @@ Ltac solve_cap_pure :=
 (* Tests *)
 
 (* TODO: move *)
-  Definition regn : RegName → (Z+RegName)%type := inr.
-  Definition cst : Z → (Z+RegName)%type := inl.
-
-  Coercion regn : RegName >-> sum.
-  Coercion cst : Z >-> sum.
 
 Goal forall (r_t1 PC: RegName) `{MachineParameters}, exists r1 r2,
   decodeInstrW (encodeInstrW (Mov r_t1 PC)) = Mov r1 r2 ∧
