@@ -3,11 +3,10 @@ From stdpp Require Import base.
 From cap_machine Require Import machine_base machine_parameters addr_reg classes class_instances.
 From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 
-From Ltac2 Require Import Ltac2.
+From Ltac2 Require Import Ltac2 Option.
 Set Default Proof Mode "Classic".
 
 Create HintDb cap_pure discriminated. (* /!\ *)
-Hint Mode eq + + - : cap_pure. (* XXX hackish *) (* TODO: freeze local context *)
 
 Lemma isCorrectPC_prove p b e a :
   ExecPCPerm p →
@@ -75,28 +74,94 @@ Hint Resolve is_AddSubLt_Sub : cap_pure.
 Hint Resolve is_AddSubLt_Lt : cap_pure.
 Hint Mode is_AddSubLt ! - - - : cap_pure.
 
+(* Local context management *)
+
+Class InCtx (P: Prop) := MkInCtx: P.
+
+Instance ContiguousRegion_InCtx a z :
+  InCtx (ContiguousRegion a z) → ContiguousRegion a z.
+Proof. auto. Qed.
+
+Instance IncrAddr_InCtx a z a' :
+  InCtx ((a + z)%a = Some a') → IncrAddr a z a'.
+Proof. auto. Qed.
+
+Instance ExecPCPerm_InCtx p :
+  InCtx (ExecPCPerm p) → ExecPCPerm p.
+Proof. auto. Qed.
+
+Lemma SubBounds_InCtx b e b' e' :
+  InCtx (SubBounds b e b' e') → SubBounds b e b' e'.
+Proof. auto. Qed.
+
+Instance withinBounds_InCtx p b e a :
+  InCtx (withinBounds (p, b, e, a) = true) →
+  InBounds b e a.
+Proof.
+  unfold InCtx, InBounds. cbn.
+  intros [?%Z.leb_le ?%Z.ltb_lt]%andb_true_iff. solve_addr.
+Qed.
+
+Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
+  (is_evar b'; is_evar e'; apply SubBounds_InCtx) : typeclass_instances.
+
+Ltac contains_evars c :=
+  match c with
+  | context [ ?x ] => is_evar x
+  end.
+
+Ltac2 does_not_contain_evars c :=
+  match
+    Control.case
+      (fun _ => ltac1:(c |- contains_evars c) (Ltac1.of_constr c))
+  with
+  | Err _ => ()
+  | Val _ => Control.zero (Tactic_failure(None))
+  end.
+Ltac does_not_contain_evars c :=
+  let f := ltac2:(c |- does_not_contain_evars (Option.get (Ltac1.to_constr c))) in
+  f c.
+
+Goal exists (x:nat), x = S x ∧ 1 = x.
+  eexists. split.
+  match goal with |- ?y = _ => contains_evars y end.
+  match goal with |- _ = ?y => contains_evars y end.
+  all: cycle 1.
+  match goal with |- ?y = _ => does_not_contain_evars y end.
+Abort.
+
+Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
+  (does_not_contain_evars b'; does_not_contain_evars e';
+   apply SubBounds_InCtx) : typeclass_instances.
+
+(* *)
+
+Ltac freeze_hyps :=
+  repeat (match goal with
+  | h : ?P |- _ =>
+    lazymatch type of P with
+    | Prop => idtac
+    | _ => fail
+    end;
+    lazymatch P with
+    | InCtx _ => fail
+    | _ => idtac
+    end;
+    change P with (InCtx P) in h
+  end).
+
+Ltac unfreeze_hyps :=
+  repeat (match goal with
+  | h : InCtx ?P |- _ =>
+    change (InCtx P) with P in h
+  end).
+
 Ltac2 solve_cap_pure () :=
-  (* XXX remove this hack by using freezing on the local ctx *)
-  (* Avoid running proof search on goals of the form [(?a + ?z)%a = Some ?a'],
-     which can pick up random hypotheses from the context, instantiating the
-     evars. This cannot easily be controled using a Hint Mode (which only
-     applies to the head constant. *)
-  let is_evar (c: constr) :=
-    match Constr.Unsafe.kind c with
-    | Constr.Unsafe.Evar(_)(_) => true
-    | _ => false
-    end
-  in
-  lazy_match! goal with
-  | [ |- (?a + ?y)%a = Some _ ] =>
-    match Bool.or (is_evar a) (is_evar y) with
-    | true => Control.zero (Tactic_failure(None))
-    | false => ()
-    end
-  | [ |- _ ] => ()
-  end;
-  (* otherwise: *)
-  typeclasses_eauto with cap_pure typeclass_instances.
+  first [ assumption
+    | discriminate
+    | ltac1:(freeze_hyps);
+      typeclasses_eauto with cap_pure typeclass_instances;
+      ltac1:(unfreeze_hyps) ].
 
 Ltac solve_cap_pure :=
   ltac2:(solve_cap_pure ()).
@@ -104,18 +169,15 @@ Ltac solve_cap_pure :=
 
 (* Tests *)
 
-(* TODO: move *)
-
 Goal forall (r_t1 PC: RegName) `{MachineParameters}, exists r1 r2,
   decodeInstrW (encodeInstrW (Mov r_t1 PC)) = Mov r1 r2 ∧
   r1 = r_t1 ∧ r2 = inr PC.
 Proof. do 2 eexists. repeat apply conj. solve_cap_pure. all: reflexivity. Qed.
 
-Goal forall p b e a n,
-  AddrOffsetLt 0 n →
+Goal forall p b e a,
   ExecPCPerm p →
-  SubBounds b e a (a ^+ n)%a →
-  ContiguousRegion a n →
+  SubBounds b e a (a ^+ 5)%a →
+  ContiguousRegion a 5 →
   isCorrectPC (inr (p, b, e, a)).
 Proof. intros. solve_cap_pure. Qed.
 
@@ -151,3 +213,6 @@ Goal forall (a b: Addr), exists c,
   ContiguousRegion a 5 →
   (a + (b - a))%a = Some c.
 Proof. intros. eexists. Fail solve_cap_pure. Abort.
+
+Goal E ≠ RO. solve_cap_pure. Qed.
+Goal forall (P: Prop), P → P. intros. solve_cap_pure. Qed.

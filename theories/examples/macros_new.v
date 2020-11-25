@@ -141,7 +141,7 @@ Section macros.
     iDestruct "Hr_t2" as (w2) "Hr_t2". (* TODO: change lemma statement *)
     iDestruct "Hr_t3" as (w3) "Hr_t3". (* TODO: change lemma statement *)
     subst w_r.
-    iApply (fetch_spec with "[- $HPC $Hfetch $Hr_t1 $Hr_t2 $Hr_t3 $Ha_entry $Hpc_b]"); auto. (* TODO: automate *)
+    iApply (fetch_spec with "[-]"). all: iFrameCapSolve.
     unfold SubBounds in *. solve_addr. (* TODO *)
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
     set a_middle := (a_first ^+ length (fetch_instrs f_a))%a in Hprog_cont |- *. (* XXX *)
@@ -150,7 +150,7 @@ Section macros.
     iInstr "Hprog". admit. (* TODO *)
     iInstr "Hprog". admit.
     iApply "Hφ". iFrame. admit. (* TODO *)
-  Qed.
+  Admitted.
 
   (* Spec for assertion failure *)
   (* When the assertion fails, the program jumps to the failure subroutine, sets the

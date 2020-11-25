@@ -374,6 +374,11 @@ Ltac2 iApplyCapAuto_cleanup () :=
 
 (* iApplyCapAutoCore *)
 
+Ltac2 iFrameCapSolve () :=
+  grepeat (fun _ =>
+    try (Control.plus iFrameCap (fun _ => Control.once solve_cap_pure))).
+Ltac iFrameCapSolve := ltac2:(iFrameCapSolve ()).
+
 Ltac2 iApplyCapAutoCore lemma :=
   let tbl := iApplyCapAutoT_init0 lemma in
   grepeat (fun _ =>
@@ -451,7 +456,7 @@ Ltac iInstr hprog :=
 Ltac2 rec iGo hprog :=
   let stop_if_at_least_two_goals () :=
     on_lasts [ (fun _ => ()); (fun _ => ()) ] in
-  match Control.case (fun _ => ltac1:(hprog |- iInstr hprog; auto) (Ltac1.of_constr hprog)) with
+  match Control.case (fun _ => ltac1:(hprog |- iInstr hprog) (Ltac1.of_constr hprog)) with
   | Err (_) => ()
   | Val (_) => Control.plus stop_if_at_least_two_goals (fun _ => iGo hprog)
   end.
