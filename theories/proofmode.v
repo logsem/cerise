@@ -379,12 +379,19 @@ Ltac2 iFrameCapSolve () :=
     try (Control.plus iFrameCap (fun _ => Control.once solve_cap_pure))).
 Ltac iFrameCapSolve := ltac2:(iFrameCapSolve ()).
 
+Ltac iNamedAccu_fail_explain :=
+  lazymatch goal with
+  | |- envs_entails _ (?remaining ∗ _) =>
+    fail "iApplyCapAuto: the following resources could not be found in the context:"
+         remaining
+  end.
+
 Ltac2 iApplyCapAutoCore lemma :=
   let tbl := iApplyCapAutoT_init0 lemma in
   grepeat (fun _ =>
     Control.extend [] (fun _ => try (Control.once solve_cap_pure))
       [ (fun _ => try (iFrameCapT tbl)); (fun _ => ()) ]);
-  on_lasts [ (fun _ => ltac1:(iNamedAccu)); (fun _ => ()) ];
+  on_lasts [ (fun _ => ltac1:(iNamedAccu || iNamedAccu_fail_explain)); (fun _ => ()) ];
   on_lasts [ (fun _ =>
     iNamedIntro ();
     try ltac1:(iNext);
@@ -410,48 +417,57 @@ Proof. solve_addr. Qed.
 Lemma addr_incr_zero_nat (a: Addr) : (a ^+ 0%nat)%a = a.
 Proof. solve_addr. Qed.
 
-Ltac iInstr_get_rule instr cont :=
-  dispatch_instr_rule instr cont.
-
-Ltac iInstr hprog :=
+Ltac iInstr_lookup0 hprog hi hcont :=
   let hprog := constr:(hprog:ident) in
   lazymatch goal with |- context [ Esnoc _ hprog (codefrag ?a_base _) ] =>
   lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (inr (_, _, _, ?pc_a)))%I ] =>
     let base_off := eval unfold as_weak_addr_incr in (@as_weak_addr_incr pc_a a_base _ _) in
     lazymatch base_off with
     | (?base, ?off) =>
-      let hi := iFresh in
-      let hcont := iFresh in
       iPoseProofCore (codefrag_lookup_acc _ _ off with hprog) as false (fun H =>
         eapply tac_and_destruct with H _ hi hcont _ _ _;
         [pm_reflexivity
         |pm_reduce; iSolveTC
         |pm_reduce];
         rewrite ?addr_incr_zero ?addr_incr_zero_nat
-      );
-      wp_instr;
-      lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
-        iInstr_get_rule instr ltac:(fun rule =>
-          (iApplyCapAuto rule || fail "iApplyCapAuto failed on rule " rule);
-          [..|
-            (* because of iApplyCapAuto's context shuffling, [hi] and [hcont]
-               are not valid anymore... recover them. *)
-            (* XXX make this a bit more robust *)
-            lazymatch goal with |- context [ Esnoc _ ?hi (_ ↦ₐ encodeInstrW _)%I ] =>
-            lazymatch goal with |- context [ Esnoc _ ?hcont (_ ↦ₐ encodeInstrW _ -∗ _)%I ] =>
-              notypeclasses refine (tac_specialize false _ hi _ hcont _ _ _ _ _ _ _ _ _);
-              [pm_reflexivity
-              |pm_reflexivity
-              |iSolveTC
-              |pm_reduce];
-              iRename hcont into hprog;
-              wp_pure
-            end end
-          ]
-        )
-      end
-    end
+      )
+     end
   end end.
+
+Tactic Notation "iInstr_lookup" constr(hprog) "as" constr(hi) constr(hcont) :=
+  iInstr_lookup0 hprog hi hcont.
+
+Ltac iInstr_get_rule hi cont :=
+  lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
+    dispatch_instr_rule instr cont
+  end.
+
+Ltac iInstr_close hprog :=
+  (* because of iApplyCapAuto's context shuffling, [hi] and [hcont]
+     are not valid anymore... recover them. *)
+  (* XXX make this a bit more robust *)
+  lazymatch goal with |- context [ Esnoc _ ?hi (_ ↦ₐ encodeInstrW _)%I ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hcont (_ ↦ₐ encodeInstrW _ -∗ _)%I ] =>
+    notypeclasses refine (tac_specialize false _ hi _ hcont _ _ _ _ _ _ _ _ _);
+    [pm_reflexivity
+    |pm_reflexivity
+    |iSolveTC
+    |pm_reduce];
+    iRename hcont into hprog
+  end end.
+
+(* TODO: find a way of displaying an error message if iApplyCapAuto fails,
+   displaying the rule it was called on, and without silencing iApplyCapAuto's
+   own error messages? *)
+Ltac iInstr hprog :=
+  let hi := iFresh in
+  let hcont := iFresh in
+  iInstr_lookup hprog as hi hcont;
+  wp_instr;
+  iInstr_get_rule hi ltac:(fun rule =>
+    iApplyCapAuto rule;
+    [ .. | iInstr_close hprog; wp_pure]
+  ).
 
 Ltac2 rec iGo hprog :=
   let stop_if_at_least_two_goals () :=
