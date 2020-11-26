@@ -376,7 +376,7 @@ Ltac2 iApplyCapAuto_cleanup () :=
 
 Ltac2 iFrameCapSolve () :=
   grepeat (fun _ =>
-    try (Control.plus iFrameCap (fun _ => Control.once solve_cap_pure))).
+    try (Control.plus iFrameCap (fun _ => Control.once solve_pure))).
 Ltac iFrameCapSolve := ltac2:(iFrameCapSolve ()).
 
 Ltac iNamedAccu_fail_explain :=
@@ -389,7 +389,7 @@ Ltac iNamedAccu_fail_explain :=
 Ltac2 iApplyCapAutoCore lemma :=
   let tbl := iApplyCapAutoT_init0 lemma in
   grepeat (fun _ =>
-    Control.extend [] (fun _ => try (Control.once solve_cap_pure))
+    Control.extend [] (fun _ => try (Control.once solve_pure))
       [ (fun _ => try (iFrameCapT tbl)); (fun _ => ()) ]);
   on_lasts [ (fun _ => ltac1:(iNamedAccu || iNamedAccu_fail_explain)); (fun _ => ()) ];
   on_lasts [ (fun _ =>
