@@ -6,17 +6,139 @@ From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 From Ltac2 Require Import Ltac2 Option.
 Set Default Proof Mode "Classic".
 
-Create HintDb cap_pure discriminated. (* /!\ *)
+(* The [solve_cap_pure] tactic is able to solve goals involving:
 
-Lemma isCorrectPC_prove p b e a :
-  ExecPCPerm p →
-  InBounds b e a →
-  isCorrectPC (inr (p, b, e, a)).
+   - ContiguousRegion
+   - SubBounds
+   - InBounds
+   - ExecPCPerm
+   - PermFlows  (TODO: extend)
+   - decodeInstrW w = ?
+   - (a + z)%a = Some ?
+   - readAllowed p (TODO: extend)
+   - withinBounds (p, b, e, a) = true
+   - is_Get
+   - is_AddSubLt
+
+   It also leverages the classes and instances defined in [classes.v] and
+   [class_instances.v], but those are not supposed to be used directly in proof
+   scripts: it is only expected that [solve_cap_pure] internally generates
+   subgoals of these classes during proof search.
+
+   To extend [solve_cap_pure]:
+   - prefer adding or using existing lemmas in [machine_base.v].
+   - only add lemmas in this file if they do not make sense in [machine_base.v]
+     (e.g. they involve some internal classes from [classes.v]).
+   - do register an appropriate [Hint Mode] in the [cap_pure] hint base for any
+     new notion you are adding support to.
+   - add hints to the [cap_pure] hint base for the relevant lemmas; be mindful
+     of proof search performance; do not register hints that could lead to a
+     blow up (including cases where the search fails). A typical example would
+     be adding a transitivity lemma as a hint.
+   - do add tests (see end of this file) for the kind of goals you are adding
+     support to.
+   - if needed, update the list of the supported types of goals above
+
+
+   /!\ Gotchas /!\:
+   - see the "Local context management" section below, regarding handling of
+     hypotheses from the local context; add [InCtx] hints if needed.
+   - do not add a [Hint Resolve] in [cap_pure] whose conclusion is a class from
+     [classes.v]. Register it as an instance instead, otherwise the Hint Modes
+     won't work as expected.
+*)
+
+Create HintDb cap_pure discriminated.
+
+Hint Mode InBounds + + + : cap_pure.
+
+(* ContiguousRegion *)
+Hint Mode ContiguousRegion + - : cap_pure.
+
+Instance IncrAddr_of_ContiguousRegion a z :
+  ContiguousRegion a z →
+  IncrAddr a z (a ^+ z)%a.
+Proof. intros [? ?]. unfold IncrAddr. solve_addr. Qed.
+
+Instance IncrAddr_in_ContiguousRegion (a a': Addr) (z o z' z'': Z) :
+  AsWeakAddrIncr a' a z →
+  ContiguousRegion a z'' →
+  CbvTC (z + o)%Z z' →
+  AddrOffsetLe 0 z →
+  AddrOffsetLe 0 o →
+  AddrOffsetLe z' z'' →
+  IncrAddr a' o (a ^+ z')%a.
 Proof.
-  unfold ExecPCPerm, InBounds. intros. constructor; eauto.
+  unfold AsWeakAddrIncr, ContiguousRegion, CbvTC, AddrOffsetLe, IncrAddr.
+  intros -> [? ?] <- ? ?. solve_addr.
 Qed.
-Hint Resolve isCorrectPC_prove : cap_pure.
+
+(* SubBounds *)
+Hint Mode SubBounds + + - - : cap_pure.
+
+(* Consequences of SubBounds in terms of AddrLe/AddrLt *)
+
+Instance SubBounds_le_b_b' b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe b b'.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+Instance SubBounds_le_b'_e' b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe b' e'.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+Instance SubBounds_le_e_e' b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe e' e.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+
+(* Manually insert the transitive consequences from above, as we don't want to
+   have general transitivity instances for AddrLe/AddrLt *)
+
+Instance SubBounds_le_b_e' b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe b e'.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+Instance SubBounds_le_b_e b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe b e.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+Instance SubBounds_le_b'_e b e b' e' :
+  SubBounds b e b' e' →
+  AddrLe b' e.
+Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
+
+(* transitivity to deduce lt of the outer bounds from lt of the inner bounds *)
+
+Instance SubBounds_lt_of_inner b e b' e' :
+  SubBounds b e b' e' →
+  AddrLt b' e' →
+  AddrLt b e.
+Proof. unfold SubBounds, AddrLt. solve_addr. Qed.
+
+(* InBounds *)
+
+Hint Resolve InBounds_sub : cap_pure.
+
+Lemma InBounds_compare (b a e: Addr) :
+  AddrLe b a →
+  AddrLt a e →
+  InBounds b e a.
+Proof. unfold AddrLe, AddrLt, InBounds. auto. Qed.
+Hint Resolve InBounds_compare : cap_pure.
+
+
+(* isCorrectPC *)
+
 Hint Mode isCorrectPC + : cap_pure.
+
+Hint Resolve isCorrectPC_ExecPCPerm_InBounds : cap_pure.
+
+(* Address arithmetic *)
 
 Lemma IncrAddr_prove a z a' :
   IncrAddr a z a' →
@@ -34,76 +156,76 @@ Proof.
 Qed.
 Hint Resolve DecodeInstr_prove : cap_pure.
 
-Lemma ExecPCPerm_not_E p :
-  ExecPCPerm p →
-  p ≠ E.
-Proof.
-  intros [H|H] ->; inversion H.
-Qed.
-Hint Resolve ExecPCPerm_not_E : cap_pure.
+(* Permissions *)
 
-Lemma ExecPCPerm_readAllowed p :
-  ExecPCPerm p →
-  readAllowed p = true.
-Proof.
-  intros [-> | ->]; reflexivity.
-Qed.
+Hint Mode ExecPCPerm + : cap_pure.
+Hint Mode PermFlows - + : cap_pure.
+
+Hint Resolve ExecPCPerm_RX : cap_pure.
+Hint Resolve ExecPCPerm_RWX : cap_pure.
+Hint Resolve ExecPCPerm_not_E : cap_pure.
+Hint Resolve ExecPCPerm_flows_to : cap_pure.
+(* TODO: add a test checking the use of ExecPCPerm_flows_to *)
 Hint Resolve ExecPCPerm_readAllowed : cap_pure.
 Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
 
-Lemma withinBounds_InBounds p b e a :
-  InBounds b e a →
-  withinBounds (p, b, e, a) = true.
-Proof.
-  intros [? ?]. unfold withinBounds.
-  apply andb_true_intro.
-  split; [apply Z.leb_le;solve_addr | apply Z.ltb_lt;auto].
-Qed.
+(* withinBounds *)
+
+(* There's no use defining a Hint Mode for withinBounds, as it doesn't appear as
+   the head symbol. (in "withinBounds _ = true", (=) is the head symbol).
+
+   That's fine: this lemma applies without risking instantiating any evar, and
+   then the Hint Mode on [InBounds] can take effect. *)
+
 Hint Resolve withinBounds_InBounds : cap_pure.
 
 (* is_Get *)
+Hint Mode is_Get ! - - : cap_pure.
 Hint Resolve is_Get_GetP : cap_pure.
 Hint Resolve is_Get_GetB : cap_pure.
 Hint Resolve is_Get_GetE : cap_pure.
 Hint Resolve is_Get_GetA : cap_pure.
-Hint Mode is_Get ! - - : cap_pure.
 
 (* is_AddSubLt *)
+Hint Mode is_AddSubLt ! - - - : cap_pure.
 Hint Resolve is_AddSubLt_Add : cap_pure.
 Hint Resolve is_AddSubLt_Sub : cap_pure.
 Hint Resolve is_AddSubLt_Lt : cap_pure.
-Hint Mode is_AddSubLt ! - - - : cap_pure.
 
 (* Local context management *)
 
 Class InCtx (P: Prop) := MkInCtx: P.
 
-Instance ContiguousRegion_InCtx a z :
+Lemma ContiguousRegion_InCtx a z :
   InCtx (ContiguousRegion a z) → ContiguousRegion a z.
 Proof. auto. Qed.
+Hint Resolve ContiguousRegion_InCtx : cap_pure.
 
 Instance IncrAddr_InCtx a z a' :
   InCtx ((a + z)%a = Some a') → IncrAddr a z a'.
 Proof. auto. Qed.
 
-Instance ExecPCPerm_InCtx p :
+Lemma ExecPCPerm_InCtx p :
   InCtx (ExecPCPerm p) → ExecPCPerm p.
 Proof. auto. Qed.
+Hint Resolve ExecPCPerm_InCtx : cap_pure.
 
 Lemma SubBounds_InCtx b e b' e' :
   InCtx (SubBounds b e b' e') → SubBounds b e b' e'.
 Proof. auto. Qed.
+(* Don't add this as a Hint Resolve! see below. *)
 
-Instance withinBounds_InCtx p b e a :
+Lemma withinBounds_InCtx p b e a :
   InCtx (withinBounds (p, b, e, a) = true) →
   InBounds b e a.
 Proof.
   unfold InCtx, InBounds. cbn.
   intros [?%Z.leb_le ?%Z.ltb_lt]%andb_true_iff. solve_addr.
 Qed.
+Hint Resolve withinBounds_InCtx : cap_pure.
 
 Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
-  (is_evar b'; is_evar e'; apply SubBounds_InCtx) : typeclass_instances.
+  (is_evar b'; is_evar e'; apply SubBounds_InCtx) : cap_pure.
 
 Ltac contains_evars c :=
   match c with
@@ -132,7 +254,7 @@ Abort.
 
 Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
   (does_not_contain_evars b'; does_not_contain_evars e';
-   apply SubBounds_InCtx) : typeclass_instances.
+   apply SubBounds_InCtx) : cap_pure.
 
 (* *)
 
@@ -168,6 +290,24 @@ Ltac solve_cap_pure :=
 
 
 (* Tests *)
+
+Goal forall (b: Addr) a (z z': Z),
+  ContiguousRegion b z' →
+  AsWeakAddrIncr a b z →
+  AddrOffsetLt z z' →
+  AddrOffsetLe 0 z →
+  InBounds b (b ^+ z')%a a.
+Proof. intros. typeclasses eauto with cap_pure typeclass_instances. Qed.
+
+Goal forall (a: Addr),
+  ContiguousRegion a 5 →
+  exists a', IncrAddr a 1 a' ∧ a' = (a ^+ 1)%a.
+Proof. intros. eexists. split. solve_cap_pure. reflexivity. Qed.
+
+Goal forall (a: Addr),
+  ContiguousRegion a 5 →
+  exists a', IncrAddr (a ^+ 1)%a 1 a' ∧ a' = (a ^+ 2)%a.
+Proof. intros. eexists. split. solve_cap_pure. reflexivity. Qed.
 
 Goal forall (r_t1 PC: RegName) `{MachineParameters}, exists r1 r2,
   decodeInstrW (encodeInstrW (Mov r_t1 PC)) = Mov r1 r2 ∧
@@ -216,3 +356,8 @@ Proof. intros. eexists. Fail solve_cap_pure. Abort.
 
 Goal E ≠ RO. solve_cap_pure. Qed.
 Goal forall (P: Prop), P → P. intros. solve_cap_pure. Qed.
+
+Goal forall (a: Addr) z, exists z' a',
+  ContiguousRegion a z →
+  IncrAddr a z' a'.
+Proof. intros. do 2 eexists. intros. Fail solve_cap_pure. Abort.

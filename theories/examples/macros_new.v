@@ -92,15 +92,17 @@ Section macros.
 
   Lemma codefrag_split a0 (l1 l2: list Word):
     codefrag a0 (l1 ++ l2) -∗
-    codefrag a0 l1 ∗ codefrag (a0 ^+ length l1)%a l2.
+    ∃ (a1: Addr), ⌜(a0 + length l1)%a = Some a1⌝ ∗
+    codefrag a0 l1 ∗ codefrag a1 l2.
   Proof.
     rewrite /codefrag. iIntros "H".
     iDestruct (codefrag_contiguous_region with "H") as %Hregion.
     destruct Hregion as [an Han]. rewrite app_length in Han |- *.
     iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
     by solve_addr. by rewrite /region_size; solve_addr.
-    iFrame. rewrite (_: ((a0 ^+ length l1) ^+ length l2) = (a0 ^+ (length l1 + length l2)%nat))%a.
-    iFrame. solve_addr.
+    iFrame. iExists (a0 ^+ length l1)%a.
+    rewrite (_: ((a0 ^+ length l1) ^+ length l2) = (a0 ^+ (length l1 + length l2)%nat))%a.
+    iFrame. solve_addr. solve_addr.
   Qed.
 
   (* Spec for assertion success *)
@@ -134,7 +136,7 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Htable Hsuccess)
             "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    iDestruct (codefrag_split with "Hprog") as "[Hfetch Hprog]".
+    iDestruct (codefrag_split with "Hprog") as (a_middle) "(%Ha_middle & Hfetch & Hprog)".
     iDestruct (codefrag_contiguous_region with "Hfetch") as %Hfetch_cont. (* TODO: automate this *)
     iDestruct (codefrag_contiguous_region with "Hprog") as %Hprog_cont. (* TODO: automate this *)
     iDestruct "Hr_t1" as (w1) "Hr_t1". (* TODO: change lemma statement *)
@@ -144,7 +146,7 @@ Section macros.
     iApply (fetch_spec with "[-]"). all: iFrameCapSolve.
     unfold SubBounds in *. solve_addr. (* TODO *)
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
-    set a_middle := (a_first ^+ length (fetch_instrs f_a))%a in Hprog_cont |- *. (* XXX *)
+    rewrite (_: (a_first ^+ length (fetch_instrs f_a))%a = a_middle). 2: solve_addr.
     iInstr "Hprog". admit. (* TODO *)
     rewrite (_: (z - z = 0)%Z); [| lia].
     iInstr "Hprog". admit. (* TODO *)

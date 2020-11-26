@@ -72,100 +72,7 @@ Proof. intros ->. constructor. Qed.
 Instance AddrEq_default_neq a a' : AddrEq a a' false | 100.
 Proof. inversion 1. Qed.
 
-(* Consequences of SubBounds in terms of AddrLe/AddrLt *)
-
-Instance SubBounds_le_b_b' b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe b b'.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-Instance SubBounds_le_b'_e' b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe b' e'.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-Instance SubBounds_le_e_e' b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe e' e.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-(* Manually insert the transitive consequences from above, as we don't want to
-   have general transitivity instances for AddrLe/AddrLt *)
-
-Instance SubBounds_le_b_e' b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe b e'.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-Instance SubBounds_le_b_e b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe b e.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-Instance SubBounds_le_b'_e b e b' e' :
-  SubBounds b e b' e' →
-  AddrLe b' e.
-Proof. unfold SubBounds, AddrLe. solve_addr. Qed.
-
-(* transitivity to deduce lt of the outer bounds from lt of the inner bounds *)
-
-Instance SubBounds_lt_of_inner b e b' e' :
-  SubBounds b e b' e' →
-  AddrLt b' e' →
-  AddrLt b e.
-Proof. unfold SubBounds, AddrLt. solve_addr. Qed.
-
-(* InBounds *)
-
-Instance InBounds_sub b e b' e' a :
-  SubBounds b e b' e' →
-  InBounds b' e' a →
-  InBounds b e a.
-Proof. intros (? & ? & ?) [? ?]. unfold InBounds. solve_addr. Qed.
-
-Instance InBounds_compare (b a e: Addr) :
-  AddrLe b a →
-  AddrLt a e →
-  InBounds b e a.
-Proof. unfold AddrLe, AddrLt, InBounds. auto. Qed.
-
-(* Adding an offset to an address *)
-
-Instance IncrAddr_of_ContiguousRegion a z :
-  ContiguousRegion a z →
-  IncrAddr a z (a ^+ z)%a.
-Proof. intros [? ?]. unfold IncrAddr. solve_addr. Qed.
-
-Instance IncrAddr_in_ContiguousRegion (a a': Addr) (z o z' z'': Z) :
-  AsWeakAddrIncr a' a z →
-  ContiguousRegion a z'' →
-  CbvTC (z + o)%Z z' →
-  AddrOffsetLe 0 z →
-  AddrOffsetLe 0 o →
-  AddrOffsetLe z' z'' →
-  IncrAddr a' o (a ^+ z')%a.
-Proof.
-  unfold AsWeakAddrIncr, ContiguousRegion, CbvTC, AddrOffsetLe, IncrAddr.
-  intros -> [? ?] <- ? ?. solve_addr.
-Qed.
-
 (* other *)
-
-Instance ExecPCPerm_RX: ExecPCPerm RX.
-Proof. left; auto. Qed.
-
-Instance ExecPCPerm_RWX: ExecPCPerm RWX.
-Proof. right; auto. Qed.
-
-Instance ExecPCPerm_flows_to p p':
-  PermFlows p p' →
-  ExecPCPerm p →
-  ExecPCPerm p'.
-Proof.
-  intros H [-> | ->]; cbn in H.
-  { destruct p'; cbn in H; try by inversion H; constructor. }
-  { destruct p'; try by inversion H; constructor. }
-Qed.
 
 Instance DecodeInstr_encode `{MachineParameters} (i: instr) :
   DecodeInstr (encodeInstrW i) i.
@@ -176,27 +83,9 @@ Proof. apply decode_encode_instrW_inv. Qed.
 
 (* Tests *)
 
-Goal forall (b: Addr) a (z z': Z),
-  ContiguousRegion b z' →
-  AsWeakAddrIncr a b z →
-  AddrOffsetLt z z' →
-  AddrOffsetLe 0 z →
-  InBounds b (b ^+ z')%a a.
-Proof. typeclasses eauto. Qed.
-
 Goal forall (a: Addr),
   AddrEq (a ^+ 1)%a (a ^+ (Z.of_nat 1))%a true.
 Proof. typeclasses eauto. Qed.
-
-Goal forall (a: Addr),
-  ContiguousRegion a 5 →
-  exists a', IncrAddr a 1 a' ∧ a' = (a ^+ 1)%a.
-Proof. intros. eexists. split. typeclasses eauto. reflexivity. Qed.
-
-Goal forall (a: Addr),
-  ContiguousRegion a 5 →
-  exists a', IncrAddr (a ^+ 1)%a 1 a' ∧ a' = (a ^+ 2)%a.
-Proof. intros. eexists. split. typeclasses eauto. reflexivity. Qed.
 
 Goal forall (a: Addr), exists a' z,
   AsWeakAddrIncr (a ^+ 1)%a a' z ∧ a' = a ∧ z = 1%Z.
