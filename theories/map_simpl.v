@@ -138,9 +138,7 @@ Goal <[5 := 2]> (<[5 := 3]> (∅: gmap nat nat)) = <[5 := 2]> (∅: gmap nat nat
 Qed.
 
 Ltac2 map_simpl_aux k a x :=
-  Message.print (Message.of_string "Reification Start");
-  let (x', m) := time (reify_helper k a x) in
-  Message.print (Message.of_string "Reification End");
+  let (x', m) := (reify_helper k a x) in
   (* Message.print (Message.of_constr a); *)
   (* Message.print (Message.of_constr x); *)
   (* Message.print (Message.of_constr x'); *)
@@ -149,8 +147,8 @@ Ltac2 map_simpl_aux k a x :=
   (* let id := Option.get (Ident.of_string "x") in *)
   (* let h := Fresh.in_goal id in *)
   (* remember $m as $h; *)
-  time (erewrite (simpl_rmap_correct)) > [() | Message.print (Message.of_string "End erewrite"); time vm_compute; Message.print (Message.of_string "End vm_compute"); time reflexivity];
-  time (cbn [denote]).
+  (erewrite (simpl_rmap_correct)) > [() | vm_compute; reflexivity];
+  (cbn [denote]).
 
 From iris.proofmode Require Import environments.
 
