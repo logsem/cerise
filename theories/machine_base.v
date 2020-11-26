@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import gmap fin_maps list countable.
-From cap_machine Require Export addr_reg.
+From cap_machine Require Export addr_reg solve_addr.
 
 (* Definition and auxiliary facts on capabilities, permissions and addresses.
 
@@ -298,6 +298,11 @@ Lemma le_addr_withinBounds p b e a:
   withinBounds (p, b, e, a) = true .
 Proof. rewrite withinBounds_true_iff //. Qed.
 
+Lemma le_addr_withinBounds' p b e a:
+  (b <= a)%a ∧ (a < e)%a →
+  withinBounds (p, b, e, a) = true .
+Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
+
 
 Definition ContiguousRegion (a: Addr) (z: Z): Prop :=
   is_Some (a + z)%a.
@@ -438,6 +443,14 @@ Proof.
   rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
+Lemma isCorrectPC_le_addr p b e a :
+  isCorrectPC (inr (p, b, e, a)) →
+  (b <= a)%a ∧ (a < e)%a.
+Proof.
+  intros HH. by eapply withinBounds_le_addr, isCorrectPC_withinBounds.
+  Unshelve. auto.
+Qed.
+
 Lemma correctPC_nonO p p' b e a :
   PermFlows p p' → isCorrectPC (inr (p,b,e,a)) → p' ≠ O.
 Proof.
@@ -557,3 +570,4 @@ Proof.
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
 Defined.
+

@@ -1,6 +1,7 @@
 From Coq Require Import ZArith Lia ssreflect.
 From stdpp Require Import base.
-From cap_machine Require Import machine_base machine_parameters addr_reg classes class_instances.
+From cap_machine Require Import machine_base machine_parameters addr_reg classes class_instances solve_addr.
+From cap_machine Require Export solve_addr_extra.
 From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 
 From Ltac2 Require Import Ltac2 Option.
