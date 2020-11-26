@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel macros_helpers map_simpl.
+From cap_machine Require Import rules logrel macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc.
 
 Section macros.
@@ -528,11 +528,9 @@ Section macros.
       by rewrite lookup_delete_ne // lookup_delete.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
       by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete_ne // lookup_delete.
-    (* rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete. *)
-    (* rewrite -(delete_insert_ne _ r_t5 r_t2) // (insert_commute _ r_t2 r_t3) //. *)
-    (* rewrite insert_delete. *)
-    map_simpl "Hregs".
-    Show Ltac Profile.
+    rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete.
+    rewrite -(delete_insert_ne _ r_t5 r_t2) // (insert_commute _ r_t2 r_t3) //.
+    rewrite insert_delete.
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
       by simplify_map_eq. map_simpl "Hregs".
     iApply (wp_wand with "[-]").
