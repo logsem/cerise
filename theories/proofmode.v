@@ -67,6 +67,24 @@ Ltac changePCto0 new_a :=
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
 
+Ltac codefrag_facts h :=
+  let h := constr:(h:ident) in
+  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?code) ] =>
+    (match goal with H : ContiguousRegion a_base _ |- _ => idtac end ||
+     iDestruct (codefrag_contiguous_region with h) as %?);
+    (match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => idtac end ||
+     (try match goal with H : SubBounds ?b ?e _ _ |- _ =>
+            assert (SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr
+          end))
+  end.
+
+Ltac clear_codefrag_facts h :=
+  let h := constr:(h:ident) in
+  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?code) ] =>
+    try match goal with H : ContiguousRegion a_base _ |- _ => clear H end;
+    try match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => clear H end
+  end.
+
 (* Classes for the code sub-block focusing tactic *)
 
 Class NthSubBlock {A} (ll: list A) (n: nat) (l1: list A) (l: list A) (l2: list A) :=
@@ -126,15 +144,48 @@ Section codefrag_subblock.
 
 End codefrag_subblock.
 
-Ltac focus_block0 h hp :=
+Ltac focus_block_0 h hi hcont :=
   let h := constr:(h:ident) in
-  iDestruct (codefrag_block0_acc with h) as hp.
+  let hi := constr:(hi:ident) in
+  let hcont := constr:(hcont:ident) in
+  let x := iFresh in
+  iPoseProof (codefrag_block0_acc with h) as x;
+  eapply tac_and_destruct with x _ hi hcont _ _ _;
+  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+  codefrag_facts hi.
 
-Ltac focus_block n h a_base hp :=
+Tactic Notation "focus_block_0" constr(h) "as" constr(hi) constr(hcont) :=
+  focus_block_0 h hi hcont.
+
+Ltac focus_block n h a_base Ha_base hi hcont :=
   let h := constr:(h:ident) in
-  iDestruct ((codefrag_block_acc n) with h) as (a_base) hp;
+  let hi := constr:(hi:ident) in
+  let hcont := constr:(hcont:ident) in
+  let x := iFresh in
+  iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
+  let xbase := iFresh in
+  let y := iFresh in
+  eapply tac_and_destruct with x _ xbase y _ _ _;
+  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+  iPure xbase as Ha_base;
+  eapply tac_and_destruct with y _ hi hcont _ _ _;
+  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+  codefrag_facts hi;
   changePCto a_base.
 
+Tactic Notation "focus_block" constr(n) constr(h) "as"
+       ident(a_base) simple_intropattern(Ha_base) constr(hi) constr(hcont) :=
+  focus_block n h a_base Ha_base hi hcont.
+
+Ltac unfocus_block hi hcont h :=
+  let hi := constr:(hi:ident) in
+  let hcont := constr:(hcont:ident) in
+  let h := constr:(h:ident) in
+  clear_codefrag_facts hi;
+  iDestruct (hcont with hi) as h.
+
+Tactic Notation "unfocus_block" constr(hi) constr(hcont) "as" constr(h) :=
+  unfocus_block hi hcont h.
 
 (* "iApply with on-demand framing" *)
 

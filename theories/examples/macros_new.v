@@ -94,7 +94,7 @@ Section macros.
   (* Since we are not jumping to the failure subroutine, we do not need any assumptions
      about the failure subroutine *)
   Lemma assert_r_z_success f_a r z pc_p pc_b pc_e a_first
-        b_link e_link a_link a_entry fail_cap w_r φ :
+        b_link e_link a_link a_entry fail_cap w_r w1 w2 w3 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (assert_r_z_instrs f_a r z))%a →
     (* linking table assumptions *)
@@ -108,9 +108,9 @@ Section macros.
     ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
     ∗ ▷ a_entry ↦ₐ fail_cap
     ∗ ▷ r ↦ᵣ w_r
-    ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
-    ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
-    ∗ ▷ (∃ w, r_t3 ↦ᵣ w)
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ r_t3 ↦ᵣ w3
     ∗ ▷ (r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ r ↦ᵣ inl 0%Z
          ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (assert_r_z_instrs f_a r z))%a)
          ∗ codefrag a_first (assert_r_z_instrs f_a r z)
@@ -121,26 +121,16 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Htable Hsuccess)
             "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    iDestruct "Hr_t1" as (w1) "Hr_t1". (* TODO: change lemma statement *)
-    iDestruct "Hr_t2" as (w2) "Hr_t2". (* TODO: change lemma statement *)
-    iDestruct "Hr_t3" as (w3) "Hr_t3". (* TODO: change lemma statement *)
     subst w_r. rewrite {1}/assert_r_z_instrs.
-    focus_block0 "Hprog" "[Hfetch Hcont]".
-    iDestruct (codefrag_contiguous_region with "Hfetch") as %Hfetch_cont. (* TODO: automate this *)
-    assert (SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_instrs f_a))%a). solve_addr.
-    iApply (fetch_spec with "[-]"). all: iFrameCapSolve.
+    focus_block_0 "Hprog" as "Hfetch" "Hcont".
+    iApply (fetch_spec with "[-]"); iFrameCapSolve.
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
-    clear Hfetch_cont H.
-    iDestruct ("Hcont" with "Hfetch") as "Hprog".
+    unfocus_block "Hfetch" "Hcont" as "Hprog".
 
-    focus_block 1 "Hprog" a_middle "(%Ha_middle & Hprog & Hcont)".
-    iDestruct (codefrag_contiguous_region with "Hprog") as %Hmiddle_cont. (* TODO: automate this *)
-    assert (SubBounds pc_b pc_e a_middle (a_middle ^+ 3)%a). Time solve_addr.
-    iInstr "Hprog".
-    rewrite (_: (z - z = 0)%Z); [| lia].
-    iInstr "Hprog".
-    iInstr "Hprog".
-    iDestruct ("Hcont" with "Hprog") as "Hprog".
+    focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
+    iInstr "Hprog". rewrite (_: (z - z = 0)%Z); [| lia].
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ". iFrame.
     changePCto (a_first ^+ length (assert_r_z_instrs f_a r z))%a. iFrame.
   Qed.
