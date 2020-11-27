@@ -99,16 +99,18 @@ Section macros.
     { iIntros (Hcontr);subst.
       iDestruct (mapsto_valid_2 with "Hi Hpc_b") as %?. done. }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Hpc_b]");
-      [|apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 5|..].
+      [|apply decode_encode_instrW_inv|iCorrectPC a_first a_last| | |iContiguous_next Hcont 5|..].
     { exact (inr (RW, b_link, e_link, a_link)). }
     { apply contiguous_between_length in Hcont as Hlen.
       assert (pc_b < pc_e)%Z as Hle.
       { eapply isCorrectPC_contiguous_range in Hvpc as Hwb';[|eauto|apply elem_of_cons;left;eauto].
         inversion Hwb'. solve_addr. }
       apply isCorrectPC_range_perm in Hvpc as Heq; [|revert Hlen; clear; solve_addr].
-      split;[destruct Heq as [-> | ->]; auto|].
-      apply andb_true_intro. split;[apply Z.leb_le;solve_addr|apply Z.ltb_lt;auto].
-    }
+      destruct Heq as [-> | ->]; auto. }
+    { apply andb_true_intro. split;[apply Z.leb_le;solve_addr|apply Z.ltb_lt;auto].
+      assert (pc_b < pc_e)%Z as Hle.
+      { eapply isCorrectPC_contiguous_range in Hvpc as Hwb';[|eauto|apply elem_of_cons;left;eauto].
+        inversion Hwb'. solve_addr. } auto. }
     { destruct (pc_b =? a3)%a; [done|iFrame]. }
     destruct ((pc_b =? a3)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr].
     iEpilogue "(HPC & Hr_t1 & Hi & Hpc_b)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -138,7 +140,7 @@ Section macros.
     { iIntros (Hcontr);subst.
       iDestruct (mapsto_valid_2 with "Hi Ha_entry") as %?. done. }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_entry]");
-      [exact wentry|apply decode_encode_instrW_inv|iCorrectPC a_first a_last|auto|apply Hlink|..].
+      [exact wentry|apply decode_encode_instrW_inv|iCorrectPC a_first a_last|auto|auto|apply Hlink|..].
     { destruct (entry_a =? a7)%a; auto. }
     destruct ((entry_a =? a7)%a) eqn:Hcontr;[apply Z.eqb_eq in Hcontr;apply z_of_eq in Hcontr;congruence|clear Hcontr].
     iEpilogue "(HPC & Hr_t1 & Hi & Hentry_a)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -359,15 +361,15 @@ Section macros.
     { destruct (decide (a_env = a2)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
       iDestruct (mapsto_valid_2 with "Hi Ha_env") as %?. done. }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_env]");
-      [|apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|split;auto|iContiguous_next Hcont' 2|
-       rewrite Hne';iFrame|rewrite Hne'];auto.
+      [|apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|auto|auto|iContiguous_next Hcont' 2|
+       rewrite Hne';iFrame|rewrite Hne'];auto. 
     iEpilogue "(HPC & Hr_t1 & Hi & Ha_env)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* store r_t1 1 *)
     destruct a';[inversion Hlength'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Hflag]");
       [apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|iContiguous_next Hcont' 3|
-       split;auto|].
+       auto|auto|].
     iEpilogue "(HPC & Hi & Hr_t1 & Hflag)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move r_t1 0 *)
     destruct a';[inversion Hlength'|].
@@ -967,7 +969,7 @@ Section macros.
       iDestruct "Hprog" as "[Hi Hprog]".
       iApply (wp_bind (fill [SeqCtx])).
       iApply (wp_store_success_z _ _ _ _  a3 a4 _ rt 0 _ p_r b_r e_r a_r with "[HPC Hi Hrt Ha_r]"); first apply decode_encode_instrW_inv; eauto.
-      { split;[auto|]. rewrite /withinBounds andb_true_iff; split;[auto|].
+      { rewrite /withinBounds andb_true_iff; split;[auto|].
           by apply Z.leb_le. by apply Z.ltb_lt. }
       iFrame. iEpilogue "(HPC & Ha3 & Hrt & Ha_r)".
       (* lea rt 1 *)
@@ -1670,8 +1672,8 @@ Section macros.
     iDestruct "Hact" as "[Ha0 Hact]".
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Ha0 $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..].
-    { split; auto. apply Hwbact with 0. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..]; auto.
+    { apply Hwbact with 0. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Hact')"; iRename "Hi" into "Hprog_done".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1686,8 +1688,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha1 Hact]".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..].
-    { split;auto. apply Hwbact with 1. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..]; auto.
+    { apply Hwbact with 1. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Ha1)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha1" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1702,8 +1704,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha2 Hact]".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha2]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
-    { split;auto. apply Hwbact with 2. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..]; auto.
+    { apply Hwbact with 2. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Ha2)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha2" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1718,8 +1720,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha3 Hact]".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha3]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|..].
-    { split;auto. apply Hwbact with 3. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|..]; auto.
+    { apply Hwbact with 3. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Ha3)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha3" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1734,8 +1736,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha4 Hact]".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha4]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 8|..].
-    { split;auto. apply Hwbact with 4. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 8|..]; auto.
+    { apply Hwbact with 4. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Ha4)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha4" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1750,8 +1752,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha5 Hact]".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t1 $Ha5]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 10|..].
-    { split;auto. apply Hwbact with 5. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 10|..]; auto.
+    { apply Hwbact with 5. auto. }
     iEpilogue "(HPC & Hi & Hr_t1 & Ha5)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha5" "Hact'" as "Hact'".
     (* lea r_t1 1 *)
     destruct l;[inversion Hlength|].
@@ -1766,8 +1768,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha6 Hact]".
     iApply (wp_store_success_reg with "[$HPC $Hi $Ha6 $Hrcode $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 12|..].
-    { split;auto. apply Hwbact with 6. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 12|..]; auto.
+    { apply Hwbact with 6. auto. }
     iEpilogue "(HPC & Hi & Hrcode & Hr_t1 & Ha6)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha6" "Hact'" as "Hact'".
     (* move rcode 0 *)
     destruct l;[inversion Hlength|].
@@ -1788,8 +1790,8 @@ Section macros.
     iPrologue "Hprog".
     iDestruct "Hact" as "[Ha7 Hact]".
     iApply (wp_store_success_reg with "[$HPC $Hi $Ha7 $Hrdata $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 15|..].
-    { split;auto. apply Hwbact with 7. auto. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 15|..]; auto.
+    { apply Hwbact with 7. auto. }
     iEpilogue "(HPC & Hi & Hrdata & Hr_t1 & Ha7)"; iCombine "Hi" "Hprog_done" as "Hprog_done"; iCombine "Ha7" "Hact'" as "Hact'".
     (* move rdata 0 *)
     destruct l;[inversion Hlength|].
@@ -2035,7 +2037,7 @@ Section macros.
       exfalso. by pose proof (NoDup_lookup _ 4 6 _ Hcls_nodup eq_refl eq_refl). }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr1 Hcls_ptr]");
       [(* FIXME *) auto | apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
-       split;[done|] | iContiguous_next Hcont_cls 4 | ..].
+       done | auto | iContiguous_next Hcont_cls 4 | ..].
     { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
       by eapply le_addr_withinBounds; eauto. repeat constructor. }
     { rewrite H_4_2. iFrame. }

@@ -281,8 +281,11 @@ Section Adequacy.
     iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
             with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
-      iFrame. iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
-      clear; solve_addr. }
+      iFrame. rewrite /proofmode.codefrag.
+      rewrite (_: (malloc_start ^+ length malloc_subroutine_instrs)%a = malloc_memptr).
+      2: { generalize malloc_code_size. solve_addr. } iFrame.
+      iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
+      clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
     iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "Hmalloc_val".
     (* Allocate a permanent region for the adversary code *)
 

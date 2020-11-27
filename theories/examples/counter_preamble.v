@@ -427,8 +427,8 @@ Section counter_example_preamble.
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hr1 $Hi $Hcell]");
       [apply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|
-       iContiguous_next Hcont_rest 0|..].
-    { split; auto. apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
+       iContiguous_next Hcont_rest 0|..]; auto.
+    { apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
     iEpilogue "(HPC & Hprog_done & Hr1 & Hb_cell)". iCombine "Hprog_done" "Hmalloc" as "Hprog_done".
     (* move_r r_t2 r_t1 *)
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr2 Hregs]".

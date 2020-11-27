@@ -252,7 +252,7 @@ Section call.
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->. 
       iPrologue "Hprog". 
       iApply (wp_store_success_reg with "[$HPC $Hi $Hlocals $Ha_l $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|split;auto|]. 
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto|auto|].
       iEpilogue "(HPC & Hprog_done & Hr & Hr_t1 & Ha_l)".
       (* lea r_t1 1 *)
       pose proof (contiguous_between_last _ _ _ a Hcont eq_refl) as Hlast.
@@ -290,7 +290,7 @@ Section call.
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->. 
       iPrologue "Hprog". 
       iApply (wp_store_success_reg with "[$HPC $Hi $Hr $Ha_l $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|split;auto|]. 
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto|auto|].
       iEpilogue "(HPC & Hprog_done & Hr & Hr_t1 & Ha_l)".
       (* lea r_t1 1 *) simpl in Hlength_prog. 
       destruct a1;[inversion Hlength_prog|]. 
@@ -671,8 +671,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t0 $Ha1]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 1|..]. 
-    { split;auto. apply Hwbbl'. constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 1|..]; auto.
+    { apply Hwbbl'. constructor. }
     iEpilogue "(HPC & Hi & Hr_t0 & Ha1)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -686,8 +686,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t0 $Ha2]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 3|..]. 
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 3|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t0 & Ha2)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -701,8 +701,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t0 $Ha3]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 5|..]. 
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 5|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t0 & Ha3)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -716,8 +716,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t0 $Ha4]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 7|..]. 
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 7|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t0 & Ha4)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -731,8 +731,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_t0 $Ha5]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 9|..]. 
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 9|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t0 & Ha5)"; iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -751,8 +751,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t6 $Hr_t0 $Ha6]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 11|..].
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 11|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t6 & Hr_t0 & Ha6)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
@@ -845,8 +845,8 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t1 $Hr_t0 $Ha7]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 15|..].
-    { split;auto. apply Hwbbl'. repeat constructor. }
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 15|..]; auto.
+    { apply Hwbbl'. repeat constructor. }
     iEpilogue "(HPC & Hi & Hr_t1 & Hr_t0 & Ha7)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* lea r_t0 -6 *)
