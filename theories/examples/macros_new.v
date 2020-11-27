@@ -90,21 +90,6 @@ Section macros.
       Mov r_t1 0
     ].
 
-  Lemma codefrag_split a0 (l1 l2: list Word):
-    codefrag a0 (l1 ++ l2) -∗
-    ∃ (a1: Addr), ⌜(a0 + length l1)%a = Some a1⌝ ∗
-    codefrag a0 l1 ∗ codefrag a1 l2.
-  Proof.
-    rewrite /codefrag. iIntros "H".
-    iDestruct (codefrag_contiguous_region with "H") as %Hregion.
-    destruct Hregion as [an Han]. rewrite app_length in Han |- *.
-    iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
-    by solve_addr. by rewrite /region_size; solve_addr.
-    iFrame. iExists (a0 ^+ length l1)%a.
-    rewrite (_: ((a0 ^+ length l1) ^+ length l2) = (a0 ^+ (length l1 + length l2)%nat))%a.
-    iFrame. solve_addr. solve_addr.
-  Qed.
-
   (* Spec for assertion success *)
   (* Since we are not jumping to the failure subroutine, we do not need any assumptions
      about the failure subroutine *)
@@ -136,23 +121,29 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Htable Hsuccess)
             "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    iDestruct (codefrag_split with "Hprog") as (a_middle) "(%Ha_middle & Hfetch & Hprog)".
-    iDestruct (codefrag_contiguous_region with "Hfetch") as %Hfetch_cont. (* TODO: automate this *)
-    iDestruct (codefrag_contiguous_region with "Hprog") as %Hprog_cont. (* TODO: automate this *)
     iDestruct "Hr_t1" as (w1) "Hr_t1". (* TODO: change lemma statement *)
     iDestruct "Hr_t2" as (w2) "Hr_t2". (* TODO: change lemma statement *)
     iDestruct "Hr_t3" as (w3) "Hr_t3". (* TODO: change lemma statement *)
-    subst w_r.
+    subst w_r. rewrite {1}/assert_r_z_instrs.
+    focus_block0 "Hprog" "[Hfetch Hcont]".
+    iDestruct (codefrag_contiguous_region with "Hfetch") as %Hfetch_cont. (* TODO: automate this *)
+    assert (SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_instrs f_a))%a). solve_addr.
     iApply (fetch_spec with "[-]"). all: iFrameCapSolve.
-    unfold SubBounds in *. solve_addr. (* TODO *)
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
-    rewrite (_: (a_first ^+ length (fetch_instrs f_a))%a = a_middle). 2: solve_addr.
-    iInstr "Hprog". admit. (* TODO *)
+    clear Hfetch_cont H.
+    iDestruct ("Hcont" with "Hfetch") as "Hprog".
+
+    focus_block 1 "Hprog" a_middle "(%Ha_middle & Hprog & Hcont)".
+    iDestruct (codefrag_contiguous_region with "Hprog") as %Hmiddle_cont. (* TODO: automate this *)
+    assert (SubBounds pc_b pc_e a_middle (a_middle ^+ 3)%a). Time solve_addr.
+    iInstr "Hprog".
     rewrite (_: (z - z = 0)%Z); [| lia].
-    iInstr "Hprog". admit. (* TODO *)
-    iInstr "Hprog". admit.
-    iApply "Hφ". iFrame. admit. (* TODO *)
-  Admitted.
+    iInstr "Hprog".
+    iInstr "Hprog".
+    iDestruct ("Hcont" with "Hprog") as "Hprog".
+    iApply "Hφ". iFrame.
+    changePCto (a_first ^+ length (assert_r_z_instrs f_a r z))%a. iFrame.
+  Qed.
 
   (* Spec for assertion failure *)
   (* When the assertion fails, the program jumps to the failure subroutine, sets the

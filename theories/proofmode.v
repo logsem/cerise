@@ -61,6 +61,81 @@ Ltac wp_instr :=
   subst X;
   cbv beta.
 
+Ltac changePCto0 new_a :=
+  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ inr (_, _, _, ?a))%I ] =>
+    rewrite (_: a = new_a); [| solve_addr]
+  end.
+Tactic Notation "changePCto" constr(a) := changePCto0 a.
+
+(* Classes for the code sub-block focusing tactic *)
+
+Class NthSubBlock {A} (ll: list A) (n: nat) (l1: list A) (l: list A) (l2: list A) :=
+  MkNthSubblock : ll = l1 ++ l ++ l2.
+Hint Mode NthSubBlock + ! + - - - : typeclass_instances.
+
+Instance NthSubBlock_O_rest A (l1 l2: list A):
+  NthSubBlock (l1 ++ l2) 0 [] l1 l2.
+Proof. reflexivity. Qed.
+
+Instance NthSubBlock_O_last A (l1: list A):
+  NthSubBlock l1 0 [] l1 [] | 100.
+Proof. unfold NthSubBlock. rewrite app_nil_r//. Qed.
+
+Instance NthSubBlock_S A (l0 ll l1 l2 l3: list A) n:
+  NthSubBlock ll n l1 l2 l3 →
+  NthSubBlock (l0 ++ ll) (S n) (l0 ++ l1) l2 l3.
+Proof. unfold NthSubBlock. intros ->. rewrite app_assoc //. Qed.
+
+Section codefrag_subblock.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          `{MP: MachineParameters}.
+
+  Lemma codefrag_block0_acc a0 (l1 l2: list Word):
+    codefrag a0 (l1 ++ l2) -∗
+    codefrag a0 l1 ∗
+    (codefrag a0 l1 -∗ codefrag a0 (l1 ++ l2)).
+  Proof.
+    rewrite /codefrag. iIntros "H".
+    iDestruct (codefrag_contiguous_region with "H") as %Hregion.
+    destruct Hregion as [an Han]. rewrite app_length in Han |- *.
+    iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
+    by solve_addr. by rewrite /region_size; solve_addr.
+    iFrame. iIntros "H1".
+    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /region_size; solve_addr.
+  Qed.
+
+  Lemma codefrag_block_acc (n: nat) a0 (cs: list Word) l1 l l2:
+    NthSubBlock cs n l1 l l2 →
+    codefrag a0 cs -∗
+    ∃ (ai: Addr), ⌜(a0 + length l1)%a = Some ai⌝ ∗
+    codefrag ai l ∗
+    (codefrag ai l -∗ codefrag a0 cs).
+  Proof.
+    unfold NthSubBlock. intros ->. rewrite /codefrag. iIntros "H".
+    iDestruct (codefrag_contiguous_region with "H") as %[a1 Ha1].
+    rewrite !app_length in Ha1 |- *.
+    iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
+    solve_addr. rewrite /region_size; solve_addr.
+    iExists (a0 ^+ length l1)%a. iSplitR. iPureIntro; solve_addr.
+    iDestruct (region_mapsto_split _ _ ((a0 ^+ length l1) ^+ length l)%a with "H2") as "[H2 H3]".
+    solve_addr. rewrite /region_size; solve_addr. iFrame.
+    iIntros "H2".
+    rewrite region_mapsto_split. iFrame. 2: solve_addr. 2: rewrite /region_size; solve_addr.
+    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /region_size; solve_addr.
+  Qed.
+
+End codefrag_subblock.
+
+Ltac focus_block0 h hp :=
+  let h := constr:(h:ident) in
+  iDestruct (codefrag_block0_acc with h) as hp.
+
+Ltac focus_block n h a_base hp :=
+  let h := constr:(h:ident) in
+  iDestruct ((codefrag_block_acc n) with h) as (a_base) hp;
+  changePCto a_base.
+
+
 (* "iApply with on-demand framing" *)
 
 Lemma envs_clear_spatial_sound_rev {PROP: bi} (Δ: envs PROP) :
@@ -437,10 +512,13 @@ Ltac iInstr_lookup0 hprog hi hcont :=
 Tactic Notation "iInstr_lookup" constr(hprog) "as" constr(hi) constr(hcont) :=
   iInstr_lookup0 hprog hi hcont.
 
-Ltac iInstr_get_rule hi cont :=
+Ltac iInstr_get_rule0 hi cont :=
+  let hi := constr:(hi:ident) in
   lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
     dispatch_instr_rule instr cont
   end.
+
+Tactic Notation "iInstr_get_rule" constr(hi) tactic(cont) := iInstr_get_rule0 hi cont.
 
 Ltac iInstr_close hprog :=
   (* because of iApplyCapAuto's context shuffling, [hi] and [hcont]
