@@ -49,12 +49,36 @@ Set Default Proof Mode "Classic".
      won't work as expected.
 *)
 
-Create HintDb cap_pure discriminated.
+Class InCtx (P: Prop) := MkInCtx: P.
 
-Hint Mode InBounds + + + : cap_pure.
+Ltac freeze_hyps :=
+  repeat (match goal with
+  | h : ?P |- _ =>
+    lazymatch type of P with
+    | Prop => idtac
+    | _ => fail
+    end;
+    lazymatch P with
+    | InCtx _ => fail
+    | _ => idtac
+    end;
+    change P with (InCtx P) in h
+  end).
+
+Ltac unfreeze_hyps :=
+  unfold InCtx in *.
+
+(* Proof search features *)
+
+Create HintDb cap_pure discriminated.
 
 (* ContiguousRegion *)
 Hint Mode ContiguousRegion + - : cap_pure.
+
+Lemma ContiguousRegion_InCtx a z :
+  InCtx (ContiguousRegion a z) → ContiguousRegion a z.
+Proof. auto. Qed.
+Hint Resolve ContiguousRegion_InCtx : cap_pure.
 
 Instance IncrAddr_of_ContiguousRegion a z :
   ContiguousRegion a z →
@@ -76,6 +100,17 @@ Qed.
 
 (* SubBounds *)
 Hint Mode SubBounds + + - - : cap_pure.
+
+Lemma SubBounds_InCtx b e b' e' :
+  InCtx (SubBounds b e b' e') → SubBounds b e b' e'.
+Proof. auto. Qed.
+
+Hint Extern 2 (SubBounds _ _ ?b' ?e') =>
+  (is_evar b'; is_evar e'; apply SubBounds_InCtx) : cap_pure.
+
+Hint Extern 0 (SubBounds _ _ ?b' ?e') =>
+  (without_evars b'; without_evars e';
+   apply SubBounds_InCtx) : cap_pure.
 
 (* Consequences of SubBounds in terms of AddrLe/AddrLt *)
 
@@ -123,6 +158,8 @@ Proof. unfold SubBounds, AddrLt. solve_addr. Qed.
 
 (* InBounds *)
 
+Hint Mode InBounds + + + : cap_pure.
+
 Hint Resolve InBounds_sub : cap_pure.
 
 Lemma InBounds_compare (b a e: Addr) :
@@ -132,6 +169,14 @@ Lemma InBounds_compare (b a e: Addr) :
 Proof. unfold AddrLe, AddrLt, InBounds. auto. Qed.
 Hint Resolve InBounds_compare : cap_pure.
 
+Lemma withinBounds_InCtx p b e a :
+  InCtx (withinBounds (p, b, e, a) = true) →
+  InBounds b e a.
+Proof.
+  unfold InCtx, InBounds. cbn.
+  intros [?%Z.leb_le ?%Z.ltb_lt]%andb_true_iff. solve_addr.
+Qed.
+Hint Resolve withinBounds_InCtx : cap_pure.
 
 (* isCorrectPC *)
 
@@ -139,8 +184,10 @@ Hint Mode isCorrectPC + : cap_pure.
 
 Hint Resolve isCorrectPC_ExecPCPerm_InBounds : cap_pure.
 
-(* Address arithmetic *)
+(* IncrAddr *)
 
+(* This is just a proxy lemma, to then use the Hint Mode of IncrAddr. The
+   intention is that [a] and [z] are known, and that we want to infer [a']. *)
 Lemma IncrAddr_prove a z a' :
   IncrAddr a z a' →
   (a + z)%a = Some a'.
@@ -148,6 +195,12 @@ Proof.
   intros ->. reflexivity.
 Qed.
 Hint Resolve IncrAddr_prove : cap_pure.
+
+Instance IncrAddr_InCtx a z a' :
+  InCtx ((a + z)%a = Some a') → IncrAddr a z a'.
+Proof. auto. Qed.
+
+(* Proxy lemma for DecodeInstr *)
 
 Lemma DecodeInstr_prove `{MachineParameters} w i :
   DecodeInstr w i →
@@ -157,10 +210,15 @@ Proof.
 Qed.
 Hint Resolve DecodeInstr_prove : cap_pure.
 
-(* Permissions *)
+(* ExecPCPerm, PermFlows *)
 
 Hint Mode ExecPCPerm + : cap_pure.
 Hint Mode PermFlows - + : cap_pure.
+
+Lemma ExecPCPerm_InCtx p :
+  InCtx (ExecPCPerm p) → ExecPCPerm p.
+Proof. auto. Qed.
+Hint Resolve ExecPCPerm_InCtx : cap_pure.
 
 Hint Resolve ExecPCPerm_RX : cap_pure.
 Hint Resolve ExecPCPerm_RWX : cap_pure.
@@ -175,8 +233,8 @@ Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
 (* There's no use defining a Hint Mode for withinBounds, as it doesn't appear as
    the head symbol. (in "withinBounds _ = true", (=) is the head symbol).
 
-   That's fine: this lemma applies without risking instantiating any evar, and
-   then the Hint Mode on [InBounds] can take effect. *)
+   That's fine: this proxy lemma applies without risking instantiating any evar,
+   and then the Hint Mode on [InBounds] can take effect. *)
 
 Hint Resolve withinBounds_InBounds : cap_pure.
 
@@ -193,91 +251,7 @@ Hint Resolve is_AddSubLt_Add : cap_pure.
 Hint Resolve is_AddSubLt_Sub : cap_pure.
 Hint Resolve is_AddSubLt_Lt : cap_pure.
 
-(* Local context management *)
-
-Class InCtx (P: Prop) := MkInCtx: P.
-
-Lemma ContiguousRegion_InCtx a z :
-  InCtx (ContiguousRegion a z) → ContiguousRegion a z.
-Proof. auto. Qed.
-Hint Resolve ContiguousRegion_InCtx : cap_pure.
-
-Instance IncrAddr_InCtx a z a' :
-  InCtx ((a + z)%a = Some a') → IncrAddr a z a'.
-Proof. auto. Qed.
-
-Lemma ExecPCPerm_InCtx p :
-  InCtx (ExecPCPerm p) → ExecPCPerm p.
-Proof. auto. Qed.
-Hint Resolve ExecPCPerm_InCtx : cap_pure.
-
-Lemma SubBounds_InCtx b e b' e' :
-  InCtx (SubBounds b e b' e') → SubBounds b e b' e'.
-Proof. auto. Qed.
-(* Don't add this as a Hint Resolve! see below. *)
-
-Lemma withinBounds_InCtx p b e a :
-  InCtx (withinBounds (p, b, e, a) = true) →
-  InBounds b e a.
-Proof.
-  unfold InCtx, InBounds. cbn.
-  intros [?%Z.leb_le ?%Z.ltb_lt]%andb_true_iff. solve_addr.
-Qed.
-Hint Resolve withinBounds_InCtx : cap_pure.
-
-Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
-  (is_evar b'; is_evar e'; apply SubBounds_InCtx) : cap_pure.
-
-Ltac contains_evars c :=
-  match c with
-  | context [ ?x ] => is_evar x
-  end.
-
-Ltac2 does_not_contain_evars c :=
-  match
-    Control.case
-      (fun _ => ltac1:(c |- contains_evars c) (Ltac1.of_constr c))
-  with
-  | Err _ => ()
-  | Val _ => Control.zero (Tactic_failure(None))
-  end.
-Ltac does_not_contain_evars c :=
-  let f := ltac2:(c |- does_not_contain_evars (Option.get (Ltac1.to_constr c))) in
-  f c.
-
-Goal exists (x:nat), x = S x ∧ 1 = x.
-  eexists. split.
-  match goal with |- ?y = _ => contains_evars y end.
-  match goal with |- _ = ?y => contains_evars y end.
-  all: cycle 1.
-  match goal with |- ?y = _ => does_not_contain_evars y end.
-Abort.
-
-Hint Extern 1 (SubBounds _ _ ?b' ?e') =>
-  (does_not_contain_evars b'; does_not_contain_evars e';
-   apply SubBounds_InCtx) : cap_pure.
-
 (* *)
-
-Ltac freeze_hyps :=
-  repeat (match goal with
-  | h : ?P |- _ =>
-    lazymatch type of P with
-    | Prop => idtac
-    | _ => fail
-    end;
-    lazymatch P with
-    | InCtx _ => fail
-    | _ => idtac
-    end;
-    change P with (InCtx P) in h
-  end).
-
-Ltac unfreeze_hyps :=
-  repeat (match goal with
-  | h : InCtx ?P |- _ =>
-    change (InCtx P) with P in h
-  end).
 
 Ltac2 solve_pure () :=
   first [ assumption
