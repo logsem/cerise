@@ -43,6 +43,7 @@ theories/examples/malloc.v
 theories/examples/contiguous.v
 theories/examples/macros_helpers.v
 theories/examples/macros.v
+theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v
 theories/examples/call.v
