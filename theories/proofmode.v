@@ -490,7 +490,7 @@ Proof. intros ->. auto. Qed.
 Ltac2 reintro_cap_resources tbl :=
   (refine '(@envs_entails_rew_goal _ _ _ _ _ _);
    Control.shelve_unifiable ()) >
-  [ List.iter name_cap_resource (tbl.(contents)); reflexivity | () ];
+  [ List.iter (fun x => try (name_cap_resource x)) (tbl.(contents)); reflexivity | () ];
   iNamedIntro ().
 
 (* cleanup *)
@@ -521,7 +521,7 @@ Ltac2 iApplyCapAutoCore lemma :=
   on_lasts [ (fun _ =>
     iNamedIntro ();
     try ltac1:(iNext);
-    try (reintro_cap_resources tbl);
+    reintro_cap_resources tbl;
     iApplyCapAuto_cleanup ()
   )].
 
@@ -565,6 +565,12 @@ Tactic Notation "iInstr_lookup" constr(hprog) "as" constr(hi) constr(hcont) :=
 
 Ltac iInstr_get_rule0 hi cont :=
   let hi := constr:(hi:ident) in
+  once (
+    (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] => idtac end
+     + (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ ?instr)%I ] =>
+           fail 1 "Next instruction is not of the form (encodeInstrW _):" instr
+         end + fail "" hi "not found"))
+  );
   lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
     dispatch_instr_rule instr cont
   end.

@@ -500,6 +500,25 @@ Section cap_lang_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
+  Lemma wp_add_sub_lt_fail_z_r E ins dst n1 r2 w wdst cap pc_p pc_b pc_e pc_a :
+    decodeInstrW w = ins →
+    is_AddSubLt ins dst (inl n1) (inr r2) →
+    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r2 ↦ᵣ inr cap }}}
+      Instr Executable
+            @ E
+    {{{ RET FailedV; pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hdst Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
 End cap_lang_rules.
 
 (* Hints to automate proofs of is_AddSubLt *)

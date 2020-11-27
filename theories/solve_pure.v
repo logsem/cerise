@@ -20,6 +20,7 @@ Set Default Proof Mode "Classic".
    - withinBounds (p, b, e, a) = true
    - is_Get
    - is_AddSubLt
+   - z_to_addr (z_of x) = ?
 
    It also leverages the classes and instances defined in [classes.v] and
    [class_instances.v], but those are not supposed to be used directly in proof
@@ -227,6 +228,7 @@ Hint Resolve ExecPCPerm_flows_to : cap_pure.
 (* TODO: add a test checking the use of ExecPCPerm_flows_to *)
 Hint Resolve ExecPCPerm_readAllowed : cap_pure.
 Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
+Hint Extern 1 (writeAllowed _ = true) => reflexivity : cap_pure.
 
 (* withinBounds *)
 
@@ -251,6 +253,10 @@ Hint Resolve is_AddSubLt_Add : cap_pure.
 Hint Resolve is_AddSubLt_Sub : cap_pure.
 Hint Resolve is_AddSubLt_Lt : cap_pure.
 
+(* z_to_addr *)
+
+Hint Resolve z_to_addr_z_of : cap_pure.
+
 (* *)
 
 Ltac2 solve_pure () :=
@@ -263,6 +269,28 @@ Ltac2 solve_pure () :=
 Ltac solve_pure :=
   ltac2:(solve_pure ()).
 
+(* [solve_pure_addr]: solve_pure + hints to call [solve_addr]. Usually slow to
+   fail, should only be invoked manually. *)
+
+Create HintDb cap_pure_addr.
+
+Local Ltac hint_solve_addr := unfreeze_hyps; solve_addr.
+
+Hint Mode SubBounds + + + + : cap_pure_addr.
+Hint Extern 100 (SubBounds _ _ _ _) => hint_solve_addr : cap_pure_addr.
+
+Hint Mode InBounds + + + : cap_pure_addr.
+Hint Extern 100 (InBounds _ _ _) => hint_solve_addr : cap_pure_addr.
+
+Hint Mode IncrAddr + + + : cap_pure_addr.
+Hint Extern 100 (IncrAddr _ _ _) => hint_solve_addr : cap_pure_addr.
+
+Ltac solve_pure_addr :=
+  first [ assumption
+    | discriminate
+    | freeze_hyps;
+      typeclasses eauto with cap_pure cap_pure_addr typeclass_instances;
+      unfreeze_hyps ].
 
 (* Tests *)
 

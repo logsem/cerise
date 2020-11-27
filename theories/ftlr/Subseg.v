@@ -16,21 +16,6 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma leb_addr_spec:
-    forall a1 a2,
-      reflect (le_addr a1 a2) (leb_addr a1 a2).
-  Proof.
-    intros. rewrite /leb_addr /le_addr.
-    apply Z.leb_spec0.
-  Qed.    
-
-  Lemma isWithin_implies a0 a1 b e:
-    isWithin a0 a1 b e = true ->
-    (b <= a0 /\ a1 <= e)%a.
-  Proof.
-    rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
-  Qed.
-
   Lemma within_in_range:
     forall a b b' e e',
       (b <= b')%a ->

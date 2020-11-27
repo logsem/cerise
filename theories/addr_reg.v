@@ -173,6 +173,14 @@ Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. D
 Global Instance Addr_lt_dec : RelDecision lt_addr.
 Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
 
+Lemma leb_addr_spec:
+  forall a1 a2,
+    reflect (le_addr a1 a2) (leb_addr a1 a2).
+Proof.
+  intros. unfold leb_addr, le_addr.
+  apply Z.leb_spec0.
+Qed.
+
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
   if (Z_le_dec (a + z)%Z MemNum) then
     if (Z_le_dec 0 (a + z)%Z) then Some (A (a + z)%Z _ _) else None else None.

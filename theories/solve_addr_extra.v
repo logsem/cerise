@@ -28,5 +28,9 @@ Global Ltac zify_addr_op_nonbranching_step_hook ::=
     apply le_addr_withinBounds'
   | H : isCorrectPC (_, _, _, _) |- _ =>
     apply isCorrectPC_le_addr in H
+  | H : isWithin _ _ _ _ = true |- _ => apply isWithin_implies in H
+  | |- isWithin ?b ?e ?b' ?e' = true =>
+    without_evars b; without_evars e; without_evars b'; without_evars e';
+    apply isWithin_of_le
   end.
 

@@ -179,7 +179,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success E pc_p pc_b pc_e pc_a w dst r1 r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inr r2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -198,7 +198,7 @@ Section cap_lang_rules.
           ∗ dst ↦ᵣ inr (p, a1, a2, a)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2) Hφ".
     iDestruct (map_of_regs_4 with "HPC Hr1 Hr2 Hdst") as "[Hmap (%&%&%&%&%&%)]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -257,7 +257,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_l E pc_p pc_b pc_e pc_a w dst r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inl n1) (inr r2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -274,7 +274,7 @@ Section cap_lang_rules.
           ∗ dst ↦ᵣ inr (p, a1, a2, a)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr2) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr2 Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -295,7 +295,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_r E pc_p pc_b pc_e pc_a w dst r1 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inl n2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -312,7 +312,7 @@ Section cap_lang_rules.
           ∗ dst ↦ᵣ inr (p, a1, a2, a)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -333,7 +333,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_lr E pc_p pc_b pc_e pc_a w dst p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inl n1) (inl n2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -348,7 +348,7 @@ Section cap_lang_rules.
           ∗ dst ↦ᵣ inr (p, a1, a2, a)
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -368,7 +368,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a w r1 r2 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inr r2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -385,7 +385,7 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ inl n2
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -440,7 +440,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_pc_l E pc_p pc_b pc_e pc_a w r2 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inl n1) (inr r2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -455,7 +455,7 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ inl n2
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -475,7 +475,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_pc_r E pc_p pc_b pc_e pc_a w r1 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inl n2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -490,7 +490,7 @@ Section cap_lang_rules.
           ∗ r1 ↦ᵣ inl n1
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -510,7 +510,7 @@ Section cap_lang_rules.
   Lemma wp_subseg_success_pc_lr E pc_p pc_b pc_e pc_a w n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inl n1) (inl n2) →
     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
@@ -523,7 +523,7 @@ Section cap_lang_rules.
           ∗ pc_a ↦ₐ w
       }}}.
   Proof.
-    iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a) Hφ".
+    iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a) Hφ".
     iDestruct (map_of_regs_1 with "HPC") as "Hmap".
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.

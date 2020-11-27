@@ -328,6 +328,23 @@ Proof.
   split; [apply Z.leb_le;solve_addr | apply Z.ltb_lt;auto].
 Qed.
 
+Definition isWithin (n1 n2 b e: Addr) : bool :=
+  ((b <=? n1) && (n2 <=? e))%a.
+
+Lemma isWithin_implies a0 a1 b e:
+  isWithin a0 a1 b e = true →
+  (b <= a0 ∧ a1 <= e)%a.
+Proof.
+  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+Qed.
+
+Lemma isWithin_of_le a0 a1 b e:
+  (b <= a0 ∧ a1 <= e)%a →
+  isWithin a0 a1 b e = true.
+Proof.
+  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+Qed.
+
 (* isCorrectPC: valid capabilities for PC *)
 
 Inductive isCorrectPC: Word → Prop :=
