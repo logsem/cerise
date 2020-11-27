@@ -52,6 +52,7 @@ End codefrag.
 
 (* Administrative reduction steps *)
 Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ].
+Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]));
   (* Reduce the [fill] under the WP... *)
@@ -493,10 +494,9 @@ Ltac2 reintro_cap_resources tbl :=
   iNamedIntro ().
 
 (* cleanup *)
-
 (* TODO: make this extensible *)
 Ltac2 iApplyCapAuto_cleanup () :=
-  cbn [rules_Get.denote rules_AddSubLt.denote].
+  cbn [rules_Get.denote rules_AddSubLt.denote updatePcPerm].
 
 (* iApplyCapAutoCore *)
 
