@@ -421,7 +421,7 @@ Section cap_lang_rules.
      decodeInstrW w = Store dst (inl z) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, pc_a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -432,7 +432,7 @@ Section cap_lang_rules.
               ∗ pc_a ↦ₐ (inl z)
               ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
     Proof.
-     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
@@ -467,7 +467,7 @@ Section cap_lang_rules.
       decodeInstrW w = Store dst (inr PC) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -486,7 +486,7 @@ Section cap_lang_rules.
                 then emp
                 else a ↦ₐ (inr (pc_p,pc_b,pc_e,pc_a)) }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst & Ha) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
      iDestruct (memMap_resource_2gen_clater with "Hi Ha") as (mem) "[>Hmem %]".
@@ -529,12 +529,65 @@ Section cap_lang_rules.
 
    Qed.
 
+   Lemma wp_store_success_reg_frominstr_same E pc_p pc_b pc_e pc_a pc_a' w dst w'
+         p b e :
+      decodeInstrW w = Store dst (inr PC) →
+     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     (pc_a + 1)%a = Some pc_a' →
+     writeAllowed p = true →
+     withinBounds (p, b, e, pc_a) = true →
+
+     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ dst ↦ᵣ inr (p,b,e,pc_a) }}}
+       Instr Executable @ E
+       {{{ RET NextIV;
+           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
+   Proof.
+     intros. iIntros "(HPC & Hpc_a & Hdst) Hφ".
+     iApply (wp_store_success_reg' with "[$HPC $Hpc_a $Hdst]"); eauto.
+     { unfold eqb_addr. rewrite Z.eqb_refl. eauto. }
+     iNext. iIntros "(? & ? & ? & ?)". unfold eqb_addr. rewrite Z.eqb_refl.
+     iApply "Hφ". iFrame. Unshelve. eauto.
+   Qed.
+
+   Lemma wp_store_success_reg_frominstr E pc_p pc_b pc_e pc_a pc_a' w dst w'
+         p b e a :
+      decodeInstrW w = Store dst (inr PC) →
+     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     (pc_a + 1)%a = Some pc_a' →
+     writeAllowed p = true →
+     withinBounds (p, b, e, a) = true →
+
+     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ a ↦ₐ w' }}}
+       Instr Executable @ E
+       {{{ RET NextIV;
+           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ w
+              ∗ dst ↦ᵣ inr (p,b,e,a)
+              ∗ a ↦ₐ inr (pc_p,pc_b,pc_e,pc_a) }}}.
+   Proof.
+     intros. iIntros "(>HPC & >Hpc_a & >Hdst & >Ha) Hφ".
+     destruct (a =? pc_a)%a eqn:Ha.
+     { rewrite (_: a = pc_a); cycle 1.
+       unfold eqb_addr in Ha; apply Z.eqb_eq in Ha; solve_addr.
+       by iDestruct (addr_dupl_false with "Ha Hpc_a") as "?". }
+     iApply (wp_store_success_reg' with "[$HPC $Hpc_a $Hdst Ha]"); eauto.
+     rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ?)". rewrite Ha.
+     iApply "Hφ". iFrame.
+  Qed.
+
    Lemma wp_store_success_reg_same' E pc_p pc_b pc_e pc_a pc_a' w dst
          p b e :
      decodeInstrW w = Store dst (inr dst) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, pc_a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -545,7 +598,7 @@ Section cap_lang_rules.
               ∗ pc_a ↦ₐ inr (p, b, e, pc_a)
               ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
@@ -580,7 +633,7 @@ Section cap_lang_rules.
       decodeInstrW w = Store dst (inr src) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, pc_a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -593,7 +646,7 @@ Section cap_lang_rules.
               ∗ src ↦ᵣ w''
               ∗ dst ↦ᵣ inr (p,b,e,pc_a)}}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hsrc & >Hdst) Hφ".
      iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
@@ -629,7 +682,7 @@ Section cap_lang_rules.
       decodeInstrW w = Store dst (inr src) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p,b, e, a) = true →
+     writeAllowed p = true → withinBounds (p,b, e, a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -644,7 +697,7 @@ Section cap_lang_rules.
               ∗ dst ↦ᵣ inr (p,b,e,a)
               ∗ a ↦ₐ w'' }}}.
     Proof.
-      iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hsrc & >Hdst & >Hsrca) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
     iDestruct (memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
@@ -681,7 +734,7 @@ Section cap_lang_rules.
      decodeInstrW w = Store dst (inr dst) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -694,7 +747,7 @@ Section cap_lang_rules.
               ∗ dst ↦ᵣ inr (p,b,e,a)
               ∗ a ↦ₐ inr (p,b,e,a) }}}.
    Proof.
-    iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+    iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hdst & >Hsrca) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
     iDestruct (memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
@@ -731,7 +784,7 @@ Section cap_lang_rules.
      decodeInstrW w = Store dst (inl z) →
      isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+     writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
      {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
@@ -744,7 +797,7 @@ Section cap_lang_rules.
               ∗ dst ↦ᵣ inr (p,b,e,a)
               ∗ a ↦ₐ inl z }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] φ)
+     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hdst & >Hsrca) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
     iDestruct (memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.

@@ -58,6 +58,22 @@ Ltac dispatch_instr_rule instr cont :=
   | Load _ _ =>
     (cont (@wp_load_success_notinstr) ||
      cont (@wp_load_success_frominstr))
+  (* Store *)
+  | Store PC (inl _) => cont (@wp_store_success_z_PC)
+  | Store PC (inr PC) => cont (@wp_store_success_reg_PC_same)
+  | Store PC (inr _) => cont (@wp_store_success_reg_PC)
+  | Store _ (inl _) =>
+    (cont (@wp_store_success_same) ||
+     cont (@wp_store_success_z))
+  | Store _ (inr PC) =>
+    (cont (@wp_store_success_reg_frominstr_same) ||
+     cont (@wp_store_success_reg_frominstr))
+  | Store ?r (inr ?r) =>
+    (cont (@wp_store_success_reg_same') ||
+     cont (@wp_store_success_reg_same))
+  | Store _ (inr _) =>
+    (cont (@wp_store_success_reg_same_a) ||
+     cont (@wp_store_success_reg))
   (* Jnz *)
   | Jnz PC PC => cont (@wp_jnz_success_jmpPC)
   | Jnz ?r PC => cont (@wp_jnz_success_jmpPC2)
@@ -68,6 +84,8 @@ Ltac dispatch_instr_rule instr cont :=
      | Jnz ?r ?r => cont (@wp_jnz_success_jmp2)
      | Jnz _ _ => cont (@wp_jnz_success_jmp)
      end))
-  (* Err *)
+  (* Fail *)
+  | Fail => cont (@wp_fail)
+  (* not found *)
   | _ => fail "No suitable rule found for instruction" instr
   end.
