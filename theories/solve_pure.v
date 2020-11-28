@@ -14,7 +14,7 @@ Set Default Proof Mode "Classic".
    - SubBounds
    - InBounds
    - ExecPCPerm
-   - PermFlows  (TODO: extend)
+   - PermFlows, PermFlowsTo  (TODO: extend)
    - decodeInstrW w = ?
    - (a + z)%a = Some ?
    - readAllowed p (TODO: extend)
@@ -43,6 +43,8 @@ Set Default Proof Mode "Classic".
      support to.
    - if needed, update the list of the supported types of goals above
 
+   Generally speaking, its important that the tactic is both fast when
+   succeeding and when failing.
 
    /!\ Gotchas /!\:
    - see the "Local context management" section below, regarding handling of
@@ -127,6 +129,9 @@ Hint Extern 0 (SubBounds _ _ ?b' ?e') =>
    apply SubBounds_InCtx) : cap_pure.
 
 (* Consequences of SubBounds in terms of AddrLe/AddrLt *)
+
+(* TODO: figure out if these hints are actually exercised *)
+(* TODO: change these hints to lookup a SubBounds in the local context only *)
 
 Instance SubBounds_le_b_b' b e b' e' :
   SubBounds b e b' e' →
@@ -238,10 +243,13 @@ Hint Resolve ExecPCPerm_RX : cap_pure.
 Hint Resolve ExecPCPerm_RWX : cap_pure.
 Hint Resolve ExecPCPerm_not_E : cap_pure.
 Hint Resolve ExecPCPerm_flows_to : cap_pure.
-(* TODO: add a test checking the use of ExecPCPerm_flows_to *)
+(* TODO: add a test checking the use of ExecPCPerm_flows_to (if it is still
+   needed) *)
 Hint Resolve ExecPCPerm_readAllowed : cap_pure.
 Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
 Hint Extern 1 (writeAllowed _ = true) => reflexivity : cap_pure.
+Hint Extern 1 (PermFlowsTo _ _ = true) => reflexivity : cap_pure.
+Hint Resolve PermFlowsToReflexive : cap_pure.
 
 (* withinBounds *)
 

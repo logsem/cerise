@@ -159,7 +159,7 @@ Qed.
 
 (* Sanity check 2 *)
 Lemma PermFlowsToReflexive:
-  forall p, PermFlowsTo p p.
+  forall p, PermFlowsTo p p = true.
 Proof.
   intros; destruct p; auto.
 Qed.
