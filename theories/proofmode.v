@@ -195,13 +195,16 @@ Tactic Notation "unfocus_block" constr(hi) constr(hcont) "as" constr(h) :=
 
 (* "iApply with on-demand framing" *)
 
+(* TODO: These proofs should probably not use the proof mode tactics *)
 Lemma envs_clear_spatial_sound_rev {PROP: bi} (Δ: envs PROP) :
+  envs_wf Δ →
   of_envs (envs_clear_spatial Δ) ∗ [∗] env_spatial Δ ⊢ of_envs Δ.
 Proof.
+  intros.
   rewrite !of_envs_eq /envs_clear_spatial /=.
   rewrite -persistent_and_sep_assoc.
-  apply pure_elim_l=> Hwf.
-Admitted.
+  iIntros "H". iDestruct "H" as "[% [[? _] ?]]". iFrame. iSplit; eauto.
+Qed.
 
 Lemma tac_specialize_assert_delay {PROP: bi} (Δ: envs PROP) j q R P1 P2 P1' F Q :
   envs_lookup j Δ = Some (q, R) →
@@ -220,32 +223,21 @@ Proof.
   destruct (envs_app _ _ _) eqn:?; last done.
   intros HQ.
   rewrite envs_lookup_sound //.
+  set Δ' := envs_delete true j q Δ in HH Heqo |- *.
+  iIntros "[HR HΔ']".
+  iAssert (⌜envs_wf Δ'⌝)%I as %?.
+  { rewrite of_envs_eq. iDestruct "HΔ'" as "[? ?]". eauto. }
   rewrite envs_clear_spatial_sound.
-  rewrite (env_spatial_is_nil_intuitionistically (envs_clear_spatial _)) //.
-  rewrite intuitionistically_sep_dup.
-  rewrite intuitionistic_intuitionistically.
-  rewrite -!sep_assoc.
-  (* rewrite envs_clear_spatial_sound_rev. *)
-
-  (* rewrite HH (into_wand q false) /= -(add_modal P1' P1 Q). cancel [P1']. *)
-  (* apply wand_intro_l. rewrite assoc wand_elim_r. *)
-  (* apply envs_app_singleton_sound in Heqo. cbn in Heqo. *)
-
-
-(*   rewrite envs_app_singleton_sound in Heqo. *)
-
-(*   apply wand_intro_l. rewrite assoc wand_elim_r. *)
-
-(*   destruct (_ ≫= _) as [[Δ1 Δ2']|] eqn:?; last done. *)
-(*   destruct HQ as [HP1 HQ]. *)
-(*   destruct (envs_split _ _ _) as [[? Δ2]|] eqn:?; simplify_eq/=; *)
-(*     destruct (envs_app _ _ _) eqn:?; simplify_eq/=. *)
-(*   rewrite envs_lookup_sound // envs_split_sound //. *)
-(*   rewrite (envs_app_singleton_sound Δ2) //; simpl. *)
-(*   rewrite HP1 (into_wand q false) /= -(add_modal P1' P1 Q). cancel [P1']. *)
-(*   apply wand_intro_l. by rewrite assoc !wand_elim_r. *)
-(* Qed. *)
-Admitted.
+  set Δ'i := envs_clear_spatial Δ'.
+  set Δ's := env_spatial Δ'.
+  iDestruct "HΔ'" as "[#HΔ'i Hs]".
+  iDestruct (envs_clear_spatial_sound_rev with "[$HΔ'i $Hs]") as "HΔ'"; auto.
+  iDestruct (HH with "HΔ'") as "[HP1' HF]".
+  iApply add_modal. eauto. iFrame. iIntros "HP1".
+  iApply (HQ with "[HR HP1] HF").
+  { iApply (envs_app_singleton_sound with "[] [HR HP1]"). eauto. iApply "HΔ'i".
+    iApply (into_wand with "[HR]"). eauto. eauto. eauto. }
+Qed.
 
 (* Typeclasses to look-up framable resources in the goal *)
 
