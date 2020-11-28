@@ -54,7 +54,7 @@ Section macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros (Hvpc Hcont Hwb Hentry) "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    iDestruct (codefrag_contiguous_region with "Hprog") as %Hregion. (* TODO: automate this *)
+    codefrag_facts "Hprog".
     iGo "Hprog". instantiate (1 := pc_b). solve_addr.
     iGo "Hprog". iApply "Hφ"; iFrame.
  Qed.
@@ -284,7 +284,7 @@ Section macros.
     iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
-    focus_block 1 "Hprog" as amid1 Hamid1 "Hprog" "Hcont". cbn [length map encodeInstrsW] in * |-.
+    focus_block 1 "Hprog" as amid1 Hamid1 "Hprog" "Hcont".
     iGo "Hprog". (* PC is now at b_m *)
     (* we are now ready to use the malloc subroutine spec. For this we prepare the registers *)
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".

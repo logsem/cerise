@@ -7,7 +7,8 @@ From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 From Ltac2 Require Import Ltac2 Option.
 Set Default Proof Mode "Classic".
 
-(* The [solve_pure] tactic is able to solve goals involving:
+(* The [solve_pure] tactic performs proof search to solve pure
+   capability-related side-goals. It handles goals involving:
 
    - ContiguousRegion
    - SubBounds
@@ -17,6 +18,7 @@ Set Default Proof Mode "Classic".
    - decodeInstrW w = ?
    - (a + z)%a = Some ?
    - readAllowed p (TODO: extend)
+   - writeAllowed p (TODO: extend)
    - withinBounds (p, b, e, a) = true
    - is_Get
    - is_AddSubLt
@@ -48,6 +50,17 @@ Set Default Proof Mode "Classic".
    - do not add a [Hint Resolve] in [cap_pure] whose conclusion is a class from
      [classes.v]. Register it as an instance instead, otherwise the Hint Modes
      won't work as expected.
+*)
+
+(* Local context management
+
+   By default, [typeclasses eauto] will happily use any hypothesis from the
+   context to prove the goal, possibly wrongly instantiating evars.
+
+   To prevent that from happening, we first "freeze" the local context by
+   wrapping all hypotheses in [InCtx] before calling [typeclasses eauto].
+   Then, we have to register explicit hints to use hypotheses from the
+   local context, requiring a [InCtx ...].
 *)
 
 Class InCtx (P: Prop) := MkInCtx: P.

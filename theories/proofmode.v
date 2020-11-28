@@ -72,10 +72,15 @@ Ltac codefrag_facts h :=
   let h := constr:(h:ident) in
   match goal with |- context [ Esnoc _ h (codefrag ?a_base ?code) ] =>
     (match goal with H : ContiguousRegion a_base _ |- _ => idtac end ||
-     iDestruct (codefrag_contiguous_region with h) as %?);
+     let HH := fresh in
+     iDestruct (codefrag_contiguous_region with h) as %HH;
+     cbn [length map encodeInstrsW] in HH
+    );
     (match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => idtac end ||
      (try match goal with H : SubBounds ?b ?e _ _ |- _ =>
-            assert (SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr
+            let HH := fresh in
+            assert (HH: SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr;
+            cbn [length map encodeInstrsW] in HH
           end))
   end.
 
