@@ -245,7 +245,7 @@ Section callback.
       + iPureIntro. rewrite (map_to_list_delete _ _ w0);eauto.
         rewrite Hl'' rev_unit in Hreveq. inversion Hreveq.
         apply rev_cons_inv in H0 as [l3 Hl3]. rewrite Hl3. simplify_eq.
-        rewrite -Hperm. rewrite -!app_assoc.
+        rewrite -Hperm. rewrite - !app_assoc.
         assert (length l3 = length wsr') as Hlen.
         { clear -Hlength Hreveq. rewrite rev_unit in Hreveq. inversion Hreveq. simpl in *.
           rewrite -rev_length H0. rewrite app_length /= in Hlength. lia. }

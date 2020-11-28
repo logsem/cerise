@@ -253,7 +253,7 @@ Section roe.
     rewrite (delete_insert_ne _ _ r_adv)// !(insert_commute _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert.
     2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete|].
-    rewrite -!(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete. 
+    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _). 
@@ -267,7 +267,7 @@ Section roe.
       rewrite difference_union_distr_l_L. set_solver. }
     { rewrite dom_singleton_L !dom_delete_L Hdom. clear. set_solver. }
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L dom_delete_L !union_assoc_L Hdom !difference_difference_L. clear. 
-      rewrite -!(union_assoc_L {[r_t1]}). apply union_mono_l. apply subseteq_difference_r;[set_solver|].
+      rewrite - !(union_assoc_L {[r_t1]}). apply union_mono_l. apply subseteq_difference_r;[set_solver|].
       apply union_mono_l. apply subseteq_difference_r;[set_solver|]. apply all_registers_subseteq. }
     rewrite !map_to_list_singleton. iSimpl. rewrite /call. iFrame "Hcall_prog". 
     iSplitL "Hr_t7". iNext. iApply big_sepM_singleton. iFrame.  
@@ -447,10 +447,10 @@ Section roe.
         { iNext. iDestruct "Hprog_done" as "($&$&$)".
           rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
         iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete -!delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete -!delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete -!delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete -!delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
         iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete].
         
         iApply wp_value. iIntros (_).

@@ -527,7 +527,7 @@ Section call.
     assert (dom (gset RegName) (<[r1:=wadv]> (rmap ∪ (mlocals ∪ mparams))) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq.
     { rewrite dom_insert_L !dom_union_L. revert Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5. clear. intros Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5. 
       assert (all_registers_s ∖ {[PC; r_t0]} = {[r1]} ∪ all_registers_s ∖ {[PC; r_t0; r1]}) as ->. 
-      { rewrite -!difference_difference_L.
+      { rewrite - !difference_difference_L.
         rewrite -union_difference_L; auto.
         apply subseteq_difference_r;[set_solver|].
         apply subseteq_difference_r;[set_solver|].
@@ -536,12 +536,12 @@ Section call.
               dom (gset RegName) mparams ∪ (dom (gset RegName) mlocals ∪ dom (gset RegName) rmap)) as ->.
       { rewrite (union_comm_L _ (dom _ mparams)). rewrite union_assoc_L. rewrite (union_comm_L _ (dom _ mparams)).
         rewrite -union_assoc_L. rewrite (union_comm_L _ (dom _ mlocals)). auto. }
-      rewrite Hdom1. rewrite -!difference_difference_L -!union_difference_L; auto.
+      rewrite Hdom1. rewrite - !difference_difference_L - !union_difference_L; auto.
       repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq.
       repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq.
       apply subseteq_difference_r;[apply map_disjoint_dom;auto|]. 
       repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq.
-    } 
+    }
     
     (* malloc f_m |locals| *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -605,7 +605,7 @@ Section call.
     (* malloc 7 *)
     (* prepare the registers *)
     iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
-    rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite -!delete_insert_ne;auto. 
+    rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite - !delete_insert_ne;auto.
     iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete]. 
     iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|]. 
     iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
@@ -878,7 +878,7 @@ Section call.
     (* rebuild register map *)
     (* we begin by clearning up the current register map *)
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete insert_insert]. 
-    rewrite -!insert_union_l delete_insert_delete -!delete_insert_ne//.
+    rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne//.
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete]. 
     rewrite !(insert_commute _ _ r_t2)// insert_insert. rewrite !(insert_commute _ _ r_t3)// insert_insert.
     rewrite !(insert_commute _ _ r_t4)// insert_insert. rewrite !(insert_commute _ _ r_t5)// insert_insert.
@@ -894,7 +894,7 @@ Section call.
     repeat (rewrite (insert_commute _ _ r1);[|apply Hneregs;constructor]). rewrite -insert_union_l. 
     iDestruct (big_sepM_delete with "Hgenlocals") as "[Hradv Hgenlocals]"; [apply lookup_insert|]. 
     rewrite delete_insert.
-    2: { rewrite -!insert_union_l. repeat (rewrite lookup_insert_ne;[|apply Hneregs;constructor]).
+    2: { rewrite - !insert_union_l. repeat (rewrite lookup_insert_ne;[|apply Hneregs;constructor]).
          do 2 apply lookup_union_None in Hnone as [? Hnone]. apply lookup_union_None. split; auto. }
     
     (* prepare the program memory *)
@@ -952,7 +952,7 @@ Section call.
     { rewrite list_to_set_difference list_to_set_app_L.
       assert (list_to_set [PC; r_t0; r1] = {[PC;r_t0;r1]}) as ->;[simpl;clear;set_solver|].
       rewrite -/all_registers_s. rewrite -difference_difference_L. 
-      rewrite -!insert_union_l !dom_insert_L. rewrite !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
+      rewrite - !insert_union_l !dom_insert_L. rewrite !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
       assert (list_to_set (map_to_list mparams).*1 = dom (gset RegName) mparams) as ->;[apply list_to_set_map_to_list|].
       rewrite -Hdom2. apply Hrmap'eq. 
     }
@@ -988,7 +988,7 @@ Section call.
     iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna". 
     iSplitL "Hgenlocals".
     { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals").
-      rewrite -!insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
+      rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
       rewrite -Hdom2. rewrite Hrmap'eq. clear. set_solver. }
     iSplitL "Ha1 Ha2 Ha3 Ha4 Ha5 Ha6 Ha7".
     { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }
