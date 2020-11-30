@@ -106,6 +106,7 @@ Section adder.
     iApply (wp_subseg_success_lr with "[$HPC $Hi $Hr2]");
       [apply decode_encode_instrW_inv|iCorrectPC g_start f_start|..]; auto.
     { rewrite !z_to_addr_z_of //. }
+    { rewrite !z_to_addr_z_of //. }
     { (* TODO: lemma *)
       rewrite /isWithin.
       rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
@@ -299,8 +300,8 @@ Section adder.
     (* Open the invariant again, this time to write the new value *)
     iInv "Hinv" as (n') "[>Hx _]" "Hclose".
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr3 $Hx $Hrenv]");
-      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 6|..].
-    { split;[auto|]. rewrite withinBounds_true_iff; solve_addr. }
+      [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|iContiguous_next Hcont 6|..]; auto.
+    { rewrite withinBounds_true_iff; solve_addr. }
     iNext. iIntros "(HPC & Hi & Hr3 & Hrenv & Hx)".
     iMod ("Hclose" with "[Hx]") as "_".
     { iNext. iExists (n + z2)%Z. iFrame. iPureIntro. lia. }

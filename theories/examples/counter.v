@@ -128,8 +128,8 @@ Section counter.
     iPrologue "Hprog".
     iInv ι as (w) "[>Hd _]" "Hcls'". 
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t1 $Hr_env $Hd]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..]. 
-    { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..]; auto.
+    { simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
     iNext. iIntros "(HPC & Hi & Hr_t1 & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_". 
     { iNext. iExists (inl (z + 1)%Z). iFrame. iDestruct "Hcond" as %Hcond. iPureIntro. revert Hcond;clear;lia. }
@@ -447,8 +447,8 @@ Section counter.
     iPrologue "Hprog". 
     iInv ι as (w) "[>Hd _]" "Hcls'". 
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_env $Hd]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..].
-    { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|..]; auto.
+    { simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
     iNext. iIntros "(HPC & Hprog_done & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_". 
     { iNext. iExists _;iFrame. auto. }

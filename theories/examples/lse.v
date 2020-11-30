@@ -217,8 +217,8 @@ Section roe.
     destruct ai_rest as [|? ai_rest];[inversion Hlength_rest|].
     iPrologue "Hprog".
     iApply (wp_store_success_z with "[$HPC $Hi $Hr_env $Hbe]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_last|iContiguous_next Hcont_rest 2|..].
-    { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_last|iContiguous_next Hcont_rest 2|..]; auto.
+    { rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }
     iEpilogue "(HPC & Hi & Hr_env & Hbe)". iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* restrict r_t7 RO *)
     destruct ai_rest as [|? ai_rest];[inversion Hlength_rest|].

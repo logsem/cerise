@@ -1,6 +1,11 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import gmap fin_maps list countable.
-From cap_machine Require Export addr_reg.
+From cap_machine Require Export addr_reg solve_addr.
+
+(* Definition and auxiliary facts on capabilities, permissions and addresses.
+
+   The [solve_cap_pure] tactic automates the proof of some of these facts (see
+   solve_cap_pure.v on how to extend it). *)
 
 (* Definitions: capabilities, machine words, machine instructions *)
 
@@ -36,6 +41,12 @@ Inductive instr: Type :=
 | GetA (dst r: RegName)
 | Fail
 | Halt.
+
+(* Convenient coercion when writing instructions *)
+Definition regn : RegName → (Z+RegName)%type := inr.
+Definition cst : Z → (Z+RegName)%type := inl.
+Coercion regn : RegName >-> sum.
+Coercion cst : Z >-> sum.
 
 (* Registers and memory: maps from register names/addresses to words *)
 
@@ -101,6 +112,14 @@ Proof.
   eexists _, _, _, _; split; eauto.
 Qed.
 
+Definition ExecPCPerm p :=
+  p = RX ∨ p = RWX.
+
+Lemma ExecPCPerm_RX: ExecPCPerm RX.
+Proof. left; auto. Qed.
+
+Lemma ExecPCPerm_RWX: ExecPCPerm RWX.
+Proof. right; auto. Qed.
 
 (* perm-flows-to: the permission lattice.
    "x flows to y" if x is lower than y in the lattice.
@@ -140,7 +159,7 @@ Qed.
 
 (* Sanity check 2 *)
 Lemma PermFlowsToReflexive:
-  forall p, PermFlowsTo p p.
+  forall p, PermFlowsTo p p = true.
 Proof.
   intros; destruct p; auto.
 Qed.
@@ -180,6 +199,30 @@ Lemma PCPerm_nonO p p' :
 Proof.
   intros Hfl Hvpc. destruct p'; auto. destruct p; inversion Hfl.
   destruct Hvpc as [Hcontr | Hcontr]; inversion Hcontr.
+Qed.
+
+Lemma ExecPCPerm_flows_to p p':
+  PermFlows p p' →
+  ExecPCPerm p →
+  ExecPCPerm p'.
+Proof.
+  intros H [-> | ->]; cbn in H.
+  { destruct p'; cbn in H; try by inversion H; constructor. }
+  { destruct p'; try by inversion H; constructor. }
+Qed.
+
+Lemma ExecPCPerm_not_E p :
+  ExecPCPerm p →
+  p ≠ E.
+Proof.
+  intros [H|H] ->; inversion H.
+Qed.
+
+Lemma ExecPCPerm_readAllowed p :
+  ExecPCPerm p →
+  readAllowed p = true.
+Proof.
+  intros [-> | ->]; reflexivity.
 Qed.
 
 (* Helper definitions for capabilities *)
@@ -255,6 +298,52 @@ Lemma le_addr_withinBounds p b e a:
   withinBounds (p, b, e, a) = true .
 Proof. rewrite withinBounds_true_iff //. Qed.
 
+Lemma le_addr_withinBounds' p b e a:
+  (b <= a)%a ∧ (a < e)%a →
+  withinBounds (p, b, e, a) = true .
+Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
+
+
+Definition ContiguousRegion (a: Addr) (z: Z): Prop :=
+  is_Some (a + z)%a.
+
+Definition SubBounds (b e: Addr) (b' e': Addr) :=
+  (b <= b')%a ∧ (b' <= e')%a ∧ (e' <= e)%a.
+
+Definition InBounds (b e: Addr) (a: Addr) :=
+  (b <= a)%a ∧ (a < e)%a.
+
+Lemma InBounds_sub b e b' e' a :
+  SubBounds b e b' e' →
+  InBounds b' e' a →
+  InBounds b e a.
+Proof. intros (? & ? & ?) [? ?]. unfold InBounds. solve_addr. Qed.
+
+Lemma withinBounds_InBounds p b e a :
+  InBounds b e a →
+  withinBounds (p, b, e, a) = true.
+Proof.
+  intros [? ?]. unfold withinBounds.
+  apply andb_true_intro.
+  split; [apply Z.leb_le;solve_addr | apply Z.ltb_lt;auto].
+Qed.
+
+Definition isWithin (n1 n2 b e: Addr) : bool :=
+  ((b <=? n1) && (n2 <=? e))%a.
+
+Lemma isWithin_implies a0 a1 b e:
+  isWithin a0 a1 b e = true →
+  (b <= a0 ∧ a1 <= e)%a.
+Proof.
+  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+Qed.
+
+Lemma isWithin_of_le a0 a1 b e:
+  (b <= a0 ∧ a1 <= e)%a →
+  isWithin a0 a1 b e = true.
+Proof.
+  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+Qed.
 
 (* isCorrectPC: valid capabilities for PC *)
 
@@ -371,6 +460,14 @@ Proof.
   rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
+Lemma isCorrectPC_le_addr p b e a :
+  isCorrectPC (inr (p, b, e, a)) →
+  (b <= a)%a ∧ (a < e)%a.
+Proof.
+  intros HH. by eapply withinBounds_le_addr, isCorrectPC_withinBounds.
+  Unshelve. auto.
+Qed.
+
 Lemma correctPC_nonO p p' b e a :
   PermFlows p p' → isCorrectPC (inr (p,b,e,a)) → p' ≠ O.
 Proof.
@@ -384,6 +481,14 @@ Lemma in_range_is_correctPC p b e a b' e' :
 Proof.
   intros Hvpc [Hb He].
   inversion Hvpc; simplify_eq. solve_addr.
+Qed.
+
+Lemma isCorrectPC_ExecPCPerm_InBounds p b e a :
+  ExecPCPerm p →
+  InBounds b e a →
+  isCorrectPC (inr (p, b, e, a)).
+Proof.
+  unfold ExecPCPerm, InBounds. intros. constructor; eauto.
 Qed.
 
 (* Helper tactics *)
@@ -482,3 +587,4 @@ Proof.
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
 Defined.
+

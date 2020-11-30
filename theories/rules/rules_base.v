@@ -206,6 +206,16 @@ Section cap_lang_rules.
     iDestruct "Hmap" as "(? & ? & ? & ? & _)"; iFrame.
   Qed.
 
+  (* ------------------------- memory points-to --------------------------------- *)
+
+  Lemma addr_dupl_false a w1 w2 :
+    a ↦ₐ w1 -∗ a ↦ₐ w2 -∗ False.
+  Proof.
+    iIntros "Ha1 Ha2".
+    iDestruct (mapsto_valid_2 with "Ha1 Ha2") as %?.
+    contradiction.
+  Qed.
+
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
 
   Lemma gen_heap_valid_inSepM:

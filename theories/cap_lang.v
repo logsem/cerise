@@ -80,9 +80,6 @@ Definition updatePC (φ: ExecConf): Conf :=
   | _ => (Failed, φ)
   end.
 
-Definition isWithin (n1 n2 b e: Addr) : bool :=
-  ((b <=? n1) && (n2 <=? e))%a.
-
 Inductive access_kind: Type :=
 | LoadU_access (b e a: Addr) (offs: Z): access_kind
 | StoreU_access (b e a: Addr) (offs: Z): access_kind.
