@@ -9,14 +9,22 @@ Section simpl_gmap.
 
   (* reified gmap *)
   Inductive rgmap {A: Type}: Type :=
-  | Ins (k: K) (a: A) (m: rgmap)
-  | Del (k: K) (m: rgmap)
+  | Ins (k: positive) (a: A) (m: rgmap)
+  | Del (k: positive) (m: rgmap)
   | Symb.
 
-  Fixpoint denote {A: Type} (rm: @rgmap A) (m: gmap K A): gmap K A :=
+  Fixpoint denote {A: Type} (rm: @rgmap A) (fm: positive -> option K) (m: gmap K A): gmap K A :=
     match rm with
-    | Ins k a rm => <[k := a]> (denote rm m)
-    | Del k rm => delete k (denote rm m)
+    | Ins k a rm =>
+      match fm k with
+      | Some k => <[k := a]> (denote rm fm m)
+      | None => denote rm fm m
+      end
+    | Del k rm =>
+      match fm k with
+      | Some k => delete k (denote rm fm m)
+      | None => denote rm fm m
+      end
     | Symb => m
     end.
 
@@ -27,7 +35,7 @@ Section simpl_gmap.
     | Symb => O
     end.
 
-  Fixpoint remove_key {A: Type} (k: K) (rm: @rgmap A) :=
+  Fixpoint remove_key {A: Type} k (rm: @rgmap A) :=
     match rm with
     | Ins k' a rm => if decide (k = k') then remove_key k rm else Ins k' a (remove_key k rm)
     | Del k' rm => if decide (k = k') then remove_key k rm else Del k' (remove_key k rm)
@@ -52,39 +60,77 @@ Section simpl_gmap.
     generalize (rlength_remove_key _ k rm). lia. Qed.
 
   Lemma denote_remove_key_ins:
-    forall A (rm: @rgmap A) k a (m: gmap K A),
-      <[k:=a]> (denote rm m) = <[k:=a]> (denote (remove_key k rm) m).
+    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm: @rgmap A) k k' a (m: gmap K A),
+      fm k = Some k' ->
+      <[k':=a]> (denote rm fm m) = <[k':=a]> (denote (remove_key k rm) fm m).
   Proof.
     induction rm; simpl; auto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite insert_insert. congruence.
-      + simpl. rewrite insert_commute; auto.
-        rewrite IHrm, insert_commute; auto.
+      + subst k0. rewrite H.
+        rewrite insert_insert.
+        eapply IHrm; eauto.
+      + case_eq (fm k); intros.
+        * assert (Hne: k1 <> k').
+          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
+          simpl. rewrite insert_commute; auto.
+          rewrite H0.
+          erewrite IHrm; eauto.
+          rewrite insert_commute; eauto.
+        * simpl. rewrite H0. eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite insert_delete. congruence.
-      + simpl. rewrite <- delete_insert_ne; auto.
-        rewrite IHrm, delete_insert_ne; auto.
+      + subst k0; rewrite H. rewrite insert_delete. eapply IHrm; eauto.
+      + simpl. case_eq (fm k); intros.
+        * assert (Hne: k1 <> k').
+          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
+          erewrite <- delete_insert_ne; auto.
+          erewrite IHrm, delete_insert_ne; eauto.
+        * eauto.
   Qed.
 
   Lemma denote_remove_key_del:
-    forall A (rm: @rgmap A) k (m: gmap K A),
-      delete k (denote rm m) = delete k (denote (remove_key k rm) m).
+    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm: @rgmap A) k k' (m: gmap K A),
+      fm k = Some k' ->
+      delete k' (denote rm fm m) = delete k' (denote (remove_key k rm) fm m).
   Proof.
     induction rm; simpl; auto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0. rewrite delete_insert_delete. congruence.
-      + simpl. rewrite delete_insert_ne; auto.
-        rewrite IHrm, <- delete_insert_ne; auto.
+      + subst k0. rewrite H. rewrite delete_insert_delete. eauto.
+      + simpl. case_eq (fm k); intros.
+        * assert (Hne: k1 <> k').
+          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
+          rewrite delete_insert_ne; auto.
+          erewrite IHrm, <- delete_insert_ne; eauto.
+        * eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite delete_idemp. congruence.
-      + simpl. rewrite delete_commute; auto.
-        rewrite IHrm, delete_commute; auto.
+      + subst k0; rewrite H, delete_idemp. eauto.
+      + simpl. case_eq (fm k); intros.
+        * assert (Hne: k1 <> k').
+          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
+          rewrite delete_commute; auto.
+          erewrite IHrm, delete_commute; eauto.
+        * eauto.
+  Qed.
+
+  Lemma denote_remove_key_none:
+    forall A fm (rm: @rgmap A) k (m: gmap K A),
+      fm k = None ->
+      denote rm fm m = denote (remove_key k rm) fm m.
+  Proof.
+    induction rm; simpl; auto.
+    - intros. destruct (decide (k0 = k)).
+      + subst k0. rewrite H. auto.
+      + simpl. destruct (fm k); auto.
+        erewrite IHrm; eauto.
+    - intros. destruct (decide (k0 = k)).
+      + subst k0. rewrite H. auto.
+      + simpl. destruct (fm k); auto.
+        erewrite IHrm; eauto.
   Qed.
 
   Lemma simpl_rmap_correct':
-    forall A n (rm: @rgmap A) (m: gmap K A),
+    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) n (rm: @rgmap A) (m: gmap K A),
       rlength rm <= n ->
-      denote rm m = denote (simpl_rmap rm) m.
+      denote rm fm m = denote (simpl_rmap rm) fm m.
   Proof.
     induction n; intros.
     - destruct rm; simpl in H; try lia.
@@ -92,33 +138,98 @@ Section simpl_gmap.
     - destruct rm; [| | reflexivity].
       + rewrite simpl_rmap_equation_1; simpl.
         rewrite <- (IHn (remove_key k rm)).
-        * apply denote_remove_key_ins.
+        * case_eq (fm k); intros.
+          { apply denote_remove_key_ins; auto. }
+          { apply denote_remove_key_none; auto. }
         * generalize (rlength_remove_key _ k rm). simpl in H; lia.
       + rewrite simpl_rmap_equation_2; simpl.
         rewrite <- (IHn (remove_key k rm)).
-        * apply denote_remove_key_del.
+        * case_eq (fm k); intros.
+          { apply denote_remove_key_del; auto. }
+          { apply denote_remove_key_none; auto. }
         * generalize (rlength_remove_key _ k rm). simpl in H; lia.
   Qed.
 
   Lemma simpl_rmap_correct:
-    forall A (rm rm': @rgmap A) (m: gmap K A),
+    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm rm': @rgmap A) (m: gmap K A),
       simpl_rmap rm = rm' ->
-      denote rm m = denote rm' m.
+      denote rm fm m = denote rm' fm m.
   Proof.
-    intros. subst rm'. apply (simpl_rmap_correct' _ (rlength rm)); auto; lia.
+    intros. subst rm'. apply (simpl_rmap_correct' _ fm Hfm (rlength rm)); auto; lia.
   Qed.
 
 End simpl_gmap.
 
+Definition add_key (K: Type) (encode: K -> positive) (fm: positive -> option K) (k: K) :=
+  match fm (encode k) with
+  | Some _ => fm
+  | None => fun p => if positive_eq_dec p (encode k) then Some k else fm p
+  end.
+
+Lemma add_key_preserves_inj:
+  forall K encode (fm: positive -> option K) k,
+    (forall n1 n2 k', fm n1 = Some k' -> fm n2 = Some k' -> n1 = n2) ->
+    (forall n k, fm n = Some k -> n = encode k) ->
+    (forall n1 n2 k', add_key K encode fm k n1 = Some k' ->
+                 add_key K encode fm k n2 = Some k' ->
+                 n1 = n2) /\
+    (forall n k', add_key K encode fm k n = Some k' -> n = encode k').
+Proof.
+  intros. split; intros.
+  { unfold add_key in H1, H2.
+    case_eq (fm (encode k)); intros.
+    - rewrite H3 in H2, H1. eapply H; eauto.
+    - rewrite H3 in H2, H1.
+      destruct (positive_eq_dec n1 (encode k)).
+      + inversion H1; clear H1. subst k'.
+        destruct (positive_eq_dec n2 (encode k)).
+        * congruence.
+        * eapply H0 in H2. elim n; auto.
+      + destruct (positive_eq_dec n2 (encode k)).
+        * inversion H2; clear H2; subst k'.
+          eapply H0 in H1. elim n; auto.
+        * eapply H; eauto. }
+  { unfold add_key in H1.
+    case_eq (fm (encode k)); intros.
+    - rewrite H2 in H1. eapply H0 in H1; auto.
+    - rewrite H2 in H1. destruct (positive_eq_dec n (encode k)).
+      + inversion H1; clear H1; subst k'. auto.
+      + eapply H0; eauto. }
+Qed.
+
+Lemma empty_fm_inj:
+  forall K,
+    let fm := (fun (_: positive) => @None K) in
+    forall n1 n2 k', fm n1 = Some k' -> fm n2 = Some k' -> n1 = n2.
+Proof.
+  simpl. intros. inversion H.
+Qed.
+
+Lemma empty_fm_encode:
+  forall K encode,
+    let fm := (fun (_: positive) => @None K) in
+    forall n k, fm n = Some k -> n = encode k.
+Proof.
+  simpl; intros. inversion H.
+Qed.
+
 From Ltac2 Require Import Ltac2 Option Constr.
 
-Ltac2 rec reify_helper kk aa term :=
+Ltac2 rec reify_helper kk aa term encode fm hfm1 hfm2 :=
   lazy_match! term with
-  | <[?k := ?a]> ?m => let (rm, h) := reify_helper kk aa m in
-                      (constr:(@Ins $kk $aa $k $a $rm), h)
-  | delete ?k ?m => let (rm, h) := reify_helper kk aa m in
-                   (constr:(@Del $kk $aa $k $rm), h)
-  | ?m => (constr:(@Symb $kk $aa), m)
+  | <[?k := ?a]> ?m =>
+    let fm' := '(add_key $kk $encode $fm $k) in
+    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
+    (constr:(@Ins $aa (encode $k) $a $rm), h, fm'', hfm'')
+  | delete ?k ?m =>
+    let fm' := '(add_key $kk $encode $fm $k) in
+    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
+    (constr:(@Del $aa (encode $k) $rm), h, fm'', hfm'')
+  | ?m => (constr:(@Symb $aa), m, fm, hfm1)
 end.
 
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
@@ -126,29 +237,26 @@ Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
 
 Goal <[5 := 2]> (<[5 := 3]> (∅: gmap nat nat)) = <[5 := 2]> (∅: gmap nat nat).
   lazy_match! goal with
-  | [|- ?x = _] => let (x', m) := reify_helper 'nat 'nat x in
-                 replace_with x '(@denote _ _ _ _ $x' $m) > [() | reflexivity];
-                 (* let id := Option.get (Ident.of_string "x") in *)
-                 (* let h := Fresh.in_goal id in *)
-                 (* remember $m as $h; *)
-                 erewrite (@simpl_rmap_correct) > [() | vm_compute; reflexivity];
+  | [|- ?x = _] => let (x', m, fm, hfm) := reify_helper 'nat 'nat x 'encode '(fun (_: positive) => @None nat) '(empty_fm_inj nat) '(empty_fm_encode nat encode) in
+                 replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
+                 erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity];
                  cbn [denote]
   end.
-  reflexivity.
+  simpl; reflexivity.
 Qed.
 
-Ltac2 map_simpl_aux k a x :=
-  let (x', m) := (reify_helper k a x) in
+Ltac2 map_simpl_aux k a x encode :=
+  let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
   (* Message.print (Message.of_constr a); *)
   (* Message.print (Message.of_constr x); *)
   (* Message.print (Message.of_constr x'); *)
   (* Message.print (Message.of_constr '(@denote _ _ _ _ $x')); *)
-  replace_with x '(@denote _ _ _ _ $x' $m) > [() | reflexivity];
+  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
   (* let id := Option.get (Ident.of_string "x") in *)
   (* let h := Fresh.in_goal id in *)
   (* remember $m as $h; *)
-  (erewrite (simpl_rmap_correct)) > [() | vm_compute; reflexivity];
-  (cbn [denote]).
+  (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | vm_compute; reflexivity];
+  simpl.
 
 From iris.proofmode Require Import environments.
 
@@ -159,7 +267,7 @@ Ltac map_simpl name :=
   | |- context [ Esnoc _ (base.ident.INamed name) ([∗ map] _↦_ ∈ ?m, _)%I ] =>
     match type of m with
     | gmap ?K ?A =>
-      let f := ltac2:(k a m |- map_simpl_aux (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m))) in
-      f K A m
+      let f := ltac2:(k a m encode |- map_simpl_aux (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m)) (Option.get (Ltac1.to_constr encode))) in
+      f K A m (@encode K _ _)
     end
   end.
