@@ -235,28 +235,26 @@ end.
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
   ltac1:(lhs rhs |- replace lhs with rhs) (Ltac1.of_constr lhs) (Ltac1.of_constr rhs).
 
-Goal <[5 := 2]> (<[5 := 3]> (∅: gmap nat nat)) = <[5 := 2]> (∅: gmap nat nat).
+Goal <[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)))))))) = <[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)).
   lazy_match! goal with
   | [|- ?x = _] => let (x', m, fm, hfm) := reify_helper 'nat 'nat x 'encode '(fun (_: positive) => @None nat) '(empty_fm_inj nat) '(empty_fm_encode nat encode) in
                  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
-                 erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity];
-                 cbn [denote]
-  end.
-  simpl; reflexivity.
+                 erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity]
+  end. simpl.
+  reflexivity.
 Qed.
 
 Ltac2 map_simpl_aux k a x encode :=
   let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
-  (* Message.print (Message.of_constr a); *)
-  (* Message.print (Message.of_constr x); *)
-  (* Message.print (Message.of_constr x'); *)
-  (* Message.print (Message.of_constr '(@denote _ _ _ _ $x')); *)
   replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
-  (* let id := Option.get (Ident.of_string "x") in *)
-  (* let h := Fresh.in_goal id in *)
-  (* remember $m as $h; *)
   (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | vm_compute; reflexivity];
   simpl.
+
+Ltac2 map_simpl_aux_debug k a x encode :=
+  let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
+  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | time vm_compute; reflexivity];
+  time simpl.
 
 From iris.proofmode Require Import environments.
 
@@ -271,3 +269,14 @@ Ltac map_simpl name :=
       f K A m (@encode K _ _)
     end
   end.
+
+Ltac map_simpl_debug name :=
+  match goal with
+  | |- context [ Esnoc _ (base.ident.INamed name) ([∗ map] _↦_ ∈ ?m, _)%I ] =>
+    match type of m with
+    | gmap ?K ?A =>
+      let f := ltac2:(k a m encode |- map_simpl_aux_debug (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m)) (Option.get (Ltac1.to_constr encode))) in
+      f K A m (@encode K _ _)
+    end
+  end.
+
