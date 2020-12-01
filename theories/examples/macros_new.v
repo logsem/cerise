@@ -55,7 +55,7 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Hentry) "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
     codefrag_facts "Hprog".
-    iGo "Hprog". instantiate (1 := pc_b). solve_addr.
+    iGo "Hprog". transitivity (Some pc_b); eauto. solve_addr.
     iGo "Hprog". iApply "Hφ"; iFrame.
  Qed.
 

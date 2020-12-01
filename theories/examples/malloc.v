@@ -188,9 +188,9 @@ Section SimpleMalloc.
         repeat match goal with H:_ |- _ => apply z_to_addr_eq_inv in H end; subst.
         congruence. }
       { cbn. wp_pure. wp_end. auto. } }
-    do 3 iInstr "Hprog". { instantiate (1 := a_m). solve_addr. }
-    do 3 iInstr "Hprog". { instantiate (1 := 0%a). solve_addr. }
-    do 2 iInstr "Hprog". { instantiate (1 := b_m). solve_addr. }
+    do 3 iInstr "Hprog". { transitivity (Some a_m); eauto. solve_addr. }
+    do 3 iInstr "Hprog". { transitivity (Some 0%a); eauto. solve_addr. }
+    do 2 iInstr "Hprog". { transitivity (Some b_m); eauto. solve_addr. }
     iInstr "Hprog". solve_pure_addr.
     iGo "Hprog".
     (* continuation *)
