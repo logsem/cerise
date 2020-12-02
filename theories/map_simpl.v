@@ -160,39 +160,40 @@ Section simpl_gmap.
 
 End simpl_gmap.
 
-Definition add_key (K: Type) (encode: K -> positive) (fm: positive -> option K) (k: K) :=
-  match fm (encode k) with
+Definition add_key (K: Type) (fm: positive -> option K) (k': positive) (k: K):=
+  match fm k' with
   | Some _ => fm
-  | None => fun p => if positive_eq_dec p (encode k) then Some k else fm p
+  | None => fun p => if Pos.eq_dec p k' then Some k else fm p
   end.
 
 Lemma add_key_preserves_inj:
-  forall K encode (fm: positive -> option K) k,
+  forall K encode (fm: positive -> option K) k kenc
+    (Henc: kenc = encode k),
     (forall n1 n2 k', fm n1 = Some k' -> fm n2 = Some k' -> n1 = n2) ->
-    (forall n k, fm n = Some k -> n = encode k) ->
-    (forall n1 n2 k', add_key K encode fm k n1 = Some k' ->
-                 add_key K encode fm k n2 = Some k' ->
+    (forall n k', fm n = Some k' -> n = encode k') ->
+    (forall n1 n2 k', add_key K fm kenc k n1 = Some k' ->
+                 add_key K fm kenc k n2 = Some k' ->
                  n1 = n2) /\
-    (forall n k', add_key K encode fm k n = Some k' -> n = encode k').
+    (forall n k', add_key K fm kenc k n = Some k' -> n = encode k').
 Proof.
-  intros. split; intros.
+  intros. split; intros; subst kenc.
   { unfold add_key in H1, H2.
     case_eq (fm (encode k)); intros.
     - rewrite H3 in H2, H1. eapply H; eauto.
     - rewrite H3 in H2, H1.
-      destruct (positive_eq_dec n1 (encode k)).
+      destruct (Pos.eq_dec n1 (encode k)).
       + inversion H1; clear H1. subst k'.
-        destruct (positive_eq_dec n2 (encode k)).
+        destruct (Pos.eq_dec n2 (encode k)).
         * congruence.
         * eapply H0 in H2. elim n; auto.
-      + destruct (positive_eq_dec n2 (encode k)).
+      + destruct (Pos.eq_dec n2 (encode k)).
         * inversion H2; clear H2; subst k'.
           eapply H0 in H1. elim n; auto.
         * eapply H; eauto. }
   { unfold add_key in H1.
     case_eq (fm (encode k)); intros.
     - rewrite H2 in H1. eapply H0 in H1; auto.
-    - rewrite H2 in H1. destruct (positive_eq_dec n (encode k)).
+    - rewrite H2 in H1. destruct (Pos.eq_dec n (encode k)).
       + inversion H1; clear H1; subst k'. auto.
       + eapply H0; eauto. }
 Qed.
@@ -218,15 +219,17 @@ From Ltac2 Require Import Ltac2 Option Constr.
 Ltac2 rec reify_helper kk aa term encode fm hfm1 hfm2 :=
   lazy_match! term with
   | <[?k := ?a]> ?m =>
-    let fm' := '(add_key $kk $encode $fm $k) in
-    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
-    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let k' := eval vm_compute in (encode $k) in
+    let fm' := '(add_key $kk $fm $k' $k) in
+    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
+    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
     let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
     (constr:(@Ins $aa (encode $k) $a $rm), h, fm'', hfm'')
   | delete ?k ?m =>
-    let fm' := '(add_key $kk $encode $fm $k) in
-    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
-    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $hfm1 $hfm2)) in
+    let k' := eval vm_compute in (encode $k) in
+    let fm' := '(add_key $kk $fm $k' $k) in
+    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
+    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
     let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
     (constr:(@Del $aa (encode $k) $rm), h, fm'', hfm'')
   | ?m => (constr:(@Symb $aa), m, fm, hfm1)
@@ -235,26 +238,26 @@ end.
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
   ltac1:(lhs rhs |- replace lhs with rhs) (Ltac1.of_constr lhs) (Ltac1.of_constr rhs).
 
-Goal <[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)))))))) = <[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)).
-  lazy_match! goal with
-  | [|- ?x = _] => let (x', m, fm, hfm) := reify_helper 'nat 'nat x 'encode '(fun (_: positive) => @None nat) '(empty_fm_inj nat) '(empty_fm_encode nat encode) in
-                 replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
-                 erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity]
-  end. simpl.
-  reflexivity.
-Qed.
+(* Goal <[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)))))))) = <[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)). *)
+(*   lazy_match! goal with *)
+(*   | [|- ?x = _] => let (x', m, fm, hfm) := reify_helper 'nat 'nat x '(@encode _ _ nat_countable) '(fun (_: positive) => @None nat) '(empty_fm_inj nat) '(empty_fm_encode nat encode) in *)
+(*                  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity]; *)
+(*                  erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity] *)
+(*   end. time (cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect]). *)
+(*   reflexivity. *)
+(* Qed. *)
 
 Ltac2 map_simpl_aux k a x encode :=
   let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
   replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
   (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | vm_compute; reflexivity];
-  simpl.
+  cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect].
 
 Ltac2 map_simpl_aux_debug k a x encode :=
   let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
   replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
   (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | time vm_compute; reflexivity];
-  time simpl.
+  time (cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect]).
 
 From iris.proofmode Require Import environments.
 
@@ -279,4 +282,3 @@ Ltac map_simpl_debug name :=
       f K A m (@encode K _ _)
     end
   end.
-
