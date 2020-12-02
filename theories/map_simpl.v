@@ -9,11 +9,11 @@ Section simpl_gmap.
 
   (* reified gmap *)
   Inductive rgmap {A: Type}: Type :=
-  | Ins (k: positive) (a: A) (m: rgmap)
-  | Del (k: positive) (m: rgmap)
+  | Ins (k: nat) (a: A) (m: rgmap)
+  | Del (k: nat) (m: rgmap)
   | Symb.
 
-  Fixpoint denote {A: Type} (rm: @rgmap A) (fm: positive -> option K) (m: gmap K A): gmap K A :=
+  Fixpoint denote {A: Type} (rm: @rgmap A) (fm: nat -> option K) (m: gmap K A): gmap K A :=
     match rm with
     | Ins k a rm =>
       match fm k with
@@ -60,7 +60,7 @@ Section simpl_gmap.
     generalize (rlength_remove_key _ k rm). lia. Qed.
 
   Lemma denote_remove_key_ins:
-    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm: @rgmap A) k k' a (m: gmap K A),
+    forall A fm (rm: @rgmap A) k k' a (m: gmap K A),
       fm k = Some k' ->
       <[k':=a]> (denote rm fm m) = <[k':=a]> (denote (remove_key k rm) fm m).
   Proof.
@@ -70,25 +70,29 @@ Section simpl_gmap.
         rewrite insert_insert.
         eapply IHrm; eauto.
       + case_eq (fm k); intros.
-        * assert (Hne: k1 <> k').
-          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
-          simpl. rewrite insert_commute; auto.
-          rewrite H0.
-          erewrite IHrm; eauto.
-          rewrite insert_commute; eauto.
+        * cbn. destruct (decide (k1 = k')).
+          { subst k1. rewrite insert_insert, H0.
+            rewrite insert_insert.
+            eapply IHrm. auto.
+          }
+          { simpl. rewrite insert_commute; auto.
+            rewrite H0.
+            erewrite IHrm; eauto.
+            rewrite insert_commute; eauto. }
         * simpl. rewrite H0. eauto.
     - intros. destruct (decide (k0 = k)).
       + subst k0; rewrite H. rewrite insert_delete. eapply IHrm; eauto.
       + simpl. case_eq (fm k); intros.
-        * assert (Hne: k1 <> k').
-          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
-          erewrite <- delete_insert_ne; auto.
-          erewrite IHrm, delete_insert_ne; eauto.
+        * destruct (decide (k1 = k')).
+          { subst k1. rewrite !insert_delete.
+            eapply IHrm; eauto. }
+          { erewrite <- delete_insert_ne; auto.
+            erewrite IHrm, delete_insert_ne; eauto. }
         * eauto.
   Qed.
 
   Lemma denote_remove_key_del:
-    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm: @rgmap A) k k' (m: gmap K A),
+    forall A fm (rm: @rgmap A) k k' (m: gmap K A),
       fm k = Some k' ->
       delete k' (denote rm fm m) = delete k' (denote (remove_key k rm) fm m).
   Proof.
@@ -96,18 +100,20 @@ Section simpl_gmap.
     - intros. destruct (decide (k0 = k)).
       + subst k0. rewrite H. rewrite delete_insert_delete. eauto.
       + simpl. case_eq (fm k); intros.
-        * assert (Hne: k1 <> k').
-          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
-          rewrite delete_insert_ne; auto.
-          erewrite IHrm, <- delete_insert_ne; eauto.
+        * destruct (decide (k1 = k')).
+          { subst k1. rewrite !delete_insert_delete.
+            eapply IHrm; eauto. }
+          { rewrite delete_insert_ne; auto.
+            erewrite IHrm, <- delete_insert_ne; eauto. }
         * eauto.
     - intros. destruct (decide (k0 = k)).
       + subst k0; rewrite H, delete_idemp. eauto.
       + simpl. case_eq (fm k); intros.
-        * assert (Hne: k1 <> k').
-          { red; intros; subst k1. eapply n. eapply Hfm; eauto. }
-          rewrite delete_commute; auto.
-          erewrite IHrm, delete_commute; eauto.
+        * destruct (decide (k1 = k')).
+          { subst k1. rewrite !delete_idemp.
+            eapply IHrm; eauto. }
+          { rewrite delete_commute; auto.
+            erewrite IHrm, delete_commute; eauto. }
         * eauto.
   Qed.
 
@@ -128,7 +134,7 @@ Section simpl_gmap.
   Qed.
 
   Lemma simpl_rmap_correct':
-    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) n (rm: @rgmap A) (m: gmap K A),
+    forall A fm n (rm: @rgmap A) (m: gmap K A),
       rlength rm <= n ->
       denote rm fm m = denote (simpl_rmap rm) fm m.
   Proof.
@@ -151,113 +157,74 @@ Section simpl_gmap.
   Qed.
 
   Lemma simpl_rmap_correct:
-    forall A fm (Hfm: forall n1 n2 k, fm n1 = Some k -> fm n2 = Some k -> n1 = n2) (rm rm': @rgmap A) (m: gmap K A),
+    forall A fm (rm rm': @rgmap A) (m: gmap K A),
       simpl_rmap rm = rm' ->
       denote rm fm m = denote rm' fm m.
   Proof.
-    intros. subst rm'. apply (simpl_rmap_correct' _ fm Hfm (rlength rm)); auto; lia.
+    intros. subst rm'. apply (simpl_rmap_correct' _ fm (rlength rm)); auto; lia.
   Qed.
 
 End simpl_gmap.
 
-Definition add_key (K: Type) (fm: positive -> option K) (k': positive) (k: K):=
-  match fm k' with
-  | Some _ => fm
-  | None => fun p => if Pos.eq_dec p k' then Some k else fm p
-  end.
-
-Lemma add_key_preserves_inj:
-  forall K encode (fm: positive -> option K) k kenc
-    (Henc: kenc = encode k),
-    (forall n1 n2 k', fm n1 = Some k' -> fm n2 = Some k' -> n1 = n2) ->
-    (forall n k', fm n = Some k' -> n = encode k') ->
-    (forall n1 n2 k', add_key K fm kenc k n1 = Some k' ->
-                 add_key K fm kenc k n2 = Some k' ->
-                 n1 = n2) /\
-    (forall n k', add_key K fm kenc k n = Some k' -> n = encode k').
-Proof.
-  intros. split; intros; subst kenc.
-  { unfold add_key in H1, H2.
-    case_eq (fm (encode k)); intros.
-    - rewrite H3 in H2, H1. eapply H; eauto.
-    - rewrite H3 in H2, H1.
-      destruct (Pos.eq_dec n1 (encode k)).
-      + inversion H1; clear H1. subst k'.
-        destruct (Pos.eq_dec n2 (encode k)).
-        * congruence.
-        * eapply H0 in H2. elim n; auto.
-      + destruct (Pos.eq_dec n2 (encode k)).
-        * inversion H2; clear H2; subst k'.
-          eapply H0 in H1. elim n; auto.
-        * eapply H; eauto. }
-  { unfold add_key in H1.
-    case_eq (fm (encode k)); intros.
-    - rewrite H2 in H1. eapply H0 in H1; auto.
-    - rewrite H2 in H1. destruct (Pos.eq_dec n (encode k)).
-      + inversion H1; clear H1; subst k'. auto.
-      + eapply H0; eauto. }
-Qed.
-
-Lemma empty_fm_inj:
-  forall K,
-    let fm := (fun (_: positive) => @None K) in
-    forall n1 n2 k', fm n1 = Some k' -> fm n2 = Some k' -> n1 = n2.
-Proof.
-  simpl. intros. inversion H.
-Qed.
-
-Lemma empty_fm_encode:
-  forall K encode,
-    let fm := (fun (_: positive) => @None K) in
-    forall n k, fm n = Some k -> n = encode k.
-Proof.
-  simpl; intros. inversion H.
-Qed.
-
 From Ltac2 Require Import Ltac2 Option Constr.
 
-Ltac2 rec reify_helper kk aa term encode fm hfm1 hfm2 :=
+Ltac2 rec add_key (l: constr list) (k: constr) (n: constr) :=
+  match l with
+  | [] => (k::l, n)
+  | c :: ll => match Constr.equal c k with
+                | false => let (lll, nn) := add_key ll k '(S $n) in
+                          ((c :: lll), nn)
+                | _ => (l, n)
+                end
+  end.
+
+Ltac2 rec make_list (l: constr list) :=
+  match l with
+  | [] => '[]
+  | c :: ll => let k := make_list ll in
+              '($c :: $k)
+  end.
+
+Ltac2 rec reify_helper kk aa term fm :=
   lazy_match! term with
   | <[?k := ?a]> ?m =>
-    let k' := eval vm_compute in (encode $k) in
-    let fm' := '(add_key $kk $fm $k' $k) in
-    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
-    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
-    let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
-    (constr:(@Ins $aa (encode $k) $a $rm), h, fm'', hfm'')
+    let (env, k') := add_key fm k 'O in
+    let (rm, h, fm'') := reify_helper kk aa m env in
+    (constr:(@Ins $aa $k' $a $rm), h, fm'')
   | delete ?k ?m =>
-    let k' := eval vm_compute in (encode $k) in
-    let fm' := '(add_key $kk $fm $k' $k) in
-    let hfm1' := '(proj1 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
-    let hfm2' := '(proj2 (add_key_preserves_inj $kk $encode $fm $k $k' ltac2:(vm_compute; reflexivity) $hfm1 $hfm2)) in
-    let (rm, h, fm'', hfm'') := reify_helper kk aa m encode fm' hfm1' hfm2' in
-    (constr:(@Del $aa (encode $k) $rm), h, fm'', hfm'')
-  | ?m => (constr:(@Symb $aa), m, fm, hfm1)
-end.
+    let (env, k') := add_key fm k 'O in
+    let (rm, h, fm'') := reify_helper kk aa m env in
+    (constr:(@Del $aa $k' $rm), h, fm'')
+  | ?m => (constr:(@Symb $aa), m, fm)
+  end.
 
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
   ltac1:(lhs rhs |- replace lhs with rhs) (Ltac1.of_constr lhs) (Ltac1.of_constr rhs).
 
+(* Debug test *)
 (* Goal <[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)))))))) = <[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)). *)
 (*   lazy_match! goal with *)
-(*   | [|- ?x = _] => let (x', m, fm, hfm) := reify_helper 'nat 'nat x '(@encode _ _ nat_countable) '(fun (_: positive) => @None nat) '(empty_fm_inj nat) '(empty_fm_encode nat encode) in *)
-(*                  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity]; *)
-(*                  erewrite (@simpl_rmap_correct nat _ _ nat $fm $hfm) > [() | vm_compute; reflexivity] *)
-(*   end. time (cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect]). *)
+(*   | [|- ?x = _] => let (x', m, fm) := reify_helper 'nat 'nat x [] in *)
+(*                  let env := make_list fm in *)
+(*                  replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity]; *)
+(*                  erewrite (@simpl_rmap_correct nat _ _ nat (fun n => @list_lookup _ n $env)) > [() | vm_compute; reflexivity] *)
+(*   end. time (cbn [denote list_lookup lookup]). *)
 (*   reflexivity. *)
 (* Qed. *)
 
 Ltac2 map_simpl_aux k a x encode :=
-  let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
-  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | vm_compute; reflexivity];
-  cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect].
+  let (x', m, fm) := (reify_helper k a x []) in
+  let env := make_list fm in
+  replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
+  cbn [denote list_lookup lookup].
 
 Ltac2 map_simpl_aux_debug k a x encode :=
-  let (x', m, fm, hfm) := (reify_helper k a x encode '(fun (_: positive) => @None $k) '(empty_fm_inj $k) '(empty_fm_encode $k $encode)) in
-  replace_with x '(@denote _ _ _ _ $x' $fm $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ $fm $hfm)) > [() | time vm_compute; reflexivity];
-  time (cbn [denote add_key Pos.eq_dec positive_rec positive_rect sumbool_rec sumbool_rect]).
+  let (x', m, fm) := (reify_helper k a x []) in
+  let env := make_list fm in
+  replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
+  time (cbn [denote list_lookup lookup]).
 
 From iris.proofmode Require Import environments.
 
