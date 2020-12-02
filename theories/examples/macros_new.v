@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactic
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc.
-From cap_machine Require Import solve_pure proofmode.
+From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -172,9 +172,9 @@ Section macros.
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3 }}}
-      
+
       Seq (Instr Executable)
-      
+
     {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ inr (RX, f_b, f_e, (f_a_first ^+ (length assert_fail_instrs - 1))%a)
          ∗ codefrag a_first (assert_r_z_instrs f_a r z)
@@ -204,7 +204,7 @@ Section macros.
   (* ------------------------------------- MALLOC ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* malloc stores the result in r_t1, rather than a user chosen destination. 
+  (* malloc stores the result in r_t1, rather than a user chosen destination.
      f_m is the offset of the malloc capability *)
   Definition malloc_instrs f_m (size: Z) :=
     fetch_instrs f_m ++
@@ -288,14 +288,13 @@ Section macros.
     iGo "Hprog". (* PC is now at b_m *)
     (* we are now ready to use the malloc subroutine spec. For this we prepare the registers *)
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
-      by rewrite lookup_delete_ne // lookup_delete.
+      by simplify_map_eq.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
-      by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete_ne // lookup_delete.
-    rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete.
-    rewrite -(delete_insert_ne _ r_t5 r_t2) // (insert_commute _ r_t2 r_t3) //.
-    rewrite insert_delete.
+      by simplify_map_eq.
+    map_simpl "Hregs".
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
-      by rewrite lookup_delete. rewrite insert_delete.
+      by simplify_map_eq.
+    map_simpl "Hregs".
     iApply (wp_wand with "[- Hφfailed Hψ]").
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
@@ -306,12 +305,9 @@ Section macros.
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
     iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
-      by rewrite lookup_insert_ne // lookup_insert //.
-      rewrite delete_insert_ne // delete_insert_delete.
-      repeat (rewrite delete_insert_ne //;[]). rewrite delete_insert_delete.
+      simplify_map_eq. eauto.
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]".
-      by (repeat (rewrite lookup_insert_ne //;[]); rewrite lookup_insert //).
-      repeat (rewrite delete_insert_ne //;[]). rewrite delete_insert_delete.
+      simplify_map_eq. eauto.
     (* back our program, in the continuation of malloc *)
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
@@ -320,16 +316,12 @@ Section macros.
     iFrame. iSplitL "Hr_t1 Hbe".
     { iExists _,_. iFrame. iPureIntro; eauto. }
     { iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
-        repeat (rewrite lookup_insert_ne //;[]). apply lookup_delete.
+        simplify_map_eq. reflexivity.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
-        repeat (rewrite lookup_insert_ne //;[]).
-        rewrite lookup_delete_ne // lookup_delete //.
+        simplify_map_eq. reflexivity.
+      map_simpl "Hregs".
       repeat (rewrite (insert_commute _ r_t5) //;[]).
-      rewrite insert_delete -(delete_insert_ne _ _ r_t5) //.
-      rewrite (insert_commute _ r_t5 r_t2) // (delete_insert_ne _ r_t3 r_t2)//.
-      rewrite (insert_commute _ r_t4 r_t2) // insert_insert.
-      rewrite (insert_commute _ r_t3 r_t2) //.
-      rewrite -(delete_insert_ne _ r_t3) // insert_delete. iFrame. }
+      rewrite (insert_commute _ r_t2 r_t3) //. }
     { iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
   Qed.
 
