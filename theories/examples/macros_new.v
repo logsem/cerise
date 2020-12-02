@@ -297,9 +297,7 @@ Section macros.
     map_simpl "Hregs".
     iApply (wp_wand with "[- Hφfailed Hψ]").
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
-    { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
-      rewrite !difference_difference_L !singleton_union_difference_L !all_registers_union_l.
-      f_equal. set_solver-. }
+    { set_solver+ Hrmap_dom. }
     iNext.
     rewrite updatePcPerm_cap_non_E; [| solve_pure].
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".

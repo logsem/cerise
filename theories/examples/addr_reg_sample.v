@@ -169,6 +169,13 @@ Proof.
   apply all_registers_correct.
 Qed.
 
+Instance setunfold_all_regs:
+  SetUnfoldElemOf x all_registers_s True.
+Proof.
+  intros. constructor. split; auto.
+  intro. eapply all_registers_s_correct.
+Qed.
+
 Lemma all_registers_union_l s :
   s ∪ all_registers_s = all_registers_s.
 Proof.
