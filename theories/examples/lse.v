@@ -106,7 +106,7 @@ Section roe.
   Definition roeN_prog : namespace := roeN .@ "prog".
 
   Definition r_adv := r_t31.
-  
+
   Lemma roe_spec pc_p pc_b pc_e (* PC *)
         roe_addrs wadv (* program addresses *)
         b_m e_m f_m mallocN (* malloc *)
@@ -182,8 +182,8 @@ Section roe.
     (* apply the malloc spec *)
     iApply (malloc_spec_alt with "[- $Hφ $HPC $Hmalloc_prog $Hpc_b $Ha_entry $Hr_t0 $Hregs $Hmalloc $Hown]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb1|eapply Ha_entry| |auto|lia|..].
-    { rewrite !dom_insert_L !dom_delete_L Hdom !difference_difference_L. clear. set_solver. }
-    iSplitR;[iNext;auto|]. 
+    { rewrite !dom_insert_L !dom_delete_L Hdom. set_solver by lia. }
+    iSplitR;[iNext;auto|].
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hown & Hregs)".
     iDestruct "Hbe" as (b e Hincr) "(Hr_t1 & Hbe)". 
     iDestruct (region_mapsto_single with "Hbe") as (cellv) "(Hbe & _)". revert Hincr; clear; solve_addr.

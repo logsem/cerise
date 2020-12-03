@@ -1,4 +1,5 @@
 From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
+From Coq.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
 
 (* We assume a fixed set of registers, and a finite set of memory addresses.
@@ -54,6 +55,30 @@ Proof.
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
   - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
+
+(* Instances for [zify]: make [lia] work on registers *)
+(* TODO: separate the proof parts into lemmas *)
+
+Definition Z_of_regname (r: RegName): Z.
+  destruct r. exact 0.
+  exact (S n).
+Defined.
+
+Instance RegName_InjTyp : InjTyp RegName Z.
+  refine (mkinj _ _ Z_of_regname (fun n => n <= RegNum + 1)%Z _).
+  intros [|]. cbn. lia. cbn. apply Nat.leb_le in fin. lia.
+Defined.
+Add InjTyp RegName_InjTyp.
+
+Instance Op_RegName_eq : BinRel (@eq RegName).
+  refine ({| TR := @eq Z; TRInj := _ |}).
+  cbn. intros r1 r2. split.
+  - intros ->; eauto.
+  - destruct r1; destruct r2; eauto; cbn; try apply Nat.leb_le in fin; try lia.
+    intros ->%Nat2Z.inj%eq_add_S.
+    f_equal. apply eq_proofs_unicity. intros [|] [|]; eauto.
+Defined.
+Add BinRel Op_RegName_eq.
 
 (* -------------------------------- Memory addresses -----------------------------------*)
 
