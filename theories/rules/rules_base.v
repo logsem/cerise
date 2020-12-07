@@ -404,21 +404,27 @@ Section cap_lang_rules.
       * iDestruct 1 as "Hmap". iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto.
   Qed.
 
-  Lemma memMap_resource_2gen_d (a1 a2 : Addr) (w1 w2 : Word)  :
-    ( ∃ mem, ([∗ map] a↦w ∈ mem, a ↦ₐ w) ∧
+  Lemma memMap_resource_2gen_d (Φ : Addr → Word → iProp Σ) (a1 a2 : Addr) (w1 w2 : Word)  :
+    ( ∃ mem, ([∗ map] a↦w ∈ mem, Φ a w) ∧
        ⌜ if  (a2 =? a1)%a
        then mem =  (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)⌝
-    ) -∗ (a1 ↦ₐ w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ w2) .
+    ) -∗ (Φ a1 w1 ∗ if (a2 =? a1)%a then emp else Φ a2 w2) .
   Proof.
-    iIntros. by rewrite memMap_resource_2gen.
+    iIntros "Hmem". iDestruct "Hmem" as (mem) "[Hmem Hif]".
+    destruct ((a2 =? a1)%a) eqn:Heq.
+    - iDestruct "Hif" as %->.
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
+    - iDestruct "Hif" as %->. iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
+      { rewrite lookup_insert_ne;auto. apply Z.eqb_neq in Heq. solve_addr. }
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto. 
   Qed.
 
   (* Not the world's most beautiful lemma, but it does avoid us having to fiddle around with a later under an if in proofs *)
-  Lemma memMap_resource_2gen_clater (a1 a2 : Addr) (w1 w2 : Word)  :
-    (▷ a1 ↦ₐ w1) -∗
-    (if (a2 =? a1)%a then emp else ▷ a2 ↦ₐ w2) -∗
-    (∃ mem, ▷ ([∗ map] a↦w ∈ mem, a ↦ₐ w) ∗
+  Lemma memMap_resource_2gen_clater (a1 a2 : Addr) (w1 w2 : Word) (Φ : Addr -> Word -> iProp Σ)  :
+    (▷ Φ a1 w1) -∗
+    (if (a2 =? a1)%a then emp else ▷ Φ a2 w2) -∗
+    (∃ mem, ▷ ([∗ map] a↦w ∈ mem, Φ a w) ∗
        ⌜if  (a2 =? a1)%a
        then mem =  (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)⌝
@@ -426,13 +432,15 @@ Section cap_lang_rules.
   Proof.
     iIntros "Hc1 Hc2".
     destruct (a2 =? a1)%a eqn:Heq.
-    - iExists (<[a1:= w1]> ∅); iSplitL; auto. iNext. by rewrite memMap_resource_1.
+    - iExists (<[a1:= w1]> ∅); iSplitL; auto. iNext. iApply big_sepM_insert;[|by iFrame].
+      auto. 
     - iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto.
-      iNext. iDestruct (memMap_resource_2ne with "[$Hc1 $Hc2]") as "Hmem".
-      {apply Z.eqb_neq in Heq. congruence. }
-      done.
+      iNext.
+      iApply big_sepM_insert;[|iFrame].
+      { apply Z.eqb_neq in Heq. rewrite lookup_insert_ne//. congruence. }
+      iApply big_sepM_insert;[|by iFrame]. auto. 
   Qed.
-
+  
   Lemma memMap_delete:
     ∀(a : Addr) (w : Word) mem0,
       mem0 !! a = Some w →

@@ -489,7 +489,7 @@ Section cap_lang_rules.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst & Ha) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
-     iDestruct (memMap_resource_2gen_clater with "Hi Ha") as (mem) "[>Hmem %]".
+     iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ a w, a ↦ₐ w)%I  with "Hi Ha") as (mem) "[>Hmem %]".
 
     iApply (wp_store with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
