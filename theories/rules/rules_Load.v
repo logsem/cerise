@@ -254,7 +254,7 @@ Section cap_lang_rules.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ)
             "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
-    iDestruct (memMap_resource_2gen_clater with "Hi Hr2a") as (mem) "[>Hmem Hmem']".
+    iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ a w, a ↦ₐ w)%I with "Hi Hr2a") as (mem) "[>Hmem Hmem']".
     iDestruct "Hmem'" as %Hmem.
 
     iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
@@ -355,7 +355,7 @@ Section cap_lang_rules.
     iIntros (Hinstr Hvpc Hra Hwb Hpca' φ)
             "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
-    iDestruct (memMap_resource_2gen_clater with "Hi Hr1a") as (mem) "[>Hmem Hmem']".
+    iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ a w, a ↦ₐ w)%I with "Hi Hr1a") as (mem) "[>Hmem Hmem']".
     iDestruct "Hmem'" as %Hmem.
 
     iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.

@@ -1,9 +1,10 @@
 From cap_machine Require Export stdpp_extra cap_lang rules_base.
-From iris.proofmode Require Import tactics.
+From cap_machine Require Import rules_binary_base.
+From iris.proofmode Require Import tactics. 
 From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 
 Section region.
-  Context `{MachineParameters, memG Σ, regG Σ}.
+  Context `{MachineParameters, memG Σ, regG Σ, cfg: cfgSG Σ}.
 
   (*------------------------- region_size ------------------------------------*)
 
@@ -75,7 +76,7 @@ Section region.
   Proof.
     revert b k. induction n; intros.
     - lia.
-    - assert (X: k = n \/ k < n) by lia; destruct X as [X | X].
+    - assert (X: k = n \/ k < n) by omega; destruct X as [X | X].
       + subst k. destruct n; simpl.
         * f_equal. solve_addr.
         * rewrite IHn; [| lia]. f_equal. solve_addr.
@@ -96,7 +97,7 @@ Section region.
      - simpl. apply not_elem_of_cons; split.
        + intro. apply Hne. solve_addr.
        + rewrite get_addrs_from_option_addr_comm.
-         apply IHn; lia. lia. lia.
+         apply IHn; omega. omega. omega. 
    Qed.
 
    Lemma region_addrs_not_elem_of a n :
@@ -143,7 +144,7 @@ Section region.
     eapply region_addrs_aux_next_head; eauto.
   Qed.
 
-  Lemma region_addrs_lt_top (a: Addr) n i ai :
+  Lemma region_addrs_lt_top (a: Addr) n i (ai : Addr) :
     (a + (Z.of_nat i) < MemNum)%Z →
     region_addrs_aux a n !! i = Some ai → ai ≠ addr_reg.top.
   Proof.
@@ -623,6 +624,134 @@ Section region.
        rewrite (_: region_size b e - region_size b a = region_size a e)...
    Qed.
 
+   (*--------------------------------------------------------------------------*)
+
+  Definition region_mapsto_spec (b e : Addr) (ws : list Word) : iProp Σ :=
+    ([∗ list] k↦y1;y2 ∈ (region_addrs b e);ws, y1 ↣ₐ y2)%I.
+
+  Lemma mapsto_decomposition_spec:
+    forall l1 l2 ws1 ws2,
+      length l1 = length ws1 ->
+      ([∗ list] k ↦ y1;y2 ∈ (l1 ++ l2);(ws1 ++ ws2), y1 ↣ₐ y2)%I ⊣⊢
+      ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↣ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↣ₐ y2)%I.
+  Proof. intros. rewrite big_sepL2_app' //. Qed.
+
+  Lemma extract_from_region_spec b e a ws φ :
+    let n := length (region_addrs b a) in
+    (b <= a ∧ a < e)%a →
+    (region_mapsto_spec b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+     (∃ w,
+        ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
+        ∗ region_mapsto_spec b a (take n ws)
+        ∗ ([∗ list] w ∈ (take n ws), φ w)
+        ∗ a ↣ₐ w ∗ φ w
+        ∗ region_mapsto_spec (^(a+1))%a e (drop (S n) ws)
+        ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I).
+  Proof.
+    intros. iSplit.
+    - iIntros "[A B]". unfold region_mapsto_spec.
+      iDestruct (big_sepL2_length with "A") as %Hlen.
+      rewrite (region_addrs_decomposition b a e) //.
+      assert (Hlnws: n = length (take n ws)).
+      { rewrite take_length. rewrite Min.min_l; auto.
+        rewrite <- Hlen. subst n. rewrite !region_addrs_length /region_size.
+        solve_addr. }
+      generalize (take_drop n ws). intros HWS.
+      rewrite <- HWS. simpl.
+      iDestruct "B" as "[HB1 HB2]".
+      iDestruct (mapsto_decomposition_spec _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
+      case_eq (drop n ws); intros.
+      + auto.
+      + iDestruct "HA2" as "[HA2 HA3]".
+        iDestruct "HB2" as "[HB2 HB3]".
+        generalize (drop_S' _ _ _ _ _ H3). intros Hdws.
+        rewrite <- H3. rewrite HWS. rewrite Hdws.
+        iExists w. iFrame. by rewrite <- H3.
+    - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]".
+      unfold region_mapsto_spec. rewrite (region_addrs_decomposition b a e) //.
+      iDestruct "AB" as "[A3 B3]".
+      rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame.
+  Qed.
+
+  Lemma extract_from_region_spec' b e a ws φ `{!∀ x, Persistent (φ x)}:
+    let n := length (region_addrs b a) in
+    (b <= a ∧ a < e)%a →
+    (region_mapsto_spec b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+     (∃ w,
+        ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
+        ∗ region_mapsto_spec b a (take n ws)
+        ∗ ([∗ list] w ∈ ws, φ w)
+        ∗ a ↣ₐ w ∗ φ w
+        ∗ region_mapsto_spec (^(a+1))%a e (drop (S n) ws))%I.
+  Proof.
+    intros. iSplit.
+    - iIntros "H".
+      iDestruct (extract_from_region_spec with "H") as (w Hws) "(?&?&?&#Hφ&?&?)"; eauto.
+      iExists _. iFrame. iSplitR. iPureIntro. by rewrite {1}Hws //.
+      rewrite {3}Hws. iFrame. iSplit; iApply "Hφ".
+    - iIntros "H". iApply (extract_from_region_spec with "[H]"); eauto.
+      iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame.
+      iSplitR. iPureIntro. by rewrite {1}Hws //.
+      rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]".
+      cbn. iFrame.
+  Qed.
+
+  Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws)
+            (at level 50, format "[[ b , e ]] ↣ₐ [[ ws ]]") : bi_scope.
+
+  Lemma region_mapsto_cons_spec
+      (b b' e : Addr) (w : Word) (ws : list Word) :
+    (b + 1)%a = Some b' → (b' <= e)%a →
+    [[b, e]] ↣ₐ [[ w :: ws ]] ⊣⊢ b ↣ₐ w ∗ [[b', e]] ↣ₐ [[ ws ]].
+  Proof.
+    intros Hb' Hb'e.
+    rewrite /region_mapsto_spec.
+    rewrite (region_addrs_decomposition b b e).
+    2: revert Hb' Hb'e; clear; intros; split; solve_addr.
+    rewrite region_addrs_empty /=.
+    2: clear; solve_addr.
+    rewrite (_: ^(b + 1) = b')%a.
+    2: revert Hb' Hb'e; clear; intros; solve_addr.
+    eauto.
+  Qed.
+
+  Lemma region_mapsto_single_spec b e l:
+    (b+1)%a = Some e →
+    [[b,e]] ↣ₐ [[l]] -∗
+    ∃ v, b ↣ₐ v ∗ ⌜l = [v]⌝.
+  Proof.
+    iIntros (Hbe) "H". rewrite /region_mapsto_spec region_addrs_single //.
+    iDestruct (big_sepL2_length with "H") as %Hlen.
+    cbn in Hlen. destruct l as [|x l']; [by inversion Hlen|].
+    destruct l'; [| by inversion Hlen]. iExists x. cbn.
+    iDestruct "H" as "(H & _)". eauto.
+  Qed.
+
+  Lemma region_mapsto_split_spec  (b e a : Addr) (w1 w2 : list Word) :
+     (b ≤ a ≤ e)%Z →
+     (length w1) = (region_size b a) →
+     ([[b,e]]↣ₐ[[w1 ++ w2]] ⊣⊢ [[b,a]]↣ₐ[[w1]] ∗ [[a,e]]↣ₐ[[w2]])%I.
+   Proof with try (rewrite /region_size; solve_addr).
+     intros [Hba Hae] Hsize.
+     iSplit.
+     - iIntros "Hbe".
+       rewrite /region_mapsto_spec /region_addrs.
+       rewrite (region_addrs_aux_decomposition _ _ (region_size b a))...
+       iDestruct (big_sepL2_app' with "Hbe") as "[Hba Ha'b]".
+       + by rewrite region_addrs_aux_length.
+       + iFrame.
+         rewrite (_: ^(b + region_size b a)%a = a)...
+         rewrite (_: region_size a e = region_size b e - region_size b a)...
+         (* todo: turn these two into lemmas *)
+     - iIntros "[Hba Hae]".
+       rewrite /region_mapsto_spec /region_addrs. (* todo: use a proper region splitting lemma *)
+       rewrite (region_addrs_aux_decomposition (region_size b e) _ (region_size b a))...
+       iApply (big_sepL2_app with "Hba [Hae]"); cbn.
+       rewrite (_: ^(b + region_size b a)%a = a)...
+       rewrite (_: region_size b e - region_size b a = region_size a e)...
+   Qed.
+
+   
 End region.
 
 Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
@@ -633,3 +762,6 @@ Global Notation "[[ b , e ]] ⊂ₐ [[ b' , e' ]]" := (included b e b' e')
 
 Global Notation "a ∈ₐ [[ b , e ]]" := (in_range a b e)
             (at level 50, format "a ∈ₐ [[ b , e ]]") : bi_scope.
+
+Global Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws)
+            (at level 50, format "[[ b , e ]] ↣ₐ [[ ws ]]") : bi_scope.
