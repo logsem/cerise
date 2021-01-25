@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import rules rules_binary addr_reg_sample.
 From cap_machine.examples Require Import contiguous malloc.
-From cap_machine Require Import logrel_binary fundamental_binary. 
+From cap_machine Require Import logrel_binary fundamental_binary.
 
 Section SimpleMalloc.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -15,7 +15,7 @@ Section SimpleMalloc.
        [[b, b_m]] ↦ₐ [[ malloc_subroutine_instrs ]]
      ∗ b_m ↦ₐ (inr (RWX, b_m, e, a_m))
      ∗ [[b, b_m]] ↣ₐ [[ malloc_subroutine_instrs ]]
-     ∗ b_m ↣ₐ (inr (RWX, b_m, e, a_m)) 
+     ∗ b_m ↣ₐ (inr (RWX, b_m, e, a_m))
      ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
      ∗ [[a_m, e]] ↣ₐ [[ region_addrs_zeroes a_m e ]]
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝
@@ -32,7 +32,7 @@ Section SimpleMalloc.
     (try iPrologue_pre);
     iDestruct prog as "[Hi Hprog]";
     iApply (wp_bind (fill [SeqCtx])).
-  
+
   Ltac iPrologue prog prog' :=
     (try iPrologue_pre);
     iDestruct prog as "[Hi Hprog]";
@@ -41,8 +41,8 @@ Section SimpleMalloc.
 
   Ltac iEpilogue prog :=
     iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext. 
-  
+    iApply wp_pure_step_later;auto;iNext.
+
   Ltac iEpilogue_both prog :=
     iNext; iIntros prog; iSimpl;
     iApply wp_pure_step_later;auto;iNext;
@@ -97,7 +97,7 @@ Section SimpleMalloc.
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
     iIntros (Hrmap_dom Hsmap_dom (* Hsize *) HN) "(#Hinv & Hna & #Hspec & Hrmap & Hsmap & Hr0 & Hs0 & HPC & HsPC & Hr1 & Hs1 & Hj & Hφ)".
-    iMod (na_inv_open with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
+    iMod (na_inv_acc with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
     rewrite /malloc_inv_binary.
     iDestruct "Hmalloc" as (b_m a_m) "(Hprog & Hmemptr & Hsprog & Hsmemptr & Hmem & Hsmem & Hbounds)".
     iDestruct "Hbounds" as %[Hbm_am Ham_e].
@@ -126,7 +126,7 @@ Section SimpleMalloc.
       by rewrite !lookup_delete_ne //.
     iDestruct (big_sepM_delete _ _ r_t4 with "Hsmap") as "[Hs4 Hsmap]".
       by rewrite !lookup_delete_ne //.
-      
+
     rewrite /(region_mapsto b b_m) /(region_mapsto_spec b b_m).
     set ai := region_addrs b b_m.
     assert (Hai: region_addrs b b_m = ai) by reflexivity.
@@ -138,18 +138,18 @@ Section SimpleMalloc.
     assert (contiguous_between ai b b_m) as Hcont.
     { apply contiguous_between_of_region_addrs; eauto.
       rewrite /malloc_subroutine_instrs_length in Hb_bm. solve_addr. }
-    
+
     assert (HPC: ∀ a, a ∈ ai → isCorrectPC (inr (RX, b, e, a))).
     { intros a Ha.
       pose proof (contiguous_between_middle_bounds' _ _ _ _ Hcont Ha) as [? ?].
       constructor; eauto. solve_addr. }
-    
+
     (* lt r_t3 0 r_t1 *)
     destruct ai as [|a l];[inversion Hprog_len|].
     destruct l as [|? l];[inversion Hprog_len|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
     iPrologue "Hprog" "Hsprog".
-    destruct (wsize) as [size|]. 
+    destruct (wsize) as [size|].
     2: { iApply (wp_AddSubLt_fail with "[$HPC $Hi $Hr3 $Hr1]");
          [apply decode_encode_instrW_inv|right;right;eauto|..].
          { apply HPC; repeat constructor. }
@@ -162,12 +162,12 @@ Section SimpleMalloc.
     iApply (wp_add_sub_lt_success_z_r with "[$HPC $Hi $Hr3 $Hr1]");
       [apply decode_encode_instrW_inv|right;right;eauto|iContiguous_next Hcont 0| |..].
     { apply HPC; repeat constructor. }
-    iEpilogue_both "(HPC & Hprog_done & Hr1 & Hr3)". 
+    iEpilogue_both "(HPC & Hprog_done & Hr1 & Hr3)".
     (* move r_t2 PC *)
-    destruct l as [|? l];[inversion Hprog_len|].    
+    destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog" "Hsprog".
     iMod (step_move_success_reg_fromPC _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2]")
-      as "(Hj & HsPC & Hsi & Hs2)";  
+      as "(Hj & HsPC & Hsi & Hs2)";
       [apply decode_encode_instrW_inv| |iContiguous_next Hcont 1|auto..].
     { apply HPC; repeat constructor. }
     iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr2]");
@@ -177,7 +177,7 @@ Section SimpleMalloc.
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
     (* lea r_t2 4 *)
-    do 3 (destruct l as [|? l];[inversion Hprog_len|]). 
+    do 3 (destruct l as [|? l];[inversion Hprog_len|]).
     assert (a0 + 4 = Some a3)%a as Hlea1.
     { apply contiguous_between_incr_addr_middle with (i:=1) (j:=4) (ai:=a0) (aj:=a3) in Hcont;auto. }
     iPrologue "Hprog" "Hsprog".
@@ -191,9 +191,9 @@ Section SimpleMalloc.
     iEpilogue_both "(HPC & Hi & Hr2)".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
-    
+
     (* we need do destruct on the cases for the size *)
-    destruct (decide (0 < size)%Z) as [Hsize | Hsize]. 
+    destruct (decide (0 < size)%Z) as [Hsize | Hsize].
     2: {
       (* the program will not jump, and go to the fail instruction *)
       (* jnz  r_t2 r_t3 *)
@@ -201,7 +201,7 @@ Section SimpleMalloc.
       { simpl. clear -Hsize. apply Z.ltb_nlt in Hsize. rewrite Hsize. auto. }
       iPrologue "Hprog" "Hsprog".
       iApply (wp_jnz_success_next with "[$HPC $Hi $Hr2 $Hr3]");
-        [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|..]. 
+        [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|..].
       { apply HPC; repeat constructor. }
       iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* fail *)
@@ -211,17 +211,17 @@ Section SimpleMalloc.
       { apply HPC; repeat constructor. }
       iEpilogue "_". iApply wp_value. by iRight.
     }
-    
+
     (* otherwise we continue malloc *)
     iPrologue "Hprog" "Hsprog".
     assert (rules_AddSubLt.denote (Lt r_t3 (inl 0%Z) (inr r_t1)) 0 size = 1) as ->.
     { simpl. clear -Hsize. apply Z.ltb_lt in Hsize. rewrite Hsize. auto. }
     iMod (step_jnz_success_jmp _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2 $Hs3]")
       as "(Hj & HsPC & Hsi & Hs2 & Hs3)";
-      [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|auto..]. 
+      [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|auto..].
     { apply HPC; repeat constructor. }
     iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr2 $Hr3]");
-        [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|..]. 
+        [apply decode_encode_instrW_inv| |iContiguous_next Hcont 3|..].
     { apply HPC; repeat constructor. }
     iEpilogue_both "(HPC & Hi & Hr2 & Hr3)".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -261,7 +261,7 @@ Section SimpleMalloc.
     (* load r_t2 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog" "Hsprog".
-    assert (withinBounds (RX, b, e, b_m) = true) as Hwb. 
+    assert (withinBounds (RX, b, e, b_m) = true) as Hwb.
     { apply le_addr_withinBounds.
       - generalize (contiguous_between_length _ _ _ Hcont). cbn.
         clear; solve_addr.
@@ -585,11 +585,11 @@ Section SimpleMalloc.
       rewrite /malloc_subroutine_instrs /malloc_subroutine_instrs'.
       unfold region_mapsto. unfold region_mapsto_spec. rewrite Hai. cbn.
       do 25 iDestruct "Hprog_done" as "[? Hprog_done]". iFrame.
-      do 25 iDestruct "Hsprog_done" as "[? Hsprog_done]". iFrame.   
+      do 25 iDestruct "Hsprog_done" as "[? Hsprog_done]". iFrame.
       iPureIntro. unfold isWithin in Ha_m'_within. (* FIXME? *)
       rewrite andb_true_iff !Z.leb_le in Ha_m'_within |- *.
       revert Ha_m' Hsize; clear; solve_addr. }
-    
+
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
@@ -615,7 +615,7 @@ Section SimpleMalloc.
 
   Ltac consider_next_reg r1 r2 :=
     destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto].
-   
+
   Lemma allocate_region_inv E ba ea :
     [[ba,ea]]↦ₐ[[region_addrs_zeroes ba ea]] ∗ [[ba,ea]]↣ₐ[[region_addrs_zeroes ba ea]]
     ={E}=∗ [∗ list] a ∈ region_addrs ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
@@ -625,39 +625,39 @@ Section SimpleMalloc.
     rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -region_addrs_length.
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hbae") as "Hbae".
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hsbae") as "Hsbae".
-    iDestruct (big_sepL_sep with "[$Hbae $Hsbae]") as "Hbae". 
+    iDestruct (big_sepL_sep with "[$Hbae $Hsbae]") as "Hbae".
     iApply (big_sepL_mono with "Hbae").
-    iIntros (k y Hky) "[Ha Ha']". 
+    iIntros (k y Hky) "[Ha Ha']".
     iApply inv_alloc. iNext. iExists (inl 0%Z),(inl 0%Z). iFrame.
-    rewrite logrel_binary.fixpoint_interp1_eq. auto. 
-  Qed. 
-  
+    rewrite logrel_binary.fixpoint_interp1_eq. auto.
+  Qed.
+
   Lemma simple_malloc_subroutine_valid N b e :
     na_inv logrel_nais N (malloc_inv_binary b e) -∗ spec_ctx -∗
-    logrel_binary.interp (inr (E,b,e,b),inr (E,b,e,b)). 
+    logrel_binary.interp (inr (E,b,e,b),inr (E,b,e,b)).
   Proof.
     iIntros "#Hmalloc #Hspec".
-    rewrite logrel_binary.fixpoint_interp1_eq /=. iSplit;auto. iIntros (r). iNext. iAlways.
+    rewrite logrel_binary.fixpoint_interp1_eq /=. iSplit;auto. iIntros (r). iNext. iModIntro.
     iIntros "(#Hregs_valid & Hregs & Hsregs & Hown & Hj)".
     iDestruct (interp_reg_dupl r.1 with "Hregs_valid") as "[_ Hregs_valid']".
-    iDestruct "Hregs_valid" as "[% Hregs_valid]". 
+    iDestruct "Hregs_valid" as "[% Hregs_valid]".
     iSplit;auto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
     iDestruct (big_sepM_delete _ _ PC with "Hsregs") as "[HsPC Hsregs]";[rewrite lookup_insert;eauto|].
-    destruct H with r_t0 as [ [? ?] [? ?] ]. 
+    destruct H with r_t0 as [ [? ?] [? ?] ].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[r_t0 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hsregs") as "[s_t0 Hsregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
-    destruct H with r_t1 as [ [? ?] [? ?] ].  
+    destruct H with r_t1 as [ [? ?] [? ?] ].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hsregs") as "[s_t1 Hsregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
-    iDestruct (interp_reg_eq r.1 r.2 (inr (RX, b, e, b)) with "[Hregs_valid]") as %Heq;[iSplit;auto|]. 
+    iDestruct (interp_reg_eq r.1 r.2 (inr (RX, b, e, b)) with "[Hregs_valid]") as %Heq;[iSplit;auto|].
     rewrite -Heq.
     iAssert (⌜x = x0⌝)%I as %->.
     { iApply interp_eq. iDestruct ("Hregs_valid" $! r_t0 with "[]") as "H";auto. rewrite /RegLocate H0 H1. iFrame. }
     iAssert (⌜x1 = x2⌝)%I as %->.
     { iApply interp_eq. iDestruct ("Hregs_valid" $! r_t1 with "[]") as "H";auto. rewrite /RegLocate H2 H3. iFrame. }
     iApply (wp_wand with "[-]").
-    iApply (simple_malloc_subroutine_spec with "[- $Hspec $Hj $Hown $Hmalloc $Hregs $Hsregs $r_t0 $HPC $r_t1 $s_t0 $HsPC $s_t1]"); [| |solve_ndisj|]. 
+    iApply (simple_malloc_subroutine_spec with "[- $Hspec $Hj $Hown $Hmalloc $Hregs $Hsregs $r_t0 $HPC $r_t1 $s_t0 $HsPC $s_t1]"); [| |solve_ndisj|].
     4: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L.
       assert (∀ x : RegName, is_Some (r.1 !! x)) as H'.
@@ -667,31 +667,31 @@ Section SimpleMalloc.
       assert (∀ x : RegName, is_Some (r.1 !! x)) as H'.
       { intros x. destruct H with x;eauto. }
       apply regmap_full_dom in H' as <-. set_solver. }
-    
-    iDestruct ("Hregs_valid" $! r_t0 with "[]") as "Hr0_valid";auto. 
+
+    iDestruct ("Hregs_valid" $! r_t0 with "[]") as "Hr0_valid";auto.
     rewrite /RegLocate H0 H1.
     iDestruct (jmp_or_fail_spec with "Hspec Hr0_valid") as "Hcont".
     destruct (decide (isCorrectPC (updatePcPerm x0))).
-    2: { iNext. iIntros "(_ & _ & _ & HPC & _)". iApply "Hcont". iFrame. iIntros (Hcontr). done. } 
+    2: { iNext. iIntros "(_ & _ & _ & HPC & _)". iApply "Hcont". iFrame. iIntros (Hcontr). done. }
     iDestruct "Hcont" as (p b' e' a Heq') "Hcont". simplify_eq.
     iNext. iIntros "(Hown & Hregs & Hr_t0 & HPC & Hsregs & Hs_t0 & HsPC & Hj & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize) "(Hr_t1 & Hs_t1 & Hbe & Hsbe)".
     (* Next is the interesting part of the spec: we must allocate the invariants making the malloced region valid *)
-    iMod (allocate_region_inv with "[$Hbe $Hsbe]") as "#Hbe".     
-    rewrite -!(delete_insert_ne _ r_t1)//. 
+    iMod (allocate_region_inv with "[$Hbe $Hsbe]") as "#Hbe".
+    rewrite -!(delete_insert_ne _ r_t1)//.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
     iDestruct (big_sepM_insert with "[$Hsregs $Hs_t1]") as "Hsregs";[apply lookup_delete|rewrite insert_delete].
-    rewrite -!(delete_insert_ne _ r_t0)//. 
+    rewrite -!(delete_insert_ne _ r_t0)//.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete delete_insert_delete].
     iDestruct (big_sepM_insert with "[$Hsregs $Hs_t0]") as "Hsregs";[apply lookup_delete|rewrite insert_delete].
     rewrite -!(delete_insert_ne _ PC)//.
     iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
     iDestruct (big_sepM_insert with "[$Hsregs $HsPC]") as "Hsregs";[apply lookup_delete|rewrite insert_delete].
     set regs := <[PC:=updatePcPerm (inr (p, b', e', a))]>
-                            (<[r_t0:=inr (p, b', e', a)]> (<[r_t1:=inr (RWX, ba, ea, ba)]> (<[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]> r.1))))).  
-    iDestruct ("Hcont" $! (regs,regs) with "[$Hown Hregs Hsregs Hbe $Hj]") as "[_ $]". 
-    iSplitR "Hregs Hsregs". 
-    { rewrite /regs. iSplit. 
+                            (<[r_t0:=inr (p, b', e', a)]> (<[r_t1:=inr (RWX, ba, ea, ba)]> (<[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]> r.1))))).
+    iDestruct ("Hcont" $! (regs,regs) with "[$Hown Hregs Hsregs Hbe $Hj]") as "[_ $]".
+    iSplitR "Hregs Hsregs".
+    { rewrite /regs. iSplit.
       - iPureIntro. intros x. consider_next_reg x PC. consider_next_reg x r_t0. consider_next_reg x r_t1.
         consider_next_reg x r_t2. consider_next_reg x r_t3. consider_next_reg x r_t4. destruct H with x;auto.
       - iIntros (x Hne). rewrite /RegLocate. consider_next_reg x PC;[contradiction|].
@@ -703,10 +703,10 @@ Section SimpleMalloc.
         consider_next_reg x r_t2. by rewrite logrel_binary.fixpoint_interp1_eq.
         consider_next_reg x r_t3. by rewrite logrel_binary.fixpoint_interp1_eq.
         consider_next_reg x r_t4. by rewrite logrel_binary.fixpoint_interp1_eq.
-        iApply "Hregs_valid'". auto. 
+        iApply "Hregs_valid'". auto.
     }
     { rewrite /regs. rewrite insert_insert /=. iFrame. }
-  Qed. 
+  Qed.
 
 
 End SimpleMalloc.

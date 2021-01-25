@@ -10,7 +10,7 @@ Section fundamental.
 
   Notation D := ((prodO (leibnizO Word) (leibnizO Word)) -n> iPropO Σ).
   Notation R := ((prodO (leibnizO Reg) (leibnizO Reg)) -n> iPropO Σ).
-  Implicit Types ww : (prodO (leibnizO Word) (leibnizO Word)). 
+  Implicit Types ww : (prodO (leibnizO Word) (leibnizO Word)).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
