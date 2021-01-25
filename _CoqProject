@@ -38,6 +38,7 @@ theories/rules_binary/rules_binary_Restrict.v
 theories/rules_binary/rules_binary_Jmp.v
 theories/rules_binary/rules_binary_Jnz.v
 theories/rules_binary/rules_binary_Subseg.v
+theories/rules_binary/rules_binary_IsPtr.v
 theories/rules_binary.v
 theories/solve_pure.v
 theories/NamedProp.v
@@ -64,6 +65,7 @@ theories/ftlr_binary/Load_binary.v
 theories/ftlr_binary/Mov_binary.v
 theories/ftlr_binary/AddSubLt_binary.v
 theories/ftlr_binary/Get_binary.v
+theories/ftlr_binary/IsPtr_binary.v
 theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v

@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary.
+From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary.
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
@@ -95,7 +95,7 @@ Section fundamental.
       + (* Lea *) admit.
       + (* Restrict *) admit.
       + (* Subseg *) admit.
-      + (* IsPtr *) admit.
+      + (* IsPtr *) iApply (isptr_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try iAssumption; eauto.
       + (* GetP *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* GetB *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* GetE *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
@@ -134,7 +134,6 @@ Section fundamental.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
   Admitted.
-
 
   (* The fundamental theorem implies the binary exec_cond *)
 
