@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary.
+From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary.
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
@@ -96,10 +96,10 @@ Section fundamental.
       + (* Restrict *) admit.
       + (* Subseg *) admit.
       + (* IsPtr *) admit.
-      + (* GetP *) admit.
-      + (* GetB *) admit.
-      + (* GetE *) admit.
-      + (* GetA *) admit.
+      + (* GetP *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* GetB *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* GetE *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* GetA *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -111,18 +111,20 @@ Section fundamental.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
-        (* iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. *)
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. (* iNext. iIntros (_).  *)
-        (* iExists (<[PC:=inr (p, b, e, a)]> r). iFrame. *)
-        (* iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r !! r0)⌝)%I as "HA". *)
-        (* { iIntros. destruct (reg_eq_dec PC r0). *)
-        (*   - subst r0; rewrite lookup_insert; eauto. *)
-        (*   - rewrite lookup_insert_ne; auto. }             *)
-        (* iFrame. *) admit.
+        rewrite insert_insert. iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
+        * iExists w'. iFrame.
+        * iNext. iIntros (_).
+          iExists (<[PC:=inr (p, b, e, a)]> r.1, <[PC:=inr (p, b, e, a)]> r.2). iFrame.
+          iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r.1 !! r0) ∧ is_Some (<[PC:=inr (p, b, e, a)]> r.2 !! r0)⌝)%I as "HA".
+          { iPureIntro. intros. simpl. destruct (reg_eq_dec PC x).
+            - subst x. rewrite !lookup_insert. split; eauto.
+            - rewrite !lookup_insert_ne; auto. }
+          rewrite /full_map /=. iFrame "HA".
+          admit.
     - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (inr (p, b, e, a))).
