@@ -62,6 +62,7 @@ theories/fundamental.v
 theories/ftlr_binary/ftlr_base_binary.v
 theories/ftlr_binary/Load_binary.v
 theories/ftlr_binary/Mov_binary.v
+theories/ftlr_binary/AddSubLt_binary.v
 theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v

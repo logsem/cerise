@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine.ftlr_binary Require Export Mov_binary Load_binary.
+From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary.
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
@@ -89,9 +89,9 @@ Section fundamental.
       + (* Load *) iApply (load_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Store *) admit.
-      + (* Lt *) admit.
-      + (* Add *) admit.
-      + (* Sub *) admit.
+      + (* Lt *) iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* Add *) iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* Sub *) iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* Lea *) admit.
       + (* Restrict *) admit.
       + (* Subseg *) admit.
@@ -104,9 +104,10 @@ Section fundamental.
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
-        iApply wp_value. admit.
-        (* iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. *)
-        (* iNext. iIntros (Hcontr); inversion Hcontr.  *)
+        iApply wp_value.
+        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
+        * iNext. iExists w'. iFrame.
+        * iIntros (Hcontr); inversion Hcontr.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
