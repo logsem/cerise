@@ -66,6 +66,7 @@ theories/ftlr_binary/Mov_binary.v
 theories/ftlr_binary/AddSubLt_binary.v
 theories/ftlr_binary/Get_binary.v
 theories/ftlr_binary/IsPtr_binary.v
+theories/ftlr_binary/Jmp_binary.v
 theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v

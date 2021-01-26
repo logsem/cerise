@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary.
+From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary Jmp_binary.
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
@@ -82,7 +82,7 @@ Section fundamental.
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
         first apply (lookup_insert _ _ (inr (p, b, e, a))).
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
-      + (* Jmp *) admit.
+      + (* Jmp *) iApply (jmp_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try iAssumption; eauto.
       + (* Jnz *) admit.
       + (* Mov *) iApply (mov_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
