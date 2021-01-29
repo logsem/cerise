@@ -111,20 +111,32 @@ Section fundamental.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
+        iDestruct ((big_sepM_delete _ _ PC) with "Hsreg") as "[HsPC Hsreg] /=";
+          [rewrite lookup_insert; reflexivity|].
+        iAssert (⌜w = w'⌝)%I as %Heqw.
+        { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
+        destruct r as [r1 r2]. simpl in *.
+        iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+        iMod (step_halt _ [SeqCtx] with "[$Ha' $HsPC $Hs $Hspec]") as "(Hs' & HsPC & Ha') /=";[rewrite Heqw in Hi|..];eauto.
+        { solve_ndisj. }
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
+        rewrite insert_insert.
+        iMod (spec_step_pure _ [] with "[$Hs' $Hspec]") as "Hss"; auto.
+        { solve_ndisj. }
+        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
         * iExists w'. iFrame.
         * iNext. iIntros (_).
-          iExists (<[PC:=inr (p, b, e, a)]> r.1, <[PC:=inr (p, b, e, a)]> r.2). iFrame.
-          iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r.1 !! r0) ∧ is_Some (<[PC:=inr (p, b, e, a)]> r.2 !! r0)⌝)%I as "HA".
+          iExists (<[PC:=inr (p, b, e, a)]> r1, <[PC:=inr (p, b, e, a)]> r2). iFrame.
+          iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r1 !! r0) ∧ is_Some (<[PC:=inr (p, b, e, a)]> r2 !! r0)⌝)%I as "HA".
           { iPureIntro. intros. simpl. destruct (reg_eq_dec PC x).
             - subst x. rewrite !lookup_insert. split; eauto.
             - rewrite !lookup_insert_ne; auto. }
           rewrite /full_map /=. iFrame "HA".
-          admit.
+          iDestruct ((big_sepM_delete _ _ PC) with "[HsPC Hsreg]") as "Hsreg /=";
+            [apply lookup_insert|iFrame|rewrite -Heq; iFrame].
     - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (inr (p, b, e, a))).
