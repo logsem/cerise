@@ -16,10 +16,10 @@ Definition memreg_specUR := prodUR regspecUR memspecUR.
 
 (* CMRA for the specification *)
 Definition exprUR : cmraT := (exclR (leibnizO expr)).
-Definition cfgUR : ucmraT := prodUR (optionUR exprUR) memreg_specUR. 
+Definition cfgUR : ucmraT := prodUR (optionUR exprUR) memreg_specUR.
 
-Definition to_spec_map {L V : Type} `{Countable L} : gmap L V -> gmapUR L (prodR fracR (agreeR (leibnizO V))) :=  
-  fmap (λ w, (1%Qp, to_agree w)). 
+Definition to_spec_map {L V : Type} `{Countable L} : gmap L V -> gmapUR L (prodR fracR (agreeR (leibnizO V))) :=
+  fmap (λ w, (1%Qp, to_agree w)).
 
 (* the CMRA for the specification side *)
 Class cfgSG Σ := CFGSG { cfg_invG :> inG Σ (authR cfgUR); cfg_name : gname }.
@@ -41,8 +41,8 @@ Section to_spec_map.
     rewrite /to_gen_heap lookup_fmap fmap_Some_equiv => -[v' [Hl [/= -> ->]]].
     move=> /Some_pair_included_total_2 [_] /to_agree_included /leibniz_equiv_iff -> //.
   Qed.
-  
-End to_spec_map. 
+
+End to_spec_map.
 
 Section definitionsS.
   Context `{cfgSG Σ, MachineParameters, invG Σ}.
@@ -52,17 +52,17 @@ Section definitionsS.
 
   Definition regspec_mapsto (r : RegName) (q : Qp) (w : Word) : iProp Σ :=
     own cfg_name (◯ (ε, ({[ r := (q, to_agree w) ]},∅))).
-  
+
   Definition exprspec_mapsto (e : expr) : iProp Σ :=
-    own cfg_name (◯ (Excl' e : optionUR (exclR (leibnizO expr)),(∅,∅))). 
-  
+    own cfg_name (◯ (Excl' e : optionUR (exclR (leibnizO expr)),(∅,∅))).
+
   (* The following invariant contains the authoritative view of specification state *)
   Definition spec_res e σ :=
     (own cfg_name (● (Excl' e,(to_spec_map σ.1,to_spec_map σ.2))))%I.
   Definition spec_inv (ρ : cfg cap_lang) : iProp Σ :=
-    (∃ e σ, spec_res e σ ∗ ⌜rtc erased_step ρ ([e],σ)⌝)%I. 
+    (∃ e σ, spec_res e σ ∗ ⌜rtc erased_step ρ ([e],σ)⌝)%I.
   Definition spec_ctx : iProp Σ :=
-    (∃ ρ, inv specN (spec_inv ρ))%I. 
+    (∃ ρ, inv specN (spec_inv ρ))%I.
 
   Global Instance memspec_mapsto_timeless l q v : Timeless (memspec_mapsto l q v).
   Proof. apply _. Qed.
@@ -72,32 +72,32 @@ Section definitionsS.
   Proof. apply _. Qed.
 
   Lemma spec_heap_valid e σ a q w :
-    spec_res e σ ∗ memspec_mapsto a q w -∗ ⌜σ.2 !! a = Some w⌝. 
+    spec_res e σ ∗ memspec_mapsto a q w -∗ ⌜σ.2 !! a = Some w⌝.
   Proof.
     iIntros "(Hown & Ha)".
     iDestruct (own_valid_2 with "Hown Ha")
       as %[[_ [_ ?%spec_map_singleton_included]%prod_included]%prod_included _]%auth_both_valid.
     auto.
-  Qed. 
+  Qed.
 
   Lemma spec_regs_valid e σ r q w :
-    spec_res e σ ∗ regspec_mapsto r q w -∗ ⌜σ.1 !! r = Some w⌝. 
+    spec_res e σ ∗ regspec_mapsto r q w -∗ ⌜σ.1 !! r = Some w⌝.
   Proof.
     iIntros "(Hown & Ha)".
-    iDestruct (own_valid_2 with "Hown Ha") 
+    iDestruct (own_valid_2 with "Hown Ha")
       as %[[_ [?%spec_map_singleton_included _]%prod_included]%prod_included _]%auth_both_valid.
     auto.
   Qed.
 
   Lemma spec_expr_valid e e' σ :
-    spec_res e σ ∗ exprspec_mapsto e' -∗ ⌜e = e'⌝. 
+    spec_res e σ ∗ exprspec_mapsto e' -∗ ⌜e = e'⌝.
   Proof.
     iIntros "(Hown & Ha)".
     iDestruct (own_valid_2 with "Hown Ha")
       as %[[? _]%prod_included _]%auth_both_valid.
     assert (e ≡ e') as Heq.
     { apply symmetry. apply Excl_included. simpl in H2. apply H2. }
-    iPureIntro. apply leibniz_equiv. auto. 
+    iPureIntro. apply leibniz_equiv. auto.
   Qed.
 
   Lemma regspec_mapsto_agree l q1 q2 v1 v2 : regspec_mapsto l q1 v1 -∗ regspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
@@ -106,33 +106,33 @@ Section definitionsS.
     rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [[_ Hr]%singleton_valid _]].
-    simpl in Hr. apply @agree_op_invL' with (A:=leibnizO Word) in Hr;auto. apply _. 
+    simpl in Hr. apply @agree_op_invL' with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma regspec_mapsto_valid r q v : regspec_mapsto r q v -∗ ✓ q.
   Proof.
     rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
-    intros [_ [[? _]%singleton_valid _]]. auto. 
+    intros [_ [[? _]%singleton_valid _]]. auto.
   Qed.
   Lemma regspec_mapsto_valid_2 r q1 q2 v1 v2 :
     regspec_mapsto r q1 v1 -∗ regspec_mapsto r q2 v2 -∗ ✓ (q1 + q2)%Qp.
   Proof.
-    iIntros "Hr1 Hr2". 
-    iDestruct (regspec_mapsto_agree with "Hr1 Hr2") as %->. 
-    iCombine "Hr1 Hr2" as "Hr". 
+    iIntros "Hr1 Hr2".
+    iDestruct (regspec_mapsto_agree with "Hr1 Hr2") as %->.
+    iCombine "Hr1 Hr2" as "Hr".
     by iApply regspec_mapsto_valid.
   Qed.
   Lemma regspec_mapsto_update e (σ : gmap RegName Word * gmap Addr Word) r (w w' : Word) :
-    spec_res e σ -∗ regspec_mapsto r 1 w ==∗ spec_res e (<[r:=w']> σ.1,σ.2) ∗ regspec_mapsto r 1 w'. 
+    spec_res e σ -∗ regspec_mapsto r 1 w ==∗ spec_res e (<[r:=w']> σ.1,σ.2) ∗ regspec_mapsto r 1 w'.
   Proof.
     iIntros "Hσ Hr".
-    iDestruct (spec_regs_valid with "[$Hσ $Hr]") as %Hr. 
+    iDestruct (spec_regs_valid with "[$Hσ $Hr]") as %Hr.
     rewrite /spec_res /regspec_mapsto.
     iMod (own_update_2 with "Hσ Hr") as "[Hσ Hr]".
     { eapply auth_update, prod_local_update_2,prod_local_update_1.
       eapply (singleton_local_update (to_spec_map σ.1) r (1%Qp, to_agree w) _ (1%Qp, to_agree w')).
       by rewrite lookup_fmap Hr. apply exclusive_local_update. done. }
-    iModIntro. iFrame "Hr". iFrame. rewrite -fmap_insert. iFrame. 
+    iModIntro. iFrame "Hr". iFrame. rewrite -fmap_insert. iFrame.
   Qed.
 
   Lemma memspec_mapsto_agree l q1 q2 v1 v2 : memspec_mapsto l q1 v1 -∗ memspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
@@ -141,33 +141,33 @@ Section definitionsS.
     rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [_ [_ Hr]%singleton_valid]].
-    simpl in Hr. apply @agree_op_invL' with (A:=leibnizO Word) in Hr;auto. apply _. 
+    simpl in Hr. apply @agree_op_invL' with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma memspec_mapsto_valid r q v : memspec_mapsto r q v -∗ ✓ q.
   Proof.
     rewrite /memspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
-    intros [_ [_ [? _]%singleton_valid]]. auto. 
+    intros [_ [_ [? _]%singleton_valid]]. auto.
   Qed.
   Lemma memspec_mapsto_valid_2 r q1 q2 v1 v2 :
     memspec_mapsto r q1 v1 -∗ memspec_mapsto r q2 v2 -∗ ✓ (q1 + q2)%Qp.
   Proof.
-    iIntros "Hr1 Hr2". 
-    iDestruct (memspec_mapsto_agree with "Hr1 Hr2") as %->. 
-    iCombine "Hr1 Hr2" as "Hr". 
+    iIntros "Hr1 Hr2".
+    iDestruct (memspec_mapsto_agree with "Hr1 Hr2") as %->.
+    iCombine "Hr1 Hr2" as "Hr".
     by iApply memspec_mapsto_valid.
   Qed.
   Lemma memspec_mapsto_update e (σ : gmap RegName Word * gmap Addr Word) r (w w' : Word) :
-    spec_res e σ -∗ memspec_mapsto r 1 w ==∗ spec_res e (σ.1,<[r:=w']>σ.2) ∗ memspec_mapsto r 1 w'. 
+    spec_res e σ -∗ memspec_mapsto r 1 w ==∗ spec_res e (σ.1,<[r:=w']>σ.2) ∗ memspec_mapsto r 1 w'.
   Proof.
     iIntros "Hσ Hr".
-    iDestruct (spec_heap_valid with "[$Hσ $Hr]") as %Hr. 
+    iDestruct (spec_heap_valid with "[$Hσ $Hr]") as %Hr.
     rewrite /spec_res /memspec_mapsto.
     iMod (own_update_2 with "Hσ Hr") as "[Hσ Hr]".
     { eapply auth_update, prod_local_update_2,prod_local_update_2.
       eapply (singleton_local_update (to_spec_map σ.2) r (1%Qp, to_agree w) _ (1%Qp, to_agree w')).
       by rewrite lookup_fmap Hr. apply exclusive_local_update. done. }
-    iModIntro. iFrame "Hr". iFrame. rewrite -fmap_insert. iFrame. 
+    iModIntro. iFrame "Hr". iFrame. rewrite -fmap_insert. iFrame.
   Qed.
 
   Lemma exprspec_mapsto_update e σ e' :
@@ -179,8 +179,8 @@ Section definitionsS.
     { by eapply auth_update, prod_local_update_1, (option_local_update (A:=exprUR)),
       (exclusive_local_update (A:=exprUR) _ (Excl e')). }
     iFrame. done.
-  Qed. 
-    
+  Qed.
+
 End definitionsS.
 Typeclasses Opaque memspec_mapsto regspec_mapsto exprspec_mapsto.
 
@@ -206,7 +206,7 @@ Ltac iAsimpl :=
 
 Section cap_lang_spec_resources.
   Context `{cfgSG Σ, MachineParameters, invG Σ}.
-  
+
   (* ------------------------- registers points-to --------------------------------- *)
 
   Lemma regname_dupl_false r w1 w2 :
@@ -301,7 +301,7 @@ Section cap_lang_spec_resources.
   Qed.
 
   (* ------------------------- address points-to --------------------------------- *)
-  
+
   Lemma memMap_resource_2ne (a1 a2 : Addr) (w1 w2 : Word)  :
     a1 ≠ a2 → ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↣ₐ w)%I ⊣⊢ a1 ↣ₐ w1 ∗ a2 ↣ₐ w2.
   Proof.
@@ -310,8 +310,8 @@ Section cap_lang_spec_resources.
     rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert.
     rewrite delete_insert; auto.
     iSplit; iIntros "HH".
-    - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame. 
-    - iDestruct "HH" as "[H1 H2]". iFrame. done. 
+    - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame.
+    - iDestruct "HH" as "[H1 H2]". iFrame. done.
   Qed.
 
   (* -------------- semantic heap + a map of pointsto: spec side -------------------------- *)
@@ -324,7 +324,7 @@ Section cap_lang_spec_resources.
   Proof.
     intros * Hσ'.
     rewrite (big_sepM_delete _ σ' l) //. iIntros "? [? ?]".
-    iApply (spec_heap_valid with "[$]"). 
+    iApply (spec_heap_valid with "[$]").
   Qed.
   Lemma regspec_heap_valid_inSepM e σ σ' q l v :
       σ' !! l = Some v →
@@ -334,8 +334,8 @@ Section cap_lang_spec_resources.
   Proof.
     intros * Hσ'.
     rewrite (big_sepM_delete _ σ' l) //. iIntros "? [? ?]".
-    iApply (spec_regs_valid with "[$]"). 
-  Qed.     
+    iApply (spec_regs_valid with "[$]").
+  Qed.
 
   Lemma memspec_heap_valid_inSepM' e σ σ' q :
       spec_res e σ -∗
@@ -344,7 +344,7 @@ Section cap_lang_spec_resources.
   Proof.
     intros *. iIntros "? Hmap" (l v Hσ').
     rewrite (big_sepM_delete _ σ' l) //. iDestruct "Hmap" as "[? ?]".
-    iApply (spec_heap_valid with "[$]"). 
+    iApply (spec_heap_valid with "[$]").
   Qed.
   Lemma regspec_heap_valid_inSepM' e σ σ' q :
       spec_res e σ -∗
@@ -353,7 +353,7 @@ Section cap_lang_spec_resources.
   Proof.
     intros *. iIntros "? Hmap" (l v Hσ').
     rewrite (big_sepM_delete _ σ' l) //. iDestruct "Hmap" as "[? ?]".
-    iApply (spec_regs_valid with "[$]"). 
+    iApply (spec_regs_valid with "[$]").
   Qed.
 
   Lemma memspec_heap_valid_inclSepM e σ σ' q :
@@ -423,12 +423,12 @@ Section cap_lang_spec_resources.
           -∗ spec_res e' σ -∗ ⌜σ.2 !m! a = v⌝.
   Proof.
     iIntros (mem0 σ e' b e a v q Hmem) "Hmem Hm".
-    rewrite (big_sepM_delete _ mem0 a) //. 
+    rewrite (big_sepM_delete _ mem0 a) //.
     iDestruct "Hmem" as "[H_a Hmem]".
     iDestruct (spec_heap_valid with "[$Hm $H_a]") as %?; auto.
-    rewrite /MemLocate. rewrite H2. auto. 
+    rewrite /MemLocate. rewrite H2. auto.
   Qed.
-  
+
   Lemma memspec_heap_update_inSepM e σ σ' l v :
       is_Some (σ' !! l) →
       spec_res e σ
@@ -464,16 +464,16 @@ Section cap_lang_spec_resources.
     a1 ↣ₐ w1 -∗ a2 ↣ₐ w2 -∗ ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↣ₐ w) ∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Hi Hr2a".
-    destruct (decide (a1 = a2)). 
+    destruct (decide (a1 = a2)).
     { subst. iDestruct (memspec_mapsto_valid_2 with "Hi Hr2a") as %Hne; auto. done. }
     iSplitL; last by auto.
     iApply memMap_resource_2ne; auto. iSplitL "Hi"; auto.
   Qed.
-  
-End cap_lang_spec_resources. 
+
+End cap_lang_spec_resources.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invG Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -488,10 +488,10 @@ Section cap_lang_spec_rules.
     erased_step ([fill K e],σ) ([fill K e'],σ').
   Proof.
     intros.
-    assert ([fill K e'] = <[0:=fill K e']> [fill K e]) as ->;[auto|]. 
+    assert ([fill K e'] = <[0:=fill K e']> [fill K e]) as ->;[auto|].
     rewrite -(right_id_L [] (++) (<[_:=_]>_)).
     rewrite -(take_drop_middle [fill K e] 0 (fill K e)) //.
-    eexists. eapply step_atomic; eauto. 
+    eexists. eapply step_atomic; eauto.
     apply Ectx_step'. eauto.
   Qed.
 
@@ -500,27 +500,27 @@ Section cap_lang_spec_rules.
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K e ={E}=∗ ⤇ fill K e'.
   Proof.
-    iIntros (HP Hpure Hsub) "[#Hinv He]". 
+    iIntros (HP Hpure Hsub) "[#Hinv He]".
     iDestruct "Hinv" as (ρ) "Hinv".
-    rewrite /spec_inv /exprspec_mapsto. 
-    iInv specN as ">H" "Hclose". 
-    iDestruct "H" as (c σ) "[Hcfg Hstep]". 
-    iDestruct "Hstep" as %Hstep. 
+    rewrite /spec_inv /exprspec_mapsto.
+    iInv specN as ">H" "Hclose".
+    iDestruct "H" as (c σ) "[Hcfg Hstep]".
+    iDestruct "Hstep" as %Hstep.
     iDestruct (own_valid_2 with "Hcfg He") as %[[Hincle _]%prod_included Hvalid]%auth_both_valid;simpl in *.
-    assert ((ectxi_language.fill K e : exprO cap_lang) ≡ c) as Heq;[by apply Excl_included|simplify_eq]. 
-    iMod (own_update_2 with "Hcfg He") as "[Hcfg He]". 
+    assert ((ectxi_language.fill K e : exprO cap_lang) ≡ c) as Heq;[by apply Excl_included|simplify_eq].
+    iMod (own_update_2 with "Hcfg He") as "[Hcfg He]".
     { by eapply auth_update,prod_local_update_1,(option_local_update (A:=exprUR)),
       (exclusive_local_update (A:=exprUR) _ (Excl (fill K e'))). }
-    iFrame. iApply "Hclose". 
-    iNext. iExists (fill K e'),σ. iFrame. iPureIntro. 
+    iFrame. iApply "Hclose".
+    iNext. iExists (fill K e'),σ. iFrame. iPureIntro.
     apply rtc_nsteps in Hstep; destruct Hstep as [m Hrtc].
     specialize (Hpure HP). apply (nsteps_rtc (m + n)).
     eapply nsteps_trans; eauto. clear -Hpure.
-    revert e e' Hpure. induction n => e e' Hpure. 
+    revert e e' Hpure. induction n => e e' Hpure.
     - inversion Hpure. subst. apply nsteps_O.
-    - inversion Hpure;subst. apply IHn in H2. 
+    - inversion Hpure;subst. apply IHn in H2.
       eapply relations.nsteps_l;eauto.
-      inversion H1 as [Hexs Hexd]. 
+      inversion H1 as [Hexs Hexd].
       specialize (Hexs σ). destruct Hexs as [e'' [σ' [efs Hexs]]].
       specialize (Hexd σ [] e'' σ' efs Hexs); destruct Hexd as [? [? [? ?]]]; subst.
       simpl in Hexs. apply fill_prim_step with (K0:=K) in Hexs.
@@ -532,7 +532,7 @@ Section cap_lang_spec_rules.
     spec_ctx ∗ ⤇ fill K e ={E}=∗ ⤇ fill K e'.
   Proof. by eapply spec_step_pure; last eauto. Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.
 
 Ltac prim_step_from_exec :=
     match goal with
@@ -557,7 +557,7 @@ Ltac iFailStep fail_type :=
     repeat (match goal with
             | H : context [<[_:=_]> _ !! _] |- _ =>
               revert H; rewrite lookup_insert; intros H
-            end); simplify_eq. 
+            end); simplify_eq.
 
 Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invG Σ}.
@@ -580,7 +580,7 @@ Section cap_lang_spec_rules.
              ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
              ∗ pc_a ↣ₐ w
     ={E}=∗ ⤇ fill K (Instr Halted)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w. 
+         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
   Proof.
     intros Hinstr Hvpc Hnclose.
     iIntros "(Hinv & Hj & Hpc & Hpca)".
@@ -588,14 +588,14 @@ Section cap_lang_spec_rules.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (@spec_regs_valid with "[$Hown $Hpc]") as %?.
     iDestruct (@spec_heap_valid with "[$Hown $Hpca]") as %?.
-    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.    
+    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
-    eapply step_exec_inv in Hstep; eauto. assert (Hstep':=Hstep). 
+    eapply step_exec_inv in Hstep; eauto. assert (Hstep':=Hstep).
     cbn in Hstep. simplify_eq.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr Halted)) with "Hown Hj") as "[Hown Hj]".
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. simpl. prim_step_from_exec. }
-    by iFrame. 
+    by iFrame.
   Qed.
 
   Lemma step_fail E K pc_p pc_b pc_e pc_a w :
@@ -607,7 +607,7 @@ Section cap_lang_spec_rules.
              ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
              ∗ pc_a ↣ₐ w
     ={E}=∗ ⤇ fill K (Instr Failed)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w. 
+         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
   Proof.
     intros Hinstr Hvpc Hnclose.
     iIntros "(Hinv & Hj & Hpc & Hpca)".
@@ -615,14 +615,14 @@ Section cap_lang_spec_rules.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (@spec_regs_valid with "[$Hown $Hpc]") as %?.
     iDestruct (@spec_heap_valid with "[$Hown $Hpca]") as %?.
-    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.    
+    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
-    eapply step_exec_inv in Hstep; eauto. assert (Hstep':=Hstep). 
+    eapply step_exec_inv in Hstep; eauto. assert (Hstep':=Hstep).
     cbn in Hstep. simplify_eq.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. simpl. prim_step_from_exec. }
-    by iFrame. 
+    by iFrame.
   Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.
