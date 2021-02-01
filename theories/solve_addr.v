@@ -9,9 +9,9 @@ From cap_machine Require Import addr_reg.
 
 Lemma incr_addr_spec (a: Addr) (z: Z) :
   (exists (a': Addr),
-    (a + z)%a = Some a' /\ a + z <= MemNum /\ 0 ≤ a + z ∧ (a':Z) = a + z)%Z
-  \/
-  ((a + z)%a = None /\ (a + z > MemNum ∨ a + z < 0))%Z.
+   (a + z)%a = Some a' ∧ a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z
+  ∨
+  ((a + z)%a = None ∧ (a + z > MemNum ∨ a + z < 0))%Z.
 Proof.
   unfold incr_addr.
   destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); [ left | right; split; auto; try lia..].
@@ -23,6 +23,17 @@ Ltac incr_addr_as_spec a x :=
   let ax := fresh "ax" in
   set (ax := (incr_addr a x)) in *;
   clearbody ax; subst ax.
+
+(* Non-branching lemma for the special case of an assumption [(a + z) = Some a'],
+   which is common in practice. *)
+Lemma incr_addr_Some_spec (a a': Addr) (z: Z) :
+  (a + z)%a = Some a' →
+  (a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z.
+Proof.
+  unfold incr_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); inversion 1.
+  repeat split; lia.
+Qed.
 
 Lemma Some_eq_inj A (x y: A) :
   Some x = Some y ->
@@ -77,6 +88,7 @@ Ltac zify_addr_op_nonbranching_step :=
     unfold eqb_addr
   | H : context [ eqb_addr _ _ ] |- _ =>
     unfold eqb_addr in H
+
   | H : context [ min ?a1 ?a2 ] |- _ =>
     min_addr_as_spec a1 a2
   | |- context [ min ?a1 ?a2 ] =>
@@ -85,10 +97,17 @@ Ltac zify_addr_op_nonbranching_step :=
     max_addr_as_spec a1 a2
   | |- context [ max ?a1 ?a2 ] =>
     max_addr_as_spec a1 a2
+
+  | H : incr_addr _ _ = Some _ |- _ =>
+    apply incr_addr_Some_spec in H;
+    destruct H as (? & ? & ?)
   end || zify_addr_op_nonbranching_step_hook.
 
+(* We need some reduction, but naively calling "cbn in *" causes performance
+   problems down the road. So here we try to give a "good enough" allow-list...
+*)
 Ltac zify_addr_nonbranching_step :=
-  first [ progress (cbn in *)
+  first [ progress (cbn [z_of get_addr_from_option_addr top za fst snd length] in * )
         | zify_addr_op_nonbranching_step ].
 
 Ltac zify_addr_op_branching_goal_step :=
@@ -155,7 +174,7 @@ Ltac solve_addr_close_proof :=
   solve [ auto | lia | congruence ].
 
 Ltac solve_addr :=
-  intros;
+  intros; cbn;
   repeat zify_addr_op_goal_step;
   try solve_addr_close_proof;
   repeat (
@@ -163,6 +182,10 @@ Ltac solve_addr :=
     try solve_addr_close_proof
   );
   solve_addr_close_proof.
+
+Tactic Notation "solve_addr" := solve_addr.
+Tactic Notation "solve_addr" "-" hyp_list(Hs) := clear Hs; solve_addr.
+Tactic Notation "solve_addr" "+" hyp_list(Hs) := clear -Hs; solve_addr.
 
 Goal forall a : Addr,
     (a + -(a + 3))%a = None.
