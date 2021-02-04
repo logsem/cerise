@@ -122,12 +122,18 @@ Ltac zify_addr_op_branching_hyps_step :=
     incr_addr_as_spec a x
   end.
 
+(* Faster alternative to [set (H := v) in *] *)
+(* https://github.com/coq/coq/issues/13788#issuecomment-767217670 *)
+Ltac fast_set H v :=
+  pose v as H; change v with H;
+  repeat match goal with H' : context[v] |- _ => change v with H in H' end.
+
 Ltac zify_addr_ty_step :=
   lazymatch goal with
   | a : Addr |- _ =>
     generalize (addr_spec a); intros [? ?];
     let z := fresh "z" in
-    set (z := (z_of a)) in *;
+    fast_set z (z_of a);
     clearbody z;
     first [ clear a | revert dependent a ]
   end.
