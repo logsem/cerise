@@ -46,7 +46,8 @@ Section sealing.
 
   Definition seal_instrs_length := Eval cbn in length (seal_instrs 0%Z).
 
-  (* Create two closures for sealing and unsealing assuming that their code is preceding this one *)
+  (* Create two closures for sealing and unsealing assuming that their code is preceding this one.
+     Specifically, we assume the memory layout is [unseal_instrs][seal_instrs][make_seal_preamble] *)
   (* This works by:
      1. Malloc an empty linked list, thus obtaining some capability c.
      2. Create a closure with access to c, and containing the code unseal_instr.
@@ -55,7 +56,7 @@ Section sealing.
   (* Arguments: None
      Return point: rt_0
      Uses: r_t1 r_t2 r_t8 r_t9 r_t10 *)
-  Definition make_seal_preamble f_m :=
+  Definition make_seal_preamble_instrs f_m :=
     encodeInstrsW [ Mov r_t8 PC (* Copy PC into r_t8 *)
                   ; Lea r_t8 (- (Z.of_nat seal_instrs_length))%Z (* Capability pointing to code for seal_instrs *)
                   ]
@@ -78,5 +79,8 @@ Section sealing.
                   ; Mov r_t10 (inl 0%Z)
                   ; Jmp r_t0 (* Return *)
                   ].
+
+  Definition make_seal_preamble f_m ai :=
+    ([∗ list] a_i;w_i ∈ ai;(make_seal_preamble_instrs f_m), a_i ↦ₐ w_i)%I.
 
 End sealing.
