@@ -246,10 +246,13 @@ Hint Resolve ExecPCPerm_flows_to : cap_pure.
 (* TODO: add a test checking the use of ExecPCPerm_flows_to (if it is still
    needed) *)
 Hint Resolve ExecPCPerm_readAllowed : cap_pure.
+(* Will only work if arguments are concrete terms *)
 Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
 Hint Extern 1 (writeAllowed _ = true) => reflexivity : cap_pure.
 Hint Extern 1 (PermFlowsTo _ _ = true) => reflexivity : cap_pure.
-Hint Resolve PermFlowsToReflexive : cap_pure.
+(* Follows the same behavior as the Hint Mode for PermFlows *)
+Hint Extern 1 (PermFlowsTo ?p ?p' = true) =>
+  (without_evars p'; apply PermFlowsToReflexive): cap_pure.
 
 (* withinBounds *)
 

@@ -9,10 +9,10 @@ Section cap_lang_rules.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr. 
+  Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val. 
+  Implicit Types v : cap_lang.val.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
@@ -67,7 +67,7 @@ Section cap_lang_rules.
     isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
     regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (Restrict dst src) ⊆ dom _ regs →
-    
+
     {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep

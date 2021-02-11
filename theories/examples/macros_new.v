@@ -373,4 +373,233 @@ Section macros.
     iSplitL. iNext. eauto. eauto.
   Qed.
 
+  (* --------------------------------------------------------------------------------- *)
+  (* ------------------------------------- CRTCLS ------------------------------------ *)
+  (* --------------------------------------------------------------------------------- *)
+
+  (* encodings of closure activation code *)
+  Definition v1 := encodeInstr (Mov r_t1 (inr PC)).
+  Definition v2 := encodeInstr (Lea r_t1 (inl 7%Z)).
+  Definition v3 := encodeInstr (Load r_env r_t1).
+  Definition v4 := encodeInstr (Lea r_t1 (inl (-1)%Z)).
+  Definition v5 := encodeInstr (Load r_t1 r_t1).
+  Definition v6 := encodeInstr (Jmp r_t1).
+
+  Definition activation_instrs wcode wenv : list Word :=
+    [ inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv ].
+
+  Definition scrtcls_instrs (rcode rdata: RegName) :=
+    encodeInstrsW [ Store r_t1 v1
+                  ; Lea r_t1 1
+                  ; Store r_t1 v2
+                  ; Lea r_t1 1
+                  ; Store r_t1 v3
+                  ; Lea r_t1 1
+                  ; Store r_t1 v4
+                  ; Lea r_t1 1
+                  ; Store r_t1 v5
+                  ; Lea r_t1 1
+                  ; Store r_t1 v6
+                  ; Lea r_t1 1
+                  ; Store r_t1 rcode
+                  ; Mov rcode 0
+                  ; Lea r_t1 1
+                  ; Store r_t1 rdata
+                  ; Mov rdata 0
+                  ; Lea r_t1 (-7)%Z
+                  ; Restrict r_t1 e
+                  ].
+
+  Definition crtcls_instrs f_m :=
+    encodeInstrsW [ Mov r_t6 r_t1
+                  ; Mov r_t7 r_t2
+                  ] ++ malloc_instrs f_m 8%nat
+                  ++ scrtcls_instrs r_t6 r_t7.
+
+  Lemma scrtcls_spec rcode rdata wvar wcode pc_p pc_b pc_e a_first act_b act_e act φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (scrtcls_instrs rcode rdata))%a →
+
+    (act_b + 8)%a = Some act_e →
+
+    ▷ codefrag a_first (scrtcls_instrs rcode rdata)
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    (* register state *)
+    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_b, act_e, act_b)
+    ∗ ▷ rcode ↦ᵣ wcode
+    ∗ ▷ rdata ↦ᵣ wvar
+    (* memory for the activation record *)
+    ∗ ▷ ([[act_b,act_e]] ↦ₐ [[ act ]])
+    (* continuation *)
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (scrtcls_instrs rcode rdata))%a)
+         ∗ codefrag a_first (scrtcls_instrs rcode rdata)
+         ∗ r_t1 ↦ᵣ inr (E, act_b, act_e, act_b)
+         ∗ [[act_b,act_e]] ↦ₐ [[ activation_instrs wcode wvar ]]
+         ∗ rcode ↦ᵣ inl 0%Z
+         ∗ rdata ↦ᵣ inl 0%Z
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hact) "(>Hprog & >HPC & >Hr_t1 & >Hrcode & >Hrdata & >Hact & Hφ)".
+
+    (* TODO: This part is needed to have a concrete list, but could be automated as in codefrag_lookup_acc
+       to avoid this *)
+    assert (act_b < act_e)%a as Hlt;[solve_addr|].
+    feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    unfold region_mapsto.
+    remember (region_addrs act_b act_e) as acta.
+    assert (Hact_len_a : length acta = 8).
+    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    iDestruct (big_sepL2_length with "Hact") as %Hact_len.
+    rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
+    repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
+    assert (∀ i a', acta !! i = Some a' → withinBounds (RWX, act_b, act_e, a') = true) as Hwbact.
+    { intros i a' Hsome. apply andb_true_intro. subst acta.
+      apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcont_act. 2: done.
+      apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr. }
+    repeat (destruct acta as [|? acta]; try by inversion Hact_len_a). clear Hact_len_a.
+    replace a with act_b in * by (symmetry; eapply contiguous_between_cons_inv_first; eauto).
+
+    iDestruct "Hact" as "[Hact_b Hact]".
+    iDestruct "Hact" as "[Ha0 Hact]".
+    iDestruct "Hact" as "[Ha1 Hact]".
+    iDestruct "Hact" as "[Ha2 Hact]".
+    iDestruct "Hact" as "[Ha3 Hact]".
+    iDestruct "Hact" as "[Ha4 Hact]".
+    iDestruct "Hact" as "[Ha5 Hact]".
+    iDestruct "Hact" as "[Ha6 Hact]".
+    destruct (contiguous_between_cons_inv _ _ _ _ Hcont_act) as [_ [? [? HA0] ] ].
+    destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA1) as [<- [? [? HA0] ] ]; clear HA1.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA1) as [<- [? [? HA0] ] ]; clear HA1.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA1) as [<- [? [? HA0] ] ]; clear HA1.
+    destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0 HA1 H6 x.
+    generalize (contiguous_between_last _ _ _ a6 Hcont_act ltac:(reflexivity)); intros.
+
+    codefrag_facts "Hprog".
+    iInstr "Hprog". eapply (Hwbact 0); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 1); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 2); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 3); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 4); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 5); reflexivity.
+    iInstr "Hprog".
+    iInstr "Hprog". eapply (Hwbact 6); reflexivity.
+    iGo "Hprog". eapply (Hwbact 7); reflexivity.
+    iGo "Hprog". instantiate (1:= act_b). solve_addr.
+    iInstr "Hprog". rewrite /e decode_encode_perm_inv //.
+    iApply "Hφ". iFrame. rewrite /e decode_encode_perm_inv //.
+  Qed.
+
+  Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e
+        a_first b_link a_link e_link a_entry b_m e_m mallocN EN rmap cont φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (crtcls_instrs f_m))%a →
+
+    withinBounds (RW, b_link, e_link, a_entry) = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    ↑mallocN ⊆ EN →
+
+    ▷ codefrag a_first (crtcls_instrs f_m)
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ∗ na_own logrel_nais EN
+    (* we need to assume that the malloc capability is in the linking table at offset 0 *)
+    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    (* register state *)
+    ∗ ▷ r_t0 ↦ᵣ cont
+    ∗ ▷ r_t1 ↦ᵣ wcode
+    ∗ ▷ r_t2 ↦ᵣ wvar
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+    (* continuation *)
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (crtcls_instrs f_m))%a)
+         ∗ codefrag a_first (crtcls_instrs f_m)
+         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+         (* the newly allocated region *)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b)
+         ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
+         ∗ r_t0 ↦ᵣ cont
+         ∗ r_t2 ↦ᵣ inl 0%Z
+         ∗ na_own logrel_nais EN
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
+                               (<[r_t4:=inl 0%Z]>
+                                (<[r_t5:=inl 0%Z]>
+                                 (<[r_t6:=inl 0%Z]>
+                                  (<[r_t7:=inl 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN)
+            "(>Hprog & >HPC & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
+    (* extract necessary registers from regs *)
+    assert (is_Some (rmap !! r_t6)) as [rv6 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]"; eauto.
+    assert (is_Some (rmap !! r_t7)) as [rv7 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]". by rewrite lookup_delete_ne //.
+
+    focus_block_0 "Hprog" as "Hsetup" "Hcont".
+    iGo "Hsetup".
+    unfocus_block "Hsetup" "Hcont" as "Hprog".
+
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs".
+      by simplify_map_eq.
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs".
+      by simplify_map_eq.
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
+      simplify_map_eq. eapply not_elem_of_dom. set_solver.
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
+      simplify_map_eq. eapply not_elem_of_dom. set_solver.
+    map_simpl "Hregs".
+
+    focus_block 1 "Hprog" as amid1 Hamid1 "Hmallocprog" "Hcont".
+    iApply malloc_spec; iFrameCapSolve; eauto; try iFrame "∗ #".
+    { rewrite !dom_insert_L. rewrite Hrmap_dom.
+      repeat (rewrite singleton_union_difference_L all_registers_union_l).
+      f_equal. clear; set_solver. }
+    { lia. }
+    iNext. iIntros "(HPC & Hmallocprog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hna & Hregs)".
+    unfocus_block "Hmallocprog" "Hcont" as "Hprog".
+
+    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)".
+    focus_block 2 "Hprog" as amid2 Hmid2 "Hscrtcls" "Hcont".
+    map_simpl "Hregs".
+
+    iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]"; eauto.
+      by simplify_map_eq.
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]"; eauto.
+      by simplify_map_eq.
+    map_simpl "Hregs".
+
+    iApply scrtcls_spec; iFrameCapSolve; iFrame "∗".
+    iNext. iIntros "(HPC & Hscrtcls & Hr_t1 & Hbe & Hr_t6 & Hr_t7)".
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs".
+      by simplify_map_eq.
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs".
+      by simplify_map_eq.
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]"; eauto.
+      by simplify_map_eq.
+    map_simpl "Hregs".
+    unfocus_block "Hscrtcls" "Hcont" as "Hprog".
+    changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
+    iApply "Hφ". iFrame "∗".
+    iExists _,_. iSplitR; [eauto|]. iFrame "∗".
+    rewrite (delete_notin rmap r_t1 ltac:(eapply not_elem_of_dom; set_solver)).
+    repeat rewrite (insert_commute _ r_t6); auto.
+    repeat rewrite (insert_commute _ r_t7); auto.
+    rewrite (delete_notin _ r_t2); try iFrame.
+    repeat rewrite lookup_insert_ne; auto; eapply not_elem_of_dom; set_solver.
+  Qed.
+
 End macros.
