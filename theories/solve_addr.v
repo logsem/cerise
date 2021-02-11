@@ -104,10 +104,14 @@ Ltac zify_addr_op_nonbranching_step :=
   end || zify_addr_op_nonbranching_step_hook.
 
 (* We need some reduction, but naively calling "cbn in *" causes performance
-   problems down the road. So here we try to give a "good enough" allow-list...
+   problems down the road. So here we try to:
+   - give a "good enough" allow-list
+   - reduce all occurences of [length foo], because in practice [foo] often
+     unfolds to a concrete list of instructions and we want its length to compute.
 *)
 Ltac zify_addr_nonbranching_step :=
   first [ progress (cbn [z_of get_addr_from_option_addr top za fst snd length] in * )
+        | progress (simpl length in *)
         | zify_addr_op_nonbranching_step ].
 
 Ltac zify_addr_op_branching_goal_step :=
