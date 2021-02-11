@@ -42,4 +42,4 @@ Hint Mode AddrEq + + - : typeclass_instances.
 
 Class DecodeInstr `{MachineParameters} (w: Word) (i: instr) :=
   MkDecodeInstr: decodeInstrW w = i.
-Hint Mode DecodeInstr + + - : typeclass_instances.
+Hint Mode DecodeInstr - + - : typeclass_instances.
