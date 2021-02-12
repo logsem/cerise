@@ -528,7 +528,7 @@ Section list.
     codefrag_facts "Hprog". iInstr "Hprog".
     iDestruct (isList_extract_fst with "[$HisList]") as (a' hd' w (Hincr1&Hhd')) "[Ha [Ha' Hcls'] ]";
       [eauto..|rewrite Hincr1 in Hd'';inv Hd''].
-    iInstr "Hprog". split; [solve_pure|]. zify_addr; lia. (* TODO: replace with solve_addr when it's fixed *)
+    iInstr "Hprog". split; [solve_pure|]. solve_addr.
     iInstr "Hprog". iInstr "Hprog". iInstr "Hprog".
     destruct Hhd' as [Hhd' | Hhd'].
     { destruct Hhd' as [-> Hhd'].
@@ -540,7 +540,7 @@ Section list.
       iSplitL "Htemp1"; iExists _; eauto. }
     { destruct Hhd' as [p [p' [Hp' [-> Hp] ] ] ].
       simpl is_cap. iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 10)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
-      iGo "Hprog". zify_addr; lia. (* TODO: replace with solve_addr when it's fixed *)
+      iGo "Hprog". solve_addr.
       iGo "Hprog". instantiate (1:= a_first). solve_addr.
       iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
       iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
@@ -549,17 +549,16 @@ Section list.
   Qed.
 
   Lemma iterate_to_last_spec pc_p pc_b pc_e (* PC *)
-        iterate_to_last_addrs (* program addresses *)
         r temp1 temp2 (* temporary registers *)
         hd pbvals (* linked list head and pointers *)
-        a_first a_last (* special adresses *)
+        a_first (* special adresses *)
         φ (* cont *) :
 
     (* PC assumptions *)
-    isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
+    ExecPCPerm pc_p →
 
     (* Program adresses assumptions *)
-    contiguous_between iterate_to_last_addrs a_first a_last ->
+    SubBounds pc_b pc_e a_first (a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a →
 
     (* linked list is not empty *)
     hd ≠ inl 0%Z →
@@ -571,14 +570,14 @@ Section list.
        (* list predicate for d *)
        ∗ isList hd pbvals
        (* trusted code *)
-       ∗ iterate_to_last iterate_to_last_addrs r temp1 temp2
-       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last)
+       ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2)
+       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a)
                         ∗ isList hd pbvals
                         ∗ ⌜list.last pbvals.*1 = Some dlast ∧ (dlast + 2)%a = Some dlast'⌝
                         ∗ r ↦ᵣ inr (RWX,dlast,dlast',dlast)
                         ∗ (∃ w, temp1 ↦ᵣ w)
                         ∗ (∃ w, temp2 ↦ᵣ w)
-                        ∗ iterate_to_last iterate_to_last_addrs r temp1 temp2)
+                        ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2))
               -∗ WP Seq (Instr Executable) {{ φ }})
       -∗
       WP Seq (Instr Executable) {{ φ }}.
