@@ -526,145 +526,26 @@ Section list.
     assert (is_Some (d + 1)%a) as [d'' Hd''];[clear -Hd;destruct (d + 1)%a eqn:Hnon;eauto;exfalso;solve_addr|].
     rewrite {6}/iterate_to_last_instr.
     codefrag_facts "Hprog". iInstr "Hprog".
-
-    iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iInstr_get_rule "Hi" (fun rule => idtac rule).
-    iPoseProof (@wp_load_success_notinstr) as "SDFSDF". 5: iSpecialize ("SDFSDF" with "[-]").
-    all: try iFrameCapSolve.
-    all: try iFrameCapSolve. split. solve_pure. 
-    2: { 
-    all: try iFrameCapSolve.
-    all: try iFrameCapSolve.
-    all: try iFrameCapSolve.
-    all: try iFrameCapSolve.
-    Set Typeclasses Debug.
-    Set Printing All.
-    From cap_machine Require Import classes class_instances.
-    Existing Instance DecodeInstr_encode.
-    Hint Resolve DecodeInstr_encode: cap_pure.
-
-    Fail solve_pure.
-    
-
-
-    simple apply class_instances.DecodeInstr_encode.
-    5: { iSpecialize ("SDFSDF" with "[-]"). iFrameCapSolve.
-
-
-
-    iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
-    destruct_list iterate_to_last_addrs.
-    apply contiguous_between_cons_inv_first in Hcont as Heq. subst a.
-    (* lea r_env 1 *)
-    iPrologue "Hprog".
-    assert (is_Some (d + 1)%a) as [d'' Hd''];[clear -Hd;destruct (d + 1)%a eqn:Hnon;eauto;exfalso;solve_addr|].
-    iApply (wp_lea_success_z with "[$HPC $Hi $Hr_env]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|apply Hd''|auto|..].
-    iEpilogue "(HPC & Hprog_done & Hr_env)".
-    (* load temp1 r_env *)
-    iPrologue "Hprog".
     iDestruct (isList_extract_fst with "[$HisList]") as (a' hd' w (Hincr1&Hhd')) "[Ha [Ha' Hcls'] ]";
-        [eauto..|rewrite Hincr1 in Hd'';inversion Hd'';subst].
-    iApply (wp_load_success_alt with "[$HPC $Hi $Ha' $Htemp1 $Hr_env]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 1|..].
-    { split;auto. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd Hincr1;clear;solve_addr. }
-    iEpilogue "(HPC & Htemp1 & Hi & Hr_env & Hd)";iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* is_ptr temp1 temp2 *)
-    iPrologue "Hprog".
-    iApply (wp_IsPtr_success_dst with "[$HPC $Hi $Htemp1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|..].
-    iEpilogue "(HPC & Hi & Htemp1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* move temp2 PC *)
-    iPrologue "Hprog".
-    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Htemp2]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3|..].
-    iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* lea temp2 7 *)
-    assert (a2 + 7 = Some a9)%a as Hlea.
-    { apply contiguous_between_incr_addr_middle with (i:=3) (j:=7) (ai:=a2) (aj:=a9) in Hcont;auto. }
-    assert (pc_p ≠ E) as Hne.
-    { apply isCorrectPC_range_perm_non_E in Hvpc;auto.
-      apply contiguous_between_middle_bounds' with (ai:=a_first) in Hcont as [? ?];[auto|constructor]. }
-    iPrologue "Hprog".
-    iApply (wp_lea_success_z with "[$HPC $Hi $Htemp2]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|apply Hlea|auto|..].
-    iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-
-    (* we must now diverge paths: either hd' is the tail, or it we must loop back *)
-    destruct (is_cap hd') eqn:His_cap.
-    { destruct Hhd' as [ [-> Heq] | Hhd'];[inversion His_cap|]. destruct Hhd' as [p [p' [Hincr2 [-> Hin'] ] ] ].
-      (* jnz temp2 temp1 *)
-      iPrologue "Hprog".
-      iApply (wp_jnz_success_jmp with "[$HPC $Hi $Htemp2 $Htemp1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|auto| |..].
-      iEpilogue "(HPC & Hi & Htemp2 & Htemp1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      rewrite updatePcPerm_cap_non_E;auto.
-      do 4 (iDestruct "Hprog" as "[Hi Hprog]";iCombine "Hi" "Hprog_done" as "Hprog_done").
-      (* load r_env r_env *)
-      iPrologue "Hprog".
-      iApply (wp_load_success_same_alt with "[$HPC $Hi $Hd $Hr_env]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 10|..].
-      { split;auto. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd Hincr1;clear;solve_addr. }
-      iEpilogue "(HPC & Hr_env & Hi & Ha')"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      iDestruct ("Hcls'" with "[$Ha $Ha']") as "HisList".
-      (* move PC temp2 *)
-      iPrologue "Hprog".
-      iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 11|..].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* lea temp2 -10 *)
-      assert (a10 + (-11) = Some a_first)%a as Hlea3.
-      { apply contiguous_between_incr_addr with (i:=11) (ai:=a10) in Hcont;auto. clear -Hcont;solve_addr. }
-      iPrologue "Hprog".
-      iApply (wp_lea_success_z with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 12|apply Hlea3|auto|..].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* jmp temp2 *)
-      iPrologue "Hprog".
-      iApply (wp_jmp_success with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|..].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      rewrite updatePcPerm_cap_non_E;auto.
-      iApply ("IH" with "[] [] [] [] [$HPC $Hr_env $HisList $Hφ Htemp1 Htemp2 Hprog_done]");auto.
-      iSplitL "Htemp1";eauto. iSplitL "Htemp2";eauto.
-      iDestruct "Hprog_done" as "($&$&$&$&$&$&$&$&$&$&$&$&$&$)". done.
-    }
-    { destruct Hhd' as [ [-> Heq] | [? [? [? [-> ?] ] ] ] ];[|inversion His_cap].
-      (* jnz temp2 temp1 *)
-      iPrologue "Hprog".
-      iApply (wp_jnz_success_next with "[$HPC $Hi $Htemp2 $Htemp1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 5|..].
-      iEpilogue "(HPC & Hi & Htemp2 & Htemp1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* lea r_env -1 *)
-      assert ((d'' + -1)%a = Some d) as Hlea';[clear -Hincr1;solve_addr|].
-      iPrologue "Hprog".
-      iApply (wp_lea_success_z with "[$HPC $Hi $Hr_env]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 6|apply Hlea'|auto|..].
-      iEpilogue "(HPC & Hi & Hr_env)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* move temp2 PC *)
-      iPrologue "Hprog".
-      iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 7|..].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* lea temp2 7 *)
-      assert (a6 + 7 = Some a_last)%a as Hlea''.
-      { apply contiguous_between_middle_to_end with (i:=7) (ai:=a6) (k:=7) in Hcont;auto;simpl. }
-      iPrologue "Hprog".
-      iApply (wp_lea_success_z with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 8|apply Hlea''|auto|..].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* jmp temp2 *)
-      iPrologue "Hprog".
-      iApply (wp_jmp_success with "[$HPC $Hi $Htemp2]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
-      iEpilogue "(HPC & Hi & Htemp2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      rewrite updatePcPerm_cap_non_E;auto.
-      iDestruct ("Hcls'" with "[$Hd $Ha]") as "HisList".
-      iApply "Hφ".
-      iExists _,_. iFrame "HPC HisList Hr_env". iSplit;auto.
-      iSplitL "Htemp1";eauto. iSplitL "Htemp2";eauto.
-      iFrame. iDestruct "Hprog_done" as "($&$&$&$&$&$&$&$&$&$)".
-    }
+      [eauto..|rewrite Hincr1 in Hd'';inv Hd''].
+    iInstr "Hprog". split; [solve_pure|]. zify_addr; lia. (* TODO: replace with solve_addr when it's fixed *)
+    iInstr "Hprog". iInstr "Hprog". iInstr "Hprog".
+    destruct Hhd' as [Hhd' | Hhd'].
+    { destruct Hhd' as [-> Hhd'].
+      simpl is_cap. iInstr "Hprog".
+      iGo "Hprog". instantiate (1 := d). solve_addr.
+      iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 14)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+      iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
+      iApply "Hφ". iExists _, _. iFrame. iSplitR; [iPureIntro; auto|].
+      iSplitL "Htemp1"; iExists _; eauto. }
+    { destruct Hhd' as [p [p' [Hp' [-> Hp] ] ] ].
+      simpl is_cap. iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 10)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+      iGo "Hprog". zify_addr; lia. (* TODO: replace with solve_addr when it's fixed *)
+      iGo "Hprog". instantiate (1:= a_first). solve_addr.
+      iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+      iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
+      iApply ("IH" with "[] [] [] [] [$HPC $Hr_env $HisList $Hφ Htemp1 Htemp2 Hprog]");auto.
+      iFrame. iSplitL "Htemp1"; eauto. }
   Qed.
 
   Lemma iterate_to_last_spec pc_p pc_b pc_e (* PC *)
