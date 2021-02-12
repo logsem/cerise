@@ -109,9 +109,16 @@ Ltac zify_addr_op_nonbranching_step :=
    - reduce all occurences of [length foo], because in practice [foo] often
      unfolds to a concrete list of instructions and we want its length to compute.
 *)
+Ltac solve_addr_cbn :=
+  cbn [z_of get_addr_from_option_addr top za fst snd length];
+  simpl length.
+
+Ltac solve_addr_cbn_in_all :=
+  cbn [z_of get_addr_from_option_addr top za fst snd length] in *;
+  simpl length in *.
+
 Ltac zify_addr_nonbranching_step :=
-  first [ progress (cbn [z_of get_addr_from_option_addr top za fst snd length] in * )
-        | progress (simpl length in *)
+  first [ progress solve_addr_cbn_in_all
         | zify_addr_op_nonbranching_step ].
 
 Ltac zify_addr_op_branching_goal_step :=
@@ -184,7 +191,7 @@ Ltac solve_addr_close_proof :=
   solve [ auto | lia | congruence ].
 
 Ltac solve_addr :=
-  intros; cbn;
+  intros; solve_addr_cbn;
   repeat zify_addr_op_goal_step;
   try solve_addr_close_proof;
   repeat (

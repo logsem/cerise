@@ -34,3 +34,12 @@ Global Ltac zify_addr_op_nonbranching_step_hook ::=
     apply isWithin_of_le
   end.
 
+
+(* tests *)
+From Coq Require Import ZArith.
+
+Goal forall d d' d'',
+  (d + 1)%a = Some d'' ->
+  (d + 2)%a = Some d' ->
+  withinBounds (RWX, d, d', d'') = true.
+Proof. intros. solve_addr. Qed.

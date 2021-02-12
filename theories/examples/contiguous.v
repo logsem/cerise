@@ -385,9 +385,8 @@ Section Contiguous.
     revert a_first. induction a; intros a_first Ha Hlen Hlink. 
     - inversion Hlen. 
     - destruct a0.
-      + inversion Ha. subst. inversion H4. subst.
-        solve_addr.
-      + simpl in *. apply IHa with a0;[|lia|auto]. 
+      + inversion Ha. subst. inversion H4. subst. cbn. solve_addr.
+      + simpl in *. apply IHa with a0;[|lia|auto].
         inversion Ha; subst.
         apply contiguous_between_cons_inv_first in H4 as Heq.
         congruence.
