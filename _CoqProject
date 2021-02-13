@@ -93,6 +93,7 @@ theories/examples/lse.v
 theories/examples/macros_binary.v
 theories/monotone.v
 theories/examples/list.v
+theories/examples/list_new.v
 theories/examples/malloc_binary.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble.v

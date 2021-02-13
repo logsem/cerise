@@ -1,9 +1,9 @@
 From iris.algebra Require Import frac auth list.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros.
+From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
-From cap_machine Require Import monotone list malloc.
+From cap_machine Require Import monotone list_new malloc.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section sealing.
@@ -23,9 +23,8 @@ Section sealing.
     encodeInstrsW [ GetB r_t1 r_t1
                   ; Mov r_t4 (inr r_t0) (* Save return point *)
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
-                  ; Lea r_t0 (inl (length findb_instr + 1)%Z)
-                  ; Load r_env r_env (* Need this to use findb_spec ?? *)
-                  ] ++ findb_instr ++
+                  ; Lea r_t0 (inl (length findb_instr + 3)%Z)
+                  ] ++ (encodeInstrW (Load r_env r_env) :: findb_instr) ++
     encodeInstrsW [ Mov r_env (inl 0%Z) (* Clearing *)
                   ; Mov r_t0 (inr r_t4) (* Restore return capability *)
                   ; Mov r_t4 (inl 0%Z) (* Clearing *)
@@ -33,8 +32,6 @@ Section sealing.
                   ].
 
   Definition unseal_instrs_length := Eval cbn in length (unseal_instrs).
-  Definition unseal ai :=
-    ([∗ list] a_i;w_i ∈ ai;unseal_instrs, a_i ↦ₐ w_i)%I.
 
   (* Assume r_t1 contains the word to seal.
      Append it to the linked list contained in r_env.
@@ -46,7 +43,7 @@ Section sealing.
   Definition seal_instrs f_m :=
     encodeInstrsW [ Mov r_t7 (inr r_t0) (* Save return point *)
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
-                  ; Lea r_t0 (inl (Zlength (appendb_instr f_m)))
+                  ; Lea r_t0 (inl (length (appendb_instr f_m) + 1)%Z)
                   ] ++ appendb_instr f_m ++
     encodeInstrsW [ Restrict r_t1 (inl (encodePerm O))
                   ; GetB r_t2 r_t1
@@ -58,8 +55,6 @@ Section sealing.
                   ].
 
   Definition seal_instrs_length := Eval cbn in length (seal_instrs 0%Z).
-  Definition seal f_m ai :=
-    ([∗ list] a_i;w_i ∈ ai;(seal_instrs f_m), a_i ↦ₐ w_i)%I.
 
   (* Create two closures for sealing and unsealing assuming that their code is preceding this one.
      Specifically, we assume the memory layout is [unseal_instrs][seal_instrs][make_seal_preamble] *)
@@ -101,21 +96,20 @@ Section sealing.
   Lemma unseal_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         p b e a (* input cap *)
-        unseal_addrs (* program addresses *)
         ll ll' (* linked list head and pointers *)
-        a_first a_last (* special adresses *)
-        ι ι1 γ φ (* invariant/gname names *) :
+        a_first (* special adresses *)
+        ι γ φ Ep (* invariant/gname names *) :
 
     (* PC assumptions *)
-    isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
+    ExecPCPerm pc_p →
 
     (* Program adresses assumptions *)
-    contiguous_between unseal_addrs a_first a_last ->
+    SubBounds pc_b pc_e a_first (a_first ^+ length unseal_instrs)%a →
 
     (* linked list ptr element d *)
     (ll + 1)%a = Some ll' →
 
-    up_close (B:=coPset) ι ⊆ ⊤ ∖ ↑ι1 →
+    up_close (B:=coPset) ι ⊆ Ep →
 
     PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
@@ -127,9 +121,9 @@ Section sealing.
       (* invariant for d *)
       ∗ sealLL ι ll γ
       (* token which states all non atomic invariants are closed *)
-      ∗ na_own logrel_nais ⊤
+      ∗ na_own logrel_nais Ep
       (* trusted code *)
-      ∗ na_inv logrel_nais ι1 (unseal unseal_addrs)
+      ∗ codefrag a_first unseal_instrs
       ∗ ▷ φ FailedV
       ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
@@ -137,29 +131,55 @@ Section sealing.
           ∗ (∃ b' w pbvals, ⌜(b + 2)%a = Some b' ∧ (b,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ inl 0%Z)
           ∗ r_t3 ↦ᵣ inl 0%Z
           ∗ r_t4 ↦ᵣ inl 0%Z
-          ∗ na_own logrel_nais ⊤
+          ∗ codefrag a_first unseal_instrs
+          ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
       -∗
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
-  Admitted.
+    iIntros (Hvpc Hcont Hd Hnclose) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & #Hseal_inv & Hown & Hprog & Hφfailed & Hφ)".
+    iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
+    iDestruct "Hr_t2" as (w2) "Hr_t2".
+    iDestruct "Hr_t3" as (w3) "Hr_t3".
+    iDestruct "Hr_t4" as (w4) "Hr_t4".
+
+    codefrag_facts "Hprog".
+    focus_block_0 "Hprog" as "Hprog" "Hcont".
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
+    iApply findb_spec; iFrameCapSolve; eauto.
+    iFrame "# ∗". iSplitL "Hr_t2"; eauto. iSplitL "Hr_t3"; eauto.
+    iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & HisList & Hr_t3 & Hprog & Hown)".
+    iDestruct "HisList" as (b_a b' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env)".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    destruct HX as (HA & HB & HC). eapply z_to_addr_eq_inv in HA. subst b_a; auto.
+
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 18)%a ltac:(destruct Hvpc; congruence)).
+    focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    iApply "Hφ"; iFrame "# ∗".
+    iExists _,_,_. iFrame.
+    iPureIntro. eauto.
+  Qed.
 
   Lemma seal_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         w (* input z *)
-        seal_addrs (* program addresses *)
         ll ll' pbvals (* linked list head and pointers *)
-        a_first a_last (* special adresses *)
+        a_first (* special adresses *)
         rmap (* register map *)
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
-        ι ι1 ι2 γ Ep φ (* invariant/gname names *) :
+        ι ι1 γ Ep φ (* invariant/gname names *) :
 
     (* PC assumptions *)
-    isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
+    ExecPCPerm pc_p →
 
     (* Program adresses assumptions *)
-    contiguous_between seal_addrs a_first a_last ->
+    SubBounds pc_b pc_e a_first (a_first ^+ length (seal_instrs f_m))%a →
 
     (* linked list ptr element head *)
     (ll + 1)%a = Some ll' →
@@ -170,9 +190,8 @@ Section sealing.
     withinBounds (RW, b_r, e_r, a_r') = true →
     (a_r + f_m)%a = Some a_r' →
 
-    up_close (B:=coPset) ι1 ⊆ Ep →
-    up_close (B:=coPset) ι ⊆ Ep ∖ ↑ι1 →
-    up_close (B:=coPset) ι2 ⊆ Ep ∖ ↑ι1 ∖ ↑ι →
+    up_close (B:=coPset) ι ⊆ Ep →
+    up_close (B:=coPset) ι1 ⊆ Ep ∖ ↑ι →
 
     PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
        ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
@@ -182,9 +201,9 @@ Section sealing.
        (* own token *)
        ∗ na_own logrel_nais Ep
        (* trusted code *)
-       ∗ na_inv logrel_nais ι1 (seal f_m seal_addrs)
+       ∗ codefrag a_first (seal_instrs f_m)
        (* malloc *)
-       ∗ na_inv logrel_nais ι2 (malloc_inv b_m e_m)
+       ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
        ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
        ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
        (* linked list invariants *)
@@ -198,6 +217,7 @@ Section sealing.
           ∗ ([∗ map] r↦w ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
                           (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]> rmap))))), r ↦ᵣ w)
           ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (RWX,a,a,a))
+          ∗ codefrag a_first (seal_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
       -∗

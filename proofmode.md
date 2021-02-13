@@ -152,7 +152,7 @@ frame resources and prove side-conditions as much as possible.
   + `iApplyCapAuto rule` to apply the rule lemma and perform automatically
     framing/solving;
   
-  + `iDestruct ("Hcont" with "Hi") as "Hprog""` to recover the codefrag for the
+  + `iDestruct ("Hcont" with "Hi") as "Hprog"` to recover the codefrag for the
     whole block;
   
   + `wp_pure`
