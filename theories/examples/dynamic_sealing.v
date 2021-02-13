@@ -43,12 +43,13 @@ Section sealing.
   Definition seal_instrs f_m :=
     encodeInstrsW [ Mov r_t7 (inr r_t0) (* Save return point *)
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
-                  ; Lea r_t0 (inl (length (appendb_instr f_m) + 1)%Z)
+                  ; Lea r_t0 (inl (length (appendb_instr f_m) + 2)%Z)
                   ] ++ appendb_instr f_m ++
     encodeInstrsW [ Restrict r_t1 (inl (encodePerm O))
                   ; GetB r_t2 r_t1
                   ; Subseg r_t1 r_t2 r_t2
                   ; Mov r_env (inl 0%Z) (* Clearing *)
+                  ; Mov r_t2 (inl 0%Z) (* Clearing *)
                   ; Mov r_t0 (inr r_t7) (* Restore return capability *)
                   ; Mov r_t7 (inl 0%Z) (* Clearing *)
                   ; Jmp r_t0
@@ -80,7 +81,7 @@ Section sealing.
     encodeInstrsW [ Mov r_t10 r_t1 (* Closure for seal now in r_t10 *)
                   ; Lea r_t8 (inl (- (Z.of_nat unseal_instrs_length))%Z) (* Capability pointing to code for seal_instrs *)
                   ; Mov r_t1 r_t8 (* Prepare for creating closure for unseal, code *)
-                  ; Mov r_t1 r_t9 (* Prepare for creating closure for unseal, environment *)
+                  ; Mov r_t2 r_t9 (* Prepare for creating closure for unseal, environment *)
                   ]
     ++ crtcls_instrs f_m ++ (* Create the closure for unseal, result in r_t1 *)
     encodeInstrsW [ Mov r_t2 r_t10
@@ -210,19 +211,52 @@ Section sealing.
        ∗ sealLL ι ll γ
        ∗ prefLL γ pbvals
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
-          ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
+          ∗ r_env ↦ᵣ inl 0%Z
           ∗ r_t0 ↦ᵣ wret
           ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
           ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
           ∗ ([∗ map] r↦w ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
                           (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]> rmap))))), r ↦ᵣ w)
-          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (RWX,a,a,a))
+          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (O,a,a,a))
           ∗ codefrag a_first (seal_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
       -∗
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
-  Admitted.
+    iIntros (Hvpc Hcont Hhd Hdom Hbounds Hf_m Hnclose Hnclose') "(HPC & Hr_env & Hr_t1 & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & #Hseal_inv & #Hpref & Hφ)".
+
+    codefrag_facts "Hprog".
+    focus_block_0 "Hprog" as "Hprog" "Hcont".
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[apply Hw7|].
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
+    rewrite insert_delete.
+
+    focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
+    iApply appendb_spec; try iFrame "∗ #"; auto. rewrite dom_insert_L Hdom. set_solver.
+    iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hpc_b & Ha_r' & Hregs & HisList & Hprog & Hown)".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 53)%a ltac:(destruct Hvpc; congruence)).
+    focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
+    map_simpl "Hregs".
+    iDestruct "HisList" as (a a' pbvals') "(%HA & #Hpref' & Hr_t1)".
+    iGo "Hprog". rewrite decode_encode_perm_inv. reflexivity.
+    iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr.
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    iApply "Hφ"; iFrame "∗ #".
+    iSplitR "Hr_t1".
+    - iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [apply lookup_delete|].
+      rewrite insert_delete -delete_insert_ne //.
+      iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
+      rewrite insert_delete. rewrite !(insert_commute _ r_t7) //.
+    - iExists _, _. rewrite decode_encode_perm_inv. iFrame "∗ #".
+  Qed.
 
 End sealing.
