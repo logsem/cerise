@@ -45,7 +45,7 @@ Section sealing.
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
                   ; Lea r_t0 (inl (length (appendb_instr f_m) + 2)%Z)
                   ] ++ appendb_instr f_m ++
-    encodeInstrsW [ Restrict r_t1 (inl (encodePerm O))
+    encodeInstrsW [ Restrict r_t1 (inl (encodePerm O)) (* This is not actually necessary *)
                   ; GetB r_t2 r_t1
                   ; Subseg r_t1 r_t2 r_t2
                   ; Mov r_env (inl 0%Z) (* Clearing *)

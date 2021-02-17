@@ -18,7 +18,7 @@ Class regG Σ := RegG {
 (* invariants for memory, and a state interpretation for (mem,reg) *)
 Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisG cap_lang Σ := {
   iris_invG := mem_invG;
-  state_interp σ κs _ := ((gen_heap_ctx σ.1) ∗ (gen_heap_ctx σ.2))%I;
+  state_interp σ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
 }.
 Global Opaque iris_invG.
@@ -26,12 +26,12 @@ Global Opaque iris_invG.
 (* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
   (at level 20, q at level 50, format "r  ↦ᵣ{ q }  w") : bi_scope.
-Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r 1 w) (at level 20) : bi_scope.
+Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* Points to predicates for memory *)
 Notation "a ↦ₐ { q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ { q }  w") : bi_scope.
-Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a 1 w) (at level 20) : bi_scope.
+Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -120,7 +120,7 @@ Section cap_lang_rules.
   Proof.
     iIntros "Hr1 Hr2".
     iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
-    contradiction.
+    destruct H2. eapply dfrac_full_exclusive in H2. auto.
   Qed.
 
   Lemma regname_neq r1 r2 w1 w2 :
@@ -213,7 +213,8 @@ Section cap_lang_rules.
   Proof.
     iIntros "Ha1 Ha2".
     iDestruct (mapsto_valid_2 with "Ha1 Ha2") as %?.
-    contradiction.
+    destruct H2. eapply dfrac_full_exclusive in H2.
+    auto.
   Qed.
 
   (* -------------- semantic heap + a map of pointsto -------------------------- *)
@@ -223,8 +224,8 @@ Section cap_lang_rules.
       (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
       (σ σ' : gmap L V) (l : L) (q : Qp) (v : V),
       σ' !! l = Some v →
-      gen_heap_ctx σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k q y) -∗
+      gen_heap_interp σ -∗
+      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
       ⌜σ !! l = Some v⌝.
   Proof.
     intros * Hσ'.
@@ -236,8 +237,8 @@ Section cap_lang_rules.
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
       (σ σ' : gmap L V) (q : Qp),
-      gen_heap_ctx σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k q y) -∗
+      gen_heap_interp σ -∗
+      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
       ⌜forall (l: L) (v: V), σ' !! l = Some v → σ !! l = Some v⌝.
   Proof.
     intros *. iIntros "? Hmap" (l v Hσ').
@@ -249,8 +250,8 @@ Section cap_lang_rules.
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
       (σ σ' : gmap L V) (q : Qp),
-      gen_heap_ctx σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k q y) -∗
+      gen_heap_interp σ -∗
+      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
       ⌜σ' ⊆ σ⌝.
   Proof.
     intros *. iIntros "Hσ Hmap".
@@ -266,8 +267,8 @@ Section cap_lang_rules.
       (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       (forall (l:L), is_Some (σ' !! l)) →
-      gen_heap_ctx σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k q y) -∗
+      gen_heap_interp σ -∗
+      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
       ⌜ σ = σ' ⌝.
   Proof.
     intros * ? ? * Hσ'. iIntros "A B".
@@ -290,10 +291,10 @@ Section cap_lang_rules.
       {gen_heapG0 : gen_heapG L V Σ}
       (σ σ' : gmap L V) (l : L) (v : V),
       is_Some (σ' !! l) →
-      gen_heap_ctx σ
-      -∗ ([∗ map] k↦y ∈ σ', mapsto k 1 y)
-      ==∗ gen_heap_ctx (<[l:=v]> σ)
-          ∗ [∗ map] k↦y ∈ (<[l:=v]> σ'), mapsto k 1 y.
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn 1) y)
+      ==∗ gen_heap_interp (<[l:=v]> σ)
+          ∗ [∗ map] k↦y ∈ (<[l:=v]> σ'), mapsto k (DfracOwn 1) y.
   Proof.
     intros * Hσ'. destruct Hσ'.
     rewrite (big_sepM_delete _ σ' l) //. iIntros "Hh [Hl Hmap]".
@@ -322,8 +323,7 @@ Section cap_lang_rules.
       iDestruct "H" as %Hs1.
       iDestruct "H1" as %Hs2.
       destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ Hs1 Hs2) as [Heq1 [Heq2 [Heq3 Heq4]]].
-      subst a; subst a0; subst a1.
-      iMod "H2". iModIntro. iFrame. inv Hs1; auto.
+      subst. iMod "H2". iModIntro. iFrame. inv Hs1; auto.
   Qed.
 
   (* -------------- predicates on memory maps -------------------------- *)
@@ -350,7 +350,7 @@ Section cap_lang_rules.
     rewrite big_sepM_delete; last by apply lookup_insert.
     rewrite delete_insert; last by auto. rewrite -memMap_resource_0.
     iSplit; iIntros "HH".
-    - iFrame. 
+    - iFrame.
     - by iDestruct "HH" as "[HH _]".
   Qed.
 
@@ -363,19 +363,18 @@ Section cap_lang_rules.
     rewrite delete_insert; auto.
     rewrite -memMap_resource_0.
     iSplit; iIntros "HH".
-    - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame. 
-    - iDestruct "HH" as "[H1 H2]". iFrame. 
+    - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame.
+    - iDestruct "HH" as "[H1 H2]". iFrame.
   Qed.
 
   Lemma address_neq a1 a2 w1 w2 :
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Ha1 Ha2".
-    iIntros (Hcontr). subst. 
-    iDestruct (mapsto_valid_2 with "Ha1 Ha2") as %?. 
-    contradiction.
-  Qed. 
-    
+    destruct (addr_eq_dec a1 a2); auto. subst.
+    iExFalso. iApply (addr_dupl_false with "[$Ha1] [$Ha2]").
+  Qed.
+
   Lemma memMap_resource_2ne_apply (a1 a2 : Addr) (w1 w2 : Word)  :
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↦ₐ w) ∗ ⌜a1 ≠ a2⌝.
   Proof.
@@ -417,7 +416,7 @@ Section cap_lang_rules.
       iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
     - iDestruct "Hif" as %->. iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
       { rewrite lookup_insert_ne;auto. apply Z.eqb_neq in Heq. solve_addr. }
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto. 
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
   Qed.
 
   (* Not the world's most beautiful lemma, but it does avoid us having to fiddle around with a later under an if in proofs *)
@@ -433,14 +432,14 @@ Section cap_lang_rules.
     iIntros "Hc1 Hc2".
     destruct (a2 =? a1)%a eqn:Heq.
     - iExists (<[a1:= w1]> ∅); iSplitL; auto. iNext. iApply big_sepM_insert;[|by iFrame].
-      auto. 
+      auto.
     - iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto.
       iNext.
       iApply big_sepM_insert;[|iFrame].
       { apply Z.eqb_neq in Heq. rewrite lookup_insert_ne//. congruence. }
-      iApply big_sepM_insert;[|by iFrame]. auto. 
+      iApply big_sepM_insert;[|by iFrame]. auto.
   Qed.
-  
+
   Lemma memMap_delete:
     ∀(a : Addr) (w : Word) mem0,
       mem0 !! a = Some w →
@@ -456,7 +455,7 @@ Section cap_lang_rules.
   Lemma gen_mem_valid_inSepM:
     ∀ (a : Addr) (r1 r2 : RegName) (w : Word) mem0 (r : Reg) (m : Mem),
       mem0 !! a = Some w →
-      gen_heap_ctx m
+      gen_heap_interp m
                    -∗ ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
                    -∗ ⌜m !! a = Some w⌝.
   Proof.
@@ -469,7 +468,7 @@ Section cap_lang_rules.
     ∀ mem0 (m : Mem) (b e a : Addr) (v : Word),
       mem0 !! a = Some v
       → ([∗ map] a0↦w ∈ mem0, a0 ↦ₐ w)
-          -∗ gen_heap_ctx m -∗ ⌜m !m! a = v⌝.
+          -∗ gen_heap_interp m -∗ ⌜m !m! a = v⌝.
   Proof.
     iIntros (mem0 m b e a p' v) "Hmem Hm".
     iDestruct (memMap_delete a with "Hmem") as "[H_a Hmem]"; eauto.
@@ -481,19 +480,19 @@ Section cap_lang_rules.
     ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapG Addr Word Σ}
       (σ : gmap Addr Word) mem0 (l : Addr) (v' v : Word),
       mem0 !! l = Some v' →
-      gen_heap_ctx σ
+      gen_heap_interp σ
       -∗ ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
-      ==∗ gen_heap_ctx (<[l:=v]> σ)
+      ==∗ gen_heap_interp (<[l:=v]> σ)
           ∗ ([∗ map] a↦w ∈ <[l:=v]> mem0, a ↦ₐ w).
   Proof.
-    intros. 
+    intros.
     rewrite (big_sepM_delete _ _ l);[|eauto].
     iIntros "Hh [Hl Hmap]".
     iMod (gen_heap_update with "Hh Hl") as "[Hh Hl]"; eauto.
     iModIntro.
     iSplitL "Hh"; eauto.
     iDestruct (big_sepM_insert _ _ l with "[$Hmap $Hl]") as "H".
-    apply lookup_delete. 
+    apply lookup_delete.
     rewrite insert_delete. iFrame.
   Qed.
 

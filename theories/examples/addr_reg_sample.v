@@ -171,7 +171,7 @@ Proof.
 Qed.
 
 Instance setunfold_all_regs:
-  SetUnfoldElemOf x all_registers_s True.
+  forall x, SetUnfoldElemOf x all_registers_s True.
 Proof.
   intros. constructor. split; auto.
   intro. eapply all_registers_s_correct.

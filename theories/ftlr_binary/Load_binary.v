@@ -165,7 +165,7 @@ Section fundamental.
     - iNext. iFrame.
   Qed.
 
-  Instance if_Persistent : Persistent (if decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
+  Instance if_Persistent p b e a r src p0 b0 e0 a0 loadv: Persistent (if decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
   Proof. intros. destruct (decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a));apply _. Qed.
 
   Lemma mem_map_recover_res:
@@ -266,7 +266,7 @@ Section fundamental.
 
     iApply (wp_load with "[Hmap HLoadRest]");eauto.
     { by rewrite lookup_insert. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. rewrite lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
@@ -277,7 +277,7 @@ Section fundamental.
     (* we take a step in the specification code *)
     iMod (step_Load _ [SeqCtx] with "[$HLoadRest' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs & #Hmovspec & Ha' & Hsmap) /=";eauto.
     { rewrite lookup_insert. eauto. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { destruct (decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }

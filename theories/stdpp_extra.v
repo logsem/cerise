@@ -8,8 +8,8 @@ Proof.
   induction l.
   - intros. rewrite list_to_set_nil elements_empty //.
   - intros ND. rewrite list_to_set_cons elements_union_singleton.
-    + rewrite IHl //. eauto using NoDup_cons_12.
-    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_11.
+    + rewrite IHl //. eauto using NoDup_cons_1_2.
+    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_1_1.
 Qed.
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
@@ -28,7 +28,7 @@ Proof.
   revert l2. induction l1;intros l2 Hlen.
   - destruct l2;[|inversion Hlen]. done.
   - destruct l2;[inversion Hlen|]. simpl.
-    f_equiv. auto. 
+    f_equiv. auto.
 Qed.
 
 Lemma length_zip_l {A B} (l1: list A) (l2: list B) :
@@ -71,12 +71,12 @@ Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
 Proof.
   split.
   - intros Hnone. intros Hcontr%elem_of_gmap_dom.
-    rewrite Hnone in Hcontr. inversion Hcontr. congruence. 
+    rewrite Hnone in Hcontr. inversion Hcontr. congruence.
   - intros Hdom. destruct (m !! i) eqn:Hnone;auto.
     assert (is_Some (m !! i)) as HisSome;eauto.
     apply elem_of_gmap_dom in HisSome. contradiction.
-Qed. 
-  
+Qed.
+
 Lemma dom_map_imap_full {K A B}
       `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
       (f: K -> A -> option B) (m: gmap K A):
@@ -84,7 +84,7 @@ Lemma dom_map_imap_full {K A B}
   dom (gset K) (map_imap f m) = dom (gset K) m.
 Proof.
   intros Hf.
-  apply elem_of_equiv_L. intros k.
+  apply set_eq. intros k.
   rewrite -!elem_of_gmap_dom map_lookup_imap.
   destruct (m !! k) eqn:Hmk.
   - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
@@ -620,4 +620,3 @@ Proof.
   - cbn. rewrite dom_empty_L //.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
 Qed.
-

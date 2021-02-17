@@ -16,7 +16,7 @@ Definition principal {A : Type} (R : relation A) (a : A) :
 
 Section monotone.
 Local Set Default Proof Using "Type".
-Context {A : ofeT} {R : relation A}.
+Context {A : ofe} {R : relation A}.
 Implicit Types a b : A.
 Implicit Types x y : monotone R.
 
@@ -57,7 +57,7 @@ Proof.
       * apply Heq; apply Heq'; auto.
   - intros n x y; rewrite /dist /monotone_dist; auto.
 Qed.
-Canonical Structure monotoneC := OfeT (monotone R) monotone_ofe_mixin.
+Canonical Structure monotoneC := Ofe (monotone R) monotone_ofe_mixin.
 
 (* CMRA *)
 Instance monotone_validN : ValidN (monotone R) := λ n x, True.
@@ -113,7 +113,7 @@ Proof.
   - intros ?; apply monotone_idemp.
   - rewrite /equiv /monotone_equiv /dist /monotone_dist; eauto.
 Qed.
-Canonical Structure monotoneR : cmraT := CmraT (monotone R) monotone_cmra_mixin.
+Canonical Structure monotoneR : cmra := Cmra (monotone R) monotone_cmra_mixin.
 
 Global Instance monotone_cmra_total : CmraTotal monotoneR.
 Proof. rewrite /CmraTotal; eauto. Qed.
@@ -132,7 +132,7 @@ Instance monotone_empty : Unit (monotone R) := @nil A.
 Lemma auth_ucmra_mixin : UcmraMixin (monotone R).
 Proof. split; done. Qed.
 
-Canonical Structure monotoneUR := UcmraT (monotone R) auth_ucmra_mixin.
+Canonical Structure monotoneUR := Ucmra (monotone R) auth_ucmra_mixin.
 
 Global Instance principal_ne
        `{HRne : !∀ n, Proper ((dist n) ==> (dist n) ==> iff) R} :

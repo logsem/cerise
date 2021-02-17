@@ -2,6 +2,32 @@ From iris.proofmode Require Import tactics.
 From stdpp Require Import sets list.
 From cap_machine Require Import addr_reg region.
 
+Class DisjointList A := disjoint_list : list A → Prop.
+Hint Mode DisjointList ! : typeclass_instances.
+Instance: Params (@disjoint_list) 2 := {}.
+Notation "## Xs" := (disjoint_list Xs) (at level 20, format "##  Xs") : stdpp_scope.
+Notation "##@{ A } Xs" :=
+  (@disjoint_list A _ Xs) (at level 20, only parsing) : stdpp_scope.
+
+Section disjoint_list.
+  Variable A: Type.
+  Context `{Disjoint A, Union A, Empty A}.
+  Implicit Types X : A.
+
+  Inductive disjoint_list_default : DisjointList A :=
+    | disjoint_nil_2 : ##@{A} []
+    | disjoint_cons_2 (X : A) (Xs : list A) : X ## ⋃ Xs → ## Xs → ## (X :: Xs).
+  Global Existing Instance disjoint_list_default.
+
+  Lemma disjoint_list_nil  : ##@{A} [] ↔ True.
+  Proof. split; constructor. Qed.
+  Lemma disjoint_list_cons X Xs : ## (X :: Xs) ↔ X ## ⋃ Xs ∧ ## Xs.
+  Proof.
+    split; [inversion_clear 1; auto |].
+    intros [??]. constructor; auto.
+  Qed.
+End disjoint_list.
+
 Lemma disjoint_mono_l A C `{ElemOf A C} (X Y Z: C) : X ⊆ Y → Y ## Z → X ## Z.
 Proof. intros * HXY. rewrite !elem_of_disjoint. eauto. Qed.
 
@@ -88,8 +114,8 @@ Qed.
 Lemma addr_range_disj_union_empty (l: list Addr) :
   l ## ⋃ [].
 Proof.
-  cbn. unfold empty, Empty_list, disjoint_list, disjoint.
-  unfold set_disjoint. intros * ? ?%elem_of_nil. auto.
+  cbn. unfold empty, Empty_list, disjoint.
+  unfold set_disjoint_instance. intros * ? ?%elem_of_nil. auto.
 Qed.
 Hint Resolve addr_range_disj_union_empty | 1 : disj_regions.
 
@@ -105,7 +131,7 @@ Proof.
   rewrite AddrRegionRange_iff_incl_region_addrs in Hl |- * => Hl.
   eapply disjoint_mono_l; eauto.
   eapply disjoint_mono_r. eapply addr_range_union_incl_range; eauto.
-  unfold disjoint, disjoint_list, set_disjoint.
+  unfold disjoint.
   intro. rewrite !elem_of_region_addrs. solve_addr.
 Qed.
 Hint Resolve addr_range_disj_range_union | 10 : disj_regions.

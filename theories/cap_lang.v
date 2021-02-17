@@ -1,4 +1,4 @@
-From iris.algebra Require Import base.
+From iris.prelude Require Import prelude.
 From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps list.
 From cap_machine Require Export addr_reg machine_base machine_parameters.

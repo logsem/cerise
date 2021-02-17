@@ -268,7 +268,7 @@ Section fundamental.
 
     iApply (wp_store with "[Hmap HMemRes]"); eauto.
     { by rewrite lookup_insert. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. rewrite lookup_insert_is_Some'; eauto.
       right; destruct (Hsome rr); auto. }
     { iSplitR "Hmap"; auto. }
@@ -280,7 +280,7 @@ Section fundamental.
     (* we take a step in the specification code *)
     iMod (step_store _ [SeqCtx] with "[$HMemRes' $Hsmap $Hs $Hspec]") as (retv' regs'' mem'') "(Hs & Hs' & Hsmem & Hsmap) /=";eauto.
     { rewrite lookup_insert. eauto. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { destruct (decide (reg_allows_store (<[PC:=inr (p, b, e, a)]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }

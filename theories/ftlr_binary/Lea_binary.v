@@ -40,7 +40,7 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_lea with "[$Ha $Hmap]"); eauto.
     { eapply lookup_insert. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
@@ -52,7 +52,7 @@ Section fundamental.
 
     iMod (step_lea _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
@@ -97,10 +97,10 @@ Section fundamental.
             iApply (interp_weakening with "IH Hspec Hinvdst"); auto; try solve_addr.
             unfold Is_true. rewrite PermFlowsToReflexive. auto.
           - rewrite !lookup_insert_ne; auto.
-            iDestruct ("Hreg" $! r0 a) as "Hr0".
+            iDestruct ("Hreg" $! r0 H4) as "Hr0".
             replace (r2 !! r0) with (r1 !! r0); [iExact "Hr0"|].
             assert (<[PC:=inr (x, x0, x1, x2)]> r1 !! r0 = <[PC:=inr (x, x0, x1, x2)]> r2 !! r0) by (rewrite Heq; auto).
-            rewrite !lookup_insert_ne in H4; auto. }
+            rewrite !lookup_insert_ne in H6; auto. }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
   Qed.
 

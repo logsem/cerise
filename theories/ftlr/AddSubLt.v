@@ -31,7 +31,7 @@ Section fundamental.
           -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
           -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)
-    -∗ (fixpoint interp1) (inr (p, b, e, a)) 
+    -∗ (fixpoint interp1) (inr (p, b, e, a))
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
     -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
@@ -56,13 +56,13 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_AddSubLt with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
-    { rewrite /subseteq /map_subseteq /set_subseteq. intros rr _.
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext.
       iApply wp_value; auto. iIntros; discriminate. }
     { incrementPC_inv; simplify_map_eq.

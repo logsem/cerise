@@ -403,7 +403,7 @@ Section Adequacy.
 
     iModIntro.
     (* Same as the state_interp of [memG_irisG] in rules_base.v *)
-    iExists (fun σ κs _ => ((gen_heap_ctx σ.1) ∗ (gen_heap_ctx σ.2)))%I.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
     iExists (fun _ => True)%I. cbn. iFrame.
     iSplitL "HWP". { iApply (wp_wand with "HWP"). eauto. }
     iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑flagN).

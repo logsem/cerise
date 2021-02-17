@@ -39,7 +39,7 @@ Section list.
   Proof.
     iIntros "H1 H2".
       by iDestruct (own_valid_2 with "H1 H2") as
-        %[?%(principal_included (R := prefR)) _]%auth_both_valid.
+        %[?%(principal_included (R := prefR)) _]%auth_both_valid_discrete.
   Qed.
 
   Lemma update_ll γ a a' :

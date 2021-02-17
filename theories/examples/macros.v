@@ -96,8 +96,7 @@ Section macros.
     destruct l;[inversion Hlength|].
     iPrologue "Hprog".
     iAssert (⌜(pc_b ≠ a3)%Z⌝)%I as %Hneq.
-    { iIntros (Hcontr);subst.
-      iDestruct (mapsto_valid_2 with "Hi Hpc_b") as %?. done. }
+    { iIntros (Hcontr);subst. iApply (addr_dupl_false with "Hi Hpc_b"). }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Hpc_b]");
       [|apply decode_encode_instrW_inv|iCorrectPC a_first a_last| | |iContiguous_next Hcont 5|..].
     { exact (inr (RW, b_link, e_link, a_link)). }
@@ -137,8 +136,7 @@ Section macros.
     apply contiguous_between_last with (ai:=a7) in Hcont as Hlink;[|auto].
     iPrologue "Hprog".
     iAssert (⌜(entry_a ≠ a7)%Z⌝)%I as %Hneq'.
-    { iIntros (Hcontr);subst.
-      iDestruct (mapsto_valid_2 with "Hi Ha_entry") as %?. done. }
+    { iIntros (Hcontr);subst. iApply (addr_dupl_false with "Hi Ha_entry"). }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_entry]");
       [exact wentry|apply decode_encode_instrW_inv|iCorrectPC a_first a_last|auto|auto|apply Hlink|..].
     { destruct (entry_a =? a7)%a; auto. }
@@ -359,7 +357,7 @@ Section macros.
     iPrologue "Hprog".
     iAssert (⌜(a_env =? a2)%a = false⌝)%I as %Hne'.
     { destruct (decide (a_env = a2)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-      iDestruct (mapsto_valid_2 with "Hi Ha_env") as %?. done. }
+      iExFalso. iApply (addr_dupl_false with "Hi Ha_env"). }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Ha_env]");
       [|apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|auto|auto|iContiguous_next Hcont' 2|
        rewrite Hne';iFrame|rewrite Hne'];auto. 
@@ -1911,7 +1909,7 @@ Section macros.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs".
       by rewrite !lookup_insert_ne //; apply Hnotin_rmap; set_solver.
     (* apply the malloc spec *)
-    rewrite -/(malloc _ _ _ _).
+    rewrite -/(malloc _ _ _).
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hna $Hpc_b $Ha_entry $Hr_t0 $Hregs $Hmalloc_prog]");
       [|apply Hcont_fetch|apply Hwb|apply Ha_entry| |auto|lia|..].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.

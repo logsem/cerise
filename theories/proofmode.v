@@ -4,7 +4,7 @@ From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
 From cap_machine Require Export solve_pure solve_addr_extra.
 From cap_machine Require Import NamedProp proofmode_instr_rules.
-From iris.bi Require Import bi tactics.
+From iris.bi Require Import bi.
 Import bi.
 
 From Ltac2 Require Import Ltac2.

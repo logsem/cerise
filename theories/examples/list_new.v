@@ -40,7 +40,7 @@ Section list.
   Proof.
     iIntros "H1 H2".
       by iDestruct (own_valid_2 with "H1 H2") as
-        %[?%(principal_included (R := prefR)) _]%auth_both_valid.
+        %[?%(principal_included (R := prefR)) _]%auth_both_valid_discrete.
   Qed.
 
   Lemma update_ll γ a a' :
@@ -95,7 +95,7 @@ Section list.
     iIntros "H". simpl. done.
   Qed.
 
-  Instance isList_timeless : (Timeless (isList d bvals)).
+  Instance isList_timeless d bvals: (Timeless (isList d bvals)).
   Proof.
     intros. rewrite /isList.
     revert d. induction bvals as [| [p w] bvals]; apply _.
@@ -186,9 +186,9 @@ Section list.
       simpl. iDestruct "Hlist" as (hd1 p1 p2 ?) "[Hp [Hp' Hlist] ]".
       apply elem_of_list_fmap in Hcontr as [ [y k] [Heqy Hcontr] ].
       apply elem_of_cons in Hcontr as [Heq | Hcontr];subst.
-      + inversion Heq. iDestruct (mapsto_valid_2 with "Hd Hp") as %?. done.
+      + inversion Heq. iApply (addr_dupl_false with "Hd Hp").
       + iDestruct (isList_in with "Hlist") as "Hw";[apply Hcontr|].
-        iDestruct (mapsto_valid_2 with "Hd Hw") as %?. done.
+        iApply (addr_dupl_false with "Hd Hw").
   Qed.
 
   Lemma last_rest {A} (l : list A) (a : A) :
