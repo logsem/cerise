@@ -275,7 +275,7 @@ Section adder.
     iInv "Hinv" as (n) "[>Hx >#Hxpos]" "Hclose".
     iAssert (⌜(x =? a2)%a = false⌝)%I as %Hfalse.
     { destruct (x =? a2)%a eqn:HH; eauto. apply Z.eqb_eq,z_of_eq in HH as ->.
-      iDestruct (mapsto_valid_2 with "Hi Hx") as %?. done. }
+      iExFalso. iApply (addr_dupl_false with "Hi Hx"). }
     iApply (wp_load_success with "[$HPC $Hi $Hr3 $Hrenv Hx]");
       [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|..].
     { split; [eauto|]. rewrite withinBounds_true_iff; solve_addr. }
