@@ -409,7 +409,7 @@ Section counter_example_preamble.
     assert (isCorrectPC_range pc_p pc_b pc_e a_malloc_end a_end) as Hvpc2.
     { eapply isCorrectPC_range_restrict. apply Hvpc.
       generalize (contiguous_between_bounds _ _ _ Hcont_malloc). clear; solve_addr. }
-    rewrite -/(malloc _ _ _ _).
+    rewrite -/(malloc _ _ _).
     iApply (wp_wand with "[-]").
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hinv_malloc $HnaI]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry| |auto|lia|..].

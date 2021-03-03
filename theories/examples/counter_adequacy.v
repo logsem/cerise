@@ -186,11 +186,8 @@ Section Adequacy.
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
     destruct Hm as (adv_val & Hm & Hadv_val & adv_size).
-    iMod (gen_heap_init (∅:Mem)) as (mem_heapg) "Hmem_ctx".
-    iMod (gen_heap_init (∅:Reg)) as (reg_heapg) "Hreg_ctx".
-    (* unshelve iMod gen_sts_init as (stsg) "Hsts"; eauto. (*XX*) *)
-    (* set W0 := ((∅, (∅, ∅)) : WORLD). *)
-    (* iMod heap_init as (heapg) "HRELS". *)
+    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
     pose memg := MemG Σ Hinv mem_heapg.
@@ -201,13 +198,8 @@ Section Adequacy.
       @counter_preamble_spec Σ memg regg logrel_na_invs
     ) as Spec.
 
-    iMod (gen_heap_alloc_gen _ reg with "Hreg_ctx") as "(Hreg_ctx & Hreg & _)".
-      by apply map_disjoint_empty_r. rewrite right_id_L.
-    iMod (gen_heap_alloc_gen _ m with "Hmem_ctx") as "(Hmem_ctx & Hmem & _)".
-      by apply map_disjoint_empty_r. rewrite right_id_L.
-
     (* Extract points-to for the various regions in memory *)
-      
+
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_fail_flag & Hdisjoint).
@@ -259,7 +251,7 @@ Section Adequacy.
     iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
       by apply counter_preamble_size.
     iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
-    rewrite -/(counter _ _ _ _) -/(counter_preamble _ _ _ _).
+    rewrite -/(counter _ _) -/(counter_preamble _ _).
 
     (* Split the link table *)
 

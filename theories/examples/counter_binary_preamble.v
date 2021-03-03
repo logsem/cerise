@@ -165,7 +165,7 @@ Section counter_example_preamble.
     (bs_cell + 1)%a = Some es_cell →
     nclose specN ## ↑countN →
     
-    (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
+    ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
      na_inv logrel_nais count_incrdecrN (incr_left incr_prog ∗ decr_right decr_prog) -∗
      na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (inr (pc_p, pc_b, pc_e, counter_first))
                                             (inr (pc_p, pc_b, pc_e, linkc)) (inr (RWX, b_cell, e_cell, b_cell))
@@ -178,10 +178,10 @@ Section counter_example_preamble.
     iIntros (Hnp Hnps Hcont_incr Hcont_decr Hvpc_counter Hvspc_counter Hcont_restc Hcont_srestc Hbe_cell Hbes_cell Hnclose)
             "#Hspec #Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq /=. iSplit;auto.
-    iIntros (r') "". iNext. iAlways. 
+    iIntros (r') "". iNext. iModIntro.
     iIntros "(#Hr_valid & Hregs' & Hsegs' & HnaI & Hj)". destruct r' as [r1' r2']. simpl. 
     iDestruct (interp_reg_eq _ _ (inr (RX, b_cls, e_cls, b_cls)) with "Hr_valid") as %Heq. 
-    iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full. iClear "Hr'_full". 
+    iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full.
     assert (∀ x : RegName, is_Some (r1' !! x)) as Hr'_full_left;[intros x; destruct Hr'_full with x;eauto|].
     assert (∀ x : RegName, is_Some (r2' !! x)) as Hr'_full_right;[intros x; destruct Hr'_full with x;eauto|]. 
     pose proof (regmap_full_dom _ Hr'_full_left) as Hdom_r'.
@@ -189,7 +189,7 @@ Section counter_example_preamble.
     
     iSplitR; [auto|]. rewrite /interp_conf.
     
-    iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
+    iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
       [auto..|].
     
     rewrite /registers_mapsto /spec_registers_mapsto.
@@ -244,7 +244,7 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { rewrite !dom_delete_L Hdom_s'. clear. set_solver. }
     { iSplitL "Hr1";[eauto|]. iSplitL;[eauto|]. iSplit. 
-      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v. iFrame. 
+      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v /interp//.
       - iIntros (reg Hne). iDestruct ("Hr'_valid" $! reg with "[]") as "Hval";[done|]. 
         rewrite /RegLocate !fixpoint_interp1_eq. 
         destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t0)//]. 
@@ -278,7 +278,7 @@ Section counter_example_preamble.
     (bs_cell + 1)%a = Some es_cell →
     nclose specN ## ↑countN →
     
-    (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
+    ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
      na_inv logrel_nais read_readnegN (read_left read_prog ∗ read_right read_neg_prog) -∗
      na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (inr (pc_p, pc_b, pc_e, counter_first))
                                             (inr (pc_p, pc_b, pc_e, linkc)) (inr (RWX, b_cell, e_cell, b_cell))
@@ -291,10 +291,10 @@ Section counter_example_preamble.
     iIntros (Hnp Hnps Hcont_incr Hcont_decr Hvpc_counter Hvspc_counter Hcont_restc Hcont_srestc Hbe_cell Hbes_cell Hnclose)
             "#Hspec #Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq /=. iSplit;auto.
-    iIntros (r') "". iNext. iAlways. 
+    iIntros (r') "". iNext. iModIntro.
     iIntros "(#Hr_valid & Hregs' & Hsegs' & HnaI & Hj)". destruct r' as [r1' r2']. simpl. 
     iDestruct (interp_reg_eq _ _ (inr (RX, b_cls, e_cls, b_cls)) with "Hr_valid") as %Heq. 
-    iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full. iClear "Hr'_full". 
+    iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full.
     assert (∀ x : RegName, is_Some (r1' !! x)) as Hr'_full_left;[intros x; destruct Hr'_full with x;eauto|].
     assert (∀ x : RegName, is_Some (r2' !! x)) as Hr'_full_right;[intros x; destruct Hr'_full with x;eauto|]. 
     pose proof (regmap_full_dom _ Hr'_full_left) as Hdom_r'.
@@ -302,7 +302,7 @@ Section counter_example_preamble.
     
     iSplitR; [auto|]. rewrite /interp_conf.
     
-    iDestruct (na_inv_open with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
+    iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
       [auto..|].
     
     rewrite /registers_mapsto /spec_registers_mapsto.
@@ -357,7 +357,7 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { rewrite !dom_delete_L Hdom_s'. clear. set_solver. }
     { iSplitL "Hr1";[eauto|]. iSplitL;[eauto|]. iSplit. 
-      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v. iFrame. 
+      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v /interp//.
       - iIntros (reg Hne). iDestruct ("Hr'_valid" $! reg with "[]") as "Hval";[done|]. 
         rewrite /RegLocate !fixpoint_interp1_eq. 
         destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t0)//]. 
@@ -509,8 +509,7 @@ Section counter_example_preamble.
     { eapply isCorrectPC_range_restrict. apply Hvpc'.
       generalize (contiguous_between_bounds _ _ _ Hcont_smalloc). clear; solve_addr. }
     
-    
-    rewrite -!/(malloc _ _ _ _).
+    rewrite - !/(malloc _ _ _).
     iApply (wp_wand with "[-]").
     iApply (malloc_s_spec with "[- $Hspec $Hj $HPC $HsPC $Hmalloc $Hsmalloc $Hpc_b $Hpcs_b $Ha_entry $Hs_entry $Hr0 $Hs0 $Hregs $Hsegs $Hinv_malloc $HnaI]");
       [apply Hvpc1|apply Hvpc1'|eapply Hcont_malloc|eapply Hcont_smalloc|eapply Hwb_malloc|eapply Ha_entry|eapply Hwb_malloc'|eapply Hs_entry|auto..].
@@ -540,7 +539,8 @@ Section counter_example_preamble.
     iApply (wp_store_success_z with "[$HPC $Hr1 $Hi $Hcell]");
       [apply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|
        iContiguous_next Hcont_rest 0|..].
-    { split; auto. apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
+    { auto. }
+    { apply le_addr_withinBounds; revert Hbe_cell; clear; solve_addr. }
     iEpilogue_both "(HPC & Hprog_done & Hr1 & Hb_cell)".
     iCombine "Hprog_done" "Hmalloc" as "Hprog_done". iCombine "Hsprog_done" "Hsmalloc" as "Hsprog_done".
     (* move_r r_t2 r_t1 *)

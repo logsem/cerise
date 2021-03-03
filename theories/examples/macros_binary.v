@@ -351,8 +351,8 @@ Section macros.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hsegs $Hs_t2]") as "Hsegs".
       by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete_ne // lookup_delete.
     
-    rewrite -!(delete_insert_ne _ r_t5 r_t3) // !insert_delete.
-    rewrite -!(delete_insert_ne _ r_t5 r_t2) // !(insert_commute _ r_t2 r_t3) //.
+    rewrite - !(delete_insert_ne _ r_t5 r_t3) // !insert_delete.
+    rewrite - !(delete_insert_ne _ r_t5 r_t2) // !(insert_commute _ r_t2 r_t3) //.
     rewrite !insert_delete.
 
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
@@ -378,7 +378,7 @@ Section macros.
     2: { eapply isCorrectPC_range_perm_non_E; eauto.
          generalize (contiguous_between_length _ _ _ Hcont_rests). cbn.
          clear; solve_addr. }
-    
+
     iIntros "(Hna & Hregs & Hr_t0 & HPC & Hsegs & Hs_t0 & HsPC & Hj & Hbe) /=".
     iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hs_t1 & Hbe & Hsbe)". inversion Hsize'; subst size'. 
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
@@ -432,7 +432,7 @@ Section macros.
     repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne // lookup_delete //.
     
     repeat (rewrite (insert_commute _ r_t5) //;[]).
-    rewrite !insert_delete -!(delete_insert_ne _ _ r_t5) //.
+    rewrite !insert_delete - !(delete_insert_ne _ _ r_t5) //.
     rewrite !(insert_commute _ r_t4 r_t2) // !insert_insert.
     repeat (rewrite -(delete_insert_ne _ r_t3);[|done]); rewrite insert_delete.
     repeat (rewrite -(delete_insert_ne _ r_t3);[|done]); rewrite insert_delete. 
@@ -896,7 +896,7 @@ Section macros.
     iDestruct (big_sepM_insert with "[$Hsegs $Hs_t1]") as "Hsegs".
       by rewrite !lookup_insert_ne //; apply Hnotin_smap; set_solver. 
     (* apply the malloc spec *)
-    rewrite -/(malloc _ _ _ _).
+    rewrite -/(malloc _ _ _).
     iApply (malloc_s_spec with "[- $Hspec $Hj $HPC $HsPC $Hmalloc $Hna $Hpc_b $Hpcs_b $Ha_entry $Has_entry
      $Hr_t0 $Hs_t0 $Hregs $Hsegs $Hmalloc_prog $Hmalloc_sprog]");
       [| |apply Hcont_fetch|apply Hcont_fetchs|apply Hwb|apply Ha_entry|apply Hwb'|apply Ha_entry'| | |auto|auto|clear;lia|..].
