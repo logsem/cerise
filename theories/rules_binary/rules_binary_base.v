@@ -8,21 +8,25 @@ From cap_machine Require Export cap_lang iris_extra rules_base.
 Definition specN := nroot .@ "spec".
 
 (* heap and register CMRA for the specification *)
-Definition memspecUR : ucmra :=
-  gmapUR Addr (prodR fracR (agreeR (leibnizO Word))).
-Definition regspecUR : ucmra :=
-  gmapUR RegName (prodR fracR (agreeR (leibnizO Word))).
-Definition memreg_specUR := prodUR regspecUR memspecUR.
+(* These need to be notations rather than definitions, as it otherwise causes performance issues *)
+Notation memspecUR :=
+  (gmapUR Addr (prodR fracR (agreeR (leibnizO Word)))).
+Notation regspecUR :=
+  (gmapUR RegName (prodR fracR (agreeR (leibnizO Word)))).
+Notation memreg_specUR := (prodUR regspecUR memspecUR).
 
 (* CMRA for the specification *)
-Definition exprUR : cmra := (exclR (leibnizO expr)).
-Definition cfgUR : ucmra := prodUR (optionUR exprUR) memreg_specUR.
+Notation exprR := (exclR (leibnizO expr)).
+Notation cfgUR := (prodUR (optionUR exprR) memreg_specUR).
 
 Definition to_spec_map {L V : Type} `{Countable L} : gmap L V -> gmapUR L (prodR fracR (agreeR (leibnizO V))) :=
   fmap (λ w, (1%Qp, to_agree w)).
 
 (* the CMRA for the specification side *)
-Class cfgSG Σ := CFGSG { cfg_invG :> inG Σ (authR cfgUR); cfg_name : gname }.
+Class cfgSG Σ := CFGSG {
+  cfg_invG :> inG Σ (authR cfgUR);
+  cfg_name : gname
+}.
 
 Section to_spec_map.
   Context (L V : Type) `{Countable L}.
@@ -176,8 +180,8 @@ Section definitionsS.
     iIntros "Hσ He".
     rewrite /spec_res /exprspec_mapsto.
     iMod (own_update_2 with "Hσ He") as "[Hσ He]".
-    { by eapply auth_update, prod_local_update_1, (option_local_update (A:=exprUR)),
-      (exclusive_local_update (A:=exprUR) _ (Excl e')). }
+    { by eapply auth_update, prod_local_update_1, (option_local_update (A:=exprR)),
+      (exclusive_local_update (A:=exprR) _ (Excl e')). }
     iFrame. done.
   Qed.
 
@@ -509,8 +513,8 @@ Section cap_lang_spec_rules.
     iDestruct (own_valid_2 with "Hcfg He") as %[[Hincle _]%prod_included Hvalid]%auth_both_valid_discrete;simpl in *.
     assert ((ectxi_language.fill K e : exprO cap_lang) ≡ c) as Heq;[by apply Excl_included|simplify_eq].
     iMod (own_update_2 with "Hcfg He") as "[Hcfg He]".
-    { by eapply auth_update,prod_local_update_1,(option_local_update (A:=exprUR)),
-      (exclusive_local_update (A:=exprUR) _ (Excl (fill K e'))). }
+    { by eapply auth_update,prod_local_update_1,(option_local_update (A:=exprR)),
+      (exclusive_local_update (A:=exprR) _ (Excl (fill K e'))). }
     iFrame. iApply "Hclose".
     iNext. iExists (fill K e'),σ. iFrame. iPureIntro.
     apply rtc_nsteps in Hstep; destruct Hstep as [m Hrtc].
