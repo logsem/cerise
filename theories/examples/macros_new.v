@@ -378,15 +378,19 @@ Section macros.
   (* --------------------------------------------------------------------------------- *)
 
   (* encodings of closure activation code *)
-  Definition v1 := encodeInstr (Mov r_t1 (inr PC)).
-  Definition v2 := encodeInstr (Lea r_t1 (inl 7%Z)).
-  Definition v3 := encodeInstr (Load r_env r_t1).
-  Definition v4 := encodeInstr (Lea r_t1 (inl (-1)%Z)).
-  Definition v5 := encodeInstr (Load r_t1 r_t1).
-  Definition v6 := encodeInstr (Jmp r_t1).
+  (* CHANGE: the following code is changed to use r_t20 as a temp register rather than r_t1 *)
+  (* TODO: use this convention across more examples, with a fixed choice of param registers and temp registers *)
+  Definition v1 := encodeInstr (Mov r_t20 (inr PC)).
+  Definition v2 := encodeInstr (Lea r_t20 (inl 7%Z)).
+  Definition v3 := encodeInstr (Load r_env r_t20).
+  Definition v4 := encodeInstr (Lea r_t20 (inl (-1)%Z)).
+  Definition v5 := encodeInstr (Load r_t20 r_t20).
+  Definition v6 := encodeInstr (Jmp r_t20).
 
+  Definition activation_code : list Word :=
+    encodeInstrsW [ Mov r_t20 PC ; Lea r_t20 7 ; Load r_env r_t20 ; Lea r_t20 (-1)%Z ; Load r_t20 r_t20 ; Jmp r_t20].
   Definition activation_instrs wcode wenv : list Word :=
-    [ inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv ].
+    activation_code ++ [ wcode; wenv ].
 
   Definition scrtcls_instrs (rcode rdata: RegName) :=
     encodeInstrsW [ Store r_t1 v1
@@ -650,6 +654,58 @@ Section macros.
             "(>Hprog & >HPC & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
     iApply crtcls_spec_alt; iFrameCapSolve; eauto. iFrame. iFrame "Hmalloc".
     iSplitL. iNext. eauto. eauto.
+  Qed.
+
+  (* ------------------------------- Closure Activation --------------------------------- *)
+
+  Lemma closure_activation_spec pc_p b_cls e_cls r1v renvv wcode wenv φ :
+    ExecPCPerm pc_p →
+
+    PC ↦ᵣ inr (pc_p, b_cls, e_cls, b_cls)
+    ∗ r_t20 ↦ᵣ r1v
+    ∗ r_env ↦ᵣ renvv
+    ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
+    ∗ ▷ (  PC ↦ᵣ updatePcPerm wcode
+       ∗ r_t20 ↦ᵣ wcode
+       ∗ r_env ↦ᵣ wenv
+       ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
+       -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hrpc) "(HPC & Hr1 & Hrenv & Hprog & Hcont)".
+    rewrite /region_mapsto.
+    iDestruct (big_sepL2_length with "Hprog") as %Hcls_len. simpl in Hcls_len.
+    assert (b_cls + 8 = Some e_cls)%a as Hbe.
+    { rewrite region_addrs_length /region_size in Hcls_len.
+      revert Hcls_len; clear; solve_addr. }
+    assert (∃ b_end, b_cls + 6 = Some b_end)%a as [b_end Hbend];[destruct (b_cls + 6)%a eqn:HH;eauto;exfalso;solve_addr|].
+    assert (∃ b_mid, b_cls + 7 = Some b_mid)%a as [b_mid Hbmid];[destruct (b_cls + 7)%a eqn:HH;eauto;exfalso;solve_addr|].
+
+    iAssert (codefrag b_cls (activation_code) ∗ b_end ↦ₐ wcode ∗ b_mid ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
+    { rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
+      rewrite (region_addrs_split _ b_end);[|solve_addr].
+      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite region_addrs_length /region_size. left. solve_addr.
+      iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
+      rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
+      iDestruct "Henv" as "($&$&_)". }
+
+    assert (readAllowed pc_p = true ∧ withinBounds (pc_p, b_cls, e_cls, b_mid) = true) as [Hra Hwb].
+    { split;[|solve_addr]. inversion Hrpc;subst;auto. }
+    assert ((b_mid + -1)%a = Some b_end);[solve_addr|].
+    assert (withinBounds (pc_p, b_cls, e_cls, b_end) = true) as Hwb';[solve_addr|].
+
+    assert (SubBounds b_cls e_cls b_cls (b_cls ^+ length (activation_code))%a). solve_addr.
+    codefrag_facts "Hprog".
+    iGo "Hprog". auto.
+    iGo "Hprog".
+    iApply "Hcont". iFrame.
+    rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
+    rewrite (region_addrs_split _ b_end);[|solve_addr].
+    iApply (big_sepL2_app with "Hprog").
+    rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
+    rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
+    iFrame. rewrite region_addrs_empty;[|solve_addr]. done.
   Qed.
 
 End macros.

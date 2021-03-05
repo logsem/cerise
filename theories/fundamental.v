@@ -39,7 +39,7 @@ Section fundamental.
   Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl eq_refl).
 
   (*TODO: change to region_conditions *)
-  Theorem fundamental r p b e (a : Addr) :
+  Theorem fundamental r p b e a :
     ⊢ (interp (inr (p,b,e,a)) →
      interp_expression r (inr (p,b,e,a)))%I.
   Proof.

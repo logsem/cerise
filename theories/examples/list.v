@@ -79,7 +79,11 @@ Section list.
     end.
 
   (* the sealLL invariant *)
-  Definition sealLL ι ll γ : iProp Σ := na_inv logrel_nais ι (∃ hd, ll ↦ₐ hd ∗ ∃ awvals, isList hd awvals ∗ Exact γ awvals)%I.
+  (* Φ refers to the client chosen invariant that should hold for all sealed values  *)
+  Definition sealLL ι ll γ (Φ : Word -> iProp Σ) : iProp Σ := na_inv logrel_nais ι (∃ hd, ll ↦ₐ hd
+                                                                                  ∗ ∃ awvals, isList hd awvals
+                                                                                  ∗ Exact γ awvals
+                                                                                  ∗ [∗ list] aw ∈ awvals, Φ aw.2)%I.
 
   Lemma isList_length_hd vals :
     ⊢ isList (inl 0%Z) vals → ⌜vals = []⌝.
@@ -185,9 +189,9 @@ Section list.
       simpl. iDestruct "Hlist" as (hd1 p1 p2 ?) "[Hp [Hp' Hlist] ]".
       apply elem_of_list_fmap in Hcontr as [ [y k] [Heqy Hcontr] ].
       apply elem_of_cons in Hcontr as [Heq | Hcontr];subst.
-      + inversion Heq. iDestruct (mapsto_valid_2 with "Hd Hp") as %?. done.
+      + inversion Heq. iDestruct (mapsto_valid_2 with "Hd Hp") as %[? ?]. done.
       + iDestruct (isList_in with "Hlist") as "Hw";[apply Hcontr|].
-        iDestruct (mapsto_valid_2 with "Hd Hw") as %?. done.
+        iDestruct (mapsto_valid_2 with "Hd Hw") as %[? ?]. done.
   Qed.
 
   Lemma last_rest {A} (l : list A) (a : A) :
@@ -681,7 +685,8 @@ Section list.
         rmap (* register map *)
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
-        ι ι1 ι2 γ Ep φ (* invariant/gname names *) :
+        ι ι1 ι2 γ Ep φ (* invariant/gname names *)
+        Φ (* client chosen predicate that should hold for all sealed values *) :
 
     (* PC assumptions *)
     isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
@@ -707,6 +712,8 @@ Section list.
        ∗ r_t1 ↦ᵣ w
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
+       (* the word to seal must satisfy the client chosen predicate Φ *)
+       ∗ Φ w
        (* own token *)
        ∗ na_own logrel_nais Ep
        (* trusted code *)
@@ -716,7 +723,7 @@ Section list.
        ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
        ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
        (* linked list invariants *)
-       ∗ sealLL ι ll γ
+       ∗ sealLL ι ll γ Φ
        ∗ prefLL γ pbvals
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
@@ -731,11 +738,11 @@ Section list.
       -∗
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
-    iIntros (Hvpc Hcont Hhd Hdom Hbounds Hf_m Hnclose Hnclose2 Hnclose3) "(HPC & Hr_env & Hr_t1 & Hr_t0 & Hregs & Hown
+    iIntros (Hvpc Hcont Hhd Hdom Hbounds Hf_m Hnclose Hnclose2 Hnclose3) "(HPC & Hr_env & Hr_t1 & Hr_t0 & Hregs & HΦw & Hown
                                              & #Happ & #Hmalloc & Hpc_b & Ha_r' & #Hseal_inv & #Hpref & Hφ)".
     iMod (na_inv_acc with "Happ Hown") as "(>Hprog & Hown & Hcls)";auto.
-    iMod (na_inv_acc with "Hseal_inv Hown") as "(>HisList & Hown & Hcls')";[auto|solve_ndisj|].
-    iDestruct "HisList" as (hd) "[Hll HisList]". iDestruct "HisList" as (pbvals') "(HisList & Hexact)".
+    iMod (na_inv_acc with "Hseal_inv Hown") as "(HisList & Hown & Hcls')";[auto|solve_ndisj|].
+    iDestruct "HisList" as (hd) "[>Hll HisList]". iDestruct "HisList" as (pbvals') "(>HisList & >Hexact & HΦ)".
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     destruct appendb_addrs;[inversion Hprog_length|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a.
@@ -920,8 +927,9 @@ Section list.
       iDestruct ("Hcls''" with "[$Hdlast $Ha' $Hbnew $Ha0]") as "HisList";[iSplit;auto;iPureIntro;iContiguous_next H 0|].
       iDestruct (know_pref with "Hexact Hpref") as %Hpref.
       iMod (update_ll _ _ (pbvals' ++ [(bnew,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(bnew,w)];auto|].
-      iMod ("Hcls'" with "[HisList Hll Hexact $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists _. iFrame. }
+      iMod ("Hcls'" with "[HisList Hll Hexact $Hown HΦ HΦw]") as "Hown".
+      { iNext. iExists _; iFrame. iExists _. iFrame "HisList Hexact".
+        iApply big_sepL_app. iFrame. done. }
       (* jmp r_t0 *)
       destruct rest1;[|inversion Hrest_length1].
       iPrologue "Hprog".
@@ -963,8 +971,8 @@ Section list.
       iEpilogue "(HPC & Hi & Hr_t1 & Hr_env & Hll)"; iCombine "Hi" "Hrest_done" as "Hrest_done".
       (* we should now be able to close the LL invariant *)
       iMod (update_ll _ _ ([(bnew,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(bnew,w)];auto|].
-      iMod ("Hcls'" with "[Hbnew Ha0 Hll Hexact $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists [(bnew,w)]. iFrame. iExists _,_,_.
+      iMod ("Hcls'" with "[Hbnew Ha0 Hll Hexact $Hown HΦw]") as "Hown".
+      { iNext. iExists _; iFrame. iExists [(bnew,w)]. iFrame. iSplit;[|done]. iExists _,_,_.
         repeat iSplit;eauto. iContiguous_next H 0. }
       (* move r_t3 0 *)
       iPrologue "Hprog".
@@ -1009,7 +1017,8 @@ Section list.
         findb_addrs (* program addresses *)
         ll pbvals hdw (* linked list head and pointers *)
         a_first a_last (* special adresses *)
-        E γ φ (* invariant/gname names *) :
+        E γ φ (* invariant/gname names *)
+        Φ (* client chosen seal predicate *) :
 
     (* PC assumptions *)
     isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
@@ -1029,7 +1038,7 @@ Section list.
       ∗ (∃ w, r_t2 ↦ᵣ w)
       ∗ (∃ w, r_t3 ↦ᵣ w)
       (* invariant for d *)
-      ∗ (* sealLL ι ll γ *) (∃ hd, ll ↦ₐ hd ∗ isList hd pbvals ∗ Exact γ pbvals)
+      ∗ (* sealLL ι ll γ *) (∃ hd, ll ↦ₐ hd ∗ isList hd pbvals ∗ Exact γ pbvals ∗ ▷ [∗ list] aw ∈ pbvals, Φ aw.2)
       (* ∗ prefLL γ pbvals *)
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais E
@@ -1043,7 +1052,7 @@ Section list.
           ∗ (∃ b_a b' w, ⌜z_to_addr b = Some b_a ∧ (b_a + 2)%a = Some b' ∧ (b_a,w) ∈ pbvals⌝ ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ inr (RWX,b_a,b',b_a))
           ∗ r_t3 ↦ᵣ inl 0%Z
           ∗ na_own logrel_nais E
-          ∗ (∃ hd, ll ↦ₐ hd ∗ isList hd pbvals ∗ Exact γ pbvals)
+          ∗ (∃ hd, ll ↦ₐ hd ∗ isList hd pbvals ∗ Exact γ pbvals ∗ [∗ list] aw ∈ pbvals, Φ aw.2)
           -∗ WP Seq (Instr Executable) {{ φ }})
       -∗
       WP Seq (Instr Executable) {{ φ }}.
@@ -1099,13 +1108,13 @@ Section list.
     destruct (decide (d - b = 0)%Z).
     { rewrite e.
       (* jnz r_t3 r_t2 *)
+      iDestruct "Hseal_inv" as (hd) "[Hll Hlist]". iDestruct "Hlist" as "[HisList [Hexact HΦ] ]".
       iPrologue "Hprog".
       iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t3 $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].
       iEpilogue "(HPC & Hi & Hr_t3 & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* load r_t1 r_env *)
       (* iMod (na_inv_open with "Hseal_inv Hown") as "(>Hlist & Hown & Hcls)";[auto|solve_ndisj|]. *)
-      iDestruct "Hseal_inv" as (hd) "[Hll Hlist]". iDestruct "Hlist" as "[HisList Hexact]".
       apply elem_of_list_fmap in Hin as [ [dp dw] [Heq Hin] ]. simpl in Heq; subst dp.
       iDestruct (isList_extract _ _ d with "HisList") as (a' hd' Hcond) "[Ha [Ha' Hcls'] ]"; eauto.
       iPrologue "Hprog".
@@ -1156,7 +1165,7 @@ Section list.
     iPrologue "Hprog".
     (* iMod (na_inv_open with "Hseal_inv Hown") as "(Hlist & Hown & Hcls')";[auto|solve_ndisj|].  *)
     iDestruct "Hseal_inv" as (hd) "[Hll Hlist]".
-    iDestruct "Hlist" as "[Hlist Hexact]".
+    iDestruct "Hlist" as "[Hlist [Hexact HΦ]]".
     (* iDestruct (isList_NoDup with "Hlist") as %Hdup. *)
     (* assert (list.last (hd::ptrs'') ≠ Some d) as Hn.  *)
     (* { apply rest_last with (l1:=hd::ptrs) (l2:=hd::ptrs');eauto;apply prefix_cons;auto. } *)
@@ -1195,7 +1204,7 @@ Section list.
     { apply isCorrectPC_range_perm_non_E in Hvpc. destruct pc_p;auto. done.
       apply contiguous_between_length in Hcont. clear-Hcont. solve_addr. }
 
-    iApply ("IH" with "[] [] [] [$HPC $Hr_env $Hr_t0 $Hr_t1 $Hφ $Hφfailed Hprog_done Hexact Hlist Hll Hr_t2 Hr_t3 $Hown]");auto.
+    iApply ("IH" with "[] [] [] [$HPC $Hr_env $Hr_t0 $Hr_t1 $Hφ $Hφfailed Hprog_done Hexact HΦ Hlist Hll Hr_t2 Hr_t3 $Hown]");auto.
     { iPureIntro. destruct Hcond as [ (-> & _) | (p & p' & w' & Hp & -> & Hin') ];[by left|right].
       repeat eexists;auto. apply elem_of_list_fmap. exists (p,w'). eauto. }
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";eauto.
@@ -1211,7 +1220,8 @@ Section list.
         findb_addrs (* program addresses *)
         ll ll' (* linked list head and pointers *)
         a_first a_last (* special adresses *)
-        ι ι1 γ φ (* invariant/gname names *) :
+        ι ι1 γ φ (* invariant/gname names *)
+        Φ (* client chosen seal predicate *) :
 
     (* PC assumptions *)
     isCorrectPC_range pc_p pc_b pc_e a_first a_last ->
@@ -1231,7 +1241,7 @@ Section list.
       ∗ (∃ w, r_t2 ↦ᵣ w)
       ∗ (∃ w, r_t3 ↦ᵣ w)
       (* invariant for d *)
-      ∗ sealLL ι ll γ
+      ∗ sealLL ι ll γ Φ
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
       (* trusted code *)
@@ -1251,8 +1261,8 @@ Section list.
     & #Hseal_inv & Hown & #Hfindb & Hφfailed & Hφ)".
     iMod (na_inv_acc with "Hfindb Hown") as "(>Hprog & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
-    iMod (na_inv_acc with "Hseal_inv Hown") as "(>HisList & Hown & Hcls')";auto.
-    iDestruct "HisList" as (hd) "[Hll HisList]". iDestruct "HisList" as (pbvals') "[HisList Hexact]".
+    iMod (na_inv_acc with "Hseal_inv Hown") as "(HisList & Hown & Hcls')";auto.
+    iDestruct "HisList" as (hd) "[Hll HisList]". iDestruct "HisList" as (pbvals') "[>HisList [>Hexact HΦ]]".
     iDestruct (isList_hd_pure with "HisList") as %Hhd.
     iMod (get_full_pref with "Hexact") as "[Hexact #Hpref']".
     (* load r_env r_env *)
