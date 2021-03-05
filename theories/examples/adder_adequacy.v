@@ -118,8 +118,8 @@ Section Adequacy.
 
     unfold is_initial_memory in Hm.
     destruct Hm as (adv_val & act_val & Hm & Hadv_val & act_len & adv_size).
-    iMod (gen_heap_init (∅:Mem)) as (mem_heapg) "Hmem_ctx".
-    iMod (gen_heap_init (∅:Reg)) as (reg_heapg) "Hreg_ctx".
+    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
     pose memg := MemG Σ Hinv mem_heapg.
@@ -129,11 +129,6 @@ Section Adequacy.
     pose proof (
       @adder_full_spec Σ memg regg logrel_na_invs MP invN f_start f_end
     ) as Spec.
-
-    iMod (gen_heap_alloc_gen _ reg with "Hreg_ctx") as "(Hreg_ctx & Hreg & _)".
-      by apply map_disjoint_empty_r. rewrite right_id_L.
-    iMod (gen_heap_alloc_gen _ m with "Hmem_ctx") as "(Hmem_ctx & Hmem & _)".
-      by apply map_disjoint_empty_r. rewrite right_id_L.
 
     (* Extract points-to for the various regions in memory *)
 

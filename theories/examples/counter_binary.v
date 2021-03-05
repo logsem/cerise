@@ -117,8 +117,8 @@ Section counter.
     iIntros (Hvpc1 Hvpc2 Hcont1 Hcont2 Hd1 Hd2 Hdom1 Hdom2 Hnclose φ)
             "(#Hspec & HPC & HsPC & Hr_t0 & Hs_t0 & Hr_env & Hs_env 
             & Hr_t1 & Hs_t1 & Hrmap & Hsmap & Hj & #Hcounter 
-            & Hown & #Hcont & #Hprogs & #Hregs_valid) Hφ". 
-    iMod (na_inv_open with "Hprogs Hown") as "(>(Hprog & Hsprog) & Hown & Hcls)";auto.
+            & Hown & #Hcont & #Hprogs & #Hregs_valid) Hφ".
+    iMod (na_inv_acc with "Hprogs Hown") as "(>(Hprog & Hsprog) & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     iDestruct (big_sepL2_length with "Hsprog") as %Hsprog_length.
     destruct_list incr_addrs. destruct_list decr_addrs.
@@ -130,7 +130,7 @@ Section counter.
     (* load r_t1 r_env *)
     iPrologue_both "Hprog" "Hsprog". rewrite /counter_inv. 
     iInv ι as (z) "[>Hd >Hds]" "Hcls'".
-    iApply (wp_load_success_alt with "[$HPC $Hi $Hr_t1 $Hr_env $Hd]");
+    iApply (wp_load_success_notinstr with "[$HPC $Hi $Hr_t1 $Hr_env $Hd]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont1 0|..]. 
     { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. clear -Hd1;solve_addr. }
     iNext. iIntros "(HPC & Hr_t1 & Hprog_done & Hr_env & Hd)".
@@ -158,8 +158,9 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC s_first s_last|iContiguous_next Hcont2 2| |solve_ndisj|..]. 
     { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. clear -Hd2;solve_addr. }
     iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t1 $Hr_env $Hd]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont1 2|..]. 
-    { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. clear -Hd1;solve_addr. }
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont1 2|..].
+    { auto. }
+    { simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. clear -Hd1;solve_addr. }
     iNext. iIntros "(HPC & Hi & Hr_t1 & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd Hds]") as "_". 
     { iNext. iExists ((z + 1)%Z). assert ((- z - 1)%Z = (- (z + 1))%Z) as ->;[clear;lia|]. iFrame. }
@@ -306,7 +307,7 @@ Section counter.
             "(#Hspec & HPC & HsPC & Hr_t0 & Hs_t0 & Hr_t1 & Hs_t1 & Hr_env & Hs_env
             & Hregs & Hsegs & Hj & #Hinv & Hown 
             & #Hcallback & #Hread & #Hregs_val) Hφ". 
-    iMod (na_inv_open with "Hread Hown") as "((>Hprog & >Hsprog) & Hown & Hcls)";auto.
+    iMod (na_inv_acc with "Hread Hown") as "((>Hprog & >Hsprog) & Hown & Hcls)";auto.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     iDestruct (big_sepL2_length with "Hsprog") as %Hsprog_length.
     destruct_list read_addrs. destruct_list read_neg_addrs.
@@ -321,8 +322,8 @@ Section counter.
     (* load r_ret r_env *)
     iPrologue_both "Hprog" "Hsprog". 
     iInv ι as (z) "[>Hd >Hds]" "Hcls'".
-    iApply (wp_load_success_alt with "[$HPC $Hi $Hr_ret $Hr_env $Hd]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont1 0|..]. 
+    iApply (wp_load_success_notinstr with "[$HPC $Hi $Hr_ret $Hr_env $Hd]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont1 0|..].
     { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
     iNext. iIntros "(HPC & Hr_ret & Hprog_done & Hr_env & Hd)".
     iMod (step_load_success_alt _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs_ret $Hs_env $Hds]")

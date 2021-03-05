@@ -140,7 +140,7 @@ Section callback.
       iDestruct "Hlocals" as (w0) "Hlocals".
       iAssert (⌜(b_l =? a)%a = false⌝)%I as %Hfalse.
       { destruct (decide (b_l = a)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-        iDestruct (mapsto_valid_2 with "Hi Ha_l") as %?. done. }
+        iDestruct (mapsto_valid_2 with "Hi Ha_l") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hlocals Ha_l $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|split;auto|apply Hlast|..].
       { revert Hwb. rewrite !andb_true_iff !Z.leb_le !Z.ltb_lt. clear -Hnext. intros [? | Hcontr];[solve_addr|].
@@ -207,7 +207,7 @@ Section callback.
       iPrologue "Hprog". 
       iAssert (⌜(a_l' =? a0)%a = false⌝)%I as %Hfalse.
       { destruct (decide (a_l' = a0)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-        iDestruct (mapsto_valid_2 with "Hi Ha_l") as %?. done. }
+        iDestruct (mapsto_valid_2 with "Hi Ha_l") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi Ha_l $Hr $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|split;auto|iContiguous_next Hcont 1|..].
       { revert Hwb Hsize. rewrite !andb_true_iff !Z.leb_le !Z.ltb_lt /region_size. clear -Ha_l'.
@@ -355,7 +355,7 @@ Section callback.
     iApply (wp_bind (fill [SeqCtx])).
     iAssert (⌜(a3 =? a0)%a = false⌝)%I as %Hfalse.
     { destruct (decide (a3 = a0)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-      iDestruct (mapsto_valid_2 with "Ha3 Ha6") as %?. done. }
+      iDestruct (mapsto_valid_2 with "Ha3 Ha6") as %[? _]. done. }
     iApply (wp_load_success with "[$HPC $Ha3 $Hr_t2 $Hr_t1 Ha6]");
       [apply decode_encode_instrW_inv|iCorrectPC b_c e_c| |iContiguous_next Hcont 2|..].
     { apply andb_true_iff, Is_true_eq_true. apply isCorrectPC_ra_wb. iCorrectPC b_c e_c. }

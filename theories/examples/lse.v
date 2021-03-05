@@ -178,7 +178,7 @@ Section roe.
     assert (isCorrectPC_range pc_p pc_b pc_e a_malloc_end a_last) as Hvpc2.
     { eapply isCorrectPC_range_restrict. apply Hvpc.
       generalize (contiguous_between_bounds _ _ _ Hcont_malloc). clear; solve_addr. }
-    rewrite -/(malloc _ _ _ _).
+    rewrite -/(malloc _ _ _).
     (* apply the malloc spec *)
     iApply (malloc_spec_alt with "[- $Hφ $HPC $Hmalloc_prog $Hpc_b $Ha_entry $Hr_t0 $Hregs $Hmalloc $Hown]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb1|eapply Ha_entry| |auto|lia|..].
@@ -374,7 +374,7 @@ Section roe.
         iPrologue "Hprog".
         iAssert (⌜(b_l =? a3)%a = false⌝)%I as %Hfalse.
         { destruct (decide (b_l = a3)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-          iDestruct (mapsto_valid_2 with "Hi Hbel'") as %?. done. }
+          iDestruct (mapsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
         iApply (wp_load_success with "[$HPC $Hi $Hr_env $Hr_t2 Hbel']");
           [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 1|..]. 
         { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hlea. solve_addr. }
@@ -386,7 +386,7 @@ Section roe.
         iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd. 
         iAssert (⌜(b =? a4)%a = false⌝)%I as %Hfalse'.
         { destruct (decide (b = a4)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-          iDestruct (mapsto_valid_2 with "Hi Hd") as %?. done. }
+          iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
         iApply (wp_load_success with "[$HPC $Hi $Hr_t0 $Hr_env Hd]");
           [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..]. 
         { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }

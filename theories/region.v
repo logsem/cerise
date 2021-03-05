@@ -76,7 +76,7 @@ Section region.
   Proof.
     revert b k. induction n; intros.
     - lia.
-    - assert (X: k = n \/ k < n) by omega; destruct X as [X | X].
+    - assert (X: k = n \/ k < n) by lia; destruct X as [X | X].
       + subst k. destruct n; simpl.
         * f_equal. solve_addr.
         * rewrite IHn; [| lia]. f_equal. solve_addr.
@@ -97,7 +97,7 @@ Section region.
      - simpl. apply not_elem_of_cons; split.
        + intro. apply Hne. solve_addr.
        + rewrite get_addrs_from_option_addr_comm.
-         apply IHn; omega. omega. omega. 
+         apply IHn; lia. lia. lia.
    Qed.
 
    Lemma region_addrs_not_elem_of a n :

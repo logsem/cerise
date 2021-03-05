@@ -253,7 +253,7 @@ Section logrel.
     - iDestruct "Hinterp" as "[(%&%&%) Hinterp]". simplify_eq.
       iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
       iApply (inv_iff with "Hinv []").
-      iNext. iAlways. iSplit.
+      iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w w') "(Ha' & Ha'' & HP)".
         iExists w,w'. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w w') "(Ha' & Ha'' & HP)".
@@ -261,7 +261,7 @@ Section logrel.
     - iDestruct "Hinterp" as "[(%&%&%) Hinterp]". simplify_eq.
       iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
       iApply (inv_iff with "Hinv []").
-      iNext. iAlways. iSplit.
+      iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w w') "(Ha' & Ha'' & HP)".
         iExists w,w'. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w w') "(Ha' & Ha'' & HP)".
