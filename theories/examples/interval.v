@@ -43,7 +43,7 @@ Section interval_RA.
 
   Global Instance intervals_timeless : Timeless (intervals m).
   Proof. rewrite intervals_eq. apply _. Qed.
-  
+
 
   Lemma allocate_inv a z1 z2 m :
     m !! a = None →
@@ -179,6 +179,212 @@ Section interval.
                                  ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                  ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
                                  ∗ codefrag a (unseal_instrs ++ seal_instrs f_m))%I.
+
+  (* ---------------------------------------------------------------------------------------------------------- *)
+  (* ------------------------------------------------- MAKEINT ------------------------------------------------ *)
+  (* ---------------------------------------------------------------------------------------------------------- *)
+
+  (* TODO move to add sub lt rules file *)
+  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
+    decodeInstrW w = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ inr cap ∗ r2 ↦ᵣ w2 }}}
+      Instr Executable
+            @ E
+    {{{ RET FailedV; pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
+    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
+    decodeInstrW w = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ inr cap }}}
+      Instr Executable
+            @ E
+    {{{ RET FailedV; pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
+    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  Lemma makeint_spec pc_p pc_b pc_e (* PC *)
+        wret (* return cap *)
+        w1 w2 (* input words. If they are not ints, the program crashes *)
+        d d' (* dynamically allocated seal/unseal environment *)
+        a_first (* special adresses *)
+        ι0 ι1 ι2 ι3 ι4 γ (* invariant/gname names *)
+        ll ll' (* seal env adresses *)
+        b_m e_m f_m b_r e_r a_r a_r' (* malloc offset: needed by the seal_env, but not important for this spec *)
+        rmap (* register map *)
+        p b e a (* seal/unseal adresses *)
+        Φ Ψ (* cont *) :
+
+    (* PC assumptions *)
+    ExecPCPerm pc_p →
+
+    (* Program adresses assumptions *)
+    SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
+
+    (* environment table: required by the seal and malloc spec *)
+    withinBounds (RW, b_r, e_r, a_r') = true →
+    (a_r + f_m)%a = Some a_r' →
+
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
+
+    (* The two invariants have different names *)
+    (up_close (B:=coPset)ι0 ⊆ ⊤ ∖ ↑ι1) ->
+    (up_close (B:=coPset)ι4 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0) →
+    (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι4) →
+
+
+    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+       ∗ r_t0 ↦ᵣ wret
+       ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+       ∗ r_t1 ↦ᵣ w1
+       ∗ r_t2 ↦ᵣ w2
+       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
+       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a f_m)
+       ∗ sealLL ι2 ll γ isIntervals
+       (* token which states all non atomic invariants are closed *)
+       ∗ na_own logrel_nais ⊤
+       (* callback validity *)
+       ∗ interp wret
+       (* malloc: required by the seal and malloc spec *)
+       ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m)
+       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m))
+       (* trusted code *)
+       ∗ na_inv logrel_nais ι1 (codefrag a_first (makeint f_m))
+       (* the remaining registers are all valid: required for validity *)
+       (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
+       ∗ ▷ Ψ FailedV
+       ∗ ▷ (∀ v, Ψ v -∗ Φ v)
+       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) pbvals p' b' e' a', ⌜(b,inr (p',b',e',a')) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+                ∗ prefLL γ pbvals
+                ∗ b ↪ (z1,z2)
+                ∗ PC ↦ᵣ updatePcPerm wret
+                ∗ r_t1 ↦ᵣ inr (p,b,e,a)
+                ∗ r_env ↦ᵣ inl 0%Z
+                ∗ r_t0 ↦ᵣ wret
+                ∗ na_own logrel_nais ⊤)
+               -∗ WP Seq (Instr Executable) {{ Ψ }} )
+    ⊢
+      WP Seq (Instr Executable) {{ Φ }}.
+  Proof.
+    iIntros (Hexec Hsub Hwb_r Hr Hdom Hdisj Hdisj2 Hdisj3) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hregs
+    & #Hseal_env & #HsealLL & Hown & #Hretval & #Hmalloc & #Htable & #Hprog & Hfailed & HΨ & Hφ)".
+    (* prepare registers *)
+    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]";[eauto|].
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq;eauto|].
+    (* open the program and seal env invariants *)
+    iMod (na_inv_acc with "Hprog Hown") as "(>Hcode & Hown & Hcls)";auto.
+    iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";auto.
+    iMod (na_inv_acc with "Htable Hown") as "(>(Hpc_b & Ha_r') & Hown & Hcls'')";auto.
+    iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag)".
+    codefrag_facts "Hcode".
+    assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
+
+    (* run code up until malloc *)
+    do 3 (iInstr "Hcode").
+    focus_block 1 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
+
+    (* malloc *)
+    iApply (wp_wand _ _ _ (λ v, (Ψ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I with "[- Hfailed HΨ]").
+    2: { iIntros (v) "[ [H1 | H1] | H1]";iApply "HΨ";iFrame; iSimplifyEq; iFrame. }
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
+    iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
+    iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[|auto|clear;lia|..].
+    { rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct r_t6) as Hin1. pose proof (all_registers_s_correct r_t7) as Hin2.
+      pose proof (all_registers_s_correct r_t1) as Hin3. pose proof (all_registers_s_correct r_t2) as Hin4.
+      pose proof (all_registers_s_correct r_env) as Hin5.
+      clear -Hin1 Hin2 Hin3 Hin4 Hin5. rewrite !union_assoc_L.
+      assert ({[PC; r_t0; r_env; r_t1; r_t2]} = {[PC; r_t0]} ∪ {[r_env; r_t1; r_t2]}) as ->;[set_solver|].
+      assert ({[r_env; r_t1; r_t2; r_t6; r_t7]} = {[r_env; r_t1; r_t2]} ∪ {[r_t6; r_t7]}) as ->;[set_solver|].
+      rewrite -(difference_difference_L _ {[PC; r_t0]}). rewrite union_comm_L union_assoc_L difference_union_L. set_solver. }
+
+    (* malloc cleanup *)
+    iNext. iIntros "(HPC & Hblock & Hpc_b & Ha_r' & Hres & Hr_t0 & Hown & Hregs)".
+    iDestruct "Hres" as (ib ie Hibounds) "(Hr_t1 & Hie)".
+    iMod ("Hcls''" with "[$Hown $Hpc_b $Ha_r']") as "Hown".
+    rewrite delete_insert_ne// delete_insert;[|simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-].
+    do 4 (rewrite (insert_commute _ _ r_t2)//). rewrite insert_insert.
+    do 4 (rewrite (insert_commute _ _ r_env)//).
+    iDestruct (big_sepM_delete with "Hregs") as "[Hr_env Hregs]";[simplify_map_eq;eauto|rewrite delete_insert].
+    2: simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-.
+    do 4 (rewrite (insert_commute _ _ r_t6)//).
+    iDestruct (big_sepM_delete with "Hregs") as "[Hr_t6 Hregs]";[simplify_map_eq;eauto|rewrite delete_insert_delete].
+    do 4 (rewrite (insert_commute _ _ r_t7)//). rewrite delete_insert_ne//.
+    iDestruct (big_sepM_delete with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq;eauto|rewrite delete_insert_delete].
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+    rewrite !delete_insert_ne//.
+    iDestruct (big_sepM_insert with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
+
+    (* continue with the program *)
+    focus_block 2 "Hcode" as a_mid1 Ha_mid1 "Hblock" "Hcont".
+    destruct w1 as [z1|cap].
+    2: { (* if w1 is not an int, program fails *)
+      iInstr_lookup "Hblock" as "Hi" "Hcont2".
+      wp_instr.
+      iApplyCapAuto @wp_add_sub_lt_fail_r_r_1.
+      wp_pure. iApply wp_value. by iRight. }
+    destruct w2 as [z2|cap].
+    2: { (* if w2 is not an int, program fails *)
+      iInstr_lookup "Hblock" as "Hi" "Hcont2".
+      wp_instr.
+      iApplyCapAuto @wp_add_sub_lt_fail_r_r_2.
+      wp_pure. iApply wp_value. by iRight. }
+
+    (* at this point, we assume that the inputs were ints *)
+    iDestruct (big_sepM_delete with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|rewrite delete_insert_delete].
+    do 3 (iInstr "Hblock").
+
+    (* we are about to do the conditional jump. this can only be done manually. In each case, we will have to store *)
+    (* z1 and z2 into the newly allocated pair *)
+    (* we begin by preparing the resources for that store *)
+    rewrite /region_mapsto /region_addrs_zeroes.
+    destruct (ib + 1)%a eqn:Hi;[|exfalso;solve_addr+Hibounds Hi].
+    assert (region_addrs ib ie = [ib;a0]) as ->.
+    { rewrite (region_addrs_split _ a0);[|solve_addr+Hi Hibounds].
+      rewrite region_addrs_single// region_addrs_single;[|solve_addr+Hi Hibounds]. auto. }
+    assert ((region_size ib ie) = 2) as ->;[rewrite /region_size;solve_addr+Hibounds|iSimpl in "Hie"].
+    iDestruct "Hie" as "(Hi1 & Hi2 & _)".
+    assert (withinBounds (RWX, ib, ie, ib) = true) as Hwbi;[solve_addr+Hi Hibounds|].
+    assert (withinBounds (RWX, ib, ie, a0) = true) as Hwbi2;[solve_addr+Hi Hibounds|].
+
+    destruct (z1 <? z2)%Z eqn:Hz;iSimpl in "Hr_t2".
+    - (* if z1 is less than z2 *)
+      iInstr "Hblock".
+
+      assert ((match pc_p with
+             | E => inr (RX, pc_b, pc_e, (a_mid1 ^+ 7)%a)
+             | _ => inr (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)
+               end : Word)= inr (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)) as ->;
+          [destruct pc_p;auto;by inversion Hexec|].
+      iGo "Hblock".
+      unfocus_block "Hblock" "Hcont" as "Hcode".
+      admit.
+    - admit.
+  Admitted.
 
   (* ---------------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------------- IMIN -------------------------------------------------- *)
