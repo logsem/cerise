@@ -35,6 +35,19 @@ Section list.
       by rewrite principal_R_op.
   Qed.
 
+  Lemma get_partial_pref γ a a' :
+    a' `prefix_of` a → Exact γ a ==∗ Exact γ a ∗ prefLL γ a'.
+  Proof.
+    iIntros (Hpre) "H".
+    iMod (own_update _ _ ((● (principal prefR a)) ⋅ (◯ (principal prefR a')))
+            with "H") as "[$ $]"; last done.
+    apply auth_update_alloc.
+    apply local_update_unital_discrete.
+    intros ? ?; rewrite left_id; intros <-.
+    split; first done.
+      by rewrite principal_R_op.
+  Qed.
+
   Lemma know_pref γ a a' :
     Exact γ a -∗ prefLL γ a' -∗ ⌜a' `prefix_of` a⌝.
   Proof.
