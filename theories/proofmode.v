@@ -93,22 +93,46 @@ Ltac clear_codefrag_facts h :=
 
 (* Classes for the code sub-block focusing tactic *)
 
-Class NthSubBlock {A} (ll: list A) (n: nat) (l1: list A) (l: list A) (l2: list A) :=
-  MkNthSubblock : ll = l1 ++ l ++ l2.
-Hint Mode NthSubBlock + ! + - - - : typeclass_instances.
+Create HintDb proofmode_focus.
+Hint Constants Opaque : proofmode_focus.
+Hint Variables Opaque : proofmode_focus.
 
-Instance NthSubBlock_O_rest A (l1 l2: list A):
+Definition App {A} (l1 l2 ll: list A) :=
+  ll = l1 ++ l2.
+Hint Mode App - ! ! - : proofmode_focus.
+
+Lemma App_nil_r A (l: list A) : App l [] l.
+Proof. rewrite /App app_nil_r //. Qed.
+Hint Resolve App_nil_r : proofmode_focus.
+
+Lemma App_nil_l A (l: list A) : App [] l l.
+Proof. reflexivity. Qed.
+Hint Resolve App_nil_l : proofmode_focus.
+
+Lemma App_nil_default A (l1 l2: list A): App l1 l2 (l1 ++ l2).
+Proof. reflexivity. Qed.
+Hint Resolve App_nil_default | 100 : proofmode_focus.
+
+Definition NthSubBlock {A} (ll: list A) (n: nat) (l1: list A) (l: list A) (l2: list A) :=
+  ll = l1 ++ l ++ l2.
+Hint Mode NthSubBlock + ! + - - - : proofmode_focus.
+
+Lemma NthSubBlock_O_rest A (l1 l2: list A):
   NthSubBlock (l1 ++ l2) 0 [] l1 l2.
 Proof. reflexivity. Qed.
+Hint Resolve NthSubBlock_O_rest : proofmode_focus.
 
-Instance NthSubBlock_O_last A (l1: list A):
-  NthSubBlock l1 0 [] l1 [] | 100.
+Lemma NthSubBlock_O_last A (l1: list A):
+  NthSubBlock l1 0 [] l1 [].
 Proof. unfold NthSubBlock. rewrite app_nil_r//. Qed.
+Hint Resolve NthSubBlock_O_last | 100 : proofmode_focus.
 
-Instance NthSubBlock_S A (l0 ll l1 l2 l3: list A) n:
+Lemma NthSubBlock_S A (l0 ll l1 l2 l3 l0l1: list A) n:
   NthSubBlock ll n l1 l2 l3 →
-  NthSubBlock (l0 ++ ll) (S n) (l0 ++ l1) l2 l3.
-Proof. unfold NthSubBlock. intros ->. rewrite app_assoc //. Qed.
+  App l0 l1 l0l1 →
+  NthSubBlock (l0 ++ ll) (S n) l0l1 l2 l3.
+Proof. unfold NthSubBlock. intros -> ->. rewrite app_assoc //. Qed.
+Hint Resolve NthSubBlock_S : proofmode_focus.
 
 Section codefrag_subblock.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -169,6 +193,7 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
   let hcont := constr:(hcont:ident) in
   let x := iFresh in
   iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
+    [ typeclasses eauto with proofmode_focus | ];
   let xbase := iFresh in
   let y := iFresh in
   eapply tac_and_destruct with x _ xbase y _ _ _;
