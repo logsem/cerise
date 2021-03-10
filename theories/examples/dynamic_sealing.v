@@ -198,7 +198,8 @@ Section sealing.
     iPureIntro. eauto.
   Qed.
 
-  Lemma seal_spec pc_p pc_b pc_e (* PC *)
+  Lemma seal_spec Φ Ψ (* client chosen seal predicate *)
+        pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         w (* input z *)
         ll ll' pbvals (* linked list head and pointers *)
@@ -206,8 +207,7 @@ Section sealing.
         rmap (* register map *)
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
-        ι ι1 γ Ep φ (* invariant/gname names *)
-        Φ (* client chosen seal predicate *) :
+        ι ι1 γ Ep φ (* invariant/gname names *) :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
@@ -230,7 +230,7 @@ Section sealing.
     PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
        ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
        ∗ r_t1 ↦ᵣ w
-       ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]))
+       ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]) ∗ Ψ (a,w))
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
        (* own token *)
@@ -251,7 +251,7 @@ Section sealing.
           ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
           ∗ ([∗ map] r↦w ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
                           (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]> rmap))))), r ↦ᵣ w)
-          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (O,a,a,a))
+          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (O,a,a,a) ∗ Ψ (a,w))
           ∗ codefrag a_first (seal_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -279,13 +279,13 @@ Section sealing.
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
-    iDestruct "HisList" as (a a' pbvals') "(%HA & #Hpref' & Hr_t1)".
+    iDestruct "HisList" as (a a' pbvals') "(%HA & #Hpref' & Hr_t1 & HΨ)".
     iGo "Hprog". rewrite decode_encode_perm_inv. reflexivity.
     iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
-    iSplitR "Hr_t1".
+    iSplitR "Hr_t1 HΨ".
     - iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [apply lookup_delete|].
       rewrite insert_delete -delete_insert_ne //.
       iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
@@ -375,6 +375,7 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
     rewrite insert_delete.
 
+    rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
     iApply malloc_spec_alt; iFrameCapSolve. 4: iFrame "# ∗".
     set_solver. auto. lia.

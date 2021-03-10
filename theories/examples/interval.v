@@ -180,10 +180,11 @@ Section interval.
   Lemma intervals_add ib ie a0 z1 z2 :
     (ib + 2)%a = Some ie →
     (ib + 1)%a = Some a0 →
-    (z1 <= z2)%Z →
+    (z1 ≤ z2)%Z →
     ib ↦ₐ inl z1 -∗
     a0 ↦ₐ inl z2 -∗
-    (∀ (pbvals : list (Addr * Word)) (a1 : Addr), ⌜a1 ∉ pbvals.*1⌝ → isIntervals pbvals ==∗ isIntervals (pbvals ++ [(a1, inr (RWX, ib, ie, ib))])).
+    (∀ (pbvals : list (Addr * Word)) (a1 : Addr), ⌜a1 ∉ pbvals.*1⌝ → isIntervals pbvals ==∗ isIntervals (pbvals ++ [(a1, inr (RWX, ib, ie, ib))])
+                                                                                 ∗ a1 ↪(z1,z2)).
   Proof.
     iIntros (Hcond1 Hcond2 Hle) "Hi Hi'".
     iIntros (pbvals a1 Hnin) "[Hintervals Hint]".
@@ -192,17 +193,12 @@ Section interval.
     { destruct (m!!a1) eqn:Hsome;auto. exfalso.
       assert (is_Some (m!!a1)) as Hin%elem_of_gmap_dom;eauto.
       rewrite Hdom in Hin. apply elem_of_list_to_set in Hin. done. }
-    iModIntro. iSplitR "Hm".
+    iModIntro. iFrame "#". iSplitR "Hm".
     - rewrite -Permutation_cons_append /=. iFrame.
       iExists _,_,_. simpl. iSplit;eauto. iExists _,_;iFrame. auto.
     - iExists _. iFrame. iPureIntro.
       rewrite fmap_app /= list_to_set_app_L /= dom_insert_L Hdom. set_solver.
   Qed.
-
-  (* WORKAROUND FOR THΕ FOCUS BLOCK TO WORΚ ON THE NESTED APP DEF *)
-  Definition seal_aux : seal (@seal_instrs). Proof. by eexists. Qed.
-  Definition seal_instrs_op := seal_aux.(unseal).
-  Definition seal_instrs_eq : @seal_instrs_op = @seal_instrs := seal_aux.(seal_eq).
 
   (* TODO move to add sub lt rules file *)
   Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
@@ -296,9 +292,9 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ w1 = inl z1 ∧ w2 = inl z2⌝
                 ∗ prefLL γ pbvals
-                ∗ b ↪ (z1,z2)
+                ∗ b ↪ (Z.min z1 z2,Z.max z1 z2)
                 ∗ PC ↦ᵣ updatePcPerm wret
                 ∗ r_t1 ↦ᵣ inr (O,b,b,b)
                 ∗ r_env ↦ᵣ inl 0%Z
@@ -330,7 +326,7 @@ Section interval.
     assert (withinBounds (RWX, d, d', d1) = true) as Hwb;[solve_addr|].
 
     (* run code up until malloc *)
-    do 4 iInstr "Hcode".
+    do 4 iInstr "Hcode". rewrite /makeint.
     focus_block 1 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
 
     (* malloc *)
@@ -423,9 +419,7 @@ Section interval.
       (* seal subroutine *)
       (* focus on the seal block *)
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
-      rewrite -seal_instrs_eq.
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
-      rewrite seal_instrs_eq.
       (* first we must prepare the register map *)
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
       repeat (rewrite -delete_insert_ne//).
@@ -441,7 +435,8 @@ Section interval.
       iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|].
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
-      iApply seal_spec;[..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
+      iApply (seal_spec _ (λ aw, aw.1 ↪(z1,z2)))%I;
+        [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
       { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
         rewrite union_comm_L union_assoc_L (difference_union_L).
@@ -464,7 +459,7 @@ Section interval.
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
       { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1 & #Hz)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
       rewrite insert_delete -delete_insert_ne// insert_delete.
@@ -477,19 +472,9 @@ Section interval.
       repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
       repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
 
-      iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls)";auto.
-      iDestruct "Hll" as (hd') "(Hl & Hll)". iDestruct "Hll" as (awvals') "(Hlist & >Hexact & >(Hintervals & Hm))".
-      iDestruct (know_pref with "Hexact Hpref'") as %Hpre.
-      assert ((a1, inr (RWX, ib, ie, ib)) ∈ awvals') as [k Hin]%elem_of_list_lookup.
-      { destruct Hpre as [? ->]. apply elem_of_app. left. apply elem_of_app. right. constructor. }
-      iDestruct (big_sepL_lookup_acc with "Hintervals") as "[Hk Hintervals]";[apply Hin|].
-      iDestruct "Hk" as (a2 a3 a4 (Heq&Hincr&Hincr')) "Hk". iDestruct "Hk" as (z1' z2') "(Ha1 & Ha2 & %Hle & #Hz)".
-      iDestruct ("Hintervals" with "[Ha1 Ha2]") as "Hintervals".
-      { iExists _,_,_. iSplit;eauto. iExists _,_. iFrame. auto. }
-      iMod ("Hcls" with "[$Hown Hintervals Hl Hlist Hm Hexact]") as "Hown".
-      { iExists _. iFrame. iExists _. iFrame. }
-
-      iApply "Hφ". iExists _,_,_,_,_. iFrame "∗ #".
+      iApply "Hφ". iExists _,z1,z2,_,_. iFrame "∗ #".
+      assert (z1 `min` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|].
+      assert (z1 `max` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
 
     - (* if z2 is less than or equal to z1 *)
@@ -507,9 +492,7 @@ Section interval.
       (* seal subroutine *)
       (* focus on the seal block *)
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
-      rewrite -seal_instrs_eq.
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
-      rewrite seal_instrs_eq.
       (* first we must prepare the register map *)
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
       repeat (rewrite -delete_insert_ne//).
@@ -525,7 +508,8 @@ Section interval.
       iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|].
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
-      iApply seal_spec;[..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
+      iApply (seal_spec _ (λ aw, aw.1 ↪(z2,z1)))%I;
+        [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
       { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
         rewrite union_comm_L union_assoc_L (difference_union_L).
@@ -548,7 +532,7 @@ Section interval.
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
       { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1 & #Hz)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
       rewrite insert_delete -delete_insert_ne// insert_delete.
@@ -561,19 +545,9 @@ Section interval.
       repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
       repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
 
-      iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls)";auto.
-      iDestruct "Hll" as (hd') "(Hl & Hll)". iDestruct "Hll" as (awvals') "(Hlist & >Hexact & >(Hintervals & Hm))".
-      iDestruct (know_pref with "Hexact Hpref'") as %Hpre.
-      assert ((a1, inr (RWX, ib, ie, ib)) ∈ awvals') as [k Hin]%elem_of_list_lookup.
-      { destruct Hpre as [? ->]. apply elem_of_app. left. apply elem_of_app. right. constructor. }
-      iDestruct (big_sepL_lookup_acc with "Hintervals") as "[Hk Hintervals]";[apply Hin|].
-      iDestruct "Hk" as (a2 a3 a4 (Heq&Hincr&Hincr')) "Hk". iDestruct "Hk" as (z1' z2') "(Ha1 & Ha2 & %Hle & #Hz)".
-      iDestruct ("Hintervals" with "[Ha1 Ha2]") as "Hintervals".
-      { iExists _,_,_. iSplit;eauto. iExists _,_. iFrame. auto. }
-      iMod ("Hcls" with "[$Hown Hintervals Hl Hlist Hm Hexact]") as "Hown".
-      { iExists _. iFrame. iExists _. iFrame. }
-
       iApply "Hφ". iExists _,_,_,_,_. iFrame "∗ #".
+      assert (z1 `min` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|].
+      assert (z1 `max` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
   Qed.
 

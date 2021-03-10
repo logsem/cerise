@@ -612,7 +612,7 @@ Section list.
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
         ι ι1 γ Ep φ (* invariant/gname names *)
-        Φ (* client chosen predicate for all sealed values *) :
+        Φ Ψ (* client chosen predicate for all sealed values *) :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
@@ -638,7 +638,7 @@ Section list.
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
        (* the client must show that the value to seal satisfies their seal predicate  *)
-       ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]))
+       ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]) ∗ Ψ (a,w))
        (* own token *)
        ∗ na_own logrel_nais Ep
        (* trusted code *)
@@ -657,7 +657,7 @@ Section list.
           ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
           ∗ ([∗ map] r↦w ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
                           (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> rmap)))), r ↦ᵣ w)
-          ∗ (∃ a a' pbvals', ⌜(a + 2 = Some a')%a⌝ ∗ prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (RWX,a,a',a))
+          ∗ (∃ a a' pbvals', ⌜(a + 2 = Some a')%a⌝ ∗ prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (RWX,a,a',a) ∗ Ψ(a,w))
           ∗ codefrag a_first (appendb_instr f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -737,13 +737,13 @@ Section list.
 
       iDestruct (know_pref with "Hexact Hpref") as %Hpref.
       iMod (update_ll _ _ (pbvals' ++ [(bnew,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(bnew,w)];auto|].
-      iMod ("HΦw" $! _ bnew with "[] HΦ") as "HΦw". auto.
+      iMod ("HΦw" $! _ bnew with "[] HΦ") as "[HΦw HΨ]". auto.
 
       iMod ("Hcls'" with "[HisList Hll Hexact HΦw $Hown]") as "Hown".
       { iNext. iExists _; iFrame. iExists _. iFrame "Hexact HisList HΦw". }
       unfocus_block "Hprog" "Hcont" as "Hprog".
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
-      iSplitR "Hr_t1 Hprog".
+      iSplitR "Hr_t1 Hprog HΨ".
       { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
         repeat (rewrite -delete_insert_ne//).
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
@@ -753,7 +753,7 @@ Section list.
         rewrite delete_insert. 2: rewrite !lookup_insert_ne// elem_of_gmap_dom_none Hdom;set_solver.
         rewrite - !(insert_commute _ r_t6)// - !(insert_commute _ r_t5)// - !(insert_commute _ r_t4)// - !(insert_commute _ r_t3)// - !(insert_commute _ r_t2)//. }
       destruct Hpref. iFrame "∗".
-      iExists bnew,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1".
+      iExists bnew,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 HΨ".
       auto. }
     { iInstr "Hprog". iGo "Hprog". solve_addr.
       iGo "Hprog".
@@ -762,12 +762,12 @@ Section list.
       iDestruct (isList_NoDup with "HisList") as %Hdup.
       iDestruct (know_pref with "Hexact Hpref") as %Hpre. destruct pbvals;[|by inversion Hpre].
       iMod (update_ll _ _ ([(bnew,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(bnew,w)];auto|].
-      iMod ("HΦw" $! _ bnew with "[] HΦ") as "HΦw". iPureIntro. apply not_elem_of_nil.
+      iMod ("HΦw" $! _ bnew with "[] HΦ") as "[HΦw HΨ]". iPureIntro. apply not_elem_of_nil.
       iMod ("Hcls'" with "[Hbnew Ha Hll Hexact HΦw $Hown]") as "Hown".
       { iNext. iExists _; iFrame. iExists [(bnew,w)]. iFrame. iExists _,_,_.
         repeat iSplit;eauto. iContiguous_next H1 0. }
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
-      iFrame "∗". iSplitR "Hr_t1".
+      iFrame "∗". iSplitR "Hr_t1 HΨ".
       { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
         repeat (rewrite -delete_insert_ne//).
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
