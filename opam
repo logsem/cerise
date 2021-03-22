@@ -5,7 +5,8 @@ maintainer: ""
 authors: [ "anonymous" ]
 depends: [
   "coq" {>= "8.12.1" & < "8.13~"}
-  "coq-iris" {= "3.3.0"}
+  "coq-iris" {= "3.4.0"}
+  "coq-stdpp" {= "1.5.0"}
   "coq-equations"
   "coq-iris-string-ident"
 ]
