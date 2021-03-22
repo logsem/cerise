@@ -22,31 +22,20 @@ to rely on standard Iris invariants.
 
 You need to have [opam](https://opam.ocaml.org/) >= 2.0 installed.
 
-The development is known to compile with Coq 8.12.1 and Iris 3.3.0. To install
-those, two options:
-
-- **Option 1**: create a fresh *local* opam switch with everything needed:
+The simplest option is to create a fresh *local* opam switch with everything
+needed, by running the following commands:
 
 ```
-   opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.08.1
+   opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.07.1
    eval $(opam env)
 ```
 
-- **Option 2 (manual installation)**: if you already have an opam switch with
-  ocaml >= 4.05.0 and < 4.12:
-
-```
-    # Add the coq-released repo (skip if you already have it)
-    opam repo add coq-released https://coq.inria.fr/opam/released
-    # Install Coq 8.12.1 (skip if already installed)
-    opam install coq.8.12.1
-    opam update
-    opam install coq-iris.3.3.0 coq-equations coq-iris-string-ident
-```
+For more information about the dependencies and the required versions, consult
+the `opam` file.
 
 ### Troubleshooting
 
-For Option 1, if the invocation fails at some point, either remove the `_opam`
+If the `opam switch` invocation fails at some point, either remove the `_opam`
 directory and re-run the command (this will redo everything), or do `eval $(opam
 env)` and then `opam install -y .` (this will continue from where it failed).
 

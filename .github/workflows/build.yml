@@ -31,6 +31,6 @@ jobs:
           fetch-depth: 1
 
       - run: opam repo add coq-released https://coq.inria.fr/opam/released
-      - run: opam install . --deps-only
+      - run: opam install . --deps-only -y
 
       - run: opam exec -- make -j $(nproc)
