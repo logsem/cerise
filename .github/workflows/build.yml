@@ -33,4 +33,4 @@ jobs:
       - run: opam repo add coq-released https://coq.inria.fr/opam/released
       - run: opam install . --deps-only
 
-      - run: opam exec -- make -j2
+      - run: opam exec -- make -j $(nproc)
