@@ -3,7 +3,7 @@ From stdpp Require Import sets list.
 From cap_machine Require Import addr_reg region.
 
 Class DisjointList A := disjoint_list : list A → Prop.
-Hint Mode DisjointList ! : typeclass_instances.
+#[export] Hint Mode DisjointList ! : typeclass_instances.
 Instance: Params (@disjoint_list) 2 := {}.
 Notation "## Xs" := (disjoint_list Xs) (at level 20, format "##  Xs") : stdpp_scope.
 Notation "##@{ A } Xs" :=
@@ -36,7 +36,7 @@ Proof. intros * HXY. rewrite !elem_of_disjoint. eauto. Qed.
 
 Definition ByReflexivity (P: Prop) :=
   P.
-Hint Extern 1 (ByReflexivity _) => reflexivity : disj_regions.
+#[export] Hint Extern 1 (ByReflexivity _) => reflexivity : disj_regions.
 
 Definition AddrRegionRange (l: list Addr) (b e: Addr) :=
   ∀ a, a ∈ l → (b <= a)%a ∧ (a < e)%a.
@@ -48,14 +48,14 @@ Proof.
   unfold eqb_addr. unfold ByReflexivity. cbn. intros ?%Z.eqb_neq.
   intros a' ->%elem_of_list_singleton. solve_addr.
 Qed.
-Hint Resolve AddrRegionRange_singleton : disj_regions.
+#[export] Hint Resolve AddrRegionRange_singleton : disj_regions.
 
 Lemma AddrRegionRange_region_addrs b e :
   AddrRegionRange (region_addrs b e) b e.
 Proof.
   intros a ?%elem_of_region_addrs. solve_addr.
 Qed.
-Hint Resolve AddrRegionRange_region_addrs : disj_regions.
+#[export] Hint Resolve AddrRegionRange_region_addrs : disj_regions.
 
 Definition AddrRegionsRange (ll: list (list Addr)) (b e: Addr) :=
   ∀ l a, l ∈ ll → a ∈ l → (b <= a)%a ∧ (a < e)%a.
@@ -66,7 +66,7 @@ Lemma AddrRegionsRange_single l b e :
 Proof.
   intros Hl l' a ->%elem_of_list_singleton ?%Hl. solve_addr.
 Qed.
-Hint Resolve AddrRegionsRange_single | 1 : disj_regions.
+#[export] Hint Resolve AddrRegionsRange_single | 1 : disj_regions.
 
 Lemma AddrRegionsRange_cons l ll b e b' e' :
   AddrRegionRange l b e →
@@ -77,7 +77,7 @@ Proof.
   - intros ?%Hl. solve_addr.
   - intros ?%Hll; auto. solve_addr.
 Qed.
-Hint Resolve AddrRegionsRange_cons | 10 : disj_regions.
+#[export] Hint Resolve AddrRegionsRange_cons | 10 : disj_regions.
 
 Instance Empty_list {A}: Empty (list A). exact []. Defined.
 Instance Union_list {A}: Union (list A). exact app. Defined.
@@ -117,7 +117,7 @@ Proof.
   cbn. unfold empty, Empty_list, disjoint.
   unfold set_disjoint_instance. intros * ? ?%elem_of_nil. auto.
 Qed.
-Hint Resolve addr_range_disj_union_empty | 1 : disj_regions.
+#[export] Hint Resolve addr_range_disj_union_empty | 1 : disj_regions.
 
 Lemma addr_range_disj_range_union (l: list Addr) ll b e b' e':
   AddrRegionRange l b e →
@@ -134,18 +134,18 @@ Proof.
   unfold disjoint.
   intro. rewrite !elem_of_region_addrs. solve_addr.
 Qed.
-Hint Resolve addr_range_disj_range_union | 10 : disj_regions.
+#[export] Hint Resolve addr_range_disj_range_union | 10 : disj_regions.
 
 Lemma addr_disjoint_list_empty : ## ([]: list (list Addr)).
 Proof. constructor. Qed.
-Hint Resolve addr_disjoint_list_empty : disj_regions.
+#[export] Hint Resolve addr_disjoint_list_empty : disj_regions.
 
 Lemma addr_disjoint_list_cons (l: list Addr) ll :
   l ## ⋃ ll →
   ## ll →
   ## (l :: ll).
 Proof. intros. rewrite disjoint_list_cons; auto. Qed.
-Hint Resolve addr_disjoint_list_cons : disj_regions.
+#[export] Hint Resolve addr_disjoint_list_cons : disj_regions.
 
 Ltac disj_regions :=
   once (typeclasses eauto with disj_regions).

@@ -2,7 +2,7 @@ From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactic
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
-From cap_machine Require Export solve_pure solve_addr_extra.
+From cap_machine Require Export class_instances solve_pure solve_addr_extra.
 From cap_machine Require Import NamedProp proofmode_instr_rules.
 From iris.bi Require Import bi.
 Import bi.
@@ -94,45 +94,45 @@ Ltac clear_codefrag_facts h :=
 (* Classes for the code sub-block focusing tactic *)
 
 Create HintDb proofmode_focus.
-Hint Constants Opaque : proofmode_focus.
-Hint Variables Opaque : proofmode_focus.
+#[export] Hint Constants Opaque : proofmode_focus.
+#[export] Hint Variables Opaque : proofmode_focus.
 
 Definition App {A} (l1 l2 ll: list A) :=
   ll = l1 ++ l2.
-Hint Mode App - ! ! - : proofmode_focus.
+#[export] Hint Mode App - ! ! - : proofmode_focus.
 
 Lemma App_nil_r A (l: list A) : App l [] l.
 Proof. rewrite /App app_nil_r //. Qed.
-Hint Resolve App_nil_r : proofmode_focus.
+#[export] Hint Resolve App_nil_r : proofmode_focus.
 
 Lemma App_nil_l A (l: list A) : App [] l l.
 Proof. reflexivity. Qed.
-Hint Resolve App_nil_l : proofmode_focus.
+#[export] Hint Resolve App_nil_l : proofmode_focus.
 
 Lemma App_nil_default A (l1 l2: list A): App l1 l2 (l1 ++ l2).
 Proof. reflexivity. Qed.
-Hint Resolve App_nil_default | 100 : proofmode_focus.
+#[export] Hint Resolve App_nil_default | 100 : proofmode_focus.
 
 Definition NthSubBlock {A} (ll: list A) (n: nat) (l1: list A) (l: list A) (l2: list A) :=
   ll = l1 ++ l ++ l2.
-Hint Mode NthSubBlock + ! + - - - : proofmode_focus.
+#[export] Hint Mode NthSubBlock + ! + - - - : proofmode_focus.
 
 Lemma NthSubBlock_O_rest A (l1 l2: list A):
   NthSubBlock (l1 ++ l2) 0 [] l1 l2.
 Proof. reflexivity. Qed.
-Hint Resolve NthSubBlock_O_rest : proofmode_focus.
+#[export] Hint Resolve NthSubBlock_O_rest : proofmode_focus.
 
 Lemma NthSubBlock_O_last A (l1: list A):
   NthSubBlock l1 0 [] l1 [].
 Proof. unfold NthSubBlock. rewrite app_nil_r//. Qed.
-Hint Resolve NthSubBlock_O_last | 100 : proofmode_focus.
+#[export] Hint Resolve NthSubBlock_O_last | 100 : proofmode_focus.
 
 Lemma NthSubBlock_S A (l0 ll l1 l2 l3 l0l1: list A) n:
   NthSubBlock ll n l1 l2 l3 →
   App l0 l1 l0l1 →
   NthSubBlock (l0 ++ ll) (S n) l0l1 l2 l3.
 Proof. unfold NthSubBlock. intros -> ->. rewrite app_assoc //. Qed.
-Hint Resolve NthSubBlock_S : proofmode_focus.
+#[export] Hint Resolve NthSubBlock_S : proofmode_focus.
 
 Section codefrag_subblock.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -267,7 +267,7 @@ Qed.
 (* Typeclasses to look-up framable resources in the goal *)
 
 Class EnvsLookupSpatial {PROP: bi} (Δ: envs PROP) (P: PROP) (i: ident) := {}.
-Hint Mode EnvsLookupSpatial + ! ! - : typeclass_instances.
+#[export] Hint Mode EnvsLookupSpatial + ! ! - : typeclass_instances.
 
 Instance EnvsLookupSpatial_here (PROP: bi) (Γp Γs: env PROP) P c i :
   EnvsLookupSpatial (Envs Γp (Esnoc Γs i P) c) P i.
@@ -279,10 +279,10 @@ Instance EnvsLookupSpatial_next (PROP: bi) (Γp Γs: env PROP) P Q c i j :
 Qed.
 
 Class FramableMachineResource {Σ: gFunctors} (P: iProp Σ) := {}.
-Hint Mode FramableMachineResource + ! : typeclass_instances.
+#[export] Hint Mode FramableMachineResource + ! : typeclass_instances.
 
 Class LookupFramableMachineResource {Σ: gFunctors} (G: iProp Σ) (P: iProp Σ) := {}.
-Hint Mode LookupFramableMachineResource + ! - : typeclass_instances.
+#[export] Hint Mode LookupFramableMachineResource + ! - : typeclass_instances.
 
 Instance LookupFramableMachineResource_framable Σ (P: iProp Σ) :
   FramableMachineResource P →
@@ -307,7 +307,7 @@ Instance LookupFramableMachineResource_later Σ (G P: iProp Σ) :
 Qed.
 
 Class FramableMachineHyp {Σ} (Δ: envs (uPredI (iResUR Σ))) (G: iProp Σ) (i: ident) := {}.
-Hint Mode FramableMachineHyp + ! ! - : typeclass_instances.
+#[export] Hint Mode FramableMachineHyp + ! ! - : typeclass_instances.
 Instance FramableMachineHyp_default Σ (Δ: envs (uPredI (iResUR Σ))) G P i:
   LookupFramableMachineResource G P →
   EnvsLookupSpatial Δ P i →
@@ -315,11 +315,11 @@ Instance FramableMachineHyp_default Σ (Δ: envs (uPredI (iResUR Σ))) G P i:
 Qed.
 
 Class FramableRegisterPointsto (r: RegName) (w: Word) := {}.
-Hint Mode FramableRegisterPointsto + - : typeclass_instances.
+#[export] Hint Mode FramableRegisterPointsto + - : typeclass_instances.
 Class FramableMemoryPointsto (a: Addr) (w: Word) := {}.
-Hint Mode FramableMemoryPointsto + - : typeclass_instances.
+#[export] Hint Mode FramableMemoryPointsto + - : typeclass_instances.
 Class FramableCodefrag (a: Addr) (l: list Word) := {}.
-Hint Mode FramableCodefrag + - : typeclass_instances.
+#[export] Hint Mode FramableCodefrag + - : typeclass_instances.
 
 Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
