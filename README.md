@@ -30,8 +30,7 @@ needed, by running the following commands:
    eval $(opam env)
 ```
 
-For more information about the dependencies and the required versions, consult
-the `opam` file.
+Consult the `opam` file for more information.
 
 ### Troubleshooting
 
