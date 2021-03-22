@@ -12,23 +12,22 @@ jobs:
 
     steps:
 
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
       - name: Try to restore opam cache
         id: opam-cache
         uses: actions/cache@v2
         with:
           path: "~/.opam"
-          key: opam-${{github.base_ref}}-${{github.ref}}
-          restore-keys: |
-            opam--refs/heads/${{github.base_ref}}
+          key: opam-${{ hashFiles('opam') }}
+
       - name: Install OCaml
         uses: avsm/setup-ocaml@v1
         with:
           ocaml-version: 4.07.1
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
 
       - run: opam repo add coq-released https://coq.inria.fr/opam/released
       - run: opam install . --deps-only -y
