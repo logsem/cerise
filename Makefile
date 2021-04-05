@@ -24,6 +24,17 @@ html: Makefile.coq
 Makefile.coq:
 	coq_makefile -f _CoqProject -o Makefile.coq
 
+Makefile.coq.conf:
+	coq_makefile -f _CoqProject -o Makefile.coq
+
+include Makefile.coq.conf
+
+skip-qed: Makefile.coq.conf
+	./disable-qed.sh $(COQMF_VFILES)
+
+ci: skip-qed
+	$(MAKE) -f Makefile.coq pretty-timed
+
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
 	rm -f Makefile.coq
