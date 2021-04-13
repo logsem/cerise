@@ -562,7 +562,7 @@ Section interval.
         a_first (* special adresses *)
         ι0 ι1 ι2 γ (* invariant/gname names *)
         ll ll' (* seal env adresses *)
-        f_m (* malloc offset: needed by the seal_env, but not important for this spec *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env, but not important for this spec *)
         p b e a (* seal/unseal adresses *)
         Φ Ψ (* cont *) :
 
@@ -593,7 +593,7 @@ Section interval.
        ∗ (∃ w, r_t5 ↦ᵣ w)
        ∗ (∃ w, r_t20 ↦ᵣ w)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
-       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a f_m)
+       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
        ∗ sealLL ι2 ll γ isIntervals
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
@@ -637,7 +637,7 @@ Section interval.
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
     iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";[solve_ndisj..|].
-    iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag)".
+    iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %)".
     codefrag_facts "Hcode".
     assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
     iGo "Hcode".
@@ -679,8 +679,8 @@ Section interval.
     iMod ("Hcls''" with "[Hacc Ha1 Ha2 Hll HisList Hexact $Hown Hm]") as "Hown".
     { iNext. iExists _. iFrame. iExists _. iFrame. iApply "Hacc". iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame "∗ #". auto. }
 
-    iMod ("Hcls'" with "[Hunseal Hseal Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
-    { iExists _,_,_,_,_. iFrame. iNext. eauto. }
+    iMod ("Hcls'" with "[Hunseal Hseal Hunsealseal_codefrag Hd Hd1 Hb Hb_t $Hown]") as "Hown".
+    { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
 
     iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
 
@@ -697,7 +697,7 @@ Section interval.
         rmap (* registers *)
         ι0 ι1 ι2 γ (* invariant/gname names *)
         ll ll' (* seal env adresses *)
-        f_m (* malloc offset: needed by the seal_env, but not important for this spec *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env, but not important for this spec *)
         p b e a (* seal/unseal adresses *):
 
     (* PC assumptions *)
@@ -724,7 +724,7 @@ Section interval.
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
-      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a f_m)
+      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
       ∗ sealLL ι2 ll γ isIntervals
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
@@ -815,7 +815,7 @@ Section interval.
         a_first (* special adresses *)
         ι0 ι1 ι2 γ (* invariant/gname names *)
         ll ll' (* seal env adresses *)
-        f_m (* malloc offset: needed by the seal_env, but not important for this spec *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env, but not important for this spec *)
         p b e a (* seal/unseal adresses *)
         Φ Ψ (* cont *) :
 
@@ -846,7 +846,7 @@ Section interval.
        ∗ (∃ w, r_t5 ↦ᵣ w)
        ∗ (∃ w, r_t20 ↦ᵣ w)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
-       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a f_m)
+       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
        ∗ sealLL ι2 ll γ isIntervals
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
@@ -890,7 +890,7 @@ Section interval.
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
     iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";[solve_ndisj..|].
-    iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag)".
+    iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %)".
     codefrag_facts "Hcode".
     assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
     iGo "Hcode".
@@ -932,8 +932,8 @@ Section interval.
     iMod ("Hcls''" with "[Hacc Ha1 Ha2 Hll HisList Hexact $Hown Hm]") as "Hown".
     { iNext. iExists _. iFrame. iExists _. iFrame. iApply "Hacc". iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame "∗ #". auto. }
 
-    iMod ("Hcls'" with "[Hunseal Hseal Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
-    { iExists _,_,_,_,_. iFrame. iNext. eauto. }
+    iMod ("Hcls'" with "[Hunseal Hseal Hb Hb_t Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
+    { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
 
     iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
 
@@ -950,7 +950,7 @@ Section interval.
         rmap (* registers *)
         ι0 ι1 ι2 γ (* invariant/gname names *)
         ll ll' (* seal env adresses *)
-        f_m (* malloc offset: needed by the seal_env, but not important for this spec *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env, but not important for this spec *)
         p b e a (* seal/unseal adresses *):
 
     (* PC assumptions *)
@@ -977,7 +977,7 @@ Section interval.
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
-      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a f_m)
+      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
       ∗ sealLL ι2 ll γ isIntervals
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
