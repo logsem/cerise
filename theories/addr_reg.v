@@ -68,7 +68,7 @@ Instance RegName_InjTyp : InjTyp RegName Z.
   refine (mkinj _ _ Z_of_regname (fun n => n <= RegNum + 1)%Z _).
   intros [|]. cbn. lia. cbn. apply Nat.leb_le in fin. lia.
 Defined.
-Add InjTyp RegName_InjTyp.
+Add Zify InjTyp RegName_InjTyp.
 
 Instance Op_RegName_eq : BinRel (@eq RegName).
   refine ({| TR := @eq Z; TRInj := _ |}).
@@ -78,7 +78,7 @@ Instance Op_RegName_eq : BinRel (@eq RegName).
     intros ->%Nat2Z.inj%eq_add_S.
     f_equal. apply eq_proofs_unicity. intros [|] [|]; eauto.
 Defined.
-Add BinRel Op_RegName_eq.
+Add Zify BinRel Op_RegName_eq.
 
 (* -------------------------------- Memory addresses -----------------------------------*)
 

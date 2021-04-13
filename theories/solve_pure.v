@@ -1,7 +1,7 @@
 From Coq Require Import ZArith Lia ssreflect.
 From stdpp Require Import base.
-From cap_machine Require Import machine_base machine_parameters addr_reg classes class_instances solve_addr.
-From cap_machine Require Export solve_addr_extra.
+From cap_machine Require Import machine_base machine_parameters addr_reg solve_addr.
+From cap_machine Require Export solve_addr_extra classes class_instances.
 From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 
 From Ltac2 Require Import Ltac2 Option.
@@ -89,12 +89,12 @@ Ltac unfreeze_hyps :=
 Create HintDb cap_pure discriminated.
 
 (* ContiguousRegion *)
-Hint Mode ContiguousRegion + - : cap_pure.
+#[export] Hint Mode ContiguousRegion + - : cap_pure.
 
 Lemma ContiguousRegion_InCtx a z :
   InCtx (ContiguousRegion a z) → ContiguousRegion a z.
 Proof. auto. Qed.
-Hint Resolve ContiguousRegion_InCtx : cap_pure.
+#[export] Hint Resolve ContiguousRegion_InCtx : cap_pure.
 
 Instance IncrAddr_of_ContiguousRegion a z :
   ContiguousRegion a z →
@@ -115,16 +115,16 @@ Proof.
 Qed.
 
 (* SubBounds *)
-Hint Mode SubBounds + + - - : cap_pure.
+#[export] Hint Mode SubBounds + + - - : cap_pure.
 
 Lemma SubBounds_InCtx b e b' e' :
   InCtx (SubBounds b e b' e') → SubBounds b e b' e'.
 Proof. auto. Qed.
 
-Hint Extern 2 (SubBounds _ _ ?b' ?e') =>
+#[export] Hint Extern 2 (SubBounds _ _ ?b' ?e') =>
   (is_evar b'; is_evar e'; apply SubBounds_InCtx) : cap_pure.
 
-Hint Extern 0 (SubBounds _ _ ?b' ?e') =>
+#[export] Hint Extern 0 (SubBounds _ _ ?b' ?e') =>
   (without_evars b'; without_evars e';
    apply SubBounds_InCtx) : cap_pure.
 
@@ -177,16 +177,16 @@ Proof. unfold SubBounds, AddrLt. solve_addr. Qed.
 
 (* InBounds *)
 
-Hint Mode InBounds + + + : cap_pure.
+#[export] Hint Mode InBounds + + + : cap_pure.
 
-Hint Resolve InBounds_sub : cap_pure.
+#[export] Hint Resolve InBounds_sub : cap_pure.
 
 Lemma InBounds_compare (b a e: Addr) :
   AddrLe b a →
   AddrLt a e →
   InBounds b e a.
 Proof. unfold AddrLe, AddrLt, InBounds. auto. Qed.
-Hint Resolve InBounds_compare : cap_pure.
+#[export] Hint Resolve InBounds_compare : cap_pure.
 
 Lemma withinBounds_InCtx p b e a :
   InCtx (withinBounds (p, b, e, a) = true) →
@@ -195,13 +195,13 @@ Proof.
   unfold InCtx, InBounds. cbn.
   intros [?%Z.leb_le ?%Z.ltb_lt]%andb_true_iff. solve_addr.
 Qed.
-Hint Resolve withinBounds_InCtx : cap_pure.
+#[export] Hint Resolve withinBounds_InCtx : cap_pure.
 
 (* isCorrectPC *)
 
-Hint Mode isCorrectPC + : cap_pure.
+#[export] Hint Mode isCorrectPC + : cap_pure.
 
-Hint Resolve isCorrectPC_ExecPCPerm_InBounds : cap_pure.
+#[export] Hint Resolve isCorrectPC_ExecPCPerm_InBounds : cap_pure.
 
 (* IncrAddr *)
 
@@ -213,7 +213,7 @@ Lemma IncrAddr_prove a z a' :
 Proof.
   intros ->. reflexivity.
 Qed.
-Hint Resolve IncrAddr_prove : cap_pure.
+#[export] Hint Resolve IncrAddr_prove : cap_pure.
 
 Instance IncrAddr_InCtx a z a' :
   InCtx ((a + z)%a = Some a') → IncrAddr a z a'.
@@ -227,31 +227,31 @@ Lemma DecodeInstr_prove `{MachineParameters} w i :
 Proof.
   intros ->. reflexivity.
 Qed.
-Hint Resolve DecodeInstr_prove : cap_pure.
+#[export] Hint Resolve DecodeInstr_prove : cap_pure.
 
 (* ExecPCPerm, PermFlows *)
 
-Hint Mode ExecPCPerm + : cap_pure.
-Hint Mode PermFlows - + : cap_pure.
+#[export] Hint Mode ExecPCPerm + : cap_pure.
+#[export] Hint Mode PermFlows - + : cap_pure.
 
 Lemma ExecPCPerm_InCtx p :
   InCtx (ExecPCPerm p) → ExecPCPerm p.
 Proof. auto. Qed.
-Hint Resolve ExecPCPerm_InCtx : cap_pure.
+#[export] Hint Resolve ExecPCPerm_InCtx : cap_pure.
 
-Hint Resolve ExecPCPerm_RX : cap_pure.
-Hint Resolve ExecPCPerm_RWX : cap_pure.
-Hint Resolve ExecPCPerm_not_E : cap_pure.
-Hint Resolve ExecPCPerm_flows_to : cap_pure.
+#[export] Hint Resolve ExecPCPerm_RX : cap_pure.
+#[export] Hint Resolve ExecPCPerm_RWX : cap_pure.
+#[export] Hint Resolve ExecPCPerm_not_E : cap_pure.
+#[export] Hint Resolve ExecPCPerm_flows_to : cap_pure.
 (* TODO: add a test checking the use of ExecPCPerm_flows_to (if it is still
    needed) *)
-Hint Resolve ExecPCPerm_readAllowed : cap_pure.
+#[export] Hint Resolve ExecPCPerm_readAllowed : cap_pure.
 (* Will only work if arguments are concrete terms *)
-Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
-Hint Extern 1 (writeAllowed _ = true) => reflexivity : cap_pure.
-Hint Extern 1 (PermFlowsTo _ _ = true) => reflexivity : cap_pure.
+#[export] Hint Extern 1 (readAllowed _ = true) => reflexivity : cap_pure.
+#[export] Hint Extern 1 (writeAllowed _ = true) => reflexivity : cap_pure.
+#[export] Hint Extern 1 (PermFlowsTo _ _ = true) => reflexivity : cap_pure.
 (* Follows the same behavior as the Hint Mode for PermFlows *)
-Hint Extern 1 (PermFlowsTo ?p ?p' = true) =>
+#[export] Hint Extern 1 (PermFlowsTo ?p ?p' = true) =>
   (without_evars p'; apply PermFlowsToReflexive): cap_pure.
 
 (* withinBounds *)
@@ -262,24 +262,24 @@ Hint Extern 1 (PermFlowsTo ?p ?p' = true) =>
    That's fine: this proxy lemma applies without risking instantiating any evar,
    and then the Hint Mode on [InBounds] can take effect. *)
 
-Hint Resolve withinBounds_InBounds : cap_pure.
+#[export] Hint Resolve withinBounds_InBounds : cap_pure.
 
 (* is_Get *)
-Hint Mode is_Get ! - - : cap_pure.
-Hint Resolve is_Get_GetP : cap_pure.
-Hint Resolve is_Get_GetB : cap_pure.
-Hint Resolve is_Get_GetE : cap_pure.
-Hint Resolve is_Get_GetA : cap_pure.
+#[export] Hint Mode is_Get ! - - : cap_pure.
+#[export] Hint Resolve is_Get_GetP : cap_pure.
+#[export] Hint Resolve is_Get_GetB : cap_pure.
+#[export] Hint Resolve is_Get_GetE : cap_pure.
+#[export] Hint Resolve is_Get_GetA : cap_pure.
 
 (* is_AddSubLt *)
-Hint Mode is_AddSubLt ! - - - : cap_pure.
-Hint Resolve is_AddSubLt_Add : cap_pure.
-Hint Resolve is_AddSubLt_Sub : cap_pure.
-Hint Resolve is_AddSubLt_Lt : cap_pure.
+#[export] Hint Mode is_AddSubLt ! - - - : cap_pure.
+#[export] Hint Resolve is_AddSubLt_Add : cap_pure.
+#[export] Hint Resolve is_AddSubLt_Sub : cap_pure.
+#[export] Hint Resolve is_AddSubLt_Lt : cap_pure.
 
 (* z_to_addr *)
 
-Hint Resolve z_to_addr_z_of : cap_pure.
+#[export] Hint Resolve z_to_addr_z_of : cap_pure.
 
 (* *)
 
@@ -300,14 +300,14 @@ Create HintDb cap_pure_addr.
 
 Local Ltac hint_solve_addr := unfreeze_hyps; solve_addr.
 
-Hint Mode SubBounds + + + + : cap_pure_addr.
-Hint Extern 100 (SubBounds _ _ _ _) => hint_solve_addr : cap_pure_addr.
+#[export] Hint Mode SubBounds + + + + : cap_pure_addr.
+#[export] Hint Extern 100 (SubBounds _ _ _ _) => hint_solve_addr : cap_pure_addr.
 
-Hint Mode InBounds + + + : cap_pure_addr.
-Hint Extern 100 (InBounds _ _ _) => hint_solve_addr : cap_pure_addr.
+#[export] Hint Mode InBounds + + + : cap_pure_addr.
+#[export] Hint Extern 100 (InBounds _ _ _) => hint_solve_addr : cap_pure_addr.
 
-Hint Mode IncrAddr + + + : cap_pure_addr.
-Hint Extern 100 (IncrAddr _ _ _) => hint_solve_addr : cap_pure_addr.
+#[export] Hint Mode IncrAddr + + + : cap_pure_addr.
+#[export] Hint Extern 100 (IncrAddr _ _ _) => hint_solve_addr : cap_pure_addr.
 
 Ltac solve_pure_addr :=
   first [ assumption

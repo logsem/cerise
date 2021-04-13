@@ -4,8 +4,8 @@ From cap_machine Require Import machine_base machine_parameters addr_reg classes
 
 (* Helper tactics *)
 
-Hint Extern 0 (@SimplTC _ _ _) => (cbn; reflexivity) : typeclass_instances.
-Hint Extern 0 (@CbvTC _ ?lhs _) => (
+#[export] Hint Extern 0 (@SimplTC _ _ _) => (cbn; reflexivity) : typeclass_instances.
+#[export] Hint Extern 0 (@CbvTC _ ?lhs _) => (
   let lhs' := eval vm_compute in lhs in
   change lhs with lhs';
   reflexivity
@@ -18,11 +18,11 @@ Proof. apply Z.le_refl. Qed.
 
 Lemma AddrOffsetLe_compute z z': (z <=? z' = true)%Z -> AddrOffsetLe z z'.
 Proof. intro. apply Z.leb_le; auto. Qed.
-Hint Extern 1 (AddrOffsetLe _ _) => (apply AddrOffsetLe_compute; reflexivity) : typeclass_instances.
+#[export] Hint Extern 1 (AddrOffsetLe _ _) => (apply AddrOffsetLe_compute; reflexivity) : typeclass_instances.
 
 Lemma AddrOffsetLt_compute z z': (z <? z' = true)%Z -> AddrOffsetLt z z'.
 Proof. intro. apply Z.ltb_lt; auto. Qed.
-Hint Extern 1 (AddrOffsetLt _ _) => (apply AddrOffsetLt_compute; reflexivity) : typeclass_instances.
+#[export] Hint Extern 1 (AddrOffsetLt _ _) => (apply AddrOffsetLt_compute; reflexivity) : typeclass_instances.
 
 Instance AddrOffsetLe_of_lt z z': AddrOffsetLt z z' → AddrOffsetLe z z'.
 Proof. unfold AddrOffsetLt, AddrOffsetLe. lia. Qed.
