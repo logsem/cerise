@@ -316,7 +316,7 @@ Section macros.
     { iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
         simplify_map_eq. reflexivity.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
-        simplify_map_eq. reflexivity.
+      simplify_map_eq. reflexivity.
       map_simpl "Hregs".
       repeat (rewrite (insert_commute _ r_t5) //;[]).
       rewrite (insert_commute _ r_t2 r_t3) //. }
@@ -601,11 +601,10 @@ Section macros.
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
     iExists _,_. iSplitR; [eauto|]. iFrame "∗".
+    iFrameMapSolve "Hregs".
     rewrite (delete_notin rmap r_t1 ltac:(eapply not_elem_of_dom; set_solver)).
-    repeat rewrite (insert_commute _ r_t6); auto.
-    repeat rewrite (insert_commute _ r_t7); auto.
-    rewrite (delete_notin _ r_t2); try iFrame.
-    repeat rewrite lookup_insert_ne; auto; eapply not_elem_of_dom; set_solver.
+    rewrite (delete_notin _ r_t2); simplify_map_eq; auto.
+    eapply not_elem_of_dom; set_solver.
   Qed.
 
   Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e

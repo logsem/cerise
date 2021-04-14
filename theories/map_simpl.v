@@ -249,3 +249,64 @@ Ltac map_simpl_debug name :=
       f K A m (@encode K _ _)
     end
   end.
+
+From iris.proofmode Require Import reduction tactics.
+
+Ltac disjunct_cases m i :=
+  match m with
+  | <[?k := _]> ?m' => destruct (decide (k = i)); disjunct_cases m' i
+  | delete ?k ?m' => destruct (decide (k = i)); disjunct_cases m' i
+  | _ => subst; simplify_map_eq; try reflexivity
+  end.
+Ltac solve_map_eq :=
+  match goal with
+  | |- ?m !! ?i = ?m' !! ?i => disjunct_cases m i
+  end.
+
+Ltac iFrameMapSolve' name :=
+  lazymatch goal with
+  | |- envs_entails ?H ([∗ map] _↦_ ∈ ?m, _)%I =>
+    lazymatch pm_eval (envs_lookup name H) with
+    | Some (_, ?X) =>
+      match X with
+      | ([∗ map] _↦_ ∈ ?m', _)%I =>
+        match type of m' with
+        | gmap ?K ?A =>
+          replace m' with m; [iFrame name| apply map_eq_iff; intros; solve_map_eq]
+        end
+        | _ => idtac "The given hypothesis is not of the form ([∗ map] _↦_ ∈ _, _)"; idtac X
+      end
+    | _ => idtac "Can't find the given hypothesis"
+    end
+  | _ => idtac "The goal is not of the form ([∗ map] _↦_ ∈ _, _)"
+  end.
+
+Ltac iFrameMapSolve name :=
+  map_simpl name; iFrameMapSolve' name.
+
+From cap_machine Require Import rules logrel addr_reg_sample.
+
+Section test.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+          {nainv: logrel_na_invs Σ}
+          `{MP: MachineParameters}.
+
+  Lemma test:
+    forall (rmap: gmap RegName Word),
+      rmap !! r_env = None ->
+      (([∗ map] k↦y ∈ <[r_t6:=inl 0%Z]>
+        (delete r_env
+                (<[r_t4:=inl 0%Z]>
+                 (<[r_t2:=inl 0%Z]>
+                  (<[r_t3:=inl 0%Z]> (<[r_env:=inl 42%Z]> (<[r_t5:=inl 0%Z]> rmap)))))),
+        k ↦ᵣ y)) -∗
+           ([∗ map] r↦w0 ∈ <[r_t3:=inl 0%Z]>
+            (<[r_t2:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t5:=inl 0%Z]> rmap)))),
+            r ↦ᵣ w0).
+  Proof.
+    iIntros (rmap Hnin) "Hregs".
+    iFrameMapSolve "Hregs".
+    rewrite delete_notin; simplify_map_eq; auto.
+  Qed.
+
+End test.
