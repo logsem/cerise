@@ -35,13 +35,13 @@ Section interval_RA.
     simplify_eq. done.
   Qed.
 
-  Global Instance int_timeless : Timeless (int a z1 z2).
+  Global Instance int_timeless a z1 z2 : Timeless (int a z1 z2).
   Proof. rewrite int_eq. apply _. Qed.
 
-  Global Instance int_Persistent : Persistent (int a z1 z2).
+  Global Instance int_Persistent a z1 z2 : Persistent (int a z1 z2).
   Proof. rewrite int_eq. apply _. Qed.
 
-  Global Instance intervals_timeless : Timeless (intervals m).
+  Global Instance intervals_timeless m : Timeless (intervals m).
   Proof. rewrite intervals_eq. apply _. Qed.
 
 
@@ -147,10 +147,10 @@ Section interval.
   Definition isIntervals : list (Addr * Word) -> iProp Σ :=
     (λ bvals, ([∗ list] aw ∈ bvals, isInterval aw) ∗ ∃ m, intervals m ∗ ⌜dom (gset Addr) m = list_to_set bvals.*1⌝)%I.
 
-  Instance isInterval_timeless : Timeless (isInterval w).
+  Instance isInterval_timeless w : Timeless (isInterval w).
   Proof. apply _. Qed.
 
-  Instance isIntervals_timeless : Timeless (isIntervals bvals).
+  Instance isIntervals_timeless bvals : Timeless (isIntervals bvals).
   Proof. apply _. Qed.
 
   (* the seal closure environment must contain:
