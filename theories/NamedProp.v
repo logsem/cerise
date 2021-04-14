@@ -1,4 +1,3 @@
-(* From Perennial *)
 From iris.proofmode Require Import tactics environments intro_patterns.
 From iris_string_ident Require Import ltac2_string_ident.
 
@@ -23,16 +22,22 @@ Set Default Proof Using "Type".
   There are a few more top-level tactics provided to work with named
   propositions:
   - [iNamed] names any anonymous hypotheses (without destructing them)
-  - [iNamed 1] on a wand introduces and destructs the the premise.
+  - [iNamed 1] on a wand introduces and destructs the premise.
+  - [iNamedAccu] is like [iAccu] - it solves a goal which is an evar with the
+    conjunction of all the hypotheses - but produces a conjunction of named
+    hypotheses. This is especially useful when that evar ?Q shows up as a
+    premise in a wand, [?Q -∗ ...], at which point you can do [iNamed 1] to
+    restore the context, including all the names.
   - [iFrameNamed] is a work-in-progress tactic to frame a goal with named
     conjuncts with the hypotheses using the names. This is intended to be much
     faster than framing the entire persistent and spatial contexts.
 
-  Note that this library provides general support for propositions and are not
-  specific to definitions. You can use them in Hoare logic preconditions (to
-  make the first iIntros more stable), in the postcondition (to make it easier
-  for the caller to re-introduce hypotheses), or in loop invariants (to serve
-  both of these purposes).
+  Note that this library provides general support for propositions and is not
+  specific to definitions. You can use named hypotheses in Hoare logic
+  preconditions (to make the first iIntros more stable), in the postcondition
+  (to make it easier for the caller to re-introduce hypotheses), or in loop
+  invariants (to serve both of these purposes). If they ever get in the way you
+  can always [rewrite /named] to get rid of the names.
  *)
 
 (* Named props are just the underlying prop. We used to have this sealed, but it
@@ -52,17 +57,21 @@ Section named.
   Theorem from_named name (P: PROP) : named name P -∗ P.
   Proof. auto. Qed.
 
+  (* implementation of [iNamedAccu]; the soundness proof basically shows these
+  definitions are equivalent to the ones used in the [iAccu] implementation,
+  since we can simply unfold [named, since we can simply unfold [named]] *)
+
   Fixpoint env_to_named_prop_go (acc : PROP) (Γ : env PROP) : PROP :=
     match Γ with
     | Enil => acc
     | Esnoc Γ (INamed name) P => env_to_named_prop_go (named name P ∗ acc)%I Γ
-    | Esnoc Γ _ P => env_to_named_prop_go (P ∗ acc)%I Γ
+    | Esnoc Γ _ P => env_to_named_prop_go (named "?" P ∗ acc)%I Γ
     end.
   Definition env_to_named_prop (Γ : env PROP) : PROP :=
     match Γ with
     | Enil => emp%I
     | Esnoc Γ (INamed name) P => env_to_named_prop_go (named name P) Γ
-    | Esnoc Γ _ P => env_to_named_prop_go P Γ
+    | Esnoc Γ _ P => env_to_named_prop_go (named "?" P) Γ
     end.
 
   Theorem env_to_named_prop_go_unname (acc: PROP) Γ :
@@ -101,12 +110,6 @@ Ltac to_pm_ident H :=
   lazymatch type of H with
   | string => constr:(INamed H)
   | ident => constr:(H)
-  end.
-
-Ltac string_to_ident s :=
-  let ident_fun := constr:(ltac:(ltac_tactics.string_to_ident_hook s)) in
-  lazymatch ident_fun with
-  | λ (x:_), _ => x
   end.
 
 Local Ltac iDeex_as i x :=
@@ -455,40 +458,40 @@ Module tests.
       iFrame.
     Qed.
 
-    (* Example test_exist_destruct Ψ Q : *)
-    (*   ⊢ (∃ x, named "HP" (Ψ x) ∗ named "HQ" Q) -∗ (∃ x, Ψ x) ∗ Q. *)
-    (* Proof. *)
-    (*   iIntros "H". *)
-    (*   iNamed "H". *)
-    (*   iSplitL "HP"; [ iExists x | ]; iFrame. *)
-    (* Qed. *)
+    Example test_exist_destruct Ψ Q :
+      ⊢ (∃ x, named "HP" (Ψ x) ∗ named "HQ" Q) -∗ (∃ x, Ψ x) ∗ Q.
+    Proof.
+      iIntros "H".
+      iNamed "H".
+      iSplitL "HP"; [ iExists x | ]; iFrame.
+    Qed.
 
     Definition rep_invariant Ψ Q : PROP :=
       (∃ x, named "HP" (Ψ x) ∗ named "HQ" Q)%I.
 
-    (* Example test_exist_destruct_under_definition Ψ Q : *)
-    (*   ⊢ rep_invariant Ψ Q -∗ (∃ x, Ψ x) ∗ Q. *)
-    (* Proof. *)
-    (*   iIntros "H". *)
-    (*   iNamed "H". *)
-    (*   iSplitL "HP"; [ iExists x | ]; iFrame. *)
-    (* Qed. *)
+    Example test_exist_destruct_under_definition Ψ Q :
+      ⊢ rep_invariant Ψ Q -∗ (∃ x, Ψ x) ∗ Q.
+    Proof.
+      iIntros "H".
+      iNamed "H".
+      iSplitL "HP"; [ iExists x | ]; iFrame.
+    Qed.
 
-    (* Example test_exist_destruct_no_naming Ψ Q : *)
-    (*   ⊢ (∃ x, Ψ x) -∗ (∃ x, Ψ x). *)
-    (* Proof. *)
-    (*   iIntros "H". *)
-    (*   iNamed "H". *)
-    (*   iExists x; iFrame "H". *)
-    (* Qed. *)
+    Example test_exist_destruct_no_naming Ψ Q :
+      ⊢ (∃ x, Ψ x) -∗ (∃ x, Ψ x).
+    Proof.
+      iIntros "H".
+      iNamed "H".
+      iExists x; iFrame "H".
+    Qed.
 
-    (* Example test_multiple_exist_destruct Ψ Q : *)
-    (*   ⊢ (∃ x y z, Ψ (x + y + z)) -∗ (∃ x, Ψ x). *)
-    (* Proof. *)
-    (*   iIntros "H". *)
-    (*   iNamed "H". *)
-    (*   iExists (x+y+z); iFrame "H". *)
-    (* Qed. *)
+    Example test_multiple_exist_destruct Ψ Q :
+      ⊢ (∃ x y z, Ψ (x + y + z)) -∗ (∃ x, Ψ x).
+    Proof.
+      iIntros "H".
+      iNamed "H".
+      iExists (x+y+z); iFrame "H".
+    Qed.
 
     Example test_iNamed_destruct_pat φ P Q :
       ⊢ named "[%Hfoo HP]" (⌜φ⌝ ∗ P) ∗
@@ -580,23 +583,23 @@ Module tests.
       iExact "HP".
     Qed.
 
-    (* Example test_exists Ψ : *)
-    (*   named "HP2" (∃ my_name, Ψ my_name) -∗ *)
-    (*   named "HP" (∃ x, Ψ x). *)
-    (* Proof. *)
-    (*   iIntros "?"; iNamed. *)
-    (*   iDeexHyp "HP2". *)
-    (*   iExists my_name; iFrame. *)
-    (* Qed. *)
+    Example test_exists Ψ :
+      named "HP2" (∃ my_name, Ψ my_name) -∗
+      named "HP" (∃ x, Ψ x).
+    Proof.
+      iIntros "?"; iNamed.
+      iDeexHyp "HP2".
+      iExists my_name; iFrame.
+    Qed.
 
-    (* Example test_exists_freshen x Ψ : *)
-    (*   named "HP" (Ψ x) -∗ named "HP2" (∃ x, Ψ x) -∗ *)
-    (*   named "HP" (∃ x, Ψ x). *)
-    (* Proof. *)
-    (*   iIntros "? ?"; iNamed. *)
-    (*   iDeexHyp "HP2". *)
-    (*   iExists x0; iFrame. *)
-    (* Qed. *)
+    Example test_exists_freshen x Ψ :
+      named "HP" (Ψ x) -∗ named "HP2" (∃ x, Ψ x) -∗
+      named "HP" (∃ x, Ψ x).
+    Proof.
+      iIntros "? ?"; iNamed.
+      iDeexHyp "HP2".
+      iExists x0; iFrame.
+    Qed.
 
     Definition simple_rep P := "HP" ∷ P.
 
@@ -609,33 +612,33 @@ Module tests.
       Fail iExact "HP".
     Abort.
 
-    (* Example test_nested_destruct Ψ : *)
-    (*   ⊢ ("%wf" ∷ ⌜True⌝ ∗ *)
-    (*   "*" ∷ ∃ y, "psi" ∷ Ψ y) -∗ *)
-    (*   ∃ x, Ψ x. *)
-    (* Proof. *)
-    (*   iNamed 1. *)
-    (*   iExists y; iExact "psi". *)
-    (* Qed. *)
+    Example test_nested_destruct Ψ :
+      ⊢ ("%wf" ∷ ⌜True⌝ ∗
+      "*" ∷ ∃ y, "psi" ∷ Ψ y) -∗
+      ∃ x, Ψ x.
+    Proof.
+      iNamed 1.
+      iExists y; iExact "psi".
+    Qed.
 
-    (* Example test_nested_destruct_conjuncts Ψ : *)
-    (*   ("%wf" ∷ ⌜True⌝ ∗ *)
-    (*   "*" ∷ ∃ y, "psi" ∷ Ψ y ∗ "psi2" ∷ Ψ (2+y)) -∗ *)
-    (*   ∃ x, Ψ x. *)
-    (* Proof. *)
-    (*   iNamed 1. *)
-    (*   iExists (2+y); iExact "psi2". *)
-    (* Qed. *)
+    Example test_nested_destruct_conjuncts Ψ :
+      ("%wf" ∷ ⌜True⌝ ∗
+      "*" ∷ ∃ y, "psi" ∷ Ψ y ∗ "psi2" ∷ Ψ (2+y)) -∗
+      ∃ x, Ψ x.
+    Proof.
+      iNamed 1.
+      iExists (2+y); iExact "psi2".
+    Qed.
 
-    (* Example test_nested_destruct_middle P Ψ : *)
-    (*   ("HP1" ∷ P ∗ *)
-    (*    "*" ∷ (∃ y, "psi" ∷ Ψ y ∗ "psi2" ∷ Ψ (2+y)) ∗ *)
-    (*    "HP2" ∷ P) -∗ *)
-    (*   ∃ x, Ψ x ∗ P. *)
-    (* Proof. *)
-    (*   iNamed 1. *)
-    (*   iExists (2+y); iFrame "psi2 HP2". *)
-    (* Qed. *)
+    Example test_nested_destruct_middle P Ψ :
+      ("HP1" ∷ P ∗
+       "*" ∷ (∃ y, "psi" ∷ Ψ y ∗ "psi2" ∷ Ψ (2+y)) ∗
+       "HP2" ∷ P) -∗
+      ∃ x, Ψ x ∗ P.
+    Proof.
+      iNamed 1.
+      iExists (2+y); iFrame "psi2 HP2".
+    Qed.
 
     Example test_frame_named_spatial P1 P2 :
       "H1" ∷ P1 ∗ "H2" ∷ P2 -∗
@@ -660,6 +663,28 @@ Module tests.
     Proof.
       iIntros "I". iNamed "I".
       iFrameNamed.
+    Qed.
+
+    Lemma env_modus_ponens (Γ: envs PROP) (Q Q': PROP) :
+      envs_entails Γ Q' →
+      (Q' ⊢ Q) →
+      envs_entails Γ Q.
+    Proof. intros H <- => //. Qed.
+
+    Example test_inamedaccu_serialize P1 P2 :
+      P1 ∗
+      P1 ∗ P2 ∗
+      P2 ∗
+      P1 ∗ P2 -∗
+      P1 ∗ P1 ∗ P1 ∗ P2 ∗ P2 ∗ P2.
+    Proof.
+      iIntros "(H1&?&?&H2&?&?)".
+      eapply env_modus_ponens.
+      - iNamedAccu.
+      - iNamed 1.
+        (* should recover the same context (modulo renaming of anonymous
+        hypotheses) *)
+        iFrame.
     Qed.
 
   End tests.
