@@ -602,9 +602,6 @@ Section macros.
     iApply "Hφ". iFrame "∗".
     iExists _,_. iSplitR; [eauto|]. iFrame "∗".
     iFrameMapSolve "Hregs".
-    rewrite (delete_notin rmap r_t1 ltac:(eapply not_elem_of_dom; set_solver)).
-    rewrite (delete_notin _ r_t2); simplify_map_eq; auto.
-    eapply not_elem_of_dom; set_solver.
   Qed.
 
   Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e

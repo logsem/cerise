@@ -302,30 +302,30 @@ Ltac iFrameMapSolve' name :=
   end.
 
 Ltac iFrameMapSolve name :=
-  map_simpl_debug name; iFrameMapSolve' name.
+  map_simpl name; iFrameMapSolve' name.
 
-From cap_machine Require Import rules logrel addr_reg_sample.
+(* From cap_machine Require Import rules logrel addr_reg_sample. *)
 
-Section test.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
-          `{MP: MachineParameters}.
+(* Section test. *)
+(*   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} *)
+(*           {nainv: logrel_na_invs Σ} *)
+(*           `{MP: MachineParameters}. *)
 
-  Lemma test:
-    forall (rmap: gmap RegName Word),
-      dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_env; r_t0; r_t1]} ->
-      (([∗ map] k↦y ∈ <[r_t6:=inl 0%Z]>
-        (delete r_env
-                (<[r_t4:=inl 0%Z]>
-                 (<[r_t2:=inl 0%Z]>
-                  (<[r_t3:=inl 0%Z]> (<[r_env:=inl 42%Z]> (<[r_t5:=inl 0%Z]> rmap)))))),
-        k ↦ᵣ y)) -∗
-           ([∗ map] r↦w0 ∈ <[r_t3:=inl 0%Z]>
-            (<[r_t2:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t5:=inl 0%Z]> rmap)))),
-            r ↦ᵣ w0).
-  Proof.
-    iIntros (rmap Hdom) "Hregs".
-    time (iFrameMapSolve "Hregs").
-  Qed.
+(*   Lemma test: *)
+(*     forall (rmap: gmap RegName Word), *)
+(*       dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_env; r_t0; r_t1]} -> *)
+(*       (([∗ map] k↦y ∈ <[r_t6:=inl 0%Z]> *)
+(*         (delete r_env *)
+(*                 (<[r_t4:=inl 0%Z]> *)
+(*                  (<[r_t2:=inl 0%Z]> *)
+(*                   (<[r_t3:=inl 0%Z]> (<[r_env:=inl 42%Z]> (<[r_t5:=inl 0%Z]> rmap)))))), *)
+(*         k ↦ᵣ y)) -∗ *)
+(*            ([∗ map] r↦w0 ∈ <[r_t3:=inl 0%Z]> *)
+(*             (<[r_t2:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t5:=inl 0%Z]> rmap)))), *)
+(*             r ↦ᵣ w0). *)
+(*   Proof. *)
+(*     iIntros (rmap Hdom) "Hregs". *)
+(*     time (iFrameMapSolve "Hregs"). *)
+(*   Qed. *)
 
-End test.
+(* End test. *)
