@@ -1,4 +1,5 @@
 From stdpp Require Import gmap.
+From cap_machine Require Import stdpp_extra.
 From Equations Require Import Equations.
 
 Section simpl_gmap.
@@ -212,19 +213,37 @@ Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
 (*   reflexivity. *)
 (* Qed. *)
 
+Ltac2 rec make_list_from_unions h x :=
+  match! x with
+  | union ?a (singleton ?b) =>
+    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite elem_of_gmap_dom_none, h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
+    make_list_from_unions h a
+  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite elem_of_gmap_dom_none, h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
+  end.
+
+Ltac2 post_process k m :=
+  ltac1:(k m |- match goal with
+               | [h : dom (gset k) m = _ ∖ ?x |- _ ] =>
+                 let f := ltac2:(h x |- make_list_from_unions (Option.get (Ltac1.to_constr h)) (Option.get (Ltac1.to_constr x)))
+                 in f h x
+               | _ => idtac
+               end) (Ltac1.of_constr k) (Ltac1.of_constr m).
+
 Ltac2 map_simpl_aux k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
   (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
-  cbn [denote list_lookup lookup].
+  cbn [denote list_lookup lookup];
+  post_process k m.
 
 Ltac2 map_simpl_aux_debug k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
   (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
-  time (cbn [denote list_lookup lookup]).
+  time (cbn [denote list_lookup lookup]);
+  time (post_process k m).
 
 From iris.proofmode Require Import environments.
 
@@ -258,6 +277,7 @@ Ltac disjunct_cases m i :=
   | delete ?k ?m' => destruct (decide (k = i)); disjunct_cases m' i
   | _ => subst; simplify_map_eq; try reflexivity
   end.
+
 Ltac solve_map_eq :=
   match goal with
   | |- ?m !! ?i = ?m' !! ?i => disjunct_cases m i
@@ -282,7 +302,7 @@ Ltac iFrameMapSolve' name :=
   end.
 
 Ltac iFrameMapSolve name :=
-  map_simpl name; iFrameMapSolve' name.
+  map_simpl_debug name; iFrameMapSolve' name.
 
 From cap_machine Require Import rules logrel addr_reg_sample.
 
@@ -293,7 +313,7 @@ Section test.
 
   Lemma test:
     forall (rmap: gmap RegName Word),
-      rmap !! r_env = None ->
+      dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_env; r_t0; r_t1]} ->
       (([∗ map] k↦y ∈ <[r_t6:=inl 0%Z]>
         (delete r_env
                 (<[r_t4:=inl 0%Z]>
@@ -304,9 +324,8 @@ Section test.
             (<[r_t2:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t5:=inl 0%Z]> rmap)))),
             r ↦ᵣ w0).
   Proof.
-    iIntros (rmap Hnin) "Hregs".
-    iFrameMapSolve "Hregs".
-    rewrite delete_notin; simplify_map_eq; auto.
+    iIntros (rmap Hdom) "Hregs".
+    time (iFrameMapSolve "Hregs").
   Qed.
 
 End test.
