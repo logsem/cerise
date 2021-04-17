@@ -317,9 +317,7 @@ Section macros.
         simplify_map_eq. reflexivity.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
       simplify_map_eq. reflexivity.
-      map_simpl "Hregs".
-      repeat (rewrite (insert_commute _ r_t5) //;[]).
-      rewrite (insert_commute _ r_t2 r_t3) //. }
+      iFrameMapSolve+ Hrmap_dom "Hregs". }
     { iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
   Qed.
 
@@ -601,7 +599,7 @@ Section macros.
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
     iExists _,_. iSplitR; [eauto|]. iFrame "∗".
-    iFrameMapSolve "Hregs".
+    clear; iFrameMapSolve "Hregs".
   Qed.
 
   Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e

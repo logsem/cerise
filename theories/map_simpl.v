@@ -275,7 +275,7 @@ Ltac disjunct_cases m i :=
   match m with
   | <[?k := _]> ?m' => destruct (decide (k = i)); disjunct_cases m' i
   | delete ?k ?m' => destruct (decide (k = i)); disjunct_cases m' i
-  | _ => subst; simplify_map_eq; try reflexivity
+  | _ => try subst i; try discriminate; simplify_map_eq; try reflexivity
   end.
 
 Ltac solve_map_eq :=
@@ -288,7 +288,7 @@ Ltac iFrameMapSolve' name :=
   | |- envs_entails ?H ([∗ map] _↦_ ∈ ?m, _)%I =>
     lazymatch pm_eval (envs_lookup name H) with
     | Some (_, ?X) =>
-      match X with
+      lazymatch X with
       | ([∗ map] _↦_ ∈ ?m', _)%I =>
         match type of m' with
         | gmap ?K ?A =>
@@ -303,6 +303,8 @@ Ltac iFrameMapSolve' name :=
 
 Ltac iFrameMapSolve name :=
   map_simpl name; iFrameMapSolve' name.
+
+Tactic Notation "iFrameMapSolve" "+" hyp_list(Hs) constr(name) := clear -Hs; iFrameMapSolve name.
 
 (* From cap_machine Require Import rules logrel addr_reg_sample. *)
 
@@ -325,6 +327,7 @@ Ltac iFrameMapSolve name :=
 (*             r ↦ᵣ w0). *)
 (*   Proof. *)
 (*     iIntros (rmap Hdom) "Hregs". *)
+(*     map_simpl "Hregs". *)
 (*     time (iFrameMapSolve "Hregs"). *)
 (*   Qed. *)
 
