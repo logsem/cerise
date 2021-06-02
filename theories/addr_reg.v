@@ -264,3 +264,55 @@ Proof.
   intros ->. repeat f_equal; apply eq_proofs_unicity; decide equality.
 Qed.
 
+
+(* ---------------------------------- OTypes ----------------------------------------*)
+
+(* Number of otypes in our system *)
+Definition ONum: nat := 1000.
+Inductive OType: Type :=
+| Oty (n : nat) (fin: n <=? ONum = true).
+
+Definition n_of_otype (o: OType): nat :=
+  match o with
+  | Oty n _ => n
+  end.
+Coercion n_of_otype: OType >-> nat.
+
+Program Definition n_to_otype (n : nat) : option OType :=
+  if (nat_le_dec n ONum) then Some (Oty n _) else None.
+Next Obligation.
+  intros. eapply Nat.leb_le; eauto.
+Defined.
+
+Global Instance otype_eq_dec: EqDecision OType.
+Proof. intros o1 o2.  destruct o1,o2.
+       destruct (nat_eq_dec n n0).
+       + subst n0. left.
+         assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
+         { intros. apply eq_proofs_unicity.
+           intros; destruct x; destruct y; auto. }
+         rewrite (H _ _ _ fin fin0). reflexivity.
+       + right. congruence.
+Defined.
+
+Lemma n_of_to_otype_id (o : OType) : (n_to_otype o) = Some o.
+Proof. destruct o. unfold n_of_otype, n_to_otype.
+       assert (fin' := fin). rewrite Nat.leb_le in fin'.
+       destruct (nat_le_dec _ _) as [? | Hne]; last congruence.
+       repeat f_equal. apply eq_proofs_unicity; decide equality.
+Qed.
+
+Global Instance otype_countable : Countable OType.
+Proof.
+  refine {| encode o := encode (n_of_otype o);
+            decode n := match (decode n) with
+                        | Some n => n_to_otype n
+                        | None => None
+                        end ;
+            decode_encode := _ |}.
+  intro o. destruct o; auto.
+  rewrite decode_encode.
+  apply n_of_to_otype_id.
+Defined.
+
+(* Note: no custom scope needed for otypes atm, since they will use the corresponding definitions for 'nat' automatically *)
