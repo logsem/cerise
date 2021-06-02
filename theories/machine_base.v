@@ -20,7 +20,34 @@ Inductive Perm: Type :=
 Definition Cap: Type :=
   Perm * Addr * Addr * Addr.
 
-Definition Word := (Z + Cap)%type.
+(** Dealing with Otypes **)
+(* Number of otypes in our system *)
+Definition ONum: nat := 1000.
+Inductive OType: Type :=
+| Oty (n : nat) (fin: n <=? ONum = true).
+
+Definition z_of (o: OType): Z :=
+  match o with
+  | Oty n _ => n
+  end.
+Coercion z_of: OType >-> Z.
+
+Definition Permit_Seal := bool.
+Definition Permit_UnSeal := bool.
+Definition Seal_Perms: Type := Permit_Seal * Permit_UnSeal.
+Definition permit_seal (s : Seal_Perms) :=
+  s.1.
+Definition permit_unseal (s : Seal_Perms) :=
+  s.2.
+
+Definition SealRange: Type :=
+  Seal_Perms * OType * OType * OType.
+Definition Sealable: Type :=
+  Cap + SealRange.
+Definition Sealed: Type :=
+ OType * Sealable.
+
+Definition Word := (Z + Sealable + Sealed)%type.
 
 Inductive instr: Type :=
 | Jmp (r: RegName)
