@@ -39,7 +39,7 @@ Definition Word := (Z + Sealable + Sealed)%type.
 
 Definition withinBounds (s: SealRange): bool :=
   match s with
-  | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
+  | (_, b, e, a) => (b <=? a) && (a <? e)
   end.
 
 Inductive instr: Type :=
@@ -59,6 +59,8 @@ Inductive instr: Type :=
 | GetB (dst r: RegName)
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
+| Seal (dst src: RegName)
+| UnSeal (dst src: RegName)
 | Fail
 | Halt.
 
@@ -79,11 +81,80 @@ Instance perm_eq_dec : EqDecision Perm.
 Proof. solve_decision. Defined.
 Instance cap_eq_dec : EqDecision Cap.
 Proof. solve_decision. Defined.
+Instance sealr_eq_dec : EqDecision SealRange.
+Proof. solve_decision. Defined.
+Instance sealable_eq_dec : EqDecision Sealable.
+Proof. solve_decision. Defined.
+Instance sealed_eq_dec : EqDecision Sealed.
+Proof. solve_decision. Defined.
 Instance word_eq_dec : EqDecision Word.
 Proof. solve_decision. Defined.
 Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
 
+
+From iris.proofmode Require Import tactics.
+
+Ltac destruct_word w :=
+  destruct w as [ [? | [? | ?] ] | ?].
+Ltac destruct_cap c :=
+  let p := fresh "p" in
+  let b := fresh "b" in
+  let e := fresh "e" in
+  let a := fresh "a" in
+  destruct c as (((p & b) & e) & a).
+
+
+(* Identifying and extracting parts of words *)
+Definition get_z (w : Word) : option Z :=
+  match w with
+  | (inl (inl z)) => Some z
+  |  _ => None
+  end.
+Definition is_z (w: Word) : bool :=
+  if decide (get_z w ≠ None) then true else false.
+(* Example lemma's we want for each case *)
+Lemma get_is_z w z: get_z w = Some z → is_z w = true.
+Proof. unfold is_z, get_z. case_decide; auto. destruct _; intro; congruence. Qed.
+Lemma get_z_val w z : get_z w = Some z <-> w = inl (inl z).
+Proof. unfold get_z.  destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
+
+Definition get_sealb (w : Word) : option Sealable :=
+  match w with
+  | (inl (inr sb)) => Some sb
+  |  _ => None
+  end.
+Definition is_sealb (w: Word) : bool :=
+  if decide (get_sealb w ≠ None) then true else false.
+
+Definition get_cap (w : Word) : option Cap :=
+  match w with
+  | (inl (inr (inl c))) => Some c
+  |  _ => None
+  end.
+Definition is_cap (w: Word) : bool :=
+  if decide (get_cap w ≠ None) then true else false.
+Lemma get_is_cap w c: get_cap w = Some c → is_cap w = true.
+Proof. unfold is_cap, get_cap. case_decide; auto. destruct _; intro; congruence. Qed.
+Lemma get_cap_val w c : get_cap w = Some c <-> w = (inl (inr (inl c))).
+Proof. unfold get_cap. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
+
+
+Definition get_sealr (w : Word) : option SealRange :=
+  match w with
+  | (inl (inr (inr sr))) => Some sr
+  |  _ => None
+  end.
+Definition is_sealr (w: Word) : bool :=
+  if decide (get_sealr w ≠ None) then true else false.
+
+Definition get_sealed (w : Word) : option Sealed :=
+  match w with
+  | (inr sd) => Some sd
+  |  _ => None
+  end.
+Definition is_sealed (w: Word) : bool :=
+  if decide (get_sealr w ≠ None) then true else false.
 
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
@@ -117,18 +188,17 @@ Lemma isPerm_ne p p' : p ≠ p' → isPerm p p' = false.
 Proof. intros Hne. destruct p,p'; auto; congruence. Qed.
 
 Definition isPermWord (w : Word) (p : Perm): bool :=
-  match w with
-  | inl _ => false
-  | inr (p',_,_,_) => isPerm p p'
+  match get_cap w with
+  | None => false
+  | Some (p',_,_,_) => isPerm p p'
   end.
 
 Lemma isPermWord_cap_isPerm (w0:Word) p:
   isPermWord w0 p = true →
-  ∃ p' b e a, w0 = inr (p',b,e,a) ∧ isPerm p p' = true.
+  ∃ p' b e a, get_cap w0 = Some (p',b,e,a) ∧ isPerm p p' = true.
 Proof.
-  intros. destruct w0;[done|].
-  destruct c,p0,p0.
-  cbv in H. destruct p; try done;
+  intros Hp. rewrite /isPermWord in Hp; destruct (get_cap w0); [| by exfalso].
+  destruct_cap c.
   eexists _, _, _, _; split; eauto.
 Qed.
 
@@ -249,8 +319,8 @@ Qed.
 
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
-  match w with
-  | inr (E, b, e, a) => inr (RX, b, e, a)
+  match get_cap w with
+  | Some (E, b, e, a) => inr (RX, b, e, a)
   | _ => w
   end.
 
@@ -271,12 +341,6 @@ Definition cap_size (w : Word) : Z :=
   match w with
   | inr (_,b,e,_) => (e - b)%Z
   | _ => 0%Z
-  end.
-
-Definition is_cap (w: Word): bool :=
-  match w with
-  | inr _ => true
-  | inl _ => false
   end.
 
 (* Bound checking *)

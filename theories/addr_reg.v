@@ -298,7 +298,7 @@ Defined.
 Lemma n_of_to_otype_id (o : OType) : (n_to_otype o) = Some o.
 Proof. destruct o. unfold n_of_otype, n_to_otype.
        assert (fin' := fin). rewrite Nat.leb_le in fin'.
-       destruct (nat_le_dec _ _) as [? | Hne]; last congruence.
+       destruct (nat_le_dec _ _) as [? | Hne]; [| congruence].
        repeat f_equal. apply eq_proofs_unicity; decide equality.
 Qed.
 
