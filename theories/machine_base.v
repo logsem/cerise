@@ -103,14 +103,14 @@ Ltac destruct_cap c :=
 (***** Identifying and extracting parts of words *****)
 
 (* Z <-> Word *)
+Notation put_z z := (inl (inl z)).
 Definition get_z (w : Word) : option Z :=
   match w with
-  | (inl (inl z)) => Some z
+  | put_z z => Some z
   |  _ => None
   end.
 Definition is_z (w: Word) : bool :=
   if decide (get_z w ≠ None) then true else false.
-Definition put_z (z : Z): Word := (inl (inl z)).
 (* Example lemma's we want for each case *)
 Lemma get_is_z w z: get_z w = Some z → is_z w = true.
 Proof. unfold is_z, get_z. case_decide; auto. destruct _; intro; congruence. Qed.
@@ -120,14 +120,14 @@ Lemma get_put_z (z : Z) : get_z (put_z z) = Some z.
 Proof. done. Qed.
 
 (* Sealable <-> Word *)
+Notation put_sealb sb := (inl (inr sb)).
 Definition get_sealb (w : Word) : option Sealable :=
   match w with
-  | (inl (inr sb)) => Some sb
+  | put_sealb sb => Some sb
   |  _ => None
   end.
 Definition is_sealb (w: Word) : bool :=
   if decide (get_sealb w ≠ None) then true else false.
-Definition put_sealb (sb : Sealable): Word := (inl (inr sb)).
 Lemma get_is_sealb w sb: get_sealb w = Some sb → is_sealb w = true.
 Proof. unfold is_sealb, get_sealb. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_sealb_val w sb : get_sealb w = Some sb <-> w = inl (inr sb).
@@ -136,14 +136,14 @@ Lemma get_put_sealb (sb : Sealable) : get_sealb (put_sealb sb) = Some sb.
 Proof. done. Qed.
 
 (* Capability <-> Word *)
+Notation put_cap c := (inl (inr (inl c))).
 Definition get_cap (w : Word) : option Cap :=
   match w with
-  | (inl (inr (inl c))) => Some c
+  | put_cap c => Some c
   |  _ => None
   end.
 Definition is_cap (w: Word) : bool :=
   if decide (get_cap w ≠ None) then true else false.
-Definition put_cap (c : Cap) : Word := (inl (inr (inl c))).
 Lemma get_is_cap w c: get_cap w = Some c → is_cap w = true.
 Proof. unfold is_cap, get_cap. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_cap_val w c : get_cap w = Some c <-> w = (inl (inr (inl c))).
@@ -152,14 +152,14 @@ Lemma get_put_cap (c : Cap) : get_cap (put_cap c) = Some c.
 Proof. done. Qed.
 
 (* SealRange <-> Word *)
+Notation put_sealr sr := (inl (inr (inr sr))).
 Definition get_sealr (w : Word) : option SealRange :=
   match w with
-  | (inl (inr (inr sr))) => Some sr
+  | put_sealr sr => Some sr
   |  _ => None
   end.
 Definition is_sealr (w: Word) : bool :=
   if decide (get_sealr w ≠ None) then true else false.
-Definition put_sealr (sr : SealRange) : Word := (inl (inr (inr sr))).
 Lemma get_is_sealr w sr: get_sealr w = Some sr → is_sealr w = true.
 Proof. unfold is_sealr, get_sealr. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_sealr_val w sr : get_sealr w = Some sr <-> w = (inl (inr (inr sr))).
@@ -168,20 +168,21 @@ Lemma get_put_sealr (sr : SealRange) : get_sealr (put_sealr sr) = Some sr.
 Proof. done. Qed.
 
 (* Sealed <-> Word *)
+Notation put_sealed sd := (inr sd).
 Definition get_sealed (w : Word) : option Sealed :=
   match w with
-  | (inr sd) => Some sd
+  | put_sealed sd => Some sd
   |  _ => None
   end.
 Definition is_sealed (w: Word) : bool :=
   if decide (get_sealed w ≠ None) then true else false.
-Definition put_sealed (sd : Sealed) : Word := (inr sd).
 Lemma get_is_sealed w sd: get_sealed w = Some sd → is_sealed w = true.
 Proof. unfold is_sealed, get_sealed. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_sealed_val w sd : get_sealed w = Some sd <-> w = (inr sd).
 Proof. unfold get_sealed. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
 Lemma get_put_sealed (sd : Sealed) : get_sealed (put_sealed sd) = Some sd.
 Proof. done. Qed.
+
 
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
