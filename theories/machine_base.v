@@ -1,6 +1,8 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import gmap fin_maps list countable.
 From cap_machine Require Export addr_reg solve_addr.
+From iris.proofmode Require Import tactics.
+
 
 (* Definition and auxiliary facts on capabilities, permissions and addresses.
 
@@ -37,11 +39,6 @@ Definition Sealed: Type :=
 
 Definition Word := (Z + Sealable + Sealed)%type.
 
-Definition withinBounds (s: SealRange): bool :=
-  match s with
-  | (_, b, e, a) => (b <=? a) && (a <? e)
-  end.
-
 Inductive instr: Type :=
 | Jmp (r: RegName)
 | Jnz (r1 r2: RegName)
@@ -59,8 +56,8 @@ Inductive instr: Type :=
 | GetB (dst r: RegName)
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
-| Seal (dst src: RegName)
-| UnSeal (dst src: RegName)
+| Seal (dst : RegName) (r1 r2: RegName)
+| UnSeal (dst : RegName) (r1 r2: RegName)
 | Fail
 | Halt.
 
@@ -92,8 +89,6 @@ Proof. solve_decision. Defined.
 Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
 
-
-From iris.proofmode Require Import tactics.
 
 Ltac destruct_word w :=
   destruct w as [ [? | [? | ?] ] | ?].
@@ -352,26 +347,26 @@ Qed.
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
   match get_cap w with
-  | Some (E, b, e, a) => inr (RX, b, e, a)
+  | Some (E, b, e, a) => put_cap (RX, b, e, a)
   | _ => w
   end.
 
 Lemma updatePcPerm_cap_non_E p b e a :
   p ≠ E →
-  updatePcPerm (inr (p, b, e, a)) = inr (p, b, e, a).
+  updatePcPerm (put_cap (p, b, e, a)) = put_cap (p, b, e, a).
 Proof.
   intros HnE. cbn. destruct p; auto. contradiction.
 Qed.
 
 Definition nonZero (w: Word): bool :=
-  match w with
-  | inr _ => true
-  | inl n => Zneq_bool n 0
+  match get_z w with
+  | None => true
+  | Some n => Zneq_bool n 0
   end.
 
 Definition cap_size (w : Word) : Z :=
-  match w with
-  | inr (_,b,e,_) => (e - b)%Z
+  match get_cap w with
+  | Some (_,b,e,_) => (e - b)%Z
   | _ => 0%Z
   end.
 
@@ -382,6 +377,12 @@ Definition withinBounds (c: Cap): bool :=
   | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
   end.
 
+Definition withinBounds_sr (s: SealRange): bool :=
+  match s with
+  | (_, b, e, a) => (b <=? a) && (a <? e)
+  end.
+
+
 Lemma withinBounds_true_iff p b e a :
   withinBounds (p, b, e, a) = true ↔ (b <= a)%a ∧ (a < e)%a.
 Proof.
@@ -390,10 +391,22 @@ Proof.
   rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
+Lemma withinBounds_sr_true_iff p b e a :
+  withinBounds_sr (p, b, e, a) = true ↔ (b <= a) ∧ (a < e).
+Proof.
+  unfold withinBounds_sr.
+  rewrite andb_true_iff leb_le ltb_lt. auto.
+Qed.
+
 Lemma withinBounds_le_addr p b e a:
   withinBounds (p, b, e, a) = true →
   (b <= a)%a ∧ (a < e)%a.
 Proof. rewrite withinBounds_true_iff //. Qed.
+
+Lemma withinBounds_sr_le_addr p b e a:
+  withinBounds_sr (p, b, e, a) = true →
+  (b <= a) ∧ (a < e).
+Proof. rewrite withinBounds_sr_true_iff //. Qed.
 
 Lemma isWithinBounds_bounds_alt p b e (a0 a1 a2 : Addr) :
   withinBounds (p,b,e,a0) = true →
@@ -468,28 +481,56 @@ Inductive isCorrectPC: Word → Prop :=
     forall p (b e a : Addr),
       (b <= a < e)%a →
       p = RX \/ p = RWX →
-      isCorrectPC (inr (p, b, e, a)).
+      isCorrectPC (put_cap (p, b, e, a)).
 
 Lemma isCorrectPC_dec:
   forall w, { isCorrectPC w } + { not (isCorrectPC w) }.
 Proof.
-  destruct w.
-  - right. red; intros H. inversion H.
-  - destruct c as (((p & b) & e) & a).
+  intros. destruct (get_cap w) eqn:HCap.
+  2 : {right. intros HFalse. inversion HFalse; subst w. rewrite get_put_cap in HCap. by exfalso. }
+  destruct_cap c.
+    apply get_cap_val in HCap. subst w.
     case_eq (match p with RX | RWX => true | _ => false end); intros.
     + destruct (Addr_le_dec b a).
       * destruct (Addr_lt_dec a e).
-        { left. econstructor; simpl; eauto. by auto.
+        { left.  econstructor; simpl; eauto. by auto.
           destruct p; naive_solver. }
-        { right. red; intro HH. inversion HH; subst. solve_addr. }
-      * right. red; intros HH; inversion HH; subst. solve_addr.
+        { right. intro HH. inversion HH; subst. solve_addr. }
+      * right. intros HH; inversion HH; subst. solve_addr.
     + right. red; intros HH; inversion HH; subst. naive_solver.
 Qed.
 
+Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
+  isCorrectPC (put_cap (pc_p,pc_b,pc_e,pc_a)) →
+  readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
+Proof.
+  intros. inversion H; subst.
+  - destruct H2. apply andb_prop_intro. split.
+    + destruct H5,pc_p; inversion H1; try inversion H2; auto; try congruence.
+    + apply andb_prop_intro.
+      split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
+Qed.
+
+Lemma not_isCorrectPC_perm p b e a :
+  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (put_cap (p,b,e,a)).
+Proof.
+  intros (Hrx & Hrwx).
+  intros Hvpc. inversion Hvpc;
+    destruct H4 as [Hrx' | Hrwx']; contradiction.
+Qed.
+
+Lemma not_isCorrectPC_bounds p b e a :
+ ¬ (b <= a < e)%a → ¬ isCorrectPC (put_cap (p,b,e,a)).
+Proof.
+  intros Hbounds.
+  intros Hvpc. inversion Hvpc.
+  by exfalso.
+Qed.
+
 Definition isCorrectPCb (w: Word): bool :=
-  match w with
-  | inl _ => false
-  | inr (p, b, e, a) =>
+  match get_cap w with
+  | None => false
+  | Some (p, b, e, a) =>
     (b <=? a)%a && (a <? e)%a &&
     (isPerm p RX || isPerm p RWX)
   end.
@@ -497,9 +538,10 @@ Definition isCorrectPCb (w: Word): bool :=
 Lemma isCorrectPCb_isCorrectPC w :
   isCorrectPCb w = true ↔ isCorrectPC w.
 Proof.
-  rewrite /isCorrectPCb. destruct w.
-  { split; try congruence. inversion 1. }
-  { destruct c as [[[? ?] ?] ?]. rewrite /leb_addr /ltb_addr.
+  rewrite /isCorrectPCb. destruct (get_cap w) eqn:HCap.
+  2 : { split; [done |]. inversion 1; subst w. rewrite get_put_cap in HCap. by exfalso. }
+  { destruct_cap c. apply get_cap_val in HCap as ->.
+    rewrite /leb_addr /ltb_addr.
     rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
@@ -515,37 +557,10 @@ Proof.
   { split; auto. intros _. intros ?%isCorrectPCb_isCorrectPC. congruence. }
 Qed.
 
-Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
-  isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-  readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
-Proof.
-  intros. inversion H; subst.
-  - destruct H2. apply andb_prop_intro. split.
-    + destruct H5,pc_p; inversion H1; try inversion H2; auto; try congruence.
-    + apply andb_prop_intro.
-      split; apply Is_true_eq_left; [apply Z.leb_le | apply Z.ltb_lt]; lia.
-Qed.
-
-Lemma not_isCorrectPC_perm p b e a :
-  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (inr (p,b,e,a)).
-Proof.
-  intros (Hrx & Hrwx).
-  intros Hvpc. inversion Hvpc;
-    destruct H4 as [Hrx' | Hrwx']; contradiction.
-Qed.
-
-Lemma not_isCorrectPC_bounds p b e a :
- ¬ (b <= a < e)%a → ¬ isCorrectPC (inr (p,b,e,a)).
-Proof.
-  intros Hbounds.
-  intros Hvpc. inversion Hvpc.
-  by exfalso.
-Qed.
-
 Lemma isCorrectPC_bounds p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (inr (p, b, e, a0)) →
-  isCorrectPC (inr (p, b, e, a2)) →
-  (a0 ≤ a1 < a2)%Z → isCorrectPC (inr (p, b, e, a1)).
+  isCorrectPC (put_cap (p, b, e, a0)) →
+  isCorrectPC (put_cap (p, b, e, a2)) →
+  (a0 ≤ a1 < a2)%Z → isCorrectPC (put_cap (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle Hlt].
   inversion Hvpc0.
@@ -557,10 +572,10 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_bounds_alt p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (inr (p, b, e, a0))
-  → isCorrectPC (inr (p, b, e, a2))
+  isCorrectPC (put_cap (p, b, e, a0))
+  → isCorrectPC (put_cap (p, b, e, a2))
   → (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z
-  → isCorrectPC (inr (p, b, e, a1)).
+  → isCorrectPC (put_cap (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
@@ -569,7 +584,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_withinBounds p p' b e a :
-  isCorrectPC (inr (p, b, e, a)) →
+  isCorrectPC (put_cap (p, b, e, a)) →
   withinBounds (p', b, e, a) = true.
 Proof.
   intros HH. inversion HH; subst.
@@ -577,7 +592,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_le_addr p b e a :
-  isCorrectPC (inr (p, b, e, a)) →
+  isCorrectPC (put_cap (p, b, e, a)) →
   (b <= a)%a ∧ (a < e)%a.
 Proof.
   intros HH. by eapply withinBounds_le_addr, isCorrectPC_withinBounds.
@@ -585,13 +600,13 @@ Proof.
 Qed.
 
 Lemma correctPC_nonO p p' b e a :
-  PermFlows p p' → isCorrectPC (inr (p,b,e,a)) → p' ≠ O.
+  PermFlows p p' → isCorrectPC (put_cap (p,b,e,a)) → p' ≠ O.
 Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
 Qed.
 
 Lemma in_range_is_correctPC p b e a b' e' :
-  isCorrectPC (inr (p,b,e,a)) →
+  isCorrectPC (put_cap (p,b,e,a)) →
   (b' <= b)%a ∧ (e <= e')%a →
   (b' <= a)%a ∧ (a < e')%a.
 Proof.
@@ -602,7 +617,7 @@ Qed.
 Lemma isCorrectPC_ExecPCPerm_InBounds p b e a :
   ExecPCPerm p →
   InBounds b e a →
-  isCorrectPC (inr (p, b, e, a)).
+  isCorrectPC (put_cap (p, b, e, a)).
 Proof.
   unfold ExecPCPerm, InBounds. intros. constructor; eauto.
 Qed.
@@ -616,8 +631,8 @@ Ltac destruct_pair_l c n :=
         destruct c as (c,sndn); destruct_pair_l c (pred n)
   end.
 
-Ltac destruct_cap c :=
-  destruct_pair_l c 3.
+(* Ltac destruct_cap c := *)
+(*   destruct_pair_l c 3. *)
 
 (* Useful instances *)
 
@@ -644,19 +659,22 @@ Proof.
   intro p. destruct p; reflexivity.
 Defined.
 
+(* Note that proof search finds this instance automatically, which suggests that it is redundant. *)
 Instance cap_countable : Countable Cap.
 Proof.
   (* NB: this relies on the fact that cap_eq_dec has been Defined, because the
   eq decision we have for Cap has to match the one used in the conclusion of the
   lemma... *)
-  apply prod_countable.
+  apply _.
 Defined.
 
+(* Same here *)
 Instance word_countable : Countable Word.
-Proof. apply sum_countable. Defined.
+Proof. apply _. Defined.
 
 Instance instr_countable : Countable instr.
 Proof.
+
   set (enc := fun e =>
       match e with
       | Jmp r => GenNode 0 [GenLeaf (inl r)]
@@ -675,8 +693,10 @@ Proof.
       | GetB dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetE dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
       | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | Fail => GenNode 17 []
-      | Halt => GenNode 18 []
+      | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | Fail => GenNode 19 []
+      | Halt => GenNode 20 []
       end).
   set (dec := fun e =>
       match e with
@@ -696,8 +716,10 @@ Proof.
       | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
       | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
-      | GenNode 17 [] => Fail
-      | GenNode 18 [] => Halt
+      | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
+      | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
+      | GenNode 19 [] => Fail
+      |  GenNode 20 [] => Halt
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).
