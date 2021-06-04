@@ -9,13 +9,13 @@ Ltac inv H := inversion H; clear H; subst.
 Definition RegLocate (reg : Reg) (r : RegName) :=
   match (reg !! r) with
   | Some w => w
-  | None => inl 0%Z
+  | None => put_z 0%Z
   end.
 
 Definition MemLocate (mem : Mem) (a : Addr) :=
   match (mem !! a) with
   | Some w => w
-  | None => inl 0%Z
+  | None => put_z 0%Z
   end.
 
 Notation "mem !m! a" := (MemLocate mem a) (at level 20).
@@ -46,21 +46,21 @@ Lemma mem_lookup_eq (m: Mem) (a: Addr) (v: Word) :
 Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
 
 Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p b e a :
-  regs !r! r = inr (p, b, e, a) →
-  regs !! r = Some (inr (p, b, e, a)).
+  regs !r! r = put_cap (p, b, e, a) →
+  regs !! r = Some (put_cap (p, b, e, a)).
 Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
 Qed.
 
 Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p b e i :
-  m !m! a = inr (p, b, e, i) →
-  m !! a = Some (inr (p, b, e, i)).
+  m !m! a = put_cap (p, b, e, i) →
+  m !! a = Some (put_cap (p, b, e, i)).
 Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
 Qed.
 
 Lemma regs_lookup_inl_eq (regs: Reg) (r: RegName) z :
   is_Some (regs !! r) →
-  regs !r! r = inl z →
-  regs !! r = Some (inl z).
+  regs !r! r = put_z z →
+  regs !! r = Some (put_z z).
 Proof. rewrite /RegLocate. intros Hall HH.
        destruct (regs !! r) eqn:HRead; first by apply f_equal.
        destruct Hall as (s & Hsr). rewrite Hsr in HRead; discriminate.
@@ -71,59 +71,14 @@ Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <
 
 Definition updatePC (φ: ExecConf): Conf :=
   match RegLocate (reg φ) PC with
-  | inr (p, b, e, a) =>
+  | put_cap (p, b, e, a) =>
     match (a + 1)%a with
-    | Some a' => let φ' := (update_reg φ PC (inr (p, b, e, a'))) in
+    | Some a' => let φ' := (update_reg φ PC (put_cap (p, b, e, a'))) in
                  (NextI, φ')
     | None => (Failed, φ)
     end
   | _ => (Failed, φ)
   end.
-
-Inductive access_kind: Type :=
-| LoadU_access (b e a: Addr) (offs: Z): access_kind
-| StoreU_access (b e a: Addr) (offs: Z): access_kind.
-
-Definition verify_access (a: access_kind): option Addr :=
-  match a with
-  | LoadU_access b e a offs =>
-    match (a + offs)%a with
-    | None => None
-    | Some a' => if Addr_le_dec b a' then
-                  if Addr_lt_dec a' a then
-                    if Addr_le_dec a e then
-                      Some a' else None else None else None
-    end
-  | StoreU_access b e a offs =>
-    match (a + offs)%a with
-    | None => None
-    | Some a' => if Addr_le_dec b a' then
-                  if Addr_le_dec a' a then
-                    if Addr_lt_dec a e then
-                      Some a' else None else None else None
-    end
-  end.
-
-Lemma verify_access_spec:
-  forall a a',
-    (verify_access a = Some a') <->
-    (match a with
-     | LoadU_access b e a offs =>
-       (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' < a)%a /\ (a <= e)%a
-     | StoreU_access b e a offs =>
-       (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' <= a)%a /\ (a < e)%a
-     end).
-Proof.
-  intros; split; intros.
-  - destruct a; simpl in H; destruct (a + offs)%a as [a1|] eqn:Ha; intros; try congruence;
-    repeat match goal with
-           | H: context [if ?t then _ else _] |- _ => destruct t
-           end; inv H; auto.
-  - destruct a; destruct H as [Ha [A [B C]]]; simpl; rewrite Ha;
-    repeat match goal with
-           | |- context [if ?t then _ else _] => destruct t
-           end; tauto.
-Qed.
 
 (*--- z_of_argument ---*)
 
