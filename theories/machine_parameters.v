@@ -22,13 +22,13 @@ Class MachineParameters := {
 
 Definition decodeInstrW `{MachineParameters} : Word → instr :=
   fun w =>
-    match w with
-    | inl z => decodeInstr z
-    | inr _ => Fail
+    match get_z w with
+    | Some z => decodeInstr z
+    | _ => Fail
     end.
 
 Definition encodeInstrW `{MachineParameters} : instr → Word :=
-  fun i => inl (encodeInstr i).
+  fun i => put_z (encodeInstr i).
 
 Lemma decode_encode_instrW_inv `{MachineParameters} (i: instr):
   decodeInstrW (encodeInstrW i) = i.
