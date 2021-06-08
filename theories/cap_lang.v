@@ -87,14 +87,14 @@ Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
   | inl z => Some z
   | inr r =>
     match regs !! r with
-    | Some (inl z) => Some z
+    | Some (put_z z) => Some z
     | _ => None
     end
   end.
 
 Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
   z_of_argument regs arg = Some z →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z)).
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (put_z z)).
 Proof.
   unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
 Qed.
@@ -102,7 +102,7 @@ Qed.
 Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
   z_of_argument regs arg = Some z →
   regs ⊆ regs' →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (inl z) ∧ regs' !! r = Some (inl z)).
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (put_z z) ∧ regs' !! r = Some (put_z z)).
 Proof.
   unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
   intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
@@ -115,267 +115,264 @@ Section opsem.
     match i with
     | Fail => (Failed, φ)
     | Halt => (Halted, φ)
-    | Jmp r => let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r))) in (NextI, φ')
+    | Jmp r => let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r))) in (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
     | Jnz r1 r2 =>
       if nonZero (RegLocate (reg φ) r2) then
         let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r1))) in (NextI, φ')
       else updatePC φ
     | Load dst src =>
       match RegLocate (reg φ) src with
-      | inl n => (Failed, φ)
-      | inr (p, b, e, a) =>
-        (* Fails for U cap *)
-        if readAllowed p && withinBounds (p, b, e, a) then updatePC (update_reg φ dst (MemLocate (mem φ) a))
+      | put_cap (p, b, e, a) =>
+        if readAllowed p && withinBounds (p, b, e, a) then
+          updatePC (update_reg φ dst (MemLocate (mem φ) a))
         else (Failed, φ)
+      | _ => (Failed, φ)
       end
-    | Store dst (inr src) =>
+    | Store dst ρ =>
+      let tostore := match ρ with
+              | inl n => put_z n
+              | inr src => (RegLocate (reg φ) src) end in
       match RegLocate (reg φ) dst with
-      | inl n => (Failed, φ)
-      | inr (p, b, e, a) =>
-        (* Fails for U cap *)
+      | put_cap (p, b, e, a) =>
         if writeAllowed p && withinBounds (p, b, e, a) then
-          updatePC (update_mem φ a (RegLocate (reg φ) src))
+          updatePC (update_mem φ a tostore)
         else (Failed, φ)
+      | _ => (Failed, φ)
       end
-    | Store dst (inl n) =>
-      match RegLocate (reg φ) dst with
-      | inl n => (Failed, φ)
-      | inr (p, b, e, a) =>
-        (* Fails for U cap *)
-        if writeAllowed p && withinBounds (p, b, e, a) then updatePC (update_mem φ a (inl n)) else (Failed, φ)
-      end
-    | Mov dst (inl n) => updatePC (update_reg φ dst (inl n))
+    | Mov dst (inl n) => updatePC (update_reg φ dst (put_z n))
     | Mov dst (inr src) => updatePC (update_reg φ dst (RegLocate (reg φ) src))
     | Lea dst (inl n) =>
       match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
+      | put_cap (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ => match (a + n)%a with
                | Some a' => let c := (p, b, e, a') in
-                            updatePC (update_reg φ dst (inr c))
+                            updatePC (update_reg φ dst (put_cap c))
                | None => (Failed, φ)
                end
         end
+      | put_sealr (p, b, e, a) =>
+         match (a + n) with
+          | Some a' => let c := (p, b, e, a') in
+                      updatePC (update_reg φ dst (put_sealr c))
+          | None => (Failed, φ)
+          end
+      | _ => (Failed, φ)
       end
     | Lea dst (inr r) =>
       match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
+      | put_cap (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
-        (* Make sure that we can only decrease pointer for uninitialized capabilities *)
         | _ => match RegLocate (reg φ) r with
-              | inr _ => (Failed, φ)
-              | inl n => match (a + n)%a with
+              | put_z n => match (a + n)%a with
                          | Some a' =>
                            let c := (p, b, e, a') in
-                           updatePC (update_reg φ dst (inr c))
+                           updatePC (update_reg φ dst (put_cap c))
                          | None => (Failed, φ)
                          end
+              | _ => (Failed, φ)
               end
+       end
+      | put_sealr (p, b, e, a) =>
+        match RegLocate (reg φ) r with
+              | put_z n => match (a + n) with
+                         | Some a' =>
+                           let c := (p, b, e, a') in
+                           updatePC (update_reg φ dst (put_sealr c))
+                         | None => (Failed, φ)
+                         end
+              |  _ => (Failed, φ)
         end
+      | _ => (Failed, φ)
       end
     | Restrict dst (inl n) =>
       match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (permPair, b, e, a) =>
+      | put_cap (permPair, b, e, a) =>
         match permPair with
         | E => (Failed, φ)
         | _ => if PermFlowsTo (decodePerm n) permPair then
-                updatePC (update_reg φ dst (inr (decodePerm n, b, e, a)))
+                updatePC (update_reg φ dst (put_cap (decodePerm n, b, e, a)))
               else (Failed, φ)
         end
+      | put_sealr (p, b, e, a) =>
+        if SealPermFlowsTo (decodeSealPerms n) p then
+              updatePC (update_reg φ dst (put_sealr (decodeSealPerms n, b, e, a)))
+        else (Failed, φ)
+      | _ => (Failed, φ)
       end
     | Restrict dst (inr r) =>
       match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (permPair, b, e, a) =>
+      | put_cap (permPair, b, e, a) =>
         match RegLocate (reg φ) r with
-        | inr _ => (Failed, φ)
-        | inl n =>
+        | put_z n =>
           match permPair with
           | E => (Failed, φ)
           | _ => if PermFlowsTo (decodePerm n) permPair then
-                  updatePC (update_reg φ dst (inr (decodePerm n, b, e, a)))
+                  updatePC (update_reg φ dst (put_cap (decodePerm n, b, e, a)))
                 else (Failed, φ)
           end
+        | _ => (Failed, φ)
         end
+      | put_sealr (p, b, e, a) =>
+        match RegLocate (reg φ) r with
+        | put_z n =>
+          if SealPermFlowsTo (decodeSealPerms n) p then
+                updatePC (update_reg φ dst (put_sealr (decodeSealPerms n, b, e, a)))
+          else (Failed, φ)
+        | _ => (Failed, φ)
+        end
+      | _ => (Failed, φ)
       end
     | Add dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => match RegLocate (reg φ) r2 with
-                 | inr _ => (Failed, φ)
-                 | inl n2 => updatePC (update_reg φ dst (inl (n1 + n2)%Z))
+      | put_z n1 => match RegLocate (reg φ) r2 with
+                 | put_z n2 => updatePC (update_reg φ dst (put_z (n1 + n2)%Z))
+                 | _ => (Failed, φ)
                  end
+      | _ => (Failed, φ)
       end
     | Add dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | inr _ => (Failed, φ)
-      | inl n2 => updatePC (update_reg φ dst (inl (n1 + n2)%Z))
+      | put_z n2 => updatePC (update_reg φ dst (put_z (n1 + n2)%Z))
+      | _ => (Failed, φ)
       end
     | Add dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => updatePC (update_reg φ dst (inl (n1 + n2)%Z))
+      | put_z n1 => updatePC (update_reg φ dst (put_z (n1 + n2)%Z))
+      | _ => (Failed, φ)
       end
     | Add dst (inl n1) (inl n2) =>
-      updatePC (update_reg φ dst (inl (n1 + n2)%Z))
+      updatePC (update_reg φ dst (put_z (n1 + n2)%Z))
     | Sub dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => match RegLocate (reg φ) r2 with
-                 | inr _ => (Failed, φ)
-                 | inl n2 => updatePC (update_reg φ dst (inl (n1 - n2)%Z))
+      | put_z n1 => match RegLocate (reg φ) r2 with
+                 | put_z n2 => updatePC (update_reg φ dst (put_z (n1 - n2)%Z))
+                 | _ => (Failed, φ)
                  end
+      | _ => (Failed, φ)
       end
     | Sub dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | inr _ => (Failed, φ)
-      | inl n2 => updatePC (update_reg φ dst (inl (n1 - n2)%Z))
+      | put_z n2 => updatePC (update_reg φ dst (put_z (n1 - n2)%Z))
+      | _ => (Failed, φ)
       end
     | Sub dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => updatePC (update_reg φ dst (inl (n1 - n2)%Z))
+      | put_z n1 => updatePC (update_reg φ dst (put_z (n1 - n2)%Z))
+      | _ => (Failed, φ)
       end
     | Sub dst (inl n1) (inl n2) =>
-      updatePC (update_reg φ dst (inl (n1 - n2)%Z))
+      updatePC (update_reg φ dst (put_z (n1 - n2)%Z))
     | Lt dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => match RegLocate (reg φ) r2 with
-                 | inr _ => (Failed, φ)
-                 | inl n2 => updatePC (update_reg φ dst (inl (Z.b2z (Z.ltb n1 n2))))
+      | put_z n1 => match RegLocate (reg φ) r2 with
+                 | put_z n2 => updatePC (update_reg φ dst (put_z (Z.b2z (Z.ltb n1 n2))))
+                 | _ => (Failed, φ)
                  end
+      | _ => (Failed, φ)
       end
     | Lt dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | inr _ => (Failed, φ)
-      | inl n2 => updatePC (update_reg φ dst (inl (Z.b2z (Z.ltb n1 n2))))
+      | put_z n2 => updatePC (update_reg φ dst (put_z (Z.b2z (Z.ltb n1 n2))))
+      | _ => (Failed, φ)
       end
     | Lt dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | inr _ => (Failed, φ)
-      | inl n1 => updatePC (update_reg φ dst (inl (Z.b2z (Z.ltb n1 n2))))
+      | put_z n1 => updatePC (update_reg φ dst (put_z (Z.b2z (Z.ltb n1 n2))))
+      | _ => (Failed, φ)
       end
     | Lt dst (inl n1) (inl n2) =>
-      updatePC (update_reg φ dst (inl (Z.b2z (Z.ltb n1 n2))))
-    | Subseg dst (inr r1) (inr r2) =>
+      updatePC (update_reg φ dst (put_z (Z.b2z (Z.ltb n1 n2))))
+    | Subseg dst ρ1 ρ2 =>
+      let w1 := match ρ1 with
+          | inl n1 => put_z n1
+          | inr r1 => RegLocate (reg φ) r1 end in
+      let w2 := match ρ2 with
+          | inl n2 => put_z n2
+          | inr r2 => RegLocate (reg φ) r2 end in
       match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
+      | put_cap (p, b, e, a) =>
         match p with
         | E => (Failed, φ)
         | _ =>
-          match RegLocate (reg φ) r1 with
-          | inr _ => (Failed, φ)
-          | inl n1 =>
-            match RegLocate (reg φ) r2 with
-            | inr _ => (Failed, φ)
-            | inl n2 =>
+          match w1 with
+          | put_z n1 =>
+            match w2 with
+            | put_z n2 =>
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then
-                  updatePC (update_reg φ dst (inr (p, a1, a2, a)))
+                  updatePC (update_reg φ dst (put_cap (p, a1, a2, a)))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end
+            | _ => (Failed, φ)
             end
+          | _ => (Failed, φ)
           end
         end
-      end
-    | Subseg dst (inl n1) (inr r2) =>
-      match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
-        match p with
-        | E => (Failed, φ)
-        | _ =>
-          match RegLocate (reg φ) r2 with
-          | inr _ => (Failed, φ)
-          | inl n2 =>
-            match z_to_addr n1, z_to_addr n2 with
-            | Some a1, Some a2 =>
-              if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (inr (p, a1, a2, a)))
-                     else (Failed, φ)
-            | _,_ => (Failed, φ)
+      | put_sealr (p, b, e, a) =>
+            match w1 with
+            | put_z n1 =>
+              match w2 with
+              | put_z n2 =>
+                match z_to_otype n1, z_to_otype n2 with
+                | Some o1, Some o2 =>
+                  if isWithin_o o1 o2 b e then
+                    updatePC (update_reg φ dst (put_sealr (p, o1, o2, a)))
+                  else (Failed, φ)
+                | _,_ => (Failed, φ)
+                end
+              | _ => (Failed, φ)
+              end
+            | _ => (Failed, φ)
             end
-          end
-        end
-      end
-    | Subseg dst (inr r1) (inl n2) =>
-      match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
-        match p with
-        | E => (Failed, φ)
-        | _ =>
-          match RegLocate (reg φ) r1 with
-          | inr _ => (Failed, φ)
-          | inl n1 =>
-            match z_to_addr n1, z_to_addr n2 with
-            | Some a1, Some a2 =>
-              if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (inr (p, a1, a2, a)))
-              else (Failed, φ)
-            | _,_ => (Failed, φ)
-            end
-          end
-        end
-      end
-    | Subseg dst (inl n1) (inl n2) =>
-      match RegLocate (reg φ) dst with
-      | inl _ => (Failed, φ)
-      | inr (p, b, e, a) =>
-        match p with
-        | E => (Failed, φ)
-        | _ =>
-          match z_to_addr n1, z_to_addr n2 with
-          | Some a1, Some a2 =>
-            if isWithin a1 a2 b e then
-              updatePC (update_reg φ dst (inr (p, a1, a2, a)))
-            else (Failed, φ)
-          | _,_ => (Failed, φ)
-          end
-        end
+      | _ => (Failed, φ)
       end
     | GetA dst r =>
       match RegLocate (reg φ) r with
-      | inl _ => (Failed, φ)
-      | inr (_, _, _, a) =>
-        match a with
-        | A a' _ _ => updatePC (update_reg φ dst (inl a'))
-        end
+      | put_cap (_, _, _, a) => updatePC (update_reg φ dst (put_z (a : Z)))
+      | put_sealr (_, _, _, a) => updatePC (update_reg φ dst (put_z (a : Z)))
+      |  _ => (Failed, φ)
       end
     | GetB dst r =>
       match RegLocate (reg φ) r with
-      | inl _ => (Failed, φ)
-      | inr (_, b, _, _) =>
-        match b with
-        | A b' _ _ => updatePC (update_reg φ dst (inl b'))
-        end
+      | put_cap (_, b, _, _) => updatePC (update_reg φ dst (put_z (b : Z)))
+      | put_sealr (_, b, _, _) => updatePC (update_reg φ dst (put_z (b : Z)))
+      |  _ => (Failed, φ)
       end
     | GetE dst r =>
       match RegLocate (reg φ) r with
-      | inl _ => (Failed, φ)
-      | inr (_, _, e, _) =>
-        match e with
-        | A e' _ _ => updatePC (update_reg φ dst (inl e'))
-        end
+      | put_cap (_, _, e, _) => updatePC (update_reg φ dst (put_z (e : Z)))
+      | put_sealr (_, _, e, _) => updatePC (update_reg φ dst (put_z (e : Z)))
+      |  _ => (Failed, φ)
       end
     | GetP dst r =>
       match RegLocate (reg φ) r with
-      | inl _ => (Failed, φ)
-      | inr (p, _, _, _) => updatePC (update_reg φ dst (inl (encodePerm p)))
+      | put_cap (p, _, _, _) => updatePC (update_reg φ dst (put_z (encodePerm p)))
+      | put_sealr (p, _, _, _) => updatePC (update_reg φ dst (put_z (encodeSealPerms p)))
+      |  _ => (Failed, φ)
       end
     | IsPtr dst r =>
       match RegLocate (reg φ) r with
-      | inl _ => updatePC (update_reg φ dst (inl 0%Z))
-      | inr _ => updatePC (update_reg φ dst (inl 1%Z))
+      | put_cap _ => updatePC (update_reg φ dst (put_z 1%Z))
+      |  _ => updatePC (update_reg φ dst (put_z 0%Z))
+      end
+    | Seal dst r1 r2 =>
+      match RegLocate (reg φ) r1, RegLocate (reg φ) r2 with
+      | put_sealr (p, b, e, a), put_sealb sb =>
+        if permit_seal p && withinBounds_sr (p, b, e, a) then updatePC (update_reg φ dst (put_sealed (a, sb)))
+        else (Failed, φ)
+      | _, _ => (Failed, φ)
+      end
+    | UnSeal dst r1 r2 =>
+      match RegLocate (reg φ) r1, RegLocate (reg φ) r2 with
+      | put_sealr (p, b, e, a), put_sealed (a', sb) =>
+          if decide (permit_unseal p = true ∧ withinBounds_sr (p, b, e, a) = true ∧ a' = a) then updatePC (update_reg φ dst (put_sealb sb))
+          else (Failed, φ)
+      | _,_ => (Failed, φ)
       end
     end.
 
@@ -386,7 +383,7 @@ Section opsem.
         step (Executable, φ) (Failed, φ)
   | step_exec_instr:
       forall φ p b e a i c,
-        RegLocate (reg φ) PC = inr (p, b, e, a) →
+        RegLocate (reg φ) PC = put_cap (p, b, e, a) → (* only works for caps *)
         isCorrectPC ((reg φ) !r! PC) →
         decodeInstrW ((mem φ) !m! a) = i →
         exec i φ = c →
