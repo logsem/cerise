@@ -315,4 +315,42 @@ Proof.
   apply n_of_to_otype_id.
 Defined.
 
+Program Definition incr_otype (o: OType) (z: Z): option OType :=
+  if decide ((o + z) >= 0)%Z then
+    let sum := Z.to_nat (o + z)%Z in
+    if (Z_le_dec sum ONum) then
+      Some (Oty sum _)
+    else None
+  else None.
+Next Obligation.
+  intros. apply leb_le. lia.
+Defined.
+Notation "o + z" := (incr_otype o z).
+
+(* Map Z into OTypes *)
+Definition z_to_otype (z : Z) : option OType.
+Proof.
+  destruct (Z_le_dec 0 z).
+  - pose (n := Z.to_nat z).  exact (n_to_otype n).
+  - exact None.
+Defined.
+
+Lemma otype_spec (o: OType) : (o <= ONum)%Z ∧ (0 <= o)%Z.
+Proof. destruct o. cbn. rewrite leb_le in fin. lia. Qed.
+
+Lemma z_to_otype_z_of (o:OType) :
+  z_to_otype o = Some o.
+Proof.
+  generalize (otype_spec o); intros [? ?].
+  unfold z_to_otype.
+  destruct (Z_le_dec o ONum) eqn:?;
+  destruct (Z_le_dec 0 o) eqn:?.
+  { f_equal. rewrite <- n_of_to_otype_id. f_equal. lia. }
+  all: lia.
+Qed.
+
+Lemma z_to_otyp_eq_inv (a b:OType) :
+  z_to_otype a = Some b → a = b.
+Proof. rewrite z_to_otype_z_of. naive_solver. Qed.
+
 (* Note: no custom scope needed for otypes atm, since they will use the corresponding definitions for 'nat' automatically *)
