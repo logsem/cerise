@@ -1,6 +1,8 @@
 From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 From Coq.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
+From Coq Require Import ssreflect.
+From cap_machine Require Import stdpp_extra.
 
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
@@ -31,7 +33,7 @@ Defined.
 Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
-  if (nat_le_dec n RegNum) then Some (R n _) else None.
+  match nat_le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
 Defined.
@@ -126,7 +128,7 @@ Definition all_registers_s : gset RegName := list_to_set all_registers.
 Lemma all_registers_NoDup :
   NoDup all_registers.
 Proof.
-  rewrite /all_registers.
+  unfold all_registers.
   repeat (
     apply NoDup_cons_2;
     first (repeat (rewrite not_elem_of_cons; split; [done|]); apply not_elem_of_nil)
@@ -184,7 +186,7 @@ Proof.
   rewrite elem_of_subseteq. intros ? _. apply all_registers_s_correct.
 Qed.
 
-Lemma regmap_full_dom (r: gmap RegName Word):
+Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
   dom (gset RegName) r = all_registers_s.
 Proof.
@@ -245,7 +247,10 @@ Proof.
 Defined.
 
 Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
-Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
+Proof.
+  destruct a. cbn. rewrite -> Z.leb_le in fin.
+  rewrite -> Z.leb_le in pos. lia.
+Qed.
 
 Lemma z_to_addr_z_of (a:Addr) :
   z_to_addr a = Some a.
@@ -320,8 +325,14 @@ Proof.
 Qed.
 
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
-  if (Z_le_dec (a + z)%Z MemNum) then
-    if (Z_le_dec 0 (a + z)%Z) then Some (A (a + z)%Z _ _) else None else None.
+  match (Z_le_dec (a + z)%Z MemNum) with
+  | left _ =>
+    match (Z_le_dec 0 (a + z)%Z) with
+    | left _ => Some (A (a + z)%Z _ _)
+    | right _ => None
+    end
+  | right _ => None
+  end.
 Next Obligation.
   intros. apply Z.leb_le; auto.
 Defined.
@@ -331,10 +342,16 @@ Defined.
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
 Definition max (a1 a2: Addr): Addr :=
-  if Addr_le_dec a1 a2 then a2 else a1.
+  match Addr_le_dec a1 a2 with
+  | left _ => a2
+  | right _ => a1
+  end.
 
 Definition min (a1 a2: Addr): Addr :=
-  if Addr_le_dec a1 a2 then a1 else a2.
+  match Addr_le_dec a1 a2 with
+  | left _ => a1
+  | right _ => a2
+  end.
 
 Lemma min_addr_spec (a1 a2: Addr):
   exists a, min a1 a2 = a /\ (a: Z) = Z.min (a1: Z) (a2: Z).

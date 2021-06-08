@@ -79,7 +79,7 @@ Section fundamental.
             iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             rewrite /interp_expr /=.
             iDestruct "Hr1" as "#H".
-            iNext. iDestruct ("H" with "[$Hmap $Hown]") as "[_ Hcont]"; auto. } }
+            iNext. iDestruct ("H" with "[$Hmap $Hown]") as "Hcont"; auto. } }
         iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC").

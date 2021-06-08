@@ -274,10 +274,7 @@ Section roe.
     iSplitL "Hr_t0". iNext. eauto.
     iSplitL "Hr_env". iNext. iApply big_sepM_singleton. iFrame.
     (* in anticipation of the result of the call macro, we create the callback now *)
-    iDestruct (jmp_or_fail_spec with "Hwadv") as "Hcallback_now".
-    destruct (decide (isCorrectPC (updatePcPerm wadv))).
-    2: { iNext. iIntros "Hbc". iDestruct "Hbc" as (b_c e_c b_l e_l a_end Hnext) "(HPC & _)". iApply "Hcallback_now". iFrame. }
-    iDestruct "Hcallback_now" as (p b' e' a' ->) "Hcallback_now". 
+    iDestruct (jmp_to_unknown with "Hwadv") as "Hcallback_now".
     (* continue the program, now pointing at the adversary *)
     iNext. iIntros "Hbc".
     iDestruct "Hbc" as (b_c e_c b_l e_l a_end Hnext) "(HPC & Hregs & Hr_t7 & Hpc_b & Ha_entry & Hr_adv & Hr_t0 & Hbec & Hbel & Hcall_prog & Hown)".
@@ -304,171 +301,166 @@ Section roe.
     { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs".
     { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
-    
+
     match goal with |- context [ ([∗ map] k↦y ∈ ?regs, k ↦ᵣ y)%I ] =>
           set rmap2 := regs
     end.
     iSpecialize ("Hcallback_now" $! rmap2). rewrite /interp_expr. 
-    iDestruct ("Hcallback_now" with "[Hregs $Hown]") as "[_ Hconf]". 
-    { rewrite /registers_mapsto /rmap2. rewrite insert_insert. iFrame. 
-      iSplit.
-      { iPureIntro. intros x. simpl.
-        consider_next_reg x PC. consider_next_reg x r_t0. consider_next_reg x r_t7. consider_next_reg x r_adv.
-        apply elem_of_gmap_dom. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear -n n0 n1 n2.
-        repeat (apply elem_of_difference; split; [|set_solver]). apply all_registers_s_correct. }
-      iIntros (r Hne). 
-      rewrite /RegLocate. rewrite lookup_insert_ne;auto. 
-      consider_next_reg r r_t0;[|consider_next_reg r r_t7;[|consider_next_reg r r_adv] ].
-      - (* continuation *) iClear "Hcallback_now Hwadv".
-        rewrite !fixpoint_interp1_eq.
-        iIntros (r). iNext. iModIntro.
-        iIntros "([% #Hreg_val] & Hreg & Hown)". iSplit;auto.
-        rewrite /interp_conf.
-        (* get the registers we need *)
-        iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; [rewrite lookup_insert;eauto|].
-        rewrite delete_insert_delete.
-        assert (is_Some (r !! r_t1)) as [wrt1 Hwrt1];[auto|].
-        iDestruct (big_sepM_delete _ _ r_t1 with "Hreg") as "[Hr_t1 Hreg]"; [rewrite lookup_delete_ne//;eauto|].
-        assert (is_Some (r !! r_t2)) as [wrt2 Hwrt2];[auto|].
-        iDestruct (big_sepM_delete _ _ r_t2 with "Hreg") as "[Hr_t2 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
-        assert (is_Some (r !! r_env)) as [wenv' Hwenv'];[auto|].
-        iDestruct (big_sepM_delete _ _ r_env with "Hreg") as "[Hr_env Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
-        assert (is_Some (r !! r_t0)) as [wrt0 Hwrt0];[auto|].
-        iDestruct (big_sepM_delete _ _ r_t0 with "Hreg") as "[Hr_t0 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
-        assert (is_Some (r !! r_t3)) as [wrt3 Hwrt3];[auto|].
-        iDestruct (big_sepM_delete _ _ r_t3 with "Hreg") as "[Hr_t3 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
 
-        (* step through the activation record *)
-        iMod (na_inv_acc with "Hprog Hown") as "[>Hprog' [Hown Hcls] ]";[solve_ndisj|solve_ndisj|].
-        iDestruct (big_sepL2_length with "Hprog'") as %Hlength_rest'. 
-        iMod (na_inv_acc with "Hbec Hown") as "[Hbec' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
-        iApply (scall_epilogue_spec with "[- $HPC $Hbec' $Hr_t1 $Hr_t2]");[|apply Hnext|]. 
-        { split;auto. }
-        iNext. iIntros "(HPC & Hr_t1 & Hr_t2 & Hbec')".
-        iMod ("Hcls'" with "[$Hbec' $Hown]") as "Hown". 
-        iDestruct "Hr_t1" as (wrt1') "Hr_t1".
+    iApply (wp_wand with "[-]"). iApply "Hcallback_now". 3: by eauto.
+    { iPureIntro. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom.
+      rewrite !singleton_union_difference_L. set_solver+. }
+    iFrame. iApply big_sepM_sep. iFrame.
+    iApply big_sepM_insert_2.
+    (* Prove that the closure is valid *)
+    { cbn beta. rewrite !fixpoint_interp1_eq.
+      iIntros (r). iNext. iModIntro.
+      iIntros "([% #Hreg_val] & Hreg & Hown)".
+      rewrite /interp_conf.
+      (* get the registers we need *)
+      iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; [rewrite lookup_insert;eauto|].
+      rewrite delete_insert_delete.
+      assert (is_Some (r !! r_t1)) as [wrt1 Hwrt1];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t1 with "Hreg") as "[Hr_t1 Hreg]"; [rewrite lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_t2)) as [wrt2 Hwrt2];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t2 with "Hreg") as "[Hr_t2 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_env)) as [wenv' Hwenv'];[auto|].
+      iDestruct (big_sepM_delete _ _ r_env with "Hreg") as "[Hr_env Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_t0)) as [wrt0 Hwrt0];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t0 with "Hreg") as "[Hr_t0 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_t3)) as [wrt3 Hwrt3];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t3 with "Hreg") as "[Hr_t3 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
 
-        (* Since there is just one local register, it is easier to just step through rather than using the macro spec *)
-        rewrite /restore_locals_instrs.
-        destruct ai_rest';[inversion Hlength_rest'|]. apply contiguous_between_cons_inv_first in Hcont_rest' as Heq;subst a3.
-        destruct ai_rest';[inversion Hlength_rest'|].
-        iRename "Hprog" into "Hprog_inv".
-        (* lea r_t2 -1 *)
-        iPrologue "Hprog'".
-        iMod (na_inv_acc with "Hbel Hown") as "[>Hbel' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
-        iDestruct (big_sepL2_length with "Hbel'") as %Hbl_length. 
-        assert ((b_l + 1) = Some e_l)%a as Hbl_next. 
-        { rewrite region_addrs_length /= /region_size in Hbl_length. clear -Hbl_length. solve_addr. }
-        assert ((e_l + -1)%a = Some b_l) as Hlea.
-        { clear -Hbl_next. solve_addr. }
-        iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
-          [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last|iContiguous_next Hcont_rest' 0|apply Hlea|auto|..]. 
-        iEpilogue "(HPC & Hprog_done & Hr_t2)". 
-        (* load r_env r_t2 *)
-        apply region_addrs_single in Hbl_next.
-        rewrite /region_mapsto Hbl_next.
-        iDestruct "Hbel'" as "[Hbel' _]".
-        destruct ai_rest';[inversion Hlength_rest'|].
-        iPrologue "Hprog".
-        iAssert (⌜(b_l =? a3)%a = false⌝)%I as %Hfalse.
-        { destruct (decide (b_l = a3)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-          iDestruct (mapsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
-        iApply (wp_load_success with "[$HPC $Hi $Hr_env $Hr_t2 Hbel']");
-          [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 1|..]. 
-        { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hlea. solve_addr. }
-        { rewrite Hfalse. iFrame. }
-        rewrite Hfalse. iEpilogue "(HPC & Hr_env & Hi & Hr_t2 & Hb_l)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-        (* load r_env r_t0 *)
-        destruct ai_rest';[inversion Hlength_rest'|].
-        iPrologue "Hprog".
-        iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd. 
-        iAssert (⌜(b =? a4)%a = false⌝)%I as %Hfalse'.
-        { destruct (decide (b = a4)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
-          iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
-        iApply (wp_load_success with "[$HPC $Hi $Hr_t0 $Hr_env Hd]");
-          [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..]. 
-        { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }
-        { rewrite Hfalse'. iFrame. } rewrite Hfalse'.
-        iNext. iIntros "(HPC & Hr_t0 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-        iMod ("Hcls''" with "[Hd]") as "_".
-        { iNext. iExists _. iFrame. auto. }
-        iModIntro. iApply wp_pure_step_later;auto;iNext.
+      (* step through the activation record *)
+      iMod (na_inv_acc with "Hprog Hown") as "[>Hprog' [Hown Hcls] ]";[solve_ndisj|solve_ndisj|].
+      iDestruct (big_sepL2_length with "Hprog'") as %Hlength_rest'.
+      iMod (na_inv_acc with "Hbec Hown") as "[Hbec' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
+      iApply (scall_epilogue_spec with "[- $HPC $Hbec' $Hr_t1 $Hr_t2]");[|apply Hnext|].
+      { split;auto. }
+      iNext. iIntros "(HPC & Hr_t1 & Hr_t2 & Hbec')".
+      iMod ("Hcls'" with "[$Hbec' $Hown]") as "Hown".
+      iDestruct "Hr_t1" as (wrt1') "Hr_t1".
 
-        (* prepare memory for the assert macro *)
-        iDestruct (contiguous_between_program_split with "Hprog") as
-        (ai_assert ai_rest'' a_assert_end) "(Hassert_prog & Hprog & #Hcont)".
-        { repeat (apply contiguous_between_cons_inv in Hcont_rest' as [_ [? [_ Hcont_rest'] ] ];
-                  apply contiguous_between_cons_inv_first in Hcont_rest' as Heq'; subst x). apply Hcont_rest'. }
-        iDestruct "Hcont" as %(Hcont_assert & Hcont_rest'' & Heqapp'' & Hlink'').
-        iDestruct (big_sepL2_length with "Hassert_prog") as %Hai_assert_len.
-        assert (isCorrectPC_range pc_p pc_b pc_e a5 a_assert_end) as Hvpc5.
-        { eapply isCorrectPC_range_restrict. apply Hvpc.
-          generalize (contiguous_between_bounds _ _ _ Hcont_rest').
-          generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
-          generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
-          generalize (contiguous_between_bounds _ _ _ Hcont_call).
-          apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
-          apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
-          clear -Hcont_rest' Hcont_rest. solve_addr. }
-        assert (isCorrectPC_range pc_p pc_b pc_e a_assert_end a_last) as Hvpc6.
-        { eapply isCorrectPC_range_restrict. apply Hvpc.
-          generalize (contiguous_between_bounds _ _ _ Hcont_rest').
-          generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
-          generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
-          generalize (contiguous_between_bounds _ _ _ Hcont_call).
-          apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
-          apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
-          clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
-        
-        (* assert macro *)
-        iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & a_env & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|]. 
-        iApply (assert_r_z_success with "[- $HPC $Hassert_prog $pc_b $a_entry' $Hr_t0]");
-          [apply Hvpc5|apply Hcont_assert|auto..].
-        iSplitL "Hr_t1";[eauto|]. 
-        iSplitL "Hr_t2";[eauto|].
-        iSplitL "Hr_t3";[eauto|]. 
-        iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_t0 & HPC & Hassert_prog & Hpc_b & Ha_entry')".
-        iMod ("Hcls''" with "[$Hown $Ha_entry' $a_env $Hpc_b $Ha_entry]") as "Hown".
-        iMod ("Hcls'" with "[$Hown $Hb_l]") as "Hown";[iNext;done|].  
+      (* Since there is just one local register, it is easier to just step through rather than using the macro spec *)
+      rewrite /restore_locals_instrs.
+      destruct ai_rest';[inversion Hlength_rest'|]. apply contiguous_between_cons_inv_first in Hcont_rest' as Heq;subst a3.
+      destruct ai_rest';[inversion Hlength_rest'|].
+      iRename "Hprog" into "Hprog_inv".
+      (* lea r_t2 -1 *)
+      iPrologue "Hprog'".
+      iMod (na_inv_acc with "Hbel Hown") as "[>Hbel' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
+      iDestruct (big_sepL2_length with "Hbel'") as %Hbl_length.
+      assert ((b_l + 1) = Some e_l)%a as Hbl_next.
+      { rewrite region_addrs_length /= /region_size in Hbl_length. clear -Hbl_length. solve_addr. }
+      assert ((e_l + -1)%a = Some b_l) as Hlea.
+      { clear -Hbl_next. solve_addr. }
+      iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
+        [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last|iContiguous_next Hcont_rest' 0|apply Hlea|auto|..].
+      iEpilogue "(HPC & Hprog_done & Hr_t2)".
+      (* load r_env r_t2 *)
+      apply region_addrs_single in Hbl_next.
+      rewrite /region_mapsto Hbl_next.
+      iDestruct "Hbel'" as "[Hbel' _]".
+      destruct ai_rest';[inversion Hlength_rest'|].
+      iPrologue "Hprog".
+      iAssert (⌜(b_l =? a3)%a = false⌝)%I as %Hfalse.
+      { destruct (decide (b_l = a3)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+        iDestruct (mapsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
+      iApply (wp_load_success with "[$HPC $Hi $Hr_env $Hr_t2 Hbel']");
+        [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 1|..].
+      { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hlea. solve_addr. }
+      { rewrite Hfalse. iFrame. }
+      rewrite Hfalse. iEpilogue "(HPC & Hr_env & Hi & Hr_t2 & Hb_l)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      (* load r_env r_t0 *)
+      destruct ai_rest';[inversion Hlength_rest'|].
+      iPrologue "Hprog".
+      iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd.
+      iAssert (⌜(b =? a4)%a = false⌝)%I as %Hfalse'.
+      { destruct (decide (b = a4)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+        iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
+      iApply (wp_load_success with "[$HPC $Hi $Hr_t0 $Hr_env Hd]");
+        [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..].
+      { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }
+      { rewrite Hfalse'. iFrame. } rewrite Hfalse'.
+      iNext. iIntros "(HPC & Hr_t0 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      iMod ("Hcls''" with "[Hd]") as "_".
+      { iNext. iExists _. iFrame. auto. }
+      iModIntro. iApply wp_pure_step_later;auto;iNext.
 
-        (* halt *)
-        iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest''. 
-        destruct ai_rest'';[inversion Hlength_rest''|]. destruct ai_rest'';[|inversion Hlength_rest'']. 
-        apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst a6. 
-        iPrologue "Hprog". 
-        iApply (wp_halt with "[$HPC $Hi]");
-          [apply decode_encode_instrW_inv|iCorrectPC a_assert_end a_last|..].
-        iEpilogue "(HPC & Hi)".
+      (* prepare memory for the assert macro *)
+      iDestruct (contiguous_between_program_split with "Hprog") as
+      (ai_assert ai_rest'' a_assert_end) "(Hassert_prog & Hprog & #Hcont)".
+      { repeat (apply contiguous_between_cons_inv in Hcont_rest' as [_ [? [_ Hcont_rest'] ] ];
+                apply contiguous_between_cons_inv_first in Hcont_rest' as Heq'; subst x). apply Hcont_rest'. }
+      iDestruct "Hcont" as %(Hcont_assert & Hcont_rest'' & Heqapp'' & Hlink'').
+      iDestruct (big_sepL2_length with "Hassert_prog") as %Hai_assert_len.
+      assert (isCorrectPC_range pc_p pc_b pc_e a5 a_assert_end) as Hvpc5.
+      { eapply isCorrectPC_range_restrict. apply Hvpc.
+        generalize (contiguous_between_bounds _ _ _ Hcont_rest').
+        generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
+        generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
+        generalize (contiguous_between_bounds _ _ _ Hcont_call).
+        apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+        clear -Hcont_rest' Hcont_rest. solve_addr. }
+      assert (isCorrectPC_range pc_p pc_b pc_e a_assert_end a_last) as Hvpc6.
+      { eapply isCorrectPC_range_restrict. apply Hvpc.
+        generalize (contiguous_between_bounds _ _ _ Hcont_rest').
+        generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
+        generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
+        generalize (contiguous_between_bounds _ _ _ Hcont_call).
+        apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+        clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
 
-        (* reassemble registers, close invariants and finish *)
-        iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown". 
-        { iNext. iDestruct "Hprog_done" as "($&$&$)".
-          rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete].
-        
-        iApply wp_value. iIntros (_).
-        iExists _. iFrame. iPureIntro.
-        intros r';simpl. consider_next_reg r' PC. consider_next_reg r' r_t1. consider_next_reg r' r_t2.
-        consider_next_reg r' r_env. consider_next_reg r' r_t0. consider_next_reg r' r_t3. 
-      - (* the shared RO capability *)
-        rewrite decode_encode_perm_inv.
-        rewrite !fixpoint_interp1_eq. iSimpl. apply region_addrs_single in Hincr. rewrite Hincr.
-        iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = inl 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
-        iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. 
-      - (* the remaining 0'ed out capabilities *)
-        destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (inl 0%Z : Word)) !! r) eqn:Hsome;rewrite Hsome.
-        apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq. done. rewrite !fixpoint_interp1_eq. done. 
-    }
+      (* assert macro *)
+      iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & a_env & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|].
+      iApply (assert_r_z_success with "[- $HPC $Hassert_prog $pc_b $a_entry' $Hr_t0]");
+        [apply Hvpc5|apply Hcont_assert|auto..].
+      iSplitL "Hr_t1";[eauto|].
+      iSplitL "Hr_t2";[eauto|].
+      iSplitL "Hr_t3";[eauto|].
+      iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_t0 & HPC & Hassert_prog & Hpc_b & Ha_entry')".
+      iMod ("Hcls''" with "[$Hown $Ha_entry' $a_env $Hpc_b $Ha_entry]") as "Hown".
+      iMod ("Hcls'" with "[$Hown $Hb_l]") as "Hown";[iNext;done|].
 
-    (* conclude that the full program does not get stuck *)
-    iApply (wp_wand with "Hconf");auto. 
+      (* halt *)
+      iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest''.
+      destruct ai_rest'';[inversion Hlength_rest''|]. destruct ai_rest'';[|inversion Hlength_rest''].
+      apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst a6.
+      iPrologue "Hprog".
+      iApply (wp_halt with "[$HPC $Hi]");
+        [apply decode_encode_instrW_inv|iCorrectPC a_assert_end a_last|..].
+      iEpilogue "(HPC & Hi)".
+
+      (* reassemble registers, close invariants and finish *)
+      iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown".
+      { iNext. iDestruct "Hprog_done" as "($&$&$)".
+        rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete].
+
+      iApply wp_value. iIntros (_).
+      iExists _. iFrame. iPureIntro.
+      intros r';simpl. consider_next_reg r' PC. consider_next_reg r' r_t1. consider_next_reg r' r_t2.
+      consider_next_reg r' r_env. consider_next_reg r' r_t0. consider_next_reg r' r_t3. }
+    (* the shared RO capability *)
+    iApply big_sepM_insert_2.
+    { cbn beta. rewrite decode_encode_perm_inv.
+      rewrite !fixpoint_interp1_eq. iSimpl. apply region_addrs_single in Hincr. rewrite Hincr.
+      iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = inl 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
+      iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. }
+    (* adversary *)
+    iApply big_sepM_insert_2. done.
+    (* the remaining 0'ed out capabilities *)
+    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+      destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (inl 0%Z : Word)) !! r) eqn:Hsome.
+      apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
+      iIntros (?). simplify_eq. done. iIntros (?). done. }
   Qed.
     
 End roe. 

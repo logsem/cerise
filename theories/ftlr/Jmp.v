@@ -101,7 +101,7 @@ Section fundamental.
             iDestruct "Hwsrc" as "#H".
             iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
             iModIntro.
-            rewrite !fixpoint_interp1_eq /=. iDestruct ("H" with "[$Hmap $Hown]") as "[_ Hcont]"; auto.
+            rewrite !fixpoint_interp1_eq /=. iDestruct ("H" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].

@@ -57,7 +57,7 @@ Section logrel.
 
   Program Definition interp_expr (interp : D) r : D :=
     (λne w, (interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r) ∗ na_own logrel_nais ⊤ -∗
-                        ⌜match w with inr _ => True | _ => False end⌝ ∧ interp_conf))%I.
+             interp_conf))%I.
   Solve All Obligations with solve_proper.
 
   (* condition definitions *)

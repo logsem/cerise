@@ -145,50 +145,28 @@ Section counter.
     apply (contiguous_between_last _ _ _ a3) in Hcont as Hlast;auto.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
-    iDestruct (jmp_or_fail_spec with "Hcallback") as "Hcallback_now".
-    (* close program invariant *)
 
     (* reassemble registers *)
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
     { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-    (* now we are ready to apply the jump or fail pattern *)
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    - iDestruct "Hcallback_now" as (p b e a Heq) "Hcallback'".
-      simplify_eq.
-      iEpilogue "(HPC & Hi & Hr_t0)".
-      iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
-      { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$&$)". done. }
-      iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a)]> (<[r_env:=inl 0%Z]> (<[r_t1:=inl (z + 1)%Z]> (delete r_t1 rmap))))).
-      iDestruct ("Hcallback'" $! regs' with "[Hregs $Hown HPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /regs'.
-        iSplit.
-        - iClear "Hcallback' Hregs HPC". rewrite /interp_reg /=. iSplit.
-          + iPureIntro.
-            intros r'. simpl.
-            consider_next_reg r' PC. consider_next_reg r' r_t0. consider_next_reg r' r_env. rewrite insert_delete.
-            consider_next_reg r' r_t1.
-            apply elem_of_gmap_dom. rewrite Hdom. assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
-            revert n n0 n1 n2 Hin;clear. set_solver.
-          + iIntros (r Hne).
-            rewrite /RegLocate.
-            consider_next_reg r PC. done. consider_next_reg r r_t0. consider_next_reg r r_env. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg r r_t1. rewrite !fixpoint_interp1_eq. done.
-            rewrite lookup_delete_ne;auto. destruct (rmap !! r) eqn:Hsome;rewrite Hsome;[|rewrite !fixpoint_interp1_eq;done].
-            iDestruct (big_sepM_delete _ _ r with "Hregs_val") as "[Hr _]";[eauto|]. iFrame "Hr".
-        - rewrite insert_insert. iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-          rewrite delete_insert. rewrite insert_delete. iFrame.
-          repeat (rewrite lookup_insert_ne;auto). rewrite lookup_delete_ne;auto.
-          apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver.
-      }
-      rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr".
-      iIntros (v). iApply "Hφ".
-    - iEpilogue "(HPC & Hi & Hr_t0)".
-      iApply "Hcallback_now". iFrame.
-      iApply "Hφ". iIntros (Hcontr); inversion Hcontr.
+
+    (* jump to unknown code *)
+    iDestruct (jmp_to_unknown with "Hcallback") as "Hcallback_now".
+    iEpilogue "(HPC & Hi & Hr_t0)".
+    iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
+    { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$&$)". done. }
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
+    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. set_solver+. }
+    iApply (wp_wand with "[-Hφ]").
+    { iApply "Hcallback_now"; cycle 1.
+      { iFrame. iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+        iApply big_sepM_insert_2. done.
+        repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+        iApply "Hregs_val". }
+      { rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. iPureIntro. set_solver+. } }
+    { eauto. }
   Qed.
 
 
@@ -336,9 +314,6 @@ Section counter.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
 
-    (* We now want to apply the jump or fail pattern *)
-    iDestruct (jmp_or_fail_spec with "Hcallback") as "Hcallback_now".
-
     (* reassemble registers *)
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -353,46 +328,22 @@ Section counter.
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete).
 
-    (* now we are ready to apply the jump or fail pattern *)
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    - iDestruct "Hcallback_now" as (p b e a' Heq) "Hcallback'".
-      simplify_eq.
-      iEpilogue "(HPC & Hi & Hr_t0)".
-      iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
-      { iNext. rewrite Heqapp. iFrame. iDestruct "Hprog_done" as "($&Hassert&$&$)". iFrame. destruct rest; inversion Hrest_length. done. }
-      iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a')]>
-                    (<[r_env:=inl 0%Z]> (<[r_ret:=inl z]> (<[r_t1:=inl 0%Z]> (<[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]> rmap)))))))).
-      iDestruct ("Hcallback'" $! regs' with "[Hregs $Hown HPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /regs'.
-        iSplit.
-        - iClear "Hcallback' Hregs HPC". rewrite /interp_reg /=. iSplit.
-          + iPureIntro.
-            intros r'. simpl.
-            consider_next_reg r' PC. consider_next_reg r' r_t0. consider_next_reg r' r_env.
-            consider_next_reg r' r_ret. consider_next_reg r' r_t1. consider_next_reg r' r_t2.
-            consider_next_reg r' r_t3. consider_next_reg r' r_t4.
-            apply elem_of_gmap_dom. rewrite Hdom. assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
-            revert n n0 n1 n2 n3 n4 n5 n6 Hin;clear. set_solver.
-          + iIntros (r' Hne).
-            rewrite /RegLocate.
-            consider_next_reg r' PC. done. consider_next_reg r' r_t0. consider_next_reg r' r_env. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg r' r_ret. rewrite !fixpoint_interp1_eq. done. consider_next_reg r' r_t1.
-            rewrite !fixpoint_interp1_eq. done. consider_next_reg r' r_t2. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg r' r_t3.  rewrite !fixpoint_interp1_eq. done. consider_next_reg r' r_t4. rewrite !fixpoint_interp1_eq. done.
-            destruct (rmap !! r') eqn:Hsome;rewrite Hsome;[|rewrite !fixpoint_interp1_eq;done].
-            iDestruct (big_sepM_delete _ _ r' with "Hregs_val") as "[Hr _]";[eauto|]. iFrame "Hr".
-        - rewrite insert_insert. iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-          rewrite delete_insert. iFrame.
-          repeat (rewrite lookup_insert_ne;auto).
-          apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver.
-      }
-      rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr".
-      iIntros (v). iApply "Hφ".
-    - iEpilogue "(HPC & Hi & Hr_t0)".
-      iApply "Hcallback_now". iFrame.
-      iApply "Hφ". iIntros (Hcontr); inversion Hcontr.
+    set regs' := <[_:=_]> _.
+    (* jump to unknown code *)
+    iDestruct (jmp_to_unknown _ with "Hcallback") as "Hcallback_now".
+    iEpilogue "(HPC & Hi & Hr_t0)".
+    iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
+    { iNext. rewrite Heqapp. iFrame. iDestruct "Hprog_done" as "($&Hassert&$&$)". iFrame. destruct rest; inversion Hrest_length. done. }
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
+    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    iApply (wp_wand with "[-Hφ]").
+    { iApply "Hcallback_now"; cycle 1. iFrame.
+      { iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+        iApply big_sepM_insert_2. done. subst regs'.
+        repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+        iApply "Hregs_val". }
+      { iPureIntro. rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. } }
+    { eauto. }
   Qed.
 
 
@@ -471,49 +422,27 @@ Section counter.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
 
-    (* we can now apply the jump or fail pattern *)
-    iDestruct (jmp_or_fail_spec with "Hcallback") as "Hcallback_now".
-
     (* reassemble registers *)
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
     { rewrite lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
 
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    - iDestruct "Hcallback_now" as (p b e a' Heq) "Hcallback'".
-      simplify_eq.
-      iEpilogue "(HPC & Hi & Hr_t0)".
-      iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
-      { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$)". done. }
-      iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a')]> (<[r_t1:=inl 0%Z]> (<[r_env:=inl 0%Z]> rmap)))).
-      iDestruct ("Hcallback'" $! regs' with "[Hregs $Hown HPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /regs'.
-        iSplit.
-        - iClear "Hcallback' Hregs HPC". rewrite /interp_reg /=. iSplit.
-          + iPureIntro.
-            intros r'. simpl.
-            consider_next_reg r' PC. consider_next_reg r' r_t0. consider_next_reg r' r_t1. consider_next_reg r' r_env.
-            apply elem_of_gmap_dom. rewrite Hdom. assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
-            revert n n0 n1 n2 Hin;clear. set_solver.
-          + iIntros (r' Hne).
-            rewrite /RegLocate.
-            consider_next_reg r' PC. done. consider_next_reg r' r_t0. consider_next_reg r' r_t1. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg r' r_env. rewrite !fixpoint_interp1_eq. done.
-            destruct (rmap !! r') eqn:Hsome;rewrite Hsome;[|rewrite !fixpoint_interp1_eq;done].
-            iDestruct (big_sepM_delete _ _ r' with "Hregs_val") as "[Hr _]";[eauto|]. iFrame "Hr".
-        - rewrite insert_insert. iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-          rewrite delete_insert. iFrame.
-          repeat (rewrite lookup_insert_ne;auto).
-          apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver.
-      }
-      rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr".
-      iIntros (v). iApply "Hφ".
-    - iEpilogue "(HPC & Hi & Hr_t0)".
-      iApply "Hcallback_now". iFrame.
-      iApply "Hφ". iIntros (Hcontr); inversion Hcontr.
+    set rmap' := <[_:=_]> _.
+    iDestruct (jmp_to_unknown with "Hcallback") as "Hcallback_now".
+    iEpilogue "(HPC & Hi & Hr_t0)".
+    iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
+    { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$)". done. }
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
+    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    iApply (wp_wand with "[-Hφ]").
+    { iApply "Hcallback_now"; cycle 1.
+      { iFrame. iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+        iApply big_sepM_insert_2. done.
+        repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+        iApply "Hregs_val". }
+      { iPureIntro. rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. } }
+    { eauto. }
   Qed.
 
 End counter.

@@ -391,13 +391,11 @@ Section Adequacy.
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
 
-    iDestruct "HE" as "[_ HWP]". unfold interp_conf.
-
     iModIntro.
     (* Same as the state_interp of [memG_irisG] in rules_base.v *)
     iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
     iExists (fun _ => True)%I. cbn. iFrame.
-    iSplitL "HWP". { iApply (wp_wand with "HWP"). eauto. }
+    iSplitL "HE". { iApply (wp_wand with "HE"). eauto. }
     iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑flagN).
     iInv flagN as ">Hflag" "Hclose".
     iDestruct (gen_heap_valid with "Hmem' Hflag") as %Hm'_flag.

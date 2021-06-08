@@ -127,7 +127,7 @@ Section counter_example_preamble.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
-    iSplitR; [auto|]. rewrite /interp_conf.
+    rewrite /interp_conf.
     
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
@@ -202,7 +202,7 @@ Section counter_example_preamble.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
-    iSplitR; [auto|]. rewrite /interp_conf.
+    rewrite /interp_conf.
     
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
@@ -272,7 +272,7 @@ Section counter_example_preamble.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
-    iSplitR; [auto|]. rewrite /interp_conf.
+    rewrite /interp_conf.
     
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
@@ -366,8 +366,7 @@ Section counter_example_preamble.
             "(Hprog & Hcounter & #Hinv_malloc & Hpc_b & Ha_entry & Ha_entry')
              ([#Hr_full #Hr_valid] & Hregs & HnaI)".
     iDestruct "Hr_full" as %Hr_full.
-    rewrite /full_map.
-    iSplitR; auto. rewrite /interp_conf.
+    rewrite /full_map /interp_conf.
     
     (* put the code for the counter example in an invariant *)
     (* we separate the invariants into its tree functions *)
@@ -747,12 +746,8 @@ Section counter_example_preamble.
     unshelve iPoseProof ("Hr_valid" $! r_t0 _) as "#Hr0_valid". done.
     rewrite /(RegLocate _ r_t0) Hr0.
 
-    (* either we fail, or we use the continuation in rt0 *)
-    iDestruct (jmp_or_fail_spec with "Hr0_valid") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm r0))). 
-    2 : { iEpilogue "(HPC & Hi & Hr0)". iApply "Hcont". iFrame "HPC". iIntros (Hcontr);done. }
-    iDestruct "Hcont" as (p b e ? Heq) "#Hcont". 
-    simplify_eq. 
+    (* use the continuation in rt0 *)
+    iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
 
     (* prepare the continuation *)
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -766,49 +761,19 @@ Section counter_example_preamble.
     iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
     { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne //.
       repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne // lookup_delete //. }
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs".
-    { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete_ne //.
-      repeat (rewrite lookup_insert_ne //;[]). do 2 rewrite lookup_delete_ne //.
-      apply lookup_delete. }
     repeat (rewrite -(delete_insert_ne _ r_t2) //;[]). rewrite insert_delete.
     repeat (rewrite -(delete_insert_ne _ r_t1) //;[]). rewrite insert_delete.
     repeat (rewrite -(delete_insert_ne _ r_t0) //;[]). rewrite insert_delete.
-    repeat (rewrite -(delete_insert_ne _ PC) //;[]). rewrite insert_delete.
-    rewrite -(insert_insert _ PC _ (inl 0%Z)).
-    match goal with |- context [ ([∗ map] k↦y ∈ <[PC:=_]> ?r, _)%I ] => set r'' := r end.
-    iAssert (full_map r'') as %Hr''_full.
-    { rewrite /full_map. iIntros (rr). iPureIntro. rewrite elem_of_gmap_dom /r''.
-      rewrite !dom_insert_L regmap_full_dom //.
-      generalize (all_registers_s_correct rr). clear; set_solver. }
-    iSpecialize ("Hcont" $! r'' with "[Hregs HnaI]").
-    { iFrame.
-      rewrite /interp_reg. iSplit; [iPureIntro; apply Hr''_full|].
-      iIntros (rr Hrr).
-      assert (is_Some (r'' !! rr)) as [rrv Hrrv] by apply Hr''_full.
-      rewrite /RegLocate Hrrv. rewrite /r'' in Hrrv.
-      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [_ Hrrv] ].
-      { subst rr. by exfalso. }
-      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
-      { subst rr rrv. iApply "Hr0_valid". }
-      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
-      { subst rr rrv. iApply "Hvalid_cls''". }
-      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
-      { subst rr rrv. iApply "Hvalid_cls". } repeat (rewrite (insert_commute _ _ r_t3) in Hrrv;auto). 
-      rewrite lookup_insert_Some in Hrrv |- *. move=> [ [? ?] | [? Hrrv] ].
-      { subst rr rrv. iApply "Hvalid_cls'". }
-      
-      repeat (
-        rewrite lookup_insert_Some in Hrrv |- *; move=> [ [? ?] | [? Hrrv] ];
-        [subst; by rewrite (fixpoint_interp1_eq (inl 0%Z)) |]
-      ).
-      unshelve iSpecialize ("Hr_valid" $! rr _). by auto. rewrite Hrrv. auto. 
-    }
-    (* apply the continuation *)
-    iDestruct "Hcont" as "[_ Hcallback_now]".
-    iApply wp_wand_l. iFrame "Hcallback_now".
-    iIntros (v) "Hφ". iIntros (Hne).
-    iDestruct ("Hφ" $! Hne) as (r0) "(Hfull & Hregs & Hna)".
-    iExists r0. iFrame.
+    match goal with |- context [ ([∗ map] k↦y ∈ ?r, _)%I ] => set r'' := r end.
+    iApply "Hcont"; cycle 1.
+    { iFrame. iApply big_sepM_sep. iFrame "Hregs".
+      repeat (iApply big_sepM_insert_2; cbn beta;
+              [first [done | by rewrite /= !fixpoint_interp1_eq // ]|]).
+      iApply big_sepM_intuitionistically_forall. iIntros "!>" (r' ? Hr').
+      eapply lookup_delete_Some in Hr' as [? Hr'].
+      unshelve iSpecialize ("Hr_valid" $! r' _). by auto.
+      rewrite /RegLocate Hr'. done. }
+    { iPureIntro. rewrite !dom_insert_L dom_delete_L Hdom_r. set_solver+. }
   Qed.
 
 End counter_example_preamble.
