@@ -15,6 +15,13 @@ Class MachineParameters := {
 
   decode_encode_perm_inv :
     forall pl, decodePerm (encodePerm pl) = pl;
+
+  encodeSealPerms : Seal_Perms → Z;
+  encodeSealPerms_inj : Inj eq eq encodeSealPerms;
+  decodeSealPerms : Z → Seal_Perms;
+
+  decode_encode_seal_perms_inv :
+    forall pl, decodeSealPerms (encodeSealPerms pl) = pl;
 }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify

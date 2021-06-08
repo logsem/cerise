@@ -3,7 +3,6 @@ From stdpp Require Import gmap fin_maps list countable.
 From cap_machine Require Export addr_reg solve_addr.
 From iris.proofmode Require Import tactics.
 
-
 (* Definition and auxiliary facts on capabilities, permissions and addresses.
 
    The [solve_cap_pure] tactic automates the proof of some of these facts (see
@@ -22,9 +21,7 @@ Inductive Perm: Type :=
 Definition Cap: Type :=
   Perm * Addr * Addr * Addr.
 
-Definition Permit_Seal := bool.
-Definition Permit_UnSeal := bool.
-Definition Seal_Perms: Type := Permit_Seal * Permit_UnSeal.
+Definition Seal_Perms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
 Definition permit_seal (s : Seal_Perms) :=
   s.1.
 Definition permit_unseal (s : Seal_Perms) :=
@@ -37,7 +34,7 @@ Definition Sealable: Type :=
 Definition Sealed: Type :=
   OType * Sealable.
 
-Definition Word := (Z + Sealable + Sealed)%type.
+Definition Word := (Z + Sealable + Sealed)%type. (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
 
 Inductive instr: Type :=
 | Jmp (r: RegName)
@@ -299,7 +296,6 @@ Proof.
   destruct P1,P3,P2; simpl; auto; contradiction.
 Qed.
 
-
 Lemma readAllowed_nonO p p' :
   PermFlows p p' → readAllowed p = true → p' ≠ O.
 Proof.
@@ -341,6 +337,30 @@ Lemma ExecPCPerm_readAllowed p :
   readAllowed p = true.
 Proof.
   intros [-> | ->]; reflexivity.
+Qed.
+
+Definition SealPermFlowsTo (s1 s2 : Seal_Perms): bool :=
+  (if permit_seal(s1) then permit_seal(s2) else true) &&
+  (if permit_unseal(s1) then permit_unseal(s2) else true).
+
+(* Sanity check *)
+Lemma SealPermFlowsToTransitive:
+  transitive _ SealPermFlowsTo.
+Proof.
+  red; intros. unfold SealPermFlowsTo in *. repeat destruct (permit_seal _); repeat destruct (permit_unseal _); auto.
+Qed.
+
+(* Sanity check 2 *)
+Lemma SealPermFlowsToReflexive:
+  forall p, SealPermFlowsTo p p = true.
+Proof.
+  intros; unfold SealPermFlowsTo. destruct (permit_seal _), (permit_unseal _); auto.
+Qed.
+
+(* Sanity check 3 *)
+Lemma SealPermFlows_refl : ∀ p, SealPermFlowsTo p p = true.
+Proof.
+  intros; rewrite /SealPermFlowsTo. destruct (permit_seal _), (permit_unseal _); auto.
 Qed.
 
 (* Helper definitions for capabilities *)
@@ -473,6 +493,37 @@ Lemma isWithin_of_le a0 a1 b e:
   isWithin a0 a1 b e = true.
 Proof.
   rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+Qed.
+
+(* Similar definitions for OTypes*)
+
+Definition InBounds_o (b e: OType) (a: OType) :=
+  (b <= a) ∧ (a < e).
+
+Lemma withinBounds_o_InBounds_sr p b e a :
+  InBounds_o b e a →
+  withinBounds_sr (p, b, e, a) = true.
+Proof.
+  intros [? ?]. unfold withinBounds_sr.
+  apply andb_true_intro.
+  split; [apply leb_le;lia | apply ltb_lt;auto].
+Qed.
+
+Definition isWithin_o (n1 n2 b e: OType) : bool :=
+  ((b <=? n1) && (n2 <=? e)).
+
+Lemma isWithin_sr_implies (a0 a1 b e : OType):
+  isWithin_o a0 a1 b e = true →
+  (b <= a0 ∧ a1 <= e).
+Proof.
+  rewrite /isWithin. rewrite andb_true_iff /le_addr !leb_le. lia.
+Qed.
+
+Lemma isWithin_sr_of_le (a0 a1 b e : OType):
+  (b <= a0 ∧ a1 <= e) →
+  isWithin_o a0 a1 b e = true.
+Proof.
+  rewrite andb_true_iff /le_addr !leb_le. lia.
 Qed.
 
 (* isCorrectPC: valid capabilities for PC *)
