@@ -407,8 +407,8 @@ Section opsem.
   Qed.
 
   Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) :
-    r !! PC = Some (inr (p,b, e, a)) →
-    isCorrectPC (inr (p, b, e, a)) →
+    r !! PC = Some (put_cap (p, b, e, a)) →
+    isCorrectPC (put_cap (p, b, e, a)) →
     m !! a = Some w →
     decodeInstrW w = instr →
     step (Executable, (r, m)) (c, σ) →
@@ -417,7 +417,7 @@ Section opsem.
     intros HPC Hpc Hm Hinstr. inversion 1.
     { exfalso. erewrite regs_lookup_eq in *; eauto. }
     erewrite regs_lookup_eq in *; eauto.
-    match goal with H: inr _ = inr _ |- _ => inversion H; clear H end.
+    match goal with H: put_cap _ = put_cap _ |- _ => inversion H; clear H end.
     cbn in *.
     match goal with H: exec ?i _ = ?k |- _ => destruct k; subst i end. cbn.
     subst.
