@@ -17,28 +17,6 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition word_of_argument (regs: Reg) (a: Z + RegName) : option Word :=
-    match a with
-    | inl z => Some (inl z)
-    | inr r =>
-      match regs !! r with
-      | Some w => Some w
-      | _ => None
-      end
-    end.
-
-  Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) (c0 : Cap):
-    word_of_argument regs arg = Some(inr(c0)) →
-    (∃ r : RegName, arg = inr r ∧ regs !! r = Some(inr(c0))).
-  Proof.
-    intros HStoreV.
-    unfold word_of_argument in HStoreV.
-    destruct arg.
-       - by inversion HStoreV.
-       - exists r. destruct (regs !! r) eqn:Hvr0; last by inversion HStoreV.
-         split; auto.
-  Qed.
-
   Definition reg_allows_store (regs : Reg) (r : RegName) p b e a :=
     regs !! r = Some (inr (p, b, e, a)) ∧
     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true.
