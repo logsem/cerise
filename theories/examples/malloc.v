@@ -72,7 +72,7 @@ Section SimpleMalloc.
     (∃ b_m a_m,
        codefrag b malloc_subroutine_instrs
      ∗ ⌜(b + malloc_subroutine_instrs_length)%a = Some b_m⌝
-     ∗ b_m ↦ₐ (inr (RWX, b_m, e, a_m))
+     ∗ b_m ↦ₐ (WCap (RWX, b_m, e, a_m))
      ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝
     )%I.
@@ -85,19 +85,19 @@ Section SimpleMalloc.
      ∗ na_own logrel_nais E
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
      ∗ r_t0 ↦ᵣ cont
-     ∗ PC ↦ᵣ inr (RX, b, e, b)
+     ∗ PC ↦ᵣ WCap (RX, b, e, b)
      ∗ r_t1 ↦ᵣ wsize
      ∗ ▷ ((na_own logrel_nais E
-          ∗ [∗ map] r↦w ∈ <[r_t2 := inl 0%Z]>
-                         (<[r_t3 := inl 0%Z]>
-                         (<[r_t4 := inl 0%Z]>
+          ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
+                         (<[r_t3 := WInt 0%Z]>
+                         (<[r_t4 := WInt 0%Z]>
                           rmap)), r ↦ᵣ w)
           ∗ r_t0 ↦ᵣ cont
           ∗ PC ↦ᵣ updatePcPerm cont
           ∗ (∃ (ba ea : Addr) size,
-            ⌜wsize = inl size⌝
+            ⌜wsize = WInt size⌝
             ∗ ⌜(ba + size)%a = Some ea⌝
-            ∗ r_t1 ↦ᵣ inr (RWX, ba, ea, ba)
+            ∗ r_t1 ↦ᵣ WCap (RWX, ba, ea, ba)
             ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
           -∗ WP Seq (Instr Executable) {{ φ }}))
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
@@ -231,13 +231,13 @@ Section SimpleMalloc.
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hbae") as "Hbae". 
     iApply (big_sepL_mono with "Hbae").
     iIntros (k y Hky) "Ha". 
-    iApply inv_alloc. iNext. iExists (inl 0%Z). iFrame.
+    iApply inv_alloc. iNext. iExists (WInt 0%Z). iFrame.
     rewrite fixpoint_interp1_eq. auto. 
   Qed. 
     
   Lemma simple_malloc_subroutine_valid N b e :
     na_inv logrel_nais N (malloc_inv b e) -∗
-    interp (inr (E,b,e,b)). 
+    interp (WCap (E,b,e,b)).
   Proof.
     iIntros "#Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.

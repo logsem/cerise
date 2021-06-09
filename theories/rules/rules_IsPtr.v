@@ -20,17 +20,17 @@ Section cap_lang_rules.
   Inductive IsPtr_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
   | IsPtr_spec_success (w: Word):
       regs !! src = Some w →
-      incrementPC (<[ dst := inl (if is_cap w then 1%Z else 0%Z) ]> regs) = Some regs' ->
+      incrementPC (<[ dst := WInt (if is_cap w then 1%Z else 0%Z) ]> regs) = Some regs' ->
       IsPtr_spec regs dst src regs' NextIV
   | IsPtr_spec_failure (w: Word):
       regs !! src = Some w →
-      incrementPC (<[ dst := inl (if is_cap w then 1%Z else 0%Z) ]> regs) = None ->
+      incrementPC (<[ dst := WInt (if is_cap w then 1%Z else 0%Z) ]> regs) = None ->
       IsPtr_spec regs dst src regs' FailedV.
 
   Lemma wp_IsPtr Ep pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = IsPtr dst src ->
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (IsPtr dst src) ⊆ dom _ regs →
     
     {{{ ▷ pc_a ↦ₐ w ∗
@@ -59,10 +59,10 @@ Section cap_lang_rules.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
 
     rewrite /= /RegLocate Hsrc in Hstep.
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
     { unfold is_cap; destruct wsrc; auto. }
 
-    destruct (incrementPC (<[ dst := inl (if is_cap wsrc then 1%Z else 0%Z) ]> regs))
+    destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
@@ -85,18 +85,18 @@ Section cap_lang_rules.
 
   Lemma wp_IsPtr_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :
     decodeInstrW w = IsPtr dst PC →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ w'
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ inl 1%Z }}}.
+          ∗ dst ↦ᵣ WInt 1%Z }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
@@ -113,20 +113,20 @@ Section cap_lang_rules.
 
    Lemma wp_IsPtr_success E pc_p pc_b pc_e pc_a pc_a' w dst r wr w' :
      decodeInstrW w = IsPtr dst r →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
 
-       {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+       {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ r ↦ᵣ wr
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
            ∗ pc_a ↦ₐ w
            ∗ r ↦ᵣ wr
-           ∗ dst ↦ᵣ inl (if is_cap wr then 1%Z else 0%Z) }}}.
+           ∗ dst ↦ᵣ WInt (if is_cap wr then 1%Z else 0%Z) }}}.
    Proof.
     iIntros (Hinstr Hvpc Hpc_a ϕ) "(>HPC & >Hpc_a & >Hr & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr Hdst") as "[Hmap (%&%&%)]".
@@ -146,18 +146,18 @@ Section cap_lang_rules.
 
    Lemma wp_IsPtr_success_dst E pc_p pc_b pc_e pc_a pc_a' w dst w' :
      decodeInstrW w = IsPtr dst dst →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      
-       {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+       {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
            ∗ pc_a ↦ₐ w
-           ∗ dst ↦ᵣ inl (if is_cap w' then 1%Z else 0%Z) }}}.
+           ∗ dst ↦ᵣ WInt (if is_cap w' then 1%Z else 0%Z) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".

@@ -62,10 +62,10 @@ End instr_encodings.
 (* Some additional helper lemmas about region_addrs *)
 
 Definition region_addrs_zeroes (b e : Addr) : list Word :=
-  replicate (region_size b e) (inl 0%Z).
+  replicate (region_size b e) (WInt 0%Z).
 
 Lemma region_addrs_zeroes_lookup (b e : Addr) i y :
-  region_addrs_zeroes b e !! i = Some y → y = inl 0%Z.
+  region_addrs_zeroes b e !! i = Some y → y = WInt 0%Z.
 Proof. apply lookup_replicate. Qed.
 
 Lemma region_addrs_zeroes_split (b a e: Addr) :

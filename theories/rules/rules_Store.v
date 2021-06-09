@@ -19,7 +19,7 @@ Section cap_lang_rules.
 
   Definition word_of_argument (regs: Reg) (a: Z + RegName) : option Word :=
     match a with
-    | inl z => Some (inl z)
+    | inl z => Some (WInt z)
     | inr r =>
       match regs !! r with
       | Some w => Some w
@@ -28,8 +28,8 @@ Section cap_lang_rules.
     end.
 
   Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) (c0 : Cap):
-    word_of_argument regs arg = Some(inr(c0)) →
-    (∃ r : RegName, arg = inr r ∧ regs !! r = Some(inr(c0))).
+    word_of_argument regs arg = Some(WCap(c0)) →
+    (∃ r : RegName, arg = inr r ∧ regs !! r = Some(WCap(c0))).
   Proof.
     intros HStoreV.
     unfold word_of_argument in HStoreV.
@@ -40,15 +40,15 @@ Section cap_lang_rules.
   Qed.
 
   Definition reg_allows_store (regs : Reg) (r : RegName) p b e a :=
-    regs !! r = Some (inr (p, b, e, a)) ∧
+    regs !! r = Some (WCap (p, b, e, a)) ∧
     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true.
 
   Inductive Store_failure_store (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word):=
   | Store_fail_const z:
-      regs !! r1 = Some(inl z) ->
+      regs !! r1 = Some(WInt z) ->
       Store_failure_store regs r1 r2 mem
   | Store_fail_bounds p b e a:
-      regs !! r1 = Some(inr (p, b, e, a)) ->
+      regs !! r1 = Some(WCap (p, b, e, a)) ->
       (writeAllowed p = false ∨ withinBounds (p, b, e, a) = false) →
       Store_failure_store regs r1 r2 mem
   .
@@ -97,7 +97,7 @@ Section cap_lang_rules.
   Lemma allow_store_implies_storev:
     ∀ (r1 : RegName)(r2 : Z + RegName) (mem0 : gmap Addr Word) (r : Reg) (p : Perm) (b e a : Addr) storev,
       allow_store_map_or_true r1 r mem0
-      → r !r! r1 = inr (p, b, e, a)
+      → r !r! r1 = WCap (p, b, e, a)
       → word_of_argument r r2 = Some storev
       → writeAllowed p = true
       → withinBounds (p, b, e, a) = true
@@ -119,7 +119,7 @@ Section cap_lang_rules.
   Lemma mem_eq_implies_allow_store_map:
     ∀ (regs : Reg)(mem : gmap Addr Word)(r1 : RegName)(w : Word) p b e a,
       mem = <[a:=w]> ∅
-      → regs !! r1 = Some (inr (p,b,e,a))
+      → regs !! r1 = Some (WCap (p,b,e,a))
       → allow_store_map_or_true r1 regs mem.
   Proof.
     intros regs mem r1 w p b e a Hmem Hrr2.
@@ -134,7 +134,7 @@ Section cap_lang_rules.
       (w w' : Word) p b e a,
       a ≠ pc_a
       → mem = <[pc_a:=w]> (<[a:=w']> ∅)
-      → regs !! r1 = Some (inr (p,b,e,a))
+      → regs !! r1 = Some (WCap (p,b,e,a))
       → allow_store_map_or_true r1 regs mem.
   Proof.
     intros regs mem r1 pc_a w w' p b e a H4 Hrr2.
@@ -150,7 +150,7 @@ Section cap_lang_rules.
       (if (a =? pc_a)%a
        then mem = <[pc_a:=w]> ∅
        else mem = <[pc_a:=w]> (<[a:=w']> ∅))
-      → regs !! r1 = Some (inr (p,b,e,a))
+      → regs !! r1 = Some (WCap (p,b,e,a))
       → allow_store_map_or_true r1 regs mem.
   Proof.
     intros regs mem r1 pc_a w w' p b e a H4 Hrr2.
@@ -163,8 +163,8 @@ Section cap_lang_rules.
      pc_p pc_b pc_e pc_a
      r1 (r2 : Z + RegName) w mem regs :
    decodeInstrW w = Store r1 r2 →
-   isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-   regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+   isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+   regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
    regs_of (Store r1 r2) ⊆ dom _ regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
@@ -281,16 +281,16 @@ Section cap_lang_rules.
 
   Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_a' w z :
      decodeInstrW w = Store PC (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
-              ∗ pc_a ↦ₐ (inl z) }}}.
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ (WInt z) }}}.
   Proof.
     iIntros (Hinstr Hvpc Hpca' Hwa φ)
             "(>HPC & >Hi) Hφ".
@@ -326,16 +326,16 @@ Section cap_lang_rules.
 
    Lemma wp_store_success_reg_PC E src wsrc pc_p pc_b pc_e pc_a pc_a' w :
      decodeInstrW w = Store PC (inr src) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
            ∗ ▷ src ↦ᵣ wsrc }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ wsrc
               ∗ src ↦ᵣ wsrc }}}.
    Proof.
@@ -373,16 +373,16 @@ Section cap_lang_rules.
 
    Lemma wp_store_success_reg_PC_same E pc_p pc_b pc_e pc_a pc_a' w w' :
      decodeInstrW w = Store PC (inr PC) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
-              ∗ pc_a ↦ₐ inr (pc_p,pc_b,pc_e,pc_a) }}}.
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ WCap (pc_p,pc_b,pc_e,pc_a) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa φ)
             "(>HPC & >Hi) Hφ".
@@ -419,18 +419,18 @@ Section cap_lang_rules.
    Lemma wp_store_success_same E pc_p pc_b pc_e pc_a pc_a' w dst z w'
          p b e :
      decodeInstrW w = Store dst (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,pc_a) }}}
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,pc_a) }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
-              ∗ pc_a ↦ₐ (inl z)
-              ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ (WInt z)
+              ∗ dst ↦ᵣ WCap (p,b,e,pc_a) }}}.
     Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst) Hφ".
@@ -465,26 +465,26 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg' E pc_p pc_b pc_e pc_a pc_a' w dst w'
          p b e a :
       decodeInstrW w = Store dst (inr PC) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
            ∗ if (a =? pc_a)%a
              then emp
              else ▷ a ↦ₐ w' }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ (if (a =? pc_a)%a
-                         then (inr (pc_p,pc_b,pc_e,pc_a))
+                         then (WCap (pc_p,pc_b,pc_e,pc_a))
                          else w)
-              ∗ dst ↦ᵣ inr (p,b,e,a)
+              ∗ dst ↦ᵣ WCap (p,b,e,a)
               ∗ if (a =? pc_a)%a
                 then emp
-                else a ↦ₐ (inr (pc_p,pc_b,pc_e,pc_a)) }}}.
+                else a ↦ₐ (WCap (pc_p,pc_b,pc_e,pc_a)) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst & Ha) Hφ".
@@ -532,19 +532,19 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg_frominstr_same E pc_p pc_b pc_e pc_a pc_a' w dst w'
          p b e :
       decodeInstrW w = Store dst (inr PC) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true →
      withinBounds (p, b, e, pc_a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,pc_a) }}}
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,pc_a) }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
-              ∗ pc_a ↦ₐ inr (pc_p,pc_b,pc_e,pc_a)
-              ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ WCap (pc_p,pc_b,pc_e,pc_a)
+              ∗ dst ↦ᵣ WCap (p,b,e,pc_a) }}}.
    Proof.
      intros. iIntros "(HPC & Hpc_a & Hdst) Hφ".
      iApply (wp_store_success_reg' with "[$HPC $Hpc_a $Hdst]"); eauto.
@@ -556,21 +556,21 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg_frominstr E pc_p pc_b pc_e pc_a pc_a' w dst w'
          p b e a :
       decodeInstrW w = Store dst (inr PC) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true →
      withinBounds (p, b, e, a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
            ∗ ▷ a ↦ₐ w' }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ w
-              ∗ dst ↦ᵣ inr (p,b,e,a)
-              ∗ a ↦ₐ inr (pc_p,pc_b,pc_e,pc_a) }}}.
+              ∗ dst ↦ᵣ WCap (p,b,e,a)
+              ∗ a ↦ₐ WCap (pc_p,pc_b,pc_e,pc_a) }}}.
    Proof.
      intros. iIntros "(>HPC & >Hpc_a & >Hdst & >Ha) Hφ".
      destruct (a =? pc_a)%a eqn:Ha.
@@ -585,18 +585,18 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg_same' E pc_p pc_b pc_e pc_a pc_a' w dst
          p b e :
      decodeInstrW w = Store dst (inr dst) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,pc_a) }}}
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,pc_a) }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
-              ∗ pc_a ↦ₐ inr (p, b, e, pc_a)
-              ∗ dst ↦ᵣ inr (p,b,e,pc_a) }}}.
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+              ∗ pc_a ↦ₐ WCap (p, b, e, pc_a)
+              ∗ dst ↦ᵣ WCap (p,b,e,pc_a) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
             "(>HPC & >Hi & >Hdst) Hφ".
@@ -631,20 +631,20 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg_same_a E pc_p pc_b pc_e pc_a pc_a' w dst src
          p b e w'' :
       decodeInstrW w = Store dst (inr src) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, pc_a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
            ∗ ▷ src ↦ᵣ w''
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,pc_a) }}}
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,pc_a) }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ w''
               ∗ src ↦ᵣ w''
-              ∗ dst ↦ᵣ inr (p,b,e,pc_a)}}}.
+              ∗ dst ↦ᵣ WCap (p,b,e,pc_a)}}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hsrc & >Hdst) Hφ".
@@ -680,21 +680,21 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg E pc_p pc_b pc_e pc_a pc_a' w dst src w'
          p b e a w'' :
       decodeInstrW w = Store dst (inr src) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p,b, e, a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
            ∗ ▷ src ↦ᵣ w''
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
            ∗ ▷ a ↦ₐ w' }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ w
               ∗ src ↦ᵣ w''
-              ∗ dst ↦ᵣ inr (p,b,e,a)
+              ∗ dst ↦ᵣ WCap (p,b,e,a)
               ∗ a ↦ₐ w'' }}}.
     Proof.
       iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
@@ -732,20 +732,20 @@ Section cap_lang_rules.
    Lemma wp_store_success_reg_same E pc_p pc_b pc_e pc_a pc_a' w dst w'
          p b e a :
      decodeInstrW w = Store dst (inr dst) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
            ∗ ▷ a ↦ₐ w' }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ w
-              ∗ dst ↦ᵣ inr (p,b,e,a)
-              ∗ a ↦ₐ inr (p,b,e,a) }}}.
+              ∗ dst ↦ᵣ WCap (p,b,e,a)
+              ∗ a ↦ₐ WCap (p,b,e,a) }}}.
    Proof.
     iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hdst & >Hsrca) Hφ".
@@ -782,20 +782,20 @@ Section cap_lang_rules.
    Lemma wp_store_success_z E pc_p pc_b pc_e pc_a pc_a' w dst z w'
          p b e a :
      decodeInstrW w = Store dst (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true → withinBounds (p, b, e, a) = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ dst ↦ᵣ inr (p,b,e,a)
+           ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
            ∗ ▷ a ↦ₐ w' }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
               ∗ pc_a ↦ₐ w
-              ∗ dst ↦ᵣ inr (p,b,e,a)
-              ∗ a ↦ₐ inl z }}}.
+              ∗ dst ↦ᵣ WCap (p,b,e,a)
+              ∗ a ↦ₐ WInt z }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ)
              "(>HPC & >Hi & >Hdst & >Hsrca) Hφ".

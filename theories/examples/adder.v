@@ -60,20 +60,20 @@ Section adder.
     (act_start + 8)%a = Some act_end →
 
       ▷ adder_g ag
-    ∗ ▷ PC ↦ᵣ inr (RX, g_start, f_end, g_start)
+    ∗ ▷ PC ↦ᵣ WCap (RX, g_start, f_end, g_start)
     ∗ ▷ r_t0 ↦ᵣ w0
-    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_start, act_end, act_start)
+    ∗ ▷ r_t1 ↦ᵣ WCap (RWX, act_start, act_end, act_start)
     ∗ ▷ r_t2 ↦ᵣ w2
-    ∗ ▷ r_t3 ↦ᵣ inr (RW, x, x', x)
+    ∗ ▷ r_t3 ↦ᵣ WCap (RW, x, x', x)
     ∗ ▷ ([[ act_start, act_end ]] ↦ₐ [[ act0 ]])
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ updatePcPerm w0 ∗ adder_g ag
          ∗ r_t0 ↦ᵣ w0
-         ∗ r_t1 ↦ᵣ inr (E, act_start, act_end, act_start)
-         ∗ r_t2 ↦ᵣ inl 0%Z
-         ∗ r_t3 ↦ᵣ inl 0%Z
+         ∗ r_t1 ↦ᵣ WCap (E, act_start, act_end, act_start)
+         ∗ r_t2 ↦ᵣ WInt 0%Z
+         ∗ r_t3 ↦ᵣ WInt 0%Z
          ∗ [[ act_start, act_end ]] ↦ₐ
-           [[ activation_instrs (inr (RX, f_start, f_end, f_start)) (inr (RW, x, x', x)) ]]
+           [[ activation_instrs (WCap (RX, f_start, f_end, f_start)) (WCap (RW, x, x', x)) ]]
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -150,22 +150,22 @@ Section adder.
     (x + 1)%a = Some x' →
     (f_start <= f_end)%a →
 
-    inv N (∃ (n:Z), x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)
+    inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ ▷ adder_f af
-    ∗ ▷ PC ↦ᵣ inr (RX, f_start, f_end, f_start)
+    ∗ ▷ PC ↦ᵣ WCap (RX, f_start, f_end, f_start)
     ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ r_env ↦ᵣ inr (RW, x, x', x)
+    ∗ ▷ r_env ↦ᵣ WCap (RW, x, x', x)
     (* continuation *)
     ∗ ▷ ((∃ (k' n':Z),
           PC ↦ᵣ updatePcPerm w0 ∗ adder_f af
           ∗ r_t0 ↦ᵣ w0
-          ∗ r_t1 ↦ᵣ inl 0%Z
-          ∗ r_t2 ↦ᵣ inl k'
-          ∗ r_t3 ↦ᵣ inl n'
-          ∗ r_env ↦ᵣ inl 0%Z)
+          ∗ r_t1 ↦ᵣ WInt 0%Z
+          ∗ r_t2 ↦ᵣ WInt k'
+          ∗ r_t3 ↦ᵣ WInt n'
+          ∗ r_env ↦ᵣ WInt 0%Z)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -213,12 +213,12 @@ Section adder.
     cbn [rules_AddSubLt.denote].
     (* Prove the internal continuation (a_cleanup) *)
     iAssert (∀ (w1 we: Word) (k' n' : Z),
-      PC ↦ᵣ inr (RX, f_start, f_end, a_cleanup)
+      PC ↦ᵣ WCap (RX, f_start, f_end, a_cleanup)
       ∗ adder_f af
       ∗ r_t0 ↦ᵣ w0
       ∗ r_t1 ↦ᵣ w1
-      ∗ r_t2 ↦ᵣ inl k'
-      ∗ r_t3 ↦ᵣ inl n'
+      ∗ r_t2 ↦ᵣ WInt k'
+      ∗ r_t3 ↦ᵣ WInt n'
       ∗ r_env ↦ᵣ we
       -∗ WP Seq (Instr Executable) {{ φ }})%I with "[Hφ]" as "Hcleanup".
     { iIntros (w2 we k' n') "(HPC & Hprog & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
@@ -331,13 +331,13 @@ Section adder.
     (f_start <= f_end)%a →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
 
-    inv N (∃ (n:Z), x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)
+    inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ adder_g ag ∗ adder_f af
-    ∗ PC ↦ᵣ inr (RX, g_start, f_end, g_start)
+    ∗ PC ↦ᵣ WCap (RX, g_start, f_end, g_start)
     ∗ r_t0 ↦ᵣ w0
-    ∗ r_t1 ↦ᵣ inr (RWX, act_start, act_end, act_start)
+    ∗ r_t1 ↦ᵣ WCap (RWX, act_start, act_end, act_start)
     ∗ r_t2 ↦ᵣ w2
-    ∗ r_t3 ↦ᵣ inr (RW, x, x', x)
+    ∗ r_t3 ↦ᵣ WCap (RW, x, x', x)
     ∗ [[act_start, act_end]] ↦ₐ [[ act0 ]]
     ∗ interp w0
     ∗ ([∗ map] r↦v ∈ rmap, r ↦ᵣ v ∗ interp v)
@@ -358,7 +358,7 @@ Section adder.
     iDestruct (na_inv_alloc logrel_nais _ closureN with "Hprog_f") as ">#Iprog_f".
     iDestruct (na_inv_alloc logrel_nais _ actN with "Hact") as ">#Iact".
 
-    iAssert (interp (inr (E, act_start, act_end, act_start))) with "[Iprog_f Iact]"
+    iAssert (interp (WCap (E, act_start, act_end, act_start))) with "[Iprog_f Iact]"
       as "Hclosure".
     { iClear "Hw0". rewrite /interp /= fixpoint_interp1_eq /=.
       iIntros (rmap'). iNext. iModIntro. iIntros "([Hrmap' #HrV] & Hregs & HnaI)".

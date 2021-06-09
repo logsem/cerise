@@ -35,19 +35,19 @@ Section macros.
     (a_link + f)%a = Some entry_a ->
 
       ▷ codefrag a_first (fetch_instrs f)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
     ∗ ▷ entry_a ↦ₐ wentry
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e, (a_first ^+ length (fetch_instrs f))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e, (a_first ^+ length (fetch_instrs f))%a)
          ∗ codefrag a_first (fetch_instrs f)
          (* the newly allocated region *)
-         ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+         ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
          ∗ entry_a ↦ₐ wentry
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
@@ -101,20 +101,20 @@ Section macros.
     withinBounds (RW, b_link, e_link, a_entry) = true →
     (a_link + f_a)%a = Some a_entry ->
     (* condition for assertion success *)
-    (w_r = inl z) ->
+    (w_r = WInt z) ->
 
     ▷ codefrag a_first (assert_r_z_instrs f_a r z)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
     ∗ ▷ a_entry ↦ₐ fail_cap
     ∗ ▷ r ↦ᵣ w_r
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ (r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ r ↦ᵣ inl 0%Z
-         ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (assert_r_z_instrs f_a r z))%a)
+    ∗ ▷ (r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ r ↦ᵣ WInt 0%Z
+         ∗ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (assert_r_z_instrs f_a r z))%a)
          ∗ codefrag a_first (assert_r_z_instrs f_a r z)
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -161,26 +161,26 @@ Section macros.
     (* the assert and assert failure subroutine programs *)
     {{{ ▷ codefrag a_first (assert_r_z_instrs f_a r z)
     ∗ ▷ codefrag f_a_first assert_fail_instrs
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     (* linking table and assertion flag *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) (* the linking table capability *)
-    ∗ ▷ a_entry ↦ₐ inr (E,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
-    ∗ ▷ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) (* the assertion flag capability *)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) (* the linking table capability *)
+    ∗ ▷ a_entry ↦ₐ WCap (E,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
+    ∗ ▷ a_env ↦ₐ WCap (flag_p,flag_b,flag_e,flag_a) (* the assertion flag capability *)
     ∗ ▷ flag_a ↦ₐ wf (* the assertion flag *)
     (* registers *)
-    ∗ ▷ r ↦ᵣ inl z_r
+    ∗ ▷ r ↦ᵣ WInt z_r
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3 }}}
 
       Seq (Instr Executable)
 
-    {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
-         ∗ PC ↦ᵣ inr (RX, f_b, f_e, (f_a_first ^+ (length assert_fail_instrs - 1))%a)
+    {{{ RET FailedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
+         ∗ PC ↦ᵣ WCap (RX, f_b, f_e, (f_a_first ^+ (length assert_fail_instrs - 1))%a)
          ∗ codefrag a_first (assert_r_z_instrs f_a r z)
          ∗ codefrag f_a_first assert_fail_instrs
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ inr (E,f_b,f_e,f_a_first)
-         ∗ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ inl 1%Z }}}.
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ WCap (E,f_b,f_e,f_a_first)
+         ∗ a_env ↦ₐ WCap (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ WInt 1%Z }}}.
   Proof.
     iIntros (Hexpc Hsub Hwb Htable Hsub' Henv Henvwb Hwb' Hwa Hfailure φ)
             "(>Hprog & >Hprog' & >HPC & >Hpc_b & >Ha_entry & >Ha_env & >Hflag & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3) Hφ".
@@ -235,30 +235,30 @@ Section macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (malloc_instrs f_m size))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (malloc_instrs f_m size))%a)
          ∗ codefrag a_first (malloc_instrs f_m size)
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ inr (RWX,b,e,b)
+            ∗ r_t1 ↦ᵣ WCap (RWX,b,e,b)
             ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
@@ -337,28 +337,28 @@ Section macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e, (a_first ^+ length (malloc_instrs f_m size))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e, (a_first ^+ length (malloc_instrs f_m size))%a)
          ∗ codefrag a_first (malloc_instrs f_m size)
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ inr (RWX,b,e,b)
+            ∗ r_t1 ↦ᵣ WCap (RWX,b,e,b)
             ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
@@ -425,20 +425,20 @@ Section macros.
     (act_b + 8)%a = Some act_e →
 
     ▷ codefrag a_first (scrtcls_instrs rcode rdata)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     (* register state *)
-    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_b, act_e, act_b)
+    ∗ ▷ r_t1 ↦ᵣ WCap (RWX, act_b, act_e, act_b)
     ∗ ▷ rcode ↦ᵣ wcode
     ∗ ▷ rdata ↦ᵣ wvar
     (* memory for the activation record *)
     ∗ ▷ ([[act_b,act_e]] ↦ₐ [[ act ]])
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (scrtcls_instrs rcode rdata))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (scrtcls_instrs rcode rdata))%a)
          ∗ codefrag a_first (scrtcls_instrs rcode rdata)
-         ∗ r_t1 ↦ᵣ inr (E, act_b, act_e, act_b)
+         ∗ r_t1 ↦ᵣ WCap (E, act_b, act_e, act_b)
          ∗ [[act_b,act_e]] ↦ₐ [[ activation_instrs wcode wvar ]]
-         ∗ rcode ↦ᵣ inl 0%Z
-         ∗ rdata ↦ᵣ inl 0%Z
+         ∗ rcode ↦ᵣ WInt 0%Z
+         ∗ rdata ↦ᵣ WInt 0%Z
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -512,12 +512,12 @@ Section macros.
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
@@ -526,21 +526,21 @@ Section macros.
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (crtcls_instrs f_m))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (crtcls_instrs f_m))%a)
          ∗ codefrag a_first (crtcls_instrs f_m)
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap (E,b,e,b)
          ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
-         ∗ r_t2 ↦ᵣ inl 0%Z
+         ∗ r_t2 ↦ᵣ WInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
-                               (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]>
-                                 (<[r_t6:=inl 0%Z]>
-                                  (<[r_t7:=inl 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
+                               (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]>
+                                 (<[r_t6:=WInt 0%Z]>
+                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ ψ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v }}.
@@ -613,33 +613,33 @@ Section macros.
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
     ∗ ▷ r_t2 ↦ᵣ wvar
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (crtcls_instrs f_m))%a)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (crtcls_instrs f_m))%a)
          ∗ codefrag a_first (crtcls_instrs f_m)
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap (E,b,e,b)
          ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
-         ∗ r_t2 ↦ᵣ inl 0%Z
+         ∗ r_t2 ↦ᵣ WInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
-                               (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]>
-                                 (<[r_t6:=inl 0%Z]>
-                                  (<[r_t7:=inl 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
+                               (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]>
+                                 (<[r_t6:=WInt 0%Z]>
+                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -655,7 +655,7 @@ Section macros.
   Lemma closure_activation_spec pc_p b_cls e_cls r1v renvv wcode wenv φ :
     ExecPCPerm pc_p →
 
-    PC ↦ᵣ inr (pc_p, b_cls, e_cls, b_cls)
+    PC ↦ᵣ WCap (pc_p, b_cls, e_cls, b_cls)
     ∗ r_t20 ↦ᵣ r1v
     ∗ r_env ↦ᵣ renvv
     ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]

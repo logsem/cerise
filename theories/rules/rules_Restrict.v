@@ -27,36 +27,36 @@ Section cap_lang_rules.
 
   Inductive Restrict_failure (regs: Reg) (dst: RegName) (src: Z + RegName) :=
   | Restrict_fail_dst_noncap z:
-      regs !! dst = Some (inl z) →
+      regs !! dst = Some (WInt z) →
       Restrict_failure regs dst src
   | Restrict_fail_pE p b e a:
-      regs !! dst = Some (inr (p, b, e, a)) →
+      regs !! dst = Some (WCap (p, b, e, a)) →
       p = E →
       Restrict_failure regs dst src
   | Restrict_fail_src_nonz:
       z_of_argument regs src = None →
       Restrict_failure regs dst src
   | Restrict_fail_invalid_perm p b e a n:
-      regs !! dst = Some (inr (p, b, e, a)) →
+      regs !! dst = Some (WCap (p, b, e, a)) →
       p ≠ E →
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = false →
       Restrict_failure regs dst src
   | Restrict_fail_PC_overflow p b e a n:
-      regs !! dst = Some (inr (p, b, e, a)) →
+      regs !! dst = Some (WCap (p, b, e, a)) →
       p ≠ E →
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = true →
-      incrementPC (<[ dst := inr (decodePerm n, b, e, a) ]> regs) = None →
+      incrementPC (<[ dst := WCap (decodePerm n, b, e, a) ]> regs) = None →
       Restrict_failure regs dst src.
 
   Inductive Restrict_spec (regs: Reg) (dst: RegName) (src: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | Restrict_spec_success p b e a n:
-      regs !! dst = Some (inr (p, b, e, a)) →
+      regs !! dst = Some (WCap (p, b, e, a)) →
       p ≠ E ->
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = true →
-      incrementPC (<[ dst := inr (decodePerm n, b, e, a) ]> regs) = Some regs' →
+      incrementPC (<[ dst := WCap (decodePerm n, b, e, a) ]> regs) = Some regs' →
       Restrict_spec regs dst src regs' NextIV
   | Restrict_spec_failure:
       Restrict_failure regs dst src →
@@ -64,8 +64,8 @@ Section cap_lang_rules.
 
   Lemma wp_Restrict Ep pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Restrict dst src ->
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (Restrict dst src) ⊆ dom _ regs →
 
     {{{ ▷ pc_a ↦ₐ w ∗
@@ -116,14 +116,14 @@ Section cap_lang_rules.
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; iFailWP "Hφ" Restrict_fail_invalid_perm. }
 
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inr (decodePerm wsrc, b, e, a)))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (WCap (decodePerm wsrc, b, e, a)))) as HH.
     { rewrite /= /RegLocate Hdst in Hstep.
       destruct Hwsrc as [ -> | (r0 & -> & Hr0 & Hr0') ].
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; eauto; congruence. }
     clear Hstep. rewrite /update_reg /= in HH.
 
-    destruct (incrementPC (<[ dst := inr (decodePerm wsrc, b, e, a) ]> regs)) eqn:Hregs';
+    destruct (incrementPC (<[ dst := WCap (decodePerm wsrc, b, e, a) ]> regs)) eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
@@ -144,18 +144,18 @@ Section cap_lang_rules.
 
   Lemma wp_restrict_success_reg_PC Ep pc_p pc_b pc_e pc_a pc_a' w rv z a' :
     decodeInstrW w = Restrict PC (inr rv) →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
     PermFlowsTo (decodePerm z) pc_p = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
          ∗ ▷ pc_a ↦ₐ w
-         ∗ ▷ rv ↦ᵣ inl z }}}
+         ∗ ▷ rv ↦ᵣ WInt z }}}
        Instr Executable @ Ep
        {{{ RET NextIV;
-           PC ↦ᵣ inr (decodePerm z,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap (decodePerm z,pc_b,pc_e,pc_a')
            ∗ pc_a ↦ₐ w
-           ∗ rv ↦ᵣ inl z }}}.
+           ∗ rv ↦ᵣ WInt z }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hflows ϕ) "(>HPC & >Hpc_a & >Hrv) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hrv") as "[Hmap %]".
@@ -178,21 +178,21 @@ Section cap_lang_rules.
 
    Lemma wp_restrict_success_reg Ep pc_p pc_b pc_e pc_a pc_a' w r1 rv p b e a z :
      decodeInstrW w = Restrict r1 (inr rv) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
      p ≠ E →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
          ∗ ▷ pc_a ↦ₐ w
-         ∗ ▷ r1 ↦ᵣ inr (p,b,e,a)
-         ∗ ▷ rv ↦ᵣ inl z }}}
+         ∗ ▷ r1 ↦ᵣ WCap (p,b,e,a)
+         ∗ ▷ rv ↦ᵣ WInt z }}}
        Instr Executable @ Ep
        {{{ RET NextIV;
-           PC ↦ᵣ inr (pc_p,pc_b,pc_e, pc_a')
+           PC ↦ᵣ WCap (pc_p,pc_b,pc_e, pc_a')
            ∗ pc_a ↦ₐ w
-           ∗ rv ↦ᵣ inl z
-           ∗ r1 ↦ᵣ inr (decodePerm z,b,e,a) }}}.
+           ∗ rv ↦ᵣ WInt z
+           ∗ r1 ↦ᵣ WCap (decodePerm z,b,e,a) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hflows Hnp ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hφ".
      iDestruct (map_of_regs_3 with "HPC Hr1 Hrv") as "[Hmap (%&%&%)]".
@@ -213,15 +213,15 @@ Section cap_lang_rules.
 
    Lemma wp_restrict_success_z_PC Ep pc_p pc_b pc_e pc_a pc_a' w z :
      decodeInstrW w = Restrict PC (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) pc_p = true →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
          ∗ ▷ pc_a ↦ₐ w }}}
        Instr Executable @ Ep
      {{{ RET NextIV;
-         PC ↦ᵣ inr (decodePerm z,pc_b,pc_e,pc_a')
+         PC ↦ᵣ WCap (decodePerm z,pc_b,pc_e,pc_a')
          ∗ pc_a ↦ₐ w }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hflows ϕ) "(>HPC & >Hpc_a) Hφ".
@@ -245,19 +245,19 @@ Section cap_lang_rules.
 
    Lemma wp_restrict_success_z Ep pc_p pc_b pc_e pc_a pc_a' w r1 p b e a z :
      decodeInstrW w = Restrict r1 (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
      p ≠ E →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
          ∗ ▷ pc_a ↦ₐ w
-         ∗ ▷ r1 ↦ᵣ inr (p,b,e,a) }}}
+         ∗ ▷ r1 ↦ᵣ WCap (p,b,e,a) }}}
        Instr Executable @ Ep
      {{{ RET NextIV;
-         PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
          ∗ pc_a ↦ₐ w
-         ∗ r1 ↦ᵣ inr (decodePerm z,b,e,a) }}}.
+         ∗ r1 ↦ᵣ WCap (decodePerm z,b,e,a) }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Hflows HpE ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".

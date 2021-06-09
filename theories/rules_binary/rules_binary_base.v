@@ -577,14 +577,14 @@ Section cap_lang_spec_rules.
 
   Lemma step_halt E K pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Halt →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ pc_a ↣ₐ w
     ={E}=∗ ⤇ fill K (Instr Halted)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
   Proof.
     intros Hinstr Hvpc Hnclose.
     iIntros "(Hinv & Hj & Hpc & Hpca)".
@@ -604,14 +604,14 @@ Section cap_lang_spec_rules.
 
   Lemma step_fail E K pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Fail →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ pc_a ↣ₐ w
     ={E}=∗ ⤇ fill K (Instr Failed)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a) ∗ pc_a ↣ₐ w.
   Proof.
     intros Hinstr Hvpc Hnclose.
     iIntros "(Hinv & Hj & Hpc & Hpca)".

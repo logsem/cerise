@@ -36,11 +36,9 @@ Section fundamental.
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
   
-  Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl eq_refl).
-
   Lemma fundamental_cap r p b e a :
-    ⊢ interp (inr (p,b,e,a)) →
-      interp_expression r (inr (p,b,e,a)).
+    ⊢ interp (WCap (p,b,e,a)) →
+      interp_expression r (WCap (p,b,e,a)).
   Proof.
     iIntros "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
@@ -49,7 +47,7 @@ Section fundamental.
     iIntros "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
     iApply (wp_bind (fill [SeqCtx])).
-    destruct (decide (isCorrectPC (inr (p,b,e,a)))). 
+    destruct (decide (isCorrectPC (WCap (p,b,e,a)))).
     - (* Correct PC *)
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto.
@@ -60,7 +58,7 @@ Section fundamental.
       rewrite /interp_ref_inv /=. 
       iInv (logN.@a) as (w) "[>Ha HP]" "Hcls". 
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
-        first apply (lookup_insert _ _ (inr (p, b, e, a))).
+        first apply (lookup_insert _ _ (WCap (p, b, e, a))).
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
@@ -126,15 +124,15 @@ Section fundamental.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
         rewrite insert_insert. iNext. iIntros (_). 
-        iExists (<[PC:=inr (p, b, e, a)]> r). iFrame.
-        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=inr (p, b, e, a)]> r !! r0)⌝)%I as "HA".
+        iExists (<[PC:=WCap (p, b, e, a)]> r). iFrame.
+        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=WCap (p, b, e, a)]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
           - subst r0; rewrite lookup_insert; eauto.
           - rewrite lookup_insert_ne; auto. }
         iFrame "HA".
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-       first apply (lookup_insert _ _ (inr (p, b, e, a))). 
+       first apply (lookup_insert _ _ (WCap (p, b, e, a))).
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
@@ -160,10 +158,10 @@ Section fundamental.
   (* The fundamental theorem implies the exec_cond *)
 
   Definition exec_cond b e p : iProp Σ :=
-    (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (inr (p,b, e,a)))%I.
+    (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (WCap (p,b, e,a)))%I.
 
   Lemma interp_exec_cond p b e a :
-    p ≠ E -> interp (inr (p,b,e,a)) -∗ exec_cond b e p.
+    p ≠ E -> interp (WCap (p,b,e,a)) -∗ exec_cond b e p.
   Proof.
     iIntros (Hnp) "#Hw".
     iIntros (a0 r Hin). iNext. iModIntro. 
@@ -174,9 +172,9 @@ Section fundamental.
   (* We can use the above fact to create a special "jump or fail pattern" when jumping to an unknown adversary *)
   
   Lemma exec_wp p b e a :
-    isCorrectPC (inr (p, b, e, a)) ->
+    isCorrectPC (WCap (p, b, e, a)) ->
     exec_cond b e p -∗
-    ∀ r, ▷ □ (interp_expr interp r) (inr (p, b, e, a)).
+    ∀ r, ▷ □ (interp_expr interp r) (WCap (p, b, e, a)).
   Proof. 
     iIntros (Hvpc) "#Hexec". 
     rewrite /exec_cond.
@@ -192,7 +190,7 @@ Section fundamental.
     ⊢ interp w -∗ ▷ (∀ r, interp_expression r (updatePcPerm w)).
   Proof.
     iIntros "#Hw".
-    assert ((∃ b e a, w = inr (E, b, e, a)) ∨ updatePcPerm w = w) as [Hw | ->].
+    assert ((∃ b e a, w = WCap (E, b, e, a)) ∨ updatePcPerm w = w) as [Hw | ->].
     { destruct w as [| c]; [| destruct_cap c]; eauto. unfold updatePcPerm.
       case_match; eauto. }
     { destruct Hw as [b [e [a ->] ] ]. rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
@@ -213,7 +211,7 @@ Section fundamental.
   Proof.
     iIntros "#Hw". iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
     iIntros (rmap Hrmap).
-    set rmap' := <[ PC := (inl 0%Z: Word) ]> rmap : gmap RegName Word.
+    set rmap' := <[ PC := (WInt 0%Z: Word) ]> rmap : gmap RegName Word.
     iSpecialize ("Hw'" $! rmap').
     iIntros "(HPC & Hr & Hna)". unfold interp_expression, interp_expr, interp_conf. cbn.
     iApply "Hw'". iClear "Hw'". iFrame. rewrite /registers_mapsto.

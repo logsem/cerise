@@ -95,7 +95,7 @@ Section roe.
     ([∗ list] a_i;w ∈ a;(roe_instrs f_m f_a r1), a_i ↦ₐ w)%I.
 
   Definition roe_inv d : iProp Σ :=
-    (∃ w, d ↦ₐ w ∗ ⌜w = inl 1%Z⌝)%I.
+    (∃ w, d ↦ₐ w ∗ ⌜w = WInt 1%Z⌝)%I.
 
   Definition roeN : namespace := nroot .@ "roeN".
   Definition roeN_link : namespace := roeN .@ "link".
@@ -132,7 +132,7 @@ Section roe.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
     
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_adv ↦ᵣ wadv
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* token which states all non atomic invariants are closed *)
@@ -145,12 +145,12 @@ Section roe.
       (** Resources for malloc and assert **)
       (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
       ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
-      ∗ pc_b ↦ₐ (inr (RO, b_link, e_link, a_link))
-      ∗ a_entry ↦ₐ (inr (E, b_m, e_m, b_m))
-      ∗ a_entry' ↦ₐ (inr (E, fail_start, fail_end, fail_start))
-      ∗ a_env ↦ₐ inr (flag_p, flag_b, flag_e, flag_a)
+      ∗ pc_b ↦ₐ (WCap (RO, b_link, e_link, a_link))
+      ∗ a_entry ↦ₐ (WCap (E, b_m, e_m, b_m))
+      ∗ a_entry' ↦ₐ (WCap (E, fail_start, fail_end, fail_start))
+      ∗ a_env ↦ₐ WCap (flag_p, flag_b, flag_e, flag_a)
       (* invariant about the failure flag *)
-      ∗ (inv roeN_flag (flag_a ↦ₐ inl 0%Z))
+      ∗ (inv roeN_flag (flag_a ↦ₐ WInt 0%Z))
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; True }}}. (* in this spec, we do not care about the postcondition, 
@@ -257,7 +257,7 @@ Section roe.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _). 
-    iApply (call_spec r_adv {[r_env:=inr (RWX, b, e, b)]} {[r_t7:=inr (decodePerm ro, b, e, b)]} _
+    iApply (call_spec r_adv {[r_env:=WCap (RWX, b, e, b)]} {[r_t7:=WCap (decodePerm ro, b, e, b)]} _
                       _ (delete r_t7 (delete r_t0 rmap))
               with "[- $HPC $Hown $Hmalloc $Hpc_b $Ha_entry $Hr_adv $Hregs]");
       [apply Hvpc3|apply Hcont_call|auto|apply Ha_entry|..|solve_ndisj|]. 
@@ -294,7 +294,7 @@ Section roe.
     iClear "Hprog_done".
     
     (* Let's assert that the continuation holds *)
-    iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (inl 0%Z) with "Hregs")  as "Hregs";[apply Permutation_refl|reflexivity|]. 
+    iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hregs")  as "Hregs";[apply Permutation_refl|reflexivity|].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_adv]") as "Hregs".
     { apply elem_of_gmap_dom_none. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
@@ -452,13 +452,13 @@ Section roe.
     iApply big_sepM_insert_2.
     { cbn beta. rewrite decode_encode_perm_inv.
       rewrite !fixpoint_interp1_eq. iSimpl. apply region_addrs_single in Hincr. rewrite Hincr.
-      iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = inl 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
+      iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = WInt 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
       iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. }
     (* adversary *)
     iApply big_sepM_insert_2. done.
     (* the remaining 0'ed out capabilities *)
     { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
-      destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (inl 0%Z : Word)) !! r) eqn:Hsome.
+      destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
       iIntros (?). simplify_eq. done. iIntros (?). done. }
   Qed.

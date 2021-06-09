@@ -345,7 +345,7 @@ Goal forall p b e a,
   ExecPCPerm p →
   SubBounds b e a (a ^+ 5)%a →
   ContiguousRegion a 5 →
-  isCorrectPC (inr (p, b, e, a)).
+  isCorrectPC (WCap (p, b, e, a)).
 Proof. intros. solve_pure. Qed.
 
 Goal forall (r_t1 r_t2: RegName), exists r1 r2,
@@ -357,7 +357,7 @@ Goal forall p b e a,
   ExecPCPerm p →
   SubBounds b e a (a ^+ 5)%a →
   ContiguousRegion a 5 →
-  isCorrectPC (inr (p, b, e, (a ^+ 1)%a)).
+  isCorrectPC (WCap (p, b, e, (a ^+ 1)%a)).
 Proof. intros. solve_pure. Qed.
 
 Goal forall (r_t1 r_t2 r_t3: RegName), exists r1 r2 r3,

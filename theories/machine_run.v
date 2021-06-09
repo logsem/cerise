@@ -17,8 +17,8 @@ Fixpoint machine_run `{MachineParameters} (fuel: nat) (c: Conf): option ConfFlag
       let pc := r !r! PC in
       if isCorrectPCb pc then (
         let a := match pc with
-                 | inl _ => top (* dummy *)
-                 | inr (_, _, _, _, a) => a
+                 | WInt _ => top (* dummy *)
+                 | WCap (_, _, _, _, a) => a
                  end in
         let i := decodeInstrW (m !m! a) in
         let c' := exec i (r, m) in

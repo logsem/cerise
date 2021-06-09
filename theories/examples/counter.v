@@ -41,8 +41,8 @@ Section counter.
 
   Definition pos_word (w : Word) : iProp Σ :=
     (match w with
-    | inl z => ⌜(0 ≤ z)%Z⌝
-    | inr _ => False
+    | WInt z => ⌜(0 ≤ z)%Z⌝
+    | WCap _ => False
     end)%I.
   Definition counter_inv d : iProp Σ :=
     (∃ w, d ↦ₐ w ∗ pos_word w)%I.
@@ -75,9 +75,9 @@ Section counter.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)
@@ -133,7 +133,7 @@ Section counter.
     { simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hd;clear;solve_addr. }
     iNext. iIntros "(HPC & Hi & Hr_t1 & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_".
-    { iNext. iExists (inl (z + 1)%Z). iFrame. iDestruct "Hcond" as %Hcond. iPureIntro. revert Hcond;clear;lia. }
+    { iNext. iExists (WInt (z + 1)%Z). iFrame. iDestruct "Hcond" as %Hcond. iPureIntro. revert Hcond;clear;lia. }
     iModIntro. iApply wp_pure_step_later;auto;iNext. iCombine "Hi Hprog_done" as "Hprog_done".
     (* move r_env 0 *)
     iPrologue "Hprog".
@@ -200,9 +200,9 @@ Section counter.
     (* The two invariants have different names *)
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)
@@ -214,7 +214,7 @@ Section counter.
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (read read_addrs f_a)
       (* linking table *)
-      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap)
+      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap)
       (* the remaining registers are all valid *)
       ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
     }}}
@@ -369,9 +369,9 @@ Section counter.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)

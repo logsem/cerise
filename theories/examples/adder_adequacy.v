@@ -55,7 +55,7 @@ Class memory_layout `{MachineParameters} := {
 Definition mk_initial_memory `{memory_layout} (adv_val act_val : list Word) : gmap Addr Word :=
     mkregion g_start f_start (adder_g_instrs f_start f_end)
   ∪ mkregion f_start f_end adder_f_instrs
-  ∪ list_to_map [(x, inl 0%Z)] (* x: initially set to 0 (could be any positive number) *)
+  ∪ list_to_map [(x, WInt 0%Z)] (* x: initially set to 0 (could be any positive number) *)
   ∪ mkregion act_start act_end act_val (* the activation region can hold arbitrary words *)
   ∪ mkregion adv_start adv_end adv_val
     (* adversarial code: any code or data, but no capabilities
@@ -75,10 +75,10 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   ∧ (adv_start + length adv_val)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
-  reg !! PC = Some (inr (RX, g_start, f_end, g_start)) ∧
-  reg !! r_t0 = Some (inr (RWX, adv_start, adv_end, adv_start)) ∧
-  reg !! r_t1 = Some (inr (RWX, act_start, act_end, act_start)) ∧
-  reg !! r_t3 = Some (inr (RW, x, x', x)) ∧
+  reg !! PC = Some (WCap (RX, g_start, f_end, g_start)) ∧
+  reg !! r_t0 = Some (WCap (RWX, adv_start, adv_end, adv_start)) ∧
+  reg !! r_t1 = Some (WCap (RWX, act_start, act_end, act_start)) ∧
+  reg !! r_t3 = Some (WCap (RW, x, x', x)) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_t0; r_t1; r_t3 ]} : gset RegName) →
      ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
@@ -108,11 +108,11 @@ Section Adequacy.
     is_initial_memory m →
     is_initial_registers reg →
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-    ∃ (n: Z), m' !! x = Some (inl n) ∧ (n >= 0)%Z.
+    ∃ (n: Z), m' !! x = Some (WInt n) ∧ (n >= 0)%Z.
   Proof.
     intros Hm Hreg Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c:ExecConf) => ∃ n, c.2 !! x = Some (inl n) ∧ (n >= 0)%Z) as state_is_good.
+    pose (fun (c:ExecConf) => ∃ n, c.2 !! x = Some (WInt n) ∧ (n >= 0)%Z) as state_is_good.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
@@ -152,7 +152,6 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    Check f_size.
     iDestruct (mkregion_prepare with "[$Hf]") as ">Hf". by apply f_size.
     iDestruct (mkregion_prepare with "[$Hg]") as ">Hg". by apply g_size.
     iDestruct (mkregion_prepare with "[$Hact]") as ">Hact".
@@ -161,7 +160,7 @@ Section Adequacy.
 
     (* Allocate the invariant about x *)
 
-    iMod (inv_alloc invN ⊤ (∃ n, x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)%I with "[Hx]") as "#Hinv".
+    iMod (inv_alloc invN ⊤ (∃ n, x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)%I with "[Hx]") as "#Hinv".
     { iNext. eauto. }
 
     (* Establish that the adversary region is valid *)
@@ -232,7 +231,7 @@ Theorem adder_adequacy `{MachineParameters} `{memory_layout}
   is_initial_memory m →
   is_initial_registers reg →
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  ∃ (n: Z), m' !! x = Some (inl n) ∧ (n >= 0)%Z.
+  ∃ (n: Z), m' !! x = Some (WInt n) ∧ (n >= 0)%Z.
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ]).

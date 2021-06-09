@@ -54,7 +54,7 @@ Section fundamental.
       destruct (updatePcPerm w') as [n0|c0] eqn:Hw.
       { iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
-        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (inl _) |- _ => inv H end|].
+        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
         iNext. iNext. iIntros "HPC /=".
         iApply wp_pure_step_later; auto.

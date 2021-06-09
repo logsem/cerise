@@ -17,8 +17,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_lea Ep K pc_p pc_b pc_e pc_a r1 w arg (regs: Reg) :
      decodeInstrW w = Lea r1 arg →
-     isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-     regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+     isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+     regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
      regs_of (Lea r1 arg) ⊆ dom _ regs →
 
      nclose specN ⊆ Ep →
@@ -85,7 +85,7 @@ Section cap_lang_spec_rules.
            by (destruct p; inversion Hstep; auto).
          iFailStep Lea_fail_overflow. } }
 
-     assert ((c, σ2) = updatePC (update_reg (σr, σm) r1 (inr (p, b, e, a')))) as HH.
+     assert ((c, σ2) = updatePC (update_reg (σr, σm) r1 (WCap (p, b, e, a')))) as HH.
      { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
        { inversion Harg; subst z. rewrite Hoffset in Hstep.
          destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. }
@@ -97,10 +97,10 @@ Section cap_lang_spec_rules.
          destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } }
      clear Hstep. rewrite /update_reg /= in HH.
 
-     destruct (incrementPC (<[ r1 := inr (p, b, e, a') ]> regs)) as [ regs' |] eqn:Hregs';
+     destruct (incrementPC (<[ r1 := WCap (p, b, e, a') ]> regs)) as [ regs' |] eqn:Hregs';
        pose proof Hregs' as Hregs'2; cycle 1.
      { (* Failure: incrementing PC overflows *)
-       assert (incrementPC (<[ r1 := inr ((p, b, e, a'))]> σr) = None).
+       assert (incrementPC (<[ r1 := WCap ((p, b, e, a'))]> σr) = None).
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
          by rewrite lookup_insert_is_Some'; eauto.
          by apply insert_mono; eauto. }
@@ -131,7 +131,7 @@ Section cap_lang_spec_rules.
 
    Lemma step_lea_success_z Ep K pc_p pc_b pc_e pc_a pc_a' w r1 p b e a z a' :
      decodeInstrW w = Lea r1 (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
@@ -139,13 +139,13 @@ Section cap_lang_spec_rules.
      nclose specN ⊆ Ep →
 
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ r1 ↣ᵣ inr (p,b,e,a)
+              ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
      ={Ep}=∗ ⤇ fill K (of_val NextIV)
-          ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↣ₐ w
-          ∗ r1 ↣ᵣ inr (p,b,e,a'). 
+          ∗ r1 ↣ᵣ WCap (p,b,e,a').
    Proof. 
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
@@ -166,22 +166,22 @@ Section cap_lang_spec_rules.
 
    Lemma step_lea_success_reg Ep K pc_p pc_b pc_e pc_a pc_a' w r1 rv p b e a z a' :
      decodeInstrW w = Lea r1 (inr rv) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
      nclose specN ⊆ Ep →
 
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ r1 ↣ᵣ inr (p,b,e,a)
-              ∗ ▷ rv ↣ᵣ inl z
+              ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
+              ∗ ▷ rv ↣ᵣ WInt z
      ={Ep}=∗ ⤇ fill K (Instr NextI)
-          ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↣ₐ w
-          ∗ rv ↣ᵣ inl z
-          ∗ r1 ↣ᵣ inr (p,b,e,a').
+          ∗ rv ↣ᵣ WInt z
+          ∗ r1 ↣ᵣ WCap (p,b,e,a').
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Hrv)".
      iDestruct (map_of_regs_3 with "HPC Hrv Hr1") as "[Hmap (%&%&%)]".

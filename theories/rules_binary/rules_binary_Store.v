@@ -25,8 +25,8 @@ Section cap_lang_spec_rules.
      pc_p pc_b pc_e pc_a
      r1 (r2 : Z + RegName) w mem regs :
    decodeInstrW w = Store r1 r2 →
-   isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-   regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+   isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+   regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
    regs_of (Store r1 r2) ⊆ dom _ regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
@@ -147,22 +147,22 @@ Section cap_lang_spec_rules.
   Lemma step_store_success_reg E K pc_p pc_b pc_e pc_a pc_a' w dst src w'
          p b e a w'' :
       decodeInstrW w = Store dst (inr src) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true ∧ withinBounds (p,b, e, a) = true →
      nclose specN ⊆ E →
      
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗  ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗  ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
               ∗ ▷ pc_a ↣ₐ w
               ∗ ▷ src ↣ᵣ w''
-              ∗ ▷ dst ↣ᵣ inr (p,b,e,a)
+              ∗ ▷ dst ↣ᵣ WCap (p,b,e,a)
               ∗ ▷ a ↣ₐ w'
      ={E}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
          ∗ pc_a ↣ₐ w
          ∗ src ↣ᵣ w''
-         ∗ dst ↣ᵣ inr (p,b,e,a)
+         ∗ dst ↣ᵣ WCap (p,b,e,a)
          ∗ a ↣ₐ w''. 
   Proof.
     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] Hnclose)
@@ -198,21 +198,21 @@ Section cap_lang_spec_rules.
   Lemma step_store_success_z E K pc_p pc_b pc_e pc_a pc_a' w dst z w'
          p b e a :
      decodeInstrW w = Store dst (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true ∧ withinBounds (p, b, e, a) = true →
      nclose specN ⊆ E →
 
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ dst ↣ᵣ inr (p,b,e,a)
+              ∗ ▷ dst ↣ᵣ WCap (p,b,e,a)
               ∗ ▷ a ↣ₐ w'
      ={E}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
          ∗ pc_a ↣ₐ w
-         ∗ dst ↣ᵣ inr (p,b,e,a)
-         ∗ a ↣ₐ inl z.
+         ∗ dst ↣ᵣ WCap (p,b,e,a)
+         ∗ a ↣ₐ WInt z.
   Proof.
     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hdst & >Hsrca)".

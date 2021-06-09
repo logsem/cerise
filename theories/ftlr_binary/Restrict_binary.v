@@ -24,9 +24,9 @@ Section fundamental.
   Proof.
     intros Hspec1 Hspec2.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; split; auto; try congruence.
-    - inv H6; try congruence. rewrite H0 in H5; congruence.
-    - inv H6; try congruence. rewrite H0 in H5; congruence.
-    - inv H0; try congruence. rewrite H1 in H2; congruence.
+    - inv H6; try congruence.
+    - inv H6; try congruence.
+    - inv H0; try congruence.
   Qed.
 
   Lemma restrict_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -48,7 +48,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Restrict _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }

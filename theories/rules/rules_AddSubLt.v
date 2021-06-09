@@ -57,15 +57,15 @@ Section cap_lang_rules.
   | AddSubLt_fail_incrPC n1 n2:
       z_of_argument regs rv1 = Some n1 ->
       z_of_argument regs rv2 = Some n2 ->
-      incrementPC (<[ dst := inl (denote i n1 n2) ]> regs) = None ->
-      regs' = (<[ dst := inl (denote i n1 n2) ]> regs) ->
+      incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs) = None ->
+      regs' = (<[ dst := WInt (denote i n1 n2) ]> regs) ->
       AddSubLt_failure i regs dst rv1 rv2 regs'.
 
   Inductive AddSubLt_spec (i: instr) (regs: Reg) (dst: RegName) (rv1 rv2: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | AddSubLt_spec_success n1 n2:
       z_of_argument regs rv1 = Some n1 ->
       z_of_argument regs rv2 = Some n2 ->
-      incrementPC (<[ dst := inl (denote i n1 n2) ]> regs) = Some regs' ->
+      incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs) = Some regs' ->
       AddSubLt_spec i regs dst rv1 rv2 regs' NextIV
   | AddSubLt_spec_failure:
       AddSubLt_failure i regs dst rv1 rv2 regs' ->
@@ -78,8 +78,8 @@ Section cap_lang_rules.
   Lemma wp_AddSubLt Ep i pc_p pc_b pc_e pc_a w dst arg1 arg2 regs :
     decodeInstrW w = i →
     is_AddSubLt i dst arg1 arg2 →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
     regs_of i ⊆ dom _ regs →
     {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
@@ -130,13 +130,13 @@ Section cap_lang_rules.
 
     eapply z_of_argument_Some_inv' in Hn1; eapply z_of_argument_Some_inv' in Hn2; eauto.
 
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (inl (denote i n1 n2)))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (r, m) dst (WInt (denote i n1 n2)))) as HH.
     { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
       all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
       all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
     rewrite /update_reg /= in HH.
 
-    destruct (incrementPC (<[ dst := inl (denote i n1 n2) ]> regs))
+    destruct (incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
     { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
@@ -164,17 +164,17 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
         ∗ dst ↦ᵣ wdst
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hdst) Hφ".
@@ -196,19 +196,19 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r1 ↦ᵣ inl n1
+        ∗ r1 ↦ᵣ WInt n1
         ∗ dst ↦ᵣ wdst
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r1 ↦ᵣ inl n1
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ r1 ↦ᵣ WInt n1
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr1 & Hdst) Hφ".
@@ -231,19 +231,19 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r2 ↦ᵣ inl n2
+        ∗ r2 ↦ᵣ WInt n2
         ∗ dst ↦ᵣ wdst
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r2 ↦ᵣ inl n2
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ r2 ↦ᵣ WInt n2
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr2 & Hdst) Hφ".
@@ -266,21 +266,21 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r1 ↦ᵣ inl n1
-        ∗ r2 ↦ᵣ inl n2
+        ∗ r1 ↦ᵣ WInt n1
+        ∗ r2 ↦ᵣ WInt n2
         ∗ dst ↦ᵣ wdst
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r1 ↦ᵣ inl n1
-          ∗ r2 ↦ᵣ inl n2
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ r1 ↦ᵣ WInt n1
+          ∗ r2 ↦ᵣ WInt n2
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr1 & Hr2 & Hdst) Hφ".
@@ -303,19 +303,19 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r) (inr r) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r ↦ᵣ inl n
+        ∗ r ↦ᵣ WInt n
         ∗ dst ↦ᵣ wdst
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r ↦ᵣ inl n
-          ∗ dst ↦ᵣ inl (denote ins n n)
+          ∗ r ↦ᵣ WInt n
+          ∗ dst ↦ᵣ WInt (denote ins n n)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr & Hdst) Hφ".
@@ -338,17 +338,17 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ dst ↦ᵣ inl n1
+        ∗ dst ↦ᵣ WInt n1
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hdst) Hφ".
@@ -370,17 +370,17 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ dst ↦ᵣ inl n2
+        ∗ dst ↦ᵣ WInt n2
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hdst) Hφ".
@@ -402,19 +402,19 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r2 ↦ᵣ inl n2
-        ∗ dst ↦ᵣ inl n1
+        ∗ r2 ↦ᵣ WInt n2
+        ∗ dst ↦ᵣ WInt n1
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r2 ↦ᵣ inl n2
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ r2 ↦ᵣ WInt n2
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr2 & Hdst) Hφ".
@@ -437,19 +437,19 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ r1 ↦ᵣ inl n1
-        ∗ dst ↦ᵣ inl n2
+        ∗ r1 ↦ᵣ WInt n1
+        ∗ dst ↦ᵣ WInt n2
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ r1 ↦ᵣ inl n1
-          ∗ dst ↦ᵣ inl (denote ins n1 n2)
+          ∗ r1 ↦ᵣ WInt n1
+          ∗ dst ↦ᵣ WInt (denote ins n1 n2)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hr2 & Hdst) Hφ".
@@ -472,17 +472,17 @@ Section cap_lang_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) ->
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
         ∗ pc_a ↦ₐ w
-        ∗ dst ↦ᵣ inl n
+        ∗ dst ↦ᵣ WInt n
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ inl (denote ins n n)
+          ∗ dst ↦ᵣ WInt (denote ins n n)
       }}}.
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc ϕ) "(HPC & Hpc_a & Hdst) Hφ".
@@ -503,8 +503,8 @@ Section cap_lang_rules.
   Lemma wp_add_sub_lt_fail_z_r E ins dst n1 r2 w wdst cap pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r2 ↦ᵣ inr cap }}}
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ WCap (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r2 ↦ᵣ WCap cap }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.

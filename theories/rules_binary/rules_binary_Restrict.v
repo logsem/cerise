@@ -17,8 +17,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_Restrict Ep K pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Restrict dst src ->
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (Restrict dst src) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -66,14 +66,14 @@ Section cap_lang_spec_rules.
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; iFailStep Restrict_fail_invalid_perm. }
     
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (inr (decodePerm wsrc, cdst2, cdst1, cdst0)))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (WCap (decodePerm wsrc, cdst2, cdst1, cdst0)))) as HH.
     { rewrite /= /RegLocate Hdst in Hstep.
       destruct Hwsrc as [ -> | (r0 & -> & Hr0 & Hr0') ].
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; eauto; congruence. }
     clear Hstep. rewrite /update_reg /= in HH.
 
-    destruct (incrementPC (<[ dst := inr (decodePerm wsrc, cdst2, cdst1, cdst0) ]> regs)) eqn:Hregs';
+    destruct (incrementPC (<[ dst := WCap (decodePerm wsrc, cdst2, cdst1, cdst0) ]> regs)) eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
@@ -100,20 +100,20 @@ Section cap_lang_spec_rules.
 
   Lemma step_restrict_success_z Ep K pc_p pc_b pc_e pc_a pc_a' w r1 p b e a z :
      decodeInstrW w = Restrict r1 (inl z) →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
      p ≠ E →
      nclose specN ⊆ Ep →
     
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ r1 ↣ᵣ inr (p,b,e,a)
+              ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
      ={Ep}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
          ∗ pc_a ↣ₐ w
-         ∗ r1 ↣ᵣ inr (decodePerm z,b,e,a).
+         ∗ r1 ↣ᵣ WCap (decodePerm z,b,e,a).
   Proof.
     iIntros (Hinstr Hvpc Hpca' Hflows HpE Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".

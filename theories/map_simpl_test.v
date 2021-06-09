@@ -5,10 +5,10 @@ Section test.
   Context `{memG Σ, regG Σ}.
 
   Lemma foo rmap:
-    ([∗ map] k↦y ∈ <[r_t3:=inl 0%Z]>
-     (<[r_t2:=inl 0%Z]>
-      (<[r_t4:=inl 0%Z]>
-       (<[r_t5:=inl 0%Z]> (delete r_t5 (<[r_t2:=inl 0%Z]> (delete r_t3 (delete r_t1 rmap))))))),
+    ([∗ map] k↦y ∈ <[r_t3:=WInt 0%Z]>
+     (<[r_t2:=WInt 0%Z]>
+      (<[r_t4:=WInt 0%Z]>
+       (<[r_t5:=WInt 0%Z]> (delete r_t5 (<[r_t2:=WInt 0%Z]> (delete r_t3 (delete r_t1 rmap))))))),
      k ↦ᵣ y) -∗ ⌜True⌝.
   Proof.
     iIntros "H".

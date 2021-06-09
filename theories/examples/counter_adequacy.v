@@ -101,7 +101,7 @@ Definition offset_to_awkward `{memory_layout} : Z :=
 Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr Word :=
   (* pointer to the linking table *)
     list_to_map [(counter_region_start,
-                  inr (RO, link_table_start, link_table_end, link_table_start))]
+                  WCap (RO, link_table_start, link_table_end, link_table_start))]
   ∪ mkregion counter_preamble_start counter_body_start
        (* preamble: code that creates the awkward example closure *)
       (counter_preamble_instrs 0%Z (* offset to malloc in linking table *)
@@ -113,13 +113,13 @@ Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr W
       
   ∪ mkregion adv_start adv_end
       (* adversarial code: any code or data, but no capabilities (see condition below) except for malloc *)
-      (adv_val ++ [inr (E, malloc_start, malloc_end, malloc_start)])
+      (adv_val ++ [WCap (E, malloc_start, malloc_end, malloc_start)])
   ∪ mkregion malloc_start malloc_memptr
       (* code for the malloc subroutine *)
       malloc_subroutine_instrs
   ∪ list_to_map
       (* Capability to malloc's memory pool, used by the malloc subroutine *)
-      [(malloc_memptr, inr (RWX, malloc_memptr, malloc_end, malloc_mem_start))]
+      [(malloc_memptr, WCap (RWX, malloc_memptr, malloc_end, malloc_mem_start))]
   ∪ mkregion malloc_mem_start malloc_end
       (* Malloc's memory pool, initialized to zero *)
       (region_addrs_zeroes malloc_mem_start malloc_end)
@@ -127,12 +127,12 @@ Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr W
       ((* code for the failure subroutine *)
         assert_fail_instrs ++
        (* pointer to the "failure" flag, set to 1 by the routine *)
-       [inr (RW, fail_flag, fail_flag_next, fail_flag)])
+       [WCap (RW, fail_flag, fail_flag_next, fail_flag)])
   ∪ mkregion link_table_start link_table_end
       (* link table, with pointers to the malloc and failure subroutines *)
-      [inr (E, malloc_start, malloc_end, malloc_start);
-       inr (E, fail_start, fail_end, fail_start)]
-  ∪ list_to_map [(fail_flag, inl 0%Z)] (* failure flag, initially set to 0 *)
+      [WCap (E, malloc_start, malloc_end, malloc_start);
+       WCap (E, fail_start, fail_end, fail_start)]
+  ∪ list_to_map [(fail_flag, WInt 0%Z)] (* failure flag, initially set to 0 *)
 .
 
 Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
@@ -147,8 +147,8 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   (adv_start + (length adv_val + 1)%nat)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
-  reg !! PC = Some (inr (RX, counter_region_start, counter_region_end, counter_preamble_start)) ∧
-  reg !! r_t0 = Some (inr (RWX, adv_start, adv_end, adv_start)) ∧
+  reg !! PC = Some (WCap (RX, counter_region_start, counter_region_end, counter_preamble_start)) ∧
+  reg !! r_t0 = Some (WCap (RWX, adv_start, adv_end, adv_start)) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_t0 ]} : gset RegName) →
     ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
@@ -177,11 +177,11 @@ Section Adequacy.
     is_initial_memory m →
     is_initial_registers reg →
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-    m' !! fail_flag = Some (inl 0%Z).
+    m' !! fail_flag = Some (WInt 0%Z).
   Proof.
     intros Hm Hreg Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c: ExecConf) => c.2 !! fail_flag = Some (inl 0%Z)) as state_is_good.
+    pose (fun (c: ExecConf) => c.2 !! fail_flag = Some (WInt 0%Z)) as state_is_good.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
@@ -269,7 +269,7 @@ Section Adequacy.
 
     (* Allocate relevant invariants *)
 
-    iMod (inv_alloc flagN ⊤ (fail_flag ↦ₐ inl 0%Z) with "Hfail_flag")%I as "#Hinv_fail_flag".
+    iMod (inv_alloc flagN ⊤ (fail_flag ↦ₐ WInt 0%Z) with "Hfail_flag")%I as "#Hinv_fail_flag".
     iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
             with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
@@ -302,7 +302,7 @@ Section Adequacy.
     iDestruct (big_sepL2_length with "Hadv") as %Hlen2. simpl in Hlen2.
       
     iMod (region_inv_alloc _ (adv_words ++ malloc_word)
-                           (adv_val ++ [inr (E, malloc_start, malloc_end, malloc_start)])
+                           (adv_val ++ [WCap (E, malloc_start, malloc_end, malloc_start)])
             with "[Hadv Hmalloc]") as "Hadv".
     { iApply (big_sepL2_app');[auto|]. 
       iSplitL "Hadv". 
@@ -318,7 +318,7 @@ Section Adequacy.
     
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
-    iAssert ((interp_expr interp reg) (inr (RX, counter_region_start, counter_region_end, counter_preamble_start)))
+    iAssert ((interp_expr interp reg) (WCap (RX, counter_region_start, counter_region_end, counter_preamble_start)))
       with "[Hcounter_preamble Hcounter_body Hinv_malloc Hcounter_link Hlink1 Hlink2]" as "HE".
     { assert (isCorrectPC_range RX counter_region_start counter_region_end
                                 counter_preamble_start counter_body_start).
@@ -409,7 +409,7 @@ Theorem counter_adequacy `{MachineParameters} `{memory_layout}
   is_initial_memory m →
   is_initial_registers reg →
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  m' !! fail_flag = Some (inl 0%Z).
+  m' !! fail_flag = Some (WInt 0%Z).
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ]).

@@ -9,7 +9,7 @@ Definition l2 `{MP: MachineParameters} := i1 ++ i2.
 Lemma foo {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} `{MP: MachineParameters} p b e a :
   {{{ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (l1 ++ l2))%a⌝
       ∗ codefrag a (l1 ++ l2)
-      ∗ PC ↦ᵣ inr (p,b,e,(a ^+ length l1)%a) }}}
+      ∗ PC ↦ᵣ WCap (p,b,e,(a ^+ length l1)%a) }}}
     Seq (Instr Executable)
   {{{ RET HaltedV; True }}}.
 Proof.

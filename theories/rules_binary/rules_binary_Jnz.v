@@ -17,8 +17,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_Jnz Ep K pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Jnz dst src ->
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
     regs_of (Jnz dst src) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -77,20 +77,20 @@ Section cap_lang_spec_rules.
 
   Lemma step_jnz_success_next E K r1 r2 pc_p pc_b pc_e pc_a pc_a' w w1 :
     decodeInstrW w = Jnz r1 r2 →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ w1
-             ∗ ▷ r2 ↣ᵣ inl 0%Z
+             ∗ ▷ r2 ↣ᵣ WInt 0%Z
     ={E}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
          ∗ pc_a ↣ₐ w
          ∗ r1 ↣ᵣ w1
-         ∗ r2 ↣ᵣ inl 0%Z.
+         ∗ r2 ↣ᵣ WInt 0%Z.
   Proof. 
     iIntros (Hinstr Hvpc Hpc_a' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Hr2)".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
@@ -106,12 +106,12 @@ Section cap_lang_spec_rules.
 
   Lemma step_jnz_success_jmp E K r1 r2 pc_p pc_b pc_e pc_a w w1 w2 :
     decodeInstrW w = Jnz r1 r2 →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
-    w2 ≠ inl 0%Z →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    w2 ≠ WInt 0%Z →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ w1
              ∗ ▷ r2 ↣ᵣ w2

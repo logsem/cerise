@@ -52,7 +52,7 @@ Section fundamental.
       rewrite -delete_insert_ne; auto. 
       destruct (updatePcPerm wsrc) eqn:Heq.
       { iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (inl _) |- _ => inv H end|].
+        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
         iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
         iModIntro. 
         iNext. iNext. iIntros "HPC /=".

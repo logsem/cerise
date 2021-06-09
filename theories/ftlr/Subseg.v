@@ -34,11 +34,11 @@ Section fundamental.
       (□ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
-          -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
+          -∗ registers_mapsto (<[PC:=WCap (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf)) -∗
-      (fixpoint interp1) (inr (p, b, e, a)) -∗
-      (fixpoint interp1) (inr (p, b', e', a)).
+          -∗ □ (fixpoint interp1) (WCap (a1, a2, a3, a4)) -∗ interp_conf)) -∗
+      (fixpoint interp1) (WCap (p, b, e, a)) -∗
+      (fixpoint interp1) (WCap (p, b', e', a)).
   Proof.
     intros Hne Hb He. iIntros "#IH Hinterp".
     iApply (interp_weakening with "IH Hinterp"); eauto.

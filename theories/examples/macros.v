@@ -37,18 +37,18 @@ Section macros.
     (a_link + f)%a = Some entry_a ->
 
       ▷ fetch f a
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
     ∗ ▷ entry_a ↦ₐ wentry
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ fetch f a
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ fetch f a
             (* the newly allocated region *)
-            ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z
-            ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+            ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
+            ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
             ∗ entry_a ↦ₐ wentry
             -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
@@ -99,7 +99,7 @@ Section macros.
     { iIntros (Hcontr);subst. iApply (addr_dupl_false with "Hi Hpc_b"). }
     iApply (wp_load_success_same with "[$HPC $Hi $Hr_t1 Hpc_b]");
       [|apply decode_encode_instrW_inv|iCorrectPC a_first a_last| | |iContiguous_next Hcont 5|..].
-    { exact (inr (RW, b_link, e_link, a_link)). }
+    { exact (WCap (RW, b_link, e_link, a_link)). }
     { apply contiguous_between_length in Hcont as Hlen.
       assert (pc_b < pc_e)%Z as Hle.
       { eapply isCorrectPC_contiguous_range in Hvpc as Hwb';[|eauto|apply elem_of_cons;left;eauto].
@@ -193,19 +193,19 @@ Section macros.
     withinBounds (RW, b_link, e_link, a_entry) = true →
     (a_link + f_a)%a = Some a_entry ->
     (* condition for assertion success *)
-    (w_r = inl z) ->
+    (w_r = WInt z) ->
 
     ▷ assert_r_z a f_a r z
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
     ∗ ▷ a_entry ↦ₐ fail_cap
     ∗ ▷ r ↦ᵣ w_r
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t3 ↦ᵣ w)
-    ∗ ▷ (r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ r ↦ᵣ inl 0%Z
-         ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ assert_r_z a f_a r z
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap
+    ∗ ▷ (r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ r ↦ᵣ WInt 0%Z
+         ∗ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ assert_r_z a f_a r z
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -280,25 +280,25 @@ Section macros.
     (* the assert and assert failure subroutine programs *)
     {{{ ▷ assert_r_z a f_a r z
     ∗ ▷ assert_fail a'
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     (* linking table and assertion flag *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) (* the linking table capability *)
-    ∗ ▷ a_entry ↦ₐ inr (E,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
-    ∗ ▷ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) (* the assertion flag capability *)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) (* the linking table capability *)
+    ∗ ▷ a_entry ↦ₐ WCap (E,f_b,f_e,f_a_first) (* the capability to the failure subroutine *)
+    ∗ ▷ a_env ↦ₐ WCap (flag_p,flag_b,flag_e,flag_a) (* the assertion flag capability *)
     ∗ ▷ (∃ w, flag_a ↦ₐ w) (* the assertion flag *)
     (* registers *)
-    ∗ ▷ r ↦ᵣ inl z_r
+    ∗ ▷ r ↦ᵣ WInt z_r
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t3 ↦ᵣ w) }}}
 
       Seq (Instr Executable)
 
-    {{{ RET FailedV; r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t3 ↦ᵣ inl 0%Z ∗ (∃ z, r ↦ᵣ inl z ∧ ⌜z ≠ 0⌝)
-         ∗ PC ↦ᵣ inr (RX, f_b, f_e,^(f_a_last + (-1))%a)
+    {{{ RET FailedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
+         ∗ PC ↦ᵣ WCap (RX, f_b, f_e,^(f_a_last + (-1))%a)
          ∗ assert_r_z a f_a r z ∗ assert_fail a'
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ inr (E,f_b,f_e,f_a_first)
-         ∗ a_env ↦ₐ inr (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ inl 1%Z }}}.
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ WCap (E,f_b,f_e,f_a_first)
+         ∗ a_env ↦ₐ WCap (flag_p,flag_b,flag_e,flag_a) ∗ flag_a ↦ₐ WInt 1%Z }}}.
   Proof.
     iIntros (Hvpc Hcont Hwb Htable Hvpc' Hcont' Henv Henvwb [Hwb' Hwa] Hfailure φ)
             "(>Hprog & >Hprog' & >HPC & >Hpc_b & >Ha_entry & >Ha_env & >Hflag & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3) Hφ".
@@ -427,27 +427,27 @@ Section macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ inr (RWX,b,e,b)
+            ∗ r_t1 ↦ᵣ WCap (RWX,b,e,b)
             ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
@@ -594,29 +594,29 @@ Section macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (ψ FailedV)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ malloc f_m size a
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ inr (RWX,b,e,b)
+            ∗ r_t1 ↦ᵣ WCap (RWX,b,e,b)
             ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
@@ -698,7 +698,8 @@ Section macros.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
       by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete_ne // lookup_delete.
     rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete.
-    rewrite -(delete_insert_ne _ r_t5 r_t2) // (insert_commute _ r_t2 r_t3) //.
+    rewrite -(delete_insert_ne _ r_t5 r_t2) //.
+    rewrite (insert_commute ((delete r_t2 _)) r_t2 r_t3) //.
     rewrite insert_delete.
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
       by rewrite lookup_delete. rewrite insert_delete.
@@ -773,9 +774,9 @@ Section macros.
     list_to_set r = dom (gset RegName) rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
-    ∗ ▷ PC ↦ᵣ inr (p,b,e,a1)
+    ∗ ▷ PC ↦ᵣ WCap (p,b,e,a1)
     ∗ ▷ rclear a r
-    ∗ ▷ (PC ↦ᵣ inr (p,b,e,an) ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ inl 0%Z)
+    ∗ ▷ (PC ↦ᵣ WCap (p,b,e,an) ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ WInt 0%Z)
             ∗ rclear a r -∗
             WP Seq (Instr Executable) {{ φ }})
     ⊢ WP Seq (Instr Executable) {{ φ }}.
@@ -870,12 +871,12 @@ Section macros.
 
   Lemma mclear_iter_spec (a1 a2 a3 a4 a5 a6 b_r e_r a_r (* e_r' *) : Addr) ws (z : nat)
         p b e rt rt1 rt2 rt3 rt4 rt5 a_end (p_r : Perm) φ :
-        isCorrectPC (inr (p,b,e,a1))
-      ∧ isCorrectPC (inr (p,b,e,a2))
-      ∧ isCorrectPC (inr (p,b,e,a3))
-      ∧ isCorrectPC (inr (p,b,e,a4))
-      ∧ isCorrectPC (inr (p,b,e,a5))
-      ∧ isCorrectPC (inr (p,b,e,a6)) →
+        isCorrectPC (WCap (p,b,e,a1))
+      ∧ isCorrectPC (WCap (p,b,e,a2))
+      ∧ isCorrectPC (WCap (p,b,e,a3))
+      ∧ isCorrectPC (WCap (p,b,e,a4))
+      ∧ isCorrectPC (WCap (p,b,e,a5))
+      ∧ isCorrectPC (WCap (p,b,e,a6)) →
         (a1 + 1)%a = Some a2
       ∧ (a2 + 1)%a = Some a3
       ∧ (a3 + 1)%a = Some a4
@@ -886,33 +887,33 @@ Section macros.
         (* (e_r + 1)%a = Some e_r' → *)
         (b_r + z)%a = Some a_r →
       ([[a_r,e_r]] ↦ₐ [[ws]]
-     ∗ ▷ PC ↦ᵣ inr (p,b,e,a1)
-     ∗ ▷ rt ↦ᵣ inr (p_r,b_r,e_r,a_r)
-     ∗ ▷ rt1 ↦ᵣ inl (b_r + z)%Z
-     ∗ ▷ rt2 ↦ᵣ inl ((z_of e_r) - 1)%Z
+     ∗ ▷ PC ↦ᵣ WCap (p,b,e,a1)
+     ∗ ▷ rt ↦ᵣ WCap (p_r,b_r,e_r,a_r)
+     ∗ ▷ rt1 ↦ᵣ WInt (b_r + z)%Z
+     ∗ ▷ rt2 ↦ᵣ WInt ((z_of e_r) - 1)%Z
      ∗ ▷ (∃ w, rt3 ↦ᵣ w)
-     ∗ ▷ rt4 ↦ᵣ inr (p, b, e, a_end)
-     ∗ ▷ rt5 ↦ᵣ inr (p, b, e, a1)
+     ∗ ▷ rt4 ↦ᵣ WCap (p, b, e, a_end)
+     ∗ ▷ rt5 ↦ᵣ WCap (p, b, e, a1)
      ∗ ▷ ([∗ list] a_i;w_i ∈ [a1;a2;a3;a4;a5;a6];[lt_r_r rt3 rt2 rt1;
                                                   jnz rt4 rt3;
                                                   store_z rt 0;
                                                   lea_z rt 1;
                                                   add_r_z rt1 rt1 1;
                                                   jmp rt5], a_i ↦ₐ w_i)
-     ∗ ▷ (PC ↦ᵣ updatePcPerm (inr (p,b,e,a_end))
+     ∗ ▷ (PC ↦ᵣ updatePcPerm (WCap (p,b,e,a_end))
              ∗ [[ a_r , e_r ]] ↦ₐ [[ region_addrs_zeroes a_r e_r ]]
-             ∗ (∃ a_r, rt ↦ᵣ inr (p_r, b_r, e_r, a_r))
-             ∗ rt5 ↦ᵣ inr (p, b, e, a1)
+             ∗ (∃ a_r, rt ↦ᵣ WCap (p_r, b_r, e_r, a_r))
+             ∗ rt5 ↦ᵣ WCap (p, b, e, a1)
              ∗ a3 ↦ₐ store_z rt 0
              ∗ a4 ↦ₐ lea_z rt 1
              ∗ a5 ↦ₐ add_r_z rt1 rt1 1
              ∗ a6 ↦ₐ jmp rt5
              ∗ a1 ↦ₐ lt_r_r rt3 rt2 rt1
-             ∗ rt2 ↦ᵣ inl ((z_of e_r) - 1)%Z
-             ∗ (∃ z, rt1 ↦ᵣ inl (b_r + z)%Z)
+             ∗ rt2 ↦ᵣ WInt ((z_of e_r) - 1)%Z
+             ∗ (∃ z, rt1 ↦ᵣ WInt (b_r + z)%Z)
              ∗ a2 ↦ₐ jnz rt4 rt3
-             ∗ rt4 ↦ᵣ inr (p, b, e, a_end)
-             ∗ rt3 ↦ᵣ inl 1%Z
+             ∗ rt4 ↦ᵣ WCap (p, b, e, a_end)
+             ∗ rt3 ↦ᵣ WInt 1%Z
               -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
@@ -994,7 +995,7 @@ Section macros.
                   "[Hbe] [HPC] [Hrt] [Hr_t1] [Hr_t2] [Hr_t3] [Hr_t4] [Hr_t5] [Ha1 Ha2 Ha3 Ha4 Ha5 Ha6] [Hφ Ha_r]")
       ; iFrame. all: auto.
       + by rewrite Ha_r'.
-      + assert (updatePcPerm (inr (p, b, e, a1)) = (inr (p, b, e, a1))).
+      + assert (updatePcPerm (WCap (p, b, e, a1)) = (WCap (p, b, e, a1))).
         { rewrite /updatePcPerm. destruct p; auto.
           inversion Hvpc1; destruct H4 as [Hc | Hc ]; inversion Hc. }
         rewrite H. iFrame.
@@ -1021,7 +1022,7 @@ Section macros.
       (* jnz *)
       iDestruct "Hprog" as "[Hi Hprog]".
       iApply (wp_bind (fill [SeqCtx])).
-      iApply (wp_jnz_success_jmp _ rt4 rt3 _ _ _ a2 _ _ (inl 1%Z) with "[HPC Hi Hr_t3 Hr_t4]"); first apply decode_encode_instrW_inv; eauto.
+      iApply (wp_jnz_success_jmp _ rt4 rt3 _ _ _ a2 _ _ (WInt 1%Z) with "[HPC Hi Hr_t3 Hr_t4]"); first apply decode_encode_instrW_inv; eauto.
       iFrame. iEpilogue "(HPC & Ha2 & Hr_t4 & Hr_t3)".
       iApply "Hφ". iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & _)".
       rewrite /region_addrs_zeroes region_size_0 //=. iFrame.
@@ -1042,8 +1043,8 @@ Section macros.
     (b_r ≤ e_r)%Z →
 
      (mclear a r
-    ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
-    ∗ ▷ r ↦ᵣ inr (p_r,b_r,e_r,a_r)
+    ∗ ▷ PC ↦ᵣ WCap (p,b,e,a_first)
+    ∗ ▷ r ↦ᵣ WCap (p_r,b_r,e_r,a_r)
     ∗ ▷ r_t4 ↦ᵣ w4
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
@@ -1051,14 +1052,14 @@ Section macros.
     ∗ ▷ r_t5 ↦ᵣ w5
     ∗ ▷ r_t6 ↦ᵣ w6
     ∗ ▷ ([[ b_r , e_r ]] ↦ₐ [[ ws ]])
-    ∗ ▷ (PC ↦ᵣ inr (p,b,e,a')
-            ∗ r_t1 ↦ᵣ inl 0%Z
-            ∗ r_t2 ↦ᵣ inl 0%Z
-            ∗ r_t3 ↦ᵣ inl 0%Z
-            ∗ r_t4 ↦ᵣ inl 0%Z
-            ∗ r_t5 ↦ᵣ inl 0%Z
-            ∗ r_t6 ↦ᵣ inl 0%Z
-            ∗ r ↦ᵣ inr (p_r,b_r,e_r,a_r)
+    ∗ ▷ (PC ↦ᵣ WCap (p,b,e,a')
+            ∗ r_t1 ↦ᵣ WInt 0%Z
+            ∗ r_t2 ↦ᵣ WInt 0%Z
+            ∗ r_t3 ↦ᵣ WInt 0%Z
+            ∗ r_t4 ↦ᵣ WInt 0%Z
+            ∗ r_t5 ↦ᵣ WInt 0%Z
+            ∗ r_t6 ↦ᵣ WInt 0%Z
+            ∗ r ↦ᵣ WCap (p_r,b_r,e_r,a_r)
             ∗ [[ b_r , e_r ]] ↦ₐ [[region_addrs_zeroes b_r e_r]]
             ∗ mclear a r -∗
             WP Seq (Instr Executable) {{ φ }})
@@ -1138,7 +1139,7 @@ Section macros.
     (* lea r_t2 mclear_off_end *)
     iPrologue "Hprog".
     assert (p ≠ E) as Hpne.
-    { have: (isCorrectPC (inr (p, b, e, a_first))).
+    { have: (isCorrectPC (WCap (p, b, e, a_first))).
       { apply Hvpc. eapply contiguous_between_middle_bounds'; eauto. constructor. }
       inversion 1; subst.
       destruct H14 as [? | ? ]; subst; auto. }
@@ -1264,12 +1265,12 @@ Section macros.
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
 
-    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
       ∗ ▷ pc_a ↦ₐ w
       ∗ ▷ dst ↦ᵣ wdst
-      ∗ ▷ src ↦ᵣ inl zsrc }}}
+      ∗ ▷ src ↦ᵣ WInt zsrc }}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
@@ -1286,13 +1287,13 @@ Section macros.
   (* TODO: move this to the rules_Lea.v file. *)
   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
     decodeInstrW w = Lea r1 (inr rv) →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
     (a + z)%a = None ->
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
            ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ r1 ↦ᵣ inr (p,b,e,a)
-           ∗ ▷ rv ↦ᵣ inl z }}}
+           ∗ ▷ r1 ↦ᵣ WCap (p,b,e,a)
+           ∗ ▷ rv ↦ᵣ WInt z }}}
        Instr Executable @ Ep
      {{{ RET FailedV; True }}}.
   Proof.
@@ -1331,14 +1332,14 @@ Section macros.
     contiguous_between a a_first a_last ->
 
       ▷ reqperm r (encodePerm perm) a
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ ▷ r ↦ᵣ w
     ∗ ▷ (∃ w, r_t1 ↦ᵣ w)
     ∗ ▷ (∃ w, r_t2 ↦ᵣ w)
     ∗ ▷ (if isPermWord w perm then
-           ∃ b e a', ⌜w = inr (perm,b,e,a')⌝ ∧
-          (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ reqperm r (encodePerm perm) a ∗
-            r ↦ᵣ inr (perm,b,e,a') ∗ r_t1 ↦ᵣ inl 0%Z ∗ r_t2 ↦ᵣ inl 0%Z
+           ∃ b e a', ⌜w = WCap (perm,b,e,a')⌝ ∧
+          (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ reqperm r (encodePerm perm) a ∗
+            r ↦ᵣ WCap (perm,b,e,a') ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z
             -∗ WP Seq (Instr Executable) {{ φ }})
         else φ FailedV)
     ⊢
@@ -1414,7 +1415,7 @@ Section macros.
       iApply (wp_jmp_success with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|..].
       iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-      assert (updatePcPerm (inr (pc_p, pc_b, pc_e, a10)) = (inr (pc_p, pc_b, pc_e, a10))) as ->.
+      assert (updatePcPerm (WCap (pc_p, pc_b, pc_e, a10)) = (WCap (pc_p, pc_b, pc_e, a10))) as ->.
       { destruct pc_p; auto. congruence. }
       iDestruct "Hprog" as "[Hi Hprog]". iCombine "Hi" "Hprog_done" as "Hprog_done".
       (* move r_t1 0 *)
@@ -1443,7 +1444,7 @@ Section macros.
       do 3 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done").
       (* fail *)
       iPrologue "Hprog".
-      assert (updatePcPerm (inr (pc_p, pc_b, pc_e, a9)) = (inr (pc_p, pc_b, pc_e, a9))) as ->.
+      assert (updatePcPerm (WCap (pc_p, pc_b, pc_e, a9)) = (WCap (pc_p, pc_b, pc_e, a9))) as ->.
       { destruct pc_p; auto. congruence. }
       iApply (wp_fail with "[$HPC $Hi]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|].
@@ -1472,15 +1473,15 @@ Section macros.
     contiguous_between a a_first a_last →
 
       ▷ reqsize r minsize a
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ r ↦ᵣ inr (r_p, r_b, r_e, r_a)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ r ↦ᵣ WCap (r_p, r_b, r_e, r_a)
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ (if (minsize <? (r_e - r_b)%a)%Z then
            (∃ w1 w2,
             reqsize r minsize a
-            ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last)
-            ∗ r ↦ᵣ inr (r_p, r_b, r_e, r_a)
+            ∗ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last)
+            ∗ r ↦ᵣ WCap (r_p, r_b, r_e, r_a)
             ∗ r_t1 ↦ᵣ w1
             ∗ r_t2 ↦ᵣ w2)
            -∗ WP Seq (Instr Executable) {{ φ }}
@@ -1575,7 +1576,7 @@ Section macros.
   Definition v6 := encodeInstr (Jmp r_t1).
 
   Definition activation_instrs wcode wenv : list Word :=
-    [ inl v1; inl v2; inl v3; inl v4; inl v5; inl v6; wcode; wenv ].
+    [ WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; wcode; wenv ].
 
   (* scrtcls: "static" crtcls. Requires a capability for the memory region where to write
      the activation record.
@@ -1627,19 +1628,19 @@ Section macros.
     (act_b + 8)%a = Some act_e →
 
       ▷ scrtcls rcode rdata a
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     (* register state *)
-    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_b, act_e, act_b)
+    ∗ ▷ r_t1 ↦ᵣ WCap (RWX, act_b, act_e, act_b)
     ∗ ▷ rcode ↦ᵣ wcode
     ∗ ▷ rdata ↦ᵣ wvar
     (* memory for the activation record *)
     ∗ ▷ ([[act_b,act_e]] ↦ₐ [[ act ]])
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ scrtcls rcode rdata a
-         ∗ r_t1 ↦ᵣ inr (E, act_b, act_e, act_b)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ scrtcls rcode rdata a
+         ∗ r_t1 ↦ᵣ WCap (E, act_b, act_e, act_b)
          ∗ [[act_b,act_e]] ↦ₐ [[ activation_instrs wcode wvar ]]
-         ∗ rcode ↦ᵣ inl 0%Z
-         ∗ rdata ↦ᵣ inl 0%Z
+         ∗ rcode ↦ᵣ WInt 0%Z
+         ∗ rdata ↦ᵣ WInt 0%Z
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -1834,32 +1835,32 @@ Section macros.
     ↑mallocN ⊆ EN →
 
       ▷ crtcls f_m a
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
     ∗ ▷ r_t2 ↦ᵣ wvar
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ (PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap (E,b,e,b)
          ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
-         ∗ r_t2 ↦ᵣ inl 0%Z
+         ∗ r_t2 ↦ᵣ WInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
-                               (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]>
-                                 (<[r_t6:=inl 0%Z]>
-                                  (<[r_t7:=inl 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
+                               (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]>
+                                 (<[r_t6:=WInt 0%Z]>
+                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -1900,7 +1901,7 @@ Section macros.
       rewrite delete_commute // insert_delete.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
       by rewrite lookup_insert_ne // lookup_delete.
-      rewrite insert_commute // insert_delete.
+      rewrite (insert_commute _ r_t7 r_t6) // insert_delete.
     assert (∀ (r:RegName), r ∈ ({[PC;r_t0;r_t1;r_t2]} : gset RegName) → rmap !! r = None) as Hnotin_rmap.
     { intros r Hr. eapply (@not_elem_of_dom _ _ (gset RegName)). typeclasses eauto.
       rewrite Hrmap_dom. set_solver. }
@@ -1963,7 +1964,7 @@ Section macros.
     readAllowed pc_p = true →
     isCorrectPC_range pc_p b_cls e_cls b_cls e_cls →
     pc_p ≠ E →
-    PC ↦ᵣ inr (pc_p, b_cls, e_cls, b_cls)
+    PC ↦ᵣ WCap (pc_p, b_cls, e_cls, b_cls)
     ∗ r_t1 ↦ᵣ r1v
     ∗ r_env ↦ᵣ renvv
     ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]

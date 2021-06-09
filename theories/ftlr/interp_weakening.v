@@ -19,9 +19,9 @@ Section fundamental.
     (□ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
           -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
-          -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0)
+          -∗ registers_mapsto (<[PC:=WCap (a1, a2, a3, a4)]> a0)
           -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (inr (a1, a2, a3, a4)) -∗ interp_conf))%I.
+          -∗ □ (fixpoint interp1) (WCap (a1, a2, a3, a4)) -∗ interp_conf))%I.
 
  
   (* TODO: Move somewhere ?*)
@@ -44,8 +44,8 @@ Section fundamental.
       (e' <= e)%a ->
       PermFlowsTo p' p ->
       IH -∗
-      (fixpoint interp1) (inr (p, b, e, a)) -∗
-      (fixpoint interp1) (inr (p', b', e', a')).
+      (fixpoint interp1) (WCap (p, b, e, a)) -∗
+      (fixpoint interp1) (WCap (p', b', e', a')).
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).

@@ -42,16 +42,16 @@ Section macros.
       ▷ fetch_s f a
     ∗ spec_ctx
     ∗ ⤇ Seq (Instr Executable)
-    ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,a_first)
-    ∗ ▷ pc_b ↣ₐ inr (RO,b_link,e_link,a_link)
+    ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ pc_b ↣ₐ WCap (RO,b_link,e_link,a_link)
     ∗ ▷ entry_a ↣ₐ wentry
     ∗ ▷ r_t1 ↣ᵣ w1
     ∗ ▷ r_t2 ↣ᵣ w2
     ∗ ▷ r_t3 ↣ᵣ w3
       ={E}=∗ ⤇ Seq (Instr Executable)
-          ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ fetch_s f a 
-          ∗ r_t1 ↣ᵣ wentry ∗ r_t2 ↣ᵣ inl 0%Z ∗ r_t3 ↣ᵣ inl 0%Z
-          ∗ pc_b ↣ₐ inr (RO,b_link,e_link,a_link)
+          ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ fetch_s f a
+          ∗ r_t1 ↣ᵣ wentry ∗ r_t2 ↣ᵣ WInt 0%Z ∗ r_t3 ↣ᵣ WInt 0%Z
+          ∗ pc_b ↣ₐ WCap (RO,b_link,e_link,a_link)
           ∗ entry_a ↣ₐ wentry.
     
   Proof.
@@ -104,7 +104,7 @@ Section macros.
     iMod (step_load_success_same_alt _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1 Hpc_b]")
       as "(Hj & HPC & Hr_t1 & Hi & Hpc_b)";
       [|apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 5|auto..].
-    { exact (inr (RW, b_link, e_link, a_link)). }
+    { exact (WCap (RW, b_link, e_link, a_link)). }
     { apply contiguous_between_length in Hcont as Hlen.
       assert (pc_b < pc_e)%Z as Hle.
       { eapply isCorrectPC_contiguous_range in Hvpc as Hwb';[|eauto|apply elem_of_cons;left;eauto].
@@ -188,32 +188,32 @@ Section macros.
     ∗ na_inv logrel_nais mallocN (malloc_inv_binary b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ ▷ pcs_b ↣ₐ inr (RO,bs_link,es_link,as_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m) ∗ ▷ as_entry ↣ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ ▷ pcs_b ↣ₐ WCap (RO,bs_link,es_link,as_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m) ∗ ▷ as_entry ↣ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first) ∗ ▷ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first) ∗ ▷ PC ↣ᵣ WCap (pcs_p,pcs_b,pcs_e,s_first)
     ∗ ▷ r_t0 ↦ᵣ cont ∗ ▷ r_t0 ↣ᵣ cont'
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) ∗ ▷ ([∗ map] r_i↦w_i ∈ smap, r_i ↣ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (⤇ Seq (Instr Executable) ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_last)
+    ∗ ▷ (⤇ Seq (Instr Executable) ∗ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ PC ↣ᵣ WCap (pcs_p,pcs_b,pcs_e,s_last)
          ∗ malloc f_m size a ∗ malloc_s fs_m size a'
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ pcs_b ↣ₐ inr (RO,bs_link,es_link,as_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m) ∗ as_entry ↣ₐ inr (E,b_m,e_m,b_m)
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ pcs_b ↣ₐ WCap (RO,bs_link,es_link,as_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m) ∗ as_entry ↣ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ inr (RWX,b,e,b) ∗ r_t1 ↣ᵣ inr (RWX,b,e,b)
+            ∗ r_t1 ↦ᵣ WCap (RWX,b,e,b) ∗ r_t1 ↣ᵣ WCap (RWX,b,e,b)
             ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]] ∗ [[b,e]] ↣ₐ [[region_addrs_zeroes b e]])
          ∗ r_t0 ↦ᵣ cont ∗ r_t0 ↣ᵣ cont'
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=inl 0%Z]>
-                               (<[r_t3:=inl 0%Z]>
-                                (<[r_t4:=inl 0%Z]>
-                                 (<[r_t5:=inl 0%Z]> (delete r_t1 smap))))), r_i ↣ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 smap))))), r_i ↣ᵣ w_i)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -458,11 +458,11 @@ Section macros.
      spec_ctx
     ∗ ⤇ Seq (Instr Executable)
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↣ᵣ w_i)
-    ∗ ▷ PC ↣ᵣ inr (p,b,e,a1)
+    ∗ ▷ PC ↣ᵣ WCap (p,b,e,a1)
     ∗ ▷ rclear_s a r
      ={E}=∗ ⤇ Seq (Instr Executable)
-         ∗ PC ↣ᵣ inr (p,b,e,an)
-         ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↣ᵣ inl 0%Z)
+         ∗ PC ↣ᵣ WCap (p,b,e,an)
+         ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↣ᵣ WInt 0%Z)
          ∗ rclear_s a r.           
   Proof.
     iIntros (Ha Hne Hhd Hvpc Hrdom Hnclose) "(#Hspec & Hj & >Hreg & >HPC & >Hrclear)".
@@ -533,21 +533,21 @@ Section macros.
     spec_ctx
     ∗ ⤇ Seq (Instr Executable)
     ∗ ▷ scrtcls_s rcode rdata a
-    ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,a_first)
     (* register state *)
-    ∗ ▷ r_t1 ↣ᵣ inr (RWX, act_b, act_e, act_b)
+    ∗ ▷ r_t1 ↣ᵣ WCap (RWX, act_b, act_e, act_b)
     ∗ ▷ rcode ↣ᵣ wcode
     ∗ ▷ rdata ↣ᵣ wvar
     (* memory for the activation record *)
     ∗ ▷ ([[act_b,act_e]] ↣ₐ [[ act ]])
     (* continuation *)
     ={Ep}=∗ ⤇ Seq (Instr Executable) 
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,a_last)
+        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,a_last)
         ∗ scrtcls_s rcode rdata a
-        ∗ r_t1 ↣ᵣ inr (E, act_b, act_e, act_b)
+        ∗ r_t1 ↣ᵣ WCap (E, act_b, act_e, act_b)
         ∗ [[act_b,act_e]] ↣ₐ [[ activation_instrs wcode wvar ]]
-        ∗ rcode ↣ᵣ inl 0%Z
-        ∗ rdata ↣ᵣ inl 0%Z.
+        ∗ rcode ↣ᵣ WInt 0%Z
+        ∗ rdata ↣ᵣ WInt 0%Z.
   Proof.
     iIntros (Hvpc Hcont Hact Hnclose) "(#Hspec & Hj & >Hprog & >HPC & >Hr_t1 & >Hrcode & >Hrdata & >Hact)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
@@ -778,12 +778,12 @@ Section macros.
     spec_ctx
     ∗ ⤇ Seq (Instr Executable)
     ∗ ▷ crtcls f_m a ∗ ▷ crtcls_s fs_m a' 
-    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first) ∗ ▷ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_first)
+    ∗ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first) ∗ ▷ PC ↣ᵣ WCap (pcs_p,pcs_b,pcs_e,s_first)
     ∗ na_inv logrel_nais mallocN (malloc_inv_binary b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ ▷ pcs_b ↣ₐ inr (RO,bs_link,es_link,as_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m) ∗ ▷ as_entry ↣ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ ▷ pcs_b ↣ₐ WCap (RO,bs_link,es_link,as_link)
+    ∗ ▷ a_entry ↦ₐ WCap (E,b_m,e_m,b_m) ∗ ▷ as_entry ↣ₐ WCap (E,b_m,e_m,b_m)
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont ∗ ▷ r_t0 ↣ᵣ cont'
     ∗ ▷ r_t1 ↦ᵣ wcode ∗ ▷ r_t1 ↣ᵣ wcode'
@@ -792,27 +792,27 @@ Section macros.
     ∗ ▷ ([∗ map] r_i↦w_i ∈ smap, r_i ↣ᵣ w_i)
     (* continuation *)
     ∗ ▷ (⤇ Seq (Instr Executable)
-         ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a
-         ∗ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_last) ∗ crtcls_s fs_m a'
-         ∗ pc_b ↦ₐ inr (RO,b_link,e_link,a_link) ∗ pcs_b ↣ₐ inr (RO,bs_link,es_link,as_link)
-         ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m) ∗ as_entry ↣ₐ inr (E,b_m,e_m,b_m)
+         ∗ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_last) ∗ crtcls f_m a
+         ∗ PC ↣ᵣ WCap (pcs_p,pcs_b,pcs_e,s_last) ∗ crtcls_s fs_m a'
+         ∗ pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ pcs_b ↣ₐ WCap (RO,bs_link,es_link,as_link)
+         ∗ a_entry ↦ₐ WCap (E,b_m,e_m,b_m) ∗ as_entry ↣ₐ WCap (E,b_m,e_m,b_m)
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ inr (E,b,e,b) ∗ r_t1 ↣ᵣ inr (E,b,e,b) (* the created capabilities will be syntactically identical *)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap (E,b,e,b) ∗ r_t1 ↣ᵣ WCap (E,b,e,b) (* the created capabilities will be syntactically identical *)
          ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
          ∗ [[b,e]] ↣ₐ [[ activation_instrs wcode' wvar' ]]
          ∗ r_t0 ↦ᵣ cont ∗ r_t0 ↣ᵣ cont'
-         ∗ r_t2 ↦ᵣ inl 0%Z ∗ r_t2 ↣ᵣ inl 0%Z
+         ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t2 ↣ᵣ WInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
-                               (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]>
-                                 (<[r_t6:=inl 0%Z]>
-                                  (<[r_t7:=inl 0%Z]> rmap)))), r_i ↦ᵣ w_i)
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=inl 0%Z]>
-                               (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]>
-                                 (<[r_t6:=inl 0%Z]>
-                                  (<[r_t7:=inl 0%Z]> smap)))), r_i ↣ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
+                               (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]>
+                                 (<[r_t6:=WInt 0%Z]>
+                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
+                               (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]>
+                                 (<[r_t6:=WInt 0%Z]>
+                                  (<[r_t7:=WInt 0%Z]> smap)))), r_i ↣ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -989,7 +989,7 @@ Section macros.
     
     spec_ctx
     ∗ ⤇ Seq (Instr Executable)
-    ∗ PC ↣ᵣ inr (pc_p, b_cls, e_cls, b_cls)
+    ∗ PC ↣ᵣ WCap (pc_p, b_cls, e_cls, b_cls)
     ∗ r_t1 ↣ᵣ r1v
     ∗ r_env ↣ᵣ renvv
     ∗ [[b_cls, e_cls]]↣ₐ[[ activation_instrs wcode wenv ]]

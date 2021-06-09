@@ -32,7 +32,7 @@ Section fundamental.
       iAssert (⌜w = w'⌝)%I as %Heqw.
       { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
       destruct r as [r1 r2]. simpl in *.
-      iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+      iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
       iMod (wp_jmp_successPC _ [SeqCtx] with "[$Ha' $HsPC $Hs]") as "(Hs & HsPC & Ha') /=";[rewrite Heqw in Hi|..];eauto.
       { solve_ndisj. }
@@ -63,10 +63,10 @@ Section fundamental.
       iAssert (⌜w = w'⌝)%I as %Heqw.
       { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
       destruct r as [r1 r2]. simpl in *.
-      iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+      iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
       subst w'.
       assert (wdst1 = wdst2) as <-.
-      { assert (HA: <[PC:=inr (p, b, e, a)]> r1 !! dst = Some wdst1) by (rewrite lookup_insert_ne; auto).
+      { assert (HA: <[PC:=WCap (p, b, e, a)]> r1 !! dst = Some wdst1) by (rewrite lookup_insert_ne; auto).
         rewrite Heq lookup_insert_ne in HA; auto.
         rewrite Hdst2 in HA. inversion HA; auto. }
 
@@ -98,7 +98,7 @@ Section fundamental.
           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
         destruct (perm_eq_dec c E).
-        + subst c. rewrite /interp (fixpoint_interp1_eq (inr (E,_,_,_), inr _)) /=.
+        + subst c. rewrite /interp (fixpoint_interp1_eq (WCap (E,_,_,_), WCap _)) /=.
           iDestruct "Hinvdst" as (_) "Hinvdst".
           iDestruct ("Hinvdst" $! (<[dst:=_]>r1, <[dst:=_]>r2)) as "Hinvdst'".
           iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
@@ -108,11 +108,11 @@ Section fundamental.
               - iPureIntro. simpl; intros.
                 destruct (reg_eq_dec dst x); [subst x; rewrite !lookup_insert; split; eauto| rewrite !lookup_insert_ne; eauto].
               - simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-                destruct (reg_eq_dec dst rr); [subst rr; rewrite /RegLocate !lookup_insert; auto| rewrite /RegLocate !lookup_insert_ne; auto]. instantiate (1 := inr (E, c2, c1, c0)).
+                destruct (reg_eq_dec dst rr); [subst rr; rewrite /RegLocate !lookup_insert; auto| rewrite /RegLocate !lookup_insert_ne; auto]. instantiate (1 := WCap (E, c2, c1, c0)).
                 iDestruct ("Hreg" $! dst ltac:(auto)) as "Hinvdst2"; auto.
                  rewrite /RegLocate Hdst1 Hdst2. iFrame "#". }
-            { assert (<[PC:=inr (RX, c2, c1, c0)]> (<[dst:=inr (E, c2, c1, c0)]> r1) = (<[PC:=inr (RX, c2, c1, c0)]> (<[dst:=inr (E, c2, c1, c0)]> r2))).
-              { transitivity (<[PC:=inr (RX, c2, c1, c0)]> (<[dst:=inr (E, c2, c1, c0)]> (<[PC:=inr (p, b, e, a)]> r1))).
+            { assert (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> r1) = (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> r2))).
+              { transitivity (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> (<[PC:=WCap (p, b, e, a)]> r1))).
                 - rewrite (insert_commute r1 dst); auto. rewrite insert_insert; auto.
                 - rewrite Heq. rewrite (insert_commute r2 dst); auto. rewrite insert_insert; auto. }
               rewrite H0. iFrame. }
@@ -126,19 +126,19 @@ Section fundamental.
           { simpl. instantiate (4 := match c with E => RX | _ => c end).
             rewrite Hdst1. destruct c; eauto. }
           { simpl. assert (<[PC:=match c with
-                                 | E => inr (RX, c2, c1, c0)
-                                 | _ => inr (c, c2, c1, c0)
-                                 end]> (<[dst:=inr (c, c2, c1, c0)]> r1) = (<[PC:=inr (match c with
+                                 | E => WCap (RX, c2, c1, c0)
+                                 | _ => WCap (c, c2, c1, c0)
+                                 end]> (<[dst:=WCap (c, c2, c1, c0)]> r1) = (<[PC:=WCap (match c with
                                                                                        | E => RX
                                                                                        | _ => c
                                                                                        end, c2, c1, c0)]> (<[dst:=match r2 !! dst with
                                                                                                                   | Some w0 => w0
-                                                                                                                  | None => inl 0%Z
+                                                                                                                  | None => WInt 0%Z
                                                                                                                   end]> r2))).
             { transitivity (<[PC:=match c with
-                                  | E => inr (RX, c2, c1, c0)
-                                  | _ => inr (c, c2, c1, c0)
-                                  end]> (<[dst:=inr (c, c2, c1, c0)]> (<[PC:=inr (p, b, e, a)]> r1))).
+                                  | E => WCap (RX, c2, c1, c0)
+                                  | _ => WCap (c, c2, c1, c0)
+                                  end]> (<[dst:=WCap (c, c2, c1, c0)]> (<[PC:=WCap (p, b, e, a)]> r1))).
               - rewrite !(insert_commute _ PC dst); auto.
                 rewrite insert_insert. reflexivity.
               - rewrite Heq. rewrite !(insert_commute _ PC dst); auto.

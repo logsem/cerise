@@ -85,7 +85,7 @@ Section interval.
     encodeInstrsW [ Lea r 1;
                   Load r_t1 r ].
 
-  (* r_t1 ↦ inl n1 ∗ r_t2 ↦ inl n2 -> otherwise the program fails *)
+  (* r_t1 ↦ WInt n1 ∗ r_t2 ↦ WInt n2 -> otherwise the program fails *)
   (* r_env ↦ (RWX, b, b + 2, b)
      ∗ b ↦ seal activation E cap
      ∗ b + 1 ↦ unseal activation E cap *)
@@ -141,8 +141,8 @@ Section interval.
 
 
   Definition isInterval : (Addr * Word) → iProp Σ :=
-    λ aw, (∃ a1 a2 a3, ⌜aw.2 = inr (RWX,a1,a3,a1) ∧ (a1 + 1 = Some a2)%a ∧ (a1 + 2 = Some a3)%a⌝
-         ∗ ∃ z1 z2, a1 ↦ₐ inl z1 ∗ a2 ↦ₐ inl z2 ∗ ⌜(z1 <= z2)%Z⌝ ∗ aw.1 ↪ (z1,z2))%I.
+    λ aw, (∃ a1 a2 a3, ⌜aw.2 = WCap (RWX,a1,a3,a1) ∧ (a1 + 1 = Some a2)%a ∧ (a1 + 2 = Some a3)%a⌝
+         ∗ ∃ z1 z2, a1 ↦ₐ WInt z1 ∗ a2 ↦ₐ WInt z2 ∗ ⌜(z1 <= z2)%Z⌝ ∗ aw.1 ↪ (z1,z2))%I.
 
   Definition isIntervals : list (Addr * Word) -> iProp Σ :=
     (λ bvals, ([∗ list] aw ∈ bvals, isInterval aw) ∗ ∃ m, intervals m ∗ ⌜dom (gset Addr) m = list_to_set bvals.*1⌝)%I.
@@ -160,16 +160,16 @@ Section interval.
    To simplify things slightly, we are assuming that the linking table only contains the malloc capability,
    and that its size is 1 *)
   Definition seal_env (d d' : Addr) ll ll' p b e a b_m e_m b_r e_r : iProp Σ :=
-    (∃ d1 b1 e1 b2 e2, ⌜(d + 1 = Some d1 ∧ d + 2 = Some d')%a⌝ ∗ d ↦ₐ inr (E, b1, e1, b1) ∗ d1 ↦ₐ inr (E, b2, e2, b2) ∗
-                                let wvar := inr (RWX, ll, ll', ll) in
-                                let wcode1 := inr (p,b,e,a)%a in
-                                let wcode2 := inr (p,b,e,a ^+ length (unseal_instrs))%a in
+    (∃ d1 b1 e1 b2 e2, ⌜(d + 1 = Some d1 ∧ d + 2 = Some d')%a⌝ ∗ d ↦ₐ WCap (E, b1, e1, b1) ∗ d1 ↦ₐ WCap (E, b2, e2, b2) ∗
+                                let wvar := WCap (RWX, ll, ll', ll) in
+                                let wcode1 := WCap (p,b,e,a)%a in
+                                let wcode2 := WCap (p,b,e,a ^+ length (unseal_instrs))%a in
                                 ⌜(b1 + 8)%a = Some e1⌝ ∗ ⌜(b2 + 8)%a = Some e2⌝ ∗ ⌜(ll + 1)%a = Some ll'⌝
                                  ∗ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (unseal_instrs ++ seal_instrs 0))%a⌝
                                  ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                  ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
                                  ∗ codefrag a (unseal_instrs ++ seal_instrs 0)
-                                 ∗ b ↦ₐ inr (RO, b_r, e_r, b_r) ∗ b_r ↦ₐ inr (E, b_m, e_m, b_m)
+                                 ∗ b ↦ₐ WCap (RO, b_r, e_r, b_r) ∗ b_r ↦ₐ WCap (E, b_m, e_m, b_m)
                                  ∗ ⌜(b_r + 1)%a = Some e_r⌝)%I.
 
   (* ---------------------------------------------------------------------------------------------------------- *)
@@ -181,9 +181,9 @@ Section interval.
     (ib + 2)%a = Some ie →
     (ib + 1)%a = Some a0 →
     (z1 ≤ z2)%Z →
-    ib ↦ₐ inl z1 -∗
-    a0 ↦ₐ inl z2 -∗
-    (∀ (pbvals : list (Addr * Word)) (a1 : Addr), ⌜a1 ∉ pbvals.*1⌝ → isIntervals pbvals ==∗ isIntervals (pbvals ++ [(a1, inr (RWX, ib, ie, ib))])
+    ib ↦ₐ WInt z1 -∗
+    a0 ↦ₐ WInt z2 -∗
+    (∀ (pbvals : list (Addr * Word)) (a1 : Addr), ⌜a1 ∉ pbvals.*1⌝ → isIntervals pbvals ==∗ isIntervals (pbvals ++ [(a1, WCap (RWX, ib, ie, ib))])
                                                                                  ∗ a1 ↪(z1,z2)).
   Proof.
     iIntros (Hcond1 Hcond2 Hle) "Hi Hi'".
@@ -204,8 +204,8 @@ Section interval.
   Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ inr cap ∗ r2 ↦ᵣ w2 }}}
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ WCap (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ WCap cap ∗ r2 ↦ᵣ w2 }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
@@ -222,8 +222,8 @@ Section interval.
   Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    {{{ PC ↦ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ inr cap }}}
+    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    {{{ PC ↦ᵣ WCap (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ WCap cap }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
@@ -270,9 +270,9 @@ Section interval.
     (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι2) →
     (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι4) →
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
        ∗ r_t1 ↦ᵣ w1
        ∗ r_t2 ↦ᵣ w2
        ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
@@ -285,24 +285,24 @@ Section interval.
        ∗ interp wret
        (* malloc: required by the seal and malloc spec *)
        ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m)
-       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m))
+       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m))
        (* trusted code *)
        ∗ na_inv logrel_nais ι1 (codefrag a_first (makeint f_m))
        (* the remaining registers are all valid: required for validity *)
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ w1 = inl z1 ∧ w2 = inl z2⌝
+       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ w1 = WInt z1 ∧ w2 = WInt z2⌝
                 ∗ prefLL γ pbvals
                 ∗ b ↪ (Z.min z1 z2,Z.max z1 z2)
                 ∗ PC ↦ᵣ updatePcPerm wret
-                ∗ r_t1 ↦ᵣ inr (O,b,b,b)
-                ∗ r_env ↦ᵣ inl 0%Z
+                ∗ r_t1 ↦ᵣ WCap (O,b,b,b)
+                ∗ r_env ↦ᵣ WInt 0%Z
                 ∗ r_t0 ↦ᵣ wret
                 ∗ na_own logrel_nais ⊤
-                ∗ ([∗ map] r_i↦w_i ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]>
-                                (<[r_t8:=inl 0%Z]> (<[r_t20:=inl 0%Z]> rmap))))))), r_i ↦ᵣ w_i))
+                ∗ ([∗ map] r_i↦w_i ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]>
+                                (<[r_t8:=WInt 0%Z]> (<[r_t20:=WInt 0%Z]> rmap))))))), r_i ↦ᵣ w_i))
                -∗ WP Seq (Instr Executable) {{ Ψ }} )
     ⊢
       WP Seq (Instr Executable) {{ Φ }}.
@@ -310,9 +310,9 @@ Section interval.
     iIntros (Hexec Hsub Hwb_r Hr Hdom Hdisj Hdisj2 Hdisj3 Hdisj4 Hdisj5) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hregs
     & #Hseal_env & #HsealLL & Hown & #Hretval & #Hmalloc & #Htable & #Hprog & Hfailed & HΨ & Hφ)".
     (* prepare registers *)
-    set rmap2 := <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
-                                (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]>
-                                (<[r_t8:=inl 0%Z]> (<[r_t20:=inl 0%Z]> rmap))))))).
+    set rmap2 := <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
+                                (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]>
+                                (<[r_t8:=WInt 0%Z]> (<[r_t20:=WInt 0%Z]> rmap))))))).
     assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
     assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]";[eauto|].
@@ -403,9 +403,9 @@ Section interval.
       iInstr "Hblock".
 
       assert ((match pc_p with
-             | E => inr (RX, pc_b, pc_e, (a_mid1 ^+ 7)%a)
-             | _ => inr (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)
-               end : Word)= inr (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)) as ->;[destruct pc_p;auto;by inversion Hexec|].
+             | E => WCap (RX, pc_b, pc_e, (a_mid1 ^+ 7)%a)
+             | _ => WCap (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)
+               end : Word)= WCap (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)) as ->;[destruct pc_p;auto;by inversion Hexec|].
       assert ((a0 + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
       iGo "Hblock".
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
@@ -582,9 +582,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
        ∗ r_t1 ↦ᵣ iw
        (* ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
        ∗ (∃ w, r_t2 ↦ᵣ w)
@@ -601,24 +601,24 @@ Section interval.
        ∗ interp wret
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
-       (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)) *)
+       (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
        (* trusted code *)
        ∗ na_inv logrel_nais ι1 (codefrag a_first imin)
        (* the remaining registers are all valid *)
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = inr (p,b,e,a) ∧ w = inr (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = WCap (p,b,e,a) ∧ w = WCap (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
                 ∗ prefLL γ pbvals
                 ∗ b ↪ (z1,z2)
                 ∗ PC ↦ᵣ updatePcPerm wret
-                ∗ r_t1 ↦ᵣ inl z1
-                ∗ r_t2 ↦ᵣ inl 0%Z
-                ∗ r_t3 ↦ᵣ inl 0%Z
-                ∗ r_t4 ↦ᵣ inl 0%Z
-                ∗ r_t5 ↦ᵣ inl 0%Z
-                ∗ r_t20 ↦ᵣ inl 0%Z
-                ∗ r_env ↦ᵣ inl 0%Z
+                ∗ r_t1 ↦ᵣ WInt z1
+                ∗ r_t2 ↦ᵣ WInt 0%Z
+                ∗ r_t3 ↦ᵣ WInt 0%Z
+                ∗ r_t4 ↦ᵣ WInt 0%Z
+                ∗ r_t5 ↦ᵣ WInt 0%Z
+                ∗ r_t20 ↦ᵣ WInt 0%Z
+                ∗ r_env ↦ᵣ WInt 0%Z
                 ∗ r_t0 ↦ᵣ wret
                 ∗ na_own logrel_nais ⊤)
                -∗ WP Seq (Instr Executable) {{ Ψ }} )
@@ -718,9 +718,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
@@ -732,7 +732,7 @@ Section interval.
       ∗ interp wret
       (* malloc: only required by the seal spec *)
       (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
-      (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)) *)
+      (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (codefrag a_first imin)
       (* the remaining registers are all valid *)
@@ -786,7 +786,7 @@ Section interval.
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
     iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (inl 0%Z)).
+    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
     iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
     iSplit.
     - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.
@@ -835,9 +835,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
        ∗ r_t1 ↦ᵣ iw
        (* ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
        ∗ (∃ w, r_t2 ↦ᵣ w)
@@ -854,24 +854,24 @@ Section interval.
        ∗ interp wret
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
-       (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)) *)
+       (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
        (* trusted code *)
        ∗ na_inv logrel_nais ι1 (codefrag a_first imax)
        (* the remaining registers are all valid *)
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = inr (p,b,e,a) ∧ w = inr (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = WCap (p,b,e,a) ∧ w = WCap (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
                 ∗ prefLL γ pbvals
                 ∗ b ↪ (z1,z2)
                 ∗ PC ↦ᵣ updatePcPerm wret
-                ∗ r_t1 ↦ᵣ inl z2
-                ∗ r_t2 ↦ᵣ inl 0%Z
-                ∗ r_t3 ↦ᵣ inl 0%Z
-                ∗ r_t4 ↦ᵣ inl 0%Z
-                ∗ r_t5 ↦ᵣ inl 0%Z
-                ∗ r_t20 ↦ᵣ inl 0%Z
-                ∗ r_env ↦ᵣ inl 0%Z
+                ∗ r_t1 ↦ᵣ WInt z2
+                ∗ r_t2 ↦ᵣ WInt 0%Z
+                ∗ r_t3 ↦ᵣ WInt 0%Z
+                ∗ r_t4 ↦ᵣ WInt 0%Z
+                ∗ r_t5 ↦ᵣ WInt 0%Z
+                ∗ r_t20 ↦ᵣ WInt 0%Z
+                ∗ r_env ↦ᵣ WInt 0%Z
                 ∗ r_t0 ↦ᵣ wret
                 ∗ na_own logrel_nais ⊤)
                -∗ WP Seq (Instr Executable) {{ Ψ }} )
@@ -971,9 +971,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    {{{ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
@@ -985,7 +985,7 @@ Section interval.
       ∗ interp wret
       (* malloc: only required by the seal spec *)
       (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
-      (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ inr (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)) *)
+      (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (codefrag a_first imax)
       (* the remaining registers are all valid *)
@@ -1039,7 +1039,7 @@ Section interval.
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
     iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (inl 0%Z)).
+    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
     iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
     iSplit.
     - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.

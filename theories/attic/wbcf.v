@@ -250,10 +250,10 @@ Section wbcf.
   (* to make the proof simpler, we are assuming WLOG the r1 registers is r_t30 *)
   Lemma f3_spec W b e a pc_p pc_g pc_b pc_e :
     (* r1 ≠ PC ∧ r1 ≠ r_stk ∧ r1 ≠ r_t0 → *)
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,a-0)) ∧
-    isCorrectPC (inr ((pc_p,pc_g),pc_b,pc_e,a-199)) →
+    isCorrectPC (WCap ((pc_p,pc_g),pc_b,pc_e,a-0)) ∧
+    isCorrectPC (WCap ((pc_p,pc_g),pc_b,pc_e,a-199)) →
 
-    {{{ r_stk ↦ᵣ inr ((RWLX,Local),a-200,a-250,a-199)
+    {{{ r_stk ↦ᵣ WCap ((RWLX,Local),a-200,a-250,a-199)
       ∗ (∃ wsr, [∗ list] r_i;w_i ∈ list_difference all_registers [PC;r_stk;r_t30]; wsr,
            r_i ↦ᵣ w_i)
       ∗ (∃ ws, [[a-200, a-250]]↦ₐ[RWLX][[ws]]) 
@@ -269,23 +269,23 @@ Section wbcf.
          enable us to allocate the adversarial stack. 
        *)
       (* flag *)
-      ∗ a-179 ↦ₐ[RW] inl 0%Z
+      ∗ a-179 ↦ₐ[RW] WInt 0%Z
       (* token which states all invariants are closed *)
       ∗ na_own logrel_nais ⊤
       (* adv *)
-      ∗ r_t30 ↦ᵣ inr ((E,Global),b,e,a)
+      ∗ r_t30 ↦ᵣ WCap ((E,Global),b,e,a)
       ∗ ([∗ list] a ∈ region_addrs b e, read_write_cond a RX interp
                                         ∧ ⌜region_state_nwl W a Global⌝
                                         ∧ ⌜region_std W a⌝)
       (* trusted *)
-      ∗ PC ↦ᵣ inr ((pc_p,pc_g),pc_b,pc_e,a-0)
+      ∗ PC ↦ᵣ WCap ((pc_p,pc_g),pc_b,pc_e,a-0)
       ∗ f3 r_t30 pc_p
       (* we start out with arbitrary sts *)
       ∗ sts_full_world sts_std W
       ∗ region W
     }}}
       Seq (Instr Executable)
-    {{{ v, RET v; ⌜v = HaltedV⌝ → a-179 ↦ₐ[RW] inl 0%Z }}}.
+    {{{ v, RET v; ⌜v = HaltedV⌝ → a-179 ↦ₐ[RW] WInt 0%Z }}}.
   Proof. 
     iIntros ([Hvpc1 Hvpc2] φ)
     "(Hr_stk & Hr & Hstack & Hfresh & Hflag & Hna & Hr_t30 & #Hadv & HPC & Hprog & Hsts & Hex) Hφ".
@@ -434,7 +434,7 @@ Section wbcf.
     iApply wp_pure_step_later;auto;iNext.
     iDestruct "Hf3" as "[Hi Hf3]".
     iApply (wp_bind (fill [SeqCtx])).
-    iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ (a-26) _ (inl (z_of (a-210))) _ (inl 1%Z)
+    iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ (a-26) _ (WInt (z_of (a-210))) _ (WInt 1%Z)
            with "[Hi HPC Hr_t1]"); try addr_succ; eauto; 
       first (left;apply add_r_z_i); first apply PermFlows_refl;
       first (apply isCorrectPC_bounds with (a-0) (a-199); eauto; split; done).
@@ -514,7 +514,7 @@ Section wbcf.
     { apply not_elem_of_list, elem_of_list_here. }
     { split; (apply isCorrectPC_bounds with (a-0) (a-199); eauto; split; done). }
     iSplitL "Hr_t1 Hr_t2 Hr_t3 Hr_t4 Hr_t5 Hr_t6 Hr_gen". 
-    { iNext. iExists ((repeat (inl 0%Z) 6) ++ wsr); iSimpl. iFrame. }
+    { iNext. iExists ((repeat (WInt 0%Z) 6) ++ wsr); iSimpl. iFrame. }
     iSplitL "HPC";[iFrame|].
     iSplitL "Hi";[iExact "Hi"|].
     iNext. iIntros "(HPC & Hr_gen & _)".
@@ -537,26 +537,26 @@ Section wbcf.
     iMod (na_inv_alloc logrel_nais ⊤ (regN.@(a-200, a-209))
                        (∃ x:bool, sts_state_loc i x
                        ∗ if x then 
-                           (a-200 ↦ₐ[RWLX] inl 1%Z
-                          ∗ a-201 ↦ₐ[RWLX] inr (cap_lang.E, Global, b, e, a)
-                          ∗ a-202 ↦ₐ[RWLX] inl w_1
-                          ∗ a-203 ↦ₐ[RWLX] inl w_2
-                          ∗ a-204 ↦ₐ[RWLX] inl w_3
-                          ∗ a-205 ↦ₐ[RWLX] inl w_4a
-                          ∗ a-206 ↦ₐ[RWLX] inl w_4b
-                          ∗ a-207 ↦ₐ[RWLX] inl w_4c
-                          ∗ a-208 ↦ₐ[RWLX] inr (pc_p, pc_g, pc_b, pc_e, a-80)
-                          ∗ a-209 ↦ₐ[RWLX] inr (RWLX, Local, a-200, a-250, a-209))
+                           (a-200 ↦ₐ[RWLX] WInt 1%Z
+                          ∗ a-201 ↦ₐ[RWLX] WCap (cap_lang.E, Global, b, e, a)
+                          ∗ a-202 ↦ₐ[RWLX] WInt w_1
+                          ∗ a-203 ↦ₐ[RWLX] WInt w_2
+                          ∗ a-204 ↦ₐ[RWLX] WInt w_3
+                          ∗ a-205 ↦ₐ[RWLX] WInt w_4a
+                          ∗ a-206 ↦ₐ[RWLX] WInt w_4b
+                          ∗ a-207 ↦ₐ[RWLX] WInt w_4c
+                          ∗ a-208 ↦ₐ[RWLX] WCap (pc_p, pc_g, pc_b, pc_e, a-80)
+                          ∗ a-209 ↦ₐ[RWLX] WCap (RWLX, Local, a-200, a-250, a-209))
                          else
-                           (a-200 ↦ₐ[RWLX] inl 2%Z
-                          ∗ a-201 ↦ₐ[RWLX] inl w_1
-                          ∗ a-202 ↦ₐ[RWLX] inl w_2
-                          ∗ a-203 ↦ₐ[RWLX] inl w_3
-                          ∗ a-204 ↦ₐ[RWLX] inl w_4a
-                          ∗ a-205 ↦ₐ[RWLX] inl w_4b
-                          ∗ a-206 ↦ₐ[RWLX] inl w_4c
-                          ∗ a-207 ↦ₐ[RWLX] inr (pc_p, pc_g, pc_b, pc_e, (a-171))
-                          ∗ a-208 ↦ₐ[RWLX] inr (RWLX, Local, a-200, a-250, a-208))
+                           (a-200 ↦ₐ[RWLX] WInt 2%Z
+                          ∗ a-201 ↦ₐ[RWLX] WInt w_1
+                          ∗ a-202 ↦ₐ[RWLX] WInt w_2
+                          ∗ a-203 ↦ₐ[RWLX] WInt w_3
+                          ∗ a-204 ↦ₐ[RWLX] WInt w_4a
+                          ∗ a-205 ↦ₐ[RWLX] WInt w_4b
+                          ∗ a-206 ↦ₐ[RWLX] WInt w_4c
+                          ∗ a-207 ↦ₐ[RWLX] WCap (pc_p, pc_g, pc_b, pc_e, (a-171))
+                          ∗ a-208 ↦ₐ[RWLX] WCap (RWLX, Local, a-200, a-250, a-208))
                        )%I
             with "[Hstate Ha200 Ha201 Ha202 Ha203 Ha204 Ha205 Ha206 Ha207 Ha208 Ha209]")
       as "#Hlocal".
@@ -604,19 +604,19 @@ Section wbcf.
     }
     (* We choose the r *)
     evar (r : gmap RegName Word).
-    instantiate (r := <[PC    := inl 0%Z]>
-                     (<[r_stk := inr (RWLX, Local, a-210, a-250, a-209)]>
-                     (<[r_t0  := inr (E, Local, a-200, a-250, a-202)]>
-                     (<[r_t30 := inr (E, Global, b, e, a)]>
+    instantiate (r := <[PC    := WInt 0%Z]>
+                     (<[r_stk := WCap (RWLX, Local, a-210, a-250, a-209)]>
+                     (<[r_t0  := WCap (E, Local, a-200, a-250, a-202)]>
+                     (<[r_t30 := WCap (E, Global, b, e, a)]>
                      (create_gmap_default
-                        (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (inl 0%Z)))))).
+                        (list_difference all_registers [PC; r_stk; r_t0; r_t30]) (WInt 0%Z)))))).
     (* Helper Lemma for later *)
     assert (∀ r1, r1 ≠ r_stk → r1 ≠ PC → r1 ≠ r_t0 → r1 ≠ r_t30 →
-                  r !r! r1 = inl 0%Z) as Hr1.
+                  r !r! r1 = WInt 0%Z) as Hr1.
     { intros r1 Hr_stk HPC Hr_t0 Hr_t30. rewrite /RegLocate.
       destruct (r !! r1) eqn:Hsome; rewrite Hsome; last done.
       do 4 (rewrite lookup_insert_ne in Hsome;auto).
-      assert (Some w = Some (inl 0%Z)) as Heq.
+      assert (Some w = Some (WInt 0%Z)) as Heq.
       { rewrite -Hsome. apply create_gmap_default_lookup.
         apply elem_of_list_difference. split; first apply all_registers_correct.
         repeat (apply not_elem_of_cons;split;auto).
@@ -625,7 +625,7 @@ Section wbcf.
         by inversion Heq. 
     }
     (* We have all the resources of r *)
-    iAssert (registers_mapsto (<[PC:=inr (RX, Global, b, e, a)]> r))
+    iAssert (registers_mapsto (<[PC:=WCap (RX, Global, b, e, a)]> r))
                           with "[Hr_gen Hr_stk Hrt0 Hr1 HPC]" as "Hmaps".
     { rewrite /r /registers_mapsto (insert_insert _ PC).
       iApply (big_sepM_insert_2 with "[HPC]"); first iFrame.
@@ -656,7 +656,7 @@ Section wbcf.
       rewrite lookup_insert_ne;auto.
       assert (¬ r0 ∈ [PC; r_stk; r_t0; r_t30]).
       { repeat (apply not_elem_of_cons; split; auto). apply not_elem_of_nil. }
-      exists (inl 0%Z).
+      exists (WInt 0%Z).
       apply create_gmap_default_lookup. apply elem_of_list_difference. auto.
     }
     (* W' is the notation for the current world, where the standard STS has been extended with adv stack, 
@@ -694,7 +694,7 @@ Section wbcf.
       split;[apply related_sts_pub_refl|apply Hrelated]. 
     }
     (* We instantiate the fundamental theorem on the adversary region *)
-    iAssert (interp_expression r W' (inr (RX, Global, b, e, a)))
+    iAssert (interp_expression r W' (WCap (RX, Global, b, e, a)))
       as "Hvalid". 
     { iApply fundamental. iLeft; auto. iExists RX. assert (pwl RX = false) as ->;[auto|].
       iSplit; auto. iApply (big_sepL_mono with "Hadv"). iIntros (k y _) "(Hr & Hstd & Hsta)". iFrame.
@@ -717,7 +717,7 @@ Section wbcf.
       }
       destruct H7 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
       - iIntros "%". contradiction.
-      - assert (r !! r_stk = Some (inr (RWLX, Local, a-210, a-250, a-209))) as Hr_stk; auto. 
+      - assert (r !! r_stk = Some (WCap (RWLX, Local, a-210, a-250, a-209))) as Hr_stk; auto.
         rewrite /RegLocate Hr_stk fixpoint_interp1_eq. 
         iIntros (_). iExists RWLX. iSplitR; [auto|].
         iSplitL "Hstack_adv".
@@ -738,7 +738,7 @@ Section wbcf.
           ++ simpl. apply region_state_pwl_monotone with W'; auto. 
       - (* continuation *)
         iIntros (_). 
-        assert (r !! r_t0 = Some (inr (E, Local, a-200, a-250, a-202))) as Hr_t0; auto. 
+        assert (r !! r_t0 = Some (WCap (E, Local, a-200, a-250, a-202))) as Hr_t0; auto.
         rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
         (* prove continuation *)
         iModIntro.
@@ -1127,7 +1127,7 @@ Section wbcf.
         iDestruct "Hf3" as "[Hi Hf3]".
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_add_sub_lt_success _ r_t1 _ _ _ _ (a-117) _
-                                      (inl (z_of (a-208))) _ (inl 1%Z)
+                                      (WInt (z_of (a-208))) _ (WInt 1%Z)
            with "[Hi HPC Hr_t1]"); try addr_succ;
           [(left;apply add_r_z_i)|apply PermFlows_refl|
            (apply isCorrectPC_bounds with (a-0) (a-199); eauto; split; done)|
@@ -1301,7 +1301,7 @@ Section wbcf.
             { iApply big_sepL_forall; auto. }
             iApply (big_sepL_mono with "Htrivial").
             iIntros (k y Hsome) "_ /=".
-            assert (y = inl 0%Z) as ->;[by apply region_addrs_zeroes_lookup in Hsome|].
+            assert (y = WInt 0%Z) as ->;[by apply region_addrs_zeroes_lookup in Hsome|].
             iSplit.
             + iModIntro. iIntros (W1 W2 HW12) "_ /=". rewrite fixpoint_interp1_eq /=. done.
             + rewrite fixpoint_interp1_eq /=. done.            
@@ -1327,28 +1327,28 @@ Section wbcf.
         iSplitL "Hr_t1 Hr_t2 Hr_t3 Hr_t4 Hr_t5 Hr_t6 Hmreg'". 
         { (* TODO: make this into helper lemma *)
           iNext. iApply region_addrs_exists.
-          iDestruct (big_sepM_delete _ (<[r_t6:=inl 0%Z]>_) r_t6 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t6:=WInt 0%Z]>_) r_t6 (WInt 0%Z)
                        with "[Hr_t6 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete;iFrame. 
-          iDestruct (big_sepM_delete _ (<[r_t5:=inl 0%Z]>_) r_t5 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t5:=WInt 0%Z]>_) r_t5 (WInt 0%Z)
                        with "[Hr_t5 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete.
           rewrite delete_insert_delete. 
           repeat (rewrite -(delete_insert_ne _ _ r_t6);auto). iFrame. 
-          iDestruct (big_sepM_delete _ (<[r_t4:=inl 0%Z]>_) r_t4 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t4:=WInt 0%Z]>_) r_t4 (WInt 0%Z)
                        with "[Hr_t4 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete.
           repeat (rewrite -(delete_insert_ne _ _ r_t5);auto). iFrame.
-          iDestruct (big_sepM_delete _ (<[r_t3:=inl 0%Z]>_) r_t3 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t3:=WInt 0%Z]>_) r_t3 (WInt 0%Z)
                        with "[Hr_t3 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete.
           repeat (rewrite -(delete_insert_ne _ _ r_t4);auto). iFrame.
-          iDestruct (big_sepM_delete _ (<[r_t2:=inl 0%Z]>_) r_t2 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t2:=WInt 0%Z]>_) r_t2 (WInt 0%Z)
                        with "[Hr_t2 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete.
           repeat (rewrite -(delete_insert_ne _ _ r_t3);auto).
           repeat (rewrite (delete_commute _ _ r_t2)). iFrame. 
-          iDestruct (big_sepM_delete _ (<[r_t1:=inl 0%Z]>_) r_t1 (inl 0%Z)
+          iDestruct (big_sepM_delete _ (<[r_t1:=WInt 0%Z]>_) r_t1 (WInt 0%Z)
                        with "[Hr_t1 Hmreg']") as "Hmreg'". 
           by rewrite lookup_insert. rewrite delete_insert_delete.
           repeat (rewrite -(delete_insert_ne _ _ r_t2);auto).
@@ -1447,17 +1447,17 @@ Section wbcf.
         iDestruct (full_sts_world_is_Some_rel_std _ (a-209) with "Hsts") as %Hstd209; [eauto|].         
         iMod (update_region_revoked_temp_pwl with "[] Hsts Hex Ha209 [] Hrel209") as "[Hex Hsts]"; auto. 
         { iModIntro. iIntros (W1 W2 Hpub) "Hv". do 2 (rewrite fixpoint_interp1_eq). done. }
-        { iAssert (∀ W, interp W (inl 0%Z))%I as "Htrivial".
+        { iAssert (∀ W, interp W (WInt 0%Z))%I as "Htrivial".
           { iIntros (W0). rewrite fixpoint_interp1_eq. auto. }
           iApply "Htrivial". 
         } 
         (* We choose the r *)
         evar (r'' : gmap RegName Word).
-        instantiate (r'' := <[r_stk := inr (RWLX, Local, a-209, a-250, a-208)]>
-                          (<[r_t0  := inr (E, Local, a-200, a-250, a-201)]>
-                           (<[r_t30 := inr (E, Global, b, e, a)]> r))).
+        instantiate (r'' := <[r_stk := WCap (RWLX, Local, a-209, a-250, a-208)]>
+                          (<[r_t0  := WCap (E, Local, a-200, a-250, a-201)]>
+                           (<[r_t30 := WCap (E, Global, b, e, a)]> r))).
         (* We have all the resources of r'' *)
-        iAssert (registers_mapsto (<[PC:=inr (RX, Global, b, e, a)]> r''))
+        iAssert (registers_mapsto (<[PC:=WCap (RX, Global, b, e, a)]> r''))
                                                    with "[Hmreg' Hr_stk Hr1 Hr_t0 HPC]"
           as "Hmaps''".
         { rewrite /r'' /r.
@@ -1509,7 +1509,7 @@ Section wbcf.
             + apply related_sts_pub_priv_world. 
               apply related_sts_pub_world_revoked_temp; auto.
         }
-        iAssert (interp_expression r'' W''' (inr (RX, Global, b, e, a)))
+        iAssert (interp_expression r'' W''' (WCap (RX, Global, b, e, a)))
           as "Hvalid".
         { iApply fundamental. iLeft; auto. iExists RX. iSplit;[auto|]. 
           iApply (big_sepL_mono with "Hadv"). iIntros (k y Hsome) "(Hadv & Hperm & Hstd)". iFrame.
@@ -1534,7 +1534,7 @@ Section wbcf.
           }
           destruct H9 as [-> | [-> | [-> | [Hr_t30 | [Hnpc [Hnr_stk [Hnr_t0 Hnr_t30] ] ] ] ] ] ].
           - iIntros "%". contradiction.
-          - assert (r'' !! r_stk = Some (inr (RWLX, Local, a-209, a-250, a-208))) as Hr_stk.
+          - assert (r'' !! r_stk = Some (WCap (RWLX, Local, a-209, a-250, a-208))) as Hr_stk.
             { rewrite /r''. by rewrite lookup_insert. }
             rewrite /RegLocate Hr_stk fixpoint_interp1_eq. 
             iIntros (_). iExists RWLX. iSplitR; [auto|].
@@ -1608,7 +1608,7 @@ Section wbcf.
             clear rt1w Hrt1 rt2w Hrt2 rt0w Hrt0 rstkw Hrstk wr30 Hr30.
             clear rt3w Hrt3 rt4w Hrt4 rt5w Hrt5 rt6w Hrt6 Hr_t0. 
             iIntros (_). 
-            assert (r'' !! r_t0 = Some (inr (E, Local, a-200, a-250, a-201)))
+            assert (r'' !! r_t0 = Some (WCap (E, Local, a-200, a-250, a-201)))
               as Hr_t0; auto. 
             rewrite /RegLocate Hr_t0 fixpoint_interp1_eq. iSimpl. 
             (* prove continuation *)
@@ -1800,7 +1800,7 @@ Section wbcf.
             { repeat (rewrite lookup_delete_ne;auto).
               rewrite lookup_insert_ne;auto. }
             rewrite delete_insert_delete.
-            rewrite -(delete_insert_delete r3 PC (inr (pc_p, pc_g, pc_b, pc_e, a- 174))).
+            rewrite -(delete_insert_delete r3 PC (WCap (pc_p, pc_g, pc_b, pc_e, a- 174))).
             do 2 rewrite (delete_commute _ _ PC). 
             iDestruct (big_sepM_delete _ _ PC with "[$Hmreg $HPC]") as "Hmreg".
             { do 2 (rewrite lookup_delete_ne;auto).
@@ -1811,7 +1811,7 @@ Section wbcf.
             { rewrite lookup_delete_ne;auto.
               rewrite lookup_insert;auto. }
             rewrite -(delete_insert_delete _ r_stk
-                                           (inr (RWLX, Local, a- 200, a- 250, a- 200))).
+                                           (WCap (RWLX, Local, a- 200, a- 250, a- 200))).
             iDestruct (big_sepM_delete _ _ r_stk with "[$Hmreg $Hr_stk]") as "Hmreg".
             { rewrite lookup_insert;auto. }
             (* frame *)
@@ -1830,7 +1830,7 @@ Section wbcf.
             rewrite lookup_insert_ne;[|auto].
             iApply "Hfull3". 
           - rewrite Hr_t30.
-            assert (r'' !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto.
+            assert (r'' !! r_t30 = Some (WCap (E, Global, b, e, a))) as Hr_t30_some; auto.
             rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
             iIntros (_). 
             iModIntro. rewrite /enter_cond.
@@ -1873,7 +1873,7 @@ Section wbcf.
         iPureIntro.
         apply related_sts_priv_trans_world with W'''; auto. 
       - rewrite Hr_t30. 
-        assert (r !! r_t30 = Some (inr (E, Global, b, e, a))) as Hr_t30_some; auto. 
+        assert (r !! r_t30 = Some (WCap (E, Global, b, e, a))) as Hr_t30_some; auto.
         rewrite /RegLocate Hr_t30_some fixpoint_interp1_eq. iSimpl. 
         iIntros (_). 
         iModIntro. rewrite /enter_cond.
