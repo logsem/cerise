@@ -36,6 +36,13 @@ Definition Sealed: Type :=
 
 Definition Word := (Z + Sealable + Sealed)%type. (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
 
+(* Sugar for parts of word *)
+Notation put_z z := (inl (inl z)) (only parsing).
+Notation put_sealb sb := (inl (inr sb)) (only parsing).
+Notation put_cap c := (inl (inr (inl c))) (only parsing).
+Notation put_sealr sr := (inl (inr (inr sr))) (only parsing).
+Notation put_sealed sd := (inr sd) (only parsing).
+
 Inductive instr: Type :=
 | Jmp (r: RegName)
 | Jnz (r1 r2: RegName)
@@ -88,7 +95,11 @@ Proof. solve_decision. Defined.
 
 
 Ltac destruct_word w :=
-  destruct w as [ [? | [? | ?] ] | ?].
+  let z := fresh "z" in
+  let c := fresh "c" in
+  let sr := fresh "sr" in
+  let sd := fresh "sd" in
+  destruct w as [ [z | [c | sr] ] | sd].
 Ltac destruct_cap c :=
   let p := fresh "p" in
   let b := fresh "b" in
@@ -96,11 +107,9 @@ Ltac destruct_cap c :=
   let a := fresh "a" in
   destruct c as (((p & b) & e) & a).
 
-
 (***** Identifying and extracting parts of words *****)
 
 (* Z <-> Word *)
-Notation put_z z := (inl (inl z)).
 Definition get_z (w : Word) : option Z :=
   match w with
   | put_z z => Some z
@@ -117,7 +126,6 @@ Lemma get_put_z (z : Z) : get_z (put_z z) = Some z.
 Proof. done. Qed.
 
 (* Sealable <-> Word *)
-Notation put_sealb sb := (inl (inr sb)).
 Definition get_sealb (w : Word) : option Sealable :=
   match w with
   | put_sealb sb => Some sb
@@ -133,7 +141,6 @@ Lemma get_put_sealb (sb : Sealable) : get_sealb (put_sealb sb) = Some sb.
 Proof. done. Qed.
 
 (* Capability <-> Word *)
-Notation put_cap c := (inl (inr (inl c))).
 Definition get_cap (w : Word) : option Cap :=
   match w with
   | put_cap c => Some c
@@ -149,7 +156,6 @@ Lemma get_put_cap (c : Cap) : get_cap (put_cap c) = Some c.
 Proof. done. Qed.
 
 (* SealRange <-> Word *)
-Notation put_sealr sr := (inl (inr (inr sr))).
 Definition get_sealr (w : Word) : option SealRange :=
   match w with
   | put_sealr sr => Some sr
@@ -165,7 +171,6 @@ Lemma get_put_sealr (sr : SealRange) : get_sealr (put_sealr sr) = Some sr.
 Proof. done. Qed.
 
 (* Sealed <-> Word *)
-Notation put_sealed sd := (inr sd).
 Definition get_sealed (w : Word) : option Sealed :=
   match w with
   | put_sealed sd => Some sd
