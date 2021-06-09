@@ -355,4 +355,29 @@ Section logrel.
       iFrame. iApply inv_alloc. iNext. iExists w. iFrame.
   Qed.
 
+  (* Get the validity of a region containing only integers *)
+  Lemma region_integers_alloc E (b e a: Addr) l p :
+    Forall (λ w, is_cap w = false) l →
+    PermFlowsTo RO p →
+    ([∗ list] a;w ∈ region_addrs b e;l, a ↦ₐ w) ={E}=∗
+    interp (inr (p, b, e, a)).
+  Proof.
+    iIntros (Hl Hp) "H".
+    iMod (region_inv_alloc with "[H]") as "H".
+    { iApply (big_sepL2_mono with "H").
+      intros k v1 v2 ? Hlk. cbn. iIntros. iFrame.
+      pose proof (Forall_lookup_1 _ _ _ _ Hl Hlk) as HH.
+      cbn in HH. destruct v2; [| by inversion HH].
+      rewrite fixpoint_interp1_eq //. }
+    iDestruct (big_sepL2_length with "H") as %?.
+    iDestruct (big_sepL2_to_big_sepL_l with "H") as "H"; auto.
+
+    iModIntro. rewrite fixpoint_interp1_eq //.
+    destruct p; cbn; eauto; try by inversion Hp.
+    all: iApply (big_sepL_mono with "H").
+    all: iIntros (k a' Hk) "H"; cbn.
+    all: iExists (fixpoint interp1); iFrame.
+    all: try iSplit; iNext; iModIntro; eauto.
+  Qed.
+
 End logrel.

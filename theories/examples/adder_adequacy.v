@@ -165,17 +165,9 @@ Section Adequacy.
     { iNext. eauto. }
 
     (* Establish that the adversary region is valid *)
-
-    iMod (region_inv_alloc with "[Hadv]") as "Hadv".
-    { iApply (big_sepL2_mono with "Hadv").
-      intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
-      pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
-      destruct v2; [| by inversion Hncap].
-      rewrite fixpoint_interp1_eq /=. done. }
-    iDestruct "Hadv" as "#Hadv".
+    iMod (region_integers_alloc _ adv_start adv_end adv_start _ RWX with "Hadv") as "#Hadv"; auto.
 
     (* Prepare the registers *)
-
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hr1 & Hr3 & Hrothers).
     iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
@@ -209,7 +201,7 @@ Section Adequacy.
 
     (* Use the resources to instantiate the spec and obtain a WP *)
 
-    iPoseProof (Spec with "[$HPC $Hr0 $Hr1 $Hr2 $Hr3 $Hreg $Hna $Hf $Hg $Hact]")
+    iPoseProof (Spec with "[$HPC $Hr0 $Hr1 $Hr2 $Hr3 $Hreg $Hna $Hf $Hg $Hact $Hinv $Hadv]")
       as "SpecWP".
     { apply contiguous_between_region_addrs. generalize g_size; clear; solve_addr. }
     { apply contiguous_between_region_addrs. generalize f_size; clear; solve_addr. }
@@ -218,12 +210,6 @@ Section Adequacy.
     { generalize f_size; clear; solve_addr. }
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+.
       apply Hreg_full. }
-    { iFrame "Hinv". rewrite fixpoint_interp1_eq /=.
-      iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite region_addrs_length /region_size.
-        generalize adv_size. clear; solve_addr. }
-      iApply (big_sepL_mono with "Hadv'"). iIntros (? ? ?) "Hw". cbn.
-      iExists _. iFrame "Hw". iSplit; eauto. }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
 
