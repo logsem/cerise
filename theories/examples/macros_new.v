@@ -371,6 +371,82 @@ Section macros.
     iSplitL. iNext. eauto. eauto.
   Qed.
 
+  (* -------------------------------------- RCLEAR ----------------------------------- *)
+  (* the following macro clears registers in r. a denotes the list of addresses
+     containing the instructions for the clear: |a| = |r| *)
+  Definition rclear_instrs (r : list RegName) :=
+    encodeInstrsW (map (λ r_i, Mov r_i 0) r).
+
+  Lemma rclear_instrs_cons rr r: rclear_instrs (rr :: r) = encodeInstrW (Mov rr 0) :: rclear_instrs r.
+  Proof. reflexivity. Qed.
+
+  Lemma rclear_spec (r: list RegName) (rmap : gmap RegName Word) pc_p pc_b pc_e a_first φ :
+    PC ∉ r →
+    r ≠ [] →
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (rclear_instrs r))%a →
+    list_to_set r = dom (gset RegName) rmap →
+
+      ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+    ∗ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    ∗ ▷ codefrag a_first (rclear_instrs r)
+    ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,(a_first ^+ length (rclear_instrs r))%a)
+            ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ inl 0%Z)
+            ∗ codefrag a_first (rclear_instrs r)
+            -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢ WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hne Hnnil Hepc Hbounds Hrdom) "(>Hreg & >HPC & >Hrclear & Hφ)".
+    iRevert (Hbounds Hrdom).
+    iInduction (r) as [| r0 r'] "IH" forall (rmap a_first).
+    { congruence. }
+
+    iIntros (? Hrdom). cbn [list_to_set] in Hrdom.
+    assert (is_Some (rmap !! r0)) as [r0v Hr0].
+    { apply elem_of_gmap_dom. rewrite -Hrdom. set_solver. }
+    iDestruct (big_sepM_delete _ _ r0 with "Hreg") as "[Hr0 Hreg]". by eauto.
+    codefrag_facts "Hrclear".
+    iInstr "Hrclear". transitivity (Some (a_first ^+ 1)%a); auto. solve_addr.
+    destruct (decide (r' = [])).
+    { subst r'. iApply "Hφ". iFrame. iApply (big_sepM_delete _ _ r0); eauto. iFrame.
+      rewrite (_: delete r0 rmap = ∅) //. apply dom_empty_inv_L.
+      rewrite dom_delete_L -Hrdom. set_solver. }
+
+    iAssert (codefrag (a_first ^+ 1)%a (rclear_instrs r') ∗
+             (codefrag (a_first ^+ 1)%a (rclear_instrs r') -∗ codefrag a_first (rclear_instrs (r0 :: r'))))%I
+    with "[Hrclear]" as "[Hrclear Hcont]".
+    { cbn. unfold codefrag. rewrite (region_mapsto_cons _ (a_first ^+ 1)%a). 2,3: solve_addr.
+      iDestruct "Hrclear" as "[? Hr]".
+      rewrite (_: ((a_first ^+ 1) ^+ (length (rclear_instrs r')))%a =
+                    (a_first ^+ (S (length (rclear_instrs r'))))%a). 2: solve_addr.
+      iFrame. eauto. }
+
+    match goal with H : SubBounds _ _ _ _ |- _ =>
+      rewrite (_: (a_first ^+ (length (rclear_instrs (r0 :: r'))))%a =
+                  ((a_first ^+ 1)%a ^+ length (rclear_instrs r'))%a) in H |- *
+    end.
+    2: unfold rclear_instrs; cbn; solve_addr.
+
+    destruct (decide (r0 ∈ r')).
+    { iDestruct (big_sepM_insert _ _ r0 with "[Hr0 $Hreg]") as "Hreg".
+      by rewrite lookup_delete//. by iFrame.
+      iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont]"); eauto.
+      { iPureIntro. set_solver. }
+      { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
+        iFrame. iDestruct ("Hcont" with "Hcode") as "Hcode". iFrame.
+        iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete//.
+        iApply (big_sepM_delete _ _ r0). done. iFrame. }
+      { iPureIntro. solve_pure_addr. }
+      { rewrite insert_delete. iPureIntro. set_solver. } }
+    { iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont Hr0]"); eauto.
+      { iPureIntro. set_solver. }
+      { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
+        iFrame. iDestruct ("Hcont" with "Hcode") as "Hcode". iFrame.
+        iApply (big_sepM_delete _ _ r0). done. iFrame. }
+      { iPureIntro. solve_pure_addr. }
+      {  iPureIntro. set_solver. } }
+  Qed.
+
   (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- CRTCLS ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
