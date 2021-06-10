@@ -18,8 +18,8 @@ Section cap_lang_spec_rules.
   
   Lemma step_Subseg Ep K pc_p pc_b pc_e pc_a w dst src1 src2 regs :
     decodeInstrW w = Subseg dst src1 src2 ->
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (Subseg dst src1 src2) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -42,7 +42,7 @@ Section cap_lang_spec_rules.
     unfold regs_of in Hri, Dregs.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     assert (Hstep':=Hstep). 
-    destruct wdst as [| cdst]; [| destruct_cap cdst].
+    destruct wdst as [| cdst].
     { rewrite /= /RegLocate Hdst in Hstep. repeat case_match; inv Hstep; simplify_pair_eq.
       all: iFailStep Subseg_fail_dst_noncap. }
     
@@ -99,8 +99,8 @@ Section cap_lang_spec_rules.
       all: iFailStep Subseg_fail_src2_nonaddr. }
     eapply addr_of_argument_Some_inv' in Ha2 as [z2 [Hz2 Hz2']]; eauto. 
     
-    assert ((c, σ2) = if isWithin a1 a2 cdst2 cdst1 then
-                        updatePC (update_reg (σr, σm) dst (WCap (cdst, a1, a2, cdst0))) else
+    assert ((c, σ2) = if isWithin a1 a2 b e then
+                        updatePC (update_reg (σr, σm) dst (WCap cdst a1 a2 a)) else
                         (Failed, (σr, σm)))
       as Hexec.
     { rewrite -Hstep; clear Hstep. 
@@ -111,10 +111,10 @@ Section cap_lang_spec_rules.
       all: repeat case_match; auto; simplify_eq; auto; congruence. }
     
     clear Hstep.
-    destruct (isWithin a1 a2 cdst2 cdst1) eqn:Hiw; cycle 1.
+    destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1.
     { inv Hexec. iFailStep Subseg_fail_not_iswithin. }
     
-    destruct (incrementPC (<[ dst := (WCap (cdst, a1, a2, cdst0)) ]> regs)) eqn:HX;
+    destruct (incrementPC (<[ dst := (WCap cdst a1 a2 a) ]> regs)) eqn:HX;
       pose proof HX as H'X; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in HX.
       eapply updatePC_fail_incl with (m':=σm) in HX.
@@ -129,7 +129,7 @@ Section cap_lang_spec_rules.
     eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto.
     simplify_pair_eq. iFrame.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap (p', g', b', a''))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
@@ -141,7 +141,7 @@ Section cap_lang_spec_rules.
 
   Lemma step_subseg_success E K pc_p pc_b pc_e pc_a w dst r1 r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inr r2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 ∧ z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
@@ -149,17 +149,17 @@ Section cap_lang_spec_rules.
     nclose specN ⊆ E →
     
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ dst ↣ᵣ WCap (p,b,e,a)
+             ∗ ▷ dst ↣ᵣ WCap p b e a
              ∗ ▷ r1 ↣ᵣ WInt n1
              ∗ ▷ r2 ↣ᵣ WInt n2
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
         ∗ r1 ↣ᵣ WInt n1
         ∗ r2 ↣ᵣ WInt n2
-        ∗ dst ↣ᵣ WCap (p, a1, a2, a).
+        ∗ dst ↣ᵣ WCap p a1 a2 a.
   Proof. 
     iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2)".
     iDestruct (map_of_regs_4 with "HPC Hr1 Hr2 Hdst") as "[Hmap (%&%&%&%&%&%)]".

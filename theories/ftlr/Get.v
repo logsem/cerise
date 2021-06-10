@@ -36,7 +36,6 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate. }
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
-      destruct c as (((p1 & b1) & e1) & a1).
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       simplify_map_eq.
       iApply ("IH" $! (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hown]");

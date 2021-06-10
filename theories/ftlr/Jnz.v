@@ -14,14 +14,6 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
-  
-  (* TODO: Move somewhere *)
-  Ltac destruct_cap c :=
-    let p := fresh "p" in
-    let b := fresh "b" in
-    let e := fresh "e" in
-    let a := fresh "a" in
-    destruct c as (((p & b) & e) & a).
 
   Lemma jnz_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (r1 r2 : RegName) (P : D):
@@ -51,7 +43,7 @@ Section fundamental.
       destruct Hp as [-> | ->];iFrame "Hinv". }
     { simplify_map_eq. iApply wp_pure_step_later; auto.
       rewrite !insert_insert.
-      destruct (updatePcPerm w') as [n0|c0] eqn:Hw.
+      destruct (updatePcPerm w') as [n0|p0] eqn:Hw.
       { iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
@@ -60,9 +52,9 @@ Section fundamental.
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iNext. iIntros. discriminate. }
-      { destruct_cap c0. destruct (PermFlowsTo RX p0) eqn:Hpft.
+      { destruct (PermFlowsTo RX p0) eqn:Hpft.
         { destruct w'; simpl in Hw; try discriminate.
-          destruct_cap c. assert (Heq: (if perm_eq_dec p0 p1 then True else p0 = RX /\ p1 = E) /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) by (destruct (perm_eq_dec p0 p1); destruct p1; inv Hw; simpl in Hpft; try congruence; auto; repeat split; auto).
+          assert (Heq: (if perm_eq_dec p0 p1 then True else p0 = RX /\ p1 = E) /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) by (destruct (perm_eq_dec p0 p1); destruct p1; inv Hw; simpl in Hpft; try congruence; auto; repeat split; auto).
           clear Hw. destruct (perm_eq_dec p0 p1); [subst p1; destruct Heq as (_ & -> & -> & ->)| destruct Heq as ((-> & ->) & -> & -> & ->)].
           { iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.

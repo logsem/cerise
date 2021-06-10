@@ -20,7 +20,7 @@ Definition prog_region (P: initial_prog): gmap Addr Word :=
   mkregion (prog_start P) (prog_end P) (prog P).
 
 Definition is_initial_registers (P: initial_prog) (reg: gmap RegName Word) :=
-  reg !! PC = Some (WCap (RWX, prog_start P, prog_end P, prog_start P)) ∧
+  reg !! PC = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P)) ∧
   (∀ (r: RegName), r ∉ ({[ PC ]} : gset RegName) →
      ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
@@ -110,7 +110,7 @@ Section Adequacy.
     (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
      dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]} →
      ⊢ inv invN (minv_sep I)
-       ∗ PC ↦ᵣ WCap (RWX, prog_start P, prog_end P, prog_start P)
+       ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
        ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
@@ -216,7 +216,7 @@ Theorem template_adequacy `{MachineParameters}
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
    dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]} →
    ⊢ inv invN (minv_sep I)
-     ∗ PC ↦ᵣ WCap (RWX, prog_start P, prog_end P, prog_start P)
+     ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
      ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
      -∗ WP Seq (Instr Executable) {{ λ _, True }}) →

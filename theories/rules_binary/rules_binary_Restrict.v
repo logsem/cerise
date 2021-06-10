@@ -17,8 +17,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_Restrict Ep K pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Restrict dst src ->
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (Restrict dst src) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -41,7 +41,7 @@ Section cap_lang_spec_rules.
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
     unfold regs_of in Hri, Dregs. assert (Hstep':=Hstep). 
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
-    destruct wdst as [| cdst]; [| destruct_cap cdst].
+    destruct wdst as [| cdst].
     { rewrite /= /RegLocate Hdst in Hstep.
       destruct src; inv Hstep; simplify_pair_eq.
       all: iFailStep Restrict_fail_dst_noncap. }
@@ -50,7 +50,7 @@ Section cap_lang_spec_rules.
       pose proof Hwsrc as H'wsrc; cycle 1.
     { destruct src as [| r0]; cbn in Hwsrc; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hwsrc. destruct r0v as [| cc]; [ congruence | destruct_cap cc].
+      rewrite Hr'0 in Hwsrc. destruct r0v as [| cc]; [ congruence |].
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
       { rewrite /= /RegLocate Hdst Hr0 in Hstep. by simplify_pair_eq. }
       iFailStep Restrict_fail_src_nonz. }
@@ -59,21 +59,21 @@ Section cap_lang_spec_rules.
     destruct (decide (cdst = E)).
     { subst cdst. cbn in Hstep. rewrite /RegLocate Hdst in Hstep.
       repeat case_match; inv Hstep; iFailStep Restrict_fail_pE. }
-    
+
     destruct (PermFlowsTo (decodePerm wsrc) cdst) eqn:Hflows; cycle 1.
     { rewrite /= /RegLocate Hdst in Hstep.
       destruct Hwsrc as [ -> | (r0 & -> & Hr0 & Hr0') ].
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; iFailStep Restrict_fail_invalid_perm. }
     
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (WCap (decodePerm wsrc, cdst2, cdst1, cdst0)))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (WCap (decodePerm wsrc) b e a))) as HH.
     { rewrite /= /RegLocate Hdst in Hstep.
       destruct Hwsrc as [ -> | (r0 & -> & Hr0 & Hr0') ].
       all: rewrite ?Hr0' Hflows in Hstep.
       all: repeat case_match; inv Hstep; eauto; congruence. }
     clear Hstep. rewrite /update_reg /= in HH.
 
-    destruct (incrementPC (<[ dst := WCap (decodePerm wsrc, cdst2, cdst1, cdst0) ]> regs)) eqn:Hregs';
+    destruct (incrementPC (<[ dst := WCap (decodePerm wsrc) b e a ]> regs)) eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
@@ -100,20 +100,20 @@ Section cap_lang_spec_rules.
 
   Lemma step_restrict_success_z Ep K pc_p pc_b pc_e pc_a pc_a' w r1 p b e a z :
      decodeInstrW w = Restrict r1 (inl z) →
-     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
      p ≠ E →
      nclose specN ⊆ Ep →
     
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
+              ∗ ▷ r1 ↣ᵣ WCap p b e a
      ={Ep}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
          ∗ pc_a ↣ₐ w
-         ∗ r1 ↣ᵣ WCap (decodePerm z,b,e,a).
+         ∗ r1 ↣ᵣ WCap (decodePerm z) b e a.
   Proof.
     iIntros (Hinstr Hvpc Hpca' Hflows HpE Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".

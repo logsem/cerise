@@ -44,7 +44,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Jnz _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
@@ -79,7 +79,7 @@ Section fundamental.
         case_eq (isCorrectPCb (updatePcPerm w'0)); intro HPCb.
         + destruct (reg_eq_dec dst PC).
           * subst dst. rewrite lookup_insert in H1; inv H1.
-            replace (updatePcPerm (WCap (p, b, e, a))) with ((WCap (p, b, e, a)):Word); [|destruct Hp; subst p; auto].
+            replace (updatePcPerm (WCap p b e a)) with ((WCap p b e a):Word); [|destruct Hp; subst p; auto].
             iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
             iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
             { iPureIntro. simpl. intros reg. destruct Hsome with reg; auto. }
@@ -92,10 +92,10 @@ Section fundamental.
           * assert (H1' := H1). rewrite lookup_insert_ne in H1; auto.
             rewrite Heq lookup_insert_ne in H1'; auto.
             destruct w'0; simpl in HPCb; [congruence|].
-            destruct_cap c. destruct (perm_eq_dec c E).
-            { subst c. iDestruct ("Hreg" $! dst with "[]") as "Hinvdst"; [iPureIntro; auto|].
+            destruct (perm_eq_dec p0 E).
+            { subst p0. iDestruct ("Hreg" $! dst with "[]") as "Hinvdst"; [iPureIntro; auto|].
               rewrite /RegLocate H1 H1'.
-              rewrite /interp (fixpoint_interp1_eq (WCap (E,_,_,_), WCap _)) /=.
+              rewrite /interp (fixpoint_interp1_eq (WCap E _ _ _, WCap _ _ _ _)) /=.
               iDestruct "Hinvdst" as (_) "Hinvdst".
               iDestruct ("Hinvdst" $! (r1, r2)) as "Hinvdst'".
               iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
@@ -103,10 +103,10 @@ Section fundamental.
               - iSplitR.
                 + iSplit; [iPureIntro; simpl; auto|].
                   iApply "Hreg".
-                + replace (<[PC:=WCap (RX, c2, c1, c0)]> r2) with (<[PC:=WCap (RX, c2, c1, c0)]> r1); auto.
+                + replace (<[PC:=WCap RX b0 e0 a0]> r2) with (<[PC:=WCap RX b0 e0 a0]> r1); auto.
                   unfold_leibniz. eapply map_eq. intros.
                   destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert; auto|rewrite !lookup_insert_ne; auto].
-                  assert (<[PC:=WCap (p, b, e, a)]> r1 !! i = <[PC:=WCap (p, b, e, a)]> r2 !! i).
+                  assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                   { rewrite Heq; auto. }
                   rewrite !lookup_insert_ne in H3; auto.
               - iDestruct "Hinvdst''" as (_) "$". }
@@ -114,11 +114,11 @@ Section fundamental.
               rewrite /RegLocate H1 H1'.
               iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
               iApply ("IH" $! (r1,r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]"); simpl; auto.
-              - destruct c; auto. congruence.
-              - replace (<[PC:=WCap (c, c2, c1, c0)]> r2) with (<[PC:=WCap (c, c2, c1, c0)]> r1); [destruct c; auto; congruence|].
+              - destruct p0; auto. congruence.
+              - replace (<[PC:=WCap p0 b0 e0 a0]> r2) with (<[PC:=WCap p0 b0 e0 a0]> r1); [destruct p0; auto; congruence|].
                 unfold_leibniz. eapply map_eq. intros.
                 destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert; auto|rewrite !lookup_insert_ne; auto].
-                assert (<[PC:=WCap (p, b, e, a)]> r1 !! i = <[PC:=WCap (p, b, e, a)]> r2 !! i).
+                assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                 { rewrite Heq; auto. }
                 rewrite !lookup_insert_ne in H3; auto. }
         + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.

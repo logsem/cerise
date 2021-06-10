@@ -72,7 +72,7 @@ Section SimpleMalloc.
     (∃ b_m a_m,
        codefrag b malloc_subroutine_instrs
      ∗ ⌜(b + malloc_subroutine_instrs_length)%a = Some b_m⌝
-     ∗ b_m ↦ₐ (WCap (RWX, b_m, e, a_m))
+     ∗ b_m ↦ₐ (WCap RWX b_m e a_m)
      ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝
     )%I.
@@ -85,7 +85,7 @@ Section SimpleMalloc.
      ∗ na_own logrel_nais E
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
      ∗ r_t0 ↦ᵣ cont
-     ∗ PC ↦ᵣ WCap (RX, b, e, b)
+     ∗ PC ↦ᵣ WCap RX b e b
      ∗ r_t1 ↦ᵣ wsize
      ∗ ▷ ((na_own logrel_nais E
           ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
@@ -97,7 +97,7 @@ Section SimpleMalloc.
           ∗ (∃ (ba ea : Addr) size,
             ⌜wsize = WInt size⌝
             ∗ ⌜(ba + size)%a = Some ea⌝
-            ∗ r_t1 ↦ᵣ WCap (RWX, ba, ea, ba)
+            ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
             ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
           -∗ WP Seq (Instr Executable) {{ φ }}))
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
@@ -237,7 +237,7 @@ Section SimpleMalloc.
     
   Lemma simple_malloc_subroutine_valid N b e :
     na_inv logrel_nais N (malloc_inv b e) -∗
-    interp (WCap (E,b,e,b)).
+    interp (WCap E b e b).
   Proof.
     iIntros "#Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.

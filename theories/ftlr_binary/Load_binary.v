@@ -54,9 +54,9 @@ Section fundamental.
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (src : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=WCap (p, b, e, a)]> r) src p0 b0 e0 a0
+      read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0
       → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1,r !r! r1))
-          -∗ ∃ P, allow_load_res src (<[PC:=WCap (p, b, e, a)]> r) a a0 p0 b0 e0 P.
+          -∗ ∃ P, allow_load_res src (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0 P.
   Proof.
     intros r p b e a src p0 b0 e0 a0 HVsrc.
     iIntros "#Hreg". rewrite /allow_load_res.
@@ -165,8 +165,8 @@ Section fundamental.
     - iNext. iFrame.
   Qed.
 
-  Instance if_Persistent p b e a r src p0 b0 e0 a0 loadv: Persistent (if decide (reg_allows_load (<[PC:=WCap (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
-  Proof. intros. destruct (decide (reg_allows_load (<[PC:=WCap (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a));apply _. Qed.
+  Instance if_Persistent p b e a r src p0 b0 e0 a0 loadv: Persistent (if decide (reg_allows_load (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
+  Proof. intros. destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0 ∧ a0 ≠ a));apply _. Qed.
 
   Lemma mem_map_recover_res:
     ∀ (r : leibnizO Reg)
@@ -207,17 +207,14 @@ Section fundamental.
     (regs = regs' ∨ retv = FailedV) ∧ retv = retv'.
   Proof.
     intros Hspec1 Hspec2.
-    inversion Hspec1; inversion Hspec2;subst; simplify_eq.
-    - split;auto. inversion H0; inversion H4; simplify_map_eq. auto.
-    - inversion H0; inversion X.
-      + rewrite H3 in H5. inversion H5.
-      + simplify_eq. destruct H4. destruct H6;congruence.
-      + inversion H0; simplify_map_eq.
-    - inversion H1; inversion X.
-      + rewrite H0 in H5. inversion H5.
-      + simplify_eq. destruct H4. destruct H6;congruence.
-      + inversion H0; simplify_map_eq.
-    - split;auto.
+    inversion Hspec1; inversion Hspec2;subst; simplify_eq;
+      repeat match goal with
+        | H : reg_allows_load _ _ _ _ _ _ |- _ => inversion H; clear H
+        | H : Load_failure _ _ _ _ |- _ => inversion H; clear H
+        end;
+      split_and?; auto;
+      simplify_map_eq;
+      destruct_and?; destruct_or?; try congruence; auto.
   Qed.
 
   Lemma load_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -232,7 +229,7 @@ Section fundamental.
 
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=WCap (p, b, e, a)]> r.1 !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r.1 !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
@@ -240,11 +237,11 @@ Section fundamental.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=WCap (p, b, e, a)]> r.1) src p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
+    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=WCap p b e a]> r.1) src p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].
-      unfold read_reg_inr. destruct wsrc. 2: destruct c,p0,p0. all: repeat eexists.
+      unfold read_reg_inr. destruct wsrc. all: repeat eexists.
       right. by exists z. by left.
     }
 
@@ -272,7 +269,7 @@ Section fundamental.
     iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     (* we take a step in the specification code *)
     iMod (step_Load _ [SeqCtx] with "[$HLoadRest' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs & #Hmovspec & Ha' & Hsmap) /=";eauto.
@@ -280,7 +277,7 @@ Section fundamental.
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
-    { destruct (decide (reg_allows_load (<[PC:=WCap (p, b, e, a)]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
+    { destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
     iDestruct "Hmovspec" as %HSpec'.
 
     specialize (Load_spec_determ _ _ _ _ _ _ _ _ HSpec HSpec') as [Hregs <-].
@@ -293,7 +290,7 @@ Section fundamental.
       destruct Hincr as (?&?&?&?&?&?&?&?).
       iApply wp_pure_step_later; auto.
       iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=".
-      { destruct (decide (reg_allows_load (<[PC:=WCap (p, b, e, a)]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
+      { destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
       specialize (load_inr_eq H0 HVsrc) as (-> & -> & -> & ->).
       rewrite /allow_load_res.
       (* Step 5: return all the resources we had in order to close the second location in the region, in the cases where we need to *)
@@ -353,7 +350,7 @@ Section fundamental.
       }
     }
     { rewrite /allow_load_res /allow_load_mem.
-      destruct (decide (reg_allows_load (<[PC:=WCap (p, b, e, a)]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HLoadMem" as "(_&H)".
         iDestruct "H" as (w' w'') "(->&Hres&Hinterp)". rewrite /region_open_resources.
         destruct a1. rewrite memMap_resource_2ne// rules_base.memMap_resource_2ne//.

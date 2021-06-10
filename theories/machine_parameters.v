@@ -24,7 +24,7 @@ Definition decodeInstrW `{MachineParameters} : Word → instr :=
   fun w =>
     match w with
     | WInt z => decodeInstr z
-    | WCap _ => Fail
+    | WCap _ _ _ _ => Fail
     end.
 
 Definition encodeInstrW `{MachineParameters} : instr → Word :=

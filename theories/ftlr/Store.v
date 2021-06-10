@@ -60,9 +60,9 @@ Section fundamental.
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (r1 : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=WCap (p, b, e, a)]> r) r1 p0 b0 e0 a0
+      read_reg_inr (<[PC:=WCap p b e a]> r) r1 p0 b0 e0 a0
       → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))
-          -∗ allow_store_res r1 (<[PC:=WCap (p, b, e, a)]> r) a a0 p0 b0 e0.
+          -∗ allow_store_res r1 (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0.
   Proof.
     intros r p b e a r1 p0 b0 e0 a0 HVr1.
     iIntros "#Hreg".
@@ -185,7 +185,7 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=WCap (p, b, e, a)]> r !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
@@ -193,15 +193,15 @@ Section fundamental.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap (p, b, e, a)]> r) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
+    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
     {
       specialize Hsome' with dst as Hdst.
       destruct Hdst as [wdst Hsomedst].
-      unfold read_reg_inr. destruct wdst. 2: destruct_cap c. all: repeat eexists.
+      unfold read_reg_inr. destruct wdst. all: repeat eexists.
       right. by exists z. by left.
     }
 
-     assert (∃ storev, word_of_argument (<[PC:=WCap (p, b, e, a)]> r) src = Some storev) as [storev Hwoa].
+     assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> r) src = Some storev) as [storev Hwoa].
     { destruct src; cbn.
       - by exists (WInt z).
       - specialize Hsome' with r0 as Hr0.
@@ -235,7 +235,7 @@ Section fundamental.
       (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=WCap (x, x0, x1, x2)]> r !! r0) eqn:Hsomer0;simplify_map_eq.
+        simplify_map_eq. destruct (<[PC:=WCap x x0 x1 x2]> r !! r0) eqn:Hsomer0;simplify_map_eq.
         destruct (decide (r0 = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".
         - simplify_map_eq. iSpecialize ("Hreg" $! _ n).
@@ -269,7 +269,7 @@ Section fundamental.
       { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
     { rewrite /allow_store_res /allow_store_mem.
-      destruct (decide (reg_allows_store (<[PC:=WCap (p, b, e, a)]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HStoreMem" as "(%&H)".
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         destruct a1. simplify_map_eq. rewrite memMap_resource_2ne; last auto.
@@ -286,7 +286,7 @@ Section fundamental.
     { (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=WCap (p,b,e,a)]> r !! r0) eqn:Hsomer0;simplify_map_eq.
+        simplify_map_eq. destruct (<[PC:=WCap p b e a]> r !! r0) eqn:Hsomer0;simplify_map_eq.
         destruct (decide (r0 = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".
         - simplify_map_eq. iSpecialize ("Hreg" $! _ n).
@@ -295,7 +295,7 @@ Section fundamental.
 
       iDestruct "HStoreMem" as "(%&H)".
       specialize (store_inr_eq H1 HVdst) as (-> & -> & -> & ->).
-      destruct (decide (reg_allows_store (<[PC:=WCap (p, b, e, a)]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - destruct a1. simplify_map_eq.
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         rewrite insert_insert. 

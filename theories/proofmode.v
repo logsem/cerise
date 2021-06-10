@@ -63,7 +63,7 @@ Ltac wp_instr :=
   cbv beta.
 
 Ltac changePCto0 new_a :=
-  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap (_, _, _, ?a))%I ] =>
+  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?a)%I ] =>
     rewrite (_: a = new_a); [| solve_addr]
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
@@ -568,7 +568,7 @@ Proof. solve_addr. Qed.
 Ltac iInstr_lookup0 hprog hi hcont :=
   let hprog := constr:(hprog:ident) in
   lazymatch goal with |- context [ Esnoc _ hprog (codefrag ?a_base _) ] =>
-  lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (WCap (_, _, _, ?pc_a)))%I ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (WCap _ _ _ ?pc_a))%I ] =>
     let base_off := eval unfold as_weak_addr_incr in (@as_weak_addr_incr pc_a a_base _ _) in
     lazymatch base_off with
     | (?base, ?off) =>

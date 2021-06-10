@@ -167,20 +167,20 @@ Section counter_example_preamble.
     
     ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
      na_inv logrel_nais count_incrdecrN (incr_left incr_prog ∗ decr_right decr_prog) -∗
-     na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap (pc_p, pc_b, pc_e, counter_first))
-                                            (WCap (pc_p, pc_b, pc_e, linkc)) (WCap (RWX, b_cell, e_cell, b_cell))
+     na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap pc_p pc_b pc_e counter_first)
+                                            (WCap pc_p pc_b pc_e linkc) (WCap RWX b_cell e_cell b_cell)
                                             
-                                            (WCap (pcs_p, pcs_b, pcs_e, scounter_first)) (WCap (pcs_p, pcs_b, pcs_e, slinkc))
-                                            (WCap (RWX, bs_cell, es_cell, bs_cell))) -∗
+                                            (WCap pcs_p pcs_b pcs_e scounter_first) (WCap pcs_p pcs_b pcs_e slinkc)
+                                            (WCap RWX bs_cell es_cell bs_cell)) -∗
      na_own logrel_nais ⊤ -∗
-    interp (WCap (E,b_cls,e_cls,b_cls),WCap (E,b_cls,e_cls,b_cls)))%I.
+    interp (WCap E b_cls e_cls b_cls,WCap E b_cls e_cls b_cls))%I.
   Proof.
     iIntros (Hnp Hnps Hcont_incr Hcont_decr Hvpc_counter Hvspc_counter Hcont_restc Hcont_srestc Hbe_cell Hbes_cell Hnclose)
             "#Hspec #Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq /=. iSplit;auto.
     iIntros (r') "". iNext. iModIntro.
     iIntros "(#Hr_valid & Hregs' & Hsegs' & HnaI & Hj)". destruct r' as [r1' r2']. simpl. 
-    iDestruct (interp_reg_eq _ _ (WCap (RX, b_cls, e_cls, b_cls)) with "Hr_valid") as %Heq.
+    iDestruct (interp_reg_eq _ _ (WCap RX b_cls e_cls b_cls) with "Hr_valid") as %Heq.
     iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full.
     assert (∀ x : RegName, is_Some (r1' !! x)) as Hr'_full_left;[intros x; destruct Hr'_full with x;eauto|].
     assert (∀ x : RegName, is_Some (r2' !! x)) as Hr'_full_right;[intros x; destruct Hr'_full with x;eauto|]. 
@@ -280,20 +280,20 @@ Section counter_example_preamble.
     
     ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
      na_inv logrel_nais read_readnegN (read_left read_prog ∗ read_right read_neg_prog) -∗
-     na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap (pc_p, pc_b, pc_e, counter_first))
-                                            (WCap (pc_p, pc_b, pc_e, linkc)) (WCap (RWX, b_cell, e_cell, b_cell))
+     na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap pc_p pc_b pc_e counter_first)
+                                            (WCap pc_p pc_b pc_e linkc) (WCap RWX b_cell e_cell b_cell)
                                             
-                                            (WCap (pcs_p, pcs_b, pcs_e, scounter_first)) (WCap (pcs_p, pcs_b, pcs_e, slinkc))
-                                            (WCap (RWX, bs_cell, es_cell, bs_cell))) -∗
+                                            (WCap pcs_p pcs_b pcs_e scounter_first) (WCap pcs_p pcs_b pcs_e slinkc)
+                                            (WCap RWX bs_cell es_cell bs_cell)) -∗
      na_own logrel_nais ⊤ -∗
-    interp (WCap (E,b_cls',e_cls',b_cls'),WCap (E,b_cls',e_cls',b_cls')))%I.
+    interp (WCap E b_cls' e_cls' b_cls',WCap E b_cls' e_cls' b_cls'))%I.
   Proof.
     iIntros (Hnp Hnps Hcont_incr Hcont_decr Hvpc_counter Hvspc_counter Hcont_restc Hcont_srestc Hbe_cell Hbes_cell Hnclose)
             "#Hspec #Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq /=. iSplit;auto.
     iIntros (r') "". iNext. iModIntro.
     iIntros "(#Hr_valid & Hregs' & Hsegs' & HnaI & Hj)". destruct r' as [r1' r2']. simpl. 
-    iDestruct (interp_reg_eq _ _ (WCap (RX, b_cls, e_cls, b_cls)) with "Hr_valid") as %Heq.
+    iDestruct (interp_reg_eq _ _ (WCap RX b_cls e_cls b_cls) with "Hr_valid") as %Heq.
     iDestruct "Hr_valid" as "[Hr'_full Hr'_valid]"; iDestruct "Hr'_full" as %Hr'_full.
     assert (∀ x : RegName, is_Some (r1' !! x)) as Hr'_full_left;[intros x; destruct Hr'_full with x;eauto|].
     assert (∀ x : RegName, is_Some (r2' !! x)) as Hr'_full_right;[intros x; destruct Hr'_full with x;eauto|]. 
@@ -393,10 +393,10 @@ Section counter_example_preamble.
     contiguous_between ais s_first s_end →
     
     
-    withinBounds (RW, b_link, e_link, a_entry) = true →
+    withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
     
-    withinBounds (RW, bs_link, es_link, s_entry) = true →
+    withinBounds bs_link es_link s_entry = true →
     (s_link + f_m)%a = Some s_entry →
     
     
@@ -422,13 +422,13 @@ Section counter_example_preamble.
     (** Resources for malloc and assert **)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
     ∗ na_inv logrel_nais mallocN (malloc_inv_binary b_m e_m)
-    ∗ pc_b ↦ₐ (WCap (RO, b_link, e_link, a_link))
-    ∗ a_entry ↦ₐ (WCap (E, b_m, e_m, b_m))
-    ∗ pcs_b ↣ₐ (WCap (RO, bs_link, es_link, s_link))
-    ∗ s_entry ↣ₐ (WCap (E, b_m, e_m, b_m))
+    ∗ pc_b ↦ₐ (WCap RO b_link e_link a_link)
+    ∗ a_entry ↦ₐ (WCap E b_m e_m b_m)
+    ∗ pcs_b ↣ₐ (WCap RO bs_link es_link s_link)
+    ∗ s_entry ↣ₐ (WCap E b_m e_m b_m)
 
     -∗
-    interp_expr interp r (WCap (pc_p, pc_b, pc_e, a_first),WCap (pcs_p, pcs_b, pcs_e, s_first)).
+    interp_expr interp r (WCap pc_p pc_b pc_e a_first,WCap pcs_p pcs_b pcs_e s_first).
   Proof.
     rewrite /interp_expr /=.
     iIntros (Hvpc Hvpc' Hcont Hcont' Hwb_malloc Ha_entry Hwb_malloc' Hs_entry
@@ -896,11 +896,11 @@ Section counter_example_preamble.
       [apply decode_encode_instrW_inv|iCorrectPC a_crtcls_end' a_end|..].
     
     (* the current state of registers is valid *)
-    iAssert (interp (WCap (E, b_cls, e_cls, b_cls),WCap (E, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
+    iAssert (interp (WCap E b_cls e_cls b_cls,WCap E b_cls e_cls b_cls))%I as "#Hvalid_cls".
     { iApply (incr_decr_closure_valid with "Hspec Hcounter_inv Hincr Hcls_inv");auto.
       apply Hvpc_counter. apply Hvpc_counter'. apply Hcont_restc. apply Hcont_restc'. solve_ndisj. }
     
-    iAssert (interp (WCap (E, b_cls', e_cls', b_cls'),WCap (E, b_cls', e_cls', b_cls')))%I as "#Hvalid_cls'".
+    iAssert (interp (WCap E b_cls' e_cls' b_cls',WCap E b_cls' e_cls' b_cls'))%I as "#Hvalid_cls'".
     { iApply (read_read_neg_closure_valid with "Hspec Hcounter_inv Hread Hcls_inv");auto.
       apply Hcont_restc. apply Hcont_restc'. apply Hvpc_counter. apply Hvpc_counter'.
       apply Hcont_incr. apply Hcont_decr. solve_ndisj. }

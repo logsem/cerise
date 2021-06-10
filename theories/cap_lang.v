@@ -46,14 +46,14 @@ Lemma mem_lookup_eq (m: Mem) (a: Addr) (v: Word) :
 Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
 
 Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p b e a :
-  regs !r! r = WCap (p, b, e, a) →
-  regs !! r = Some (WCap (p, b, e, a)).
+  regs !r! r = WCap p b e a →
+  regs !! r = Some (WCap p b e a).
 Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
 Qed.
 
 Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p b e i :
-  m !m! a = WCap (p, b, e, i) →
-  m !! a = Some (WCap (p, b, e, i)).
+  m !m! a = WCap p b e i →
+  m !! a = Some (WCap p b e i).
 Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
 Qed.
 
@@ -71,9 +71,9 @@ Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <
 
 Definition updatePC (φ: ExecConf): Conf :=
   match RegLocate (reg φ) PC with
-  | WCap (p, b, e, a) =>
+  | WCap p b e a =>
     match (a + 1)%a with
-    | Some a' => let φ' := (update_reg φ PC (WCap (p, b, e, a'))) in
+    | Some a' => let φ' := (update_reg φ PC (WCap p b e a')) in
                  (NextI, φ')
     | None => (Failed, φ)
     end
@@ -168,38 +168,37 @@ Section opsem.
     | Load dst src =>
       match RegLocate (reg φ) src with
       | WInt n => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         (* Fails for U cap *)
-        if readAllowed p && withinBounds (p, b, e, a) then updatePC (update_reg φ dst (MemLocate (mem φ) a))
+        if readAllowed p && withinBounds b e a then updatePC (update_reg φ dst (MemLocate (mem φ) a))
         else (Failed, φ)
       end
     | Store dst (inr src) =>
       match RegLocate (reg φ) dst with
       | WInt n => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         (* Fails for U cap *)
-        if writeAllowed p && withinBounds (p, b, e, a) then
+        if writeAllowed p && withinBounds b e a then
           updatePC (update_mem φ a (RegLocate (reg φ) src))
         else (Failed, φ)
       end
     | Store dst (inl n) =>
       match RegLocate (reg φ) dst with
       | WInt n => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         (* Fails for U cap *)
-        if writeAllowed p && withinBounds (p, b, e, a) then updatePC (update_mem φ a (WInt n)) else (Failed, φ)
+        if writeAllowed p && withinBounds b e a then updatePC (update_mem φ a (WInt n)) else (Failed, φ)
       end
     | Mov dst (inl n) => updatePC (update_reg φ dst (WInt n))
     | Mov dst (inr src) => updatePC (update_reg φ dst (RegLocate (reg φ) src))
     | Lea dst (inl n) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         | _ => match (a + n)%a with
-               | Some a' => let c := (p, b, e, a') in
-                            updatePC (update_reg φ dst (WCap c))
+               | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
                | None => (Failed, φ)
                end
         end
@@ -207,16 +206,15 @@ Section opsem.
     | Lea dst (inr r) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         (* Make sure that we can only decrease pointer for uninitialized capabilities *)
         | _ => match RegLocate (reg φ) r with
-              | WCap _ => (Failed, φ)
+              | WCap _ _ _ _ => (Failed, φ)
               | WInt n => match (a + n)%a with
                          | Some a' =>
-                           let c := (p, b, e, a') in
-                           updatePC (update_reg φ dst (WCap c))
+                           updatePC (update_reg φ dst (WCap p b e a'))
                          | None => (Failed, φ)
                          end
               end
@@ -225,85 +223,85 @@ Section opsem.
     | Restrict dst (inl n) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (permPair, b, e, a) =>
+      | WCap permPair b e a =>
         match permPair with
         | E => (Failed, φ)
         | _ => if PermFlowsTo (decodePerm n) permPair then
-                updatePC (update_reg φ dst (WCap (decodePerm n, b, e, a)))
+                updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else (Failed, φ)
         end
       end
     | Restrict dst (inr r) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (permPair, b, e, a) =>
+      | WCap permPair b e a =>
         match RegLocate (reg φ) r with
-        | WCap _ => (Failed, φ)
+        | WCap _ _ _ _ => (Failed, φ)
         | WInt n =>
           match permPair with
           | E => (Failed, φ)
           | _ => if PermFlowsTo (decodePerm n) permPair then
-                  updatePC (update_reg φ dst (WCap (decodePerm n, b, e, a)))
+                  updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
                 else (Failed, φ)
           end
         end
       end
     | Add dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => match RegLocate (reg φ) r2 with
-                 | WCap _ => (Failed, φ)
+                 | WCap _ _ _ _ => (Failed, φ)
                  | WInt n2 => updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
                  end
       end
     | Add dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n2 => updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
       end
     | Add dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
       end
     | Add dst (inl n1) (inl n2) =>
       updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
     | Sub dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => match RegLocate (reg φ) r2 with
-                 | WCap _ => (Failed, φ)
+                 | WCap _ _ _ _ => (Failed, φ)
                  | WInt n2 => updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
                  end
       end
     | Sub dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n2 => updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
       end
     | Sub dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
       end
     | Sub dst (inl n1) (inl n2) =>
       updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
     | Lt dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => match RegLocate (reg φ) r2 with
-                 | WCap _ => (Failed, φ)
+                 | WCap _ _ _ _ => (Failed, φ)
                  | WInt n2 => updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
                  end
       end
     | Lt dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) r2 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n2 => updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
       end
     | Lt dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) r1 with
-      | WCap _ => (Failed, φ)
+      | WCap _ _ _ _ => (Failed, φ)
       | WInt n1 => updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
       end
     | Lt dst (inl n1) (inl n2) =>
@@ -311,20 +309,20 @@ Section opsem.
     | Subseg dst (inr r1) (inr r2) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         | _ =>
           match RegLocate (reg φ) r1 with
-          | WCap _ => (Failed, φ)
+          | WCap _ _ _ _ => (Failed, φ)
           | WInt n1 =>
             match RegLocate (reg φ) r2 with
-            | WCap _ => (Failed, φ)
+            | WCap _ _ _ _ => (Failed, φ)
             | WInt n2 =>
               match z_to_addr n1, z_to_addr n2 with
               | Some a1, Some a2 =>
                 if isWithin a1 a2 b e then
-                  updatePC (update_reg φ dst (WCap (p, a1, a2, a)))
+                  updatePC (update_reg φ dst (WCap p a1 a2 a))
                 else (Failed, φ)
               | _,_ => (Failed, φ)
               end
@@ -335,17 +333,17 @@ Section opsem.
     | Subseg dst (inl n1) (inr r2) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         | _ =>
           match RegLocate (reg φ) r2 with
-          | WCap _ => (Failed, φ)
+          | WCap _ _ _ _ => (Failed, φ)
           | WInt n2 =>
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (WCap (p, a1, a2, a)))
+                updatePC (update_reg φ dst (WCap p a1 a2 a))
                      else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -355,17 +353,17 @@ Section opsem.
     | Subseg dst (inr r1) (inl n2) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         | _ =>
           match RegLocate (reg φ) r1 with
-          | WCap _ => (Failed, φ)
+          | WCap _ _ _ _ => (Failed, φ)
           | WInt n1 =>
             match z_to_addr n1, z_to_addr n2 with
             | Some a1, Some a2 =>
               if isWithin a1 a2 b e then
-                updatePC (update_reg φ dst (WCap (p, a1, a2, a)))
+                updatePC (update_reg φ dst (WCap p a1 a2 a))
               else (Failed, φ)
             | _,_ => (Failed, φ)
             end
@@ -375,14 +373,14 @@ Section opsem.
     | Subseg dst (inl n1) (inl n2) =>
       match RegLocate (reg φ) dst with
       | WInt _ => (Failed, φ)
-      | WCap (p, b, e, a) =>
+      | WCap p b e a =>
         match p with
         | E => (Failed, φ)
         | _ =>
           match z_to_addr n1, z_to_addr n2 with
           | Some a1, Some a2 =>
             if isWithin a1 a2 b e then
-              updatePC (update_reg φ dst (WCap (p, a1, a2, a)))
+              updatePC (update_reg φ dst (WCap p a1 a2 a))
             else (Failed, φ)
           | _,_ => (Failed, φ)
           end
@@ -391,7 +389,7 @@ Section opsem.
     | GetA dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => (Failed, φ)
-      | WCap (_, _, _, a) =>
+      | WCap _ _ _ a =>
         match a with
         | A a' _ _ => updatePC (update_reg φ dst (WInt a'))
         end
@@ -399,7 +397,7 @@ Section opsem.
     | GetB dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => (Failed, φ)
-      | WCap (_, b, _, _) =>
+      | WCap _ b _ _ =>
         match b with
         | A b' _ _ => updatePC (update_reg φ dst (WInt b'))
         end
@@ -407,7 +405,7 @@ Section opsem.
     | GetE dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => (Failed, φ)
-      | WCap (_, _, e, _) =>
+      | WCap _ _ e _ =>
         match e with
         | A e' _ _ => updatePC (update_reg φ dst (WInt e'))
         end
@@ -415,12 +413,12 @@ Section opsem.
     | GetP dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => (Failed, φ)
-      | WCap (p, _, _, _) => updatePC (update_reg φ dst (WInt (encodePerm p)))
+      | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
       end
     | IsPtr dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
-      | WCap _ => updatePC (update_reg φ dst (WInt 1%Z))
+      | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
       end
     end.
 
@@ -431,7 +429,7 @@ Section opsem.
         step (Executable, φ) (Failed, φ)
   | step_exec_instr:
       forall φ p b e a i c,
-        RegLocate (reg φ) PC = WCap (p, b, e, a) →
+        RegLocate (reg φ) PC = WCap p b e a →
         isCorrectPC ((reg φ) !r! PC) →
         decodeInstrW ((mem φ) !m! a) = i →
         exec i φ = c →
@@ -455,8 +453,8 @@ Section opsem.
   Qed.
 
   Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) :
-    r !! PC = Some (WCap (p,b, e, a)) →
-    isCorrectPC (WCap (p, b, e, a)) →
+    r !! PC = Some (WCap p b e a) →
+    isCorrectPC (WCap p b e a) →
     m !! a = Some w →
     decodeInstrW w = instr →
     step (Executable, (r, m)) (c, σ) →
@@ -465,7 +463,7 @@ Section opsem.
     intros HPC Hpc Hm Hinstr. inversion 1.
     { exfalso. erewrite regs_lookup_eq in *; eauto. }
     erewrite regs_lookup_eq in *; eauto.
-    match goal with H: WCap _ = WCap _ |- _ => inversion H; clear H end.
+    match goal with H: WCap _ _ _ _ = WCap _ _ _ _ |- _ => inversion H; clear H end.
     cbn in *.
     match goal with H: exec ?i _ = ?k |- _ => destruct k; subst i end. cbn.
     subst.

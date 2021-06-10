@@ -123,8 +123,8 @@ Section roe.
     contiguous_between roe_addrs a_first a_last ->
 
     (* Assumptions about linking table *)
-    withinBounds (RW, b_link, e_link, a_entry) = true →
-    withinBounds (RW, b_link, e_link, a_entry') = true →
+    withinBounds b_link e_link a_entry = true →
+    withinBounds b_link e_link a_entry' = true →
     (a_link + f_m)%a = Some a_entry →
     (a_link + f_a)%a = Some a_entry' →
     (fail_start + strings.length (assert_fail_instrs))%a = Some a_env →
@@ -132,7 +132,7 @@ Section roe.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
     
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_adv ↦ᵣ wadv
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* token which states all non atomic invariants are closed *)
@@ -145,10 +145,10 @@ Section roe.
       (** Resources for malloc and assert **)
       (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
       ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
-      ∗ pc_b ↦ₐ (WCap (RO, b_link, e_link, a_link))
-      ∗ a_entry ↦ₐ (WCap (E, b_m, e_m, b_m))
-      ∗ a_entry' ↦ₐ (WCap (E, fail_start, fail_end, fail_start))
-      ∗ a_env ↦ₐ WCap (flag_p, flag_b, flag_e, flag_a)
+      ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+      ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+      ∗ a_entry' ↦ₐ WCap E fail_start fail_end fail_start
+      ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a
       (* invariant about the failure flag *)
       ∗ (inv roeN_flag (flag_a ↦ₐ WInt 0%Z))
     }}}
@@ -257,7 +257,7 @@ Section roe.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _). 
-    iApply (call_spec r_adv {[r_env:=WCap (RWX, b, e, b)]} {[r_t7:=WCap (decodePerm ro, b, e, b)]} _
+    iApply (call_spec r_adv {[r_env:=WCap RWX b e b]} {[r_t7:=WCap (decodePerm ro) b e b]} _
                       _ (delete r_t7 (delete r_t0 rmap))
               with "[- $HPC $Hown $Hmalloc $Hpc_b $Ha_entry $Hr_adv $Hregs]");
       [apply Hvpc3|apply Hcont_call|auto|apply Ha_entry|..|solve_ndisj|]. 

@@ -25,8 +25,8 @@ Section cap_lang_spec_rules.
      pc_p pc_b pc_e pc_a
      r1 (r2 : Z + RegName) w mem regs :
    decodeInstrW w = Store r1 r2 →
-   isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-   regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+   isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+   regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
    regs_of (Store r1 r2) ⊆ dom _ regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
@@ -55,7 +55,7 @@ Section cap_lang_spec_rules.
      assert (Hstep':=Hstep). cbn in Hstep. rewrite Hσrr1 in Hstep.
      
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-     destruct r1v as  [| (([p b] & e) & a) ] eqn:Hr1v.
+     destruct r1v as  [| p b e a ] eqn:Hr1v.
      { (* Failure: r1 is not a capability *)
        assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
            by (destruct r2; inversion Hstep; auto).
@@ -67,7 +67,7 @@ Section cap_lang_spec_rules.
        iPureIntro. econstructor; eauto. econstructor; eauto. 
      }
      
-     destruct (writeAllowed p && withinBounds (p, b, e, a)) eqn:HWA; rewrite HWA in Hstep.
+     destruct (writeAllowed p && withinBounds b e a) eqn:HWA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
         assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
          by (destruct r2; inversion Hstep; auto).
@@ -105,8 +105,7 @@ Section cap_lang_spec_rules.
            pose proof (regs_lookup_inl_eq σr r z Hrr0 Hr0) as Hr0'.
            simpl in HSVr; rewrite Hr0' in HSVr.
            inversion HSVr; subst storev. done.
-         * destruct_cap c0.
-           epose proof (regs_lookup_inr_eq σr r _ _ _ _ Hr0) as Hr0'. 
+         * epose proof (regs_lookup_inr_eq σr r _ _ _ _ Hr0) as Hr0'.
            simpl in HSVr; rewrite Hr0' in HSVr; inversion HSVr. auto. 
       }
       iMod ((memspec_heap_update_inSepM _ _ _ a storev) with "Hown Hmem") as "[Hown Hmem]"; eauto.
@@ -147,22 +146,22 @@ Section cap_lang_spec_rules.
   Lemma step_store_success_reg E K pc_p pc_b pc_e pc_a pc_a' w dst src w'
          p b e a w'' :
       decodeInstrW w = Store dst (inr src) →
-     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p,b, e, a) = true →
+     writeAllowed p = true ∧ withinBounds b e a = true →
      nclose specN ⊆ E →
      
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗  ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+              ∗  ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
               ∗ ▷ pc_a ↣ₐ w
               ∗ ▷ src ↣ᵣ w''
-              ∗ ▷ dst ↣ᵣ WCap (p,b,e,a)
+              ∗ ▷ dst ↣ᵣ WCap p b e a
               ∗ ▷ a ↣ₐ w'
      ={E}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
          ∗ pc_a ↣ₐ w
          ∗ src ↣ᵣ w''
-         ∗ dst ↣ᵣ WCap (p,b,e,a)
+         ∗ dst ↣ᵣ WCap p b e a
          ∗ a ↣ₐ w''. 
   Proof.
     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] Hnclose)
@@ -198,20 +197,20 @@ Section cap_lang_spec_rules.
   Lemma step_store_success_z E K pc_p pc_b pc_e pc_a pc_a' w dst z w'
          p b e a :
      decodeInstrW w = Store dst (inl z) →
-     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
-     writeAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+     writeAllowed p = true ∧ withinBounds b e a = true →
      nclose specN ⊆ E →
 
      spec_ctx ∗ ⤇ fill K (Instr Executable)
-              ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
               ∗ ▷ pc_a ↣ₐ w
-              ∗ ▷ dst ↣ᵣ WCap (p,b,e,a)
+              ∗ ▷ dst ↣ᵣ WCap p b e a
               ∗ ▷ a ↣ₐ w'
      ={E}=∗ ⤇ fill K (Instr NextI)
-         ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
          ∗ pc_a ↣ₐ w
-         ∗ dst ↣ᵣ WCap (p,b,e,a)
+         ∗ dst ↣ᵣ WCap p b e a
          ∗ a ↣ₐ WInt z.
   Proof.
     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] Hnclose)
