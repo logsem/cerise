@@ -35,7 +35,7 @@ Definition decodeInstrW `{MachineParameters} : Word → instr :=
     end.
 
 Definition encodeInstrW `{MachineParameters} : instr → Word :=
-  fun i => put_z (encodeInstr i).
+  fun i => WInt (encodeInstr i).
 
 Lemma decode_encode_instrW_inv `{MachineParameters} (i: instr):
   decodeInstrW (encodeInstrW i) = i.

@@ -37,10 +37,6 @@ Inductive Word: Type :=
 Notation WCap p b e a := (WSealable (SCap p b e a)).
 Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
 
-(* Sugar for parts of word *)
-Notation WSealRange sr := (inl (inr (inr sr))) (only parsing).
-Notation put_sealed sd := (inr sd) (only parsing).
-
 Inductive instr: Type :=
 | Jmp (r: RegName)
 | Jnz (r1 r2: RegName)
@@ -78,26 +74,19 @@ Definition Mem := gmap Addr Word.
 
 Instance perm_eq_dec : EqDecision Perm.
 Proof. solve_decision. Defined.
-Instance cap_eq_dec : EqDecision Cap.
-Proof. solve_decision. Defined.
-Instance sealr_eq_dec : EqDecision SealRange.
-Proof. solve_decision. Defined.
-Instance sealable_eq_dec : EqDecision Sealable.
-Proof. solve_decision. Defined.
-Instance sealed_eq_dec : EqDecision Sealed.
-Proof. solve_decision. Defined.
+Instance sealb_eq_dec : EqDecision Sealable.
+Proof. solve_decision. Qed.
 Instance word_eq_dec : EqDecision Word.
-Proof. solve_decision. Defined.
+Proof. solve_decision. Qed.
 Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
-
 
 Ltac destruct_word w :=
   let z := fresh "z" in
   let c := fresh "c" in
   let sr := fresh "sr" in
   let sd := fresh "sd" in
-  destruct w as [ [z | [c | sr] ] | sd].
+  destruct w as [ z | [c | sr] | sd].
 Ltac destruct_cap c :=
   let p := fresh "p" in
   let b := fresh "b" in
@@ -107,6 +96,7 @@ Ltac destruct_cap c :=
 
 (***** Identifying and extracting parts of words *****)
 
+(* TODO: These getters are probably not that useful anymore; remove? *)
 (* Z <-> Word *)
 Definition get_z (w : Word) : option Z :=
   match w with
@@ -118,8 +108,8 @@ Definition is_z (w: Word) : bool :=
 (* Example lemma's we want for each case *)
 Lemma get_is_z w z: get_z w = Some z → is_z w = true.
 Proof. unfold is_z, get_z. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_z_val w z : get_z w = Some z <-> w = inl (inl z).
-Proof. unfold get_z.  destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
+Lemma get_z_val w z : get_z w = Some z <-> w = WInt z.
+Proof. unfold get_z.  destruct w; split; intros Hw; inversion Hw; auto. Qed.
 Lemma get_put_z (z : Z) : get_z (WInt z) = Some z.
 Proof. done. Qed.
 
@@ -133,56 +123,55 @@ Definition is_sealb (w: Word) : bool :=
   if decide (get_sealb w ≠ None) then true else false.
 Lemma get_is_sealb w sb: get_sealb w = Some sb → is_sealb w = true.
 Proof. unfold is_sealb, get_sealb. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealb_val w sb : get_sealb w = Some sb <-> w = inl (inr sb).
-Proof. unfold get_sealb.  destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
+Lemma get_sealb_val w sb : get_sealb w = Some sb <-> w = WSealable sb.
+Proof. unfold get_sealb.  destruct w; split; intros Hw; inversion Hw; auto. Qed.
 Lemma get_put_sealb (sb : Sealable) : get_sealb (WSealable sb) = Some sb.
 Proof. done. Qed.
 
 (* Capability <-> Word *)
-Definition get_cap (w : Word) : option Cap :=
+Definition get_cap (w : Word) : option (Perm * Addr * Addr * Addr) :=
   match w with
-  | WCap c => Some c
+  | WCap p b e a => Some (p,b,e,a)
   |  _ => None
   end.
 Definition is_cap (w: Word) : bool :=
   if decide (get_cap w ≠ None) then true else false.
 Lemma get_is_cap w c: get_cap w = Some c → is_cap w = true.
 Proof. unfold is_cap, get_cap. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_cap_val w c : get_cap w = Some c <-> w = (inl (inr (inl c))).
-Proof. unfold get_cap. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_WCap (c : Cap) : get_cap (WCap c) = Some c.
+Lemma get_cap_val w p b e a  : get_cap w = Some (p,b,e,a) <-> w = WCap p b e a .
+Proof. unfold get_cap. destruct_word w; split; congruence.  Qed.
+Lemma get_WCap p b e a : get_cap (WCap p b e a) = Some (p,b,e,a).
 Proof. done. Qed.
 
 (* SealRange <-> Word *)
-Definition get_sealr (w : Word) : option SealRange :=
+Definition get_sealr (w : Word) : option (Seal_Perms * OType * OType * OType) :=
   match w with
-  | WSealRange sr => Some sr
+  | WSealRange p b e a => Some (p,b,e,a)
   |  _ => None
   end.
 Definition is_sealr (w: Word) : bool :=
   if decide (get_sealr w ≠ None) then true else false.
 Lemma get_is_sealr w sr: get_sealr w = Some sr → is_sealr w = true.
 Proof. unfold is_sealr, get_sealr. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealr_val w sr : get_sealr w = Some sr <-> w = (inl (inr (inr sr))).
-Proof. unfold get_sealr. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_WSealRange (sr : SealRange) : get_sealr (WSealRange sr) = Some sr.
+Lemma get_sealr_val w p b e a : get_sealr w = Some (p,b,e,a) <-> w = WSealRange p b e a.
+Proof. unfold get_sealr. destruct_word w; split; congruence. Qed.
+Lemma get_WSealRange p b e a : get_sealr (WSealRange p b e a) = Some (p,b,e,a).
 Proof. done. Qed.
 
 (* Sealed <-> Word *)
-Definition get_sealed (w : Word) : option Sealed :=
+Definition get_sealed (w : Word) : option (OType * Sealable) :=
   match w with
-  | put_sealed sd => Some sd
+  | WSealed a sb => Some (a,sb)
   |  _ => None
   end.
 Definition is_sealed (w: Word) : bool :=
   if decide (get_sealed w ≠ None) then true else false.
 Lemma get_is_sealed w sd: get_sealed w = Some sd → is_sealed w = true.
 Proof. unfold is_sealed, get_sealed. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealed_val w sd : get_sealed w = Some sd <-> w = (inr sd).
-Proof. unfold get_sealed. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_sealed (sd : Sealed) : get_sealed (put_sealed sd) = Some sd.
+Lemma get_sealed_val w a sb : get_sealed w = Some (a,sb) <-> w = WSealed a sb.
+Proof. unfold get_sealed. destruct_word w; split; congruence. Qed.
+Lemma get_WSealed a sb : get_sealed (WSealed a sb) = Some (a,sb).
 Proof. done. Qed.
-
 
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
@@ -216,17 +205,17 @@ Lemma isPerm_ne p p' : p ≠ p' → isPerm p p' = false.
 Proof. intros Hne. destruct p,p'; auto; congruence. Qed.
 
 Definition isPermWord (w : Word) (p : Perm): bool :=
-  match get_cap w with
-  | None => false
-  | Some (p',_,_,_) => isPerm p p'
+  match w with
+  | WCap p' _ _ _  => isPerm p p'
+  | _ => false
   end.
 
 Lemma isPermWord_cap_isPerm (w0:Word) p:
   isPermWord w0 p = true →
-  ∃ p' b e a, get_cap w0 = Some (p',b,e,a) ∧ isPerm p p' = true.
+  ∃ p' b e a, w0 = WCap p' b e a  ∧ isPerm p p' = true.
 Proof.
-  intros Hp. rewrite /isPermWord in Hp; destruct (get_cap w0); [| by exfalso].
-  destruct_cap c.
+  intros Hp. rewrite /isPermWord in Hp.
+  destruct_word w0; try congruence.
   eexists _, _, _, _; split; eauto.
 Qed.
 
