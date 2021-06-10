@@ -80,50 +80,6 @@ Definition updatePC (φ: ExecConf): Conf :=
   | _ => (Failed, φ)
   end.
 
-Inductive access_kind: Type :=
-| LoadU_access (b e a: Addr) (offs: Z): access_kind
-| StoreU_access (b e a: Addr) (offs: Z): access_kind.
-
-Definition verify_access (a: access_kind): option Addr :=
-  match a with
-  | LoadU_access b e a offs =>
-    match (a + offs)%a with
-    | None => None
-    | Some a' => if Addr_le_dec b a' then
-                  if Addr_lt_dec a' a then
-                    if Addr_le_dec a e then
-                      Some a' else None else None else None
-    end
-  | StoreU_access b e a offs =>
-    match (a + offs)%a with
-    | None => None
-    | Some a' => if Addr_le_dec b a' then
-                  if Addr_le_dec a' a then
-                    if Addr_lt_dec a e then
-                      Some a' else None else None else None
-    end
-  end.
-
-Lemma verify_access_spec:
-  forall a a',
-    (verify_access a = Some a') <->
-    (match a with
-     | LoadU_access b e a offs =>
-       (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' < a)%a /\ (a <= e)%a
-     | StoreU_access b e a offs =>
-       (a + offs)%a = Some a' /\ (b <= a')%a /\ (a' <= a)%a /\ (a < e)%a
-     end).
-Proof.
-  intros; split; intros.
-  - destruct a; simpl in H; destruct (a + offs)%a as [a1|] eqn:Ha; intros; try congruence;
-    repeat match goal with
-           | H: context [if ?t then _ else _] |- _ => destruct t
-           end; inv H; auto.
-  - destruct a; destruct H as [Ha [A [B C]]]; simpl; rewrite Ha;
-    repeat match goal with
-           | |- context [if ?t then _ else _] => destruct t
-           end; tauto.
-Qed.
 
 (*--- z_of_argument ---*)
 
