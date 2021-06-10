@@ -18,29 +18,27 @@ Inductive Perm: Type :=
 | E
 | RWX.
 
-Definition Cap: Type :=
-  Perm * Addr * Addr * Addr.
-
 Definition Seal_Perms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
 Definition permit_seal (s : Seal_Perms) :=
   s.1.
 Definition permit_unseal (s : Seal_Perms) :=
   s.2.
 
-Definition SealRange: Type :=
-  Seal_Perms * OType * OType * OType.
-Definition Sealable: Type :=
-  Cap + SealRange.
-Definition Sealed: Type :=
-  OType * Sealable.
+Inductive Sealable: Type :=
+| SCap: Perm -> Addr -> Addr -> Addr -> Sealable
+| SSealRange: Seal_Perms -> OType -> OType -> OType -> Sealable.
 
-Definition Word := (Z + Sealable + Sealed)%type. (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
+(* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
+Inductive Word: Type :=
+| WInt (z : Z)
+| WSealable (sb : Sealable)
+| WSealed: OType → Sealable → Word.
+
+Notation WCap p b e a := (WSealable (SCap p b e a)).
+Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
 
 (* Sugar for parts of word *)
-Notation put_z z := (inl (inl z)) (only parsing).
-Notation put_sealb sb := (inl (inr sb)) (only parsing).
-Notation put_cap c := (inl (inr (inl c))) (only parsing).
-Notation put_sealr sr := (inl (inr (inr sr))) (only parsing).
+Notation WSealRange sr := (inl (inr (inr sr))) (only parsing).
 Notation put_sealed sd := (inr sd) (only parsing).
 
 Inductive instr: Type :=
@@ -112,7 +110,7 @@ Ltac destruct_cap c :=
 (* Z <-> Word *)
 Definition get_z (w : Word) : option Z :=
   match w with
-  | put_z z => Some z
+  | WInt z => Some z
   |  _ => None
   end.
 Definition is_z (w: Word) : bool :=
@@ -122,13 +120,13 @@ Lemma get_is_z w z: get_z w = Some z → is_z w = true.
 Proof. unfold is_z, get_z. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_z_val w z : get_z w = Some z <-> w = inl (inl z).
 Proof. unfold get_z.  destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_z (z : Z) : get_z (put_z z) = Some z.
+Lemma get_put_z (z : Z) : get_z (WInt z) = Some z.
 Proof. done. Qed.
 
 (* Sealable <-> Word *)
 Definition get_sealb (w : Word) : option Sealable :=
   match w with
-  | put_sealb sb => Some sb
+  | WSealable sb => Some sb
   |  _ => None
   end.
 Definition is_sealb (w: Word) : bool :=
@@ -137,13 +135,13 @@ Lemma get_is_sealb w sb: get_sealb w = Some sb → is_sealb w = true.
 Proof. unfold is_sealb, get_sealb. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_sealb_val w sb : get_sealb w = Some sb <-> w = inl (inr sb).
 Proof. unfold get_sealb.  destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_sealb (sb : Sealable) : get_sealb (put_sealb sb) = Some sb.
+Lemma get_put_sealb (sb : Sealable) : get_sealb (WSealable sb) = Some sb.
 Proof. done. Qed.
 
 (* Capability <-> Word *)
 Definition get_cap (w : Word) : option Cap :=
   match w with
-  | put_cap c => Some c
+  | WCap c => Some c
   |  _ => None
   end.
 Definition is_cap (w: Word) : bool :=
@@ -152,13 +150,13 @@ Lemma get_is_cap w c: get_cap w = Some c → is_cap w = true.
 Proof. unfold is_cap, get_cap. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_cap_val w c : get_cap w = Some c <-> w = (inl (inr (inl c))).
 Proof. unfold get_cap. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_cap (c : Cap) : get_cap (put_cap c) = Some c.
+Lemma get_WCap (c : Cap) : get_cap (WCap c) = Some c.
 Proof. done. Qed.
 
 (* SealRange <-> Word *)
 Definition get_sealr (w : Word) : option SealRange :=
   match w with
-  | put_sealr sr => Some sr
+  | WSealRange sr => Some sr
   |  _ => None
   end.
 Definition is_sealr (w: Word) : bool :=
@@ -167,7 +165,7 @@ Lemma get_is_sealr w sr: get_sealr w = Some sr → is_sealr w = true.
 Proof. unfold is_sealr, get_sealr. case_decide; auto. destruct _; intro; congruence. Qed.
 Lemma get_sealr_val w sr : get_sealr w = Some sr <-> w = (inl (inr (inr sr))).
 Proof. unfold get_sealr. destruct_word w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_sealr (sr : SealRange) : get_sealr (put_sealr sr) = Some sr.
+Lemma get_WSealRange (sr : SealRange) : get_sealr (WSealRange sr) = Some sr.
 Proof. done. Qed.
 
 (* Sealed <-> Word *)
@@ -373,13 +371,13 @@ Qed.
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
   match get_cap w with
-  | Some (E, b, e, a) => put_cap (RX, b, e, a)
+  | Some (E, b, e, a) => WCap (RX, b, e, a)
   | _ => w
   end.
 
 Lemma updatePcPerm_cap_non_E p b e a :
   p ≠ E →
-  updatePcPerm (put_cap (p, b, e, a)) = put_cap (p, b, e, a).
+  updatePcPerm (WCap (p, b, e, a)) = WCap (p, b, e, a).
 Proof.
   intros HnE. cbn. destruct p; auto. contradiction.
 Qed.
@@ -538,13 +536,13 @@ Inductive isCorrectPC: Word → Prop :=
     forall p (b e a : Addr),
       (b <= a < e)%a →
       p = RX \/ p = RWX →
-      isCorrectPC (put_cap (p, b, e, a)).
+      isCorrectPC (WCap (p, b, e, a)).
 
 Lemma isCorrectPC_dec:
   forall w, { isCorrectPC w } + { not (isCorrectPC w) }.
 Proof.
   intros. destruct (get_cap w) eqn:HCap.
-  2 : {right. intros HFalse. inversion HFalse; subst w. rewrite get_put_cap in HCap. by exfalso. }
+  2 : {right. intros HFalse. inversion HFalse; subst w. rewrite get_WCap in HCap. by exfalso. }
   destruct_cap c.
     apply get_cap_val in HCap. subst w.
     case_eq (match p with RX | RWX => true | _ => false end); intros.
@@ -558,7 +556,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
-  isCorrectPC (put_cap (pc_p,pc_b,pc_e,pc_a)) →
+  isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
   readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
 Proof.
   intros. inversion H; subst.
@@ -569,7 +567,7 @@ Proof.
 Qed.
 
 Lemma not_isCorrectPC_perm p b e a :
-  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (put_cap (p,b,e,a)).
+  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (WCap (p,b,e,a)).
 Proof.
   intros (Hrx & Hrwx).
   intros Hvpc. inversion Hvpc;
@@ -577,7 +575,7 @@ Proof.
 Qed.
 
 Lemma not_isCorrectPC_bounds p b e a :
- ¬ (b <= a < e)%a → ¬ isCorrectPC (put_cap (p,b,e,a)).
+ ¬ (b <= a < e)%a → ¬ isCorrectPC (WCap (p,b,e,a)).
 Proof.
   intros Hbounds.
   intros Hvpc. inversion Hvpc.
@@ -596,7 +594,7 @@ Lemma isCorrectPCb_isCorrectPC w :
   isCorrectPCb w = true ↔ isCorrectPC w.
 Proof.
   rewrite /isCorrectPCb. destruct (get_cap w) eqn:HCap.
-  2 : { split; [done |]. inversion 1; subst w. rewrite get_put_cap in HCap. by exfalso. }
+  2 : { split; [done |]. inversion 1; subst w. rewrite get_WCap in HCap. by exfalso. }
   { destruct_cap c. apply get_cap_val in HCap as ->.
     rewrite /leb_addr /ltb_addr.
     rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
@@ -615,9 +613,9 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_bounds p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (put_cap (p, b, e, a0)) →
-  isCorrectPC (put_cap (p, b, e, a2)) →
-  (a0 ≤ a1 < a2)%Z → isCorrectPC (put_cap (p, b, e, a1)).
+  isCorrectPC (WCap (p, b, e, a0)) →
+  isCorrectPC (WCap (p, b, e, a2)) →
+  (a0 ≤ a1 < a2)%Z → isCorrectPC (WCap (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle Hlt].
   inversion Hvpc0.
@@ -629,10 +627,10 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_bounds_alt p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (put_cap (p, b, e, a0))
-  → isCorrectPC (put_cap (p, b, e, a2))
+  isCorrectPC (WCap (p, b, e, a0))
+  → isCorrectPC (WCap (p, b, e, a2))
   → (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z
-  → isCorrectPC (put_cap (p, b, e, a1)).
+  → isCorrectPC (WCap (p, b, e, a1)).
 Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
@@ -641,7 +639,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_withinBounds p p' b e a :
-  isCorrectPC (put_cap (p, b, e, a)) →
+  isCorrectPC (WCap (p, b, e, a)) →
   withinBounds (p', b, e, a) = true.
 Proof.
   intros HH. inversion HH; subst.
@@ -649,7 +647,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_le_addr p b e a :
-  isCorrectPC (put_cap (p, b, e, a)) →
+  isCorrectPC (WCap (p, b, e, a)) →
   (b <= a)%a ∧ (a < e)%a.
 Proof.
   intros HH. by eapply withinBounds_le_addr, isCorrectPC_withinBounds.
@@ -657,13 +655,13 @@ Proof.
 Qed.
 
 Lemma correctPC_nonO p p' b e a :
-  PermFlows p p' → isCorrectPC (put_cap (p,b,e,a)) → p' ≠ O.
+  PermFlows p p' → isCorrectPC (WCap (p,b,e,a)) → p' ≠ O.
 Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
 Qed.
 
 Lemma in_range_is_correctPC p b e a b' e' :
-  isCorrectPC (put_cap (p,b,e,a)) →
+  isCorrectPC (WCap (p,b,e,a)) →
   (b' <= b)%a ∧ (e <= e')%a →
   (b' <= a)%a ∧ (a < e')%a.
 Proof.
@@ -674,7 +672,7 @@ Qed.
 Lemma isCorrectPC_ExecPCPerm_InBounds p b e a :
   ExecPCPerm p →
   InBounds b e a →
-  isCorrectPC (put_cap (p, b, e, a)).
+  isCorrectPC (WCap (p, b, e, a)).
 Proof.
   unfold ExecPCPerm, InBounds. intros. constructor; eauto.
 Qed.
