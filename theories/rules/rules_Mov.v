@@ -52,6 +52,7 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    unfold exec in Hstep.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
@@ -62,10 +63,10 @@ Section cap_lang_rules.
 
     pose proof Hwsrc as Hwsrc'. eapply word_of_argument_Some_inv' in Hwsrc; eauto.
 
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst wsrc)) as HH.
+    assert (exec_opt (Mov dst src) (r, m) = updatePC (update_reg (r, m) dst wsrc)) as HH.
     { destruct Hwsrc as [ [? [? ?] ] | [? (? & ? & Hr') ] ]; simplify_eq; eauto.
-      by rewrite /= /RegLocate Hr' in Hstep. }
-    rewrite /update_reg /= in HH.
+      cbn. by rewrite /= /RegLocate Hr'. }
+    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := wsrc ]> regs)) as [regs'|] eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
@@ -73,14 +74,13 @@ Section cap_lang_rules.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-      simplify_pair_eq.
-      iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      rewrite Hregs' in Hstep. simplify_pair_eq.
       iFrame. iApply "Hφ"; iFrame. iPureIntro. econstructor; eauto. }
 
     eapply (incrementPC_success_updatePC _ m) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
-    simplify_pair_eq. iFrame.
+    rewrite HuPC in Hstep. simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.

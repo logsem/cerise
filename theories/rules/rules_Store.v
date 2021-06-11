@@ -17,28 +17,6 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition word_of_argument (regs: Reg) (a: Z + RegName) : option Word :=
-    match a with
-    | inl z => Some (WInt z)
-    | inr r =>
-      match regs !! r with
-      | Some w => Some w
-      | _ => None
-      end
-    end.
-
-  Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) p b e a:
-    word_of_argument regs arg = Some (WCap p b e a) →
-    (∃ r : RegName, arg = inr r ∧ regs !! r = Some (WCap p b e a)).
-  Proof.
-    intros HStoreV.
-    unfold word_of_argument in HStoreV.
-    destruct arg.
-       - by inversion HStoreV.
-       - exists r. destruct (regs !! r) eqn:Hvr0; last by inversion HStoreV.
-         split; auto.
-  Qed.
-
   Definition reg_allows_store (regs : Reg) (r : RegName) p b e a :=
     regs !! r = Some (WCap p b e a) ∧
     writeAllowed p = true ∧ withinBounds b e a = true.
@@ -78,11 +56,10 @@ Section cap_lang_rules.
       mem' = mem →
       Store_failure_store regs r1 r2 mem ->
       Store_spec regs r1 r2 regs' mem mem' FailedV
-  | Store_spec_failure_incr p b e a storev oldv :
+  | Store_spec_failure_incr p b e a storev :
       word_of_argument regs r2 = Some storev ->
       reg_allows_store regs r1 p b e a  →
-      mem !! a = Some oldv →
-      mem' = (<[a := storev]> mem) →
+      mem' = mem →
       Store_failure_incr regs r1 r2 mem ->
       Store_spec regs r1 r2 regs' mem mem' FailedV.
   
@@ -196,25 +173,10 @@ Section cap_lang_rules.
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
      option_locate_mr m r.
-     cbn in Hstep. rewrite Hrr1 in Hstep.
+     unfold exec in Hstep. simpl in Hstep.
+     rewrite Hrr1 in Hstep.
 
-     (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-     destruct r1v as  [| p b e a ] eqn:Hr1v.
-     { (* Failure: r1 is not a capability *)
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
-           by (destruct r2; inversion Hstep; auto).
-       cbn; iFrame; iApply "Hφ"; iFrame.
-       iPureIntro. econstructor; eauto. econstructor; eauto. 
-     }
-
-     destruct (writeAllowed p && withinBounds b e a) eqn:HWA.
-     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
-        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
-         by (destruct r2; inversion Hstep; auto).
-       apply andb_false_iff in HWA.
-       iFailWP "Hφ" Store_fail_bounds.
-     }
-     apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb).
+     (* Now we start splitting on the different cases in the Store spec, and prove them one at a time *)
 
      destruct (word_of_argument regs r2) as [ storev | ] eqn:HSV.
      2: {
@@ -223,11 +185,22 @@ Section cap_lang_rules.
        - destruct (Hri r2) as [r0v [Hr0 _] ]. by set_solver+.
          cbn in HSV. rewrite Hr0 in HSV. inversion HSV.
      }
-     assert (word_of_argument r r2 = Some(storev)) as HSVr.
-     { destruct r2; cbn in HSV. inversion HSV; by rewrite H3.
-       destruct (Hri r0) as [r0v [Hregs0 Hr0] ].  by set_solver+.
-       rewrite -Hr0 in Hregs0; rewrite Hregs0 in HSV. exact HSV.
+     apply (word_of_arg_mono _ r) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep.
+
+     destruct r1v as  [| p b e a ] eqn:Hr1v.
+     { (* Failure: r1 is not a capability *)
+       inversion Hstep.
+       cbn; iFrame; iApply "Hφ"; iFrame.
+       iPureIntro. econstructor; eauto. econstructor; eauto. 
      }
+
+     destruct (writeAllowed p && withinBounds b e a) eqn:HWA.
+     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
+       inversion Hstep.
+       apply andb_false_iff in HWA.
+       iFailWP "Hφ" Store_fail_bounds.
+     }
+     apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb).
 
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
      pose proof (allow_store_implies_storev r1 r2 mem regs p b e a storev) as (oldv & Hmema); auto.
@@ -235,39 +208,26 @@ Section cap_lang_rules.
      (* Given this, prove that a is also present in the memory itself *)
      iDestruct (mem_v_implies_m_v mem m b e a oldv with "Hmem Hm" ) as %Hma ; auto.
 
-     (* Regardless of whether we increment the PC, the memory will change: destruct on the PC later *)
-     assert (updatePC (update_mem (r, m) a storev) = (c, σ2)) as HH.
-      { destruct r2.
-       - cbv in HSVr; inversion HSVr; subst storev. done.
-       - destruct (r !r! r0) eqn:Hr0.
-         * destruct (Hri r0) as [r0v [Hregs01 Hr01] ]. by set_solver+.
-           assert(is_Some( r !! r0 )) as Hrr0. by exists r0v.
-           pose proof (regs_lookup_inl_eq r r0 z Hrr0 Hr0) as Hr0'.
-           simpl in HSVr; rewrite Hr0' in HSVr.
-           inversion HSVr; subst storev. done.
-         * epose proof (regs_lookup_inr_eq r r0 _ _ _ _ Hr0) as Hr0'.
-           simpl in HSVr; rewrite Hr0' in HSVr; inversion HSVr. auto. 
-      }
-      iMod ((gen_mem_update_inSepM _ _ a) with "Hm Hmem") as "[Hm Hmem]"; eauto.
-
       destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'.
       2: { (* Failure: the PC could not be incremented correctly *)
         assert (incrementPC r = None).
         { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
-        rewrite incrementPC_fail_updatePC /= in HH; auto.
-        inversion HH.
+        rewrite incrementPC_fail_updatePC /= in Hstep; auto.
+        inversion Hstep.
         cbn; iFrame; iApply "Hφ"; iFrame.
         iPureIntro. eapply Store_spec_failure_incr;eauto.
         - split;eauto. 
         - constructor. auto. 
       }
 
+      iMod ((gen_mem_update_inSepM _ _ a) with "Hm Hmem") as "[Hm Hmem]"; eauto.
+
      (* Success *)
-      clear Hstep. rewrite /update_mem /= in HH.
+      rewrite /update_mem /= in Hstep.
       eapply (incrementPC_success_updatePC _ (<[a:=storev]> m)) in Hregs'
         as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
       eapply (updatePC_success_incl _ (<[a:=storev]> m)) in HuPC. 2: by eauto.
-      rewrite HuPC in HH; clear HuPC; inversion HH; clear HH; subst c σ2. cbn.
+      rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
 
       iFrame.
       iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
@@ -317,7 +277,7 @@ Section cap_lang_rules.
        destruct o; last apply Is_true_false in H2. all:try congruence. done.
      }
      { (* Failure (contradiction) *)
-       destruct H3,H6; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H3,H5; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        congruence. 
      }
@@ -364,7 +324,7 @@ Section cap_lang_rules.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H3. congruence. done.
      }
-     { destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto.
+     { destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        congruence. 
      }
@@ -409,7 +369,7 @@ Section cap_lang_rules.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H2. congruence. done.
      }
-     { destruct H3,H6; try incrementPC_inv; simplify_map_eq; eauto.
+     { destruct H3,H5; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        congruence. 
      }
@@ -456,7 +416,7 @@ Section cap_lang_rules.
        destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence.
      }
-     { destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto.
+     { destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
      Qed.
@@ -522,7 +482,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
 
@@ -623,7 +583,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H4,H7; try incrementPC_inv; simplify_map_eq; eauto. congruence. 
+       destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto. congruence.
      }
    Qed.
 
@@ -671,7 +631,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H6,H9; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H6,H8; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
    Qed.
@@ -723,7 +683,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H7,H10; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H7,H9; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
     Qed.
@@ -773,7 +733,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
     Qed.
@@ -823,7 +783,7 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
      { (* Failure (contradiction) *)
-       destruct H5,H8; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
        congruence. 
      }
     Qed.

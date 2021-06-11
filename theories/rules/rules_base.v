@@ -646,60 +646,6 @@ Ltac iFailWP Hcont fail_case_name :=
     destruct (decide (r1 = r2)); simplify_eq; auto.
   Qed.
 
-(*--- word_of_argument ---*)
-
-Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
-  match a with
-  | inl n => Some (WInt n)
-  | inr r => regs !! r
-  end.
-
-Lemma word_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (w:Word) :
-  word_of_argument regs arg = Some w →
-  ((∃ z, arg = inl z ∧ w = WInt z) ∨
-   (∃ r, arg = inr r ∧ regs !! r = Some w)).
-Proof.
-  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-Qed.
-
-Lemma word_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (w:Word) :
-  word_of_argument regs arg = Some w →
-  regs ⊆ regs' →
-  ((∃ z, arg = inl z ∧ w = WInt z) ∨
-   (∃ r, arg = inr r ∧ regs !! r = Some w ∧ regs' !! r = Some w)).
-Proof.
-  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
-  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
-Qed.
-
-(*--- addr_of_argument ---*)
-
-Definition addr_of_argument regs src :=
-  match z_of_argument regs src with
-  | Some n => z_to_addr n
-  | None => None
-  end.
-
-Lemma addr_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (a:Addr) :
-  addr_of_argument regs arg = Some a →
-  ∃ z, z_to_addr z = Some a ∧
-       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z)).
-Proof.
-  unfold addr_of_argument, z_of_argument.
-  intro. repeat case_match; simplify_eq/=; eauto. eexists. eauto.
-Qed.
-
-Lemma addr_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (a:Addr) :
-  addr_of_argument regs arg = Some a →
-  regs ⊆ regs' →
-  ∃ z, z_to_addr z = Some a ∧
-       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z) ∧ regs' !! r = Some (WInt z)).
-Proof.
-  unfold addr_of_argument, z_of_argument.
-  intros ? HH. repeat case_match; simplify_eq/=; eauto. eexists. split; eauto.
-  unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
-Qed.
-
 (*--- regs_of ---*)
 
 Definition regs_of_argument (arg: Z + RegName): gset RegName :=
@@ -793,7 +739,7 @@ Qed.
 (* todo: instead, define updatePC on top of incrementPC *)
 Lemma incrementPC_fail_updatePC regs m :
    incrementPC regs = None ->
-   updatePC (regs, m) = (Failed, (regs, m)).
+   updatePC (regs, m) = None.
 Proof.
    rewrite /incrementPC /updatePC /RegLocate /=.
    destruct (regs !! PC) as [X|]; auto.
@@ -806,7 +752,7 @@ Lemma incrementPC_success_updatePC regs m regs' :
   ∃ p b e a a',
     regs !! PC = Some (WCap p b e a) ∧
     (a + 1)%a = Some a' ∧
-    updatePC (regs, m) = (NextI, (<[ PC := WCap p b e a' ]> regs, m)) ∧
+    updatePC (regs, m) = Some (NextI, (<[ PC := WCap p b e a' ]> regs, m)) ∧
     regs' = <[ PC := WCap p b e a' ]> regs.
 Proof.
   rewrite /incrementPC /updatePC /update_reg /RegLocate /=.
@@ -818,8 +764,8 @@ Qed.
 
 Lemma updatePC_success_incl m m' regs regs' w :
   regs ⊆ regs' →
-  updatePC (regs, m) = (NextI, (<[ PC := w ]> regs, m)) →
-  updatePC (regs', m') = (NextI, (<[ PC := w ]> regs', m')).
+  updatePC (regs, m) = Some (NextI, (<[ PC := w ]> regs, m)) →
+  updatePC (regs', m') = Some (NextI, (<[ PC := w ]> regs', m')).
 Proof.
   intros * Hincl Hu. rewrite /updatePC /= in Hu |- *.
   destruct (regs !! PC) as [ w1 |] eqn:Hrr.
@@ -837,8 +783,8 @@ Qed.
 Lemma updatePC_fail_incl m m' regs regs' :
   is_Some (regs !! PC) →
   regs ⊆ regs' →
-  updatePC (regs, m) = (Failed, (regs, m)) →
-  updatePC (regs', m') = (Failed, (regs', m')).
+  updatePC (regs, m) = None →
+  updatePC (regs', m') = None.
 Proof.
   intros [w HPC] Hincl Hfail. rewrite /updatePC /RegLocate /= in Hfail |- *.
   rewrite !HPC in Hfail. have -> := lookup_weaken _ _ _ _ HPC Hincl.

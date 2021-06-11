@@ -69,11 +69,12 @@ Qed.
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
 
+(* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
 Definition updatePC (φ: ExecConf): option Conf :=
   match RegLocate (reg φ) PC with
   | WCap p b e a =>
     match (a + 1)%a with
-    | Some a' => let φ' := (update_reg φ PC (WCap p b e a'))) in
+    | Some a' => let φ' := (update_reg φ PC (WCap p b e a')) in
                 Some (NextI, φ')
     | None => None
     end
@@ -108,6 +109,106 @@ Proof.
   intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
+Lemma z_of_arg_mono (regs r: Reg) arg argz:
+regs ⊆ r
+-> z_of_argument regs arg = Some argz
+-> z_of_argument r arg = Some argz.
+Proof.
+  intros.
+  unfold z_of_argument in *.
+  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  eapply lookup_weaken in Heq as ->; auto.
+Qed.
+
+(*--- word_of_argument ---*)
+
+Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
+  match a with
+  | inl n => Some (WInt n)
+  | inr r => regs !! r
+  end.
+
+Lemma word_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs arg = Some w →
+  ((∃ z, arg = inl z ∧ w = WInt z) ∨
+   (∃ r, arg = inr r ∧ regs !! r = Some w)).
+Proof.
+  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+Qed.
+
+Lemma word_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs arg = Some w →
+  regs ⊆ regs' →
+  ((∃ z, arg = inl z ∧ w = WInt z) ∨
+   (∃ r, arg = inr r ∧ regs !! r = Some w ∧ regs' !! r = Some w)).
+Proof.
+  unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
+  intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
+
+Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) p b e a:
+  word_of_argument regs arg = Some (WCap p b e a) →
+  (∃ r : RegName, arg = inr r ∧ regs !! r = Some (WCap p b e a)).
+Proof.
+  intros HStoreV.
+  unfold word_of_argument in HStoreV.
+  destruct arg.
+      - by inversion HStoreV.
+      - exists r. destruct (regs !! r) eqn:Hvr0; last by inversion HStoreV.
+        split; auto.
+Qed.
+
+Lemma word_of_arg_mono (regs r: Reg) arg w:
+regs ⊆ r
+-> word_of_argument regs arg = Some w
+-> word_of_argument r arg = Some w.
+Proof.
+  intros.
+  unfold word_of_argument in *.
+  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  eapply lookup_weaken in Heq as ->; auto.
+Qed.
+
+(*--- addr_of_argument ---*)
+
+Definition addr_of_argument regs src :=
+  match z_of_argument regs src with
+  | Some n => z_to_addr n
+  | None => None
+  end.
+
+Lemma addr_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs arg = Some a →
+  ∃ z, z_to_addr z = Some a ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z)).
+Proof.
+  unfold addr_of_argument, z_of_argument.
+  intro. repeat case_match; simplify_eq/=; eauto. eexists. eauto.
+Qed.
+
+Lemma addr_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs arg = Some a →
+  regs ⊆ regs' →
+  ∃ z, z_to_addr z = Some a ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z) ∧ regs' !! r = Some (WInt z)).
+Proof.
+  unfold addr_of_argument, z_of_argument.
+  intros ? HH. repeat case_match; simplify_eq/=; eauto. eexists. split; eauto.
+  unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
+
+Lemma addr_of_arg_mono (regs r: Reg) arg w:
+regs ⊆ r
+-> addr_of_argument regs arg = Some w
+-> addr_of_argument r arg = Some w.
+Proof.
+  intros.
+  unfold addr_of_argument, z_of_argument in *.
+  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  eapply lookup_weaken in Heq as ->; auto.
+Qed.
+
+
 Section opsem.
   Context `{MachineParameters}.
 
@@ -119,28 +220,26 @@ Section opsem.
     | Jnz r1 r2 =>
       if nonZero (RegLocate (reg φ) r2) then
         let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r1))) in Some (NextI, φ')
-      else updatePC2 φ
+      else updatePC φ
     | Load dst src =>
       match RegLocate (reg φ) src with
       | WCap p b e a =>
         if readAllowed p && withinBounds b e a then
-          updatePC2 (update_reg φ dst (MemLocate (mem φ) a))
+          updatePC (update_reg φ dst (MemLocate (mem φ) a))
         else None
       | _ => None
       end
     | Store dst ρ =>
-      let tostore := match ρ with
-              | inl n => WInt n
-              | inr src => (RegLocate (reg φ) src) end in
+      tostore ← word_of_argument (reg φ) ρ;
       match RegLocate (reg φ) dst with
       | WCap p b e a =>
         if writeAllowed p && withinBounds b e a then
-          updatePC2 (update_mem φ a tostore)
+          updatePC (update_mem φ a tostore)
         else None
       | _ => None
       end
-    | Mov dst (inl n) => updatePC2 (update_reg φ dst (WInt n))
-    | Mov dst (inr src) => updatePC2 (update_reg φ dst (RegLocate (reg φ) src))
+    | Mov dst (inl n) => updatePC (update_reg φ dst (WInt n))
+    | Mov dst (inr src) => updatePC (update_reg φ dst (RegLocate (reg φ) src))
     | Lea dst ρ =>
       n ← z_of_argument (reg φ) ρ;
       match RegLocate (reg φ) dst with
@@ -149,7 +248,7 @@ Section opsem.
         match p with
         | E => None
         | _ => match (a + n)%a with
-               | Some a' => updatePC2 (update_reg φ dst (WCap p b e a'))
+               | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
                | None => None
                end
         end
@@ -162,38 +261,34 @@ Section opsem.
         match permPair with
         | E => None
         | _ => if PermFlowsTo (decodePerm n) permPair then
-                updatePC2 (update_reg φ dst (WCap (decodePerm n) b e a))
+                updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else None
         end
       end
      | Add dst ρ1 ρ2 =>
       n1 ← z_of_argument (reg φ) ρ1;
       n2 ← z_of_argument (reg φ) ρ2;
-      updatePC2 (update_reg φ dst (WInt (n1 + n2)%Z))
+      updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
      | Sub dst ρ1 ρ2 =>
       n1 ← z_of_argument (reg φ) ρ1;
       n2 ← z_of_argument (reg φ) ρ2;
-      updatePC2 (update_reg φ dst (WInt (n1 - n2)%Z))
+      updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
      | Lt dst ρ1 ρ2 =>
       n1 ← z_of_argument (reg φ) ρ1;
       n2 ← z_of_argument (reg φ) ρ2;
-      updatePC2 (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
+      updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
     | Subseg dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
+      a1 ← addr_of_argument (reg φ) ρ1;
+      a2 ← addr_of_argument (reg φ) ρ2;
       match RegLocate (reg φ) dst with
       | WInt _ => None
       | WCap p b e a =>
         match p with
         | E => None
         | _ =>
-          match z_to_addr n1, z_to_addr n2 with
-          | Some a1, Some a2 =>
-            if isWithin a1 a2 b e then
-              updatePC2 (update_reg φ dst (WCap p a1 a2 a))
-            else None
-          | _,_ => None
-          end
+          if isWithin a1 a2 b e then
+            updatePC (update_reg φ dst (WCap p a1 a2 a))
+          else None
         end
       end
     | GetA dst r =>
@@ -201,7 +296,7 @@ Section opsem.
       | WInt _ => None
       | WCap _ _ _ a =>
         match a with
-        | A a' _ _ => updatePC2 (update_reg φ dst (WInt a'))
+        | A a' _ _ => updatePC (update_reg φ dst (WInt a'))
         end
       end
     | GetB dst r =>
@@ -209,7 +304,7 @@ Section opsem.
       | WInt _ => None
       | WCap _ b _ _ =>
         match b with
-        | A b' _ _ => updatePC2 (update_reg φ dst (WInt b'))
+        | A b' _ _ => updatePC (update_reg φ dst (WInt b'))
         end
       end
     | GetE dst r =>
@@ -217,18 +312,18 @@ Section opsem.
       | WInt _ => None
       | WCap _ _ e _ =>
         match e with
-        | A e' _ _ => updatePC2 (update_reg φ dst (WInt e'))
+        | A e' _ _ => updatePC (update_reg φ dst (WInt e'))
         end
       end
     | GetP dst r =>
       match RegLocate (reg φ) r with
       | WInt _ => None
-      | WCap p _ _ _ => updatePC2 (update_reg φ dst (WInt (encodePerm p)))
+      | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
       end
     | IsPtr dst r =>
       match RegLocate (reg φ) r with
-      | WInt _ => updatePC2 (update_reg φ dst (WInt 0%Z))
-      | WCap _ => updatePC2 (update_reg φ dst (WInt 1%Z))
+      | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
+      | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
       end
     end.
 
@@ -421,18 +516,22 @@ Section opsem.
     | _ => False
     end.
 
-  Lemma updatePC_atomic φ :
-    ∃ φ', updatePC φ = (Failed,φ') ∨ (updatePC φ = (NextI,φ')) ∨
-          (updatePC φ = (Halted,φ')).
+  Lemma updatePC_some φ c:
+    updatePC φ = Some c → ∃ φ', c = (NextI, φ').
   Proof.
-    rewrite /updatePC; repeat case_match; eauto.
+    rewrite /updatePC; repeat case_match; try congruence. inversion 1. eauto.
   Qed.
 
   Lemma instr_atomic i φ :
-    ∃ φ', (exec i φ = (Failed, φ')) ∨ (exec i φ = (NextI, φ')) ∨
+    ∃ φ', (exec i φ = (Failed, φ') ) ∨ (exec i φ = (NextI, φ')) ∨
           (exec i φ = (Halted, φ')).
   Proof.
-    unfold exec; repeat case_match; eauto; try (eapply updatePC_atomic; eauto).
+    unfold exec, exec_opt.
+    repeat case_match; simplify_eq; eauto.
+    (* Create more goals through *_of_argument, now that some have been pruned *)
+    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _).
+    all: cbn in *; repeat case_match; try by exfalso.
+    all: apply updatePC_some in Heqo as [φ' Heqo]; eauto.
   Qed.
 
 End opsem.

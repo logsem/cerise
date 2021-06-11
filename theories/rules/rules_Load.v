@@ -176,7 +176,7 @@ Section cap_lang_rules.
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
      option_locate_mr m r.
-     cbn in Hstep. rewrite Hrr2 in Hstep.
+     unfold exec in Hstep; simpl in Hstep. rewrite Hrr2 in Hstep.
 
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
      destruct r2v as  [| p b e a ] eqn:Hr2v.
@@ -209,7 +209,6 @@ Section cap_lang_rules.
        rewrite incrementPC_fail_updatePC /= in Hstep; auto.
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        (* Update the heap resource, using the resource for r2 *)
-       iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iFailWP "Hφ" Load_fail_invalid_PC.
      }
 

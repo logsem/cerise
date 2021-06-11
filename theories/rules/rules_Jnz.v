@@ -65,6 +65,7 @@ Section cap_lang_rules.
     unfold regs_of in Hri, Dregs.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
+    unfold exec in Hstep; cbn in Hstep.
 
     destruct (nonZero wsrc) eqn:Hnz; pose proof Hnz as H'nz;
       cbn in Hstep; rewrite /RegLocate Hsrc Hdst Hnz in Hstep.
@@ -74,12 +75,14 @@ Section cap_lang_rules.
 
     destruct (incrementPC regs) eqn:HX; pose proof HX as H'X; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=m) in HX.
-      eapply updatePC_fail_incl with (m':=m) in HX; eauto. simplify_pair_eq.
-      inv Hstep. iFrame. iApply "Hφ". iFrame. iPureIntro; econstructor; eauto. }
+      eapply updatePC_fail_incl with (m':=m) in HX; eauto.
+      rewrite HX in Hstep. inv Hstep.
+      iFrame. iApply "Hφ". iFrame. iPureIntro; econstructor; eauto. }
 
     destruct (incrementPC_success_updatePC _ m _ HX)
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC; eauto. simplify_pair_eq.
+    eapply updatePC_success_incl with (m':=m) in HuPC; eauto. rewrite HuPC in Hstep.
+    simplify_pair_eq.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 2; eauto.
   Qed.

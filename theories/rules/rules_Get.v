@@ -87,6 +87,7 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    unfold exec in Hstep.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
     erewrite regs_of_is_Get in Hri; eauto.
@@ -99,10 +100,10 @@ Section cap_lang_rules.
         all: rewrite /RegLocate Hsrc in Hstep; inversion Hstep; auto. }
       iFailWP "Hφ" Get_fail_src_noncap. }
 
-    assert ((c, σ2) = updatePC (update_reg (r, m) dst (WInt (denote get_i p b e a)))) as HH.
+    assert (exec_opt get_i (r, m) = updatePC (update_reg (r, m) dst (WInt (denote get_i p b e a)))) as HH.
     { destruct_or! Hinstr; rewrite Hinstr /= in Hstep |- *; auto; cbn in Hstep.
       all: destruct b, e, a; rewrite /RegLocate /update_reg Hsrc /= in Hstep |-*; auto. }
-    clear Hstep. rewrite /update_reg /= in HH.
+    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (denote get_i p b e a) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
@@ -112,14 +113,14 @@ Section cap_lang_rules.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       rewrite Hdecode. clear Hdecode. simplify_pair_eq.
-      iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+      rewrite Hregs' in Hstep. inversion Hstep.
       iFailWP "Hφ" Get_fail_overflow_PC. }
 
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ m) in Hregs'
         as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto.
+    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
