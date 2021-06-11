@@ -21,8 +21,8 @@ Definition Cap: Type :=
   Perm * Addr * Addr * Addr.
 
 Inductive Word: Type :=
-| WInt (z : Z)
-| WCap (c : Cap).
+| WInt (z: Z)
+| WCap (p: Perm) (b e a: Addr).
 
 Inductive instr: Type :=
 | Jmp (r: RegName)
@@ -101,16 +101,15 @@ Proof. intros Hne. destruct p,p'; auto; congruence. Qed.
 Definition isPermWord (w : Word) (p : Perm): bool :=
   match w with
   | WInt _ => false
-  | WCap (p',_,_,_) => isPerm p p'
+  | WCap p' _ _ _ => isPerm p p'
   end.
 
 Lemma isPermWord_cap_isPerm (w0:Word) p:
   isPermWord w0 p = true →
-  ∃ p' b e a, w0 = WCap (p',b,e,a) ∧ isPerm p p' = true.
+  ∃ p' b e a, w0 = WCap p' b e a ∧ isPerm p p' = true.
 Proof.
   intros. destruct w0;[done|].
-  destruct c,p0,p0.
-  cbv in H. destruct p; try done;
+  destruct p; try done;
   eexists _, _, _, _; split; eauto.
 Qed.
 
@@ -232,77 +231,75 @@ Qed.
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
   match w with
-  | WCap (E, b, e, a) => WCap (RX, b, e, a)
+  | WCap E b e a => WCap RX b e a
   | _ => w
   end.
 
 Lemma updatePcPerm_cap_non_E p b e a :
   p ≠ E →
-  updatePcPerm (WCap (p, b, e, a)) = WCap (p, b, e, a).
+  updatePcPerm (WCap p b e a) = WCap p b e a.
 Proof.
   intros HnE. cbn. destruct p; auto. contradiction.
 Qed.
 
 Definition nonZero (w: Word): bool :=
   match w with
-  | WCap _ => true
+  | WCap _ _ _ _ => true
   | WInt n => Zneq_bool n 0
   end.
 
 Definition cap_size (w : Word) : Z :=
   match w with
-  | WCap (_,b,e,_) => (e - b)%Z
+  | WCap _ b e _ => (e - b)%Z
   | _ => 0%Z
   end.
 
 Definition is_cap (w: Word): bool :=
   match w with
-  | WCap _ => true
+  | WCap _ _ _ _ => true
   |  _ => false
   end.
 
 (* Bound checking *)
 
-Definition withinBounds (c: Cap): bool :=
-  match c with
-  | (_, b, e, a) => (b <=? a)%a && (a <? e)%a
-  end.
+Definition withinBounds b e a: bool :=
+  (b <=? a)%a && (a <? e)%a.
 
-Lemma withinBounds_true_iff p b e a :
-  withinBounds (p, b, e, a) = true ↔ (b <= a)%a ∧ (a < e)%a.
+Lemma withinBounds_true_iff b e a :
+  withinBounds b e a = true ↔ (b <= a)%a ∧ (a < e)%a.
 Proof.
   unfold withinBounds.
   rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
   rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
-Lemma withinBounds_le_addr p b e a:
-  withinBounds (p, b, e, a) = true →
+Lemma withinBounds_le_addr b e a:
+  withinBounds b e a = true →
   (b <= a)%a ∧ (a < e)%a.
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma isWithinBounds_bounds_alt p b e (a0 a1 a2 : Addr) :
-  withinBounds (p,b,e,a0) = true →
-  withinBounds (p,b,e,a2) = true →
+Lemma isWithinBounds_bounds_alt b e (a0 a1 a2 : Addr) :
+  withinBounds  b e a0 = true →
+  withinBounds b e a2 = true →
   (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z →
-  withinBounds (p,b,e,a1) = true.
+  withinBounds b e a1 = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma isWithinBounds_bounds_alt' p b e (a0 a1 a2 : Addr) :
-  withinBounds (p,b,e,a0) = true →
-  withinBounds (p,b,e,a2) = true →
+Lemma isWithinBounds_bounds_alt' b e (a0 a1 a2 : Addr) :
+  withinBounds b e a0 = true →
+  withinBounds b e a2 = true →
   (a0 ≤ a1)%Z ∧ (a1 < a2)%Z →
-  withinBounds (p,b,e,a1) = true.
+  withinBounds b e a1 = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma le_addr_withinBounds p b e a:
+Lemma le_addr_withinBounds b e a:
   (b <= a)%a → (a < e)%a →
-  withinBounds (p, b, e, a) = true .
+  withinBounds b e a = true .
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma le_addr_withinBounds' p b e a:
+Lemma le_addr_withinBounds' b e a:
   (b <= a)%a ∧ (a < e)%a →
-  withinBounds (p, b, e, a) = true .
+  withinBounds b e a = true .
 Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
 
 
@@ -312,7 +309,7 @@ Definition ContiguousRegion (a: Addr) (z: Z): Prop :=
 Definition SubBounds (b e: Addr) (b' e': Addr) :=
   (b <= b')%a ∧ (b' <= e')%a ∧ (e' <= e)%a.
 
-Definition InBounds (b e: Addr) (a: Addr) :=
+Definition InBounds (b e a: Addr):=
   (b <= a)%a ∧ (a < e)%a.
 
 Lemma InBounds_sub b e b' e' a :
@@ -321,9 +318,9 @@ Lemma InBounds_sub b e b' e' a :
   InBounds b e a.
 Proof. intros (? & ? & ?) [? ?]. unfold InBounds. solve_addr. Qed.
 
-Lemma withinBounds_InBounds p b e a :
+Lemma withinBounds_InBounds b e a :
   InBounds b e a →
-  withinBounds (p, b, e, a) = true.
+  withinBounds b e a = true.
 Proof.
   intros [? ?]. unfold withinBounds.
   apply andb_true_intro.
@@ -354,15 +351,14 @@ Inductive isCorrectPC: Word → Prop :=
     forall p (b e a : Addr),
       (b <= a < e)%a →
       p = RX \/ p = RWX →
-      isCorrectPC (WCap (p, b, e, a)).
+      isCorrectPC (WCap p b e a).
 
 Lemma isCorrectPC_dec:
   forall w, { isCorrectPC w } + { not (isCorrectPC w) }.
 Proof.
   destruct w.
   - right. red; intros H. inversion H.
-  - destruct c as (((p & b) & e) & a).
-    case_eq (match p with RX | RWX => true | _ => false end); intros.
+  - case_eq (match p with RX | RWX => true | _ => false end); intros.
     + destruct (Addr_le_dec b a).
       * destruct (Addr_lt_dec a e).
         { left. econstructor; simpl; eauto. by auto.
@@ -375,7 +371,7 @@ Qed.
 Definition isCorrectPCb (w: Word): bool :=
   match w with
   | WInt _ => false
-  | WCap (p, b, e, a) =>
+  | WCap p b e a =>
     (b <=? a)%a && (a <? e)%a &&
     (isPerm p RX || isPerm p RWX)
   end.
@@ -385,7 +381,7 @@ Lemma isCorrectPCb_isCorrectPC w :
 Proof.
   rewrite /isCorrectPCb. destruct w.
   { split; try congruence. inversion 1. }
-  { destruct c as [[[? ?] ?] ?]. rewrite /leb_addr /ltb_addr.
+  { rewrite /leb_addr /ltb_addr.
     rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
@@ -402,7 +398,7 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
-  isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+  isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
   readAllowed pc_p && ((pc_b <=? pc_a)%a && (pc_a <? pc_e)%a).
 Proof.
   intros. inversion H; subst.
@@ -413,7 +409,7 @@ Proof.
 Qed.
 
 Lemma not_isCorrectPC_perm p b e a :
-  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (WCap (p,b,e,a)).
+  p ≠ RX ∧ p ≠ RWX → ¬ isCorrectPC (WCap p b e a).
 Proof.
   intros (Hrx & Hrwx).
   intros Hvpc. inversion Hvpc;
@@ -421,7 +417,7 @@ Proof.
 Qed.
 
 Lemma not_isCorrectPC_bounds p b e a :
- ¬ (b <= a < e)%a → ¬ isCorrectPC (WCap (p,b,e,a)).
+ ¬ (b <= a < e)%a → ¬ isCorrectPC (WCap p b e a).
 Proof.
   intros Hbounds.
   intros Hvpc. inversion Hvpc.
@@ -429,9 +425,9 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_bounds p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (WCap (p, b, e, a0)) →
-  isCorrectPC (WCap (p, b, e, a2)) →
-  (a0 ≤ a1 < a2)%Z → isCorrectPC (WCap (p, b, e, a1)).
+  isCorrectPC (WCap p b e a0) →
+  isCorrectPC (WCap p b e a2) →
+  (a0 ≤ a1 < a2)%Z → isCorrectPC (WCap p b e a1).
 Proof.
   intros Hvpc0 Hvpc2 [Hle Hlt].
   inversion Hvpc0.
@@ -443,10 +439,10 @@ Proof.
 Qed.
 
 Lemma isCorrectPC_bounds_alt p b e (a0 a1 a2 : Addr) :
-  isCorrectPC (WCap (p, b, e, a0))
-  → isCorrectPC (WCap (p, b, e, a2))
+  isCorrectPC (WCap p b e a0)
+  → isCorrectPC (WCap p b e a2)
   → (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z
-  → isCorrectPC (WCap (p, b, e, a1)).
+  → isCorrectPC (WCap p b e a1).
 Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
@@ -454,30 +450,29 @@ Proof.
   - apply z_of_eq in Heq2. rewrite Heq2. auto.
 Qed.
 
-Lemma isCorrectPC_withinBounds p p' b e a :
-  isCorrectPC (WCap (p, b, e, a)) →
-  withinBounds (p', b, e, a) = true.
+Lemma isCorrectPC_withinBounds p b e a :
+  isCorrectPC (WCap p b e a) →
+  withinBounds b e a = true.
 Proof.
   intros HH. inversion HH; subst.
   rewrite /withinBounds !andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
 Lemma isCorrectPC_le_addr p b e a :
-  isCorrectPC (WCap (p, b, e, a)) →
+  isCorrectPC (WCap p b e a) →
   (b <= a)%a ∧ (a < e)%a.
 Proof.
   intros HH. by eapply withinBounds_le_addr, isCorrectPC_withinBounds.
-  Unshelve. auto.
 Qed.
 
 Lemma correctPC_nonO p p' b e a :
-  PermFlows p p' → isCorrectPC (WCap (p,b,e,a)) → p' ≠ O.
+  PermFlows p p' → isCorrectPC (WCap p b e a) → p' ≠ O.
 Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
 Qed.
 
 Lemma in_range_is_correctPC p b e a b' e' :
-  isCorrectPC (WCap (p,b,e,a)) →
+  isCorrectPC (WCap p b e a) →
   (b' <= b)%a ∧ (e <= e')%a →
   (b' <= a)%a ∧ (a < e')%a.
 Proof.
@@ -488,22 +483,10 @@ Qed.
 Lemma isCorrectPC_ExecPCPerm_InBounds p b e a :
   ExecPCPerm p →
   InBounds b e a →
-  isCorrectPC (WCap (p, b, e, a)).
+  isCorrectPC (WCap p b e a).
 Proof.
   unfold ExecPCPerm, InBounds. intros. constructor; eauto.
 Qed.
-
-(* Helper tactics *)
-
-Ltac destruct_pair_l c n :=
-  match eval compute in n with
-  | 0 => idtac
-  | _ => let sndn := fresh c in
-        destruct c as (c,sndn); destruct_pair_l c (pred n)
-  end.
-
-Ltac destruct_cap c :=
-  destruct_pair_l c 3.
 
 (* Useful instances *)
 
@@ -543,11 +526,11 @@ Proof.
   set (enc := fun w =>
        match w with
        | WInt z => GenNode 0 [GenLeaf (inl z)]
-       | WCap c => GenNode 1 [GenLeaf (inr c)] end).
+       | WCap p b e a => GenNode 1 [GenLeaf (inr (p, b, e, a))] end).
   set (dec := fun e =>
       match e with
       | GenNode 0 [GenLeaf (inl z)] => WInt z
-      | GenNode 1 [GenLeaf (inr c)] => WCap c
+      | GenNode 1 [GenLeaf (inr (p, b, e, a))] => WCap p b e a
       | _ => WInt 0 (* Dummy *) end ).
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.

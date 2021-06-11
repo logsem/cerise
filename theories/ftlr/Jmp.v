@@ -59,7 +59,7 @@ Section fundamental.
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iNext. iIntros. discriminate. }
-      { destruct c,p0,p0,p0.
+      { destruct p0.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -90,7 +90,7 @@ Section fundamental.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           destruct wsrc; simpl in Heq; try congruence.
-          destruct c,p0,p0,p0; try congruence.
+          destruct p0; try congruence.
           + iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
             iModIntro. 
             inv Heq.
@@ -117,7 +117,7 @@ Section fundamental.
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
           destruct wsrc; simpl in Heq; try congruence.
-          destruct c,p0,p0,p0; try congruence. inv Heq.
+          destruct p0; try congruence. inv Heq.
           iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
           rewrite /RegLocate Hsomesrc.
           iClear "Hinv". 

@@ -42,7 +42,7 @@ Section counter.
   Definition pos_word (w : Word) : iProp Σ :=
     (match w with
     | WInt z => ⌜(0 ≤ z)%Z⌝
-    | WCap _ => False
+    | WCap _ _ _ _ => False
     end)%I.
   Definition counter_inv d : iProp Σ :=
     (∃ w, d ↦ₐ w ∗ pos_word w)%I.
@@ -75,9 +75,9 @@ Section counter.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)
@@ -188,7 +188,7 @@ Section counter.
     contiguous_between read_addrs a_first a_last ->
 
     (* Linking table assumptions *)
-    withinBounds (RW, b_link, e_link, a_entry) = true →
+    withinBounds b_link e_link a_entry = true →
     (a_link + f_a)%a = Some a_entry ->
 
     (* malloc'ed memory assumption for the counter *)
@@ -200,9 +200,9 @@ Section counter.
     (* The two invariants have different names *)
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)
@@ -214,7 +214,7 @@ Section counter.
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (read read_addrs f_a)
       (* linking table *)
-      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry ↦ₐ fail_cap)
+      ∗ na_inv logrel_nais ι2 (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ fail_cap)
       (* the remaining registers are all valid *)
       ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
     }}}
@@ -369,9 +369,9 @@ Section counter.
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t1 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for d *)

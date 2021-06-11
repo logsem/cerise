@@ -116,11 +116,11 @@ Section counter_example_preamble.
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_incrN ([∗ list] a_i;w_i ∈ incr_prog;incr_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
-     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, counter_first); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc'); WCap (RWX, b_cell, e_cell, b_cell)] ]]) -∗
+     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e counter_first; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc'; WCap RWX b_cell e_cell b_cell] ]]) -∗
      na_own logrel_nais ⊤ -∗
-    interp (WCap (E,b_cls,e_cls,b_cls)))%I.
+    interp (WCap E b_cls e_cls b_cls))%I.
   Proof.
     iIntros (Hnp Hcont_incr Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
@@ -184,18 +184,18 @@ Section counter_example_preamble.
     contiguous_between reset_prog linkc' counter_end →
     (b_cell + 1)%a = Some e_cell →
     (a_link + f_a)%a = Some a_entry' →
-    withinBounds (RW, b_link, e_link, a_entry') = true →
+    withinBounds b_link e_link a_entry' = true →
     (up_close (B:=coPset) count_env ## ↑count_readN) →
     
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_readN ([∗ list] a_i;w_i ∈ read_prog;read_instrs f_a, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
-     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, counter_first); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc'); WCap (RWX, b_cell, e_cell, b_cell)] ]]) -∗
-     na_inv logrel_nais count_env (pc_b ↦ₐ WCap (RO, b_link, e_link, a_link) ∗ a_entry' ↦ₐ fail_cap) -∗
+     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e counter_first; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc'; WCap RWX b_cell e_cell b_cell] ]]) -∗
+     na_inv logrel_nais count_env (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ fail_cap) -∗
      na_own logrel_nais ⊤ -∗
-    interp (WCap (E,b_cls',e_cls',b_cls')))%I.
+    interp (WCap E b_cls' e_cls' b_cls'))%I.
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell Hlink Hwb Hdisj) "#Hcounter_inv #Hincr #Hcls_inv #Hlink HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
@@ -261,11 +261,11 @@ Section counter_example_preamble.
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_resetN ([∗ list] a_i;w_i ∈ reset_prog;reset_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
-     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, counter_first); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc); WCap (RWX, b_cell, e_cell, b_cell)] ]]
-  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap (pc_p, pc_b, pc_e, linkc'); WCap (RWX, b_cell, e_cell, b_cell)] ]]) -∗
+     ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e counter_first; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc; WCap RWX b_cell e_cell b_cell] ]]
+  ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc'; WCap RWX b_cell e_cell b_cell] ]]) -∗
      na_own logrel_nais ⊤ -∗
-    interp (WCap (E,b_cls'',e_cls'',b_cls'')))%I.
+    interp (WCap E b_cls'' e_cls'' b_cls''))%I.
   Proof.
     iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
@@ -336,8 +336,8 @@ Section counter_example_preamble.
 
     isCorrectPC_range pc_p pc_b pc_e a_first a_end →
     contiguous_between ai a_first a_end →
-    withinBounds (RW, b_link, e_link, a_entry) = true →
-    withinBounds (RW, b_link, e_link, a_entry') = true →
+    withinBounds b_link e_link a_entry = true →
+    withinBounds b_link e_link a_entry' = true →
     (a_link + f_m)%a = Some a_entry →
     (a_link + f_a)%a = Some a_entry' →
     (a_first + counter_preamble_move_offset)%a = Some a_move →
@@ -354,12 +354,12 @@ Section counter_example_preamble.
     (** Resources for malloc and assert **)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
-    ∗ pc_b ↦ₐ (WCap (RO, b_link, e_link, a_link))
-    ∗ a_entry ↦ₐ (WCap (E, b_m, e_m, b_m))
+    ∗ pc_b ↦ₐ (WCap RO b_link e_link a_link)
+    ∗ a_entry ↦ₐ (WCap E b_m e_m b_m)
     ∗ a_entry' ↦ₐ fail_cap
 
     -∗
-    interp_expr interp r (WCap (pc_p, pc_b, pc_e, a_first)).
+    interp_expr interp r (WCap pc_p pc_b pc_e a_first).
   Proof.
     rewrite /interp_expr /=.
     iIntros (Hvpc Hcont Hwb_malloc Hwb_assert Ha_entry Ha_entry' Ha_lea H_counter_offset Hvpc_counter Hcont_counter)
@@ -720,7 +720,7 @@ Section counter_example_preamble.
     { iNext. rewrite /counter_inv. iExists _. iFrame. auto. }
     (* we also allocate a non atomic invariant for the environment table *)
     iMod (na_inv_alloc logrel_nais _ count_env
-                       (pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry' ↦ₐ fail_cap)%I
+                       (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ fail_cap)%I
             with "[$Ha_entry' $Hpc_b]") as "#Henv".
 
     (* jmp *)
@@ -730,16 +730,16 @@ Section counter_example_preamble.
       [apply decode_encode_instrW_inv|iCorrectPC a_crtcls_end'' a_end|..].
 
     (* the current state of registers is valid *)
-    iAssert (interp (WCap (E, b_cls, e_cls, b_cls)))%I as "#Hvalid_cls".
+    iAssert (interp (WCap E b_cls e_cls b_cls))%I as "#Hvalid_cls".
     { iApply (incr_closure_valid with "Hcounter_inv Hincr Hcls_inv");auto.
       apply Hvpc_counter. apply Hcont_restc. }
     
-    iAssert (interp (WCap (E, b_cls', e_cls', b_cls')))%I as "#Hvalid_cls'".
+    iAssert (interp (WCap E b_cls' e_cls' b_cls'))%I as "#Hvalid_cls'".
     { iApply (read_closure_valid with "Hcounter_inv Hread Hcls_inv");auto.
       apply Hcont_incr. apply Hvpc_counter. apply Hcont_reset. apply Ha_entry'.
       apply Hwb_assert. solve_ndisj. }
 
-    iAssert (interp (WCap (E, b_cls'', e_cls'', b_cls'')))%I as "#Hvalid_cls''".
+    iAssert (interp (WCap E b_cls'' e_cls'' b_cls''))%I as "#Hvalid_cls''".
     { iApply (reset_closure_valid with "Hcounter_inv Hreset Hcls_inv");auto.
       apply Hcont_incr. apply Hcont_read. apply Hvpc_counter. apply Hcont_reset. }
     

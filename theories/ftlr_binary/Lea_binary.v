@@ -48,7 +48,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_lea _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
@@ -88,7 +88,7 @@ Section fundamental.
         rewrite /RegLocate H0 H0'.
         rewrite (insert_commute _ dst PC); auto.
         rewrite !insert_insert.
-        iApply ("IH" $! (<[dst:=WCap (p0, b0, e0, a')]> r1,<[dst:=WCap (p0, b0, e0, a')]> r1) with "[] [] Hmap Hsmap Hown Hs' Hspec").
+        iApply ("IH" $! (<[dst:=WCap p0 b0 e0 a']> r1,<[dst:=WCap p0 b0 e0 a']> r1) with "[] [] Hmap Hsmap Hown Hs' Hspec").
         { iPureIntro. simpl. intros reg.
           destruct (reg_eq_dec dst reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
           destruct Hsome with reg;auto. }
@@ -99,7 +99,7 @@ Section fundamental.
           - rewrite !lookup_insert_ne; auto.
             iDestruct ("Hreg" $! r0 H4) as "Hr0".
             replace (r2 !! r0) with (r1 !! r0); [iExact "Hr0"|].
-            assert (<[PC:=WCap (x, x0, x1, x2)]> r1 !! r0 = <[PC:=WCap (x, x0, x1, x2)]> r2 !! r0) by (rewrite Heq; auto).
+            assert (<[PC:=WCap x x0 x1 x2]> r1 !! r0 = <[PC:=WCap x x0 x1 x2]> r2 !! r0) by (rewrite Heq; auto).
             rewrite !lookup_insert_ne in H6; auto. }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
   Qed.

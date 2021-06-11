@@ -75,10 +75,10 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   ∧ (adv_start + length adv_val)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
-  reg !! PC = Some (WCap (RX, g_start, f_end, g_start)) ∧
-  reg !! r_t0 = Some (WCap (RWX, adv_start, adv_end, adv_start)) ∧
-  reg !! r_t1 = Some (WCap (RWX, act_start, act_end, act_start)) ∧
-  reg !! r_t3 = Some (WCap (RW, x, x', x)) ∧
+  reg !! PC = Some (WCap RX g_start f_end g_start) ∧
+  reg !! r_t0 = Some (WCap RWX adv_start adv_end adv_start) ∧
+  reg !! r_t1 = Some (WCap RWX act_start act_end act_start) ∧
+  reg !! r_t3 = Some (WCap RW x x' x) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_t0; r_t1; r_t3 ]} : gset RegName) →
      ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 

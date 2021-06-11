@@ -16,20 +16,12 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word. 
 
-  (* TODO: Move somewhere *)
-  Ltac destruct_cap c :=
-    let p := fresh "p" in
-    let b := fresh "b" in
-    let e := fresh "e" in
-    let a := fresh "a" in
-    destruct c as (((p & b) & e) & a).
-
   Inductive Subseg_failure  (regs: Reg) (dst: RegName) (src1 src2: Z + RegName) : Reg → Prop :=
   | Subseg_fail_dst_noncap z :
       regs !! dst = Some (WInt z) →
       Subseg_failure regs dst src1 src2 regs
   | Subseg_fail_pE p b e a :
-      regs !! dst = Some (WCap (p, b, e, a)) →
+      regs !! dst = Some (WCap p b e a) →
       p = E →
       Subseg_failure regs dst src1 src2 regs
   | Subseg_fail_src1_nonaddr :
@@ -39,28 +31,28 @@ Section cap_lang_rules.
       addr_of_argument regs src2 = None →
       Subseg_failure regs dst src1 src2 regs
   | Subseg_fail_not_iswithin p b e a a1 a2 :
-      regs !! dst = Some (WCap (p, b, e, a)) →
+      regs !! dst = Some (WCap p b e a) →
       addr_of_argument regs src1 = Some a1 →
       addr_of_argument regs src2 = Some a2 →
       isWithin a1 a2 b e = false →
       Subseg_failure regs dst src1 src2 regs
   | Subseg_fail_incrPC p b e a a1 a2 :
-      regs !! dst = Some (WCap (p, b, e, a)) →
+      regs !! dst = Some (WCap p b e a) →
       p <> E →
       addr_of_argument regs src1 = Some a1 →
       addr_of_argument regs src2 = Some a2 →
       isWithin a1 a2 b e = true →
-      incrementPC (<[ dst := WCap (p, a1, a2, a) ]> regs) = None →
-      Subseg_failure regs dst src1 src2 (<[ dst := WCap (p, a1, a2, a) ]> regs).
+      incrementPC (<[ dst := WCap p a1 a2 a ]> regs) = None →
+      Subseg_failure regs dst src1 src2 (<[ dst := WCap p a1 a2 a ]> regs).
 
   Inductive Subseg_spec (regs: Reg) (dst: RegName) (src1 src2: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | Subseg_spec_success p b e a a1 a2:
-      regs !! dst = Some (WCap (p, b, e, a)) ->
+      regs !! dst = Some (WCap p b e a) ->
       p <> E ->
       addr_of_argument regs src1 = Some a1 ->
       addr_of_argument regs src2 = Some a2 ->
       isWithin a1 a2 b e = true ->
-      incrementPC (<[ dst := WCap (p, a1, a2, a) ]> regs) = Some regs' ->
+      incrementPC (<[ dst := WCap p a1 a2 a ]> regs) = Some regs' ->
       Subseg_spec regs dst src1 src2 regs' NextIV
   | Subseg_spec_failure :
       Subseg_failure regs dst src1 src2 regs' →
@@ -69,8 +61,8 @@ Section cap_lang_rules.
   
   Lemma wp_Subseg Ep pc_p pc_b pc_e pc_a w dst src1 src2 regs :
     decodeInstrW w = Subseg dst src1 src2 ->
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (Subseg dst src1 src2) ⊆ dom _ regs →
     
     {{{ ▷ pc_a ↦ₐ w ∗
@@ -97,7 +89,7 @@ Section cap_lang_rules.
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
     unfold regs_of in Hri, Dregs.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
-    destruct wdst as [| cdst]; [| destruct_cap cdst].
+    destruct wdst.
     { rewrite /= /RegLocate Hdst in Hstep. repeat case_match; inv Hstep; simplify_pair_eq.
       all: iFailWP "Hφ" Subseg_fail_dst_noncap. }
 
@@ -143,7 +135,7 @@ Section cap_lang_rules.
     eapply addr_of_argument_Some_inv' in Ha2 as [z2 [Hz2 Hz2']]; eauto.
 
     assert ((c, σ2) = if isWithin a1 a2 b e then
-                        updatePC (update_reg (r, m) dst (WCap (p, a1, a2, a))) else
+                        updatePC (update_reg (r, m) dst (WCap p a1 a2 a)) else
                         (Failed, (r, m)))
       as Hexec.
     { rewrite -Hstep; clear Hstep. 
@@ -157,7 +149,7 @@ Section cap_lang_rules.
     destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1.
     { inv Hexec. iFailWP "Hφ" Subseg_fail_not_iswithin. }
 
-    destruct (incrementPC (<[ dst := (WCap (p, a1, a2, a)) ]> regs)) eqn:HX;
+    destruct (incrementPC (<[ dst := (WCap p a1 a2 a) ]> regs)) eqn:HX;
       pose proof HX as H'X; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=m) in HX.
       eapply updatePC_fail_incl with (m':=m) in HX.
@@ -178,24 +170,24 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success E pc_p pc_b pc_e pc_a w dst r1 r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inr r2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
+        ∗ ▷ dst ↦ᵣ WCap p b e a
         ∗ ▷ r1 ↦ᵣ WInt n1
         ∗ ▷ r2 ↦ᵣ WInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
           ∗ r2 ↦ᵣ WInt n2
-          ∗ dst ↦ᵣ WCap (p, a1, a2, a)
+          ∗ dst ↦ᵣ WCap p a1 a2 a
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2) Hφ".
@@ -218,22 +210,22 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_same E pc_p pc_b pc_e pc_a w dst r1 p b e a n1 a1 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inr r1) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 →
     p ≠ machine_base.E →
     isWithin a1 a1 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
+        ∗ ▷ dst ↦ᵣ WCap p b e a
         ∗ ▷ r1 ↦ᵣ WInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
-          ∗ dst ↦ᵣ WCap (p, a1, a1, a)
+          ∗ dst ↦ᵣ WCap p a1 a1 a
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hn1 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1) Hφ".
@@ -256,22 +248,22 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_l E pc_p pc_b pc_e pc_a w dst r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inl n1) (inr r2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
+        ∗ ▷ dst ↦ᵣ WCap p b e a
         ∗ ▷ r2 ↦ᵣ WInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r2 ↦ᵣ WInt n2
-          ∗ dst ↦ᵣ WCap (p, a1, a2, a)
+          ∗ dst ↦ᵣ WCap p a1 a2 a
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr2) Hφ".
@@ -294,22 +286,22 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_r E pc_p pc_b pc_e pc_a w dst r1 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inr r1) (inl n2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ dst ↦ᵣ WCap (p,b,e,a)
+        ∗ ▷ dst ↦ᵣ WCap p b e a
         ∗ ▷ r1 ↦ᵣ WInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
-          ∗ dst ↦ᵣ WCap (p, a1, a2, a)
+          ∗ dst ↦ᵣ WCap p a1 a2 a
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1) Hφ".
@@ -332,20 +324,20 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_lr E pc_p pc_b pc_e pc_a w dst p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg dst (inl n1) (inl n2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ dst ↦ᵣ WCap (p,b,e,a) }}}
+        ∗ ▷ dst ↦ᵣ WCap p b e a }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ WCap (p, a1, a2, a)
+          ∗ dst ↦ᵣ WCap p a1 a2 a
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
@@ -367,19 +359,19 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a w r1 r2 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inr r2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ WInt n1
         ∗ ▷ r2 ↦ᵣ WInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,a1,a2,pc_a')
+          PC ↦ᵣ WCap pc_p a1 a2 pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
           ∗ r2 ↦ᵣ WInt n2
@@ -404,18 +396,18 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_pc_same E pc_p pc_b pc_e pc_a w r1 n1 a1 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inr r1) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 →
     pc_p ≠ machine_base.E →
     isWithin a1 a1 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ WInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,a1,a1,pc_a')
+          PC ↦ᵣ WCap pc_p a1 a1 pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
       }}}.
@@ -439,18 +431,18 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_pc_l E pc_p pc_b pc_e pc_a w r2 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inl n1) (inr r2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r2 ↦ᵣ WInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,a1,a2,pc_a')
+          PC ↦ᵣ WCap pc_p a1 a2 pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r2 ↦ᵣ WInt n2
       }}}.
@@ -474,18 +466,18 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_pc_r E pc_p pc_b pc_e pc_a w r1 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inl n2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ WInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,a1,a2,pc_a')
+          PC ↦ᵣ WCap pc_p a1 a2 pc_a'
           ∗ pc_a ↦ₐ w
           ∗ r1 ↦ᵣ WInt n1
       }}}.
@@ -509,17 +501,17 @@ Section cap_lang_rules.
 
   Lemma wp_subseg_success_pc_lr E pc_p pc_b pc_e pc_a w n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inl n1) (inl n2) →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
     
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,a1,a2,pc_a')
+          PC ↦ᵣ WCap pc_p a1 a2 pc_a'
           ∗ pc_a ↦ₐ w
       }}}.
   Proof.

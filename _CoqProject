@@ -9,6 +9,7 @@ theories/addr_reg.v
 theories/solve_addr.v
 theories/machine_base.v
 theories/machine_parameters.v
+theories/machine_run.v
 theories/classes.v
 theories/class_instances.v
 theories/solve_addr_extra.v

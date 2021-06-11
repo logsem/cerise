@@ -25,8 +25,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_Load Ep K pc_p pc_b pc_e pc_a r1 r2 w mem regs :
     decodeInstrW w = Load r1 r2 →
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (Load r1 r2) ⊆ dom _ regs →
     mem !! pc_a = Some w →
     allow_load_map_or_true r2 regs mem →
@@ -59,7 +59,7 @@ Section cap_lang_spec_rules.
      cbn in Hstep. rewrite Hσrr2 in Hstep.
      
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-     destruct r2v as  [| (([p b] & e) & a) ] eqn:Hr2v.
+     destruct r2v as  [| p b e a ] eqn:Hr2v.
      { (* Failure: r2 is not a capability *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
@@ -69,7 +69,7 @@ Section cap_lang_spec_rules.
        iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_const. 
      }
 
-     destruct (readAllowed p && withinBounds (p, b, e, a)) eqn:HRA; rewrite HRA in Hstep.
+     destruct (readAllowed p && withinBounds b e a) eqn:HRA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        apply andb_false_iff in HRA.
@@ -113,7 +113,7 @@ Section cap_lang_spec_rules.
      rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
      iFrame.
      iMod ((regspec_heap_update_inSepM _ _ _ r1 loadv) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-     iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap (p1, b1, e1, a_pc1))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+     iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p1 b1 e1 a_pc1)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
      iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
      iExists NextIV,_. iFrame.
      iMod ("Hclose" with "[Hown]") as "_".
@@ -130,18 +130,18 @@ Section cap_lang_spec_rules.
 
   Lemma step_load_success_same E K r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r1 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
+             ∗ ▷ r1 ↣ᵣ WCap p b e a
              ∗ (if (a =? pc_a)%a then emp else ▷ a ↣ₐ w')
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ (if (a =? pc_a)%a then w else w')
         ∗ pc_a ↣ₐ w
         ∗ (if (a =? pc_a)%a then emp else a ↣ₐ w'). 
@@ -179,18 +179,18 @@ Section cap_lang_spec_rules.
 
   Lemma step_load_success_same_alt E K r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r1 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ r1 ↣ᵣ WCap (p,b,e,a)
+             ∗ ▷ r1 ↣ᵣ WCap p b e a
              ∗ ▷ a ↣ₐ w'
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ w'
         ∗ pc_a ↣ₐ w
         ∗ a ↣ₐ w'. 
@@ -203,22 +203,22 @@ Section cap_lang_spec_rules.
 
   Lemma step_load_success E K r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r2 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ w''  
-             ∗ ▷ r2 ↣ᵣ WCap (p,b,e,a)
+             ∗ ▷ r2 ↣ᵣ WCap p b e a
              ∗ (if (eqb_addr a pc_a) then emp else ▷ a ↣ₐ w')
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ (if (eqb_addr a pc_a) then w else w')
         ∗ pc_a ↣ₐ w
-        ∗ r2 ↣ᵣ WCap (p,b,e,a)
+        ∗ r2 ↣ᵣ WCap p b e a
         ∗ (if (eqb_addr a pc_a) then emp else a ↣ₐ w'). 
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
@@ -254,22 +254,22 @@ Section cap_lang_spec_rules.
 
   Lemma step_load_success_alt E K r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r2 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ w''  
-             ∗ ▷ r2 ↣ᵣ WCap (p,b,e,a)
+             ∗ ▷ r2 ↣ᵣ WCap p b e a
              ∗ ▷ a ↣ₐ w'
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ w'
         ∗ pc_a ↣ₐ w
-        ∗ r2 ↣ᵣ WCap (p,b,e,a)
+        ∗ r2 ↣ᵣ WCap p b e a
         ∗ a ↣ₐ w'. 
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)

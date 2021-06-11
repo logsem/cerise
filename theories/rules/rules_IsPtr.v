@@ -29,8 +29,8 @@ Section cap_lang_rules.
 
   Lemma wp_IsPtr Ep pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = IsPtr dst src ->
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (IsPtr dst src) ⊆ dom _ regs →
     
     {{{ ▷ pc_a ↦ₐ w ∗
@@ -85,16 +85,16 @@ Section cap_lang_rules.
 
   Lemma wp_IsPtr_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :
     decodeInstrW w = IsPtr dst PC →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ w'
     }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
           ∗ dst ↦ᵣ WInt 1%Z }}}.
    Proof.
@@ -113,17 +113,17 @@ Section cap_lang_rules.
 
    Lemma wp_IsPtr_success E pc_p pc_b pc_e pc_a pc_a' w dst r wr w' :
      decodeInstrW w = IsPtr dst r →
-     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
 
-       {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+       {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ r ↦ᵣ wr
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
            ∗ pc_a ↦ₐ w
            ∗ r ↦ᵣ wr
            ∗ dst ↦ᵣ WInt (if is_cap wr then 1%Z else 0%Z) }}}.
@@ -146,16 +146,16 @@ Section cap_lang_rules.
 
    Lemma wp_IsPtr_success_dst E pc_p pc_b pc_e pc_a pc_a' w dst w' :
      decodeInstrW w = IsPtr dst dst →
-     isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
      
-       {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+       {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↦ₐ w
              ∗ ▷ dst ↦ᵣ w'
        }}}
          Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
            ∗ pc_a ↦ₐ w
            ∗ dst ↦ᵣ WInt (if is_cap w' then 1%Z else 0%Z) }}}.
    Proof.

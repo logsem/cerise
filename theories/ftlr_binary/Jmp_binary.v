@@ -32,7 +32,7 @@ Section fundamental.
       iAssert (⌜w = w'⌝)%I as %Heqw.
       { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
       destruct r as [r1 r2]. simpl in *.
-      iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+      iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
       iMod (wp_jmp_successPC _ [SeqCtx] with "[$Ha' $HsPC $Hs]") as "(Hs & HsPC & Ha') /=";[rewrite Heqw in Hi|..];eauto.
       { solve_ndisj. }
@@ -63,10 +63,10 @@ Section fundamental.
       iAssert (⌜w = w'⌝)%I as %Heqw.
       { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
       destruct r as [r1 r2]. simpl in *.
-      iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+      iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
       subst w'.
       assert (wdst1 = wdst2) as <-.
-      { assert (HA: <[PC:=WCap (p, b, e, a)]> r1 !! dst = Some wdst1) by (rewrite lookup_insert_ne; auto).
+      { assert (HA: <[PC:=WCap p b e a]> r1 !! dst = Some wdst1) by (rewrite lookup_insert_ne; auto).
         rewrite Heq lookup_insert_ne in HA; auto.
         rewrite Hdst2 in HA. inversion HA; auto. }
 
@@ -93,12 +93,11 @@ Section fundamental.
 
       case_eq (isCorrectPCb (updatePcPerm wdst1)); intro HPCb.
       - destruct wdst1; simpl in HPCb; [congruence|].
-        destruct_cap c.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
-        destruct (perm_eq_dec c E).
-        + subst c. rewrite /interp (fixpoint_interp1_eq (WCap (E,_,_,_), WCap _)) /=.
+        destruct (perm_eq_dec p0 E).
+        + subst p0. rewrite /interp (fixpoint_interp1_eq (WCap E _ _ _, WCap _ _ _ _)) /=.
           iDestruct "Hinvdst" as (_) "Hinvdst".
           iDestruct ("Hinvdst" $! (<[dst:=_]>r1, <[dst:=_]>r2)) as "Hinvdst'".
           iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
@@ -108,43 +107,44 @@ Section fundamental.
               - iPureIntro. simpl; intros.
                 destruct (reg_eq_dec dst x); [subst x; rewrite !lookup_insert; split; eauto| rewrite !lookup_insert_ne; eauto].
               - simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-                destruct (reg_eq_dec dst rr); [subst rr; rewrite /RegLocate !lookup_insert; auto| rewrite /RegLocate !lookup_insert_ne; auto]. instantiate (1 := WCap (E, c2, c1, c0)).
+                destruct (reg_eq_dec dst rr); [subst rr; rewrite /RegLocate !lookup_insert; auto| rewrite /RegLocate !lookup_insert_ne; auto]. instantiate (1 := WCap E b0 e0 a0).
                 iDestruct ("Hreg" $! dst ltac:(auto)) as "Hinvdst2"; auto.
                  rewrite /RegLocate Hdst1 Hdst2. iFrame "#". }
-            { assert (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> r1) = (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> r2))).
-              { transitivity (<[PC:=WCap (RX, c2, c1, c0)]> (<[dst:=WCap (E, c2, c1, c0)]> (<[PC:=WCap (p, b, e, a)]> r1))).
+            { assert (<[PC:=WCap RX b0 e0 a0]> (<[dst:=WCap E b0 e0 a0]> r1) = (<[PC:=WCap RX b0 e0 a0]> (<[dst:=WCap E b0 e0 a0]> r2))).
+              { transitivity (<[PC:=WCap RX b0 e0 a0]> (<[dst:=WCap E b0 e0 a0]> (<[PC:=WCap p b e a]> r1))).
                 - rewrite (insert_commute r1 dst); auto. rewrite insert_insert; auto.
                 - rewrite Heq. rewrite (insert_commute r2 dst); auto. rewrite insert_insert; auto. }
               rewrite H0. iFrame. }
           * iDestruct "Hinvdst''" as "(_ & Hinvdst'')". iFrame.
         + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
-          iApply ("IH" $! (<[dst:=_]>r1, <[dst:=_]>r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]").
+          iApply ("IH" $! (<[dst:=_]>r1, <[dst:=_]>r2)
+                       match p0 with E => RX | _ => p0 end b0 e0 a0
+                    with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]").
           { iPureIntro. intros; simpl; auto.
             destruct (reg_eq_dec dst x); [subst x; rewrite !lookup_insert; split; eauto| rewrite !lookup_insert_ne; eauto]. }
           { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
             destruct (reg_eq_dec dst rr); [subst rr; rewrite !lookup_insert; auto| rewrite !lookup_insert_ne; auto]. }
-          { simpl. instantiate (4 := match c with E => RX | _ => c end).
-            rewrite Hdst1. destruct c; eauto. }
-          { simpl. assert (<[PC:=match c with
-                                 | E => WCap (RX, c2, c1, c0)
-                                 | _ => WCap (c, c2, c1, c0)
-                                 end]> (<[dst:=WCap (c, c2, c1, c0)]> r1) = (<[PC:=WCap (match c with
-                                                                                       | E => RX
-                                                                                       | _ => c
-                                                                                       end, c2, c1, c0)]> (<[dst:=match r2 !! dst with
-                                                                                                                  | Some w0 => w0
-                                                                                                                  | None => WInt 0%Z
-                                                                                                                  end]> r2))).
-            { transitivity (<[PC:=match c with
-                                  | E => WCap (RX, c2, c1, c0)
-                                  | _ => WCap (c, c2, c1, c0)
-                                  end]> (<[dst:=WCap (c, c2, c1, c0)]> (<[PC:=WCap (p, b, e, a)]> r1))).
+          { simpl. rewrite Hdst1. destruct p0; eauto. }
+          { simpl. assert (<[PC:=match p0 with
+                                 | E => WCap RX b0 e0 a0
+                                 | _ => WCap p0 b0 e0 a0
+                                 end]> (<[dst:=WCap p0 b0 e0 a0]> r1) = (<[PC:=WCap match p0 with
+                                                                                    | E => RX
+                                                                                    | _ => p0
+                                                                                    end b0 e0 a0]> (<[dst:=match r2 !! dst with
+                                                                                                           | Some w0 => w0
+                                                                                                           | None => WInt 0%Z
+                                                                                                           end]> r2))).
+            { transitivity (<[PC:=match p0 with
+                                  | E => WCap RX b0 e0 a0
+                                  | _ => WCap p0 b0 e0 a0
+                                  end]> (<[dst:=WCap p0 b0 e0 a0]> (<[PC:=WCap p b e a]> r1))).
               - rewrite !(insert_commute _ PC dst); auto.
                 rewrite insert_insert. reflexivity.
               - rewrite Heq. rewrite !(insert_commute _ PC dst); auto.
-                rewrite insert_insert. rewrite Hdst2. destruct c; reflexivity. }
+                rewrite insert_insert. rewrite Hdst2. destruct p0; reflexivity. }
             rewrite H0. iFrame. }
-          { destruct c; auto. congruence. }
+          { destruct p0; auto. congruence. }
       - iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
         simpl. iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC with "HPC"); [eapply isCorrectPCb_nisCorrectPC; auto|].

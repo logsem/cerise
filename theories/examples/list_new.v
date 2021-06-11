@@ -86,7 +86,7 @@ Section list.
     | [] => (⌜hd = WInt 0%Z⌝)%I
     | (p,w) :: awvals => (∃ hd' p' p'', ⌜ (p + 1)%a = Some p'
                                           ∧ (p + 2)%a = Some p''
-                                          ∧ hd = WCap (RWX,p,p'',p)⌝
+                                          ∧ hd = WCap RWX p p'' p⌝
                                           ∗ p ↦ₐ w
                                           ∗ p' ↦ₐ hd'
                                           ∗ isList hd' awvals)%I
@@ -119,7 +119,7 @@ Section list.
 
   Lemma isList_hd hd bvals :
     isList hd bvals -∗ ⌜hd = WInt 0%Z⌝ ∨
-    ∃ p p' w, ⌜(p + 2)%a = Some p' ∧ hd = WCap (RWX,p,p',p)⌝ ∗ p ↦ₐ w.
+    ∃ p p' w, ⌜(p + 2)%a = Some p' ∧ hd = WCap RWX p p' p⌝ ∗ p ↦ₐ w.
   Proof.
     iIntros "Hlist".
     destruct bvals as [|[p w] bvals'];simpl.
@@ -130,7 +130,7 @@ Section list.
 
   Lemma isList_hd_pure hd bvals :
     isList hd bvals -∗ ⌜hd = WInt 0%Z ∧ bvals = []⌝ ∨
-    ∃ p p' w, ⌜(p + 2)%a = Some p' ∧ hd = WCap (RWX,p,p',p) ∧ (p,w) ∈ bvals⌝.
+    ∃ p p' w, ⌜(p + 2)%a = Some p' ∧ hd = WCap RWX p p' p ∧ (p,w) ∈ bvals⌝.
   Proof.
     iIntros "Hlist".
     destruct bvals as [|[p w] bvals'];simpl.
@@ -174,7 +174,7 @@ Section list.
   Lemma isList_cut hd bvals a w :
     (a,w) ∈ bvals ->
     isList hd bvals -∗
-    ∃ l1 l2 a'', ⌜bvals = l1 ++ l2 ∧ (a + 2)%a = Some a''⌝ ∗ isList (WCap (RWX,a,a'',a)) l2.
+    ∃ l1 l2 a'', ⌜bvals = l1 ++ l2 ∧ (a + 2)%a = Some a''⌝ ∗ isList (WCap RWX a a'' a) l2.
   Proof.
     iIntros (Hin) "Hlist".
     iInduction (bvals) as [|[p w'] bvals'] "IH" forall (hd).
@@ -246,7 +246,7 @@ Section list.
     a ∈ ptrs.*1 ->
     isList hd ptrs -∗
     (∃ a' hd' w, ⌜(a + 1)%a = Some a' ∧ ((hd' = WInt 0%Z ∧ list.last ptrs.*1 = Some a)
-                                         ∨ ∃ p p', (p + 2)%a = Some p' ∧ hd' = WCap (RWX,p,p',p) ∧ p ∈ ptrs.*1)⌝ ∗ a ↦ₐ w ∗ a' ↦ₐ hd'
+                                         ∨ ∃ p p', (p + 2)%a = Some p' ∧ hd' = WCap RWX p p' p ∧ p ∈ ptrs.*1)⌝ ∗ a ↦ₐ w ∗ a' ↦ₐ hd'
     ∗ (a ↦ₐ w ∗ a' ↦ₐ hd' -∗ isList hd ptrs)).
   Proof.
     iIntros (Hin) "Hlist".
@@ -284,7 +284,7 @@ Section list.
     (a,w) ∈ ptrs ->
     isList hd ptrs -∗
     (∃ a' hd', ⌜(a + 1)%a = Some a' ∧ ((hd' = WInt 0%Z ∧ list.last ptrs = Some (a,w))
-                                         ∨ ∃ p p' w', (p + 2)%a = Some p' ∧ hd' = WCap (RWX,p,p',p) ∧ (p,w') ∈ ptrs)⌝ ∗ a ↦ₐ w ∗ a' ↦ₐ hd'
+                                         ∨ ∃ p p' w', (p + 2)%a = Some p' ∧ hd' = WCap RWX p p' p ∧ (p,w') ∈ ptrs)⌝ ∗ a ↦ₐ w ∗ a' ↦ₐ hd'
     ∗ (a ↦ₐ w ∗ a' ↦ₐ hd' -∗ isList hd ptrs)).
   Proof.
     iIntros (Hin) "Hlist".
@@ -337,7 +337,7 @@ Section list.
     list.last ptrs = Some (a,w') →
     isList hd (ptrs) -∗
     (∃ a', ⌜(a + 1)%a = Some a'⌝ ∗ a ↦ₐ w' ∗ a' ↦ₐ WInt 0%Z
-    ∗ (a ↦ₐ w' ∗ a' ↦ₐ WCap (RWX,p,p'',p) ∗ ⌜(p + 2)%a = Some p'' ∧ (p + 1)%a = Some p'⌝
+    ∗ (a ↦ₐ w' ∗ a' ↦ₐ WCap RWX p p'' p ∗ ⌜(p + 2)%a = Some p'' ∧ (p + 1)%a = Some p'⌝
        ∗ p ↦ₐ w ∗ p' ↦ₐ WInt 0%Z -∗ isList hd (ptrs++[(p,w)]))).
   Proof.
     iIntros (Hin) "Hlist".
@@ -452,21 +452,21 @@ Section list.
   (* TODO: move to rules/rules_Load.v *)
   Lemma wp_load_success_alt E r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r2 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ pc_a ↦ₐ w
           ∗ ▷ r1 ↦ᵣ w''
-          ∗ ▷ r2 ↦ᵣ WCap (p,b,e,a)
+          ∗ ▷ r2 ↦ᵣ WCap p b e a
           ∗ ▷ a ↦ₐ w' }}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
              ∗ r1 ↦ᵣ w'
              ∗ pc_a ↦ₐ w
-             ∗ r2 ↦ᵣ WCap (p,b,e,a)
+             ∗ r2 ↦ᵣ WCap p b e a
              ∗ a ↦ₐ w' }}}.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hi & >Hr1 & >Hr2 & >Hr2a) Hφ".
@@ -478,17 +478,17 @@ Section list.
   (* TODO: move to rules/rules_Load.v *)
   Lemma wp_load_success_same_alt E r1 pc_p pc_b pc_e pc_a w w' p b e a pc_a' :
     decodeInstrW w = Load r1 r1 →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
-    readAllowed p = true ∧ withinBounds (p, b, e, a) = true →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ pc_a ↦ₐ w
-          ∗ ▷ r1 ↦ᵣ WCap (p,b,e,a)
+          ∗ ▷ r1 ↦ᵣ WCap p b e a
           ∗ ▷ a ↦ₐ w'}}}
       Instr Executable @ E
       {{{ RET NextIV;
-          PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a')
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
              ∗ r1 ↦ᵣ w'
              ∗ pc_a ↦ₐ w
              ∗ a ↦ₐ w' }}}.
@@ -515,18 +515,18 @@ Section list.
     (d + 2)%a = Some d' →
     d ∈ pbvals.*1 →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
-       ∗ r ↦ᵣ WCap (RWX,d,d',d)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+       ∗ r ↦ᵣ WCap RWX d d' d
        ∗ (∃ w, temp1 ↦ᵣ w)
        ∗ (∃ w, temp2 ↦ᵣ w)
        (* list predicate for d *)
        ∗ isList hd pbvals
        (* trusted code *)
        ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2)
-       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a)
+       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a
                         ∗ isList hd pbvals
                         ∗ ⌜list.last pbvals.*1 = Some dlast ∧ (dlast + 2)%a = Some dlast'⌝
-                        ∗ r ↦ᵣ WCap (RWX,dlast,dlast',dlast)
+                        ∗ r ↦ᵣ WCap RWX dlast dlast' dlast
                         ∗ (∃ w, temp1 ↦ᵣ w)
                         ∗ (∃ w, temp2 ↦ᵣ w)
                         ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2))
@@ -579,7 +579,7 @@ Section list.
     (* linked list is not empty *)
     hd ≠ WInt 0%Z →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r ↦ᵣ hd
        ∗ (∃ w, temp1 ↦ᵣ w)
        ∗ (∃ w, temp2 ↦ᵣ w)
@@ -587,10 +587,10 @@ Section list.
        ∗ isList hd pbvals
        (* trusted code *)
        ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2)
-       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ WCap (pc_p,pc_b,pc_e,(a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a)
+       ∗ ▷ ((∃ dlast dlast', PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (iterate_to_last_instr r temp1 temp2))%a
                         ∗ isList hd pbvals
                         ∗ ⌜list.last pbvals.*1 = Some dlast ∧ (dlast + 2)%a = Some dlast'⌝
-                        ∗ r ↦ᵣ WCap (RWX,dlast,dlast',dlast)
+                        ∗ r ↦ᵣ WCap RWX dlast dlast' dlast
                         ∗ (∃ w, temp1 ↦ᵣ w)
                         ∗ (∃ w, temp2 ↦ᵣ w)
                         ∗ codefrag a_first (iterate_to_last_instr r temp1 temp2))
@@ -626,14 +626,14 @@ Section list.
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
 
     (* environment table *)
-    withinBounds (RW, b_r, e_r, a_r') = true →
+    withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
     up_close (B:=coPset) ι ⊆ Ep →
     up_close (B:=coPset) ι1 ⊆ Ep ∖ ↑ι →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
-       ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+       ∗ r_env ↦ᵣ WCap RWX ll ll' ll
        ∗ r_t1 ↦ᵣ w
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
@@ -645,19 +645,19 @@ Section list.
        ∗ codefrag a_first (appendb_instr f_m)
        (* malloc *)
        ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
-       ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-       ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+       ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+       ∗ a_r' ↦ₐ WCap E b_m e_m b_m
        (* linked list invariants *)
        ∗ sealLL ι ll γ Φ
        ∗ prefLL γ pbvals
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
-          ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+          ∗ r_env ↦ᵣ WCap RWX ll ll' ll
           ∗ r_t0 ↦ᵣ wret
-          ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-          ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+          ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+          ∗ a_r' ↦ₐ WCap E b_m e_m b_m
           ∗ ([∗ map] r↦w ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
                           (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> rmap)))), r ↦ᵣ w)
-          ∗ (∃ a a' pbvals', ⌜(a + 2 = Some a')%a⌝ ∗ prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ WCap (RWX,a,a',a) ∗ Ψ(a,w))
+          ∗ (∃ a a' pbvals', ⌜(a + 2 = Some a')%a⌝ ∗ prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ WCap RWX a a' a ∗ Ψ(a,w))
           ∗ codefrag a_first (appendb_instr f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -783,9 +783,9 @@ Section list.
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
       ∗ ▷ pc_a ↦ₐ w
       ∗ ▷ dst ↦ᵣ wdst
       ∗ ▷ src ↦ᵣ WInt zsrc }}}
@@ -818,11 +818,11 @@ Section list.
     SubBounds pc_b pc_e a_first (a_first ^+ length findb_instr)%a →
 
     (* linked list ptr element d *)
-    hdw = WInt 0%Z ∨ (∃ d d', hdw = WCap (RWX,d,d',d) ∧ (d + 2)%a = Some d' ∧ d ∈ pbvals.*1) →
+    hdw = WInt 0%Z ∨ (∃ d d', hdw = WCap RWX d d' d ∧ (d + 2)%a = Some d' ∧ d ∈ pbvals.*1) →
 
     (* up_close (B:=coPset) ι ⊆ E →  *)
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
       ∗ r_env ↦ᵣ hdw
       ∗ r_t1 ↦ᵣ WInt b
@@ -840,7 +840,7 @@ Section list.
           ∗ PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
           ∗ r_t2 ↦ᵣ WInt 0%Z
-          ∗ (∃ b_a b' w, ⌜z_to_addr b = Some b_a ∧ (b_a + 2)%a = Some b' ∧ (b_a,w) ∈ pbvals⌝ ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WCap (RWX,b_a,b',b_a))
+          ∗ (∃ b_a b' w, ⌜z_to_addr b = Some b_a ∧ (b_a + 2)%a = Some b' ∧ (b_a,w) ∈ pbvals⌝ ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WCap RWX b_a b' b_a)
           ∗ r_t3 ↦ᵣ WInt 0%Z
           ∗ na_own logrel_nais E
           ∗ (∃ hd, ll ↦ₐ hd ∗ isList hd pbvals ∗ Exact γ pbvals ∗ Φ pbvals)
@@ -923,9 +923,9 @@ Section list.
 
     up_close (B:=coPset) ι ⊆ Ep →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+      ∗ r_env ↦ᵣ WCap RWX ll ll' ll
       ∗ r_t1 ↦ᵣ WInt b
       ∗ (∃ w, r_t2 ↦ᵣ w)
       ∗ (∃ w, r_t3 ↦ᵣ w)
@@ -939,7 +939,7 @@ Section list.
       ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
           ∗ r_t2 ↦ᵣ WInt 0%Z
-          ∗ (∃ b_a b' w pbvals, ⌜z_to_addr b = Some b_a ∧ (b_a + 2)%a = Some b' ∧ (b_a,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WCap (RWX,b_a,b',b_a))
+          ∗ (∃ b_a b' w pbvals, ⌜z_to_addr b = Some b_a ∧ (b_a + 2)%a = Some b' ∧ (b_a,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WCap RWX b_a b' b_a)
           ∗ r_t3 ↦ᵣ WInt 0%Z
           ∗ codefrag a_first ((encodeInstrsW [Load r_env r_env])++findb_instr)
           ∗ na_own logrel_nais Ep

@@ -23,7 +23,8 @@ Section fundamental.
     (regs = regs' ∨ retv = FailedV) ∧ retv = retv'.
   Proof.
     intros isGet Hspec1 Hspec2.
-    inv Hspec1; inv Hspec2; simplify_eq; split; auto; inv X; congruence.
+    inv Hspec1; inv Hspec2; simplify_eq; split; auto;
+    match goal with H : _ |- _ => inv H; congruence end.
   Qed.
 
   Lemma get_case i (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -46,7 +47,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Get _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }

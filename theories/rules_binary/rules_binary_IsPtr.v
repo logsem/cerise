@@ -16,8 +16,8 @@ Section cap_lang_spec_rules.
 
   Lemma step_IsPtr Ep K pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = IsPtr dst src ->
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (WCap (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (IsPtr dst src) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -42,19 +42,19 @@ Section cap_lang_spec_rules.
 
     destruct (Hri src) as [wsrc [Hwsrc Hwsrc']]; [set_solver+|]. simpl in Hwsrc'.
 
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (match wsrc with WInt _ => WInt 0%Z | WCap _ => WInt 1%Z end))) as HH.
+    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (match wsrc with WInt _ => WInt 0%Z | WCap _ _ _ _ => WInt 1%Z end))) as HH.
     { rewrite -Hstep /= /RegLocate Hwsrc'.
       destruct wsrc; reflexivity. }
     rewrite /update_reg /= in HH.
 
-    destruct (incrementPC (<[ dst := (match wsrc with WInt _ => WInt 0%Z | WCap _ => WInt 1%Z end) ]> regs)) as [regs''|] eqn:Hregs';
+    destruct (incrementPC (<[ dst := (match wsrc with WInt _ => WInt 0%Z | WCap _ _ _ _ => WInt 1%Z end) ]> regs)) as [regs''|] eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       simplify_pair_eq.
-      iMod ((regspec_heap_update_inSepM _ _ _ dst (match wsrc with WInt _ => WInt 0%Z | WCap _ => WInt 1%Z end)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+      iMod ((regspec_heap_update_inSepM _ _ _ dst (match wsrc with WInt _ => WInt 0%Z | WCap _ _ _ _ => WInt 1%Z end)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
       iExists FailedV,_. iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
       iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
@@ -69,8 +69,8 @@ Section cap_lang_spec_rules.
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto.
     simplify_pair_eq.
-    iMod ((regspec_heap_update_inSepM _ _ _ dst (match wsrc with WInt _ => WInt 0%Z | WCap _ => WInt 1%Z end)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap (p', g', b', a''))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod ((regspec_heap_update_inSepM _ _ _ dst (match wsrc with WInt _ => WInt 0%Z | WCap _ _ _ _ => WInt 1%Z end)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".

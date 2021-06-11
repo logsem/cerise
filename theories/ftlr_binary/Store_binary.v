@@ -84,9 +84,9 @@ Section fundamental.
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (r1 : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=WCap (p, b, e, a)]> r) r1 p0 b0 e0 a0
+      read_reg_inr (<[PC:=WCap p b e a]> r) r1 p0 b0 e0 a0
       → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1, r !r! r1))
-          -∗ allow_store_res r1 (<[PC:=WCap (p, b, e, a)]> r) a a0 p0 b0 e0.
+          -∗ allow_store_res r1 (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0.
   Proof.
     intros r p b e a r1 p0 b0 e0 a0 HVr1.
     iIntros "#Hreg".
@@ -218,7 +218,7 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=WCap (p, b, e, a)]> r.1 !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r.1 !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 !lookup_insert; unfold is_Some. eexists; eauto.
@@ -226,15 +226,15 @@ Section fundamental.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap (p, b, e, a)]> r.1) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
+    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap p b e a]> r.1) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
     {
       specialize Hsome' with dst as Hdst.
       destruct Hdst as [wdst Hsomedst].
-      unfold read_reg_inr. destruct wdst. 2: destruct_cap c. all: repeat eexists.
+      unfold read_reg_inr. destruct wdst. all: repeat eexists.
       right. by exists z. by left.
     }
 
-    assert (∃ storev, word_of_argument (<[PC:=WCap (p, b, e, a)]> r.1) src = Some storev) as [storev Hwoa].
+    assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> r.1) src = Some storev) as [storev Hwoa].
     { destruct src; cbn.
       - by exists (WInt z).
              - specialize Hsome' with r0 as Hr0.
@@ -265,7 +265,7 @@ Section fundamental.
     iNext. iIntros (regs' mem' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (WCap (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     (* we take a step in the specification code *)
     iMod (step_store _ [SeqCtx] with "[$HMemRes' $Hsmap $Hs $Hspec]") as (retv' regs'' mem'') "(Hs & Hs' & Hsmem & Hsmap) /=";eauto.
@@ -273,7 +273,7 @@ Section fundamental.
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
-    { destruct (decide (reg_allows_store (<[PC:=WCap (p, b, e, a)]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
+    { destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
     iDestruct "Hs" as %HSpec'.
 
     specialize (Store_spec_determ _ _ _ _ _ _ _ _ _ _ HSpec HSpec') as [Hregs [<- <-] ].
@@ -295,7 +295,7 @@ Section fundamental.
         - simplify_map_eq. iSpecialize ("Hreg" $! _ n).
           rewrite /RegLocate. rewrite lookup_insert_ne in Hsomer0; auto.
           rewrite Hsomer0. destruct (Hsome' r) as [xx AA].
-          assert (BB: <[PC:=WCap (x, x0, x1, x2)]> r1 !! r = Some xx) by auto.
+          assert (BB: <[PC:=WCap x x0 x1 x2]> r1 !! r = Some xx) by auto.
           rewrite Heq in AA. rewrite lookup_insert_ne in AA; auto.
           rewrite lookup_insert_ne in BB; auto. rewrite Hsomer0 in BB; inv BB.
           rewrite AA. iFrame "Hreg". }
@@ -333,7 +333,7 @@ Section fundamental.
         rewrite /interp !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iDestruct "Hinv" as "[_ $]";auto. }
     }
     { rewrite /allow_store_res /allow_store_mem.
-      destruct (decide (reg_allows_store (<[PC:=WCap (p, b, e, a)]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HStoreMem" as "(%&H)".
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         destruct a1. simplify_map_eq. rewrite memMap_resource_2ne; last auto.
@@ -353,8 +353,8 @@ Section fundamental.
     { (* The stored value is valid *)
       iAssert (interp (storev0, storev0)) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=WCap (p,b,e,a)]> r1 !! r) eqn:Hsomer0;simplify_map_eq.
-        assert (Hsomer0': <[PC:=WCap (p, b, e, a)]> r1 !! r = Some storev) by auto.
+        simplify_map_eq. destruct (<[PC:=WCap p b e a]> r1 !! r) eqn:Hsomer0;simplify_map_eq.
+        assert (Hsomer0': <[PC:=WCap p b e a]> r1 !! r = Some storev) by auto.
         rewrite Heq in Hsomer0'.
         destruct (decide (r = PC)).
         - subst. rewrite lookup_insert in Hsomer0; inv Hsomer0.
@@ -367,7 +367,7 @@ Section fundamental.
 
       iDestruct "HStoreMem" as "(%&H)".
       specialize (store_inr_eq H1 HVdst) as (-> & -> & -> & ->).
-      destruct (decide (reg_allows_store (<[PC:=WCap (p, b, e, a)]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - destruct a1. simplify_map_eq.
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         rewrite insert_insert.
