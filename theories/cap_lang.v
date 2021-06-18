@@ -6,21 +6,6 @@ Set Warnings "-redundant-canonical-projection".
 
 Ltac inv H := inversion H; clear H; subst.
 
-Definition RegLocate (reg : Reg) (r : RegName) :=
-  match (reg !! r) with
-  | Some w => w
-  | None => WInt 0%Z
-  end.
-
-Definition MemLocate (mem : Mem) (a : Addr) :=
-  match (mem !! a) with
-  | Some w => w
-  | None => WInt 0%Z
-  end.
-
-Notation "mem !m! a" := (MemLocate mem a) (at level 20).
-Notation "reg !r! r" := (RegLocate reg r) (at level 20).
-
 Definition ExecConf := (Reg * Mem)%type.
 
 Inductive ConfFlag : Type :=
@@ -35,44 +20,13 @@ Definition reg (ϕ: ExecConf) := fst ϕ.
 
 Definition mem (ϕ: ExecConf) := snd ϕ.
 
-Lemma regs_lookup_eq (regs: Reg) (r: RegName) (v: Word) :
-  regs !! r = Some v →
-  regs !r! r = v.
-Proof. rewrite /RegLocate. intros HH. rewrite HH//. Qed.
-
-Lemma mem_lookup_eq (m: Mem) (a: Addr) (v: Word) :
-  m !! a = Some v →
-  m !m! a = v.
-Proof. rewrite /MemLocate. intros HH. rewrite HH//. Qed.
-
-Lemma regs_lookup_inr_eq (regs: Reg) (r: RegName) p b e a :
-  regs !r! r = WCap p b e a →
-  regs !! r = Some (WCap p b e a).
-Proof. rewrite /RegLocate. intros HH. destruct (regs !! r); first by apply f_equal.  discriminate.
-Qed.
-
-Lemma mem_lookup_inr_eq (m: Mem) (a: Addr) p b e i :
-  m !m! a = WCap p b e i →
-  m !! a = Some (WCap p b e i).
-Proof. rewrite /MemLocate. intros HH. destruct (m !! a); first by apply f_equal.  discriminate.
-Qed.
-
-Lemma regs_lookup_inl_eq (regs: Reg) (r: RegName) z :
-  is_Some (regs !! r) →
-  regs !r! r = WInt z →
-  regs !! r = Some (WInt z).
-Proof. rewrite /RegLocate. intros Hall HH.
-       destruct (regs !! r) eqn:HRead; first by apply f_equal.
-       destruct Hall as (s & Hsr). rewrite Hsr in HRead; discriminate.
-Qed.
-
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
 Definition updatePC (φ: ExecConf): option Conf :=
-  match RegLocate (reg φ) PC with
-  | WCap p b e a =>
+  match (reg φ) !! PC with
+  | Some (WCap p b e a) =>
     match (a + 1)%a with
     | Some a' => let φ' := (update_reg φ PC (WCap p b e a')) in
                 Some (NextI, φ')
@@ -347,24 +301,38 @@ Section opsem.
      match exec_opt i φ with | None => (Failed, φ) | Some conf => conf end .
 
   Inductive step: Conf → Conf → Prop :=
-  | step_exec_fail:
+  | step_exec_regfail:
       forall φ,
-        not (isCorrectPC ((reg φ) !r! PC)) →
+        (reg φ) !! PC = None →
+        step (Executable, φ) (Failed, φ)
+  | step_exec_corrfail:
+      forall φ wreg,
+        (reg φ) !! PC = Some wreg →
+        not (isCorrectPC wreg) →
+        step (Executable, φ) (Failed, φ)
+  | step_exec_memfail:
+      forall φ p b e a,
+        (reg φ) !! PC = Some (WCap p b e a) →
+        (mem φ) !! a = None →
         step (Executable, φ) (Failed, φ)
   | step_exec_instr:
-      forall φ p b e a i c,
-        RegLocate (reg φ) PC = WCap p b e a →
-        isCorrectPC ((reg φ) !r! PC) →
-        decodeInstrW ((mem φ) !m! a) = i →
+      forall φ p b e a i c wa,
+        (reg φ) !! PC = Some (WCap p b e a) →
+        (mem φ) !! a = Some wa →
+        isCorrectPC (WCap p b e a) →
+        decodeInstrW wa = i →
         exec i φ = c →
         step (Executable, φ) (c.1, c.2).
 
   Lemma normal_always_step:
     forall φ, exists cf φ', step (Executable, φ) (cf, φ').
   Proof.
-    intros; destruct (isCorrectPC_dec (RegLocate (reg φ) PC)).
-    - inversion i; subst; do 2 eexists; eapply step_exec_instr; eauto.
-    - exists Failed, φ. constructor 1; eauto.
+    intros. destruct (reg φ !! PC) as [wpc | ] eqn:Hreg.
+    destruct (isCorrectPC_dec wpc) as [Hcorr | ].
+    set (Hcorr' := Hcorr).
+    inversion Hcorr' as [???? _ _ Hre]. subst wpc.
+    destruct (mem φ !! a) as [wa | ] eqn:Hmem.
+    all: eexists _,_; by econstructor.
   Qed.
 
   Lemma step_deterministic:
@@ -384,23 +352,19 @@ Section opsem.
     step (Executable, (r, m)) (c, σ) →
     exec instr (r, m) = (c, σ).
   Proof.
-    intros HPC Hpc Hm Hinstr. inversion 1.
-    { exfalso. erewrite regs_lookup_eq in *; eauto. }
-    erewrite regs_lookup_eq in *; eauto.
-    match goal with H: WCap _ _ _ _ = WCap _ _ _ _ |- _ => inversion H; clear H end.
-    cbn in *.
-    match goal with H: exec ?i _ = ?k |- _ => destruct k; subst i end. cbn.
-    subst.
-    match goal with H: m !! _ = Some w |- _ =>
-                    erewrite (mem_lookup_eq _ _ _ H) in * end. eauto.
+    intros HPC Hpc Hm Hinstr. inversion 1; cbn in *.
+    1,2,3: congruence.
+    simplify_eq. by destruct (exec _ _).
   Qed.
 
-  Lemma step_fail_inv (r: Reg) c (σ σ': ExecConf) :
-    ¬ isCorrectPC (reg σ !r! PC) →
+  Lemma step_fail_inv wpc c (σ σ': ExecConf) :
+    reg σ !! PC = Some wpc →
+    ¬ isCorrectPC wpc →
     step (Executable, σ) (c, σ') →
     c = Failed ∧ σ' = σ.
   Proof.
-    intros HPC Hs. inversion Hs; subst; auto. done.
+    intros Hw HPC Hs. inversion Hs; subst; auto.
+    congruence.
   Qed.
 
   Inductive val: Type :=
@@ -494,7 +458,7 @@ Section opsem.
     intros Hs1 Hs2. inv Hs1; inv Hs2.
     all: repeat match goal with HH : step _ _ |- _ => inv HH end; try congruence.
     all: auto.
-    match goal with HH : _ !r! _ = _ |- _ => rewrite ->HH in * end.
+    match goal with HH : _ !! _ = _ |- _ => rewrite ->HH in * end.
     simplify_map_eq. auto.
   Qed.
 
@@ -545,9 +509,11 @@ Section opsem.
     unfold exec, exec_opt.
     repeat case_match; simplify_eq; eauto.
     (* Create more goals through *_of_argument, now that some have been pruned *)
-    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _).
-    all: cbn in *; repeat case_match; try by exfalso.
-    all: apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _); cbn in *; try by exfalso.
+    all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
+    all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
+    all: simplify_eq; try by exfalso.
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
   Qed.
 
 End opsem.
