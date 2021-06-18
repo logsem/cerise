@@ -216,33 +216,42 @@ Section opsem.
     match i with
     | Fail => Some (Failed, φ)
     | Halt => Some (Halted, φ)
-    | Jmp r => let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r))) in Some (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
+    | Jmp r =>
+      wr ← (reg φ) !! r;
+      let φ' := (update_reg φ PC (updatePcPerm wr)) in Some (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
     | Jnz r1 r2 =>
-      if nonZero (RegLocate (reg φ) r2) then
-        let φ' := (update_reg φ PC (updatePcPerm (RegLocate (reg φ) r1))) in Some (NextI, φ')
+      wr2 ← (reg φ) !! r2;
+      wr1 ← (reg φ) !! r1;
+      if nonZero wr1 then
+        let φ' := (update_reg φ PC (updatePcPerm wr2)) in Some (NextI, φ')
       else updatePC φ
     | Load dst src =>
-      match RegLocate (reg φ) src with
+      wsrc ← (reg φ) !! src;
+      match wsrc with
       | WCap p b e a =>
         if readAllowed p && withinBounds b e a then
-          updatePC (update_reg φ dst (MemLocate (mem φ) a))
+          asrc ← (mem φ) !! a;
+          updatePC (update_reg φ dst asrc)
         else None
       | _ => None
       end
     | Store dst ρ =>
       tostore ← word_of_argument (reg φ) ρ;
-      match RegLocate (reg φ) dst with
+      wdst ← (reg φ) !! dst;
+      match wdst with
       | WCap p b e a =>
         if writeAllowed p && withinBounds b e a then
           updatePC (update_mem φ a tostore)
         else None
       | _ => None
       end
-    | Mov dst (inl n) => updatePC (update_reg φ dst (WInt n))
-    | Mov dst (inr src) => updatePC (update_reg φ dst (RegLocate (reg φ) src))
+    | Mov dst ρ =>
+      tomov ← word_of_argument (reg φ) ρ;
+      updatePC (update_reg φ dst tomov)
     | Lea dst ρ =>
       n ← z_of_argument (reg φ) ρ;
-      match RegLocate (reg φ) dst with
+      wdst ← (reg φ) !! dst;
+      match wdst with
       | WInt _ => None
       | WCap p b e a =>
         match p with
@@ -255,7 +264,8 @@ Section opsem.
       end
     | Restrict dst ρ =>
       n ← z_of_argument (reg φ) ρ ;
-      match RegLocate (reg φ) dst with
+      wdst ← (reg φ) !! dst;
+      match wdst with
       | WInt _ => None
       | WCap permPair b e a =>
         match permPair with
@@ -280,7 +290,8 @@ Section opsem.
     | Subseg dst ρ1 ρ2 =>
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
-      match RegLocate (reg φ) dst with
+      wdst ← (reg φ) !! dst;
+      match wdst with
       | WInt _ => None
       | WCap p b e a =>
         match p with
@@ -292,7 +303,8 @@ Section opsem.
         end
       end
     | GetA dst r =>
-      match RegLocate (reg φ) r with
+      wr ← (reg φ) !! r;
+      match wr with
       | WInt _ => None
       | WCap _ _ _ a =>
         match a with
@@ -300,7 +312,8 @@ Section opsem.
         end
       end
     | GetB dst r =>
-      match RegLocate (reg φ) r with
+      wr ← (reg φ) !! r;
+      match wr with
       | WInt _ => None
       | WCap _ b _ _ =>
         match b with
@@ -308,7 +321,8 @@ Section opsem.
         end
       end
     | GetE dst r =>
-      match RegLocate (reg φ) r with
+      wr ← (reg φ) !! r;
+      match wr with
       | WInt _ => None
       | WCap _ _ e _ =>
         match e with
@@ -316,12 +330,14 @@ Section opsem.
         end
       end
     | GetP dst r =>
-      match RegLocate (reg φ) r with
+      wr ← (reg φ) !! r;
+      match wr with
       | WInt _ => None
       | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
       end
     | IsPtr dst r =>
-      match RegLocate (reg φ) r with
+      wr ← (reg φ) !! r;
+      match wr with
       | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
       | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
       end
