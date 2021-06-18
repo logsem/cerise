@@ -109,12 +109,6 @@ Section cap_lang_rules.
     { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Restrict_fail_invalid_perm. }
 
     rewrite /update_reg /= in Hstep.
-    (* assert ((c, σ2) = updatePC (update_reg (r, m) dst (WCap (decodePerm wsrc) b e a))) as HH. *)
-    (* { rewrite /= /RegLocate Hdst in Hstep. *)
-    (*   destruct Hwsrc as [ -> | (r0 & -> & Hr0 & Hr0') ]. *)
-    (*   all: rewrite ?Hr0' Hflows in Hstep. *)
-    (*   all: repeat case_match; inv Hstep; eauto; congruence. } *)
-    (* clear Hstep. rewrite /update_reg /= in HH. *)
 
     destruct (incrementPC (<[ dst := WCap (decodePerm wsrc) b e a ]> regs)) eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
