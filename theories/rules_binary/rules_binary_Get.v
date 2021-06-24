@@ -32,12 +32,12 @@ Section cap_lang_spec_rules.
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
+    pose proof (Hstep' := Hstep). unfold exec in Hstep.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
     erewrite regs_of_is_Get in Hri; eauto.
@@ -46,14 +46,15 @@ Section cap_lang_spec_rules.
     destruct wsrc as [| p b e a ] eqn:Hwsrc.
     { (* Failure: src is not a capability *)
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
-        all: rewrite /RegLocate Hsrc in Hstep; inversion Hstep; auto. }
+      { unfold exec in Hstep.
+        destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
+        all: rewrite Hsrc in Hstep; inversion Hstep; auto. }
       iFailStep Get_fail_src_noncap. }
 
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (WInt (denote get_i p b e a)))) as HH.
+    assert (exec_opt get_i (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (denote get_i p b e a)))) as HH.
     { destruct_or! Hinstr; rewrite Hinstr /= in Hstep |- *; auto; cbn in Hstep.
-      all: destruct b, e, a; rewrite /RegLocate /update_reg Hsrc /= in Hstep |-*; auto. }
-    rewrite /update_reg /= in HH. rewrite -Hdecode in Hstep. 
+      all: destruct b, e, a; rewrite /update_reg Hsrc /= in Hstep |-*; auto. }
+    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (denote get_i p b e a) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
@@ -62,15 +63,16 @@ Section cap_lang_spec_rules.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-      rewrite Hdecode. clear Hdecode. simplify_pair_eq.
-      iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-      iFailStep Get_fail_overflow_PC. } 
+      simplify_pair_eq.
+      rewrite Hregs' in Hstep. inv Hstep.
+      iFailStep Get_fail_overflow_PC. }
 
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ σm) in Hregs'
         as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto.
+    eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+
     simplify_pair_eq. iFrame.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto. 

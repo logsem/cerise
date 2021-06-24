@@ -31,81 +31,72 @@ Section cap_lang_spec_rules.
      iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
      iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
      iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
-     pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      iDestruct (@spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a; auto.
      iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
      specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
      eapply step_exec_inv in Hstep; eauto.
+     pose proof (Hstep' := Hstep). unfold exec in Hstep.
 
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
      feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
-     pose proof (regs_lookup_eq _ _ _ Hr1) as Hr1'.
-     assert (Hstep':=Hstep). 
-     cbn in Hstep. rewrite Hr1' in Hstep.
-     destruct r1v as [| p b e a ] eqn:Hr1v.
-     { (* Failure: r1 is not a capability *)
-       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
-           by (destruct arg; inversion Hstep; auto). 
-       iFailStep Lea_fail_r1_noncap. 
-     }
+     cbn in Hstep.
+     rewrite Hr1 in Hstep.
 
-     destruct (perm_eq_dec p E); [ subst p |].
-     { (* Failure: r1.p is Enter *)
-       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
-       { destruct arg; inversion Hstep; subst; eauto. }
-       iFailStep Lea_fail_p_E. }
-     
      destruct (z_of_argument regs arg) as [ argz |] eqn:Harg;
        pose proof Harg as Harg'; cycle 1.
      { (* Failure: argument is not a constant (z_of_argument regs arg = None) *)
-       unfold z_of_argument in Harg. destruct arg as [| r0]; [ congruence |].
+       unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |].
        feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
-       rewrite /RegLocate Hr0 Hr'0 in Harg Hstep.
+       rewrite Hr0 Hr'0 in Harg Hstep.
        destruct r0v; [ congruence |].
        assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
          by (destruct p; inversion Hstep; eauto).
        iFailStep Lea_fail_rv_nonconst. }
+     apply (z_of_arg_mono _ σr) in Harg. rewrite Harg in Hstep; cbn in Hstep.
+
+     destruct r1v as [| p b e a ] eqn:Hr1v.
+     { (* Failure: r1 is not a capability *)
+       inv Hstep.
+       iFailStep Lea_fail_r1_noncap. }
+
+     destruct (perm_eq_dec p E); [ subst p |].
+     { (* Failure: r1.p is Enter *)
+       inv Hstep.
+       iFailStep Lea_fail_p_E. }
 
      destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
      { (* Failure: offset is too large *)
-       unfold z_of_argument in Harg. destruct arg as [ z | r0].
-       { inversion Harg; subst z. rewrite Hoffset in Hstep.
          assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
          iFailStep Lea_fail_overflow. }
-       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
-         by unfold regs_of_argument; set_solver+.
-         rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
-         destruct r0v; [| congruence]. inversion Harg; subst z.
-         rewrite Hoffset in Hstep.
-         assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
-           by (destruct p; inversion Hstep; auto).
-         iFailStep Lea_fail_overflow. } }
 
-     assert ((c, σ2) = updatePC (update_reg (σr, σm) r1 (WCap p b e a'))) as HH.
-     { unfold z_of_argument in Harg. destruct arg as [ z | r0 ].
-       { inversion Harg; subst z. rewrite Hoffset in Hstep.
-         destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. }
-       { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
-         by unfold regs_of_argument; set_solver+.
-         rewrite /RegLocate Hr'0 Hr0 in Harg Hstep.
-         destruct r0v; [| congruence]. inversion Harg; subst z.
-         rewrite Hoffset in Hstep.
-         destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } }
-     clear Hstep. rewrite /update_reg /= in HH.
+     (* assert ((c, σ2) = updatePC (update_reg (σr, σm) r1 (WCap p b e a'))) as HH. *)
+     (* { unfold z_of_argument in Harg. destruct arg as [ z | r0 ]. *)
+     (*   { inversion Harg; subst z. rewrite Hoffset in Hstep. *)
+     (*     destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } *)
+     (*   { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]]. *)
+     (*     by unfold regs_of_argument; set_solver+. *)
+     (*     rewrite /RegLocate Hr'0 Hr0 in Harg Hstep. *)
+     (*     destruct r0v; [| congruence]. inversion Harg; subst z. *)
+     (*     rewrite Hoffset in Hstep. *)
+     (*     destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } } *)
+     (* clear Hstep. rewrite /update_reg /= in HH. *)
+     rewrite /update_reg /= in Hstep.
+
 
      destruct (incrementPC (<[ r1 := WCap p b e a' ]> regs)) as [ regs' |] eqn:Hregs';
        pose proof Hregs' as Hregs'2; cycle 1.
      { (* Failure: incrementing PC overflows *)
-       assert (incrementPC (<[ r1 := WCap p b e a' ]> σr) = None).
+       assert (incrementPC (<[ r1 := WCap p b e a' ]> σr) = None) as HH.
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
          by rewrite lookup_insert_is_Some'; eauto.
          by apply insert_mono; eauto. }
-       rewrite incrementPC_fail_updatePC //= in HH; inversion HH; subst.
-       iMod (@regspec_heap_update_inSepM with "Hown Hmap") as "[Hown Hmap]"; eauto.
+       apply (incrementPC_fail_updatePC _ σm) in HH. rewrite HH in Hstep.
+       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
+           by (destruct p; inversion Hstep; auto).
        iFailStep Lea_fail_overflow_PC. }
      
      (* Success *)
@@ -113,7 +104,10 @@ Section cap_lang_spec_rules.
      eapply (incrementPC_success_updatePC _ σm) in Hregs'
        as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
      eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto.
-     rewrite HuPC in HH; clear HuPC; inversion HH; clear HH; subst c σ2. cbn.
+     rewrite HuPC in Hstep; clear HuPC.
+     eassert ((c, σ2) = (NextI, _)) as HH.
+     { destruct p; cbn in Hstep; eauto. congruence. }
+     simplify_pair_eq.
      iFrame.
      iMod ((regspec_heap_update_inSepM _ _ _ r1) with "Hown Hmap") as "[Hr Hmap]"; eauto.
      iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.

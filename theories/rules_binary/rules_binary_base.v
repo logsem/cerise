@@ -424,13 +424,12 @@ Section cap_lang_spec_resources.
     ∀ mem0 σ e' (b e a : Addr) (v : Word) q,
       mem0 !! a = Some v
       → ([∗ map] a0↦w ∈ mem0, memspec_mapsto a0 q w)
-          -∗ spec_res e' σ -∗ ⌜σ.2 !m! a = v⌝.
+          -∗ spec_res e' σ -∗ ⌜σ.2 !! a = Some v⌝.
   Proof.
     iIntros (mem0 σ e' b e a v q Hmem) "Hmem Hm".
     rewrite (big_sepM_delete _ mem0 a) //.
     iDestruct "Hmem" as "[H_a Hmem]".
     iDestruct (spec_heap_valid with "[$Hm $H_a]") as %?; auto.
-    rewrite /MemLocate. rewrite H2. auto.
   Qed.
 
   Lemma memspec_heap_update_inSepM e σ σ' l v :
@@ -543,7 +542,7 @@ Ltac prim_step_from_exec :=
     | H : exec _ _ = ?res |- _ =>
       exists [];eapply step_atomic with (t1:=[]) (t2:=[]);eauto;
       econstructor;eauto;constructor;
-      eapply step_exec_instr with (c:=res);rewrite /RegLocate /MemLocate;simplify_map_eq;eauto
+      eapply step_exec_instr with (c:=res); try exact; simplify_map_eq;eauto
     end.
 
 Ltac iFailStep fail_type :=

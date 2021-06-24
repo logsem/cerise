@@ -15,14 +15,6 @@ Section cap_lang_spec_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Ltac option_locate_r_once_reg r reg :=
-  match goal with
-  | H : r !! reg = Some ?w |- _ => let Htmp := fresh in
-                                rename H into Htmp ;
-                                let Ha := fresh "H" r reg in
-                                pose proof (regs_lookup_eq _ _ _ Htmp) as Ha; clear Htmp
-  end. 
-
   Lemma step_Load Ep K pc_p pc_b pc_e pc_a r1 r2 w mem regs :
     decodeInstrW w = Load r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -47,16 +39,13 @@ Section cap_lang_spec_rules.
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
      feed destruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
      feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
-     pose proof (regs_lookup_eq _ _ _ Hr'1) as Hr''1.
-     pose proof (regs_lookup_eq _ _ _ Hr'2) as Hr''2.
      (* Derive the PC in memory *)
      iDestruct (memspec_heap_valid_inSepM _ _ _ _ pc_a with "Hown Hmem") as %Hma; eauto.
 
      specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
-     eapply step_exec_inv in Hstep; eauto. simpl in H3,Hr2,Hma. 
-     
-     option_locate_r_once_reg σr r2. assert (Hstep':=Hstep).
-     cbn in Hstep. rewrite Hσrr2 in Hstep.
+     eapply step_exec_inv in Hstep; eauto. simpl in H3,Hr2,Hma.
+     pose proof (Hstep' := Hstep). unfold exec in Hstep.
+     cbn in Hstep. rewrite Hr2 in Hstep.
      
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
      destruct r2v as  [| p b e a ] eqn:Hr2v.
@@ -69,6 +58,7 @@ Section cap_lang_spec_rules.
        iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_const. 
      }
 
+     cbn in Hstep.
      destruct (readAllowed p && withinBounds b e a) eqn:HRA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
@@ -86,7 +76,7 @@ Section cap_lang_spec_rules.
 
      iDestruct (memspec_v_implies_m_v mem (σr,σm) _ b e a loadv with "Hmem Hown" ) as %Hma' ; auto.
 
-     rewrite Hma' in Hstep.
+     rewrite Hma' /= in Hstep.
      destruct (incrementPC (<[ r1 := loadv ]> regs)) as  [ regs' |] eqn:Hregs'.
      2: { (* Failure: the PC could not be incremented correctly *)
        assert (incrementPC (<[ r1 := loadv]> σr) = None).
@@ -98,10 +88,11 @@ Section cap_lang_spec_rules.
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        (* Update the heap resource, using the resource for r2 *)
        iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
-       iMod ((regspec_heap_update_inSepM _ _ _ r1 loadv) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+       (* iMod ((regspec_heap_update_inSepM _ _ _ r1 loadv) with "Hown Hmap") as "[Hown Hmap]"; eauto. *)
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
-         iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
+         iPureIntro. eapply rtc_r;eauto. clear Hmema.
+         prim_step_from_exec. }
        iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_invalid_PC. 
      }
 
@@ -120,8 +111,8 @@ Section cap_lang_spec_rules.
      { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
       prim_step_from_exec. }
      iModIntro. iPureIntro. eapply Load_spec_success; auto.
-    * split; auto. apply (regs_lookup_inr_eq regs r2).
-      exact Hr''2.
+    * split; auto.
+      exact Hr'2.
       auto.
     * exact Hmema.
     * unfold incrementPC. by rewrite HPC'' Ha_pc'.
