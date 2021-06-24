@@ -300,6 +300,17 @@ Section opsem.
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
      match exec_opt i φ with | None => (Failed, φ) | Some conf => conf end .
 
+  Lemma exec_opt_exec_some :
+    forall φ i c,
+      exec_opt i φ = Some c →
+      exec i φ = c.
+  Proof. unfold exec. by intros * ->. Qed.
+  Lemma exec_opt_exec_none :
+    forall φ i,
+      exec_opt i φ = None →
+      exec i φ = (Failed, φ).
+  Proof. unfold exec. by intros * ->. Qed.
+
   Inductive step: Conf → Conf → Prop :=
   | step_exec_regfail:
       forall φ,

@@ -78,7 +78,6 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -94,7 +93,7 @@ Section cap_lang_rules.
     destruct (addr_of_argument regs src1) as [a1|] eqn:Ha1;
       pose proof Ha1 as H'a1; cycle 1.
     { destruct src1 as [| r1] eqn:?; cbn in Ha1, Hstep.
-      { rewrite /RegLocate Hdst Ha1 /= in Hstep.
+      { rewrite Hdst Ha1 /= in Hstep.
         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
         { repeat case_match; inv Hstep; auto. }
         iFailWP "Hφ" Subseg_fail_src1_nonaddr. }
@@ -104,7 +103,7 @@ Section cap_lang_rules.
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct r1v ; simplify_pair_eq.
         all: unfold addr_of_argument, z_of_argument at 2 in Hstep.
-        all: rewrite /= /RegLocate Hdst Hr1 ?Ha1 /= in Hstep.
+        all: rewrite /= Hdst Hr1 ?Ha1 /= in Hstep.
         all: inv Hstep; auto.
       }
       repeat case_match; try congruence.
@@ -114,7 +113,7 @@ Section cap_lang_rules.
     destruct (addr_of_argument regs src2) as [a2|] eqn:Ha2;
       pose proof Ha2 as H'a2; cycle 1.
     { destruct src2 as [| r2] eqn:?; cbn in Ha2, Hstep.
-      { rewrite /RegLocate Hdst Ha2 /= in Hstep.
+      { rewrite Hdst Ha2 /= in Hstep.
         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
         { repeat case_match; inv Hstep; auto. }
         iFailWP "Hφ" Subseg_fail_src2_nonaddr. }
@@ -124,7 +123,7 @@ Section cap_lang_rules.
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct r2v ; simplify_pair_eq.
         all: unfold addr_of_argument, z_of_argument  in Hstep.
-        all: rewrite /= /RegLocate Hdst Hr2 ?Ha2 /= in Hstep.
+        all: rewrite /= Hdst Hr2 ?Ha2 /= in Hstep.
         all: inv Hstep; auto.
       }
       repeat case_match; try congruence.
@@ -132,9 +131,9 @@ Section cap_lang_rules.
     apply (addr_of_arg_mono _ r) in Ha2; auto. rewrite Ha2 /= in Hstep.
 
     destruct wdst.
-    { rewrite /= /RegLocate Hdst in Hstep. repeat case_match; inv Hstep; simplify_pair_eq.
+    { rewrite /= Hdst in Hstep. repeat case_match; inv Hstep; simplify_pair_eq.
       all: iFailWP "Hφ" Subseg_fail_dst_noncap. }
-    apply regs_lookup_eq in Hdst. rewrite Hdst in Hstep.
+    rewrite Hdst in Hstep.
 
     destruct (decide (p = E)).
     { subst p. inv Hstep.

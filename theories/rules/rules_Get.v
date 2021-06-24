@@ -111,7 +111,7 @@ Section cap_lang_rules.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-      rewrite Hdecode. clear Hdecode. simplify_pair_eq.
+      simplify_pair_eq.
       rewrite Hregs' in Hstep. inversion Hstep.
       iFailWP "Hφ" Get_fail_overflow_PC. }
 
