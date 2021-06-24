@@ -84,7 +84,6 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -105,7 +104,7 @@ Section cap_lang_rules.
       rewrite Hr'0 in Hn1. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
-        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+        all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst1. }
     apply (z_of_arg_mono _ r) in Hn1; auto.
 
@@ -117,12 +116,12 @@ Section cap_lang_rules.
       rewrite Hr'0 in Hn2. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
-        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+        all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst2. }
     apply (z_of_arg_mono _ r) in Hn2; auto.
 
     assert (exec_opt i (r, m) = updatePC (update_reg (r, m) dst (WInt (denote i n1 n2)))) as HH.
-    { all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
+    { all: destruct_or! Hinstr; rewrite Hinstr /= /update_reg /= in Hstep |- *; auto.
       all: by rewrite Hn1 Hn2; cbn. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 

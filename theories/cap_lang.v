@@ -176,8 +176,8 @@ Section opsem.
     | Jnz r1 r2 =>
       wr2 ← (reg φ) !! r2;
       wr1 ← (reg φ) !! r1;
-      if nonZero wr1 then
-        let φ' := (update_reg φ PC (updatePcPerm wr2)) in Some (NextI, φ')
+      if nonZero wr2 then
+        let φ' := (update_reg φ PC (updatePcPerm wr1)) in Some (NextI, φ')
       else updatePC φ
     | Load dst src =>
       wsrc ← (reg φ) !! src;

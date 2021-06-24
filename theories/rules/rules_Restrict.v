@@ -73,7 +73,6 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -92,19 +91,20 @@ Section cap_lang_rules.
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
       rewrite Hr'0 in Hwsrc. destruct r0v; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
-      { rewrite /= /RegLocate Hdst Hr0 in Hstep. cbn in Hstep. by simplify_pair_eq. }
+      { rewrite /= Hdst Hr0 in Hstep. cbn in Hstep. by simplify_pair_eq. }
       iFailWP "Hφ" Restrict_fail_src_nonz. }
     apply (z_of_arg_mono _ r) in Hwsrc; auto. rewrite Hwsrc in Hstep; simpl in Hstep.
 
     destruct wdst.
-    { rewrite /= /RegLocate Hdst in Hstep.  inversion Hstep.
+    { rewrite /= Hdst in Hstep.  inversion Hstep.
       all: iFailWP "Hφ" Restrict_fail_dst_noncap. }
-    apply regs_lookup_eq in Hdst. rewrite Hdst in Hstep.
+     rewrite Hdst in Hstep.
 
     destruct (decide (p = E)).
     { subst p.  inv Hstep.
        iFailWP "Hφ" Restrict_fail_pE. }
 
+    cbn in Hstep.
     destruct (PermFlowsTo (decodePerm wsrc) p) eqn:Hflows; cycle 1.
     { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Restrict_fail_invalid_perm. }
 

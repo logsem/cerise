@@ -45,7 +45,6 @@ Section cap_lang_rules.
     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -65,7 +64,7 @@ Section cap_lang_rules.
 
     assert (exec_opt (Mov dst src) (r, m) = updatePC (update_reg (r, m) dst wsrc)) as HH.
     { destruct Hwsrc as [ [? [? ?] ] | [? (? & ? & Hr') ] ]; simplify_eq; eauto.
-      cbn. by rewrite /= /RegLocate Hr'. }
+      cbn. by rewrite /= Hr'. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := wsrc ]> regs)) as [regs'|] eqn:Hregs';

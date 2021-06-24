@@ -76,7 +76,6 @@ Section cap_lang_rules.
      iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
      iDestruct "Hσ1" as "[Hr Hm]".
      iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-     pose proof (regs_lookup_eq _ _ _ HPC) as HPC'.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
      iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -88,8 +87,7 @@ Section cap_lang_rules.
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
      feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
-     pose proof (regs_lookup_eq _ _ _ Hr1) as Hr1'.
-     rewrite Hr1' in Hstep.
+     rewrite Hr1 in Hstep.
 
      destruct (z_of_argument regs arg) as [ argz |] eqn:Harg;
        pose proof Harg as Harg'; cycle 1.
@@ -97,7 +95,7 @@ Section cap_lang_rules.
        unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |].
        feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
-       rewrite /RegLocate Hr0 Hr'0 in Harg Hstep.
+       rewrite Hr0 Hr'0 in Harg Hstep.
        destruct r0v; [ congruence |].
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
          by (destruct p; inversion Hstep; eauto).

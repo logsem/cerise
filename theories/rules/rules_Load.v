@@ -61,7 +61,7 @@ Section cap_lang_rules.
   Lemma allow_load_implies_loadv:
     ∀ (r2 : RegName) (mem0 : gmap Addr Word) (r : Reg) (p : Perm) (b e a : Addr),
       allow_load_map_or_true r2 r mem0
-      → r !r! r2 = WCap p b e a
+      → r !! r2 = Some (WCap p b e a)
       → readAllowed p = true
       → withinBounds b e a = true
       → ∃ (loadv : Word),
@@ -70,12 +70,12 @@ Section cap_lang_rules.
     intros r2 mem0 r p b e a HaLoad Hr2v Hra Hwb.
     unfold allow_load_map_or_true in HaLoad.
     destruct HaLoad as (?&?&?&?&[Hrr | Hrl]&Hmem).
-    - assert (Hrr' := Hrr). option_locate_r_once r. rewrite Hrr2 in Hr2v; inversion Hr2v; subst.
+    - assert (Hrr' := Hrr). rewrite Hrr in Hr2v; inversion Hr2v; subst.
       case_decide as HAL.
       * auto.
       * unfold reg_allows_load in HAL.
         destruct HAL; auto.
-    - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
+    - destruct Hrl as [z Hrl]. by congruence.
   Qed.
 
   Lemma mem_eq_implies_allow_load_map:
@@ -164,10 +164,8 @@ Section cap_lang_rules.
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
      feed destruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
      feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
-     pose proof (regs_lookup_eq _ _ _ Hr'1) as Hr''1.
-     pose proof (regs_lookup_eq _ _ _ Hr'2) as Hr''2.
      (* Derive the PC in memory *)
-     iDestruct (gen_mem_valid_inSepM pc_a _ _ _ mem _ m with "Hm Hmem") as %Hma; eauto.
+     iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
 
      iModIntro.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -175,8 +173,7 @@ Section cap_lang_rules.
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
-     option_locate_mr m r.
-     unfold exec in Hstep; simpl in Hstep. rewrite Hrr2 in Hstep.
+     unfold exec in Hstep; simpl in Hstep. rewrite Hr2 in Hstep.
 
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
      destruct r2v as  [| p b e a ] eqn:Hr2v.
@@ -185,6 +182,7 @@ Section cap_lang_rules.
         iFailWP "Hφ" Load_fail_const.
      }
 
+     cbn in Hstep.
      destruct (readAllowed p && withinBounds b e a) eqn:HRA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
@@ -196,9 +194,9 @@ Section cap_lang_rules.
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
      pose proof (allow_load_implies_loadv r2 mem regs p b e a) as (loadv & Hmema); auto.
 
-     iDestruct (mem_v_implies_m_v mem m b e a loadv with "Hmem Hm" ) as %Hma ; auto.
+     iDestruct (gen_mem_valid_inSepM mem m a loadv with "Hm Hmem" ) as %Hma' ; auto.
 
-     rewrite Hma in Hstep.
+     rewrite Hma' /= in Hstep.
      destruct (incrementPC (<[ r1 := loadv ]> regs)) as  [ regs' |] eqn:Hregs'.
      2: { (* Failure: the PC could not be incremented correctly *)
        assert (incrementPC (<[ r1 := loadv]> r) = None).
@@ -223,9 +221,7 @@ Section cap_lang_rules.
      iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
      iFrame. iModIntro. iApply "Hφ". iFrame.
      iPureIntro. eapply Load_spec_success; auto.
-       * split; auto. apply (regs_lookup_inr_eq regs r2).
-         exact Hr''2.
-         auto.
+       * split; eauto.
        * exact Hmema.
        * unfold incrementPC. by rewrite HPC'' Ha_pc'.
      Unshelve. all: auto.

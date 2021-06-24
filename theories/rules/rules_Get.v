@@ -80,7 +80,6 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as "[Hr Hm]".
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -97,12 +96,12 @@ Section cap_lang_rules.
     { (* Failure: src is not a capability *)
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
-        all: rewrite /RegLocate Hsrc in Hstep; inversion Hstep; auto. }
+        all: rewrite Hsrc in Hstep; inversion Hstep; auto. }
       iFailWP "Hφ" Get_fail_src_noncap. }
 
     assert (exec_opt get_i (r, m) = updatePC (update_reg (r, m) dst (WInt (denote get_i p b e a)))) as HH.
     { destruct_or! Hinstr; rewrite Hinstr /= in Hstep |- *; auto; cbn in Hstep.
-      all: destruct b, e, a; rewrite /RegLocate /update_reg Hsrc /= in Hstep |-*; auto. }
+      all: destruct b, e, a; rewrite /update_reg Hsrc /= in Hstep |-*; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (denote get_i p b e a) ]> regs))

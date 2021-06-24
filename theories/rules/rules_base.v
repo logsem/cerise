@@ -407,13 +407,13 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_mem_valid_inSepM:
-    ∀ (a : Addr) (r1 r2 : RegName) (w : Word) mem0 (r : Reg) (m : Mem),
+    ∀ mem0 (m : Mem) (a : Addr) (w : Word),
       mem0 !! a = Some w →
       gen_heap_interp m
                    -∗ ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
                    -∗ ⌜m !! a = Some w⌝.
   Proof.
-    iIntros (a r1 r2 w mem0 r m Hmem_pc) "Hm Hmem".
+    iIntros (mem0 m a w Hmem_pc) "Hm Hmem".
     iDestruct (memMap_delete a with "Hmem") as "[Hpc_a Hmem]"; eauto.
     iDestruct (gen_heap_valid with "Hm Hpc_a") as %?; auto.
   Qed.

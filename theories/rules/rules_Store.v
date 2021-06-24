@@ -74,7 +74,7 @@ Section cap_lang_rules.
   Lemma allow_store_implies_storev:
     ∀ (r1 : RegName)(r2 : Z + RegName) (mem0 : gmap Addr Word) (r : Reg) (p : Perm) (b e a : Addr) storev,
       allow_store_map_or_true r1 r mem0
-      → r !r! r1 = WCap p b e a
+      → r !! r1 = Some (WCap p b e a)
       → word_of_argument r r2 = Some storev
       → writeAllowed p = true
       → withinBounds b e a = true
@@ -84,13 +84,13 @@ Section cap_lang_rules.
     intros r1 r2 mem0 r p b e a storev HaStore Hr2v Hwoa Hwa Hwb.
     unfold allow_store_map_or_true in HaStore.
     destruct HaStore as (?&?&?&?&[Hrr | Hrl]&Hwo).
-    - assert (Hrr' := Hrr). option_locate_mr_once m r.
-      rewrite Hrr1 in Hr2v; inversion Hr2v; subst.
+    - assert (Hrr' := Hrr).
+      rewrite Hrr in Hr2v; inversion Hr2v; subst.
       case_decide as HAL.
       * auto.
       * unfold reg_allows_store in HAL.
         destruct HAL. inversion Hwoa. auto. 
-    - destruct Hrl as [z Hrl]. option_locate_mr m r. by congruence.
+    - destruct Hrl as [z Hrl].  by congruence.
   Qed.
 
   Lemma mem_eq_implies_allow_store_map:
@@ -163,8 +163,7 @@ Section cap_lang_rules.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
      feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
-     pose proof (regs_lookup_eq _ _ _ Hr'1) as Hr''1.
-     iDestruct (gen_mem_valid_inSepM pc_a _ _ _ mem _ m with "Hm Hmem") as %Hma; eauto.
+     iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
 
      iModIntro.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -172,9 +171,8 @@ Section cap_lang_rules.
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
-     option_locate_mr m r.
      unfold exec in Hstep. simpl in Hstep.
-     rewrite Hrr1 in Hstep.
+     rewrite Hr1 in Hstep.
 
      (* Now we start splitting on the different cases in the Store spec, and prove them one at a time *)
 
@@ -206,7 +204,7 @@ Section cap_lang_rules.
      pose proof (allow_store_implies_storev r1 r2 mem regs p b e a storev) as (oldv & Hmema); auto.
 
      (* Given this, prove that a is also present in the memory itself *)
-     iDestruct (mem_v_implies_m_v mem m b e a oldv with "Hmem Hm" ) as %Hma ; auto.
+     iDestruct (gen_mem_valid_inSepM mem m a oldv with "Hm Hmem" ) as %Hma' ; auto.
 
       destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'.
       2: { (* Failure: the PC could not be incremented correctly *)

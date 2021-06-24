@@ -41,10 +41,10 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    unfold exec in Hstep; inv Hstep.
+    unfold exec, exec_opt in Hstep. rewrite Hr_r0 /= in Hstep. simplify_pair_eq.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
-    iApply "Hφ". iFrame. rewrite /RegLocate Hr_r0. eauto.
+    iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a w :
@@ -68,9 +68,8 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    unfold exec in Hstep; inv Hstep.
+    unfold exec, exec_opt in Hstep. rewrite Hr_PC /= in Hstep. simplify_pair_eq.
 
-    rewrite /update_reg /= /RegLocate Hr_PC.
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
     iApply "Hφ". by iFrame.
   Qed.
