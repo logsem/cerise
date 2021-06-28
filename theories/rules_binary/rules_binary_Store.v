@@ -45,16 +45,24 @@ Section cap_lang_spec_rules.
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
-    pose proof (regs_lookup_eq _ _ _ Hr'1) as Hr''1.
     iDestruct (memspec_heap_valid_inSepM _ _ _ _ pc_a with "Hown Hmem") as %Hma; eauto.
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.    
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
+    pose proof (Hstep' := Hstep). rewrite /exec /= in Hstep.
+    rewrite Hr1 in Hstep.
 
-     simpl in Hr1, Hma. option_locate_mr σm σr.
-     assert (Hstep':=Hstep). cbn in Hstep. rewrite Hσrr1 in Hstep.
-     
+
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
+     destruct (word_of_argument regs r2) as [ storev | ] eqn:HSV.
+     2: {
+       destruct r2 as [z | r2].
+       - cbn in HSV; inversion HSV.
+       - destruct (Hri r2) as [r0v [Hr0 _] ]. by set_solver+.
+         cbn in HSV. rewrite Hr0 in HSV. inversion HSV.
+     }
+     apply (word_of_arg_mono _ σr) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep.
+
      destruct r1v as  [| p b e a ] eqn:Hr1v.
      { (* Failure: r1 is not a capability *)
        assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
@@ -76,71 +84,44 @@ Section cap_lang_spec_rules.
      }
      apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb).
 
-     destruct (word_of_argument regs r2) as [ storev | ] eqn:HSV.
-     2: {
-       destruct r2 as [z | r2].
-       - cbn in HSV; inversion HSV.
-       - destruct (Hri r2) as [r0v [Hr0 _] ]. by set_solver+.
-         cbn in HSV. rewrite Hr0 in HSV. inversion HSV.
-     }
-     assert (word_of_argument σr r2 = Some(storev)) as HSVr.
-     { destruct r2; cbn in HSV. inversion HSV; simpl in H3;auto;by rewrite H3.
-       destruct (Hri r) as [r0v [Hregs0 Hr0] ].  by set_solver+.
-       rewrite -Hr0 in Hregs0; rewrite Hregs0 in HSV. exact HSV.
-     }
-
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
      pose proof (allow_store_implies_storev r1 r2 mem regs p b e a storev) as (oldv & Hmema); auto.
 
      (* Given this, prove that a is also present in the memory itself *)
-     iDestruct (memspec_v_implies_m_v mem (σr,σm) _ b e a oldv with "Hmem Hown" ) as %Hma ; auto.
+     iDestruct (memspec_v_implies_m_v mem (σr,σm) _ b e a oldv with "Hmem Hown" ) as %Hma' ; auto.
 
-     (* Regardless of whether we increment the PC, the memory will change: destruct on the PC later *)
-     assert (updatePC (update_mem (σr, σm) a storev) = (c, σ2)) as HH.
-      { destruct r2.
-       - cbv in HSVr; inversion HSVr; subst storev. done.
-       - destruct (σr !r! r) eqn:Hr0.
-         * destruct (Hri r) as [r0v [Hregs01 Hr01] ]. by set_solver+.
-           assert(is_Some( σr !! r )) as Hrr0. by exists r0v.
-           pose proof (regs_lookup_inl_eq σr r z Hrr0 Hr0) as Hr0'.
-           simpl in HSVr; rewrite Hr0' in HSVr.
-           inversion HSVr; subst storev. done.
-         * epose proof (regs_lookup_inr_eq σr r _ _ _ _ Hr0) as Hr0'.
-           simpl in HSVr; rewrite Hr0' in HSVr; inversion HSVr. auto. 
-      }
-      iMod ((memspec_heap_update_inSepM _ _ _ a storev) with "Hown Hmem") as "[Hown Hmem]"; eauto.
+    destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'.
+    2: { (* Failure: the PC could not be incremented correctly *)
+      assert (incrementPC σr = None).
+      { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
+      rewrite incrementPC_fail_updatePC /= in Hstep; auto.
+      inversion Hstep. subst.
+      iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
+        iMod ("Hclose" with "[Hown]") as "_";
+        [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|];
+        iExists (FailedV),_,_; iFrame;iModIntro.
+      iPureIntro. eapply Store_spec_failure_store; eauto. by constructor.
+    }
+
+    iMod ((memspec_heap_update_inSepM _ _ _ a storev) with "Hown Hmem") as "[Hown Hmem]"; eauto.
       
-      destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'.
-      2: { (* Failure: the PC could not be incremented correctly *)
-        assert (incrementPC σr = None).
-        { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
-        rewrite incrementPC_fail_updatePC /= in HH; auto.
-        inversion HH. subst.
-        iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
-          iMod ("Hclose" with "[Hown]") as "_";
-          [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|];
-          iExists (FailedV),_,_; iFrame;iModIntro. 
-        iPureIntro. eapply Store_spec_failure_incr;eauto.
-        - split;eauto. 
-        - constructor. auto. 
-      }
-      
+
      (* Success *)
-      clear Hstep. rewrite /update_mem /= in HH.
-      eapply (incrementPC_success_updatePC _ (<[a:=storev]> σm)) in Hregs'
-        as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
-      eapply (updatePC_success_incl _ (<[a:=storev]> σm)) in HuPC. 2: by eauto.
-      rewrite HuPC in HH; clear HuPC; inversion HH; clear HH; subst c σ2. cbn.
-      iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-      iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
-      iExists NextIV,_,_. iFrame.
-      iMod ("Hclose" with "[Hown]") as "_".
-      { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
-        prim_step_from_exec. }
-      
-      iPureIntro. eapply Store_spec_success; eauto.
-        * split; auto. exact Hr'1. all: auto.
-        * unfold incrementPC. rewrite a_pc1 HPC''.  auto. 
+    rewrite /update_mem /= in Hstep.
+    eapply (incrementPC_success_updatePC _ (<[a:=storev]> σm)) in Hregs'
+      as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
+    eapply (updatePC_success_incl _ (<[a:=storev]> σm)) in HuPC. 2: by eauto.
+    rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
+    iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+    iExists NextIV,_,_. iFrame.
+    iMod ("Hclose" with "[Hown]") as "_".
+    { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
+      prim_step_from_exec. }
+
+    iPureIntro. eapply Store_spec_success; eauto.
+      * split; auto. exact Hr'1. all: auto.
+      * unfold incrementPC. rewrite a_pc1 HPC''. auto.
   Qed.
 
   Lemma step_store_success_reg E K pc_p pc_b pc_e pc_a pc_a' w dst src w'
@@ -187,10 +168,7 @@ Section cap_lang_spec_rules.
      { (* Failure (contradiction) *)
        destruct H7; simpl in *; simplify_map_eq_alt.
        destruct o. all: try congruence.
-     }
-     { (* Failure (contradiction) *)
-       destruct H7,H10; simpl in *; simplify_map_eq_alt. simplify_map_eq.
-       incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence. 
+       incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence.
      }
     Qed.
 
@@ -237,10 +215,8 @@ Section cap_lang_spec_rules.
      { (* Failure (contradiction) *)
        destruct H5; simplify_map_eq_alt. 
        destruct o. all: try congruence.
-     }
-     { (* Failure (contradiction) *)
-       destruct H5,H8; simplify_map_eq; eauto. incrementPC_inv;[|rewrite lookup_insert;eauto]. 
-       congruence. 
+       incrementPC_inv;[|rewrite lookup_insert;eauto].
+       congruence.
      }
   Qed.
   
