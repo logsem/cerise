@@ -33,7 +33,7 @@ Section fundamental.
       (e' <= e)%a ->
       (□ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
-          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
+          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
           -∗ na_own logrel_nais ⊤
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)) -∗
@@ -95,13 +95,13 @@ Section fundamental.
           destruct (reg_eq_dec dst x0); auto; right; split; auto.
           rewrite lookup_insert_is_Some.
           destruct (reg_eq_dec PC x0); auto; right; split; auto.
-        - iIntros (ri Hri). rewrite /RegLocate.
+        - iIntros (ri v Hri Hvs).
           destruct (reg_eq_dec ri dst).
-          + subst ri. rewrite lookup_insert.
-            iDestruct ("Hreg" $! dst Hri) as "Hdst".
+          + subst ri. rewrite lookup_insert in Hvs. inv Hvs.
+            iDestruct ("Hreg" $! dst _ Hri H0) as "Hdst".
             generalize (isWithin_implies _ _ _ _ H4). intros [A B]. 
-            rewrite H0. iApply subseg_interp_preserved; eauto.
-          + repeat rewrite lookup_insert_ne; auto.
+            iApply subseg_interp_preserved; eauto.
+          + repeat rewrite lookup_insert_ne in Hvs; auto.
             iApply "Hreg"; auto.
         - rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". } }
   Qed.

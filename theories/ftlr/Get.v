@@ -41,7 +41,7 @@ Section fundamental.
       iApply ("IH" $! (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-      iIntros (ri Hri). rewrite /(RegLocate _ ri) insert_commute // lookup_insert_ne //; [].
+      iIntros (ri v Hri Hsv). rewrite insert_commute // lookup_insert_ne // in Hsv; [].
       destruct (decide (ri = dst)); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }
       { by iApply "Hreg". } rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }

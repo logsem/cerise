@@ -40,14 +40,17 @@ Section fundamental.
       iNext.
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri Hri). subst regs'.
-        erewrite locate_ne_reg; [ | | reflexivity]; auto.
+      { iIntros (ri v Hri Hvs).
+        subst regs'.
+        rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
-        { subst ri. unshelve iSpecialize ("Hreg" $! dst _); eauto.
-          erewrite locate_eq_reg; [ | reflexivity]; auto. simplify_map_eq.
-          rewrite /RegLocate Hdst. iApply interp_weakening; eauto; try solve_addr.
-          destruct p0; simpl; auto. } 
-        { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
+        { subst ri.
+          rewrite lookup_insert_ne in Hdst; auto.
+          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
+          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+          iApply interp_weakening; eauto; try solve_addr.
+          destruct p0; simpl; auto. }
+        { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }

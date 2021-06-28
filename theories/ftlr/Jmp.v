@@ -87,8 +87,7 @@ Section fundamental.
         - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
-          iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
-          rewrite /RegLocate Hsomesrc.
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
           destruct wsrc; simpl in Heq; try congruence.
           destruct p0; try congruence.
           + iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -118,9 +117,8 @@ Section fundamental.
           rewrite (insert_id r r0); auto.
           destruct wsrc; simpl in Heq; try congruence.
           destruct p0; try congruence. inv Heq.
-          iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
-          rewrite /RegLocate Hsomesrc.
-          iClear "Hinv". 
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
+          iClear "Hinv".
           iApply ("IH" with "[] [] [Hmap] [$Hown]"); iFrame "#"; eauto.
       }
       Unshelve. all: auto.

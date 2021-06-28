@@ -50,7 +50,7 @@ Section logrel.
   Definition full_map (reg : Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! r)⌝)%I.
   Program Definition interp_reg (interp : D) : R :=
    λne (reg : leibnizO Reg), (full_map reg ∧
-                              ∀ (r : RegName), (⌜r ≠ PC⌝ → interp (reg !r! r)))%I.
+                              ∀ (r : RegName) (v : Word), (⌜r ≠ PC⌝ → ⌜reg !! r = Some v⌝ → interp v))%I.
 
   Definition interp_conf : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
@@ -268,8 +268,8 @@ Section logrel.
     | WCap p b e a' => (b ≤ a' ∧ a' < e)%Z ∧ a = a'
     end.
 
-  Definition writeAllowed_in_r_a r a :=
-    ∃ reg, writeAllowedWord (r !r! reg) ∧ hasValidAddress (r !r! reg) a.
+  Definition writeAllowed_in_r_a (r : Reg) a :=
+    ∃ reg (w : Word), r !! reg = Some w ∧ writeAllowedWord w ∧ hasValidAddress w a.
 
   Global Instance reg_finite : finite.Finite RegName.
   Proof. apply (finite.enc_finite (λ r : RegName, match r with
@@ -299,9 +299,10 @@ Section logrel.
   Global Instance writeAllowed_in_r_a_Decidable r a: Decision (writeAllowed_in_r_a r a).
   Proof.
     apply finite.exists_dec.
-    intros x. destruct (r !! x) eqn:Hsome.
-    - rewrite /RegLocate. rewrite Hsome. apply _.
-    - rewrite /RegLocate Hsome. right;simpl. intros [??]. done.
+    intros x. destruct (r !! x) eqn:Hsome;
+    first destruct (decide (writeAllowedWord w)), (decide (hasValidAddress w a)).
+    left. eexists _; auto.
+    all : (right; intros [w1 (Heq & ? & ?)]; inversion Heq; try congruence ).
   Qed.
 
   Global Instance writeAllowed_in_r_a_Persistent P r a: Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
@@ -318,16 +319,16 @@ Section logrel.
     rewrite /interp_registers /interp_reg /=.
     iDestruct "Hregs" as "[Hfull Hregvalid]".
     case_decide as Hinra.
-    - destruct Hinra as [reg [Hwa Ha] ].
+    - destruct Hinra as (reg & w & (Hw & Hwa & Ha) ).
       destruct (decide (reg = PC)).
-      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
+      + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
           try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
-        destruct (r !! reg) eqn:Hsome;rewrite Hsome in Ha Hwa;[|inversion Ha].
+      + simplify_map_eq.
+        destruct (r !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
-        iSpecialize ("Hregvalid" $! _ n). rewrite /RegLocate Hsome. iClear "Hinterp".
+        iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p0; try contradiction; inversion Hwa;
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).

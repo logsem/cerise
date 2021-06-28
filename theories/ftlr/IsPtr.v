@@ -40,10 +40,12 @@ Section fundamental.
       iApply ("IH" $! (<[dst:= _]> _) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { cbn; intro. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
-      { iIntros (ri Hri). rewrite /RegLocate insert_commute // lookup_insert_ne //.
+      { iIntros (ri v Hri Hvs).
+        rewrite insert_commute // lookup_insert_ne // in Hvs.
         destruct (decide (ri = dst)); simplify_map_eq.
         * repeat rewrite fixpoint_interp1_eq; auto.
-        * by iApply "Hreg". } rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
+        * by iApply "Hreg". }
+      rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
   Qed.
 
 End fundamental.

@@ -27,13 +27,13 @@ Section fundamental.
        decodeInstrW w = Lt dst r1 r2)
     -> □ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
-          -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (a0 !r! r1))
+          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
           -∗ na_own logrel_nais ⊤
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
     -∗ (fixpoint interp1) (WCap p b e a)
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
-    -∗ (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))
+    -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
             ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a) then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w) else emp)
     -∗ na_own logrel_nais ⊤
@@ -73,7 +73,7 @@ Section fundamental.
       iApply ("IH" $! (<[dst:=_]> (<[PC:=_]> r)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-      iIntros (ri Hri). rewrite /(RegLocate _ ri) insert_commute // lookup_insert_ne //; [].
+      iIntros (ri v Hri Hsv). rewrite insert_commute // lookup_insert_ne // in Hsv; [].
       destruct (decide (ri = dst)); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }
       { by iApply "Hreg". }

@@ -61,13 +61,13 @@ Section fundamental.
             - destruct (reg_eq_dec r1 PC).
               + subst r1. simplify_map_eq. auto.
               + simplify_map_eq.
-                iDestruct ("Hreg" $! r1 n) as "Hr1".
-                rewrite /RegLocate H1. rewrite !fixpoint_interp1_eq.
+                iDestruct ("Hreg" $! r1 _ n H1) as "Hr1".
+                rewrite !fixpoint_interp1_eq.
                 destruct p0; simpl in *; try discriminate; eauto. }
           { assert (r1 <> PC) as HPCnr1.
             { intro; subst r1; simplify_map_eq. naive_solver. }
-            simplify_map_eq. iDestruct ("Hreg" $! r1 HPCnr1) as "Hr1".
-            rewrite /RegLocate H1. rewrite !fixpoint_interp1_eq /=.
+            simplify_map_eq. iDestruct ("Hreg" $! r1 _ HPCnr1 H1) as "Hr1".
+            rewrite !fixpoint_interp1_eq /=.
             iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             rewrite /interp_expr /=.
             iDestruct "Hr1" as "#H".
