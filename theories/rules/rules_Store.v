@@ -29,18 +29,14 @@ Section cap_lang_rules.
       regs !! r1 = Some(WCap p b e a) ->
       (writeAllowed p = false ∨ withinBounds b e a = false) →
       Store_failure_store regs r1 r2 mem
+  | Store_fail_invalid_PC:
+      incrementPC (regs) = None ->
+      Store_failure_store regs r1 r2 mem
   .
 
   Inductive Store_failure_incr (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word):=
-  | Store_fail_invalid_PC:
-      incrementPC (regs) = None ->
-      Store_failure_incr regs r1 r2 mem
   .
 
-  (* Inductive Store_failure (regs: Reg) (r1 : RegName)(r2 : Z + RegName) (mem : gmap Addr Word) := *)
-  (* | Store_fail_s : Store_failure_incr regs r1 r2 mem -> Store_failure regs r1 r2 mem *)
-  (* | Store_fail_i : Store_failure_store regs r1 r2 mem → Store_failure regs r1 r2 mem.  *)
-  
   Inductive Store_spec
     (regs: Reg) (r1 : RegName) (r2 : Z + RegName)
     (regs': Reg) (mem mem' : gmap Addr Word) : cap_lang.val → Prop
@@ -55,14 +51,7 @@ Section cap_lang_rules.
   | Store_spec_failure_store :
       mem' = mem →
       Store_failure_store regs r1 r2 mem ->
-      Store_spec regs r1 r2 regs' mem mem' FailedV
-  | Store_spec_failure_incr p b e a storev :
-      word_of_argument regs r2 = Some storev ->
-      reg_allows_store regs r1 p b e a  →
-      mem' = mem →
-      Store_failure_incr regs r1 r2 mem ->
       Store_spec regs r1 r2 regs' mem mem' FailedV.
-  
 
   Definition allow_store_map_or_true (r1 : RegName) (regs : Reg) (mem : gmap Addr Word):=
     ∃ p b e a,
@@ -213,9 +202,7 @@ Section cap_lang_rules.
         rewrite incrementPC_fail_updatePC /= in Hstep; auto.
         inversion Hstep.
         cbn; iFrame; iApply "Hφ"; iFrame.
-        iPureIntro. eapply Store_spec_failure_incr;eauto.
-        - split;eauto. 
-        - constructor. auto. 
+        iPureIntro. eapply Store_spec_failure_store;eauto. by constructor.
       }
 
       iMod ((gen_mem_update_inSepM _ _ a) with "Hm Hmem") as "[Hm Hmem]"; eauto.
@@ -274,11 +261,6 @@ Section cap_lang_rules.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H2. all:try congruence. done.
      }
-     { (* Failure (contradiction) *)
-       destruct H3,H5; try incrementPC_inv; simplify_map_eq; eauto.
-       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       congruence. 
-     }
    Qed.
 
    Lemma wp_store_success_reg_PC E src wsrc pc_p pc_b pc_e pc_a pc_a' w :
@@ -320,11 +302,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H3. congruence. done.
-     }
-     { destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto.
-       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       congruence. 
+       destruct o; last apply Is_true_false in H3. congruence. done. congruence.
      }
     Qed.
 
@@ -365,11 +343,7 @@ Section cap_lang_rules.
       { (* Failure (contradiction) *)
        destruct H3; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H2. congruence. done.
-     }
-     { destruct H3,H5; try incrementPC_inv; simplify_map_eq; eauto.
-       apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       congruence. 
+       destruct o; last apply Is_true_false in H2. congruence. done. congruence.
      }
     Qed.
 
@@ -413,9 +387,6 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence.
-     }
-     { destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
      }
      Qed.
 
@@ -479,11 +450,6 @@ Section cap_lang_rules.
        destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
-     { (* Failure (contradiction) *)
-       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
-     }
-
    Qed.
 
    Lemma wp_store_success_reg_frominstr_same E pc_p pc_b pc_e pc_a pc_a' w dst w'
@@ -580,9 +546,6 @@ Section cap_lang_rules.
        destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
-     { (* Failure (contradiction) *)
-       destruct H4,H6; try incrementPC_inv; simplify_map_eq; eauto. congruence.
-     }
    Qed.
 
    Lemma wp_store_success_reg_same_a E pc_p pc_b pc_e pc_a pc_a' w dst src
@@ -627,10 +590,6 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H6; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
-     }
-     { (* Failure (contradiction) *)
-       destruct H6,H8; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
      }
    Qed.
 
@@ -680,10 +639,6 @@ Section cap_lang_rules.
        destruct H7; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
-     { (* Failure (contradiction) *)
-       destruct H7,H9; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
-     }
     Qed.
 
    Lemma wp_store_success_reg_same E pc_p pc_b pc_e pc_a pc_a' w dst w'
@@ -730,10 +685,6 @@ Section cap_lang_rules.
        destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
-     { (* Failure (contradiction) *)
-       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
-     }
     Qed.
 
    Lemma wp_store_success_z E pc_p pc_b pc_e pc_a pc_a' w dst z w'
@@ -779,10 +730,6 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
-     }
-     { (* Failure (contradiction) *)
-       destruct H5,H7; try incrementPC_inv; simplify_map_eq; eauto.
-       congruence. 
      }
     Qed.
 
