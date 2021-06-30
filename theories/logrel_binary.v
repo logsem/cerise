@@ -43,7 +43,7 @@ Section logrel.
   Definition full_map (regpair : Reg * Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (regpair.1 !! r) ∧ is_Some (regpair.2 !! r)⌝)%I.
   Program Definition interp_reg (interp : D) : R :=
     λne (regpair : prodO (leibnizO Reg) (leibnizO Reg)), (full_map regpair ∧
-                                                          ∀ (r : RegName), (⌜r ≠ PC⌝ → interp (regpair.1 !r! r,regpair.2 !r! r)))%I.
+      ∀ (r : RegName) v1 v2, (⌜r ≠ PC⌝  → ⌜regpair.1 !! r = Some v1⌝ → ⌜regpair.2 !! r = Some v2⌝ → interp (v1, v2)))%I.
   Solve All Obligations with solve_proper.
 
   Definition interp_conf : iProp Σ :=
@@ -282,20 +282,19 @@ Section logrel.
     rewrite /interp_registers /interp_reg /=.
     iDestruct "Hregs" as "[% Hregvalid]".
     case_decide as Hinra.
-    - destruct Hinra as [reg [Hwa Ha] ].
+    - destruct Hinra as (reg & w & (Hw & Hwa & Ha) ).
       destruct (decide (reg = PC)).
-      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
+      + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p,p'; try contradiction; try done;
         iDestruct "Hinterp" as "[(%&%&%) Hinterp]";simplify_eq;
           try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-        rewrite lookup_insert in Hwa;inversion Hwa.
-        rewrite lookup_insert in Hwa;inversion Hwa.
-      + rewrite /RegLocate in Hwa Ha. rewrite lookup_insert_ne// in Hwa,Ha.
-        destruct (r.1 !! reg) eqn:Hsome;rewrite Hsome in Ha Hwa; [|inversion Ha].
-        assert (is_Some(r.2 !! reg)) as [? ?];[by destruct H0 with reg|].
+        all: rewrite lookup_insert in Hw;inversion Hw;simplify_eq; done.
+      + rewrite lookup_insert_ne // in Hw.
+        destruct (r.1 !! reg) eqn:Hsome;rewrite Hsome in Hw; inversion Hw.
+        assert (is_Some(r.2 !! reg)) as [? Hsome'];[by destruct H0 with reg|].
         destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
-        iSpecialize ("Hregvalid" $! _ n). rewrite /RegLocate Hsome H1. iClear "Hinterp".
+        iSpecialize ("Hregvalid" $! _ _ _ n Hsome Hsome'). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct x; [destruct p0; done |].
         destruct p0,p1; try contradiction; try done; inversion Hwa;
@@ -347,14 +346,14 @@ Section logrel.
       simpl in *. destruct H0 with reg as [_ [? ?] ].
       destruct (decide (reg = PC));[by subst;rewrite lookup_insert;rewrite lookup_insert in Hin|].
       rewrite lookup_insert_ne// in Hin. rewrite lookup_insert_ne//.
-      iSpecialize ("Hv" $! reg n). rewrite /RegLocate H1 Hin.
+      iSpecialize ("Hv" $! reg _ _ n Hin H1). rewrite H1.
       iDestruct (interp_eq with "Hv") as %->. auto.
     - iIntros (Hin).
       iDestruct "Hv" as "[% Hv]".
       simpl in *. destruct H0 with reg as [ [? ?] _].
       destruct (decide (reg = PC));[by subst;rewrite lookup_insert; rewrite lookup_insert in Hin|].
       rewrite lookup_insert_ne// in Hin; rewrite lookup_insert_ne//.
-      iSpecialize ("Hv" $! reg n). rewrite /RegLocate H1 Hin.
+      iSpecialize ("Hv" $! reg _ _ n H1 Hin). rewrite H1.
       iDestruct (interp_eq with "Hv") as %->. auto.
   Qed.
 
@@ -363,10 +362,11 @@ Section logrel.
   Proof.
     iIntros "[% #Hv]". rewrite /interp_registers /=.
     iSplit;[iPureIntro;intros x; destruct H0 with x;eauto|].
-    iIntros (reg Hne). iDestruct ("Hv" $! reg Hne) as "Hval".
+    iIntros (reg v1 v2 Hne Hv1 Hv2).
     destruct H0 with reg as [ [? Hreg1] [? Hreg2] ].
-    rewrite /RegLocate Hreg1 Hreg2.
-    iDestruct (interp_eq with "Hval") as %->. iFrame "Hval".
+    rewrite Hv1 in Hv2; simplify_eq.
+    iDestruct ("Hv" $! reg _ _ Hne Hv1 Hreg2) as "Hval".
+    iDestruct (interp_eq with "Hval") as %<-. iFrame "Hval".
   Qed.
 
 End logrel.

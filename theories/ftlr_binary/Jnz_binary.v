@@ -67,34 +67,37 @@ Section fundamental.
         rewrite lookup_insert in H2; inv H2. rewrite !insert_insert.
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
-        { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-          rewrite /RegLocate. replace (r2 !! rr) with (r1 !! rr); [iExact "Hrr"|].
-          erewrite <- (lookup_insert_ne r1 PC rr); auto.
+        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+          assert (r1 !! rr = r2 !! rr) as Heqrr.
+          { erewrite <- (lookup_insert_ne r1 PC rr); auto.
           erewrite <- (lookup_insert_ne r2 PC rr); auto.
           f_equal. eapply Heq. }
+          rewrite Heqrr in Hv2s.
+          by iDestruct ("Hreg" $! rr _ _ Hne Hv1s Hv2s) as "Hrr". }
         { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
       - rewrite !insert_insert. subst w'.
         iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w,w; iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
         case_eq (isCorrectPCb (updatePcPerm w'0)); intro HPCb.
         + destruct (reg_eq_dec dst PC).
-          * subst dst. rewrite lookup_insert in H1; inv H1.
+          * subst dst. rewrite lookup_insert// in H1; inv H1.
             replace (updatePcPerm (WCap p b e a)) with ((WCap p b e a):Word); [|destruct Hp; subst p; auto].
             iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
             iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
             { iPureIntro. simpl. intros reg. destruct Hsome with reg; auto. }
-            { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-              rewrite /RegLocate. replace (r2 !! rr) with (r1 !! rr); [iExact "Hrr"|].
-              erewrite <- (lookup_insert_ne r1 PC rr); auto.
+            { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+              assert (r1 !! rr = r2 !! rr) as Heqrr.
+              { erewrite <- (lookup_insert_ne r1 PC rr); auto.
               erewrite <- (lookup_insert_ne r2 PC rr); auto.
               f_equal. eapply Heq. }
+              rewrite Heqrr in Hv2s.
+              by iDestruct ("Hreg" $! rr _ _ Hne Hv1s Hv2s) as "Hrr". }
             { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
           * assert (H1' := H1). rewrite lookup_insert_ne in H1; auto.
-            rewrite Heq lookup_insert_ne in H1'; auto.
+            rewrite Heq lookup_insert_ne // in H1'.
             destruct w'0; simpl in HPCb; [congruence|].
             destruct (perm_eq_dec p0 E).
-            { subst p0. iDestruct ("Hreg" $! dst with "[]") as "Hinvdst"; [iPureIntro; auto|].
-              rewrite /RegLocate H1 H1'.
+            { subst p0. iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
               rewrite /interp (fixpoint_interp1_eq (WCap E _ _ _, WCap _ _ _ _)) /=.
               iDestruct "Hinvdst" as (_) "Hinvdst".
               iDestruct ("Hinvdst" $! (r1, r2)) as "Hinvdst'".
@@ -110,8 +113,7 @@ Section fundamental.
                   { rewrite Heq; auto. }
                   rewrite !lookup_insert_ne in H3; auto.
               - iDestruct "Hinvdst''" as (_) "$". }
-            { iDestruct ("Hreg" $! dst with "[]") as "Hinvdst"; [iPureIntro; auto|].
-              rewrite /RegLocate H1 H1'.
+            { iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
               iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
               iApply ("IH" $! (r1,r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]"); simpl; auto.
               - destruct p0; auto. congruence.

@@ -74,18 +74,19 @@ Section fundamental.
         rewrite lookup_insert in H0; inv H0. rewrite !insert_insert.
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs' Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
-        { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-          rewrite /RegLocate. replace (r2 !! rr) with (r1 !! rr); [iExact "Hrr"|].
-          erewrite <- (lookup_insert_ne r1 PC rr); auto.
+        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+          assert (r1 !! rr = r2 !! rr) as Heqrr.
+          { erewrite <- (lookup_insert_ne r1 PC rr); auto.
           erewrite <- (lookup_insert_ne r2 PC rr); auto.
           f_equal. eapply Heq. }
+          rewrite Heqrr in Hv2s.
+          by iDestruct ("Hreg" $! rr _ _ Hne Hv1s Hv2s) as "Hrr". }
         { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
       + rewrite lookup_insert_ne in H4; auto.
         rewrite lookup_insert in H4; inv H4.
         assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
         rewrite Heq lookup_insert_ne in H0'; auto.
-        iDestruct ("Hreg" $! dst n) as "Hinvdst".
-        rewrite /RegLocate H0 H0'.
+        iDestruct ("Hreg" $! dst _ _ n H0 H0') as "Hinvdst".
         rewrite (insert_commute _ dst PC); auto.
         rewrite !insert_insert.
         iApply ("IH" $! (<[dst:=WCap p0 b0 e0 a']> r1,<[dst:=WCap p0 b0 e0 a']> r1) with "[] [] Hmap Hsmap Hown Hs' Hspec").
@@ -93,14 +94,16 @@ Section fundamental.
           destruct (reg_eq_dec dst reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
           destruct Hsome with reg;auto. }
         { iIntros. simpl. destruct (reg_eq_dec dst r0).
-          - subst r0; rewrite lookup_insert. rewrite /interp.
+          - subst r0. rewrite !lookup_insert in H6, H7. simplify_eq. rewrite /interp.
             iApply (interp_weakening with "IH Hspec Hinvdst"); auto; try solve_addr.
             unfold Is_true. rewrite PermFlowsToReflexive. auto.
-          - rewrite !lookup_insert_ne; auto.
-            iDestruct ("Hreg" $! r0 H4) as "Hr0".
-            replace (r2 !! r0) with (r1 !! r0); [iExact "Hr0"|].
-            assert (<[PC:=WCap x x0 x1 x2]> r1 !! r0 = <[PC:=WCap x x0 x1 x2]> r2 !! r0) by (rewrite Heq; auto).
-            rewrite !lookup_insert_ne in H6; auto. }
+          - rewrite !lookup_insert_ne in H6,H7; auto.
+            assert (r1 !! r0 = r2 !! r0) as Heqrr.
+            { erewrite <- (lookup_insert_ne r1 PC r0); auto.
+            erewrite <- (lookup_insert_ne r2 PC r0); auto.
+            f_equal. eapply Heq. }
+            rewrite Heqrr in H7.
+            by iDestruct ("Hreg" $! r0 _ _ H4 H6 H7) as "Hr0". }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
   Qed.
 

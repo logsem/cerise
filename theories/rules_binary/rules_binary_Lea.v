@@ -72,18 +72,6 @@ Section cap_lang_spec_rules.
          assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
          iFailStep Lea_fail_overflow. }
-
-     (* assert ((c, σ2) = updatePC (update_reg (σr, σm) r1 (WCap p b e a'))) as HH. *)
-     (* { unfold z_of_argument in Harg. destruct arg as [ z | r0 ]. *)
-     (*   { inversion Harg; subst z. rewrite Hoffset in Hstep. *)
-     (*     destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } *)
-     (*   { feed destruct (Hri r0) as [r0v [Hr'0 Hr0]]. *)
-     (*     by unfold regs_of_argument; set_solver+. *)
-     (*     rewrite /RegLocate Hr'0 Hr0 in Harg Hstep. *)
-     (*     destruct r0v; [| congruence]. inversion Harg; subst z. *)
-     (*     rewrite Hoffset in Hstep. *)
-     (*     destruct p; auto; try congruence; destruct (Addr_le_dec a' a); try congruence; auto; solve_addr. } } *)
-     (* clear Hstep. rewrite /update_reg /= in HH. *)
      rewrite /update_reg /= in Hstep.
 
 

@@ -55,7 +55,8 @@ Section fundamental.
       (b e a : Addr) (src : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
       read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0
-      → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1,r !r! r1))
+
+      → (∀ (r0 : RegName) v1 v2, (⌜r0 ≠ PC⌝  → ⌜r !! r0 = Some v1⌝ → ⌜r !! r0 = Some v2⌝ → (fixpoint interp1) (v1, v2)))
           -∗ ∃ P, allow_load_res src (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0 P.
   Proof.
     intros r p b e a src p0 b0 e0 a0 HVsrc.
@@ -69,9 +70,8 @@ Section fundamental.
          (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
          assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
-         iDestruct ("Hreg" $! src n) as "Hvsrc".
          rewrite lookup_insert_ne in Hrinr; last by congruence.
-         rewrite /RegLocate Hrinr.
+         iDestruct ("Hreg" $! src _ _ n Hrinr Hrinr) as "Hvsrc".
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
@@ -319,17 +319,19 @@ Section fundamental.
         rewrite lookup_insert_is_Some;
         (destruct (decide (dst = x4)); [ auto | right; split; auto]). }
         (* Prove in the general case that the value relation holds for the register that was loaded to - unless it was the PC.*)
-      { iIntros (ri Hri).
+       { iIntros (ri v1 v2 Hri Hv1s Hv2s).
         subst regs'. simpl.
-        erewrite locate_ne_reg; [ | | reflexivity]; auto.
+        rewrite lookup_insert_ne in Hv1s, Hv2s; auto.
         destruct (decide (ri = dst)).
         { subst ri.
-          erewrite locate_eq_reg; [ | reflexivity]; auto.
+          rewrite lookup_insert in Hv1s, Hv2s; auto. inversion Hv1s. inversion Hv2s.
+          simplify_eq.
           destruct (decide (a = a0)).
           - simplify_eq. iFrame "Hw".
           - iClear "HLoadRes Hwrite". rewrite decide_True. iFrame "#". auto.
         }
-        { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
+        { repeat (rewrite lookup_insert_ne in Hv1s,Hv2s); auto.
+          simplify_eq.
           iApply "Hreg'"; auto. }
        }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
