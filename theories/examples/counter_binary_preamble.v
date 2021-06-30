@@ -244,14 +244,14 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { rewrite !dom_delete_L Hdom_s'. clear. set_solver. }
     { iSplitL "Hr1";[eauto|]. iSplitL;[eauto|]. iSplit. 
-      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v /interp//.
-      - iIntros (reg Hne). iDestruct ("Hr'_valid" $! reg with "[]") as "Hval";[done|]. 
-        rewrite /RegLocate !fixpoint_interp1_eq. 
-        destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t0)//]. 
-        destruct (decide (reg = r_env));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_env)//]. 
-        destruct (decide (reg = r_t1));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t1)//]. 
-        rewrite !(lookup_delete_ne _ PC)//. 
-    }
+      - unshelve iDestruct ("Hr'_valid" $! r_t0 _ _ _ Hr0v Hs0v) as "Hval";[auto|].
+        rewrite /interp//.
+      - iIntros (reg v1 v2 Hne Hv1s Hv2s).
+        destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_t0) // in Hv1s, Hv2s].
+        destruct (decide (reg = r_env));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_env)// in Hv1s Hv2s].
+        destruct (decide (reg = r_t1));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_t1)// in Hv1s Hv2s].
+        rewrite !(lookup_delete_ne _ PC)// in Hv1s Hv2s.
+       by unshelve iDestruct ("Hr'_valid" $! reg _ _ _ Hv1s Hv2s)  as "Hval";[done|]. }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed.
 
@@ -357,13 +357,13 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { rewrite !dom_delete_L Hdom_s'. clear. set_solver. }
     { iSplitL "Hr1";[eauto|]. iSplitL;[eauto|]. iSplit. 
-      - iDestruct ("Hr'_valid" $! r_t0 with "[]") as "Hval";[auto|]. rewrite /RegLocate Hr0v Hs0v /interp//.
-      - iIntros (reg Hne). iDestruct ("Hr'_valid" $! reg with "[]") as "Hval";[done|]. 
-        rewrite /RegLocate !fixpoint_interp1_eq. 
-        destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t0)//]. 
-        destruct (decide (reg = r_env));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_env)//]. 
-        destruct (decide (reg = r_t1));[subst;rewrite !lookup_delete;done|rewrite !(lookup_delete_ne _ r_t1)//]. 
-        rewrite !(lookup_delete_ne _ PC)//. 
+      - unshelve iDestruct ("Hr'_valid" $! r_t0 _ _ _ Hr0v Hs0v) as "Hval";[auto|]. rewrite /interp//.
+      - iIntros (reg v1 v2 Hne Hv1s Hv2s).
+            destruct (decide (reg = r_t0));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_t0) // in Hv1s, Hv2s].
+            destruct (decide (reg = r_env));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_env)// in Hv1s Hv2s].
+            destruct (decide (reg = r_t1));[subst;rewrite !lookup_delete in Hv1s Hv2s;done|rewrite !(lookup_delete_ne _ r_t1)// in Hv1s Hv2s].
+            rewrite !(lookup_delete_ne _ PC)// in Hv1s Hv2s.
+              by unshelve iDestruct ("Hr'_valid" $! reg _ _ _ Hv1s Hv2s)  as "Hval";[done|].
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed.
@@ -905,9 +905,8 @@ Section counter_example_preamble.
       apply Hcont_restc. apply Hcont_restc'. apply Hvpc_counter. apply Hvpc_counter'.
       apply Hcont_incr. apply Hcont_decr. solve_ndisj. }
     
-    unshelve iPoseProof ("Hr_valid" $! r_t0 _) as "#Hr0_valid". done.
-    rewrite /(RegLocate _ r_t0) /(RegLocate _ r_t0) Hr0 Hs0.
-    
+    unshelve iPoseProof ("Hr_valid" $! r_t0 _ _ _ Hr0 Hs0) as "#Hr0_valid". done.
+
     (* either we fail, or we use the continuation in rt0 *)
     iDestruct (jmp_or_fail_spec with "Hspec Hr0_valid") as "Hcont".
     destruct (decide (isCorrectPC (updatePcPerm r0))). 
@@ -964,17 +963,13 @@ Section counter_example_preamble.
         generalize (all_registers_s_correct rr). clear; set_solver. }
     iSpecialize ("Hcont" $! (r'',s'') with "[$Hj $Hregs $Hsegs $HnaI]").
     { rewrite /interp_reg. iSplit; [iPureIntro; apply Hr''_full|].
-      iIntros (rr Hrr). simpl. rewrite /RegLocate /r'' /s''.
-      consider_next_reg_both rr PC. done. consider_next_reg_both rr r_t0. consider_next_reg_both rr r_t1.
-      consider_next_reg_both rr r_t2.
+      iIntros (rr v1 v2 Hrr Hv1s Hv2s). simpl. rewrite /r'' /s'' in Hv1s, Hv2s.
       repeat (
-      match goal with |- context [ <[?r := _]> _ ] =>
-                      consider_next_reg_both rr r; [by rewrite (fixpoint_interp1_eq (WInt 0%Z, WInt 0%Z))|]
-      end ). 
-      
-      consider_next_reg_both rr r_t9. congruence.
-      consider_next_reg_both rr r_t8. congruence.
-      unshelve iSpecialize ("Hr_valid" $! rr _); auto. 
+      match goal with H : context [ <[?r := _]> _ ] |- _ =>
+                      consider_next_reg_both1 rr r Hv1s Hv2s; [simplify_eq; try done; by rewrite (fixpoint_interp1_eq (WInt 0%Z, WInt 0%Z))|]
+      end ).
+      simplify_eq.
+      by unshelve iSpecialize ("Hr_valid" $! rr _ _ n Hv1s Hv2s).
     }
     (* apply the continuation *)
     iDestruct "Hcont" as "[_ Hcallback_now]".

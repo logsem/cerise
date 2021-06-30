@@ -371,11 +371,12 @@ Section Adequacy.
       { iFrame. rewrite /registers_mapsto. by rewrite insert_id. }
       { iSplit. iPureIntro; intros; by apply initial_registers_full_map.
         (* All capabilities in registers are valid! *)
-        iIntros (r HrnPC).
+        iIntros (r v HrnPC Hsv).
         (* r0 (return pointer to the adversary) is valid. Prove it using the
            fundamental theorem. *)
         destruct (decide (r = r_t0)) as [ -> |].
-        { rewrite /RegLocate Hstk !fixpoint_interp1_eq /=.
+        { rewrite Hsv in Hstk. inversion Hstk; subst v.
+          rewrite !fixpoint_interp1_eq /=.
           iDestruct (big_sepL2_length with "Hadv") as %Hadvlength. 
           iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'";auto. rewrite -Heqapp. 
           iApply (big_sepL_mono with "Hadv'"). iIntros (k v Hkv). cbn.
@@ -384,10 +385,9 @@ Section Adequacy.
         }
         
         (* Other registers *)
-        rewrite /RegLocate.
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
-        destruct rw; [| by inversion Hncap].
-        by rewrite Hrw !fixpoint_interp1_eq /=. } }
+        destruct rw; [| by inversion Hncap]. simplify_map_eq.
+        by rewrite !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
 

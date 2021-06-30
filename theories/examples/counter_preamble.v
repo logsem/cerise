@@ -162,14 +162,14 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { iSplitL;[eauto|]. iSplit. 
       - iExists _. iFrame "#".
-      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|]|].
-        rewrite /RegLocate Hr0v. iFrame "Hr'_valid".
+      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
+        iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
         assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        iSpecialize ("Hr'_valid" $! reg). rewrite /RegLocate Hlook. iApply "Hr'_valid";auto.
+        iSpecialize ("Hr'_valid" $! reg _ H4 Hlook).  iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed.
@@ -237,14 +237,14 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { iSplitL;[eauto|]. iSplit. 
       - iExists _. iFrame "#".
-      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|]|].
-        rewrite /RegLocate Hr0v. iFrame "Hr'_valid".
+      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
+        iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
         assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        iSpecialize ("Hr'_valid" $! reg). rewrite /RegLocate Hlook. iApply "Hr'_valid";auto.
+        iSpecialize ("Hr'_valid" $! reg _ H4 Hlook). iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed. 
@@ -307,14 +307,14 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
     { iSplitL;[eauto|]. iSplit. 
       - iExists _. iFrame "#".
-      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _); [done|]|].
-        rewrite /RegLocate Hr0v. iFrame "Hr'_valid".
+      - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
+        iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
         assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        iSpecialize ("Hr'_valid" $! reg). rewrite /RegLocate Hlook. iApply "Hr'_valid";auto.
+        iSpecialize ("Hr'_valid" $! reg _ H4 Hlook). iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed. 
@@ -743,8 +743,7 @@ Section counter_example_preamble.
     { iApply (reset_closure_valid with "Hcounter_inv Hreset Hcls_inv");auto.
       apply Hcont_incr. apply Hcont_read. apply Hvpc_counter. apply Hcont_reset. }
     
-    unshelve iPoseProof ("Hr_valid" $! r_t0 _) as "#Hr0_valid". done.
-    rewrite /(RegLocate _ r_t0) Hr0.
+    unshelve iPoseProof ("Hr_valid" $! r_t0 _ _ Hr0) as "#Hr0_valid". done.
 
     (* use the continuation in rt0 *)
     iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
@@ -771,8 +770,7 @@ Section counter_example_preamble.
               [first [done | by rewrite /= !fixpoint_interp1_eq // ]|]).
       iApply big_sepM_intuitionistically_forall. iIntros "!>" (r' ? Hr').
       eapply lookup_delete_Some in Hr' as [? Hr'].
-      unshelve iSpecialize ("Hr_valid" $! r' _). by auto.
-      rewrite /RegLocate Hr'. done. }
+      unshelve iSpecialize ("Hr_valid" $! r' _ _ Hr'). by auto. done. }
     { iPureIntro. rewrite !dom_insert_L dom_delete_L Hdom_r. set_solver+. }
   Qed.
 

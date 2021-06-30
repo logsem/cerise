@@ -397,8 +397,7 @@ Section adder.
         iSplitL "Hinv"; eauto.
         (* Use the fact that the closure's continuation is valid to conclude *)
         (* This involves a lot of bureaucratic shuffling of the register resources *)
-        unshelve iPoseProof ("HrV" $! r_t0 _) as "Hr0V";[done|].
-        rewrite /RegLocate Hrv0.
+        unshelve iPoseProof ("HrV" $! r_t0 _ _ Hrv0) as "Hr0V";[done|].
         iPoseProof (jmp_to_unknown with "Hr0V") as "Hcont".
         iNext. iIntros "H".
         iDestruct "H" as (k' n') "(HPC & Hprog_f & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
@@ -426,7 +425,7 @@ Section adder.
           rewrite delete_insert_delete.
           iApply big_sepM_intuitionistically_forall. iModIntro.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
-          unshelve iSpecialize ("HrV" $! r' _). done. by rewrite Hr'. }
+          by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
         { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.
           rewrite regmap_full_dom //. set_solver+. } }
       { cbn beta. iIntros (?) "H". iIntros (->). iDestruct "H" as "[H|%]". 2: congruence.

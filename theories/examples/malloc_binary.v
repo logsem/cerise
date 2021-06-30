@@ -617,6 +617,11 @@ Section SimpleMalloc.
   Ltac consider_next_reg r1 r2 :=
     destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto].
 
+  (* same tactic, but now operating on inline hypothesis. *)
+  Ltac consider_next_reg1 r1 r2 H1 H2 :=
+    destruct (decide (r1 = r2));
+    [ subst; rewrite lookup_insert in H1, H2; eauto | rewrite lookup_insert_ne in H1, H2; auto ].
+
   Lemma allocate_region_inv E ba ea :
     [[ba,ea]]↦ₐ[[region_addrs_zeroes ba ea]] ∗ [[ba,ea]]↣ₐ[[region_addrs_zeroes ba ea]]
     ={E}=∗ [∗ list] a ∈ region_addrs ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
@@ -654,9 +659,13 @@ Section SimpleMalloc.
     iDestruct (interp_reg_eq r.1 r.2 (WCap RX b e b) with "[Hregs_valid]") as %Heq;[iSplit;auto|].
     rewrite -Heq.
     iAssert (⌜x = x0⌝)%I as %->.
-    { iApply interp_eq. iDestruct ("Hregs_valid" $! r_t0 with "[]") as "H";auto. rewrite /RegLocate H0 H1 /interp //. }
+    { iApply interp_eq.
+      unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ _ H0 H1) as "Hr0_valid";auto.
+    }
     iAssert (⌜x1 = x2⌝)%I as %->.
-    { iApply interp_eq. iDestruct ("Hregs_valid" $! r_t1 with "[]") as "H";auto. rewrite /RegLocate H2 H3 /interp //. }
+    { iApply interp_eq.
+      unshelve iDestruct ("Hregs_valid" $! r_t1 _ _ _ H2 H3) as "H";auto.
+    }
     iApply (wp_wand with "[-]").
     iApply (simple_malloc_subroutine_spec with "[- $Hspec $Hj $Hown $Hmalloc $Hregs $Hsregs $r_t0 $HPC $r_t1 $s_t0 $HsPC $s_t1]"); [| |solve_ndisj|].
     4: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
@@ -669,8 +678,7 @@ Section SimpleMalloc.
       { intros x. destruct H with x;eauto. }
       apply regmap_full_dom in H' as <-. set_solver. }
 
-    iDestruct ("Hregs_valid" $! r_t0 with "[]") as "-#Hr0_valid";auto.
-    rewrite /RegLocate H0 H1.
+    unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ _ H0 H1) as "-#Hr0_valid";auto.
     iDestruct (jmp_or_fail_spec with "Hspec Hr0_valid") as "Hcont".
     destruct (decide (isCorrectPC (updatePcPerm x0))).
     2: { iNext. iIntros "(_ & _ & _ & HPC & _)". iApply "Hcont". iFrame. iIntros (Hcontr). done. }
@@ -695,16 +703,17 @@ Section SimpleMalloc.
     { rewrite /regs. iSplit.
       - iPureIntro. intros x. consider_next_reg x PC. consider_next_reg x r_t0. consider_next_reg x r_t1.
         consider_next_reg x r_t2. consider_next_reg x r_t3. consider_next_reg x r_t4. destruct H with x;auto.
-      - iIntros (x Hne). rewrite /RegLocate. consider_next_reg x PC;[contradiction|].
-        consider_next_reg x r_t0.
-        { iDestruct ("Hregs_valid'" $! r_t0 with "[]") as "-#Hr0_valid";auto. rewrite H0. iFrame. }
-        consider_next_reg x r_t1.
-        { rewrite logrel_binary.fixpoint_interp1_eq /=. iSplit;auto. iApply (big_sepL_mono with "Hbe").
+      - iIntros (x v1 v2 Hne Hv1s Hv2s).
+        consider_next_reg1 x PC Hv1s Hv2s ; [contradiction|].
+        consider_next_reg1 x r_t0 Hv1s Hv2s.
+        { cbn. iDestruct ("Hregs_valid'" $! r_t0 _ _ n H0 H0) as "-#Hr0_valid";auto.  iFrame. by simplify_eq. }
+        consider_next_reg1 x r_t1 Hv1s Hv2s.
+        { inversion Hv1s. inversion Hv2s. rewrite logrel_binary.fixpoint_interp1_eq /=. iSplit;auto. iApply (big_sepL_mono with "Hbe").
           iIntros (k y Hky) "Ha". iExists logrel_binary.interp. iFrame. rewrite /interp /fixpoint_interp1_eq /=. iSplit;auto. }
-        consider_next_reg x r_t2. by rewrite logrel_binary.fixpoint_interp1_eq.
-        consider_next_reg x r_t3. by rewrite logrel_binary.fixpoint_interp1_eq.
-        consider_next_reg x r_t4. by rewrite logrel_binary.fixpoint_interp1_eq.
-        iApply "Hregs_valid'". auto.
+        consider_next_reg1 x r_t2 Hv1s Hv2s. inversion Hv1s. inversion Hv2s. by rewrite logrel_binary.fixpoint_interp1_eq.
+        consider_next_reg1 x r_t3 Hv1s Hv2s. inversion Hv1s. inversion Hv2s. by rewrite logrel_binary.fixpoint_interp1_eq.
+        consider_next_reg1 x r_t4 Hv1s Hv2s. inversion Hv1s. inversion Hv2s. by rewrite logrel_binary.fixpoint_interp1_eq.
+        iApply "Hregs_valid'"; auto.
     }
     { rewrite /regs. rewrite insert_insert /=. iFrame. }
   Qed.

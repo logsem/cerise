@@ -101,6 +101,11 @@ Ltac iCombinePtrn :=
 Ltac consider_next_reg_both r1 r2 :=
   destruct (decide (r1 = r2));[subst;rewrite !(lookup_insert _ r2);eauto|rewrite !(lookup_insert_ne _ r2);auto].
 
+(* Inline version *)
+Ltac consider_next_reg_both1 r1 r2 H1 H2 :=
+  destruct (decide (r1 = r2));
+  [ subst; rewrite !(lookup_insert _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
+
 Ltac middle_lt prev index :=
   match goal with
   | Ha_first : ?a !! 0 = Some ?a_first |- _

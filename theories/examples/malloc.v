@@ -251,8 +251,7 @@ Section SimpleMalloc.
     iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|]. 
     3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
-    iDestruct ("Hregs_valid" $! r_t0 with "[]") as "Hr0_valid";auto.
-    rewrite /RegLocate H0.
+    unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.
     iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
     iNext. iIntros "((Hown & Hregs) & Hr_t0 & HPC & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize) "[Hr_t1 Hbe]".
@@ -284,7 +283,7 @@ Section SimpleMalloc.
     { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
       simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
     repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr'].
-    unshelve iSpecialize ("Hregs_valid" $! r' _). done. rewrite Hr'. done.
+    unshelve iSpecialize ("Hregs_valid" $! r' _ _ Hr'). done. done.
   Qed.
 
 
