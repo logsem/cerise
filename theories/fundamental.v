@@ -220,10 +220,9 @@ Section fundamental.
     { unfold full_map. iIntros (r).
       destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. eauto. }
       rewrite lookup_insert_ne //. iPureIntro. rewrite elem_of_gmap_dom Hrmap. set_solver. }
-    { iIntros (r Hr).
-      rewrite /RegLocate lookup_insert_ne //.
-      assert (is_Some (rmap !! r)) as [? HHr]. rewrite elem_of_gmap_dom Hrmap; set_solver.
-      rewrite HHr. iDestruct (big_sepM_lookup _ _ r with "HrV") as "HrV"; eauto. }
+    { iIntros (ri v Hri Hvs).
+      rewrite lookup_insert_ne // in Hvs.
+      iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
     rewrite insert_insert. iApply big_sepM_insert.
     { apply elem_of_gmap_dom_none. rewrite Hrmap. set_solver. }
     iFrame.
