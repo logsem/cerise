@@ -91,18 +91,18 @@ Section callback.
     contiguous_between a a_first a_last →
     region_size b_l a_l = strings.length revlocals →
     strings.length revlocals > 0 →
-    readAllowed p_l = true → (withinBounds (p_l,b_l,e_l,a_l) = true ∨ a_l = e_l) ->
+    readAllowed p_l = true → (withinBounds b_l e_l a_l = true ∨ a_l = e_l) ->
     zip locals wsr ≡ₚ(map_to_list mlocals) →
     length revlocals = length wsr ->
     rev locals = revlocals ->
 
     (▷ restore_locals a r1 revlocals
-   ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
-   ∗ ▷ r1 ↦ᵣ inr (p_l,b_l,e_l,a_l)
+   ∗ ▷ PC ↦ᵣ WCap p b e a_first
+   ∗ ▷ r1 ↦ᵣ WCap p_l b_l e_l a_l
    ∗ ▷ ([∗ map] r↦_ ∈ mlocals, ∃ w, r ↦ᵣ w)
    ∗ ▷ ([[b_l,a_l]]↦ₐ[[ wsr ]])
-   ∗ ▷ (PC ↦ᵣ inr (p,b,e,a_last)
-           ∗ r1 ↦ᵣ inr (p_l,b_l,e_l,b_l)
+   ∗ ▷ (PC ↦ᵣ WCap p b e a_last
+           ∗ r1 ↦ᵣ WCap p_l b_l e_l b_l
            ∗ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
            ∗ [[b_l,a_l]]↦ₐ[[wsr]]
            ∗ restore_locals a r1 revlocals
@@ -289,12 +289,12 @@ Section callback.
     length locals = length wsr -> 
 
     (▷ restore_locals a r1 (rev locals)
-   ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
-   ∗ ▷ r1 ↦ᵣ inr (p_l,b_l,e_l,e_l)
+   ∗ ▷ PC ↦ᵣ WCap p b e a_first
+   ∗ ▷ r1 ↦ᵣ WCap p_l b_l e_l e_l
    ∗ ▷ ([∗ map] r↦_ ∈ mlocals, ∃ w, r ↦ᵣ w)
    ∗ ▷ ([[b_l,e_l]]↦ₐ[[wsr]])
-   ∗ ▷ (PC ↦ᵣ inr (p,b,e,a_last)
-           ∗ r1 ↦ᵣ inr (p_l,b_l,e_l,b_l)
+   ∗ ▷ (PC ↦ᵣ WCap p b e a_last
+           ∗ r1 ↦ᵣ WCap p_l b_l e_l b_l
            ∗ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
            ∗ [[b_l,e_l]]↦ₐ[[wsr]]
            ∗ restore_locals a r1 (rev locals)
@@ -315,14 +315,14 @@ Section callback.
     isCorrectPC_range p b_c e_c b_c e_c →
     (a_end + 1)%a = Some a_last ->
 
-    (▷ PC ↦ᵣ inr (p, b_c, e_c, b_c)
+    (▷ PC ↦ᵣ WCap p b_c e_c b_c
        ∗ ▷ r_t1 ↦ᵣ rt1w
        ∗ ▷ r_t2 ↦ᵣ rt2w
-       ∗ ▷ ([[b_c,e_c]]↦ₐ[[ [inl hw_1;inl hw_2;inl hw_3;inl hw_4;inl hw_5;inr (RWX,b_l,e_l,e_l);inr (pc_p,pc_b,pc_e,a_end)] ]]) (* activation frame *)
-       ∗ ▷ (PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_last)
+       ∗ ▷ ([[b_c,e_c]]↦ₐ[[ [WInt hw_1;WInt hw_2;WInt hw_3;WInt hw_4;WInt hw_5;WCap RWX b_l e_l e_l;WCap pc_p pc_b pc_e a_end] ]]) (* activation frame *)
+       ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e a_last
                ∗ (∃ rt1w, r_t1 ↦ᵣ rt1w)
-               ∗ r_t2 ↦ᵣ inr (RWX,b_l,e_l,e_l)
-               ∗ ([[b_c,e_c]]↦ₐ[[ [inl hw_1;inl hw_2;inl hw_3;inl hw_4;inl hw_5;inr (RWX,b_l,e_l,e_l);inr (pc_p,pc_b,pc_e,a_end)] ]]) (* activation frame *) -∗ 
+               ∗ r_t2 ↦ᵣ WCap RWX b_l e_l e_l
+               ∗ ([[b_c,e_c]]↦ₐ[[ [WInt hw_1;WInt hw_2;WInt hw_3;WInt hw_4;WInt hw_5;WCap RWX b_l e_l e_l;WCap pc_p pc_b pc_e a_end] ]]) (* activation frame *) -∗
                WP Seq (Instr Executable) {{ φ }})
        ⊢ WP Seq (Instr Executable) {{ φ }})%I. 
   Proof.

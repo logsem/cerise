@@ -10,12 +10,12 @@ Section helpers.
   (* ---------------------------- Helper Lemmas --------------------------------------- *)
 
   Definition isCorrectPC_range p b e a0 an :=
-    ∀ ai, (a0 <= ai)%a ∧ (ai < an)%a → isCorrectPC (inr (p, b, e, ai)).
+    ∀ ai, (a0 <= ai)%a ∧ (ai < an)%a → isCorrectPC (WCap p b e ai).
 
   Lemma isCorrectPC_inrange p b (e a0 an a: Addr) :
     isCorrectPC_range p b e a0 an →
     (a0 <= a < an)%Z →
-    isCorrectPC (inr (p, b, e, a)).
+    isCorrectPC (WCap p b e a).
   Proof.
     unfold isCorrectPC_range. move=> /(_ a) HH ?. apply HH. eauto.
   Qed.
@@ -24,7 +24,7 @@ Section helpers.
     isCorrectPC_range p b e a0 an →
     contiguous_between l a0 an →
     a ∈ l →
-    isCorrectPC (inr (p, b, e, a)).
+    isCorrectPC (WCap p b e a).
   Proof.
     intros Hr Hc Hin.
     eapply isCorrectPC_inrange; eauto.
@@ -37,7 +37,7 @@ Section helpers.
     p = RX ∨ p = RWX.
   Proof.
     intros Hr H0n.
-    assert (isCorrectPC (inr (p, b, e, a0))) as HH by (apply Hr; solve_addr).
+    assert (isCorrectPC (WCap p b e a0)) as HH by (apply Hr; solve_addr).
     inversion HH; auto.
   Qed.
 
@@ -100,6 +100,11 @@ Ltac iCombinePtrn :=
 
 Ltac consider_next_reg_both r1 r2 :=
   destruct (decide (r1 = r2));[subst;rewrite !(lookup_insert _ r2);eauto|rewrite !(lookup_insert_ne _ r2);auto].
+
+(* Inline version *)
+Ltac consider_next_reg_both1 r1 r2 H1 H2 :=
+  destruct (decide (r1 = r2));
+  [ subst; rewrite !(lookup_insert _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
 
 Ltac middle_lt prev index :=
   match goal with

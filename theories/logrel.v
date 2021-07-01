@@ -50,14 +50,14 @@ Section logrel.
   Definition full_map (reg : Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! r)⌝)%I.
   Program Definition interp_reg (interp : D) : R :=
    λne (reg : leibnizO Reg), (full_map reg ∧
-                              ∀ (r : RegName), (⌜r ≠ PC⌝ → interp (reg !r! r)))%I.
+                              ∀ (r : RegName) (v : Word), (⌜r ≠ PC⌝ → ⌜reg !! r = Some v⌝ → interp v))%I.
 
   Definition interp_conf : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
 
   Program Definition interp_expr (interp : D) r : D :=
     (λne w, (interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r) ∗ na_own logrel_nais ⊤ -∗
-                        ⌜match w with inr _ => True | _ => False end⌝ ∧ interp_conf))%I.
+             interp_conf))%I.
   Solve All Obligations with solve_proper.
 
   (* condition definitions *)
@@ -76,7 +76,7 @@ Section logrel.
   Proof. solve_proper. Qed.
 
   Program Definition enter_cond b e a : D -n> iPropO Σ :=
-    λne interp, (∀ r, ▷ □ interp_expr interp r (inr (RX,b,e,a)))%I.
+    λne interp, (∀ r, ▷ □ interp_expr interp r (WCap RX b e a))%I.
   Solve Obligations with solve_proper.
   Global Instance enter_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond.
@@ -88,13 +88,13 @@ Section logrel.
 
   Definition logN : namespace := nroot .@ "logN".
 
-  Definition interp_z : D := λne w, ⌜match w with inl z => True | _ => False end⌝%I.
+  Definition interp_z : D := λne w, ⌜match w with WInt z => True | _ => False end⌝%I.
 
   Definition interp_cap_O : D := λne _, True%I.
 
   Program Definition interp_cap_RO (interp : D) : D :=
     λne w, (match w with
-              | inr (RO,b,e,a) =>
+              | WCap RO b e a =>
                 [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
               | _ => False
               end)%I.
@@ -102,7 +102,7 @@ Section logrel.
 
   Program Definition interp_cap_RW (interp : D) : D :=
     λne w, (match w with
-              | inr (RW,b,e,a) =>
+              | WCap RW b e a =>
                 [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
               | _ => False
@@ -110,20 +110,20 @@ Section logrel.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_cap_RX (interp : D) : D :=
-    λne w, (match w with inr (RX,b,e,a) =>
+    λne w, (match w with WCap RX b e a =>
                          [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_cap_E (interp : D) : D :=
     λne w, (match w with
-              | inr (E,b,e,a) => enter_cond b e a interp
+              | WCap E b e a => enter_cond b e a interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_cap_RWX (interp : D) : D :=
-    λne w, (match w with inr (RWX,b,e,a) =>
+    λne w, (match w with WCap RWX b e a =>
                            [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
              | _ => False end)%I.
@@ -133,13 +133,13 @@ Section logrel.
   Program Definition interp1 (interp : D) : D :=
     (λne w,
     match w return _ with
-    | inl _ => interp_z w
-    | inr (O, b, e, a) => interp_cap_O w
-    | inr (RO, b, e, a) => interp_cap_RO interp w
-    | inr (RW, b, e, a) => interp_cap_RW interp w
-    | inr (RX, b, e, a) => interp_cap_RX interp w
-    | inr (E, b, e, a) => interp_cap_E interp w
-    | inr (RWX, b, e, a) => interp_cap_RWX interp w
+    | WInt _ => interp_z w
+    | WCap O b e a => interp_cap_O w
+    | WCap RO b e a => interp_cap_RO interp w
+    | WCap RW b e a => interp_cap_RW interp w
+    | WCap RX b e a => interp_cap_RX interp w
+    | WCap E b e a => interp_cap_E interp w
+    | WCap RWX b e a => interp_cap_RWX interp w
     end)%I.
 
 
@@ -153,14 +153,14 @@ Section logrel.
     Contractive (interp_cap_RO).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct c, p, p, p; auto.
+    destruct x0; auto. destruct p; auto.
     solve_contractive.
   Qed.
   Global Instance interp_cap_RW_contractive :
     Contractive (interp_cap_RW).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct c, p, p, p; auto.
+    destruct x0; auto. destruct p; auto.
     solve_contractive.
   Qed.
   Global Instance enter_cond_contractive b e a :
@@ -172,21 +172,21 @@ Section logrel.
     Contractive (interp_cap_RX).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct c, p, p, p; auto.
+    destruct x0; auto. destruct p; auto.
     solve_contractive.
   Qed.
   Global Instance interp_cap_E_contractive :
     Contractive (interp_cap_E).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct c, p, p, p; auto.
+    destruct x0; auto. destruct p; auto.
     solve_contractive.
   Qed.
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct c, p, p, p; auto.
+    destruct x0; auto. destruct p; auto.
     solve_contractive.
   Qed.
 
@@ -197,7 +197,7 @@ Section logrel.
     intros n x y Hdistn w.
     rewrite /interp1.
     destruct w; [auto|].
-    destruct c,p,p,p; first auto.
+    destruct p; first auto.
     - by apply interp_cap_RO_contractive.
     - by apply interp_cap_RW_contractive.
     - by apply interp_cap_RX_contractive.
@@ -215,13 +215,13 @@ Section logrel.
 
   Global Instance interp_persistent w : Persistent (interp w).
   Proof. intros. destruct w; simpl; rewrite fixpoint_interp1_eq; simpl.
-         apply _. destruct c,p,p,p; repeat (apply exist_persistent; intros); try apply _.
+         apply _. destruct p; repeat (apply exist_persistent; intros); try apply _.
   Qed.
 
   Lemma read_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
-    ⊢ (interp (inr (p,b,e,a)) →
+    ⊢ (interp (WCap p b e a) →
       (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if writeAllowed p then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "Hinterp".
@@ -234,7 +234,7 @@ Section logrel.
   Lemma write_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     writeAllowed p →
-    ⊢ (interp (inr (p,b,e,a)) →
+    ⊢ (interp (WCap p b e a) →
       inv (logN .@ a') (interp_ref_inv a' interp))%I.
   Proof.
     iIntros (Hin Wa) "Hinterp".
@@ -258,18 +258,18 @@ Section logrel.
 
   Definition writeAllowedWord (w : Word) : Prop :=
     match w with
-    | inl _ => False
-    | inr (p,_,_,_) => writeAllowed p = true
+    | WInt _ => False
+    | WCap p _ _ _ => writeAllowed p = true
     end.
 
   Definition hasValidAddress (w : Word) (a : Addr) : Prop :=
     match w with
-    | inl _ => False
-    | inr (p,b,e,a') => (b ≤ a' ∧ a' < e)%Z ∧ a = a'
+    | WInt _ => False
+    | WCap p b e a' => (b ≤ a' ∧ a' < e)%Z ∧ a = a'
     end.
 
-  Definition writeAllowed_in_r_a r a :=
-    ∃ reg, writeAllowedWord (r !r! reg) ∧ hasValidAddress (r !r! reg) a.
+  Definition writeAllowed_in_r_a (r : Reg) a :=
+    ∃ reg (w : Word), r !! reg = Some w ∧ writeAllowedWord w ∧ hasValidAddress w a.
 
   Global Instance reg_finite : finite.Finite RegName.
   Proof. apply (finite.enc_finite (λ r : RegName, match r with
@@ -291,17 +291,18 @@ Section logrel.
   Qed.
 
   Global Instance writeAllowedWord_dec w: Decision (writeAllowedWord w).
-  Proof. destruct w;[right;auto|]. destruct c,p,p,p;simpl;apply _. Qed.
+  Proof. destruct w;[right;auto|]. destruct p;simpl;apply _. Qed.
 
   Global Instance hasValidAddress_dec w a: Decision (hasValidAddress w a).
-  Proof. destruct w;[right;auto|]. destruct c,p,p,p;simpl;apply _. Qed.
+  Proof. destruct w;[right;auto|]. destruct p;simpl;apply _. Qed.
 
   Global Instance writeAllowed_in_r_a_Decidable r a: Decision (writeAllowed_in_r_a r a).
   Proof.
     apply finite.exists_dec.
-    intros x. destruct (r !! x) eqn:Hsome.
-    - rewrite /RegLocate. rewrite Hsome. apply _.
-    - rewrite /RegLocate Hsome. right;simpl. intros [??]. done.
+    intros x. destruct (r !! x) eqn:Hsome;
+    first destruct (decide (writeAllowedWord w)), (decide (hasValidAddress w a)).
+    left. eexists _; auto.
+    all : (right; intros [w1 (Heq & ? & ?)]; inversion Heq; try congruence ).
   Qed.
 
   Global Instance writeAllowed_in_r_a_Persistent P r a: Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
@@ -311,23 +312,23 @@ Section logrel.
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
     ⊢ (interp_registers r -∗
-      interp (inr (p,b,e,a)) -∗
-      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=inr (p,b,e,a)]> r) a') then write_cond P interp else emp))%I.
+      interp (WCap p b e a) -∗
+      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a') then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "#Hregs #Hinterp".
     rewrite /interp_registers /interp_reg /=.
     iDestruct "Hregs" as "[Hfull Hregvalid]".
     case_decide as Hinra.
-    - destruct Hinra as [reg [Hwa Ha] ].
+    - destruct Hinra as (reg & w & (Hw & Hwa & Ha) ).
       destruct (decide (reg = PC)).
-      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
+      + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
           try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-      + rewrite /RegLocate in Hwa Ha. simplify_map_eq.
-        destruct (r !! reg) eqn:Hsome;rewrite Hsome in Ha Hwa;[|inversion Ha].
-        destruct w;[inversion Ha|]. destruct c,p0,p0. destruct Ha as [Hwba ->].
-        iSpecialize ("Hregvalid" $! _ n). rewrite /RegLocate Hsome. iClear "Hinterp".
+      + simplify_map_eq.
+        destruct (r !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
+        destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
+        iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p0; try contradiction; inversion Hwa;
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
@@ -353,6 +354,31 @@ Section logrel.
       iDestruct "Hl" as "[Ha Hl]".
       simpl. iMod (IHl1 with "Hl") as "Hl".
       iFrame. iApply inv_alloc. iNext. iExists w. iFrame.
+  Qed.
+
+  (* Get the validity of a region containing only integers *)
+  Lemma region_integers_alloc E (b e a: Addr) l p :
+    Forall (λ w, is_cap w = false) l →
+    PermFlowsTo RO p →
+    ([∗ list] a;w ∈ region_addrs b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hl Hp) "H".
+    iMod (region_inv_alloc with "[H]") as "H".
+    { iApply (big_sepL2_mono with "H").
+      intros k v1 v2 ? Hlk. cbn. iIntros. iFrame.
+      pose proof (Forall_lookup_1 _ _ _ _ Hl Hlk) as HH.
+      cbn in HH. destruct v2; [| by inversion HH].
+      rewrite fixpoint_interp1_eq //. }
+    iDestruct (big_sepL2_length with "H") as %?.
+    iDestruct (big_sepL2_to_big_sepL_l with "H") as "H"; auto.
+
+    iModIntro. rewrite fixpoint_interp1_eq //.
+    destruct p; cbn; eauto; try by inversion Hp.
+    all: iApply (big_sepL_mono with "H").
+    all: iIntros (k a' Hk) "H"; cbn.
+    all: iExists (fixpoint interp1); iFrame.
+    all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
 End logrel.

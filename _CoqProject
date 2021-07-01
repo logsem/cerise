@@ -9,6 +9,7 @@ theories/addr_reg.v
 theories/solve_addr.v
 theories/machine_base.v
 theories/machine_parameters.v
+theories/machine_run.v
 theories/classes.v
 theories/class_instances.v
 theories/solve_addr_extra.v
@@ -54,6 +55,7 @@ theories/examples/macros.v
 theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v
+theories/examples/template_adequacy.v
 theories/examples/call.v
 theories/examples/counter.v
 theories/examples/counter_preamble.v

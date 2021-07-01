@@ -1,6 +1,8 @@
 From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
 From Coq.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
+From Coq Require Import ssreflect.
+From cap_machine Require Import stdpp_extra.
 
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
@@ -31,7 +33,7 @@ Defined.
 Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
-  if (nat_le_dec n RegNum) then Some (R n _) else None.
+  match nat_le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
 Defined.
@@ -79,6 +81,119 @@ Instance Op_RegName_eq : BinRel (@eq RegName).
     f_equal. apply eq_proofs_unicity. intros [|] [|]; eauto.
 Defined.
 Add Zify BinRel Op_RegName_eq.
+
+(* Names for registers *)
+Definition r_t0 : RegName := R 0 eq_refl.
+Definition r_t1 : RegName := R 1 eq_refl.
+Definition r_t2 : RegName := R 2 eq_refl.
+Definition r_t3 : RegName := R 3 eq_refl.
+Definition r_t4 : RegName := R 4 eq_refl.
+Definition r_t5 : RegName := R 5 eq_refl.
+Definition r_t6 : RegName := R 6 eq_refl.
+Definition r_t7 : RegName := R 7 eq_refl.
+Definition r_t8 : RegName := R 8 eq_refl.
+Definition r_t9 : RegName := R 9 eq_refl.
+Definition r_t10 : RegName := R 10 eq_refl.
+Definition r_t11 : RegName := R 11 eq_refl.
+Definition r_t12 : RegName := R 12 eq_refl.
+Definition r_t13 : RegName := R 13 eq_refl.
+Definition r_t14 : RegName := R 14 eq_refl.
+Definition r_t15 : RegName := R 15 eq_refl.
+Definition r_t16 : RegName := R 16 eq_refl.
+Definition r_t17 : RegName := R 17 eq_refl.
+Definition r_t18 : RegName := R 18 eq_refl.
+Definition r_t19 : RegName := R 19 eq_refl.
+Definition r_t20 : RegName := R 20 eq_refl.
+Definition r_t21 : RegName := R 21 eq_refl.
+Definition r_t22 : RegName := R 22 eq_refl.
+Definition r_t23 : RegName := R 23 eq_refl.
+Definition r_t24 : RegName := R 24 eq_refl.
+Definition r_t25 : RegName := R 25 eq_refl.
+Definition r_t26 : RegName := R 26 eq_refl.
+Definition r_t27 : RegName := R 27 eq_refl.
+Definition r_t28 : RegName := R 28 eq_refl.
+Definition r_t29 : RegName := R 29 eq_refl.
+Definition r_t30 : RegName := R 30 eq_refl.
+Definition r_t31 : RegName := R 31 eq_refl.
+
+(* A list of all general purpuse registers (if regnum=31) *)
+Definition all_registers : list RegName :=
+  [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t6;r_t7;r_t8;r_t9;r_t10;r_t11;r_t12;r_t13;
+     r_t14;r_t15;r_t16;r_t17;r_t18;r_t19;r_t20;r_t21;r_t22;r_t23;r_t24;r_t25;r_t26;
+       r_t27;r_t28;r_t29;r_t30;r_t31;PC].
+
+(* Set of all registers *)
+Definition all_registers_s : gset RegName := list_to_set all_registers.
+
+Lemma all_registers_NoDup :
+  NoDup all_registers.
+Proof.
+  unfold all_registers.
+  repeat (
+    apply NoDup_cons_2;
+    first (repeat (rewrite not_elem_of_cons; split; [done|]); apply not_elem_of_nil)
+  ).
+  by apply NoDup_nil.
+Qed.
+
+(* Spec for all_registers *)
+
+Lemma all_registers_correct r1 :
+  r1 ∈ all_registers.
+Proof.
+  rewrite /all_registers.
+  destruct r1.
+  - do 32 (apply elem_of_cons; right).
+      by apply elem_of_list_singleton.
+  - induction n.
+    + apply elem_of_cons; left.
+      apply f_equal. apply eq_proofs_unicity. decide equality.
+    + apply elem_of_list_lookup_2 with (S n).
+      repeat (destruct n;
+                first (simpl;do 2 f_equal;apply eq_proofs_unicity;decide equality)).
+      simpl in *. inversion fin.
+Qed.
+
+Lemma all_registers_s_correct r:
+  r ∈ all_registers_s.
+Proof.
+  rewrite /all_registers_s elem_of_list_to_set.
+  apply all_registers_correct.
+Qed.
+
+Instance setunfold_all_regs:
+  forall x, SetUnfoldElemOf x all_registers_s True.
+Proof.
+  intros. constructor. split; auto.
+  intro. eapply all_registers_s_correct.
+Qed.
+
+Lemma all_registers_union_l s :
+  s ∪ all_registers_s = all_registers_s.
+Proof.
+  eapply (anti_symm _). 2: set_solver.
+  rewrite elem_of_subseteq. intros ? _.
+  apply all_registers_s_correct.
+Qed.
+
+Lemma all_registers_union_r s :
+  all_registers_s ∪ s = all_registers_s.
+Proof. rewrite union_comm_L. apply all_registers_union_l. Qed.
+
+Lemma all_registers_subseteq s :
+  s ⊆ all_registers_s.
+Proof.
+  rewrite elem_of_subseteq. intros ? _. apply all_registers_s_correct.
+Qed.
+
+Lemma regmap_full_dom {A} (r: gmap RegName A):
+  (∀ x, is_Some (r !! x)) →
+  dom (gset RegName) r = all_registers_s.
+Proof.
+  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  - intros rr _. apply all_registers_s_correct.
+  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
+Qed.
 
 (* -------------------------------- Memory addresses -----------------------------------*)
 
@@ -132,7 +247,10 @@ Proof.
 Defined.
 
 Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
-Proof. destruct a. cbn. rewrite Z.leb_le in fin. rewrite Z.leb_le in pos. lia. Qed.
+Proof.
+  destruct a. cbn. rewrite -> Z.leb_le in fin.
+  rewrite -> Z.leb_le in pos. lia.
+Qed.
 
 Lemma z_to_addr_z_of (a:Addr) :
   z_to_addr a = Some a.
@@ -207,8 +325,14 @@ Proof.
 Qed.
 
 Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
-  if (Z_le_dec (a + z)%Z MemNum) then
-    if (Z_le_dec 0 (a + z)%Z) then Some (A (a + z)%Z _ _) else None else None.
+  match (Z_le_dec (a + z)%Z MemNum) with
+  | left _ =>
+    match (Z_le_dec 0 (a + z)%Z) with
+    | left _ => Some (A (a + z)%Z _ _)
+    | right _ => None
+    end
+  | right _ => None
+  end.
 Next Obligation.
   intros. apply Z.leb_le; auto.
 Defined.
@@ -218,10 +342,16 @@ Defined.
 Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
 
 Definition max (a1 a2: Addr): Addr :=
-  if Addr_le_dec a1 a2 then a2 else a1.
+  match Addr_le_dec a1 a2 with
+  | left _ => a2
+  | right _ => a1
+  end.
 
 Definition min (a1 a2: Addr): Addr :=
-  if Addr_le_dec a1 a2 then a1 else a2.
+  match Addr_le_dec a1 a2 with
+  | left _ => a1
+  | right _ => a2
+  end.
 
 Lemma min_addr_spec (a1 a2: Addr):
   exists a, min a1 a2 = a /\ (a: Z) = Z.min (a1: Z) (a2: Z).

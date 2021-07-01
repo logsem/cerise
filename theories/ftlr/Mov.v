@@ -51,7 +51,7 @@ Section fundamental.
           iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
           iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv". }
         { simplify_map_eq.
-          rewrite /RegLocate. iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0.
+          iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0".
           destruct (PermFlowsTo RX p'') eqn:Hpft.
           - iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
             + iModIntro.
@@ -71,9 +71,9 @@ Section fundamental.
           destruct (reg_eq_dec dst x0); auto; right; split; auto.
           rewrite lookup_insert_is_Some.
           destruct (reg_eq_dec PC x0); auto; right; split; auto.
-        - iIntros (ri Hri).
+       - iIntros (ri v Hri Hvs).
           destruct (reg_eq_dec ri dst).
-          + subst ri. rewrite /RegLocate lookup_insert.
+          + subst ri. rewrite lookup_insert in Hvs.
             destruct src; simplify_map_eq.
             * repeat rewrite fixpoint_interp1_eq; auto.
             * destruct (reg_eq_dec PC r0).
@@ -83,8 +83,8 @@ Section fundamental.
                 destruct Hp as [Hp | Hp]; subst p''; try subst g'';
                   (iFrame "Hinv Hexec"). }
               simplify_map_eq.
-              iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hr0". rewrite H0. auto.
-          + repeat rewrite /RegLocate lookup_insert_ne; auto.
+              iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0". auto.
+          + repeat rewrite lookup_insert_ne in Hvs; auto.
             iApply "Hreg"; auto.
         - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv".
       }

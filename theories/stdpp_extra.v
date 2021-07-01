@@ -620,3 +620,19 @@ Proof.
   - cbn. rewrite dom_empty_L //.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
 Qed.
+
+Lemma map_filter_sub :
+∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 :
+                                             ∀ A : Type,
+                                               Lookup K A (M A))
+  (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
+  (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A))
+  (EqDecision0 : EqDecision K),
+  FinMap K M →
+  ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x))
+    (m : M A),
+    filter P m ⊆ m.
+Proof.
+  intros. eapply map_subseteq_spec. intros ? ? ?.
+  eapply map_filter_lookup_Some_1_1; eauto.
+Qed.

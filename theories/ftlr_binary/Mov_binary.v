@@ -46,7 +46,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Mov _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs & #Hmovspec & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
@@ -74,18 +74,18 @@ Section fundamental.
         + revert Heq; rewrite map_eq' =>Heq.
           iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
           { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
-          { iIntros (rr Hne) "/=".
-            destruct Hsome with rr as [ [v Hsome'] _]. specialize (Heq rr v).
+          {  iIntros (ri v1 v2 Hri Hv1s Hv2s) "/=".
+            destruct Hsome with ri as [ [v Hsome'] _]. specialize (Heq ri v).
             rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
-            iSpecialize ("Hreg" $! rr Hne). by rewrite /RegLocate Hsome' Heq'. }
+            iSpecialize ("Hreg" $! ri _ _ Hri Hsome' Heq'). by simplify_map_eq.  }
           { destruct src; inversion H0.
             destruct (decide (r = PC));
               [subst r;rewrite lookup_insert in H3;inversion H3;subst|iClear "Hinv";rewrite lookup_insert_ne// in H3];rewrite !fixpoint_interp1_eq /=.
             destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto.
-            iSpecialize ("Hreg" $! r n).
             destruct Hsome with r as [ [v Hsome'] _]. specialize (Heq r).
             rewrite !lookup_insert_ne// in Heq. apply Heq in H3 as Heq'.
-            rewrite /RegLocate H3 Heq'. destruct x; inversion Hpft;rewrite fixpoint_interp1_eq /=;iDestruct "Hreg" as "[_ $]";auto.
+            iSpecialize ("Hreg" $! r _ _ n H3 Heq').
+           destruct x; inversion Hpft;rewrite fixpoint_interp1_eq /=;iDestruct "Hreg" as "[_ $]";auto.
           }
         + iApply (wp_bind (fill [SeqCtx])).
           iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
@@ -98,17 +98,21 @@ Section fundamental.
         iApply ("IH" $! ((<[dst:=w0]> r1),(<[dst:=w0]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
           destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
-        { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-          destruct (decide (rr = dst));[subst;rewrite /RegLocate;rewrite lookup_insert|].
-          - destruct src;[inversion H0;rewrite !fixpoint_interp1_eq;eauto|].
+        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+          destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s,Hv2s |].
+          - rewrite lookup_insert_ne // lookup_insert in H1.
+            destruct src.
+            { simplify_eq. inversion H0. rewrite !fixpoint_interp1_eq;eauto. }
+            cbn in H0. pose proof (H0' := H0). rewrite Heq in H0'.
+            simplify_map_eq.
             destruct (decide (r = PC));[subst;rewrite /= lookup_insert in H0;inversion H0;done|].
-            rewrite /= lookup_insert_ne// in H0. revert Heq; rewrite map_eq' =>Heq.
-            specialize (Heq r w0). rewrite !lookup_insert_ne// in Heq. apply Heq in H0 as H0'.
-            iSpecialize ("Hreg" $! r n0). rewrite H0 H0'. auto.
-          - rewrite /RegLocate !lookup_insert_ne//. revert Heq; rewrite map_eq' =>Heq.
-            destruct (r1 !! rr) eqn:Hsome';rewrite Hsome';[|rewrite !fixpoint_interp1_eq;eauto].
+            rewrite !lookup_insert_ne// in H0, H0'.
+            by iSpecialize ("Hreg" $! r  _ _ n0 H0 H0').
+          - rewrite !lookup_insert_ne// in Hv1s, Hv2s. simplify_eq.
+            revert Heq; rewrite map_eq' =>Heq.
+            destruct (r1 !! rr) eqn:Hsome';rewrite Hsome' in Hv1s;[|rewrite !fixpoint_interp1_eq;congruence]. inversion Hv1s. subst v1.
             specialize (Heq rr w). rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
-            rewrite Heq'. auto.
+            by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
         }
         { rewrite lookup_insert_ne// lookup_insert in H1. simplify_eq.
           rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }

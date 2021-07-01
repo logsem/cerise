@@ -36,13 +36,12 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate. }
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
-      destruct c as (((p1 & b1) & e1) & a1).
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       simplify_map_eq.
       iApply ("IH" $! (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-      iIntros (ri Hri). rewrite /(RegLocate _ ri) insert_commute // lookup_insert_ne //; [].
+      iIntros (ri v Hri Hsv). rewrite insert_commute // lookup_insert_ne // in Hsv; [].
       destruct (decide (ri = dst)); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }
       { by iApply "Hreg". } rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }

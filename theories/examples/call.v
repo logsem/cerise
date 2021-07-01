@@ -67,7 +67,7 @@ Proof.
     { intros Hcontr;subst.
       assert (NoDup ((i0, x) :: l)) as Hdup'.
       { rewrite Hl. apply NoDup_ListNoDup, NoDup_map_to_list. }
-      assert (i0 ∈ l.*1) as Hinl.
+      assert (i0 ∈ l.*1) as HWInt.
       { apply elem_of_list_fmap. exists (i0,x0). simpl. split;auto. }
       apply NoDup_cons_iff in Hdup as [Hcontr ?]. apply Hcontr. apply elem_of_list_In. auto.
     }
@@ -212,17 +212,17 @@ Section call.
     contiguous_between a a_first a_last →
     region_size a_l e_l = strings.length locals →
     strings.length locals > 0 →
-    writeAllowed p_l = true → withinBounds (p_l,b_l,e_l,a_l) = true ->
+    writeAllowed p_l = true → withinBounds b_l e_l a_l = true ->
     zip locals wsr ≡ₚ(map_to_list mlocals) →
     length locals = length wsr ->
 
     (▷ store_locals a r1 locals
-   ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
-   ∗ ▷ r1 ↦ᵣ inr (p_l,b_l,e_l,a_l)
+   ∗ ▷ PC ↦ᵣ WCap p b e a_first
+   ∗ ▷ r1 ↦ᵣ WCap p_l b_l e_l a_l
    ∗ ▷ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
    ∗ ▷ (∃ ws, [[a_l,e_l]]↦ₐ[[ws]])
-   ∗ ▷ (PC ↦ᵣ inr (p,b,e,a_last)
-           ∗ r1 ↦ᵣ inr (p_l,b_l,e_l,e_l)
+   ∗ ▷ (PC ↦ᵣ WCap p b e a_last
+           ∗ r1 ↦ᵣ WCap p_l b_l e_l e_l
            ∗ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
            ∗ [[a_l,e_l]]↦ₐ[[wsr]]
            ∗ store_locals a r1 locals
@@ -353,12 +353,12 @@ Section call.
     length locals = length wsr ->
 
     (▷ store_locals a r1 locals
-   ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
-   ∗ ▷ r1 ↦ᵣ inr (p_l,b_l,e_l,b_l)
+   ∗ ▷ PC ↦ᵣ WCap p b e a_first
+   ∗ ▷ r1 ↦ᵣ WCap p_l b_l e_l b_l
    ∗ ▷ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
    ∗ ▷ (∃ ws, [[b_l,e_l]]↦ₐ[[ws]])
-   ∗ ▷ (PC ↦ᵣ inr (p,b,e,a_last)
-           ∗ r1 ↦ᵣ inr (p_l,b_l,e_l,e_l)
+   ∗ ▷ (PC ↦ᵣ WCap p b e a_last
+           ∗ r1 ↦ᵣ WCap p_l b_l e_l e_l
            ∗ ([∗ map] r↦w ∈ mlocals, r ↦ᵣ w)
            ∗ [[b_l,e_l]]↦ₐ[[wsr]]
            ∗ store_locals a r1 locals
@@ -430,7 +430,7 @@ Section call.
         (* cont *) φ :
     isCorrectPC_range p b e a_first a_last →
     contiguous_between a a_first a_last →
-    withinBounds (RW, b_link, e_link, a_entry) = true →
+    withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
     strings.length (map_to_list mlocals).*1 > 0 →
 
@@ -440,12 +440,12 @@ Section call.
     ↑mallocN ⊆ EN →
 
     (▷ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
-    ∗ ▷ PC ↦ᵣ inr (p,b,e,a_first)
+    ∗ ▷ PC ↦ᵣ WCap p b e a_first
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ b ↦ₐ inr (RO,b_link,e_link,a_link)
-    ∗ ▷ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+    ∗ ▷ b ↦ₐ WCap RO b_link e_link a_link
+    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
     (* registers *)
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ ([∗ map] r_i↦w_i ∈ mparams, r_i ↦ᵣ w_i)
@@ -455,13 +455,13 @@ Section call.
     (* continuation *)
     ∗ ▷ ((∃ b_c e_c b_l e_l a_end, ⌜(a_end + 1)%a = Some a_last⌝
             ∗ PC ↦ᵣ updatePcPerm wadv
-            ∗ ([∗ map] r_i↦_ ∈ rmap', r_i ↦ᵣ inl 0%Z)
+            ∗ ([∗ map] r_i↦_ ∈ rmap', r_i ↦ᵣ WInt 0%Z)
             ∗ ([∗ map] r_i↦w_i ∈ mparams, r_i ↦ᵣ w_i)
-            ∗ b ↦ₐ inr (RO,b_link,e_link,a_link)
-            ∗ a_entry ↦ₐ inr (E,b_m,e_m,b_m)
+            ∗ b ↦ₐ WCap RO b_link e_link a_link
+            ∗ a_entry ↦ₐ WCap E b_m e_m b_m
             ∗ r1 ↦ᵣ wadv
-            ∗ r_t0 ↦ᵣ inr (E,b_c,e_c,b_c)
-            ∗ [[b_c,e_c]]↦ₐ[[ [inl hw_1;inl hw_2;inl hw_3;inl hw_4;inl hw_5;inr (RWX,b_l,e_l,e_l);inr (p,b,e,a_end)] ]]
+            ∗ r_t0 ↦ᵣ WCap E b_c e_c b_c
+            ∗ [[b_c,e_c]]↦ₐ[[ [WInt hw_1;WInt hw_2;WInt hw_3;WInt hw_4;WInt hw_5;WCap RWX b_l e_l e_l;WCap p b e a_end] ]]
             ∗ [[b_l,e_l]]↦ₐ[[ (map_to_list mlocals).*2 ]]
             ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
             ∗ na_own logrel_nais EN)
@@ -612,8 +612,8 @@ Section call.
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
       apply map_disjoint_insert_l_2;[|apply map_disjoint_union_r_2];auto. apply lookup_union_None in Hnone as [? ?];auto. }
     (* we assert the register state has the needed domain *)
-    assert (dom (gset RegName) (<[r_t1:=inr (RWX, b_l, e_l, e_l)]> (<[r_t6:=inr (RWX, b_l, e_l, e_l)]> (<[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]>
-            (<[r_t4:=inl 0%Z]> (<[r_t5:=inl 0%Z]> (<[r1:=wadv]> rmap)))))) ∪ (mlocals ∪ mparams)) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq'.
+    assert (dom (gset RegName) (<[r_t1:=WCap RWX b_l e_l e_l]> (<[r_t6:=WCap RWX b_l e_l e_l]> (<[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]>
+            (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r1:=wadv]> rmap)))))) ∪ (mlocals ∪ mparams)) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq'.
     { rewrite dom_union_L 6!dom_insert_L.
       assert ({[r_t1]} ∪ ({[r_t6]} ∪ ({[r_t2]} ∪ ({[r_t3]} ∪ ({[r_t4]} ∪ ({[r_t5]}
              ∪ dom (gset RegName) (<[r1:=wadv]> rmap)))))) = dom (gset RegName) (<[r1:=wadv]> rmap)) as ->.
@@ -654,7 +654,7 @@ Section call.
     set l := region_addrs b_l' e_l'.
     assert (contiguous_between l b_l' e_l') as Hcontbl';[rewrite /l;apply contiguous_between_region_addrs;auto|].
     assert (length l = 7) as Hlength_l;[rewrite /l region_addrs_length;auto|].
-    assert (∀ a, a ∈ l → withinBounds (RWX, b_l', e_l', a) = true) as Hwbbl'.
+    assert (∀ a, a ∈ l → withinBounds b_l' e_l' a = true) as Hwbbl'.
     { intros a1 Hin. rewrite andb_true_iff. rewrite Z.leb_le Z.ltb_lt.
       eapply contiguous_between_middle_bounds';[apply Hcontbl'|auto]. }
     destruct l;[inversion Hlength_l|]. apply contiguous_between_cons_inv_first in Hcontbl' as Heq. subst a1.

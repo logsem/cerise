@@ -19,13 +19,13 @@ Section fundamental.
   Definition IH: iProp Σ :=
     (□ ▷ (∀ (a0 : Reg * Reg) (a1 : Perm) (a2 a3 a4 : Addr),
              full_map a0
-                      -∗ (∀ r0 : RegName, ⌜r0 ≠ PC⌝ → interp (a0.1 !r! r0, a0.2 !r! r0))
-                      -∗ registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0.1)
-                      -∗ spec_registers_mapsto (<[PC:=inr (a1, a2, a3, a4)]> a0.2)
+                      -∗ (∀ (r0 : RegName) v1 v2, (⌜r0 ≠ PC⌝  → ⌜a0.1 !! r0 = Some v1⌝ → ⌜a0.2 !! r0 = Some v2⌝ → interp (v1, v2)))
+                      -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0.1)
+                      -∗ spec_registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0.2)
                       -∗ na_own logrel_nais ⊤
                       -∗ ⤇ Seq (Instr Executable)
                       -∗ □ spec_ctx
-                      -∗ □ interp (inr (a1, a2, a3, a4), inr (a1, a2, a3, a4)) -∗ interp_conf))%I.
+                      -∗ □ interp (WCap a1 a2 a3 a4, WCap a1 a2 a3 a4) -∗ interp_conf))%I.
 
   (* TODO: Move somewhere ?*)
   Lemma PermFlowsToPermFlows p p':
@@ -48,8 +48,8 @@ Section fundamental.
       PermFlowsTo p' p ->
       IH -∗
       spec_ctx -∗
-      (fixpoint interp1) (inr (p, b, e, a), inr (p, b, e, a)) -∗
-      (fixpoint interp1) (inr (p', b', e', a'), inr (p', b', e', a')).
+      (fixpoint interp1) (WCap p b e a, WCap p b e a) -∗
+      (fixpoint interp1) (WCap p' b' e' a', WCap p' b' e' a').
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #Hspec #HA".
     destruct (decide (b' <= e')%a).

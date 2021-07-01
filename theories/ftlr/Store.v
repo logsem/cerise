@@ -23,12 +23,6 @@ Section fundamental.
   Definition region_open_resources (a pc_a : Addr) pc_w : iProp Σ :=
     (▷ interp pc_w ∗ ((▷ ∃ w0, a ↦ₐ w0 ∗ interp w0) ={⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a,⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
-  (* Definition region_open_resources_pc (pc_a : Addr) : iProp Σ := *)
-  (*   ((▷ ∃ w0, pc_a ↦ₐ w0 ∗ interp w0) ={⊤ ∖ ↑logN.@pc_a,⊤}=∗ emp)%I. *)
-
-  (* Definition region_open_resources_pc_read (pc_a : Addr) (P : D) pc_w : iProp Σ := *)
-  (*   (▷ P pc_w ∗ read_cond P interp ∗ ((▷ ∃ w0, pc_a ↦ₐ w0 ∗ P w0) ={⊤ ∖ ↑logN.@pc_a,⊤}=∗ emp))%I. *)
-  
   Lemma store_inr_eq {regs r p0 b0 e0 a0 p1 b1 e1 a1}:
     reg_allows_store regs r p0 b0 e0 a0 →
     read_reg_inr regs r p1 b1 e1 a1 →
@@ -60,9 +54,9 @@ Section fundamental.
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (r1 : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=inr (p, b, e, a)]> r) r1 p0 b0 e0 a0
-      → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))
-          -∗ allow_store_res r1 (<[PC:=inr (p, b, e, a)]> r) a a0 p0 b0 e0.
+      read_reg_inr (<[PC:=WCap p b e a]> r) r1 p0 b0 e0 a0
+      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
+          -∗ allow_store_res r1 (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0.
   Proof.
     intros r p b e a r1 p0 b0 e0 a0 HVr1.
     iIntros "#Hreg".
@@ -72,9 +66,8 @@ Section fundamental.
       apply andb_prop in Hwb as [Hle Hge].
       revert Hle Hge. rewrite !/leb_addr !Z.leb_le Z.ltb_lt =>Hle Hge.
       assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
-      iDestruct ("Hreg" $! r1 n) as "Hvsrc".
       rewrite lookup_insert_ne in Hrinr; last by congruence.
-      rewrite /RegLocate Hrinr.
+      iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #". 
@@ -185,7 +178,7 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=inr (p, b, e, a)]> r !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
@@ -193,17 +186,17 @@ Section fundamental.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=inr (p, b, e, a)]> r) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
+    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
     {
       specialize Hsome' with dst as Hdst.
       destruct Hdst as [wdst Hsomedst].
-      unfold read_reg_inr. destruct wdst. 2: destruct_cap c. all: repeat eexists.
+      unfold read_reg_inr. destruct wdst. all: repeat eexists.
       right. by exists z. by left.
     }
 
-     assert (∃ storev, word_of_argument (<[PC:=inr (p, b, e, a)]> r) src = Some storev) as [storev Hwoa].
+     assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> r) src = Some storev) as [storev Hwoa].
     { destruct src; cbn.
-      - by exists (inl z).
+      - by exists (WInt z).
       - specialize Hsome' with r0 as Hr0.
         destruct Hr0 as [wsrc Hsomer0].
         exists wsrc. by rewrite Hsomer0.
@@ -226,7 +219,7 @@ Section fundamental.
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' mem' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
     
-    destruct HSpec as [* ? ? ? -> Hincr|* -> Hincr |* ? ? ? -> Hincr].
+    destruct HSpec as [* ? ? ? -> Hincr|* -> Hincr].
     { apply incrementPC_Some_inv in Hincr.
       destruct Hincr as (?&?&?&?&?&?&?&?).
       iApply wp_pure_step_later; auto.
@@ -235,11 +228,12 @@ Section fundamental.
       (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=inr (x, x0, x1, x2)]> r !! r0) eqn:Hsomer0;simplify_map_eq. 
+        simplify_map_eq. destruct (<[PC:=WCap x x0 x1 x2]> r !! r0) eqn:Hsomer0;simplify_map_eq.
+        2 : { rewrite Hsomer0 in Hwoa. done. }
         destruct (decide (r0 = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".
-        - simplify_map_eq. iSpecialize ("Hreg" $! _ n).
-          rewrite /RegLocate. rewrite Hsomer0. iFrame "Hreg". 
+        - simplify_map_eq. iSpecialize ("Hreg" $! _ _ n Hwoa).
+           iFrame "Hreg".
       }
       
       (* Step 4: return all the resources we had in order to close the second location in the region, in the cases where we need to *)
@@ -256,10 +250,10 @@ Section fundamental.
         - rewrite decide_False. iNext. iExists w. iFrame.
           intros [Hcontr ->].
           apply Hwrite. exists dst.
-          rewrite /RegLocate. 
           destruct Hcontr as (Hlookup & Hwa & Hwb). simplify_map_eq.
           apply andb_prop in Hwb. 
-          revert Hwb. rewrite Z.leb_le Z.ltb_lt. auto.
+          revert Hwb. rewrite Z.leb_le Z.ltb_lt. intros. eexists _.
+          split_and!; done.
       }
       
       simplify_map_eq.
@@ -269,7 +263,7 @@ Section fundamental.
       { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
     { rewrite /allow_store_res /allow_store_mem.
-      destruct (decide (reg_allows_store (<[PC:=inr (p, b, e, a)]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HStoreMem" as "(%&H)".
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         destruct a1. simplify_map_eq. rewrite memMap_resource_2ne; last auto.
@@ -283,47 +277,7 @@ Section fundamental.
         iApply wp_pure_step_later; auto.
         iApply wp_value; auto. iNext. iIntros; discriminate.
     }
-    { (* The stored value is valid *)
-      iAssert (interp storev0) as "#Hvalidstore".
-      { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=inr (p,b,e,a)]> r !! r0) eqn:Hsomer0;simplify_map_eq. 
-        destruct (decide (r0 = PC)).
-        - subst. simplify_map_eq. iFrame "Hinv".
-        - simplify_map_eq. iSpecialize ("Hreg" $! _ n).
-          rewrite /RegLocate. rewrite Hsomer0. iFrame "Hreg". 
-      }
-
-      iDestruct "HStoreMem" as "(%&H)".
-      specialize (store_inr_eq H1 HVdst) as (-> & -> & -> & ->).
-      destruct (decide (reg_allows_store (<[PC:=inr (p, b, e, a)]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
-      - destruct a1. simplify_map_eq.
-        iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
-        rewrite insert_insert. 
-        rewrite memMap_resource_2ne; last auto.
-        iDestruct "Hmem" as "[Ha0 Ha]".
-        iMod ("Hcls'" with "[Ha0 Hres]");[iExists storev;iFrame "∗ #"|iModIntro].
-        iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
-        iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
-      - apply not_and_r in n. destruct n;[contradiction|].
-        assert (a0 = a) as ->.
-        { revert H4; clear; intros. apply z_of_eq. apply Z.eq_dne. intros Hcontr.
-          apply H4. intros z_of_neq. solve_addr. }
-        case_decide. 
-        + iDestruct "H" as "->".
-          rewrite insert_insert -memMap_resource_1.
-          iModIntro.
-          iMod ("Hcls" with "[Hmem]").
-          { iNext. iExists storev0. iFrame. iApply "Hwrite". iFrame "Hvalidstore". }
-          iModIntro. iApply wp_pure_step_later; auto.
-          iApply wp_value; auto. iNext. iIntros; discriminate.
-        + simplify_map_eq. exfalso. apply H5. exists dst. 
-          rewrite /RegLocate. destruct H1 as (Hlookup & Hwa & Hwb).
-          apply andb_prop in Hwb. revert Hwb; rewrite Z.leb_le Z.ltb_lt =>Hwb.
-          rewrite Hlookup. destruct Hwb. repeat split;auto. 
-    }
     Unshelve. all: auto.
   Qed.
-
 
 End fundamental.

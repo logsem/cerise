@@ -24,9 +24,9 @@ Section fundamental.
   Proof.
     intros Hspec1 Hspec2.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; split; auto; try congruence.
-    - inv H7; try congruence. rewrite H0 in H6; congruence.
-    - inv H7; try congruence. rewrite H0 in H6; congruence.
-    - inv H0; try congruence. rewrite H1 in H2; congruence.
+    - inv H7; try congruence.
+    - inv H7; try congruence.
+    - inv H0; try congruence.
   Qed.
 
   Lemma subseg_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -48,7 +48,7 @@ Section fundamental.
     iAssert (⌜w = w'⌝)%I as %Heqw.
     { iDestruct "Hread" as "[Hread _]". iSpecialize ("Hread" with "HP"). by iApply interp_eq. }
     destruct r as [r1 r2]. simpl in *.
-    iDestruct (interp_reg_eq r1 r2 (inr (p, b, e, a)) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
+    iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Subseg _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
@@ -74,11 +74,13 @@ Section fundamental.
         rewrite lookup_insert in H0; inv H0. rewrite !insert_insert.
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
-        { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
-          rewrite /RegLocate. replace (r2 !! rr) with (r1 !! rr); [iExact "Hrr"|].
-          erewrite <- (lookup_insert_ne r1 PC rr); auto.
-          erewrite <- (lookup_insert_ne r2 PC rr); auto.
-          f_equal. eapply Heq. }
+        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+              assert (r1 !! rr = r2 !! rr) as Heqrr.
+              { erewrite <- (lookup_insert_ne r1 PC rr); auto.
+              erewrite <- (lookup_insert_ne r2 PC rr); auto.
+              f_equal. eapply Heq. }
+              rewrite Heqrr in Hv2s.
+              by iDestruct ("Hreg" $! rr _ _ Hne Hv1s Hv2s) as "Hrr". }
         { iModIntro. generalize (isWithin_implies _ _ _ _ H4). intros [A B].
           iApply (interp_weakening with "IH Hspec Hinv"); auto.
           rewrite /Is_true PermFlowsToReflexive //. }
@@ -86,20 +88,24 @@ Section fundamental.
         rewrite lookup_insert in H5; inv H5.
         assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
         rewrite Heq lookup_insert_ne in H0'; auto.
-        iDestruct ("Hreg" $! dst n) as "Hinvdst".
-        rewrite /RegLocate H0 H0'.
+        iDestruct ("Hreg" $! dst _ _ n H0 H0') as "Hinvdst".
         iApply ("IH" $! (_,_) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg.
           destruct (reg_eq_dec dst reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
           destruct (reg_eq_dec PC reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
           destruct Hsome with reg;auto. }
         { iIntros. simpl. destruct (reg_eq_dec dst r0).
-          - subst r0; rewrite lookup_insert. rewrite /interp.
+          - subst r0. rewrite !lookup_insert in H8, H7. simplify_eq. rewrite /interp.
             generalize (isWithin_implies _ _ _ _ H4). intros [A B].
             iApply (interp_weakening with "IH Hspec Hinvdst"); auto; try solve_addr.
             unfold Is_true. rewrite PermFlowsToReflexive. auto.
-          - rewrite lookup_insert_ne; auto. rewrite {8}Heq !lookup_insert_ne; auto.
-            iApply "Hreg". auto. }
+          - rewrite !lookup_insert_ne in H8, H7; auto. simplify_eq.
+            assert (r1 !! r0 = r2 !! r0) as Heqrr.
+            { erewrite <- (lookup_insert_ne r1 PC r0); auto.
+            erewrite <- (lookup_insert_ne r2 PC r0); auto.
+            f_equal. eapply Heq. }
+            pose proof (Hr2 := H8). rewrite Heqrr in Hr2.
+            by iDestruct ("Hreg" $! r0 _ _ H5 H8 Hr2) as "Hr0". }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
   Qed.
 

@@ -29,8 +29,8 @@ Class MachineParameters := {
 
 Definition decodeInstrW `{MachineParameters} : Word → instr :=
   fun w =>
-    match get_z w with
-    | Some z => decodeInstr z
+    match w with
+    | WInt z => decodeInstr z
     | _ => Fail
     end.
 

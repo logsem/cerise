@@ -54,9 +54,9 @@ Section fundamental.
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (src : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0
-      → (∀ r1 : RegName, ⌜r1 ≠ PC⌝ → (fixpoint interp1) (r !r! r1))
-          -∗ ∃ P, allow_load_res src (<[PC:=inr (p, b, e, a)]> r) a a0 p0 b0 e0 P.
+      read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0
+      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
+          -∗ ∃ P, allow_load_res src (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0 P.
   Proof.
     intros r p b e a src p0 b0 e0 a0 HVsrc.
     iIntros "#Hreg". rewrite /allow_load_res.
@@ -69,9 +69,8 @@ Section fundamental.
          (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
          assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
-         iDestruct ("Hreg" $! src n) as "Hvsrc".
          rewrite lookup_insert_ne in Hrinr; last by congruence.
-         rewrite /RegLocate Hrinr.
+         iDestruct ("Hreg" $! src _ n Hrinr) as "Hvsrc".
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
@@ -163,8 +162,8 @@ Section fundamental.
     - iNext. iFrame.
   Qed.
 
-  Instance if_Persistent p b e a r src p0 b0 e0 a0 loadv : Persistent (if decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
-  Proof. intros. destruct (decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a));apply _. Qed.
+  Instance if_Persistent p b e a r src p0 b0 e0 a0 loadv : Persistent (if decide (reg_allows_load (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0 ∧ a0 ≠ a) then interp loadv else emp)%I.
+  Proof. intros. destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0 ∧ a0 ≠ a));apply _. Qed.
 
   Lemma mem_map_recover_res:
     ∀ (r : leibnizO Reg)
@@ -205,7 +204,7 @@ Section fundamental.
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=inr (p, b, e, a)]> r !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
@@ -213,11 +212,11 @@ Section fundamental.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
+    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].
-      unfold read_reg_inr. destruct wsrc. 2: destruct c,p0,p0. all: repeat eexists.
+      unfold read_reg_inr. destruct wsrc. all: repeat eexists.
       right. by exists z. by left.
     }
 
@@ -273,17 +272,17 @@ Section fundamental.
         rewrite lookup_insert_is_Some.
         destruct (decide (dst = x4)); [ auto | right; split; auto]. }
       (* Prove in the general case that the value relation holds for the register that was loaded to - unless it was the PC.*)
-       { iIntros (ri Hri).
+       { iIntros (ri v Hri Hvs).
         subst regs'.
-        erewrite locate_ne_reg; [ | | reflexivity]; auto.
+        rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
         { subst ri.
-          erewrite locate_eq_reg; [ | reflexivity]; auto.
+          rewrite lookup_insert in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).
           - simplify_eq. iFrame "Hw".
-          - iClear "HLoadRes". iClear "Hwrite". rewrite decide_True. iFrame "#". auto.
+          - iClear "HLoadRes Hwrite". rewrite decide_True. iFrame "#". auto.
         }
-        { repeat (erewrite locate_ne_reg; [ | | reflexivity]; auto).
+        { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. }
        }
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
@@ -302,7 +301,7 @@ Section fundamental.
        }
     }
     { rewrite /allow_load_res /allow_load_mem.
-      destruct (decide (reg_allows_load (<[PC:=inr (p, b, e, a)]> r) src p0 b0 e0 a0 ∧ a0 ≠ a)).
+      destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HLoadMem" as "(_&H)".
         iDestruct "H" as (w') "(->&Hres&Hinterp)". rewrite /region_open_resources.
         destruct a1. rewrite memMap_resource_2ne; last auto.

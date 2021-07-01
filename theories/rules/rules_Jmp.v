@@ -19,9 +19,9 @@ Section cap_lang_rules.
 
   Lemma wp_jmp_success E pc_p pc_b pc_e pc_a w r w' :
     decodeInstrW w = Jmp r →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w
          ∗ ▷ r ↦ᵣ w' }}}
        Instr Executable @ E
@@ -41,21 +41,21 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    unfold exec, exec_opt in Hstep. rewrite Hr_r0 /= in Hstep. simplify_pair_eq.
 
-    rewrite /update_reg /= in Hstep. simplify_pair_eq. cbn.
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
-    iApply "Hφ". iFrame. rewrite /RegLocate Hr_r0. eauto.
+    iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Jmp PC →
-     isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-     {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w }}}
        Instr Executable @ E
        {{{ RET NextIV;
-           PC ↦ᵣ updatePcPerm (inr (pc_p,pc_b,pc_e,pc_a))
+           PC ↦ᵣ updatePcPerm (WCap pc_p pc_b pc_e pc_a)
            ∗ pc_a ↦ₐ w }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
@@ -68,9 +68,8 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    unfold exec, exec_opt in Hstep. rewrite Hr_PC /= in Hstep. simplify_pair_eq.
 
-    rewrite /update_reg /= in Hstep. simplify_pair_eq. cbn.
-    rewrite /RegLocate Hr_PC.
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
     iApply "Hφ". by iFrame.
   Qed.

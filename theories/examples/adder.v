@@ -60,20 +60,20 @@ Section adder.
     (act_start + 8)%a = Some act_end →
 
       ▷ adder_g ag
-    ∗ ▷ PC ↦ᵣ inr (RX, g_start, f_end, g_start)
+    ∗ ▷ PC ↦ᵣ WCap RX g_start f_end g_start
     ∗ ▷ r_t0 ↦ᵣ w0
-    ∗ ▷ r_t1 ↦ᵣ inr (RWX, act_start, act_end, act_start)
+    ∗ ▷ r_t1 ↦ᵣ WCap RWX act_start act_end act_start
     ∗ ▷ r_t2 ↦ᵣ w2
-    ∗ ▷ r_t3 ↦ᵣ inr (RW, x, x', x)
+    ∗ ▷ r_t3 ↦ᵣ WCap RW x x' x
     ∗ ▷ ([[ act_start, act_end ]] ↦ₐ [[ act0 ]])
     (* continuation *)
     ∗ ▷ (PC ↦ᵣ updatePcPerm w0 ∗ adder_g ag
          ∗ r_t0 ↦ᵣ w0
-         ∗ r_t1 ↦ᵣ inr (E, act_start, act_end, act_start)
-         ∗ r_t2 ↦ᵣ inl 0%Z
-         ∗ r_t3 ↦ᵣ inl 0%Z
+         ∗ r_t1 ↦ᵣ WCap E act_start act_end act_start
+         ∗ r_t2 ↦ᵣ WInt 0%Z
+         ∗ r_t3 ↦ᵣ WInt 0%Z
          ∗ [[ act_start, act_end ]] ↦ₐ
-           [[ activation_instrs (inr (RX, f_start, f_end, f_start)) (inr (RW, x, x', x)) ]]
+           [[ activation_instrs (WCap RX f_start f_end f_start) (WCap RW x x' x) ]]
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -150,22 +150,22 @@ Section adder.
     (x + 1)%a = Some x' →
     (f_start <= f_end)%a →
 
-    inv N (∃ (n:Z), x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)
+    inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ ▷ adder_f af
-    ∗ ▷ PC ↦ᵣ inr (RX, f_start, f_end, f_start)
+    ∗ ▷ PC ↦ᵣ WCap RX f_start f_end f_start
     ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ r_env ↦ᵣ inr (RW, x, x', x)
+    ∗ ▷ r_env ↦ᵣ WCap RW x x' x
     (* continuation *)
     ∗ ▷ ((∃ (k' n':Z),
           PC ↦ᵣ updatePcPerm w0 ∗ adder_f af
           ∗ r_t0 ↦ᵣ w0
-          ∗ r_t1 ↦ᵣ inl 0%Z
-          ∗ r_t2 ↦ᵣ inl k'
-          ∗ r_t3 ↦ᵣ inl n'
-          ∗ r_env ↦ᵣ inl 0%Z)
+          ∗ r_t1 ↦ᵣ WInt 0%Z
+          ∗ r_t2 ↦ᵣ WInt k'
+          ∗ r_t3 ↦ᵣ WInt n'
+          ∗ r_env ↦ᵣ WInt 0%Z)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -213,12 +213,12 @@ Section adder.
     cbn [rules_AddSubLt.denote].
     (* Prove the internal continuation (a_cleanup) *)
     iAssert (∀ (w1 we: Word) (k' n' : Z),
-      PC ↦ᵣ inr (RX, f_start, f_end, a_cleanup)
+      PC ↦ᵣ WCap RX f_start f_end a_cleanup
       ∗ adder_f af
       ∗ r_t0 ↦ᵣ w0
       ∗ r_t1 ↦ᵣ w1
-      ∗ r_t2 ↦ᵣ inl k'
-      ∗ r_t3 ↦ᵣ inl n'
+      ∗ r_t2 ↦ᵣ WInt k'
+      ∗ r_t3 ↦ᵣ WInt n'
       ∗ r_env ↦ᵣ we
       -∗ WP Seq (Instr Executable) {{ φ }})%I with "[Hφ]" as "Hcleanup".
     { iIntros (w2 we k' n') "(HPC & Hprog & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
@@ -331,13 +331,13 @@ Section adder.
     (f_start <= f_end)%a →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
 
-    inv N (∃ (n:Z), x ↦ₐ inl n ∗ ⌜(0 ≤ n)%Z⌝)
+    inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ adder_g ag ∗ adder_f af
-    ∗ PC ↦ᵣ inr (RX, g_start, f_end, g_start)
+    ∗ PC ↦ᵣ WCap RX g_start f_end g_start
     ∗ r_t0 ↦ᵣ w0
-    ∗ r_t1 ↦ᵣ inr (RWX, act_start, act_end, act_start)
+    ∗ r_t1 ↦ᵣ WCap RWX act_start act_end act_start
     ∗ r_t2 ↦ᵣ w2
-    ∗ r_t3 ↦ᵣ inr (RW, x, x', x)
+    ∗ r_t3 ↦ᵣ WCap RW x x' x
     ∗ [[act_start, act_end]] ↦ₐ [[ act0 ]]
     ∗ interp w0
     ∗ ([∗ map] r↦v ∈ rmap, r ↦ᵣ v ∗ interp v)
@@ -350,25 +350,19 @@ Section adder.
     (* Step 1: Use the spec for g *)
     iApply (adder_g_spec with "[- $HPC $Hr0 $Hr1 $Hr2 $Hr3 $Hact $Hprog_g]"); auto.
     (* Step 2: Use the validity of w0 and the FTLR *)
-    iPoseProof (jmp_or_fail_spec _ (λ _, True)%I with "Hw0") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm w0))); cycle 1.
-    { (* the jump might fail: that's OK. *)
-      iNext. iIntros "(? & ? & ? & ? & ? & ?)".
-      iApply "Hcont". iFrame. }
-    (* otherwise, we get that the continuation satisfies the expression relation *)
-    iDestruct "Hcont" as (p b e a ->) "#Ew0". iNext.
-    iIntros "(HPC & Hprog_g & Hr0 & Hr1 & Hr2 & Hr3 & Hact)".
+    iPoseProof (jmp_to_unknown with "Hw0") as "Hcont_g".
+    iNext. iIntros "(HPC & Hprog_g & Hr0 & Hr1 & Hr2 & Hr3 & Hact)".
 
     (* Step 3: Prove that the closure is valid, by using the spec of [f] *)
     (* Put the code of [f] and the activation record in invariants *)
     iDestruct (na_inv_alloc logrel_nais _ closureN with "Hprog_f") as ">#Iprog_f".
     iDestruct (na_inv_alloc logrel_nais _ actN with "Hact") as ">#Iact".
 
-    iAssert (interp (inr (E, act_start, act_end, act_start))) with "[Iprog_f Iact]"
+    iAssert (interp (WCap E act_start act_end act_start)) with "[Iprog_f Iact]"
       as "Hclosure".
-    { iClear "Ew0 Hw0". rewrite /interp /= fixpoint_interp1_eq /=.
+    { iClear "Hw0". rewrite /interp /= fixpoint_interp1_eq /=.
       iIntros (rmap'). iNext. iModIntro. iIntros "([Hrmap' #HrV] & Hregs & HnaI)".
-      iDestruct "Hrmap'" as %Hrmap'. iSplit; eauto. rewrite /interp_conf.
+      iDestruct "Hrmap'" as %Hrmap'. rewrite /interp_conf.
       (* extract registers relevant for f from the map *)
       iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
       by rewrite lookup_insert.
@@ -403,15 +397,10 @@ Section adder.
         iSplitL "Hinv"; eauto.
         (* Use the fact that the closure's continuation is valid to conclude *)
         (* This involves a lot of bureaucratic shuffling of the register resources *)
-        unshelve iPoseProof ("HrV" $! r_t0 _) as "Hr0V";[done|].
-        rewrite /RegLocate Hrv0.
-        pose (λ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I as φ.
-        iPoseProof (jmp_or_fail_spec _ φ with "Hr0V") as "Hcont".
-        destruct (decide (isCorrectPC (updatePcPerm rv0))); cycle 1.
-        { iNext. iIntros "H". iApply "Hcont". iDestruct "H" as (? ?) "(? & ?)". iFrame.
-          rewrite /φ /=. iIntros (?). congruence. }
-        iDestruct "Hcont" as (p' b' e' a' ->) "Hcont". iNext.
-        iIntros "HH". iDestruct "HH" as (k' n') "(HPC & Hprog_f & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
+        unshelve iPoseProof ("HrV" $! r_t0 _ _ Hrv0) as "Hr0V";[done|].
+        iPoseProof (jmp_to_unknown with "Hr0V") as "Hcont".
+        iNext. iIntros "H".
+        iDestruct "H" as (k' n') "(HPC & Hprog_f & Hr0 & Hr1 & Hr2 & Hr3 & Hrenv)".
         iDestruct ("Hprog_f_close" with "[$HnaI $Hprog_f]") as ">HnaI". (* close *)
         (* Put the registers back in the map *)
         iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
@@ -429,45 +418,18 @@ Section adder.
         iDestruct (big_sepM_insert with "[$Hregs $Hrenv]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
         repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
-        iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs".
-        rewrite !lookup_insert_ne // lookup_delete //.
         match goal with |- context [ ([∗ map] _↦_ ∈ ?r, _)%I ] => set rmap'' := r end.
-        iAssert (full_map rmap'') as %Hrmap''_full.
-        { rewrite /full_map. iIntros (rr). iPureIntro. rewrite elem_of_gmap_dom /rmap''.
-          rewrite !dom_insert_L !dom_delete_L !dom_insert_L regmap_full_dom //.
-          rewrite !singleton_union_difference_L !all_registers_union_l.
-          pose proof (all_registers_s_correct rr) as HH. set_solver+ HH. }
-
-        iSpecialize ("Hcont" $! rmap'' with "[Hregs HnaI]").
-        { iFrame. iSplitR.
-          { rewrite /interp_reg /=. iSplit; auto. iIntros (r Hr).
-            specialize (Hrmap''_full r) as [rv Hrv]. rewrite /RegLocate Hrv.
-            unshelve iSpecialize ("HrV" $! r _); auto.
-            rewrite /rmap'' in Hrv. rewrite (fixpoint_interp1_eq rv).
-            destruct (decide (r = r_env)); subst.
-            { rewrite lookup_insert_ne // lookup_insert in Hrv. by simplify_eq. }
-            destruct (decide (r = r_t3)); subst.
-            { repeat (rewrite lookup_insert_ne // in Hrv;[]); rewrite lookup_insert // in Hrv.
-              by simplify_eq. }
-            destruct (decide (r = r_t2)); subst.
-            { repeat (rewrite lookup_insert_ne // in Hrv;[]); rewrite lookup_insert // in Hrv.
-              by simplify_eq. }
-            destruct (decide (r = r_t1)); subst.
-            { repeat (rewrite lookup_insert_ne // in Hrv;[]); rewrite lookup_insert // in Hrv.
-              by simplify_eq. }
-            destruct (decide (r = r_t0)); subst.
-            { repeat (rewrite lookup_insert_ne // in Hrv;[]); rewrite lookup_insert // in Hrv.
-              simplify_eq. rewrite !fixpoint_interp1_eq //. }
-            repeat (rewrite lookup_insert_ne // in Hrv;[]).
-            rewrite delete_insert_delete lookup_delete_ne // in Hrv.
-            rewrite Hrv !fixpoint_interp1_eq //. }
-          { rewrite /registers_mapsto /rmap'' insert_insert //. } }
-
-        iDestruct "Hcont" as "[_ Hcont]". rewrite /interp_conf.
-        iApply (wp_wand with "[-]"). iApply "Hcont". cbn. iIntros (v) "?". eauto.
-      }
-      { cbn. iIntros (?) "[H|%]"; iIntros (->). iApply "H"; eauto. congruence. }
-    }
+        iApply "Hcont"; cycle 1.
+        { iFrame. iApply (big_sepM_sep with "[$Hregs HrV]"). cbn beta.
+          repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+          rewrite delete_insert_delete.
+          iApply big_sepM_intuitionistically_forall. iModIntro.
+          iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
+          by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
+        { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.
+          rewrite regmap_full_dom //. set_solver+. } }
+      { cbn beta. iIntros (?) "H". iIntros (->). iDestruct "H" as "[H|%]". 2: congruence.
+        iApply "H". done. } }
 
     (* Step 4: use the fact that the continuation is in the expression relation *)
     (* put the registers back in the map *)
@@ -483,28 +445,10 @@ Section adder.
     iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
     { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
     { eauto. }
-    match goal with |- context [ ([∗ map] _↦_ ∈ ?r, _)%I ] => set rmap' := r end.
-    iDestruct (big_sepM_sep with "Hregs") as "[Hregs HregsV]".
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs".
-    { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
-    set rmap'' := <[_:=_]> rmap'.
-    iAssert (full_map rmap'') as %Hrmap''_full.
-    { rewrite /full_map. iIntros (rr). iPureIntro. rewrite elem_of_gmap_dom /rmap'' /rmap'.
-      rewrite !dom_insert_L Hrmap_dom.
-      rewrite !singleton_union_difference_L !all_registers_union_l.
-      pose proof (all_registers_s_correct rr) as H. set_solver+ H. }
 
-    iSpecialize ("Ew0" $! rmap'' with "[Hregs HregsV HnaI]").
-    { iFrame. iSplitR "Hregs"; cycle 1.
-      { rewrite /registers_mapsto /rmap'' insert_insert. eauto. }
-      rewrite /interp_reg /=. iSplit; eauto. iIntros (r Hr).
-      destruct (Hrmap''_full r) as [rv Hrv].
-      iDestruct (big_sepM_lookup _ _ r with "HregsV") as "Hr"; eauto.
-      rewrite /rmap'' /RegLocate (lookup_insert_ne _ PC) // in Hrv |- *.
-      rewrite Hrv //. }
-
-    iDestruct "Ew0" as "[_ Hcont]". iApply (wp_wand with "[-]"). iApply "Hcont".
-    eauto.
+    iApply "Hcont_g"; cycle 1. by iFrame.
+    iPureIntro. rewrite !dom_insert_L Hrmap_dom.
+    rewrite !singleton_union_difference_L !all_registers_union_l. set_solver+.
   Qed.
 
 End adder.

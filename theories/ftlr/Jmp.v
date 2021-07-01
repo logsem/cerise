@@ -52,14 +52,14 @@ Section fundamental.
       rewrite -delete_insert_ne; auto. 
       destruct (updatePcPerm wsrc) eqn:Heq.
       { iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (inl _) |- _ => inv H end|].
+        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
         iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
         iModIntro. 
         iNext. iNext. iIntros "HPC /=".
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iNext. iIntros. discriminate. }
-      { destruct c,p0,p0,p0.
+      { destruct p0.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -87,10 +87,9 @@ Section fundamental.
         - iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
-          iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
-          rewrite /RegLocate Hsomesrc.
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
           destruct wsrc; simpl in Heq; try congruence.
-          destruct c,p0,p0,p0; try congruence.
+          destruct p0; try congruence.
           + iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
             iModIntro. 
             inv Heq.
@@ -101,7 +100,7 @@ Section fundamental.
             iDestruct "Hwsrc" as "#H".
             iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
             iModIntro.
-            rewrite !fixpoint_interp1_eq /=. iDestruct ("H" with "[$Hmap $Hown]") as "[_ Hcont]"; auto.
+            rewrite !fixpoint_interp1_eq /=. iDestruct ("H" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iApply (wp_bind (fill [SeqCtx])).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -117,10 +116,9 @@ Section fundamental.
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r r0); auto.
           destruct wsrc; simpl in Heq; try congruence.
-          destruct c,p0,p0,p0; try congruence. inv Heq.
-          iDestruct ("Hreg" $! r0 ltac:(auto)) as "Hwsrc".
-          rewrite /RegLocate Hsomesrc.
-          iClear "Hinv". 
+          destruct p0; try congruence. inv Heq.
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
+          iClear "Hinv".
           iApply ("IH" with "[] [] [Hmap] [$Hown]"); iFrame "#"; eauto.
       }
       Unshelve. all: auto.

@@ -59,7 +59,7 @@ Section counter.
   (* ---------------------------------- the counter invariant -------------------------------------- *)
 
   Definition counter_inv d ds : iProp Σ :=
-    (∃ z, d ↦ₐ inl z ∗ ds ↣ₐ inl (-z)%Z)%I.
+    (∃ z, d ↦ₐ WInt z ∗ ds ↣ₐ WInt (-z)%Z)%I.
 
   (* ----------------------------------- INCR -------------------------------------- *)
   
@@ -90,9 +90,9 @@ Section counter.
     nclose specN ## ↑ι →
     
     {{{ spec_ctx
-      ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first) ∗ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_first)
+      ∗ PC ↦ᵣ WCap pc_p pc_b pc_e a_first ∗ PC ↣ᵣ WCap pcs_p pcs_b pcs_e s_first
       ∗ r_t0 ↦ᵣ wret ∗ r_t0 ↣ᵣ wret'
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d) ∗ r_env ↣ᵣ inr (RWX,ds,ds',ds)
+      ∗ r_env ↦ᵣ WCap RWX d d' d ∗ r_env ↣ᵣ WCap RWX ds ds' ds
       ∗ (∃ w, r_t1 ↦ᵣ w) ∗ (∃ w, r_t1 ↣ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       ∗ ([∗ map] r_i↦w_i ∈ smap, r_i ↣ᵣ w_i)
@@ -107,7 +107,7 @@ Section counter.
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (incr_left incr_addrs ∗ decr_right decr_addrs)
       (* the remaining registers are all valid: we will need this for the contunuation *)
-      ∗ (∀ r : RegName, ⌜r ≠ PC⌝ → interp (rmap !r! r, smap !r! r))
+      ∗ (∀ (r : RegName) v1 v2, (⌜r ≠ PC⌝  → ⌜rmap !! r = Some v1⌝ → ⌜smap !! r = Some v2⌝ → interp (v1, v2)))
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
@@ -215,8 +215,8 @@ Section counter.
       iDestruct (big_sepM_insert _ _ r_t0 with "[$Hsmap $Hs_t0]") as "Hsmap".
       { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
       iDestruct (interp_eq with "Hcont") as %<-. 
-      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a)]> (<[r_env:=inl 0%Z]> (<[r_t1:=inl 0%Z]> rmap)))).
-      set (segs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a)]> (<[r_env:=inl 0%Z]> (<[r_t1:=inl 0%Z]> smap)))). 
+      set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> rmap)))).
+      set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> smap)))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hrmap Hsmap $Hj $Hown HPC HsPC]") as "[_ Hexpr]". 
       { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
         iSplit.
@@ -227,11 +227,11 @@ Section counter.
             consider_next_reg_both r' r_t1. 
             split; apply elem_of_gmap_dom;[rewrite Hdom1|rewrite Hdom2];assert (r' ∈ all_registers_s) as Hin;
               [apply all_registers_s_correct| |apply all_registers_s_correct|];revert n n0 n1 n2 Hin;clear;set_solver.
-          + iIntros (r Hne).
-            rewrite /RegLocate.
-            consider_next_reg_both r PC. done. consider_next_reg_both r r_t0. consider_next_reg_both r r_env. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg_both r r_t1. rewrite !fixpoint_interp1_eq. done.
-            iApply "Hregs_valid". auto. 
+          + iIntros (r v1 v2 Hne Hv1s Hv2s).
+            consider_next_reg_both1 r PC Hv1s Hv2s. done.
+            consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
+            consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
+            iApply "Hregs_valid"; auto.
         - rewrite !insert_insert.
           iSplitL "HPC Hrmap". 
           + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
@@ -279,10 +279,10 @@ Section counter.
     nclose specN ## ↑ι →
     
     {{{ spec_ctx
-      ∗ PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first) ∗ PC ↣ᵣ inr (pcs_p,pcs_b,pcs_e,s_first)
+      ∗ PC ↦ᵣ WCap pc_p pc_b pc_e a_first ∗ PC ↣ᵣ WCap pcs_p pcs_b pcs_e s_first
       ∗ r_t0 ↦ᵣ wret ∗ r_t0 ↣ᵣ wret'
       ∗ (∃ w, r_t1 ↦ᵣ w) ∗ (∃ w, r_t1 ↣ᵣ w)
-      ∗ r_env ↦ᵣ inr (RWX,d,d',d) ∗ r_env ↣ᵣ inr (RWX,ds,ds',ds)
+      ∗ r_env ↦ᵣ WCap RWX d d' d ∗ r_env ↣ᵣ WCap RWX ds ds' ds
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       ∗ ([∗ map] r_i↦w_i ∈ smap, r_i ↣ᵣ w_i)
       (* the specification side expression *)
@@ -296,7 +296,7 @@ Section counter.
       (* trusted code *)
       ∗ na_inv logrel_nais ι1 (read_left read_addrs ∗ read_right read_neg_addrs)
       (* the remaining registers are all valid *)
-      ∗ (∀ r : RegName, ⌜r ≠ PC⌝ → interp (rmap !r! r, smap !r! r))
+      ∗ (∀ (r : RegName) v1 v2, (⌜r ≠ PC⌝  → ⌜rmap !! r = Some v1⌝ → ⌜smap !! r = Some v2⌝ → interp (v1, v2)))
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
@@ -396,8 +396,8 @@ Section counter.
       { rewrite !lookup_insert_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_t0 with "[$Hsegs $Hs_t0]") as "Hsegs".
       { rewrite !lookup_insert_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
-      set (regs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a')]> (<[r_t1:=inl 0%Z]> (<[r_env:=inl 0%Z]> (<[r_ret:=inl z]> rmap))))).
-      set (segs' := <[PC:=inl 0%Z]> (<[r_t0:=inr (p, b, e, a')]> (<[r_t1:=inl 0%Z]> (<[r_env:=inl 0%Z]> (<[r_ret:=inl z]> smap))))). 
+      set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> rmap))))).
+      set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> smap))))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hregs Hsegs $Hj $Hown HPC HsPC]") as "[_ Hexpr]". 
       { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
         iSplit.
@@ -408,13 +408,11 @@ Section counter.
             consider_next_reg_both r' r_ret.
             assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
             split;apply elem_of_gmap_dom;[rewrite Hdom1|rewrite Hdom2];revert n n0 n1 n2 Hin;clear;set_solver.
-          + iIntros (r' Hne).
-            rewrite /RegLocate.
-            consider_next_reg_both r' PC. done. consider_next_reg_both r' r_t0.
-            consider_next_reg_both r' r_t1. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg_both r' r_env. rewrite !fixpoint_interp1_eq. done.
-            consider_next_reg_both r' r_ret. rewrite !fixpoint_interp1_eq. done.
-            iApply "Hregs_val". auto. 
+          + iIntros (r v1 v2 Hne Hv1s Hv2s).
+            consider_next_reg_both1 r PC Hv1s Hv2s. done.
+            consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
+            consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done. consider_next_reg_both1 r r_ret Hv1s Hv2s. simplify_eq. rewrite !fixpoint_interp1_eq. done.
+            iApply "Hregs_val"; auto.
         - rewrite !insert_insert.
           iSplitL "Hregs HPC". 
           + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.

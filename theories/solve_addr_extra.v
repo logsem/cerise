@@ -21,9 +21,9 @@ Global Ltac zify_addr_op_nonbranching_step_hook ::=
   | |- IncrAddr ?a ?z ?a' =>
     without_evars a; without_evars z; without_evars a';
     unfold IncrAddr
-  | H : withinBounds (_, _, _, _) = true |- _ =>
+  | H : withinBounds _ _ _ = true |- _ =>
     apply withinBounds_le_addr in H
-  | |- withinBounds (?p, ?b, ?e, ?a) = true =>
+  | |- withinBounds ?b ?e ?a = true =>
     without_evars b; without_evars e; without_evars a;
     apply le_addr_withinBounds'
   | H : isCorrectPC (_, _, _, _) |- _ =>
@@ -41,5 +41,5 @@ From Coq Require Import ZArith.
 Goal forall d d' d'',
   (d + 1)%a = Some d'' ->
   (d + 2)%a = Some d' ->
-  withinBounds (RWX, d, d', d'') = true.
+  withinBounds d d' d'' = true.
 Proof. intros. solve_addr. Qed.

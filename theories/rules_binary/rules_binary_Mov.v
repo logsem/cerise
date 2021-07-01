@@ -18,8 +18,8 @@ Section cap_lang_spec_rules.
   
   Lemma step_Mov Ep K pc_p pc_b pc_e pc_a w dst src regs :
     decodeInstrW w = Mov dst src ->
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of (Mov dst src) ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -31,13 +31,13 @@ Section cap_lang_spec_rules.
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have Hx := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
+    pose proof (Hstep' := Hstep). unfold exec in Hstep.
     
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
@@ -48,19 +48,18 @@ Section cap_lang_spec_rules.
     
     pose proof Hwsrc as Hwsrc'. eapply word_of_argument_Some_inv' in Hwsrc; eauto.
 
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst wsrc)) as HH.
+    assert (exec_opt (Mov dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst wsrc)) as HH.
     { destruct Hwsrc as [ [? [? ?] ] | [? (? & ? & Hr') ] ]; simplify_eq; eauto.
-      by rewrite /= /RegLocate Hr' in Hstep. }
-    rewrite /update_reg /= in HH.
-    
+      cbn. by rewrite /= Hr'. }
+    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
+
     destruct (incrementPC (<[ dst := wsrc ]> regs)) as [regs''|] eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
-      simplify_pair_eq.
-      iMod ((regspec_heap_update_inSepM _ _ _ dst wsrc) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+      rewrite Hregs' in Hstep. simplify_pair_eq.
       iExists FailedV,_. iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
       iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
@@ -73,9 +72,10 @@ Section cap_lang_spec_rules.
     eapply (incrementPC_success_updatePC _ σm) in H'regs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto.
-    simplify_pair_eq.
+    rewrite HuPC in Hstep. simplify_pair_eq. iFrame.
+
     iMod ((regspec_heap_update_inSepM _ _ _ dst wsrc) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod ((regspec_heap_update_inSepM _ _ _ PC (inr (p', g', b', a''))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
@@ -87,20 +87,20 @@ Section cap_lang_spec_rules.
 
   Lemma step_move_success_reg_fromPC E K pc_p pc_b pc_e pc_a pc_a' w r1 wr1 :
     decodeInstrW w = Mov r1 (inr PC) →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
      
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ wr1
     ={E}=∗
          ⤇ fill K (of_val NextIV)
-         ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
          ∗ pc_a ↣ₐ w
-         ∗ r1 ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a).
+         ∗ r1 ↣ᵣ WCap pc_p pc_b pc_e pc_a.
   Proof. 
     iIntros (Hinstr Hvpc Hpca' Hclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
     iDestruct (rules_binary_base.map_of_regs_2  with "HPC Hr1") as "[Hmap %]".
@@ -120,17 +120,17 @@ Section cap_lang_spec_rules.
 
   Lemma step_move_success_reg E K pc_p pc_b pc_e pc_a pc_a' w r1 wr1 rv wrv :
     decodeInstrW w = Mov r1 (inr rv) →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ wr1
              ∗ ▷ rv ↣ᵣ wrv
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
         ∗ r1 ↣ᵣ wrv
         ∗ rv ↣ᵣ wrv. 
@@ -153,18 +153,18 @@ Section cap_lang_spec_rules.
 
    Lemma step_move_success_z E K pc_p pc_b pc_e pc_a pc_a' w r1 wr1 z :
     decodeInstrW w = Mov r1 (inl z) →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ ▷ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
              ∗ ▷ r1 ↣ᵣ wr1
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
-        ∗ r1 ↣ᵣ inl z. 
+        ∗ r1 ↣ᵣ WInt z.
   Proof.
     iIntros (Hinstr Hvpc Hpca' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
     iDestruct (rules_binary_base.map_of_regs_2 with "HPC Hr1") as "[Hmap %]".

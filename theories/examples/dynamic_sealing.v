@@ -98,11 +98,11 @@ Section sealing.
   Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc :
     decodeInstrW w = get_i →
     is_Get get_i dst dst →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
 
-    {{{ ▷ PC ↦ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
       ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ inl zsrc }}}
+      ∗ ▷ dst ↦ᵣ WInt zsrc }}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
@@ -135,10 +135,10 @@ Section sealing.
 
     up_close (B:=coPset) ι ⊆ Ep →
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
-      ∗ r_t1 ↦ᵣ (* inr (p, b, e, a) *) wsealed
+      ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+      ∗ r_t1 ↦ᵣ (* WCap (p, b, e, a) *) wsealed
       ∗ (∃ w, r_t2 ↦ᵣ w)
       ∗ (∃ w, r_t3 ↦ᵣ w)
       ∗ (∃ w, r_t4 ↦ᵣ w)
@@ -151,10 +151,10 @@ Section sealing.
       ∗ ▷ φ FailedV
       ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
-          ∗ r_t2 ↦ᵣ inl 0%Z
-          ∗ (∃ p b e a b' w pbvals, ⌜wsealed = inr (p,b,e,a) ∧ (b + 2)%a = Some b' ∧ (b,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ inl 0%Z)
-          ∗ r_t3 ↦ᵣ inl 0%Z
-          ∗ r_t4 ↦ᵣ inl 0%Z
+          ∗ r_t2 ↦ᵣ WInt 0%Z
+          ∗ (∃ p b e a b' w pbvals, ⌜wsealed = WCap (p,b,e,a) ∧ (b + 2)%a = Some b' ∧ (b,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WInt 0%Z)
+          ∗ r_t3 ↦ᵣ WInt 0%Z
+          ∗ r_t4 ↦ᵣ WInt 0%Z
           ∗ codefrag a_first unseal_instrs
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -227,8 +227,8 @@ Section sealing.
     up_close (B:=coPset) ι ⊆ Ep →
     up_close (B:=coPset) ι1 ⊆ Ep ∖ ↑ι →
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first)
-       ∗ r_env ↦ᵣ inr (RWX,ll,ll',ll)
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+       ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
        ∗ r_t1 ↦ᵣ w
        ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]) ∗ Ψ (a,w))
        ∗ r_t0 ↦ᵣ wret
@@ -239,19 +239,19 @@ Section sealing.
        ∗ codefrag a_first (seal_instrs f_m)
        (* malloc *)
        ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
-       ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
-       ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
+       ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
+       ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
        (* linked list invariants *)
        ∗ sealLL ι ll γ Φ
        ∗ prefLL γ pbvals
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
-          ∗ r_env ↦ᵣ inl 0%Z
+          ∗ r_env ↦ᵣ WInt 0%Z
           ∗ r_t0 ↦ᵣ wret
-          ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
-          ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
-          ∗ ([∗ map] r↦w ∈ <[r_t2:=inl 0%Z]> (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]>
-                          (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]> rmap))))), r ↦ᵣ w)
-          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ inr (O,a,a,a) ∗ Ψ (a,w))
+          ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
+          ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+          ∗ ([∗ map] r↦w ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
+                          (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]> rmap))))), r ↦ᵣ w)
+          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ WCap (O,a,a,a) ∗ Ψ (a,w))
           ∗ codefrag a_first (seal_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -294,14 +294,14 @@ Section sealing.
   Qed.
 
   Lemma sealLL_alloc ι ll Ep Φ:
-    ll ↦ₐ inl 0%Z -∗ Φ [] -∗
+    ll ↦ₐ WInt 0%Z -∗ Φ [] -∗
     |={Ep}=> ∃ γ, sealLL ι ll γ Φ.
   Proof.
     iIntros "Hll Hnil".
     iMod (own_alloc (● principal prefR [])) as (γ) "Hown".
     { eapply auth_auth_valid. repeat red. apply I. }
     iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ Φ awvals)) with "[Hll Hown Hnil]")%I as "Hinv".
-    { iNext. iExists (inl 0%Z). iFrame.
+    { iNext. iExists (WInt 0%Z). iFrame.
       iExists []. iFrame. done. }
     iExists γ. auto.
   Qed.
@@ -329,7 +329,7 @@ Section sealing.
 
     up_close (B:=coPset) ι1 ⊆ Ep →
 
-    PC ↦ᵣ inr (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m))%a
+    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m))%a
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
        ∗ Φ []
@@ -339,23 +339,23 @@ Section sealing.
        ∗ codefrag a_first (unseal_instrs ++ seal_instrs f_m ++ make_seal_preamble_instrs f_m)
        (* malloc *)
        ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
-       ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
-       ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
+       ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
+       ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
-          ∗ pc_b ↦ₐ inr (RO, b_r, e_r, a_r)
-          ∗ a_r' ↦ₐ inr (E, b_m, e_m, b_m)
-          ∗ (∃ b1 e1 b2 e2 ll ll', let wvar := inr (RWX, ll, ll', ll) in
-                                   let wcode1 := inr (pc_p,pc_b,pc_e,a_first)%a in
-                                   let wcode2 := inr (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs))%a in
-                                   r_t1 ↦ᵣ inr (E, b1, e1, b1) ∗ r_t2 ↦ᵣ inr (E, b2, e2, b2)
+          ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
+          ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+          ∗ (∃ b1 e1 b2 e2 ll ll', let wvar := WCap (RWX, ll, ll', ll) in
+                                   let wcode1 := WCap (pc_p,pc_b,pc_e,a_first)%a in
+                                   let wcode2 := WCap (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs))%a in
+                                   r_t1 ↦ᵣ WCap (E, b1, e1, b1) ∗ r_t2 ↦ᵣ WCap (E, b2, e2, b2)
                                    ∗ ⌜(b1 + 8)%a = Some e1⌝ ∗ ⌜(b2 + 8)%a = Some e2⌝
                                    ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                    ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
                                    (* linked list invariants *)
                                    ∗ ⌜(ll + 1)%a = Some ll'⌝
                                    ∗ ∃ γ, sealLL ι ll γ Φ)
-          ∗ ([∗ map] r↦w ∈ (<[r_t3:=inl 0%Z]> (<[r_t4:=inl 0%Z]> (<[r_t5:=inl 0%Z]> (<[r_t6:=inl 0%Z]> (<[r_t7:=inl 0%Z]> (<[r_t8:=inl 0%Z]> (<[r_t9:=inl 0%Z]> (<[r_t10:=inl 0%Z]> (delete r_t1 (delete r_t2 rmap)))))))))), r ↦ᵣ w)
+          ∗ ([∗ map] r↦w ∈ (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]> (<[r_t8:=WInt 0%Z]> (<[r_t9:=WInt 0%Z]> (<[r_t10:=WInt 0%Z]> (delete r_t1 (delete r_t2 rmap)))))))))), r ↦ᵣ w)
           ∗ codefrag a_first (unseal_instrs ++ seal_instrs f_m ++ make_seal_preamble_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})

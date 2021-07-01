@@ -15,19 +15,11 @@ Section cap_lang_spec_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Tactic Notation "destruct_or" ident(H) :=
-  match type of H with
-  | _ ∨ _ => destruct H as [H|H]
-  | Is_true (_ || _) => apply orb_True in H; destruct H as [H|H]
-  end.
-  Tactic Notation "destruct_or" "?" ident(H) := repeat (destruct_or H).
-  Tactic Notation "destruct_or" "!" ident(H) := hnf in H; destruct_or H; destruct_or? H.
-
   Lemma step_AddSubLt Ep K i pc_p pc_b pc_e pc_a w dst arg1 arg2 regs :
     decodeInstrW w = i →
     is_AddSubLt i dst arg1 arg2 →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
-    regs !! PC = Some (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
     regs_of i ⊆ dom _ regs →
 
     nclose specN ⊆ Ep →
@@ -40,12 +32,12 @@ Section cap_lang_spec_rules.
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
-    have HPC' := regs_lookup_eq _ _ _ HPC.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
+    pose proof (Hstep' := Hstep). unfold exec in Hstep.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
     erewrite regs_of_is_AddSubLt in Hri, Dregs; eauto.
@@ -56,32 +48,33 @@ Section cap_lang_spec_rules.
     (* Failure: arg1 is not an integer *)
     { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn1. destruct r0v as [| (([? ?] & ?) & ?) ]; [ congruence |].
+      rewrite Hr'0 in Hn1. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
-        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+        all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFailStep AddSubLt_fail_nonconst1. 
     }
+   apply (z_of_arg_mono _ σr) in Hn1; auto.
+
 
     destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2;
       pose proof Hn2 as Hn2'; cycle 1.
     (* Failure: arg2 is not an integer *)
     { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn2. destruct r0v as [| (([? ?] & ?) & ?) ]; [ congruence |].
+      rewrite Hr'0 in Hn2. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
-        all: rewrite /RegLocate Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
+      { destruct_or! Hinstr; rewrite Hinstr /= Hn1 /= in Hstep.
+        all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFailStep AddSubLt_fail_nonconst2. }
+    apply (z_of_arg_mono _ σr) in Hn2; auto.
 
-    eapply z_of_argument_Some_inv' in Hn1; eapply z_of_argument_Some_inv' in Hn2; eauto.
-    assert ((c, σ2) = updatePC (update_reg (σr, σm) dst (inl (denote i n1 n2)))) as HH.
-    { destruct Hn1 as [ -> | (r1 & -> & _ & Hr1) ]; destruct Hn2 as [ -> | (r2 & -> & _ & Hr2) ].
-      all: destruct_or! Hinstr; rewrite Hinstr /= /RegLocate /update_reg /= in Hstep |- *; auto.
-      all: rewrite ?Hr1 ?Hr2 /= in Hstep; auto. }
-    rewrite /update_reg /= in HH.
-    
-    destruct (incrementPC (<[ dst := inl (denote i n1 n2) ]> regs))
+    assert (exec_opt i (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (denote i n1 n2)))) as HH.
+    { all: destruct_or! Hinstr; rewrite Hinstr /= /update_reg /= in Hstep |- *; auto.
+      all: by rewrite Hn1 Hn2; cbn. }
+    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
+
+    destruct (incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
@@ -89,14 +82,14 @@ Section cap_lang_spec_rules.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       simplify_pair_eq.
-      iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+      rewrite Hregs' in Hstep. inv Hstep.
       iFailStep AddSubLt_fail_incrPC. }
     
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ σm) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto.
+    eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hr Hmap]"; eauto.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
@@ -108,13 +101,14 @@ Section cap_lang_spec_rules.
     iModIntro. iPureIntro. econstructor; eauto.
   Qed.
 
-  Lemma step_AddSubLt_fail E K ins dst n1 r2 w wdst cap pc_p pc_b pc_e pc_a :
+  Lemma step_AddSubLt_fail E K ins dst n1 r2 w wdst pc_p pc_b pc_e pc_a p b e a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
-    isCorrectPC (inr (pc_p, pc_b, pc_e, pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     nclose specN ⊆ E →
 
-    spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ PC ↣ᵣ inr (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↣ₐ w ∗ dst ↣ᵣ wdst ∗ r2 ↣ᵣ inr cap
+    spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↣ₐ w ∗ dst ↣ᵣ wdst
+             ∗ r2 ↣ᵣ WCap p b e a
     ={E}=∗ ⤇ fill K (of_val FailedV). 
   Proof.
     iIntros (Hdecode Hinstr Hvpc Hnclose) "(Hown & Hj & HPC & Hpc_a & Hdst & Hr2)".
@@ -130,20 +124,20 @@ Section cap_lang_spec_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ pc_a ↣ₐ w
-             ∗ r2 ↣ᵣ inl n2
+             ∗ r2 ↣ᵣ WInt n2
              ∗ dst ↣ᵣ wdst
     ={E}=∗
              ⤇ fill K (of_val NextIV)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+             ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
              ∗ pc_a ↣ₐ w
-             ∗ r2 ↣ᵣ inl n2
-             ∗ dst ↣ᵣ inl (denote ins n1 n2). 
+             ∗ r2 ↣ᵣ WInt n2
+             ∗ dst ↣ᵣ WInt (denote ins n1 n2).
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc Hnlose) "(#Hown & Hj & HPC & Hpc_a & Hr2 & Hdst)".
     iDestruct (map_of_regs_3 with "HPC Hr2 Hdst") as "[Hmap (%&%&%)]".
@@ -168,20 +162,20 @@ Section cap_lang_spec_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inr r2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
 
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ pc_a ↣ₐ w
-             ∗ r2 ↣ᵣ inl n2
-             ∗ dst ↣ᵣ inl n1
+             ∗ r2 ↣ᵣ WInt n2
+             ∗ dst ↣ᵣ WInt n1
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
-        ∗ r2 ↣ᵣ inl n2
-        ∗ dst ↣ᵣ inl (denote ins n1 n2).
+        ∗ r2 ↣ᵣ WInt n2
+        ∗ dst ↣ᵣ WInt (denote ins n1 n2).
   Proof. 
     iIntros (Hdecode Hinstr Hpc_a Hvpc Hnclose) "(Hown & Hj & HPC & Hpc_a & Hr2 & Hdst)".
     iDestruct (map_of_regs_3 with "HPC Hr2 Hdst") as "[Hmap (%&%&%)]".
@@ -203,17 +197,17 @@ Section cap_lang_spec_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr dst) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ pc_a ↣ₐ w
-             ∗ dst ↣ᵣ inl n2
+             ∗ dst ↣ᵣ WInt n2
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
-        ∗ dst ↣ᵣ inl (denote ins n1 n2).
+        ∗ dst ↣ᵣ WInt (denote ins n1 n2).
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc Hnclose) "(Hown & Hj & HPC & Hpc_a & Hdst)".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
@@ -234,17 +228,17 @@ Section cap_lang_spec_rules.
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr dst) (inl n2) →
     (pc_a + 1)%a = Some pc_a' →
-    isCorrectPC (inr (pc_p,pc_b,pc_e,pc_a)) ->
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
     nclose specN ⊆ E →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable)
-             ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a)
+             ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ pc_a ↣ₐ w
-             ∗ dst ↣ᵣ inl n1
+             ∗ dst ↣ᵣ WInt n1
     ={E}=∗ ⤇ fill K (Instr NextI)
-        ∗ PC ↣ᵣ inr (pc_p,pc_b,pc_e,pc_a')
+        ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
-        ∗ dst ↣ᵣ inl (denote ins n1 n2). 
+        ∗ dst ↣ᵣ WInt (denote ins n1 n2).
   Proof.
     iIntros (Hdecode Hinstr Hpc_a Hvpc Hnclose) "(Hown & Hj & HPC & Hpc_a & Hdst)".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
