@@ -162,6 +162,46 @@ Proof.
   eapply lookup_weaken in Heq as ->; auto.
 Qed.
 
+(*--- otype_of_argument ---*)
+
+Definition otype_of_argument regs src :=
+  match z_of_argument regs src with
+  | Some n => z_to_otype n
+  | None => None
+  end.
+
+Lemma otype_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (o:OType) :
+  otype_of_argument regs arg = Some o →
+  ∃ z, z_to_otype z = Some o ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z)).
+Proof.
+  unfold otype_of_argument, z_of_argument.
+  intro. repeat case_match; simplify_eq/=; eauto. eexists. eauto.
+Qed.
+
+Lemma otype_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (o:OType) :
+  otype_of_argument regs arg = Some o →
+  regs ⊆ regs' →
+  ∃ z, z_to_otype z = Some o ∧
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z) ∧ regs' !! r = Some (WInt z)).
+Proof.
+  unfold otype_of_argument, z_of_argument.
+  intros ? HH. repeat case_match; simplify_eq/=; eauto. eexists. split; eauto.
+  unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
+Qed.
+
+Lemma otype_of_arg_mono (regs r: Reg) arg w:
+regs ⊆ r
+-> otype_of_argument regs arg = Some w
+-> otype_of_argument r arg = Some w.
+Proof.
+  intros.
+  unfold otype_of_argument, z_of_argument in *.
+  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  eapply lookup_weaken in Heq as ->; auto.
+Qed.
+
+
 
 Section opsem.
   Context `{MachineParameters}.
@@ -206,7 +246,6 @@ Section opsem.
       n ← z_of_argument (reg φ) ρ;
       wdst ← (reg φ) !! dst;
       match wdst with
-      | WInt _ => None
       | WCap p b e a =>
         match p with
         | E => None
@@ -215,19 +254,17 @@ Section opsem.
                | None => None
                end
         end
-      | WSealRange (p, b, e, a) =>
+      | WSealRange p b e a =>
          match (a + n) with
-          | Some a' => let c := (p, b, e, a') in
-                      updatePC (update_reg φ dst (WSealRange c))
-          | None => (Failed, φ)
+          | Some a' => updatePC (update_reg φ dst (WSealRange p b e a'))
+          | None => None
           end
-      | _ => (Failed, φ)
+      | _ => None
       end
     | Restrict dst ρ =>
       n ← z_of_argument (reg φ) ρ ;
       wdst ← (reg φ) !! dst;
       match wdst with
-      | WInt _ => None
       | WCap permPair b e a =>
         match permPair with
         | E => None
@@ -235,104 +272,98 @@ Section opsem.
                 updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else None
         end
-      | WSealRange (p, b, e, a) =>
+      | WSealRange p b e a =>
         if SealPermFlowsTo (decodeSealPerms n) p then
-              updatePC (update_reg φ dst (WSealRange (decodeSealPerms n, b, e, a)))
-        else (Failed, φ)
-      | _ => (Failed, φ)
+              updatePC (update_reg φ dst (WSealRange (decodeSealPerms n) b e a))
+        else None
+      | _ => None
       end
-     | Add dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
-     | Sub dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
-     | Lt dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
-    | Subseg dst ρ1 ρ2 =>
+    | Add dst ρ1 ρ2 =>
+    n1 ← z_of_argument (reg φ) ρ1;
+    n2 ← z_of_argument (reg φ) ρ2;
+    updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
+    | Sub dst ρ1 ρ2 =>
+    n1 ← z_of_argument (reg φ) ρ1;
+    n2 ← z_of_argument (reg φ) ρ2;
+    updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
+    | Lt dst ρ1 ρ2 =>
+    n1 ← z_of_argument (reg φ) ρ1;
+    n2 ← z_of_argument (reg φ) ρ2;
+    updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
+  | Subseg dst ρ1 ρ2 =>
+    wdst ← (reg φ) !! dst;
+    match wdst with
+    | WCap p b e a =>
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
-      wdst ← (reg φ) !! dst;
-      match wdst with
-      | WInt _ => None
-      | WCap p b e a =>
-        match p with
-        | E => None
-        | _ =>
-          if isWithin a1 a2 b e then
-            updatePC (update_reg φ dst (WCap p a1 a2 a))
-          else None
-        end
+      match p with
+      | E => None
+      | _ =>
+        if isWithin a1 a2 b e then
+          updatePC (update_reg φ dst (WCap p a1 a2 a))
+        else None
       end
-      | WSealRange (p, b, e, a) =>
-            match w1 with
-            | WInt n1 =>
-              match w2 with
-              | WInt n2 =>
-                match z_to_otype n1, z_to_otype n2 with
-                | Some o1, Some o2 =>
-                  if isWithin_o o1 o2 b e then
-                    updatePC (update_reg φ dst (WSealRange (p, o1, o2, a)))
-                  else (Failed, φ)
-                | _,_ => (Failed, φ)
-                end
-              | _ => (Failed, φ)
-              end
-            | _ => (Failed, φ)
-            end
-      | _ => (Failed, φ)
-    | GetA dst r =>
-      wr ← (reg φ) !! r;
-      match wr with
-      | WCap _ _ _ a => updatePC (update_reg φ dst (WInt a))
-      | WSealRange _ _ _ a => updatePC (update_reg φ dst (WInt a))
-      | _ => None
-      end
-    | GetB dst r =>
-      wr ← (reg φ) !! r;
-      match wr with
-      | WCap _ b _ _ => updatePC (update_reg φ dst (WInt b))
-      | WSealRange _ b _ _ => updatePC (update_reg φ dst (WInt b))
-      | _ => None
-      end
-    | GetE dst r =>
-      wr ← (reg φ) !! r;
-      match wr with
-      | WCap _ _ e _ => updatePC (update_reg φ dst (WInt e))
-      | WSealRange _ _ e _ => updatePC (update_reg φ dst (WInt e)
-      | _ => None
-      end
-    | GetP dst r =>
-      wr ← (reg φ) !! r;
-      match wr with
-      | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
-      | WSealRange p _ _ _ => updatePC (update_reg φ dst (WInt (encodeSealPerms p)))
-      | _ => None
-      end
-    | IsPtr dst r =>
-      wr ← (reg φ) !! r;
-      match wr with
-      | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
-      | _ => updatePC (update_reg φ dst (WInt 0%Z))
-    | Seal dst r1 r2 =>
-      match RegLocate (reg φ) r1, RegLocate (reg φ) r2 with
-      | WSealRange (p, b, e, a), WSealable sb =>
-        if permit_seal p && withinBounds_sr (p, b, e, a) then updatePC (update_reg φ dst (WSealed (a, sb)))
-        else (Failed, φ)
-      | _, _ => (Failed, φ)
-      end
-    | UnSeal dst r1 r2 =>
-      match RegLocate (reg φ) r1, RegLocate (reg φ) r2 with
-      | WSealRange (p, b, e, a), WSealed (a', sb) =>
-          if decide (permit_unseal p = true ∧ withinBounds_sr (p, b, e, a) = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
-          else (Failed, φ)
-      | _,_ => (Failed, φ)
-      end
-    end.
+    | WSealRange p b e a =>
+      o1 ← otype_of_argument (reg φ) ρ1;
+      o2 ← otype_of_argument (reg φ) ρ2;
+      if isWithin_o o1 o2 b e then
+        updatePC (update_reg φ dst (WSealRange p o1 o2 a))
+      else None
+    | _ => None
+    end
+  | GetA dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap _ _ _ a => updatePC (update_reg φ dst (WInt a))
+    | WSealRange _ _ _ a => updatePC (update_reg φ dst (WInt a))
+    | _ => None
+    end
+  | GetB dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap _ b _ _ => updatePC (update_reg φ dst (WInt b))
+    | WSealRange _ b _ _ => updatePC (update_reg φ dst (WInt b))
+    | _ => None
+    end
+  | GetE dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap _ _ e _ => updatePC (update_reg φ dst (WInt e))
+    | WSealRange _ _ e _ => updatePC (update_reg φ dst (WInt e))
+    | _ => None
+    end
+  | GetP dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
+    | WSealRange p _ _ _ => updatePC (update_reg φ dst (WInt (encodeSealPerms p)))
+    | _ => None
+    end
+  | IsPtr dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
+    | _ => updatePC (update_reg φ dst (WInt 0%Z))
+    end
+  | Seal dst r1 r2 =>
+    wr1 ← (reg φ) !! r1;
+    wr2 ← (reg φ) !! r2;
+    match wr1,wr2 with
+    | WSealRange p b e a, WSealable sb =>
+      if permit_seal p && withinBounds_sr b e a then updatePC (update_reg φ dst (WSealed a sb))
+      else None
+    | _, _ => None
+    end
+  | UnSeal dst r1 r2 =>
+    wr1 ← (reg φ) !! r1;
+    wr2 ← (reg φ) !! r2;
+    match wr1, wr2 with
+    | WSealRange p b e a, WSealed a' sb =>
+        if decide (permit_unseal p = true ∧ withinBounds_sr b e a = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
+        else None
+    | _,_ => None
+    end
+  end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
      match exec_opt i φ with | None => (Failed, φ) | Some conf => conf end .
@@ -557,7 +588,7 @@ Section opsem.
     unfold exec, exec_opt.
     repeat case_match; simplify_eq; eauto.
     (* Create more goals through *_of_argument, now that some have been pruned *)
-    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _); cbn in *; try by exfalso.
+    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (otype_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _); cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
     all: simplify_eq; try by exfalso.
