@@ -288,22 +288,22 @@ Section opsem.
     | GetA dst r =>
       wr ← (reg φ) !! r;
       match wr with
-      | WCap _ _ _ a => updatePC (update_reg φ dst (WInt (a : Z)))
-      | WSealRange _ _ _ a => updatePC (update_reg φ dst (WInt (a : Z)))
+      | WCap _ _ _ a => updatePC (update_reg φ dst (WInt a))
+      | WSealRange _ _ _ a => updatePC (update_reg φ dst (WInt a))
       | _ => None
       end
     | GetB dst r =>
       wr ← (reg φ) !! r;
       match wr with
-      | WCap _ b _ _ => updatePC (update_reg φ dst (WInt (b : Z)))
-      | WSealRange _ b _ _ => updatePC (update_reg φ dst (WInt (b : Z)))
+      | WCap _ b _ _ => updatePC (update_reg φ dst (WInt b))
+      | WSealRange _ b _ _ => updatePC (update_reg φ dst (WInt b))
       | _ => None
       end
     | GetE dst r =>
       wr ← (reg φ) !! r;
       match wr with
-      | WCap _ _ e _ => updatePC (update_reg φ dst (WInt (e : Z)))
-      | WSealRange _ _ e _ => updatePC (update_reg φ dst (WInt (e : Z)))
+      | WCap _ _ e _ => updatePC (update_reg φ dst (WInt e))
+      | WSealRange _ _ e _ => updatePC (update_reg φ dst (WInt e)
       | _ => None
       end
     | GetP dst r =>
@@ -630,4 +630,3 @@ Proof.
   generalize (normal_always_step σ); intros (?&?&?).
   eapply head_reducible_from_step. eauto.
 Qed.
-
