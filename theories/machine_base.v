@@ -87,91 +87,43 @@ Ltac destruct_word w :=
   let sr := fresh "sr" in
   let sd := fresh "sd" in
   destruct w as [ z | [c | sr] | sd].
-Ltac destruct_cap c :=
-  let p := fresh "p" in
-  let b := fresh "b" in
-  let e := fresh "e" in
-  let a := fresh "a" in
-  destruct c as (((p & b) & e) & a).
 
-(***** Identifying and extracting parts of words *****)
+(***** Identifying parts of words *****)
 
-(* TODO: These getters are probably not that useful anymore; remove? *)
 (* Z <-> Word *)
-Definition get_z (w : Word) : option Z :=
+Definition is_z (w : Word) : bool :=
   match w with
-  | WInt z => Some z
-  |  _ => None
+  | WInt z => true
+  |  _ => false
   end.
-Definition is_z (w: Word) : bool :=
-  if decide (get_z w ≠ None) then true else false.
-(* Example lemma's we want for each case *)
-Lemma get_is_z w z: get_z w = Some z → is_z w = true.
-Proof. unfold is_z, get_z. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_z_val w z : get_z w = Some z <-> w = WInt z.
-Proof. unfold get_z.  destruct w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_z (z : Z) : get_z (WInt z) = Some z.
-Proof. done. Qed.
 
 (* Sealable <-> Word *)
-Definition get_sealb (w : Word) : option Sealable :=
+Definition is_sealb (w : Word) : bool :=
   match w with
-  | WSealable sb => Some sb
-  |  _ => None
+  | WSealable sb => true
+  |  _ => false
   end.
-Definition is_sealb (w: Word) : bool :=
-  if decide (get_sealb w ≠ None) then true else false.
-Lemma get_is_sealb w sb: get_sealb w = Some sb → is_sealb w = true.
-Proof. unfold is_sealb, get_sealb. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealb_val w sb : get_sealb w = Some sb <-> w = WSealable sb.
-Proof. unfold get_sealb.  destruct w; split; intros Hw; inversion Hw; auto. Qed.
-Lemma get_put_sealb (sb : Sealable) : get_sealb (WSealable sb) = Some sb.
-Proof. done. Qed.
 
 (* Capability <-> Word *)
-Definition get_cap (w : Word) : option (Perm * Addr * Addr * Addr) :=
+Definition is_cap (w : Word) : bool :=
   match w with
-  | WCap p b e a => Some (p,b,e,a)
-  |  _ => None
+  | WCap p b e a => true
+  |  _ => false
   end.
-Definition is_cap (w: Word) : bool :=
-  if decide (get_cap w ≠ None) then true else false.
-Lemma get_is_cap w c: get_cap w = Some c → is_cap w = true.
-Proof. unfold is_cap, get_cap. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_cap_val w p b e a  : get_cap w = Some (p,b,e,a) <-> w = WCap p b e a .
-Proof. unfold get_cap. destruct_word w; split; congruence.  Qed.
-Lemma get_WCap p b e a : get_cap (WCap p b e a) = Some (p,b,e,a).
-Proof. done. Qed.
 
 (* SealRange <-> Word *)
-Definition get_sealr (w : Word) : option (Seal_Perms * OType * OType * OType) :=
+Definition is_sealr (w : Word) : bool :=
   match w with
-  | WSealRange p b e a => Some (p,b,e,a)
-  |  _ => None
+  | WSealRange p b e a => true
+  |  _ => false
   end.
-Definition is_sealr (w: Word) : bool :=
-  if decide (get_sealr w ≠ None) then true else false.
-Lemma get_is_sealr w sr: get_sealr w = Some sr → is_sealr w = true.
-Proof. unfold is_sealr, get_sealr. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealr_val w p b e a : get_sealr w = Some (p,b,e,a) <-> w = WSealRange p b e a.
-Proof. unfold get_sealr. destruct_word w; split; congruence. Qed.
-Lemma get_WSealRange p b e a : get_sealr (WSealRange p b e a) = Some (p,b,e,a).
-Proof. done. Qed.
 
 (* Sealed <-> Word *)
-Definition get_sealed (w : Word) : option (OType * Sealable) :=
+Definition is_sealed (w : Word) : bool :=
   match w with
-  | WSealed a sb => Some (a,sb)
-  |  _ => None
+  | WSealed a sb => true
+  |  _ => false
   end.
-Definition is_sealed (w: Word) : bool :=
-  if decide (get_sealed w ≠ None) then true else false.
-Lemma get_is_sealed w sd: get_sealed w = Some sd → is_sealed w = true.
-Proof. unfold is_sealed, get_sealed. case_decide; auto. destruct _; intro; congruence. Qed.
-Lemma get_sealed_val w a sb : get_sealed w = Some (a,sb) <-> w = WSealed a sb.
-Proof. unfold get_sealed. destruct_word w; split; congruence. Qed.
-Lemma get_WSealed a sb : get_sealed (WSealed a sb) = Some (a,sb).
-Proof. done. Qed.
 
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
@@ -373,22 +325,14 @@ Qed.
 
 Definition nonZero (w: Word): bool :=
   match w with
-  | WCap _ _ _ _ => true
   | WInt n => Zneq_bool n 0
+  | _ => true
   end.
 
 Definition cap_size (w : Word) : Z :=
-  match get_cap w with
-  | Some (_,b,e,_) => (e - b)%Z
   match w with
   | WCap _ b e _ => (e - b)%Z
   | _ => 0%Z
-  end.
-
-Definition is_cap (w: Word): bool :=
-  match w with
-  | WCap _ _ _ _ => true
-  |  _ => false
   end.
 
 (* Bound checking *)
@@ -396,10 +340,8 @@ Definition is_cap (w: Word): bool :=
 Definition withinBounds b e a: bool :=
   (b <=? a)%a && (a <? e)%a.
 
-Definition withinBounds_sr (s: SealRange): bool :=
-  match s with
-  | (_, b, e, a) => (b <=? a) && (a <? e)
-  end.
+Definition withinBounds_sr (b e a : nat): bool :=
+  (b <=? a) && (a <? e).
 
 Lemma withinBounds_true_iff b e a :
   withinBounds b e a = true ↔ (b <= a)%a ∧ (a < e)%a.
@@ -409,8 +351,8 @@ Proof.
   rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
 Qed.
 
-Lemma withinBounds_sr_true_iff p b e a :
-  withinBounds_sr p b e a = true ↔ (b <= a) ∧ (a < e).
+Lemma withinBounds_sr_true_iff b e a :
+  withinBounds_sr b e a = true ↔ (b <= a) ∧ (a < e).
 Proof.
   unfold withinBounds_sr.
   rewrite andb_true_iff leb_le ltb_lt. auto.
@@ -421,8 +363,8 @@ Lemma withinBounds_le_addr b e a:
   (b <= a)%a ∧ (a < e)%a.
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma withinBounds_sr_le_addr p b e a:
-  withinBounds_sr p b e a = true →
+Lemma withinBounds_sr_le_addr b e a:
+  withinBounds_sr b e a = true →
   (b <= a) ∧ (a < e).
 Proof. rewrite withinBounds_sr_true_iff //. Qed.
 
@@ -497,9 +439,9 @@ Qed.
 Definition InBounds_o (b e: OType) (a: OType) :=
   (b <= a) ∧ (a < e).
 
-Lemma withinBounds_o_InBounds_sr p b e a :
+Lemma withinBounds_o_InBounds_sr b e a :
   InBounds_o b e a →
-  withinBounds_sr (p, b, e, a) = true.
+  withinBounds_sr b e a = true.
 Proof.
   intros [? ?]. unfold withinBounds_sr.
   apply andb_true_intro.
@@ -537,14 +479,17 @@ Lemma isCorrectPC_dec:
 Proof.
   destruct w.
   - right. red; intros H. inversion H.
-  - case_eq (match p with RX | RWX => true | _ => false end); intros.
-    + destruct (Addr_le_dec b a).
-      * destruct (Addr_lt_dec a e).
-        { left.  econstructor; simpl; eauto. by auto.
-          destruct p; naive_solver. }
-        { right. intro HH. inversion HH; subst. solve_addr. }
-      * right. intros HH; inversion HH; subst. solve_addr.
-    + right. red; intros HH; inversion HH; subst. naive_solver.
+  - destruct sb as [p b e a | ].
+    -- case_eq (match p with RX | RWX => true | _ => false end); intros.
+      + destruct (Addr_le_dec b a).
+        * destruct (Addr_lt_dec a e).
+          { left.  econstructor; simpl; eauto. by auto.
+            destruct p; naive_solver. }
+          { right. intro HH. inversion HH; subst. solve_addr. }
+        * right. intros HH; inversion HH; subst. solve_addr.
+      + right. red; intros HH; inversion HH; subst. naive_solver.
+    -- right. red; intros H. inversion H.
+ - right. red; intros H. inversion H.
 Qed.
 
 Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
@@ -575,25 +520,28 @@ Proof.
 Qed.
 
 Definition isCorrectPCb (w: Word): bool :=
-  match get_cap w with
-  | None => false
-  | Some (p, b, e, a) =>
+  match w with
+  | WCap p b e a =>
     (b <=? a)%a && (a <? e)%a &&
     (isPerm p RX || isPerm p RWX)
+  | _ => false
   end.
 
 Lemma isCorrectPCb_isCorrectPC w :
   isCorrectPCb w = true ↔ isCorrectPC w.
 Proof.
-  rewrite /isCorrectPCb. destruct (get_cap w) eqn:HCap.
-  2 : { split; [done |]. inversion 1; subst w. rewrite get_WCap in HCap. by exfalso. }
-  { destruct_cap c. apply get_cap_val in HCap as ->.
+  rewrite /isCorrectPCb. destruct w eqn:HCap.
+
+  { split; inversion 1. }
+  { destruct sb as [p b e a |].
+    2: { split; inversion 1. }
     rewrite /leb_addr /ltb_addr.
     rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
     { intros [? ?]. constructor. solve_addr. naive_solver. }
     { inversion 1; subst. split. solve_addr. naive_solver. } }
+  { split; inversion 1. }
 Qed.
 
 Lemma isCorrectPCb_nisCorrectPC w :
@@ -705,18 +653,40 @@ Proof.
   intro p. destruct p; reflexivity.
 Defined.
 
-(* Note that proof search finds this instance automatically, which suggests that it is redundant. *)
-Instance cap_countable : Countable Cap.
+Instance sealable_countable : Countable Sealable.
 Proof.
-  (* NB: this relies on the fact that cap_eq_dec has been Defined, because the
-  eq decision we have for Cap has to match the one used in the conclusion of the
-  lemma... *)
-  apply _.
+  set (enc := fun sb =>
+       match sb with
+       | SCap p b e a => inl (p,b,e,a)
+       | SSealRange p b e a => inr (p,b,e,a) end
+      ).
+  set (dec := fun e =>
+       match e with
+       | inl (p,b,e,a) => SCap p b e a
+       | inr (p,b,e,a) => SSealRange p b e a end
+      ).
+  refine (inj_countable' enc dec _).
+  intros i. destruct i; simpl; done.
 Defined.
 
 (* Same here *)
 Instance word_countable : Countable Word.
-Proof. apply _. Defined.
+Proof.
+  set (enc := fun w =>
+      match w with
+      | WInt z => inl z
+      | WSealable sb => inr (inl sb)
+      | WSealed x x0 => inr (inr (x, x0))
+      end ).
+  set (dec := fun e =>
+      match e with
+      | inl z => WInt z
+      | inr (inl sb) => WSealable sb
+      | inr (inr (x, x0)) => WSealed x x0
+      end ).
+  refine (inj_countable' enc dec _).
+  intros i. destruct i; simpl; done.
+Defined.
 
 Instance instr_countable : Countable instr.
 Proof.
