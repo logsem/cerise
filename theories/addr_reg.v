@@ -3,6 +3,8 @@ From Coq.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
 From Coq Require Import ssreflect.
 From cap_machine Require Import stdpp_extra.
+Global Open Scope general_if_scope.
+
 
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
@@ -427,7 +429,7 @@ Defined.
 
 Lemma n_of_to_otype_id (o : OType) : (n_to_otype o) = Some o.
 Proof. destruct o. unfold n_of_otype, n_to_otype.
-       assert (fin' := fin). rewrite Nat.leb_le in fin'.
+       assert (fin' := fin). rewrite -> Nat.leb_le in fin'.
        destruct (nat_le_dec _ _) as [? | Hne]; [| congruence].
        repeat f_equal. apply eq_proofs_unicity; decide equality.
 Qed.
@@ -466,7 +468,7 @@ Proof.
 Defined.
 
 Lemma otype_spec (o: OType) : (o <= ONum)%Z ∧ (0 <= o)%Z.
-Proof. destruct o. cbn. rewrite leb_le in fin. lia. Qed.
+Proof. destruct o. cbn. rewrite -> leb_le in fin. lia. Qed.
 
 Lemma z_to_otype_z_of (o:OType) :
   z_to_otype o = Some o.
