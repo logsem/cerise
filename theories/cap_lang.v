@@ -260,28 +260,19 @@ Section opsem.
       wr ← (reg φ) !! r;
       match wr with
       | WInt _ => None
-      | WCap _ _ _ a =>
-        match a with
-        | A a' _ _ => updatePC (update_reg φ dst (WInt a'))
-        end
+      | WCap _ _ _ a => updatePC (update_reg φ dst (WInt a))
       end
     | GetB dst r =>
       wr ← (reg φ) !! r;
       match wr with
       | WInt _ => None
-      | WCap _ b _ _ =>
-        match b with
-        | A b' _ _ => updatePC (update_reg φ dst (WInt b'))
-        end
+      | WCap _ b _ _ => updatePC (update_reg φ dst (WInt b))
       end
     | GetE dst r =>
       wr ← (reg φ) !! r;
       match wr with
       | WInt _ => None
-      | WCap _ _ e _ =>
-        match e with
-        | A e' _ _ => updatePC (update_reg φ dst (WInt e'))
-        end
+      | WCap _ _ e _ => updatePC (update_reg φ dst (WInt e))
       end
     | GetP dst r =>
       wr ← (reg φ) !! r;
