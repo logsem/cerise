@@ -625,9 +625,6 @@ Ltac destruct_pair_l c n :=
         destruct c as (c,sndn); destruct_pair_l c (pred n)
   end.
 
-(* Ltac destruct_cap c := *)
-(*   destruct_pair_l c 3. *)
-
 (* Useful instances *)
 
 Instance perm_countable : Countable Perm.

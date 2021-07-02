@@ -651,7 +651,7 @@ Lemma incrementPC_Some_inv regs regs' :
     regs' = <[ PC := WCap p b e a' ]> regs.
 Proof.
   unfold incrementPC.
-  destruct (regs !! PC) as [ [| ? ? ? u ] |];
+  destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] | ];
     try congruence.
   case_eq (u+1)%a; try congruence. intros ? ?. inversion 1.
   do 5 eexists. split; eauto.
@@ -663,7 +663,7 @@ Lemma incrementPC_None_inv regs pg b e a :
   (a + 1)%a = None.
 Proof.
   unfold incrementPC.
-  destruct (regs !! PC) as [ [| ? ? ? u ] |];
+  destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] |];
     try congruence.
   case_eq (u+1)%a; congruence.
 Qed.
@@ -676,7 +676,7 @@ Lemma incrementPC_overflow_mono regs regs' :
 Proof.
   intros Hi HPC Hincl. unfold incrementPC in *. destruct HPC as [c HPC].
   pose proof (lookup_weaken _ _ _ _ HPC Hincl) as HPC'.
-  rewrite HPC HPC' in Hi |- *. destruct c as [| ? ? ? aa]; auto.
+  rewrite HPC HPC' in Hi |- *. destruct c as [| [? ? ? aa | ] | ]; auto.
   destruct (aa+1)%a; last by auto. congruence.
 Qed.
 
@@ -687,7 +687,7 @@ Lemma incrementPC_fail_updatePC regs m :
 Proof.
    rewrite /incrementPC /updatePC /=.
    destruct (regs !! PC) as [X|]; auto.
-   destruct X as [| ? ? ? a']; auto.
+   destruct X as [| [? ? ? a' | ] |]; auto.
    destruct (a' + 1)%a; auto. congruence.
 Qed.
 
@@ -701,7 +701,7 @@ Lemma incrementPC_success_updatePC regs m regs' :
 Proof.
   rewrite /incrementPC /updatePC /update_reg /=.
   destruct (regs !! PC) as [X|] eqn:?; auto; try congruence; [].
-  destruct X as [| ? ? ? a'] eqn:?; try congruence; [].
+  destruct X as [| [? ? ? a'|]|] eqn:?; try congruence; [].
   destruct (a' + 1)%a eqn:?; [| congruence]. inversion 1; subst regs'.
   do 5 eexists. repeat split; auto.
 Qed.
@@ -714,7 +714,7 @@ Proof.
   intros * Hincl Hu. rewrite /updatePC /= in Hu |- *.
   destruct (regs !! PC) as [ w1 |] eqn:Hrr.
   { pose proof (lookup_weaken _ _ _ _ Hrr Hincl) as Hregs'. rewrite Hregs'.
-    destruct w1 as [| ? ? ? a1 ]; simplify_eq.
+    destruct w1 as [|[ ? ? ? a1|] | ]; simplify_eq.
     destruct (a1 + 1)%a eqn:Ha1; simplify_eq. rewrite /update_reg /=.
     f_equal. f_equal.
     assert (HH: forall (reg1 reg2:Reg), reg1 = reg2 -> reg1 !! PC = reg2 !! PC)
@@ -731,7 +731,7 @@ Lemma updatePC_fail_incl m m' regs regs' :
 Proof.
   intros [w HPC] Hincl Hfail. rewrite /updatePC /= in Hfail |- *.
   rewrite !HPC in Hfail. have -> := lookup_weaken _ _ _ _ HPC Hincl.
-  destruct w as [| ? ? ? a1]; simplify_eq; auto;[].
+  destruct w as [| [? ? ? a1 | ] |]; simplify_eq; auto;[].
   destruct (a1 + 1)%a; simplify_eq; auto.
 Qed.
 
