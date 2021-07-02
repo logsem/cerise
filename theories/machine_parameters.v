@@ -16,9 +16,9 @@ Class MachineParameters := {
   decode_encode_perm_inv :
     forall pl, decodePerm (encodePerm pl) = pl;
 
-  encodeSealPerms : Seal_Perms → Z;
+  encodeSealPerms : SealPerms → Z;
   encodeSealPerms_inj : Inj eq eq encodeSealPerms;
-  decodeSealPerms : Z → Seal_Perms;
+  decodeSealPerms : Z → SealPerms;
 
   decode_encode_seal_perms_inv :
     forall pl, decodeSealPerms (encodeSealPerms pl) = pl;

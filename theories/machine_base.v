@@ -18,15 +18,15 @@ Inductive Perm: Type :=
 | E
 | RWX.
 
-Definition Seal_Perms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
-Definition permit_seal (s : Seal_Perms) :=
+Definition SealPerms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
+Definition permit_seal (s : SealPerms) :=
   s.1.
-Definition permit_unseal (s : Seal_Perms) :=
+Definition permit_unseal (s : SealPerms) :=
   s.2.
 
 Inductive Sealable: Type :=
 | SCap: Perm -> Addr -> Addr -> Addr -> Sealable
-| SSealRange: Seal_Perms -> OType -> OType -> OType -> Sealable.
+| SSealRange: SealPerms -> OType -> OType -> OType -> Sealable.
 
 (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
 Inductive Word: Type :=
@@ -283,7 +283,7 @@ Proof.
   intros [-> | ->]; reflexivity.
 Qed.
 
-Definition SealPermFlowsTo (s1 s2 : Seal_Perms): bool :=
+Definition SealPermFlowsTo (s1 s2 : SealPerms): bool :=
   (if permit_seal(s1) then permit_seal(s2) else true) &&
   (if permit_unseal(s1) then permit_unseal(s2) else true).
 
