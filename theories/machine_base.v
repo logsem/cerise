@@ -125,6 +125,13 @@ Definition is_sealed (w : Word) : bool :=
   |  _ => false
   end.
 
+(* non-E capability or range of seals *)
+Definition is_mutable_range (w : Word) : bool:=
+  match w with
+  | WCap p _ _ _ => match p with | E  => false | _ => true end
+  | WSealRange _ _ _ _ => true
+  | _ => false end.
+
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
   match p with

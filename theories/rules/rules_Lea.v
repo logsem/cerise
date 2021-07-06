@@ -16,19 +16,13 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition lea_allowed (w : Word) : bool:=
-    match w with
-    | WCap p _ _ _ => match p with | E  => false | _ => true end
-    | WSealRange _ _ _ _ => true
-    | _ => false end.
-
   Inductive Lea_failure (regs: Reg) (r1: RegName) (rv: Z + RegName) :=
   | Lea_fail_rv_nonconst :
      z_of_argument regs rv = None ->
      Lea_failure regs r1 rv
   | Lea_fail_allowed : forall w,
      regs !! r1 = Some w ->
-     lea_allowed w = false →
+     is_mutable_range w = false →
      Lea_failure regs r1 rv
   | Lea_fail_overflow_cap : forall p b e a z,
      regs !! r1 = Some (WCap p b e a) ->
@@ -120,9 +114,9 @@ Section cap_lang_rules.
        iFailWP "Hφ" Lea_fail_rv_nonconst. }
      apply (z_of_arg_mono _ r) in Harg; auto. rewrite Harg in Hstep; cbn in Hstep.
 
-     destruct (lea_allowed r1v) eqn:Hr1v.
-     2: { (* Failure: r1 is not of the right type *)
-       unfold lea_allowed in Hr1v.
+     destruct (is_mutable_range r1v) eqn:Hr1v.
+     2: { (* Failure: r1v is not of the right type *)
+       unfold is_mutable_range in Hr1v.
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
        { destruct r1v as [ | [p b e a | ] | ]; try by inversion Hr1v.
          all: try by simplify_pair_eq.
@@ -136,7 +130,7 @@ Section cap_lang_rules.
 
      (* First, the case where r1v is a capability *)
      + destruct (perm_eq_dec p E); [ subst p |].
-       { rewrite /lea_allowed in Hr1v; congruence. }
+       { rewrite /is_mutable_range in Hr1v; congruence. }
 
        destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
        { (* Failure: offset is too large *)
