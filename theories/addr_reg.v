@@ -457,7 +457,9 @@ Program Definition incr_otype (o: OType) (z: Z): option OType :=
 Next Obligation.
   intros. apply leb_le. lia.
 Defined.
-Notation "o + z" := (incr_otype o z).
+Declare Scope Otype_scope.
+Delimit Scope Otype_scope with ot.
+Notation "o + z" := (incr_otype o z) : Otype_scope.
 
 (* Map Z into OTypes *)
 Definition z_to_otype (z : Z) : option OType.

@@ -255,7 +255,7 @@ Section opsem.
                end
         end
       | WSealRange p b e a =>
-         match (a + n) with
+         match (a + n)%ot with
           | Some a' => updatePC (update_reg φ dst (WSealRange p b e a'))
           | None => None
           end
