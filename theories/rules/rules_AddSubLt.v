@@ -101,9 +101,10 @@ Section cap_lang_rules.
     (* Failure: arg1 is not an integer *)
     { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn1. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
+      { rewrite Hr'0 in Hn1.
+        destruct_word r0v; try congruence.
+        all: destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst1. }
     apply (z_of_arg_mono _ r) in Hn1; auto.
@@ -113,9 +114,10 @@ Section cap_lang_rules.
     (* Failure: arg2 is not an integer *)
     { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn2. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
+      {
+        rewrite Hr'0 in Hn2. destruct_word r0v; try congruence.
+        all: destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst2. }
     apply (z_of_arg_mono _ r) in Hn2; auto.
