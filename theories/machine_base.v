@@ -347,7 +347,7 @@ Definition cap_size (w : Word) : Z :=
 Definition withinBounds b e a: bool :=
   (b <=? a)%a && (a <? e)%a.
 
-Definition withinBounds_sr (b e a : nat): bool :=
+Definition withinBounds_sr (b e a : OType): bool :=
   (b <=? a) && (a <? e).
 
 Lemma withinBounds_true_iff b e a :

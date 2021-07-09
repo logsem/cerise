@@ -357,6 +357,7 @@ Section cap_lang_rules.
    Qed.
 
    (* Similar rules in case we have a SealRange instead of a capability, where some cases are impossible, because a SealRange is not a valid PC *)
+
    Lemma wp_lea_success_reg_sr Ep pc_p pc_b pc_e pc_a pc_a' w r1 rv p b e a z a' :
      decodeInstrW w = Lea r1 (inr rv) →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →

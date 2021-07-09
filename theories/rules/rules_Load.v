@@ -196,7 +196,6 @@ Section cap_lang_rules.
 
      (* Prove that a is in the memory map now, otherwise we cannot continue *)
      pose proof (allow_load_implies_loadv r2 mem regs p b e a) as (loadv & Hmema); auto.
-
      iDestruct (gen_mem_valid_inSepM mem m a loadv with "Hm Hmem" ) as %Hma' ; auto.
 
      rewrite Hma' /= in Hstep.

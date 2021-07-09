@@ -258,7 +258,7 @@ Section cap_lang_rules.
        rewrite !insert_insert.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H3; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H2. all:try congruence. done.
      }
@@ -301,7 +301,7 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H3. congruence. done. congruence.
      }
@@ -342,7 +342,7 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
       { (* Failure (contradiction) *)
-       destruct H3; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct o; last apply Is_true_false in H2. congruence. done. congruence.
      }
@@ -386,7 +386,7 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: congruence.
      }
      Qed.
@@ -448,7 +448,7 @@ Section cap_lang_rules.
          iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame.
      }
      { (* Failure (contradiction) *)
-       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
    Qed.
@@ -544,7 +544,7 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H4; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
    Qed.
@@ -589,7 +589,7 @@ Section cap_lang_rules.
        do 2 rewrite insert_insert.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H6; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
    Qed.
@@ -637,7 +637,7 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H7; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
     Qed.
@@ -683,7 +683,7 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
     Qed.
@@ -729,7 +729,7 @@ Section cap_lang_rules.
        rewrite insert_insert.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
-       destruct H5; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
      }
     Qed.
