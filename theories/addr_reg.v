@@ -286,7 +286,6 @@ Proof.
   - exfalso. by apply (Z.leb_le z MemNum) in fin.
 Defined.
 
-(* XXX is this handled by solve_addr? *)
 Definition le_lt_addr : Addr → Addr → Addr → Prop :=
   λ a1 a2 a3, (a1 <= a2 < a3)%Z.
 Definition le_addr : Addr → Addr → Prop :=
