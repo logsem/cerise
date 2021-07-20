@@ -228,4 +228,18 @@ Section fundamental.
     iFrame.
   Qed.
 
+  Lemma region_integers_alloc' E (b e a: Addr) l p :
+    Forall (λ w, is_cap w = false) l →
+    ([∗ list] a;w ∈ region_addrs b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hl) "H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply region_integers_alloc; eauto.
+  Qed.
+
 End fundamental.
