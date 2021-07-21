@@ -525,7 +525,7 @@ Section Contiguous.
     destruct (contiguous_between_app a (take n1 a) (drop n1 a) i j k); auto.
     by rewrite take_drop.
     { rewrite take_length Hlength. subst k. solve_addr. }
-    rewrite take_length. repeat split; eauto. rewrite Nat.min_l; solve_addr.
+    rewrite take_length. repeat split; eauto. rewrite Nat.min_l; subst k; solve_addr.
   Qed.
 
   (* Helper lemma for contiguous lists of size 2: useful for the push macro *)

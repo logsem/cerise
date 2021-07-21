@@ -7,6 +7,12 @@ From cap_machine Require Import addr_reg.
 (* This is implemented as a zify-like tactic, that sends arithmetic on adresses
    into Z, and then calls lia *)
 
+(* Faster alternative to [set (H := v) in *] *)
+(* https://github.com/coq/coq/issues/13788#issuecomment-767217670 *)
+Ltac fast_set H v :=
+  pose v as H; change v with H;
+  repeat match goal with H' : context[v] |- _ => change v with H in H' end.
+
 Lemma incr_addr_spec (a: Addr) (z: Z) :
   (exists (a': Addr),
    (a + z)%a = Some a' ∧ a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z
@@ -21,7 +27,7 @@ Qed.
 Ltac incr_addr_as_spec a x :=
   generalize (incr_addr_spec a x); intros [(?&?&?&?&?)|(?&[?|?])];
   let ax := fresh "ax" in
-  set (ax := (incr_addr a x)) in *;
+  fast_set ax (incr_addr a x);
   clearbody ax; subst ax.
 
 (* Non-branching lemma for the special case of an assumption [(a + z) = Some a'],
@@ -33,6 +39,40 @@ Proof.
   unfold incr_addr.
   destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); inversion 1.
   repeat split; lia.
+Qed.
+
+Lemma z_to_addr_spec (z: Z) :
+  (exists (a: Addr),
+    z_to_addr z = Some a ∧ z_of a = z) ∨
+  (z_to_addr z = None ∧ (z > MemNum ∨ z < 0))%Z.
+Proof.
+  unfold z_to_addr.
+  destruct (Z_le_dec z MemNum).
+  { destruct (Z_le_dec 0 z).
+    { left. eexists. split; auto. }
+    { right; split; auto; lia. } }
+  { right. destruct (Z_le_dec 0 z); split; auto; lia. }
+Qed.
+
+Ltac z_to_addr_as_spec z :=
+  generalize (z_to_addr_spec z); intros [[? [? ?]] | [? [?|?]]];
+  let o := fresh "o" in
+  fast_set o (z_to_addr z);
+  clearbody o; subst o.
+
+Lemma z_to_addr_is_Some_spec z a :
+  z_to_addr z = Some a →
+  z_of a = z.
+Proof.
+  destruct (z_to_addr_spec z) as [[? [? ?]]|[? ?]]; congruence.
+Qed.
+
+Lemma z_to_addr_Some_spec z a :
+  z_of a = z →
+  z_to_addr z = Some a.
+Proof.
+  intros. destruct (z_to_addr_spec z) as [[? [? ?]]|[? ?]].
+  all: subst; rewrite z_to_addr_z_of in *; auto.
 Qed.
 
 Lemma Some_eq_inj A (x y: A) :
@@ -101,6 +141,10 @@ Ltac zify_addr_op_nonbranching_step :=
   | H : incr_addr _ _ = Some _ |- _ =>
     apply incr_addr_Some_spec in H;
     destruct H as (? & ? & ?)
+  | H : z_to_addr _ = Some _ |- _ =>
+    apply z_to_addr_is_Some_spec in H
+  | |- z_to_addr _ = Some _ =>
+    apply z_to_addr_Some_spec
   end || zify_addr_op_nonbranching_step_hook.
 
 (* We need some reduction, but naively calling "cbn in *" causes performance
@@ -125,19 +169,17 @@ Ltac zify_addr_op_branching_goal_step :=
   lazymatch goal with
   | |- context [ incr_addr ?a ?x ] =>
     incr_addr_as_spec a x
+  | |- context [ z_to_addr ?x ] =>
+    z_to_addr_as_spec x
   end.
 
 Ltac zify_addr_op_branching_hyps_step :=
   lazymatch goal with
   | _ : context [ incr_addr ?a ?x ] |- _ =>
     incr_addr_as_spec a x
+  | _ : context [ z_to_addr ?x ] |- _ =>
+    z_to_addr_as_spec x
   end.
-
-(* Faster alternative to [set (H := v) in *] *)
-(* https://github.com/coq/coq/issues/13788#issuecomment-767217670 *)
-Ltac fast_set H v :=
-  pose v as H; change v with H;
-  repeat match goal with H' : context[v] |- _ => change v with H in H' end.
 
 Ltac zify_addr_ty_step :=
   lazymatch goal with
@@ -223,6 +265,11 @@ Proof.
   solve_addr_close_proof.
   solve_addr_close_proof.
 Qed.
+
+Goal forall a a',
+  (a + 15)%a = Some a' →
+  z_to_addr (a + 4) = Some (a ^+ 4)%a.
+Proof. solve_addr. Qed.
 
 (* --------------------------- BASIC LEMMAS --------------------------------- *)
 
