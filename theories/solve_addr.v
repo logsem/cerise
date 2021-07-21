@@ -41,6 +41,14 @@ Proof.
   repeat split; lia.
 Qed.
 
+Lemma incr_addr_is_Some_spec (a: Addr) z :
+  (a + z ≤ MemNum ∧ 0 ≤ a + z)%Z →
+  is_Some (a + z)%a.
+Proof.
+  unfold incr_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; lia.
+Qed.
+
 Lemma z_to_addr_spec (z: Z) :
   (exists (a: Addr),
     z_to_addr z = Some a ∧ z_of a = z) ∨
@@ -138,9 +146,14 @@ Ltac zify_addr_op_nonbranching_step :=
   | |- context [ max ?a1 ?a2 ] =>
     max_addr_as_spec a1 a2
 
+  | H : is_Some (incr_addr _ _) |- _ =>
+    destruct H
   | H : incr_addr _ _ = Some _ |- _ =>
     apply incr_addr_Some_spec in H;
     destruct H as (? & ? & ?)
+  | |- is_Some (incr_addr _ _) =>
+    apply incr_addr_is_Some_spec
+
   | H : z_to_addr _ = Some _ |- _ =>
     apply z_to_addr_is_Some_spec in H
   | |- z_to_addr _ = Some _ =>

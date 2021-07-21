@@ -8,7 +8,8 @@ Ltac without_evars c :=
 
 Global Ltac zify_addr_op_nonbranching_step_hook ::=
   lazymatch goal with
-  | H : ContiguousRegion _ _ |- _ => destruct H
+  | H : ContiguousRegion _ _ |- _ => unfold ContiguousRegion in H
+  | |- ContiguousRegion _ _ => unfold ContiguousRegion
   | H : SubBounds _ _ _ _ |- _ => unfold SubBounds in H
   | |- SubBounds ?b ?e ?b' ?e' =>
     without_evars b; without_evars e; without_evars b'; without_evars e';
