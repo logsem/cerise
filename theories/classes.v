@@ -38,6 +38,10 @@ Class AddrEq (a b: Addr) (res: bool) :=
   MkAddrEq: res = true → a = b.
 #[global] Hint Mode AddrEq + + - : typeclass_instances.
 
+Class ZToAddr (z: Z) (a: Addr) :=
+  MkZToAddr: z_to_addr z = Some a.
+#[global] Hint Mode ZToAddr ! - : typeclass_instances.
+
 (* Other *)
 
 Class DecodeInstr `{MachineParameters} (w: Word) (i: instr) :=

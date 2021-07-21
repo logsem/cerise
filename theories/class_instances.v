@@ -72,6 +72,10 @@ Proof. intros ->. constructor. Qed.
 Instance AddrEq_default_neq a a' : AddrEq a a' false | 100.
 Proof. inversion 1. Qed.
 
+Instance ZToAddr_z_of a :
+  ZToAddr (z_of a) a.
+Proof. apply z_to_addr_z_of. Qed.
+
 (* other *)
 
 Instance DecodeInstr_encode `{MachineParameters} (i: instr) :

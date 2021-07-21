@@ -279,7 +279,15 @@ Proof. auto. Qed.
 
 (* z_to_addr *)
 
-#[export] Hint Resolve z_to_addr_z_of : cap_pure.
+(* Again, we go through a proxy lemma to be able to specify a Hint Mode on z/a
+   (see classes.v) *)
+
+Lemma z_to_addr_ZToAddr z a :
+  ZToAddr z a →
+  z_to_addr z = Some a.
+Proof. auto. Qed.
+
+#[export] Hint Resolve z_to_addr_ZToAddr : cap_pure.
 
 (* *)
 
@@ -388,3 +396,8 @@ Goal forall (a: Addr) z, exists z' a',
   ContiguousRegion a z →
   IncrAddr a z' a'.
 Proof. intros. do 2 eexists. intros. Fail solve_pure. Abort.
+
+(* Check that the hint corresponding to z_to_addr_z_of does not apply too
+   eagerly *)
+Goal exists a b, z_to_addr a = Some b.
+Proof. intros. do 2 eexists. Fail solve_pure. Abort.
