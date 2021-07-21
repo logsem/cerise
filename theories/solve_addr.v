@@ -194,15 +194,30 @@ Ltac zify_addr_op_branching_hyps_step :=
     z_to_addr_as_spec x
   end.
 
-Ltac zify_addr_ty_step :=
+Ltac zify_addr_ty_step_on a :=
+  generalize (addr_spec a); intros [? ?];
+  let z := fresh "z" in
+  fast_set z (z_of a);
+  clearbody z;
+  first [ clear a | revert dependent a ].
+
+Ltac zify_addr_ty_step_var :=
   lazymatch goal with
-  | a : Addr |- _ =>
-    generalize (addr_spec a); intros [? ?];
-    let z := fresh "z" in
-    fast_set z (z_of a);
-    clearbody z;
-    first [ clear a | revert dependent a ]
+  | a : Addr |- _ => zify_addr_ty_step_on a
   end.
+
+Ltac zify_addr_ty_step_subterm :=
+  match goal with
+  | H : context [ ?x ] |- _ =>
+    lazymatch type of x with Addr =>
+      let X := fresh in
+      set (X := x) in *;
+      zify_addr_ty_step_on X
+    end
+  end.
+
+Ltac zify_addr_ty_step :=
+  first [ zify_addr_ty_step_var | zify_addr_ty_step_subterm ].
 
 (** zify_addr **)
 (* This greedily translates all the address-related terms in the goal and in the
