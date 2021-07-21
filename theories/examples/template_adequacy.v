@@ -5,7 +5,8 @@ From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
-From cap_machine.examples Require Import addr_reg_sample mkregion_helpers.
+From cap_machine.examples Require Import addr_reg_sample.
+From cap_machine.examples Require Export mkregion_helpers.
 
 Record prog := MkProg {
   prog_start: Addr;
@@ -283,13 +284,14 @@ Section Adequacy.
     minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
-    (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
+    (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
      ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
        ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
        ∗ r_t0 ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
-       ∗ interp (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv))
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
        ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
@@ -361,11 +363,7 @@ Section Adequacy.
       destruct (decide (r = r_t0)); subst; [by eauto|].
       destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
 
-    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". apply prog_size.
-    iDestruct (@region_integers_alloc _ memg with "Hadv") as ">Hadv".
-      by eapply Hadv. by assert (PermFlowsTo RO RWX); eauto.
-
-    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hprog $Hadv $Hinv]") as "Spec".
+    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hprog $Hadv $Hinv $Hna]") as "Spec".
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
@@ -396,10 +394,11 @@ Theorem template_adequacy `{MachineParameters}
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
    ⊢ inv invN (minv_sep I)
+     ∗ na_own logrel_nais ⊤
      ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
      ∗ r_t0 ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
-     ∗ interp (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv))
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+     ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
      ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
      -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 

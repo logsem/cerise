@@ -10,6 +10,39 @@ From cap_machine.examples Require Import disjoint_regions_tactics.
 Definition mkregion (r_start r_end: Addr) (contents: list Word): gmap Addr Word :=
   list_to_map (zip (region_addrs r_start r_end) contents).
 
+Lemma zip_region_addrs_lookup {A} (b e a : Addr) (l : list A) x :
+  (b + length l = Some e)%a →
+  (a, x) ∈ zip (region_addrs b e) l ↔ ∃ (i:nat), a = (b ^+ i)%a ∧ l !! i = Some x.
+Proof.
+  revert b e a x. induction l as [| x l].
+  { intros * Hl. cbn.
+    rewrite (_: b = e). 2: solve_addr.
+    rewrite region_addrs_empty //. 2: solve_addr. cbn.
+    split. by inversion 1. intros [? [? ?] ]. congruence. }
+  { intros * Hl. cbn in *.
+    rewrite region_addrs_cons. 2: solve_addr. cbn.
+    split.
+    { intros [HH|HH]%elem_of_cons.
+      { simplify_eq. exists 0. split. solve_addr. constructor. }
+      { eapply IHl in HH as [i [? ?] ].
+        { exists (S i). split; solve_addr. }
+        { solve_addr. } } }
+    { intros [i [? H2] ]. destruct i.
+      { cbn in H2. simplify_eq. rewrite (_: b ^+ 0%nat = b)%a. constructor. solve_addr. }
+      { constructor. cbn in H2. apply IHl. solve_addr. exists i.
+        split; solve_addr. } } }
+Qed.
+
+Lemma mkregion_lookup (b e a : Addr) l x :
+  (b + length l = Some e)%a →
+  mkregion b e l !! a = Some x ↔ ∃ (i:nat), a = (b ^+ i)%a ∧ l !! i = Some x.
+Proof.
+  intros Hl. rewrite /mkregion.
+  rewrite -elem_of_list_to_map. apply zip_region_addrs_lookup; auto.
+  rewrite fst_zip. apply region_addrs_NoDup.
+  rewrite region_addrs_length /region_size. solve_addr.
+Qed.
+
 Lemma dom_mkregion_incl a e l:
   dom (gset Addr) (mkregion a e l) ⊆ list_to_set (region_addrs a e).
 Proof.

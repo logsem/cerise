@@ -636,3 +636,51 @@ Proof.
   intros. eapply map_subseteq_spec. intros ? ? ?.
   eapply map_filter_lookup_Some_1_1; eauto.
 Qed.
+
+Lemma fst_zip_prefix A B (l : list A) (k : list B) :
+  (zip l k).*1 `prefix_of` l.
+Proof.
+  revert k. induction l; cbn; auto.
+  destruct k; cbn.
+  - apply prefix_nil.
+  - apply prefix_cons; auto.
+Qed.
+
+Lemma prefix_of_nil A (l : list A) :
+  l `prefix_of` [] →
+  l = [].
+Proof. destruct l; auto. by intros ?%prefix_nil_not. Qed.
+
+Lemma in_prefix A (l1 l2 : list A) x :
+  l1 `prefix_of` l2 →
+  x ∈ l1 →
+  x ∈ l2.
+Proof.
+  unfold prefix. intros [? ->] ?.
+  apply elem_of_app. eauto.
+Qed.
+
+Lemma NoDup_prefix A (l1 l2 : list A) :
+  NoDup l2 →
+  l1 `prefix_of` l2 →
+  NoDup l1.
+Proof.
+  intros H. revert l1. induction H.
+  - intros * ->%prefix_of_nil. constructor.
+  - intros l1. destruct l1.
+    + intros _. constructor.
+    + intros HH. rewrite (prefix_cons_inv_1 _ _ _ _ HH).
+      apply prefix_cons_inv_2 in HH. constructor; eauto.
+      intro Hx. pose proof (in_prefix _ _ _ _ HH Hx). done.
+Qed.
+
+Lemma take_lookup_Some_inv A (l : list A) (n i : nat) x :
+  take n l !! i = Some x →
+  i < n ∧ l !! i = Some x.
+Proof.
+  revert l i x. induction n; cbn.
+  { intros *. inversion 1. }
+  { intros *. destruct l; cbn. by inversion 1. destruct i; cbn.
+    - intros; simplify_eq. split; auto. lia.
+    - intros [? ?]%IHn. split. lia. auto. }
+Qed.
