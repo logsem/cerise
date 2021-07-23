@@ -620,10 +620,10 @@ Ltac iInstr hprog :=
   let hi := iFresh in
   let hcont := iFresh in
   iInstr_lookup hprog as hi hcont;
-  wp_instr;
+  try wp_instr;
   iInstr_get_rule hi ltac:(fun rule =>
     iApplyCapAuto rule;
-    [ .. | iInstr_close hprog; wp_pure]
+    [ .. | iInstr_close hprog; try wp_pure]
   ).
 
 Ltac2 rec iGo hprog :=
