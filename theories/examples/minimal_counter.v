@@ -174,9 +174,6 @@ Qed.
 
 Definition counterN : namespace := nroot .@ "counter".
 
-Lemma interp_int `{MachineParameters, memG Σ, regG Σ, logrel_na_invs Σ} n : ⊢ interp (WInt n).
-Proof. iIntros. rewrite /interp fixpoint_interp1_eq //. Qed.
-
 Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es:
   prog_instrs P =
     counter_init (prog_start P) ++

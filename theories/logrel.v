@@ -218,6 +218,9 @@ Section logrel.
          apply _. destruct p; repeat (apply exist_persistent; intros); try apply _.
   Qed.
 
+  Lemma interp_int n : ⊢ interp (WInt n).
+  Proof. iIntros. rewrite /interp fixpoint_interp1_eq //. Qed.
+
   Lemma read_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
