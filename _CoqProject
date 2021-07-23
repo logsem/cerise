@@ -99,3 +99,4 @@ theories/examples/malloc_binary.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble.v
 theories/examples/buffer.v
+theories/examples/minimal_counter.v
