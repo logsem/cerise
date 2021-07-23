@@ -8,10 +8,7 @@ Open Scope Z_scope.
 
 Section buffer.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
-
-  Context (N: namespace).
 
   Definition buffer_code (off: Z) : list Word :=
     (* code: *)
@@ -30,19 +27,20 @@ Section buffer.
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
 
-   ⊢ (( codefrag a_first (buffer_code a_first)
-      ∗ PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
+   ⊢ (( PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
       ∗ r_t0 ↦ᵣ wadv
       ∗ r_t1 ↦ᵣ w1
+      ∗ codefrag a_first (buffer_code a_first)
       ∗ ▷ (let a_data := (a_first ^+ 4)%a in
              PC ↦ᵣ updatePcPerm wadv
            ∗ r_t0 ↦ᵣ wadv
            ∗ r_t1 ↦ᵣ WCap RWX a_data (a_data ^+ 3)%a a_data
+           ∗ codefrag a_first (buffer_code a_first)
            -∗ WP Seq (Instr Executable) {{ φ }}))
       -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros len_region.
-    iIntros (Hcont) "(Hprog & HPC & Hr0 & Hr1 & Hφ)".
+    iIntros (Hcont) "(HPC & Hr0 & Hr1 & Hprog & Hφ)".
     iGo "Hprog".
     { transitivity (Some (a_first ^+ 4)%a); auto. solve_addr. }
     { transitivity (Some (a_first ^+ 7)%a); auto. solve_addr. }
@@ -128,11 +126,11 @@ Proof.
   (* The capability to the adversary is safe and we can also jmp to it *)
   iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". apply prog_size.
   iDestruct (region_integers_alloc' _ _ _ (prog_start Adv) _ RWX with "Hadv") as ">#Hadv". done.
-  iDestruct (jmp_to_unknown with "Hadv") as "Hcont".
+  iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
   iApply (buffer_spec (prog_start P) with "[-]"). solve_addr. iFrame.
   simpl. rewrite (_: prog_start P ^+ (_ + _) = prog_end P)%a. 2: solve_addr. iFrame.
-  iNext. iIntros "(HPC & Hr0 & Hr1)".
+  iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
 
   (* Show that the contents of r1 are safe *)
   iDestruct (region_integers_alloc' _ _ _ (prog_start P ^+ 4)%a _ RWX with "Hdata") as ">#Hdata".
