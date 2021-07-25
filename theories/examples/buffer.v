@@ -48,6 +48,60 @@ Section buffer.
     iInstr "Hprog". iApply "Hφ". iFrame.
     rewrite (_: (a_first ^+ 4) ^+ 3 = a_first ^+ 7)%a //. solve_addr.
   Qed.
+
+  Context {nainv: logrel_na_invs Σ}.
+
+  Lemma buffer_full_run_spec (a_first: Addr) b_adv e_adv w1 rmap adv :
+    let len_region := length (buffer_code a_first) + length buffer_data in
+    ContiguousRegion a_first len_region →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    Forall (λ w, is_cap w = false) adv →
+    (b_adv + length adv)%a = Some e_adv →
+
+   ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
+      ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv
+      ∗ r_t1 ↦ᵣ w1
+      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+      ∗ codefrag a_first (buffer_code a_first)
+      ∗ ([∗ map] a↦w ∈ mkregion (a_first ^+ 4)%a (a_first ^+ 7)%a (take 3%nat buffer_data), a ↦ₐ w)
+      ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
+      ∗ na_own logrel_nais ⊤
+      -∗ WP Seq (Instr Executable) {{ λ _, True }})%I.
+  Proof.
+    iIntros (? ? Hrmap_dom ? ?) "(HPC & Hr0 & Hr1 & Hrmap & Hcode & Hdata & Hadv & Hna)".
+
+    (* The capability to the adversary is safe and we can also jmp to it *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
+
+    iApply (buffer_spec a_first with "[-]"). solve_addr. iFrame.
+    iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
+
+    (* Show that the contents of r1 are safe *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hdata") as "Hdata". solve_addr.
+    iDestruct (region_integers_alloc' _ _ _ (a_first ^+ 4)%a _ RWX with "Hdata") as ">#Hdata".
+      by repeat constructor.
+
+    (* Show that the contents of unused registers is safe *)
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
+      destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
+
+    (* put the other registers back into the register map *)
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap".
+      apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
+    { iFrame. rewrite (_: (a_first ^+ _) ^+ _ = a_first ^+ 7)%a //. solve_addr+. }
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap Hr0]") as "Hrmap".
+      rewrite lookup_insert_ne //. apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
+    { by iFrame. }
+
+    iApply (wp_wand with "[-]").
+    { iApply "Hcont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom.
+      rewrite !singleton_union_difference_L. set_solver+. }
+    eauto.
+Qed.
+
 End buffer.
 
 Program Definition buffer_inv (pstart: Addr) : memory_inv :=
@@ -85,7 +139,7 @@ Proof.
 
   (* Extract the code & data regions from the program resources *)
   iAssert (codefrag (prog_start P) (buffer_code (prog_start P)) ∗
-           [∗ list] a;w ∈ (region_addrs (prog_start P ^+ 4)%a (prog_start P ^+ 7)%a);(take 3%nat buffer_data), a ↦ₐ w)%I
+           [∗ map] a↦w ∈ (mkregion (prog_start P ^+ 4)%a (prog_start P ^+ 7)%a) (take 3%nat buffer_data), a ↦ₐ w)%I
     with "[Hprog]" as "[Hcode Hdata]".
   { rewrite /codefrag /region_mapsto.
     set M := filter _ _.
@@ -116,42 +170,13 @@ Proof.
     iDestruct (big_sepM_subseteq with "Hprog") as "Hprog". apply HM.
     iDestruct (big_sepM_union with "Hprog") as "[Hcode Hdata]". assumption.
     iDestruct (mkregion_sepM_to_sepL2 with "Hcode") as "Hcode". solve_addr.
-    iDestruct (mkregion_sepM_to_sepL2 with "Hdata") as "Hdata". solve_addr.
     iFrame. }
 
   assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
   { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
 
-  (* The capability to the adversary is safe and we can also jmp to it *)
-  iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". apply prog_size.
-  iDestruct (region_integers_alloc' _ _ _ (prog_start Adv) _ RWX with "Hadv") as ">#Hadv". done.
-  iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
-
-  iApply (buffer_spec (prog_start P) with "[-]"). solve_addr. iFrame.
-  simpl. rewrite (_: prog_start P ^+ (_ + _) = prog_end P)%a. 2: solve_addr. iFrame.
-  iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
-
-  (* Show that the contents of r1 are safe *)
-  iDestruct (region_integers_alloc' _ _ _ (prog_start P ^+ 4)%a _ RWX with "Hdata") as ">#Hdata".
-    by repeat constructor.
-
-  (* Show that the contents of unused registers is safe *)
-  iAssert ([∗ map] r↦w ∈ delete r_t1 rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
-  { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
-    destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
-
-  (* put the other registers back into the register map *)
-  iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap".
-    by rewrite lookup_delete.
-  { iFrame. rewrite (_: (prog_start P ^+ _) ^+ _ = prog_start P ^+ 7)%a //. solve_addr+. }
-  rewrite insert_delete.
-  iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap Hr0]") as "Hrmap".
-    rewrite lookup_insert_ne //. apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
-  { by iFrame. }
-
-  iApply (wp_wand with "[-]").
-  { iApply "Hcont"; cycle 1. by iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom.
-    rewrite !singleton_union_difference_L. set_solver+. }
-  eauto.
+  iApply (buffer_full_run_spec with "[$Hadv HPC $Hr0 $Hr1 $Hcode $Hrmap $Hna $Hdata]"); auto.
+  solve_addr. set_solver. apply prog_size.
+  rewrite (_: prog_start P ^+ (_ + _) = prog_end P)%a //; solve_addr.
 Qed.
