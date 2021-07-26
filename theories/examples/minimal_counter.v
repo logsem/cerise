@@ -11,7 +11,7 @@ Section counter.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  Context (N: namespace).
+  Definition N : namespace := nroot .@ "mincounter".
 
   (* In this example, we avoid computing offsets by hand, and instead define the
      code in two steps, computing the labels automatically (mimicking the steps
@@ -109,50 +109,170 @@ Section counter.
 
   ⊢ (( inv (N.@"cap") (a_data ↦ₐ WCap RWX a_init a_end (a_data ^+ 1)%a)
      ∗ inv with_adv.invN (∃ n, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
+     ∗ na_inv logrel_nais (N.@"code") (codefrag a_code (counter_code a_code))
      ∗ PC ↦ᵣ WCap RX a_code a_end a_code
      ∗ r_t0 ↦ᵣ wcont
      ∗ r_t1 ↦ᵣ w1
      ∗ r_t2 ↦ᵣ w2
-     ∗ codefrag a_code (counter_code a_code)
+     ∗ na_own logrel_nais ⊤
      ∗ ▷ (∀ (n: Z),
             PC ↦ᵣ updatePcPerm wcont
           ∗ r_t0 ↦ᵣ wcont
           ∗ r_t1 ↦ᵣ WInt 0
           ∗ r_t2 ↦ᵣ WInt n
-          ∗ codefrag a_code (counter_code a_code)
+          ∗ na_own logrel_nais ⊤
           -∗ WP Seq (Instr Executable) {{ φ }}))
      -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros a_code a_data a_end.
-    iIntros (Hcont) "(#HIcap & #HIv & HPC & Hr0 & Hr1 & Hr2 & Hprog & Hφ)".
+    iIntros (Hcont) "(#HIcap & #HIv & #HIcode & HPC & Hr0 & Hr1 & Hr2 & Hna & Hφ)".
     assert (Ha_code: a_code = (a_init ^+ code_off)%a) by done. clearbody a_code.
-    iGo "Hprog".
+    (* open the invariant containing the code *)
+    iMod (na_inv_acc logrel_nais with "HIcode Hna") as "(>Hcode & Hna & Hclose_code)".
+    done. done.
+
+    iGo "Hcode".
     { transitivity (Some a_data); auto. solve_addr'. }
     (* load from a_data *)
     wp_instr.
     iMod (inv_acc with "HIcap") as "[>Hcap Hclose]"; auto.
-    iInstr "Hprog".
+    iInstr "Hcode".
     iMod ("Hclose" with "Hcap") as "_". iModIntro. wp_pure.
     (* load from a_data+1 *)
     wp_instr.
     iMod (inv_acc with "HIv") as "[>Hv Hclose]"; auto.
     iDestruct "Hv" as (n) "(Hn & %Hn)".
-    iInstr "Hprog".
+    iInstr "Hcode".
     { split. solve_pure. solve_addr'. }
     iMod ("Hclose" with "[Hn]") as "_". { iNext. iExists _. by iFrame. }
     iModIntro. wp_pure.
     (* add *)
-    iInstr "Hprog".
+    iInstr "Hcode".
     (* store to a_data+1 *)
     wp_instr.
     iMod (inv_acc with "HIv") as "[>Hv Hclose]"; auto.
     iDestruct "Hv" as (n') "(Hn' & %Hn')".
-    iInstr "Hprog". solve_addr'.
+    iInstr "Hcode". solve_addr'.
     iMod ("Hclose" with "[Hn']") as "_".
     { iNext. iExists _. iFrame. iPureIntro. lia. }
     iModIntro. wp_pure.
     (* cont *)
-    iGo "Hprog". iApply "Hφ". iFrame.
+    iGo "Hcode".
+
+    (* close the invariant with the code *)
+    iMod ("Hclose_code" with "[$Hcode $Hna]") as "Hna".
+    iApply "Hφ". iFrame.
+  Qed.
+
+  Lemma counter_full_run_spec (a_init: Addr) b_adv e_adv w1 w2 wdat rmap adv :
+    let a_code := (a_init ^+ code_off)%a in
+    let a_data := (a_code ^+ data_off)%a in
+    let a_end := (a_code ^+ (data_off + end_off))%a in
+    ContiguousRegion a_init (code_off + data_off + end_off) →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    Forall (λ w, is_cap w = false) adv →
+    (b_adv + length adv)%a = Some e_adv →
+
+  ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
+      ∗ PC ↦ᵣ WCap RWX a_init a_end a_init
+      ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv
+      ∗ r_t1 ↦ᵣ w1
+      ∗ r_t2 ↦ᵣ w2
+      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+      ∗ codefrag a_init (counter_init a_init)
+      ∗ codefrag a_code (counter_code a_code)
+      ∗ a_data ↦ₐ wdat
+      ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
+      ∗ na_own logrel_nais ⊤
+      -∗ WP Seq (Instr Executable) {{ λ _, True }})%I.
+  Proof.
+    iIntros (? ? ? ? Hrdom ? ?) "(#HI & HPC & Hr0 & Hr1 & Hr2 & Hrmap & Hinit & Hcode & Hdat & Hadv & Hna)".
+
+    (* The capability to the adversary is safe and we can also jmp to it *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
+
+    iApply (counter_init_spec a_init with "[-]"). solve_addr'. iFrame.
+    simpl. rewrite (_: a_init ^+ (_ + _ + _) = a_end)%a. 2: solve_addr'. iFrame.
+    rewrite (_: a_init ^+ (_ + _) = a_data)%a. 2: solve_addr'. iFrame.
+    iNext. iIntros "(HPC & Hr0 & Hr1 & Hr2 & Hdat & _)".
+
+    (* Allocate an invariant for the points-to at a_data containing the capability to a_data+1 *)
+    iMod (inv_alloc (N.@"cap") _ (a_data ↦ₐ WCap RWX a_init a_end (a_data ^+ 1)%a)
+            with "Hdat") as "#HIcap".
+
+    (* Allocate a non-atomic invariant for the code of the code routine *)
+    iMod (na_inv_alloc logrel_nais _ (N.@"code") (codefrag a_code (counter_code a_code))
+           with "Hcode") as "#HIcode".
+
+    (* Show that the E-capability to the code: routine is safe *)
+    iAssert (interp (WCap E a_code a_end a_code)) as "#Hcode_safe".
+    { rewrite /interp /= (fixpoint_interp1_eq (WCap E _ _ _)) /=. iIntros (rr).
+      iIntros "!> !> ([%Hrfull #Hrsafe] & Hrr & Hna)". rewrite /interp_conf.
+
+      (* unpack the registers *)
+      destruct (Hrfull r_t0) as [w0' Hr0'].
+      destruct (Hrfull r_t1) as [w1' Hr1'].
+      destruct (Hrfull r_t2) as [w2' Hr2'].
+      unfold registers_mapsto.
+      rewrite -insert_delete.
+      iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]".
+        by rewrite lookup_delete.
+      iDestruct (big_sepM_delete _ _ r_t0 with "Hrr") as "[Hr0 Hrr]".
+        by rewrite lookup_delete_ne //.
+      iDestruct (big_sepM_delete _ _ r_t1 with "Hrr") as "[Hr1 Hrr]".
+        by rewrite !lookup_delete_ne //.
+      iDestruct (big_sepM_delete _ _ r_t2 with "Hrr") as "[Hr2 Hrr]".
+        by rewrite !lookup_delete_ne //.
+
+      (* the continuation is safe, and we can jump to it *)
+      iAssert (interp w0') as "Hv0". by iApply "Hrsafe"; eauto; done.
+      iDestruct (jmp_to_unknown with "Hv0") as "#Hcont_prog".
+
+      (* apply the spec *)
+      iApply (counter_code_spec a_init with "[-]"). solve_addr'.
+      rewrite (_: (a_init ^+ _) ^+ _ = a_data)%a. 2: solve_addr'.
+      rewrite (_: (a_init ^+ _) ^+ (_ + _) = a_end)%a. 2: solve_addr'.
+      iFrame. iFrame "HIcap HIcode HI".
+      iIntros "!>" (n) "(HPC & Hr0 & Hr1 & Hr2 & Hcode)".
+
+      (* put the registers back together *)
+      iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hrr]") as "Hrr".
+      { iSplitL. by iApply "Hrr". iApply big_sepM_intuitionistically_forall. iModIntro.
+        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
+        iApply ("Hrsafe" $! r'); auto. }
+      iDestruct (big_sepM_insert with "[$Hrr $Hr2]") as "Hrr". by rewrite lookup_delete.
+        by iApply interp_int. rewrite insert_delete.
+      iDestruct (big_sepM_insert with "[$Hrr $Hr1]") as "Hrr".
+        by rewrite lookup_insert_ne // lookup_delete.
+        by iApply interp_int. rewrite insert_commute // insert_delete.
+      iDestruct (big_sepM_insert with "[$Hrr $Hr0]") as "Hrr".
+        by rewrite !lookup_insert_ne // lookup_delete.
+        by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete.
+
+      (* jmp to continuation *)
+      iApply "Hcont_prog". 2: iFrame. iPureIntro.
+      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. set_solver+. }
+
+    (* put the registers back together *)
+    iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap".
+    { intros ? w ?. cbn. iIntros "[? %Hw]". iFrame. destruct w; try inversion Hw.
+      iApply interp_int. }
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
+      by rewrite elem_of_gmap_dom_none Hrdom; set_solver+.
+      by iApply interp_int.
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
+      by rewrite lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by iApply "Hcode_safe".
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
+      by rewrite !lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by iApply "Hadv".
+
+    iApply (wp_wand with "[-]").
+    { iApply "Hcont". 2: iFrame. iPureIntro.
+      rewrite !dom_insert_L Hrdom !singleton_union_difference_L !all_registers_union_l. set_solver+. }
+    eauto.
   Qed.
 
 End counter.
@@ -257,111 +377,21 @@ Proof.
   iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[[Hr2 _] Hrmap]".
     by rewrite lookup_delete_ne //.
 
-  (* The capability to the adversary is safe and we can also jmp to it *)
-  iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". apply prog_size.
-  iDestruct (region_integers_alloc' _ _ _ (prog_start Adv) _ RWX with "Hadv") as ">#Hadv". done.
-  iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
+  iApply (counter_full_run_spec with "[$Hadv $Hr0 $Hr1 $Hr2 $Hinit $Hrmap $Hna $Hdat $Hcode HPC]"); auto.
+  solve_addr'. by rewrite !dom_delete_L Hrdom; set_solver+. by apply prog_size.
+  rewrite (_: _ ^+ (_ + _) = prog_end P)%a. 2: solve_addr'. iFrame.
 
-  iApply (counter_init_spec a_init with "[-]"). solve_addr'. iFrame.
-  simpl. rewrite (_: a_init ^+ (_ + _ + _) = prog_end P)%a. 2: solve_addr'. iFrame.
-  rewrite (_: a_init ^+ (_ + _) = a_data)%a. 2: solve_addr'. iFrame.
-  iNext. iIntros "(HPC & Hr0 & Hr1 & Hr2 & Hdat & _)".
-
-  (* Allocate an invariant for the points-to at a_data containing the capability to a_data+1 *)
-  iMod (inv_alloc (counterN.@"cap") _ (a_data ↦ₐ WCap RWX a_init (prog_end P) (a_data ^+ 1)%a)
-          with "Hdat") as "#HIcap".
-
-  (* Allocate a non-atomic invariant for the code of the code: routine *)
-  iMod (na_inv_alloc logrel_nais _ (counterN.@"code") (codefrag a_code (counter_code a_code))
-         with "Hcode") as "#HIcode".
-
-  (* Show that the E-capability to the code: routine is safe *)
-  iAssert (interp (WCap E a_code (prog_end P) a_code)) as "#Hcode_safe".
-  { rewrite /interp /= (fixpoint_interp1_eq (WCap E _ _ _)) /=. iIntros (rr).
-    iIntros "!> !> ([%Hrfull #Hrsafe] & Hrr & Hna)". rewrite /interp_conf.
-
-    (* open the invariant containing the code *)
-    iMod (na_inv_acc logrel_nais with "HIcode Hna") as "(>Hcode & Hna & Hclose)".
-    done. done.
-
-    (* unpack the registers *)
-    destruct (Hrfull r_t0) as [w0' Hr0'].
-    destruct (Hrfull r_t1) as [w1' Hr1'].
-    destruct (Hrfull r_t2) as [w2' Hr2'].
-    unfold registers_mapsto.
-    rewrite -insert_delete.
-    iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]".
-      by rewrite lookup_delete.
-    iDestruct (big_sepM_delete _ _ r_t0 with "Hrr") as "[Hr0 Hrr]".
-      by rewrite lookup_delete_ne //.
-    iDestruct (big_sepM_delete _ _ r_t1 with "Hrr") as "[Hr1 Hrr]".
-      by rewrite !lookup_delete_ne //.
-    iDestruct (big_sepM_delete _ _ r_t2 with "Hrr") as "[Hr2 Hrr]".
-      by rewrite !lookup_delete_ne //.
-
-    (* the continuation is safe, and we can jump to it *)
-    iAssert (interp w0') as "Hv0". by iApply "Hrsafe"; eauto; done.
-    iDestruct (jmp_to_unknown with "Hv0") as "#Hcont_prog".
-
-    (* apply the spec *)
-    iApply (counter_code_spec counterN a_init with "[-]"). solve_addr'.
-    rewrite (_: (a_init ^+ _) ^+ _ = a_data)%a. 2: solve_addr'.
-    rewrite (_: (a_init ^+ _) ^+ (_ + _) = prog_end P)%a. 2: solve_addr'.
-
-    iFrame. iFrame "HIcap".
-    (* Show the invariant for the counter value using the invariant from the adequacy theorem *)
-    iSplitR.
-    { iApply (inv_alter with "HI").
-      iIntros "!> !> H". rewrite /minv_sep. iDestruct "H" as (mι) "(Hm & %Hmιdom & %Hι)".
-      cbn in Hι. destruct Hι as (n & Hι & Hn).
-      rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a in Hι. 2: solve_addr'.
-      iDestruct (big_sepM_delete _ _ (a_data ^+ 1)%a (WInt n) with "Hm") as "[Hn Hm]". done.
-      iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)".
-      iExists (<[ (a_data ^+ 1)%a := WInt n' ]> mι). iSplitL "Hm Hn'".
-      { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete.
-        rewrite insert_delete //. }
-      iPureIntro. split. rewrite dom_insert_L Hmιdom /Hmιdom /=. 2: exists n'.
-      all: rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a; [| solve_addr']. set_solver+.
-      rewrite lookup_insert //. }
-
-    iIntros "!>" (n) "(HPC & Hr0 & Hr1 & Hr2 & Hcode)".
-
-    (* put the registers back together *)
-    iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hrr]") as "Hrr".
-    { iSplitL. by iApply "Hrr". iApply big_sepM_intuitionistically_forall. iModIntro.
-      iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
-      iApply ("Hrsafe" $! r'); auto. }
-    iDestruct (big_sepM_insert with "[$Hrr $Hr2]") as "Hrr". by rewrite lookup_delete.
-      by iApply interp_int. rewrite insert_delete.
-    iDestruct (big_sepM_insert with "[$Hrr $Hr1]") as "Hrr".
-      by rewrite lookup_insert_ne // lookup_delete.
-      by iApply interp_int. rewrite insert_commute // insert_delete.
-    iDestruct (big_sepM_insert with "[$Hrr $Hr0]") as "Hrr".
-      by rewrite !lookup_insert_ne // lookup_delete.
-      by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete.
-
-    (* close the non-atomic invariant *)
-    iMod ("Hclose" with "[$Hcode $Hna]") as "Hna".
-
-    (* jmp to continuation *)
-    iApply "Hcont_prog". 2: iFrame. iPureIntro.
-    rewrite !dom_insert_L dom_delete_L regmap_full_dom //. set_solver+. }
-
-  (* put the registers back together *)
-  iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap".
-  { intros ? w ?. cbn. iIntros "[? %Hw]". iFrame. destruct w; try inversion Hw.
-    iApply interp_int. }
-  iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
-    by rewrite lookup_delete. by iApply interp_int. rewrite insert_delete.
-  iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
-    by rewrite lookup_insert_ne // lookup_delete. by iApply "Hcode_safe".
-    rewrite insert_commute // insert_delete.
-  iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
-    by rewrite !lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
-    by iApply "Hadv".
-
-  iApply (wp_wand with "[-]").
-  { iApply "Hcont". 2: iFrame. iPureIntro.
-    rewrite !dom_insert_L Hrdom !singleton_union_difference_L !all_registers_union_l. set_solver+. }
-  eauto.
+  (* Show the invariant for the counter value using the invariant from the adequacy theorem *)
+  iApply (inv_alter with "HI").
+  iIntros "!> !> H". rewrite /minv_sep. iDestruct "H" as (mι) "(Hm & %Hmιdom & %Hι)".
+  cbn in Hι. destruct Hι as (n & Hι & Hn).
+  rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a in Hι. 2: solve_addr'.
+  iDestruct (big_sepM_delete _ _ (a_data ^+ 1)%a (WInt n) with "Hm") as "[Hn Hm]". done.
+  iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)".
+  iExists (<[ (a_data ^+ 1)%a := WInt n' ]> mι). iSplitL "Hm Hn'".
+  { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete.
+    rewrite insert_delete //. }
+  iPureIntro. split. rewrite dom_insert_L Hmιdom /Hmιdom /=. 2: exists n'.
+  all: rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a; [| solve_addr']. set_solver+.
+  rewrite lookup_insert //.
 Qed.
