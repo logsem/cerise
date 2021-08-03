@@ -29,8 +29,8 @@ Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
 Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* Points to predicates for memory *)
-Notation "a ↦ₐ { q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
-  (at level 20, q at level 50, format "a  ↦ₐ { q }  w") : bi_scope.
+Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
+  (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
 Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)

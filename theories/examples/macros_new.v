@@ -771,7 +771,7 @@ Section macros.
     iGo "Hprog".
     iApply "Hcont". iFrame.
     rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
-    rewrite (region_addrs_split _ b_end);[|solve_addr].
+    rewrite (region_addrs_split _ b_end);[|solve_addr]. 
     iApply (big_sepL2_app with "Hprog").
     rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
     rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.

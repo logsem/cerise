@@ -316,8 +316,8 @@ Qed.
 
 Class FramableRegisterPointsto (r: RegName) (w: Word) := {}.
 #[export] Hint Mode FramableRegisterPointsto + - : typeclass_instances.
-Class FramableMemoryPointsto (a: Addr) (w: Word) := {}.
-#[export] Hint Mode FramableMemoryPointsto + - : typeclass_instances.
+Class FramableMemoryPointsto (a: Addr) (dq: dfrac) (w: Word) := {}.
+#[export] Hint Mode FramableMemoryPointsto + - - : typeclass_instances.
 Class FramableCodefrag (a: Addr) (l: list Word) := {}.
 #[export] Hint Mode FramableCodefrag + - : typeclass_instances.
 
@@ -325,8 +325,8 @@ Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
 | 100. Qed.
 
-Instance FramableMemoryPointsto_default a w :
-  FramableMemoryPointsto a w
+Instance FramableMemoryPointsto_default a dq w :
+  FramableMemoryPointsto a dq w
 | 100. Qed.
 
 Instance FramableCodefrag_default a l :
@@ -338,9 +338,9 @@ Instance FramableMachineResource_reg `{regG Σ} r w :
   FramableMachineResource (r ↦ᵣ w).
 Qed.
 
-Instance FramableMachineResource_mem `{memG Σ} a w :
-  FramableMemoryPointsto a w →
-  FramableMachineResource (a ↦ₐ w).
+Instance FramableMachineResource_mem `{memG Σ} a dq w :
+  FramableMemoryPointsto a dq w →
+  FramableMachineResource (a ↦ₐ{dq} w).
 Qed.
 
 Instance FramableMachineResource_codefrag `{memG Σ} a l :
@@ -375,7 +375,7 @@ Ltac2 iFrameCapT (table: (constr * constr * hyp_table_kind) list ref) :=
       let (lhs, kind) :=
         lazy_match! hh with
         | (?r ↦ᵣ _)%I => (r, Reg)
-        | (?a ↦ₐ _)%I => (a, Mem)
+        | (?a ↦ₐ{_} _)%I => (a, Mem)
         | (codefrag ?a _) => (a, Codefrag)
         end in
       table.(contents) := (hname, lhs, kind) :: table.(contents)
@@ -488,11 +488,11 @@ Ltac2 name_cap_resource (name, lhs, kind) :=
         (Ltac1.of_constr x) (Ltac1.of_constr r) (Ltac1.of_constr name)
     end
   | Mem =>
-    match! goal with [ |- context [ (?a ↦ₐ ?x)%I ] ] =>
+    match! goal with [ |- context [ (?a ↦ₐ{?dq} ?x)%I ] ] =>
       let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
       assert_constr_eq is_lhs 'true;
-      ltac1:(x a name |- change (a ↦ₐ x)%I with (name ∷ (a ↦ₐ x))%I)
-        (Ltac1.of_constr x) (Ltac1.of_constr a) (Ltac1.of_constr name)
+      ltac1:(x dq a name |- change (a ↦ₐ{dq} x)%I with (name ∷ (a ↦ₐ{dq} x))%I)
+        (Ltac1.of_constr x) (Ltac1.of_constr dq) (Ltac1.of_constr a) (Ltac1.of_constr name)
     end
   | Codefrag =>
     match! goal with [ |- context [ codefrag ?a ?l ] ] =>
