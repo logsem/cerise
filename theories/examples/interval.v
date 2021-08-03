@@ -6,59 +6,6 @@ From cap_machine Require Import rules logrel contiguous fundamental.
 From cap_machine Require Import list_new dynamic_sealing.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
-(*Definition intervalUR := gmapUR (leibnizO Addr) (agreeR (prodO ZO ZO)).
-Class intervalG Σ := IntervalG { intervalg_inG :> inG Σ (authUR intervalUR); interval_name : gname }.
-
-Section interval_RA.
-  Context `{intervalG}.
-  Definition int_def (a : Addr) (z1 z2 : Z) : iProp Σ :=
-    own interval_name (◯ {[ a := to_agree (z1,z2) ]}).
-  Definition int_aux : seal (@int_def). Proof. by eexists. Qed.
-  Definition int := int_aux.(unseal).
-  Definition int_eq : @int = @int_def := int_aux.(seal_eq).
-
-  Definition intervals_def m : iProp Σ :=
-    own interval_name (● m).
-  Definition intervals_aux : seal (@intervals_def). Proof. by eexists. Qed.
-  Definition intervals := intervals_aux.(unseal).
-  Definition intervals_eq : @intervals = @intervals_def := intervals_aux.(seal_eq).
-
-  Notation "a ↪ ( z1 , z2 )" := (int a z1 z2) (at level 20, format "a  ↪ ( z1 , z2 )") : bi_scope.
-
-  Lemma int_agree a (z1 z2 t1 t2 : Z) :
-    a ↪ (z1,z2) -∗ a ↪ (t1,t2) -∗ ⌜z1 = t1 ∧ z2 = t2⌝.
-  Proof.
-    iIntros "Ha Ha'".
-    rewrite int_eq /int_def.
-    iCombine "Ha Ha'" as "Ha".
-    iDestruct (own_valid with "Ha") as %Hval%auth_frag_valid_1%singleton_valid%to_agree_op_valid_L.
-    simplify_eq. done.
-  Qed.
-
-  Global Instance int_timeless a z1 z2 : Timeless (int a z1 z2).
-  Proof. rewrite int_eq. apply _. Qed.
-
-  Global Instance int_Persistent a z1 z2 : Persistent (int a z1 z2).
-  Proof. rewrite int_eq. apply _. Qed.
-
-  Global Instance intervals_timeless m : Timeless (intervals m).
-  Proof. rewrite intervals_eq. apply _. Qed.
-
-
-  Lemma allocate_inv a z1 z2 m :
-    m !! a = None →
-    intervals m ==∗ intervals (<[a:=to_agree (z1,z2)]> m) ∗ a ↪ (z1,z2).
-  Proof.
-    rewrite intervals_eq int_eq /intervals_def /int_def.
-    iIntros (Hnone) "Hm".
-    iMod (own_update with "Hm") as "Hm".
-    apply auth_update_alloc. 2: by iDestruct "Hm" as "[$ $]".
-    apply alloc_singleton_local_update;[auto|done].
-  Qed.
-
-End interval_RA.
-Notation "a ↪ ( z1 , z2 )" := (int a z1 z2) (at level 20, format "a  ↪ ( z1 , z2 )") : bi_scope.*)
-
 Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
 
 Section interval.
@@ -72,10 +19,7 @@ Section interval.
                      let makeint = λ n1 n2, seal (if n1 ≤ n2 then (n1,n2) else (n2,n1)) in
                      let imin = λ i, fst (unseal i) in
                      let imax = λ i, snd (unseal i) in
-                     let isum = λ i, let x = unseal i in
-                                     λ j, let y = unseal j in
-                                          seal (fst x + fst y, snd x + snd y) in
-                     (makeint, imin, imax, isum)
+                     (makeint, imin, imax)
    *)
 
   (* The following fst and snd are simplified here to work only on a capability that points to its lower bound *)
@@ -165,10 +109,10 @@ Section interval.
                                 let wcode1 := WCap p b e a in
                                 let wcode2 := WCap p b e (a ^+ length (unseal_instrs))%a in
                                 ⌜(b1 + 8)%a = Some e1⌝ ∗ ⌜(b2 + 8)%a = Some e2⌝ ∗ ⌜(ll + 1)%a = Some ll'⌝
-                                 ∗ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (unseal_instrs ++ seal_instrs 0))%a⌝
+                                 ∗ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0))%a⌝
                                  ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                  ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
-                                 ∗ codefrag a (unseal_instrs ++ seal_instrs 0)
+                                 ∗ codefrag a (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0)
                                  ∗ b ↦ₐ WCap RO b_r e_r b_r ∗ b_r ↦ₐ WCap E b_m e_m b_m
                                  ∗ ⌜(b_r + 1)%a = Some e_r⌝)%I.
 
