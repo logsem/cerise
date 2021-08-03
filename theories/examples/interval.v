@@ -778,14 +778,9 @@ Section interval.
     iSplitL "Hr_t20";[eauto|]. iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
-    iDestruct (jmp_or_fail_spec with "Hretval") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    2: { iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-         iDestruct "HH" as (? ? ?) "(_ & _ & HPC & _)".
-         iApply "Hcont". iFrame "HPC". iIntros (Hcond). done. }
-    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-    iDestruct "HH" as (? ? (?&?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
-    iDestruct "Hcont" as (? ? ? ? Heq') "Hcont";simplify_eq.
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ?) "HH".
+    iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
@@ -799,22 +794,16 @@ Section interval.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
-    iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
-    iSplit.
-    - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.
-      rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct y) as Hx. set_solver+Hx.
-    - iIntros (r Hne). rewrite /RegLocate. consider_next_reg r PC. done.
-      consider_next_reg r r_t0. consider_next_reg r r_env. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t20. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t5. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t2. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t3. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t4. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t1. by rewrite !fixpoint_interp1_eq.
-      destruct (rmap !! r) eqn:Hr;rewrite Hr;[|by rewrite !fixpoint_interp1_eq].
-      iDestruct (big_sepM_lookup with "Hregs_val") as "$";eauto.
+    (* iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|]. *)
+    (* rewrite -(insert_insert _  PC _ (WInt 0%Z)). *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro. simpl.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
   Qed.
 
 
@@ -849,9 +838,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap RWX d d' d
        ∗ r_t1 ↦ᵣ iw
        (* ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
        ∗ (∃ w, r_t2 ↦ᵣ w)
@@ -861,7 +850,7 @@ Section interval.
        ∗ (∃ w, r_t20 ↦ᵣ w)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
        ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-       ∗ sealLL ι2 ll γ isIntervals
+       ∗ sealLL ι2 ll γ isInterval
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
@@ -875,9 +864,9 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = WCap (p,b,e,a) ∧ w = WCap (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals, ⌜iw = WCap p b e a ∧ (b,w) ∈ pbvals⌝
                 ∗ prefLL γ pbvals
-                ∗ b ↪ (z1,z2)
+                ∗ isInterval_int z1 z2 w
                 ∗ PC ↦ᵣ updatePcPerm wret
                 ∗ r_t1 ↦ᵣ WInt z2
                 ∗ r_t2 ↦ᵣ WInt 0%Z
@@ -906,7 +895,7 @@ Section interval.
     iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";[solve_ndisj..|].
     iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %)".
     codefrag_facts "Hcode".
-    assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
+    assert (withinBounds d d' d = true) as Hwb;[solve_addr|].
     iGo "Hcode".
 
     iApply closure_activation_spec; iFrameCapSolve. iFrame "Hunseal".
@@ -924,7 +913,7 @@ Section interval.
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
 
     rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
-    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env)". simplify_eq.
+    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
     iGo "Hcode".
 
     (* we must now extract from the sealLL invariant that w is indeed an interval element *)
@@ -935,16 +924,19 @@ Section interval.
     assert (∃ k, awvals !! k = Some (b', w)) as [k Hin].
     { apply elem_of_list_lookup in Hbw as [k Hk]. destruct Hpref;subst.
       exists k. by apply lookup_app_l_Some. }
-    iDestruct "Hintervals" as "[Hintervals Hm]".
-    iDestruct (big_sepL_lookup_acc with "Hintervals") as "[Hw Hacc]";[eauto|].
-    iDestruct "Hw" as (a1 a2 a3 [Heq [Hincr Hincr'] ] z1 z2) "[Ha1 [Ha2 [%Hle #Hi]]]". simpl in Heq. rewrite Heq.
 
-    iGo "Hcode". split;auto;solve_addr+Hincr Hincr'.
+    iDestruct "Hint" as (z1 z2) "Hint".
+    iDestruct "Hint" as (bi ai ei [Heq [Hai Hei] ]) "(Hbi & Hei & %Hle)". subst w.
+    iDestruct "Hbi" as "-#Hbi". iDestruct "Hei" as "-#Hei".
+
+    iGo "Hcode". split;auto;solve_addr+Hai Hei.
     iGo "Hcode".
 
     (* lets begin by closing all our invariants *)
-    iMod ("Hcls''" with "[Hacc Ha1 Ha2 Hll HisList Hexact $Hown Hm]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame. iApply "Hacc". iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame "∗ #". auto. }
+    iDestruct "Hbi" as "#Hbi". iDestruct "Hei" as "#Hei".
+    iDestruct "Hintervals" as "#Hintervals".
+    iMod ("Hcls''" with "[Hll HisList Hexact $Hown]") as "Hown".
+    { iNext. iExists _. iFrame. iExists _. iFrame "∗ #". }
 
     iMod ("Hcls'" with "[Hunseal Hseal Hb Hb_t Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
     { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
@@ -954,7 +946,7 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_. iFrame. iExists _,_,_,_,_. iFrame "#". eauto.
+    iExists _,_,_,_,_,_,_. iFrame. iExists _. repeat iSplit;eauto. iExists bi,ai,_. iFrame "#". eauto.
   Qed.
 
   Lemma imax_valid pc_p pc_b pc_e (* PC *)
@@ -985,14 +977,14 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-      ∗ sealLL ι2 ll γ isIntervals
+      ∗ sealLL ι2 ll γ isInterval
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
       (* callback validity *)
@@ -1031,14 +1023,9 @@ Section interval.
     iSplitL "Hr_t20";[eauto|]. iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
-    iDestruct (jmp_or_fail_spec with "Hretval") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    2: { iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-         iDestruct "HH" as (? ? ?) "(_ & _ & HPC & _)".
-         iApply "Hcont". iFrame "HPC". iIntros (Hcond). done. }
-    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-    iDestruct "HH" as (? ? (?&?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
-    iDestruct "Hcont" as (? ? ? ? Heq') "Hcont";simplify_eq.
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ?) "HH".
+    iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
@@ -1052,22 +1039,16 @@ Section interval.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
-    iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
-    iSplit.
-    - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.
-      rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct y) as Hx. set_solver+Hx.
-    - iIntros (r Hne). rewrite /RegLocate. consider_next_reg r PC. done.
-      consider_next_reg r r_t0. consider_next_reg r r_env. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t20. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t5. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t2. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t3. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t4. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t1. by rewrite !fixpoint_interp1_eq.
-      destruct (rmap !! r) eqn:Hr;rewrite Hr;[|by rewrite !fixpoint_interp1_eq].
-      iDestruct (big_sepM_lookup with "Hregs_val") as "$";eauto.
+    (* iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|]. *)
+    (* rewrite -(insert_insert _  PC _ (WInt 0%Z)). *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro. simpl.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
   Qed.
 
 
