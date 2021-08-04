@@ -7,6 +7,16 @@ COQDOCFLAGS:= \
   --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html
 export COQDOCFLAGS
 
+CI_EXAMPLES:="\
+  theories/examples/buffer.vo \
+  theories/examples/minimal_counter.vo \
+  theories/examples/counter_adequacy.vo \
+  theories/examples/adder_adequacy.vo \
+  theories/examples/counter_binary.vo \
+  theories/examples/counter_binary_preamble.vo \
+  theories/examples/lse.vo \
+	theories/examples/dynamic_sealing.vo"
+
 .PHONY: all coq clean html
 all: coq
 
@@ -33,7 +43,7 @@ skip-qed: Makefile.coq.conf
 	./disable-qed.sh $(COQMF_VFILES)
 
 ci: skip-qed
-	$(MAKE) -f Makefile.coq pretty-timed
+	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
