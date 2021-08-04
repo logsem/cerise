@@ -47,6 +47,7 @@ theories/proofmode_instr_rules.v
 theories/proofmode.v
 theories/logrel.v
 theories/logrel_binary.v
+theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
@@ -93,7 +94,6 @@ theories/examples/adder_adequacy.v
 theories/examples/callback.v
 theories/examples/lse.v
 theories/examples/macros_binary.v
-theories/monotone.v
 theories/examples/list_new.v
 theories/examples/dynamic_sealing.v
 theories/examples/interval.v
