@@ -8,7 +8,7 @@ From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section interval_closure.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
           `{MP: MachineParameters}.
 
   Definition interval f_m :=
@@ -22,7 +22,7 @@ Section interval_closure.
   Definition r_temp6 := r_t26.
 
 
-  Definition interval_closure f_m f_s offset_to_interval :=
+  Definition interval_closure (f_m f_s offset_to_interval : Z) :=
     (* allocate the environment of the interval library *)
     malloc_instrs f_m 2%nat ++
     encodeInstrsW [ Mov r_temp1 r_t1 ] ++
@@ -67,21 +67,55 @@ Section interval_closure.
   Definition sealN : namespace := intN .@ "sealN".
   Definition sealLLN : namespace := intN .@ "sealLLN".
 
-  Lemma interval_closure_functional_spec f_m f_s offset_to_interval offset_to_move
+  Definition interval_closure_move_offset_ : Z.
+  Proof.
+    unshelve refine (let x := _ : Z in _). {
+      set instrs := interval_closure 0 0 0.
+      assert (sig (λ l1, ∃ l2, instrs = l1 ++ l2)) as [l1 _]; [do 2 eexists | exact (length l1)].
+
+      assert (forall A (l1 l2 l3 l4: list A), l2 = l3 ++ l4 → l1 ++ l2 = (l1 ++ l3) ++ l4) as step_app.
+      { intros * ->. by rewrite app_assoc. }
+      assert (forall A (l1 l2 l3: list A) x, l1 = l2 ++ l3 → x :: l1 = (x :: l2) ++ l3) as step_cons.
+      { intros * ->. reflexivity. }
+      assert (forall A (l1 l2: list A) x, x :: l1 = l2 → x :: l1 = l2) as prepare_cons.
+      { auto. }
+      assert (forall A (l: list A), l = [] ++ l) as stop.
+      { reflexivity. }
+
+      unfold instrs, interval_closure.
+      (* Program-specific part *)
+      eapply step_app. eapply step_app. eapply step_app.
+
+      repeat (eapply prepare_cons;
+              lazymatch goal with
+              | |- encodeInstrW (Mov r_t1 _) :: _ = _ => fail
+              | _ => eapply step_cons end).
+      eapply stop.
+    }
+    exact x.
+  Defined.
+
+  Definition interval_closure_move_offset : Z :=
+    Eval cbv in interval_closure_move_offset_.
+
+  Definition interval_closure_instrs_length : Z :=
+    Eval cbv in (length (interval_closure 0 0 0)).
+
+  Lemma interval_closure_functional_spec f_m f_s offset_to_interval
         a_first i_first s_first a_move
         pc_p pc_b pc_e
         s_p s_b s_e
         b_r e_r a_r malloc_r makeseal_r
         b_rs e_rs
         b_m e_m mallocN
-        wret rmap Ψ Φ :
+        wret rmap Φ :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
     ExecPCPerm s_p →
 
     (* Program adresses assumptions *)
-    SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (interval_closure f_m f_s offset_to_interval))%a →
     SubBounds pc_b pc_e i_first (i_first ^+ length (interval f_m))%a →
     SubBounds s_b s_e s_first (s_first ^+ length unseal_instrs
                                        ^+ length (seal_instrs 0)
@@ -95,7 +129,7 @@ Section interval_closure.
     (b_rs + 1)%a = Some e_rs →
 
     (* offset between preamble and interval library *)
-    (a_first + offset_to_move)%a = Some a_move →
+    (a_first + interval_closure_move_offset)%a = Some a_move →
     (a_move + offset_to_interval)%a = Some i_first →
 
     (* registers *)
@@ -127,9 +161,8 @@ Section interval_closure.
     ∗ na_own logrel_nais ⊤
 
     (* continuation *)
-    ∗ Ψ FailedV
-    ∗ (∀ v, Ψ v -∗ Φ v)
-    ∗ ▷ (PC ↦ᵣ updatePcPerm wret -∗ WP Seq (Instr Executable) {{ Ψ }} )
+    ∗ Φ FailedV
+    ∗ ▷ (PC ↦ᵣ updatePcPerm wret -∗ WP Seq (Instr Executable) {{ Φ }} )
 
 
       ⊢
@@ -138,15 +171,17 @@ Section interval_closure.
     iIntros (Hpc_p Hs_p Hbounds_preamble Hbounds_interval Hbounds_seal Hwb_mallocr Hwb_makesealr
                    Hlink_mallocr Hlink_makesealr Hsealtable Ha_move Hi_first Hdom).
     iIntros "(Hcode & Hinterval & Hseal & Hs_b & Hb_rs & Hpc_b & Hmalloc_r & Hmakeseal_r & #Hmalloc
-              & HPC & Hr_t0 & Hregs & Hown & Hfailed & HΨ & HΦ)".
+              & HPC & Hr_t0 & Hregs & Hown & Hfailed & HΦ)".
 
     rewrite /interval_closure.
 
     focus_block 0 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
 
     (* malloc *)
-    iApply (wp_wand _ _ _ (λ v, (Ψ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I with "[- Hfailed HΨ]"); cycle 1.
-    { iIntros (v) "[ [H1 | H1] | H1]";iApply "HΨ";iFrame; iSimplifyEq; iFrame. }
+    iApply (wp_wand _ _ _ (λ v, ((((Φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)
+                                  ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I
+              with "[- Hfailed]"); cycle 1.
+    { iIntros (v) "[ [ [ [ [H1 | H1] | H1] | H1] | H1] | H1]";iFrame; iSimplifyEq; iFrame. }
     iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[auto|auto|clear;lia|..].
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Henv & Hr_t0 & Hown & Hregs)".
     iDestruct "Henv" as (benv0 eenv Henvsize) "(Hr_t1 & Hbeenv)".
@@ -233,11 +268,40 @@ Section interval_closure.
     iGo "Hblock". solve_addr+Henvsize Henvincr.
     iGo "Hblock". solve_addr+Henvsize Henvincr.
     iGo "Hblock". assert (benv1 + -1 = Some benv0)%a;[solve_addr+Henvsize Henvincr|]. eauto.
-    
+
+    assert ((a_mid2 ^+ 9 + offset_to_interval)%a = Some i_first) as Hlea.
+    { clear- Ha_mid Ha_mid2 Ha_move Hi_first. cbn in *.
+      unfold interval_closure_move_offset in Ha_move. solve_addr. }
+    iGo "Hblock".
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
     (* We can now allocate the seal environment invariant *)
-    iMod (na_inv_alloc _ _ sealN (seal_env benv0 benv1 ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
-            with "[Hact1 Hact2 Hb_rs Hs_b Hbenv0 Hbenv1 Hseal]") as "#?".
-    { iNext. iFrame. iExists _,_,_,_,_. iFrame. repeat iSplit;eauto. }
+    iMod (na_inv_alloc logrel_nais _ sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
+            with "[Hact1 Hact2 Hb_rs Hs_b Hbenv0 Hbenv1 Hseal]") as "#Hseal_env".
+    { iNext. iFrame. iExists _,_,_,_,_. iFrame. repeat iSplit;eauto.
+      all: iPureIntro. by constructor. inversion Hbounds_seal;auto. solve_addr+.
+      destruct Hbounds_seal as (?&?&Hle). rewrite 3!app_length /=. solve_addr+Hle. }
+    instantiate (3 := sealLLN). instantiate (2 := isInterval). Unshelve. 2: apply _.
+
+    focus_block 4 "Hcode" as a_mid3 Ha_mid3 "Hblock" "Hcont".
+
+    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs";[by simplify_map_eq|].
+    map_simpl "Hregs".
+
+    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
+    { solve_ndisj. }
+    iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
+    iDestruct "Hres" as (b e He) "(Hr_t1 & Hact & Hr_t0 & Hr_t2 & Hown & Hregs)".
+    map_simpl "Hregs".
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
+    focus_block 5 "Hcode" as a_mid4 Ha_mid4 "Hblock" "Hcont".
+    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
+    assert (is_Some (rmap !! r_temp3)) as [w3 Hr_temp3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
+    
 
 
 
