@@ -18,7 +18,6 @@ Section interval_closure.
   Definition r_temp2 := r_t22.
   Definition r_temp3 := r_t23.
   Definition r_temp4 := r_t24.
-  Definition r_temp5 := r_t25.
   Definition r_temp6 := r_t26.
 
 
@@ -61,7 +60,17 @@ Section interval_closure.
                   Lea r_t1 (strings.length imin)] ++
     (* create closure around imin and the seal environment *)
     crtcls_instrs f_m ++
-    encodeInstrsW [ Jmp r_temp6 ].
+    (* cleanup *)
+    encodeInstrsW [ Mov r_t0 r_temp6;
+                  Mov r_t3 r_t1;
+                  Mov r_t2 r_temp4;
+                  Mov r_t1 r_temp3;
+                  Mov r_temp1 0;
+                  Mov r_temp4 0;
+                  Mov r_temp3 0;
+                  Mov r_temp6 0;
+                  Mov r_temp2 0;
+                  Jmp r_t0 ].
 
   Definition intN : namespace := nroot .@ "intervalN".
   Definition sealN : namespace := intN .@ "sealN".
@@ -100,6 +109,13 @@ Section interval_closure.
 
   Definition interval_closure_instrs_length : Z :=
     Eval cbv in (length (interval_closure 0 0 0)).
+
+  Definition rmapfinal rmap : Reg :=
+    delete r_t3 (delete r_t1 (delete r_t2 (<[r_temp1:=WInt 0]> (<[r_temp2:=WInt 0]> (<[r_temp3:=WInt 0]>
+     (<[r_temp4:=WInt 0]> (<[r_temp6:=WInt 0]> (<[r_t4:=WInt 0]> (<[r_t5:=WInt 0]>
+      (<[r_t6:=WInt 0]> (<[r_t7:=WInt 0]> (<[r_t8:=WInt 0]>
+       (<[r_t9:=WInt 0]> (<[r_t10:=WInt 0]> rmap)))))))))))))).
+
 
   Lemma interval_closure_functional_spec f_m f_s offset_to_interval
         a_first i_first s_first a_move
@@ -162,7 +178,30 @@ Section interval_closure.
 
     (* continuation *)
     ∗ Φ FailedV
-    ∗ ▷ (PC ↦ᵣ updatePcPerm wret -∗ WP Seq (Instr Executable) {{ Φ }} )
+    ∗ ▷ ( PC ↦ᵣ updatePcPerm wret
+         ∗ codefrag i_first (interval f_m)
+         ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+         ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
+         ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ length unseal_instrs ^+ length (seal_instrs 0))%a
+         ∗ r_t0 ↦ᵣ wret
+         ∗ (∃ b e b0 e0 b3 e3 benv0 eenv γ ll ll' a_imin a_imax,
+               ⌜(b + 8)%a = Some e
+               ∧ (b0 + 8)%a = Some e0
+               ∧ (b3 + 8)%a = Some e3
+               ∧ (i_first + length (makeint f_m))%a = Some a_imin
+               ∧ (i_first + length (makeint f_m ++ imin))%a = Some a_imax⌝
+         ∗ sealLL sealLLN ll γ isInterval
+         ∗ na_inv logrel_nais sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
+         ∗ r_t1 ↦ᵣ WCap E b e b
+         ∗ r_t2 ↦ᵣ WCap E b0 e0 b0
+         ∗ r_t3 ↦ᵣ WCap E b3 e3 b3
+         ∗ [[b,e]]↦ₐ[[activation_instrs (WCap pc_p pc_b pc_e i_first) (WCap RWX benv0 eenv benv0)]]
+         ∗ [[b0,e0]]↦ₐ[[activation_instrs (WCap pc_p pc_b pc_e a_imin) (WCap RWX benv0 eenv benv0)]]
+         ∗ [[b3,e3]]↦ₐ[[activation_instrs (WCap pc_p pc_b pc_e a_imax) (WCap RWX benv0 eenv benv0)]])
+         ∗ codefrag a_first (interval_closure f_m f_s offset_to_interval)
+         ∗ na_own logrel_nais ⊤
+         ∗ ([∗ map] k↦y ∈ rmapfinal rmap, k ↦ᵣ y)
+         -∗ WP Seq (Instr Executable) {{ Φ }} )
 
 
       ⊢
@@ -181,7 +220,7 @@ Section interval_closure.
     iApply (wp_wand _ _ _ (λ v, ((((Φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)
                                   ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I
               with "[- Hfailed]"); cycle 1.
-    { iIntros (v) "[ [ [ [ [H1 | H1] | H1] | H1] | H1] | H1]";iFrame; iSimplifyEq; iFrame. }
+    { iIntros (v) "[ [ [ [ [H1 | H1] | H1] | H1] | H1] | H1]";iFrame; iDestruct "H1" as "->"; iFrame. }
     iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[auto|auto|clear;lia|..].
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Henv & Hr_t0 & Hown & Hregs)".
     iDestruct "Henv" as (benv0 eenv Henvsize) "(Hr_t1 & Hbeenv)".
@@ -301,8 +340,76 @@ Section interval_closure.
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
     assert (is_Some (rmap !! r_temp3)) as [w3 Hr_temp3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
-    
+    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
 
+    rewrite /interval.
+    iDestruct (codefrag_contiguous_region with "Hinterval") as %Hint_cont.
+    assert (ContiguousRegion i_first (length (makeint f_m))) as [a_imin Ha_imin];[solve_addr+Hint_cont|].
+    iGo "Hblock".
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
+    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp3 with "[$Hregs $Hr_temp3]") as "Hregs"; [by simplify_map_eq|].
+    map_simpl "Hregs".
+    focus_block 6 "Hcode" as a_mid5 Ha_mid5 "Hblock" "Hcont".
+
+    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
+    { solve_ndisj. }
+    iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
+    iDestruct "Hres" as (b0 e0 He0) "(Hr_t1 & Hact0 & Hr_t0 & Hr_t2 & Hown & Hregs)".
+    map_simpl "Hregs".
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
+    focus_block 7 "Hcode" as a_mid6 Ha_mid6 "Hblock" "Hcont".
+    assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    iDestruct (big_sepM_delete _ _ r_temp4 with "Hregs") as "[Hr_temp4 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
+    assert (ContiguousRegion i_first (length (makeint f_m ++ imin))) as [a_imax Ha_imax];
+      [solve_addr+Hint_cont|].
+    iGo "Hblock". instantiate (1:=a_imax). solve_addr+Ha_imax Ha_imin.
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
+    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp4 with "[$Hregs $Hr_temp4]") as "Hregs"; [by simplify_map_eq|].
+    map_simpl "Hregs".
+
+    focus_block 8 "Hcode" as a_mid7 Ha_mid7 "Hblock" "Hcont".
+
+    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
+    { solve_ndisj. }
+    iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
+    iDestruct "Hres" as (b3 e3 He3) "(Hr_t1 & Hact3 & Hr_t0 & Hr_t2 & Hown & Hregs)".
+    map_simpl "Hregs".
+    unfocus_block "Hblock" "Hcont" as "Hcode".
+
+    focus_block 9 "Hcode" as a_mid8 Ha_mid8 "Hblock" "Hcont".
+    iDestruct (big_sepM_delete _ _ r_temp6 with "Hregs") as "[Hr_temp6 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp4 with "Hregs") as "[Hr_temp4 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
+    map_simpl "Hregs".
+    iGo "Hblock".
+    iDestruct (big_sepM_insert _ _ r_temp6 with "[$Hregs $Hr_temp6]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp4 with "[$Hregs $Hr_temp4]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp3 with "[$Hregs $Hr_temp3]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
+    map_simpl "Hregs". unfocus_block "Hblock" "Hcont" as "Hcode".
+    repeat rewrite -(delete_insert_ne _ r_t3)//.
+    repeat rewrite -(delete_insert_ne _ r_t1)//.
+    repeat rewrite -(delete_insert_ne _ r_t2)//.
+
+    (* continuation *)
+    iApply "HΦ". unfold rmapfinal. iFrame. iExists _,_,_,_,_,_,_,_.
+    iExists _,_,_,_,_. iFrame. iFrame "#". auto.
+  Qed.
 
 
 End interval_closure.
