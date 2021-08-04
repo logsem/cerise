@@ -174,35 +174,83 @@ Section codefrag_subblock.
 
 End codefrag_subblock.
 
+Lemma focus_block_0_SubBounds (b e b' : Addr) k m :
+  SubBounds b e b' (b' ^+ k)%a →
+  ContiguousRegion b' m →
+  (0 ≤ m)%Z →
+  (m ≤ k)%Z →
+  SubBounds b e b' (b' ^+ m)%a.
+Proof. solve_addr. Qed.
+
+(* More efficient version of codefrag_facts (avoids calling [solve_addr])
+   because we have slightly more information when doing focus_block_0 *)
+Ltac focus_block_0_codefrag_facts hi a0 :=
+  let HCR := fresh in
+  iDestruct (codefrag_contiguous_region with hi) as %HCR;
+  cbn [length map encodeInstrsW] in HCR;
+  try lazymatch goal with HSB : SubBounds ?b ?e a0 (a0 ^+ _)%a |- _ =>
+    let HSB' := fresh in
+    unshelve epose proof (focus_block_0_SubBounds _ _ _ _ _ HSB HCR _ _) as HSB';
+    [solve_pure ..|];
+    cbn [length map encodeInstrsW] in HSB'
+  end.
+
 Ltac focus_block_0 h hi hcont :=
   let h := constr:(h:ident) in
   let hi := constr:(hi:ident) in
   let hcont := constr:(hcont:ident) in
   let x := iFresh in
-  iPoseProof (codefrag_block0_acc with h) as x;
-  eapply tac_and_destruct with x _ hi hcont _ _ _;
-  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
-  codefrag_facts hi.
+  match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
+    iPoseProof (codefrag_block0_acc with h) as x;
+    eapply tac_and_destruct with x _ hi hcont _ _ _;
+    [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+    focus_block_0_codefrag_facts hi a0
+  end.
 
 Tactic Notation "focus_block_0" constr(h) "as" constr(hi) constr(hcont) :=
   focus_block_0 h hi hcont.
+
+Lemma focus_block_SubBounds (b e b' b'': Addr) k m n :
+  SubBounds b e b' (b' ^+ k)%a →
+  ContiguousRegion b'' m →
+  (b' + n)%a = Some b'' →
+  (0 ≤ n)%Z →
+  (0 ≤ m)%Z →
+  ((n + m) <= k)%Z →
+  SubBounds b e b'' (b'' ^+ m)%a.
+Proof. solve_addr. Qed.
+
+(* More efficient version of codefrag_facts (avoids calling [solve_addr])
+   because we have slightly more information when doing focus_block *)
+Ltac focus_block_codefrag_facts hi a0 Ha_base :=
+  let HCR := fresh in
+  iDestruct (codefrag_contiguous_region with hi) as %HCR;
+  cbn [length map encodeInstrsW] in HCR;
+  try lazymatch goal with HSB : SubBounds ?b ?e a0 (a0 ^+ _)%a |- _ =>
+    let HSB' := fresh in
+    unshelve epose proof (focus_block_SubBounds _ _ _ _ _ _ _ HSB HCR Ha_base _ _ _) as HSB';
+    [solve_pure ..|];
+    cbn [length map encodeInstrsW] in HSB'
+  end.
 
 Ltac focus_block n h a_base Ha_base hi hcont :=
   let h := constr:(h:ident) in
   let hi := constr:(hi:ident) in
   let hcont := constr:(hcont:ident) in
   let x := iFresh in
-  iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
-    [ typeclasses eauto with proofmode_focus | ];
-  let xbase := iFresh in
-  let y := iFresh in
-  eapply tac_and_destruct with x _ xbase y _ _ _;
-  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
-  iPure xbase as Ha_base;
-  eapply tac_and_destruct with y _ hi hcont _ _ _;
-  [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
-  codefrag_facts hi;
-  changePCto a_base.
+  match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
+    iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
+      [ typeclasses eauto with proofmode_focus | ];
+    let xbase := iFresh in
+    let y := iFresh in
+    eapply tac_and_destruct with x _ xbase y _ _ _;
+      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+    iPure xbase as Ha_base;
+    eapply tac_and_destruct with y _ hi hcont _ _ _;
+      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+    focus_block_codefrag_facts hi a0 Ha_base;
+    changePCto a_base
+  end.
 
 Tactic Notation "focus_block" constr(n) constr(h) "as"
        ident(a_base) simple_intropattern(Ha_base) constr(hi) constr(hcont) :=
