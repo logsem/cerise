@@ -250,6 +250,11 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
       [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
     focus_block_codefrag_facts hi a0 Ha_base;
     changePCto a_base
+    (* FIXME: changePCto invokes solve_addr which can be quite slow here;
+       instead, a solution might be to implement a small decision procedure
+       (e.g. in solve_pure) to solve goals of the form (a = a') in presence of
+       assumptions of the form (a0 + n = Some a), by finding a common base
+       address and comparing the offsets. *)
   end.
 
 Tactic Notation "focus_block" constr(n) constr(h) "as"
