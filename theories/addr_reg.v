@@ -385,7 +385,9 @@ Definition get_addr_from_option_addr : option Addr → Addr :=
            end.
 
 Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Addr_scope.
-Notation "a ^+ b" := (^ (a + b))%a (at level 50) : Addr_scope.
+
+Definition incr_addr_default (a: Addr) (z: Z): Addr := (^ (a + z))%a.
+Notation "a ^+ z" := (incr_addr_default a z) (at level 50) : Addr_scope.
 
 Lemma addr_unique a a' fin fin' pos pos' :
   a = a' → A a fin pos = A a' fin' pos'.

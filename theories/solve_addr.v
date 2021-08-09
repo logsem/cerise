@@ -49,6 +49,20 @@ Proof.
   destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; lia.
 Qed.
 
+Lemma incr_addr_default_spec (a: Addr) z :
+  (0 ≤ z_of a + z ∧ z_of a + z < MemNum ∧ z_of (a ^+ z)%a = z_of a + z)%Z ∨
+  ((z_of a + z < 0 ∨ top ≤ z_of a + z) ∧ z_of (a ^+ z)%a = MemNum)%Z.
+Proof.
+  unfold incr_addr_default, incr_addr, get_addr_from_option_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); cbn; lia.
+Qed.
+
+Ltac incr_addr_default_as_spec a x :=
+  generalize (incr_addr_default_spec a x); intros ?;
+  let ax := fresh "ax" in
+  fast_set ax (incr_addr_default a x);
+  clearbody ax.
+
 Lemma z_to_addr_spec (z: Z) :
   (exists (a: Addr),
     z_to_addr z = Some a ∧ z_of a = z) ∨
@@ -146,6 +160,11 @@ Ltac zify_addr_op_nonbranching_step :=
   | |- context [ max ?a1 ?a2 ] =>
     max_addr_as_spec a1 a2
 
+  | H : context [ incr_addr_default ?a ?x ] |- _ =>
+    incr_addr_default_as_spec a x
+  | |- context [ incr_addr_default ?a ?x ] =>
+    incr_addr_default_as_spec a x
+
   | H : is_Some (incr_addr _ _) |- _ =>
     destruct H
   | H : incr_addr _ _ = Some _ |- _ =>
@@ -228,6 +247,7 @@ Ltac zify_addr_ty_step :=
    combinatorial explosion, but zify_addr does not. *)
 
 Ltac zify_addr :=
+  intros; solve_addr_cbn;
   repeat (first [ zify_addr_nonbranching_step
                 | zify_addr_op_branching_goal_step
                 | zify_addr_op_branching_hyps_step ]);
@@ -316,6 +336,12 @@ Lemma incr_addr_opt_add_twice (a: Addr) (n m: Z) :
   (0 <= m)%Z ->
   ^(^(a + n) + m)%a = ^(a + (n + m)%Z)%a.
 Proof. solve_addr. Qed.
+
+Lemma incr_addr_opt_add_twice' (a: Addr) (n m: Z) :
+  (0 <= n)%Z ->
+  (0 <= m)%Z ->
+  ((a ^+ n) ^+ m)%a = (a ^+ (n + m)%Z)%a.
+Proof. zify_addr;[]. (* only one goal! *) lia. Qed.
 
 Lemma top_le_eq a : (top <= a)%a → a = top.
 Proof. solve_addr. Qed.
