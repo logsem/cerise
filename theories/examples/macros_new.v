@@ -753,7 +753,8 @@ Section macros.
     assert (∃ b_mid, b_cls + 7 = Some b_mid)%a as [b_mid Hbmid];[destruct (b_cls + 7)%a eqn:HH;eauto;exfalso;solve_addr|].
 
     iAssert (codefrag b_cls (activation_code) ∗ b_end ↦ₐ wcode ∗ b_mid ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
-    { rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
+    { rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a /=; [|solve_addr].
+      rewrite /activation_instrs.
       rewrite (region_addrs_split _ b_end);[|solve_addr].
       iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite region_addrs_length /region_size. left. solve_addr.
       iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
@@ -770,7 +771,7 @@ Section macros.
     iGo "Hprog". auto.
     iGo "Hprog".
     iApply "Hcont". iFrame.
-    rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
+    rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a; [| solve_addr]. rewrite /activation_instrs.
     rewrite (region_addrs_split _ b_end);[|solve_addr]. 
     iApply (big_sepL2_app with "Hprog").
     rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.

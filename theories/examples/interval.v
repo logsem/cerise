@@ -408,7 +408,7 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite /incr_addr_default Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
@@ -483,7 +483,7 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite /(incr_addr_default a) Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
