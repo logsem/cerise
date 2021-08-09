@@ -98,6 +98,8 @@ theories/examples/list_new.v
 theories/examples/dynamic_sealing.v
 theories/examples/interval.v
 theories/examples/interval_closure.v
+theories/examples/interval_client.v
+theories/examples/interval_client_closure.v
 theories/examples/malloc_binary.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble.v

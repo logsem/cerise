@@ -504,6 +504,104 @@ Section interval.
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
   Qed.
 
+  Lemma makint_valid pc_p pc_b pc_e (* PC *)
+        wret (* return cap *)
+        d d' (* dynamically allocated seal/unseal environment *)
+        a_first (* special adresses *)
+        rmap (* registers *)
+        ι0 ι1 ι2 ι3 ι4 γ (* invariant/gname names *)
+        ll ll' (* seal env adresses *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env *)
+        b_r e_r a_r a_r' f_m (* environment table *)
+        p b e a (* seal/unseal adresses *):
+
+    (* PC assumptions *)
+    ExecPCPerm pc_p →
+
+    (* Program adresses assumptions *)
+    SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
+
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+
+    (* environment table: required by the seal and malloc spec *)
+    withinBounds b_r e_r a_r' = true →
+    (a_r + f_m)%a = Some a_r' →
+
+    (* The two invariants have different names *)
+    (up_close (B:=coPset)ι0 ⊆ ⊤ ∖ ↑ι1) ->
+    (up_close (B:=coPset)ι4 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0) →
+    (up_close (B:=coPset)ι2 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0) →
+    (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι2) →
+    (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι4) →
+
+
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+      ∗ r_t0 ↦ᵣ wret
+      ∗ r_env ↦ᵣ WCap RWX d d' d
+      ∗ (∃ w, r_t20 ↦ᵣ w)
+      ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+      (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
+      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
+      ∗ sealLL ι2 ll γ isInterval
+      (* token which states all non atomic invariants are closed *)
+      ∗ na_own logrel_nais ⊤
+      (* callback validity *)
+      ∗ interp wret
+      (* malloc: only required by the seal spec *)
+      ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m)
+      ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap RO b_r e_r a_r ∗ a_r' ↦ₐ WCap E b_m e_m b_m)
+      (* trusted code *)
+      ∗ na_inv logrel_nais ι1 (codefrag a_first (makeint f_m))
+      (* the remaining registers are all valid *)
+      ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
+    }}}
+      Seq (Instr Executable)
+      {{{ v, RET v; ⌜v = HaltedV⌝ →
+                    ∃ r, full_map r ∧ registers_mapsto r
+                         ∗ na_own logrel_nais ⊤ }}}.
+  Proof.
+    iIntros (Hexec Hsub Hdom Hwb Hf_m Hdisj Hdisj2 Hsidj3 Hdisj4 Hdisj5 φ)
+            "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown
+            & #Hretval & #Hmalloc & #Htable & #Hprog & #Hregs_val) Hφ".
+
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
+    iDestruct "Hr_t20" as (w20) "Hr_t20".
+    iDestruct (big_sepM_insert _ _ r_t20 with "[$Hregs $Hr_t20]") as "Hregs";
+      [simplify_map_eq; apply not_elem_of_dom; rewrite Hdom;set_solver+|].
+
+
+    iApply makeint_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    { rewrite dom_insert_L !dom_delete_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iSplitR.
+    { iNext. iIntros (Hcontr). done. }
+
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH".
+    iDestruct "HH" as (? ? ? ? ? (?&?&?))
+                "(#Hpref & #Hi & HPC & Hr_t1 & Hr_env & Hr_t0 & Hown & Hregs)".
+
+    (* we can then rebuild the register map *)
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";
+      [simplify_map_eq;apply not_elem_of_dom; rewrite Hdom; set_solver+|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";
+      [simplify_map_eq;apply not_elem_of_dom; rewrite Hdom; set_solver+|].
+    map_simpl "Hregs".
+
+    (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. iSimpl. iApply fixpoint_interp1_eq. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
+  Qed.
+
   (* ---------------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------------- IMIN -------------------------------------------------- *)
   (* ---------------------------------------------------------------------------------------------------------- *)
@@ -551,7 +649,7 @@ Section interval.
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
-       ∗ interp wret
+       (* ∗ interp wret *)
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
        (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
@@ -579,7 +677,7 @@ Section interval.
       WP Seq (Instr Executable) {{ Φ }}.
   Proof.
     iIntros (Hexec Hsub Hdisj Hdisj2 Hsidj3) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20
-    & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & Hfailed & HΨ & Hφ)".
+    & #Hseal_env & #HsealLL & Hown & #Hprog & Hfailed & HΨ & Hφ)".
     iMod (na_inv_acc with "Hprog Hown") as "(>Hcode & Hown & Hcls)";auto.
 
     (* extract the registers used by the program *)
@@ -798,7 +896,7 @@ Section interval.
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
-       ∗ interp wret
+       (* ∗ interp wret *)
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
        (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
@@ -826,7 +924,7 @@ Section interval.
       WP Seq (Instr Executable) {{ Φ }}.
   Proof.
     iIntros (Hexec Hsub Hdisj Hdisj2 Hsidj3) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20
-    & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & Hfailed & HΨ & Hφ)".
+    & #Hseal_env & #HsealLL & Hown & #Hprog & Hfailed & HΨ & Hφ)".
     iMod (na_inv_acc with "Hprog Hown") as "(>Hcode & Hown & Hcls)";auto.
 
     (* extract the registers used by the program *)
