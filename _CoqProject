@@ -105,5 +105,3 @@ theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble.v
 theories/examples/buffer.v
 theories/examples/minimal_counter.v
-theories/examples/dynamic_sealing.v
-theories/examples/interval.v
