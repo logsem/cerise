@@ -49,6 +49,15 @@ Proof.
   destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; lia.
 Qed.
 
+Lemma incr_addr_Some_prove_spec (a a': Addr) (z: Z) :
+  (a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z →
+  (a + z)%a = Some a'.
+Proof.
+  unfold incr_addr.
+  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; try lia.
+  intros. apply f_equal. apply z_of_eq. cbn. lia.
+Qed.
+
 Lemma incr_addr_default_spec (a: Addr) z :
   (0 ≤ z_of a + z ∧ z_of a + z < MemNum ∧ z_of (a ^+ z)%a = z_of a + z)%Z ∨
   ((z_of a + z < 0 ∨ top ≤ z_of a + z) ∧ z_of (a ^+ z)%a = MemNum)%Z.
@@ -172,6 +181,8 @@ Ltac zify_addr_op_nonbranching_step :=
     destruct H as (? & ? & ?)
   | |- is_Some (incr_addr _ _) =>
     apply incr_addr_is_Some_spec
+  | |- incr_addr _ _ = Some _ =>
+    apply incr_addr_Some_prove_spec
 
   | H : z_to_addr _ = Some _ |- _ =>
     apply z_to_addr_is_Some_spec in H
@@ -306,11 +317,7 @@ Goal forall (a a' b b' : Addr),
   (a + 0)%a = Some a.
 Proof.
   intros.
-  repeat zify_addr_op_goal_step.
-  (* Check that we can actually terminate early before translating the whole
-     context. *)
-  solve_addr_close_proof.
-  solve_addr_close_proof.
+  repeat zify_addr_op_goal_step; [].
   solve_addr_close_proof.
 Qed.
 
