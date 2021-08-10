@@ -133,9 +133,9 @@ Section interval_closure.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (interval_closure f_m f_s offset_to_interval))%a →
     SubBounds pc_b pc_e i_first (i_first ^+ length (interval f_m))%a →
-    SubBounds s_b s_e s_first (s_first ^+ length unseal_instrs
-                                       ^+ length (seal_instrs 0)
-                                       ^+ length (make_seal_preamble_instrs 0))%a →
+    SubBounds s_b s_e s_first (s_first ^+ (length unseal_instrs
+                                           + length (seal_instrs 0)
+                                           + length (make_seal_preamble_instrs 0)))%a →
 
     (* environment table: contains the makeseal entry, and malloc *)
     withinBounds b_r e_r malloc_r = true →
@@ -164,7 +164,7 @@ Section interval_closure.
     (* Environment table for interval library *)
     ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
     ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
-    ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ length unseal_instrs ^+ length (seal_instrs 0))%a
+    ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
     (* Malloc invariant *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
 
@@ -182,7 +182,7 @@ Section interval_closure.
          ∗ codefrag i_first (interval f_m)
          ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
          ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
-         ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ length unseal_instrs ^+ length (seal_instrs 0))%a
+         ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
          ∗ r_t0 ↦ᵣ wret
          ∗ (∃ b e b0 e0 b3 e3 benv0 eenv γ ll ll' a_imin a_imax,
                ⌜(b + 8)%a = Some e
@@ -214,7 +214,7 @@ Section interval_closure.
 
     rewrite /interval_closure.
 
-    focus_block 0 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
+    focus_block_0 "Hcode" as "Hblock" "Hcont".
 
     (* malloc *)
     iApply (wp_wand _ _ _ (λ v, ((((Φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)
@@ -309,7 +309,7 @@ Section interval_closure.
     iGo "Hblock". assert (benv1 + -1 = Some benv0)%a;[solve_addr+Henvsize Henvincr|]. eauto.
 
     assert ((a_mid2 ^+ 9 + offset_to_interval)%a = Some i_first) as Hlea.
-    { clear- Ha_mid Ha_mid2 Ha_move Hi_first. cbn in *.
+    { clear- Ha_mid2 Ha_move Hi_first. cbn in *.
       unfold interval_closure_move_offset in Ha_move. solve_addr. }
     iGo "Hblock".
     unfocus_block "Hblock" "Hcont" as "Hcode".

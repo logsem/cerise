@@ -319,7 +319,7 @@ Section sealing.
     ExecPCPerm pc_p →
 
     (* Program adresses assumptions *)
-    SubBounds pc_b pc_e a_first (a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m) ^+ length (make_seal_preamble_instrs f_m))%a →
+    SubBounds pc_b pc_e a_first (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m) + length (make_seal_preamble_instrs f_m)))%a →
 
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
@@ -329,7 +329,7 @@ Section sealing.
 
     up_close (B:=coPset) ι1 ⊆ Ep →
 
-    PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m))%a
+    PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m)))%a
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
        (* own token *)

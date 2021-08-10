@@ -100,9 +100,9 @@ Section interval_client.
   Definition int_bounds i_b i_e i_a_first f_m_i f_s_i i_first s_b s_e s_first offset_to_interval :=
     SubBounds i_b i_e i_a_first (i_a_first ^+ length (interval_closure f_m_i f_s_i offset_to_interval))%a ∧
     SubBounds i_b i_e i_first (i_first ^+ length (interval f_m_i))%a ∧
-    SubBounds s_b s_e s_first (s_first ^+ length unseal_instrs
-                                       ^+ length (seal_instrs 0)
-                                       ^+ length (make_seal_preamble_instrs 0))%a.
+    SubBounds s_b s_e s_first (s_first ^+ (length unseal_instrs
+                                           + length (seal_instrs 0)
+                                           + length (make_seal_preamble_instrs 0)))%a.
 
   Definition int_table b_r_i e_r_i malloc_r_i makeseal_r_i a_r_i f_m_i f_s_i b_rs e_rs :=
     withinBounds b_r_i e_r_i malloc_r_i = true ∧
@@ -190,7 +190,7 @@ Section interval_client.
     (* Environment table for interval library *)
     ∗ i_b ↦ₐ WCap RO b_r_i e_r_i a_r_i
     ∗ malloc_r_i ↦ₐ WCap E b_m e_m b_m
-    ∗ makeseal_r_i ↦ₐ WCap E s_b s_e (s_first ^+ length unseal_instrs ^+ length (seal_instrs 0))%a
+    ∗ makeseal_r_i ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
 
     (* Code and environment table of the seal library *)
     ∗ codefrag s_first (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0)
@@ -336,7 +336,8 @@ Section interval_client.
     iMod (na_inv_alloc logrel_nais _ envIN (interval_env b e benv0 eenv RX i_b i_e i_first f_m_i b0 e0
                                                          b3 e1 b4 e3)
             with "[Hb Hb1 Hb2 Hbe Hbe0 Hbe3]") as "#Hint_env".
-    { iNext. iExists _,_. iFrame "Hbe". rewrite Ha_imin. iFrame "Hbe0". iSimpl.
+    { iNext. iExists _,_. iFrame "Hbe". rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
+      iFrame "Hbe0". iSimpl.
       assert (a_imin ^+ 12%nat = a_imax)%a as ->. solve_addr+Ha_imin Ha_imax.
       iFrame "Hbe3". iFrame. repeat iSplit;auto. iPureIntro. by constructor.
       all: iPureIntro. Local Transparent int_bounds int_table int_offsets.
@@ -359,7 +360,8 @@ Section interval_client.
       2: solve_addr+Ha_imin Ha_imax.
       iDestruct (big_sepL2_app' with "Hint") as "[Hmkint Hint]";cycle 1.
       iDestruct (big_sepL2_app' with "Hint") as "[Himin Himax]";cycle 1.
-      rewrite Ha_imin. assert ((a_imin ^+ length imin)%a = a_imax) as ->.
+      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin.
+      assert ((a_imin ^+ length imin)%a = a_imax) as ->.
       solve_addr+Ha_imin Ha_imax.
       assert (i_first ^+ length (makeint f_m_i ++ imin ++ imax) = a_imax ^+ length imax)%a as ->.
       solve_addr+Ha_imin Ha_imax. iFrame.
@@ -397,7 +399,7 @@ Section interval_client.
       destruct Hfullr with r_t0 as [w0' Hr_t0'].
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env]");iFrameCapSolve.
-      10: rewrite Ha_imin /=.
+      10: rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
       10: assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
       10: iFrame "Hchecki Himin Himax".
       all: try solve_ndisj. all: cycle 1.
@@ -477,7 +479,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
-      rewrite Ha_imin. iSimpl in "HPC".
+      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin. iSimpl in "HPC".
       iApply (imin_valid with "[- $Himin $Hregs $HsealLL $HsealN]");iFrameCapSolve.
       solve_addr+ H3 Ha_imin.
       { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
@@ -517,7 +519,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
-      rewrite Ha_imin. iSimpl in "HPC".
+      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin. iSimpl in "HPC".
       assert (a_imin ^+ 12%nat = a_imax)%a as ->;[solve_addr +Ha_imax Ha_imin|].
       iApply (imax_valid with "[- $Himax $Hregs $HsealLL $HsealN]");iFrameCapSolve.
       solve_addr+ H3 Ha_imin Ha_imax.
