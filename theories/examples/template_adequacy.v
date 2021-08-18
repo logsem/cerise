@@ -242,19 +242,20 @@ End basic.
 
 Module with_adv.
 
-Definition is_initial_registers (P Adv: prog) (reg: gmap RegName Word) :=
+Definition is_initial_registers (P Adv: prog) (reg: gmap RegName Word) (r_adv: RegName) :=
   reg !! PC = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P)) ∧
-  reg !! r_t0 = Some (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)) ∧
-  (∀ (r: RegName), r ∉ ({[ PC ]} : gset RegName) →
+  reg !! r_adv = Some (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; r_adv ]} : gset RegName) →
      ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
 
-Lemma initial_registers_full_map (P Adv: prog) reg :
-  is_initial_registers P Adv reg →
+Lemma initial_registers_full_map (P Adv: prog) reg r_adv :
+  is_initial_registers P Adv reg r_adv →
   (∀ r, is_Some (reg !! r)).
 Proof.
-  intros (HPC & Hr0 & Hothers) r.
+  intros (HPC & Hr0 & Hne & Hothers) r.
   destruct (decide (r = PC)) as [->|]. by eauto.
-  destruct (decide (r = r_t0)) as [->|]. by eauto.
+  destruct (decide (r = r_adv)) as [->|]. by eauto.
   destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
 Qed.
 
@@ -273,23 +274,24 @@ Section Adequacy.
 
   Context (P Adv: prog).
   Context (I : memory_inv).
+  Context (r_adv : RegName).
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
   Lemma template_adequacy' (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory P Adv m →
-    is_initial_registers P Adv reg →
+    is_initial_registers P Adv reg r_adv →
     Forall (λ w, is_cap w = false) (prog_instrs Adv) →
     minv I m →
     minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
     (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
-     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
        ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-       ∗ r_t0 ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
        ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
@@ -343,12 +345,12 @@ Section Adequacy.
       eapply map_filter_sub; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
-    destruct Hreg as (HPC & Hr0 & Hrothers).
+    destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
     iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
-    iDestruct (big_sepM_delete _ _ r_t0 with "Hreg") as "[Hr0 Hreg]".
+    iDestruct (big_sepM_delete _ _ r_adv with "Hreg") as "[Hr0 Hreg]".
       by rewrite lookup_delete_ne //.
 
-    set rmap := delete r_t0 (delete PC reg).
+    set rmap := delete r_adv (delete PC reg).
     iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)%I
                with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
@@ -360,7 +362,7 @@ Section Adequacy.
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
     { intros r.
       destruct (decide (r = PC)); subst; [by eauto|].
-      destruct (decide (r = r_t0)); subst; [by eauto|].
+      destruct (decide (r = r_adv)); subst; [by eauto|].
       destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
 
     iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hprog $Hadv $Hinv $Hna]") as "Spec".
@@ -382,21 +384,21 @@ Section Adequacy.
 End Adequacy.
 
 Theorem template_adequacy `{MachineParameters}
-    (P Adv: prog) (I: memory_inv)
+    (P Adv: prog) (I: memory_inv) (r_adv : RegName)
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory P Adv m →
-  is_initial_registers P Adv reg →
+  is_initial_registers P Adv reg r_adv →
   Forall (λ w, is_cap w = false) (prog_instrs Adv) →
   minv I m →
   minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
-   dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+   dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
    ⊢ inv invN (minv_sep I)
      ∗ na_own logrel_nais ⊤
      ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-     ∗ r_t0 ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+     ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
      ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
      ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
