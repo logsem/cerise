@@ -893,7 +893,7 @@ Section list.
     iGo "Hprog". solve_addr.
     iMod (get_full_pref with "Hexact") as "[Hexact #Hpref'']".
     iDestruct ("Hcls''" with "[$Ha1 $Ha2]") as "Hlist".
-    iGo "Hprog". instantiate (1 :=ex a_first). solve_addr.
+    iGo "Hprog". instantiate (1 := a_first). solve_addr.
     iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
     iApply ("IH" with "[] [] [] [$HPC $Hr_env $Hr_t0 $Hr_t1 $Hφ $Hφfailed $Hprog Hexact Hlist HΦ Hll Hr_t2 Hr_t3 $Hown]");auto.
     { iPureIntro. destruct Hcond as [ (-> & _) | (p & p' & w' & Hp & -> & Hin') ];[by left|right].

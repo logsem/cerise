@@ -118,7 +118,7 @@ Qed.
 Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es:
   prog_instrs P = buffer_code (prog_start P) ++ buffer_data →
   with_adv.is_initial_memory P Adv m →
-  with_adv.is_initial_registers P Adv reg →
+  with_adv.is_initial_registers P Adv reg r_t0 →
   Forall (λ w, is_cap w = false) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
@@ -128,7 +128,7 @@ Proof.
   generalize (prog_size P). rewrite HP /=. intros.
 
   (* Prove the side-conditions over the memory invariant *)
-  eapply (with_adv.template_adequacy P Adv (buffer_inv (prog_start P)) m m' reg reg' es); auto.
+  eapply (with_adv.template_adequacy P Adv (buffer_inv (prog_start P)) r_t0 m m' reg reg' es); auto.
   { cbn. unfold with_adv.is_initial_memory in Hm. destruct Hm as (Hm & _ & _).
     eapply lookup_weaken; [| apply Hm]. rewrite /prog_region mkregion_lookup.
     { exists 7%nat. split. done. rewrite HP; done. }
