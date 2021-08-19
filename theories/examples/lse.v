@@ -99,7 +99,6 @@ Section roe.
 
   Definition roeN : namespace := nroot .@ "roeN".
   Definition roeN_link : namespace := roeN .@ "link".
-  Definition roeN_flag : namespace := roeN .@ "flag".
   Definition roeN_act : namespace := roeN .@ "act".
   Definition roeN_locals : namespace := roeN .@ "locals".
   Definition roeN_b : namespace := roeN .@ "locals".
@@ -111,8 +110,8 @@ Section roe.
         roe_addrs wadv (* program addresses *)
         b_m e_m f_m mallocN (* malloc *)
         b_link e_link a_link f_a a_entry a_entry' (* link *)
-        fail_start fail_end a_env (* fail *)
-        flag_p flag_b flag_e flag_a (* flag *)
+        fail_start fail_end (* a_env *) (* fail *)
+        (* flag_p flag_b flag_e  *) flag_a roeN_flag (* flag *)
         a_first a_last (* special adresses *)
         rmap (* registers *) :
 
@@ -127,7 +126,7 @@ Section roe.
     withinBounds b_link e_link a_entry' = true →
     (a_link + f_m)%a = Some a_entry →
     (a_link + f_a)%a = Some a_entry' →
-    (fail_start + strings.length (assert_fail_instrs))%a = Some a_env →
+    (* (fail_start + strings.length (assert_fail_instrs))%a = Some a_env → *)
 
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
@@ -148,7 +147,7 @@ Section roe.
       ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
       ∗ a_entry ↦ₐ WCap E b_m e_m b_m
       ∗ a_entry' ↦ₐ WCap E fail_start fail_end fail_start
-      ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a
+      (* ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a *)
       (* invariant about the failure flag *)
       ∗ (inv roeN_flag (flag_a ↦ₐ WInt 0%Z))
     }}}
@@ -157,8 +156,8 @@ Section roe.
                               only that the flag invariant holds throughout the program,
                               and that the program does not get stuck *)
   Proof.
-    iIntros (Hvpc Hcont Hwb1 Hwb2 Ha_entry Ha_entry' Ha_env Hdom φ)
-            "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & Hpc_b & Ha_entry & Ha_entry' & Ha_env & #Hflag) Hφ".
+    iIntros (Hvpc Hcont Hwb1 Hwb2 Ha_entry Ha_entry' (* Ha_env *) Hdom φ)
+            "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & Hpc_b & Ha_entry & Ha_entry' & #Hflag) Hφ".
     (* extract r_t0 *)
     assert (is_Some (rmap !! r_t0)) as [w0 Hw0].
     { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
@@ -286,7 +285,7 @@ Section roe.
     (* we first need to prepare the invariants needed *)
     iMod (na_inv_alloc logrel_nais _ roeN_act with "Hbec") as "#Hbec".
     iMod (na_inv_alloc logrel_nais _ roeN_locals with "Hbel") as "#Hbel".
-    iCombine "Ha_entry' Ha_env Hpc_b Ha_entry" as "Hlink".
+    iCombine "Ha_entry' Hpc_b Ha_entry" as "Hlink".
     iMod (na_inv_alloc logrel_nais _ roeN_link with "Hlink") as "#Hlink".
     iMod (inv_alloc (logN.@b) _ (roe_inv b) with "[Hbe]") as "#Hb".
     { iNext. iExists _; iFrame. auto. }
@@ -414,14 +413,14 @@ Section roe.
         clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
 
       (* assert macro *)
-      iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & a_env & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|].
+      iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|].
       iApply (assert_r_z_success with "[- $HPC $Hassert_prog $pc_b $a_entry' $Hr_t0]");
         [apply Hvpc5|apply Hcont_assert|auto..].
       iSplitL "Hr_t1";[eauto|].
       iSplitL "Hr_t2";[eauto|].
       iSplitL "Hr_t3";[eauto|].
       iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_t0 & HPC & Hassert_prog & Hpc_b & Ha_entry')".
-      iMod ("Hcls''" with "[$Hown $Ha_entry' $a_env $Hpc_b $Ha_entry]") as "Hown".
+      iMod ("Hcls''" with "[$Hown $Ha_entry' $Hpc_b $Ha_entry]") as "Hown".
       iMod ("Hcls'" with "[$Hown $Hb_l]") as "Hown";[iNext;done|].
 
       (* halt *)
