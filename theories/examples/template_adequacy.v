@@ -419,11 +419,11 @@ Module with_adv_and_link.
 Record lib_entry := MkLibEntry {
   lib_start : Addr;
   lib_end : Addr;
-  lib_routine_content : list Word;
-  lib_full_content : gmap Addr Word;
-  lib_full_content_reachable : mkregion lib_start lib_end lib_routine_content ⊆ lib_full_content;
-  lib_size : (lib_start + (length lib_routine_content))%a = Some lib_end
+  lib_full_content : gmap Addr Word
 }.
+
+Definition entry_points (l: list lib_entry) : list Word :=
+  (map (λ entry, WCap E (lib_start entry) (lib_end entry) (lib_start entry)) l).
 
 Record lib := MkLib {
   pub_libs : list lib_entry;
@@ -435,21 +435,51 @@ Record tbl {p : prog} {l : list lib_entry} := MkTbl {
   tbl_start : Addr ;
   tbl_end : Addr ;
   tbl_size : (tbl_start + length l)%a = Some tbl_end ;
-  tbl_prog_link : (prog_lower_bound + 1)%a = Some (prog_start p)
+  tbl_prog_link : (prog_lower_bound + 1)%a = Some (prog_start p) ;
+
+  tbl_disj : mkregion tbl_start tbl_end (entry_points l) ##ₘ
+             mkregion prog_lower_bound (prog_end p) ((WCap RO tbl_start tbl_end tbl_start) :: (prog_instrs p))
 }.
 
 Definition tbl_region {p l} (t : @tbl p l) : gmap Addr Word :=
-  mkregion (tbl_start t) (tbl_end t) (map (λ entry, WCap E (lib_start entry) (lib_end entry) (lib_start entry)) l).
-Definition prog_lower_bound_region {p l} (t : @tbl p l) : gmap Addr Word :=
-  list_to_map [(prog_lower_bound t, WCap RO (tbl_start t) (tbl_end t) (tbl_start t))].
+  mkregion (tbl_start t) (tbl_end t) (entry_points l).
+Definition prog_lower_bound_region {l} (p : prog) (t : @tbl p l) : gmap Addr Word :=
+  mkregion (prog_lower_bound t) (prog_end p) ((WCap RO (tbl_start t) (tbl_end t) (tbl_start t)) :: (prog_instrs p)).
 Definition prog_tbl_region {l} (p : prog) (t : @tbl p l) : gmap Addr Word :=
-  prog_lower_bound_region t ∪ prog_region p ∪ tbl_region t.
+  prog_lower_bound_region p t ∪ tbl_region t.
+
+Lemma prog_lower_bound_region_cons {l} (p : prog) (t : @tbl p l) :
+  prog_lower_bound_region p t = <[(prog_lower_bound t):=WCap RO (tbl_start t) (tbl_end t) (tbl_start t)]> (prog_region p)
+  ∧ (prog_region p) !! (prog_lower_bound t) = None.
+Proof.
+  rewrite /prog_lower_bound_region /mkregion.
+  pose proof (tbl_prog_link t) as Ht.
+  destruct (decide (prog_start p = prog_end p)).
+  - rewrite e in Ht. rewrite /prog_region /mkregion region_addrs_single// e region_addrs_empty /=.
+    split;auto. solve_addr.
+  - pose proof (prog_size p).
+    assert (prog_start p <= prog_end p)%a.
+    { solve_addr. }
+    rewrite (region_addrs_cons (prog_lower_bound t));[|solve_addr].
+    simpl. rewrite Ht /=. split;auto.
+    rewrite /prog_region /mkregion.
+    apply not_elem_of_list_to_map.
+    rewrite fst_zip. apply not_elem_of_region_addrs. solve_addr.
+    rewrite region_addrs_length /region_size. solve_addr.
+Qed.
 
 Fixpoint lib_region (l : list lib_entry) : gmap Addr Word :=
   match l with
   | [] => ∅
   | e :: l => (lib_full_content e) ∪ (lib_region l)
   end.
+
+Lemma lib_region_app l1 l2 :
+  lib_region (l1 ++ l2) = lib_region l1 ∪ lib_region l2.
+Proof.
+  induction l1. by rewrite app_nil_l map_empty_union.
+  by rewrite /= IHl1 map_union_assoc.
+Qed.
 
 Definition tbl_pub (p : prog) (l : lib) := @tbl p (pub_libs l).
 Definition tbl_priv (p : prog) (l : lib) := @tbl p ((pub_libs l) ++ (priv_libs l)).
@@ -475,17 +505,10 @@ Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) 
   prog_tbl_region P P_tbl ⊆ m
   ∧ prog_tbl_region Adv Adv_tbl ⊆ m
   ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
-  ∧ ## ([
-      (* known code, linking and table *)
-      [prog_lower_bound P_tbl];
-      region_addrs (prog_start P) (prog_end P);
-      region_addrs (tbl_start P_tbl) (tbl_end P_tbl);
-      (* adv code, linking and table *)
-      [prog_lower_bound Adv_tbl];
-      region_addrs (prog_start Adv) (prog_end Adv);
-      region_addrs (tbl_start Adv_tbl) (tbl_end Adv_tbl)] ++
-      (* library contents *)
-       map (λ entry, elements (dom (gset Addr) (lib_full_content entry))) ((pub_libs Lib) ++ (priv_libs Lib))).
+  ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_region Adv Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_region Adv Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
 
 Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
   dom (gset Addr) (prog_tbl_region P P_tbl)
@@ -514,25 +537,34 @@ Section Adequacy.
     is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
     Forall (λ w, is_cap w = false) (prog_instrs Adv) →
     minv I m →
-    minv_dom I ⊆  initial_memory_domain P Adv Lib P_tbl Adv_tbl →
+    minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
 
-    let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+    let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
     (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
-       ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-       ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+       ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+       (* P program and table *)
+       ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+       (* Adv program and table *)
+       ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
-       ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+       (* filtered entries *)
+       ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
     minv I m'.
   Proof.
     intros Hm Hreg Hadv HI HIdom prog_map Hspec Hstep.
-  Admitted. (*
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
     pose (fun (c:ExecConf) => minv I c.2) as state_is_good.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
@@ -549,32 +581,60 @@ Section Adequacy.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
 
     specialize (Hspec memg regg logrel_na_invs).
-    destruct Hm as (HM & HA & Hdisj).
+    destruct Hm as (HM & HA & HL & (Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4)).
 
     iDestruct (big_sepM_subseteq with "Hmem") as "Hprogadv".
-    { transitivity (prog_region P ∪ prog_region Adv); eauto.
+    { transitivity (prog_tbl_region P P_tbl ∪
+                    prog_tbl_region Adv Adv_tbl ∪
+                    lib_region ((pub_libs Lib) ++ (priv_libs Lib))); eauto.
       rewrite map_subseteq_spec. intros * HH.
       apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
       eapply map_subseteq_spec in HM; eauto.
-      eapply map_subseteq_spec in HA; eauto. }
-    iDestruct (big_sepM_union with "Hprogadv") as "[Hprog Hadv]";
-      [assumption|].
+      eapply map_subseteq_spec in HA; eauto.
+      eapply map_subseteq_spec in HL; eauto.
+      apply map_disjoint_union_l;auto.
+    }
+    iDestruct (big_sepM_union with "Hprogadv") as "[Hprog Hlib]";
+      [apply map_disjoint_union_l;auto|].
+    iDestruct (big_sepM_union with "Hprog") as "[Hp Hadv]";
+      [auto|].
+
+    pose proof (tbl_disj P_tbl) as Hdisjtbl1.
+    pose proof (tbl_disj Adv_tbl) as Hdisjtbl2.
+    pose proof (tbl_prog_link P_tbl) as Hlink1.
+    pose proof (tbl_prog_link Adv_tbl) as Hlink2.
+
+    iDestruct (big_sepM_union with "Hp") as "[Hp Hp_tbl]";
+      [auto|].
+    iDestruct (big_sepM_union with "Hadv") as "[Hadv Hadv_tbl]";
+      [auto|].
+
+    rewrite lib_region_app.
+    iDestruct (big_sepM_union with "Hlib") as "[Hlib_pub Hlib_priv]";
+      [auto|].
+
 
     set prog_in_inv :=
-      filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
-    rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
+      filter (fun '(a, _) => a ∈ minv_dom I) (lib_region (priv_libs Lib)).
+    set prog_nin_inv :=
+      filter (fun '(a, _) => a ∉ minv_dom I) (lib_region (priv_libs Lib)).
+    rewrite (_: lib_region (priv_libs Lib) = prog_in_inv ∪ prog_nin_inv).
     2: { symmetry. apply map_union_filter. }
-    iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
+    iDestruct (big_sepM_union with "Hlib_priv") as "[Hlib_inv Hlib_priv]".
     by apply map_disjoint_filter.
 
-    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
+    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hlib_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
-      assert (minv_dom I ⊆ dom (gset Addr) (prog_region P)).
-      { etransitivity. eapply HIdom. rewrite prog_region_dom//. }
+      assert (minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib))).
+      { etransitivity. eapply HIdom. auto. }
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
-      transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      transitivity (lib_region (priv_libs Lib)); auto. rewrite /prog_in_inv.
+      eapply map_filter_sub; typeclasses eauto.
+      transitivity (lib_region (pub_libs Lib ++ priv_libs Lib)); auto.
+      rewrite lib_region_app. apply map_union_subseteq_r. auto.
+    }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
@@ -597,7 +657,13 @@ Section Adequacy.
       destruct (decide (r = r_adv)); subst; [by eauto|].
       destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
 
-    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hprog $Hadv $Hinv $Hna]") as "Spec".
+    pose proof (prog_lower_bound_region_cons P P_tbl) as [HeqP HNoneP].
+    pose proof (prog_lower_bound_region_cons Adv Adv_tbl) as [HeqAdv HNoneAdv].
+    rewrite HeqP HeqAdv.
+    iDestruct (big_sepM_insert with "Hp") as "[Hlinkp Hp]";[auto|].
+    iDestruct (big_sepM_insert with "Hadv") as "[Hlinkadv Hadv]";[auto|].
+
+    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hlinkp $Hp $Hlinkadv $Hadv $Hp_tbl $Hadv_tbl $Hlib_pub $Hlib_priv $Hinv $Hna]") as "Spec".
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
@@ -611,31 +677,43 @@ Section Adequacy.
     iModIntro. iPureIntro. rewrite /state_is_good //=.
     eapply minv_sub_extend; [| |eassumption].
     rewrite Hmi_dom //. auto. auto.
-  Qed. *)
+  Qed.
 
 End Adequacy.
-(*
+
 
 Theorem template_adequacy `{MachineParameters}
-    (P Adv: prog) (I: memory_inv) (r_adv : RegName)
+    (P Adv: prog) (Lib : lib)
+    (P_tbl : @tbl_priv P Lib)
+    (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
-  is_initial_memory P Adv m →
-  is_initial_registers P Adv reg r_adv →
+  is_initial_memory P Adv Lib P_tbl Adv_tbl m →
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_cap w = false) (prog_instrs Adv) →
   minv I m →
-  minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
+  minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
 
-  let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
-   dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
-   ⊢ inv invN (minv_sep I)
-     ∗ na_own logrel_nais ⊤
-     ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-     ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
-     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
-     ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
-     ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
-     -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      ⊢ inv invN (minv_sep I)
+        ∗ na_own logrel_nais ⊤
+        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+        ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+        (* P program and table *)
+        ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+        (* Adv program and table *)
+        ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+        (* filtered entries *)
+        ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   minv I m'.
@@ -643,6 +721,6 @@ Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ]).
   intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
-Qed.*)
+Qed.
 
 End with_adv_and_link.
