@@ -185,6 +185,36 @@ Definition flag_inv `{MachineParameters} `{memory_layout} : memory_inv :=
      minv_dom := {[ fail_flag ]} ;
      minv_dom_correct := OK_dom_correct |}.
 
+Lemma flag_inv_is_initial_memory `{memory_layout} m :
+  is_initial_memory roe_prog adv_prog library roe_table adv_table m →
+  minv flag_inv m.
+Proof.
+  intros Hinit. intros a Hin.
+  destruct Hinit as (?&?&Hlibs&?&?&?&Hlibdisj).
+  cbn in Hlibs. rewrite map_union_empty in Hlibs.
+  assert (fail_library_content ⊆ m) as Hfail.
+  { etrans;[|eauto]. apply map_union_subseteq_r. cbn in Hlibdisj.
+    rewrite !map_union_empty in Hlibdisj. auto. }
+  rewrite /fail_library_content in Hfail.
+  assert (list_to_map [(fail_flag, WInt 0)] ⊆ m) as Hfail_flag.
+  { etrans;[|eauto]. apply map_union_subseteq_r. disjoint_map_to_list.
+    pose proof (regions_disjoint) as Hdisjoint.
+    rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+    set_solver. }
+  simpl in Hfail_flag.
+  eapply (lookup_weaken _ _ fail_flag (WInt 0)) in Hfail_flag.
+  by simplify_eq. by simplify_map_eq.
+Qed.
+
+Lemma flag_inv_sub `{memory_layout} :
+  minv_dom flag_inv ⊆ dom (gset Addr) (lib_region (priv_libs library)).
+Proof.
+  cbn. rewrite map_union_empty.
+  intros Hinit. rewrite /fail_library_content.
+  rewrite /= dom_union_L dom_insert_L dom_empty_L.
+  rewrite union_empty_r. apply union_subseteq_r.
+Qed.
+
 (* TODO: move to iris extra *)
 Lemma big_sepM_to_big_sepL2 (PROP : bi) (A B : Type) `{EqDecision A} `{Countable A}
       (φ: A -> B -> PROP) (l1: list A) (l2: list B):
@@ -348,8 +378,12 @@ Theorem template_adequacy `{memory_layout}
   Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  minv flag_inv m'.
+  (∀ w, m' !! fail_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof template_adequacy as Hadequacy. eapply Hadequacy;eauto.
-Admitted.
+  pose proof (template_adequacy roe_prog adv_prog library roe_table adv_table flag_inv) as Hadequacy.
+  eapply Hadequacy;eauto.
+  { apply flag_inv_is_initial_memory. auto. }
+  { apply flag_inv_sub. }
+  intros Σ ? ? ?. apply roe_correct. apply Hints.
+Qed.
