@@ -15,7 +15,8 @@ CI_EXAMPLES:="\
   theories/examples/counter_binary.vo \
   theories/examples/counter_binary_preamble.vo \
   theories/examples/lse.vo \
-	theories/examples/dynamic_sealing.vo"
+	theories/examples/dynamic_sealing.vo \
+	theories/examples/ocpl_lowval_like.vo"
 
 .PHONY: all coq clean html
 all: coq
