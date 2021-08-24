@@ -683,7 +683,7 @@ Section Adequacy.
 End Adequacy.
 
 
-Theorem template_adequacy `{MachineParameters} (Σ : gFunctor)
+Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)

@@ -727,4 +727,3 @@ Proof.
   intros Σ ? ? ? ?.
   eapply int_client_correct. apply Hints. Unshelve. solve_inG.
 Qed.
-

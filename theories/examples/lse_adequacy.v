@@ -115,6 +115,7 @@ Definition malloc_library_content `{memory_layout} : gmap Addr Word :=
 Definition lib_entry_malloc `{memory_layout} : lib_entry :=
   {| lib_start := malloc_start ;
      lib_end := malloc_end ;
+     lib_entrypoint := malloc_start ;
      lib_full_content := malloc_library_content |}.
 
 (* FAIL library entry *)
@@ -127,6 +128,7 @@ Definition fail_library_content `{memory_layout} : gmap Addr Word :=
 Definition lib_entry_fail `{memory_layout} : lib_entry :=
   {| lib_start := fail_start ;
      lib_end := fail_end ;
+     lib_entrypoint := fail_start ;
      lib_full_content := fail_library_content |}.
 
 (* full library *)
@@ -381,9 +383,10 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! fail_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy roe_prog adv_prog library roe_table adv_table flag_inv) as Hadequacy.
+  set (Σ' := #[]).
+  pose proof (template_adequacy Σ' roe_prog adv_prog library roe_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
   { apply flag_inv_sub. }
-  intros Σ ? ? ?. apply roe_correct. apply Hints.
+  intros Σ ? ? ? ?. apply roe_correct. apply Hints.
 Qed.
