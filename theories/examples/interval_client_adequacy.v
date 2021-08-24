@@ -9,6 +9,7 @@ From cap_machine.examples Require Import addr_reg_sample malloc macros_new
      interval_client_closure interval_client interval_closure dynamic_sealing.
 From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
+From cap_machine Require Import monotone.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
@@ -26,10 +27,10 @@ Class memory_layout `{MachineParameters} := {
   interval_client_region_end : Addr;
 
   interval_client_closure_size: (interval_client_closure_start +
-                          (length (interval_client_closure 1 2 offset_to_checki))
+                          (length (interval_client_closure 2 0 offset_to_checki))
                                  = Some interval_client_body_start)%a;
   interval_client_body_size : (interval_client_body_start +
-                               (length (check_interval 0))
+                               (length (check_interval 1))
                                = Some interval_client_region_end)%a ;
   interval_client_region_start_offset: (interval_client_region_start + 1)%a
                                        = Some interval_client_closure_start;
@@ -78,8 +79,11 @@ Class memory_layout `{MachineParameters} := {
   seal_body_start : Addr;
   seal_region_end : Addr;
   seal_size : (seal_body_start +
-               length ((make_seal_preamble_instrs 0) ++ (seal_instrs 0) ++ unseal_instrs)
+               length (unseal_instrs ++ (seal_instrs 0) ++ (make_seal_preamble_instrs 0))
                = Some seal_region_end)%a;
+  seal_makeseal_entrypoint : Addr;
+  seal_makeseal_entrypoint_correct :
+    (seal_body_start + ((length unseal_instrs) + (length (seal_instrs 0))) = Some seal_makeseal_entrypoint)%a;
   seal_region_start_offset: (seal_region_start + 1 = Some seal_body_start)%a;
 
   (* seal table *)
@@ -149,7 +153,7 @@ Class memory_layout `{MachineParameters} := {
 Program Definition int_client_prog `{memory_layout} : prog :=
   {| prog_start := interval_client_closure_start ;
      prog_end := interval_client_region_end ;
-     prog_instrs := (interval_client_closure 1 2 offset_to_checki) ++ (check_interval 0);
+     prog_instrs := (interval_client_closure 2 0 offset_to_checki) ++ (check_interval 1);
      prog_size := _ |}.
 Next Obligation.
   intros. pose proof (interval_client_closure_size) as HH.
@@ -175,6 +179,7 @@ Definition malloc_library_content `{memory_layout} : gmap Addr Word :=
 Definition lib_entry_malloc `{memory_layout} : lib_entry :=
   {| lib_start := malloc_start ;
      lib_end := malloc_end ;
+     lib_entrypoint := malloc_start ;
      lib_full_content := malloc_library_content |}.
 
 (* FAIL library entry *)
@@ -187,12 +192,13 @@ Definition fail_library_content `{memory_layout} : gmap Addr Word :=
 Definition lib_entry_fail `{memory_layout} : lib_entry :=
   {| lib_start := fail_start ;
      lib_end := fail_end ;
+     lib_entrypoint := fail_start ;
      lib_full_content := fail_library_content |}.
 
 (* INTERVAL library entry *)
 (* first we define the memory region of the nested seal library *)
 Definition seal_library_content `{memory_layout} : gmap Addr Word :=
-  mkregion seal_body_start seal_region_end ((make_seal_preamble_instrs 0) ++ (seal_instrs 0) ++ unseal_instrs)
+  mkregion seal_body_start seal_region_end (unseal_instrs ++ (seal_instrs 0) ++ (make_seal_preamble_instrs 0))
   ∪ list_to_map [(seal_region_start, WCap RO seal_table_start seal_table_end seal_table_start)]
   ∪ mkregion seal_table_start seal_table_end [WCap E malloc_start malloc_end malloc_start].
 
@@ -200,12 +206,13 @@ Definition interval_library_content `{memory_layout} : gmap Addr Word :=
   mkregion interval_closure_start interval_region_end ((interval_closure 0 1 offset_to_interval) ++ (interval 0))
   ∪ list_to_map [(interval_region_start, WCap RO int_table_start int_table_end int_table_start)]
   ∪ mkregion int_table_start int_table_end [WCap E malloc_start malloc_end malloc_start;
-                                           WCap E seal_region_start seal_region_end seal_region_end]
+                                           WCap E seal_region_start seal_region_end seal_makeseal_entrypoint]
   ∪ seal_library_content.
 
 Definition lib_entry_interval `{memory_layout} : lib_entry :=
   {| lib_start := interval_region_start ;
      lib_end := interval_region_end ;
+     lib_entrypoint := interval_closure_start ;
      lib_full_content := interval_library_content |}.
 
 (* full library *)
@@ -307,6 +314,46 @@ Proof.
   rewrite union_empty_r. etrans. 2: apply union_subseteq_l. apply union_subseteq_r.
 Qed.
 
+Lemma flag_not_in_interval `{memory_layout} :
+  ∀ (i : Addr) (x : Word), interval_library_content !! i = Some x → i ∉ minv_dom flag_inv.
+Proof.
+  intros i x Hin.
+  rewrite /interval_library_content in Hin.
+  simpl. apply not_elem_of_singleton_2.
+  intros ->.
+  rewrite lookup_union_r in Hin.
+  { rewrite lookup_union_r in Hin.
+    - match goal with
+      | _ : mkregion ?X1 ?X2 ?X3 !! _ = _ |- _ => set l := mkregion X1 X2 X3
+      end.
+      assert (is_Some (l !! fail_flag))
+        as Hdom%elem_of_gmap_dom;eauto.
+      apply in_dom_mkregion in Hdom.
+      pose proof (regions_disjoint) as Hdisjoint.
+      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+      set_solver.
+    - apply lookup_union_None. split.
+      + apply not_elem_of_dom. intros Hcontr%in_dom_mkregion.
+        pose proof (regions_disjoint) as Hdisjoint.
+        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        set_solver.
+      + simpl. destruct (decide (seal_region_start = fail_flag));simplify_map_eq;auto.
+        exfalso.
+        pose proof (regions_disjoint) as Hdisjoint.
+        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        set_solver. }
+  { apply lookup_union_None. split;[apply lookup_union_None;split|].
+    1,3: apply not_elem_of_dom;intros Hcontr%in_dom_mkregion.
+    3: destruct (decide (interval_region_start = fail_flag));simplify_map_eq;auto;exfalso.
+    all: pose proof (regions_disjoint) as Hdisjoint.
+    1: rewrite (region_addrs_split _ interval_body_start) in Hcontr;
+        [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH; solve_addr].
+    1: apply elem_of_app in Hcontr as [Hcontr | Hcontr].
+    all: rewrite !disjoint_list_cons in Hdisjoint |- *.
+    all: intros (?&?&?&?&?&?&?&?&?).
+    all: set_solver. }
+Qed.
+
 (* TODO: move to iris extra *)
 Lemma big_sepM_to_big_sepL2 (PROP : bi) (A B : Type) `{EqDecision A} `{Countable A}
       (φ: A -> B -> PROP) (l1: list A) (l2: list B):
@@ -341,13 +388,42 @@ Proof.
       rewrite -IHm1// -insert_union_l map_filter_insert_not'//.
       intros y Hy. rewrite lookup_union_r// in Hy. simplify_eq.
 Qed.
+Lemma map_filter_disjoint :
+  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
+    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
+    FinMap K M → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m1 m2 : M A),
+      m1 ##ₘ m2 →
+      filter P m1 ##ₘfilter P m2.
+Proof.
+  intros. induction m1 using map_ind.
+  - rewrite map_filter_empty. apply map_disjoint_empty_l.
+  - apply map_disjoint_insert_l in H8 as [Hm2None Hdisj].
+    destruct (decide (P (i,x))).
+    + rewrite map_filter_insert//.
+      apply map_disjoint_insert_l_2;auto.
+      apply map_filter_lookup_None_2. left;auto.
+    + rewrite map_filter_insert_not'//.
+      2: intros; simplify_eq.
+      apply IHm1;auto.
+Qed.
+Lemma map_filter_id :
+  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
+    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
+    FinMap K M
+    → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m : M A),
+      (∀ i x, m !! i = Some x → P (i, x)) → filter P m = m.
+Proof.
+  intros. apply map_eq.
+  intros i. destruct (m !! i) eqn:Hsome.
+  - apply map_filter_lookup_Some_2;auto.
+  - apply map_filter_lookup_None_2;auto.
+Qed.
+
 
 Section int_client_adequacy.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ} {sealLLG: list_new.sealLLG Σ}
           `{memlayout: memory_layout}.
-
-  Definition mallocN : namespace := nroot .@ "int" .@ "malloc".
 
   Lemma int_client_correct :
     Forall (λ w, is_cap w = false) adv_instrs →
@@ -382,8 +458,8 @@ Section int_client_adequacy.
     simpl. rewrite !map_union_empty.
 
     (* setting up client program (closure and body separate) *)
-    iAssert (codefrag interval_client_closure_start (interval_client_closure 1 2 offset_to_checki)
-            ∗ codefrag interval_client_body_start (check_interval 0))%I with "[Hroe] "as "[Hint_cls Hint]".
+    iAssert (codefrag interval_client_closure_start (interval_client_closure 2 0 offset_to_checki)
+            ∗ codefrag interval_client_body_start (check_interval 1))%I with "[Hroe] "as "[Hint_cls Hint]".
     { rewrite /prog_region.
       pose proof interval_client_closure_size as Hsize1.
       pose proof interval_client_body_size as Hsize2.
@@ -487,32 +563,149 @@ Section int_client_adequacy.
       pose proof interval_body_size as HHH. solve_addr +HH HHH.
       all: set_solver. }
     rewrite map_filter_union; [|auto].
+    iDestruct (big_sepM_union with "Hprivs") as "[_ Hprivs]".
+    { eapply map_filter_disjoint;auto. apply _. }
+    rewrite map_filter_id. 2: apply flag_not_in_interval.
 
-    (* TODO:prove that filters preserve map disjoint *)
-    (* TODO:prove that interval_library_content does not have the fail flag *)
-  Admitted.
+    (* cleanup the content of the interval library *)
+    rewrite /interval_library_content /seal_library_content.
+    iDestruct (big_sepM_union with "Hprivs") as "[Hinterval_cls Hprivs]".
+    { rewrite !map_disjoint_union_l !map_disjoint_union_r. repeat split.
+      all: try disjoint_map_to_list.
+      1,2,3: rewrite (region_addrs_split _ interval_body_start);
+        [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
+      all: pose proof (regions_disjoint) as Hdisjoint;
+        rewrite !disjoint_list_cons in Hdisjoint |- *;
+        intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
+      all: set_solver. }
 
-  (*   iApply (roe_spec with "[- $HPC $Hown $Hr_adv $Hroe_link $Hrmap $Hroe $Hinv_malloc *)
-  (*                             $Hlink_table_start $Hlink_table_mid $Hadv_valid]");auto. *)
-  (*   instantiate (1:=f_end). *)
-  (*   { intros mid Hmid'. split;auto. pose proof (f_region_start_offset) as HH. solve_addr+HH Hmid'. } *)
-  (*   { apply contiguous_between_of_region_addrs;auto. pose proof (f_size) as HH. solve_addr+HH. } *)
-  (*   { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. } *)
-  (*   { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. } *)
-  (*   { solve_addr. } *)
+    iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hint_table]".
+    { rewrite !map_disjoint_union_l. repeat split.
+      all: try disjoint_map_to_list.
+      1: rewrite (region_addrs_split _ interval_body_start);
+        [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
+      all: pose proof (regions_disjoint) as Hdisjoint;
+        rewrite !disjoint_list_cons in Hdisjoint |- *;
+        intros (?&?&?&?&?&?&?&?&?&?).
+      all: set_solver. }
+    iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hinterval_link]".
+    { disjoint_map_to_list.
+      rewrite (region_addrs_split _ interval_body_start);
+        [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
+      pose proof (regions_disjoint) as Hdisjoint;
+        rewrite !disjoint_list_cons in Hdisjoint |- *;
+        intros (?&?&?&?&?&?&?&?&?&?).
+      set_solver. }
+    iDestruct (mkregion_sepM_to_sepL2 with "Hinterval_cls") as "Hinterval".
+    { pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
+    rewrite (region_addrs_split interval_closure_start interval_body_start); cycle 1.
+    { pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
+    iDestruct (big_sepL2_app' with "Hinterval") as "[Hinterval_cls Hinterval]".
+    { rewrite /= region_addrs_length /region_size.
+      pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
+    iDestruct (mkregion_sepM_to_sepL2 with "Hint_table") as "Hint_table".
+    { pose proof int_table_size. auto. }
+    assert (is_Some (int_table_start + 1)%a) as [int_table_mid Hint_table_mid].
+    { pose proof int_table_size. solve_addr. }
+    rewrite (region_addrs_cons int_table_start);cycle 1.
+    { pose proof int_table_size. solve_addr. }
+    rewrite Hint_table_mid. iSimpl in "Hint_table".
+    assert (int_table_mid + 1 = Some int_table_end)%a as Hint_table_mid'.
+    { pose proof int_table_size as HH. solve_addr+HH Hint_table_mid. }
+    rewrite (region_addrs_cons int_table_mid);cycle 1.
+    { solve_addr. }
+    rewrite Hint_table_mid'. iSimpl in "Hint_table".
+    iDestruct "Hint_table" as "(Hint_table_start & Hint_table_mid & _)".
+    iSimpl in "Hinterval_link". iDestruct (big_sepM_insert with "Hinterval_link") as "[Hinterval_link _]";[auto|].
 
-  (*   iApply (inv_iff with "Hinv []"). iNext. iModIntro. *)
-  (*   iSplit. *)
-  (*   - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)". *)
-  (*     assert (is_Some (m !! fail_flag)) as [? Hlook]. *)
-  (*     { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. } *)
-  (*     iDestruct (big_sepM_lookup _ _ fail_flag with "Hm") as "Hflag";eauto. *)
-  (*     apply HOK in Hlook as ->. iFrame. *)
-  (*   - iIntros "HH". iExists {[ fail_flag := WInt 0%Z ]}. *)
-  (*     rewrite big_sepM_singleton. iFrame. *)
-  (*     rewrite dom_singleton_L /minv_dom /=. iSplit;auto. *)
-  (*     rewrite /OK_invariant. iPureIntro. intros w Hw. simplify_map_eq. done. *)
-  (* Qed. *)
+    (* cleanup the content of the nested seal library *)
+    iDestruct (big_sepM_union with "Hprivs") as "[Hprivs Hseal_table]".
+    { rewrite map_disjoint_union_l. split.
+      all: disjoint_map_to_list.
+      all: pose proof (regions_disjoint) as Hdisjoint;
+        rewrite !disjoint_list_cons in Hdisjoint |- *;
+        intros (?&?&?&?&?&?&?&?&?&?).
+      all: set_solver. }
+    iDestruct (big_sepM_union with "Hprivs") as "[Hseal Hseal_link]".
+    { disjoint_map_to_list.
+      pose proof (regions_disjoint) as Hdisjoint;
+        rewrite !disjoint_list_cons in Hdisjoint |- *;
+        intros (?&?&?&?&?&?&?&?&?&?).
+      set_solver. }
+    iDestruct (big_sepM_insert with "Hseal_link") as "[Hseal_link _]";[auto|]. iSimpl in "Hseal_link".
+    iDestruct (mkregion_sepM_to_sepL2 with "Hseal_table") as "Hseal_table".
+    { pose proof seal_table_size. auto. }
+    rewrite (region_addrs_single seal_table_start);cycle 1.
+    { pose proof seal_table_size. auto. }
+    iDestruct "Hseal_table" as "[Hseal_table _]".
+    iAssert (codefrag interval_closure_start (interval_closure 0 1 offset_to_interval)) with "[Hinterval_cls]" as "Hinterval_cls".
+    { rewrite /codefrag /incr_addr_default interval_closure_size. iFrame. }
+    iAssert (codefrag seal_body_start (_)) with "[Hseal]" as "Hseal".
+    { rewrite /codefrag /incr_addr_default. erewrite seal_size. iFrame.
+      iDestruct (mkregion_sepM_to_sepL2 with "Hseal") as "$". apply seal_size. }
+    iAssert (codefrag interval_body_start (interval 0)) with "[Hinterval]" as "Hinterval".
+    { rewrite /codefrag /incr_addr_default interval_body_size. iFrame. }
+
+    (* We apply the client specification *)
+    assert (is_Some (interval_client_closure_start + interval_client_closure_move_offset)%a) as [? HH].
+    { destruct ((interval_client_closure_start + interval_client_closure_move_offset)%a) eqn:Hsome;eauto. exfalso.
+      rewrite /interval_client_closure_move_offset in Hsome. pose proof interval_client_closure_size. solve_addr. }
+    assert (is_Some (interval_closure_start + interval_closure_move_offset)%a) as [? HHH].
+    { destruct (interval_closure_start + interval_closure_move_offset)%a eqn:hsome;eauto. exfalso.
+      rewrite /interval_closure_move_offset in hsome. pose proof interval_closure_size. solve_addr. }
+    iDestruct (interval_client_closure_functional_spec with "[- Hown HPC Hr_adv Hrmap]") as "Hcont".
+    16: { iFrame "Hint_cls Hint Hinterval_cls Hinterval Hseal".
+          iFrame "Hinv_malloc Hroe_link". iFrame "Hlink_table_mid".
+          iFrame "Hlink_table_mid' Hlink_table_start".
+      iFrame "Hint_table_start Hseal_link Hinterval_link". iFrame.
+      rewrite /incr_addr_default seal_makeseal_entrypoint_correct.
+      iFrame "Hint_table_mid". }
+    instantiate (1:=RWX). 2: instantiate (1:=RWX). 1,2:apply ExecPCPerm_RWX.
+    { instantiate (1:=interval_client_region_end).
+      pose proof interval_client_closure_size. pose proof interval_client_body_size.
+      pose proof interval_client_region_start_offset. simpl in *. rewrite /SubBounds. solve_addr. }
+    { pose proof interval_client_closure_size. pose proof interval_client_body_size.
+      pose proof interval_client_region_start_offset. simpl in *. rewrite /SubBounds. solve_addr. }
+    { rewrite /int_bounds.
+      pose proof interval_closure_size. pose proof interval_body_size.
+      pose proof interval_region_start_offset.
+      pose proof seal_size.
+      pose proof seal_region_start_offset.
+      simpl in *. rewrite /SubBounds. solve_addr. }
+    { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
+    { apply le_addr_withinBounds'. solve_addr+Hsize Hmid'. }
+    { apply le_addr_withinBounds'. solve_addr+Hsize Hmid'. }
+    all: auto.
+    { solve_addr. }
+    { rewrite /int_table. repeat split;auto.
+      1,2: apply le_addr_withinBounds'. all: try solve_addr.
+      apply seal_table_size. }
+    { eauto. }
+    { rewrite /offset_to_checki. pose proof interval_client_closure_size.
+      rewrite /interval_client_closure_move_offset in HH.
+      rewrite /interval_client_closure_move_offset /interval_client_closure_instrs_length.
+      simpl in *. solve_addr. }
+    { split;eauto. rewrite /offset_to_interval /interval_closure_instrs_length /interval_closure_move_offset.
+      rewrite /interval_closure_move_offset in HHH. pose proof interval_closure_size. solve_addr. }
+
+    (* next we use wp_wand and assert the register state is valid *)
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr_adv]") as "Hrmap".
+    { apply not_elem_of_dom. rewrite Hdom. set_solver+. }
+    iDestruct (big_sepM_insert _ _ PC with "[$Hrmap $HPC]") as "Hrmap".
+    { apply not_elem_of_dom. rewrite dom_insert_L Hdom. set_solver+. }
+    rewrite -(insert_insert _ PC _ (WInt 0)).
+    iDestruct ("Hcont" with "[$Hown $Hrmap]") as "Hcont".
+    { rewrite /interp_reg /=. iSplit.
+      iPureIntro. intros. simpl. apply elem_of_gmap_dom. rewrite !dom_insert_L Hdom.
+      pose proof (all_registers_s_correct x1) as Hx1. set_solver +Hx1.
+      iIntros (r v Hrv). rewrite lookup_insert_ne//.
+      destruct (decide (r_t0 = r));[subst;rewrite lookup_insert|rewrite lookup_insert_ne//].
+      iIntros (Heq);inversion Heq. auto.
+      iIntros (Hin). iDestruct (big_sepM_lookup _ _ r with "Hrmapvalid") as %Hncap;[apply Hin|].
+      destruct v;inversion Hncap. iApply fixpoint_interp1_eq. eauto. }
+
+    iApply (wp_wand with "Hcont"). auto.
+  Qed.
 
 End int_client_adequacy.
 
@@ -526,10 +719,12 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! fail_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
+  pose proof (template_adequacy (GFunctor (authUR (monotoneUR list_new.prefR))) (* The extra resource needed by seal library *)
+                                int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
   { apply flag_inv_sub. }
-  intros Σ ? ? ?. apply int_client_correct. apply Hints.
+  intros Σ ? ? ? ?.
+  eapply int_client_correct. apply Hints. Unshelve. solve_inG.
 Qed.
 

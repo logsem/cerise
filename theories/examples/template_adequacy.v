@@ -419,11 +419,12 @@ Module with_adv_and_link.
 Record lib_entry := MkLibEntry {
   lib_start : Addr;
   lib_end : Addr;
+  lib_entrypoint : Addr;
   lib_full_content : gmap Addr Word
 }.
 
 Definition entry_points (l: list lib_entry) : list Word :=
-  (map (λ entry, WCap E (lib_start entry) (lib_end entry) (lib_start entry)) l).
+  (map (λ entry, WCap E (lib_start entry) (lib_end entry) (lib_entrypoint entry)) l).
 
 Record lib := MkLib {
   pub_libs : list lib_entry;
@@ -532,7 +533,7 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  Lemma template_adequacy' (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  Lemma template_adequacy' `{subG Σ' Σ} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory P Adv Lib P_tbl Adv_tbl m →
     is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
     Forall (λ w, is_cap w = false) (prog_instrs Adv) →
@@ -540,7 +541,7 @@ Section Adequacy.
     minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
 
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
-    (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
+    (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ, subG Σ' Σ} rmap,
      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
@@ -663,7 +664,7 @@ Section Adequacy.
     iDestruct (big_sepM_insert with "Hp") as "[Hlinkp Hp]";[auto|].
     iDestruct (big_sepM_insert with "Hadv") as "[Hlinkadv Hadv]";[auto|].
 
-    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hlinkp $Hp $Hlinkadv $Hadv $Hp_tbl $Hadv_tbl $Hlib_pub $Hlib_priv $Hinv $Hna]") as "Spec".
+    iPoseProof (Hspec _ rmap with "[$HPC $Hr0 $Hreg $Hlinkp $Hp $Hlinkadv $Hadv $Hp_tbl $Hadv_tbl $Hlib_pub $Hlib_priv $Hinv $Hna]") as "Spec".
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
@@ -682,7 +683,7 @@ Section Adequacy.
 End Adequacy.
 
 
-Theorem template_adequacy `{MachineParameters}
+Theorem template_adequacy `{MachineParameters} (Σ : gFunctor)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
@@ -694,7 +695,7 @@ Theorem template_adequacy `{MachineParameters}
   minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
 
   let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
-  (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
+  (∀ `{memG Σ', regG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep I)
         ∗ na_own logrel_nais ⊤
@@ -718,9 +719,10 @@ Theorem template_adequacy `{MachineParameters}
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   minv I m'.
 Proof.
-  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
-              na_invΣ]).
-  intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
+  set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; Σ]).
+  intros. eapply (@template_adequacy' Σ'); eauto; (* rewrite /invPreG. solve_inG. *)
+            typeclasses eauto.
 Qed.
 
 End with_adv_and_link.
