@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import dynamic_sealing interval list_new malloc interval_closure.
+From cap_machine Require Import dynamic_sealing_keys interval keylist_new malloc interval_closure.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section interval_client.
@@ -219,7 +219,7 @@ Section interval_client.
     iSplitR.
     { iNext. iIntros (Hcontr); inversion Hcontr. }
     iNext. iIntros "Hres".
-    iDestruct "Hres" as (p b e a z1 z2 w pbvals (Heqiw & Hin))
+    iDestruct "Hres" as (b b' e a z1 z2 w pbvals (Hincr & Heqiw & Hin))
                           "(#Hpref & #His_int & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4
                           & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
     subst iw.
@@ -256,7 +256,7 @@ Section interval_client.
     iNext. iIntros (Hcontr);inversion Hcontr.
 
     iNext. iIntros "Hres".
-    iDestruct "Hres" as (p0 b0 e0 a0 z0 z3 w' pbvals' (Heq & Hin'))
+    iDestruct "Hres" as (b0 b01 e0 a0 z0 z3 w' pbvals' (Heq & Hincr' & Hin'))
                           "(#Hpref' & #His_int' & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5
                            & Hr_t20 & Hr_env & Hr_t0 & Hown)".
     inv Heq.
@@ -269,7 +269,8 @@ Section interval_client.
     iDestruct (know_pref with "Hexact Hpref'") as %Hprefix'.
     iAssert (▷ ⌜NoDup awvals.*1⌝)%I as "#>%HnoDup".
     { iNext. iApply isList_NoDup. iFrame. }
-    pose proof (elem_of_prefix_eq b0 w w' pbvals pbvals' awvals Hin Hin' Hprefix Hprefix' HnoDup) as <-.
+    rewrite Hincr in Hincr'. inv Hincr'.
+    pose proof (elem_of_prefix_eq b01 w w' pbvals pbvals' awvals Hin Hin' Hprefix Hprefix' HnoDup) as <-.
     iMod ("Hcls" with "[$Hown Hll HisList Hexact]") as "Hown".
     { iNext. iExists _. iFrame. iExists _. iFrame. auto. }
     (* next, we can use isInterval property to conclude that z1 = z0 and z2 = z3 *)

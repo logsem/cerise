@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import list_new dynamic_sealing.
+From cap_machine Require Import keylist_new dynamic_sealing_keys.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
@@ -241,12 +241,13 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ w1 = WInt z1 ∧ w2 = WInt z2⌝
+       ∗ ▷ ( (∃ b b' (z1 z2 : Z) pbvals (w : Word), ⌜(b',w) ∈ pbvals ∧ w1 = WInt z1 ∧ w2 = WInt z2 ∧ (b + 1)%a = Some b'⌝
                 ∗ prefLL γ pbvals
                 ∗ isInterval_int (Z.min z1 z2) (Z.max z1 z2) w
                 ∗ PC ↦ᵣ updatePcPerm wret
-                ∗ r_t1 ↦ᵣ WCap O b b b
-                ∗ r_env ↦ᵣ WInt 0%Z
+                ∗ r_t1 ↦ᵣ WCap RWX b b' b'
+                ∗ b ↦ₐ WInt 0
+                ∗ r_env ↦ᵣ WInt 0
                 ∗ r_t0 ↦ᵣ wret
                 ∗ na_own logrel_nais ⊤
                 ∗ ([∗ map] r_i↦w_i ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
@@ -410,20 +411,14 @@ Section interval.
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
       { iExists _,_,_,_,_. iFrame. rewrite /incr_addr_default Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
-      rewrite insert_delete -delete_insert_ne// insert_delete.
-      repeat (rewrite (insert_commute _ _ r_t20);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t8);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
+      map_simpl "Hregs".
+      repeat (rewrite -(insert_commute _ _ r_t8);[|by auto]).
+      repeat (rewrite -(insert_commute _ _ r_t20);[|by auto]).
 
-      iApply "Hφ". iExists _,z1,z2,_,_. iFrame "∗ #".
+      iApply "Hφ". iExists _,_,z1,z2,_,_. iFrame "∗ #".
       assert (z1 `min` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|].
       assert (z1 `max` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
@@ -485,20 +480,14 @@ Section interval.
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
       { iExists _,_,_,_,_. iFrame. rewrite /(incr_addr_default a) Ha_mid2. iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
-      rewrite insert_delete -delete_insert_ne// insert_delete.
-      repeat (rewrite (insert_commute _ _ r_t20);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t8);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
+      map_simpl "Hregs".
+      repeat (rewrite -(insert_commute _ _ r_t8);[|by auto]).
+      repeat (rewrite -(insert_commute _ _ r_t20);[|by auto]).
 
-      iApply "Hφ". iExists _,_,_,_,_. iFrame "∗ #".
+      iApply "Hφ". iExists _,_,_,_,_,_. iFrame "∗ #".
       assert (z1 `min` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|].
       assert (z1 `max` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
@@ -580,8 +569,8 @@ Section interval.
 
     iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
     iNext. iIntros "HH".
-    iDestruct "HH" as (? ? ? ? ? (?&?&?))
-                "(#Hpref & #Hi & HPC & Hr_t1 & Hr_env & Hr_t0 & Hown & Hregs)".
+    iDestruct "HH" as (? ? ? ? ? ? (?&?&?&?))
+                "(#Hpref & #Hi & HPC & Hr_t1 & Ha & Hr_env & Hr_t0 & Hown & Hregs)".
 
     (* we can then rebuild the register map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|].
@@ -591,6 +580,10 @@ Section interval.
       [simplify_map_eq;apply not_elem_of_dom; rewrite Hdom; set_solver+|].
     map_simpl "Hregs".
 
+    (* we allocate the standard invariant for b0 *)
+    iMod (inv_alloc (logN .@ b0) ⊤ (interp_ref_inv b0 interp) with "[Ha]") as "#Hb0".
+    { iNext. iExists (WInt 0). iFrame. iApply fixpoint_interp1_eq. eauto. }
+
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
     set regs' := <[_:=_]> _.
     iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
@@ -598,6 +591,9 @@ Section interval.
       rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
     iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
     iApply big_sepM_insert_2. iSimpl. iApply fixpoint_interp1_eq. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply big_sepM_insert_2. iApply fixpoint_interp1_eq. iSimpl. rewrite region_addrs_single// /=.
+    iSplit;auto. iExists interp. iFrame "Hb0". auto.
     repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
     iApply "Hregs_val".
   Qed.
@@ -659,7 +655,7 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals, ⌜iw = WCap p b e a ∧ (b,w) ∈ pbvals⌝
+       ∗ ▷ ( (∃ b b' e a (z1 z2 : Z) w pbvals, ⌜(b + 1)%a = Some b' ∧ iw = WCap RWX b e a ∧ (b',w) ∈ pbvals⌝
                 ∗ prefLL γ pbvals
                 ∗ isInterval_int z1 z2 w
                 ∗ PC ↦ᵣ updatePcPerm wret
@@ -708,7 +704,7 @@ Section interval.
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
 
     rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
-    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
+    iDestruct "Hres" as (b' b'' a' w pbvals [Heq [Hb' Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
     iGo "Hcode".
 
     (* we must now extract from the sealLL invariant that w is indeed an interval element *)
@@ -716,7 +712,7 @@ Section interval.
     iDestruct "Hw" as (hd) "(>Hll & Hawvals)".
     iDestruct "Hawvals" as (awvals) "(HisList & >Hexact & >#Hintervals)".
     iDestruct (know_pref with "Hexact Hpref") as %Hpref.
-    assert (∃ k, awvals !! k = Some (b', w)) as [k Hin].
+    assert (∃ k, awvals !! k = Some (b'', w)) as [k Hin].
     { apply elem_of_list_lookup in Hbw as [k Hk]. destruct Hpref;subst.
       exists k. by apply lookup_app_l_Some. }
     iDestruct "Hint" as (z1 z2) "Hint".
@@ -742,7 +738,7 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_. iFrame "∗ #". iExists _. iFrame "#". repeat iSplit; eauto.
+    iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). auto.
     iExists _,_,_. iFrame "#". eauto.
   Qed.
 
@@ -906,7 +902,7 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals, ⌜iw = WCap p b e a ∧ (b,w) ∈ pbvals⌝
+       ∗ ▷ ( (∃ b b' e a (z1 z2 : Z) w pbvals, ⌜iw = WCap RWX b e a ∧ (b + 1)%a = Some b' ∧ (b',w) ∈ pbvals⌝
                 ∗ prefLL γ pbvals
                 ∗ isInterval_int z1 z2 w
                 ∗ PC ↦ᵣ updatePcPerm wret
@@ -955,7 +951,7 @@ Section interval.
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
 
     rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
-    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
+    iDestruct "Hres" as (b' b'' a' w pbvals [Heq [Hb' Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
     iGo "Hcode".
 
     (* we must now extract from the sealLL invariant that w is indeed an interval element *)
@@ -963,7 +959,7 @@ Section interval.
     iDestruct "Hw" as (hd) "(>Hll & Hawvals)".
     iDestruct "Hawvals" as (awvals) "(HisList & >Hexact & >Hintervals)".
     iDestruct (know_pref with "Hexact Hpref") as %Hpref.
-    assert (∃ k, awvals !! k = Some (b', w)) as [k Hin].
+    assert (∃ k, awvals !! k = Some (b'', w)) as [k Hin].
     { apply elem_of_list_lookup in Hbw as [k Hk]. destruct Hpref;subst.
       exists k. by apply lookup_app_l_Some. }
 
@@ -988,7 +984,7 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_. iFrame. iExists _. repeat iSplit;eauto. iExists bi,ai,_. iFrame "#". eauto.
+    iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). eauto. iExists bi,ai,_. iFrame "#". eauto.
   Qed.
 
   Lemma imax_valid pc_p pc_b pc_e (* PC *)

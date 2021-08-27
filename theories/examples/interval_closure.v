@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import dynamic_sealing interval list_new malloc.
+From cap_machine Require Import dynamic_sealing_keys interval keylist_new malloc.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section interval_closure.

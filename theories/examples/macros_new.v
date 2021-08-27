@@ -371,6 +371,195 @@ Section macros.
     iSplitL. iNext. eauto. eauto.
   Qed.
 
+  (* -------------------------------------- REQPERM ----------------------------------- *)
+  (* the following macro requires that a given registers contains a capability with a
+     given (encoded) permission. If this is not the case, the macro goes to fail,
+     otherwise it continues *)
+
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
+     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
+  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
+    decodeInstrW w = get_i →
+    is_Get get_i dst src →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+      ∗ ▷ pc_a ↦ₐ w
+      ∗ ▷ dst ↦ᵣ wdst
+      ∗ ▷ src ↦ᵣ WInt zsrc }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  (* TODO: move this to the rules_Lea.v file. *)
+  Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
+    decodeInstrW w = Lea r1 (inr rv) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    (a + z)%a = None ->
+
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ r1 ↦ᵣ WCap p b e a
+           ∗ ▷ rv ↦ᵣ WInt z }}}
+       Instr Executable @ Ep
+     {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  (* ------------------------------- *)
+
+
+  Definition reqperm_instrs r z :=
+    encodeInstrsW [
+        GetP r_t1 r
+        ; Sub r_t1 r_t1 z
+        ; Mov r_t2 PC
+        ; Lea r_t2 6
+        ; Jnz r_t2 r_t1
+        ; Mov r_t2 PC
+        ; Lea r_t2 4
+        ; Jmp r_t2
+        ; Fail
+        ; Mov r_t1 0
+        ; Mov r_t2 0].
+
+  Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a →
+
+      ▷ codefrag a_first (reqperm_instrs r (encodePerm perm))
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r ↦ᵣ w
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ (if isPermWord w perm then
+           ∃ b e a', ⌜w = WCap perm b e a'⌝ ∧
+           (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a
+            ∗ codefrag a_first (reqperm_instrs r (encodePerm perm)) ∗
+            r ↦ᵣ WCap perm b e a' ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z
+            -∗ WP Seq (Instr Executable) {{ φ }})
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
+    codefrag_facts "Hprog".
+    destruct w.
+    { (* if w is an integer, the getL will fail *)
+      iInstr_lookup "Hprog" as "Hi" "Hcont".
+      iInstr_get_rule "Hi" (fun rule => idtac rule).
+      wp_instr.
+      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameCapSolve.
+      iNext. iIntros "_".
+      wp_pure.
+      iApply wp_value. done. }
+    (* if w is a capability, the getL will succeed *)
+    do 3 iInstr "Hprog".
+    destruct (isPermWord (WCap p b e a) perm) eqn:Hperm.
+    { iInstr "Hprog".
+      iInstr_lookup "Hprog" as "Hi" "Hcont".
+      iInstr_get_rule "Hi" (fun rule => idtac rule).
+      wp_instr.
+      assert (encodePerm p - encodePerm perm = 0)%Z as ->.
+      { inversion Hperm as [Hp]. apply bool_decide_eq_true_1 in Hp as ->. lia. }
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameCapSolve.
+      iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
+      iDestruct ("Hcont" with "Hi") as "Hprog".
+      iGo "Hprog".
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 9)%a)).
+      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iGo "Hprog".
+      iDestruct "Hφ" as (b' e' a' Heq) "Hφ". inv Heq.
+      iApply "Hφ"; iFrame. }
+    { iGo "Hprog".
+      inversion Hperm as [Hp]. apply bool_decide_eq_false_1 in Hp. intros Hcontr; inversion Hcontr as [Heq].
+      apply Zminus_eq,encodePerm_inj in Heq. subst p. done.
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 8)%a)).
+      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iGo "Hprog".
+      iApply wp_value. iFrame. }
+  Qed.
+
+  (* --------------------------------------- REQSIZE ----------------------------------- *)
+  (* This macro checks that the capability in r covers a memory range of size
+     (i.e. e-b) exactly equal to [minsize]. *)
+
+  Definition reqsize_exact_instrs r (exsize : Z) :=
+    encodeInstrsW
+      [ GetB r_t1 r ;
+      GetE r_t2 r;
+      Sub r_t1 r_t2 r_t1;
+      Sub r_t1 r_t1 exsize;
+      Mov r_t2 PC;
+      Lea r_t2 6;
+      Jnz r_t2 r_t1;
+      Mov r_t2 PC;
+      Lea r_t2 4;
+      Jmp r_t2;
+      Fail].
+
+  Lemma reqsize_spec r minsize pc_p pc_b pc_e a_first r_p r_b r_e r_a w1 w2 φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (reqsize_exact_instrs r minsize))%a →
+
+      ▷ codefrag a_first (reqsize_exact_instrs r minsize)
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r ↦ᵣ WCap r_p r_b r_e r_a
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ (if (minsize =? (r_e - r_b)%a)%Z then
+           (∃ w1 w2,
+            codefrag a_first (reqsize_exact_instrs r minsize)
+            ∗ PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqsize_exact_instrs r minsize))%a
+            ∗ r ↦ᵣ WCap r_p r_b r_e r_a
+            ∗ r_t1 ↦ᵣ w1
+            ∗ r_t2 ↦ᵣ w2)
+           -∗ WP Seq (Instr Executable) {{ φ }}
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
+    codefrag_facts "Hprog".
+    do 6 iInstr "Hprog".
+
+    destruct (minsize =? r_e - r_b)%Z eqn:Hsize.
+    { iInstr_lookup "Hprog" as "Hi" "Hcont".
+      iInstr_get_rule "Hi" (fun rule => idtac rule).
+      wp_instr.
+      assert (r_e - r_b - minsize = 0)%Z as ->.
+      { solve_addr. }
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameCapSolve.
+      iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
+      iDestruct ("Hcont" with "Hi") as "Hprog".
+      iGo "Hprog".
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 11)%a)).
+      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      iApply "Hφ". iExists _,_. iFrame. }
+    { iGo "Hprog". intros Hcontr. inv Hcontr. solve_addr.
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 10)%a)).
+      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      iGo "Hprog". iApply wp_value. iFrame. }
+  Qed.
+
   (* -------------------------------------- RCLEAR ----------------------------------- *)
   (* the following macro clears registers in r. a denotes the list of addresses
      containing the instructions for the clear: |a| = |r| *)
