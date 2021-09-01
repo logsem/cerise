@@ -38,7 +38,7 @@ jobs:
         run: opam exec -- make ci -j $(nproc)
 
       - name: Build docs
-        run: opam exec -- make ci-html
+        run: opam exec -- make html
 
       - name: Deploy docs
         uses: peaceiris/actions-gh-pages@v3
