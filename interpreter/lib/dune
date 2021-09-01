@@ -1,0 +1,7 @@
+(library
+ (name        libinterp)
+ (flags :standard -w -39) ; HACK, because of dummy parser
+ (libraries ))
+
+(ocamllex lexer)
+(menhir (modules parser))
