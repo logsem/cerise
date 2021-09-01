@@ -465,7 +465,6 @@ Section macros.
     destruct w.
     { (* if w is an integer, the getL will fail *)
       iInstr_lookup "Hprog" as "Hi" "Hcont".
-      iInstr_get_rule "Hi" (fun rule => idtac rule).
       wp_instr.
       iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameCapSolve.
       iNext. iIntros "_".
@@ -476,7 +475,6 @@ Section macros.
     destruct (isPermWord (WCap p b e a) perm) eqn:Hperm.
     { iInstr "Hprog".
       iInstr_lookup "Hprog" as "Hi" "Hcont".
-      iInstr_get_rule "Hi" (fun rule => idtac rule).
       wp_instr.
       assert (encodePerm p - encodePerm perm = 0)%Z as ->.
       { inversion Hperm as [Hp]. apply bool_decide_eq_true_1 in Hp as ->. lia. }
@@ -543,7 +541,6 @@ Section macros.
 
     destruct (minsize =? r_e - r_b)%Z eqn:Hsize.
     { iInstr_lookup "Hprog" as "Hi" "Hcont".
-      iInstr_get_rule "Hi" (fun rule => idtac rule).
       wp_instr.
       assert (r_e - r_b - minsize = 0)%Z as ->.
       { solve_addr. }
