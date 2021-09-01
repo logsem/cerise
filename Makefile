@@ -46,6 +46,11 @@ skip-qed: Makefile.coq.conf
 ci: skip-qed
 	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
 
+ci-html:
+	rm -rf html
+	$(MAKE) -f Makefile.coq html TGTS=$(CI_EXAMPLES)
+	cp $(EXTRA_DIR)/resources/* html
+
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
 	rm -f Makefile.coq
