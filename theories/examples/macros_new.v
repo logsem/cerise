@@ -76,7 +76,7 @@ Section macros.
       Load r_t1 r_t1;
       Store r_t1 1;
       Mov r_t1 0;
-      Fail
+      Halt
     ].
 
   (* f_a is the offset of the failure subroutine in the linking table *)
@@ -175,7 +175,7 @@ Section macros.
 
       Seq (Instr Executable)
 
-    {{{ RET FailedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
+    {{{ RET HaltedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ WCap RX f_b f_e (f_a_first ^+ (length assert_fail_instrs - 1))%a
          ∗ codefrag a_first (assert_r_z_instrs f_a r z)
          ∗ codefrag f_a_first assert_fail_instrs
