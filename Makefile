@@ -44,12 +44,8 @@ skip-qed: Makefile.coq.conf
 	./disable-qed.sh $(COQMF_VFILES)
 
 ci: skip-qed
-	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
-
-ci-html:
-	rm -rf html
-	$(MAKE) -f Makefile.coq html TGTS=$(CI_EXAMPLES)
-	cp $(EXTRA_DIR)/resources/* html
+#	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
+	$(MAKE) -f Makefile.coq pretty-timed
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
