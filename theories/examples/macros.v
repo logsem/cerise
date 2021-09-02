@@ -165,7 +165,7 @@ Section macros.
     load_r r_t1 r_t1;
     store_z r_t1 1;
     move_z r_t1 0;
-    fail_end].
+    halt].
 
   Definition assert_fail a :=
     ([∗ list] a_i;w_i ∈ a;(assert_fail_instrs), a_i ↦ₐ w_i)%I.
@@ -294,7 +294,7 @@ Section macros.
 
       Seq (Instr Executable)
 
-    {{{ RET FailedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
+    {{{ RET HaltedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
          ∗ PC ↦ᵣ WCap RX f_b f_e (^(f_a_last + (-1))%a)
          ∗ assert_r_z a f_a r z ∗ assert_fail a'
          ∗ pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ WCap E f_b f_e f_a_first
@@ -379,7 +379,7 @@ Section macros.
     destruct a';[|inversion Hlength'].
     apply contiguous_between_last with (ai:=a5) in Hcont' as Hlink';[|auto].
     iPrologue "Hprog".
-    iApply (wp_fail with "[$HPC $Hi]");
+    iApply (wp_halt with "[$HPC $Hi]");
       [apply decode_encode_instrW_inv|iCorrectPC f_a_first f_a_last|].
     iEpilogue "(HPC & Hi)".
     iApply wp_value. iApply "Hφ".
