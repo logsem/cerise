@@ -437,3 +437,14 @@ Proof.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
       iExists ρ. iFrame.
 Qed.
+
+Lemma big_sepL2_to_big_sepL_replicate {Σ : gFunctors} {A B: Type} (l1: list A) (b : B) (Φ: A -> B -> iProp Σ) :
+  ([∗ list] a;b' ∈ l1;replicate (length l1) b, Φ a b')%I -∗
+  ([∗ list] a ∈ l1, Φ a b).
+Proof.
+  iIntros "Hl".
+  iInduction l1 as [|a l1] "IH".
+  - done.
+  - simpl. iDestruct "Hl" as "[$ Hl]".
+    iApply "IH". iFrame.
+Qed.
