@@ -11,7 +11,11 @@
 
 %%
 
-let main :=
+main:
   | EOF; { ([]: Ast.t) }
+  | JMP; r = reg; p = main; { (Jmp r :: p) }
 
+reg:
+  | PC; { PC }
+  | i = REG; { R i }
 %%
