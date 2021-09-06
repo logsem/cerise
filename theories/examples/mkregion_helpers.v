@@ -33,6 +33,25 @@ Proof.
         split; solve_addr. } } }
 Qed.
 
+Lemma list_to_map_app {A} `{EqDecision A, Countable A} {B} (l1 l2: list (A * B)) :
+  (list_to_map (l1 ++ l2) : gmap A B) = list_to_map l1 ∪ list_to_map l2.
+Proof.
+  revert l2. induction l1.
+  { intros l2. rewrite /= left_id_L //. }
+  { intros l2. rewrite /= IHl1 insert_union_l //. }
+Qed.
+
+Lemma mkregion_app l1 l2 b e :
+  (b + length (l1 ++ l2))%a = Some e →
+  mkregion b e (l1 ++ l2) =
+  mkregion b (b ^+ length l1)%a l1 ∪ mkregion (b ^+ length l1)%a e l2.
+Proof.
+  rewrite /mkregion. rewrite app_length. intros HH.
+  rewrite (region_addrs_split _ (b ^+ length l1)%a). 2: split; solve_addr.
+  rewrite zip_app. 2: rewrite region_addrs_length /region_size; solve_addr.
+  rewrite list_to_map_app //.
+Qed.
+
 Lemma mkregion_lookup (b e a : Addr) l x :
   (b + length l = Some e)%a →
   mkregion b e l !! a = Some x ↔ ∃ (i:nat), a = (b ^+ i)%a ∧ l !! i = Some x.

@@ -203,7 +203,15 @@ Ltac focus_block_0 h hi hcont :=
   match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
     iPoseProof (codefrag_block0_acc with h) as x;
     eapply tac_and_destruct with x _ hi hcont _ _ _;
-    [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+    [pm_reflexivity|pm_reduce;iSolveTC|
+     pm_reduce;
+     lazymatch goal with
+     | |- False =>
+       let hi := pretty_ident hi in
+       let hcont := pretty_ident hcont in
+       fail "focus_block_0:" hi "or" hcont "not fresh"
+     | _ => idtac
+     end];
     focus_block_0_codefrag_facts hi a0
   end.
 
@@ -240,7 +248,7 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
   let x := iFresh in
   match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
     iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
-      [ typeclasses eauto with proofmode_focus | ];
+      [ once (typeclasses eauto with proofmode_focus) | ];
     let xbase := iFresh in
     let y := iFresh in
     eapply tac_and_destruct with x _ xbase y _ _ _;

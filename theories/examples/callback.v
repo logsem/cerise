@@ -3,60 +3,6 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros call.
 
-Lemma rev_nil_inv {A} (l : list A) :
-  rev l = [] -> l = [].
-Proof.
-  destruct l;auto.
-  simpl. intros Hrev. exfalso.
-  apply app_eq_nil in Hrev as [Hrev1 Hrev2].
-  inversion Hrev2.
-Qed.
-
-Lemma rev_singleton_inv {A} (l : list A) (a : A) :
-  rev l = [a] -> l = [a].
-Proof.
-  destruct l;auto.
-  simpl. intros Hrev.
-  destruct l. 
-  - simpl in Hrev. inversion Hrev. auto. 
-  - exfalso. simpl in Hrev. 
-    apply app_singleton in Hrev. destruct Hrev as [ [Hrev1 Hrev2] | [Hrev1 Hrev2] ].
-    + destruct (rev l);inversion Hrev1. 
-    + inversion Hrev2.
-Qed.
-
-Lemma rev_lookup {A} (l : list A) (a : A) :
-  rev l !! 0 = Some a <-> l !! (length l - 1) = Some a.
-Proof.
-  split; intros Hl.
-  - rewrite -last_lookup.
-    induction l.
-    + inversion Hl.
-    + simpl in Hl. simpl. destruct l.
-      { simpl in Hl. inversion Hl. auto. }
-      { apply IHl. rewrite lookup_app_l in Hl;[|simpl;rewrite app_length /=;lia]. auto. }
-  - rewrite -last_lookup in Hl.
-    induction l.
-    + inversion Hl.
-    + simpl. destruct l.
-      { simpl. inversion Hl. auto. }
-      { rewrite lookup_app_l;[|simpl;rewrite app_length /=;lia]. apply IHl. auto. }
-Qed.
-
-Lemma rev_cons_inv {A} (l l' : list A) (a : A) :
-  rev l = a :: l' ->
-  ∃ l'', l = l'' ++ [a].
-Proof.
-  intros Hrel.
-  destruct l;inversion Hrel.
-  assert ((a0 :: l) !! (length l) = Some a) as Hsome.
-  { assert (length l = length (a0 :: l) - 1) as ->;[simpl;lia|]. apply rev_lookup. rewrite Hrel. constructor. }
-  apply take_S_r in Hsome.
-  exists (take (length l) (rev (rev l ++ [a0]))).
-    simpl. rewrite rev_unit. rewrite rev_involutive. rewrite -Hsome /=. 
-    f_equiv. rewrite firstn_all. auto.
-Qed.     
-
 Section callback.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
@@ -242,7 +188,7 @@ Section callback.
            rewrite !Z.leb_le !Z.ltb_lt.
            intros. 
            split; try solve_addr.
-      + iPureIntro. rewrite (map_to_list_delete _ _ w0);eauto.
+      + iPureIntro. rewrite (stdpp_extra.map_to_list_delete _ _ w0);eauto.
         rewrite Hl'' rev_unit in Hreveq. inversion Hreveq.
         apply rev_cons_inv in H0 as [l3 Hl3]. rewrite Hl3. simplify_eq.
         rewrite -Hperm. rewrite - !app_assoc.

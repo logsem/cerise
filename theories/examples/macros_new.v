@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
-From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc.
+From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section macros.
@@ -63,141 +63,71 @@ Section macros.
   (* ------------------------------------- ASSERT ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* The assert macro relies on a convention for the failure flag. This file contains the
-     failure subroutine *)
-
-  (* The convention for the failure flag: one address after the last instruction of the failure subroutine *)
-  (* failing the assert will set the flag to 1 and then crash the program to a Failed configuration. The flag
-     capability is at one address after the instructions *)
-  Definition assert_fail_instrs :=
-    encodeInstrsW [
-      Mov r_t1 PC;
-      Lea r_t1 6;
-      Load r_t1 r_t1;
-      Store r_t1 1;
-      Mov r_t1 0;
-      Halt
-    ].
-
-  (* f_a is the offset of the failure subroutine in the linking table *)
-  (* assert r z asserts that the register r contains the integer z *)
-  (* r is assumed not to be r_t1 *)
-  Definition assert_r_z_instrs f_a (r: RegName) (z: Z) :=
+  Definition assert_instrs f_a :=
     fetch_instrs f_a ++
     encodeInstrsW [
-      Sub r r z;
-      Jnz r_t1 r;
-      Mov r_t1 0
+      Mov r_t2 r_t0;
+      Mov r_t0 PC;
+      Lea r_t0 3;
+      Jmp r_t1;
+      Mov r_t0 r_t2;
+      Mov r_t1 0;
+      Mov r_t2 0
     ].
 
   (* Spec for assertion success *)
-  (* Since we are not jumping to the failure subroutine, we do not need any assumptions
-     about the failure subroutine *)
-  Lemma assert_r_z_success f_a r z pc_p pc_b pc_e a_first
-        b_link e_link a_link a_entry fail_cap w_r w1 w2 w3 φ :
+  Lemma assert_success f_a pc_p pc_b pc_e a_first
+        b_link e_link a_link a_entry ba a_flag ea w0 w1 w2 w3 assertN EN n1 n2 φ :
     ExecPCPerm pc_p →
-    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_r_z_instrs f_a r z))%a →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_instrs f_a))%a →
     (* linking table assumptions *)
     withinBounds b_link e_link a_entry = true →
     (a_link + f_a)%a = Some a_entry ->
+    ↑assertN ⊆ EN →
     (* condition for assertion success *)
-    (w_r = WInt z) ->
+    (n1 = n2) →
 
-    ▷ codefrag a_first (assert_r_z_instrs f_a r z)
+    ▷ codefrag a_first (assert_instrs f_a)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea)
+    ∗ na_own logrel_nais EN
     ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
     ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ fail_cap
-    ∗ ▷ r ↦ᵣ w_r
+    ∗ ▷ a_entry ↦ₐ WCap E ba ea ba
+    ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ (r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ r ↦ᵣ WInt 0%Z
-         ∗ PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (assert_r_z_instrs f_a r z))%a
-         ∗ codefrag a_first (assert_r_z_instrs f_a r z)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ fail_cap
+    ∗ ▷ r_t4 ↦ᵣ WInt n1
+    ∗ ▷ r_t5 ↦ᵣ WInt n2
+    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a
+         ∗ r_t0 ↦ᵣ w0
+         ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
+         ∗ r_t4 ↦ᵣ WInt 0%Z ∗ r_t5 ↦ᵣ WInt 0%Z
+         ∗ codefrag a_first (assert_instrs f_a)
+         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+         ∗ a_entry ↦ₐ WCap E ba ea ba
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hvpc Hcont Hwb Htable Hsuccess)
-            "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    subst w_r. rewrite {1}/assert_r_z_instrs.
+    iIntros (Hvpc Hcont Hwb Htable HN Hsuccess)
+            "(>Hprog & #Hinv & Hna & >HPC & >Hpc_b & >Ha_entry & >Hr0 & >Hr1 & >Hr2 & >Hr3
+              & >Hr4 & >Hr5 & Hφ)".
+    rewrite {1}/assert_instrs.
     focus_block_0 "Hprog" as "Hfetch" "Hcont".
     iApply fetch_spec; iFrameCapSolve.
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    iInstr "Hprog". rewrite (_: (z - z = 0)%Z); [| lia].
+    do 4 iInstr "Hprog".
+    iApply (assert_success_spec with "[- $Hinv $Hna $HPC $Hr0 $Hr4 $Hr5]"); auto.
+    iNext. iIntros "(Hna & HPC & Hr0 & Hr4 & Hr5)".
+    rewrite updatePcPerm_cap_non_E; [| solve_pure ].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ". iFrame.
-    changePCto (a_first ^+ length (assert_r_z_instrs f_a r z))%a. iFrame.
-  Qed.
-
-  (* Spec for assertion failure *)
-  (* When the assertion fails, the program jumps to the failure subroutine, sets the
-     flag (which by convention is one address after subroutine) and Fails *)
-  Lemma assert_r_z_fail f_a r z pc_p pc_b pc_e a_first z_r
-        b_link e_link a_link a_entry
-        f_b f_e f_a_first a_env (* fail subroutine *)
-        flag_p flag_b flag_e flag_a (* flag capability *)
-        w1 w2 w3 wf :
-    ExecPCPerm pc_p →
-    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_r_z_instrs f_a r z))%a →
-    (* linking table assumptions *)
-    withinBounds b_link e_link a_entry = true →
-    (a_link + f_a)%a = Some a_entry ->
-    (* failure subroutine assumptions *)
-    SubBounds f_b f_e f_a_first (f_a_first ^+ length assert_fail_instrs)%a →
-    (f_a_first + (length assert_fail_instrs))%a = Some a_env ->
-    withinBounds f_b f_e a_env = true ->
-    (* flag assumptions *)
-    withinBounds flag_b flag_e flag_a = true →
-    writeAllowed flag_p = true ->
-    (* condition for assertion failure *)
-    (z_r ≠ z) ->
-
-    (* the assert and assert failure subroutine programs *)
-    {{{ ▷ codefrag a_first (assert_r_z_instrs f_a r z)
-    ∗ ▷ codefrag f_a_first assert_fail_instrs
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    (* linking table and assertion flag *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link (* the linking table capability *)
-    ∗ ▷ a_entry ↦ₐ WCap E f_b f_e f_a_first (* the capability to the failure subroutine *)
-    ∗ ▷ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a (* the assertion flag capability *)
-    ∗ ▷ flag_a ↦ₐ wf (* the assertion flag *)
-    (* registers *)
-    ∗ ▷ r ↦ᵣ WInt z_r
-    ∗ ▷ r_t1 ↦ᵣ w1
-    ∗ ▷ r_t2 ↦ᵣ w2
-    ∗ ▷ r_t3 ↦ᵣ w3 }}}
-
-      Seq (Instr Executable)
-
-    {{{ RET HaltedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
-         ∗ PC ↦ᵣ WCap RX f_b f_e (f_a_first ^+ (length assert_fail_instrs - 1))%a
-         ∗ codefrag a_first (assert_r_z_instrs f_a r z)
-         ∗ codefrag f_a_first assert_fail_instrs
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ WCap E f_b f_e f_a_first
-         ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a ∗ flag_a ↦ₐ WInt 1%Z }}}.
-  Proof.
-    iIntros (Hexpc Hsub Hwb Htable Hsub' Henv Henvwb Hwb' Hwa Hfailure φ)
-            "(>Hprog & >Hprog' & >HPC & >Hpc_b & >Ha_entry & >Ha_env & >Hflag & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3) Hφ".
-    rewrite {1}/assert_r_z_instrs.
-    focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
-    iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
-    unfocus_block "Hfetch" "Hcont" as "Hprog".
-
-    focus_block 1 "Hprog" as amid1 Hamid1 "Hprog" "Hcont".
-    iInstr "Hprog".
-    iInstr "Hprog". by intros HH; inversion HH; lia.
-    unfocus_block "Hprog" "Hcont" as "Hprog".
-
-    rewrite {1}/assert_fail_instrs.
-    codefrag_facts "Hprog'". iGo "Hprog'".
-    wp_end. iApply "Hφ". iFrame. iExists _. iFrame. iPureIntro. lia.
+    changePCto (a_first ^+ length (assert_instrs f_a))%a. iFrame.
   Qed.
 
   (* --------------------------------------------------------------------------------- *)

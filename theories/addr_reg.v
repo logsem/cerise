@@ -161,6 +161,13 @@ Proof.
   apply all_registers_correct.
 Qed.
 
+Lemma all_registers_correct_sub r : NoDup r → r ⊆+ all_registers.
+Proof.
+  intros Hdup.
+  apply NoDup_submseteq;auto. intros r' Hin.
+  apply all_registers_correct.
+Qed.
+
 Instance setunfold_all_regs:
   forall x, SetUnfoldElemOf x all_registers_s True.
 Proof.
