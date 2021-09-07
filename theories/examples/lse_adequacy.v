@@ -279,7 +279,7 @@ Section roe_adequacy.
 
 End roe_adequacy.
 
-Theorem template_adequacy `{memory_layout}
+Theorem roe_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory roe_prog adv_prog OCPLLibrary roe_table adv_table m →
   is_initial_registers roe_prog adv_prog OCPLLibrary roe_table adv_table reg r_adv →
