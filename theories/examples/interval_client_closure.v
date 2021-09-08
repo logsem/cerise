@@ -95,6 +95,7 @@ Section interval_client.
   Definition actN : namespace := clientN .@ "actN".
 
   Definition mallocN : namespace := nroot .@ "mallocN".
+  Definition assertN : namespace := nroot .@ "assertN".
 
   Definition int_bounds i_b i_e i_a_first f_m_i f_s_i i_first s_b s_e s_first offset_to_interval :=
     SubBounds i_b i_e i_a_first (i_a_first ^+ length (interval_closure f_m_i f_s_i offset_to_interval))%a ∧
@@ -119,7 +120,7 @@ Section interval_client.
         a_first c_first a_move (* client level addresses *)
         pc_p pc_b pc_e (* client level PC *)
         f_a f_i f_mc offset_to_checki (* client level parameters *)
-        b_r e_r a_r assert_r fail_cap int_cls_r malloc_r (* client table *)
+        b_r e_r a_r assert_r int_cls_r malloc_r (* client table *)
         f_m_i f_s_i offset_to_interval (* interval parameters *)
         i_b i_e (* interval PC *)
         s_p s_b s_e (* seal PC *)
@@ -127,6 +128,7 @@ Section interval_client.
         b_r_i e_r_i a_r_i malloc_r_i makeseal_r_i (* interval table *)
         b_rs e_rs (* seal table *)
         b_m e_m (* malloc *)
+        b_a a_flag e_a (* assert *)
         rmap :
 
     (* PC assumptions *)
@@ -178,7 +180,7 @@ Section interval_client.
 
     (* Environment table for client *)
     ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
-    ∗ assert_r ↦ₐ fail_cap
+    ∗ assert_r ↦ₐ WCap E b_a e_a b_a
     ∗ int_cls_r ↦ₐ WCap E i_b i_e i_a_first
     ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
 
@@ -199,7 +201,7 @@ Section interval_client.
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
 
     (* assert invariant *)
-    (* ∗ na_inv logrel_nais assertN (assert_inv b_a b_a e_a) *)
+    ∗ na_inv logrel_nais assertN (assert_inv b_a a_flag e_a)
 
     -∗ interp_expr interp rmap (WCap pc_p pc_b pc_e a_first).
   Proof.
@@ -207,7 +209,7 @@ Section interval_client.
     iIntros (Hwb_r Hwb_i Hwb_m Hassert_r Hint_cls_r Hmalloc_r Hint_table).
     iIntros (Ha_move Hc_first Hint_offsets).
     iIntros "(Hclient_cls & Hckecki & Hpc_b & Hassert_r & Hint_cls_r & Hmalloc_r & Hint_cls & Hint & Hi_b &
-              Hmalloc_r_i & Hmakeseal_r_i & Hseal & Hs_b & Hb_rs & #Hmalloc)".
+              Hmalloc_r_i & Hmakeseal_r_i & Hseal & Hs_b & Hb_rs & #Hmalloc & #Hassert)".
 
     iIntros "((%Hfull&#Hrmap_valid) & Hrmap & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hrmap") as "[HPC Hregs]";
@@ -346,7 +348,7 @@ Section interval_client.
       all: destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?);
         destruct Hint_offsets as (?&?). solve_addr +H0. 1,2:solve_addr +H0 Ha_imax Ha_imin. }
 
-    iMod (na_inv_alloc logrel_nais _ envCN (pc_b ↦ₐ WCap RO b_r e_r a_r  ∗ assert_r ↦ₐ fail_cap)%I
+    iMod (na_inv_alloc logrel_nais _ envCN (pc_b ↦ₐ WCap RO b_r e_r a_r  ∗ assert_r ↦ₐ WCap E b_a e_a b_a)%I
             with "[$Hpc_b $Hassert_r]") as "#Hclient_env".
     iMod (na_inv_alloc logrel_nais _ envCN (i_b ↦ₐ WCap RO b_r_i e_r_i a_r_i ∗ malloc_r_i ↦ₐ WCap E b_m e_m b_m)%I
             with "[$Hi_b $Hmalloc_r_i]") as "#Hmakeint_env".
@@ -400,12 +402,11 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
       destruct Hfullr with r_t0 as [w0' Hr_t0'].
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
-      iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env]");iFrameCapSolve.
-      10: rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
-      10: assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
-      10: iFrame "Hchecki Himin Himax".
-      all: try solve_ndisj. all: cycle 1.
-      { iSplitL "Hr_t20";[eauto|].
+      iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env $Hassert]");iFrameCapSolve.
+      all: cycle -2.
+      { rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
+        assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
+        iFrame "Hchecki Himin Himax". iSplitL "Hr_t20". by eauto.
         iFrame "Hregs". iSplit. iApply ("Hr_valid" $! r_t0);auto.
         iApply big_sepM_forall. iIntros (reg w Hin).
         iApply ("Hr_valid" $! reg). iPureIntro. destruct (decide (reg = PC));auto;simplify_map_eq.
@@ -414,8 +415,9 @@ Section interval_client.
           _ : delete ?rr _ !! _ = Some _ |- _ => destruct (decide (rr = reg));simplify_map_eq
         end.
         done. }
+      all: try solve_ndisj.
+      2: { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
       { iNext. iIntros (v) "H". iFrame. }
-      { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
     }
 
     (* MAKEINT *)

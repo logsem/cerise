@@ -107,21 +107,18 @@ Class memory_layout `{MachineParameters} := {
   malloc_mem_size :
     (malloc_mem_start <= malloc_end)%a;
 
-  (* fail routine *)
-  fail_start : Addr;
-  fail_end : Addr;
+  (* assert routine *)
+  assert_start : Addr;
+  assert_cap : Addr;
+  assert_flag : Addr;
+  assert_end : Addr;
 
-  fail_size :
-    (fail_start
-     + (length assert_fail_instrs (* code of the subroutine *)
-        + 1 (* pointer to the flag *))
-    )%a
-    = Some fail_end;
-  (* failure flag *)
-  fail_flag : Addr;
-  fail_flag_next : Addr;
-  fail_flag_size :
-    (fail_flag + 1)%a = Some fail_flag_next;
+  assert_code_size :
+    (assert_start + length assert_subroutine_instrs)%a = Some assert_cap;
+  assert_cap_size :
+    (assert_cap + 1)%a = Some assert_flag;
+  assert_flag_size :
+    (assert_flag + 1)%a = Some assert_end;
 
   (* disjointness of all the regions above *)
   regions_disjoint :
@@ -142,11 +139,12 @@ Class memory_layout `{MachineParameters} := {
       [seal_region_start];
       region_addrs seal_body_start seal_region_end;
       region_addrs seal_table_start seal_table_end;
-      [fail_flag];
-      region_addrs fail_start fail_end;
       region_addrs malloc_mem_start malloc_end;
       [malloc_memptr];
-      region_addrs malloc_start malloc_memptr
+      region_addrs malloc_start malloc_memptr;
+      [assert_flag];
+      [assert_cap];
+      region_addrs assert_start assert_cap
       ]
 }.
 
@@ -182,18 +180,20 @@ Definition lib_entry_malloc `{memory_layout} : lib_entry :=
      lib_entrypoint := malloc_start ;
      lib_full_content := malloc_library_content |}.
 
-(* FAIL library entry *)
-Definition fail_library_content `{memory_layout} : gmap Addr Word :=
+(* assert library entry *)
+Definition assert_library_content `{memory_layout} : gmap Addr Word :=
   (* code for the failure subroutine *)
-  (* tail contains pointer to the "failure" flag, set to 1 by the routine *)
-  mkregion fail_start fail_end (assert_fail_instrs ++ [WCap RW fail_flag fail_flag_next fail_flag])
-  ∪ list_to_map [(fail_flag, WInt 0%Z)] (* failure flag, initially set to 0 *).
+  mkregion assert_start assert_cap assert_subroutine_instrs
+  (* capability to the assert flag *)
+  ∪ list_to_map [(assert_cap, WCap RW assert_flag assert_end assert_flag)]
+ (* assert flag, initially set to 0 *)
+  ∪ list_to_map [(assert_flag, WInt 0%Z)].
 
 Definition lib_entry_fail `{memory_layout} : lib_entry :=
-  {| lib_start := fail_start ;
-     lib_end := fail_end ;
-     lib_entrypoint := fail_start ;
-     lib_full_content := fail_library_content |}.
+  {| lib_start := assert_start ;
+     lib_end := assert_end ;
+     lib_entrypoint := assert_start ;
+     lib_full_content := assert_library_content |}.
 
 (* INTERVAL library entry *)
 (* first we define the memory region of the nested seal library *)
@@ -262,9 +262,9 @@ Qed.
 
 
 Definition OK_invariant `{MachineParameters} `{memory_layout} (m : gmap Addr Word) : Prop :=
-  ∀ w, m !! fail_flag = Some w → w = WInt 0%Z.
+  ∀ w, m !! assert_flag = Some w → w = WInt 0%Z.
 
-Definition OK_dom `{MachineParameters} `{memory_layout} : gset Addr := {[ fail_flag ]}.
+Definition OK_dom `{MachineParameters} `{memory_layout} : gset Addr := {[ assert_flag ]}.
 
 Program Definition OK_dom_correct `{MachineParameters} `{memory_layout} :
   ∀ m m',
@@ -272,13 +272,13 @@ Program Definition OK_dom_correct `{MachineParameters} `{memory_layout} :
     OK_invariant m ↔ OK_invariant m'.
 Proof.
   intros m m' Hdom.
-  destruct Hdom with fail_flag as [w [Hw1 Hw2] ]. set_solver.
+  destruct Hdom with assert_flag as [w [Hw1 Hw2] ]. set_solver.
   split;intros HOK;intros w' Hw';simplify_eq;apply HOK;auto.
 Defined.
 
 Definition flag_inv `{MachineParameters} `{memory_layout} : memory_inv :=
   {| minv := OK_invariant ;
-     minv_dom := {[ fail_flag ]} ;
+     minv_dom := {[ assert_flag ]} ;
      minv_dom_correct := OK_dom_correct |}.
 
 Lemma flag_inv_is_initial_memory `{memory_layout} m :
@@ -288,20 +288,20 @@ Proof.
   intros Hinit. intros a Hin.
   destruct Hinit as (?&?&Hlibs&?&?&?&Hlibdisj).
   cbn in Hlibs. rewrite map_union_empty in Hlibs.
-  assert ((fail_library_content ∪ interval_library_content) ⊆ m) as Hfail'.
+  assert ((assert_library_content ∪ interval_library_content) ⊆ m) as Hfail'.
   { etrans;[|eauto]. apply map_union_subseteq_r. cbn in Hlibdisj.
     rewrite !map_union_empty in Hlibdisj. auto. }
-  assert (fail_library_content ⊆ m) as Hfail.
+  assert (assert_library_content ⊆ m) as Hfail.
   { etrans;[|eauto]. apply map_union_subseteq_l. }
 
-  rewrite /fail_library_content in Hfail.
-  assert (list_to_map [(fail_flag, WInt 0)] ⊆ m) as Hfail_flag.
+  rewrite /assert_library_content in Hfail.
+  assert (list_to_map [(assert_flag, WInt 0)] ⊆ m) as Hassert_flag.
   { etrans;[|eauto]. apply map_union_subseteq_r. disjoint_map_to_list.
-    pose proof (regions_disjoint) as Hdisjoint.
-    rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
-    set_solver. }
-  simpl in Hfail_flag.
-  eapply (lookup_weaken _ _ fail_flag (WInt 0)) in Hfail_flag.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_region_addrs !elem_of_list_singleton.
+    pose proof assert_code_size. pose proof assert_cap_size.
+    pose proof assert_flag_size. intros [ [? ?]|?] ->; solve_addr. }
+  simpl in Hassert_flag.
+  eapply (lookup_weaken _ _ assert_flag (WInt 0)) in Hassert_flag.
   by simplify_eq. by simplify_map_eq.
 Qed.
 
@@ -309,7 +309,7 @@ Lemma flag_inv_sub `{memory_layout} :
   minv_dom flag_inv ⊆ dom (gset Addr) (lib_region (priv_libs library)).
 Proof.
   cbn. rewrite map_union_empty.
-  rewrite /fail_library_content.
+  rewrite /assert_library_content.
   rewrite /= dom_union_L dom_union_L dom_insert_L dom_empty_L.
   rewrite union_empty_r. etrans. 2: apply union_subseteq_l. apply union_subseteq_r.
 Qed.
@@ -326,7 +326,7 @@ Proof.
     - match goal with
       | _ : mkregion ?X1 ?X2 ?X3 !! _ = _ |- _ => set l := mkregion X1 X2 X3
       end.
-      assert (is_Some (l !! fail_flag))
+      assert (is_Some (l !! assert_flag))
         as Hdom%elem_of_gmap_dom;eauto.
       apply in_dom_mkregion in Hdom.
       pose proof (regions_disjoint) as Hdisjoint.
@@ -337,14 +337,14 @@ Proof.
         pose proof (regions_disjoint) as Hdisjoint.
         rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
         set_solver.
-      + simpl. destruct (decide (seal_region_start = fail_flag));simplify_map_eq;auto.
+      + simpl. destruct (decide (seal_region_start = assert_flag));simplify_map_eq;auto.
         exfalso.
         pose proof (regions_disjoint) as Hdisjoint.
         rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
         set_solver. }
   { apply lookup_union_None. split;[apply lookup_union_None;split|].
     1,3: apply not_elem_of_dom;intros Hcontr%in_dom_mkregion.
-    3: destruct (decide (interval_region_start = fail_flag));simplify_map_eq;auto;exfalso.
+    3: destruct (decide (interval_region_start = assert_flag));simplify_map_eq;auto;exfalso.
     all: pose proof (regions_disjoint) as Hdisjoint.
     1: rewrite (region_addrs_split _ interval_body_start) in Hcontr;
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH; solve_addr].
@@ -483,10 +483,10 @@ Section int_client_adequacy.
 
     (* extract interval library from priv *)
     rewrite /Hfilter /=.
-    assert (fail_library_content ##ₘ interval_library_content) as Hdisj.
-    { rewrite /fail_library_content /interval_library_content.
+    assert (assert_library_content ##ₘ interval_library_content) as Hdisj.
+    { rewrite /assert_library_content /interval_library_content.
       pose proof (regions_disjoint) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
+      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
       rewrite map_disjoint_union_l !map_disjoint_union_r. repeat split;disjoint_map_to_list.
       rewrite (region_addrs_split interval_closure_start interval_body_start). set_solver.
       pose proof interval_closure_size as HH.
@@ -497,9 +497,40 @@ Section int_client_adequacy.
       pose proof interval_body_size as HHH. solve_addr +HH HHH.
       all: set_solver. }
     rewrite map_filter_union; [|auto].
-    iDestruct (big_sepM_union with "Hprivs") as "[_ Hprivs]".
+
+    iDestruct (big_sepM_union with "Hprivs") as "[Hassert Hprivs]".
     { eapply map_filter_disjoint;auto. apply _. }
-    rewrite map_filter_id. 2: apply flag_not_in_interval.
+
+    (* allocate the assert invariant *)
+    iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
+            with "[Hassert]") as "#Hinv_assert".
+    { iNext. rewrite /assert_library_content.
+      pose proof assert_code_size. pose proof assert_cap_size. pose proof assert_flag_size.
+      rewrite map_filter_union.
+      2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
+           rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+           intros [ [? ?]|?]; solve_addr. }
+      iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
+      { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
+        apply elem_of_disjoint. intro.
+        rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+        intros [ [? ?]|?]; solve_addr. }
+      rewrite map_filter_id.
+      2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
+           2: solve_addr. apply elem_of_union in HH.
+           rewrite elem_of_singleton. destruct HH as [HH|HH].
+           rewrite -> elem_of_list_to_set, elem_of_region_addrs in HH; solve_addr.
+           rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
+      iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
+      { disjoint_map_to_list. apply elem_of_disjoint. intro.
+        rewrite elem_of_region_addrs !elem_of_list_singleton. solve_addr. }
+      iDestruct (mkregion_sepM_to_sepL2 with "Hassert") as "Hassert". solve_addr.
+      rewrite /assert_inv. iExists assert_cap.
+      rewrite (_: assert_cap = assert_start ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
+      iFrame "Hassert". iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]". done.
+      iFrame "Hcap". iPureIntro. repeat split; solve_addr. }
+
+    rewrite map_filter_id. 2: by apply flag_not_in_interval.
 
     (* cleanup the content of the interval library *)
     rewrite /interval_library_content /seal_library_content.
@@ -589,7 +620,7 @@ Section int_client_adequacy.
       rewrite /interval_closure_move_offset in hsome. pose proof interval_closure_size. solve_addr. }
     iDestruct (interval_client_closure_functional_spec with "[- Hown HPC Hr_adv Hrmap]") as "Hcont".
     16: { iFrame "Hint_cls Hint Hinterval_cls Hinterval Hseal".
-          iFrame "Hinv_malloc Hroe_link". iFrame "Hlink_table_mid".
+          iFrame "Hinv_malloc Hinv_assert Hroe_link". iFrame "Hlink_table_mid".
           iFrame "Hlink_table_mid' Hlink_table_start".
       iFrame "Hint_table_start Hseal_link Hinterval_link". iFrame.
       rewrite /incr_addr_default seal_makeseal_entrypoint_correct.
@@ -650,7 +681,7 @@ Theorem template_adequacy `{memory_layout}
   Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  (∀ w, m' !! fail_flag = Some w → w = WInt 0%Z).
+  (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
   pose proof (template_adequacy (GFunctor (authUR (monotoneUR keylist_new.prefR))) (* The extra resource needed by seal library *)
