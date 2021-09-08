@@ -47,15 +47,17 @@ Class memory_layout `{MachineParameters} := {
     (l_malloc_mem_start <= l_malloc_end)%a;
 
   (* fail routine *)
-  l_fail_start : Addr;
-  l_fail_end : Addr;
+  l_assert_start : Addr;
+  l_assert_cap : Addr;
+  l_assert_flag : Addr;
+  l_assert_end : Addr;
 
-  l_fail_size :
-    (l_fail_start
-     + (length assert_fail_instrs (* code of the subroutine *)
-        + 1 (* pointer to the flag *))
-    )%a
-    = Some l_fail_end;
+  l_assert_code_size :
+    (l_assert_start + length assert_subroutine_instrs)%a = Some l_assert_cap;
+  l_assert_cap_size :
+    (l_assert_cap + 1)%a = Some l_assert_flag;
+  l_assert_flag_size :
+    (l_assert_flag + 1)%a = Some l_assert_end;
 
   (* link table *)
   link_table_start : Addr;
@@ -70,21 +72,14 @@ Class memory_layout `{MachineParameters} := {
   adv_link_table_size :
     (adv_link_table_start + 1)%a = Some adv_link_table_end;
 
-  (* failure flag *)
-  l_fail_flag : Addr;
-  l_fail_flag_next : Addr;
-  l_fail_flag_size :
-    (l_fail_flag + 1)%a = Some l_fail_flag_next;
-
   (* disjointness of all the regions above *)
   regions_disjoint :
     ## [
         region_addrs adv_region_start adv_end;
         region_addrs f_region_start f_end;
-        [l_fail_flag];
         region_addrs link_table_start link_table_end;
         region_addrs adv_link_table_start adv_link_table_end;
-        region_addrs l_fail_start l_fail_end;
+        region_addrs l_assert_start l_assert_end;
         region_addrs l_malloc_mem_start l_malloc_end;
         [l_malloc_memptr];
         region_addrs l_malloc_start l_malloc_memptr
@@ -117,14 +112,14 @@ Program Definition layout `{memory_layout} : ocpl_library :=
      malloc_mem_size := l_malloc_mem_size;
 
      (* assertion fail library *)
-     fail_start := l_fail_start;
-     fail_end := l_fail_end;
+     assert_start := l_assert_start;
+     assert_cap := l_assert_cap;
+     assert_flag := l_assert_flag;
+     assert_end := l_assert_end;
 
-     fail_size := l_fail_size;
-
-     fail_flag := l_fail_flag;
-     fail_flag_next := l_fail_flag_next;
-     fail_flag_size := l_fail_flag_size;
+     assert_code_size := l_assert_code_size;
+     assert_cap_size := l_assert_cap_size;
+     assert_flag_size := l_assert_flag_size;
 
      (* disjointness of the two libraries *)
      libs_disjoint := _
@@ -179,7 +174,7 @@ Section roe_adequacy.
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
-        ∗ na_inv logrel_nais failflagN (assertInv layout)
+        ∗ na_inv logrel_nais assertN (assertInv layout)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound roe_table) (prog_end roe_prog) (prog_start roe_prog)
         ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
@@ -255,7 +250,7 @@ Section roe_adequacy.
       iApply (big_sepL_mono with "Hadv'").
       iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
 
-    iApply (roe_spec with "[- $HPC $Hown $Hr_adv $Hroe_link $Hrmap $Hroe $Hmalloc
+    iApply (roe_spec with "[- $HPC $Hown $Hr_adv $Hroe_link $Hrmap $Hroe $Hmalloc $Hassert
                               $Hlink_table_start $Hlink_table_mid $Hadv_valid]");auto.
     instantiate (1:=f_end).
     { intros mid Hmid'. split;auto. pose proof (f_region_start_offset) as HH. solve_addr+HH Hmid'. }
@@ -263,15 +258,16 @@ Section roe_adequacy.
     { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
     { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
     { solve_addr. }
+    { solve_ndisj. }
 
     iApply (inv_iff with "Hinv []"). iNext. iModIntro.
     iSplit.
     - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)".
-      assert (is_Some (m !! l_fail_flag)) as [? Hlook].
+      assert (is_Some (m !! l_assert_flag)) as [? Hlook].
       { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. }
-      iDestruct (big_sepM_lookup _ _ l_fail_flag with "Hm") as "Hflag";eauto.
+      iDestruct (big_sepM_lookup _ _ l_assert_flag with "Hm") as "Hflag";eauto.
       apply HOK in Hlook as ->. iFrame.
-    - iIntros "HH". iExists {[ l_fail_flag := WInt 0%Z ]}.
+    - iIntros "HH". iExists {[ l_assert_flag := WInt 0%Z ]}.
       rewrite big_sepM_singleton. iFrame.
       rewrite dom_singleton_L /minv_dom /=. iSplit;auto.
       rewrite /OK_invariant. iPureIntro. intros w Hw. simplify_map_eq. done.
@@ -286,7 +282,7 @@ Theorem roe_adequacy `{memory_layout}
   Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  (∀ w, m' !! l_fail_flag = Some w → w = WInt 0%Z).
+  (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
   set (Σ' := #[]).

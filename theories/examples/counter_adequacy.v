@@ -54,15 +54,17 @@ Class memory_layout `{MachineParameters} := {
     (malloc_mem_start <= malloc_end)%a;
 
   (* fail routine *)
-  fail_start : Addr;
-  fail_end : Addr;
+  assert_start : Addr;
+  assert_cap : Addr;
+  assert_flag : Addr;
+  assert_end : Addr;
 
-  fail_size :
-    (fail_start
-     + (length assert_fail_instrs (* code of the subroutine *)
-        + 1 (* pointer to the flag *))
-    )%a
-    = Some fail_end;
+  assert_code_size :
+    (assert_start + length assert_subroutine_instrs)%a = Some assert_cap;
+  assert_cap_size :
+    (assert_cap + 1)%a = Some assert_flag;
+  assert_flag_size :
+    (assert_flag + 1)%a = Some assert_end;
 
   (* link table *)
   link_table_start : Addr;
@@ -71,18 +73,13 @@ Class memory_layout `{MachineParameters} := {
   link_table_size :
     (link_table_start + 2)%a = Some link_table_end;
 
-  (* failure flag *)
-  fail_flag : Addr;
-  fail_flag_next : Addr;
-  fail_flag_size :
-    (fail_flag + 1)%a = Some fail_flag_next;
-
   (* disjointness of all the regions above *)
   regions_disjoint :
     ## [
-        [fail_flag];
         region_addrs link_table_start link_table_end;
-        region_addrs fail_start fail_end;
+        [assert_flag];
+        [assert_cap];
+        region_addrs assert_start assert_cap;
         region_addrs malloc_mem_start malloc_end;
         [malloc_memptr];
         region_addrs malloc_start malloc_memptr;
@@ -110,7 +107,7 @@ Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr W
        (* body of the counter, that will be encapsulated in the closure
           created by the preamble *)
       (counter_instrs 1) (* offset to fail in the linking table *)
-      
+
   ∪ mkregion adv_start adv_end
       (* adversarial code: any code or data, but no capabilities (see condition below) except for malloc *)
       (adv_val ++ [WCap E malloc_start malloc_end malloc_start])
@@ -123,16 +120,17 @@ Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr W
   ∪ mkregion malloc_mem_start malloc_end
       (* Malloc's memory pool, initialized to zero *)
       (region_addrs_zeroes malloc_mem_start malloc_end)
-  ∪ mkregion fail_start fail_end
-      ((* code for the failure subroutine *)
-        assert_fail_instrs ++
-       (* pointer to the "failure" flag, set to 1 by the routine *)
-       [WCap RW fail_flag fail_flag_next fail_flag])
+  ∪ mkregion assert_start assert_cap
+      (* code for the failure subroutine *)
+      assert_subroutine_instrs
+  ∪ list_to_map [(assert_cap, WCap RW assert_flag assert_end assert_flag)]
+      (* pointer to the "assert" flag, set to 1 by the routine *)
+  ∪ list_to_map [(assert_flag, WInt 0%Z)]
+      (* assert flag, initialized to 0 *)
   ∪ mkregion link_table_start link_table_end
       (* link table, with pointers to the malloc and failure subroutines *)
       [WCap E malloc_start malloc_end malloc_start;
-       WCap E fail_start fail_end fail_start]
-  ∪ list_to_map [(fail_flag, WInt 0%Z)] (* failure flag, initially set to 0 *)
+       WCap E assert_start assert_end assert_start]
 .
 
 Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
@@ -170,18 +168,19 @@ Section Adequacy.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
-  Definition flagN : namespace := nroot .@ "awk" .@ "fail_flag".
-  Definition mallocN : namespace := nroot .@ "awk" .@ "malloc".
+  Definition assertN : namespace := nroot .@ "lib" .@ "assert".
+  Definition flagN : namespace := nroot .@ "lib" .@ "assert_flag".
+  Definition mallocN : namespace := nroot .@ "lib" .@ "malloc".
 
   Lemma counter_adequacy' `{memory_layout} (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
     is_initial_memory m →
     is_initial_registers reg →
     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-    m' !! fail_flag = Some (WInt 0%Z).
+    m' !! assert_flag = Some (WInt 0%Z).
   Proof.
     intros Hm Hreg Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c: ExecConf) => c.2 !! fail_flag = Some (WInt 0%Z)) as state_is_good.
+    pose (fun (c: ExecConf) => c.2 !! assert_flag = Some (WInt 0%Z)) as state_is_good.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
@@ -202,17 +201,27 @@ Section Adequacy.
 
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_fail_flag & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail_flag]".
-    { disjoint_map_to_list. set_solver +Hdisj_fail_flag. }
-    iDestruct (big_sepM_insert with "Hfail_flag") as "[Hfail_flag _]".
-      by apply lookup_empty. cbn [fst snd].
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint).
+    (* iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail_flag]". *)
+    (* { disjoint_map_to_list. set_solver +Hdisj_fail_flag. } *)
+    (* iDestruct (big_sepM_insert with "Hfail_flag") as "[Hfail_flag _]". *)
+    (*   by apply lookup_empty. cbn [fst snd]. *)
+    (* rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint). *)
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
-    { disjoint_map_to_list. set_solver +Hdisj_link_table. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_fail & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail]".
-    { disjoint_map_to_list. set_solver +Hdisj_fail. }
+    { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_flag & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_flag]".
+    { disjoint_map_to_list. set_solver +Hdisj_assert_flag. }
+    iDestruct (big_sepM_insert with "Hassert_flag") as "[Hassert_flag _]".
+      by apply lookup_empty. cbn [fst snd].
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_cap & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_cap]".
+    { disjoint_map_to_list. set_solver +Hdisj_assert_cap. }
+    iDestruct (big_sepM_insert with "Hassert_cap") as "[Hassert_cap _]".
+      by apply lookup_empty. cbn [fst snd].
+    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert & Hdisjoint).
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert]".
+    { disjoint_map_to_list. set_solver +Hdisj_assert. }
     rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_mem & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
@@ -235,13 +244,13 @@ Section Adequacy.
     { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
     iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
     cbn [fst snd].
-    clear Hdisj_fail_flag Hdisj_link_table Hdisj_fail Hdisj_malloc_mem Hdisj_malloc_memptr
-          Hdisj_malloc_code Hdisj_adv Hdisj_counter_body Hdisj_counter_preamble.
+    clear Hdisj_link_table Hdisj_assert_flag Hdisj_assert_cap Hdisj_assert Hdisj_malloc_mem
+          Hdisj_malloc_memptr Hdisj_malloc_code Hdisj_adv Hdisj_counter_body Hdisj_counter_preamble.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
     iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hfail]") as ">Hfail". by apply fail_size.
+    iDestruct (mkregion_prepare with "[$Hassert]") as ">Hassert". by apply assert_code_size.
     iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
     { rewrite replicate_length /region_size. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
@@ -269,7 +278,13 @@ Section Adequacy.
 
     (* Allocate relevant invariants *)
 
-    iMod (inv_alloc flagN ⊤ (fail_flag ↦ₐ WInt 0%Z) with "Hfail_flag")%I as "#Hinv_fail_flag".
+    iMod (inv_alloc flagN ⊤ (assert_flag ↦ₐ WInt 0%Z) with "Hassert_flag")%I as "#Hinv_assert_flag".
+    iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
+            with "[Hassert Hassert_cap]") as "#Hinv_assert".
+    { iNext. rewrite /assert_inv. iExists assert_cap. iFrame. rewrite /proofmode.codefrag.
+      rewrite (_: (assert_start ^+ length assert_subroutine_instrs)%a = assert_cap).
+       2: { generalize assert_code_size. solve_addr. } iFrame.
+       iPureIntro. generalize assert_code_size, assert_cap_size, assert_flag_size. cbn. done. }
     iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
             with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
@@ -279,21 +294,8 @@ Section Adequacy.
       iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
       clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
     iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "Hmalloc_val".
-    (* Allocate a permanent region for the adversary code *)
 
-    (* iAssert (⌜∀ k, *)
-    (*   is_Some (mkregion stack_start stack_end stack_val !! k) → *)
-    (*   k ∉ region_addrs adv_start adv_end⌝)%I *)
-    (* as %Hstack_adv_disj. *)
-    (* { iIntros (k Hk Hk'). destruct Hk. *)
-    (*   iDestruct (big_sepM_lookup _ _ k with "Hstack") as "Hk"; eauto. *)
-    (*   apply elem_of_list_lookup in Hk'. destruct Hk' as [i Hi]. *)
-    (*   iDestruct (big_sepL2_length with "Hadv") as %Hlen. *)
-    (*   destruct (lookup_lt_is_Some_2 adv_val i). *)
-    (*   { rewrite -Hlen. apply lookup_lt_is_Some_1. eauto. } *)
-    (*   iDestruct (big_sepL2_lookup _ _ _ i with "Hadv") as "Hk'"; eauto. *)
-    (*   iApply (cap_duplicate_false with "[$Hk $Hk']"). done. } *)
-
+    (* Show validity of the adversary capability *)
     assert (contiguous_between (region_addrs adv_start adv_end) adv_start adv_end) as Hcont.
     { apply contiguous_between_region_addrs. clear -adv_size. solve_addr. }
     iDestruct (contiguous_between_program_split with "Hadv") as (adv_words malloc_word adv_end') "(Hadv & Hmalloc & #Hcont)";[eauto|]. 
@@ -342,7 +344,7 @@ Section Adequacy.
         generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
         unfold counter_instrs_length, counter_preamble_instrs_length. solve_addr. }
 
-      iApply (Spec with "[$Hinv_malloc $Hcounter_body $Hcounter_preamble $Hcounter_link $Hlink1 $Hlink2]");
+      iApply (Spec with "[$Hinv_malloc $Hinv_assert $Hcounter_body $Hcounter_preamble $Hcounter_link $Hlink1 $Hlink2]");
         try eassumption.
       - apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
         unfold counter_preamble_instrs_length. solve_addr.
@@ -355,8 +357,10 @@ Section Adequacy.
       - clear; subst link_entry_fail;
         generalize link_table_start link_table_end link_table_size; solve_addr.
       - apply contiguous_between_region_addrs. generalize counter_body_size; clear.
-        unfold counter_instrs_length. solve_addr. }
-    
+        unfold counter_instrs_length. solve_addr.
+      - solve_ndisj.
+      - solve_ndisj. }
+
     clear Hm Spec. rewrite /interp_expr /=.
 
     (* prepare registers *)
@@ -383,7 +387,7 @@ Section Adequacy.
           iIntros "H". iExists (interp). iFrame.
           iSplit;auto. 
         }
-        
+
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
         destruct rw; [| by inversion Hncap]. simplify_map_eq.
@@ -409,7 +413,7 @@ Theorem counter_adequacy `{MachineParameters} `{memory_layout}
   is_initial_memory m →
   is_initial_registers reg →
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
-  m' !! fail_flag = Some (WInt 0%Z).
+  m' !! assert_flag = Some (WInt 0%Z).
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ]).

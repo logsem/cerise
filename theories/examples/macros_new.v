@@ -104,6 +104,7 @@ Section macros.
          ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
          ∗ r_t4 ↦ᵣ WInt 0%Z ∗ r_t5 ↦ᵣ WInt 0%Z
          ∗ codefrag a_first (assert_instrs f_a)
+         ∗ na_own logrel_nais EN
          ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
          ∗ a_entry ↦ₐ WCap E ba ea ba
          -∗ WP Seq (Instr Executable) {{ φ }})

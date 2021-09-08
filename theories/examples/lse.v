@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules logrel macros_helpers macros_new fundamental call callback.
+From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
 
 Section roe.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -21,8 +21,9 @@ Section roe.
     restrict_z r_t7 ro] ++
     call_instrs f_m (offset_to_cont_call [r_t7]) r1 [r_env] [r_t7] ++
     restore_locals_instrs r_t2 [r_env] ++
-    [load_r r_t0 r_env] ++
-    assert_r_z_instrs f_a r_t0 1 ++
+    [load_r r_t4 r_env;
+     move_z r_t5 1] ++
+    assert_instrs f_a ++
     [halt].
 
   Definition roe a f_m f_a r1 :=
@@ -44,8 +45,7 @@ Section roe.
         roe_addrs wadv (* program addresses *)
         b_m e_m f_m mallocN (* malloc *)
         b_link e_link a_link f_a a_entry a_entry' (* link *)
-        fail_start fail_end (* a_env *) (* fail *)
-        (* flag_p flag_b flag_e  *) flag_a roeN_flag (* flag *)
+        b_a flag_a e_a assertN roeN_flag (* assert *)
         a_first a_last (* special adresses *)
         rmap (* registers *) :
 
@@ -60,7 +60,7 @@ Section roe.
     withinBounds b_link e_link a_entry' = true →
     (a_link + f_m)%a = Some a_entry →
     (a_link + f_a)%a = Some a_entry' →
-    (* (fail_start + strings.length (assert_fail_instrs))%a = Some a_env → *)
+    (up_close (B:=coPset) assertN ## ↑roeN) →
 
     (* footprint of the register map *)
     dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
@@ -78,9 +78,10 @@ Section roe.
       (** Resources for malloc and assert **)
       (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
       ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+      ∗ na_inv logrel_nais assertN (assert_inv b_a flag_a e_a)
       ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
       ∗ a_entry ↦ₐ WCap E b_m e_m b_m
-      ∗ a_entry' ↦ₐ WCap E fail_start fail_end fail_start
+      ∗ a_entry' ↦ₐ WCap E b_a e_a b_a
       (* ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a *)
       (* invariant about the failure flag *)
       ∗ (inv roeN_flag (flag_a ↦ₐ WInt 0%Z))
@@ -90,8 +91,8 @@ Section roe.
                               only that the flag invariant holds throughout the program,
                               and that the program does not get stuck *)
   Proof.
-    iIntros (Hvpc Hcont Hwb1 Hwb2 Ha_entry Ha_entry' (* Ha_env *) Hdom φ)
-            "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & Hpc_b & Ha_entry & Ha_entry' & #Hflag) Hφ".
+    iIntros (Hvpc Hcont Hwb1 Hwb2 Ha_entry Ha_entry' HaN Hdom φ)
+            "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & #Hassert & Hpc_b & Ha_entry & Ha_entry' & #Hflag) Hφ".
     (* extract r_t0 *)
     assert (is_Some (rmap !! r_t0)) as [w0 Hw0].
     { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
@@ -263,6 +264,10 @@ Section roe.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hreg") as "[Hr_t0 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
       assert (is_Some (r !! r_t3)) as [wrt3 Hwrt3];[auto|].
       iDestruct (big_sepM_delete _ _ r_t3 with "Hreg") as "[Hr_t3 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_t4)) as [wrt4 Hwrt4];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t4 with "Hreg") as "[Hr_t4 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
+      assert (is_Some (r !! r_t5)) as [wrt5 Hwrt5];[auto|].
+      iDestruct (big_sepM_delete _ _ r_t5 with "Hreg") as "[Hr_t5 Hreg]"; [rewrite !lookup_delete_ne//;eauto|].
 
       (* step through the activation record *)
       iMod (na_inv_acc with "Hprog Hown") as "[>Hprog' [Hown Hcls] ]";[solve_ndisj|solve_ndisj|].
@@ -304,21 +309,27 @@ Section roe.
       { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hlea. solve_addr. }
       { rewrite Hfalse. iFrame. }
       rewrite Hfalse. iEpilogue "(HPC & Hr_env & Hi & Hr_t2 & Hb_l)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-      (* load r_env r_t0 *)
+      (* load r_t4 r_env *)
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
       iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd.
       iAssert (⌜(b =? a4)%a = false⌝)%I as %Hfalse'.
       { destruct (decide (b = a4)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
         iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
-      iApply (wp_load_success with "[$HPC $Hi $Hr_t0 $Hr_env Hd]");
+      iApply (wp_load_success with "[$HPC $Hi $Hr_t4 $Hr_env Hd]");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..].
       { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }
       { rewrite Hfalse'. iFrame. } rewrite Hfalse'.
-      iNext. iIntros "(HPC & Hr_t0 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
+      iNext. iIntros "(HPC & Hr_t4 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
       iMod ("Hcls''" with "[Hd]") as "_".
       { iNext. iExists _. iFrame. auto. }
       iModIntro. iApply wp_pure_step_later;auto;iNext.
+      (* move r_t5 1 *)
+      destruct ai_rest';[inversion Hlength_rest'|].
+      iPrologue "Hprog".
+      iApply (wp_move_success_z with "[$HPC $Hi $Hr_t5]");
+        [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last|iContiguous_next Hcont_rest' 3|..].
+      iEpilogue "(HPC & Hi & Hr_t5)". iCombine "Hi" "Hprog_done" as "Hprog_done".
 
       (* prepare memory for the assert macro *)
       iDestruct (contiguous_between_program_split with "Hprog") as
@@ -327,13 +338,13 @@ Section roe.
                 apply contiguous_between_cons_inv_first in Hcont_rest' as Heq'; subst x). apply Hcont_rest'. }
       iDestruct "Hcont" as %(Hcont_assert & Hcont_rest'' & Heqapp'' & Hlink'').
       iDestruct (big_sepL2_length with "Hassert_prog") as %Hai_assert_len.
-      assert (isCorrectPC_range pc_p pc_b pc_e a5 a_assert_end) as Hvpc5.
+      assert (isCorrectPC_range pc_p pc_b pc_e a6 a_assert_end) as Hvpc5.
       { eapply isCorrectPC_range_restrict. apply Hvpc.
         generalize (contiguous_between_bounds _ _ _ Hcont_rest').
         generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
         generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
         generalize (contiguous_between_bounds _ _ _ Hcont_call).
-        apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=a6) in Hcont_rest';[|repeat constructor].
         apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
         clear -Hcont_rest' Hcont_rest. solve_addr. }
       assert (isCorrectPC_range pc_p pc_b pc_e a_assert_end a_last) as Hvpc6.
@@ -342,25 +353,23 @@ Section roe.
         generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
         generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
         generalize (contiguous_between_bounds _ _ _ Hcont_call).
-        apply contiguous_between_middle_bounds' with (ai:=a5) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=a6) in Hcont_rest';[|repeat constructor].
         apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
         clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
 
       (* assert macro *)
       iMod (na_inv_acc with "Hlink Hown") as "[ (a_entry' & >pc_b & >Ha_entry) [Hown Hcls''] ]";[solve_ndisj..|].
-      iApply (assert_r_z_success with "[- $HPC $Hassert_prog $pc_b $a_entry' $Hr_t0]");
-        [apply Hvpc5|apply Hcont_assert|auto..].
-      iSplitL "Hr_t1";[eauto|].
-      iSplitL "Hr_t2";[eauto|].
-      iSplitL "Hr_t3";[eauto|].
-      iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_t0 & HPC & Hassert_prog & Hpc_b & Ha_entry')".
+      iApply (assert_success with "[- $HPC $Hassert_prog $pc_b $a_entry'
+                                      $Hr_t0 $Hr_t1 $Hr_t2 $Hr_t3 $Hr_t4 $Hr_t5 $Hown $Hassert]");
+        [apply Hvpc5|apply Hcont_assert|auto..]. solve_ndisj.
+      iNext. iIntros "(Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & HPC & Hassert_prog & Hown & Hpc_b & Ha_entry')".
       iMod ("Hcls''" with "[$Hown $Ha_entry' $Hpc_b $Ha_entry]") as "Hown".
       iMod ("Hcls'" with "[$Hown $Hb_l]") as "Hown";[iNext;done|].
 
       (* halt *)
       iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest''.
       destruct ai_rest'';[inversion Hlength_rest''|]. destruct ai_rest'';[|inversion Hlength_rest''].
-      apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst a6.
+      apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst a7.
       iPrologue "Hprog".
       iApply (wp_halt with "[$HPC $Hi]");
         [apply decode_encode_instrW_inv|iCorrectPC a_assert_end a_last|..].
@@ -368,9 +377,11 @@ Section roe.
 
       (* reassemble registers, close invariants and finish *)
       iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown".
-      { iNext. iDestruct "Hprog_done" as "($&$&$)".
+      { iNext. iDestruct "Hprog_done" as "($&$&$&$)".
         rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
       iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
       iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
       iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
@@ -380,7 +391,8 @@ Section roe.
       iApply wp_value. iIntros (_).
       iExists _. iFrame. iPureIntro.
       intros r';simpl. consider_next_reg r' PC. consider_next_reg r' r_t1. consider_next_reg r' r_t2.
-      consider_next_reg r' r_env. consider_next_reg r' r_t0. consider_next_reg r' r_t3. }
+      consider_next_reg r' r_env. consider_next_reg r' r_t0. consider_next_reg r' r_t3.
+      consider_next_reg r' r_t4. consider_next_reg r' r_t5. }
     (* the shared RO capability *)
     iApply big_sepM_insert_2.
     { cbn beta. rewrite decode_encode_perm_inv.

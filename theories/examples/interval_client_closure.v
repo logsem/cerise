@@ -96,7 +96,6 @@ Section interval_client.
 
   Definition mallocN : namespace := nroot .@ "mallocN".
 
-
   Definition int_bounds i_b i_e i_a_first f_m_i f_s_i i_first s_b s_e s_first offset_to_interval :=
     SubBounds i_b i_e i_a_first (i_a_first ^+ length (interval_closure f_m_i f_s_i offset_to_interval))%a ∧
     SubBounds i_b i_e i_first (i_first ^+ length (interval f_m_i))%a ∧
@@ -198,6 +197,9 @@ Section interval_client.
 
     (* Malloc invariant *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+
+    (* assert invariant *)
+    (* ∗ na_inv logrel_nais assertN (assert_inv b_a b_a e_a) *)
 
     -∗ interp_expr interp rmap (WCap pc_p pc_b pc_e a_first).
   Proof.

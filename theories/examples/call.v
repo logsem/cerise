@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import logrel macros_helpers macros_new rules proofmode.
+From cap_machine Require Import logrel macros_helpers macros rules proofmode.
 
 Section call.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -156,7 +156,7 @@ Section call.
         apply andb_prop in Hwb. revert Hwb. rewrite !Z.leb_le !Z.ltb_lt.
         intros.
         split; try solve_addr.
-      + iPureIntro. rewrite map_to_list_delete;eauto.
+      + iPureIntro. rewrite stdpp_extra.map_to_list_delete;eauto.
         assert (NoDup (r :: r' :: locals))%I as HNoDup.
         { assert (r :: r' :: locals = (zip (r :: r' :: locals) (w :: w0 :: wsr)).*1).
           { simpl. f_equal. f_equal. assert (list_fmap (RegName * Word)%type RegName fst (zip locals wsr) = (zip locals wsr).*1) as ->;[auto|].
@@ -164,8 +164,8 @@ Section call.
           rewrite H.
           assert (zip (r :: r' :: locals) (w :: w0 :: wsr) = (r, w) :: (r', w0) :: zip locals wsr) as ->;auto.
           rewrite Hperm. apply NoDup_map_to_list_fst. apply _. }
-        clear -HNoDup Hlength. apply NoDup_cons_iff in HNoDup as [? HNoDup].
-        apply NoDup_cons_iff. split.
+        clear -HNoDup Hlength. apply NoDup_cons in HNoDup as [? HNoDup].
+        apply NoDup_cons. split.
         { intros Hcontr. apply H.
           apply fst_elem_of_cons with (w0 :: wsr). auto. }
         simpl. assert (list_fmap (RegName * Word)%type RegName fst (zip locals wsr) = (zip locals wsr).*1) as ->;auto.
@@ -621,12 +621,15 @@ Section call.
       assert (length (list_difference all_registers [PC; r_t0; r1]) = 30) as Hregs.
       { assert ([PC;r_t0;r1] = [PC;r_t0]++[r1]) as ->;[auto|]. rewrite list_difference_app.
         rewrite stdpp_extra.list_difference_length;auto.
-        apply elem_of_list_difference. split;[|repeat (apply not_elem_of_cons;split;auto);apply not_elem_of_nil] .
-        apply all_registers_correct. apply NoDup_list_difference,all_registers_NoDup. }
+        apply NoDup_list_difference,all_registers_NoDup. apply NoDup_singleton.
+        apply NoDup_submseteq. apply NoDup_singleton.
+        intros ? ->%elem_of_list_singleton. apply elem_of_list_difference. split. apply all_registers_correct.
+        repeat (apply not_elem_of_cons;split;auto);apply not_elem_of_nil. }
       assert (NoDup all_registers) as Hdup1.
-      { apply base.NoDup_ListNoDup, all_registers_NoDup. }
+      { apply all_registers_NoDup. }
       assert (NoDup [PC; r_t0; r1]) as Hdup2.
-      { repeat (apply NoDup_cons; repeat (apply not_in_cons;split;auto)). apply in_nil. apply NoDup_nil. }
+      { repeat (apply NoDup_cons; split; [repeat (apply not_elem_of_cons; split; [done|])|]).
+        all: try apply not_elem_of_nil. by apply NoDup_nil. }
       assert (∀ x : RegName, x ∈ [PC; r_t0; r1] → x ∉ (map_to_list mparams).*1) as Hforall.
       { intros x Hin. intros Hcontr%map_to_list_fst. destruct Hdisj4 as [HPC [Hr_t0 Hr1] ].
         apply elem_of_cons in Hin as [-> | Hin]. apply HPC. apply elem_of_gmap_dom.
@@ -636,16 +639,16 @@ Section call.
         apply elem_of_cons in Hin as [-> | Hin]. apply Hr1. apply elem_of_gmap_dom.
         destruct Hcontr as [? Hcontr]. apply elem_of_map_to_list in Hcontr. eauto. inversion Hin.  }
       assert (NoDup ([PC; r_t0; r1] ++ (map_to_list mparams).*1)) as Hdup3.
-      { apply base.NoDup_ListNoDup,NoDup_app. split;[apply base.NoDup_ListNoDup;auto|].
-        split;[|apply base.NoDup_ListNoDup,NoDup_map_to_list_fst;apply reg_eq_dec]. auto. }
+      { apply NoDup_app. split;[auto|].
+        split;[|apply NoDup_map_to_list_fst;apply reg_eq_dec]. auto. }
       assert ([PC; r_t0; r1] ++ (map_to_list mparams).*1 ⊆+ all_registers) as Hsub.
-      { apply all_registers_correct_sub;auto. apply base.NoDup_ListNoDup. auto. }
+      { apply all_registers_correct_sub;auto. }
       rewrite list_difference_length in Hlength_rest3;auto.
       assert ((map_to_list mparams).*1 ⊆+ all_registers) as Hsub'.
-      { apply all_registers_correct_sub;auto. apply base.NoDup_ListNoDup, NoDup_map_to_list_fst, reg_eq_dec. }
+      { apply all_registers_correct_sub;auto. apply NoDup_map_to_list_fst, reg_eq_dec. }
       assert (strings.length (map_to_list mparams).*1 ≤ 30) as Hle.
       { assert ((map_to_list mparams).*1 ⊆+ list_difference all_registers [PC;r_t0;r1]).
-        { apply submseteq_list_difference;[apply base.NoDup_ListNoDup, NoDup_map_to_list_fst, reg_eq_dec|auto..]. }
+        { apply submseteq_list_difference;[apply NoDup_map_to_list_fst, reg_eq_dec|auto..]. }
         apply submseteq_length in H as Hle. by rewrite Hregs in Hle. }
       apply eq_add_S in Hlength_rest3. rewrite Hlength_rest3 /a'.
       rewrite rclear_length. rewrite list_difference_length;auto.
@@ -749,7 +752,7 @@ Section call.
     destruct rclear_prog.
     { exfalso. revert Hrclear_length. rewrite rclear_length (list_difference_cons _ _ r_t1).
       intros Hcontr;inversion Hcontr.
-      apply NoDup_ListNoDup, all_registers_NoDup. apply all_registers_correct.
+      apply all_registers_NoDup. apply all_registers_correct.
       apply not_elem_of_app. split.
       - repeat (apply not_elem_of_cons;split;[auto|]);[|apply not_elem_of_nil]. apply Hneregs. constructor.
       - intros Hcontr%map_to_list_fst. destruct Hcontr as [x Hx].

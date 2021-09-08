@@ -36,8 +36,9 @@ Section interval_client.
                   Lea r_t0 3;
                   Jmp r_t2;
                   (* compare the two results *)
-                  Lt r_temp4 r_t1 r_temp4] (* if r_t1 is 1 then z2 < z1, and the assert should fail *)
-                  ++ assert_r_z_instrs f_a r_temp4 0 ++
+                  Lt r_t4 r_t1 r_temp4; (* if r_t1 is 1 then z2 < z1, and the assert should fail *)
+                  Mov r_t5 0]
+                  ++ assert_instrs f_a ++ (* assert (r_t4 = r_t5) *)
                   (* register cleanup*)
     encodeInstrsW [ Mov r_temp1 0;
                   Mov r_temp2 0;
@@ -116,7 +117,7 @@ Section interval_client.
         d1 d4 (* dynamically allocated interval environment *)
         a_first (* special adresses *)
         ι0 ι1 ι2 ι3 ι4 ι5 ι6 γ (* invariant/gname names *)
-        f_a b_r e_r a_r a_r' fail_cap (* assert environment *)
+        f_a b_r e_r a_r a_r' b_a e_a a_flag assertN (* assert environment *)
         rmap (* register map *)
         benv0 eenv p_i b_i e_i a_i f_m_i b1 e1 b2 e2 b3 e3 (* interval library *)
         ll ll' p_s b_s e_s a_s b_m_s e_m_s b_t_s e_t_s (* nested seal environment *) :
@@ -141,6 +142,8 @@ Section interval_client.
     up_close (B:=coPset)ι0 ## ↑ι5 →
     up_close (B:=coPset)ι6 ## ↑ι5 →
     up_close (B:=coPset)ι4 ⊆ ⊤ ∖ ↑ι1 →
+    up_close (B:=coPset)ι1 ## ↑assertN →
+    up_close (B:=coPset)ι4 ## ↑assertN →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r_t0 ↦ᵣ wret
@@ -161,7 +164,8 @@ Section interval_client.
        (* callback validity *)
        ∗ interp wret
        (* assert and environment table *)
-       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap RO b_r e_r a_r  ∗ a_r' ↦ₐ fail_cap)
+       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap RO b_r e_r a_r ∗ a_r' ↦ₐ WCap E b_a e_a b_a)
+       ∗ na_inv logrel_nais assertN (assert_inv b_a a_flag e_a)
        (* trusted code *)
        ∗ na_inv logrel_nais ι1 (codefrag a_first (check_interval f_a))
        (* the remaining registers are all valid *)
@@ -171,9 +175,9 @@ Section interval_client.
                     ∃ r, full_map r ∧ registers_mapsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
-    iIntros (Hvpc Hbounds Hwb Ha_r' Hdom Hι0 Hι1 Hι2 Hι3 Hι4 Hι5 Hι6 Φ)
+    iIntros (Hvpc Hbounds Hwb Ha_r' Hdom Hι0 Hι1 Hι2 Hι3 Hι4 Hι5 Hι6 ? ? Φ)
             "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t20 & Hregs & #Hseal_env & #HsealLL & #Hinterval_env & #Himin & #Himax &
-              Hown & #Hwret_valid & #Htable & #Hcheck_interval & #Hregs_valid) HΦ".
+              Hown & #Hwret_valid & #Htable & #Hassert & #Hcheck_interval & #Hregs_valid) HΦ".
     iMod (na_inv_acc with "Hcheck_interval Hown") as "(>Hcode & Hown & Hcls)";auto.
     iMod (na_inv_acc with "Hinterval_env Hown") as "(>Hint & Hown & Hcls')";[auto..|].
     iDestruct "Hint" as (d2 d3 (Hd2&Hd3&Hd4))
@@ -287,8 +291,8 @@ Section interval_client.
 
     focus_block 1 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
     iMod (na_inv_acc with "Htable Hown") as "(>(Hpc_b & Ha_r') & Hown & Hcls')";auto.
-    iApply assert_r_z_success;iFrameCapSolve. auto.
-    iNext. iIntros "(Hr_t1 & Hr_t2 & Hr_t3 & Hr_temp4 & HPC & Hblock & Hpc_b & Ha_r')".
+    iApply (assert_success with "[- $Hassert $Hown]");iFrameCapSolve. solve_ndisj. by auto.
+    iNext. iIntros "(HPC & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hblock & Hown & Hpc_b & Ha_r')".
     iMod ("Hcls'" with "[$Hown $Hpc_b $Ha_r']") as "Hown".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
