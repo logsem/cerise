@@ -5,7 +5,7 @@ let printer (s: statement): unit =
   | Jmp r -> begin
       match r with
       | PC -> print_string "jmp pc\n"
-      | R i -> print_string "jmp r"; print_int i; print_newline ()
+      | Reg i -> print_string "jmp r"; print_int i; print_newline ()
     end
   | _ -> failwith "todo"
 
