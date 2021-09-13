@@ -30,7 +30,7 @@ rule token = parse
 (* machine_op *)
 | "jmp" { JMP }
 | "jnz" { JNZ }
-| "move" { MOVE }
+| ("move"|"mov") { MOVE }
 | "load" { LOAD }
 | "store" { STORE }
 | "add" { ADD }
@@ -64,3 +64,4 @@ rule token = parse
 and comment = parse
 | eof { EOF }
 | '\n' { Lexing.new_line lexbuf; token lexbuf }
+| _ { comment lexbuf }
