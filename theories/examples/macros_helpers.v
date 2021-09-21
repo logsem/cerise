@@ -106,19 +106,12 @@ Ltac consider_next_reg_both1 r1 r2 H1 H2 :=
   destruct (decide (r1 = r2));
   [ subst; rewrite !(lookup_insert _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
 
-Ltac middle_lt prev index :=
-  match goal with
-  | Ha_first : ?a !! 0 = Some ?a_first |- _
-  => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-  end.
-
 Ltac iCorrectPC i j :=
   eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
   cbn; solve [ repeat constructor ].
 
 Ltac iContiguous_next Ha index :=
-  apply contiguous_of_contiguous_between in Ha;
-  generalize (contiguous_spec _ Ha index); auto.
+  generalize (contiguous_between_spec _ _ _ Ha index); auto.
 
 Ltac disjoint_from_rmap rmap :=
   match goal with

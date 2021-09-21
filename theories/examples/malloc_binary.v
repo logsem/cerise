@@ -55,8 +55,7 @@ Section SimpleMalloc.
     cbn; solve [ repeat constructor ].
 
   Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
+    generalize (contiguous_between_spec _ _ _ Ha index); auto.
 
   Lemma simple_malloc_subroutine_spec (wsize: Word) (cont cont': Word) b e rmap smap N E φ :
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
