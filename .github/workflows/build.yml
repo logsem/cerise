@@ -12,6 +12,11 @@ jobs:
 
     steps:
 
+      - name: Get branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: get_branch
+
       - name: Checkout code
         uses: actions/checkout@v2
         with:
@@ -41,9 +46,18 @@ jobs:
       - name: Build docs
         run: opam exec -- make html
 
-      - name: Deploy docs
+      - name: Deploy docs (if main branch)
         uses: peaceiris/actions-gh-pages@v3
+        if: ${{ steps.get_branch.outputs.branch == 'main' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./html
           destination_dir: dev
+
+      - name: Deploy docs (if non-main branch)
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ steps.get_branch.outputs.branch != 'main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./html
+          destination_dir: branch/${{ steps.get_branch.outputs.branch }}
