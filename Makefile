@@ -33,10 +33,9 @@ html: Makefile.coq
 	cp $(EXTRA_DIR)/resources/* html
 
 Makefile.coq:
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
-Makefile.coq.conf:
-	coq_makefile -f _CoqProject -o Makefile.coq
+Makefile.coq.conf: Makefile.coq
 
 include Makefile.coq.conf
 
