@@ -43,9 +43,9 @@ Definition AddrRegionRange (l: list Addr) (b e: Addr) :=
 
 Lemma AddrRegionRange_singleton a :
   ByReflexivity (eqb_addr a top = false) →
-  AddrRegionRange [a] a (^(a+1))%a.
+  AddrRegionRange [a] a (a^+1)%a.
 Proof.
-  unfold eqb_addr. unfold ByReflexivity. cbn. intros ?%Z.eqb_neq.
+  unfold ByReflexivity. cbn. intros ?%Z.eqb_neq.
   intros a' ->%elem_of_list_singleton. solve_addr.
 Qed.
 #[export] Hint Resolve AddrRegionRange_singleton : disj_regions.
@@ -71,7 +71,7 @@ Qed.
 Lemma AddrRegionsRange_cons l ll b e b' e' :
   AddrRegionRange l b e →
   AddrRegionsRange ll b' e' →
-  AddrRegionsRange (l :: ll) (min b b') (max e e').
+  AddrRegionsRange (l :: ll) (finz.min b b') (finz.max e e').
 Proof.
   intros Hl Hll l' a [->|H]%elem_of_cons.
   - intros ?%Hl. solve_addr.
@@ -126,7 +126,7 @@ Lemma addr_range_disj_range_union (l: list Addr) ll b e b' e':
   l ## ⋃ ll.
 Proof.
   intros Hl Hll. unfold ByReflexivity.
-  rewrite orb_true_iff /leb_addr !Z.leb_le.
+  rewrite orb_true_iff !Z.leb_le.
   intros.
   rewrite AddrRegionRange_iff_incl_region_addrs in Hl |- * => Hl.
   eapply disjoint_mono_l; eauto.

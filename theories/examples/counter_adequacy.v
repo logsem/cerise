@@ -266,11 +266,11 @@ Section Adequacy.
 
     rewrite (region_addrs_cons link_table_start link_table_end).
     2: { generalize link_table_size; clear; solve_addr. }
-    set link_entry_fail := ^(link_table_start + 1)%a.
+    set link_entry_fail := (link_table_start ^+ 1)%a.
     rewrite (region_addrs_cons link_entry_fail link_table_end).
     2: { generalize link_table_size; clear. subst link_entry_fail.
          generalize link_table_start link_table_end. solve_addr. }
-    rewrite (_: ^(link_entry_fail + 1)%a = link_table_end).
+    rewrite (_: (link_entry_fail ^+ 1)%a = link_table_end).
     2: { generalize link_table_size; clear. subst link_entry_fail.
          generalize link_table_start link_table_end. solve_addr. }
     iDestruct (big_sepL2_cons with "Hlink_table") as "[Hlink1 Hlink_table]".
@@ -327,7 +327,7 @@ Section Adequacy.
       { intros a [Ha1 Ha2]. constructor; auto.
         generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
         unfold counter_instrs_length, counter_preamble_instrs_length. solve_addr. }
-      set counter_preamble_move_addr := ^(counter_preamble_start + counter_preamble_move_offset)%a.
+      set counter_preamble_move_addr := (counter_preamble_start ^+ counter_preamble_move_offset)%a.
       assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
       { clear. subst counter_preamble_move_addr.
         generalize counter_preamble_size.

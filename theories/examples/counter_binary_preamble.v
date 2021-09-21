@@ -642,9 +642,9 @@ Section counter_example_preamble.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_scrtcls & Hcont_rest1' & Heqapp1' & Hlink1').
     
-    assert (a_malloc_end <= a7)%a as Ha1_after_malloc.
+    assert (a_malloc_end <= f7)%a as Ha1_after_malloc.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest. repeat constructor. }
-    assert (as_malloc_end <= a8)%a as Ha1_after_malloc'.
+    assert (as_malloc_end <= f8)%a as Ha1_after_malloc'.
     { eapply contiguous_between_middle_bounds'. apply Hcont_srest. repeat constructor. }
     
     iApply (wp_wand with "[-]").
@@ -776,9 +776,9 @@ Section counter_example_preamble.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls2' & Hcont_rest2' & Heqapp2' & Hlink2').
     
-    assert (a_crtcls_end <= a15)%a as Ha1_after_crtcls.
+    assert (a_crtcls_end <= f15)%a as Ha1_after_crtcls.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest1. repeat constructor. }
-    assert (as_crtcls_end <= a16)%a as Ha1_after_crtcls'.
+    assert (as_crtcls_end <= f16)%a as Ha1_after_crtcls'.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest1'. repeat constructor. }
     
     iApply (wp_wand with "[-]").

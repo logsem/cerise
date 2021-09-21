@@ -3,9 +3,6 @@ From stdpp Require Import gmap fin_maps list.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Export addr_reg cap_lang region.
 
-(* Some addresses *)
-Notation "a- z" := (A z eq_refl) (at level 10, format "a- z").
-
 (* Instructions and their decodings *)
 (* A special register for the stack pointer, different from PC *)
 Definition r_stk : RegName := r_t31.

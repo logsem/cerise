@@ -185,7 +185,7 @@ Section sealing.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & HisList & Hr_t3 & Hprog & Hown)".
     iDestruct "HisList" as (b_a b' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env & #HΦ)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    destruct HX as (HA & HB & HC). eapply z_to_addr_eq_inv in HA. subst b_a; auto.
+    destruct HX as (HA & HB & HC). eapply finz_of_z_eq_inv in HA. subst b_a; auto.
 
     rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 18)%a ltac:(destruct Hvpc; congruence)).
     focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".

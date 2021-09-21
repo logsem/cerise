@@ -85,7 +85,7 @@ Section callback.
       iPrologue "Hprog".
       iDestruct "Hlocals" as (w0) "Hlocals".
       iAssert (⌜(b_l =? a)%a = false⌝)%I as %Hfalse.
-      { destruct (decide (b_l = a)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+      { destruct (decide (b_l = a)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
         iDestruct (mapsto_valid_2 with "Hi Ha_l") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hlocals Ha_l $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|split;auto|apply Hlast|..].
@@ -142,17 +142,17 @@ Section callback.
       iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog.
       simpl in Hlength_prog. 
       destruct a;[inversion Hlength_prog|].
-      destruct a0;[inversion Hlength_prog|]. 
+      destruct a;[inversion Hlength_prog|].
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
       iPrologue "Hprog". 
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|apply Ha_l'|destruct p_l;auto;inversion Hwa|].
       iEpilogue "(HPC & Hprog_done & Hr_t1)". 
       (* load r r_t1 *) simpl in Hlength_prog. 
-      destruct a1;[inversion Hlength_prog|]. 
+      destruct a;[inversion Hlength_prog|].
       iPrologue "Hprog". 
-      iAssert (⌜(a_l' =? a0)%a = false⌝)%I as %Hfalse.
-      { destruct (decide (a_l' = a0)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+      iAssert (⌜(a_l' =? f0)%a = false⌝)%I as %Hfalse.
+      { destruct (decide (a_l' = f0)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
         iDestruct (mapsto_valid_2 with "Hi Ha_l") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi Ha_l $Hr $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|split;auto|iContiguous_next Hcont 1|..].
@@ -164,12 +164,12 @@ Section callback.
       iApply ("IH" $! a_l' (delete r mlocals) (l'') (wsr' ++ [w]) with "[] [] [] [] [] [] [] [] Hprog HPC Hr_t1 Hlocals [Hbl]").
       + iPureIntro. rewrite Hl'' in Hreveq. rewrite rev_unit in Hreveq. inversion Hreveq. auto. 
       + iPureIntro. eapply isCorrectPC_range_restrict;[eauto|].
-        assert (a_first + 1 = Some a0)%a;[iContiguous_next Hcont 0|].
-        assert (a0 + 1 = Some a)%a;[iContiguous_next Hcont 1|].
+        assert (a_first + 1 = Some f0)%a;[iContiguous_next Hcont 0|].
+        assert (f0 + 1 = Some f)%a;[iContiguous_next Hcont 1|].
         split;[revert H H0;clear|clear];solve_addr.
       + iPureIntro.
-        assert (a_first + 1 = Some a0)%a;[iContiguous_next Hcont 0|].
-        assert (a0 + 1 = Some a)%a;[iContiguous_next Hcont 1|].
+        assert (a_first + 1 = Some f0)%a;[iContiguous_next Hcont 0|].
+        assert (f0 + 1 = Some f)%a;[iContiguous_next Hcont 1|].
         inversion Hcont;simplify_eq.
         inversion H6;simplify_eq. auto.
       + iPureIntro;simpl. lia.
@@ -281,7 +281,7 @@ Section callback.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     rewrite /region_mapsto. 
     destruct (region_addrs b_c e_c);[inversion Hlength|]. 
-    apply contiguous_between_cons_inv_first in Hcont as Heq. subst a. 
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst f.
     (* move r_t1 PC *)
     simpl in Hlength. inversion Hlength. destruct_list l. 
     iPrologue "Hprog". 
@@ -300,7 +300,7 @@ Section callback.
     iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & Ha7 & _)". 
     iApply (wp_bind (fill [SeqCtx])).
     iAssert (⌜(a3 =? a0)%a = false⌝)%I as %Hfalse.
-    { destruct (decide (a3 = a0)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+    { destruct (decide (a3 = a0)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
       iDestruct (mapsto_valid_2 with "Ha3 Ha6") as %[? _]. done. }
     iApply (wp_load_success with "[$HPC $Ha3 $Hr_t2 $Hr_t1 Ha6]");
       [apply decode_encode_instrW_inv|iCorrectPC b_c e_c| |iContiguous_next Hcont 2|..].

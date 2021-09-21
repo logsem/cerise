@@ -493,7 +493,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_;_;_]). 2: eapply Hcont_rest.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls & Hcont_rest' & Heqapp' & Hlink').
-    assert (a_malloc_end <= a3)%a as Ha1_after_malloc.
+    assert (a_malloc_end <= f3)%a as Ha1_after_malloc.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");
@@ -562,7 +562,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_]). 2: eapply Hcont_rest'.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls' & Hcont_rest'' & Heqapp'' & Hlink'').
-    assert (a_crtcls_end <= a7)%a as Ha1_after_crtcls.
+    assert (a_crtcls_end <= f7)%a as Ha1_after_crtcls.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest'. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls' $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");
@@ -633,7 +633,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_]). 2: eapply Hcont_rest''.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls'' & Hcont_rest''' & Heqapp''' & Hlink''').
-    assert (a_crtcls_end' <= a11)%a as Ha1_after_crtcls'.
+    assert (a_crtcls_end' <= f11)%a as Ha1_after_crtcls'.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest''. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls'' $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");

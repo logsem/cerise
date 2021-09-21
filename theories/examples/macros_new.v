@@ -654,7 +654,7 @@ Section macros.
       apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcont_act. 2: done.
       apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr. }
     repeat (destruct acta as [|? acta]; try by inversion Hact_len_a). clear Hact_len_a.
-    replace a with act_b in * by (symmetry; eapply contiguous_between_cons_inv_first; eauto).
+    replace f with act_b in * by (symmetry; eapply contiguous_between_cons_inv_first; eauto).
 
     iDestruct "Hact" as "[Hact_b Hact]".
     iDestruct "Hact" as "[Ha0 Hact]".
@@ -672,7 +672,7 @@ Section macros.
     destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0.
     destruct (contiguous_between_cons_inv _ _ _ _ HA1) as [<- [? [? HA0] ] ]; clear HA1.
     destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0 HA1 H6 x.
-    generalize (contiguous_between_last _ _ _ a6 Hcont_act ltac:(reflexivity)); intros.
+    generalize (contiguous_between_last _ _ _ f6 Hcont_act ltac:(reflexivity)); intros.
 
     codefrag_facts "Hprog".
     iInstr "Hprog". eapply (Hwbact 0); reflexivity.
@@ -874,8 +874,8 @@ Section macros.
       rewrite /activation_instrs.
       rewrite (region_addrs_split _ b_end);[|solve_addr].
       iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite region_addrs_length /region_size. left. solve_addr.
-      iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
-      rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
+      iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+      rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
       iDestruct "Henv" as "($&$&_)". }
 
     assert (readAllowed pc_p = true ∧ withinBounds b_cls e_cls b_mid = true) as [Hra Hwb].
@@ -891,8 +891,8 @@ Section macros.
     rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a; [| solve_addr]. rewrite /activation_instrs.
     rewrite (region_addrs_split _ b_end);[|solve_addr]. 
     iApply (big_sepL2_app with "Hprog").
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
+    rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+    rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
     iFrame. rewrite region_addrs_empty;[|solve_addr]. done.
   Qed.
 

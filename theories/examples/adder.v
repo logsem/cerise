@@ -105,16 +105,14 @@ Section adder.
     iPrologue "Hprog".
     iApply (wp_subseg_success_lr with "[$HPC $Hi $Hr2]");
       [apply decode_encode_instrW_inv|iCorrectPC g_start f_start|..]; auto.
-    { rewrite !z_to_addr_z_of //. }
-    { rewrite !z_to_addr_z_of //. }
+    { rewrite !finz_of_z_to_z //. }
+    { rewrite !finz_of_z_to_z //. }
     { (* TODO: lemma *)
-      rewrite /isWithin.
-      rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
-      rewrite andb_true_iff !Z.leb_le. solve_addr. }
+      rewrite /isWithin. rewrite andb_true_iff. solve_addr. }
     { iContiguous_next Hcont 2. }
     iEpilogue "(HPC & Hi & Hr2)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* scrtcls *)
-    assert (contiguous_between (a1::ag) a1 f_start) as Hcont'.
+    assert (contiguous_between (f1::ag) f1 f_start) as Hcont'.
     { do 3 apply contiguous_between_cons_inv in Hcont as [? (? & ? & Hcont)].
       subst. pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). by subst. }
     iDestruct (contiguous_between_program_split with "Hprog") as (scrtcls_a a' link)
@@ -122,7 +120,7 @@ Section adder.
     iDestruct "Hcont" as %(Hcont_scrtcls & Hcont_jmp & Heqapp & Hlink).
     iApply (scrtcls_spec with "[- $HPC $Hcrtcls_prog $Hr1 $Hr2 $Hr3 $Hact]"); eauto.
     { intros mid Hmid. constructor; auto.
-      apply contiguous_between_incr_addr with (i:=3) (ai:=a1) in Hcont;auto.
+      apply contiguous_between_incr_addr with (i:=3) (ai:=f1) in Hcont;auto.
       apply contiguous_between_length in Hcont_jmp.
       revert Hmid Hcont_jmp Hcont Hf_start_end; clear. solve_addr. }
     iNext. iIntros "(HPC & Hscrtcls & Hr1 & Hact & Hr2 & Hr3)".
@@ -136,7 +134,7 @@ Section adder.
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply decode_encode_instrW_inv|..].
     { constructor; auto. split. 2: solve_addr.
-      apply contiguous_between_incr_addr with (i:=3) (ai:=a1) in Hcont; auto.
+      apply contiguous_between_incr_addr with (i:=3) (ai:=f1) in Hcont; auto.
       revert Hcont Hlink; clear. solve_addr. }
     iEpilogue "(HPC & Hi & Hr0)".
     (* continuation *)
@@ -273,8 +271,8 @@ Section adder.
     iPrologue "Hprog".
     (* Open the invariant to be able to read x *)
     iInv "Hinv" as (n) "[>Hx >#Hxpos]" "Hclose".
-    iAssert (⌜(x =? a2)%a = false⌝)%I as %Hfalse.
-    { destruct (x =? a2)%a eqn:HH; eauto. apply Z.eqb_eq,z_of_eq in HH as ->.
+    iAssert (⌜(x =? f2)%a = false⌝)%I as %Hfalse.
+    { destruct (x =? f2)%a eqn:HH; eauto. apply Z.eqb_eq,finz_to_z_eq in HH as ->.
       iExFalso. iApply (addr_dupl_false with "Hi Hx"). }
     iApply (wp_load_success with "[$HPC $Hi $Hr3 $Hrenv Hx]");
       [apply decode_encode_instrW_inv|iCorrectPC f_start f_end|..].

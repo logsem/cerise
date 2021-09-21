@@ -209,7 +209,7 @@ Section roe_adequacy.
     pose proof link_table_size as Hsize.
     assert (is_Some (link_table_start + 1)%a) as [link_table_mid Hmid]. solve_addr+Hsize.
     rewrite region_addrs_cons;[|solve_addr +Hsize].
-    rewrite Hmid /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
+    rewrite (addr_incr_eq Hmid) /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
     pose proof adv_link_table_size as Hsize_adv.
     rewrite region_addrs_single /=;[|solve_addr +Hsize_adv].
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_start Hroe_table]".
@@ -231,7 +231,8 @@ Section roe_adequacy.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply region_addrs_NoDup.
     rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
     iMod (region_inv_alloc _ (region_addrs adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (region_addrs_cons adv_region_start);[rewrite Hadv_region_offset /=|solve_addr +Hadv_region_offset Hadv_size'].
+    { rewrite (region_addrs_cons adv_region_start);
+        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
       iFrame. iSplit.
       { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
         rewrite region_addrs_single// /=. iSplit;[|done].

@@ -64,7 +64,7 @@ Section fundamental.
     case_decide as Hallows.
     - destruct Hallows as ((Hrinr & Hra & Hwb) & Haeq).
       apply andb_prop in Hwb as [Hle Hge].
-      revert Hle Hge. rewrite !/leb_addr !Z.leb_le Z.ltb_lt =>Hle Hge.
+      revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
       assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
       rewrite lookup_insert_ne in Hrinr; last by congruence.
       iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
@@ -134,7 +134,7 @@ Section fundamental.
       case_decide as Hdec1; last by done.
       apply not_and_l in Hallows as [Hallows | Hallows]; try contradiction.
       assert (a0 = a) as ->.
-      { apply z_of_eq, Z.eq_dne. intros Hcontr. apply Hallows. by intros ->. } 
+      { apply finz_to_z_eq, Z.eq_dne. intros Hcontr. apply Hallows. by intros ->. }
       simplify_map_eq. eauto. 
   Qed.
 

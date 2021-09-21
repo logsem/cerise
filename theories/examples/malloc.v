@@ -171,7 +171,7 @@ Section SimpleMalloc.
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| Hfail].
       { exfalso. unfold addr_of_argument in *. simplify_map_eq.
-        repeat match goal with H:_ |- _ => apply z_to_addr_eq_inv in H end; subst.
+        repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
       { cbn. wp_pure. wp_end. auto. } }
     do 3 iInstr "Hprog". { transitivity (Some a_m); eauto. solve_addr. }

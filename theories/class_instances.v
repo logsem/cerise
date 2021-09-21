@@ -74,7 +74,7 @@ Proof. inversion 1. Qed.
 
 Instance ZToAddr_z_of a :
   ZToAddr (z_of a) a.
-Proof. apply z_to_addr_z_of. Qed.
+Proof. apply finz_of_z_to_z. Qed.
 
 (* other *)
 

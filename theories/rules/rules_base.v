@@ -325,7 +325,7 @@ Section cap_lang_rules.
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Ha1 Ha2".
-    destruct (addr_eq_dec a1 a2); auto. subst.
+    destruct (finz_eq_dec a1 a2); auto. subst.
     iExFalso. iApply (addr_dupl_false with "[$Ha1] [$Ha2]").
   Qed.
 
@@ -346,7 +346,7 @@ Section cap_lang_rules.
     )%I ⊣⊢ (a1 ↦ₐ w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ w2) .
   Proof.
     destruct (a2 =? a1)%a eqn:Heq.
-    - apply Z.eqb_eq, z_of_eq in Heq. rewrite memMap_resource_1.
+    - apply Z.eqb_eq, finz_to_z_eq in Heq. rewrite memMap_resource_1.
       iSplit.
       * iDestruct 1 as (mem) "[HH ->]".  by iSplit.
       * iDestruct 1 as "[Hmap _]". iExists (<[a1:=w1]> ∅); iSplitL; auto.

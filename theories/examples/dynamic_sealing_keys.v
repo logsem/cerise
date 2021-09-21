@@ -205,7 +205,7 @@ Section sealing.
     iDestruct "HisList" as (b_a b' b'' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env & #HΦ)".
     destruct HX as (HA & HA1 & HB & HC).
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    eapply z_to_addr_eq_inv in HA. subst b_a; auto.
+    eapply finz_of_z_eq_inv in HA. subst b_a; auto.
     assert (e = b')%Z as <-.
     { solve_addr. }
 

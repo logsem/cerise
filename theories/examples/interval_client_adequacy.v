@@ -402,7 +402,7 @@ Section int_client_adequacy.
       rewrite (region_addrs_split _ interval_client_body_start);[|simpl in *;solve_addr].
       iDestruct (big_sepL2_app' with "Hint") as "[Hint_cls Hint]".
       { rewrite region_addrs_length /region_size. simpl in *. solve_addr. }
-      rewrite /codefrag. rewrite /incr_addr_default Hsize1 Hsize2 /=. iFrame. }
+      rewrite /codefrag. rewrite (addr_incr_eq Hsize1) (addr_incr_eq Hsize2) /=. iFrame. }
 
     (* cleaning up the environment tables *)
     rewrite /tbl_region /mkregion /=.
@@ -412,13 +412,13 @@ Section int_client_adequacy.
     assert (link_table_mid + 1 = Some link_table_mid')%a as Hmid''. solve_addr+Hmid Hmid'.
     rewrite region_addrs_cons;[|solve_addr +Hsize].
     rewrite region_addrs_cons;[|solve_addr +Hsize].
-    rewrite Hmid /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
+    rewrite (addr_incr_eq Hmid) /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
     pose proof adv_link_table_size as Hsize_adv.
     rewrite region_addrs_single /=;[|solve_addr +Hsize_adv].
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_start Hroe_table]".
     { rewrite lookup_insert_ne//. 2: solve_addr +Hmid Hmid'.
       rewrite lookup_insert_ne//. solve_addr +Hmid Hmid'. }
-    rewrite Hmid''. iSimpl in "Hroe_table".
+    rewrite (addr_incr_eq Hmid''). iSimpl in "Hroe_table".
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_mid Htable]";auto.
     { rewrite lookup_insert_ne//. solve_addr. }
     iDestruct (big_sepM_insert with "Htable") as "[Hlink_table_mid' _]";auto.
@@ -462,7 +462,8 @@ Section int_client_adequacy.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply region_addrs_NoDup.
     rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
     iMod (region_inv_alloc _ (region_addrs adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (region_addrs_cons adv_region_start);[rewrite Hadv_region_offset /=|solve_addr +Hadv_region_offset Hadv_size'].
+    { rewrite (region_addrs_cons adv_region_start);
+        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
       iFrame. iSplit.
       { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
         rewrite region_addrs_single// /=. iSplit;[|done].
