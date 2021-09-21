@@ -35,7 +35,8 @@ html: Makefile.coq
 Makefile.coq:
 	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
-Makefile.coq.conf: Makefile.coq
+Makefile.coq.conf:
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
 include Makefile.coq.conf
 
