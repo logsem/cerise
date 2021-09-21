@@ -575,12 +575,12 @@ Section int_client_adequacy.
     { pose proof int_table_size. solve_addr. }
     rewrite (region_addrs_cons int_table_start);cycle 1.
     { pose proof int_table_size. solve_addr. }
-    rewrite Hint_table_mid. iSimpl in "Hint_table".
+    rewrite (addr_incr_eq Hint_table_mid). iSimpl in "Hint_table".
     assert (int_table_mid + 1 = Some int_table_end)%a as Hint_table_mid'.
     { pose proof int_table_size as HH. solve_addr+HH Hint_table_mid. }
     rewrite (region_addrs_cons int_table_mid);cycle 1.
     { solve_addr. }
-    rewrite Hint_table_mid'. iSimpl in "Hint_table".
+    rewrite (addr_incr_eq Hint_table_mid'). iSimpl in "Hint_table".
     iDestruct "Hint_table" as "(Hint_table_start & Hint_table_mid & _)".
     iSimpl in "Hinterval_link". iDestruct (big_sepM_insert with "Hinterval_link") as "[Hinterval_link _]";[auto|].
 
@@ -605,12 +605,12 @@ Section int_client_adequacy.
     { pose proof seal_table_size. auto. }
     iDestruct "Hseal_table" as "[Hseal_table _]".
     iAssert (codefrag interval_closure_start (interval_closure 0 1 offset_to_interval)) with "[Hinterval_cls]" as "Hinterval_cls".
-    { rewrite /codefrag /incr_addr_default interval_closure_size. iFrame. }
+    { rewrite /codefrag (addr_incr_eq interval_closure_size). iFrame. }
     iAssert (codefrag seal_body_start (_)) with "[Hseal]" as "Hseal".
-    { rewrite /codefrag /incr_addr_default. erewrite seal_size. iFrame.
+    { rewrite /codefrag. erewrite (addr_incr_eq seal_size). iFrame.
       iDestruct (mkregion_sepM_to_sepL2 with "Hseal") as "$". apply seal_size. }
     iAssert (codefrag interval_body_start (interval 0)) with "[Hinterval]" as "Hinterval".
-    { rewrite /codefrag /incr_addr_default interval_body_size. iFrame. }
+    { rewrite /codefrag (addr_incr_eq interval_body_size). iFrame. }
 
     (* We apply the client specification *)
     assert (is_Some (interval_client_closure_start + interval_client_closure_move_offset)%a) as [? HH].
@@ -624,7 +624,7 @@ Section int_client_adequacy.
           iFrame "Hinv_malloc Hinv_assert Hroe_link". iFrame "Hlink_table_mid".
           iFrame "Hlink_table_mid' Hlink_table_start".
       iFrame "Hint_table_start Hseal_link Hinterval_link". iFrame.
-      rewrite /incr_addr_default seal_makeseal_entrypoint_correct.
+      rewrite (addr_incr_eq seal_makeseal_entrypoint_correct).
       iFrame "Hint_table_mid". }
     instantiate (1:=RWX). 2: instantiate (1:=RWX). 1,2:apply ExecPCPerm_RWX.
     { instantiate (1:=interval_client_region_end).
