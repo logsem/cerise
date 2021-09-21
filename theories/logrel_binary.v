@@ -101,7 +101,7 @@ Section logrel.
     λne w, (match w with
             | (WCap RO b e a, WCap RO b' e' a') =>
               ⌜b = b' ∧ e = e' ∧ a = a'⌝ ∗
-              [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+              [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
             | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -110,7 +110,7 @@ Section logrel.
     λne w, (match w with
             | (WCap RW b e a, WCap RW b' e' a') =>
               ⌜b = b' ∧ e = e' ∧ a = a'⌝ ∗
-                [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
             | _ => False
             end)%I.
@@ -119,7 +119,7 @@ Section logrel.
   Program Definition interp_cap_RX (interp : D) : D :=
     λne w, (match w with (WCap RX b e a, WCap RX b' e' a') =>
                          ⌜b = b' ∧ e = e' ∧ a = a'⌝ ∗
-                         [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                         [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -133,7 +133,7 @@ Section logrel.
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne w, (match w with (WCap RWX b e a, WCap RWX b' e' a') =>
                          ⌜b = b' ∧ e = e' ∧ a = a'⌝ ∗
-                           [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                           [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.

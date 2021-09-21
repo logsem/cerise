@@ -44,11 +44,11 @@ Class memory_layout `{MachineParameters} := {
   (* disjointness of all the regions above *)
   regions_disjoint :
     ## [
-        region_addrs adv_start adv_end;
-        region_addrs act_start act_end;
+        finz.seq_between adv_start adv_end;
+        finz.seq_between act_start act_end;
         [x];
-        region_addrs f_start f_end;
-        region_addrs g_start f_start
+        finz.seq_between f_start f_end;
+        finz.seq_between g_start f_start
        ]
 }.
 

@@ -22,10 +22,10 @@ Definition prog_region (P: prog): gmap Addr Word :=
 
 Lemma prog_region_dom (P: prog):
   dom (gset Addr) (prog_region P) =
-  list_to_set (region_addrs (prog_start P) (prog_end P)).
+  list_to_set (finz.seq_between (prog_start P) (prog_end P)).
 Proof.
   rewrite /prog_region /mkregion dom_list_to_map_L fst_zip //.
-  rewrite region_addrs_length /region_size.
+  rewrite finz_seq_between_length /finz.dist.
   pose proof (prog_size P). solve_addr.
 Qed.
 
@@ -129,7 +129,7 @@ Section Adequacy.
     is_initial_memory P m →
     is_initial_registers P reg →
     minv I m →
-    minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
+    minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
     (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
@@ -219,7 +219,7 @@ Theorem template_adequacy `{MachineParameters}
   is_initial_memory P m →
   is_initial_registers P reg →
   minv I m →
-  minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
+  minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
@@ -283,7 +283,7 @@ Section Adequacy.
     is_initial_registers P Adv reg r_adv →
     Forall (λ w, is_cap w = false) (prog_instrs Adv) →
     minv I m →
-    minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
+    minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
     (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
@@ -390,7 +390,7 @@ Theorem template_adequacy `{MachineParameters}
   is_initial_registers P Adv reg r_adv →
   Forall (λ w, is_cap w = false) (prog_instrs Adv) →
   minv I m →
-  minv_dom I ⊆ list_to_set (region_addrs (prog_start P) (prog_end P)) →
+  minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
@@ -456,17 +456,17 @@ Proof.
   rewrite /prog_lower_bound_region /mkregion.
   pose proof (tbl_prog_link t) as Ht.
   destruct (decide (prog_start p = prog_end p)).
-  - rewrite e in Ht. rewrite /prog_region /mkregion region_addrs_single// e region_addrs_empty /=.
+  - rewrite e in Ht. rewrite /prog_region /mkregion finz_seq_between_singleton// e finz_seq_between_empty /=.
     split;auto. solve_addr.
   - pose proof (prog_size p).
     assert (prog_start p <= prog_end p)%a.
     { solve_addr. }
-    rewrite (region_addrs_cons (prog_lower_bound t));[|solve_addr].
+    rewrite (finz_seq_between_cons (prog_lower_bound t));[|solve_addr].
     simpl. rewrite (addr_incr_eq Ht) /=. split;auto.
     rewrite /prog_region /mkregion.
     apply not_elem_of_list_to_map.
-    rewrite fst_zip. apply not_elem_of_region_addrs. solve_addr.
-    rewrite region_addrs_length /region_size. solve_addr.
+    rewrite fst_zip. apply not_elem_of_finz_seq_between. solve_addr.
+    rewrite finz_seq_between_length /finz.dist. solve_addr.
 Qed.
 
 Fixpoint lib_region (l : list lib_entry) : gmap Addr Word :=

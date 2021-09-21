@@ -95,7 +95,7 @@ Section logrel.
   Program Definition interp_cap_RO (interp : D) : D :=
     λne w, (match w with
               | WCap RO b e a =>
-                [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -103,7 +103,7 @@ Section logrel.
   Program Definition interp_cap_RW (interp : D) : D :=
     λne w, (match w with
               | WCap RW b e a =>
-                [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
               | _ => False
               end)%I.
@@ -111,7 +111,7 @@ Section logrel.
 
   Program Definition interp_cap_RX (interp : D) : D :=
     λne w, (match w with WCap RX b e a =>
-                         [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                         [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -124,7 +124,7 @@ Section logrel.
 
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne w, (match w with WCap RWX b e a =>
-                           [∗ list] a ∈ (region_addrs b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                           [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
                                                           ∗ write_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
@@ -363,7 +363,7 @@ Section logrel.
   Lemma region_integers_alloc E (b e a: Addr) l p :
     Forall (λ w, is_cap w = false) l →
     PermFlowsTo RO p →
-    ([∗ list] a;w ∈ region_addrs b e;l, a ↦ₐ w) ={E}=∗
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
     interp (WCap p b e a).
   Proof.
     iIntros (Hl Hp) "H".

@@ -51,9 +51,9 @@ Qed.
 #[export] Hint Resolve AddrRegionRange_singleton : disj_regions.
 
 Lemma AddrRegionRange_region_addrs b e :
-  AddrRegionRange (region_addrs b e) b e.
+  AddrRegionRange (finz.seq_between b e) b e.
 Proof.
-  intros a ?%elem_of_region_addrs. solve_addr.
+  intros a ?%elem_of_finz_seq_between. solve_addr.
 Qed.
 #[export] Hint Resolve AddrRegionRange_region_addrs : disj_regions.
 
@@ -85,14 +85,14 @@ Instance Singleton_list {A}: Singleton A (list A). exact (λ a, [a]). Defined.
 
 Lemma addr_range_union_incl_range (ll: list (list Addr)) (b e: Addr):
   AddrRegionsRange ll b e →
-  ⋃ ll ⊆ region_addrs b e.
+  ⋃ ll ⊆ finz.seq_between b e.
 Proof.
   revert b e. induction ll as [| l ll].
   - intros. cbn. unfold subseteq, list_subseteq. unfold empty, Empty_list.
     inversion 1.
   - intros b e HInd. cbn. unfold union, Union_list, subseteq, list_subseteq.
     intros x. intros [Hx|Hx]%elem_of_app.
-    + specialize (HInd l x ltac:(constructor) Hx). apply elem_of_region_addrs.
+    + specialize (HInd l x ltac:(constructor) Hx). apply elem_of_finz_seq_between.
       solve_addr.
     + assert (HI: AddrRegionsRange ll b e).
       { intros ? ? ? ?. eapply HInd. apply elem_of_list_further; eassumption.
@@ -103,12 +103,12 @@ Proof.
 Qed.
 
 Lemma AddrRegionRange_iff_incl_region_addrs l b e :
-  AddrRegionRange l b e ↔ (l ⊆ region_addrs b e).
+  AddrRegionRange l b e ↔ (l ⊆ finz.seq_between b e).
 Proof.
   unfold AddrRegionRange, subseteq, list_subseteq.
   split.
-  - intros H **. rewrite elem_of_region_addrs. by apply H.
-  - intros H **. rewrite -elem_of_region_addrs. by apply H.
+  - intros H **. rewrite elem_of_finz_seq_between. by apply H.
+  - intros H **. apply elem_of_finz_seq_between. by apply H.
 Qed.
 
 Lemma addr_range_disj_union_empty (l: list Addr) :
@@ -132,7 +132,7 @@ Proof.
   eapply disjoint_mono_l; eauto.
   eapply disjoint_mono_r. eapply addr_range_union_incl_range; eauto.
   unfold disjoint.
-  intro. rewrite !elem_of_region_addrs. solve_addr.
+  intro. rewrite !elem_of_finz_seq_between. solve_addr.
 Qed.
 #[export] Hint Resolve addr_range_disj_range_union | 10 : disj_regions.
 

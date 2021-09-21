@@ -133,7 +133,7 @@ Proof.
     eapply lookup_weaken; [| apply Hm]. rewrite /prog_region mkregion_lookup.
     { exists 7%nat. split. done. rewrite HP; done. }
     { apply prog_size. } }
-  { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_region_addrs. solve_addr. }
+  { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_finz_seq_between. solve_addr. }
 
   intros * Hrmap_dom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
 

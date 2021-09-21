@@ -289,14 +289,14 @@ Section roe.
       iMod (na_inv_acc with "Hbel Hown") as "[>Hbel' [Hown Hcls'] ]";[solve_ndisj|solve_ndisj|].
       iDestruct (big_sepL2_length with "Hbel'") as %Hbl_length.
       assert ((b_l + 1) = Some e_l)%a as Hbl_next.
-      { rewrite region_addrs_length /= /region_size in Hbl_length. clear -Hbl_length. solve_addr. }
+      { rewrite finz_seq_between_length /= /finz.dist in Hbl_length. clear -Hbl_length. solve_addr. }
       assert ((e_l + -1)%a = Some b_l) as Hlea.
       { clear -Hbl_next. solve_addr. }
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last|iContiguous_next Hcont_rest' 0|apply Hlea|auto|..].
       iEpilogue "(HPC & Hprog_done & Hr_t2)".
       (* load r_env r_t2 *)
-      apply region_addrs_single in Hbl_next.
+      apply finz_seq_between_singleton in Hbl_next.
       rewrite /region_mapsto Hbl_next.
       iDestruct "Hbel'" as "[Hbel' _]".
       destruct ai_rest';[inversion Hlength_rest'|].
@@ -396,7 +396,7 @@ Section roe.
     (* the shared RO capability *)
     iApply big_sepM_insert_2.
     { cbn beta. rewrite decode_encode_perm_inv.
-      rewrite !fixpoint_interp1_eq. iSimpl. apply region_addrs_single in Hincr. rewrite Hincr.
+      rewrite !fixpoint_interp1_eq. iSimpl. apply finz_seq_between_singleton in Hincr. rewrite Hincr.
       iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = WInt 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
       iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. }
     (* adversary *)

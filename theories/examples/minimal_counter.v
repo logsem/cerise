@@ -315,7 +315,7 @@ Proof.
     exists 0; split; [| done]. eapply lookup_weaken; [| apply Hm]. rewrite /prog_region mkregion_lookup.
     { exists (Z.to_nat (code_off + data_off + 1)). split. done. rewrite HP; done. }
     { apply prog_size. } }
-  { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_region_addrs. solve_addr'. }
+  { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_finz_seq_between. solve_addr'. }
 
   intros * Hrdom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
   set (a_init := prog_start P) in *.
@@ -365,7 +365,7 @@ Proof.
     iDestruct (mkregion_sepM_to_sepL2 with "Hinit") as "Hinit". solve_addr'.
     iDestruct (mkregion_sepM_to_sepL2 with "Hcode") as "Hcode". solve_addr'.
     iDestruct (mkregion_sepM_to_sepL2 with "Hdat") as "Hdat". solve_addr'.
-    iFrame. iExists _. rewrite region_addrs_cons. cbn. by iDestruct "Hdat" as "[? ?]".
+    iFrame. iExists _. rewrite finz_seq_between_cons. cbn. by iDestruct "Hdat" as "[? ?]".
     solve_addr'. }
   iDestruct "Hdat" as (wdat) "Hdat".
 

@@ -49,7 +49,7 @@ Section call.
         (* capability for locals *) p_l b_l e_l a_l :
     isCorrectPC_range p b e a_first a_last →
     contiguous_between a a_first a_last →
-    region_size a_l e_l = strings.length locals →
+    finz.dist a_l e_l = strings.length locals →
     strings.length locals > 0 →
     writeAllowed p_l = true → withinBounds b_l e_l a_l = true ->
     zip locals wsr ≡ₚ(map_to_list mlocals) →
@@ -80,9 +80,9 @@ Section call.
       rewrite /store_locals /store_locals_instrs.
       iDestruct "Hbl" as (ws) "Hbl".
       iDestruct (big_sepL2_length with "Hbl") as %Hlength_bl.
-      rewrite region_addrs_length Hsize in Hlength_bl.
+      rewrite finz_seq_between_length Hsize in Hlength_bl.
       destruct ws;[inversion Hlength_bl|]. destruct ws;[|inversion Hlength_bl].
-      assert (region_addrs a_l e_l = [a_l]) as Heq_locals;[ by rewrite /region_addrs Hsize /=|].
+      assert (finz.seq_between a_l e_l = [a_l]) as Heq_locals;[ by rewrite /finz.seq_between Hsize /=|].
       rewrite /region_mapsto Heq_locals.
       iDestruct "Hbl" as "[Ha_l _]".
       iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog.
@@ -96,7 +96,7 @@ Section call.
       (* lea r_t1 1 *)
       pose proof (contiguous_between_last _ _ _ a Hcont eq_refl) as Hlast.
       assert (a_l + 1 = Some e_l)%a as Hnext.
-      { rewrite /region_size /= in Hsize. revert Hsize;clear;solve_addr. }
+      { rewrite /finz.dist /= in Hsize. revert Hsize;clear;solve_addr. }
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast|apply Hnext|destruct p_l;auto;inversion Hwa|].
@@ -110,12 +110,12 @@ Section call.
       { apply elem_of_map_to_list. rewrite -Hperm. constructor. }
       iDestruct (big_sepM_delete _ _ r with "Hlocals") as "[Hr Hlocals]";[eauto|].
       assert (is_Some (a_l + 1)%a) as [a_l' Ha_l'].
-      { rewrite /region_size /= in Hsize. destruct (a_l + 1)%a eqn:Hnone;eauto.
+      { rewrite /finz.dist /= in Hsize. destruct (a_l + 1)%a eqn:Hnone;eauto.
         simpl in Hsize. revert Hnone Hsize;clear;solve_addr. }
-      assert (region_addrs a_l e_l = a_l :: region_addrs a_l' e_l) as Heq.
-      { rewrite /region_addrs Hsize /=. rewrite (addr_incr_eq Ha_l') /=.
-        f_equiv. assert (region_size a_l' e_l = S (strings.length locals)) as ->;auto.
-        revert Ha_l' Hsize;clear. rewrite /region_size. solve_addr.
+      assert (finz.seq_between a_l e_l = a_l :: finz.seq_between a_l' e_l) as Heq.
+      { rewrite /finz.seq_between Hsize /=. rewrite (addr_incr_eq Ha_l') /=.
+        f_equiv. assert (finz.dist a_l' e_l = S (strings.length locals)) as ->;auto.
+        revert Ha_l' Hsize;clear. rewrite /finz.dist. solve_addr.
       }
       rewrite /region_mapsto Heq.
       iDestruct "Hbl" as (ws) "Hbl".
@@ -149,9 +149,9 @@ Section call.
         inversion H6;simplify_eq. auto.
       + iPureIntro;simpl. lia.
       + iPureIntro. simpl in *.
-        revert Hsize Ha_l'. rewrite /region_size. clear. solve_addr.
+        revert Hsize Ha_l'. rewrite /finz.dist. clear. solve_addr.
       + iPureIntro. simpl in *.
-        revert Hsize Ha_l' Hwb. rewrite /region_size. clear. intros.
+        revert Hsize Ha_l' Hwb. rewrite /finz.dist. clear. intros.
         apply andb_true_intro.
         apply andb_prop in Hwb. revert Hwb. rewrite !Z.leb_le !Z.ltb_lt.
         intros.
@@ -185,7 +185,7 @@ Section call.
         (* capability for locals *) p_l b_l e_l :
     isCorrectPC_range p b e a_first a_last →
     contiguous_between a a_first a_last →
-    region_size b_l e_l = strings.length locals →
+    finz.dist b_l e_l = strings.length locals →
     strings.length locals > 0 → (* we assume the length of locals is non zero, or we would not be able to take a step before invoking continuation *)
     writeAllowed p_l = true →
     zip locals wsr ≡ₚ(map_to_list mlocals) →
@@ -209,7 +209,7 @@ Section call.
     iApply (store_locals_spec_middle with "[$HPC $Hprog $Hr_t1 $Hlocals $Hbl $Hcont]");eauto.
     simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt.
     split;[clear;lia|].
-    rewrite /region_size in Hsize. lia.
+    rewrite /finz.dist in Hsize. lia.
   Qed.
 
 
@@ -412,7 +412,7 @@ Section call.
     { eapply isCorrectPC_range_restrict;[apply Hvpc|].
       apply contiguous_between_bounds in Hcont1.
       apply contiguous_between_bounds in Hcont4. auto. }
-    { clear -Hlocals_size. rewrite /region_size. solve_addr. }
+    { clear -Hlocals_size. rewrite /finz.dist. solve_addr. }
     { rewrite zip_fst_snd. auto. }
     { apply length_fst_snd. }
     iSplitL "Hbl";[eauto|].
@@ -488,11 +488,11 @@ Section call.
 
     (* prepare the memory for the activation record *)
     assert (b_l' <= e_l')%a as Hle';[clear -Hact_size;solve_addr|].
-    assert (region_size b_l' e_l' = 7) as Hact_size_alt;[rewrite /region_size;clear -Hact_size;solve_addr|].
+    assert (finz.dist b_l' e_l' = 7) as Hact_size_alt;[rewrite /finz.dist;clear -Hact_size;solve_addr|].
     rewrite /region_addrs_zeroes Hact_size_alt. iSimpl in "Hbl'".
-    set l := region_addrs b_l' e_l'.
+    set l := finz.seq_between b_l' e_l'.
     assert (contiguous_between l b_l' e_l') as Hcontbl';[rewrite /l;apply contiguous_between_region_addrs;auto|].
-    assert (length l = 7) as Hlength_l;[rewrite /l region_addrs_length;auto|].
+    assert (length l = 7) as Hlength_l;[rewrite /l finz_seq_between_length;auto|].
     assert (∀ a, a ∈ l → withinBounds b_l' e_l' a = true) as Hwbbl'.
     { intros a1 Hin. rewrite andb_true_iff. rewrite Z.leb_le Z.ltb_lt.
       eapply contiguous_between_middle_bounds';[apply Hcontbl'|auto]. }
@@ -673,7 +673,7 @@ Section call.
     (* store r_t0 r_t1 *)
     destruct l;[|inversion Hlength_l].
     assert (f16 + 1 = Some e_l')%a as Hllast;[eapply contiguous_between_last;[apply Hcontbl'|auto]|].
-    apply region_addrs_single in Hllast as Heql. rewrite /region_mapsto Heql.
+    apply finz_seq_between_singleton in Hllast as Heql. rewrite /region_mapsto Heql.
     iDestruct "Hbl'" as "[Ha7 _]".
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".

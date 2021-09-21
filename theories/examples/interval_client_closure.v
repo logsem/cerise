@@ -232,7 +232,7 @@ Section interval_client.
     assert (is_Some (b + 1)%a) as [b1 Hb1]. solve_addr +He.
     assert (is_Some (b1 + 1)%a) as [b2 Hb2]. solve_addr +He Hb1.
     assert (b2 + 1 = Some e)%a as Hb3. solve_addr +He Hb1 Hb2.
-    rewrite /region_addrs_zeroes /region_size.
+    rewrite /region_addrs_zeroes /finz.dist.
     assert (e - b = 3)%Z as ->. solve_addr +He. iSimpl in "Hbe".
     iDestruct (region_mapsto_cons with "Hbe") as "[Hb Hbe]";[eauto|solve_addr +He Hb1 Hb2 Hb3|..].
     iDestruct (region_mapsto_cons with "Hbe") as "[Hb1 Hbe]";[eauto|solve_addr +He Hb1 Hb2 Hb3|..].
@@ -359,8 +359,8 @@ Section interval_client.
     iAssert (codefrag i_first (makeint f_m_i)
            ∗ codefrag a_imin imin
            ∗ codefrag a_imax imax)%I with "[Hint]" as "(Hmkint & Himin & Himax)".
-    { iClear "#". rewrite /codefrag /region_mapsto. rewrite (region_addrs_split i_first a_imin).
-      2: solve_addr+Ha_imin. rewrite (region_addrs_split a_imin a_imax).
+    { iClear "#". rewrite /codefrag /region_mapsto. rewrite (finz_seq_between_split i_first a_imin).
+      2: solve_addr+Ha_imin. rewrite (finz_seq_between_split a_imin a_imax).
       2: solve_addr+Ha_imin Ha_imax.
       iDestruct (big_sepL2_app' with "Hint") as "[Hmkint Hint]";cycle 1.
       iDestruct (big_sepL2_app' with "Hint") as "[Himin Himax]";cycle 1.
@@ -369,7 +369,7 @@ Section interval_client.
       solve_addr+Ha_imin Ha_imax.
       assert (i_first ^+ length (makeint f_m_i ++ imin ++ imax) = a_imax ^+ length imax)%a as ->.
       solve_addr+Ha_imin Ha_imax. iFrame.
-      all: rewrite app_length /= region_addrs_length /region_size.
+      all: rewrite app_length /= finz_seq_between_length /finz.dist.
       all: solve_addr+Ha_imin Ha_imax. }
 
     iMod (na_inv_alloc logrel_nais _ mkintN with "Hmkint") as "#Hmkint".

@@ -28,7 +28,7 @@ Proof using.
   set an := (a0 + length cs)%a in Hl |- *.
   unfold ContiguousRegion.
   destruct an eqn:Han; subst an; [ by eauto |]. cbn.
-  exfalso. rewrite region_addrs_length /region_size in Hl.
+  exfalso. rewrite finz_seq_between_length /finz.dist in Hl.
   solve_addr.
 Qed.
 
@@ -42,7 +42,7 @@ Proof.
   rewrite /codefrag.
   destruct Hub as [? Hub].
   iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
-  eapply region_addrs_lookup_middle with (n:=length cs).
+  eapply finz_seq_between_lookup with (n:=length cs).
   { apply lookup_lt_is_Some_1; eauto. }
   { solve_addr. }
   iFrame.
@@ -147,9 +147,9 @@ Section codefrag_subblock.
     iDestruct (codefrag_contiguous_region with "H") as %Hregion.
     destruct Hregion as [an Han]. rewrite app_length in Han |- *.
     iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
-    by solve_addr. by rewrite /region_size; solve_addr.
+    by solve_addr. by rewrite /finz.dist; solve_addr.
     iFrame. iIntros "H1".
-    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /region_size; solve_addr.
+    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
   Qed.
 
   Lemma codefrag_block_acc (n: nat) a0 (cs: list Word) l1 l l2:
@@ -163,13 +163,13 @@ Section codefrag_subblock.
     iDestruct (codefrag_contiguous_region with "H") as %[a1 Ha1].
     rewrite !app_length in Ha1 |- *.
     iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
-    solve_addr. rewrite /region_size; solve_addr.
+    solve_addr. rewrite /finz.dist; solve_addr.
     iExists (a0 ^+ length l1)%a. iSplitR. iPureIntro; solve_addr.
     iDestruct (region_mapsto_split _ _ ((a0 ^+ length l1) ^+ length l)%a with "H2") as "[H2 H3]".
-    solve_addr. rewrite /region_size; solve_addr. iFrame.
+    solve_addr. rewrite /finz.dist; solve_addr. iFrame.
     iIntros "H2".
-    rewrite region_mapsto_split. iFrame. 2: solve_addr. 2: rewrite /region_size; solve_addr.
-    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /region_size; solve_addr.
+    rewrite region_mapsto_split. iFrame. 2: solve_addr. 2: rewrite /finz.dist; solve_addr.
+    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
   Qed.
 
 End codefrag_subblock.

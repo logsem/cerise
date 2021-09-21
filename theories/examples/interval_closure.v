@@ -227,11 +227,11 @@ Section interval_closure.
 
     (* malloc region cleanup *)
     assert (is_Some (benv0 + 1)%a) as [benv1 Henvincr];[solve_addr+Henvsize|].
-    rewrite /region_addrs_zeroes /region_size.
+    rewrite /region_addrs_zeroes /finz.dist.
     assert (Z.to_nat (eenv - benv0) = 2) as ->;[solve_addr+Henvsize|]. iSimpl in "Hbeenv".
     iDestruct (region_mapsto_cons with "Hbeenv") as "[Hbenv0 Hbeenv]";
       [eauto|solve_addr+Henvincr Henvsize|..].
-    rewrite /region_mapsto region_addrs_single;[|solve_addr+Henvsize Henvincr].
+    rewrite /region_mapsto finz_seq_between_singleton;[|solve_addr+Henvsize Henvincr].
     iDestruct "Hbeenv" as "[Hbenv1 _]".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 

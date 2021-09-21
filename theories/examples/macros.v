@@ -338,7 +338,7 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -507,7 +507,7 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v }}.
@@ -836,7 +836,7 @@ Section macros.
       with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply decode_encode_instrW_inv | | | ..]; eauto.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
-    rewrite /region_mapsto /region_addrs.
+    rewrite /region_mapsto /finz.seq_between.
     destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
       { rewrite /Z.b2z. destruct (e_r - 1 <? b_r + z)%Z eqn:HH; auto.
@@ -851,7 +851,7 @@ Section macros.
       (* store rt 0 *)
       rewrite/ withinBounds in Hwb.
       apply andb_prop in Hwb as [Hwb_b%Z.leb_le Hwb_e%Z.ltb_lt].
-      rewrite {1}region_size_S /=.
+      rewrite {1}finz_dist_S /=.
       destruct ws as [| w1 ws]; simpl; [by iApply bi.False_elim|].
       iDestruct "Hbe" as "[Ha_r Hbe]".
       iDestruct "Hprog" as "[Hi Hprog]".
@@ -894,7 +894,7 @@ Section macros.
         iApply "Hφ".
         iFrame.
         rewrite /region_addrs_zeroes.
-        rewrite (region_size_S a_r e_r) //= (_: (a_r^+1)%a = a_r'); [| solve_addr].
+        rewrite (finz_dist_S a_r e_r) //= (_: (a_r^+1)%a = a_r'); [| solve_addr].
         iFrame.
       + iPureIntro. intro.
         rewrite andb_true_iff -Zle_is_le_bool -Zlt_is_lt_bool. solve_addr.
@@ -906,7 +906,7 @@ Section macros.
       rewrite Heq0.
       assert (e_r <= a_r)%Z by solve_addr.
       (* destruct (Z_le_dec a_r e_r). *)
-      rewrite region_size_0 //=.
+      rewrite finz_dist_0 //=.
       destruct ws;[|by iApply bi.False_elim].
       (* jnz *)
       iDestruct "Hprog" as "[Hi Hprog]".
@@ -914,7 +914,7 @@ Section macros.
       iApply (wp_jnz_success_jmp _ rt4 rt3 _ _ _ a2 _ _ (WInt 1%Z) with "[HPC Hi Hr_t3 Hr_t4]"); first apply decode_encode_instrW_inv; eauto.
       iFrame. iEpilogue "(HPC & Ha2 & Hr_t4 & Hr_t3)".
       iApply "Hφ". iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & _)".
-      rewrite /region_addrs_zeroes region_size_0 //=. iFrame.
+      rewrite /region_addrs_zeroes finz_dist_0 //=. iFrame.
       iSplitL "Hrt"; eauto.
   Qed.
 
@@ -1539,9 +1539,9 @@ Section macros.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
     unfold region_mapsto.
-    remember (region_addrs act_b act_e) as acta.
+    remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
-    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
     iDestruct (big_sepL2_length with "Hact") as %Hact_len.
     rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
     repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
@@ -1555,7 +1555,7 @@ Section macros.
     destruct l; [inversion Hlength|].
     destruct acta as [| a0 acta]; [inversion Hact_len_a|].
     assert (a0 = act_b) as ->.
-    { feed pose proof (region_addrs_first act_b act_e) as HH. solve_addr.
+    { feed pose proof (finz_seq_between_first act_b act_e) as HH. solve_addr.
       rewrite -Heqacta /= in HH. by inversion HH. }
     iDestruct "Hact" as "[Ha0 Hact]".
     iPrologue "Hprog".
@@ -1869,14 +1869,14 @@ Section macros.
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
-    { rewrite region_addrs_length /region_size in Hcls_len.
+    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
       revert Hcls_len; clear; solve_addr. }
-    assert (contiguous_between (region_addrs b_cls e_cls) b_cls e_cls) as Hcont_cls.
+    assert (contiguous_between (finz.seq_between b_cls e_cls) b_cls e_cls) as Hcont_cls.
     { apply contiguous_between_of_region_addrs; auto. revert Hbe; clear; solve_addr. }
-    pose proof (region_addrs_NoDup b_cls e_cls) as Hcls_nodup.
+    pose proof (finz_seq_between_NoDup b_cls e_cls) as Hcls_nodup.
     iDestruct (big_sepL2_split_at 6 with "Hcls") as "[Hcls_code Hcls_data]".
     cbn [take drop].
-    destruct (region_addrs b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
+    destruct (finz.seq_between b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_cls). subst.
     do 7 (destruct ll as [| ? ll]; [by inversion Hcls_len|]).
     destruct ll;[| by inversion Hcls_len]. cbn [take drop].

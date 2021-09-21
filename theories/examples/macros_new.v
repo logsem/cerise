@@ -191,7 +191,7 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v }}.
@@ -291,7 +291,7 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -643,9 +643,9 @@ Section macros.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
     unfold region_mapsto.
-    remember (region_addrs act_b act_e) as acta.
+    remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
-    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
     iDestruct (big_sepL2_length with "Hact") as %Hact_len.
     rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
     repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
@@ -864,7 +864,7 @@ Section macros.
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hprog") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
-    { rewrite region_addrs_length /region_size in Hcls_len.
+    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
       revert Hcls_len; clear; solve_addr. }
     assert (∃ b_end, b_cls + 6 = Some b_end)%a as [b_end Hbend];[destruct (b_cls + 6)%a eqn:HH;eauto;exfalso;solve_addr|].
     assert (∃ b_mid, b_cls + 7 = Some b_mid)%a as [b_mid Hbmid];[destruct (b_cls + 7)%a eqn:HH;eauto;exfalso;solve_addr|].
@@ -872,10 +872,10 @@ Section macros.
     iAssert (codefrag b_cls (activation_code) ∗ b_end ↦ₐ wcode ∗ b_mid ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
     { rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a /=; [|solve_addr].
       rewrite /activation_instrs.
-      rewrite (region_addrs_split _ b_end);[|solve_addr].
-      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite region_addrs_length /region_size. left. solve_addr.
-      iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
-      rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
+      rewrite (finz_seq_between_split _ b_end);[|solve_addr].
+      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite finz_seq_between_length /finz.dist. left. solve_addr.
+      iFrame. rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+      rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
       iDestruct "Henv" as "($&$&_)". }
 
     assert (readAllowed pc_p = true ∧ withinBounds b_cls e_cls b_mid = true) as [Hra Hwb].
@@ -889,11 +889,11 @@ Section macros.
     iGo "Hprog".
     iApply "Hcont". iFrame.
     rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a; [| solve_addr]. rewrite /activation_instrs.
-    rewrite (region_addrs_split _ b_end);[|solve_addr]. 
+    rewrite (finz_seq_between_split _ b_end);[|solve_addr].
     iApply (big_sepL2_app with "Hprog").
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
-    iFrame. rewrite region_addrs_empty;[|solve_addr]. done.
+    rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+    rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
+    iFrame. rewrite finz_seq_between_empty;[|solve_addr]. done.
   Qed.
 
 End macros.

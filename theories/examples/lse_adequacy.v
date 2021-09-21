@@ -75,14 +75,14 @@ Class memory_layout `{MachineParameters} := {
   (* disjointness of all the regions above *)
   regions_disjoint :
     ## [
-        region_addrs adv_region_start adv_end;
-        region_addrs f_region_start f_end;
-        region_addrs link_table_start link_table_end;
-        region_addrs adv_link_table_start adv_link_table_end;
-        region_addrs l_assert_start l_assert_end;
-        region_addrs l_malloc_mem_start l_malloc_end;
+        finz.seq_between adv_region_start adv_end;
+        finz.seq_between f_region_start f_end;
+        finz.seq_between link_table_start link_table_end;
+        finz.seq_between adv_link_table_start adv_link_table_end;
+        finz.seq_between l_assert_start l_assert_end;
+        finz.seq_between l_malloc_mem_start l_malloc_end;
         [l_malloc_memptr];
-        region_addrs l_malloc_start l_malloc_memptr
+        finz.seq_between l_malloc_start l_malloc_memptr
        ]
 }.
 
@@ -197,21 +197,21 @@ Section roe_adequacy.
     simpl.
 
     (* setting up read only example program *)
-    iAssert (roe (region_addrs f_start f_end) 0 1 r_adv) with "[Hroe] "as "Hroe".
+    iAssert (roe (finz.seq_between f_start f_end) 0 1 r_adv) with "[Hroe] "as "Hroe".
     { rewrite /roe /prog_region /= /mkregion.
-      iApply big_sepM_to_big_sepL2. apply region_addrs_NoDup.
+      iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
       pose proof f_size as Hsize.
-      rewrite region_addrs_length /region_size. solve_addr +Hsize.
+      rewrite finz_seq_between_length /finz.dist. solve_addr +Hsize.
       iFrame. }
 
     (* cleaning up the environment tables *)
     rewrite /tbl_region /mkregion /=.
     pose proof link_table_size as Hsize.
     assert (is_Some (link_table_start + 1)%a) as [link_table_mid Hmid]. solve_addr+Hsize.
-    rewrite region_addrs_cons;[|solve_addr +Hsize].
-    rewrite (addr_incr_eq Hmid) /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
+    rewrite finz_seq_between_cons;[|solve_addr +Hsize].
+    rewrite (addr_incr_eq Hmid) /= finz_seq_between_singleton /=;[|solve_addr +Hmid Hsize].
     pose proof adv_link_table_size as Hsize_adv.
-    rewrite region_addrs_single /=;[|solve_addr +Hsize_adv].
+    rewrite finz_seq_between_singleton /=;[|solve_addr +Hsize_adv].
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_start Hroe_table]".
     { rewrite lookup_insert_ne//. solve_addr +Hmid. }
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_mid _]";auto.
@@ -228,17 +228,17 @@ Section roe_adequacy.
     (* allocate validity of adversary *)
     pose proof adv_size as Hadv_size'.
     pose proof adv_region_start_offset as Hadv_region_offset.
-    iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply region_addrs_NoDup.
-    rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
-    iMod (region_inv_alloc _ (region_addrs adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (region_addrs_cons adv_region_start);
+    iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
+    rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
+    iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
+    { rewrite (finz_seq_between_cons adv_region_start);
         [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
       iFrame. iSplit.
       { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
-        rewrite region_addrs_single// /=. iSplit;[|done].
+        rewrite finz_seq_between_singleton// /=. iSplit;[|done].
         iExists interp. iFrame "Hadv_table_valid". auto. }
       iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
-      rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
+      rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
       iApply big_sepL_forall. iIntros (k n Hin).
       revert Hints; rewrite Forall_forall =>Hints.
       assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
@@ -247,7 +247,7 @@ Section roe_adequacy.
     iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
     { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
       iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite region_addrs_length /region_size. solve_addr+Hadv_region_offset Hadv_size'. }
+      { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
       iApply (big_sepL_mono with "Hadv'").
       iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
 

@@ -229,7 +229,7 @@ Section fundamental.
 
   Lemma region_integers_alloc' E (b e a: Addr) l p :
     Forall (λ w, is_cap w = false) l →
-    ([∗ list] a;w ∈ region_addrs b e;l, a ↦ₐ w) ={E}=∗
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
     interp (WCap p b e a).
   Proof.
     iIntros (Hl) "H". destruct p.

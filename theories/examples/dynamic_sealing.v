@@ -437,8 +437,8 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iMod (sealLL_alloc with "[Hll]") as (γ) "Hsealinv".
-    { rewrite /region_mapsto. rewrite region_addrs_single; auto.
-      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (incr_addr_region_size_iff ll ll' 1) ltac:(auto))).
+    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist ll ll' 1) ltac:(auto))).
       simpl replicate. iDestruct "Hll" as "(Hll & _)". iFrame. }
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [simplify_map_eq; auto|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].

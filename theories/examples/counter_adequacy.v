@@ -76,16 +76,16 @@ Class memory_layout `{MachineParameters} := {
   (* disjointness of all the regions above *)
   regions_disjoint :
     ## [
-        region_addrs link_table_start link_table_end;
+        finz.seq_between link_table_start link_table_end;
         [assert_flag];
         [assert_cap];
-        region_addrs assert_start assert_cap;
-        region_addrs malloc_mem_start malloc_end;
+        finz.seq_between assert_start assert_cap;
+        finz.seq_between malloc_mem_start malloc_end;
         [malloc_memptr];
-        region_addrs malloc_start malloc_memptr;
-        region_addrs adv_start adv_end;
-        region_addrs counter_body_start counter_region_end;
-        region_addrs counter_preamble_start counter_body_start;
+        finz.seq_between malloc_start malloc_memptr;
+        finz.seq_between adv_start adv_end;
+        finz.seq_between counter_body_start counter_region_end;
+        finz.seq_between counter_preamble_start counter_body_start;
         [counter_region_start]
        ];
 }.
@@ -252,7 +252,7 @@ Section Adequacy.
     iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare with "[$Hassert]") as ">Hassert". by apply assert_code_size.
     iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /region_size. clear.
+    { rewrite replicate_length /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
       by apply malloc_code_size.
@@ -264,10 +264,10 @@ Section Adequacy.
 
     (* Split the link table *)
 
-    rewrite (region_addrs_cons link_table_start link_table_end).
+    rewrite (finz_seq_between_cons link_table_start link_table_end).
     2: { generalize link_table_size; clear; solve_addr. }
     set link_entry_fail := (link_table_start ^+ 1)%a.
-    rewrite (region_addrs_cons link_entry_fail link_table_end).
+    rewrite (finz_seq_between_cons link_entry_fail link_table_end).
     2: { generalize link_table_size; clear. subst link_entry_fail.
          generalize link_table_start link_table_end. solve_addr. }
     rewrite (_: (link_entry_fail ^+ 1)%a = link_table_end).
@@ -296,7 +296,7 @@ Section Adequacy.
     iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "Hmalloc_val".
 
     (* Show validity of the adversary capability *)
-    assert (contiguous_between (region_addrs adv_start adv_end) adv_start adv_end) as Hcont.
+    assert (contiguous_between (finz.seq_between adv_start adv_end) adv_start adv_end) as Hcont.
     { apply contiguous_between_region_addrs. clear -adv_size. solve_addr. }
     iDestruct (contiguous_between_program_split with "Hadv") as (adv_words malloc_word adv_end') "(Hadv & Hmalloc & #Hcont)";[eauto|]. 
     iDestruct "Hcont" as %(Hcontadv & Hcontmalloc & Heqapp & Hlink).

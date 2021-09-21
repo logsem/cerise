@@ -76,18 +76,18 @@ Section fundamental.
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
         destruct (Z_le_dec b'' e'').
         + rewrite !fixpoint_interp1_eq. destruct Hp as [-> | ->].
-          - iSimpl in "Hinv". rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
+          - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
             iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
             iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
             iFrame "#".
-          - iSimpl in "Hinv". rewrite (isWithin_region_addrs_decomposition b'' e'' b0 e0); auto.
+          - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
             iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
             iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
             iFrame "#".
         + rewrite !fixpoint_interp1_eq /=.
-          (destruct Hp as [-> | ->]; replace (region_addrs b'' e'') with (nil: list Addr);
+          (destruct Hp as [-> | ->]; replace (finz.seq_between b'' e'') with (nil: list Addr);
           try rewrite big_sepL_nil); auto; 
-          unfold region_addrs, region_size;rewrite Z_to_nat_nonpos //; lia. }
+          unfold finz.seq_between, finz.dist;rewrite Z_to_nat_nonpos //; lia. }
       { simplify_map_eq.
         iApply ("IH" $! (<[dst:=_]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
         - intros; simpl.

@@ -44,10 +44,10 @@ Record ocpl_library `{MachineParameters} := MkOcplLibrary {
 
   (* disjointness of the two libraries *)
   libs_disjoint : ## [
-      region_addrs assert_start assert_end;
-      region_addrs malloc_mem_start malloc_end;
+      finz.seq_between assert_start assert_end;
+      finz.seq_between malloc_mem_start malloc_end;
       [malloc_memptr];
-      region_addrs malloc_start malloc_memptr
+      finz.seq_between malloc_start malloc_memptr
      ]
 }.
 
@@ -119,7 +119,7 @@ Proof.
   assert (list_to_map [(assert_flag layout, WInt 0)] ⊆ m) as Hassert_flag.
   { etrans;[|eauto]. eapply map_union_subseteq_r_alt. 2: done.
     pose proof (libs_disjoint layout) as Hdisjoint. disjoint_map_to_list.
-    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_region_addrs !elem_of_list_singleton.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
     intros [ [? ?]|?] ->; solve_addr. }
   eapply (lookup_weaken _ _ (assert_flag layout) (WInt 0)) in Hassert_flag.
     by simplify_eq. by simplify_map_eq.
@@ -208,15 +208,15 @@ Proof.
     pose proof (malloc_memptr_size layout) as Hmalloc_memptr_size.
     pose proof (malloc_mem_size layout) as Hmalloc_mem_size.
     iSplitL "Hpubs".
-    iApply big_sepM_to_big_sepL2. apply region_addrs_NoDup.
-    rewrite region_addrs_length /region_size.
+    iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
+    rewrite finz_seq_between_length /finz.dist.
     solve_addr +Hmalloc_size.
     assert (((malloc_start layout) ^+ length malloc_subroutine_instrs)%a = (malloc_memptr layout)) as ->
     ;[solve_addr+Hmalloc_size|iFrame].
     iSplit;[auto|]. iDestruct (big_sepM_insert with "Hmid") as "[$ _]";auto.
     iSplit;[|iPureIntro;solve_addr+Hmalloc_size Hmalloc_memptr_size Hmalloc_mem_size].
-    iApply big_sepM_to_big_sepL2. apply region_addrs_NoDup.
-    rewrite region_addrs_length replicate_length /region_size. solve_addr +Hmalloc_mem_size. iFrame. }
+    iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
+    rewrite finz_seq_between_length replicate_length /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
 
   (* allocate the flag invariant *)
   iMod (na_inv_alloc logrel_nais ⊤ assertN (assertInv layout)
@@ -227,22 +227,22 @@ Proof.
     pose proof (assert_flag_size layout).
     rewrite map_filter_union.
     2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
-         rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+         rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
          intros [ [? ?]|?]; solve_addr. }
     iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
     { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
       apply elem_of_disjoint. intro.
-      rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+      rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
       intros [ [? ?]|?]; solve_addr. }
     rewrite map_filter_id.
     2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
          2: solve_addr. apply elem_of_union in HH.
          rewrite elem_of_singleton. destruct HH as [HH|HH].
-         rewrite -> elem_of_list_to_set, elem_of_region_addrs in HH; solve_addr.
+         rewrite -> elem_of_list_to_set, elem_of_finz_seq_between in HH; solve_addr.
          rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
     iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
     { disjoint_map_to_list. apply elem_of_disjoint. intro.
-      rewrite elem_of_region_addrs !elem_of_list_singleton. solve_addr. }
+      rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
     iDestruct (mkregion_sepM_to_sepL2 with "Hassert") as "Hassert". solve_addr.
     rewrite (_: assert_cap layout = assert_start layout ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
     iFrame "Hassert". iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]". done.

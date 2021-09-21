@@ -124,27 +124,27 @@ Class memory_layout `{MachineParameters} := {
   regions_disjoint :
     ## [
       (* components *)
-      region_addrs adv_region_start adv_end;
+      finz.seq_between adv_region_start adv_end;
       [interval_client_region_start];
-      region_addrs interval_client_closure_start interval_client_body_start;
-      region_addrs interval_client_body_start interval_client_region_end;
+      finz.seq_between interval_client_closure_start interval_client_body_start;
+      finz.seq_between interval_client_body_start interval_client_region_end;
       (* tables *)
-      region_addrs link_table_start link_table_end;
-      region_addrs adv_link_table_start adv_link_table_end;
+      finz.seq_between link_table_start link_table_end;
+      finz.seq_between adv_link_table_start adv_link_table_end;
       (* libraries *)
       [interval_region_start];
-      region_addrs interval_closure_start interval_body_start;
-      region_addrs interval_body_start interval_region_end;
-      region_addrs int_table_start int_table_end;
+      finz.seq_between interval_closure_start interval_body_start;
+      finz.seq_between interval_body_start interval_region_end;
+      finz.seq_between int_table_start int_table_end;
       [seal_region_start];
-      region_addrs seal_body_start seal_region_end;
-      region_addrs seal_table_start seal_table_end;
-      region_addrs malloc_mem_start malloc_end;
+      finz.seq_between seal_body_start seal_region_end;
+      finz.seq_between seal_table_start seal_table_end;
+      finz.seq_between malloc_mem_start malloc_end;
       [malloc_memptr];
-      region_addrs malloc_start malloc_memptr;
+      finz.seq_between malloc_start malloc_memptr;
       [assert_flag];
       [assert_cap];
-      region_addrs assert_start assert_cap
+      finz.seq_between assert_start assert_cap
       ]
 }.
 
@@ -233,15 +233,15 @@ Next Obligation.
   pose proof (regions_disjoint) as Hdisjoint.
   rewrite !disjoint_list_cons in Hdisjoint |- *. intros (_&Hd1&Hd2&Hd3&_).
   disjoint_map_to_list.
-  assert (region_addrs interval_client_region_start interval_client_region_end =
-          [interval_client_region_start] ++ region_addrs interval_client_closure_start interval_client_body_start
-                                         ++ region_addrs interval_client_body_start interval_client_region_end) as ->;[|set_solver].
+  assert (finz.seq_between interval_client_region_start interval_client_region_end =
+          [interval_client_region_start] ++ finz.seq_between interval_client_closure_start interval_client_body_start
+                                         ++ finz.seq_between interval_client_body_start interval_client_region_end) as ->;[|set_solver].
   pose proof interval_client_closure_size as Hs1.
   pose proof interval_client_body_size as Hs2.
   pose proof interval_client_region_start_offset as Hs3.
-  rewrite (region_addrs_split interval_client_region_start interval_client_closure_start);[|solve_addr].
-  rewrite region_addrs_single;[|solve_addr].
-  rewrite (region_addrs_split interval_client_closure_start interval_client_body_start interval_client_region_end)//.
+  rewrite (finz_seq_between_split interval_client_region_start interval_client_closure_start);[|solve_addr].
+  rewrite finz_seq_between_singleton;[|solve_addr].
+  rewrite (finz_seq_between_split interval_client_closure_start interval_client_body_start interval_client_region_end)//.
   solve_addr.
 Qed.
 
@@ -297,7 +297,7 @@ Proof.
   rewrite /assert_library_content in Hfail.
   assert (list_to_map [(assert_flag, WInt 0)] ⊆ m) as Hassert_flag.
   { etrans;[|eauto]. apply map_union_subseteq_r. disjoint_map_to_list.
-    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_region_addrs !elem_of_list_singleton.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
     pose proof assert_code_size. pose proof assert_cap_size.
     pose proof assert_flag_size. intros [ [? ?]|?] ->; solve_addr. }
   simpl in Hassert_flag.
@@ -346,7 +346,7 @@ Proof.
     1,3: apply not_elem_of_dom;intros Hcontr%in_dom_mkregion.
     3: destruct (decide (interval_region_start = assert_flag));simplify_map_eq;auto;exfalso.
     all: pose proof (regions_disjoint) as Hdisjoint.
-    1: rewrite (region_addrs_split _ interval_body_start) in Hcontr;
+    1: rewrite (finz_seq_between_split _ interval_body_start) in Hcontr;
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH; solve_addr].
     1: apply elem_of_app in Hcontr as [Hcontr | Hcontr].
     all: rewrite !disjoint_list_cons in Hdisjoint |- *.
@@ -399,9 +399,9 @@ Section int_client_adequacy.
       pose proof interval_client_body_size as Hsize2.
       iDestruct (mkregion_sepM_to_sepL2 with "Hroe") as "Hint".
       { simpl in *. solve_addr. }
-      rewrite (region_addrs_split _ interval_client_body_start);[|simpl in *;solve_addr].
+      rewrite (finz_seq_between_split _ interval_client_body_start);[|simpl in *;solve_addr].
       iDestruct (big_sepL2_app' with "Hint") as "[Hint_cls Hint]".
-      { rewrite region_addrs_length /region_size. simpl in *. solve_addr. }
+      { rewrite finz_seq_between_length /finz.dist. simpl in *. solve_addr. }
       rewrite /codefrag. rewrite (addr_incr_eq Hsize1) (addr_incr_eq Hsize2) /=. iFrame. }
 
     (* cleaning up the environment tables *)
@@ -410,11 +410,11 @@ Section int_client_adequacy.
     assert (is_Some (link_table_start + 1)%a) as [link_table_mid Hmid]. solve_addr+Hsize.
     assert (is_Some (link_table_start + 2)%a) as [link_table_mid' Hmid']. solve_addr+Hsize.
     assert (link_table_mid + 1 = Some link_table_mid')%a as Hmid''. solve_addr+Hmid Hmid'.
-    rewrite region_addrs_cons;[|solve_addr +Hsize].
-    rewrite region_addrs_cons;[|solve_addr +Hsize].
-    rewrite (addr_incr_eq Hmid) /= region_addrs_single /=;[|solve_addr +Hmid Hsize].
+    rewrite finz_seq_between_cons;[|solve_addr +Hsize].
+    rewrite finz_seq_between_cons;[|solve_addr +Hsize].
+    rewrite (addr_incr_eq Hmid) /= finz_seq_between_singleton /=;[|solve_addr +Hmid Hsize].
     pose proof adv_link_table_size as Hsize_adv.
-    rewrite region_addrs_single /=;[|solve_addr +Hsize_adv].
+    rewrite finz_seq_between_singleton /=;[|solve_addr +Hsize_adv].
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_start Hroe_table]".
     { rewrite lookup_insert_ne//. 2: solve_addr +Hmid Hmid'.
       rewrite lookup_insert_ne//. solve_addr +Hmid Hmid'. }
@@ -441,14 +441,14 @@ Section int_client_adequacy.
       pose proof malloc_memptr_size as Hmalloc_memptr_size.
       pose proof malloc_mem_size as Hmalloc_mem_size.
       iSplitL "Hpubs".
-      iApply big_sepM_to_big_sepL2. apply region_addrs_NoDup.
-      rewrite region_addrs_length /region_size.  solve_addr +Hmalloc_size.
+      iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
+      rewrite finz_seq_between_length /finz.dist.  solve_addr +Hmalloc_size.
       assert ((malloc_start ^+ length malloc_subroutine_instrs)%a = malloc_memptr) as ->
       ;[solve_addr+Hmalloc_size|iFrame].
       iSplit;[auto|]. iDestruct (big_sepM_insert with "Hmid") as "[$ _]";auto.
       iSplit;[|iPureIntro;solve_addr+Hmalloc_size Hmalloc_memptr_size Hmalloc_mem_size].
-      iApply big_sepM_to_big_sepL2. apply region_addrs_NoDup.
-      rewrite region_addrs_length replicate_length /region_size. solve_addr +Hmalloc_mem_size. iFrame. }
+      iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
+      rewrite finz_seq_between_length replicate_length /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
     iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "#Hmalloc_val".
 
     (* allocate adversary table *)
@@ -459,17 +459,17 @@ Section int_client_adequacy.
     (* allocate validity of adversary *)
     pose proof adv_size as Hadv_size'.
     pose proof adv_region_start_offset as Hadv_region_offset.
-    iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply region_addrs_NoDup.
-    rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
-    iMod (region_inv_alloc _ (region_addrs adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (region_addrs_cons adv_region_start);
+    iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
+    rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
+    iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
+    { rewrite (finz_seq_between_cons adv_region_start);
         [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
       iFrame. iSplit.
       { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
-        rewrite region_addrs_single// /=. iSplit;[|done].
+        rewrite finz_seq_between_singleton// /=. iSplit;[|done].
         iExists interp. iFrame "Hadv_table_valid". auto. }
       iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
-      rewrite region_addrs_length /region_size /=. solve_addr+Hadv_size'.
+      rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
       iApply big_sepL_forall. iIntros (k n Hin).
       revert Hints; rewrite Forall_forall =>Hints.
       assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
@@ -478,7 +478,7 @@ Section int_client_adequacy.
     iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
     { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
       iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite region_addrs_length /region_size. solve_addr+Hadv_region_offset Hadv_size'. }
+      { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
       iApply (big_sepL_mono with "Hadv'").
       iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
 
@@ -489,11 +489,11 @@ Section int_client_adequacy.
       pose proof (regions_disjoint) as Hdisjoint.
       rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
       rewrite map_disjoint_union_l !map_disjoint_union_r. repeat split;disjoint_map_to_list.
-      rewrite (region_addrs_split interval_closure_start interval_body_start). set_solver.
+      rewrite (finz_seq_between_split interval_closure_start interval_body_start). set_solver.
       pose proof interval_closure_size as HH.
       pose proof interval_body_size as HHH. solve_addr +HH HHH.
       1,2,3,4,5: set_solver.
-      rewrite (region_addrs_split interval_closure_start interval_body_start). set_solver.
+      rewrite (finz_seq_between_split interval_closure_start interval_body_start). set_solver.
       pose proof interval_closure_size as HH.
       pose proof interval_body_size as HHH. solve_addr +HH HHH.
       all: set_solver. }
@@ -509,22 +509,22 @@ Section int_client_adequacy.
       pose proof assert_code_size. pose proof assert_cap_size. pose proof assert_flag_size.
       rewrite map_filter_union.
       2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
-           rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+           rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
            intros [ [? ?]|?]; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
       { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
         apply elem_of_disjoint. intro.
-        rewrite elem_of_app elem_of_region_addrs !elem_of_list_singleton.
+        rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
         intros [ [? ?]|?]; solve_addr. }
       rewrite map_filter_id.
       2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
            2: solve_addr. apply elem_of_union in HH.
            rewrite elem_of_singleton. destruct HH as [HH|HH].
-           rewrite -> elem_of_list_to_set, elem_of_region_addrs in HH; solve_addr.
+           rewrite -> elem_of_list_to_set, elem_of_finz_seq_between in HH; solve_addr.
            rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
       { disjoint_map_to_list. apply elem_of_disjoint. intro.
-        rewrite elem_of_region_addrs !elem_of_list_singleton. solve_addr. }
+        rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
       iDestruct (mkregion_sepM_to_sepL2 with "Hassert") as "Hassert". solve_addr.
       rewrite /assert_inv. iExists assert_cap.
       rewrite (_: assert_cap = assert_start ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
@@ -538,7 +538,7 @@ Section int_client_adequacy.
     iDestruct (big_sepM_union with "Hprivs") as "[Hinterval_cls Hprivs]".
     { rewrite !map_disjoint_union_l !map_disjoint_union_r. repeat split.
       all: try disjoint_map_to_list.
-      1,2,3: rewrite (region_addrs_split _ interval_body_start);
+      1,2,3: rewrite (finz_seq_between_split _ interval_body_start);
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       all: pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
@@ -548,7 +548,7 @@ Section int_client_adequacy.
     iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hint_table]".
     { rewrite !map_disjoint_union_l. repeat split.
       all: try disjoint_map_to_list.
-      1: rewrite (region_addrs_split _ interval_body_start);
+      1: rewrite (finz_seq_between_split _ interval_body_start);
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       all: pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
@@ -556,7 +556,7 @@ Section int_client_adequacy.
       all: set_solver. }
     iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hinterval_link]".
     { disjoint_map_to_list.
-      rewrite (region_addrs_split _ interval_body_start);
+      rewrite (finz_seq_between_split _ interval_body_start);
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
@@ -564,21 +564,21 @@ Section int_client_adequacy.
       set_solver. }
     iDestruct (mkregion_sepM_to_sepL2 with "Hinterval_cls") as "Hinterval".
     { pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
-    rewrite (region_addrs_split interval_closure_start interval_body_start); cycle 1.
+    rewrite (finz_seq_between_split interval_closure_start interval_body_start); cycle 1.
     { pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
     iDestruct (big_sepL2_app' with "Hinterval") as "[Hinterval_cls Hinterval]".
-    { rewrite /= region_addrs_length /region_size.
+    { rewrite /= finz_seq_between_length /finz.dist.
       pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
     iDestruct (mkregion_sepM_to_sepL2 with "Hint_table") as "Hint_table".
     { pose proof int_table_size. auto. }
     assert (is_Some (int_table_start + 1)%a) as [int_table_mid Hint_table_mid].
     { pose proof int_table_size. solve_addr. }
-    rewrite (region_addrs_cons int_table_start);cycle 1.
+    rewrite (finz_seq_between_cons int_table_start);cycle 1.
     { pose proof int_table_size. solve_addr. }
     rewrite (addr_incr_eq Hint_table_mid). iSimpl in "Hint_table".
     assert (int_table_mid + 1 = Some int_table_end)%a as Hint_table_mid'.
     { pose proof int_table_size as HH. solve_addr+HH Hint_table_mid. }
-    rewrite (region_addrs_cons int_table_mid);cycle 1.
+    rewrite (finz_seq_between_cons int_table_mid);cycle 1.
     { solve_addr. }
     rewrite (addr_incr_eq Hint_table_mid'). iSimpl in "Hint_table".
     iDestruct "Hint_table" as "(Hint_table_start & Hint_table_mid & _)".
@@ -601,7 +601,7 @@ Section int_client_adequacy.
     iDestruct (big_sepM_insert with "Hseal_link") as "[Hseal_link _]";[auto|]. iSimpl in "Hseal_link".
     iDestruct (mkregion_sepM_to_sepL2 with "Hseal_table") as "Hseal_table".
     { pose proof seal_table_size. auto. }
-    rewrite (region_addrs_single seal_table_start);cycle 1.
+    rewrite (finz_seq_between_singleton seal_table_start);cycle 1.
     { pose proof seal_table_size. auto. }
     iDestruct "Hseal_table" as "[Hseal_table _]".
     iAssert (codefrag interval_closure_start (interval_closure 0 1 offset_to_interval)) with "[Hinterval_cls]" as "Hinterval_cls".

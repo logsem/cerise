@@ -696,10 +696,10 @@ Section list.
 
     focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
     iDestruct "Hreg" as (bnew enew Hsize) "(Hr_t1 & Hbe')".
-    rewrite /region_addrs_zeroes. assert (region_size bnew enew = 3) as Hbe_length;[clear -Hsize;rewrite /region_size;solve_addr|rewrite Hbe_length].
+    rewrite /region_addrs_zeroes. assert (finz.dist bnew enew = 3) as Hbe_length;[clear -Hsize;rewrite /finz.dist;solve_addr|rewrite Hbe_length].
     assert (bnew <= enew)%a as Hle';[clear -Hsize;solve_addr|].
     pose proof (contiguous_between_region_addrs bnew enew Hle').
-    rewrite /region_mapsto. set (l:=(region_addrs bnew enew)). rewrite -/l in H1.
+    rewrite /region_mapsto. set (l:=(finz.seq_between bnew enew)). rewrite -/l in H1.
     iDestruct (big_sepL2_length with "Hbe'") as %Hlen_eq. simpl in Hlen_eq.
     destruct l;[inversion Hlen_eq|]. apply contiguous_between_cons_inv_first in H1 as Heq. subst f.
     destruct l;[inversion Hlen_eq|].

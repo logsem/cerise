@@ -128,13 +128,13 @@ Section SimpleMalloc.
       by rewrite !lookup_delete_ne //.
 
     rewrite /(region_mapsto b b_m) /(region_mapsto_spec b b_m).
-    set ai := region_addrs b b_m.
-    assert (Hai: region_addrs b b_m = ai) by reflexivity.
+    set ai := finz.seq_between b b_m.
+    assert (Hai: finz.seq_between b b_m = ai) by reflexivity.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_len.
     cbn in Hprog_len.
     assert ((b + malloc_subroutine_instrs_length)%a = Some b_m) as Hb_bm.
     { rewrite /malloc_subroutine_instrs_length.
-      rewrite region_addrs_length /region_size in Hprog_len. solve_addr. }
+      rewrite finz_seq_between_length /finz.dist in Hprog_len. solve_addr. }
     assert (contiguous_between ai b b_m) as Hcont.
     { apply contiguous_between_of_region_addrs; eauto.
       rewrite /malloc_subroutine_instrs_length in Hb_bm. solve_addr. }
@@ -624,11 +624,11 @@ Section SimpleMalloc.
 
   Lemma allocate_region_inv E ba ea :
     [[ba,ea]]↦ₐ[[region_addrs_zeroes ba ea]] ∗ [[ba,ea]]↣ₐ[[region_addrs_zeroes ba ea]]
-    ={E}=∗ [∗ list] a ∈ region_addrs ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
+    ={E}=∗ [∗ list] a ∈ finz.seq_between ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
   Proof.
     iIntros "[Hbae Hsbae]".
     iApply big_sepL_fupd.
-    rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -region_addrs_length.
+    rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -finz_seq_between_length.
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hbae") as "Hbae".
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hsbae") as "Hsbae".
     iDestruct (big_sepL_sep with "[$Hbae $Hsbae]") as "Hbae".

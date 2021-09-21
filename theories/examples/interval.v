@@ -337,10 +337,10 @@ Section interval.
     (* we begin by preparing the resources for that store *)
     rewrite /region_mapsto /region_addrs_zeroes.
     destruct (ib + 1)%a eqn:Hi;[|exfalso;solve_addr+Hibounds Hi].
-    assert (region_addrs ib ie = [ib;f]) as ->.
-    { rewrite (region_addrs_split _ f);[|solve_addr+Hi Hibounds].
-      rewrite region_addrs_single// region_addrs_single;[|solve_addr+Hi Hibounds]. auto. }
-    assert ((region_size ib ie) = 2) as ->;[rewrite /region_size;solve_addr+Hibounds|iSimpl in "Hie"].
+    assert (finz.seq_between ib ie = [ib;f]) as ->.
+    { rewrite (finz_seq_between_split _ f);[|solve_addr+Hi Hibounds].
+      rewrite finz_seq_between_singleton// finz_seq_between_singleton;[|solve_addr+Hi Hibounds]. auto. }
+    assert ((finz.dist ib ie) = 2) as ->;[rewrite /finz.dist;solve_addr+Hibounds|iSimpl in "Hie"].
     iDestruct "Hie" as "(Hi1 & Hi2 & _)".
     assert (withinBounds ib ie ib = true) as Hwbi;[solve_addr+Hi Hibounds|].
     assert (withinBounds ib ie f = true) as Hwbi2;[solve_addr+Hi Hibounds|].
@@ -592,7 +592,7 @@ Section interval.
     iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
     iApply big_sepM_insert_2. iSimpl. iApply fixpoint_interp1_eq. done. subst regs'.
     repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
-    iApply big_sepM_insert_2. iApply fixpoint_interp1_eq. iSimpl. rewrite region_addrs_single// /=.
+    iApply big_sepM_insert_2. iApply fixpoint_interp1_eq. iSimpl. rewrite finz_seq_between_singleton// /=.
     iSplit;auto. iExists interp. iFrame "Hb0". auto.
     repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
     iApply "Hregs_val".

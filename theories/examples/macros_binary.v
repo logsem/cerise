@@ -554,9 +554,9 @@ Section macros.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
     unfold region_mapsto_spec.
-    remember (region_addrs act_b act_e) as acta.
+    remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
-    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
     iDestruct (big_sepL2_length with "Hact") as %Hact_len.
     rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
     repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
@@ -570,7 +570,7 @@ Section macros.
     destruct l; [inversion Hlength|].
     destruct acta as [| a0 acta]; [inversion Hact_len_a|].
     assert (a0 = act_b) as ->.
-    { feed pose proof (region_addrs_first act_b act_e) as HH. solve_addr.
+    { feed pose proof (finz_seq_between_first act_b act_e) as HH. solve_addr.
       rewrite -Heqacta /= in HH. by inversion HH. }
     iDestruct "Hact" as "[Ha0 Hact]".
     iPrologue_s "Hprog".
@@ -1003,14 +1003,14 @@ Section macros.
     rewrite /region_mapsto_spec.
     iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
-    { rewrite region_addrs_length /region_size in Hcls_len.
+    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
       revert Hcls_len; clear; solve_addr. }
-    assert (contiguous_between (region_addrs b_cls e_cls) b_cls e_cls) as Hcont_cls.
+    assert (contiguous_between (finz.seq_between b_cls e_cls) b_cls e_cls) as Hcont_cls.
     { apply contiguous_between_of_region_addrs; auto. revert Hbe; clear; solve_addr. }
-    pose proof (region_addrs_NoDup b_cls e_cls) as Hcls_nodup.
+    pose proof (finz_seq_between_NoDup b_cls e_cls) as Hcls_nodup.
     iDestruct (big_sepL2_split_at 6 with "Hcls") as "[Hcls_code Hcls_data]".
     cbn [take drop].
-    destruct (region_addrs b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
+    destruct (finz.seq_between b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_cls). subst.
     do 7 (destruct ll as [| ? ll]; [by inversion Hcls_len|]).
     destruct ll;[| by inversion Hcls_len]. cbn [take drop].

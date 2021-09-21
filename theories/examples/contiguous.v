@@ -9,7 +9,7 @@ From cap_machine Require Import addr_reg_sample.
 Section Contiguous.
 
   Definition contiguous (l: list Addr): Prop :=
-    ∃ a b, l = region_addrs a b.
+    ∃ a b, l = finz.seq_between a b.
 
   Inductive contiguous_between : list Addr -> Addr -> Addr -> Prop :=
     | contiguous_between_nil : ∀ a,
@@ -82,7 +82,7 @@ Section Contiguous.
   Qed.
 
   Lemma contiguous_between_of_region_addrs_aux l a b n :
-    l = region_addrs_aux a n →
+    l = finz.seq a n →
     (a + n)%a = Some b →
     contiguous_between l a b.
   Proof.
@@ -96,7 +96,7 @@ Section Contiguous.
   Lemma region_addrs_aux_of_contiguous_between l a b (n:nat) :
     contiguous_between l a b →
     (a + n)%a = Some b →
-    l = region_addrs_aux a n.
+    l = finz.seq a n.
   Proof.
     revert a b l. induction n.
     { intros. cbn in *.
@@ -110,27 +110,27 @@ Section Contiguous.
 
   Lemma contiguous_between_of_region_addrs l a b :
     (a <= b)%a →
-    l = region_addrs a b →
+    l = finz.seq_between a b →
     contiguous_between l a b.
   Proof.
     intros ? ->. eapply contiguous_between_of_region_addrs_aux; eauto.
-    rewrite /region_size. solve_addr.
+    rewrite /finz.dist. solve_addr.
   Qed.
 
   Lemma contiguous_between_region_addrs a e :
-    (a <= e) %a → contiguous_between (region_addrs a e) a e.
+    (a <= e) %a → contiguous_between (finz.seq_between a e) a e.
   Proof. intros; by apply contiguous_between_of_region_addrs. Qed.
 
   Lemma region_addrs_of_contiguous_between l a b :
     contiguous_between l a b →
-    l = region_addrs a b.
+    l = finz.seq_between a b.
   Proof.
     intros.
     destruct (Z_le_dec a b).
     { eapply region_addrs_aux_of_contiguous_between; eauto.
-      rewrite /region_size. solve_addr. }
-    { rewrite /region_addrs (_: region_size a b = 0) /=.
-      2: unfold region_size; solve_addr.
+      rewrite /finz.dist. solve_addr. }
+    { rewrite /finz.seq_between (_: finz.dist a b = 0) /=.
+      2: unfold finz.dist; solve_addr.
       eapply contiguous_between_nil_inv; eauto. solve_addr. }
   Qed.
 
@@ -142,8 +142,8 @@ Section Contiguous.
     { intros (a & b & H).
       destruct (Z_le_dec a b).
       { apply contiguous_between_of_region_addrs in H; eauto. }
-      { rewrite /region_addrs (_: region_size a b = 0) in H.
-        2: unfold region_size; solve_addr. cbn in *. subst l.
+      { rewrite /finz.seq_between (_: finz.dist a b = 0) in H.
+        2: unfold finz.dist; solve_addr. cbn in *. subst l.
         exists a, a. constructor. } }
     { intros (a & b & H).
       apply region_addrs_of_contiguous_between in H. unfold contiguous.
@@ -467,17 +467,17 @@ Section Contiguous.
   (* A region_addrs_aux is contiguous *)
   Lemma region_addrs_aux_contiguous (a : Addr) (n : nat) :
     is_Some (a + n)%a →
-    contiguous (region_addrs_aux a n).
+    contiguous (finz.seq a n).
   Proof.
-    intros [? ?]. rewrite /contiguous /region_addrs.
-    exists a, (a ^+ n)%a. f_equal. unfold region_size. solve_addr.
+    intros [? ?]. rewrite /contiguous /finz.seq_between.
+    exists a, (a ^+ n)%a. f_equal. unfold finz.dist. solve_addr.
   Qed.
 
   Lemma region_addrs_contiguous (a b : Addr) :
-    contiguous (region_addrs a b).
+    contiguous (finz.seq_between a b).
   Proof.
-    rewrite /region_addrs. apply region_addrs_aux_contiguous.
-    rewrite /region_size. zify_addr; try lia; eauto.
+    rewrite /finz.seq_between. apply region_addrs_aux_contiguous.
+    rewrite /finz.dist. solve_addr.
   Qed.
 
   Lemma contiguous_between_app a a1 a2 (i j k: Addr) :
