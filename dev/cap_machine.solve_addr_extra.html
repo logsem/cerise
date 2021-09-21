@@ -28,10 +28,11 @@
 <h1 class="libtitle">cap_machine.solve_addr_extra</h1>
 
 <div class="code">
-<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.solve_addr.html#"><span class="id" title="library">solve_addr</span></a> <a class="idref" href="cap_machine.machine_base.html#"><span class="id" title="library">machine_base</span></a> <a class="idref" href="cap_machine.classes.html#"><span class="id" title="library">classes</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.machine_base.html#"><span class="id" title="library">machine_base</span></a> <a class="idref" href="cap_machine.classes.html#"><span class="id" title="library">classes</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">machine_utils</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="machine_utils.solve_finz.html#"><span class="id" title="library">solve_finz</span></a>.<br/>
 
 <br/>
-<span class="comment">(*&nbsp;Extend&nbsp;<span class="inlinecode"><span class="id" title="var">solve_addr</span></span>&nbsp;to&nbsp;handle&nbsp;more&nbsp;pure&nbsp;arithmetic&nbsp;goals&nbsp;from<br/>
+<span class="comment">(*&nbsp;Extend&nbsp;<span class="inlinecode"><span class="id" title="var">solve_finz</span></span>&nbsp;to&nbsp;handle&nbsp;more&nbsp;pure&nbsp;arithmetic&nbsp;goals&nbsp;from<br/>
 &nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" title="var">machine_base.v</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" title="var">classes.v</span></span>&nbsp;*)</span><br/>
 
 <br/>
@@ -39,7 +40,7 @@
 &nbsp;&nbsp;(<span class="id" title="var">has_evar</span> <span class="id" title="var">c</span>; <span class="id" title="tactic">fail</span> 1) || <span class="id" title="tactic">idtac</span>.<br/>
 
 <br/>
-<span class="id" title="keyword">Global Ltac</span> <span class="id" title="var">zify_addr_op_nonbranching_step_hook</span> ::=<br/>
+<span class="id" title="keyword">Global Ltac</span> <span class="id" title="var">zify_finz_op_nonbranching_step_hook</span> ::=<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">lazymatch</span> <span class="id" title="keyword">goal</span> <span class="id" title="keyword">with</span><br/>
 &nbsp;&nbsp;| <span class="id" title="var">H</span> : <a class="idref" href="cap_machine.machine_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> |- <span class="id" title="var">_</span> =&gt; <span class="id" title="tactic">unfold</span> <a class="idref" href="cap_machine.machine_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span><br/>
 &nbsp;&nbsp;| |- <a class="idref" href="cap_machine.machine_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="tactic">unfold</span> <a class="idref" href="cap_machine.machine_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a><br/>
