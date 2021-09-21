@@ -340,7 +340,7 @@ Section interval_client.
     iMod (na_inv_alloc logrel_nais _ envIN (interval_env b e benv0 eenv RX i_b i_e i_first f_m_i b0 e0
                                                          b3 e1 b4 e3)
             with "[Hb Hb1 Hb2 Hbe Hbe0 Hbe3]") as "#Hint_env".
-    { iNext. iExists _,_. iFrame "Hbe". rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
+    { iNext. iExists _,_. iFrame "Hbe". rewrite (addr_incr_eq Ha_imin) /=.
       iFrame "Hbe0". iSimpl.
       assert (a_imin ^+ 12%nat = a_imax)%a as ->. solve_addr+Ha_imin Ha_imax.
       iFrame "Hbe3". iFrame. repeat iSplit;auto. iPureIntro. by constructor.
@@ -364,7 +364,7 @@ Section interval_client.
       2: solve_addr+Ha_imin Ha_imax.
       iDestruct (big_sepL2_app' with "Hint") as "[Hmkint Hint]";cycle 1.
       iDestruct (big_sepL2_app' with "Hint") as "[Himin Himax]";cycle 1.
-      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin.
+      rewrite (addr_incr_eq Ha_imin).
       assert ((a_imin ^+ length imin)%a = a_imax) as ->.
       solve_addr+Ha_imin Ha_imax.
       assert (i_first ^+ length (makeint f_m_i ++ imin ++ imax) = a_imax ^+ length imax)%a as ->.
@@ -404,7 +404,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env $Hassert]");iFrameCapSolve.
       all: cycle -2.
-      { rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin /=.
+      { rewrite (addr_incr_eq Ha_imin) /=.
         assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
         iFrame "Hchecki Himin Himax". iSplitL "Hr_t20". by eauto.
         iFrame "Hregs". iSplit. iApply ("Hr_valid" $! r_t0);auto.
@@ -483,7 +483,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
-      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin. iSimpl in "HPC".
+      rewrite (addr_incr_eq Ha_imin). iSimpl in "HPC".
       iApply (imin_valid with "[- $Himin $Hregs $HsealLL $HsealN]");iFrameCapSolve.
       solve_addr+ H3 Ha_imin.
       { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
@@ -523,7 +523,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
-      rewrite /(incr_addr_default i_first (length (makeint f_m_i))) Ha_imin. iSimpl in "HPC".
+      rewrite (addr_incr_eq Ha_imin). iSimpl in "HPC".
       assert (a_imin ^+ 12%nat = a_imax)%a as ->;[solve_addr +Ha_imax Ha_imin|].
       iApply (imax_valid with "[- $Himax $Hregs $HsealLL $HsealN]");iFrameCapSolve.
       solve_addr+ H3 Ha_imin Ha_imax.

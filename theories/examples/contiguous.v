@@ -89,7 +89,7 @@ Section Contiguous.
     revert a b l. induction n.
     { intros. cbn in *. subst l. assert (a = b) as -> by solve_addr.
       constructor. }
-    { intros * -> ?. cbn. eapply (contiguous_between_cons _ (^(a+1)%a)). solve_addr.
+    { intros * -> ?. cbn. eapply (contiguous_between_cons _ (a^+1)%a). solve_addr.
       apply IHn; auto. solve_addr. }
   Qed.
 
@@ -105,7 +105,7 @@ Section Contiguous.
       destruct l as [| a' l].
       { inversion Hl; subst. exfalso. solve_addr. }
       { inversion Hl; subst. f_equal. eapply (IHn _ b). 2: solve_addr.
-        assert (^(a+1)%a = a'0) as -> by solve_addr. auto. } }
+        assert ((a^+1)%a = a'0) as -> by solve_addr. auto. } }
   Qed.
 
   Lemma contiguous_between_of_region_addrs l a b :
@@ -330,7 +330,7 @@ Section Contiguous.
     intros Hreg Ha Hj Hne.
     assert (ai ≤ an)%Z as Hinc; first (apply incr_list_le_middle with a i; auto).
     apply Z.lt_eq_cases in Hinc as [Hlt | Heq]; auto.
-    apply neq_z_of in Hne. congruence.
+    apply finz_neq_to_z in Hne. congruence.
   Qed.
 
   (* The i'th element is less than the i+1'th element *)
@@ -386,7 +386,7 @@ Section Contiguous.
     - inversion Hlen. 
     - destruct a0.
       + inversion Ha. subst. inversion H4. subst. cbn. solve_addr.
-      + simpl in *. apply IHa with a0;[|lia|auto].
+      + simpl in *. apply IHa with f;[|lia|auto].
         inversion Ha; subst.
         apply contiguous_between_cons_inv_first in H4 as Heq.
         congruence.
@@ -431,7 +431,7 @@ Section Contiguous.
     assert (ai ≤ an)%Z as Hinc; first (apply incr_list_le_middle with a i; auto).
     rewrite last_lookup in Hj.
     apply Zle_lt_or_eq in Hinc as [Hlt' | Heq];[auto|].
-    apply z_of_eq in Heq. subst.
+    apply finz_to_z_eq in Heq. subst.
     assert ((an + (length a - 1 - i))%a = Some an) as Hcontr.
     { apply (contiguous_incr_addr_middle a i (length a - 1 - i)%nat an an) in Ha;auto.
       - solve_addr.
@@ -470,7 +470,7 @@ Section Contiguous.
     contiguous (region_addrs_aux a n).
   Proof.
     intros [? ?]. rewrite /contiguous /region_addrs.
-    exists a, (^(a + n)%a). f_equal. unfold region_size. solve_addr.
+    exists a, (a ^+ n)%a. f_equal. unfold region_size. solve_addr.
   Qed.
 
   Lemma region_addrs_contiguous (a b : Addr) :
@@ -516,7 +516,7 @@ Section Contiguous.
     rewrite app_length in Hlength.
     set (n1 := length prog1) in *.
     set (n2 := length prog2) in *.
-    rewrite -(take_drop n1 a). set (k := ^(i + n1)%a).
+    rewrite -(take_drop n1 a). set (k := (i ^+ n1)%a).
     iExists (take n1 a), (drop n1 a), k.
     iDestruct (big_sepL2_app' with "Hprog") as "[Hprog1 Hprog2]".
     { subst n1. rewrite take_length. lia. }

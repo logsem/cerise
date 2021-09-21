@@ -109,7 +109,7 @@ Section counter.
     iPrologue "Hprog". rewrite /counter_inv.
     iInv ι as (w) "[>Hd >#Hcond]" "Hcls'".
     iAssert (⌜(d =? a_first)%a = false⌝)%I as %Hfalse.
-    { destruct (d =? a_first)%a eqn:Heq;auto. apply Z.eqb_eq,z_of_eq in Heq as ->.
+    { destruct (d =? a_first)%a eqn:Heq;auto. apply Z.eqb_eq,finz_to_z_eq in Heq as ->.
       iExFalso. iApply (addr_dupl_false with "Hi Hd"). }
     iApply (wp_load_success with "[$HPC $Hi $Hr_t1 $Hr_env Hd]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 0|..].
@@ -263,7 +263,7 @@ Section counter.
     iPrologue "Hprog".
     iInv ι as (w) "[>Hd >#Hcond]" "Hcls'".
     iAssert (⌜(d =? a_first)%a = false⌝)%I as %Hfalse.
-    { destruct (d =? a_first)%a eqn:Heq;auto. apply Z.eqb_eq,z_of_eq in Heq as ->.
+    { destruct (d =? a_first)%a eqn:Heq;auto. apply Z.eqb_eq,finz_to_z_eq in Heq as ->.
       iExFalso. iApply (addr_dupl_false with "Hi Hd"). }
     iApply (wp_load_success with "[$HPC $Hi $Hr_ret $Hr_env Hd]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last| |iContiguous_next Hcont 0|..].
@@ -288,7 +288,7 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 2|].
     iEpilogue "(HPC & Hi & Hr_t5)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* assert *)
-    assert (contiguous_between (a1 :: read_addrs) a1 a_last) as Hcont'.
+    assert (contiguous_between (f :: read_addrs) f a_last) as Hcont'.
     { apply contiguous_between_cons_inv in Hcont as [Heq [? [? Hcont] ] ];
       apply contiguous_between_cons_inv_first in Hcont as ?; subst.
       apply contiguous_between_cons_inv in Hcont as [? [? [? Hcont] ] ].
@@ -307,7 +307,7 @@ Section counter.
     { eapply isCorrectPC_range_restrict;[eauto|]. apply contiguous_between_bounds in Hcont_rest. split;auto.
       assert (a_first + 1 = Some a)%a;[iContiguous_next Hcont 0|].
       assert (a + 1 = Some a0)%a;[iContiguous_next Hcont 1|].
-      assert (a0 + 1 = Some a1)%a;[iContiguous_next Hcont 2|]. solve_addr. }
+      assert (a0 + 1 = Some f)%a;[iContiguous_next Hcont 2|]. solve_addr. }
     { solve_ndisj. }
     { cbn. rewrite (_: z <? 0 = false)%Z //. rewrite Z.ltb_ge //. }
     iNext. iIntros "(Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & HPC & Hassert & Hna & Hb & Ha_entry)".
@@ -321,7 +321,7 @@ Section counter.
       apply contiguous_between_bounds in Hcont_assert.
       assert (a_first + 1 = Some a)%a;[iContiguous_next Hcont 0|].
       assert (a + 1 = Some a0)%a;[iContiguous_next Hcont 1|].
-      assert (a0 + 1 = Some a1)%a;[iContiguous_next Hcont 2|]. solve_addr. }
+      assert (a0 + 1 = Some f)%a;[iContiguous_next Hcont 2|]. solve_addr. }
     apply contiguous_between_cons_inv_first in Hcont_rest as ?; subst.
     (* move r_env 0 *)
     iPrologue "Hprog".

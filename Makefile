@@ -18,7 +18,7 @@ CI_EXAMPLES:="\
 	theories/examples/dynamic_sealing.vo \
 	theories/examples/ocpl_lowval_like.vo"
 
-.PHONY: all coq clean html
+.PHONY: all coq clean html skip-qed ci
 all: coq
 
 fundamental: Makefile.coq
@@ -33,10 +33,10 @@ html: Makefile.coq
 	cp $(EXTRA_DIR)/resources/* html
 
 Makefile.coq:
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
 Makefile.coq.conf:
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
 include Makefile.coq.conf
 

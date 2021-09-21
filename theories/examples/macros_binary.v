@@ -137,7 +137,7 @@ Section macros.
     iEpilogue_s ; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t1 r_t1 *)
     destruct l;[|inversion Hlength].
-    apply contiguous_between_last with (ai:=a7) in Hcont as Hlink;[|auto]. 
+    apply contiguous_between_last with (ai:=f8) in Hcont as Hlink;[|auto].
     iPrologue_s "Hprog".
     iMod (step_load_success_same_alt _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1 $Ha_entry]")
       as "(Hj & HPC & Hr_t1 & Hi & Hentry_a)";
@@ -318,10 +318,10 @@ Section macros.
     destruct l';[inversion Hlength_rest|]. destruct l';[inversion Hlength_rest|].
     destruct ls';[inversion Hlength_rests|]. destruct ls';[inversion Hlength_rests|].
     iPrologue_both "Hprog" "Hsprog".
-    assert ((a3 + 3)%a = Some a8) as Hlea.
-    { apply (contiguous_between_incr_addr_middle _ _ _ 3 3 a3 a8) in Hcont_rest; auto. }
-    assert ((a4 + 3)%a = Some a10) as Hlea'.
-    { apply (contiguous_between_incr_addr_middle _ _ _ 3 3 a4 a10) in Hcont_rests; auto. }
+    assert ((f3 + 3)%a = Some f8) as Hlea.
+    { apply (contiguous_between_incr_addr_middle _ _ _ 3 3 f3 f8) in Hcont_rest; auto. }
+    assert ((f4 + 3)%a = Some f10) as Hlea'.
+    { apply (contiguous_between_incr_addr_middle _ _ _ 3 3 f4 f10) in Hcont_rests; auto. }
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs_t0]")
       as "(Hj & HsPC & Hsi & Hs_t0)";
       [apply decode_encode_instrW_inv|iCorrectPC links s_last|iContiguous_next Hcont_rests 4|apply Hlea'|auto..].
@@ -406,8 +406,8 @@ Section macros.
     (* move r_t5 0 *)
     destruct l';[| by inversion Hlength_rest]. destruct ls';[| by inversion Hlength_rests].
     iPrologue_both "Hprog" "Hsprog".
-    apply contiguous_between_last with (ai:=a11) in Hcont_rest as Hlast;[|auto].
-    apply contiguous_between_last with (ai:=a12) in Hcont_rests as Hlast';[|auto]. 
+    apply contiguous_between_last with (ai:=f11) in Hcont_rest as Hlast;[|auto].
+    apply contiguous_between_last with (ai:=f12) in Hcont_rests as Hlast';[|auto].
     iMod (step_move_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs_t5]")
       as "(Hj & HsPC & Hsi & Hs_t5)";
       [apply decode_encode_instrW_inv|iCorrectPC links s_last|apply Hlast'|auto|..].
@@ -723,8 +723,8 @@ Section macros.
     destruct l;[by inversion Hlength|].
     destruct acta as [| ? acta];[| by inversion Hact_len_a].
     iPrologue_s "Hprog".
-    apply contiguous_between_last with (ai:=a20) in Hcont_act as Hnext; auto.
-    assert ((a20 + (-7))%a = Some act_b) as Hlea.
+    apply contiguous_between_last with (ai:=f19) in Hcont_act as Hnext; auto.
+    assert ((f19 + (-7))%a = Some act_b) as Hlea.
     { apply contiguous_between_length in Hcont_act. revert Hnext Hact; clear. solve_addr. }
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1]")
       as "(Hj & HPC & Hi & Hr_t1)";
@@ -732,7 +732,7 @@ Section macros.
     iEpilogue_s;iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* restrict r_t1 (Global,E) *)
     destruct l;[|by inversion Hlength].
-    apply contiguous_between_last with (ai:=a23) in Hcont as Hlast; auto.
+    apply contiguous_between_last with (ai:=f22) in Hcont as Hlast; auto.
     iPrologue_s "Hprog". iClear "Hprog".
     iMod (step_restrict_success_z _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1]")
       as "(Hj & HPC & Hi & Hr_t1)";
@@ -855,11 +855,11 @@ Section macros.
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t7 $Hr_t2]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont1 1|].
     iEpilogue_both "(HPC & Hi & Hr_t7 & Hr_t2)"; iCombinePtrn. 
-    assert (contiguous_between (a1 :: l) a1 a_last) as Hcont'.
+    assert (contiguous_between (f1 :: l) f1 a_last) as Hcont'.
     { apply contiguous_between_cons_inv in Hcont1 as [_ (? & ? & Hcont1)].
       apply contiguous_between_cons_inv in Hcont1 as [_ (? & ? & Hcont1)].
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont1). subst. apply Hcont1. }
-    assert (contiguous_between (a2 :: ls) a2 s_last) as Hcont''.
+    assert (contiguous_between (f2 :: ls) f2 s_last) as Hcont''.
     { apply contiguous_between_cons_inv in Hcont2 as [_ (? & ? & Hcont2)].
       apply contiguous_between_cons_inv in Hcont2 as [_ (? & ? & Hcont2)].
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont2). subst. apply Hcont2. }
@@ -902,11 +902,11 @@ Section macros.
       [| |apply Hcont_fetch|apply Hcont_fetchs|apply Hwb|apply Ha_entry|apply Hwb'|apply Ha_entry'| | |auto|auto|clear;lia|..].
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest.
-      apply contiguous_between_incr_addr with (i:=2) (ai:=a1) in Hcont1;auto.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f1) in Hcont1;auto.
       revert Hcont1 Hcont_rest Hmid; clear. solve_addr. }
     { intros mid Hmid. apply isCorrectPC_inrange with s_first s_last; auto.
       apply contiguous_between_bounds in Hcont_rests.
-      apply contiguous_between_incr_addr with (i:=2) (ai:=a2) in Hcont2;auto.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f2) in Hcont2;auto.
       revert Hcont2 Hcont_rests Hmid; clear. solve_addr. }
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
@@ -936,7 +936,7 @@ Section macros.
     { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
       apply contiguous_between_bounds in Hcont_rest.
       apply contiguous_between_bounds in Hcont_fetch.
-      apply contiguous_between_incr_addr with (i:=2) (ai:=a1) in Hcont1; auto.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f1) in Hcont1; auto.
       revert Hmid Hcont_rest Hcont_fetch Hcont1 ; clear. solve_addr. }
     iNext. iIntros "(HPC & Hscrtcls_prog & Hr_t1 & Hact & Hr_t6 & Hr_t7)".
     
@@ -945,7 +945,7 @@ Section macros.
     { intros mid Hmid. apply isCorrectPC_inrange with s_first s_last; auto.
       apply contiguous_between_bounds in Hcont_rests.
       apply contiguous_between_bounds in Hcont_fetchs.
-      apply contiguous_between_incr_addr with (i:=2) (ai:=a2) in Hcont2; auto.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f2) in Hcont2; auto.
       revert Hmid Hcont_rests Hcont_fetchs Hcont2 ; clear. solve_addr. }
     
     (* continuation *)
@@ -1047,8 +1047,8 @@ Section macros.
       as "(Hj & HPC & Hi & Hr1)";
       [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
        iContiguous_next Hcont_cls 3 | | done |auto ..].
-    { assert ((a4 + 1)%a = Some a5) as HH. by iContiguous_next Hcont_cls 6.
-      instantiate (1 := a4). revert HH. clear; solve_addr. }
+    { assert ((f4 + 1)%a = Some f5) as HH. by iContiguous_next Hcont_cls 6.
+      instantiate (1 := f4). revert HH. clear; solve_addr. }
     iEpilogue_s. iCombine "Hi Hprog_done" as "Hprog_done".
     (* load r_t1 r_t1 *)
     iPrologue_s "Hprog".

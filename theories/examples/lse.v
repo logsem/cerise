@@ -134,7 +134,7 @@ Section roe.
     (* continue *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
     destruct ai_rest as [|? ai_rest];[inversion Hlength_rest|].
-    apply contiguous_between_cons_inv_first in Hcont_rest as Heq; subst a.
+    apply contiguous_between_cons_inv_first in Hcont_rest as Heq; subst f.
     (* move r_env r_t1 *)
     destruct ai_rest as [|? ai_rest];[inversion Hlength_rest|].
     iPrologue "Hprog".
@@ -169,17 +169,17 @@ Section roe.
         apply contiguous_between_cons_inv_first in Hcont_rest as Heq'; subst x). apply Hcont_rest. }
     iDestruct "Hcont" as %(Hcont_call & Hcont_rest' & Heqapp' & Hlink').
     iDestruct (big_sepL2_length with "Hcall_prog") as %Hai_call_len.
-    assert (isCorrectPC_range pc_p pc_b pc_e a2 a_call_end) as Hvpc3.
+    assert (isCorrectPC_range pc_p pc_b pc_e f2 a_call_end) as Hvpc3.
     { eapply isCorrectPC_range_restrict. apply Hvpc.
       generalize (contiguous_between_bounds _ _ _ Hcont_rest').
       generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
-      apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+      apply contiguous_between_middle_bounds' with (ai:=f2) in Hcont_rest;[|repeat constructor].
       clear -Hcont_rest; solve_addr. }
     assert (isCorrectPC_range pc_p pc_b pc_e a_call_end a_last) as Hvpc4.
     { eapply isCorrectPC_range_restrict. apply Hvpc.
       generalize (contiguous_between_bounds _ _ _ Hcont_call).
       generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
-      apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+      apply contiguous_between_middle_bounds' with (ai:=f2) in Hcont_rest;[|repeat constructor].
       clear -Hcont_rest; solve_addr. }
     (* prepare the registers *)
     iDestruct (big_sepM_delete _ _ r_adv with "Hregs") as "[Hr_adv Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//
@@ -281,7 +281,7 @@ Section roe.
 
       (* Since there is just one local register, it is easier to just step through rather than using the macro spec *)
       rewrite /restore_locals_instrs.
-      destruct ai_rest';[inversion Hlength_rest'|]. apply contiguous_between_cons_inv_first in Hcont_rest' as Heq;subst a3.
+      destruct ai_rest';[inversion Hlength_rest'|]. apply contiguous_between_cons_inv_first in Hcont_rest' as Heq;subst f3.
       destruct ai_rest';[inversion Hlength_rest'|].
       iRename "Hprog" into "Hprog_inv".
       (* lea r_t2 -1 *)
@@ -301,8 +301,8 @@ Section roe.
       iDestruct "Hbel'" as "[Hbel' _]".
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
-      iAssert (⌜(b_l =? a3)%a = false⌝)%I as %Hfalse.
-      { destruct (decide (b_l = a3)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+      iAssert (⌜(b_l =? f3)%a = false⌝)%I as %Hfalse.
+      { destruct (decide (b_l = f3)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
         iDestruct (mapsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hr_env $Hr_t2 Hbel']");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 1|..].
@@ -313,8 +313,8 @@ Section roe.
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
       iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd.
-      iAssert (⌜(b =? a4)%a = false⌝)%I as %Hfalse'.
-      { destruct (decide (b = a4)%Z); [subst|iPureIntro;apply Z.eqb_neq,neq_z_of;auto].
+      iAssert (⌜(b =? f4)%a = false⌝)%I as %Hfalse'.
+      { destruct (decide (b = f4)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
         iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hr_t4 $Hr_env Hd]");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..].
@@ -338,14 +338,14 @@ Section roe.
                 apply contiguous_between_cons_inv_first in Hcont_rest' as Heq'; subst x). apply Hcont_rest'. }
       iDestruct "Hcont" as %(Hcont_assert & Hcont_rest'' & Heqapp'' & Hlink'').
       iDestruct (big_sepL2_length with "Hassert_prog") as %Hai_assert_len.
-      assert (isCorrectPC_range pc_p pc_b pc_e a6 a_assert_end) as Hvpc5.
+      assert (isCorrectPC_range pc_p pc_b pc_e f6 a_assert_end) as Hvpc5.
       { eapply isCorrectPC_range_restrict. apply Hvpc.
         generalize (contiguous_between_bounds _ _ _ Hcont_rest').
         generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
         generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
         generalize (contiguous_between_bounds _ _ _ Hcont_call).
-        apply contiguous_between_middle_bounds' with (ai:=a6) in Hcont_rest';[|repeat constructor].
-        apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=f6) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=f2) in Hcont_rest;[|repeat constructor].
         clear -Hcont_rest' Hcont_rest. solve_addr. }
       assert (isCorrectPC_range pc_p pc_b pc_e a_assert_end a_last) as Hvpc6.
       { eapply isCorrectPC_range_restrict. apply Hvpc.
@@ -353,8 +353,8 @@ Section roe.
         generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
         generalize (contiguous_between_bounds _ _ _ Hcont_malloc).
         generalize (contiguous_between_bounds _ _ _ Hcont_call).
-        apply contiguous_between_middle_bounds' with (ai:=a6) in Hcont_rest';[|repeat constructor].
-        apply contiguous_between_middle_bounds' with (ai:=a2) in Hcont_rest;[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=f6) in Hcont_rest';[|repeat constructor].
+        apply contiguous_between_middle_bounds' with (ai:=f2) in Hcont_rest;[|repeat constructor].
         clear -Hcont_rest' Hcont_rest Hlink''. solve_addr. }
 
       (* assert macro *)
@@ -369,7 +369,7 @@ Section roe.
       (* halt *)
       iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest''.
       destruct ai_rest'';[inversion Hlength_rest''|]. destruct ai_rest'';[|inversion Hlength_rest''].
-      apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst a7.
+      apply contiguous_between_cons_inv_first in Hcont_rest'' as Heq; subst f7.
       iPrologue "Hprog".
       iApply (wp_halt with "[$HPC $Hi]");
         [apply decode_encode_instrW_inv|iCorrectPC a_assert_end a_last|..].

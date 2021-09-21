@@ -1,7 +1,13 @@
 -Q theories/ cap_machine
+-Q machine_utils/theories/ machine_utils
 -arg -w -arg -convert_concl_no_check
 -arg -w -arg -several-object-files
 -arg -w -arg -ssr-search-moved
+machine_utils/theories/finz.v
+machine_utils/theories/finz_base.v
+machine_utils/theories/finz_interval.v
+machine_utils/theories/finz_lemmas.v
+machine_utils/theories/solve_finz.v
 theories/iris_extra.v
 theories/stdpp_extra.v
 theories/map_simpl.v

@@ -472,7 +472,7 @@ Section list.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hi & >Hr1 & >Hr2 & >Hr2a) Hφ".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iDestruct (address_neq with "Hr2a Hi") as %Hneq. iIntros (->%z_of_eq). done. }
+    { rewrite Z.eqb_neq. iDestruct (address_neq with "Hr2a Hi") as %Hneq. iIntros (->%finz_to_z_eq). done. }
     iApply (wp_load_success with "[$HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;iFrame.
   Qed.
 
@@ -496,7 +496,7 @@ Section list.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hpc_a & >Hr1 & >Ha) Hφ".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iDestruct (address_neq with "Ha Hpc_a") as %Hneq. iIntros (->%z_of_eq). done. }
+    { rewrite Z.eqb_neq. iDestruct (address_neq with "Ha Hpc_a") as %Hneq. iIntros (->%finz_to_z_eq). done. }
     iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]");eauto;rewrite Hfalse;iFrame.
   Qed.
 
@@ -695,7 +695,7 @@ Section list.
     pose proof (contiguous_between_region_addrs bnew enew Hle').
     rewrite /region_mapsto. set (l:=(region_addrs bnew enew)). rewrite -/l in H1.
     iDestruct (big_sepL2_length with "Hbe'") as %Hlen_eq. simpl in Hlen_eq.
-    destruct l;[inversion Hlen_eq|]. apply contiguous_between_cons_inv_first in H1 as Heq. subst a.
+    destruct l;[inversion Hlen_eq|]. apply contiguous_between_cons_inv_first in H1 as Heq. subst f.
     destruct l;[inversion Hlen_eq|]. destruct l;[|inversion Hlen_eq].
     iDestruct "Hbe'" as "[Hbnew [Ha _] ]".
     rewrite delete_insert. 2: rewrite !lookup_insert_ne// elem_of_gmap_dom_none Hdom;set_solver.
@@ -881,7 +881,7 @@ Section list.
       iApply "Hφ". iFrame.
       iDestruct ("Hcls'" with "[$Ha $Ha']") as "HisList".
       iSplitR "Hll HisList";[|iExists _;iFrame]. iExists d,d',_. iFrame. iSplit;auto.
-      iPureIntro. assert (z_of d = b)%Z as <-;[clear -e;lia|]. apply z_to_addr_z_of. }
+      iPureIntro. assert (z_of d = b)%Z as <-;[clear -e;lia|]. apply finz_of_z_to_z. }
 
     iGo "Hprog". congruence.
     generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 8)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.

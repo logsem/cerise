@@ -1,330 +1,12 @@
 From Coq Require Import ZArith Lia.
 From stdpp Require Import list.
 From cap_machine Require Import addr_reg.
+From machine_utils Require Import solve_finz.
 
-(* Automation: a [solve_addr] tactic that solves address arithmetic *)
-
-(* This is implemented as a zify-like tactic, that sends arithmetic on adresses
-   into Z, and then calls lia *)
-
-(* Faster alternative to [set (H := v) in *] *)
-(* https://github.com/coq/coq/issues/13788#issuecomment-767217670 *)
-Ltac fast_set H v :=
-  pose v as H; change v with H;
-  repeat match goal with H' : context[v] |- _ => change v with H in H' end.
-
-Lemma incr_addr_spec (a: Addr) (z: Z) :
-  (exists (a': Addr),
-   (a + z)%a = Some a' ∧ a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z
-  ∨
-  ((a + z)%a = None ∧ (a + z > MemNum ∨ a + z < 0))%Z.
-Proof.
-  unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); [ left | right; split; auto; try lia..].
-  eexists. repeat split; lia.
-Qed.
-
-Ltac incr_addr_as_spec a x :=
-  generalize (incr_addr_spec a x); intros [(?&?&?&?&?)|(?&[?|?])];
-  let ax := fresh "ax" in
-  fast_set ax (incr_addr a x);
-  clearbody ax; subst ax.
-
-(* Non-branching lemma for the special case of an assumption [(a + z) = Some a'],
-   which is common in practice. *)
-Lemma incr_addr_Some_spec (a a': Addr) (z: Z) :
-  (a + z)%a = Some a' →
-  (a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z.
-Proof.
-  unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); inversion 1.
-  repeat split; lia.
-Qed.
-
-Lemma incr_addr_is_Some_spec (a: Addr) z :
-  (a + z ≤ MemNum ∧ 0 ≤ a + z)%Z →
-  is_Some (a + z)%a.
-Proof.
-  unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; lia.
-Qed.
-
-Lemma incr_addr_Some_prove_spec (a a': Addr) (z: Z) :
-  (a + z ≤ MemNum ∧ 0 ≤ a + z ∧ (a':Z) = a + z)%Z →
-  (a + z)%a = Some a'.
-Proof.
-  unfold incr_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); eauto; try lia.
-  intros. apply f_equal. apply z_of_eq. cbn. lia.
-Qed.
-
-Lemma incr_addr_default_spec (a: Addr) z :
-  (0 ≤ z_of a + z ∧ z_of a + z < MemNum ∧ z_of (a ^+ z)%a = z_of a + z)%Z ∨
-  ((z_of a + z < 0 ∨ top ≤ z_of a + z) ∧ z_of (a ^+ z)%a = MemNum)%Z.
-Proof.
-  unfold incr_addr_default, incr_addr, get_addr_from_option_addr.
-  destruct (Z_le_dec (a + z)%Z MemNum),(Z_le_dec 0 (a + z)%Z); cbn; lia.
-Qed.
-
-Ltac incr_addr_default_as_spec a x :=
-  generalize (incr_addr_default_spec a x); intros ?;
-  let ax := fresh "ax" in
-  fast_set ax (incr_addr_default a x);
-  clearbody ax.
-
-Lemma z_to_addr_spec (z: Z) :
-  (exists (a: Addr),
-    z_to_addr z = Some a ∧ z_of a = z) ∨
-  (z_to_addr z = None ∧ (z > MemNum ∨ z < 0))%Z.
-Proof.
-  unfold z_to_addr.
-  destruct (Z_le_dec z MemNum).
-  { destruct (Z_le_dec 0 z).
-    { left. eexists. split; auto. }
-    { right; split; auto; lia. } }
-  { right. destruct (Z_le_dec 0 z); split; auto; lia. }
-Qed.
-
-Ltac z_to_addr_as_spec z :=
-  generalize (z_to_addr_spec z); intros [[? [? ?]] | [? [?|?]]];
-  let o := fresh "o" in
-  fast_set o (z_to_addr z);
-  clearbody o; subst o.
-
-Lemma z_to_addr_is_Some_spec z a :
-  z_to_addr z = Some a →
-  z_of a = z.
-Proof.
-  destruct (z_to_addr_spec z) as [[? [? ?]]|[? ?]]; congruence.
-Qed.
-
-Lemma z_to_addr_Some_spec z a :
-  z_of a = z →
-  z_to_addr z = Some a.
-Proof.
-  intros. destruct (z_to_addr_spec z) as [[? [? ?]]|[? ?]].
-  all: subst; rewrite z_to_addr_z_of in *; auto.
-Qed.
-
-Lemma Some_eq_inj A (x y: A) :
-  Some x = Some y ->
-  x = y.
-Proof. congruence. Qed.
-
-(* Instantiated in [solve_addr_extra.v] *)
-Ltac zify_addr_op_nonbranching_step_hook :=
-  fail.
-
-Ltac zify_addr_op_nonbranching_step :=
-  lazymatch goal with
-  | |- @eq Addr ?a ?a' =>
-    apply z_of_eq
-  | H : @eq Addr ?a ?a' |- _ =>
-    apply eq_z_of in H
-  | |- not (@eq Addr ?a ?a') =>
-    apply z_of_neq
-  | H : not (@eq Addr ?a ?a') |- _ =>
-    apply neq_z_of in H
-  | |- @eq (option Addr) (Some _) (Some _) =>
-    f_equal
-  | H : @eq (option Addr) (Some _) (Some _) |- _ =>
-    apply Some_eq_inj in H
-  | |- @eq (option Addr) (Some _) None =>
-    exfalso
-  | |- @eq (option Addr) None (Some _) =>
-    exfalso
-
-  (* wrapper definitions to unfold (<=, <, etc) *)
-  | |- context [ le_lt_addr _ _ _ ] =>
-    unfold le_lt_addr
-  | H : context [ le_lt_addr _ _ _ ] |- _ =>
-    unfold le_lt_addr in H
-  | |- context [ le_addr _ _ ] =>
-    unfold le_addr
-  | H : context [ le_addr _ _ ] |- _ =>
-    unfold le_addr in H
-  | |- context [ leb_addr _ _ ] =>
-    unfold leb_addr
-  | H : context [ leb_addr _ _ ] |- _ =>
-    unfold leb_addr in H
-  | |- context [ lt_addr _ _ ] =>
-    unfold lt_addr
-  | H : context [ lt_addr _ _ ] |- _ =>
-    unfold lt_addr in H
-  | |- context [ ltb_addr _ _ ] =>
-    unfold ltb_addr
-  | H : context [ ltb_addr _ _ ] |- _ =>
-    unfold ltb_addr in H
-  | |- context [ eqb_addr _ _ ] =>
-    unfold eqb_addr
-  | H : context [ eqb_addr _ _ ] |- _ =>
-    unfold eqb_addr in H
-
-  | H : context [ min ?a1 ?a2 ] |- _ =>
-    min_addr_as_spec a1 a2
-  | |- context [ min ?a1 ?a2 ] =>
-    min_addr_as_spec a1 a2
-  | H : context [ max ?a1 ?a2 ] |- _ =>
-    max_addr_as_spec a1 a2
-  | |- context [ max ?a1 ?a2 ] =>
-    max_addr_as_spec a1 a2
-
-  | H : context [ incr_addr_default ?a ?x ] |- _ =>
-    incr_addr_default_as_spec a x
-  | |- context [ incr_addr_default ?a ?x ] =>
-    incr_addr_default_as_spec a x
-
-  | H : is_Some (incr_addr _ _) |- _ =>
-    destruct H
-  | H : incr_addr _ _ = Some _ |- _ =>
-    apply incr_addr_Some_spec in H;
-    destruct H as (? & ? & ?)
-  | |- is_Some (incr_addr _ _) =>
-    apply incr_addr_is_Some_spec
-  | |- incr_addr _ _ = Some _ =>
-    apply incr_addr_Some_prove_spec
-
-  | H : z_to_addr _ = Some _ |- _ =>
-    apply z_to_addr_is_Some_spec in H
-  | |- z_to_addr _ = Some _ =>
-    apply z_to_addr_Some_spec
-  end || zify_addr_op_nonbranching_step_hook.
-
-(* We need some reduction, but naively calling "cbn in *" causes performance
-   problems down the road. So here we try to:
-   - give a "good enough" allow-list
-   - reduce all occurences of [length foo], because in practice [foo] often
-     unfolds to a concrete list of instructions and we want its length to compute.
-*)
-Ltac solve_addr_cbn :=
-  cbn [z_of get_addr_from_option_addr top za fst snd length];
-  simpl length.
-
-Ltac solve_addr_cbn_in_all :=
-  cbn [z_of get_addr_from_option_addr top za fst snd length] in *;
-  simpl length in *.
-
-Ltac zify_addr_nonbranching_step :=
-  first [ progress solve_addr_cbn_in_all
-        | zify_addr_op_nonbranching_step ].
-
-Ltac zify_addr_op_branching_goal_step :=
-  lazymatch goal with
-  | |- context [ incr_addr ?a ?x ] =>
-    incr_addr_as_spec a x
-  | |- context [ z_to_addr ?x ] =>
-    z_to_addr_as_spec x
-  end.
-
-Ltac zify_addr_op_branching_hyps_step :=
-  lazymatch goal with
-  | _ : context [ incr_addr ?a ?x ] |- _ =>
-    incr_addr_as_spec a x
-  | _ : context [ z_to_addr ?x ] |- _ =>
-    z_to_addr_as_spec x
-  end.
-
-Ltac zify_addr_ty_step_on a :=
-  generalize (addr_spec a); intros [? ?];
-  let z := fresh "z" in
-  fast_set z (z_of a);
-  clearbody z;
-  first [ clear a | revert dependent a ].
-
-Ltac zify_addr_ty_step_var :=
-  lazymatch goal with
-  | a : Addr |- _ => zify_addr_ty_step_on a
-  end.
-
-Ltac zify_addr_ty_step_subterm :=
-  match goal with
-  | H : context [ ?x ] |- _ =>
-    lazymatch type of x with Addr =>
-      let X := fresh in
-      set (X := x) in *;
-      zify_addr_ty_step_on X
-    end
-  end.
-
-Ltac zify_addr_ty_step :=
-  first [ zify_addr_ty_step_var | zify_addr_ty_step_subterm ].
-
-(** zify_addr **)
-(* This greedily translates all the address-related terms in the goal and in the
-   context. Because each (_ + _) introduces a disjunction, the number of goals
-   quickly explodes if there are many (_ + _) in the context.
-
-   The solve_addr tactic below is more clever and tries to limit the
-   combinatorial explosion, but zify_addr does not. *)
-
-Ltac zify_addr :=
-  intros; solve_addr_cbn;
-  repeat (first [ zify_addr_nonbranching_step
-                | zify_addr_op_branching_goal_step
-                | zify_addr_op_branching_hyps_step ]);
-  repeat zify_addr_ty_step; intros.
-
-
-(** solve_addr *)
-(* From a high-level perspective, [solve_addr] is equivalent to [zify_addr]
-   followed by [lia].
-
-   However, this gets very slow when there are many (_ + _) in the context (and
-   some of those may not be relevant to prove the goal at hand), so the
-   implementation is a bit more clever. Instead, we try to call [lia] as soon as
-   possible to quickly terminate sub-goals than can be proved before the whole
-   context gets translated. *)
-
-Ltac zify_addr_op_goal_step :=
-  first [ zify_addr_nonbranching_step
-        | zify_addr_op_branching_goal_step ].
-
-Ltac zify_addr_op_deepen :=
-  zify_addr_op_branching_hyps_step;
-  repeat zify_addr_nonbranching_step;
-  try (
-    zify_addr_op_branching_hyps_step;
-    repeat zify_addr_nonbranching_step
-  ).
-
-Ltac solve_addr_close_proof :=
-  repeat zify_addr_ty_step; intros;
-  solve [ auto | lia | congruence ].
-
-Ltac solve_addr :=
-  intros; solve_addr_cbn;
-  repeat zify_addr_op_goal_step;
-  try solve_addr_close_proof;
-  repeat (
-    zify_addr_op_deepen;
-    try solve_addr_close_proof
-  );
-  solve_addr_close_proof.
-
-Tactic Notation "solve_addr" := solve_addr.
+Ltac zify_addr := zify_finz.
+Tactic Notation "solve_addr" := solve_finz.
 Tactic Notation "solve_addr" "-" hyp_list(Hs) := clear Hs; solve_addr.
 Tactic Notation "solve_addr" "+" hyp_list(Hs) := clear -Hs; solve_addr.
-
-Goal forall a : Addr,
-    (a + -(a + 3))%a = None.
-Proof.
-  intros. solve_addr.
-Qed.
-
-Goal forall (a a' b b' : Addr),
-  (a + 1)%a = Some a' ->
-  (b + 1)%a = Some b' ->
-  (a + 0)%a = Some a.
-Proof.
-  intros.
-  repeat zify_addr_op_goal_step; [].
-  solve_addr_close_proof.
-Qed.
-
-Goal forall a a',
-  (a + 15)%a = Some a' →
-  z_to_addr (a + 4) = Some (a ^+ 4)%a.
-Proof. solve_addr. Qed.
 
 (* --------------------------- BASIC LEMMAS --------------------------------- *)
 
@@ -341,7 +23,7 @@ Proof. solve_addr. Qed.
 Lemma incr_addr_opt_add_twice (a: Addr) (n m: Z) :
   (0 <= n)%Z ->
   (0 <= m)%Z ->
-  ^(^(a + n) + m)%a = ^(a + (n + m)%Z)%a.
+  ((a ^+ n) ^+ m)%a = (a ^+ (n + m)%Z)%a.
 Proof. solve_addr. Qed.
 
 Lemma incr_addr_opt_add_twice' (a: Addr) (n m: Z) :
@@ -412,7 +94,7 @@ Proof. solve_addr. Qed.
 
 Lemma incr_addr_ne a i :
   i ≠ 0%Z → a ≠ top →
-  ^ (a + i)%a ≠ a.
+  (a ^+ i)%a ≠ a.
 Proof. intros H1 H2. intro. apply H2. solve_addr. Qed.
 
 Lemma incr_addr_ne_top a z a' :
@@ -422,8 +104,8 @@ Proof. intros. intro. solve_addr. Qed.
 
 Lemma get_addrs_from_option_addr_comm a i k :
   (k >= 0)%Z -> (i >= 0)%Z ->
-  (^(^(a + i) + k)%a) =
-  (^(a + (i + k)%Z)%a).
+  (((a ^+ i) ^+ k)%a) =
+  ((a ^+ (i + k)%Z)%a).
 Proof. solve_addr. Qed.
 
 Lemma incr_addr_of_z (a a' : Addr) :

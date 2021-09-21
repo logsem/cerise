@@ -178,8 +178,8 @@ Section SimpleMalloc.
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
     (* lea r_t2 4 *)
     do 3 (destruct l as [|? l];[inversion Hprog_len|]).
-    assert (a0 + 4 = Some a3)%a as Hlea1.
-    { apply contiguous_between_incr_addr_middle with (i:=1) (j:=4) (ai:=a0) (aj:=a3) in Hcont;auto. }
+    assert (f + 4 = Some f3)%a as Hlea1.
+    { apply contiguous_between_incr_addr_middle with (i:=1) (j:=4) (ai:=f) (aj:=f3) in Hcont;auto. }
     iPrologue "Hprog" "Hsprog".
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2]")
       as "(Hj & HsPC & Hsi & Hs2)";
@@ -245,8 +245,8 @@ Section SimpleMalloc.
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
     iPrologue "Hprog" "Hsprog".
-    assert ((a3 + (malloc_subroutine_instrs_length - 5))%a = Some b_m) as Hlea.
-    { assert (b + 5 = Some a3)%a. apply contiguous_between_incr_addr with (i:=5) (ai:=a3) in Hcont;auto.
+    assert ((f3 + (malloc_subroutine_instrs_length - 5))%a = Some b_m) as Hlea.
+    { assert (b + 5 = Some f3)%a. apply contiguous_between_incr_addr with (i:=5) (ai:=f3) in Hcont;auto.
       clear -H Hb_bm. solve_addr. }
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2]")
       as "(Hj & HsPC & Hsi & Hs2)";
@@ -376,16 +376,16 @@ Section SimpleMalloc.
       iNext. iIntros (regs' retv) "(Hspec' & ? & ?)". iDestruct "Hspec'" as %Hspec.
       destruct Hspec as [| Hfail].
       { exfalso. unfold addr_of_argument in *. simplify_map_eq.
-        repeat match goal with H:_ |- _ => apply z_to_addr_eq_inv in H end; subst.
+        repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
       { cbn. iApply wp_pure_step_later; auto. iNext. iApply wp_value. auto. } }
     iMod (step_subseg_success _ [SeqCtx] with "[$Hj $Hspec $HsPC $Hsi $Hs4 $Hs3 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs3 & Hs1 & Hs4)";
-      [apply decode_encode_instrW_inv| |split;apply z_to_addr_z_of|done|done|auto..].
+      [apply decode_encode_instrW_inv| |split;apply finz_of_z_to_z|done|done|auto..].
     { apply HPC; repeat constructor. }
     { iContiguous_next Hcont 12. }
     iApply (wp_subseg_success with "[$HPC $Hi $Hr4 $Hr3 $Hr1]");
-      [apply decode_encode_instrW_inv| |apply z_to_addr_z_of|apply z_to_addr_z_of|done|done|..].
+      [apply decode_encode_instrW_inv| |apply finz_of_z_to_z|apply finz_of_z_to_z|done|done|..].
     { apply HPC; repeat constructor. }
     { iContiguous_next Hcont 12. }
     iEpilogue_both "(HPC & Hi & Hr3 & Hr1 & Hr4)".

@@ -462,7 +462,7 @@ Proof.
     assert (prog_start p <= prog_end p)%a.
     { solve_addr. }
     rewrite (region_addrs_cons (prog_lower_bound t));[|solve_addr].
-    simpl. rewrite Ht /=. split;auto.
+    simpl. rewrite (addr_incr_eq Ht) /=. split;auto.
     rewrite /prog_region /mkregion.
     apply not_elem_of_list_to_map.
     rewrite fst_zip. apply not_elem_of_region_addrs. solve_addr.

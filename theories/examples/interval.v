@@ -337,13 +337,13 @@ Section interval.
     (* we begin by preparing the resources for that store *)
     rewrite /region_mapsto /region_addrs_zeroes.
     destruct (ib + 1)%a eqn:Hi;[|exfalso;solve_addr+Hibounds Hi].
-    assert (region_addrs ib ie = [ib;a0]) as ->.
-    { rewrite (region_addrs_split _ a0);[|solve_addr+Hi Hibounds].
+    assert (region_addrs ib ie = [ib;f]) as ->.
+    { rewrite (region_addrs_split _ f);[|solve_addr+Hi Hibounds].
       rewrite region_addrs_single// region_addrs_single;[|solve_addr+Hi Hibounds]. auto. }
     assert ((region_size ib ie) = 2) as ->;[rewrite /region_size;solve_addr+Hibounds|iSimpl in "Hie"].
     iDestruct "Hie" as "(Hi1 & Hi2 & _)".
     assert (withinBounds ib ie ib = true) as Hwbi;[solve_addr+Hi Hibounds|].
-    assert (withinBounds ib ie a0 = true) as Hwbi2;[solve_addr+Hi Hibounds|].
+    assert (withinBounds ib ie f = true) as Hwbi2;[solve_addr+Hi Hibounds|].
     (* get the general purpose register to remember r_t0 *)
     assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
@@ -356,7 +356,7 @@ Section interval.
              | E => WCap RX pc_b pc_e (a_mid1 ^+ 7)%a
              | _ => WCap pc_p pc_b pc_e (a_mid1 ^+ 7)%a
                end : Word)= WCap pc_p pc_b pc_e (a_mid1 ^+ 7)%a) as ->;[destruct pc_p;auto;by inversion Hexec|].
-      assert ((a0 + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
+      assert ((f + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
       iGo "Hblock".
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
@@ -409,7 +409,7 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite /incr_addr_default Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
@@ -425,7 +425,7 @@ Section interval.
 
     - (* if z2 is less than or equal to z1 *)
       iInstr "Hblock".
-      assert ((a0 + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
+      assert ((f + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
       iGo "Hblock".
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
@@ -478,7 +478,7 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite /(incr_addr_default a) Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].

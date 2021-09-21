@@ -70,8 +70,7 @@ Section fundamental.
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (WCap p b e a))).
     - assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
-      { eapply in_range_is_correctPC; eauto.
-        unfold le_addr; lia. }
+      { eapply in_range_is_correctPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
       { inversion i. subst. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|simpl].

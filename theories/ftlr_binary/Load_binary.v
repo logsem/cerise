@@ -65,7 +65,6 @@ Section fundamental.
     case_decide as Hdec. 1: destruct Hdec as [Hallows Haeq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
          apply andb_prop in Hwb as [Hle Hge].
-         rewrite /leb_addr in Hle,Hge.
 
          (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
          assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.

@@ -1,12 +1,13 @@
-From cap_machine Require Import solve_addr machine_base classes.
+From cap_machine Require Import machine_base classes.
+From machine_utils Require Import solve_finz.
 
-(* Extend [solve_addr] to handle more pure arithmetic goals from
+(* Extend [solve_finz] to handle more pure arithmetic goals from
    [machine_base.v] and [classes.v] *)
 
 Ltac without_evars c :=
   (has_evar c; fail 1) || idtac.
 
-Global Ltac zify_addr_op_nonbranching_step_hook ::=
+Global Ltac zify_finz_op_nonbranching_step_hook ::=
   lazymatch goal with
   | H : ContiguousRegion _ _ |- _ => unfold ContiguousRegion in H
   | |- ContiguousRegion _ _ => unfold ContiguousRegion

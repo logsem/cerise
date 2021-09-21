@@ -268,9 +268,7 @@ Definition withinBounds b e a: bool :=
 Lemma withinBounds_true_iff b e a :
   withinBounds b e a = true ↔ (b <= a)%a ∧ (a < e)%a.
 Proof.
-  unfold withinBounds.
-  rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
-  rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
+  unfold withinBounds. solve_addr.
 Qed.
 
 Lemma withinBounds_le_addr b e a:
@@ -334,14 +332,14 @@ Lemma isWithin_implies a0 a1 b e:
   isWithin a0 a1 b e = true →
   (b <= a0 ∧ a1 <= e)%a.
 Proof.
-  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+  rewrite /isWithin. solve_addr.
 Qed.
 
 Lemma isWithin_of_le a0 a1 b e:
   (b <= a0 ∧ a1 <= e)%a →
   isWithin a0 a1 b e = true.
 Proof.
-  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+  rewrite /isWithin. solve_addr.
 Qed.
 
 (* isCorrectPC: valid capabilities for PC *)
@@ -359,8 +357,8 @@ Proof.
   destruct w.
   - right. red; intros H. inversion H.
   - case_eq (match p with RX | RWX => true | _ => false end); intros.
-    + destruct (Addr_le_dec b a).
-      * destruct (Addr_lt_dec a e).
+    + destruct (finz_le_dec b a).
+      * destruct (finz_lt_dec a e).
         { left. econstructor; simpl; eauto. by auto.
           destruct p; naive_solver. }
         { right. red; intro HH. inversion HH; subst. solve_addr. }
@@ -381,8 +379,7 @@ Lemma isCorrectPCb_isCorrectPC w :
 Proof.
   rewrite /isCorrectPCb. destruct w.
   { split; try congruence. inversion 1. }
-  { rewrite /leb_addr /ltb_addr.
-    rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
+  { rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
     { intros [? ?]. constructor. solve_addr. naive_solver. }
@@ -447,7 +444,7 @@ Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
   - apply isCorrectPC_bounds with a0 a2; auto.
-  - apply z_of_eq in Heq2. rewrite Heq2. auto.
+  - apply finz_to_z_eq in Heq2. rewrite Heq2. auto.
 Qed.
 
 Lemma isCorrectPC_withinBounds p b e a :
@@ -537,7 +534,7 @@ Proof.
 Qed.
 
 Instance word_inhabited: Inhabited Word := populate (WInt 0).
-Instance addr_inhabited: Inhabited Addr := populate (A 0%Z eq_refl eq_refl).
+Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 
 
 Instance instr_countable : Countable instr.
