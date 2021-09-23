@@ -9,20 +9,10 @@ Ltac without_evars c :=
 
 Global Ltac zify_finz_op_nonbranching_step_hook ::=
   lazymatch goal with
-  | H : ContiguousRegion _ _ |- _ => unfold ContiguousRegion in H
-  | |- ContiguousRegion _ _ => unfold ContiguousRegion
-  | H : SubBounds _ _ _ _ |- _ => unfold SubBounds in H
-  | |- SubBounds ?b ?e ?b' ?e' =>
-    without_evars b; without_evars e; without_evars b'; without_evars e';
-    unfold SubBounds
-  | H : InBounds _ _ _ |- _ => unfold InBounds in H
-  | |- InBounds ?b ?e ?a =>
-    without_evars b; without_evars e; without_evars a;
-    unfold InBounds
-  | H : IncrAddr _ _ _ |- _ => unfold IncrAddr in H
-  | |- IncrAddr ?a ?z ?a' =>
+  | H : IncrFinZ _ _ _ |- _ => unfold IncrFinZ in H
+  | |- IncrFinZ ?a ?z ?a' =>
     without_evars a; without_evars z; without_evars a';
-    unfold IncrAddr
+    unfold IncrFinZ
   | H : withinBounds _ _ _ = true |- _ =>
     apply withinBounds_le_addr in H
   | |- withinBounds ?b ?e ?a = true =>

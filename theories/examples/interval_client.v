@@ -203,7 +203,7 @@ Section interval_client.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     iDestruct "Hr_t20" as (w5) "Hr_t20".
-    iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact2".
+    iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact2".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hact2)".
 
     rewrite updatePcPerm_cap_non_E;[|by inv Hvpci].
@@ -216,7 +216,7 @@ Section interval_client.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[by simplify_map_eq|].
-    iApply imin_spec;iFrameCapSolve;[..|iFrame "HsealLL Hseal_env Himin Hown HΦ"];[|eauto..|].
+    iApply imin_spec;iFrameAutoSolve;[..|iFrame "HsealLL Hseal_env Himin Hown HΦ"];[|eauto..|].
     solve_addr+Hboundsi.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitL "Hr_t5";[eauto|]. iSplitL "Hr_t20";[eauto|].
@@ -242,7 +242,7 @@ Section interval_client.
     iGo "Hblock". split;auto. solve_addr +Hd2 Hd3 Hd4.
     iGo "Hblock". unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact3".
+    iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact3".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hact3)".
 
     rewrite updatePcPerm_cap_non_E;[|by inv Hvpci].
@@ -250,7 +250,7 @@ Section interval_client.
     { iNext. iExists _,_. iFrame "Hact1 Hact2 Hact3". iFrame. auto. }
     iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
 
-    iApply imax_spec;iFrameCapSolve;[..|iFrame "HsealLL Hseal_env Himax Hown"];[|eauto..|].
+    iApply imax_spec;iFrameAutoSolve;[..|iFrame "HsealLL Hseal_env Himax Hown"];[|eauto..|].
     solve_addr+Hboundsi.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitL "Hr_t5";[eauto|]. iSplitL "Hr_t20";[eauto|].
@@ -291,7 +291,7 @@ Section interval_client.
 
     focus_block 1 "Hcode" as a_mid Ha_mid "Hblock" "Hcont".
     iMod (na_inv_acc with "Htable Hown") as "(>(Hpc_b & Ha_r') & Hown & Hcls')";auto.
-    iApply (assert_success with "[- $Hassert $Hown]");iFrameCapSolve. solve_ndisj. by auto.
+    iApply (assert_success with "[- $Hassert $Hown]");iFrameAutoSolve. solve_ndisj. by auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hblock & Hown & Hpc_b & Ha_r')".
     iMod ("Hcls'" with "[$Hown $Hpc_b $Ha_r']") as "Hown".
     unfocus_block "Hblock" "Hcont" as "Hcode".

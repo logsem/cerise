@@ -8,6 +8,10 @@ machine_utils/theories/finz_base.v
 machine_utils/theories/finz_interval.v
 machine_utils/theories/finz_lemmas.v
 machine_utils/theories/solve_finz.v
+machine_utils/theories/classes.v
+machine_utils/theories/class_instances.v
+machine_utils/theories/solve_pure.v
+machine_utils/theories/tactics.v
 theories/iris_extra.v
 theories/stdpp_extra.v
 theories/map_simpl.v

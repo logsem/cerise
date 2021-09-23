@@ -116,7 +116,7 @@ Section macros.
               & >Hr4 & >Hr5 & Hφ)".
     rewrite {1}/assert_instrs.
     focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
+    iApply fetch_spec; iFrameAutoSolve.
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
@@ -211,7 +211,7 @@ Section macros.
 
     rewrite {1}/malloc_instrs.
     focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
+    iApply fetch_spec; iFrameAutoSolve.
     iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
@@ -298,7 +298,7 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN Hsize)
             "(>Hprog & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hφ)".
-    iApply malloc_spec_alt; iFrameCapSolve; eauto. iFrame. iFrame "Hmalloc".
+    iApply malloc_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hmalloc".
     iSplitL. iNext. eauto. eauto.
   Qed.
 
@@ -397,7 +397,7 @@ Section macros.
     { (* if w is an integer, the getL will fail *)
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
-      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameCapSolve.
+      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameAutoSolve.
       iNext. iIntros "_".
       wp_pure.
       iApply wp_value. done. }
@@ -409,7 +409,7 @@ Section macros.
       wp_instr.
       assert (encodePerm p - encodePerm perm = 0)%Z as ->.
       { inversion Hperm as [Hp]. apply bool_decide_eq_true_1 in Hp as ->. lia. }
-      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameCapSolve.
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameAutoSolve.
       iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
       iDestruct ("Hcont" with "Hi") as "Hprog".
       iGo "Hprog".
@@ -475,7 +475,7 @@ Section macros.
       wp_instr.
       assert (r_e - r_b - minsize = 0)%Z as ->.
       { solve_addr. }
-      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameCapSolve.
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameAutoSolve.
       iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
       iDestruct ("Hcont" with "Hi") as "Hprog".
       iGo "Hprog".
@@ -761,7 +761,7 @@ Section macros.
     map_simpl "Hregs".
 
     focus_block 1 "Hprog" as amid1 Hamid1 "Hmallocprog" "Hcont".
-    iApply malloc_spec_alt; iFrameCapSolve; eauto; try iFrame "∗ #".
+    iApply malloc_spec_alt; iFrameAutoSolve; eauto; try iFrame "∗ #".
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
       f_equal. clear; set_solver. }
@@ -779,7 +779,7 @@ Section macros.
       by simplify_map_eq.
     map_simpl "Hregs".
 
-    iApply scrtcls_spec; iFrameCapSolve; iFrame "∗".
+    iApply scrtcls_spec; iFrameAutoSolve; iFrame "∗".
     iNext. iIntros "(HPC & Hscrtcls & Hr_t1 & Hbe & Hr_t6 & Hr_t7)".
     iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs".
       by simplify_map_eq.
@@ -839,7 +839,7 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN)
             "(>Hprog & >HPC & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
-    iApply crtcls_spec_alt; iFrameCapSolve; eauto. iFrame. iFrame "Hmalloc".
+    iApply crtcls_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hmalloc".
     iSplitL. iNext. eauto. eauto.
   Qed.
 

@@ -221,7 +221,7 @@ Section interval_closure.
                                   ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I
               with "[- Hfailed]"); cycle 1.
     { iIntros (v) "[ [ [ [ [H1 | H1] | H1] | H1] | H1] | H1]";iFrame; iDestruct "H1" as "->"; iFrame. }
-    iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[auto|auto|clear;lia|..].
+    iApply malloc_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hown Hregs"];[auto|auto|clear;lia|..].
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Henv & Hr_t0 & Hown & Hregs)".
     iDestruct "Henv" as (benv0 eenv Henvsize) "(Hr_t1 & Hbeenv)".
 
@@ -249,7 +249,7 @@ Section interval_closure.
 
     (* fetch the makeseal capability *)
     focus_block 2 "Hcode" as a_mid1 Ha_mid1 "Hblock" "Hcont".
-    iApply fetch_spec;iFrameCapSolve.
+    iApply fetch_spec;iFrameAutoSolve.
     iNext. iIntros "(HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Hmakeseal_r)".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
@@ -283,7 +283,7 @@ Section interval_closure.
 
     rewrite (insert_commute _ r_temp1 r_t2)//. rewrite insert_insert.
 
-    iApply make_seal_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hb_rs Hown Hregs"].
+    iApply make_seal_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hb_rs Hown Hregs"].
     { rewrite !dom_insert_L. rewrite Hdom. set_solver+. }
     { solve_addr+Hsealtable. }
     { solve_addr+Hsealtable. }
@@ -328,7 +328,7 @@ Section interval_closure.
     iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs";[by simplify_map_eq|].
     map_simpl "Hregs".
 
-    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    iApply crtcls_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
     { solve_ndisj. }
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
@@ -354,7 +354,7 @@ Section interval_closure.
     map_simpl "Hregs".
     focus_block 6 "Hcode" as a_mid5 Ha_mid5 "Hblock" "Hcont".
 
-    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    iApply crtcls_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
     { solve_ndisj. }
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
@@ -379,7 +379,7 @@ Section interval_closure.
 
     focus_block 8 "Hcode" as a_mid7 Ha_mid7 "Hblock" "Hcont".
 
-    iApply crtcls_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    iApply crtcls_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
     { solve_ndisj. }
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".

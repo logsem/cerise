@@ -4,6 +4,7 @@ From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
 From cap_machine Require Export class_instances solve_pure solve_addr_extra.
 From cap_machine Require Import NamedProp proofmode_instr_rules.
+From machine_utils Require Export tactics.
 From iris.bi Require Import bi.
 Import bi.
 
@@ -325,55 +326,9 @@ Proof.
     iApply (into_wand with "[HR]"). eauto. eauto. eauto. }
 Qed.
 
-(* Typeclasses to look-up framable resources in the goal *)
-
-Class EnvsLookupSpatial {PROP: bi} (Δ: envs PROP) (P: PROP) (i: ident) := {}.
-#[export] Hint Mode EnvsLookupSpatial + ! ! - : typeclass_instances.
-
-Instance EnvsLookupSpatial_here (PROP: bi) (Γp Γs: env PROP) P c i :
-  EnvsLookupSpatial (Envs Γp (Esnoc Γs i P) c) P i.
-Qed.
-
-Instance EnvsLookupSpatial_next (PROP: bi) (Γp Γs: env PROP) P Q c i j :
-  EnvsLookupSpatial (Envs Γp Γs c) Q j →
-  EnvsLookupSpatial (Envs Γp (Esnoc Γs i P) c) Q j.
-Qed.
-
-Class FramableMachineResource {Σ: gFunctors} (P: iProp Σ) := {}.
-#[export] Hint Mode FramableMachineResource + ! : typeclass_instances.
-
-Class LookupFramableMachineResource {Σ: gFunctors} (G: iProp Σ) (P: iProp Σ) := {}.
-#[export] Hint Mode LookupFramableMachineResource + ! - : typeclass_instances.
-
-Instance LookupFramableMachineResource_framable Σ (P: iProp Σ) :
-  FramableMachineResource P →
-  LookupFramableMachineResource P P.
-Qed.
-
-Instance LookupFramableMachineResource_sep_l Σ (G1 G2 P: iProp Σ) :
-  LookupFramableMachineResource G1 P →
-  LookupFramableMachineResource (G1 ∗ G2)%I P
-| 5.
-Qed.
-
-Instance LookupFramableMachineResource_sep_r Σ (G1 G2 P: iProp Σ) :
-  LookupFramableMachineResource G2 P →
-  LookupFramableMachineResource (G1 ∗ G2)%I P
-| 6. (* start looking left *)
-Qed.
-
-Instance LookupFramableMachineResource_later Σ (G P: iProp Σ) :
-  LookupFramableMachineResource G P →
-  LookupFramableMachineResource (▷ G)%I P.
-Qed.
-
-Class FramableMachineHyp {Σ} (Δ: envs (uPredI (iResUR Σ))) (G: iProp Σ) (i: ident) := {}.
-#[export] Hint Mode FramableMachineHyp + ! ! - : typeclass_instances.
-Instance FramableMachineHyp_default Σ (Δ: envs (uPredI (iResUR Σ))) G P i:
-  LookupFramableMachineResource G P →
-  EnvsLookupSpatial Δ P i →
-  FramableMachineHyp Δ G i.
-Qed.
+(* Typeclass instances to look-up framable resources in the goal, for
+   [FramableMachineResource] from [machine_utils/tactics.v]
+*)
 
 Class FramableRegisterPointsto (r: RegName) (w: Word) := {}.
 #[export] Hint Mode FramableRegisterPointsto + - : typeclass_instances.
@@ -409,47 +364,23 @@ Instance FramableMachineResource_codefrag `{memG Σ} a l :
   FramableMachineResource (codefrag a l).
 Qed.
 
-Definition framable_machine_hyp `{@FramableMachineHyp Σ Δ P i} := i.
 
+(* remembering names after auto-framing done by iFrameAuto *)
 
-(* The auto-framing tactic *)
 Ltac2 Type hyp_table_kind := [ Reg | Mem | Codefrag ].
 
-Ltac2 assert_constr_eq (c1: constr) (c2: constr) :=
-  match Constr.equal c1 c2 with
-  | false => Control.zero Match_failure (* backtrack *)
-  | true => ()
-  end.
-
-Ltac2 iFrameCapT (table: (constr * constr * hyp_table_kind) list ref) :=
-  lazy_match! goal with
-  [ |- envs_entails ?Δ ?p ] =>
-    let h := eval unfold framable_machine_hyp in (@framable_machine_hyp _ $Δ $p _ _) in
-    match! Δ with context [ Esnoc _ ?h' ?hh ] =>
-      assert_constr_eq h h';
-      let hname :=
-        lazy_match! h with
-        | INamed ?s => s
-        | IAnon _ => '("?")
-        end
-      in
-      let (lhs, kind) :=
-        lazy_match! hh with
-        | (?r ↦ᵣ _)%I => (r, Reg)
-        | (?a ↦ₐ{_} _)%I => (a, Mem)
-        | (codefrag ?a _) => (a, Codefrag)
-        end in
-      table.(contents) := (hname, lhs, kind) :: table.(contents)
-    end;
-    ltac1:(h |- iFrame h) (Ltac1.of_constr h)
-  end.
-
-Ltac2 iFrameCap () :=
-  let table := { contents := [] } in
-  let _ := iFrameCapT table in
-  ().
-
-Ltac iFrameCap := ltac2:(iFrameCap ()).
+Ltac2 record_framed
+      (table: (constr * constr * hyp_table_kind) list ref)
+      (framed: constr * constr)
+  :=
+  let (hname, hh) := framed in
+  let (lhs, kind) :=
+    lazy_match! hh with
+    | (?r ↦ᵣ _)%I => (r, Reg)
+    | (?a ↦ₐ{_} _)%I => (a, Mem)
+    | (codefrag ?a _) => (a, Codefrag)
+    end in
+  table.(contents) := (hname, lhs, kind) :: table.(contents).
 
 (* iApplyCapAuto *)
 
@@ -481,11 +412,6 @@ Ltac iNamedIntro :=
   let x := iFresh in
   iIntros x; iNamed x.
 Ltac2 iNamedIntro () := ltac1:(iNamedIntro).
-
-(* multi-goal repeat *)
-Ltac2 rec grepeat (t: unit -> unit) :=
-  ifcatch (fun _ => Control.progress t)
-    (fun _ => Control.check_interrupt (); grepeat t) (fun _ => ()).
 
 Ltac2 on_lasts tacs :=
   Control.extend [] (fun _ => ()) tacs.
@@ -538,7 +464,7 @@ Ltac iApplyCapAuto_init lemma :=
 
 (* Name resources in the goal according to the table *)
 
-Definition check_addr_eq (a b: Addr) `{AddrEq a b res} := res.
+Definition check_addr_eq (a b: Addr) `{FinZEq _ a b res} := res.
 
 Ltac2 name_cap_resource (name, lhs, kind) :=
   match kind with
@@ -583,11 +509,6 @@ Ltac2 iApplyCapAuto_cleanup () :=
 
 (* iApplyCapAutoCore *)
 
-Ltac2 iFrameCapSolve () :=
-  grepeat (fun _ =>
-    try (Control.plus iFrameCap (fun _ => Control.once solve_pure))).
-Ltac iFrameCapSolve := ltac2:(iFrameCapSolve ()).
-
 Ltac iNamedAccu_fail_explain :=
   lazymatch goal with
   | |- envs_entails _ (?remaining ∗ _) =>
@@ -597,9 +518,10 @@ Ltac iNamedAccu_fail_explain :=
 
 Ltac2 iApplyCapAutoCore lemma :=
   let tbl := iApplyCapAutoT_init0 lemma in
+  let iFrameCap := fun () => record_framed tbl (iFrameAuto ()) in
   grepeat (fun _ =>
     Control.extend [] (fun _ => try (Control.once solve_pure))
-      [ (fun _ => try (iFrameCapT tbl)); (fun _ => ()) ]);
+      [ (fun _ => try (iFrameCap ())); (fun _ => ()) ]);
   on_lasts [ (fun _ => ltac1:(iNamedAccu || iNamedAccu_fail_explain)); (fun _ => ()) ];
   on_lasts [ (fun _ =>
     iNamedIntro ();
@@ -617,7 +539,7 @@ Tactic Notation "iApplyCapAuto" constr(lem) :=
 
 (* iInstr *)
 
-Definition as_weak_addr_incr (a b: Addr) (z: Z) `{AsWeakAddrIncr a b z} :=
+Definition as_weak_addr_incr (a b: Addr) (z: Z) `{AsWeakFinZIncr _ a b z} :=
   (b, Z.to_nat z).
 
 Lemma addr_incr_zero (a: Addr) : (a ^+ 0)%a = a.

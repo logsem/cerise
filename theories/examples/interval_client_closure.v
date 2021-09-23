@@ -221,7 +221,7 @@ Section interval_client.
     (* trick to speed up tacticts that use solve_addr *)
     Local Opaque int_bounds int_table int_offsets.
     focus_block_0 "Hclient_cls" as "Hblock" "Hcont".
-    iApply malloc_spec_alt;iFrameCapSolve;[..|iFrame "Hown Hmalloc Hregs"].
+    iApply malloc_spec_alt;iFrameAutoSolve;[..|iFrame "Hown Hmalloc Hregs"].
     { rewrite !dom_delete_L. apply regmap_full_dom in Hfull as ->. set_solver+. }
     { auto. }
     { lia. }
@@ -252,7 +252,7 @@ Section interval_client.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     focus_block 2 "Hcode" as mid2 Hmid2 "Hblock" "Hcont".
-    iApply fetch_spec;iFrameCapSolve.
+    iApply fetch_spec;iFrameAutoSolve.
     iNext. iIntros "(HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Hint_cls_r)".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
@@ -270,7 +270,7 @@ Section interval_client.
     map_simpl "Hregs".
 
     Local Transparent int_bounds int_table int_offsets.
-    iApply interval_closure_functional_spec;iFrameCapSolve;
+    iApply interval_closure_functional_spec;iFrameAutoSolve;
       [..|iFrame "Hint Hseal Hs_b Hb_rs Hmalloc_r_i Hmakeseal_r_i Hmalloc Hregs Hown"];
       [destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?);
        destruct Hint_offsets as (?&?);eauto..|].
@@ -304,7 +304,7 @@ Section interval_client.
     iDestruct (big_sepM_insert _ _ r_temp7 with "[$Hregs $Hr_temp7]") as "Hregs";[by simplify_map_eq|].
     iDestruct (big_sepM_insert _ _ r_temp8 with "[$Hregs $Hr_temp8]") as "Hregs";[by simplify_map_eq|].
     map_simpl "Hregs".
-    iApply crtcls_spec_alt;iFrameCapSolve;[..|iFrame "Hmalloc Hregs Hown"].
+    iApply crtcls_spec_alt;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L !dom_delete_L.
       apply regmap_full_dom in Hfull as ->. set_solver+. }
     auto. iSplitR. iNext. iIntros (v) "H". iExact "H".
@@ -393,7 +393,7 @@ Section interval_client.
       destruct Hfullr with r_env as [wenv Hr_env].
       iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[by simplify_map_eq|].
 
-      iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact_code".
+      iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact_code".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hbe')".
       iMod ("Hcls" with "[$Hown $Hbe']") as "Hown".
       rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
@@ -402,7 +402,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
       destruct Hfullr with r_t0 as [w0' Hr_t0'].
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
-      iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env $Hassert]");iFrameCapSolve.
+      iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env $Hassert]");iFrameAutoSolve.
       all: cycle -2.
       { rewrite (addr_incr_eq Ha_imin) /=.
         assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
@@ -434,7 +434,7 @@ Section interval_client.
       destruct Hfullr with r_env as [wenv Hr_env].
       iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[by simplify_map_eq|].
 
-      iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact1".
+      iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact1".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hbe')".
       iMod ("Hcls" with "[$Hown $Hbe' $Hact2 $Hact3 $Hb Hb1 Hb2]") as "Hown".
       { iNext. iExists _,_. iFrame. auto. }
@@ -444,7 +444,7 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
-      iApply (makint_valid with "[- $Hmakeint_env $Hmalloc $Hmkint $Hregs $HsealLL $HsealN]");iFrameCapSolve.
+      iApply (makint_valid with "[- $Hmakeint_env $Hmalloc $Hmkint $Hregs $HsealLL $HsealN]");iFrameAutoSolve.
       solve_addr+ H3.
       { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
       all: try solve_ndisj. iSplitL "Hr_t20";[eauto|]. iFrame.
@@ -473,7 +473,7 @@ Section interval_client.
       destruct Hfullr with r_env as [wenv Hr_env].
       iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[by simplify_map_eq|].
 
-      iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact2".
+      iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact2".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hbe')".
       iMod ("Hcls" with "[$Hown $Hbe' $Hact1 $Hact3 $Hb Hb1 Hb2]") as "Hown".
       { iNext. iExists _,_. iFrame. auto. }
@@ -484,7 +484,7 @@ Section interval_client.
       Local Transparent int_table.
       destruct Hint_table as (?&?&?&?&?).
       rewrite (addr_incr_eq Ha_imin). iSimpl in "HPC".
-      iApply (imin_valid with "[- $Himin $Hregs $HsealLL $HsealN]");iFrameCapSolve.
+      iApply (imin_valid with "[- $Himin $Hregs $HsealLL $HsealN]");iFrameAutoSolve.
       solve_addr+ H3 Ha_imin.
       { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
       all: try solve_ndisj. iSplitL "Hr_t20";[eauto|]. iFrame.
@@ -513,7 +513,7 @@ Section interval_client.
       destruct Hfullr with r_env as [wenv Hr_env].
       iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[by simplify_map_eq|].
 
-      iApply closure_activation_spec;iFrameCapSolve. iFrame "Hact3".
+      iApply closure_activation_spec;iFrameAutoSolve. iFrame "Hact3".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hbe')".
       iMod ("Hcls" with "[$Hown $Hbe' $Hact1 $Hact2 $Hb Hb1 Hb2]") as "Hown".
       { iNext. iExists _,_. iFrame. auto. }
@@ -525,7 +525,7 @@ Section interval_client.
       destruct Hint_table as (?&?&?&?&?).
       rewrite (addr_incr_eq Ha_imin). iSimpl in "HPC".
       assert (a_imin ^+ 12%nat = a_imax)%a as ->;[solve_addr +Ha_imax Ha_imin|].
-      iApply (imax_valid with "[- $Himax $Hregs $HsealLL $HsealN]");iFrameCapSolve.
+      iApply (imax_valid with "[- $Himax $Hregs $HsealLL $HsealN]");iFrameAutoSolve.
       solve_addr+ H3 Ha_imin Ha_imax.
       { rewrite !dom_delete_L. apply regmap_full_dom in Hfullr as ->. set_solver+. }
       all: try solve_ndisj. iSplitL "Hr_t20";[eauto|]. iFrame.

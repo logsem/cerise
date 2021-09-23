@@ -301,21 +301,6 @@ Lemma le_addr_withinBounds' b e a:
 Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
 
 
-Definition ContiguousRegion (a: Addr) (z: Z): Prop :=
-  is_Some (a + z)%a.
-
-Definition SubBounds (b e: Addr) (b' e': Addr) :=
-  (b <= b')%a ∧ (b' <= e')%a ∧ (e' <= e)%a.
-
-Definition InBounds (b e a: Addr):=
-  (b <= a)%a ∧ (a < e)%a.
-
-Lemma InBounds_sub b e b' e' a :
-  SubBounds b e b' e' →
-  InBounds b' e' a →
-  InBounds b e a.
-Proof. intros (? & ? & ?) [? ?]. unfold InBounds. solve_addr. Qed.
-
 Lemma withinBounds_InBounds b e a :
   InBounds b e a →
   withinBounds b e a = true.

@@ -683,7 +683,7 @@ Section list.
     { rewrite !lookup_insert_ne//. rewrite elem_of_gmap_dom_none Hdom. set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
     { rewrite !lookup_insert_ne//. rewrite elem_of_gmap_dom_none Hdom. set_solver. }
-    iApply malloc_spec; iFrameCapSolve. 4: iFrame "∗ #". rewrite !dom_insert_L Hdom. clear. set_solver by lia.
+    iApply malloc_spec; iFrameAutoSolve. 4: iFrame "∗ #". rewrite !dom_insert_L Hdom. clear. set_solver by lia.
     solve_ndisj. lia.
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_r' & Hreg & Hr_t0 & Hown & Hregs)".
     unfocus_block "Hmalloc_prog" "Hcont" as "Hprog".
@@ -717,7 +717,7 @@ Section list.
       unfocus_block "Hprog" "Hcont" as "Hprog".
 
       focus_block 3 "Hprog" as a_middle'' Ha_middle'' "Hprog" "Hcont".
-      iApply iterate_to_last_spec; iFrameCapSolve. destruct hd; simpl in His_cap; try congruence.
+      iApply iterate_to_last_spec; iFrameAutoSolve. destruct hd; simpl in His_cap; try congruence.
       iSplitL "Hr_t2"; [eauto|]. iSplitL "Hr_t3"; [eauto|]. iFrame.
       iNext. iIntros "Hiter".
       iDestruct "Hiter" as (dlast dlast') "(HPC & HisList & (%&%) & Hr_t4 & Hr_t2 & Hr_t3 & Hprog)".

@@ -179,7 +179,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     focus_block 1 "Hprog" as mid Hmid "Hprog" "Hcont".
-    iApply reqperm_spec;iFrameCapSolve.
+    iApply reqperm_spec;iFrameAutoSolve.
     iNext. destruct (isPermWord wsealed RWX) eqn:Hperm;[|iFrame].
     destruct wsealed as [z|p b e a];[inversion Hperm|].
     apply bool_decide_eq_true_1 in Hperm as <-.
@@ -187,7 +187,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     focus_block 2 "Hprog" as mid0 Hmid0 "Hprog" "Hcont".
-    iApply reqsize_spec;iFrameCapSolve.
+    iApply reqsize_spec;iFrameAutoSolve.
     iNext. destruct (1 =? e - b)%Z eqn:Hsize;cycle 1.
     { iFrame. }
     iIntros "HH". iDestruct "HH" as (w1 w0) "(Hprog & HPC & Hr_t3 & Hr_t1 & Hr_t2)".
@@ -199,7 +199,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     focus_block 4 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    iApply findb_spec; iFrameCapSolve; eauto.
+    iApply findb_spec; iFrameAutoSolve; eauto.
     iFrame "# ∗". iSplitL "Hr_t2"; eauto. iSplitL "Hr_t3"; eauto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & HisList & Hr_t3 & Hprog & Hown)".
     iDestruct "HisList" as (b_a b' b'' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env & #HΦ)".
@@ -404,7 +404,7 @@ Section sealing.
 
     rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
-    iApply malloc_spec_alt; iFrameCapSolve. 4: iFrame "# ∗".
+    iApply malloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
     set_solver. auto. lia.
     iSplitL "". iNext. auto.
     iSplitL "". iNext. iRight. auto.
@@ -428,7 +428,7 @@ Section sealing.
     rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
-    iApply crtcls_spec_alt; iFrameCapSolve. 3: iFrame "# ∗".
+    iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".
     set_solver+ Hdom. auto.
     iSplitL ""; eauto. iSplitL ""; eauto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hseal)".
@@ -450,7 +450,7 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs"; [simplify_map_eq; auto|].
     map_simpl "Hregs".
-    iApply crtcls_spec; iFrameCapSolve. 3: iFrame "# ∗".
+    iApply crtcls_spec; iFrameAutoSolve. 3: iFrame "# ∗".
     set_solver+ Hdom. auto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hunseal)".
     iDestruct "Hunseal" as (b2 e2) "(Hb2eq & Hr_t1 & Hunseal & Hr_t0 & Hr_t2 & Hown & Hregs)".

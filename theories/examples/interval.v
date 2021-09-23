@@ -287,7 +287,7 @@ Section interval.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[|auto|clear;lia|..].
+    iApply malloc_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hown Hregs"];[|auto|clear;lia|..].
     { rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct r_t6) as Hin1. pose proof (all_registers_s_correct r_t7) as Hin2.
       pose proof (all_registers_s_correct r_t1) as Hin3. pose proof (all_registers_s_correct r_t2) as Hin4.
       pose proof (all_registers_s_correct r_env) as Hin5.
@@ -363,7 +363,7 @@ Section interval.
       (* activation code *)
       assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
-      iApply closure_activation_spec; iFrameCapSolve. iFrame "Hseal".
+      iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
 
       (* seal subroutine *)
@@ -432,7 +432,7 @@ Section interval.
       (* activation code *)
       assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
-      iApply closure_activation_spec; iFrameCapSolve. iFrame "Hseal".
+      iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
 
       (* seal subroutine *)
@@ -562,7 +562,7 @@ Section interval.
       [simplify_map_eq; apply not_elem_of_dom; rewrite Hdom;set_solver+|].
 
 
-    iApply makeint_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    iApply makeint_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     { rewrite dom_insert_L !dom_delete_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
     iSplitR.
     { iNext. iIntros (Hcontr). done. }
@@ -689,7 +689,7 @@ Section interval.
     assert (withinBounds d d' d = true) as Hwb;[solve_addr|].
     iGo "Hcode".
 
-    iApply closure_activation_spec; iFrameCapSolve. iFrame "Hunseal".
+    iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hunseal".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hunseal)".
     codefrag_facts "Hunsealseal_codefrag".
 
@@ -697,7 +697,7 @@ Section interval.
     focus_block_0 "Hunsealseal_codefrag" as "Hblock" "Hcont".
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
-    iApply unseal_spec;iFrameCapSolve;[|iFrame "∗ #"]. solve_ndisj.
+    iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
@@ -810,7 +810,7 @@ Section interval.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
-    iApply imin_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    iApply imin_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
     iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
     iSplitL "Hr_t20";[eauto|]. iSplitR.
@@ -936,7 +936,7 @@ Section interval.
     assert (withinBounds d d' d = true) as Hwb;[solve_addr|].
     iGo "Hcode".
 
-    iApply closure_activation_spec; iFrameCapSolve. iFrame "Hunseal".
+    iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hunseal".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hunseal)".
     codefrag_facts "Hunsealseal_codefrag".
 
@@ -944,7 +944,7 @@ Section interval.
     focus_block_0 "Hunsealseal_codefrag" as "Hblock" "Hcont".
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
-    iApply unseal_spec;iFrameCapSolve;[|iFrame "∗ #"]. solve_ndisj.
+    iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
@@ -1055,7 +1055,7 @@ Section interval.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
-    iApply imax_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    iApply imax_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
     iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
     iSplitL "Hr_t20";[eauto|]. iSplitR.

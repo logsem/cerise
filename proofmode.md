@@ -105,9 +105,9 @@ Assuming we have `"Hblock" : codefrag a_first (encodeInstrsW [...])`:
 
 Assuming we have `"Hblock" : codefrag a_first macro_instrs`:
 
-Call `iApply macro_spec; iFrameCapSolve.`
+Call `iApply macro_spec; iFrameAutoSolve.`
 
-The `iFrameCapSolve` tactic (also used internally by `iInstr`) will attempt to
+The `iFrameAutoSolve` tactic (also used internally by `iInstr`) will attempt to
 frame resources and prove side-conditions as much as possible.
 
 ### Opening invariants
@@ -133,10 +133,10 @@ manual steps. One needs to do:
 - `solve_pure_addr`: like `solve_pure`, but can also call `solve_addr` itself to
   solve address arithmetic. Slower, for interactive proofs.
 
-- `iFrameCap`: try to frame a resource from the goal using the Iris context.
+- `iFrameAuto`: try to frame a resource from the goal using the Iris context.
   Currently handles register and memory points-to and `codefrag`.
 
-- `iFrameCapSolve`: multi-goal tactic, that repeats and combines `iFrameCap` and
+- `iFrameAutoSolve`: multi-goal tactic, that repeats and combines `iFrameAuto` and
   `solve_pure`.
 
 - `wp_instr`, `wp_pure`, `wp_end`: administrative reduction steps for WP.
@@ -178,7 +178,7 @@ manual steps. One needs to do:
 
 - `iApplyCapAuto_init rule` to apply the rule in "frame inference" mode;
   
-- `all: iFrameCapSolve` to frame resources and solve side conditions
+- `all: iFrameAutoSolve` to frame resources and solve side conditions
   
 - `iNamedAccu` to collect the remaining context and pass it to the second
   subgoal. This can fail at this point if there are remaining resources
@@ -190,9 +190,9 @@ manual steps. One needs to do:
   same names as before.
 
 
-### `iFrameCapSolve`
+### `iFrameAutoSolve`
 
-`iFrameCapSolve` calls `iFrameCap` and `solve_cap_pure` on all goals in a
+`iFrameAutoSolve` calls `iFrameAuto` and `solve_pure` on all goals in a
 loop (see `proofmode.v`).
 
 
