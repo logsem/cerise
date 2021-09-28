@@ -41,7 +41,7 @@ reg:
 
 reg_const:
   | r = reg; { Register r }
-  | c = expr; { Const c }
+  | c = expr; { Const (c) }
   | p = perm; { Perm p }
 
 perm:
