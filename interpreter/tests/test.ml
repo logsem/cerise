@@ -2,10 +2,6 @@ open Libinterp
 open Libinterp.Pretty_printer
 open Libinterp.Ast
 
-(* TODO add a testable for statement list *)
-
-
-
 let statement_eq (a : statement) (b : statement) = (a = b)
 let pprint_statement = Fmt.of_to_string string_of_statement
 
@@ -14,6 +10,10 @@ let statement_tst = Alcotest.testable pprint_statement statement_eq
 module To_test = struct
   let lex_parse = fun x ->
     List.hd @@ Parser.main Lexer.token @@ Lexing.from_string x
+  let enc_interleave a b = Encode.interleave_int (Z.of_string a) (Z.of_string b)
+  let enc_int a b = Encode.encode_int a b
+  let enc_split = Encode.split_int
+  let enc_dec_int a b = Encode.decode_int @@ Encode.encode_int a b
 end
 
 let make_op_test ((input, expect) : string * statement) =
@@ -45,9 +45,84 @@ let instr_tests = [
   ("halt", Halt);
 ]
 
+let z_tst =
+  let open Z in
+  let pprint_z = Fmt.of_to_string (format "%b") in
+  let z_eq (a : t) (b : t) = (a = b) in
+  Alcotest.testable pprint_z z_eq
+
+let test_encode_interleave () =
+  Alcotest.(check z_tst)
+    "interleaves as expected"
+    (Z.of_string "0b111001")
+    (To_test.enc_interleave "0b101" "0b110") 
+
+let test_encode_pos_pos_int () =
+  Alcotest.(check z_tst)
+    "positive integers"
+    (Z.of_string "0b11100100")
+    (To_test.enc_int (Z.of_string "0b101") (Z.of_string "0b110"))
+
+let test_encode_pos_neg_int () =
+  Alcotest.(check z_tst)
+    "positive first integer and negative second"
+    (Z.of_string "0b11100110")
+    (To_test.enc_int (Z.of_string "0b101") (Z.neg @@ Z.of_string "0b110"))
+
+let test_encode_neg_pos_int () =
+  Alcotest.(check z_tst)
+    "positive first integer and negative second"
+    (Z.of_string "0b11100101")
+    (To_test.enc_int (Z.neg @@ Z.of_string "0b101") (Z.of_string "0b110"))
+
+let test_encode_neg_neg_int () =
+  Alcotest.(check z_tst)
+    "positive first integer and negative second"
+    (Z.of_string "0b11100111")
+    (To_test.enc_int (Z.neg @@ Z.of_string "0b101") (Z.neg @@ Z.of_string "0b110"))
+
+let test_encode_split_int () =
+  Alcotest.(check (pair z_tst z_tst))
+    "splitting as expected"
+    ((Z.of_string "0b101"), (Z.of_string "0b110"))
+    (To_test.enc_split @@ Z.of_string "0b111001")
+
+let test_encode_decode_pos_pos_int () =
+  Alcotest.(check (pair z_tst z_tst))
+    "decoding an encoded number should retrieve the encoded numbers"
+    (Z.of_string "0b101", Z.of_string "0b110")
+    (To_test.enc_dec_int (Z.of_string "0b101") (Z.of_string "0b110"))
+
+let test_encode_decode_int_bulk ((a,b) : int * int) =
+  let x = Z.of_int a
+  and y = Z.of_int b in
+  Alcotest.test_case
+    (Format.sprintf "testing encode-decode of: %d, %d" a b) `Quick
+    (fun _ -> Alcotest.(check (pair z_tst z_tst))
+        "same output as input"
+        (x,y)
+        (To_test.enc_dec_int x y))
+
+let test_int_pair_list = [
+  (6, 28);
+  (496, 8128);
+  (-3, 10);
+  (809281, -182884);
+  (-554433, -9182);
+]
+
 let () =
   let open Alcotest in
-  run "Lex/Pars" [
-    "single instructions",
-    List.map make_op_test instr_tests
+  run "Lib" [
+    "Lex/Pars",
+      List.map make_op_test instr_tests;
+    "Encode/Decode", 
+      (test_case "interleave int" `Quick test_encode_interleave)::
+      (test_case "encode pos/pos int" `Quick test_encode_pos_pos_int)::
+      (test_case "encode pos/neg int" `Quick test_encode_pos_neg_int)::
+      (test_case "encode neg/pos int" `Quick test_encode_neg_pos_int)::
+      (test_case "encode neg/neg int" `Quick test_encode_neg_neg_int)::
+      (test_case "splitting of int" `Quick test_encode_split_int)::
+      (test_case "encode-decode pos/pos int" `Quick test_encode_decode_pos_pos_int)::
+      (List.map test_encode_decode_int_bulk test_int_pair_list)
   ]
