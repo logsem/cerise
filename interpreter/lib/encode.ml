@@ -1,4 +1,4 @@
-open Libinterp.Ast
+open Ast
 open Z
 
 exception DecodeException
