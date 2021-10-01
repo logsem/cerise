@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental proofmode.
 From cap_machine.examples Require Import addr_reg_sample malloc macros_new
-     interval_client_closure interval_client interval_closure dynamic_sealing_keys.
+     interval_client_closure interval_client interval_closure dynamic_sealing.
 From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine Require Import monotone.
@@ -356,7 +356,7 @@ Qed.
 
 Section int_client_adequacy.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ} {sealLLG: keylist_new.sealLLG Σ}
+          {nainv: logrel_na_invs Σ} {sealLLG: keylist.sealLLG Σ}
           `{memlayout: memory_layout}.
 
   Lemma int_client_correct :
@@ -685,7 +685,7 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy (GFunctor (authUR (monotoneUR keylist_new.prefR))) (* The extra resource needed by seal library *)
+  pose proof (template_adequacy (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
                                 int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
