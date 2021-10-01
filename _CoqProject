@@ -107,10 +107,8 @@ theories/examples/callback.v
 theories/examples/lse.v
 theories/examples/lse_adequacy.v
 theories/examples/macros_binary.v
-theories/examples/list_new.v
 theories/examples/dynamic_sealing.v
-theories/examples/keylist_new.v
-theories/examples/dynamic_sealing_keys.v
+theories/examples/keylist.v
 theories/examples/interval.v
 theories/examples/interval_closure.v
 theories/examples/interval_client.v
