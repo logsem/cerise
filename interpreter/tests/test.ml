@@ -160,6 +160,28 @@ let test_enc_dec_stm_list = [
   (Lt (Reg 5, Perm E, Register PC), "encode-decode Lt R5 E PC");
   (Lt (Reg 5, Perm O, Const 8128), "encode-decode Lt R5 O 8128");
   (Lt (Reg 5, Perm RWX, Perm RO), "encode-decode Lt R5 RWX RO");
+  (Lea (PC, Register (Reg 7)), "encode-decode Lea PC R7");
+  (Lea (PC, Const (-35)), "encode-decode Lea PC (-35)");
+  (Lea (PC, Perm E), "encode-decode Lea PC E");
+  (Restrict (PC, Register (Reg 7)), "encode-decode Restrict PC R7");
+  (Restrict (PC, Const (-35)), "encode-decode Restrict PC (-35)");
+  (Restrict (PC, Perm E), "encode-decode Restrict PC E");
+  (SubSeg (Reg 5, Register (Reg 6), Register PC), "encode-decode SubSeg R5 R6 PC");
+  (SubSeg (Reg 5, Register (Reg 6), Const 8128), "encode-decode SubSeg R5 R6 8128");
+  (SubSeg (Reg 5, Register (Reg 6), Perm RO), "encode-decode SubSeg R5 R6 RO");
+  (SubSeg (Reg 5, Const (-549), Register PC), "encode-decode SubSeg R5 (-549) PC");
+  (SubSeg (Reg 5, Const (102), Const 8128), "encode-decode SubSeg R5 102 8128");
+  (SubSeg (Reg 5, Const (83), Perm RO), "encode-decode SubSeg R5 83 RO");
+  (SubSeg (Reg 5, Perm E, Register PC), "encode-decode SubSeg R5 E PC");
+  (SubSeg (Reg 5, Perm O, Const 8128), "encode-decode SubSeg R5 O 8128");
+  (SubSeg (Reg 5, Perm RWX, Perm RO), "encode-decode SubSeg R5 RWX RO");
+  (IsPtr (Reg 6, Reg 28), "encode-decode IsPtr R6 R28");
+  (GetP (Reg 6, Reg 28), "encode-decode GetP R6 R28");
+  (GetB (Reg 6, Reg 28), "encode-decode GetB R6 R28");
+  (GetE (Reg 6, Reg 28), "encode-decode GetE R6 R28");
+  (GetA (Reg 6, Reg 28), "encode-decode GetA R6 R28");
+  (Fail, "encode-decode Fail");
+  (Halt, "encode-decode Halt");
 ]
 
 let () =

@@ -153,9 +153,9 @@ let encode_statement (s : statement): t =
   | GetP (r1, r2) -> !$"0x34" ^! (encode_int (encode_reg r1) (encode_reg r2))
   | GetB (r1, r2) -> !$"0x35" ^! (encode_int (encode_reg r1) (encode_reg r2))
   | GetE (r1, r2) -> !$"0x36" ^! (encode_int (encode_reg r1) (encode_reg r2))
-  | GetA (r1, r2) -> !$"0x36" ^! (encode_int (encode_reg r1) (encode_reg r2))
-  | Fail -> !$"0x37"
-  | Halt -> !$"0x38"
+  | GetA (r1, r2) -> !$"0x37" ^! (encode_int (encode_reg r1) (encode_reg r2))
+  | Fail -> !$"0x38"
+  | Halt -> !$"0x39"
 
 let decode_statement (i : t) : statement =
   let opc = extract i 0 8 
@@ -344,4 +344,135 @@ let decode_statement (i : t) : statement =
     end in
     Lt (r, c1, c2)
   end else
-    raise DecodeException
+  (* Lea *)
+  if opc = !$"0x24" (* register register *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r1 = decode_reg r_enc
+    and r2 = Register (decode_reg c_enc) in
+    Lea (r1, r2)
+  end else
+  if opc = !$"0x25" (* register const *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r = decode_reg r_enc
+    and c = Const (to_int c_enc) in
+    Lea (r, c)
+  end else
+  if opc = !$"0x26" (* register perm *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r = decode_reg r_enc
+    and p = Perm (decode_perm c_enc) in
+    Lea (r, p)
+  end else
+  (* Restrict *)
+  if opc = !$"0x27" (* register register *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r1 = decode_reg r_enc
+    and r2 = Register (decode_reg c_enc) in
+    Restrict (r1, r2)
+  end else
+  if opc = !$"0x28" (* register const *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r = decode_reg r_enc
+    and c = Const (to_int c_enc) in
+    Restrict (r, c)
+  end else
+  if opc = !$"0x29" (* register perm *)
+  then begin
+    let (r_enc, c_enc) = decode_int payload in
+    let r = decode_reg r_enc
+    and p = Perm (decode_perm c_enc) in
+    Restrict (r, p)
+  end else
+  (* SubSeg *)
+  if !$"0x29" < opc && opc < !$"0x2d"
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc
+    and c1 = Register (decode_reg c1_enc)
+    and c2 = begin
+      if opc = !$"0x2a" then Register (decode_reg c2_enc) else
+      if opc = !$"0x2b" then Const (to_int c2_enc) else
+      Perm (decode_perm c2_enc)
+    end in
+    SubSeg (r, c1, c2)
+  end else
+  if !$"0x2c" < opc && opc < !$"0x30"
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc
+    and c1 = Const (to_int c1_enc)
+    and c2 = begin
+      if opc = !$"0x2d" then Register (decode_reg c2_enc) else
+      if opc = !$"0x2e" then Const (to_int c2_enc) else
+      Perm (decode_perm c2_enc)
+    end in
+    SubSeg (r, c1, c2)
+  end else
+  if !$"0x2f" < opc && opc < !$"0x33"
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc
+    and c1 = Perm (decode_perm c1_enc)
+    and c2 = begin
+      if opc = !$"0x30" then Register (decode_reg c2_enc) else
+      if opc = !$"0x31" then Const (to_int c2_enc) else
+      Perm (decode_perm c2_enc)
+    end in
+    SubSeg (r, c1, c2)
+  end else
+  (* IsPtr *)
+  if opc = !$"0x33"
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc
+    and r2 = decode_reg r2_enc in
+    IsPtr (r1, r2)
+  end else
+  (* GetP *)
+  if opc = !$"0x34"
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc
+    and r2 = decode_reg r2_enc in
+    GetP (r1, r2)
+  end else
+  (* GetB *)
+  if opc = !$"0x35"
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc
+    and r2 = decode_reg r2_enc in
+    GetB (r1, r2)
+  end else
+  (* GetE *)
+  if opc = !$"0x36"
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc
+    and r2 = decode_reg r2_enc in
+    GetE (r1, r2)
+  end else
+  (* GetA *)
+  if opc = !$"0x37"
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc
+    and r2 = decode_reg r2_enc in
+    GetA (r1, r2)
+  end else
+  (* Fail *)
+  if opc = !$"0x38"
+  then Fail
+  else
+  (* Halt *)
+  if opc = !$"0x39"
+  then Halt
+  else raise DecodeException
