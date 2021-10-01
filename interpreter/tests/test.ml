@@ -14,6 +14,7 @@ module To_test = struct
   let enc_int a b = Encode.encode_int a b
   let enc_split = Encode.split_int
   let enc_dec_int a b = Encode.decode_int @@ Encode.encode_int a b
+  let enc_dec_stm s = Encode.decode_statement @@ Encode.encode_statement s
 end
 
 let make_op_test ((input, expect) : string * statement) =
@@ -111,12 +112,62 @@ let test_int_pair_list = [
   (-554433, -9182);
 ]
 
+let make_enc_dec_stm_tests (stm, test_name) =
+  Alcotest.test_case
+    test_name
+    `Quick
+    (fun _ ->
+       Alcotest.(check statement_tst)
+         "same statement"
+         stm
+         (To_test.enc_dec_stm stm))
+
+let test_enc_dec_stm_list = [
+  (Jmp PC, "encode-decode Jmp PC");
+  (Jmp (Reg 28), "encode-decode Jmp R28");
+  (Jnz (Reg 6, Reg 28), "encode-decode Jnz R6 R28");
+  (Move (PC, Register (Reg 7)), "encode-decode Move PC R7");
+  (Move (PC, Const (-35)), "encode-decode Move PC (-35)");
+  (Move (PC, Perm E), "encode-decode Move PC E");
+  (Load (Reg 9, PC), "encode-decode Load R9 PC");
+  (Store (PC, Register (Reg 7)), "encode-decode Store PC R7");
+  (Store (PC, Const (-35)), "encode-decode Store PC (-35)");
+  (Store (PC, Perm E), "encode-decode Store PC E");
+  (Add (Reg 5, Register (Reg 6), Register PC), "encode-decode Add R5 R6 PC");
+  (Add (Reg 5, Register (Reg 6), Const 8128), "encode-decode Add R5 R6 8128");
+  (Add (Reg 5, Register (Reg 6), Perm RO), "encode-decode Add R5 R6 RO");
+  (Add (Reg 5, Const (-549), Register PC), "encode-decode Add R5 (-549) PC");
+  (Add (Reg 5, Const (102), Const 8128), "encode-decode Add R5 102 8128");
+  (Add (Reg 5, Const (83), Perm RO), "encode-decode Add R5 83 RO");
+  (Add (Reg 5, Perm E, Register PC), "encode-decode Add R5 E PC");
+  (Add (Reg 5, Perm O, Const 8128), "encode-decode Add R5 O 8128");
+  (Add (Reg 5, Perm RWX, Perm RO), "encode-decode Add R5 RWX RO");
+  (Sub (Reg 5, Register (Reg 6), Register PC), "encode-decode Sub R5 R6 PC");
+  (Sub (Reg 5, Register (Reg 6), Const 8128), "encode-decode Sub R5 R6 8128");
+  (Sub (Reg 5, Register (Reg 6), Perm RO), "encode-decode Sub R5 R6 RO");
+  (Sub (Reg 5, Const (-549), Register PC), "encode-decode Sub R5 (-549) PC");
+  (Sub (Reg 5, Const (102), Const 8128), "encode-decode Sub R5 102 8128");
+  (Sub (Reg 5, Const (83), Perm RO), "encode-decode Sub R5 83 RO");
+  (Sub (Reg 5, Perm E, Register PC), "encode-decode Sub R5 E PC");
+  (Sub (Reg 5, Perm O, Const 8128), "encode-decode Sub R5 O 8128");
+  (Sub (Reg 5, Perm RWX, Perm RO), "encode-decode Sub R5 RWX RO");
+  (Lt (Reg 5, Register (Reg 6), Register PC), "encode-decode Lt R5 R6 PC");
+  (Lt (Reg 5, Register (Reg 6), Const 8128), "encode-decode Lt R5 R6 8128");
+  (Lt (Reg 5, Register (Reg 6), Perm RO), "encode-decode Lt R5 R6 RO");
+  (Lt (Reg 5, Const (-549), Register PC), "encode-decode Lt R5 (-549) PC");
+  (Lt (Reg 5, Const (102), Const 8128), "encode-decode Lt R5 102 8128");
+  (Lt (Reg 5, Const (83), Perm RO), "encode-decode Lt R5 83 RO");
+  (Lt (Reg 5, Perm E, Register PC), "encode-decode Lt R5 E PC");
+  (Lt (Reg 5, Perm O, Const 8128), "encode-decode Lt R5 O 8128");
+  (Lt (Reg 5, Perm RWX, Perm RO), "encode-decode Lt R5 RWX RO");
+]
+
 let () =
   let open Alcotest in
   run "Lib" [
     "Lex/Pars",
       List.map make_op_test instr_tests;
-    "Encode/Decode", 
+    "Encode/Decode Integer", 
       (test_case "interleave int" `Quick test_encode_interleave)::
       (test_case "encode pos/pos int" `Quick test_encode_pos_pos_int)::
       (test_case "encode pos/neg int" `Quick test_encode_pos_neg_int)::
@@ -124,5 +175,7 @@ let () =
       (test_case "encode neg/neg int" `Quick test_encode_neg_neg_int)::
       (test_case "splitting of int" `Quick test_encode_split_int)::
       (test_case "encode-decode pos/pos int" `Quick test_encode_decode_pos_pos_int)::
-      (List.map test_encode_decode_int_bulk test_int_pair_list)
+      (List.map test_encode_decode_int_bulk test_int_pair_list);
+    "Encode/Decode Statement",
+      List.map make_enc_dec_stm_tests test_enc_dec_stm_list
   ]
