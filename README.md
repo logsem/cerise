@@ -49,3 +49,10 @@ An HTML rendering of the development can be browsed online at
 [logsem.github.io/cerise/dev/](https://logsem.github.io/cerise/dev/). In
 particular, the index page provides an overview of the organisation of the
 formalization.
+
+A local copy of the HTML docs is also included in the `html/` directory.
+
+
+# Organization of the development
+
+See `html/index.html`.
