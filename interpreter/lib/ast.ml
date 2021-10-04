@@ -1,8 +1,8 @@
 (* Type definitions for the syntax AST *)
 type regname = PC | Reg of int
-and perm = O | E | RO | RX | RW | RWX
-and reg_or_const = Register of regname | Const of int | Perm of perm
-and machine_op
+type perm = O | E | RO | RX | RW | RWX
+type reg_or_const = Register of regname | Const of int | Perm of perm
+type machine_op
   = Jmp of regname
   | Jnz of regname * regname
   | Move of regname * reg_or_const
@@ -21,6 +21,6 @@ and machine_op
   | GetA of regname * regname
   | Fail
   | Halt
-and statement = machine_op (* TODO: PseudoOp and LabelDefs *)
+type statement = machine_op (* TODO: PseudoOp and LabelDefs *)
 
 type t = statement list

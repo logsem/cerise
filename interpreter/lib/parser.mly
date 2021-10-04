@@ -7,7 +7,7 @@
 %token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETP GETB GETE GETA FAIL HALT
 %token O E RO RX RW RWX
 
-%left PLUS MINUS
+%left PLUS MINUS EXPR
 %left UMINUS
 %start <Ast.t> main
 %{ open! Ast %}
@@ -41,7 +41,7 @@ reg:
 
 reg_const:
   | r = reg; { Register r }
-  | c = expr %prec PLUS { Const (c) }
+  | c = expr %prec EXPR { Const (c) }
   | p = perm; { Perm p }
 
 perm:
