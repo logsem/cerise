@@ -1,6 +1,5 @@
 (library
  (name        libinterp)
- (flags :standard -w -39) ; HACK, because of dummy parser
  (libraries zarith))
 
 (ocamllex lexer)
