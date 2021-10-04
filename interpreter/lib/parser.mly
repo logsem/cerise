@@ -41,7 +41,7 @@ reg:
 
 reg_const:
   | r = reg; { Register r }
-  | c = expr; { Const (c) }
+  | c = expr %prec PLUS { Const (c) }
   | p = perm; { Perm p }
 
 perm:
@@ -53,9 +53,9 @@ perm:
   | RWX; { RWX }
 
 expr:
-  | LPAREN; e = expr; RPAREN; { e }
-  | e1 = expr; PLUS; e2 = expr; { e1 + e2 }
-  | e1 = expr; MINUS; e2 = expr; { e1 - e2 }
+  | LPAREN; e = expr; RPAREN { e }
+  | e1 = expr; PLUS; e2 = expr { e1 + e2 }
+  | e1 = expr; MINUS; e2 = expr { e1 - e2 }
   | MINUS; e = expr %prec UMINUS { 0 - e }
   | i = INT { i }
 
