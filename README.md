@@ -11,6 +11,9 @@ of unknown code. The logical relation is much simpler than what one would need
 do reason about more complex stack-like properties: in particular, we only need
 to rely on standard Iris invariants.
 
+For more information, see this [extended
+article](https://cs.au.dk/~birke/papers/cerise.pdf) which provides a pedagogical
+but thorough overview of the work (currently submitted for publication).
 
 # Building the proofs
 
