@@ -1,7 +1,7 @@
 (* Type definitions for the syntax AST *)
 type regname = PC | Reg of int
 type perm = O | E | RO | RX | RW | RWX
-type reg_or_const = Register of regname | Const of int | Perm of perm
+type reg_or_const = Register of regname | Const of int | Perm of perm (* TODO: separate into two types *)
 type machine_op
   = Jmp of regname
   | Jnz of regname * regname

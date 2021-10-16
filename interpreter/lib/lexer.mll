@@ -20,12 +20,12 @@ rule token = parse
 | '\n' { Lexing.new_line lexbuf; token lexbuf }
 | ';' { comment lexbuf }
 | ((digit+) | ("0x" hex+)) as i { try INT (int_of_string i)
-                                  with _ -> error lexbuf ("Invalid integer '" ^ i ^ "'.")}
+                                  with Failure _ -> error lexbuf ("Invalid integer '" ^ i ^ "'.")}
 
 (* registers *)
 | ['p' 'P'] ['c' 'C'] { PC }
 | ['r' 'R'] (reg_num as n) { try REG (int_of_string n) 
-                             with _ -> error lexbuf ("Invalid register id '" ^ n ^ "'.")}
+                             with Failure _ -> error lexbuf ("Invalid register id '" ^ n ^ "'.")}
 
 (* machine_op *)
 | "jmp" { JMP }

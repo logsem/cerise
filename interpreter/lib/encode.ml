@@ -1,6 +1,6 @@
 open Ast
 
-exception DecodeException
+exception DecodeException of string
 
 (* Encodings of permissions satisfy
  * lattice structure by:
@@ -18,9 +18,13 @@ let encode_perm (p : perm) : Z.t =
   | RWX -> 0b111
 
 let decode_perm (i : Z.t) : perm =
+  let dec_perm_exception = fun _ -> raise @@ DecodeException "Error decoding permission: unexpected encoding" in
   let b0 = Z.testbit i 0 in
   let b1 = Z.testbit i 1 in
   let b2 = Z.testbit i 2 in
+  if Z.(i > (of_int 0b111))
+  then dec_perm_exception ()
+  else
   match (b2,b1,b0) with
   | (false, false, false) -> O
   | (false, false, true)  -> E
@@ -28,7 +32,7 @@ let decode_perm (i : Z.t) : perm =
   | (true, false, true)   -> RX
   | (true, true, false)   -> RW
   | (true, true, true)    -> RWX
-  | _ -> raise DecodeException
+  | _ -> dec_perm_exception ()
 
 let encode_reg (r : regname) : Z.t =
   match r with
@@ -472,4 +476,4 @@ let decode_statement (i : Z.t) : statement =
   (* Halt *)
   if opc = ~$0x39
   then Halt
-  else raise DecodeException
+  else raise @@ DecodeException "Error decoding instruction: unrecognized opcode"
