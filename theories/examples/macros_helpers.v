@@ -78,32 +78,13 @@ Ltac iPrologue prog :=
   iDestruct prog as "[Hi Hprog]";
   iApply (wp_bind (fill [SeqCtx])).
 
-Ltac iPrologue_both prog prog' :=
-  iDestruct prog as "[Hi Hprog]";
-  iDestruct prog' as "[Hsi Hsprog]";
-  iApply (wp_bind (fill [SeqCtx])).
-
 Ltac iEpilogue prog :=
   iNext; iIntros prog; iSimpl;
   iApply wp_pure_step_later;auto;iNext.
 
-Ltac iEpilogue_both prog :=
-  iNext; iIntros prog; iSimpl;
-  iApply wp_pure_step_later;auto;iNext;
-  iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto;
-  iSimpl in "Hj".
-
 Ltac iCombinePtrn :=
   iCombine "Hi" "Hprog_done" as "Hprog_done";
   iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
-
-Ltac consider_next_reg_both r1 r2 :=
-  destruct (decide (r1 = r2));[subst;rewrite !(lookup_insert _ r2);eauto|rewrite !(lookup_insert_ne _ r2);auto].
-
-(* Inline version *)
-Ltac consider_next_reg_both1 r1 r2 H1 H2 :=
-  destruct (decide (r1 = r2));
-  [ subst; rewrite !(lookup_insert _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
 
 Ltac middle_lt prev index :=
   match goal with
