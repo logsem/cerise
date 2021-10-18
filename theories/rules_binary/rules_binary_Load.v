@@ -188,7 +188,7 @@ Section cap_lang_spec_rules.
   Proof. 
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Ha)".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iIntros (->%z_of_eq). iDestruct (memspec_mapsto_valid_2 with "Ha Hpc_a") as %Hneq. done. }
+    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Ha Hpc_a") as %Hneq. done. }
     iMod (step_load_success_same with "[$HPC $Hpc_a $Hr1 $Hown $Hj Ha]") as "(?&?&?&?&?)";eauto;try rewrite Hfalse;by iFrame. 
   Qed.
 
@@ -266,7 +266,7 @@ Section cap_lang_spec_rules.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hr1 & >Hr2 & >Hr2a)".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iIntros (->%z_of_eq). iDestruct (memspec_mapsto_valid_2 with "Hr2a Hi") as %Hneq. done. }
+    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Hr2a Hi") as %Hneq. done. }
     iMod (step_load_success with "[$Hown $Hj $HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;by iFrame. 
   Qed.
   

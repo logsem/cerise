@@ -119,7 +119,7 @@ Section cap_lang_rules.
   Proof.
     intros regs mem r1 pc_a w w' p b e a H4 Hrr2.
     destruct (a =? pc_a)%a eqn:Heq.
-      + apply Z.eqb_eq, z_of_eq in Heq. subst a. eapply mem_eq_implies_allow_store_map; eauto.
+      + apply Z.eqb_eq, finz_to_z_eq in Heq. subst a. eapply mem_eq_implies_allow_store_map; eauto.
       + apply Z.eqb_neq in Heq.  eapply mem_neq_implies_allow_store_map; eauto. congruence.
   Qed.
 
@@ -433,7 +433,7 @@ Section cap_lang_rules.
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
        destruct (a0 =? pc_a)%a eqn:Heq; subst mem.
-       -  apply Z.eqb_eq, z_of_eq in Heq. subst a0.
+       -  apply Z.eqb_eq, finz_to_z_eq in Heq. subst a0.
           rewrite insert_insert.
           rewrite memMap_resource_1.
           incrementPC_inv.
@@ -472,8 +472,8 @@ Section cap_lang_rules.
    Proof.
      intros. iIntros "(HPC & Hpc_a & Hdst) Hφ".
      iApply (wp_store_success_reg' with "[$HPC $Hpc_a $Hdst]"); eauto.
-     { unfold eqb_addr. rewrite Z.eqb_refl. eauto. }
-     iNext. iIntros "(? & ? & ? & ?)". unfold eqb_addr. rewrite Z.eqb_refl.
+     { rewrite Z.eqb_refl. eauto. }
+     iNext. iIntros "(? & ? & ? & ?)". rewrite Z.eqb_refl.
      iApply "Hφ". iFrame. Unshelve. eauto.
    Qed.
 
@@ -499,7 +499,7 @@ Section cap_lang_rules.
      intros. iIntros "(>HPC & >Hpc_a & >Hdst & >Ha) Hφ".
      destruct (a =? pc_a)%a eqn:Ha.
      { rewrite (_: a = pc_a); cycle 1.
-       unfold eqb_addr in Ha; apply Z.eqb_eq in Ha; solve_addr.
+       apply Z.eqb_eq in Ha; solve_addr.
        by iDestruct (addr_dupl_false with "Ha Hpc_a") as "?". }
      iApply (wp_store_success_reg' with "[$HPC $Hpc_a $Hdst Ha]"); eauto.
      rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ?)". rewrite Ha.

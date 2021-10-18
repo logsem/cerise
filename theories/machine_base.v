@@ -353,9 +353,7 @@ Definition withinBounds_sr (b e a : OType): bool :=
 Lemma withinBounds_true_iff b e a :
   withinBounds b e a = true ↔ (b <= a)%a ∧ (a < e)%a.
 Proof.
-  unfold withinBounds.
-  rewrite /le_addr /lt_addr /leb_addr /ltb_addr.
-  rewrite andb_true_iff Z.leb_le Z.ltb_lt. auto.
+  unfold withinBounds. solve_addr.
 Qed.
 
 Lemma withinBounds_sr_true_iff b e a :
@@ -400,21 +398,6 @@ Lemma le_addr_withinBounds' b e a:
 Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
 
 
-Definition ContiguousRegion (a: Addr) (z: Z): Prop :=
-  is_Some (a + z)%a.
-
-Definition SubBounds (b e: Addr) (b' e': Addr) :=
-  (b <= b')%a ∧ (b' <= e')%a ∧ (e' <= e)%a.
-
-Definition InBounds (b e a: Addr):=
-  (b <= a)%a ∧ (a < e)%a.
-
-Lemma InBounds_sub b e b' e' a :
-  SubBounds b e b' e' →
-  InBounds b' e' a →
-  InBounds b e a.
-Proof. intros (? & ? & ?) [? ?]. unfold InBounds. solve_addr. Qed.
-
 Lemma withinBounds_InBounds b e a :
   InBounds b e a →
   withinBounds b e a = true.
@@ -431,14 +414,14 @@ Lemma isWithin_implies a0 a1 b e:
   isWithin a0 a1 b e = true →
   (b <= a0 ∧ a1 <= e)%a.
 Proof.
-  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+  rewrite /isWithin. solve_addr.
 Qed.
 
 Lemma isWithin_of_le a0 a1 b e:
   (b <= a0 ∧ a1 <= e)%a →
   isWithin a0 a1 b e = true.
 Proof.
-  rewrite /isWithin. rewrite andb_true_iff /le_addr !Z.leb_le. solve_addr.
+  rewrite /isWithin. solve_addr.
 Qed.
 
 (* Similar definitions for OTypes*)
@@ -488,15 +471,43 @@ Proof.
   - right. red; intros H. inversion H.
   - destruct sb as [p b e a | ].
     -- case_eq (match p with RX | RWX => true | _ => false end); intros.
-      + destruct (Addr_le_dec b a).
-        * destruct (Addr_lt_dec a e).
-          { left.  econstructor; simpl; eauto. by auto.
+      + destruct (finz_le_dec b a).
+        * destruct (finz_lt_dec a e).
+          { left. econstructor; simpl; eauto. by auto.
             destruct p; naive_solver. }
-          { right. intro HH. inversion HH; subst. solve_addr. }
-        * right. intros HH; inversion HH; subst. solve_addr.
+          { right. red; intro HH. inversion HH; subst. solve_addr. }
+        * right. red; intros HH; inversion HH; subst. solve_addr.
       + right. red; intros HH; inversion HH; subst. naive_solver.
     -- right. red; intros H. inversion H.
  - right. red; intros H. inversion H.
+Qed.
+
+Definition isCorrectPCb (w: Word): bool :=
+  match w with
+  | WInt _ => false
+  | WCap p b e a =>
+    (b <=? a)%a && (a <? e)%a &&
+    (isPerm p RX || isPerm p RWX)
+  end.
+
+Lemma isCorrectPCb_isCorrectPC w :
+  isCorrectPCb w = true ↔ isCorrectPC w.
+Proof.
+  rewrite /isCorrectPCb. destruct w.
+  { split; try congruence. inversion 1. }
+  { rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
+    rewrite /isPerm !bool_decide_eq_true.
+    split.
+    { intros [? ?]. constructor. solve_addr. naive_solver. }
+    { inversion 1; subst. split. solve_addr. naive_solver. } }
+Qed.
+
+Lemma isCorrectPCb_nisCorrectPC w :
+  isCorrectPCb w = false ↔ ¬ isCorrectPC w.
+Proof.
+  destruct (isCorrectPCb w) eqn:HH.
+  { apply isCorrectPCb_isCorrectPC in HH. split; congruence. }
+  { split; auto. intros _. intros ?%isCorrectPCb_isCorrectPC. congruence. }
 Qed.
 
 Lemma isCorrectPC_ra_wb pc_p pc_b pc_e pc_a :
@@ -582,7 +593,7 @@ Proof.
   intros Hvpc0 Hvpc2 [Hle0 Hle2].
   apply Z.lt_eq_cases in Hle2 as [Hlt2 | Heq2].
   - apply isCorrectPC_bounds with a0 a2; auto.
-  - apply z_of_eq in Heq2. rewrite Heq2. auto.
+  - apply finz_to_z_eq in Heq2. rewrite Heq2. auto.
 Qed.
 
 Lemma isCorrectPC_withinBounds p b e a :
@@ -690,7 +701,10 @@ Proof.
       end ).
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
-Defined.
+Qed.
+
+Instance word_inhabited: Inhabited Word := populate (WInt 0).
+Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 
 Instance instr_countable : Countable instr.
 Proof.

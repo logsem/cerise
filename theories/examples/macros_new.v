@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
-From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc.
+From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section macros.
@@ -63,141 +63,72 @@ Section macros.
   (* ------------------------------------- ASSERT ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
-  (* The assert macro relies on a convention for the failure flag. This file contains the
-     failure subroutine *)
-
-  (* The convention for the failure flag: one address after the last instruction of the failure subroutine *)
-  (* failing the assert will set the flag to 1 and then crash the program to a Failed configuration. The flag
-     capability is at one address after the instructions *)
-  Definition assert_fail_instrs :=
-    encodeInstrsW [
-      Mov r_t1 PC;
-      Lea r_t1 6;
-      Load r_t1 r_t1;
-      Store r_t1 1;
-      Mov r_t1 0;
-      Fail
-    ].
-
-  (* f_a is the offset of the failure subroutine in the linking table *)
-  (* assert r z asserts that the register r contains the integer z *)
-  (* r is assumed not to be r_t1 *)
-  Definition assert_r_z_instrs f_a (r: RegName) (z: Z) :=
+  Definition assert_instrs f_a :=
     fetch_instrs f_a ++
     encodeInstrsW [
-      Sub r r z;
-      Jnz r_t1 r;
-      Mov r_t1 0
+      Mov r_t2 r_t0;
+      Mov r_t0 PC;
+      Lea r_t0 3;
+      Jmp r_t1;
+      Mov r_t0 r_t2;
+      Mov r_t1 0;
+      Mov r_t2 0
     ].
 
   (* Spec for assertion success *)
-  (* Since we are not jumping to the failure subroutine, we do not need any assumptions
-     about the failure subroutine *)
-  Lemma assert_r_z_success f_a r z pc_p pc_b pc_e a_first
-        b_link e_link a_link a_entry fail_cap w_r w1 w2 w3 φ :
+  Lemma assert_success f_a pc_p pc_b pc_e a_first
+        b_link e_link a_link a_entry ba a_flag ea w0 w1 w2 w3 assertN EN n1 n2 φ :
     ExecPCPerm pc_p →
-    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_r_z_instrs f_a r z))%a →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_instrs f_a))%a →
     (* linking table assumptions *)
     withinBounds b_link e_link a_entry = true →
     (a_link + f_a)%a = Some a_entry ->
+    ↑assertN ⊆ EN →
     (* condition for assertion success *)
-    (w_r = WInt z) ->
+    (n1 = n2) →
 
-    ▷ codefrag a_first (assert_r_z_instrs f_a r z)
+    ▷ codefrag a_first (assert_instrs f_a)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea)
+    ∗ na_own logrel_nais EN
     ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
     ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ fail_cap
-    ∗ ▷ r ↦ᵣ w_r
+    ∗ ▷ a_entry ↦ₐ WCap E ba ea ba
+    ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ (r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ r ↦ᵣ WInt 0%Z
-         ∗ PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (assert_r_z_instrs f_a r z))%a
-         ∗ codefrag a_first (assert_r_z_instrs f_a r z)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ fail_cap
+    ∗ ▷ r_t4 ↦ᵣ WInt n1
+    ∗ ▷ r_t5 ↦ᵣ WInt n2
+    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a
+         ∗ r_t0 ↦ᵣ w0
+         ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
+         ∗ r_t4 ↦ᵣ WInt 0%Z ∗ r_t5 ↦ᵣ WInt 0%Z
+         ∗ codefrag a_first (assert_instrs f_a)
+         ∗ na_own logrel_nais EN
+         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+         ∗ a_entry ↦ₐ WCap E ba ea ba
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hvpc Hcont Hwb Htable Hsuccess)
-            "(>Hprog & >HPC & >Hpc_b & >Ha_entry & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3 & Hφ)".
-    subst w_r. rewrite {1}/assert_r_z_instrs.
+    iIntros (Hvpc Hcont Hwb Htable HN Hsuccess)
+            "(>Hprog & #Hinv & Hna & >HPC & >Hpc_b & >Ha_entry & >Hr0 & >Hr1 & >Hr2 & >Hr3
+              & >Hr4 & >Hr5 & Hφ)".
+    rewrite {1}/assert_instrs.
     focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
+    iApply fetch_spec; iFrameAutoSolve.
     iNext. iIntros "(HPC & Hfetch & Hr1 & Hr2 & Hr3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    iInstr "Hprog". rewrite (_: (z - z = 0)%Z); [| lia].
+    do 4 iInstr "Hprog".
+    iApply (assert_success_spec with "[- $Hinv $Hna $HPC $Hr0 $Hr4 $Hr5]"); auto.
+    iNext. iIntros "(Hna & HPC & Hr0 & Hr4 & Hr5)".
+    rewrite updatePcPerm_cap_non_E; [| solve_pure ].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ". iFrame.
-    changePCto (a_first ^+ length (assert_r_z_instrs f_a r z))%a. iFrame.
-  Qed.
-
-  (* Spec for assertion failure *)
-  (* When the assertion fails, the program jumps to the failure subroutine, sets the
-     flag (which by convention is one address after subroutine) and Fails *)
-  Lemma assert_r_z_fail f_a r z pc_p pc_b pc_e a_first z_r
-        b_link e_link a_link a_entry
-        f_b f_e f_a_first a_env (* fail subroutine *)
-        flag_p flag_b flag_e flag_a (* flag capability *)
-        w1 w2 w3 wf :
-    ExecPCPerm pc_p →
-    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_r_z_instrs f_a r z))%a →
-    (* linking table assumptions *)
-    withinBounds b_link e_link a_entry = true →
-    (a_link + f_a)%a = Some a_entry ->
-    (* failure subroutine assumptions *)
-    SubBounds f_b f_e f_a_first (f_a_first ^+ length assert_fail_instrs)%a →
-    (f_a_first + (length assert_fail_instrs))%a = Some a_env ->
-    withinBounds f_b f_e a_env = true ->
-    (* flag assumptions *)
-    withinBounds flag_b flag_e flag_a = true →
-    writeAllowed flag_p = true ->
-    (* condition for assertion failure *)
-    (z_r ≠ z) ->
-
-    (* the assert and assert failure subroutine programs *)
-    {{{ ▷ codefrag a_first (assert_r_z_instrs f_a r z)
-    ∗ ▷ codefrag f_a_first assert_fail_instrs
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    (* linking table and assertion flag *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link (* the linking table capability *)
-    ∗ ▷ a_entry ↦ₐ WCap E f_b f_e f_a_first (* the capability to the failure subroutine *)
-    ∗ ▷ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a (* the assertion flag capability *)
-    ∗ ▷ flag_a ↦ₐ wf (* the assertion flag *)
-    (* registers *)
-    ∗ ▷ r ↦ᵣ WInt z_r
-    ∗ ▷ r_t1 ↦ᵣ w1
-    ∗ ▷ r_t2 ↦ᵣ w2
-    ∗ ▷ r_t3 ↦ᵣ w3 }}}
-
-      Seq (Instr Executable)
-
-    {{{ RET FailedV; r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z ∗ (∃ z, r ↦ᵣ WInt z ∧ ⌜z ≠ 0⌝)
-         ∗ PC ↦ᵣ WCap RX f_b f_e (f_a_first ^+ (length assert_fail_instrs - 1))%a
-         ∗ codefrag a_first (assert_r_z_instrs f_a r z)
-         ∗ codefrag f_a_first assert_fail_instrs
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry ↦ₐ WCap E f_b f_e f_a_first
-         ∗ a_env ↦ₐ WCap flag_p flag_b flag_e flag_a ∗ flag_a ↦ₐ WInt 1%Z }}}.
-  Proof.
-    iIntros (Hexpc Hsub Hwb Htable Hsub' Henv Henvwb Hwb' Hwa Hfailure φ)
-            "(>Hprog & >Hprog' & >HPC & >Hpc_b & >Ha_entry & >Ha_env & >Hflag & >Hr & >Hr_t1 & >Hr_t2 & >Hr_t3) Hφ".
-    rewrite {1}/assert_r_z_instrs.
-    focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
-    iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
-    unfocus_block "Hfetch" "Hcont" as "Hprog".
-
-    focus_block 1 "Hprog" as amid1 Hamid1 "Hprog" "Hcont".
-    iInstr "Hprog".
-    iInstr "Hprog". by intros HH; inversion HH; lia.
-    unfocus_block "Hprog" "Hcont" as "Hprog".
-
-    rewrite {1}/assert_fail_instrs.
-    codefrag_facts "Hprog'". iGo "Hprog'".
-    wp_end. iApply "Hφ". iFrame. iExists _. iFrame. iPureIntro. lia.
+    changePCto (a_first ^+ length (assert_instrs f_a))%a. iFrame.
   Qed.
 
   (* --------------------------------------------------------------------------------- *)
@@ -260,7 +191,7 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v }}.
@@ -280,7 +211,7 @@ Section macros.
 
     rewrite {1}/malloc_instrs.
     focus_block_0 "Hprog" as "Hfetch" "Hcont".
-    iApply fetch_spec; iFrameCapSolve.
+    iApply fetch_spec; iFrameAutoSolve.
     iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
     unfocus_block "Hfetch" "Hcont" as "Hprog".
 
@@ -360,15 +291,201 @@ Section macros.
                                 (<[r_t4:=WInt 0%Z]>
                                  (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
-         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (region_addrs b e)⌝ *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
     iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN Hsize)
             "(>Hprog & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hφ)".
-    iApply malloc_spec_alt; iFrameCapSolve; eauto. iFrame. iFrame "Hmalloc".
+    iApply malloc_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hmalloc".
     iSplitL. iNext. eauto. eauto.
+  Qed.
+
+  (* -------------------------------------- REQPERM ----------------------------------- *)
+  (* the following macro requires that a given registers contains a capability with a
+     given (encoded) permission. If this is not the case, the macro goes to fail,
+     otherwise it continues *)
+
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
+     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
+  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
+    decodeInstrW w = get_i →
+    is_Get get_i dst src →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+      ∗ ▷ pc_a ↦ₐ w
+      ∗ ▷ dst ↦ᵣ wdst
+      ∗ ▷ src ↦ᵣ WInt zsrc }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  (* TODO: move this to the rules_Lea.v file. *)
+  Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
+    decodeInstrW w = Lea r1 (inr rv) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    (a + z)%a = None ->
+
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ r1 ↦ᵣ WCap p b e a
+           ∗ ▷ rv ↦ᵣ WInt z }}}
+       Instr Executable @ Ep
+     {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  (* ------------------------------- *)
+
+
+  Definition reqperm_instrs r z :=
+    encodeInstrsW [
+        GetP r_t1 r
+        ; Sub r_t1 r_t1 z
+        ; Mov r_t2 PC
+        ; Lea r_t2 6
+        ; Jnz r_t2 r_t1
+        ; Mov r_t2 PC
+        ; Lea r_t2 4
+        ; Jmp r_t2
+        ; Fail
+        ; Mov r_t1 0
+        ; Mov r_t2 0].
+
+  Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a →
+
+      ▷ codefrag a_first (reqperm_instrs r (encodePerm perm))
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r ↦ᵣ w
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ (if isPermWord w perm then
+           ∃ b e a', ⌜w = WCap perm b e a'⌝ ∧
+           (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a
+            ∗ codefrag a_first (reqperm_instrs r (encodePerm perm)) ∗
+            r ↦ᵣ WCap perm b e a' ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z
+            -∗ WP Seq (Instr Executable) {{ φ }})
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
+    codefrag_facts "Hprog".
+    destruct w.
+    { (* if w is an integer, the getL will fail *)
+      iInstr_lookup "Hprog" as "Hi" "Hcont".
+      wp_instr.
+      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameAutoSolve.
+      iNext. iIntros "_".
+      wp_pure.
+      iApply wp_value. done. }
+    (* if w is a capability, the getL will succeed *)
+    do 3 iInstr "Hprog".
+    destruct (isPermWord (WCap p b e a) perm) eqn:Hperm.
+    { iInstr "Hprog".
+      iInstr_lookup "Hprog" as "Hi" "Hcont".
+      wp_instr.
+      assert (encodePerm p - encodePerm perm = 0)%Z as ->.
+      { inversion Hperm as [Hp]. apply bool_decide_eq_true_1 in Hp as ->. lia. }
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameAutoSolve.
+      iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
+      iDestruct ("Hcont" with "Hi") as "Hprog".
+      iGo "Hprog".
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 9)%a)).
+      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iGo "Hprog".
+      iDestruct "Hφ" as (b' e' a' Heq) "Hφ". inv Heq.
+      iApply "Hφ"; iFrame. }
+    { iGo "Hprog".
+      inversion Hperm as [Hp]. apply bool_decide_eq_false_1 in Hp. intros Hcontr; inversion Hcontr as [Heq].
+      apply Zminus_eq,encodePerm_inj in Heq. subst p. done.
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 8)%a)).
+      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iGo "Hprog".
+      iApply wp_value. iFrame. }
+  Qed.
+
+  (* --------------------------------------- REQSIZE ----------------------------------- *)
+  (* This macro checks that the capability in r covers a memory range of size
+     (i.e. e-b) exactly equal to [minsize]. *)
+
+  Definition reqsize_exact_instrs r (exsize : Z) :=
+    encodeInstrsW
+      [ GetB r_t1 r ;
+      GetE r_t2 r;
+      Sub r_t1 r_t2 r_t1;
+      Sub r_t1 r_t1 exsize;
+      Mov r_t2 PC;
+      Lea r_t2 6;
+      Jnz r_t2 r_t1;
+      Mov r_t2 PC;
+      Lea r_t2 4;
+      Jmp r_t2;
+      Fail].
+
+  Lemma reqsize_spec r minsize pc_p pc_b pc_e a_first r_p r_b r_e r_a w1 w2 φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (reqsize_exact_instrs r minsize))%a →
+
+      ▷ codefrag a_first (reqsize_exact_instrs r minsize)
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r ↦ᵣ WCap r_p r_b r_e r_a
+    ∗ ▷ r_t1 ↦ᵣ w1
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ (if (minsize =? (r_e - r_b)%a)%Z then
+           (∃ w1 w2,
+            codefrag a_first (reqsize_exact_instrs r minsize)
+            ∗ PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqsize_exact_instrs r minsize))%a
+            ∗ r ↦ᵣ WCap r_p r_b r_e r_a
+            ∗ r_t1 ↦ᵣ w1
+            ∗ r_t2 ↦ᵣ w2)
+           -∗ WP Seq (Instr Executable) {{ φ }}
+        else φ FailedV)
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
+    codefrag_facts "Hprog".
+    do 6 iInstr "Hprog".
+
+    destruct (minsize =? r_e - r_b)%Z eqn:Hsize.
+    { iInstr_lookup "Hprog" as "Hi" "Hcont".
+      wp_instr.
+      assert (r_e - r_b - minsize = 0)%Z as ->.
+      { solve_addr. }
+      iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameAutoSolve.
+      iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
+      iDestruct ("Hcont" with "Hi") as "Hprog".
+      iGo "Hprog".
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 11)%a)).
+      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      iApply "Hφ". iExists _,_. iFrame. }
+    { iGo "Hprog". intros Hcontr. inv Hcontr. solve_addr.
+      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 10)%a)).
+      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      iGo "Hprog". iApply wp_value. iFrame. }
   Qed.
 
   (* -------------------------------------- RCLEAR ----------------------------------- *)
@@ -526,9 +643,9 @@ Section macros.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
     unfold region_mapsto.
-    remember (region_addrs act_b act_e) as acta.
+    remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
-    { rewrite Heqacta region_addrs_length. by apply incr_addr_region_size_iff. }
+    { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
     iDestruct (big_sepL2_length with "Hact") as %Hact_len.
     rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
     repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
@@ -537,7 +654,7 @@ Section macros.
       apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcont_act. 2: done.
       apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr. }
     repeat (destruct acta as [|? acta]; try by inversion Hact_len_a). clear Hact_len_a.
-    replace a with act_b in * by (symmetry; eapply contiguous_between_cons_inv_first; eauto).
+    replace f with act_b in * by (symmetry; eapply contiguous_between_cons_inv_first; eauto).
 
     iDestruct "Hact" as "[Hact_b Hact]".
     iDestruct "Hact" as "[Ha0 Hact]".
@@ -555,7 +672,7 @@ Section macros.
     destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0.
     destruct (contiguous_between_cons_inv _ _ _ _ HA1) as [<- [? [? HA0] ] ]; clear HA1.
     destruct (contiguous_between_cons_inv _ _ _ _ HA0) as [<- [? [? HA1] ] ]; clear HA0 HA1 H6 x.
-    generalize (contiguous_between_last _ _ _ a6 Hcont_act ltac:(reflexivity)); intros.
+    generalize (contiguous_between_last _ _ _ f6 Hcont_act ltac:(reflexivity)); intros.
 
     codefrag_facts "Hprog".
     iInstr "Hprog". eapply (Hwbact 0); reflexivity.
@@ -644,7 +761,7 @@ Section macros.
     map_simpl "Hregs".
 
     focus_block 1 "Hprog" as amid1 Hamid1 "Hmallocprog" "Hcont".
-    iApply malloc_spec_alt; iFrameCapSolve; eauto; try iFrame "∗ #".
+    iApply malloc_spec_alt; iFrameAutoSolve; eauto; try iFrame "∗ #".
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
       f_equal. clear; set_solver. }
@@ -662,7 +779,7 @@ Section macros.
       by simplify_map_eq.
     map_simpl "Hregs".
 
-    iApply scrtcls_spec; iFrameCapSolve; iFrame "∗".
+    iApply scrtcls_spec; iFrameAutoSolve; iFrame "∗".
     iNext. iIntros "(HPC & Hscrtcls & Hr_t1 & Hbe & Hr_t6 & Hr_t7)".
     iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs".
       by simplify_map_eq.
@@ -722,7 +839,7 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN)
             "(>Hprog & >HPC & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
-    iApply crtcls_spec_alt; iFrameCapSolve; eauto. iFrame. iFrame "Hmalloc".
+    iApply crtcls_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hmalloc".
     iSplitL. iNext. eauto. eauto.
   Qed.
 
@@ -747,17 +864,18 @@ Section macros.
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hprog") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
-    { rewrite region_addrs_length /region_size in Hcls_len.
+    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
       revert Hcls_len; clear; solve_addr. }
     assert (∃ b_end, b_cls + 6 = Some b_end)%a as [b_end Hbend];[destruct (b_cls + 6)%a eqn:HH;eauto;exfalso;solve_addr|].
     assert (∃ b_mid, b_cls + 7 = Some b_mid)%a as [b_mid Hbmid];[destruct (b_cls + 7)%a eqn:HH;eauto;exfalso;solve_addr|].
 
     iAssert (codefrag b_cls (activation_code) ∗ b_end ↦ₐ wcode ∗ b_mid ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
-    { rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
-      rewrite (region_addrs_split _ b_end);[|solve_addr].
-      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite region_addrs_length /region_size. left. solve_addr.
-      iFrame. rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
-      rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
+    { rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a /=; [|solve_addr].
+      rewrite /activation_instrs.
+      rewrite (finz_seq_between_split _ b_end);[|solve_addr].
+      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite finz_seq_between_length /finz.dist. left. solve_addr.
+      iFrame. rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+      rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
       iDestruct "Henv" as "($&$&_)". }
 
     assert (readAllowed pc_p = true ∧ withinBounds b_cls e_cls b_mid = true) as [Hra Hwb].
@@ -770,12 +888,12 @@ Section macros.
     iGo "Hprog". auto.
     iGo "Hprog".
     iApply "Hcont". iFrame.
-    rewrite /codefrag /= Hbend /=. rewrite /activation_instrs.
-    rewrite (region_addrs_split _ b_end);[|solve_addr].
+    rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a; [| solve_addr]. rewrite /activation_instrs.
+    rewrite (finz_seq_between_split _ b_end);[|solve_addr].
     iApply (big_sepL2_app with "Hprog").
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->. solve_addr. simpl.
-    rewrite region_addrs_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->. solve_addr. simpl.
-    iFrame. rewrite region_addrs_empty;[|solve_addr]. done.
+    rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
+    rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
+    iFrame. rewrite finz_seq_between_empty;[|solve_addr]. done.
   Qed.
 
 End macros.

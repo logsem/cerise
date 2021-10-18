@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
-From cap_machine Require Import rules logrel fundamental. 
+From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import macros macros_helpers malloc counter.
 From stdpp Require Import countable.
 
@@ -176,7 +176,7 @@ Section counter_example_preamble.
 
   Lemma read_closure_valid read_prog reset_prog incr_prog count_readN countN count_clsN b_cls e_cls b_cls' e_cls' b_cls'' e_cls''
         pc_p pc_b pc_e counter_first counter_end linkc linkc' b_cell e_cell f_a
-        b_link e_link a_link a_entry' fail_cap count_env :
+        b_link e_link a_link a_entry' b_a e_a a_flag assertN count_env :
     pc_p ≠ E →
     contiguous_between incr_prog counter_first linkc →
     contiguous_between read_prog linkc linkc' →
@@ -186,6 +186,8 @@ Section counter_example_preamble.
     (a_link + f_a)%a = Some a_entry' →
     withinBounds b_link e_link a_entry' = true →
     (up_close (B:=coPset) count_env ## ↑count_readN) →
+    up_close (B:=coPset) assertN ## ↑count_readN →
+    up_close (B:=coPset) assertN ## ↑count_env →
     
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_readN ([∗ list] a_i;w_i ∈ read_prog;read_instrs f_a, a_i ↦ₐ w_i) -∗
@@ -193,11 +195,13 @@ Section counter_example_preamble.
      ([[b_cls,e_cls]]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e counter_first; WCap RWX b_cell e_cell b_cell] ]]
   ∗ [[b_cls',e_cls']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc; WCap RWX b_cell e_cell b_cell] ]]
   ∗ [[b_cls'',e_cls'']]↦ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; WCap pc_p pc_b pc_e linkc'; WCap RWX b_cell e_cell b_cell] ]]) -∗
-     na_inv logrel_nais count_env (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ fail_cap) -∗
+     na_inv logrel_nais count_env (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ WCap E b_a e_a b_a) -∗
+     na_inv logrel_nais assertN (assert_inv b_a a_flag e_a) -∗
      na_own logrel_nais ⊤ -∗
     interp (WCap E b_cls' e_cls' b_cls'))%I.
   Proof.
-    iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell Hlink Hwb Hdisj) "#Hcounter_inv #Hincr #Hcls_inv #Hlink HnaI". 
+    iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell Hlink Hwb Hdisj ? ?)
+            "#Hcounter_inv #Hincr #Hcls_inv #Hlink #Hassert HnaI".
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
@@ -230,12 +234,12 @@ Section counter_example_preamble.
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs'") as "[Hr0 Hregs']".
       by rewrite !lookup_delete_ne // lookup_delete_ne //.
       
-    iApply (read_spec with "[$HPC $Hr0 $Hrenv $Hregs' $Hna $Hincr Hr1 $Hlink]");
+    iApply (read_spec with "[$HPC $Hr0 $Hrenv $Hregs' $Hna $Hincr Hr1 $Hlink $Hassert]");
       [|apply Hcont_read|auto..].
     { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|].  apply contiguous_between_bounds in Hcont_incr.
       split;auto. apply contiguous_between_bounds in Hcont_restc. apply Hcont_restc. }
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
-    { iSplitL;[eauto|]. iSplit. 
+    { iSplitL;[eauto|]. iSplit.
       - iExists _. iFrame "#".
       - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
         iFrame "Hr'_valid".
@@ -244,7 +248,7 @@ Section counter_example_preamble.
         assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
         assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        iSpecialize ("Hr'_valid" $! reg _ H4 Hlook). iApply "Hr'_valid";auto.
+        unshelve iSpecialize ("Hr'_valid" $! reg _ _ Hlook). auto. iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed. 
@@ -318,10 +322,8 @@ Section counter_example_preamble.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed. 
-  
-                                                  
 
-                                                  
+
   Definition countN : namespace := nroot .@ "awkN".
   Definition count_invN : namespace := countN .@ "inv".
   Definition count_incrN : namespace := countN .@ "incr".
@@ -332,7 +334,7 @@ Section counter_example_preamble.
 
   Lemma counter_preamble_spec (f_m f_a offset_to_counter: Z) (r: Reg) pc_p pc_b pc_e
         ai a_first a_end b_link e_link a_link a_entry a_entry'
-        mallocN b_m e_m fail_cap ai_counter counter_first counter_end a_move:
+        mallocN b_m e_m assertN b_a a_flag e_a ai_counter counter_first counter_end a_move:
 
     isCorrectPC_range pc_p pc_b pc_e a_first a_end →
     contiguous_between ai a_first a_end →
@@ -344,6 +346,8 @@ Section counter_example_preamble.
     (a_move + offset_to_counter)%a = Some counter_first →
     isCorrectPC_range pc_p pc_b pc_e counter_first counter_end →
     contiguous_between ai_counter counter_first counter_end →
+    up_close (B:=coPset) assertN ## ↑count_readN →
+    up_close (B:=coPset) assertN ## ↑count_env →
 
     (* Code of the preamble *)
     counter_preamble f_m offset_to_counter ai
@@ -354,16 +358,17 @@ Section counter_example_preamble.
     (** Resources for malloc and assert **)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ∗ na_inv logrel_nais assertN (assert_inv b_a a_flag e_a)
     ∗ pc_b ↦ₐ (WCap RO b_link e_link a_link)
-    ∗ a_entry ↦ₐ (WCap E b_m e_m b_m)
-    ∗ a_entry' ↦ₐ fail_cap
+    ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ a_entry' ↦ₐ WCap E b_a e_a b_a
 
     -∗
     interp_expr interp r (WCap pc_p pc_b pc_e a_first).
   Proof.
     rewrite /interp_expr /=.
-    iIntros (Hvpc Hcont Hwb_malloc Hwb_assert Ha_entry Ha_entry' Ha_lea H_counter_offset Hvpc_counter Hcont_counter)
-            "(Hprog & Hcounter & #Hinv_malloc & Hpc_b & Ha_entry & Ha_entry')
+    iIntros (Hvpc Hcont Hwb_malloc Hwb_assert Ha_entry Ha_entry' Ha_lea H_counter_offset Hvpc_counter Hcont_counter ? ?)
+            "(Hprog & Hcounter & #Hinv_malloc & #Hinv_assert & Hpc_b & Ha_entry & Ha_entry')
              ([#Hr_full #Hr_valid] & Hregs & HnaI)".
     iDestruct "Hr_full" as %Hr_full.
     rewrite /full_map /interp_conf.
@@ -488,7 +493,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_;_;_]). 2: eapply Hcont_rest.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls & Hcont_rest' & Heqapp' & Hlink').
-    assert (a_malloc_end <= a3)%a as Ha1_after_malloc.
+    assert (a_malloc_end <= f3)%a as Ha1_after_malloc.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");
@@ -557,7 +562,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_]). 2: eapply Hcont_rest'.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls' & Hcont_rest'' & Heqapp'' & Hlink'').
-    assert (a_crtcls_end <= a7)%a as Ha1_after_crtcls.
+    assert (a_crtcls_end <= f7)%a as Ha1_after_crtcls.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest'. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls' $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");
@@ -628,7 +633,7 @@ Section counter_example_preamble.
       eapply contiguous_between_app with (a1:=[_;_;_;_]). 2: eapply Hcont_rest''.
       all: eauto. }
     iDestruct "Hcont" as %(Hcont_crtcls'' & Hcont_rest''' & Heqapp''' & Hlink''').
-    assert (a_crtcls_end' <= a11)%a as Ha1_after_crtcls'.
+    assert (a_crtcls_end' <= f11)%a as Ha1_after_crtcls'.
     { eapply contiguous_between_middle_bounds'. apply Hcont_rest''. repeat constructor. }
     iApply (wp_wand with "[-]").
     iApply (crtcls_spec with "[- $HPC $Hcrtcls'' $Hpc_b $Ha_entry $Hr0 $Hregs $Hr1 $Hr2 $HnaI $Hinv_malloc]");
@@ -720,7 +725,7 @@ Section counter_example_preamble.
     { iNext. rewrite /counter_inv. iExists _. iFrame. auto. }
     (* we also allocate a non atomic invariant for the environment table *)
     iMod (na_inv_alloc logrel_nais _ count_env
-                       (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ fail_cap)%I
+                       (pc_b ↦ₐ WCap RO b_link e_link a_link ∗ a_entry' ↦ₐ WCap E b_a e_a b_a)%I
             with "[$Ha_entry' $Hpc_b]") as "#Henv".
 
     (* jmp *)
@@ -735,9 +740,8 @@ Section counter_example_preamble.
       apply Hvpc_counter. apply Hcont_restc. }
     
     iAssert (interp (WCap E b_cls' e_cls' b_cls'))%I as "#Hvalid_cls'".
-    { iApply (read_closure_valid with "Hcounter_inv Hread Hcls_inv");auto.
-      apply Hcont_incr. apply Hvpc_counter. apply Hcont_reset. apply Ha_entry'.
-      apply Hwb_assert. solve_ndisj. }
+    { iApply (read_closure_valid with "Hcounter_inv Hread Hcls_inv Henv Hinv_assert");auto.
+      apply Hcont_incr. apply Hvpc_counter. apply Hcont_reset. solve_ndisj. }
 
     iAssert (interp (WCap E b_cls'' e_cls'' b_cls''))%I as "#Hvalid_cls''".
     { iApply (reset_closure_valid with "Hcounter_inv Hreset Hcls_inv");auto.

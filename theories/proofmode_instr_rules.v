@@ -111,6 +111,8 @@ Ltac dispatch_instr_rule instr cont :=
   | Restrict _ (inl _) => cont (@wp_restrict_success_z)
   (* Fail *)
   | Fail => cont (@wp_fail)
+  (* Halt *)
+  | Halt => cont (@wp_halt)
   (* not found *)
   | _ => fail "No suitable rule found for instruction" instr
   end.

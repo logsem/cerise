@@ -105,10 +105,22 @@ Assuming we have `"Hblock" : codefrag a_first (encodeInstrsW [...])`:
 
 Assuming we have `"Hblock" : codefrag a_first macro_instrs`:
 
-Call `iApply macro_spec; iFrameCapSolve.`
+Call `iApply macro_spec; iFrameAutoSolve.`
 
-The `iFrameCapSolve` tactic (also used internally by `iInstr`) will attempt to
+The `iFrameAutoSolve` tactic (also used internally by `iInstr`) will attempt to
 frame resources and prove side-conditions as much as possible.
+
+### Opening invariants
+
+Opening an invariant around an instruction currently requires a couple extra
+manual steps. One needs to do:
+
+- `wp_instr`
+- `iMod (inv_acc ...) as "[.. Hclose]"` to open the invariant
+- `iInstr ...` as usual to step through the instruction
+- `iMod ("Hclose" with ...) as ...` to close the invariant.
+- `iModIntro`
+- `wp_pure`
 
 ## Other useful tactics
 
@@ -121,10 +133,10 @@ frame resources and prove side-conditions as much as possible.
 - `solve_pure_addr`: like `solve_pure`, but can also call `solve_addr` itself to
   solve address arithmetic. Slower, for interactive proofs.
 
-- `iFrameCap`: try to frame a resource from the goal using the Iris context.
+- `iFrameAuto`: try to frame a resource from the goal using the Iris context.
   Currently handles register and memory points-to and `codefrag`.
 
-- `iFrameCapSolve`: multi-goal tactic, that repeats and combines `iFrameCap` and
+- `iFrameAutoSolve`: multi-goal tactic, that repeats and combines `iFrameAuto` and
   `solve_pure`.
 
 - `wp_instr`, `wp_pure`, `wp_end`: administrative reduction steps for WP.
@@ -138,42 +150,57 @@ frame resources and prove side-conditions as much as possible.
 
 ## Understanding and debugging the tactics
 
-- `iInstr "Hprog"` (in `proofmode.v`) is roughly equivalent to calling:
+### `iInstr`
 
-  + `iInstr_lookup "Hprog" as "Hi" "Hcont"` to access the points-to to the
-    current instruction;
+`iInstr "Hprog"` (in `proofmode.v`) is roughly equivalent to calling:
+
+- `iInstr_lookup "Hprog" as "Hi" "Hcont"` to access the points-to to the
+  current instruction;
   
-  + `iInstr_get_rule "Hi" (fun rule => ...)` to query the wp-rule(s) for the
-    instruction. Its second argument is a tactic continuation. E.g. use
-    `iInstr_get_rule "Hi" (fun rule => idtac rule)` to print the rules found.
+- `iInstr_get_rule "Hi" (fun rule => ...)` to query the wp-rule(s) for the
+  instruction. Its second argument is a tactic continuation. E.g. use
+  `iInstr_get_rule "Hi" (fun rule => idtac rule)` to print the rules found.
 
-  + `wp_instr`
+- `try wp_instr`
   
-  + `iApplyCapAuto rule` to apply the rule lemma and perform automatically
-    framing/solving;
+- `iApplyCapAuto rule` to apply the rule lemma and perform automatically
+  framing/solving;
   
-  + `iDestruct ("Hcont" with "Hi") as "Hprog"` to recover the codefrag for the
-    whole block;
+- `iDestruct ("Hcont" with "Hi") as "Hprog"` to recover the codefrag for the
+  whole block;
   
-  + `wp_pure`
+- `try wp_pure`
 
-- `iApplyCapAuto rule` (in `proofmode.v`) is roughly equivalent to:
 
-  + `iApplyCapAuto_init rule` to apply the rule in "frame inference" mode;
+### `iApplyCapAuto`
+
+`iApplyCapAuto rule` (in `proofmode.v`) is roughly equivalent to:
+
+- `iApplyCapAuto_init rule` to apply the rule in "frame inference" mode;
   
-  + `all: iFrameCapSolve` to frame resources and solve side conditions
+- `all: iFrameAutoSolve` to frame resources and solve side conditions
   
-  + `iNamedAccu` to collect the remaining context and pass it to the second
-    subgoal. This can fail at this point if there are remaining resources
-   (i.e. we couldn't completely instantiate the lemma precondition).
+- `iNamedAccu` to collect the remaining context and pass it to the second
+  subgoal. This can fail at this point if there are remaining resources
+  (i.e. we couldn't completely instantiate the lemma precondition).
 
-  + `iNamedIntro` to reintroduce the context in the other subgoal.
+- `iNamedIntro` to reintroduce the context in the other subgoal.
 
-  + `iNext; iIntros "..."` to reintroduce the relevant resources with the
-    same names as before.
+- `iNext; iIntros "..."` to reintroduce the relevant resources with the
+  same names as before.
 
-- `iFrameCapSolve` calls `iFrameCap` and `solve_cap_pure` on all goals in a
-  loop (see `proofmode.v`).
 
-- `solve_pure`: see `solve_pure.v`
-- `solve_addr`: see `solve_addr.v` and `solve_addr_extra.v`
+### `iFrameAutoSolve`
+
+`iFrameAutoSolve` calls `iFrameAuto` and `solve_pure` on all goals in a
+loop (see `proofmode.v`).
+
+
+### `solve_pure`
+
+See `solve_pure.v`.
+
+
+### `solve_addr`
+
+See `solve_addr.v` and `solve_addr_extra.v`.

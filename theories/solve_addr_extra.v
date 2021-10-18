@@ -1,26 +1,18 @@
-From cap_machine Require Import solve_addr machine_base classes.
+From cap_machine Require Import machine_base classes.
+From machine_utils Require Import solve_finz.
 
-(* Extend [solve_addr] to handle more pure arithmetic goals from
+(* Extend [solve_finz] to handle more pure arithmetic goals from
    [machine_base.v] and [classes.v] *)
 
 Ltac without_evars c :=
   (has_evar c; fail 1) || idtac.
 
-Global Ltac zify_addr_op_nonbranching_step_hook ::=
+Global Ltac zify_finz_op_nonbranching_step_hook ::=
   lazymatch goal with
-  | H : ContiguousRegion _ _ |- _ => destruct H
-  | H : SubBounds _ _ _ _ |- _ => unfold SubBounds in H
-  | |- SubBounds ?b ?e ?b' ?e' =>
-    without_evars b; without_evars e; without_evars b'; without_evars e';
-    unfold SubBounds
-  | H : InBounds _ _ _ |- _ => unfold InBounds in H
-  | |- InBounds ?b ?e ?a =>
-    without_evars b; without_evars e; without_evars a;
-    unfold InBounds
-  | H : IncrAddr _ _ _ |- _ => unfold IncrAddr in H
-  | |- IncrAddr ?a ?z ?a' =>
+  | H : IncrFinZ _ _ _ |- _ => unfold IncrFinZ in H
+  | |- IncrFinZ ?a ?z ?a' =>
     without_evars a; without_evars z; without_evars a';
-    unfold IncrAddr
+    unfold IncrFinZ
   | H : withinBounds _ _ _ = true |- _ =>
     apply withinBounds_le_addr in H
   | |- withinBounds ?b ?e ?a = true =>

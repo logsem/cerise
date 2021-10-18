@@ -3,8 +3,7 @@ From Coq.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
 From Coq Require Import ssreflect.
 From cap_machine Require Import stdpp_extra.
-Global Open Scope general_if_scope.
-
+From machine_utils Require Export finz.
 
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
@@ -14,6 +13,7 @@ Global Open Scope general_if_scope.
 
 Definition RegNum: nat := 31.
 Definition MemNum: Z := 2000000.
+Global Opaque MemNum.
 
 (* ---------------------------------- Registers ----------------------------------------*)
 
@@ -163,6 +163,13 @@ Proof.
   apply all_registers_correct.
 Qed.
 
+Lemma all_registers_correct_sub r : NoDup r → r ⊆+ all_registers.
+Proof.
+  intros Hdup.
+  apply NoDup_submseteq;auto. intros r' Hin.
+  apply all_registers_correct.
+Qed.
+
 Instance setunfold_all_regs:
   forall x, SetUnfoldElemOf x all_registers_s True.
 Proof.
@@ -199,204 +206,31 @@ Qed.
 
 (* -------------------------------- Memory addresses -----------------------------------*)
 
-Inductive Addr: Type :=
-| A (z : Z) (fin: Z.leb z MemNum = true) (pos: Z.leb 0 z = true).
-
-Definition z_of (a: Addr): Z :=
-  match a with
-  | A z _ _ => z
-  end.
-
-Coercion z_of: Addr >-> Z.
-
-Lemma z_of_eq a1 a2 :
-  z_of a1 = z_of a2 ->
-  a1 = a2.
-Proof.
-  destruct a1, a2; cbn. intros ->.
-  repeat f_equal; apply eq_proofs_unicity; decide equality.
-Qed.
-
-Lemma eq_z_of a1 a2 :
-  a1 = a2 ->
-  z_of a1 = z_of a2.
-Proof. destruct a1; destruct a2. congruence. Qed.
-
-Lemma z_of_neq a1 a2 :
-  z_of a1 <> z_of a2 ->
-  a1 <> a2.
-Proof. red; intros. apply H. rewrite H0; reflexivity. Qed.
-
-Lemma neq_z_of a1 a2 :
-  a1 ≠ a2 → (z_of a1) ≠ (z_of a2).
-Proof. intros. intros Heq%z_of_eq. congruence. Qed.
-
-Global Instance addr_eq_dec: EqDecision Addr.
-intros x y. destruct x,y. destruct (Z_eq_dec z z0).
-- left. eapply z_of_eq; eauto.
-- right. inversion 1. simplify_eq.
-Defined.
-
-Definition z_to_addr (z : Z) : option Addr.
-Proof.
-  destruct (Z_le_dec z MemNum),(Z_le_dec 0 z).
-  - apply (Z.leb_le z MemNum) in l.
-    apply (Z.leb_le 0 z) in l0.
-    exact (Some (A z l l0)).
-  - exact None.
-  - exact None.
-  - exact None.
-Defined.
-
-Lemma addr_spec (a: Addr) : (a <= MemNum)%Z ∧ (0 <= a)%Z.
-Proof.
-  destruct a. cbn. rewrite -> Z.leb_le in fin.
-  rewrite -> Z.leb_le in pos. lia.
-Qed.
-
-Lemma z_to_addr_z_of (a:Addr) :
-  z_to_addr a = Some a.
-Proof.
-  generalize (addr_spec a); intros [? ?].
-  set (z := (z_of a)) in *.
-  unfold z_to_addr.
-  destruct (Z_le_dec z MemNum) eqn:?;
-  destruct (Z_le_dec 0 z) eqn:?.
-  { f_equal. apply z_of_eq. cbn. lia. }
-  all: lia.
-Qed.
-
-Lemma z_to_addr_eq_inv (a b:Addr) :
-  z_to_addr a = Some b → a = b.
-Proof. rewrite z_to_addr_z_of. naive_solver. Qed.
-
-Global Instance addr_countable : Countable Addr.
-Proof.
-  refine {| encode r := encode (z_of r) ;
-            decode n := match (decode n) with
-                        | Some z => z_to_addr z
-                        | None => None
-                        end ;
-            decode_encode := _ |}.
-  intro r. destruct r; auto.
-  rewrite decode_encode.
-  unfold z_to_addr. simpl.
-  destruct (Z_le_dec z MemNum),(Z_le_dec 0 z).
-  - repeat f_equal; apply eq_proofs_unicity; decide equality.
-  - exfalso. by apply (Z.leb_le 0 z) in pos.
-  - exfalso. by apply (Z.leb_le z MemNum) in fin.
-  - exfalso. by apply (Z.leb_le z MemNum) in fin.
-Defined.
-
-(* XXX is this handled by solve_addr? *)
-Definition le_lt_addr : Addr → Addr → Addr → Prop :=
-  λ a1 a2 a3, (a1 <= a2 < a3)%Z.
-Definition le_addr : Addr → Addr → Prop :=
-  λ a1 a2, (a1 <= a2)%Z.
-Definition lt_addr : Addr → Addr → Prop :=
-  λ a1 a2, (a1 < a2)%Z.
-Definition leb_addr : Addr → Addr → bool :=
-  λ a1 a2, Z.leb a1 a2.
-Definition ltb_addr : Addr → Addr → bool :=
-  λ a1 a2, Z.ltb a1 a2.
-Definition eqb_addr : Addr → Addr → bool :=
-  λ a1 a2, Z.eqb a1 a2.
-Definition za : Addr := A 0%Z eq_refl eq_refl.
-Definition top : Addr := A MemNum eq_refl eq_refl.
+Notation Addr := (finz MemNum).
 Declare Scope Addr_scope.
 Delimit Scope Addr_scope with a.
-Notation "a1 <= a2 < a3" := (le_lt_addr a1 a2 a3): Addr_scope.
-Notation "a1 <= a2" := (le_addr a1 a2): Addr_scope.
-Notation "a1 <=? a2" := (leb_addr a1 a2): Addr_scope.
-Notation "a1 < a2" := (lt_addr a1 a2): Addr_scope.
-Notation "a1 <? a2" := (ltb_addr a1 a2): Addr_scope.
-Notation "a1 =? a2" := (eqb_addr a1 a2): Addr_scope.
+
+Notation "a1 <= a2 < a3" := (@finz.le_lt MemNum a1 a2 a3) : Addr_scope.
+Notation "a1 <= a2" := (@finz.le MemNum a1 a2) : Addr_scope.
+Notation "a1 <=? a2" := (@finz.leb MemNum a1 a2) : Addr_scope.
+Notation "a1 < a2" := (@finz.lt MemNum a1 a2) : Addr_scope.
+Notation "a1 <? a2" := (@finz.ltb MemNum a1 a2) : Addr_scope.
+Notation "a1 + z" := (@finz.incr MemNum a1 z) : Addr_scope.
+Notation "a ^+ off" := (@finz.incr_default MemNum a off) (at level 50) : Addr_scope.
+
+Notation z_to_addr := (@finz.of_z MemNum).
+Notation z_of := (@finz.to_z MemNum).
+
+Notation za := (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+Notation top := (finz.largest za : Addr).
 Notation "0" := (za) : Addr_scope.
 
-Global Instance Addr_le_dec : RelDecision le_addr.
-Proof. intros x y. destruct x,y. destruct (Z_le_dec z z0); [by left|by right]. Defined.
-Global Instance Addr_lt_dec : RelDecision lt_addr.
-Proof. intros x y. destruct x,y. destruct (Z_lt_dec z z0); [by left|by right]. Defined.
+Notation eqb_addr := (λ (a1 a2: Addr), Z.eqb a1 a2).
+Notation "a1 =? a2" := (eqb_addr a1 a2) : Addr_scope.
 
-Lemma leb_addr_spec:
-  forall a1 a2,
-    reflect (le_addr a1 a2) (leb_addr a1 a2).
-Proof.
-  intros. unfold leb_addr, le_addr.
-  apply Z.leb_spec0.
-Qed.
+Notation addr_incr_eq := (finz_incr_eq).
 
-Program Definition incr_addr (a: Addr) (z: Z): option Addr :=
-  match (Z_le_dec (a + z)%Z MemNum) with
-  | left _ =>
-    match (Z_le_dec 0 (a + z)%Z) with
-    | left _ => Some (A (a + z)%Z _ _)
-    | right _ => None
-    end
-  | right _ => None
-  end.
-Next Obligation.
-  intros. apply Z.leb_le; auto.
-Defined.
-Next Obligation.
-  intros. apply Z.leb_le; auto.
-Defined. 
-Notation "a1 + z" := (incr_addr a1 z): Addr_scope.
-
-Definition max (a1 a2: Addr): Addr :=
-  match Addr_le_dec a1 a2 with
-  | left _ => a2
-  | right _ => a1
-  end.
-
-Definition min (a1 a2: Addr): Addr :=
-  match Addr_le_dec a1 a2 with
-  | left _ => a1
-  | right _ => a2
-  end.
-
-Lemma min_addr_spec (a1 a2: Addr):
-  exists a, min a1 a2 = a /\ (a: Z) = Z.min (a1: Z) (a2: Z).
-Proof.
-  exists (min a1 a2); split; auto.
-  unfold min. destruct (Addr_le_dec a1 a2); unfold le_addr in *; lia.
-Qed.
-
-Ltac min_addr_as_spec a1 a2 :=
-  generalize (min_addr_spec a1 a2); intros [? [? ?]];
-  let ax := fresh "ax" in
-  set (ax := (min a1 a2)) in *;
-  clearbody ax; subst ax.
-
-Lemma max_addr_spec (a1 a2: Addr):
-  exists a, max a1 a2 = a /\ (a: Z) = Z.max (a1: Z) (a2: Z).
-Proof.
-  exists (max a1 a2); split; auto.
-  unfold max. destruct (Addr_le_dec a1 a2); unfold le_addr in *; lia.
-Qed.
-
-Ltac max_addr_as_spec a1 a2 :=
-  generalize (max_addr_spec a1 a2); intros [? [? ?]];
-  let ax := fresh "ax" in
-  set (ax := (max a1 a2)) in *;
-  clearbody ax; subst ax.
-
-Definition get_addr_from_option_addr : option Addr → Addr :=
-  λ e_opt, match e_opt with
-           | Some e => e
-           | None => top%a
-           end.
-
-Notation "^ a" := (get_addr_from_option_addr a) (format "^ a", at level 1) : Addr_scope.
-Notation "a ^+ b" := (^ (a + b))%a (at level 50) : Addr_scope.
-
-Lemma addr_unique a a' fin fin' pos pos' :
-  a = a' → A a fin pos = A a' fin' pos'.
-Proof.
-  intros ->. repeat f_equal; apply eq_proofs_unicity; decide equality.
-Qed.
-
-
+Global Open Scope general_if_scope.
 (* ---------------------------------- OTypes ----------------------------------------*)
 
 (* Number of otypes in our system *)

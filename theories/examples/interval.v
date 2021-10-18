@@ -3,66 +3,15 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import list_new dynamic_sealing.
+From cap_machine Require Import keylist dynamic_sealing.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
-Definition intervalUR := gmapUR (leibnizO Addr) (agreeR (prodO ZO ZO)).
-Class intervalG Σ := IntervalG { intervalg_inG :> inG Σ (authUR intervalUR); interval_name : gname }.
-
-Section interval_RA.
-  Context `{intervalG}.
-  Definition int_def (a : Addr) (z1 z2 : Z) : iProp Σ :=
-    own interval_name (◯ {[ a := to_agree (z1,z2) ]}).
-  Definition int_aux : seal (@int_def). Proof. by eexists. Qed.
-  Definition int := int_aux.(unseal).
-  Definition int_eq : @int = @int_def := int_aux.(seal_eq).
-
-  Definition intervals_def m : iProp Σ :=
-    own interval_name (● m).
-  Definition intervals_aux : seal (@intervals_def). Proof. by eexists. Qed.
-  Definition intervals := intervals_aux.(unseal).
-  Definition intervals_eq : @intervals = @intervals_def := intervals_aux.(seal_eq).
-
-  Notation "a ↪ ( z1 , z2 )" := (int a z1 z2) (at level 20, format "a  ↪ ( z1 , z2 )") : bi_scope.
-
-  Lemma int_agree a (z1 z2 t1 t2 : Z) :
-    a ↪ (z1,z2) -∗ a ↪ (t1,t2) -∗ ⌜z1 = t1 ∧ z2 = t2⌝.
-  Proof.
-    iIntros "Ha Ha'".
-    rewrite int_eq /int_def.
-    iCombine "Ha Ha'" as "Ha".
-    iDestruct (own_valid with "Ha") as %Hval%auth_frag_valid_1%singleton_valid%to_agree_op_valid_L.
-    simplify_eq. done.
-  Qed.
-
-  Global Instance int_timeless a z1 z2 : Timeless (int a z1 z2).
-  Proof. rewrite int_eq. apply _. Qed.
-
-  Global Instance int_Persistent a z1 z2 : Persistent (int a z1 z2).
-  Proof. rewrite int_eq. apply _. Qed.
-
-  Global Instance intervals_timeless m : Timeless (intervals m).
-  Proof. rewrite intervals_eq. apply _. Qed.
-
-
-  Lemma allocate_inv a z1 z2 m :
-    m !! a = None →
-    intervals m ==∗ intervals (<[a:=to_agree (z1,z2)]> m) ∗ a ↪ (z1,z2).
-  Proof.
-    rewrite intervals_eq int_eq /intervals_def /int_def.
-    iIntros (Hnone) "Hm".
-    iMod (own_update with "Hm") as "Hm".
-    apply auth_update_alloc. 2: by iDestruct "Hm" as "[$ $]".
-    apply alloc_singleton_local_update;[auto|done].
-  Qed.
-
-End interval_RA.
-Notation "a ↪ ( z1 , z2 )" := (int a z1 z2) (at level 20, format "a  ↪ ( z1 , z2 )") : bi_scope.
+Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
 
 Section interval.
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ} `{intg: intervalG Σ}
+          {nainv: logrel_na_invs Σ} (* `{intg: intervalG Σ} *)
           `{MP: MachineParameters}
           {mono : sealLLG Σ}.
 
@@ -70,10 +19,7 @@ Section interval.
                      let makeint = λ n1 n2, seal (if n1 ≤ n2 then (n1,n2) else (n2,n1)) in
                      let imin = λ i, fst (unseal i) in
                      let imax = λ i, snd (unseal i) in
-                     let isum = λ i, let x = unseal i in
-                                     λ j, let y = unseal j in
-                                          seal (fst x + fst y, snd x + snd y) in
-                     (makeint, imin, imax, isum)
+                     (makeint, imin, imax)
    *)
 
   (* The following fst and snd are simplified here to work only on a capability that points to its lower bound *)
@@ -140,17 +86,15 @@ Section interval.
     encodeInstrsW [Mov r_t2 0 ; Mov r_t5 0 ; Mov r_t20 0 ; Jmp r_t0].
 
 
-  Definition isInterval : (Addr * Word) → iProp Σ :=
-    λ aw, (∃ a1 a2 a3, ⌜aw.2 = WCap (RWX,a1,a3,a1) ∧ (a1 + 1 = Some a2)%a ∧ (a1 + 2 = Some a3)%a⌝
-         ∗ ∃ z1 z2, a1 ↦ₐ WInt z1 ∗ a2 ↦ₐ WInt z2 ∗ ⌜(z1 <= z2)%Z⌝ ∗ aw.1 ↪ (z1,z2))%I.
 
-  Definition isIntervals : list (Addr * Word) -> iProp Σ :=
-    (λ bvals, ([∗ list] aw ∈ bvals, isInterval aw) ∗ ∃ m, intervals m ∗ ⌜dom (gset Addr) m = list_to_set bvals.*1⌝)%I.
+  Definition isInterval_int z1 z2 : Word → iProp Σ :=
+    λ w, (∃ a1 a2 a3, ⌜w = WCap RWX a1 a3 a1 ∧ (a1 + 1 = Some a2)%a ∧ (a1 + 2 = Some a3)%a⌝
+         ∗ a1 ↪ₐ WInt z1 ∗ a2 ↪ₐ WInt z2 ∗ ⌜(z1 <= z2)%Z⌝)%I.
+  Definition isInterval : Word → iProp Σ := λ w, (∃ z1 z2, isInterval_int z1 z2 w)%I.
 
   Instance isInterval_timeless w : Timeless (isInterval w).
   Proof. apply _. Qed.
-
-  Instance isIntervals_timeless bvals : Timeless (isIntervals bvals).
+  Instance isInterval_persistent w : Persistent (isInterval w).
   Proof. apply _. Qed.
 
   (* the seal closure environment must contain:
@@ -160,52 +104,57 @@ Section interval.
    To simplify things slightly, we are assuming that the linking table only contains the malloc capability,
    and that its size is 1 *)
   Definition seal_env (d d' : Addr) ll ll' p b e a b_m e_m b_r e_r : iProp Σ :=
-    (∃ d1 b1 e1 b2 e2, ⌜(d + 1 = Some d1 ∧ d + 2 = Some d')%a⌝ ∗ d ↦ₐ WCap (E, b1, e1, b1) ∗ d1 ↦ₐ WCap (E, b2, e2, b2) ∗
-                                let wvar := WCap (RWX, ll, ll', ll) in
-                                let wcode1 := WCap (p,b,e,a)%a in
-                                let wcode2 := WCap (p,b,e,a ^+ length (unseal_instrs))%a in
+    (∃ d1 b1 e1 b2 e2, ⌜(d + 1 = Some d1 ∧ d + 2 = Some d')%a⌝ ∗ d ↦ₐ WCap E b1 e1 b1 ∗ d1 ↦ₐ WCap E b2 e2 b2 ∗
+                                let wvar := WCap RWX ll ll' ll in
+                                let wcode1 := WCap p b e a in
+                                let wcode2 := WCap p b e (a ^+ length (unseal_instrs))%a in
                                 ⌜(b1 + 8)%a = Some e1⌝ ∗ ⌜(b2 + 8)%a = Some e2⌝ ∗ ⌜(ll + 1)%a = Some ll'⌝
-                                 ∗ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (unseal_instrs ++ seal_instrs 0))%a⌝
+                                 ∗ ⌜ExecPCPerm p ∧ SubBounds b e a (a ^+ length (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0))%a⌝
                                  ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                  ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
-                                 ∗ codefrag a (unseal_instrs ++ seal_instrs 0)
-                                 ∗ b ↦ₐ WCap (RO, b_r, e_r, b_r) ∗ b_r ↦ₐ WCap (E, b_m, e_m, b_m)
+                                 ∗ codefrag a (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0)
+                                 ∗ b ↦ₐ WCap RO b_r e_r b_r ∗ b_r ↦ₐ WCap E b_m e_m b_m
                                  ∗ ⌜(b_r + 1)%a = Some e_r⌝)%I.
 
   (* ---------------------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------------- MAKEINT ------------------------------------------------ *)
   (* ---------------------------------------------------------------------------------------------------------- *)
 
-  (* Main lemma for the makeint subroutine: we must show that we can fulfill the contract of adding a new interval *)
-  Lemma intervals_add ib ie a0 z1 z2 :
+  (* Allocating a new interval *)
+  Lemma intervals_alloc ib ie a0 z1 z2 :
     (ib + 2)%a = Some ie →
     (ib + 1)%a = Some a0 →
     (z1 ≤ z2)%Z →
     ib ↦ₐ WInt z1 -∗
-    a0 ↦ₐ WInt z2 -∗
-    (∀ (pbvals : list (Addr * Word)) (a1 : Addr), ⌜a1 ∉ pbvals.*1⌝ → isIntervals pbvals ==∗ isIntervals (pbvals ++ [(a1, WCap (RWX, ib, ie, ib))])
-                                                                                 ∗ a1 ↪(z1,z2)).
+    a0 ↦ₐ WInt z2 ==∗ isInterval_int z1 z2 (WCap RWX ib ie ib).
   Proof.
     iIntros (Hcond1 Hcond2 Hle) "Hi Hi'".
-    iIntros (pbvals a1 Hnin) "[Hintervals Hint]".
-    iDestruct "Hint" as (m) "[Hm %Hdom]".
-    iMod (allocate_inv a1 z1 z2 with "Hm") as "[Hm #Hinv]".
-    { destruct (m!!a1) eqn:Hsome;auto. exfalso.
-      assert (is_Some (m!!a1)) as Hin%elem_of_gmap_dom;eauto.
-      rewrite Hdom in Hin. apply elem_of_list_to_set in Hin. done. }
-    iModIntro. iFrame "#". iSplitR "Hm".
-    - rewrite -Permutation_cons_append /=. iFrame.
-      iExists _,_,_. simpl. iSplit;eauto. iExists _,_;iFrame. auto.
-    - iExists _. iFrame. iPureIntro.
-      rewrite fmap_app /= list_to_set_app_L /= dom_insert_L Hdom. set_solver.
+    iMod (mapsto_persist with "Hi") as "#Hi".
+    iMod (mapsto_persist with "Hi'") as "#Hi'".
+    iModIntro. iExists _,_,_. iFrame "#". eauto.
+  Qed.
+
+  (* Two instances of the same interval agrees *)
+  Lemma intervals_agree w z1 z2 z1' z2' :
+    isInterval_int z1 z2 w -∗
+    isInterval_int z1' z2' w -∗
+    ⌜z1 = z1' ∧ z2 = z2'⌝.
+  Proof.
+    iIntros "#Hi #Hi'".
+    iDestruct "Hi" as (b e a (Heq&He&Ha)) "(Hb & He & %Hle)".
+    iDestruct "Hi'" as (b' e' a' (Heq'&He'&Ha')) "(Hb' & He' & %Hle')".
+    simplify_eq.
+    iDestruct (mapsto_agree with "Hb Hb'") as %Heq. inv Heq.
+    iDestruct (mapsto_agree with "He He'") as %Heq. inv Heq.
+    auto.
   Qed.
 
   (* TODO move to add sub lt rules file *)
-  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
+  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst p b e a w2 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    {{{ PC ↦ᵣ WCap (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ WCap cap ∗ r2 ↦ᵣ w2 }}}
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ WCap p b e a ∗ r2 ↦ᵣ w2 }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
@@ -219,11 +168,11 @@ Section interval.
     { (* Success (contradiction) *) simplify_map_eq. }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
-  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst cap w2 pc_p pc_b pc_e pc_a :
+  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst p b e a w2 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (WCap (pc_p, pc_b, pc_e, pc_a)) →
-    {{{ PC ↦ᵣ WCap (pc_p, pc_b, pc_e, pc_a) ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ WCap cap }}}
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ WCap p b e a }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
@@ -258,7 +207,7 @@ Section interval.
     SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
 
     (* environment table: required by the seal and malloc spec *)
-    withinBounds (RW, b_r, e_r, a_r') = true →
+    withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
@@ -270,34 +219,35 @@ Section interval.
     (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι2) →
     (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι4) →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap RWX d d' d
        ∗ r_t1 ↦ᵣ w1
        ∗ r_t2 ↦ᵣ w2
        ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
        ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-       ∗ sealLL ι2 ll γ isIntervals
+       ∗ sealLL ι2 ll γ isInterval
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
        ∗ interp wret
        (* malloc: required by the seal and malloc spec *)
        ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m)
-       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m))
+       ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap RO b_r e_r a_r ∗ a_r' ↦ₐ WCap E b_m e_m b_m)
        (* trusted code *)
        ∗ na_inv logrel_nais ι1 (codefrag a_first (makeint f_m))
        (* the remaining registers are all valid: required for validity *)
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ b (z1 z2 : Z) pbvals (w : Word), ⌜(b,w) ∈ pbvals ∧ w1 = WInt z1 ∧ w2 = WInt z2⌝
+       ∗ ▷ ( (∃ b b' (z1 z2 : Z) pbvals (w : Word), ⌜(b',w) ∈ pbvals ∧ w1 = WInt z1 ∧ w2 = WInt z2 ∧ (b + 1)%a = Some b'⌝
                 ∗ prefLL γ pbvals
-                ∗ b ↪ (Z.min z1 z2,Z.max z1 z2)
+                ∗ isInterval_int (Z.min z1 z2) (Z.max z1 z2) w
                 ∗ PC ↦ᵣ updatePcPerm wret
-                ∗ r_t1 ↦ᵣ WCap (O,b,b,b)
-                ∗ r_env ↦ᵣ WInt 0%Z
+                ∗ r_t1 ↦ᵣ WCap RWX b b' b'
+                ∗ b ↦ₐ WInt 0
+                ∗ r_env ↦ᵣ WInt 0
                 ∗ r_t0 ↦ᵣ wret
                 ∗ na_own logrel_nais ⊤
                 ∗ ([∗ map] r_i↦w_i ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
@@ -323,7 +273,7 @@ Section interval.
     iMod (na_inv_acc with "Htable Hown") as "(>(Hpc_b & Ha_r') & Hown & Hcls'')";auto.
     iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %Hstable)".
     codefrag_facts "Hcode".
-    assert (withinBounds (RWX, d, d', d1) = true) as Hwb;[solve_addr|].
+    assert (withinBounds d d' d1 = true) as Hwb;[solve_addr|].
 
     (* run code up until malloc *)
     do 4 iInstr "Hcode". rewrite /makeint.
@@ -337,7 +287,7 @@ Section interval.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    iApply malloc_spec;iFrameCapSolve;[..|iFrame "Hmalloc Hown Hregs"];[|auto|clear;lia|..].
+    iApply malloc_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hown Hregs"];[|auto|clear;lia|..].
     { rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct r_t6) as Hin1. pose proof (all_registers_s_correct r_t7) as Hin2.
       pose proof (all_registers_s_correct r_t1) as Hin3. pose proof (all_registers_s_correct r_t2) as Hin4.
       pose proof (all_registers_s_correct r_env) as Hin5.
@@ -387,13 +337,13 @@ Section interval.
     (* we begin by preparing the resources for that store *)
     rewrite /region_mapsto /region_addrs_zeroes.
     destruct (ib + 1)%a eqn:Hi;[|exfalso;solve_addr+Hibounds Hi].
-    assert (region_addrs ib ie = [ib;a0]) as ->.
-    { rewrite (region_addrs_split _ a0);[|solve_addr+Hi Hibounds].
-      rewrite region_addrs_single// region_addrs_single;[|solve_addr+Hi Hibounds]. auto. }
-    assert ((region_size ib ie) = 2) as ->;[rewrite /region_size;solve_addr+Hibounds|iSimpl in "Hie"].
+    assert (finz.seq_between ib ie = [ib;f]) as ->.
+    { rewrite (finz_seq_between_split _ f);[|solve_addr+Hi Hibounds].
+      rewrite finz_seq_between_singleton// finz_seq_between_singleton;[|solve_addr+Hi Hibounds]. auto. }
+    assert ((finz.dist ib ie) = 2) as ->;[rewrite /finz.dist;solve_addr+Hibounds|iSimpl in "Hie"].
     iDestruct "Hie" as "(Hi1 & Hi2 & _)".
-    assert (withinBounds (RWX, ib, ie, ib) = true) as Hwbi;[solve_addr+Hi Hibounds|].
-    assert (withinBounds (RWX, ib, ie, a0) = true) as Hwbi2;[solve_addr+Hi Hibounds|].
+    assert (withinBounds ib ie ib = true) as Hwbi;[solve_addr+Hi Hibounds|].
+    assert (withinBounds ib ie f = true) as Hwbi2;[solve_addr+Hi Hibounds|].
     (* get the general purpose register to remember r_t0 *)
     assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
@@ -403,17 +353,17 @@ Section interval.
       iInstr "Hblock".
 
       assert ((match pc_p with
-             | E => WCap (RX, pc_b, pc_e, (a_mid1 ^+ 7)%a)
-             | _ => WCap (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)
-               end : Word)= WCap (pc_p, pc_b, pc_e, (a_mid1 ^+ 7)%a)) as ->;[destruct pc_p;auto;by inversion Hexec|].
-      assert ((a0 + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
+             | E => WCap RX pc_b pc_e (a_mid1 ^+ 7)%a
+             | _ => WCap pc_p pc_b pc_e (a_mid1 ^+ 7)%a
+               end : Word)= WCap pc_p pc_b pc_e (a_mid1 ^+ 7)%a) as ->;[destruct pc_p;auto;by inversion Hexec|].
+      assert ((f + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
       iGo "Hblock".
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
       assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
-      iApply closure_activation_spec; iFrameCapSolve. iFrame "Hseal".
+      iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
 
       (* seal subroutine *)
@@ -430,12 +380,14 @@ Section interval.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
+      iMod (intervals_alloc with "Hi1 Hi2") as "#Hcond";eauto.
+      { clear -Hz. apply Z.ltb_lt in Hz. lia. }
       iDestruct "Hll" as (hd) "[Hll Hex]". iDestruct "Hex" as (awvals) "[Hlist [>Hexact Hint] ]".
       iMod (get_partial_pref _ _ [] with "Hexact") as "[Hexact #Hpref]";[exists awvals;auto|].
       iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|].
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
-      iApply (seal_spec _ (λ aw, aw.1 ↪(z1,z2)))%I;
+      iApply (seal_spec);
         [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
       { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
@@ -443,9 +395,9 @@ Section interval.
         assert (∀ r, r ∈ all_registers_s);[apply all_registers_s_correct|]. set_solver. }
       { solve_addr+Hstable. }
       { solve_addr-. }
-      iDestruct (intervals_add with "Hi1 Hi2") as "Hcond";eauto.
-      { clear -Hz. apply Z.ltb_lt in Hz. lia. }
-      iFrame "Hcond". iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hb & Hb_t & Hregs & Hres & Hblock' & Hown)".
+      iSplitL "Hcond".
+      { iExists _,_. iFrame "Hcond". }
+      iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hb & Hb_t & Hregs & Hres & Hblock' & Hown)".
       (* we will need r_t20 and r_t8 for the final cleanup*)
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
@@ -457,36 +409,30 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1 & #Hz)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
-      rewrite insert_delete -delete_insert_ne// insert_delete.
-      repeat (rewrite (insert_commute _ _ r_t20);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t8);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
+      map_simpl "Hregs".
+      repeat (rewrite -(insert_commute _ _ r_t8);[|by auto]).
+      repeat (rewrite -(insert_commute _ _ r_t20);[|by auto]).
 
-      iApply "Hφ". iExists _,z1,z2,_,_. iFrame "∗ #".
+      iApply "Hφ". iExists _,_,z1,z2,_,_. iFrame "∗ #".
       assert (z1 `min` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|].
       assert (z1 `max` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_lt in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
 
     - (* if z2 is less than or equal to z1 *)
       iInstr "Hblock".
-      assert ((a0 + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
+      assert ((f + -1)%a = Some ib) as Hi';[solve_addr+Hi|].
       iGo "Hblock".
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
       assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
-      iApply closure_activation_spec; iFrameCapSolve. iFrame "Hseal".
+      iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
 
       (* seal subroutine *)
@@ -503,12 +449,14 @@ Section interval.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
+      iMod (intervals_alloc with "Hi1 Hi2") as "#Hcond";eauto.
+      { clear -Hz. apply Z.ltb_ge in Hz. lia. }
       iDestruct "Hll" as (hd) "[Hll Hex]". iDestruct "Hex" as (awvals) "[Hlist [>Hexact Hint] ]".
       iMod (get_partial_pref _ _ [] with "Hexact") as "[Hexact #Hpref]";[exists awvals;auto|].
       iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|].
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
-      iApply (seal_spec _ (λ aw, aw.1 ↪(z2,z1)))%I;
+      iApply (seal_spec );
         [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
       { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
@@ -516,9 +464,9 @@ Section interval.
         assert (∀ r, r ∈ all_registers_s);[apply all_registers_s_correct|]. set_solver. }
       { solve_addr+Hstable. }
       { solve_addr-. }
-      iDestruct (intervals_add with "Hi1 Hi2") as "Hcond";eauto.
-      { clear -Hz. apply Z.ltb_ge in Hz. auto. }
-      iFrame "Hcond". iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hb & Hb_t & Hregs & Hres & Hblock' & Hown)".
+      iSplitR.
+      { iExists _,_. iFrame "Hcond". }
+      iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hb & Hb_t & Hregs & Hres & Hblock' & Hown)".
       (* we will need r_t20 and r_t8 for the final cleanup*)
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
@@ -530,25 +478,124 @@ Section interval.
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
       iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
-      { iExists _,_,_,_,_. iFrame. rewrite Ha_mid2. iSimpl. iFrame. auto. }
+      { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 pbvals) "(#Hpref' & Hr_t1 & #Hz)". rewrite app_nil_l.
+      iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
-      rewrite insert_delete -delete_insert_ne// insert_delete.
-      repeat (rewrite (insert_commute _ _ r_t20);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t8);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite !insert_insert.
-      repeat (rewrite (insert_commute _ _ r_t2);[|by auto]).
+      map_simpl "Hregs".
+      repeat (rewrite -(insert_commute _ _ r_t8);[|by auto]).
+      repeat (rewrite -(insert_commute _ _ r_t20);[|by auto]).
 
-      iApply "Hφ". iExists _,_,_,_,_. iFrame "∗ #".
+      iApply "Hφ". iExists _,_,_,_,_,_. iFrame "∗ #".
       assert (z1 `min` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|].
       assert (z1 `max` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|]. iFrame "#".
       iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
+  Qed.
+
+  Lemma makint_valid pc_p pc_b pc_e (* PC *)
+        wret (* return cap *)
+        d d' (* dynamically allocated seal/unseal environment *)
+        a_first (* special adresses *)
+        rmap (* registers *)
+        ι0 ι1 ι2 ι3 ι4 γ (* invariant/gname names *)
+        ll ll' (* seal env adresses *)
+        b_m e_m b_t e_t (* malloc offset: needed by the seal_env *)
+        b_r e_r a_r a_r' f_m (* environment table *)
+        p b e a (* seal/unseal adresses *):
+
+    (* PC assumptions *)
+    ExecPCPerm pc_p →
+
+    (* Program adresses assumptions *)
+    SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
+
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+
+    (* environment table: required by the seal and malloc spec *)
+    withinBounds b_r e_r a_r' = true →
+    (a_r + f_m)%a = Some a_r' →
+
+    (* The two invariants have different names *)
+    (up_close (B:=coPset)ι0 ⊆ ⊤ ∖ ↑ι1) ->
+    (up_close (B:=coPset)ι4 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0) →
+    (up_close (B:=coPset)ι2 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0) →
+    (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι2) →
+    (up_close (B:=coPset)ι3 ⊆ ⊤ ∖ ↑ι1 ∖ ↑ι0 ∖ ↑ι4) →
+
+
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+      ∗ r_t0 ↦ᵣ wret
+      ∗ r_env ↦ᵣ WCap RWX d d' d
+      ∗ (∃ w, r_t20 ↦ᵣ w)
+      ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+      (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
+      ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
+      ∗ sealLL ι2 ll γ isInterval
+      (* token which states all non atomic invariants are closed *)
+      ∗ na_own logrel_nais ⊤
+      (* callback validity *)
+      ∗ interp wret
+      (* malloc: only required by the seal spec *)
+      ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m)
+      ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap RO b_r e_r a_r ∗ a_r' ↦ₐ WCap E b_m e_m b_m)
+      (* trusted code *)
+      ∗ na_inv logrel_nais ι1 (codefrag a_first (makeint f_m))
+      (* the remaining registers are all valid *)
+      ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i)
+    }}}
+      Seq (Instr Executable)
+      {{{ v, RET v; ⌜v = HaltedV⌝ →
+                    ∃ r, full_map r ∧ registers_mapsto r
+                         ∗ na_own logrel_nais ⊤ }}}.
+  Proof.
+    iIntros (Hexec Hsub Hdom Hwb Hf_m Hdisj Hdisj2 Hsidj3 Hdisj4 Hdisj5 φ)
+            "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown
+            & #Hretval & #Hmalloc & #Htable & #Hprog & #Hregs_val) Hφ".
+
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
+    iDestruct "Hr_t20" as (w20) "Hr_t20".
+    iDestruct (big_sepM_insert _ _ r_t20 with "[$Hregs $Hr_t20]") as "Hregs";
+      [simplify_map_eq; apply not_elem_of_dom; rewrite Hdom;set_solver+|].
+
+
+    iApply makeint_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
+    { rewrite dom_insert_L !dom_delete_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iSplitR.
+    { iNext. iIntros (Hcontr). done. }
+
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH".
+    iDestruct "HH" as (? ? ? ? ? ? (?&?&?&?))
+                "(#Hpref & #Hi & HPC & Hr_t1 & Ha & Hr_env & Hr_t0 & Hown & Hregs)".
+
+    (* we can then rebuild the register map *)
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";
+      [simplify_map_eq;apply not_elem_of_dom; rewrite Hdom; set_solver+|].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";
+      [simplify_map_eq;apply not_elem_of_dom; rewrite Hdom; set_solver+|].
+    map_simpl "Hregs".
+
+    (* we allocate the standard invariant for b0 *)
+    iMod (inv_alloc (logN .@ b0) ⊤ (interp_ref_inv b0 interp) with "[Ha]") as "#Hb0".
+    { iNext. iExists (WInt 0). iFrame. iApply fixpoint_interp1_eq. eauto. }
+
+    (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. iSimpl. iApply fixpoint_interp1_eq. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply big_sepM_insert_2. iApply fixpoint_interp1_eq. iSimpl. rewrite finz_seq_between_singleton// /=.
+    iSplit;auto. iExists interp. iFrame "Hb0". auto.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
   Qed.
 
   (* ---------------------------------------------------------------------------------------------------------- *)
@@ -582,9 +629,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap RWX d d' d
        ∗ r_t1 ↦ᵣ iw
        (* ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
        ∗ (∃ w, r_t2 ↦ᵣ w)
@@ -594,11 +641,11 @@ Section interval.
        ∗ (∃ w, r_t20 ↦ᵣ w)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
        ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-       ∗ sealLL ι2 ll γ isIntervals
+       ∗ sealLL ι2 ll γ isInterval
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
-       ∗ interp wret
+       (* ∗ interp wret *)
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
        (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
@@ -608,9 +655,9 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = WCap (p,b,e,a) ∧ w = WCap (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ b b' e a (z1 z2 : Z) w pbvals, ⌜(b + 1)%a = Some b' ∧ iw = WCap RWX b e a ∧ (b',w) ∈ pbvals⌝
                 ∗ prefLL γ pbvals
-                ∗ b ↪ (z1,z2)
+                ∗ isInterval_int z1 z2 w
                 ∗ PC ↦ᵣ updatePcPerm wret
                 ∗ r_t1 ↦ᵣ WInt z1
                 ∗ r_t2 ↦ᵣ WInt 0%Z
@@ -626,7 +673,7 @@ Section interval.
       WP Seq (Instr Executable) {{ Φ }}.
   Proof.
     iIntros (Hexec Hsub Hdisj Hdisj2 Hsidj3) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20
-    & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & Hfailed & HΨ & Hφ)".
+    & #Hseal_env & #HsealLL & Hown & #Hprog & Hfailed & HΨ & Hφ)".
     iMod (na_inv_acc with "Hprog Hown") as "(>Hcode & Hown & Hcls)";auto.
 
     (* extract the registers used by the program *)
@@ -639,10 +686,10 @@ Section interval.
     iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";[solve_ndisj..|].
     iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %)".
     codefrag_facts "Hcode".
-    assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
+    assert (withinBounds d d' d = true) as Hwb;[solve_addr|].
     iGo "Hcode".
 
-    iApply closure_activation_spec; iFrameCapSolve. iFrame "Hunseal".
+    iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hunseal".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hunseal)".
     codefrag_facts "Hunsealseal_codefrag".
 
@@ -650,34 +697,38 @@ Section interval.
     focus_block_0 "Hunsealseal_codefrag" as "Hblock" "Hcont".
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
-    iApply unseal_spec;iFrameCapSolve;[|iFrame "∗ #"]. solve_ndisj.
+    iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
 
     rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
-    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env)". simplify_eq.
+    iDestruct "Hres" as (b' b'' a' w pbvals [Heq [Hb' Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
     iGo "Hcode".
 
     (* we must now extract from the sealLL invariant that w is indeed an interval element *)
     iMod (na_inv_acc with "HsealLL Hown") as "(Hw & Hown & Hcls'')";[auto|solve_ndisj|].
     iDestruct "Hw" as (hd) "(>Hll & Hawvals)".
-    iDestruct "Hawvals" as (awvals) "(HisList & >Hexact & >Hintervals)".
+    iDestruct "Hawvals" as (awvals) "(HisList & >Hexact & >#Hintervals)".
     iDestruct (know_pref with "Hexact Hpref") as %Hpref.
-    assert (∃ k, awvals !! k = Some (b', w)) as [k Hin].
+    assert (∃ k, awvals !! k = Some (b'', w)) as [k Hin].
     { apply elem_of_list_lookup in Hbw as [k Hk]. destruct Hpref;subst.
       exists k. by apply lookup_app_l_Some. }
-    iDestruct "Hintervals" as "[Hintervals Hm]".
-    iDestruct (big_sepL_lookup_acc with "Hintervals") as "[Hw Hacc]";[eauto|].
-    iDestruct "Hw" as (a1 a2 a3 [Heq [Hincr Hincr'] ] z1 z2) "[Ha1 [Ha2 [%Hle #Hi]]]". simpl in Heq. rewrite Heq.
+    iDestruct "Hint" as (z1 z2) "Hint".
+    iDestruct "Hint" as (bi ai ei [Heq [Hai Hei] ]) "(Hbi & Hei & %Hle)". subst w.
+    (* iDestruct (big_sepL_lookup_acc with "Hintervals") as "[#Hw Hacc]";[eauto|]. *)
+    (* iDestruct "Hw" as (a1 a2 a3 [Heq [Hincr Hincr'] ] z1 z2) "[Ha1 [Ha2 [%Hle #Hi]]]". simpl in Heq. rewrite Heq. *)
 
-    iGo "Hcode". split;auto;solve_addr+Hincr Hincr'.
+    iDestruct "Hbi" as "-#Hbi". iDestruct "Hei" as "-#Hei".
     iGo "Hcode".
+    split;auto;solve_addr+Hai Hei.
+    iGo "Hcode".
+    iDestruct "Hbi" as "#Hbi". iDestruct "Hei" as "#Hei".
 
     (* lets begin by closing all our invariants *)
-    iMod ("Hcls''" with "[Hacc Ha1 Ha2 Hll HisList Hexact $Hown Hm]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame. iApply "Hacc". iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame "∗ #". auto. }
+    iMod ("Hcls''" with "[Hll HisList Hexact $Hown]") as "Hown".
+    { iNext. iExists _. iFrame. iExists _. iFrame. iFrame "#". }
 
     iMod ("Hcls'" with "[Hunseal Hseal Hunsealseal_codefrag Hd Hd1 Hb Hb_t $Hown]") as "Hown".
     { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
@@ -687,7 +738,8 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_. iFrame. iExists _,_,_,_,_. iFrame "#". eauto.
+    iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). auto.
+    iExists _,_,_. iFrame "#". eauto.
   Qed.
 
   Lemma imin_valid pc_p pc_b pc_e (* PC *)
@@ -718,14 +770,14 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-      ∗ sealLL ι2 ll γ isIntervals
+      ∗ sealLL ι2 ll γ isInterval
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
       (* callback validity *)
@@ -758,20 +810,15 @@ Section interval.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
-    iApply imin_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    iApply imin_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
     iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
     iSplitL "Hr_t20";[eauto|]. iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
-    iDestruct (jmp_or_fail_spec with "Hretval") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    2: { iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-         iDestruct "HH" as (? ? ?) "(_ & _ & HPC & _)".
-         iApply "Hcont". iFrame "HPC". iIntros (Hcond). done. }
-    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-    iDestruct "HH" as (? ? (?&?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
-    iDestruct "Hcont" as (? ? ? ? Heq') "Hcont";simplify_eq.
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ?) "HH".
+    iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
@@ -785,22 +832,16 @@ Section interval.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
-    iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
-    iSplit.
-    - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.
-      rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct y) as Hx. set_solver+Hx.
-    - iIntros (r Hne). rewrite /RegLocate. consider_next_reg r PC. done.
-      consider_next_reg r r_t0. consider_next_reg r r_env. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t20. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t5. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t2. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t3. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t4. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t1. by rewrite !fixpoint_interp1_eq.
-      destruct (rmap !! r) eqn:Hr;rewrite Hr;[|by rewrite !fixpoint_interp1_eq].
-      iDestruct (big_sepM_lookup with "Hregs_val") as "$";eauto.
+    (* iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|]. *)
+    (* rewrite -(insert_insert _  PC _ (WInt 0%Z)). *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro. simpl.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
   Qed.
 
 
@@ -835,9 +876,9 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
        ∗ r_t0 ↦ᵣ wret
-       ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+       ∗ r_env ↦ᵣ WCap RWX d d' d
        ∗ r_t1 ↦ᵣ iw
        (* ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
        ∗ (∃ w, r_t2 ↦ᵣ w)
@@ -847,11 +888,11 @@ Section interval.
        ∗ (∃ w, r_t20 ↦ᵣ w)
        (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
        ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-       ∗ sealLL ι2 ll γ isIntervals
+       ∗ sealLL ι2 ll γ isInterval
        (* token which states all non atomic invariants are closed *)
        ∗ na_own logrel_nais ⊤
        (* callback validity *)
-       ∗ interp wret
+       (* ∗ interp wret *)
        (* malloc: only required by the seal spec *)
        (* ∗ na_inv logrel_nais ι3 (malloc_inv b_m e_m) *)
        (* ∗ na_inv logrel_nais ι4 (pc_b ↦ₐ WCap (RO, b_r, e_r, a_r) ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)) *)
@@ -861,9 +902,9 @@ Section interval.
        (* ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) *)
        ∗ ▷ Ψ FailedV
        ∗ ▷ (∀ v, Ψ v -∗ Φ v)
-       ∗ ▷ ( (∃ p b e a (z1 z2 : Z) w pbvals p' b' e' a', ⌜iw = WCap (p,b,e,a) ∧ w = WCap (p',b',e',a') ∧ (b,w) ∈ pbvals ∧ (z1 <= z2)%Z⌝
+       ∗ ▷ ( (∃ b b' e a (z1 z2 : Z) w pbvals, ⌜iw = WCap RWX b e a ∧ (b + 1)%a = Some b' ∧ (b',w) ∈ pbvals⌝
                 ∗ prefLL γ pbvals
-                ∗ b ↪ (z1,z2)
+                ∗ isInterval_int z1 z2 w
                 ∗ PC ↦ᵣ updatePcPerm wret
                 ∗ r_t1 ↦ᵣ WInt z2
                 ∗ r_t2 ↦ᵣ WInt 0%Z
@@ -879,7 +920,7 @@ Section interval.
       WP Seq (Instr Executable) {{ Φ }}.
   Proof.
     iIntros (Hexec Hsub Hdisj Hdisj2 Hsidj3) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20
-    & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & Hfailed & HΨ & Hφ)".
+    & #Hseal_env & #HsealLL & Hown & #Hprog & Hfailed & HΨ & Hφ)".
     iMod (na_inv_acc with "Hprog Hown") as "(>Hcode & Hown & Hcls)";auto.
 
     (* extract the registers used by the program *)
@@ -892,10 +933,10 @@ Section interval.
     iMod (na_inv_acc with "Hseal_env Hown") as "(>Henv & Hown & Hcls')";[solve_ndisj..|].
     iDestruct "Henv" as (d1 b1 e1 b2 e2 [Hd Hd']) "(Hd & Hd1 & % & % & % & (%&%) & Hunseal & Hseal & Hunsealseal_codefrag & Hb & Hb_t & %)".
     codefrag_facts "Hcode".
-    assert (withinBounds (RWX, d, d', d) = true) as Hwb;[solve_addr|].
+    assert (withinBounds d d' d = true) as Hwb;[solve_addr|].
     iGo "Hcode".
 
-    iApply closure_activation_spec; iFrameCapSolve. iFrame "Hunseal".
+    iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hunseal".
     iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hunseal)".
     codefrag_facts "Hunsealseal_codefrag".
 
@@ -903,14 +944,14 @@ Section interval.
     focus_block_0 "Hunsealseal_codefrag" as "Hblock" "Hcont".
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
-    iApply unseal_spec;iFrameCapSolve;[|iFrame "∗ #"]. solve_ndisj.
+    iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
 
     rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
-    iDestruct "Hres" as (p' b' e' a' b1' w pbvals [Heq [Hb Hbw] ]) "(#Hpref & Hr_t1 & Hr_env)". simplify_eq.
+    iDestruct "Hres" as (b' b'' a' w pbvals [Heq [Hb' Hbw] ]) "(#Hpref & Hr_t1 & Hr_env & #Hint)". simplify_eq.
     iGo "Hcode".
 
     (* we must now extract from the sealLL invariant that w is indeed an interval element *)
@@ -918,19 +959,22 @@ Section interval.
     iDestruct "Hw" as (hd) "(>Hll & Hawvals)".
     iDestruct "Hawvals" as (awvals) "(HisList & >Hexact & >Hintervals)".
     iDestruct (know_pref with "Hexact Hpref") as %Hpref.
-    assert (∃ k, awvals !! k = Some (b', w)) as [k Hin].
+    assert (∃ k, awvals !! k = Some (b'', w)) as [k Hin].
     { apply elem_of_list_lookup in Hbw as [k Hk]. destruct Hpref;subst.
       exists k. by apply lookup_app_l_Some. }
-    iDestruct "Hintervals" as "[Hintervals Hm]".
-    iDestruct (big_sepL_lookup_acc with "Hintervals") as "[Hw Hacc]";[eauto|].
-    iDestruct "Hw" as (a1 a2 a3 [Heq [Hincr Hincr'] ] z1 z2) "[Ha1 [Ha2 [%Hle #Hi]]]". simpl in Heq. rewrite Heq.
 
-    iGo "Hcode". split;auto;solve_addr+Hincr Hincr'.
+    iDestruct "Hint" as (z1 z2) "Hint".
+    iDestruct "Hint" as (bi ai ei [Heq [Hai Hei] ]) "(Hbi & Hei & %Hle)". subst w.
+    iDestruct "Hbi" as "-#Hbi". iDestruct "Hei" as "-#Hei".
+
+    iGo "Hcode". split;auto;solve_addr+Hai Hei.
     iGo "Hcode".
 
     (* lets begin by closing all our invariants *)
-    iMod ("Hcls''" with "[Hacc Ha1 Ha2 Hll HisList Hexact $Hown Hm]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame. iApply "Hacc". iExists _,_,_. repeat iSplit;eauto. iExists _,_. iFrame "∗ #". auto. }
+    iDestruct "Hbi" as "#Hbi". iDestruct "Hei" as "#Hei".
+    iDestruct "Hintervals" as "#Hintervals".
+    iMod ("Hcls''" with "[Hll HisList Hexact $Hown]") as "Hown".
+    { iNext. iExists _. iFrame. iExists _. iFrame "∗ #". }
 
     iMod ("Hcls'" with "[Hunseal Hseal Hb Hb_t Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
     { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
@@ -940,7 +984,7 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_. iFrame. iExists _,_,_,_,_. iFrame "#". eauto.
+    iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). eauto. iExists bi,ai,_. iFrame "#". eauto.
   Qed.
 
   Lemma imax_valid pc_p pc_b pc_e (* PC *)
@@ -971,14 +1015,14 @@ Section interval.
     (up_close (B:=coPset) ι2 ## ↑ι1) ->
 
 
-    {{{ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,d,d',d)
+      ∗ r_env ↦ᵣ WCap RWX d d' d
       ∗ (∃ w, r_t20 ↦ᵣ w)
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
       (* invariant for the seal (must be an isInterval seal) and the seal/unseal pair environment *)
       ∗ na_inv logrel_nais ι0 (seal_env d d' ll ll' p b e a b_m e_m b_t e_t)
-      ∗ sealLL ι2 ll γ isIntervals
+      ∗ sealLL ι2 ll γ isInterval
       (* token which states all non atomic invariants are closed *)
       ∗ na_own logrel_nais ⊤
       (* callback validity *)
@@ -1011,20 +1055,15 @@ Section interval.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
-    iApply imax_spec;iFrameCapSolve;[..|iFrame "∗ #"];auto.
+    iApply imax_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
     iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
     iSplitL "Hr_t20";[eauto|]. iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
-    iDestruct (jmp_or_fail_spec with "Hretval") as "Hcont".
-    destruct (decide (isCorrectPC (updatePcPerm wret))).
-    2: { iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-         iDestruct "HH" as (? ? ?) "(_ & _ & HPC & _)".
-         iApply "Hcont". iFrame "HPC". iIntros (Hcond). done. }
-    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ? ? ?) "HH".
-    iDestruct "HH" as (? ? (?&?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
-    iDestruct "Hcont" as (? ? ? ? Heq') "Hcont";simplify_eq.
+    iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
+    iNext. iIntros "HH". iDestruct "HH" as (? ? ? ? ? ? ? ?) "HH".
+    iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
@@ -1038,22 +1077,16 @@ Section interval.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-    rewrite -(insert_insert _  PC _ (WInt 0%Z)).
-    iDestruct ("Hcont" with "[$Hregs $Hown]") as "[_ $]". iClear "Hcont".
-    iSplit.
-    - iPureIntro. simpl. intros y. apply elem_of_gmap_dom.
-      rewrite !dom_insert_L Hdom. pose proof (all_registers_s_correct y) as Hx. set_solver+Hx.
-    - iIntros (r Hne). rewrite /RegLocate. consider_next_reg r PC. done.
-      consider_next_reg r r_t0. consider_next_reg r r_env. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t20. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t5. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t2. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t3. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t4. by rewrite !fixpoint_interp1_eq.
-      consider_next_reg r r_t1. by rewrite !fixpoint_interp1_eq.
-      destruct (rmap !! r) eqn:Hr;rewrite Hr;[|by rewrite !fixpoint_interp1_eq].
-      iDestruct (big_sepM_lookup with "Hregs_val") as "$";eauto.
+    (* iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|]. *)
+    (* rewrite -(insert_insert _  PC _ (WInt 0%Z)). *)
+    set regs' := <[_:=_]> _.
+    iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
+    { iPureIntro. simpl.
+      rewrite !dom_insert_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
+    iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
+    iApply big_sepM_insert_2. done. subst regs'.
+    repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
+    iApply "Hregs_val".
   Qed.
 
 

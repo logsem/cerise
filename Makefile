@@ -1,13 +1,24 @@
 EXTRA_DIR:=extra
 COQDOCFLAGS:= \
-  --external 'http://ssr2.msr-inria.inria.fr/doc/ssreflect-1.5/' Ssreflect \
-  --external 'http://ssr2.msr-inria.inria.fr/doc/mathcomp-1.5/' MathComp \
+  --external 'https://plv.mpi-sws.org/coqdoc/iris/' iris \
+  --external 'https://plv.mpi-sws.org/coqdoc/stdpp/' stdpp \
   --toc --toc-depth 2 --html --interpolate \
   --index indexpage --no-lib-name --parse-comments \
   --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html
 export COQDOCFLAGS
 
-.PHONY: all coq clean html
+CI_EXAMPLES:="\
+  theories/examples/buffer.vo \
+  theories/examples/minimal_counter.vo \
+  theories/examples/counter_adequacy.vo \
+  theories/examples/adder_adequacy.vo \
+  theories/examples/counter_binary.vo \
+  theories/examples/counter_binary_preamble.vo \
+  theories/examples/lse.vo \
+	theories/examples/dynamic_sealing.vo \
+	theories/examples/ocpl_lowval_like.vo"
+
+.PHONY: all coq clean html skip-qed ci
 all: coq
 
 fundamental: Makefile.coq
@@ -22,10 +33,10 @@ html: Makefile.coq
 	cp $(EXTRA_DIR)/resources/* html
 
 Makefile.coq:
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
 Makefile.coq.conf:
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
 
 include Makefile.coq.conf
 
@@ -33,6 +44,7 @@ skip-qed: Makefile.coq.conf
 	./disable-qed.sh $(COQMF_VFILES)
 
 ci: skip-qed
+#	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
 	$(MAKE) -f Makefile.coq pretty-timed
 
 clean: Makefile.coq

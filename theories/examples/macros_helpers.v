@@ -86,19 +86,12 @@ Ltac iCombinePtrn :=
   iCombine "Hi" "Hprog_done" as "Hprog_done";
   iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
 
-Ltac middle_lt prev index :=
-  match goal with
-  | Ha_first : ?a !! 0 = Some ?a_first |- _
-  => apply Z.lt_trans with prev; auto; apply incr_list_lt_succ with a index; auto
-  end.
-
 Ltac iCorrectPC i j :=
   eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
   cbn; solve [ repeat constructor ].
 
 Ltac iContiguous_next Ha index :=
-  apply contiguous_of_contiguous_between in Ha;
-  generalize (contiguous_spec _ Ha index); auto.
+  generalize (contiguous_between_spec _ _ _ Ha index); auto.
 
 Ltac disjoint_from_rmap rmap :=
   match goal with

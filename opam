@@ -12,4 +12,7 @@ depends: [
 ]
 pin-depends: [
   [ "coq-iris-string-ident.dev" "git+https://gitlab.mpi-sws.org/iris/string-ident.git"]
+
+# TEMPORARY
+  [ "coq-iris.3.4.0" "git+https://gitlab.mpi-sws.org/armael/iris.git#iris-3.4.0+patches" ]
 ]

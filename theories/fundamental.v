@@ -50,8 +50,7 @@ Section fundamental.
     destruct (decide (isCorrectPC (WCap p b e a))).
     - (* Correct PC *)
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
-      { eapply in_range_is_correctPC; eauto.
-        unfold le_addr; lia. }
+      { eapply in_range_is_correctPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
       { inversion i. subst. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
@@ -226,6 +225,20 @@ Section fundamental.
     rewrite insert_insert. iApply big_sepM_insert.
     { apply elem_of_gmap_dom_none. rewrite Hrmap. set_solver. }
     iFrame.
+  Qed.
+
+  Lemma region_integers_alloc' E (b e a: Addr) l p :
+    Forall (λ w, is_cap w = false) l →
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hl) "H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply region_integers_alloc; eauto.
   Qed.
 
 End fundamental.

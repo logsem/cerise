@@ -29,8 +29,8 @@ Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
 Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* Points to predicates for memory *)
-Notation "a ↦ₐ { q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
-  (at level 20, q at level 50, format "a  ↦ₐ { q }  w") : bi_scope.
+Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
+  (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
 Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
@@ -327,7 +327,7 @@ Section cap_lang_rules.
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Ha1 Ha2".
-    destruct (addr_eq_dec a1 a2); auto. subst.
+    destruct (finz_eq_dec a1 a2); auto. subst.
     iExFalso. iApply (addr_dupl_false with "[$Ha1] [$Ha2]").
   Qed.
 
@@ -348,7 +348,7 @@ Section cap_lang_rules.
     )%I ⊣⊢ (a1 ↦ₐ w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ w2) .
   Proof.
     destruct (a2 =? a1)%a eqn:Heq.
-    - apply Z.eqb_eq, z_of_eq in Heq. rewrite memMap_resource_1.
+    - apply Z.eqb_eq, finz_to_z_eq in Heq. rewrite memMap_resource_1.
       iSplit.
       * iDestruct 1 as (mem) "[HH ->]".  by iSplit.
       * iDestruct 1 as "[Hmap _]". iExists (<[a1:=w1]> ∅); iSplitL; auto.

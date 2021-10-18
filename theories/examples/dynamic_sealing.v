@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
-From cap_machine Require Import monotone list_new.
+From cap_machine Require Import monotone keylist.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section sealing.
@@ -14,13 +14,19 @@ Section sealing.
           {mono : sealLLG Σ}.
 
   (* Assume r_t1 contains a capability representing a sealed value.
+     First we must check that its permission is RWX (or the environment could derive
+     an O capability from the entrypoint to malloc), and that its range is 1
+     (to make sure it has the authority of a seal)
      Get its b field, find the corresponding value in the linked list contained in r_env.
      Result is returned in r_t1; clear r_env for security and return. *)
   (* Arguments: r_t1
      Return point: r_t0
      Uses: r_env r_t4 (r_t2 rt_3 are used by findb) *)
   Definition unseal_instrs :=
-    encodeInstrsW [ GetB r_t1 r_t1
+    encodeInstrsW [ Mov r_t3 r_t1 ] ++
+    reqperm_instrs r_t3 (encodePerm RWX) ++
+    reqsize_exact_instrs r_t3 1 ++
+    encodeInstrsW [ GetB r_t1 r_t3
                   ; Mov r_t4 (inr r_t0) (* Save return point *)
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
                   ; Lea r_t0 (inl (length findb_instr + 3)%Z)
@@ -35,8 +41,8 @@ Section sealing.
 
   (* Assume r_t1 contains the word to seal.
      Append it to the linked list contained in r_env.
-     Restrict the new capability to O permission.
-     Subseg it, clear r_env and return *)
+     Subseg the new capability to bottom range
+     clear r_env and return *)
   (* Arguments: r_t1
      Return point: r_t0
      Uses: r_env r_t2 r_t7 (r_t3 r_t4 r_t5 r_t6 used by appendb) *)
@@ -45,11 +51,12 @@ Section sealing.
                   ; Mov r_t0 (inr PC) (* Setup the return point for findb *)
                   ; Lea r_t0 (inl (length (appendb_instr f_m) + 2)%Z)
                   ] ++ appendb_instr f_m ++
-    encodeInstrsW [ Restrict r_t1 (inl (encodePerm O)) (* This is not actually necessary *)
-                  ; GetB r_t2 r_t1
-                  ; Subseg r_t1 r_t2 r_t2
+    encodeInstrsW [ GetB r_t2 r_t1
+                  ; Add r_t3 r_t2 1
+                  ; Subseg r_t1 r_t2 r_t3
                   ; Mov r_env (inl 0%Z) (* Clearing *)
                   ; Mov r_t2 (inl 0%Z) (* Clearing *)
+                  ; Mov r_t3 (inl 0%Z) (* Clearing *)
                   ; Mov r_t0 (inr r_t7) (* Restore return capability *)
                   ; Mov r_t7 (inl 0%Z) (* Clearing *)
                   ; Jmp r_t0
@@ -98,9 +105,9 @@ Section sealing.
   Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc :
     decodeInstrW w = get_i →
     is_Get get_i dst dst →
-    isCorrectPC (WCap (pc_p,pc_b,pc_e,pc_a)) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-    {{{ ▷ PC ↦ᵣ WCap (pc_p,pc_b,pc_e,pc_a)
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
       ∗ ▷ pc_a ↦ₐ w
       ∗ ▷ dst ↦ᵣ WInt zsrc }}}
       Instr Executable @ E
@@ -122,7 +129,7 @@ Section sealing.
         ll ll' (* linked list head and pointers *)
         a_first (* special adresses *)
         ι γ φ Ep (* invariant/gname names *)
-        Φ (* this predicate is chosen by the client at creation *) :
+        Φ {Hpers : ∀ w, Persistent (Φ w)} (* this predicate is chosen by the client at creation *) :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
@@ -135,9 +142,9 @@ Section sealing.
 
     up_close (B:=coPset) ι ⊆ Ep →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
-      ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+      ∗ r_env ↦ᵣ WCap RWX ll ll' ll
       ∗ r_t1 ↦ᵣ (* WCap (p, b, e, a) *) wsealed
       ∗ (∃ w, r_t2 ↦ᵣ w)
       ∗ (∃ w, r_t3 ↦ᵣ w)
@@ -152,7 +159,7 @@ Section sealing.
       ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
           ∗ r_t2 ↦ᵣ WInt 0%Z
-          ∗ (∃ p b e a b' w pbvals, ⌜wsealed = WCap (p,b,e,a) ∧ (b + 2)%a = Some b' ∧ (b,w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WInt 0%Z)
+          ∗ (∃ b b' a w pbvals, ⌜wsealed = WCap RWX b b' a ∧ (b + 1)%a = Some b' ∧ (b',w) ∈ pbvals⌝ ∗ prefLL γ pbvals ∗ r_t1 ↦ᵣ w ∗ r_env ↦ᵣ WInt 0%Z ∗ Φ w)
           ∗ r_t3 ↦ᵣ WInt 0%Z
           ∗ r_t4 ↦ᵣ WInt 0%Z
           ∗ codefrag a_first unseal_instrs
@@ -167,38 +174,51 @@ Section sealing.
     iDestruct "Hr_t3" as (w3) "Hr_t3".
     iDestruct "Hr_t4" as (w4) "Hr_t4".
 
-    destruct wsealed as [z|c].
-    { codefrag_facts "Hprog".
-      iInstr_lookup "Hprog" as "Hi" "Hcont".
-      wp_instr. iApplyCapAuto @wp_Get_fail_same.
-      wp_pure. iApply wp_value. iFrame.
-    }
-
-    destruct c as [ [ [p b] e] a].
-
-    codefrag_facts "Hprog".
     focus_block_0 "Hprog" as "Hprog" "Hcont".
-    iGo "Hprog".
+    iInstr "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    iApply findb_spec; iFrameCapSolve; eauto.
+    focus_block 1 "Hprog" as mid Hmid "Hprog" "Hcont".
+    iApply reqperm_spec;iFrameAutoSolve.
+    iNext. destruct (isPermWord wsealed RWX) eqn:Hperm;[|iFrame].
+    destruct wsealed as [z|p b e a];[inversion Hperm|].
+    apply bool_decide_eq_true_1 in Hperm as <-.
+    iExists _,_,_. iSplit;eauto. iIntros "(HPC & Hprog & Hr_t3 & Hr_t1 & Hr_t2)".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    focus_block 2 "Hprog" as mid0 Hmid0 "Hprog" "Hcont".
+    iApply reqsize_spec;iFrameAutoSolve.
+    iNext. destruct (1 =? e - b)%Z eqn:Hsize;cycle 1.
+    { iFrame. }
+    iIntros "HH". iDestruct "HH" as (w1 w0) "(Hprog & HPC & Hr_t3 & Hr_t1 & Hr_t2)".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    codefrag_facts "Hprog". simpl in H, H0.
+    focus_block 3 "Hprog" as mid1 Hmid1 "Hprog" "Hcont".
+    iGo "Hprog". simpl in *. instantiate (1 := (mid1 ^+ 18)%a). solve_addr.
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    focus_block 4 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
+    iApply findb_spec; iFrameAutoSolve; eauto.
     iFrame "# ∗". iSplitL "Hr_t2"; eauto. iSplitL "Hr_t3"; eauto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & HisList & Hr_t3 & Hprog & Hown)".
-    iDestruct "HisList" as (b_a b' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env)".
+    iDestruct "HisList" as (b_a b' b'' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env & #HΦ)".
+    destruct HX as (HA & HA1 & HB & HC).
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    destruct HX as (HA & HB & HC). eapply z_to_addr_eq_inv in HA. subst b_a; auto.
+    eapply finz_of_z_eq_inv in HA. subst b_a; auto.
+    assert (e = b')%Z as <-.
+    { solve_addr. }
 
-    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 18)%a ltac:(destruct Hvpc; congruence)).
-    focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (mid1 ^+ 18)%a ltac:(destruct Hvpc; congruence)).
+    focus_block 5 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "# ∗".
-    iExists _,_,_,_,_,_,_. iFrame.
+    iExists _,_,_,_,_. iFrame "∗ #".
     iPureIntro. eauto.
   Qed.
 
-  Lemma seal_spec Φ Ψ (* client chosen seal predicate *)
+  Lemma seal_spec Φ (* client chosen seal predicate *)
         pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         w (* input z *)
@@ -207,7 +227,8 @@ Section sealing.
         rmap (* register map *)
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
-        ι ι1 γ Ep φ (* invariant/gname names *) :
+        ι ι1 γ Ep φ (* invariant/gname names *)
+        {Hpers : ∀ w, Persistent (Φ w)} (* the client chosen predicate is persistent *) :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
@@ -221,16 +242,16 @@ Section sealing.
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
 
     (* environment table *)
-    withinBounds (RW, b_r, e_r, a_r') = true →
+    withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
     up_close (B:=coPset) ι ⊆ Ep →
     up_close (B:=coPset) ι1 ⊆ Ep ∖ ↑ι →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first)
-       ∗ r_env ↦ᵣ WCap (RWX,ll,ll',ll)
+    PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+       ∗ r_env ↦ᵣ WCap RWX ll ll' ll
        ∗ r_t1 ↦ᵣ w
-       ∗ (∀ pbvals a, ⌜a ∉ pbvals.*1⌝ → Φ pbvals ==∗ Φ (pbvals++[(a,w)]) ∗ Ψ (a,w))
+       ∗ Φ w
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
        (* own token *)
@@ -239,19 +260,19 @@ Section sealing.
        ∗ codefrag a_first (seal_instrs f_m)
        (* malloc *)
        ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
-       ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-       ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+       ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+       ∗ a_r' ↦ₐ WCap E b_m e_m b_m
        (* linked list invariants *)
        ∗ sealLL ι ll γ Φ
        ∗ prefLL γ pbvals
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_env ↦ᵣ WInt 0%Z
           ∗ r_t0 ↦ᵣ wret
-          ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-          ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+          ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+          ∗ a_r' ↦ₐ WCap E b_m e_m b_m
           ∗ ([∗ map] r↦w ∈ <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
                           (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]> rmap))))), r ↦ᵣ w)
-          ∗ (∃ a pbvals', prefLL γ (pbvals ++ pbvals' ++ [(a,w)]) ∗ r_t1 ↦ᵣ WCap (O,a,a,a) ∗ Ψ (a,w))
+          ∗ (∃ a a' pbvals', ⌜(a + 1)%a = Some a'⌝ ∗ prefLL γ (pbvals ++ pbvals' ++ [(a',w)]) ∗ r_t1 ↦ᵣ WCap RWX a a' a' ∗ a ↦ₐ WInt 0)
           ∗ codefrag a_first (seal_instrs f_m)
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -274,35 +295,41 @@ Section sealing.
     iFrame. iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hpc_b & Ha_r' & Hregs & HisList & Hprog & Hown)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 53)%a ltac:(destruct Hvpc; congruence)).
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 54)%a ltac:(destruct Hvpc; congruence)).
     focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
-    iDestruct "HisList" as (a a' pbvals') "(%HA & #Hpref' & Hr_t1 & HΨ)".
-    iGo "Hprog". rewrite decode_encode_perm_inv. reflexivity.
-    iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr.
-    iGo "Hprog".
+    iDestruct "HisList" as (a a' a'' pbvals') "(%HA & #Hpref' & Hr_t1 & Ha)".
+    destruct HA as (HA & HB).
+    iGo "Hprog". instantiate (1:=a'). solve_addr. solve_addr.
+    iGo "Hprog". (* rewrite decode_encode_perm_inv. reflexivity. *)
+    (* iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr. *)
+    (* iGo "Hprog". *)
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
-    iSplitR "Hr_t1 HΨ".
-    - iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [apply lookup_delete|].
-      rewrite insert_delete -delete_insert_ne //.
-      iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
-      rewrite insert_delete. rewrite !(insert_commute _ r_t7) //.
-    - iExists _, _. rewrite decode_encode_perm_inv. iFrame "∗ #".
+    iSplitR "Hr_t1 Ha ".
+    - iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|].
+      map_simpl "Hregs".
+      iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|].
+      map_simpl "Hregs".
+      iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|].
+      map_simpl "Hregs".
+      repeat rewrite -(insert_commute _ _ r_t7)//.
+    - iExists _, _, _. iFrame. iSplit;eauto.
   Qed.
 
-  Lemma sealLL_alloc ι ll Ep Φ:
-    ll ↦ₐ WInt 0%Z -∗ Φ [] -∗
+  Lemma sealLL_alloc ι ll Ep Φ {Hpers : ∀ w, Persistent (Φ w)} :
+    ll ↦ₐ WInt 0%Z -∗
     |={Ep}=> ∃ γ, sealLL ι ll γ Φ.
   Proof.
-    iIntros "Hll Hnil".
+    iIntros "Hll".
     iMod (own_alloc (● principal prefR [])) as (γ) "Hown".
     { eapply auth_auth_valid. repeat red. apply I. }
-    iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ Φ awvals)) with "[Hll Hown Hnil]")%I as "Hinv".
+    iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ [∗ list] aw ∈ awvals, Φ aw.2)) with "[Hll Hown]")%I as "Hinv".
     { iNext. iExists (WInt 0%Z). iFrame.
-      iExists []. iFrame. done. }
+      iExists []. iFrame. iSplit;done. }
     iExists γ. auto.
   Qed.
 
@@ -313,42 +340,42 @@ Section sealing.
         f_m b_m e_m (* malloc addrs *)
         b_r e_r a_r a_r' (* environment table addrs *)
         ι ι1 Ep φ (* invariant/gname names *)
-        Φ (* The spec for make seal works for any seal predicate Φ that the client must choose upon creation: the client must show that the seal predicate works for the empty list *) :
+        Φ {Hpers: ∀ w, Persistent (Φ w)} (* The spec for make seal works for any seal predicate Φ
+             that the client must choose upon creation *) :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
 
     (* Program adresses assumptions *)
-    SubBounds pc_b pc_e a_first (a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m) ^+ length (make_seal_preamble_instrs f_m))%a →
+    SubBounds pc_b pc_e a_first (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m) + length (make_seal_preamble_instrs f_m)))%a →
 
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* environment table *)
-    withinBounds (RW, b_r, e_r, a_r') = true →
+    withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
     up_close (B:=coPset) ι1 ⊆ Ep →
 
-    PC ↦ᵣ WCap (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs) ^+ length (seal_instrs f_m))%a
+    PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m)))%a
        ∗ r_t0 ↦ᵣ wret
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
-       ∗ Φ []
        (* own token *)
        ∗ na_own logrel_nais Ep
        (* trusted code *)
        ∗ codefrag a_first (unseal_instrs ++ seal_instrs f_m ++ make_seal_preamble_instrs f_m)
        (* malloc *)
        ∗ na_inv logrel_nais ι1 (malloc_inv b_m e_m)
-       ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-       ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
+       ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+       ∗ a_r' ↦ₐ WCap E b_m e_m b_m
        ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
-          ∗ pc_b ↦ₐ WCap (RO, b_r, e_r, a_r)
-          ∗ a_r' ↦ₐ WCap (E, b_m, e_m, b_m)
-          ∗ (∃ b1 e1 b2 e2 ll ll', let wvar := WCap (RWX, ll, ll', ll) in
-                                   let wcode1 := WCap (pc_p,pc_b,pc_e,a_first)%a in
-                                   let wcode2 := WCap (pc_p,pc_b,pc_e,a_first ^+ length (unseal_instrs))%a in
-                                   r_t1 ↦ᵣ WCap (E, b1, e1, b1) ∗ r_t2 ↦ᵣ WCap (E, b2, e2, b2)
+          ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
+          ∗ a_r' ↦ₐ WCap E b_m e_m b_m
+          ∗ (∃ b1 e1 b2 e2 ll ll', let wvar := WCap RWX ll ll' ll in
+                                   let wcode1 := WCap pc_p pc_b pc_e a_first in
+                                   let wcode2 := WCap pc_p pc_b pc_e (a_first ^+ length (unseal_instrs))%a in
+                                   r_t1 ↦ᵣ WCap E b1 e1 b1 ∗ r_t2 ↦ᵣ WCap E b2 e2 b2
                                    ∗ ⌜(b1 + 8)%a = Some e1⌝ ∗ ⌜(b2 + 8)%a = Some e2⌝
                                    ∗ [[b1,e1]]↦ₐ[[activation_instrs wcode1 wvar]]
                                    ∗ [[b2,e2]]↦ₐ[[activation_instrs wcode2 wvar]]
@@ -362,7 +389,7 @@ Section sealing.
       -∗
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
-    iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hnil & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
+    iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
@@ -377,7 +404,7 @@ Section sealing.
 
     rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
-    iApply malloc_spec_alt; iFrameCapSolve. 4: iFrame "# ∗".
+    iApply malloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
     set_solver. auto. lia.
     iSplitL "". iNext. auto.
     iSplitL "". iNext. iRight. auto.
@@ -397,11 +424,11 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete. rewrite insert_commute; auto.
-    rewrite -delete_insert_ne; auto. rewrite insert_delete.
+    rewrite insert_delete. rewrite (delete_commute _ _ r_t8)//.
+    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
-    iApply crtcls_spec_alt; iFrameCapSolve. 3: iFrame "# ∗".
+    iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".
     set_solver+ Hdom. auto.
     iSplitL ""; eauto. iSplitL ""; eauto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hseal)".
@@ -423,7 +450,7 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs"; [simplify_map_eq; auto|].
     map_simpl "Hregs".
-    iApply crtcls_spec; iFrameCapSolve. 3: iFrame "# ∗".
+    iApply crtcls_spec; iFrameAutoSolve. 3: iFrame "# ∗".
     set_solver+ Hdom. auto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hunseal)".
     iDestruct "Hunseal" as (b2 e2) "(Hb2eq & Hr_t1 & Hunseal & Hr_t0 & Hr_t2 & Hown & Hregs)".
@@ -437,9 +464,9 @@ Section sealing.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iMod (sealLL_alloc with "[Hll] Hnil") as (γ) "Hsealinv".
-    { rewrite /region_mapsto. rewrite region_addrs_single; auto.
-      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (incr_addr_region_size_iff ll ll' 1) ltac:(auto))).
+    iMod (sealLL_alloc with "[Hll]") as (γ) "Hsealinv".
+    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist ll ll' 1) ltac:(auto))).
       simpl replicate. iDestruct "Hll" as "(Hll & _)". iFrame. }
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [simplify_map_eq; auto|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].

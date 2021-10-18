@@ -1,7 +1,17 @@
 -Q theories/ cap_machine
+-Q machine_utils/theories/ machine_utils
 -arg -w -arg -convert_concl_no_check
 -arg -w -arg -several-object-files
 -arg -w -arg -ssr-search-moved
+machine_utils/theories/finz.v
+machine_utils/theories/finz_base.v
+machine_utils/theories/finz_interval.v
+machine_utils/theories/finz_lemmas.v
+machine_utils/theories/solve_finz.v
+machine_utils/theories/classes.v
+machine_utils/theories/class_instances.v
+machine_utils/theories/solve_pure.v
+machine_utils/theories/tactics.v
 theories/iris_extra.v
 theories/stdpp_extra.v
 theories/map_simpl.v
@@ -36,6 +46,7 @@ theories/proofmode_instr_rules.v
 theories/proofmode.v
 theories/seal_store.v
 theories/logrel.v
+theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
@@ -52,6 +63,7 @@ theories/ftlr/Subseg.v
 theories/fundamental.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v
+theories/examples/assert.v
 theories/examples/contiguous.v
 theories/examples/macros_helpers.v
 theories/examples/macros.v
@@ -59,6 +71,7 @@ theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v
 theories/examples/template_adequacy.v
+theories/examples/template_adequacy_ocpl.v
 theories/examples/call.v
 theories/examples/counter.v
 theories/examples/counter_preamble.v
@@ -67,5 +80,14 @@ theories/examples/adder.v
 theories/examples/adder_adequacy.v
 theories/examples/callback.v
 theories/examples/lse.v
-theories/monotone.v
-theories/examples/list_new.v
+theories/examples/lse_adequacy.v
+theories/examples/dynamic_sealing.v
+theories/examples/keylist.v
+theories/examples/interval.v
+theories/examples/interval_closure.v
+theories/examples/interval_client.v
+theories/examples/interval_client_closure.v
+theories/examples/interval_client_adequacy.v
+theories/examples/buffer.v
+theories/examples/minimal_counter.v
+theories/examples/ocpl_lowval_like.v

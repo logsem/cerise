@@ -26,6 +26,22 @@ Proof.
         apply elem_of_cons. by right.
 Qed.
 
+Lemma big_sepM_to_big_sepL2 (PROP : bi) (A B : Type) `{EqDecision A} `{Countable A}
+      (φ: A -> B -> PROP) (l1: list A) (l2: list B):
+      NoDup l1 -> length l1 = length l2 →
+      ⊢ (([∗ map] y1↦y2 ∈ list_to_map (zip l1 l2), φ y1 y2) -∗
+         ([∗ list] y1;y2 ∈ l1;l2, φ y1 y2))%I.
+Proof.
+  revert l2. iInduction (l1) as [|x l1] "IH"; iIntros (l2 Hnd Hlen) "H".
+  - iSimpl. destruct l2;inversion Hlen. done.
+  - destruct l2;inversion Hlen. simpl.
+    inversion Hnd. subst.
+    iDestruct (big_sepM_insert with "H") as "[A B]".
+    + eapply not_elem_of_list_to_map.
+      rewrite fst_zip; auto. lia.
+    + iFrame. iApply ("IH" $! l2 H4 H1 with "B"); auto.
+Qed.
+
 Lemma NoDup_of_sepL2_exclusive {Σ : gFunctors} {A B: Type} (l1: list A) (l2: list B) (Φ: A -> B -> iProp Σ):
   (∀ a x1 x2, Φ a x1 -∗ Φ a x2 -∗ False) -∗
   ([∗ list] a;x ∈ l1;l2, Φ a x) -∗
@@ -436,4 +452,42 @@ Proof.
       iApply big_sepM_insert;auto.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
       iExists ρ. iFrame.
+Qed.
+
+Lemma big_sepL2_to_big_sepL_replicate {Σ : gFunctors} {A B: Type} (l1: list A) (b : B) (Φ: A -> B -> iProp Σ) :
+  ([∗ list] a;b' ∈ l1;replicate (length l1) b, Φ a b')%I -∗
+  ([∗ list] a ∈ l1, Φ a b).
+Proof.
+  iIntros "Hl".
+  iInduction l1 as [|a l1] "IH".
+  - done.
+  - simpl. iDestruct "Hl" as "[$ Hl]".
+    iApply "IH". iFrame.
+Qed.
+
+Lemma big_sepM_to_create_gmap_default {Σ : gFunctors} {A B : Type} `{Countable A} (m m' : gmap A B) (φ : A -> B -> iProp Σ) (b : B) (l : list A) :
+  l ≡ₚ(map_to_list m).*1 →
+  m' = create_gmap_default l b →
+  ([∗ map] a↦_ ∈ m, φ a b) -∗ ([∗ map] a↦b' ∈ m', φ a b').
+Proof.
+  iIntros (Hl Hm) "Hm".
+  iInduction l as [|a l] "IH" forall (m m' Hl Hm).
+  - simpl in Hm. rewrite Hm. done.
+  - assert (NoDup (a :: l)) as Hdup.
+    { rewrite Hl. apply NoDup_map_to_list_fst. done. }
+    assert (a ∈ (map_to_list m).*1) as Hin'.
+    { rewrite -Hl. constructor. }
+    assert (is_Some(m !! a)) as [b' Hsome].
+    { apply elem_of_gmap_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
+    iDestruct (big_sepM_delete _ _ a with "Hm") as "[Ha Hm]";eauto.
+    iApply big_sepM_delete;[|iFrame].
+    { rewrite Hm.  apply lookup_insert. }
+    rewrite Hm /= delete_insert_delete.
+    iApply ("IH" $! (delete a m));[..|iFrame].
+    + iPureIntro. rewrite map_to_list_delete_fst;eauto.
+    + iPureIntro. rewrite delete_notin;auto.
+      destruct (create_gmap_default l b !! a) eqn:Hsome';auto.
+      exfalso. apply NoDup_cons in Hdup as [Hnin Hdup].
+      apply Hnin. apply create_gmap_default_lookup_is_Some in Hsome' as [Hin Hsome'].
+      subst. auto.
 Qed.

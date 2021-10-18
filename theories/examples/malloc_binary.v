@@ -2,7 +2,7 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import rules rules_binary addr_reg_sample.
 From cap_machine.examples Require Import contiguous malloc.
-From cap_machine Require Import logrel_binary fundamental_binary.
+From cap_machine Require Import iris_extra logrel_binary fundamental_binary.
 From cap_machine.rules Require Import rules_base.
 
 Section SimpleMalloc.
@@ -55,8 +55,7 @@ Section SimpleMalloc.
     cbn; solve [ repeat constructor ].
 
   Ltac iContiguous_next Ha index :=
-    apply contiguous_of_contiguous_between in Ha;
-    generalize (contiguous_spec _ Ha index); auto.
+    generalize (contiguous_between_spec _ _ _ Ha index); auto.
 
   Lemma simple_malloc_subroutine_spec (wsize: Word) (cont cont': Word) b e rmap smap N E φ :
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
@@ -128,13 +127,13 @@ Section SimpleMalloc.
       by rewrite !lookup_delete_ne //.
 
     rewrite /(region_mapsto b b_m) /(region_mapsto_spec b b_m).
-    set ai := region_addrs b b_m.
-    assert (Hai: region_addrs b b_m = ai) by reflexivity.
+    set ai := finz.seq_between b b_m.
+    assert (Hai: finz.seq_between b b_m = ai) by reflexivity.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_len.
     cbn in Hprog_len.
     assert ((b + malloc_subroutine_instrs_length)%a = Some b_m) as Hb_bm.
     { rewrite /malloc_subroutine_instrs_length.
-      rewrite region_addrs_length /region_size in Hprog_len. solve_addr. }
+      rewrite finz_seq_between_length /finz.dist in Hprog_len. solve_addr. }
     assert (contiguous_between ai b b_m) as Hcont.
     { apply contiguous_between_of_region_addrs; eauto.
       rewrite /malloc_subroutine_instrs_length in Hb_bm. solve_addr. }
@@ -178,8 +177,8 @@ Section SimpleMalloc.
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
     (* lea r_t2 4 *)
     do 3 (destruct l as [|? l];[inversion Hprog_len|]).
-    assert (a0 + 4 = Some a3)%a as Hlea1.
-    { apply contiguous_between_incr_addr_middle with (i:=1) (j:=4) (ai:=a0) (aj:=a3) in Hcont;auto. }
+    assert (f + 4 = Some f3)%a as Hlea1.
+    { apply contiguous_between_incr_addr_middle with (i:=1) (j:=4) (ai:=f) (aj:=f3) in Hcont;auto. }
     iPrologue "Hprog" "Hsprog".
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2]")
       as "(Hj & HsPC & Hsi & Hs2)";
@@ -245,8 +244,8 @@ Section SimpleMalloc.
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
     iPrologue "Hprog" "Hsprog".
-    assert ((a3 + (malloc_subroutine_instrs_length - 5))%a = Some b_m) as Hlea.
-    { assert (b + 5 = Some a3)%a. apply contiguous_between_incr_addr with (i:=5) (ai:=a3) in Hcont;auto.
+    assert ((f3 + (malloc_subroutine_instrs_length - 5))%a = Some b_m) as Hlea.
+    { assert (b + 5 = Some f3)%a. apply contiguous_between_incr_addr with (i:=5) (ai:=f3) in Hcont;auto.
       clear -H Hb_bm. solve_addr. }
     iMod (step_lea_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2]")
       as "(Hj & HsPC & Hsi & Hs2)";
@@ -376,16 +375,16 @@ Section SimpleMalloc.
       iNext. iIntros (regs' retv) "(Hspec' & ? & ?)". iDestruct "Hspec'" as %Hspec.
       destruct Hspec as [| Hfail].
       { exfalso. unfold addr_of_argument in *. simplify_map_eq.
-        repeat match goal with H:_ |- _ => apply z_to_addr_eq_inv in H end; subst.
+        repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
       { cbn. iApply wp_pure_step_later; auto. iNext. iApply wp_value. auto. } }
     iMod (step_subseg_success _ [SeqCtx] with "[$Hj $Hspec $HsPC $Hsi $Hs4 $Hs3 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs3 & Hs1 & Hs4)";
-      [apply decode_encode_instrW_inv| |split;apply z_to_addr_z_of|done|done|auto..].
+      [apply decode_encode_instrW_inv| |split;apply finz_of_z_to_z|done|done|auto..].
     { apply HPC; repeat constructor. }
     { iContiguous_next Hcont 12. }
     iApply (wp_subseg_success with "[$HPC $Hi $Hr4 $Hr3 $Hr1]");
-      [apply decode_encode_instrW_inv| |apply z_to_addr_z_of|apply z_to_addr_z_of|done|done|..].
+      [apply decode_encode_instrW_inv| |apply finz_of_z_to_z|apply finz_of_z_to_z|done|done|..].
     { apply HPC; repeat constructor. }
     { iContiguous_next Hcont 12. }
     iEpilogue_both "(HPC & Hi & Hr3 & Hr1 & Hr4)".
@@ -624,11 +623,11 @@ Section SimpleMalloc.
 
   Lemma allocate_region_inv E ba ea :
     [[ba,ea]]↦ₐ[[region_addrs_zeroes ba ea]] ∗ [[ba,ea]]↣ₐ[[region_addrs_zeroes ba ea]]
-    ={E}=∗ [∗ list] a ∈ region_addrs ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
+    ={E}=∗ [∗ list] a ∈ finz.seq_between ba ea, (inv (logN .@ a) (logrel_binary.interp_ref_inv a logrel_binary.interp)).
   Proof.
     iIntros "[Hbae Hsbae]".
     iApply big_sepL_fupd.
-    rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -region_addrs_length.
+    rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -finz_seq_between_length.
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hbae") as "Hbae".
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hsbae") as "Hsbae".
     iDestruct (big_sepL_sep with "[$Hbae $Hsbae]") as "Hbae".

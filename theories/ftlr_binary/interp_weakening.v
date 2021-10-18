@@ -53,16 +53,16 @@ Section fundamental.
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #Hspec #HA".
     destruct (decide (b' <= e')%a).
-    2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !region_addrs_empty; try solve_addr).
+    2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !finz_seq_between_empty; try solve_addr).
          iSplit; auto. iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hsregs & Hna & Hs)". iSplit;auto.
          iApply ("IH" with "Hfull Hreg Hregs Hsregs Hna Hs"); auto. iModIntro.
-         iClear "HA". by rewrite !fixpoint_interp1_eq /= !region_addrs_empty; try solve_addr.
+         iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty; try solve_addr.
     }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
-      (rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr]);
+      (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]";iFrame "#";auto.
       + iSplitR; auto. iApply (big_sepL_mono with "A3").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
@@ -70,26 +70,26 @@ Section fundamental.
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
-      (rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr]);
+      (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]";iSplitR; auto; iFrame "#".
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
-      (rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr]);
+      (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]";iSplitR; auto; iFrame "#".
       iApply (big_sepL_mono with "A3").
       iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq. iSplitR; auto. iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hsregs & Hna & Hs)". iSplit;auto.
       iApply ("IH" with "Hfull Hreg Hregs Hsregs Hna Hs"); auto. iModIntro.
       destruct p; inversion Hp; try contradiction.
-      + rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr].
+      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]"; iFrame "#". auto.
-      + rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr].
+      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]".
         iSplitR; auto. iApply (big_sepL_mono with "A3").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
-      (rewrite /= (isWithin_region_addrs_decomposition b' e' b e); [|solve_addr]);
+      (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 [A3 A4]]]";iFrame "#". auto.
   Qed.
 
