@@ -152,6 +152,8 @@ Section logrel.
     | WCap RX b e a => interp_cap_RX interp w
     | WCap E b e a => interp_cap_E interp w
     | WCap RWX b e a => interp_cap_RWX interp w
+    | WSealRange p b e a => interp_sr interp p b e
+    | WSealed o sb => interp_sb o w
     end)%I.
 
 
