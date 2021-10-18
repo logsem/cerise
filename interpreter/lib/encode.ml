@@ -101,15 +101,15 @@ let encode_statement (s : statement): Z.t =
   let const_convert opcode c = begin
     match c with
     | Register r -> opcode, encode_reg r
-    | Const i -> Z.(succ opcode, ~$i)
-    | Perm p -> Z.(succ @@ succ opcode, encode_perm p)
+    | CP (Const i) -> Z.(succ opcode, ~$i)
+    | CP (Perm p) -> Z.(succ @@ succ opcode, encode_perm p)
   end in
   let two_const_convert opcode c1 c2 = begin
     let (opc1, c1_enc) = begin
       match c1 with
       | Register r -> opcode, encode_reg r
-      | Const i -> Z.(opcode + ~$3, ~$i)
-      | Perm p -> Z.(opcode + ~$6, encode_perm p)
+      | CP (Const i) -> Z.(opcode + ~$3, ~$i)
+      | CP (Perm p) -> Z.(opcode + ~$6, encode_perm p)
     end in
     let (opc2, c2_enc) = const_convert opc1 c2 in
     (opc2, encode_int_int c1_enc c2_enc)
@@ -186,14 +186,14 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let c = Const (Z.to_int c_enc) in
-    Move (r, c)
+    Move (r, CP c)
   end else
   if opc = ~$0x04 (* register perm *)
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let p = Perm (decode_perm c_enc) in
-    Move (r, p)
+    Move (r, CP p)
   end else
   (* Load *)
   if opc = ~$0x05
@@ -216,14 +216,14 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let c = Const (Z.to_int c_enc) in
-    Store (r, c)
+    Store (r, CP c)
   end else
   if opc = ~$0x08 (* register perm *)
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let p = Perm (decode_perm c_enc) in
-    Store (r, p)
+    Store (r, CP p)
   end else
   (* Add *)
   if ~$0x08 < opc && opc < ~$0x0c
@@ -234,8 +234,8 @@ let decode_statement (i : Z.t) : statement =
     let c1 = Register (decode_reg c1_enc) in
     let c2 = begin
       if opc = ~$0x09 then Register (decode_reg c2_enc) else
-      if opc = ~$0x0a then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x0a then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Add (r, c1, c2)
   end else
@@ -244,11 +244,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Const (Z.to_int c1_enc) in
+    let c1 = CP (Const (Z.to_int c1_enc)) in
     let c2 = begin
       if opc = ~$0x0c then Register (decode_reg c2_enc) else
-      if opc = ~$0x0d then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x0d then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Add (r, c1, c2)
   end else
@@ -257,11 +257,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Perm (decode_perm c1_enc) in
+    let c1 = CP (Perm (decode_perm c1_enc)) in
     let c2 = begin
       if opc = ~$0x0f then Register (decode_reg c2_enc) else
-      if opc = ~$0x10 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x10 then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Add (r, c1, c2)
   end else
@@ -274,8 +274,8 @@ let decode_statement (i : Z.t) : statement =
     let c1 = Register (decode_reg c1_enc) in
     let c2 = begin
       if opc = ~$0x12 then Register (decode_reg c2_enc) else
-      if opc = ~$0x13 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x13 then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Sub (r, c1, c2)
   end else
@@ -284,11 +284,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Const (Z.to_int c1_enc) in
+    let c1 = CP (Const (Z.to_int c1_enc)) in
     let c2 = begin
       if opc = ~$0x15 then Register (decode_reg c2_enc) else
-      if opc = ~$0x16 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x16 then CP (Const (Z.to_int c2_enc)) else
+        CP (Perm (decode_perm c2_enc))
     end in
     Sub (r, c1, c2)
   end else
@@ -297,11 +297,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Perm (decode_perm c1_enc) in
+    let c1 = CP (Perm (decode_perm c1_enc)) in
     let c2 = begin
       if opc = ~$0x18 then Register (decode_reg c2_enc) else
-      if opc = ~$0x19 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x19 then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Sub (r, c1, c2)
   end else
@@ -314,8 +314,8 @@ let decode_statement (i : Z.t) : statement =
     let c1 = Register (decode_reg c1_enc) in
     let c2 = begin
       if opc = ~$0x1b then Register (decode_reg c2_enc) else
-      if opc = ~$0x1c then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x1c then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Lt (r, c1, c2)
   end else
@@ -324,11 +324,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Const (Z.to_int c1_enc) in
+    let c1 = CP (Const (Z.to_int c1_enc)) in
     let c2 = begin 
       if opc = ~$0x1e then Register (decode_reg c2_enc) else
-      if opc = ~$0x1f then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x1f then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Lt (r, c1, c2)
   end else
@@ -337,11 +337,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Perm (decode_perm c1_enc) in
+    let c1 = CP (Perm (decode_perm c1_enc)) in
     let c2 = begin
       if opc = ~$0x21 then Register (decode_reg c2_enc) else
-      if opc = ~$0x22 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x22 then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     Lt (r, c1, c2)
   end else
@@ -358,14 +358,14 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let c = Const (Z.to_int c_enc) in
-    Lea (r, c)
+    Lea (r, CP c)
   end else
   if opc = ~$0x26 (* register perm *)
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let p = Perm (decode_perm c_enc) in
-    Lea (r, p)
+    Lea (r, CP p)
   end else
   (* Restrict *)
   if opc = ~$0x27 (* register register *)
@@ -380,14 +380,14 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let c = Const (Z.to_int c_enc) in
-    Restrict (r, c)
+    Restrict (r, CP c)
   end else
   if opc = ~$0x29 (* register perm *)
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
     let p = Perm (decode_perm c_enc) in
-    Restrict (r, p)
+    Restrict (r, CP p)
   end else
   (* SubSeg *)
   if ~$0x29 < opc && opc < ~$0x2d
@@ -398,8 +398,8 @@ let decode_statement (i : Z.t) : statement =
     let c1 = Register (decode_reg c1_enc) in
     let c2 = begin
       if opc = ~$0x2a then Register (decode_reg c2_enc) else
-      if opc = ~$0x2b then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x2b then CP (Const (Z.to_int c2_enc)) else
+        CP (Perm (decode_perm c2_enc))
     end in
     SubSeg (r, c1, c2)
   end else
@@ -408,11 +408,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Const (Z.to_int c1_enc) in
+    let c1 = CP (Const (Z.to_int c1_enc)) in
     let c2 = begin
       if opc = ~$0x2d then Register (decode_reg c2_enc) else
-      if opc = ~$0x2e then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x2e then CP (Const (Z.to_int c2_enc)) else
+        CP (Perm (decode_perm c2_enc))
     end in
     SubSeg (r, c1, c2)
   end else
@@ -421,11 +421,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = Perm (decode_perm c1_enc) in
+    let c1 = CP (Perm (decode_perm c1_enc)) in
     let c2 = begin
       if opc = ~$0x30 then Register (decode_reg c2_enc) else
-      if opc = ~$0x31 then Const (Z.to_int c2_enc) else
-      Perm (decode_perm c2_enc)
+      if opc = ~$0x31 then CP (Const (Z.to_int c2_enc)) else
+      CP (Perm (decode_perm c2_enc))
     end in
     SubSeg (r, c1, c2)
   end else

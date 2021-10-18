@@ -1,8 +1,8 @@
 open Ast
 
 module MemMap = Map.Make(Int)
-module RegMap = Map.Make(
-  struct
+module RegMap =
+  Map.Make(struct
     type t = regname
     let compare (r1 : t) (r2: t) : int =
       match r1, r2 with
@@ -38,3 +38,5 @@ let init_mchn (addr_max : Z.t) (prog : t) : mchn =
   let regs = init_reg_state addr_max in
   let mems = init_mem_state prog in
   ({reg = regs; mem = mems} , Running)
+
+(*let get_word (conf : exec_conf) (roc : reg_or_const) : word *)

@@ -19,8 +19,8 @@ let string_of_perm (p: perm): string =
 let string_of_reg_or_const (c: reg_or_const) : string =
   match c with
   | Register r -> string_of_regname r
-  | Const c -> string_of_int c
-  | Perm p -> string_of_perm p
+  | CP (Const c) -> string_of_int c
+  | CP (Perm p) -> string_of_perm p
 
 let string_of_statement (s: statement): string =
   let string_of_rr r1 r2 =
