@@ -129,6 +129,18 @@ Section logrel.
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
+  (* (un)seal permission definitions *)
+  Definition safe_to_seal (interp : D) (b e : OType) :=
+    ([* list] a ∈ (region_addrs b e), ∃ P, seal_pred a P ∗ write_cond P interp)%I.
+  Definition safe_to_unseal (interp : D) (b e : OType) :=
+    ([* list] a ∈ (region_addrs b e), ∃ P, seal_pred a P ∗ read_cond P interp)%I.
+
+  Program Definition interp_sr (interp : D) (p : SealPerms) (b e : OType) : D :=
+    (if permit_seal p then safe_to_seal D b e else ⊤) ∗
+    (if permit_unseal p then safe_to_unseal D b e else ⊤).
+
+  Program Definition interp_sb (o : OType) (w : Word) : D :=
+    ∃ P, seal_pred o P ∗ P w.
 
   Program Definition interp1 (interp : D) : D :=
     (λne w,
