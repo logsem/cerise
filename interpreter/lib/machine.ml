@@ -183,15 +183,23 @@ let exec_single (conf : exec_conf) : mchn =
         | Add (r, c1, c2) -> begin
             let w1 = get_word conf c1 in
             let w2 = get_word conf c2 in
-            match w1,w2 with
+            match w1, w2 with
             | I z1, I z2 -> !> (upd_reg r (I Z.(z1 + z2)) conf)
             | _ -> fail_state
           end
         | Sub (r, c1, c2) -> begin
             let w1 = get_word conf c1 in
             let w2 = get_word conf c2 in
-            match w1,w2 with
+            match w1, w2 with
             | I z1, I z2 -> !> (upd_reg r (I Z.(z1 - z2)) conf)
+            | _ -> fail_state
+          end
+        | Lt (r, c1, c2) -> begin
+            let w1 = get_word conf c1 in
+            let w2 = get_word conf c2 in
+            match w1, w2 with
+            | I z1, I z2 when Z.(lt z1 z2) -> !> (upd_reg r (I Z.one) conf)
+            | I _, I _ -> !> (upd_reg r (I Z.zero) conf)
             | _ -> fail_state
           end
         | GetP (r1, r2) -> begin
@@ -218,8 +226,7 @@ let exec_single (conf : exec_conf) : mchn =
             match r2 @! conf with
             | Cap (_, _, _, _) -> !> (upd_reg r1 (I Z.one) conf)
             | _ -> !> (upd_reg r1 (I Z.zero) conf)
-          end
-        | _ -> fail_state       
+          end    
       end
   else fail_state
 
