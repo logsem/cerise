@@ -24,7 +24,7 @@ Ltac solve_pure_addr := solve_pure_finz.
    extend [solve_pure] with more hints.
 *)
 
-Lemma withinBounds_InCtx b e a :
+Lemma withinBounds_InCtx {z} (b e a : finz z) :
   InCtx (withinBounds b e a = true) →
   InBounds b e a.
 Proof.

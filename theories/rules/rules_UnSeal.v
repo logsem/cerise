@@ -27,13 +27,13 @@ Section cap_lang_rules.
   | UnSeal_fail_bounds w p b e a a' sb:
       regs !! src1 = Some (WSealRange p b e a) →
       regs !! src2 = Some (WSealed a' sb) →
-      (permit_unseal p = false ∨ withinBounds_sr b e a = false ∨ a' ≠ a) →
+      (permit_unseal p = false ∨ withinBounds b e a = false ∨ a' ≠ a) →
       UnSeal_failure regs dst src1 src2 regs
   | UnSeal_fail_incrPC p b e a sb :
       regs !! src1 = Some (WSealRange p b e a) →
       regs !! src2 = Some (WSealed a sb) →
       permit_unseal p = true →
-      withinBounds_sr b e a = true →
+      withinBounds b e a = true →
       incrementPC (<[ dst := WSealable sb ]> regs) = None →
       UnSeal_failure regs dst src1 src2 regs.
 
@@ -42,7 +42,7 @@ Section cap_lang_rules.
       regs !! src1 = Some (WSealRange p b e a) →
       regs !! src2 = Some (WSealed a sb) →
       permit_unseal p = true →
-      withinBounds_sr b e a = true →
+      withinBounds b e a = true →
       incrementPC (<[ dst := WSealable sb ]> regs) = Some regs' →
       UnSeal_spec regs dst src1 src2 regs' NextIV
   | UnSeal_spec_failure :
@@ -105,10 +105,10 @@ Section cap_lang_rules.
      }
      destruct r2v as [ | [ | ]  | a' sb ]; try inversion Hr2v. clear Hr2v.
 
-     destruct (decide (permit_unseal p = true ∧ withinBounds_sr b e a = true ∧ a' = a)) as [ [ Hpu [Hwb ->] ] | HFalse].
+     destruct (decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a)) as [ [ Hpu [Hwb ->] ] | HFalse].
      2 : { (* Failure: one of the side conditions failed *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
-       assert (permit_unseal p = false ∨ withinBounds_sr b e a = false ∨ a' ≠ a) as Hnot.
+       assert (permit_unseal p = false ∨ withinBounds b e a = false ∨ a' ≠ a) as Hnot.
        { apply not_and_l in HFalse as [Hdone | HFalse].
          { apply not_true_is_false in Hdone. auto. }
          apply not_and_l in HFalse as [Hdone | HFalse].
@@ -151,7 +151,7 @@ Section cap_lang_rules.
     decodeInstrW w = UnSeal dst r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     permit_unseal p = true →
-    withinBounds_sr b e a = true →
+    withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -191,7 +191,7 @@ Section cap_lang_rules.
     decodeInstrW w = UnSeal r1 r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     permit_unseal p = true →
-    withinBounds_sr b e a = true →
+    withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -228,7 +228,7 @@ Section cap_lang_rules.
     decodeInstrW w = UnSeal r2 r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     permit_unseal p = true →
-    withinBounds_sr b e a = true →
+    withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -266,7 +266,7 @@ Section cap_lang_rules.
     decodeInstrW w = UnSeal PC r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     permit_unseal p = true →
-    withinBounds_sr b e a = true →
+    withinBounds b e a = true →
     (a' + 1)%a = Some a'' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a

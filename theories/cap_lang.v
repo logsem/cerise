@@ -164,10 +164,10 @@ Qed.
 
 (*--- otype_of_argument ---*)
 
-Definition otype_of_argument regs src :=
+Definition otype_of_argument regs src : option OType :=
   match z_of_argument regs src with
-  | Some n => z_to_otype n
-  | None => None
+  | Some n => (z_to_otype n) : option OType
+  | None => None : option OType
   end.
 
 Lemma otype_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (o:OType) :
@@ -200,7 +200,6 @@ Proof.
   destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
   eapply lookup_weaken in Heq as ->; auto.
 Qed.
-
 
 
 Section opsem.
@@ -306,7 +305,7 @@ Section opsem.
     | WSealRange p b e a =>
       o1 ← otype_of_argument (reg φ) ρ1;
       o2 ← otype_of_argument (reg φ) ρ2;
-      if isWithin_o o1 o2 b e then
+      if isWithin o1 o2 b e then
         updatePC (update_reg φ dst (WSealRange p o1 o2 a))
       else None
     | _ => None
@@ -350,7 +349,7 @@ Section opsem.
     wr2 ← (reg φ) !! r2;
     match wr1,wr2 with
     | WSealRange p b e a, WSealable sb =>
-      if permit_seal p && withinBounds_sr b e a then updatePC (update_reg φ dst (WSealed a sb))
+      if permit_seal p && withinBounds b e a then updatePC (update_reg φ dst (WSealed a sb))
       else None
     | _, _ => None
     end
@@ -359,7 +358,7 @@ Section opsem.
     wr2 ← (reg φ) !! r2;
     match wr1, wr2 with
     | WSealRange p b e a, WSealed a' sb =>
-        if decide (permit_unseal p = true ∧ withinBounds_sr b e a = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
+        if decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
         else None
     | _,_ => None
     end

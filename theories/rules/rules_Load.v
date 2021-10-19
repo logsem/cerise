@@ -205,7 +205,7 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
-    rewrite /exec /= Hr2 /= in Hstep
+    rewrite /exec /= Hr2 /= in Hstep.
 
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
      destruct (is_cap r2v) eqn:Hr2v.

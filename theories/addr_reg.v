@@ -235,90 +235,27 @@ Global Open Scope general_if_scope.
 
 (* Number of otypes in our system *)
 Definition ONum: nat := 1000.
-Inductive OType: Type :=
-| Oty (n : nat) (fin: n <=? ONum = true).
+Global Opaque ONum.
+Notation OType := (finz ONum).
+Declare Scope OType_scope.
+Delimit Scope OType_scope with ot.
 
-Definition n_of_otype (o: OType): nat :=
-  match o with
-  | Oty n _ => n
-  end.
-Coercion n_of_otype: OType >-> nat.
+Notation "a1 <= a2 < a3" := (@finz.le_lt ONum a1 a2 a3) : OType_scope.
+Notation "a1 <= a2" := (@finz.le ONum a1 a2) : OType_scope.
+Notation "a1 <=? a2" := (@finz.leb ONum a1 a2) : OType_scope.
+Notation "a1 < a2" := (@finz.lt ONum a1 a2) : OType_scope.
+Notation "a1 <? a2" := (@finz.ltb ONum a1 a2) : OType_scope.
+Notation "a1 + z" := (@finz.incr ONum a1 z) : OType_scope.
+Notation "a ^+ off" := (@finz.incr_default ONum a off) (at level 50) : OType_scope.
 
-Program Definition n_to_otype (n : nat) : option OType :=
-  if (nat_le_dec n ONum) then Some (Oty n _) else None.
-Next Obligation.
-  intros. eapply Nat.leb_le; eauto.
-Defined.
+Notation z_to_otype := (@finz.of_z ONum).
+Notation z_of_ot := (@finz.to_z ONum).
 
-Global Instance otype_eq_dec: EqDecision OType.
-Proof. intros o1 o2.  destruct o1,o2.
-       destruct (nat_eq_dec n n0).
-       + subst n0. left.
-         assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
-         { intros. apply eq_proofs_unicity.
-           intros; destruct x; destruct y; auto. }
-         rewrite (H _ _ _ fin fin0). reflexivity.
-       + right. congruence.
-Defined.
+Notation za_ot := (@finz.FinZ OType 0%Z eq_refl eq_refl).
+Notation top_ot := (finz.largest za : OType).
+Notation "0" := (za) : OType_scope.
 
-Lemma n_of_to_otype_id (o : OType) : (n_to_otype o) = Some o.
-Proof. destruct o. unfold n_of_otype, n_to_otype.
-       assert (fin' := fin). rewrite -> Nat.leb_le in fin'.
-       destruct (nat_le_dec _ _) as [? | Hne]; [| congruence].
-       repeat f_equal. apply eq_proofs_unicity; decide equality.
-Qed.
+Notation eqb_otype := (λ (a1 a2: OType), Z.eqb a1 a2).
+Notation "a1 =? a2" := (eqb_otype a1 a2) : OType_scope.
 
-Global Instance otype_countable : Countable OType.
-Proof.
-  refine {| encode o := encode (n_of_otype o);
-            decode n := match (decode n) with
-                        | Some n => n_to_otype n
-                        | None => None
-                        end ;
-            decode_encode := _ |}.
-  intro o. destruct o; auto.
-  rewrite decode_encode.
-  apply n_of_to_otype_id.
-Defined.
-
-Program Definition incr_otype (o: OType) (z: Z): option OType :=
-  if decide ((o + z) >= 0)%Z then
-    let sum := Z.to_nat (o + z)%Z in
-    if (Z_le_dec sum ONum) then
-      Some (Oty sum _)
-    else None
-  else None.
-Next Obligation.
-  intros. apply leb_le. lia.
-Defined.
-Declare Scope Otype_scope.
-Delimit Scope Otype_scope with ot.
-Notation "o + z" := (incr_otype o z) : Otype_scope.
-
-(* Map Z into OTypes *)
-Definition z_to_otype (z : Z) : option OType.
-Proof.
-  destruct (Z_le_dec 0 z).
-  - pose (n := Z.to_nat z).  exact (n_to_otype n).
-  - exact None.
-Defined.
-
-Lemma otype_spec (o: OType) : (o <= ONum)%Z ∧ (0 <= o)%Z.
-Proof. destruct o. cbn. rewrite -> leb_le in fin. lia. Qed.
-
-Lemma z_to_otype_z_of (o:OType) :
-  z_to_otype o = Some o.
-Proof.
-  generalize (otype_spec o); intros [? ?].
-  unfold z_to_otype.
-  destruct (Z_le_dec o ONum) eqn:?;
-  destruct (Z_le_dec 0 o) eqn:?.
-  { f_equal. rewrite <- n_of_to_otype_id. f_equal. lia. }
-  all: lia.
-Qed.
-
-Lemma z_to_otyp_eq_inv (a b:OType) :
-  z_to_otype a = Some b → a = b.
-Proof. rewrite z_to_otype_z_of. naive_solver. Qed.
-
-(* Note: no custom scope needed for otypes atm, since they will use the corresponding definitions for 'nat' automatically *)
+Notation otype_incr_eq := (finz_incr_eq).

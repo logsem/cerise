@@ -54,13 +54,13 @@ Section cap_lang_rules.
       regs !! dst = Some (WSealRange p b e a) →
       otype_of_argument regs src1 = Some a1 →
       otype_of_argument regs src2 = Some a2 →
-      isWithin_o a1 a2 b e = false →
+      isWithin a1 a2 b e = false →
       Subseg_failure regs dst src1 src2 regs
   | Subseg_fail_incrPC_sr p b e a a1 a2 :
       regs !! dst = Some (WSealRange p b e a) →
       otype_of_argument regs src1 = Some a1 →
       otype_of_argument regs src2 = Some a2 →
-      isWithin_o a1 a2 b e = true →
+      isWithin a1 a2 b e = true →
       incrementPC (<[ dst := WSealRange p a1 a2 a ]> regs) = None →
       Subseg_failure regs dst src1 src2 regs.
 
@@ -77,7 +77,7 @@ Section cap_lang_rules.
       regs !! dst = Some (WSealRange p b e a) ->
       otype_of_argument regs src1 = Some a1 ->
       otype_of_argument regs src2 = Some a2 ->
-      isWithin_o a1 a2 b e = true ->
+      isWithin a1 a2 b e = true ->
       incrementPC (<[ dst := WSealRange p a1 a2 a ]> regs) = Some regs' ->
       Subseg_spec regs dst src1 src2 regs' NextIV
   | Subseg_spec_failure :
@@ -240,7 +240,7 @@ Section cap_lang_rules.
       apply (otype_of_arg_mono _ r) in Ha2; auto. rewrite Ha2 /= in Hstep.
       rewrite /update_reg /= in Hstep.
 
-      destruct (isWithin_o a1 a2 b e) eqn:Hiw; cycle 1.
+      destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1.
       { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Subseg_fail_not_iswithin_sr. }
 
       destruct (incrementPC (<[ dst := (WSealRange p a1 a2 a) ]> regs)) eqn:Hregs';
@@ -675,7 +675,7 @@ Section cap_lang_rules.
     decodeInstrW w = Subseg dst (inr r1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
-    isWithin_o a1 a2 b e = true →
+    isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -717,7 +717,7 @@ Section cap_lang_rules.
     decodeInstrW w = Subseg dst (inr r1) (inr r1) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_otype n1 = Some a1 →
-    isWithin_o a1 a1 b e = true →
+    isWithin a1 a1 b e = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -757,7 +757,7 @@ Section cap_lang_rules.
     decodeInstrW w = Subseg dst (inl n1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
-    isWithin_o a1 a2 b e = true →
+    isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -797,7 +797,7 @@ Section cap_lang_rules.
     decodeInstrW w = Subseg dst (inr r1) (inl n2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
-    isWithin_o a1 a2 b e = true →
+    isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -837,7 +837,7 @@ Section cap_lang_rules.
     decodeInstrW w = Subseg dst (inl n1) (inl n2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
-    isWithin_o a1 a2 b e = true →
+    isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a

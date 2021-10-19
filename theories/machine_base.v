@@ -342,63 +342,47 @@ Definition cap_size (w : Word) : Z :=
   | _ => 0%Z
   end.
 
-(* Bound checking *)
+(* Bound checking for both otypes and addresses *)
 
-Definition withinBounds b e a: bool :=
-  (b <=? a)%a && (a <? e)%a.
+Definition withinBounds {z} (b e a : finz z): bool :=
+  (b <=? a)%f && (a <? e)%f.
 
-Definition withinBounds_sr (b e a : OType): bool :=
-  (b <=? a) && (a <? e).
-
-Lemma withinBounds_true_iff b e a :
-  withinBounds b e a = true ↔ (b <= a)%a ∧ (a < e)%a.
+Lemma withinBounds_true_iff {z} (b e a : finz z) :
+  withinBounds b e a = true ↔ (b <= a)%f ∧ (a < e)%f.
 Proof.
   unfold withinBounds. solve_addr.
 Qed.
 
-Lemma withinBounds_sr_true_iff b e a :
-  withinBounds_sr b e a = true ↔ (b <= a) ∧ (a < e).
-Proof.
-  unfold withinBounds_sr.
-  rewrite andb_true_iff leb_le ltb_lt. auto.
-Qed.
-
-Lemma withinBounds_le_addr b e a:
+Lemma withinBounds_le_addr {z} (b e a : finz z):
   withinBounds b e a = true →
-  (b <= a)%a ∧ (a < e)%a.
+  (b <= a)%f ∧ (a < e)%f.
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma withinBounds_sr_le_addr b e a:
-  withinBounds_sr b e a = true →
-  (b <= a) ∧ (a < e).
-Proof. rewrite withinBounds_sr_true_iff //. Qed.
-
-Lemma isWithinBounds_bounds_alt b e (a0 a1 a2 : Addr) :
+Lemma isWithinBounds_bounds_alt {z} b e (a0 a1 a2 : finz z) :
   withinBounds  b e a0 = true →
   withinBounds b e a2 = true →
   (a0 ≤ a1)%Z ∧ (a1 ≤ a2)%Z →
   withinBounds b e a1 = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma isWithinBounds_bounds_alt' b e (a0 a1 a2 : Addr) :
+Lemma isWithinBounds_bounds_alt' {z} b e (a0 a1 a2 : finz z) :
   withinBounds b e a0 = true →
   withinBounds b e a2 = true →
   (a0 ≤ a1)%Z ∧ (a1 < a2)%Z →
   withinBounds b e a1 = true.
 Proof. rewrite !withinBounds_true_iff. solve_addr. Qed.
 
-Lemma le_addr_withinBounds b e a:
-  (b <= a)%a → (a < e)%a →
+Lemma le_addr_withinBounds {z} (b e a : finz z):
+  (b <= a)%f → (a < e)%f →
   withinBounds b e a = true .
 Proof. rewrite withinBounds_true_iff //. Qed.
 
-Lemma le_addr_withinBounds' b e a:
-  (b <= a)%a ∧ (a < e)%a →
+Lemma le_addr_withinBounds' {z} (b e a : finz z):
+  (b <= a)%f ∧ (a < e)%f →
   withinBounds b e a = true .
 Proof. intros [? ?]. rewrite withinBounds_true_iff //. Qed.
 
-
-Lemma withinBounds_InBounds b e a :
+Lemma withinBounds_InBounds {z} (b e a : finz z) :
   InBounds b e a →
   withinBounds b e a = true.
 Proof.
@@ -407,52 +391,21 @@ Proof.
   split; [apply Z.leb_le;solve_addr | apply Z.ltb_lt;auto].
 Qed.
 
-Definition isWithin (n1 n2 b e: Addr) : bool :=
-  ((b <=? n1) && (n2 <=? e))%a.
+Definition isWithin {z} (n1 n2 b e: finz z) : bool :=
+  ((b <=? n1) && (n2 <=? e))%f.
 
-Lemma isWithin_implies a0 a1 b e:
+Lemma isWithin_implies {z} (a0 a1 b e : finz z):
   isWithin a0 a1 b e = true →
-  (b <= a0 ∧ a1 <= e)%a.
+  (b <= a0 ∧ a1 <= e)%f.
 Proof.
   rewrite /isWithin. solve_addr.
 Qed.
 
-Lemma isWithin_of_le a0 a1 b e:
-  (b <= a0 ∧ a1 <= e)%a →
+Lemma isWithin_of_le {z} (a0 a1 b e : finz z):
+  (b <= a0 ∧ a1 <= e)%f →
   isWithin a0 a1 b e = true.
 Proof.
   rewrite /isWithin. solve_addr.
-Qed.
-
-(* Similar definitions for OTypes*)
-
-Definition InBounds_o (b e: OType) (a: OType) :=
-  (b <= a) ∧ (a < e).
-
-Lemma withinBounds_o_InBounds_sr b e a :
-  InBounds_o b e a →
-  withinBounds_sr b e a = true.
-Proof.
-  intros [? ?]. unfold withinBounds_sr.
-  apply andb_true_intro.
-  split; [apply leb_le;lia | apply ltb_lt;auto].
-Qed.
-
-Definition isWithin_o (n1 n2 b e: OType) : bool :=
-  ((b <=? n1) && (n2 <=? e)).
-
-Lemma isWithin_sr_implies (a0 a1 b e : OType):
-  isWithin_o a0 a1 b e = true →
-  (b <= a0 ∧ a1 <= e).
-Proof.
-  rewrite /isWithin. rewrite andb_true_iff /le_addr !leb_le. lia.
-Qed.
-
-Lemma isWithin_sr_of_le (a0 a1 b e : OType):
-  (b <= a0 ∧ a1 <= e) →
-  isWithin_o a0 a1 b e = true.
-Proof.
-  rewrite andb_true_iff /le_addr !leb_le. lia.
 Qed.
 
 (* isCorrectPC: valid capabilities for PC *)
@@ -484,17 +437,17 @@ Qed.
 
 Definition isCorrectPCb (w: Word): bool :=
   match w with
-  | WInt _ => false
   | WCap p b e a =>
     (b <=? a)%a && (a <? e)%a &&
     (isPerm p RX || isPerm p RWX)
+  | _ => false
   end.
 
 Lemma isCorrectPCb_isCorrectPC w :
   isCorrectPCb w = true ↔ isCorrectPC w.
 Proof.
-  rewrite /isCorrectPCb. destruct w.
-  { split; try congruence. inversion 1. }
+  rewrite /isCorrectPCb. destruct_word w.
+  1,3,4 : split; try congruence; inversion 1.
   { rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
     rewrite /isPerm !bool_decide_eq_true.
     split.
@@ -535,39 +488,6 @@ Proof.
   intros Hbounds.
   intros Hvpc. inversion Hvpc.
   by exfalso.
-Qed.
-
-Definition isCorrectPCb (w: Word): bool :=
-  match w with
-  | WCap p b e a =>
-    (b <=? a)%a && (a <? e)%a &&
-    (isPerm p RX || isPerm p RWX)
-  | _ => false
-  end.
-
-Lemma isCorrectPCb_isCorrectPC w :
-  isCorrectPCb w = true ↔ isCorrectPC w.
-Proof.
-  rewrite /isCorrectPCb. destruct w eqn:HCap.
-
-  { split; inversion 1. }
-  { destruct sb as [p b e a |].
-    2: { split; inversion 1. }
-    rewrite /leb_addr /ltb_addr.
-    rewrite !andb_true_iff !orb_true_iff !Z.leb_le !Z.ltb_lt.
-    rewrite /isPerm !bool_decide_eq_true.
-    split.
-    { intros [? ?]. constructor. solve_addr. naive_solver. }
-    { inversion 1; subst. split. solve_addr. naive_solver. } }
-  { split; inversion 1. }
-Qed.
-
-Lemma isCorrectPCb_nisCorrectPC w :
-  isCorrectPCb w = false ↔ ¬ isCorrectPC w.
-Proof.
-  destruct (isCorrectPCb w) eqn:HH.
-  { apply isCorrectPCb_isCorrectPC in HH. split; congruence. }
-  { split; auto. intros _. intros ?%isCorrectPCb_isCorrectPC. congruence. }
 Qed.
 
 Lemma isCorrectPC_bounds p b e (a0 a1 a2 : Addr) :
