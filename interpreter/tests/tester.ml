@@ -2,11 +2,11 @@ open Libinterp
 open Libinterp.Machine
 open Libinterp.Ast
 
-(*
+
 let make_test_list (dir : string) : string array =
   try Sys.readdir dir
   with Failure _ -> raise Sys.Break
-*)
+
 let z_tst = Alcotest.testable Z.pp_print Z.equal
 
 let state_tst = Alcotest.testable
@@ -48,6 +48,16 @@ let get_reg_cap_perm (r : regname) (m : mchn) (d : perm) =
   match r @! snd m with
   | Cap (p, _, _, _) -> p
   | _ -> d
+
+let test_negatives =
+  let open Alcotest in
+  let path = "../../../tests/test_files/neg/" in
+  let test_names = make_test_list path in
+  Array.to_list @@ Array.map (fun t ->
+      test_case
+        (Printf.sprintf "%s should end in Failed state" t)
+        `Quick (test_state Failed (fst @@ run_prog (path ^ t)))
+    ) test_names
 
 let test_mov_test =
   let open Alcotest in
@@ -99,5 +109,6 @@ let test_jmper =
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper
+    "Pos", test_mov_test @ test_jmper;
+    "Neg", test_negatives;
   ]

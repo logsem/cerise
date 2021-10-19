@@ -122,11 +122,6 @@ let exec_single (conf : exec_conf) : mchn =
             match r @! conf with
             | Cap ((RW|RWX), b, e, a) when (b <= a && a < e) -> begin
                 let w = get_word conf c in
-                let c' = upd_mem a w conf in begin
-                  match a @? c' with
-                  | Some (I z) -> Z.print z; print_newline()
-                  | _ -> ()
-                end;
                 !> (upd_mem a w conf)
               end
             | _ -> fail_state
@@ -180,7 +175,7 @@ let exec_single (conf : exec_conf) : mchn =
             | Cap (p, b, e, a) -> begin
                 let w = get_word conf c in
                 match w with
-                | I z -> !> (upd_reg r (Cap (p, b, e, a + Z.(to_int z))) conf)
+                | I z when p <> E -> !> (upd_reg r (Cap (p, b, e, a + Z.(to_int z))) conf)
                 | _ -> fail_state
               end
             | _ -> fail_state
@@ -218,6 +213,11 @@ let exec_single (conf : exec_conf) : mchn =
             match r2 @! conf with
             | Cap (_, _, _, a) -> !> (upd_reg r1 (I Z.(~$a)) conf)
             | _ -> fail_state
+          end
+        | IsPtr (r1, r2) -> begin
+            match r2 @! conf with
+            | Cap (_, _, _, _) -> !> (upd_reg r1 (I Z.one) conf)
+            | _ -> !> (upd_reg r1 (I Z.zero) conf)
           end
         | _ -> fail_state       
       end
