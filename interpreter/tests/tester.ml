@@ -1,5 +1,6 @@
 open Libinterp
 open Libinterp.Machine
+open Libinterp.Ast
 
 (*
 let make_test_list (dir : string) : string array =
@@ -17,7 +18,9 @@ let state_tst = Alcotest.testable
           | Halted -> "Halted"))
     (fun a b -> a = b)
          
-
+let perm_tst = Alcotest.testable
+    (Fmt.of_to_string @@ Pretty_printer.string_of_perm)
+    (fun a b -> a = b)
 
 let run_prog (filename : string) : mchn  =
   let input = open_in filename in
@@ -32,6 +35,19 @@ let test_const_word expected actual = fun _ ->
 
 let test_state expected actual = fun _ ->
   Alcotest.(check state_tst) "States match" expected actual
+
+let test_perm expected actual = fun _ ->
+  Alcotest.(check perm_tst) "Permission match" expected actual
+
+let get_reg_int_word (r : Ast.regname) (m : mchn) (d : Z.t) =
+  match r @! snd m with
+  | I z -> z
+  | _ -> d
+
+let get_reg_cap_perm (r : regname) (m : mchn) (d : perm) =
+  match r @! snd m with
+  | Cap (p, _, _, _) -> p
+  | _ -> d
 
 let test_mov_test =
   let open Alcotest in
@@ -65,9 +81,23 @@ let test_mov_test =
       "mov_test.s R5 should contain -30"
       `Quick (test_const_word Z.(~$(-30)) r5_res);
   ]
-  
+
+let test_jmper =
+  let open Alcotest in
+  let m = run_prog "../../../tests/test_files/pos/jmper.s" in [
+    test_case
+      "jmper.s should end in halted state"
+      `Quick (test_state Halted (fst m));
+    test_case
+      "jmper.s should end with r2 containing 12"
+      `Quick (test_const_word Z.(~$12) (get_reg_int_word (Ast.Reg 2) m (Z.zero)));
+    test_case
+      "jmper.s should contain E permission in r1"
+      `Quick (test_perm E (get_reg_cap_perm (Reg 1) m O));
+  ]
+
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test;
+    "Pos", test_mov_test @ test_jmper
   ]

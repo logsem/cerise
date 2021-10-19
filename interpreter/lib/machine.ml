@@ -122,6 +122,11 @@ let exec_single (conf : exec_conf) : mchn =
             match r @! conf with
             | Cap ((RW|RWX), b, e, a) when (b <= a && a < e) -> begin
                 let w = get_word conf c in
+                let c' = upd_mem a w conf in begin
+                  match a @? c' with
+                  | Some (I z) -> Z.print z; print_newline()
+                  | _ -> ()
+                end;
                 !> (upd_mem a w conf)
               end
             | _ -> fail_state
