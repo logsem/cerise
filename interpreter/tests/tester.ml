@@ -40,6 +40,16 @@ let test_mov_test =
     match get_reg PC @@ snd m with
     | Cap (_, _, _, a) -> a
     | _ -> -1
+  end in
+  let r2_res = begin
+    match Reg 2 @! snd m with
+    | I z -> z
+    | _ -> Z.zero
+  end in
+  let r5_res = begin
+    match Reg 5 @! snd m with
+    | I z -> z
+    | _ -> Z.zero
   end
   in [
     test_case
@@ -48,6 +58,12 @@ let test_mov_test =
     test_case
       "mov_test.s PC should point to address 2"
       `Quick (fun _ -> check int "Ints match" 2 pc_a);
+    test_case
+      "mov_test.s R2 should contain 28"
+      `Quick (test_const_word Z.(~$28) r2_res);
+    test_case
+      "mov_test.s R5 should contain -30"
+      `Quick (test_const_word Z.(~$(-30)) r5_res);
   ]
   
 let () =

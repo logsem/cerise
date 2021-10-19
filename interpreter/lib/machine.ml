@@ -145,11 +145,73 @@ let exec_single (conf : exec_conf) : mchn =
                 | I i -> begin
                     let p' = Encode.decode_perm i in
                     if flowsto p' p
-                    then !> (upd_reg PC (Cap (p', b, e, a)) conf)
+                    then !> (upd_reg r (Cap (p', b, e, a)) conf)
                     else fail_state
                   end
                 | _ -> fail_state
               end
+            | _ -> fail_state
+          end
+        | SubSeg (r, c1, c2) -> begin
+            match r @! conf with
+            | Cap (p, b, e, a) -> begin
+                let w1 = get_word conf c1 in
+                let w2 = get_word conf c2 in
+                match w1, w2 with
+                | I i1, I i2 ->
+                  let z1 = Z.to_int i1 in
+                  let z2 = Z.to_int i2 in
+                  if b <= z1 && 0 <= z2 && z2 <= e && p <> E
+                  then
+                    let w = Cap (p, z1, z2, a) in
+                    !> (upd_reg r w conf)
+                  else fail_state
+                | _ -> fail_state
+              end
+            | _ -> fail_state
+          end
+        | Lea (r, c) -> begin
+            match r @! conf with
+            | Cap (p, b, e, a) -> begin
+                let w = get_word conf c in
+                match w with
+                | I z -> !> (upd_reg r (Cap (p, b, e, a + Z.(to_int z))) conf)
+                | _ -> fail_state
+              end
+            | _ -> fail_state
+          end
+        | Add (r, c1, c2) -> begin
+            let w1 = get_word conf c1 in
+            let w2 = get_word conf c2 in
+            match w1,w2 with
+            | I z1, I z2 -> !> (upd_reg r (I Z.(z1 + z2)) conf)
+            | _ -> fail_state
+          end
+        | Sub (r, c1, c2) -> begin
+            let w1 = get_word conf c1 in
+            let w2 = get_word conf c2 in
+            match w1,w2 with
+            | I z1, I z2 -> !> (upd_reg r (I Z.(z1 - z2)) conf)
+            | _ -> fail_state
+          end
+        | GetP (r1, r2) -> begin
+            match r2 @! conf with
+            | Cap (p, _, _, _) -> !> (upd_reg r1 (I (Encode.encode_perm p)) conf)
+            | _ -> fail_state
+          end
+        | GetB (r1, r2) -> begin
+            match r2 @! conf with
+            | Cap (_, b, _, _) -> !> (upd_reg r1 (I Z.(~$b)) conf)
+            | _ -> fail_state
+          end
+        | GetE (r1, r2) -> begin
+            match r2 @! conf with
+            | Cap (_, _, e, _) -> !> (upd_reg r1 (I Z.(~$e)) conf)
+            | _ -> fail_state
+          end
+        | GetA (r1, r2) -> begin
+            match r2 @! conf with
+            | Cap (_, _, _, a) -> !> (upd_reg r1 (I Z.(~$a)) conf)
             | _ -> fail_state
           end
         | _ -> fail_state       

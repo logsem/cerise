@@ -1,4 +1,5 @@
 open Ast
+open Machine
 
 let (^-) s1 s2 = s1 ^ " " ^ s2
 
@@ -48,3 +49,17 @@ let string_of_statement (s: statement): string =
   | GetA (r1, r2) -> "geta" ^- string_of_rr r1 r2
   | Fail -> "fail"
   | Halt -> "halt"
+
+let string_of_word (w : word) : string =
+  match w with
+  | Cap (p, b, e, a) -> Printf.sprintf "Cap (%s, %d, %d, %d)" (string_of_perm p) b e a
+  | I z -> Z.to_string z
+
+let string_of_reg_word (r : regname) (w : word) : string =
+  Printf.sprintf "| %s : %s |" (string_of_regname r) (string_of_word w)
+
+let string_of_exec_state (st : exec_state) : string =
+  match st with
+  | Running -> "Running"
+  | Halted -> "Halted"
+  | Failed -> "Failed"
