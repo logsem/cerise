@@ -132,11 +132,10 @@ Section fundamental.
     (b <= b')%ot ->
     (e' <= e)%ot ->
     SealPermFlowsTo p' p = true ->
-    IH -∗
     (fixpoint interp1) (WSealRange p b e a) -∗
     (fixpoint interp1) (WSealRange p' b' e' a').
   Proof.
-  intros Hb He Hp. iIntros "#IH #HA".
+  intros Hb He Hp. iIntros "#HA".
   rewrite !fixpoint_interp1_eq. cbn.
   destruct (permit_seal p') eqn:Hseal; [eapply (permit_seal_flowsto _ p) in Hseal as ->; auto | ].
   all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as ->; auto | ]; iDestruct "HA" as "[Hs Hus]".
