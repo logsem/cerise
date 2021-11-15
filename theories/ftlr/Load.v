@@ -28,10 +28,7 @@ Section fundamental.
   Proof.
       intros Hrar H3.
       pose (Hrar' := Hrar).
-      destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
-      * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        subst. auto.
-      * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
+      destruct Hrar' as (Hinr0 & _). rewrite /read_reg_inr Hinr0 in H3. by inversion H3.
   Qed.
 
 
@@ -215,8 +212,9 @@ Section fundamental.
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].
-      unfold read_reg_inr. destruct wsrc. all: repeat eexists.
-      right. by exists z. by left.
+      unfold read_reg_inr. rewrite Hsomesrc.
+      destruct wsrc as [|[ p0 b0 e0 a0|] | ]; try done.
+      by repeat eexists.
     }
 
 
