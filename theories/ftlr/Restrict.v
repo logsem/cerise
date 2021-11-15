@@ -88,8 +88,11 @@ Section fundamental.
     }
     { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
 
-      assert (a'' = a ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
-      { destruct (decide (PC = dst)); simplify_map_eq; auto. }
+      assert (dst ≠ PC) as Hne.
+      { destruct (decide (PC = dst)); last auto. simplify_map_eq; auto. }
+
+      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ a'' = a) as (-> & -> & -> & ->).
+      { simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
@@ -111,8 +114,7 @@ Section fundamental.
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
-      { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
-        auto. by rewrite PermFlowsToReflexive. }
+      { by rewrite PermFlowsToReflexive. }
     }
      { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
