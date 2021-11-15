@@ -126,9 +126,10 @@ Section fundamental.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
-
-
-
-    Qed.
+    { iApply wp_pure_step_later; auto.
+    iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+    iNext.
+    iApply wp_value; auto. iIntros; discriminate. }
+Qed.
 
 End fundamental.
