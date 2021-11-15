@@ -14,6 +14,8 @@ Section fundamental.
   Implicit Types interp : (D).
   
 
+  (* NOTE: I think having PC:= wsrc in the IH in below definition, rather than restricting induction to capabilities only, would allow us to more generally apply the induction hypothesis in multiple cases. Now we do the `wp_notCorrectPC`-related reasoning in multiple places, not just in the top-level ftlr. *)
+
   Definition ftlr_instr (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (i: instr) (P : D) := 
       p = RX ∨ p = RWX
