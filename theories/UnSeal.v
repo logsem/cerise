@@ -126,6 +126,21 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext.
+
+      (* If PC=dst and perm of unsealed cap = E -> error! *)
+      destruct (decide (PC = dst ∧ p'' = E)) as [ [Herr1 Herr2] | HNoError].
+      { (* Error case *)
+        simplify_map_eq.
+        iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
+        { subst. by rewrite lookup_insert. }
+        iApply (wp_bind (fill [SeqCtx])).
+        iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
+        iIntros "!> _".
+        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iIntros (a1); inversion a1.
+      }
+      (* Otherwise, we will be able to derive validity of the PC below*)
+
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hvs).
@@ -139,8 +154,7 @@ Section fundamental.
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
-      - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr.
-        { admit. }
+      - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr. (* HNoError used here *)
         { by rewrite PermFlowsToReflexive. }
       - iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
         { destruct Hp; by subst p''. }
