@@ -89,7 +89,6 @@ Section fundamental.
     iDestruct "HSa0" as (P) "[% [HsealP HWcond]]".
     iExists P.
     repeat iSplitR; auto.
-    rewrite /write_cond /=.
     by iApply "HWcond".
   Qed.
 
@@ -144,5 +143,9 @@ Section fundamental.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
+    { iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iApply wp_value; auto. iNext. iIntros; discriminate. }
+  Qed.
 
 End fundamental.
