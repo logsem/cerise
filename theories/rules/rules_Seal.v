@@ -141,7 +141,7 @@ Section cap_lang_rules.
      Unshelve. all: auto.
   Qed.
 
-  (* after pruning impossible or impractical options, 3 wp rules remain *)
+  (* after pruning impossible or impractical options, 5 wp rules remain *)
 
   Lemma wp_seal_success E pc_p pc_b pc_e pc_a w w' dst r1 r2 p b e a sb pc_a' :
     decodeInstrW w = Seal dst r1 r2 →
