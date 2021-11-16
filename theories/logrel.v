@@ -144,7 +144,7 @@ Section logrel.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_sb (o : OType) (w : Word) :=
-    (∃ P : Word → iPropI Σ,  ⌜∀ w, Persistent (P w)⌝ ∗ seal_pred o P ∗ P w)%I.
+    (∃ P : Word → iPropI Σ,  ⌜∀ w, Persistent (P w)⌝ ∗ seal_pred o P ∗ ▷ P w)%I.
 
   Program Definition interp1 (interp : D) : D :=
     (λne w,
@@ -247,7 +247,9 @@ Section logrel.
          - destruct (permit_seal sr), (permit_unseal sr); rewrite /safe_to_seal /safe_to_unseal; apply _ .
          - apply exist_persistent; intros P.
            unfold Persistent. iIntros "(Hpers & #Hs & HP)". iDestruct "Hpers" as %Hpers.
-           iDestruct (Hpers with "[ $HP ]") as "HP". (* use knowledge about persistence *)
+           (* use knowledge about persistence *)
+           iAssert (<pers> ▷ P (WSealable s))%I with "[ HP ]" as "HP".
+           { iApply later_persistently_1. by iApply Hpers.  }
            iApply persistently_sep_2; iSplitR; auto.
            iApply persistently_sep_2; auto.
   Qed.
