@@ -130,8 +130,9 @@ Section logrel.
   Solve All Obligations with solve_proper.
 
   (* (un)seal permission definitions *)
+  (* Note the asymmetry: to seal values, we need to know that we are using a persistent predicate to create a value, whereas we do not need this information when unsealing values (it is provided by the `interp_sb` case). *)
   Definition safe_to_seal (interp : D) (b e : OType) : iPropO Σ :=
-    ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D, seal_pred a P ∗ write_cond P interp)%I.
+    ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D,  ⌜∀ w, Persistent (P w)⌝ ∗ seal_pred a P ∗ write_cond P interp)%I.
   Definition safe_to_unseal (interp : D) (b e : OType) : iPropO Σ :=
     ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D, seal_pred a P ∗ read_cond P interp)%I.
 
@@ -156,7 +157,7 @@ Section logrel.
     | WCap E b e a => interp_cap_E interp w
     | WCap RWX b e a => interp_cap_RWX interp w
     | WSealRange p b e a => interp_sr interp w
-    | WSealed o sb => interp_sb o w
+    | WSealed o sb => interp_sb o (WSealable sb)
     end)%I.
 
   Global Instance read_cond_contractive :
