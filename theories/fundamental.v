@@ -149,16 +149,16 @@ Section fundamental.
   Theorem fundamental w r :
     ⊢ interp w -∗ interp_expression r w.
   Proof.
-    iIntros "Hw". destruct w as [| c].
-    { iClear "Hw". iIntros "(? & Hreg & ?)". unfold interp_conf.
-      iApply (wp_wand with "[-]"). 2: iIntros (?) "H"; iApply "H".
-      iApply (wp_bind (fill [SeqCtx])). cbn.
-      unfold registers_mapsto. rewrite -insert_delete.
-      iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]". by rewrite lookup_delete.
-      iApply (wp_notCorrectPC with "HPC"). by inversion 1.
-      iNext. iIntros. cbn. iApply wp_pure_step_later; auto. iNext.
-      iApply wp_value. iIntros (?). congruence. }
-    { iApply fundamental_cap. done. }
+    iIntros "Hw". destruct w as [| [c | ] | ].
+    2: { iApply fundamental_cap. done. }
+    all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
+    all:  iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
+    all:  iApply (wp_bind (fill [SeqCtx])); cbn.
+    all:  unfold registers_mapsto; rewrite -insert_delete.
+    all:  iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]"; first by rewrite lookup_delete.
+    all:  iApply (wp_notCorrectPC with "HPC"); first by inversion 1.
+    all:  iNext; iIntros; cbn; iApply wp_pure_step_later; auto.
+    all: iNext; iApply wp_value; iIntros (?); congruence.
   Qed.
 
   (* The fundamental theorem implies the exec_cond *)
@@ -197,7 +197,7 @@ Section fundamental.
   Proof.
     iIntros "#Hw".
     assert ((∃ b e a, w = WCap E b e a) ∨ updatePcPerm w = w) as [Hw | ->].
-    { destruct w; eauto. unfold updatePcPerm.
+    { destruct w as [ | [ | ] | ]; eauto. unfold updatePcPerm.
       case_match; eauto. }
     { destruct Hw as [b [e [a ->] ] ]. rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
       iNext. iIntros (rmap). iSpecialize ("Hw" $! rmap). iDestruct "Hw" as "#Hw".
@@ -235,7 +235,7 @@ Section fundamental.
   Qed.
 
   Lemma region_integers_alloc' E (b e a: Addr) l p :
-    Forall (λ w, is_cap w = false) l →
+    Forall (λ w, is_z w = true) l →
     ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
     interp (WCap p b e a).
   Proof.
