@@ -408,6 +408,69 @@ Proof.
   rewrite /isWithin. solve_addr.
 Qed.
 
+(* Some lemma's to link the implementations of finz.seq_between and withinBounds *)
+
+Lemma finz_0_dist (finz_bound : Z) (f1 f2 : finz finz_bound):
+  finz.dist f1 f2 = 0 → (f2 <= f1)%f.
+Proof. rewrite /finz.dist. solve_finz. Qed.
+
+Lemma finz_empty_seq_between:
+  ∀ (finz_bound : Z) (f1 f2 : finz finz_bound),
+    finz.seq_between f1 f2 = [] → (f2 <= f1)%f.
+Proof. intros *. rewrite /finz.seq_between /finz.seq.
+  destruct (finz.dist f1 f2) eqn:Heq.
+  by apply finz_0_dist in Heq.
+  intro HFalse; inversion HFalse.
+Qed.
+
+Lemma finz_cons_hd (z : Z) (e0 a0 a : finz z) (l : list (finz z)) :
+  a :: l = finz.seq_between a0 e0 → a = a0.
+Proof.
+  intros Heql.
+  rewrite /finz.seq_between /finz.seq in Heql. destruct (finz.dist a0 e0); inversion Heql; auto. Qed.
+
+Lemma finz_cons_tl (z : Z) (e0 a0 a : finz z) (l : list (finz z)) :
+  a :: l = finz.seq_between a0 e0 → ∃ a1, (a0 + 1 = Some a1)%f ∧ l = finz.seq_between a1 e0.
+Proof.
+  intros Heql.
+  assert (a0 < e0)%f as Hlt. {
+    rewrite /finz.seq_between /finz.seq in Heql.
+    destruct (decide (a0 < e0)%f) as [Hlt | Hnlt]; first auto.
+    assert (finz.dist a0 e0 = 0) as HFalse.
+    {  apply finz_dist_0; solve_finz. }
+    rewrite HFalse /= in Heql. by exfalso. }
+  rewrite finz_seq_between_cons in Heql; auto.
+  injection Heql as _ Hl.
+  assert (a0 + 1 = Some (a0 ^+ 1))%f as Heq. { solve_finz. }
+  eexists ; eauto.
+Qed.
+
+Lemma seq_between_dist_Some {z : Z} (b0 e0 a0 : finz z):
+  withinBounds b0 e0 a0 = true
+  → finz.seq_between b0 e0 !! finz.dist b0 a0 = Some a0.
+Proof.
+  remember (finz.seq_between b0 e0) as l. revert Heql. generalize b0.
+  induction l.
+  - intros b1 Heql Hwb.
+    symmetry in Heql; apply finz_empty_seq_between in Heql.
+    rewrite /withinBounds in Hwb.
+    exfalso. solve_finz.
+  - intros b1 Heql Hwb.
+    destruct (decide (b1 = a0)%f) as [-> | ].
+    + apply finz_cons_hd in Heql as ->.
+      rewrite /finz.dist. by rewrite -Zminus_diag_reverse /=.
+    + assert (b1 < a0)%f as Hlt.
+      {rewrite /withinBounds in Hwb. solve_finz. }
+      apply finz_cons_tl in Heql as (a1' & Hp1 & Hleq).
+      assert (withinBounds a1' e0 a0 = true) as Hwb'. { unfold withinBounds in *; solve_finz. }
+      specialize (IHl _ Hleq Hwb') as IHl.
+      rewrite lookup_cons_ne_0.
+      2 : { rewrite /finz.dist. solve_finz. }
+      rewrite -IHl; apply (f_equal (λ a, l !! a)).
+      rewrite /finz.dist. solve_finz.
+Qed.
+
+
 (* isCorrectPC: valid capabilities for PC *)
 
 Inductive isCorrectPC: Word → Prop :=
