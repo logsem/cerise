@@ -9,7 +9,7 @@ let statement_tst = Alcotest.testable pprint_statement statement_eq
 
 module To_test = struct
   let lex_parse = fun x ->
-    List.hd @@ Parser.main Lexer.token @@ Lexing.from_string x
+    List.hd @@ Ir.translate_prog @@ Parser.main Lexer.token @@ Lexing.from_string x
   let enc_interleave a b = Encode.interleave_int (Z.of_string a) (Z.of_string b)
   let enc_int a b = Encode.encode_int_int a b
   let enc_split = Encode.split_int

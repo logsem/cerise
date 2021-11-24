@@ -25,7 +25,7 @@ let perm_tst = Alcotest.testable
 let run_prog (filename : string) : mchn  =
   let input = open_in filename in
   let filebuf = Lexing.from_channel input in
-  let parse_res = Parser.main Lexer.token filebuf in
+  let parse_res = Ir.translate_prog @@ Parser.main Lexer.token filebuf in
   let _ = close_in input in
   let m = init_mchn 10000 parse_res in
   run m

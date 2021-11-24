@@ -2,6 +2,8 @@
 %token PC
 %token <int> REG
 %token <int> INT
+%token <string> LABELDEF
+%token <string> LABEL
 %token LPAREN RPAREN
 %token PLUS MINUS
 %token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETP GETB GETE GETA FAIL HALT
@@ -9,13 +11,14 @@
 
 %left PLUS MINUS EXPR
 %left UMINUS
-%start <Ast.t> main
-%{ open! Ast %}
+
+%start <Ir.t> main
+%{ open! Ir %}
 
 %%
 
 main:
-  | EOF; { ([]: Ast.t) }
+  | EOF; { ([]: Ir.t) }
   | JMP; r = reg; p = main; { Jmp r :: p }
   | JNZ; r1 = reg; r2 = reg; p = main; { Jnz (r1, r2) :: p }
   | MOVE; r = reg; c = reg_const; p = main; { Move (r, c) :: p }
@@ -34,6 +37,7 @@ main:
   | GETA; r1 = reg; r2 = reg; p = main; { GetA (r1, r2) :: p }
   | FAIL; p = main; { Fail :: p }
   | HALT; p = main; { Halt :: p }
+  | lbl = LABELDEF; p = main; { Lbl lbl :: p }
 
 reg:
   | PC; { PC }
@@ -54,9 +58,10 @@ perm:
 
 expr:
   | LPAREN; e = expr; RPAREN { e }
-  | e1 = expr; PLUS; e2 = expr { e1 + e2 }
-  | e1 = expr; MINUS; e2 = expr { e1 - e2 }
-  | MINUS; e = expr %prec UMINUS { 0 - e }
-  | i = INT { i }
+  | e1 = expr; PLUS; e2 = expr { AddOp (e1,e2) }
+  | e1 = expr; MINUS; e2 = expr { SubOp (e1,e2) }
+  | MINUS; e = expr %prec UMINUS { SubOp ((IntLit 0),e) }
+  | i = INT { IntLit i }
+  | lbl = LABEL { Label lbl }
 
 %%

@@ -4,7 +4,7 @@ let parse (filename: string): (Ast.t, string) Result.t =
   let input = open_in filename in
   try
     let filebuf = Lexing.from_channel input in
-    let parse_res = Parser.main Lexer.token filebuf in
+    let parse_res = Ir.translate_prog @@ Parser.main Lexer.token filebuf in
     close_in input; Result.Ok parse_res
   with Failure _ -> close_in input; Result.Error "Parsing Failed"
     
