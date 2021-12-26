@@ -15,9 +15,7 @@ module RegMap =
   end)
     
 type exec_state = Running | Halted | Failed
-(* Undecided on the structure of the capability. This makes the code easier to read,
-   but might not be as true to the model as doing: Cap of Z.t * Z.t * Z.t * Z.t *)
-type word = I of Z.t | Cap of perm * int * int * int 
+type word = I of Z.t | Cap of perm * int * int * int
 type reg_state = word RegMap.t
 type mem_state = word MemMap.t
 type exec_conf = { reg : reg_state; mem : mem_state } (* using a record to have notation similar to the paper *)
