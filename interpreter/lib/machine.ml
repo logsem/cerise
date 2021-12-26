@@ -51,7 +51,7 @@ let (@?) x y = get_mem x y
 
 let upd_mem (addr : int) (w : word) ({reg ; mem} : exec_conf) : exec_conf = {reg ; mem = MemMap.add addr w mem}
 
-let init_mchn (addr_max : int) (prog : t) : mchn =
+let init (addr_max : int) (prog : t) : mchn =
   let regs = init_reg_state addr_max in
   let mems = init_mem_state addr_max prog in
   (Running, {reg = regs; mem = mems})
