@@ -6,12 +6,7 @@ module MemMap = Map.Make(Int)
 module RegMap =
   Map.Make(struct
     type t = regname
-    let compare (r1 : t) (r2: t) : int =
-      match r1, r2 with
-      | PC, PC -> 0
-      | PC, Reg _ -> -1
-      | Reg _, PC -> 1
-      | Reg i, Reg j -> Int.compare i j
+    let compare = compare_regname
   end)
     
 type exec_state = Running | Halted | Failed

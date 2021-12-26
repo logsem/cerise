@@ -25,3 +25,10 @@ type machine_op
 type statement = machine_op (* TODO: PseudoOp and LabelDefs *)
 
 type t = statement list
+
+let compare_regname (r1 : regname) (r2: regname) : int =
+  match r1, r2 with
+  | PC, PC -> 0
+  | PC, Reg _ -> -1
+  | Reg _, PC -> 1
+  | Reg i, Reg j -> Int.compare i j
