@@ -232,8 +232,12 @@ let exec_single (conf : exec_conf) : mchn =
       end
   else fail_state
 
-let rec run (st, conf : mchn) : mchn =
-  match st with
-  | Running -> let step = exec_single conf in run step
-  | Failed
-  | Halted -> (st, conf)
+let step (m: mchn): mchn option =
+  match m with
+  | Running, conf -> Some (exec_single conf)
+  | (Failed | Halted), _ -> None
+
+let rec run (m : mchn) : mchn =
+  match step m with
+  | Some m' -> run m'
+  | None -> m

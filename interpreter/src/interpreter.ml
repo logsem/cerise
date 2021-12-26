@@ -1,5 +1,16 @@
 open Libinterp
 
+let print_exec_state (m : Machine.mchn) =
+  print_endline @@ Pretty_printer.string_of_exec_state (fst m)
+
+let print_reg_state (m : Machine.mchn) =
+  let open Pretty_printer in
+  let rs = (snd m).reg in
+  print_endline "+-----------------------";
+  Machine.RegMap.iter (fun r w ->
+    print_endline @@ string_of_reg_word r w) rs;
+  print_endline "+-----------------------"
+
 let () =
   (* very basic commandline argument parsing (to be improved) *)
   let filename =
@@ -9,11 +20,15 @@ let () =
       Printf.eprintf "usage: %s <input filename>\n" Sys.argv.(0);
       exit 1
   in
-  match Program.parse filename with
-  | Ok prog -> let res = Program.run_program prog None in
-    Program.print_reg_state res;
-    Printf.printf "Final execution state: %s\n" @@ Pretty_printer.string_of_exec_state (fst res);
-    exit 0
-  | Error msg ->
-    Printf.eprintf "Error: %s\n" msg;
-    exit 1
+  let prog =
+    match Program.parse filename with
+    | Ok prog -> prog
+    | Error msg ->
+      Printf.eprintf "Parse error: %s\n" msg;
+      exit 1
+  in
+  let m_init = Program.init_machine prog None in
+  let m_final = Machine.run m_init in
+  print_reg_state m_final;
+  Printf.printf "Final execution state: %s\n"
+    (Pretty_printer.string_of_exec_state (fst m_final))
