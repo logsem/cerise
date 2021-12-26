@@ -1,6 +1,5 @@
 open Ast
 
-exception RuntimeException
 exception NotYetImplemented
 
 module MemMap = Map.Make(Int)
@@ -77,14 +76,12 @@ let upd_pc_perm (w : word) =
   | _ -> w
 
 let fetch_decode (conf : exec_conf) : statement option =
-  let addr =
-    match PC @! conf with
-    | Cap (_, _, _, a) -> a
-    | _ -> raise RuntimeException (* TODO: Fix this ugliness *)
-  in
-  match get_mem addr conf with
-  | Some (I enc) -> Some (Encode.decode_statement enc)
-  | _ -> None
+  match PC @! conf with
+  | I _ -> None
+  | Cap (_, _, _, addr) ->
+    match get_mem addr conf with
+    | Some (I enc) -> Some (Encode.decode_statement enc)
+    | _ -> None
 
 let is_pc_valid (conf : exec_conf) : bool =
   match PC @! conf with
