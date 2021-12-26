@@ -114,7 +114,7 @@ let exec_single (conf : exec_conf) : mchn =
         | Halt -> (Halted, conf)
         | Move (r, c) -> begin
             let w = get_word conf c in
-            upd_pc @@ upd_reg r w conf
+            !> (upd_reg r w conf)
           end
         | Load (r1, r2) -> begin
             match r2 @! conf with
