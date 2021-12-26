@@ -32,7 +32,7 @@ rule token = parse
 (* machine_op *)
 | "jmp" { JMP }
 | "jnz" { JNZ }
-| ("move"|"mov") { MOVE }
+| "mov" { MOVE }
 | "load" { LOAD }
 | "store" { STORE }
 | "add" { ADD }
