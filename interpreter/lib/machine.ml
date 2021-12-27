@@ -73,7 +73,9 @@ let fetch_decode (conf : exec_conf) : statement option =
   | I _ -> None
   | Cap (_, _, _, addr) ->
     match get_mem addr conf with
-    | Some (I enc) -> Some (Encode.decode_statement enc)
+    | Some (I enc) ->
+      (try Some (Encode.decode_statement enc)
+        with Encode.DecodeException _ -> None)
     | _ -> None
 
 let is_pc_valid (conf : exec_conf) : bool =

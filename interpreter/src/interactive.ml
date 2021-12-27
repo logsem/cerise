@@ -11,9 +11,9 @@ module MkUi (Cfg: MachineConfig) = struct
 
   module Perm = struct
     let width = 3
-    let ui (p: Ast.perm) =
+    let ui ?(attr = A.empty) (p: Ast.perm) =
       I.hsnap ~align:`Left width
-        (I.string A.empty (Pretty_printer.string_of_perm p))
+        (I.string attr (Pretty_printer.string_of_perm p))
   end
 
   module Addr = struct
@@ -25,8 +25,8 @@ module MkUi (Cfg: MachineConfig) = struct
       (* pad on the left with zeroes up to [width] chars *)
       Printf.sprintf "%0*X" width a
 
-    let ui (a: int) =
-      I.string A.empty (to_hex a)
+    let ui ?(attr = A.empty) (a: int) =
+      I.string attr (to_hex a)
   end
 
   module Addr_range = struct
@@ -37,7 +37,7 @@ module MkUi (Cfg: MachineConfig) = struct
     let width =
       2 * Addr.width + 1
 
-    let ui (b, e) =
+    let ui ?(attr = A.empty) (b, e) =
       let bs = Addr.to_hex b in
       let es = Addr.to_hex e in
       (* determine whether we should use the XXXX-XXXX or XX[XX-XX] format *)
@@ -53,12 +53,12 @@ module MkUi (Cfg: MachineConfig) = struct
       I.hsnap ~align:`Left width @@
       match find_prefix 0 with
       | None ->
-        Addr.ui b <|> I.string A.empty "-" <|> Addr.ui e
+        Addr.ui ~attr b <|> I.string attr "-" <|> Addr.ui ~attr e
       | Some i ->
         let prefix = String.sub bs 0 i in
         let bs = String.sub bs i (Addr.width - i) in
         let es = String.sub es i (Addr.width - i) in
-        I.string A.empty (prefix ^ "[" ^ bs ^ "-" ^ es ^ "]")
+        I.string attr (prefix ^ "[" ^ bs ^ "-" ^ es ^ "]")
   end
 
   module Int = struct
@@ -87,12 +87,12 @@ module MkUi (Cfg: MachineConfig) = struct
       Addr_range.width + 1 (* space *) +
       Addr.width
 
-    let ui (w: Machine.word) =
+    let ui ?(attr = A.empty) (w: Machine.word) =
       match w with
-      | I z -> I.hsnap ~align:`Right width (I.string A.empty (Int.ui width z))
+      | I z -> I.hsnap ~align:`Right width (I.string attr (Int.ui width z))
       | Cap (p, b, e, a) ->
         I.hsnap ~align:`Left width
-          (Perm.ui p <|> I.string A.empty " " <|> Addr_range.ui (b, e))
+          (Perm.ui ~attr p <|> I.string A.empty " " <|> Addr_range.ui ~attr (b, e))
         </>
         I.hsnap ~align:`Right width (Addr.ui a)
   end
@@ -109,7 +109,7 @@ module MkUi (Cfg: MachineConfig) = struct
     (* <reg>: <word>  <reg>: <word>  <reg>: <word>
        <reg>: <word>  <reg>: <word>
     *)
-    let ui width (regs: Machine.word Machine.RegMap.t) =
+    let ui width (regs: Machine.reg_state) =
       let reg_width = Regname.width + 2 + Word.width + 2 in
       let ncols = max 1 (width / reg_width) in
       let nregs_per_col = 33. (* nregs *) /. float ncols |> ceil |> int_of_float in
@@ -128,11 +128,53 @@ module MkUi (Cfg: MachineConfig) = struct
       loop true (Machine.RegMap.to_seq regs |> List.of_seq)
       |> I.hsnap ~align:`Left width
   end
+
+  module Instr = struct
+    let ui (i: Ast.machine_op) =
+      I.string A.(fg green) (Pretty_printer.string_of_statement i)
+  end
+
+  module Program_panel = struct
+    (*   <addr>  <word>  <decoded instr>
+       ▶ <addr>  <word>  <decoded instr>
+         <addr>  <word>  <decoded instr>
+    *)
+    let ui height (mem: Machine.mem_state) (pc: int option) (start: int) =
+      let start =
+        match pc with
+        | None -> start
+        | Some pc ->
+          if pc <= start && start > 0 then
+            (* switch to previous page *)
+            start - height + 2
+          else if pc >= start + height - 1 && start + height < Cfg.addr_max then
+            (* switch to next page *)
+            start + height - 2
+          else
+            start
+      in
+      let data =
+        CCList.(start --^ (start+height))
+        |> List.filter (fun a -> a >= 0 && a < Cfg.addr_max)
+        |> List.map (fun a -> a, Machine.MemMap.find a mem) in
+      let img_of_dataline a w =
+        (if pc = Some a then I.string A.(fg red) "▶ " else I.string A.empty "  ") <|>
+        Addr.ui ~attr:A.(fg yellow) a <|> I.string A.empty "  " <|>
+        Word.ui w <|> I.string A.empty "  " <|>
+        (match w with
+         | I z ->
+           begin match Encode.decode_statement z with
+           | i -> Instr.ui i
+           | exception Encode.DecodeException _ -> I.string A.(fg green) "???"
+           end
+         | Cap (_, _, _, _) -> I.empty)
+      in
+      List.fold_left (fun img (a, w) -> img <-> img_of_dataline a w) I.empty data,
+      start
+  end
 end
 
 (* main loop *)
-
-module Ui = MkUi (struct let addr_max = 512 end)
 
 let () =
   let filename =
@@ -149,13 +191,36 @@ let () =
       Printf.eprintf "Parse error: %s\n" msg;
       exit 1
   in
-  let m_init = Program.init_machine prog None in
+  let addr_max = List.length prog in
+  let module Cfg = struct let addr_max = addr_max end in
+  let module Ui = MkUi (Cfg) in
+
+  let m_init = Program.init_machine prog (Some Cfg.addr_max) in
 
   let term = Term.create () in
 
+  let prog_panel_start = ref 0 in
+
   let rec loop m =
-    let term_width = fst @@ Term.size term in
-    let img = Ui.Regs_panel.ui term_width (snd m).Machine.reg in
+    let term_width, term_height = Term.size term in
+    let reg = (snd m).Machine.reg in
+    let mem = (snd m).Machine.mem in
+    let pc =
+      match Machine.RegMap.find Ast.PC reg with
+      | I _ -> None | Cap (_, _, _, a) -> Some a
+    in
+    let regs_img =
+      Ui.Regs_panel.ui term_width (snd m).Machine.reg in
+    let prog_img, panel_start =
+      Ui.Program_panel.ui (term_height - 1 - I.height regs_img) mem pc
+        !prog_panel_start in
+    prog_panel_start := panel_start;
+
+    let img =
+      regs_img
+      <-> I.string A.empty " " <->
+      prog_img
+    in
     Term.image term img;
     (* watch for a relevant event *)
     let rec process_events () =
