@@ -135,15 +135,18 @@ module MkUi (Cfg: MachineConfig) = struct
   end
 
   module Program_panel = struct
-    (*   <addr>  <word>  <decoded instr>
-       ▶ <addr>  <word>  <decoded instr>
-         <addr>  <word>  <decoded instr>
+    (* TODO: associate a color to each permission and make the color of the
+       range (+pointer?) match the permission of PC *)
+    (*    <addr>  <word>  <decoded instr>
+      ┏   <addr>  <word>  <decoded instr>
+      ┃ ▶ <addr>  <word>  <decoded instr>
+      ┗   <addr>  <word>  <decoded instr>
     *)
-    let ui height (mem: Machine.mem_state) (pc: int option) (start: int) =
+    let ui height (mem: Machine.mem_state) (pc: Machine.word) (start: int) =
       let start =
         match pc with
-        | None -> start
-        | Some pc ->
+        | I _ -> start
+        | Cap (_, _, _, pc) ->
           if pc <= start && start > 0 then
             (* switch to previous page *)
             start - height + 2
@@ -153,21 +156,37 @@ module MkUi (Cfg: MachineConfig) = struct
           else
             start
       in
+      let at_pc a = match pc with I _ -> false | Cap (_, _, _, pc) -> a = pc in
+      let is_in_pc_range a =
+        match pc with
+        | I _ -> `No
+        | Cap (_, b, e, _) ->
+          if a >= b && a < e then (
+            if a = b then `AtStart
+            else if a = e-1 then `AtLast
+            else `InRange
+          ) else `No
+      in
       let data =
         CCList.(start --^ (start+height))
         |> List.filter (fun a -> a >= 0 && a < Cfg.addr_max)
         |> List.map (fun a -> a, Machine.MemMap.find a mem) in
       let img_of_dataline a w =
-        (if pc = Some a then I.string A.(fg red) "▶ " else I.string A.empty "  ") <|>
+        (match is_in_pc_range a with
+         | `No -> I.string A.empty " "
+         | `AtStart -> I.string A.(fg red) "┏"
+         | `AtLast -> I.string A.(fg red) "┗"
+         | `InRange -> I.string A.(fg red) "┃") <|>
+        (if at_pc a then I.string A.(fg red) "▶ " else I.string A.empty "  ") <|>
         Addr.ui ~attr:A.(fg yellow) a <|> I.string A.empty "  " <|>
         Word.ui w <|> I.string A.empty "  " <|>
         (match w with
-         | I z ->
+         | I z when is_in_pc_range a <> `No ->
            begin match Encode.decode_statement z with
            | i -> Instr.ui i
            | exception Encode.DecodeException _ -> I.string A.(fg green) "???"
            end
-         | Cap (_, _, _, _) -> I.empty)
+         | _ -> I.empty)
       in
       List.fold_left (fun img (a, w) -> img <-> img_of_dataline a w) I.empty data,
       start
@@ -205,15 +224,11 @@ let () =
     let term_width, term_height = Term.size term in
     let reg = (snd m).Machine.reg in
     let mem = (snd m).Machine.mem in
-    let pc =
-      match Machine.RegMap.find Ast.PC reg with
-      | I _ -> None | Cap (_, _, _, a) -> Some a
-    in
     let regs_img =
       Ui.Regs_panel.ui term_width (snd m).Machine.reg in
     let prog_img, panel_start =
-      Ui.Program_panel.ui (term_height - 1 - I.height regs_img) mem pc
-        !prog_panel_start in
+      Ui.Program_panel.ui (term_height - 1 - I.height regs_img) mem
+        (Machine.RegMap.find Ast.PC reg) !prog_panel_start in
     prog_panel_start := panel_start;
 
     let img =
