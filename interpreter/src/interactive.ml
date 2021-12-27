@@ -191,6 +191,16 @@ module MkUi (Cfg: MachineConfig) = struct
       List.fold_left (fun img (a, w) -> img <-> img_of_dataline a w) I.empty data,
       start
   end
+
+  module Exec_state = struct
+    let width = 7
+    let ui (s: Machine.exec_state) =
+      I.hsnap ~align:`Left width @@
+      match s with
+      | Running -> I.string A.empty "Running"
+      | Halted -> I.string A.(st bold) "Halted"
+      | Failed -> I.string A.(st bold ++ fg red) "Failed"
+  end
 end
 
 (* main loop *)
@@ -230,11 +240,14 @@ let () =
       Ui.Program_panel.ui (term_height - 1 - I.height regs_img) mem
         (Machine.RegMap.find Ast.PC reg) !prog_panel_start in
     prog_panel_start := panel_start;
-
+    let mach_state_img =
+      I.hsnap ~align:`Right term_width
+        (I.string A.empty "machine state: " <|> Ui.Exec_state.ui (fst m))
+    in
     let img =
       regs_img
-      <-> I.string A.empty " " <->
-      prog_img
+      <-> mach_state_img
+      <-> prog_img
     in
     Term.image term img;
     (* watch for a relevant event *)
