@@ -1,6 +1,12 @@
 This repository contains the Coq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
+The repository depends on the submodule `machine_utils`. After cloning Cerise,
+you can load the submodule using
+```
+git submodule update --init
+```
+
 We consider here a machine with so-called *sentry* (or "enter") capabilities on
 top of the usual memory capabilities, and focus on reasoning about the
 *local-state encapsulation* properties they can enforce.
