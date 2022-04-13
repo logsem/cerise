@@ -52,7 +52,12 @@ Coercion cst : Z >-> sum.
 
 (* Registers and memory: maps from register names/addresses to words *)
 
-Definition Reg := gmap RegName Word.
+(* Definition CoreNum := 4. *)
+Context {CoreNum : Z}.
+Global Opaque CoreNum.
+Definition CoreN := finz CoreNum.
+
+Definition Reg := gmap (CoreN * RegName) Word.
 Definition Mem := gmap Addr Word.
 
 (* EqDecision instances *)

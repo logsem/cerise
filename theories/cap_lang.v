@@ -8,65 +8,106 @@ Ltac inv H := inversion H; clear H; subst.
 
 Definition ExecConf := (Reg * Mem)%type.
 
-Inductive ConfFlag : Type :=
+Inductive CoreState : Type :=
 | Executable
 | Halted
 | Failed
 | NextI.
 
-Definition Conf: Type := ConfFlag * ExecConf.
+Definition ExecState := gmap CoreN CoreState.
+
+Definition CoreConf: Type := CoreState * ExecConf.
+Definition Conf: Type := ExecState * ExecConf.
 
 Definition reg (ϕ: ExecConf) := fst ϕ.
 
 Definition mem (ϕ: ExecConf) := snd ϕ.
 
-Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := (<[r:=w]>(reg φ),mem φ).
-Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := (reg φ, <[a:=w]>(mem φ)).
+Definition update_reg (φ: ExecConf) (i: CoreN) (r: RegName) (w: Word): ExecConf
+  := (<[(i,r):=w]>(reg φ),mem φ).
+Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf
+  := (reg φ, <[a:=w]>(mem φ)).
+Definition update_state (s: ExecState) (i : CoreN) (cs : CoreState) : ExecState
+  := <[i:=cs]> s.
+
+Lemma update_state_inv :
+  forall es i c c',
+      update_state es i c = update_state es i c'
+      -> c = c'.
+Proof.
+  intros.
+  rewrite /update_state in H.
+Admitted.
+
+Lemma update_state_lookup:
+  forall es i c,
+  update_state es i c !! i = Some c.
+Proof.
+  intros. by apply lookup_insert.
+Qed.
+
+
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
-Definition updatePC (φ: ExecConf): option Conf :=
-  match (reg φ) !! PC with
+Definition updatePC (i : CoreN) (φ: ExecConf)
+  : option CoreConf :=
+  match (reg φ) !! (i,PC) with
   | Some (WCap p b e a) =>
     match (a + 1)%a with
-    | Some a' => let φ' := (update_reg φ PC (WCap p b e a')) in
-                Some (NextI, φ')
+    | Some a' => let φ' := (update_reg φ i PC (WCap p b e a')) in
+               Some (NextI, φ')
     | None => None
     end
   | _ => None
   end.
 
+
+Definition updatePC' (i : CoreN) (s: ExecState) (φ: ExecConf) : option Conf :=
+  match (reg φ) !! (i,PC) with
+  | Some (WCap p b e a) =>
+    match (a + 1)%a with
+    | Some a' => let φ' := (update_reg φ i PC (WCap p b e a')) in
+               Some (update_state s i NextI, φ')
+    | None => None
+    end
+  | _ => None
+  end.
+
+
 (*--- z_of_argument ---*)
 
-Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
+Definition z_of_argument (regs: Reg) (i : CoreN) (a: Z + RegName) : option Z :=
   match a with
   | inl z => Some z
   | inr r =>
-    match regs !! r with
+    match regs !! (i,r) with
     | Some (WInt z) => Some z
     | _ => None
     end
   end.
 
-Lemma z_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z)).
+Lemma z_of_argument_Some_inv (regs: Reg) (i : CoreN) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs i arg = Some z →
+  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! (i, r) = Some (WInt z)).
 Proof.
   unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
 Qed.
 
-Lemma z_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (z:Z) :
-  z_of_argument regs arg = Some z →
+Lemma z_of_argument_Some_inv' (regs regs': Reg) (i : CoreN) (arg: Z + RegName) (z:Z) :
+  z_of_argument regs i arg = Some z →
   regs ⊆ regs' →
-  (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z) ∧ regs' !! r = Some (WInt z)).
+  (arg = inl z ∨ ∃ r, arg = inr r
+                      ∧ regs !! (i, r) = Some (WInt z)
+                      ∧ regs' !! (i, r) = Some (WInt z)).
 Proof.
   unfold z_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
   intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
-Lemma z_of_arg_mono (regs r: Reg) arg argz:
+Lemma z_of_arg_mono (regs r: Reg) (i : CoreN) arg argz:
 regs ⊆ r
--> z_of_argument regs arg = Some argz
--> z_of_argument r arg = Some argz.
+-> z_of_argument regs i arg = Some argz
+-> z_of_argument r i arg = Some argz.
 Proof.
   intros.
   unfold z_of_argument in *.
@@ -76,46 +117,45 @@ Qed.
 
 (*--- word_of_argument ---*)
 
-Definition word_of_argument (regs: Reg) (a: Z + RegName): option Word :=
+Definition word_of_argument (regs: Reg) (i : CoreN) (a: Z + RegName): option Word :=
   match a with
   | inl n => Some (WInt n)
-  | inr r => regs !! r
+  | inr r => regs !! (i,r)
   end.
 
-Lemma word_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (w:Word) :
-  word_of_argument regs arg = Some w →
+Lemma word_of_argument_Some_inv (regs: Reg) (i : CoreN) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs i arg = Some w →
   ((∃ z, arg = inl z ∧ w = WInt z) ∨
-   (∃ r, arg = inr r ∧ regs !! r = Some w)).
+   (∃ r, arg = inr r ∧ regs !! (i,r) = Some w)).
 Proof.
   unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
 Qed.
 
-Lemma word_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (w:Word) :
-  word_of_argument regs arg = Some w →
+Lemma word_of_argument_Some_inv' (regs regs': Reg) (i : CoreN) (arg: Z + RegName) (w:Word) :
+  word_of_argument regs i arg = Some w →
   regs ⊆ regs' →
   ((∃ z, arg = inl z ∧ w = WInt z) ∨
-   (∃ r, arg = inr r ∧ regs !! r = Some w ∧ regs' !! r = Some w)).
+   (∃ r, arg = inr r ∧ regs !! (i,r) = Some w ∧ regs' !! (i,r) = Some w)).
 Proof.
   unfold word_of_argument. intro. repeat case_match; simplify_eq/=; eauto.
   intros HH. unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
-Lemma word_of_argument_inr (regs: Reg) (arg: Z + RegName) p b e a:
-  word_of_argument regs arg = Some (WCap p b e a) →
-  (∃ r : RegName, arg = inr r ∧ regs !! r = Some (WCap p b e a)).
+Lemma word_of_argument_inr (regs: Reg) (i : CoreN) (arg: Z + RegName) p b e a:
+  word_of_argument regs i arg = Some (WCap p b e a) →
+  (∃ r : RegName, arg = inr r ∧ regs !! (i,r) = Some (WCap p b e a)).
 Proof.
   intros HStoreV.
   unfold word_of_argument in HStoreV.
   destruct arg.
       - by inversion HStoreV.
-      - exists r. destruct (regs !! r) eqn:Hvr0; last by inversion HStoreV.
-        split; auto.
+      - exists r. split;auto.
 Qed.
 
-Lemma word_of_arg_mono (regs r: Reg) arg w:
+Lemma word_of_arg_mono (regs r: Reg) (i : CoreN) arg w:
 regs ⊆ r
--> word_of_argument regs arg = Some w
--> word_of_argument r arg = Some w.
+-> word_of_argument regs i arg = Some w
+-> word_of_argument r i arg = Some w.
 Proof.
   intros.
   unfold word_of_argument in *.
@@ -125,36 +165,36 @@ Qed.
 
 (*--- addr_of_argument ---*)
 
-Definition addr_of_argument regs src :=
-  match z_of_argument regs src with
+Definition addr_of_argument regs (i : CoreN) src :=
+  match z_of_argument regs i src with
   | Some n => z_to_addr n
   | None => None
   end.
 
-Lemma addr_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (a:Addr) :
-  addr_of_argument regs arg = Some a →
+Lemma addr_of_argument_Some_inv (regs: Reg) (i : CoreN) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs i arg = Some a →
   ∃ z, z_to_addr z = Some a ∧
-       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z)).
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! (i,r) = Some (WInt z)).
 Proof.
   unfold addr_of_argument, z_of_argument.
   intro. repeat case_match; simplify_eq/=; eauto. eexists. eauto.
 Qed.
 
-Lemma addr_of_argument_Some_inv' (regs regs': Reg) (arg: Z + RegName) (a:Addr) :
-  addr_of_argument regs arg = Some a →
+Lemma addr_of_argument_Some_inv' (regs regs': Reg) (i : CoreN) (arg: Z + RegName) (a:Addr) :
+  addr_of_argument regs i arg = Some a →
   regs ⊆ regs' →
   ∃ z, z_to_addr z = Some a ∧
-       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! r = Some (WInt z) ∧ regs' !! r = Some (WInt z)).
+       (arg = inl z ∨ ∃ r, arg = inr r ∧ regs !! (i,r) = Some (WInt z) ∧ regs' !! (i,r) = Some (WInt z)).
 Proof.
   unfold addr_of_argument, z_of_argument.
   intros ? HH. repeat case_match; simplify_eq/=; eauto. eexists. split; eauto.
   unshelve epose proof (lookup_weaken _ _ _ _ _ HH); eauto.
 Qed.
 
-Lemma addr_of_arg_mono (regs r: Reg) arg w:
+Lemma addr_of_arg_mono (regs r: Reg) (i : CoreN) arg w:
 regs ⊆ r
--> addr_of_argument regs arg = Some w
--> addr_of_argument r arg = Some w.
+-> addr_of_argument regs i arg = Some w
+-> addr_of_argument r i arg = Some w.
 Proof.
   intros.
   unfold addr_of_argument, z_of_argument in *.
@@ -166,249 +206,288 @@ Qed.
 Section opsem.
   Context `{MachineParameters}.
 
-  Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
-    match i with
+  Definition exec_opt (it: instr) (i : CoreN) (φ : ExecConf)
+    : option CoreConf :=
+    match it with
     | Fail => Some (Failed, φ)
     | Halt => Some (Halted, φ)
     | Jmp r =>
-      wr ← (reg φ) !! r;
-      let φ' := (update_reg φ PC (updatePcPerm wr)) in Some (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
+        wr ← (reg φ) !! (i,r) ;
+        let φ' := (update_reg φ i PC (updatePcPerm wr)) in
+        Some (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
     | Jnz r1 r2 =>
-      wr2 ← (reg φ) !! r2;
-      wr1 ← (reg φ) !! r1;
-      if nonZero wr2 then
-        let φ' := (update_reg φ PC (updatePcPerm wr1)) in Some (NextI, φ')
-      else updatePC φ
+        wr2 ← (reg φ) !! (i,r2);
+        wr1 ← (reg φ) !! (i,r1);
+        if nonZero wr2 then
+          let φ' := (update_reg φ i PC (updatePcPerm wr1)) in
+          Some (NextI, φ')
+        else updatePC i φ
     | Load dst src =>
-      wsrc ← (reg φ) !! src;
-      match wsrc with
-      | WCap p b e a =>
-        if readAllowed p && withinBounds b e a then
-          asrc ← (mem φ) !! a;
-          updatePC (update_reg φ dst asrc)
-        else None
-      | _ => None
-      end
+        wsrc ← (reg φ) !! (i,src);
+        match wsrc with
+        | WCap p b e a =>
+            if readAllowed p && withinBounds b e a then
+              asrc ← (mem φ) !! a;
+              updatePC i (update_reg φ i dst asrc)
+            else None
+        | _ => None
+        end
     | Store dst ρ =>
-      tostore ← word_of_argument (reg φ) ρ;
-      wdst ← (reg φ) !! dst;
+      tostore ← word_of_argument (reg φ) i ρ;
+      wdst ← (reg φ) !! (i,dst);
       match wdst with
       | WCap p b e a =>
-        if writeAllowed p && withinBounds b e a then
-          updatePC (update_mem φ a tostore)
-        else None
+          if writeAllowed p && withinBounds b e a then
+            updatePC i (update_mem φ a tostore)
+          else None
       | _ => None
       end
     | Mov dst ρ =>
-      tomov ← word_of_argument (reg φ) ρ;
-      updatePC (update_reg φ dst tomov)
+      tomov ← word_of_argument (reg φ) i ρ;
+      updatePC i (update_reg φ i dst tomov)
     | Lea dst ρ =>
-      n ← z_of_argument (reg φ) ρ;
-      wdst ← (reg φ) !! dst;
+      n ← z_of_argument (reg φ) i ρ;
+      wdst ← (reg φ) !! (i,dst);
       match wdst with
       | WInt _ => None
       | WCap p b e a =>
-        match p with
-        | E => None
-        | _ => match (a + n)%a with
-               | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
-               | None => None
-               end
-        end
+          match p with
+          | E => None
+          | _ => match (a + n)%a with
+                | Some a' => updatePC i (update_reg φ i dst (WCap p b e a'))
+                | None => None
+                end
+          end
       end
-    | Restrict dst ρ =>
-      n ← z_of_argument (reg φ) ρ ;
-      wdst ← (reg φ) !! dst;
+  | Restrict dst ρ =>
+      n ← z_of_argument (reg φ) i ρ ;
+      wdst ← (reg φ) !! (i,dst);
       match wdst with
       | WInt _ => None
       | WCap permPair b e a =>
-        match permPair with
-        | E => None
-        | _ => if PermFlowsTo (decodePerm n) permPair then
-                updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
-              else None
-        end
+          match permPair with
+          | E => None
+          | _ => if PermFlowsTo (decodePerm n) permPair then
+                  updatePC i (update_reg φ i dst (WCap (decodePerm n) b e a))
+                else None
+          end
       end
-     | Add dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (n1 + n2)%Z))
-     | Sub dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
-     | Lt dst ρ1 ρ2 =>
-      n1 ← z_of_argument (reg φ) ρ1;
-      n2 ← z_of_argument (reg φ) ρ2;
-      updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
-    | Subseg dst ρ1 ρ2 =>
-      a1 ← addr_of_argument (reg φ) ρ1;
-      a2 ← addr_of_argument (reg φ) ρ2;
-      wdst ← (reg φ) !! dst;
+  | Add dst ρ1 ρ2 =>
+      n1 ← z_of_argument (reg φ) i ρ1;
+      n2 ← z_of_argument (reg φ) i ρ2;
+      updatePC i (update_reg φ i dst (WInt (n1 + n2)%Z))
+  | Sub dst ρ1 ρ2 =>
+      n1 ← z_of_argument (reg φ) i ρ1;
+      n2 ← z_of_argument (reg φ) i ρ2;
+      updatePC i (update_reg φ i dst (WInt (n1 - n2)%Z))
+  | Lt dst ρ1 ρ2 =>
+      n1 ← z_of_argument (reg φ) i ρ1;
+      n2 ← z_of_argument (reg φ) i ρ2;
+      updatePC i (update_reg φ i dst (WInt (Z.b2z (Z.ltb n1 n2))))
+  | Subseg dst ρ1 ρ2 =>
+      a1 ← addr_of_argument (reg φ) i ρ1;
+      a2 ← addr_of_argument (reg φ) i ρ2;
+      wdst ← (reg φ) !! (i,dst);
       match wdst with
       | WInt _ => None
       | WCap p b e a =>
-        match p with
-        | E => None
-        | _ =>
-          if isWithin a1 a2 b e then
-            updatePC (update_reg φ dst (WCap p a1 a2 a))
-          else None
-        end
+          match p with
+          | E => None
+          | _ =>
+              if isWithin a1 a2 b e then
+                updatePC i (update_reg φ i dst (WCap p a1 a2 a))
+              else None
+          end
       end
-    | GetA dst r =>
-      wr ← (reg φ) !! r;
+  | GetA dst r =>
+      wr ← (reg φ) !! (i,r);
       match wr with
       | WInt _ => None
-      | WCap _ _ _ a => updatePC (update_reg φ dst (WInt a))
+      | WCap _ _ _ a => updatePC i (update_reg φ i dst (WInt a))
       end
-    | GetB dst r =>
-      wr ← (reg φ) !! r;
+  | GetB dst r =>
+      wr ← (reg φ) !! (i,r);
       match wr with
       | WInt _ => None
-      | WCap _ b _ _ => updatePC (update_reg φ dst (WInt b))
+      | WCap _ b _ _ => updatePC i (update_reg φ i dst (WInt b))
       end
-    | GetE dst r =>
-      wr ← (reg φ) !! r;
+  | GetE dst r =>
+      wr ← (reg φ) !! (i,r);
       match wr with
       | WInt _ => None
-      | WCap _ _ e _ => updatePC (update_reg φ dst (WInt e))
+      | WCap _ _ e _ => updatePC i (update_reg φ i   dst (WInt e))
       end
-    | GetP dst r =>
-      wr ← (reg φ) !! r;
+  | GetP dst r =>
+      wr ← (reg φ) !! (i,r);
       match wr with
       | WInt _ => None
-      | WCap p _ _ _ => updatePC (update_reg φ dst (WInt (encodePerm p)))
+      | WCap p _ _ _ => updatePC i (update_reg φ i   dst (WInt (encodePerm p)))
       end
-    | IsPtr dst r =>
-      wr ← (reg φ) !! r;
+  | IsPtr dst r =>
+      wr ← (reg φ) !! (i,r);
       match wr with
-      | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
-      | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
+      | WInt _ => updatePC i (update_reg φ i dst (WInt 0%Z))
+      | WCap _ _ _ _ => updatePC i (update_reg φ i dst (WInt 1%Z))
       end
-    end.
+  end.
 
-  Definition exec (i: instr) (φ: ExecConf) : Conf :=
-     match exec_opt i φ with | None => (Failed, φ) | Some conf => conf end .
+  Definition exec (it: instr) (i : CoreN) (φ: ExecConf)
+    : CoreConf :=
+     match exec_opt it i φ with
+     | None => (Failed, φ)
+     | Some conf => conf end .
 
   Lemma exec_opt_exec_some :
-    forall φ i c,
-      exec_opt i φ = Some c →
-      exec i φ = c.
+    forall φ it i c,
+      exec_opt it i φ = Some c →
+      exec it i φ = c.
   Proof. unfold exec. by intros * ->. Qed.
   Lemma exec_opt_exec_none :
-    forall φ i,
-      exec_opt i φ = None →
-      exec i φ = (Failed, φ).
+    forall φ it i,
+      exec_opt it i φ = None→
+      exec it i φ = (Failed, φ).
   Proof. unfold exec. by intros * ->. Qed.
 
-  Inductive step: Conf → Conf → Prop :=
-  | step_exec_regfail:
-      forall φ,
-        (reg φ) !! PC = None →
-        step (Executable, φ) (Failed, φ)
-  | step_exec_corrfail:
-      forall φ wreg,
-        (reg φ) !! PC = Some wreg →
+  (* Per-core step *)
+  Inductive core_step : CoreN -> CoreConf -> CoreConf → Prop :=
+  | core_step_exec_regfail:
+      forall i M,
+        (reg M) !! (i ,PC) = None →
+        core_step i (Executable, M) (Failed, M)
+  | core_step_exec_corrfail:
+      forall M wreg i,
+        (reg M) !! (i,PC) = Some wreg →
         not (isCorrectPC wreg) →
-        step (Executable, φ) (Failed, φ)
-  | step_exec_memfail:
-      forall φ p b e a,
-        (reg φ) !! PC = Some (WCap p b e a) →
-        (mem φ) !! a = None →
-        step (Executable, φ) (Failed, φ)
-  | step_exec_instr:
-      forall φ p b e a i c wa,
-        (reg φ) !! PC = Some (WCap p b e a) →
-        (mem φ) !! a = Some wa →
+        core_step i (Executable, M) (Failed, M)
+  | core_step_exec_memfail:
+      forall M p b e a i,
+        (reg M) !! (i,PC) = Some (WCap p b e a) →
+        (mem M) !! a = None →
+        core_step i (Executable, M) (Failed, M)
+  | core_step_exec_instr:
+      forall M p b e a it c wa i,
+        (reg M) !! (i,PC) = Some (WCap p b e a) →
+        (mem M) !! a = Some wa →
         isCorrectPC (WCap p b e a) →
-        decodeInstrW wa = i →
-        exec i φ = c →
-        step (Executable, φ) (c.1, c.2).
+        decodeInstrW wa = it →
+        exec it i M = c →
+        core_step i (Executable, M) (c.1, c.2).
 
-  Lemma normal_always_step:
-    forall φ, exists cf φ', step (Executable, φ) (cf, φ').
+  Inductive machine_step : Conf -> Conf -> Prop :=
+    | conf_step:
+      forall i es φ φ' c c',
+      es !! i = Some c ->
+      core_step i (c, φ) (c', φ') ->
+      machine_step (es, φ) (update_state es i c', φ').
+
+  Lemma normal_always_core_step:
+    forall M i ,
+        exists c M', core_step i (Executable, M) (c, M').
   Proof.
-    intros. destruct (reg φ !! PC) as [wpc | ] eqn:Hreg.
+    intros. destruct (reg M !! (i,PC)) as [wpc | ] eqn:Hreg.
     destruct (isCorrectPC_dec wpc) as [Hcorr | ].
     set (Hcorr' := Hcorr).
     inversion Hcorr' as [???? _ _ Hre]. subst wpc.
-    destruct (mem φ !! a) as [wa | ] eqn:Hmem.
+    destruct (mem M !! a) as [wa | ] eqn:Hmem.
     all: eexists _,_; by econstructor.
   Qed.
 
-  Lemma step_deterministic:
-    forall c1 c2 c2' σ1 σ2 σ2',
-      step (c1, σ1) (c2, σ2) →
-      step (c1, σ1) (c2', σ2') →
+  Lemma normal_always_step:
+    forall i es φ,
+    es !! i = Some Executable ->
+    exists es' φ', machine_step (es,φ) (es', φ').
+  Proof.
+    intros * Hes.
+    pose proof (normal_always_core_step φ i) as [c [M' Hstep]].
+    eexists _,_.
+    econstructor; eassumption.
+  Qed.
+
+  Lemma core_step_deterministic:
+    forall i c1 c2 c2' σ1 σ2 σ2',
+      core_step i (c1, σ1) (c2, σ2) →
+      core_step i (c1, σ1) (c2', σ2') →
       c2 = c2' ∧ σ2 = σ2'.
   Proof.
     intros * H1 H2; split; inv H1; inv H2; auto; try congruence.
   Qed.
 
-  Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) :
-    r !! PC = Some (WCap p b e a) →
+  Lemma core_step_exec_inv (r: Reg) p b e a m w instr
+    (c: CoreState) (σ: ExecConf) (i: CoreN) :
+    r !! (i,PC) = Some (WCap p b e a) →
     isCorrectPC (WCap p b e a) →
     m !! a = Some w →
     decodeInstrW w = instr →
-    step (Executable, (r, m)) (c, σ) →
-    exec instr (r, m) = (c, σ).
+    core_step i (Executable, (r, m)) (c, σ) ->
+    exec instr i (r, m) = (c, σ).
   Proof.
     intros HPC Hpc Hm Hinstr. inversion 1; cbn in *.
     1,2,3: congruence.
     simplify_eq. by destruct (exec _ _).
   Qed.
 
-  Lemma step_fail_inv wpc c (σ σ': ExecConf) :
-    reg σ !! PC = Some wpc →
+  Lemma core_step_fail_inv wpc c (σ σ': ExecConf) (i : CoreN) :
+    reg σ !! (i,PC) = Some wpc →
     ¬ isCorrectPC wpc →
-    step (Executable, σ) (c, σ') →
+    core_step i (Executable, σ) (c, σ') ->
     c = Failed ∧ σ' = σ.
   Proof.
-    intros Hw HPC Hs. inversion Hs; subst; auto.
+    intros Hw HPC Hs.
+    inv Hs;
+    try
+    match goal with
+    | h: context[ update_state _ _ _ = update_state _ _ _ ] |- _ =>
+      apply update_state_inv in h
+    end; subst; auto.
     congruence.
   Qed.
 
-  Inductive val: Type :=
-  | HaltedV: val
-  | FailedV: val
-  | NextIV: val.
+
+  Inductive vFlag: Type :=
+  | HaltedV: vFlag
+  | FailedV: vFlag
+  | NextIV: vFlag.
+
+  Definition val := (CoreN * vFlag)%type.
 
   (* TODO: change to co-inductive list in the Seq case *)
-  Inductive expr: Type :=
-  | Instr (c : ConfFlag)
-  | Seq (e : expr).
+  Inductive pre_expr: Type :=
+  | Instr (c : CoreState)
+  | Seq (e : pre_expr).
+  Definition expr: Type := (CoreN * pre_expr).
+
   Definition state : Type := ExecConf.
 
   Definition of_val (v: val): expr :=
     match v with
-    | HaltedV => Instr Halted
-    | FailedV => Instr Failed
-    | NextIV => Instr NextI
+    | (i, HaltedV) => (i, Instr Halted)
+    | (i, FailedV) => (i, Instr Failed)
+    | (i, NextIV) => (i, Instr NextI)
     end.
 
   Definition to_val (e: expr): option val :=
     match e with
-    | Instr c =>
+    | (n, Instr c) =>
       match c with
       | Executable => None
-      | Halted => Some HaltedV
-      | Failed => Some FailedV
-      | NextI => Some NextIV
+      | Halted => Some (n, HaltedV)
+      | Failed => Some (n, FailedV)
+      | NextI => Some (n, NextIV)
       end
-    | Seq _ => None
+    | (n, Seq _) => None
     end.
 
   Lemma of_to_val:
     forall e v, to_val e = Some v →
            of_val v = e.
   Proof.
-    intros * HH. destruct e; try destruct c; simpl in HH; inv HH; auto.
+    intros * HH. destruct e ; try destruct p; simpl in HH; inv HH; auto.
+    destruct c0 ; simpl ; inv H1 ; auto.
   Qed.
 
   Lemma to_of_val:
     forall v, to_val (of_val v) = Some v.
-  Proof. destruct v; reflexivity. Qed.
+  Proof. destruct v ; destruct v ; reflexivity. Qed.
 
   (** Evaluation context *)
   Inductive ectx_item :=
@@ -417,16 +496,24 @@ Section opsem.
   Notation ectx := (list ectx_item).
 
   Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
-    match Ki with
-    | SeqCtx => Seq e
+    match e with
+    | (n,pe) =>
+      match Ki with
+      | SeqCtx => (n, Seq pe)
+      end
     end.
 
+
   Inductive prim_step: expr → state → list Empty_set → expr → state → list expr → Prop :=
-  | PS_no_fork_instr σ e' σ' :
-      step (Executable, σ) (e', σ') → prim_step (Instr Executable) σ [] (Instr e') σ' []
-  | PS_no_fork_seq σ : prim_step (Seq (Instr NextI)) σ [] (Seq (Instr Executable)) σ []
-  | PS_no_fork_halt σ : prim_step (Seq (Instr Halted)) σ [] (Instr Halted) σ []
-  | PS_no_fork_fail σ : prim_step (Seq (Instr Failed)) σ [] (Instr Failed) σ [].
+  | PS_no_fork_instr i σ c' σ' :
+    core_step i (Executable, σ) (c', σ') ->
+    prim_step (i, (Instr Executable)) σ [] (i, (Instr c')) σ' []
+  | PS_no_fork_seq i σ :
+    prim_step (i, (Seq (Instr NextI))) σ [] (i, (Seq (Instr Executable))) σ []
+  | PS_no_fork_halt i σ :
+    prim_step (i, (Seq (Instr Halted))) σ [] (i, (Instr Halted)) σ []
+  | PS_no_fork_fail i σ :
+    prim_step (i, (Seq (Instr Failed))) σ [] (i, (Instr Failed)) σ [].
 
   Lemma val_stuck:
     forall e σ o e' σ' efs,
@@ -434,21 +521,23 @@ Section opsem.
       to_val e = None.
   Proof. intros * HH. by inversion HH. Qed.
 
-  Lemma prim_step_exec_inv σ1 l1 e2 σ2 efs :
-    prim_step (Instr Executable) σ1 l1 e2 σ2 efs →
-    l1 = [] ∧ efs = [] ∧
-    exists (c: ConfFlag),
-      e2 = Instr c ∧
-      step (Executable, σ1) (c, σ2).
-  Proof. inversion 1; subst; split; eauto. Qed.
-
-  Lemma prim_step_and_step_exec σ1 e2 σ2 l1 e2' σ2' efs :
-    step (Executable, σ1) (e2, σ2) →
-    prim_step (Instr Executable) σ1 l1 e2' σ2' efs →
-    l1 = [] ∧ e2' = (Instr e2) ∧ σ2' = σ2 ∧ efs = [].
+  Lemma prim_step_exec_inv i σ1 l1 e2 σ2 efs :
+    prim_step (i, (Instr Executable)) σ1 l1 e2 σ2 efs →
+    l1 = [] ∧ efs = []
+    /\ exists (c: CoreState), e2 = (i, Instr c) ∧ core_step i (Executable, σ1) (c, σ2).
   Proof.
-    intros* Hstep Hpstep. inversion Hpstep as [? ? ? Hstep' | | |]; subst.
-    generalize (step_deterministic _ _ _ _ _ _ Hstep Hstep'). intros [-> ->].
+    intros Hprim_step.
+    inversion Hprim_step ; subst ; split ; eauto.
+  Qed.
+
+  Lemma prim_step_and_step_exec i σ1 e2 σ2 l1 e2' σ2' efs :
+    core_step i (Executable, σ1) (e2, σ2) →
+    prim_step (i, (Instr Executable)) σ1 l1 e2' σ2' efs →
+    l1 = [] ∧ e2' = (i, (Instr e2)) ∧ σ2' = σ2 ∧ efs = [].
+  Proof.
+    intros* Hstep Hpstep. inversion Hpstep as [? ? ? ? Hstep' | | |] ; subst.
+    generalize (core_step_deterministic i _ _ _ _ _ _ Hstep Hstep').
+    intros [-> ->].
     auto.
   Qed.
 
@@ -458,22 +547,29 @@ Section opsem.
     κ = κ' ∧ e2 = e2' ∧ σ2 = σ2' ∧ efs = efs'.
   Proof.
     intros Hs1 Hs2. inv Hs1; inv Hs2.
-    all: repeat match goal with HH : step _ _ |- _ => inv HH end; try congruence.
+    all: repeat match goal with HH : core_step _ _ _ |- _ => inv HH end; try congruence.
     all: auto.
-    match goal with HH : _ !! _ = _ |- _ => rewrite ->HH in * end.
-    simplify_map_eq. auto.
+    all: try match goal with HH : _ !! _ = _ |- _ => rewrite ->HH in * end.
+    all: try simplify_map_eq; auto.
   Qed.
+
 
   Lemma fill_item_val Ki e :
     is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
-  Proof. intros [v ?]. destruct Ki; simplify_option_eq; eauto. Qed.
+  Proof. intros [v ?]. destruct e ; destruct Ki; simplify_option_eq; eauto.
+  Qed.
 
   Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
-  Proof. destruct Ki; intros ???; simplify_eq; auto with f_equal. Qed.
+  Proof. destruct Ki; intros x y ?; destruct x,y; simplify_eq; auto with f_equal. Qed.
 
   Lemma head_ctx_step_val Ki e σ1 κ e2 σ2 ef :
     prim_step (fill_item Ki e) σ1 κ e2 σ2 ef → is_Some (to_val e).
-  Proof. destruct Ki; inversion_clear 1; simplify_option_eq; eauto. Qed.
+  Proof.
+    destruct Ki
+    ; inversion 1
+    ; destruct e as [? p], p
+    ; simplify_option_eq ; eauto.
+  Qed.
 
   Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
     to_val e1 = None → to_val e2 = None →
@@ -494,29 +590,36 @@ Section opsem.
 
   Definition is_atomic (e : expr) : Prop :=
     match e with
-    | Instr _ => True
-    | _ => False
+    | (_, Instr _) => True
+    | (_, _) => False
     end.
 
-  Lemma updatePC_some φ c:
-    updatePC φ = Some c → ∃ φ', c = (NextI, φ').
+  Lemma updatePC_some φ i c:
+    updatePC i φ = Some c → ∃ φ', c = (NextI, φ').
   Proof.
-    rewrite /updatePC; repeat case_match; try congruence. inversion 1. eauto.
+    rewrite /updatePC; repeat case_match; try congruence. inversion 1.
+    simplify_eq.
+    by eexists _.
   Qed.
 
-  Lemma instr_atomic i φ :
-    ∃ φ', (exec i φ = (Failed, φ') ) ∨ (exec i φ = (NextI, φ')) ∨
-          (exec i φ = (Halted, φ')).
+  Lemma instr_atomic it i φ :
+    ∃ φ', (exec it i φ = (Failed, φ') )
+          ∨ (exec it i φ = (NextI, φ'))
+          ∨ (exec it i φ = (Halted, φ')).
   Proof.
     unfold exec, exec_opt.
     repeat case_match; simplify_eq; eauto.
-    (* Create more goals through *_of_argument, now that some have been pruned *)
-    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _); cbn in *; try by exfalso.
+    all: repeat destruct (addr_of_argument (reg φ) i _)
+    ; repeat destruct (word_of_argument (reg φ) i _)
+    ; repeat destruct (z_of_argument (reg φ) i _)
+    ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
     all: simplify_eq; try by exfalso.
-    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
-  Qed.
+    all: try apply updatePC_some in Heqo as [φ' Heqo]
+    ; simplify_eq
+    ; eauto.
+Qed.
 
 End opsem.
 
@@ -551,17 +654,20 @@ Global Instance is_atomic_correct `{MachineParameters} s (e : expr) : is_atomic 
 Proof.
   intros Ha; apply strongly_atomic_atomic, ectx_language_atomic.
   - destruct e.
-    + destruct c; rewrite /Atomic; intros ????? Hstep;
+    + destruct p; rewrite /Atomic; intros ????? Hstep;
         inversion Hstep.
-      match goal with HH : step _ _ |- _ => inversion HH end; eauto.
-      destruct (instr_atomic i σ) as [σstepped [Hst | [Hst | Hst]]];
+      match goal with HH : core_step _ _ _ |- _ => inversion HH end; eauto.
+      destruct (instr_atomic it i σ) as [σstepped [Hst | [Hst | Hst]]];
           simplify_eq; rewrite Hst; simpl; eauto.
-    + inversion Ha.
+      all: try inversion Ha.
   - intros K e' -> Hval%eq_None_not_Some.
     induction K using rev_ind; first done.
     simpl in Ha; rewrite fill_app in Ha; simpl in Ha.
     destruct Hval. apply (fill_val K e'); simpl in *.
-    destruct x; naive_solver.
+    destruct x.
+    destruct (fill K e') eqn:Heq.
+    rewrite Heq in Ha.
+    destruct p ; contradiction.
 Qed.
 
 Ltac solve_atomic :=
@@ -571,17 +677,18 @@ Ltac solve_atomic :=
 #[export] Hint Extern 0 (Atomic _ _) => solve_atomic : core.
 #[export] Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
 
-Lemma head_reducible_from_step `{MachineParameters} σ1 e2 σ2 :
-  step (Executable, σ1) (e2, σ2) →
-  head_reducible (Instr Executable) σ1.
+Lemma head_reducible_from_step `{MachineParameters} i σ1 c2 σ2 :
+  core_step i (Executable, σ1) (c2, σ2) →
+  @head_reducible cap_ectx_lang  (i, (Instr Executable)) σ1.
 Proof. intros * HH. rewrite /head_reducible /head_step //=.
-       eexists [], (Instr _), σ2, []. by constructor.
+       eexists [], (i, (Instr _)), σ2, [].
+       by econstructor.
 Qed.
 
-Lemma normal_always_head_reducible `{MachineParameters} σ :
-  head_reducible (Instr Executable) σ.
+Lemma normal_always_head_reducible `{MachineParameters} σ i :
+  @head_reducible cap_ectx_lang  (i, (Instr Executable)) σ.
 Proof.
-  generalize (normal_always_step σ); intros (?&?&?).
-  eapply head_reducible_from_step. eauto.
+  intros.
+  pose proof (normal_always_core_step σ i) as [ es' [σ' Hnorm]].
+  eapply head_reducible_from_step; eauto.
 Qed.
-
