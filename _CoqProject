@@ -31,7 +31,7 @@ theories/rules/rules_Get.v
 # theories/rules/rules_Store.v
 # theories/rules/rules_AddSubLt.v
 # theories/rules/rules_Lea.v
-# theories/rules/rules_Mov.v
+theories/rules/rules_Mov.v
 # theories/rules/rules_Restrict.v
 # theories/rules/rules_IsPtr.v
 # theories/rules/rules_Jmp.v

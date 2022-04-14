@@ -41,11 +41,6 @@ Section cap_lang_rules.
     intros HH. destruct_or! HH; subst i; reflexivity.
   Qed.
 
-
-  Definition regs_of_core (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
-    set_map (fun r => (i,r)) (regs_of it).
-
-
   Lemma regs_of_core_is_Get it dst src i :
     is_Get it dst src →
     regs_of_core it i = {[ (i,dst); (i,src) ]}.
@@ -168,19 +163,16 @@ Section cap_lang_rules.
 
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iApply "Hφ". iFrame. incrementPC_inv ; simplify_map_eq.
-      rewrite (insert_commute _ (i, dst) (i, PC)) in H4 ; simplify_map_eq.
+      iApply "Hφ". iFrame. incrementPC_inv ; simplify_map_eq by simplify_pair_eq.
       rewrite insert_commute.
       rewrite insert_insert insert_commute.
       rewrite insert_insert.
       iDestruct (regs_of_map_2 with "Hmap") as "[? ?]"; eauto; iFrame.
-      all: intro ; simplify_pair_eq.
+      all: simplify_pair_eq.
     }
     { (* Failure (contradiction) *)
       destruct Hfail.
-      all: try incrementPC_inv; simplify_map_eq; eauto.
-      2: { rewrite (insert_commute _ (i, dst) (i, PC)) ; simplify_map_eq
-           ; [ reflexivity | intro ; simplify_pair_eq]. }
+      all: try incrementPC_inv; (simplify_map_eq by simplify_pair_eq); eauto.
       congruence. }
   Qed.
 
@@ -207,21 +199,14 @@ Section cap_lang_rules.
 
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-      rewrite (insert_commute _ (i, r) (i, PC)) in H4 ; simplify_map_eq.
-      rewrite (insert_commute _ (i, PC) (i, r)) in H3 ; simplify_map_eq.
-      rewrite insert_commute.
-      rewrite insert_insert insert_commute.
+      iApply "Hφ". iFrame. incrementPC_inv; (simplify_map_eq by simplify_pair_eq).
+      rewrite insert_commute ; simplify_pair_eq.
+      rewrite insert_insert insert_commute ; simplify_pair_eq.
       rewrite insert_insert.
       iDestruct (regs_of_map_2 with "Hmap") as "[? ?]"; eauto; iFrame.
-      all: intro ; simplify_pair_eq.
     }
     { (* Failure (contradiction) *)
-      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
-      rewrite (insert_commute _ (i, PC) (i, r)) in e
-      ; [simplify_map_eq | intro ; simplify_pair_eq].
-      2: { rewrite (insert_commute _ (i, r) (i, PC)) ; simplify_map_eq
-           ; [ reflexivity | intro ; simplify_pair_eq]. }
+      destruct Hfail; try incrementPC_inv; (simplify_map_eq by simplify_pair_eq); eauto.
       congruence. }
   Qed.
 
@@ -250,24 +235,14 @@ Section cap_lang_rules.
 
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-      rewrite (insert_commute _ (i, dst) (i, PC)) in H6 ; simplify_map_eq.
-      rewrite (insert_commute _ (i, dst) (i, src)) in H5 ;
-      first rewrite (insert_commute _ (i, PC) (i, src)) in H5 ; simplify_map_eq.
-      rewrite insert_commute;
-      first rewrite insert_insert insert_commute;
-      first rewrite insert_insert.
+      iApply "Hφ". iFrame. incrementPC_inv; (simplify_map_eq by simplify_pair_eq).
+      rewrite insert_commute; simplify_pair_eq.
+      rewrite insert_insert insert_commute; simplify_pair_eq.
+      rewrite insert_insert.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame.
-      all: intro ; simplify_pair_eq.
     }
     { (* Failure (contradiction) *)
-      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
-      rewrite (insert_commute _ (i, dst) (i, src)) in e ;
-      first rewrite (insert_commute _ (i, PC) (i, src)) in e.
-      all : try intro ; simplify_pair_eq.
-      simplify_map_eq.
-      2: { rewrite (insert_commute _ (i, dst) (i, PC)) ; simplify_map_eq
-           ; [ reflexivity | intro ; simplify_pair_eq]. }
+      destruct Hfail; try incrementPC_inv; simplify_map_eq by simplify_pair_eq; eauto.
       congruence. }
   Qed.
 

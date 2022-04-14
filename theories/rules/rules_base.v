@@ -657,18 +657,8 @@ Definition regs_of (i: instr): gset RegName :=
   | _ => ∅
   end.
 
-From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
-Global Instance reg_eq_dec' : EqDecision (CoreN * RegName).
-Proof.
-  apply prod_eq_dec.
-Defined.
-Global Instance reg_countable' : Countable (CoreN * RegName).
-Proof.
-  apply prod_countable.
-Defined.
-
-(* TODO from here *)
-(* Set Printing All. *)
+  Definition regs_of_core (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
+    set_map (fun r => (i,r)) (regs_of it).
 
 Lemma indom_regs_incl D (regs regs': Reg) :
   D ⊆ dom (gset (CoreN * RegName)) regs →
@@ -678,24 +668,10 @@ Lemma indom_regs_incl D (regs regs': Reg) :
 Proof.
   intros * HD Hincl ii rr Hr.
   assert (is_Some (regs !! (ii,rr))) as [w Hw].
-  { eapply @elem_of_dom with (D := gset RegName). admit.
-    eapply elem_of_subseteq; eauto. admit. }
+  { eapply @elem_of_dom with (D := gset (CoreN *RegName)). typeclasses eauto.
+    eapply elem_of_subseteq; eauto. }
   exists w. split; auto. eapply lookup_weaken; eauto.
-Admitted.
-
-(* Global Instance reg_elemOf : ElemOf (CoreN * RegName) gset_regs. *)
-(* Proof. *)
-(*   apply gset_elem_of. *)
-(* Defined. *)
-
-(* Global Instance reg_subset : SubsetEq gset_regs. *)
-(* Proof. *)
-(*   apply set_subseteq_instance. *)
-(* Defined. *)
-(* Set Printing All. *)
-
-(* Global Instance lookup_regs : Lookup (CoreN * RegName) Word Reg. *)
-(* Admitted. *)
+Qed.
 
 (*--- incrementPC ---*)
 
@@ -814,6 +790,11 @@ Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     y = u ∧ z = t.
 Proof. intros ->. inversion 1. auto. Qed.
 
+Lemma pair_neq_inv :
+  forall {A B} {a c : A} {b d:B}, (a ≠ c) \/ (b ≠ d) -> (a,b) ≠ (c,d).
+  intros *. inversion 2 ; subst ; firstorder.
+Qed.
+
 (* TODO: integrate into stdpp? *)
 Tactic Notation "simplify_pair_eq" :=
   repeat
@@ -826,6 +807,7 @@ Tactic Notation "simplify_pair_eq" :=
       assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 (eq_sym H2))); clear H2
     | H1 : (?y, ?z) = ?x, H2 : (?u, ?t) = ?x |- _ =>
       assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) (eq_sym H2))); clear H2
+    | H1 : _  |- (?u, ?v) ≠ (?x, ?y) => eapply pair_neq_inv ; eauto
     | |- _ => progress simplify_eq
     end.
 
@@ -879,6 +861,7 @@ Tactic Notation "simplify_map_eq" "by" tactic3(tac) :=
   decompose_map_disjoint;
   repeat match goal with
   | _ => progress simpl_map by tac
+  | _ => progress simplify_pair_eq
   | _ => progress simplify_eq/=
   | _ => progress simpl_option by tac
   | H : {[ _ := _ ]} !! _ = None |- _ => rewrite lookup_singleton_None in H

@@ -30,23 +30,12 @@ Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf
 Definition update_state (s: ExecState) (i : CoreN) (cs : CoreState) : ExecState
   := <[i:=cs]> s.
 
-Lemma update_state_inv :
-  forall es i c c',
-      update_state es i c = update_state es i c'
-      -> c = c'.
-Proof.
-  intros.
-  rewrite /update_state in H.
-Admitted.
-
 Lemma update_state_lookup:
   forall es i c,
   update_state es i c !! i = Some c.
 Proof.
   intros. by apply lookup_insert.
 Qed.
-
-
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
 Definition updatePC (i : CoreN) (φ: ExecConf)
@@ -433,12 +422,7 @@ Section opsem.
     c = Failed ∧ σ' = σ.
   Proof.
     intros Hw HPC Hs.
-    inv Hs;
-    try
-    match goal with
-    | h: context[ update_state _ _ _ = update_state _ _ _ ] |- _ =>
-      apply update_state_inv in h
-    end; subst; auto.
+    inv Hs ; subst ; auto.
     congruence.
   Qed.
 
