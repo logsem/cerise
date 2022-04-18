@@ -14,21 +14,21 @@ Section cap_lang_rules.
   Implicit Types r : RegName.
   Implicit Types v : cap_lang.val. 
   Implicit Types w : Word.
-  Implicit Types reg : gmap RegName Word.
+  Implicit Types reg : gmap (CoreN * RegName) Word.
   Implicit Types ms : gmap Addr Word.
 
-  Lemma wp_jmp_success E pc_p pc_b pc_e pc_a w r w' :
+  Lemma wp_jmp_success E i pc_p pc_b pc_e pc_a w r w' :
     decodeInstrW w = Jmp r →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+     {{{ ▷ (i, PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w
-         ∗ ▷ r ↦ᵣ w' }}}
-       Instr Executable @ E
-       {{{ RET NextIV;
-           PC ↦ᵣ updatePcPerm w'
+         ∗ ▷(i, r)↦ᵣ w' }}}
+       (i, Instr Executable) @ E
+       {{{ RET (i, NextIV);
+           (i, PC) ↦ᵣ updatePcPerm w'
            ∗ pc_a ↦ₐ w
-           ∗ r ↦ᵣ w' }}}.
+           ∗(i, r)↦ᵣ w' }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
@@ -40,22 +40,22 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
-    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
     unfold exec, exec_opt in Hstep. rewrite Hr_r0 /= in Hstep. simplify_pair_eq.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
     iApply "Hφ". by iFrame.
   Qed.
 
-  Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a w :
+  Lemma wp_jmp_successPC E i pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Jmp PC →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+     {{{ ▷ (i, PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w }}}
-       Instr Executable @ E
-       {{{ RET NextIV;
-           PC ↦ᵣ updatePcPerm (WCap pc_p pc_b pc_e pc_a)
+       (i, Instr Executable) @ E
+       {{{ RET (i, NextIV);
+           (i, PC) ↦ᵣ updatePcPerm (WCap pc_p pc_b pc_e pc_a)
            ∗ pc_a ↦ₐ w }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
@@ -67,7 +67,7 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
-    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
     unfold exec, exec_opt in Hstep. rewrite Hr_PC /= in Hstep. simplify_pair_eq.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]". iFrame.
