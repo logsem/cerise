@@ -51,13 +51,13 @@ theories/rules.v
 # theories/rules_binary/rules_binary_Subseg.v
 # theories/rules_binary/rules_binary_IsPtr.v
 # theories/rules_binary.v
-# theories/solve_pure.v
-# theories/NamedProp.v
-# theories/proofmode_instr_rules.v
-# theories/proofmode.v
+theories/solve_pure.v
+theories/NamedProp.v
+theories/proofmode_instr_rules.v
+theories/proofmode.v
 # theories/logrel.v
 # theories/logrel_binary.v
-# theories/monotone.v
+theories/monotone.v
 # theories/ftlr/ftlr_base.v
 # theories/ftlr/interp_weakening.v
 # theories/ftlr/Get.v
@@ -86,7 +86,7 @@ theories/rules.v
 # theories/ftlr_binary/Restrict_binary.v
 # theories/ftlr_binary/Store_binary.v
 # theories/fundamental_binary.v
-# theories/examples/addr_reg_sample.v
+theories/examples/addr_reg_sample.v
 # theories/examples/malloc.v
 # theories/examples/assert.v
 # theories/examples/contiguous.v
@@ -117,6 +117,6 @@ theories/rules.v
 # theories/examples/malloc_binary.v
 # theories/examples/counter_binary.v
 # theories/examples/counter_binary_preamble.v
-# theories/examples/buffer.v
+theories/examples/buffer.v
 # theories/examples/minimal_counter.v
 # theories/examples/ocpl_lowval_like.v

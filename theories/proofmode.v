@@ -1,6 +1,7 @@
 From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
-From cap_machine Require Import classes rules macros_helpers.
+(* From cap_machine Require Import classes rules macros_helpers. *)
+From cap_machine Require Import classes rules.
 From cap_machine Require Export iris_extra addr_reg_sample.
 From cap_machine Require Export class_instances solve_pure solve_addr_extra.
 From cap_machine Require Import NamedProp proofmode_instr_rules.
@@ -55,7 +56,7 @@ End codefrag.
 Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ].
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
-  iApply (wp_bind (fill [SeqCtx]));
+  iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _);
   (* Reduce the [fill] under the WP... *)
   let X := fresh in
   set X := (fill _);
@@ -64,7 +65,7 @@ Ltac wp_instr :=
   cbv beta.
 
 Ltac changePCto0 new_a :=
-  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?a)%I ] =>
+  match goal with |- context [ Esnoc _ _ ((?i, PC) ↦ᵣ WCap _ _ _ ?a)%I ] =>
     rewrite (_: a = new_a); [| solve_addr]
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
@@ -349,9 +350,9 @@ Instance FramableCodefrag_default a l :
   FramableCodefrag a l
 | 100. Qed.
 
-Instance FramableMachineResource_reg `{regG Σ} r w :
+Instance FramableMachineResource_reg `{regG Σ} i r w :
   FramableRegisterPointsto r w →
-  FramableMachineResource (r ↦ᵣ w).
+  FramableMachineResource ((i, r) ↦ᵣ w).
 Qed.
 
 Instance FramableMachineResource_mem `{memG Σ} a dq w :
@@ -551,7 +552,7 @@ Proof. solve_addr. Qed.
 Ltac iInstr_lookup0 hprog hi hcont :=
   let hprog := constr:(hprog:ident) in
   lazymatch goal with |- context [ Esnoc _ hprog (codefrag ?a_base _) ] =>
-  lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (WCap _ _ _ ?pc_a))%I ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hpc ((?i, PC) ↦ᵣ (WCap _ _ _ ?pc_a))%I ] =>
     let base_off := eval unfold as_weak_addr_incr in (@as_weak_addr_incr pc_a a_base _ _) in
     lazymatch base_off with
     | (?base, ?off) =>
@@ -606,7 +607,7 @@ Ltac iInstr hprog :=
   try wp_instr;
   iInstr_get_rule hi ltac:(fun rule =>
     iApplyCapAuto rule;
-    [ .. | iInstr_close hprog; try wp_pure]
+    [ .. | simpl ; iInstr_close hprog; try wp_pure]
   ).
 
 Ltac2 rec iGo hprog :=
