@@ -15,13 +15,12 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Definition IH: iProp Σ :=
+  Definition IH i : iProp Σ :=
     (□ ▷ (∀ a0 a1 a2 a3 a4,
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
-          -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf))%I.
+             full_map a0 i
+          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
+          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i))%I.
 
  
   (* TODO: Move somewhere ?*)
@@ -43,15 +42,15 @@ Section fundamental.
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
-      IH -∗
+      (∀ i, IH i) -∗
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
-         iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-         iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
+         iIntros (r i). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs)".
+         iApply ("IH" with "Hfull Hreg Hregs"); auto. iModIntro.
          iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
     }  
     destruct p'.
@@ -74,8 +73,8 @@ Section fundamental.
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       iApply (big_sepL_mono with "A2").
       iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - rewrite !fixpoint_interp1_eq. iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-      iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
+    - rewrite !fixpoint_interp1_eq. iIntros (r i). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs)".
+      iApply ("IH" with "Hfull Hreg Hregs"); auto. iModIntro.
       destruct p; inversion Hp; try contradiction.
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".

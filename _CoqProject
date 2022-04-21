@@ -55,12 +55,12 @@ theories/solve_pure.v
 theories/NamedProp.v
 theories/proofmode_instr_rules.v
 theories/proofmode.v
-# theories/logrel.v
+theories/logrel.v
 # theories/logrel_binary.v
 theories/monotone.v
-# theories/ftlr/ftlr_base.v
-# theories/ftlr/interp_weakening.v
-# theories/ftlr/Get.v
+theories/ftlr/ftlr_base.v
+theories/ftlr/interp_weakening.v
+theories/ftlr/Get.v
 # theories/ftlr/Load.v
 # theories/ftlr/Store.v
 # theories/ftlr/AddSubLt.v
@@ -68,7 +68,7 @@ theories/monotone.v
 # theories/ftlr/Mov.v
 # theories/ftlr/Restrict.v
 # theories/ftlr/IsPtr.v
-# theories/ftlr/Jmp.v
+theories/ftlr/Jmp.v
 # theories/ftlr/Jnz.v
 # theories/ftlr/Subseg.v
 # theories/fundamental.v
