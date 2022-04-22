@@ -61,7 +61,7 @@ theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
-# theories/ftlr/Load.v
+theories/ftlr/Load.v
 # theories/ftlr/Store.v
 # theories/ftlr/AddSubLt.v
 # theories/ftlr/Lea.v
