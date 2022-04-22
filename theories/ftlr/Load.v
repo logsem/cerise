@@ -8,7 +8,6 @@ Import uPred.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -264,7 +263,7 @@ Section fundamental.
         iIntros (a1); inversion a1.
       }
 
-      iApply ("IH" $! regs' with "[%] [Hinterp] [Hmap]").
+      iApply ("IH" $! i regs' with "[%] [Hinterp] [Hmap]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.
         destruct (decide (PC = x4))

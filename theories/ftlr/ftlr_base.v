@@ -5,7 +5,6 @@ From cap_machine Require Export logrel.
 
 Section fundamental.
  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -21,7 +20,7 @@ Section fundamental.
     → isCorrectPC (WCap p b e a)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrW w = it
-    -> □ ▷ (∀ a0 a1 a2 a3 a4,
+    -> □ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
           -∗ (∀ (j : CoreN) (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)

@@ -62,15 +62,15 @@ theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
 theories/ftlr/Load.v
-# theories/ftlr/Store.v
+theories/ftlr/Store.v
 # theories/ftlr/AddSubLt.v
-# theories/ftlr/Lea.v
-# theories/ftlr/Mov.v
+theories/ftlr/Lea.v
+theories/ftlr/Mov.v
 # theories/ftlr/Restrict.v
 # theories/ftlr/IsPtr.v
 theories/ftlr/Jmp.v
 # theories/ftlr/Jnz.v
-# theories/ftlr/Subseg.v
+theories/ftlr/Subseg.v
 theories/fundamental.v
 # theories/ftlr_binary/ftlr_base_binary.v
 # theories/ftlr_binary/Load_binary.v

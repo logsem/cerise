@@ -7,7 +7,6 @@ From cap_machine.rules Require Import rules_Jmp.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -36,7 +35,7 @@ Section fundamental.
       iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* apply IH *)
-      iApply ("IH" $! _ _ b e a with "[] [] [Hmap]"); eauto.
+      iApply ("IH" $! i _ _ b e a with "[] [] [Hmap]"); eauto.
       { iPureIntro. apply Hsome. }
       destruct Hp as [-> | ->]; iFrame.
     * specialize Hsome with r0 as Hr0.

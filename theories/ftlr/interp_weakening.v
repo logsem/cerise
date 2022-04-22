@@ -7,7 +7,6 @@ From cap_machine Require Import addr_reg region.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -15,10 +14,10 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Definition IH i : iProp Σ :=
-    (□ ▷ (∀ a0 a1 a2 a3 a4,
+  Definition IH : iProp Σ :=
+    (□ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ (j: CoreN) (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i))%I.
 
@@ -42,14 +41,14 @@ Section fundamental.
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
-      (∀ i, IH i) -∗
+      IH -∗
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
-         iIntros (r i). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs)".
+         iIntros (r j). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs)".
          iApply ("IH" with "Hfull Hreg Hregs"); auto. iModIntro.
          iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
     }  

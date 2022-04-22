@@ -7,7 +7,6 @@ From cap_machine.rules Require Export rules_Get rules_base.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
   Notation D := ((leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
@@ -39,7 +38,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       simplify_map_eq.
-      iApply ("IH" $! (<[(i, dst) := _]> (<[(i, PC) := _]> r)) with "[%] [] [Hmap]");
+      iApply ("IH" $! i (<[(i, dst) := _]> (<[(i, PC) := _]> r)) with "[%] [] [Hmap]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
       iIntros (j ri v Hri Hsv).

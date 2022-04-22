@@ -1,5 +1,5 @@
 (* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea.  *)
-From cap_machine.ftlr Require Export Jmp Get Load.
+From cap_machine.ftlr Require Export Jmp Mov Load Subseg Get Lea.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -43,7 +43,7 @@ Section fundamental.
     iIntros "#Hinv /=".
     iIntros "[[Hfull Hreg] Hmreg]".
     iRevert "Hinv".
-    iLöb as "IH" forall (r p b e a).
+    iLöb as "IH" forall (i r p b e a).
     iIntros "#Hinv". 
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
     iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _).
@@ -61,16 +61,16 @@ Section fundamental.
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* Jnz *)
         (* iApply (jnz_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
         (*   try iAssumption; eauto. *) admit.
       + (* Mov *)
-        (* iApply (mov_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (mov_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Load *)
         iApply (load_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* Store *)
         (* iApply (store_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
         (*   try iAssumption; eauto. *) admit.
@@ -84,29 +84,29 @@ Section fundamental.
         (* iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
         (*   try iAssumption; eauto. *) admit.
       + (* Lea *)
-        (* iApply (lea_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (lea_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Restrict *)
         (* iApply (restrict_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
         (*   try iAssumption; eauto. *) admit.
       + (* Subseg *)
-        (* iApply (subseg_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (subseg_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* IsPtr *)
         (* iApply (isptr_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
         (*   try iAssumption; eauto. *) admit.
       + (* GetP *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* GetB *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetB _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* GetE *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetE _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* GetA *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetA _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto ; iFrame "Hread".
+          try iAssumption; eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".

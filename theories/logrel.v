@@ -24,16 +24,9 @@ Ltac auto_equiv :=
 
 Ltac solve_proper ::= (repeat intros ?; simpl; auto_equiv).
 
-Class logrel_na_invs Σ :=
-  {
-    logrel_na_invG :> na_invG Σ;
-    logrel_nais : na_inv_pool_name;
-  }.
-
 (** interp : is a unary logical relation. *)
 Section logrel.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
