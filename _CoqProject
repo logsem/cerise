@@ -71,7 +71,7 @@ theories/ftlr/Load.v
 theories/ftlr/Jmp.v
 # theories/ftlr/Jnz.v
 # theories/ftlr/Subseg.v
-# theories/fundamental.v
+theories/fundamental.v
 # theories/ftlr_binary/ftlr_base_binary.v
 # theories/ftlr_binary/Load_binary.v
 # theories/ftlr_binary/Mov_binary.v
@@ -93,8 +93,8 @@ theories/examples/addr_reg_sample.v
 # theories/examples/macros_helpers.v
 # theories/examples/macros.v
 # theories/examples/macros_new.v
-# theories/examples/disjoint_regions_tactics.v
-# theories/examples/mkregion_helpers.v
+theories/examples/disjoint_regions_tactics.v
+theories/examples/mkregion_helpers.v
 # theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
 # theories/examples/call.v

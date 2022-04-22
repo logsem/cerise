@@ -2,8 +2,9 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 (* From cap_machine Require Import rules logrel fundamental. *)
-From cap_machine Require Import rules.
+From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
+From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
 (* From cap_machine.examples Require Import template_adequacy. *)
 Open Scope Z_scope.
 
@@ -50,58 +51,58 @@ Section buffer.
     rewrite (_: (a_first ^+ 4) ^+ 3 = a_first ^+ 7)%a //. solve_addr.
   Qed.
 
-  (* Context {nainv: logrel_na_invs Σ}. *)
+  Lemma buffer_full_run_spec i (a_first: Addr) b_adv e_adv w1 rmap adv :
+    let len_region := length (buffer_code a_first) + length buffer_data in
+    ContiguousRegion a_first len_region →
+    dom (gset (CoreN*RegName)) rmap =
+      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0); (i, r_t1) ]} →
+    Forall (λ w, is_cap w = false) adv →
+    (b_adv + length adv)%a = Some e_adv →
 
-(*   Lemma buffer_full_run_spec (a_first: Addr) b_adv e_adv w1 rmap adv : *)
-(*     let len_region := length (buffer_code a_first) + length buffer_data in *)
-(*     ContiguousRegion a_first len_region → *)
-(*     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} → *)
-(*     Forall (λ w, is_cap w = false) adv → *)
-(*     (b_adv + length adv)%a = Some e_adv → *)
+   ⊢ (  (i, PC) ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
+      ∗ (i, r_t0) ↦ᵣ WCap RWX b_adv e_adv b_adv
+      ∗ (i, r_t1) ↦ᵣ w1
+      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+      ∗ codefrag a_first (buffer_code a_first)
+      ∗ ([∗ map] a↦w ∈ mkregion (a_first ^+ 4)%a (a_first ^+ 7)%a (take 3%nat buffer_data), a ↦ₐ w)
+      ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
+      -∗ WP (i, Seq (Instr Executable)) {{ λ _, True }})%I.
+  Proof.
+    iIntros (? ? Hrmap_dom ? ?) "(HPC & Hr0 & Hr1 & Hrmap & Hcode & Hdata & Hadv)".
 
-(*    ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first *)
-(*       ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv *)
-(*       ∗ r_t1 ↦ᵣ w1 *)
-(*       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝) *)
-(*       ∗ codefrag a_first (buffer_code a_first) *)
-(*       ∗ ([∗ map] a↦w ∈ mkregion (a_first ^+ 4)%a (a_first ^+ 7)%a (take 3%nat buffer_data), a ↦ₐ w) *)
-(*       ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w) *)
-(*       ∗ na_own logrel_nais ⊤ *)
-(*       -∗ WP Seq (Instr Executable) {{ λ _, True }})%I. *)
-(*   Proof. *)
-(*     iIntros (? ? Hrmap_dom ? ?) "(HPC & Hr0 & Hr1 & Hrmap & Hcode & Hdata & Hadv & Hna)". *)
+    (* The capability to the adversary is safe and we can also jmp to it *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
-(*     (* The capability to the adversary is safe and we can also jmp to it *) *)
-(*     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done. *)
-(*     iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done. *)
-(*     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont". *)
+    iApply (buffer_spec i a_first with "[-]"). solve_addr. iFrame.
+    iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
 
-(*     iApply (buffer_spec a_first with "[-]"). solve_addr. iFrame. *)
-(*     iNext. iIntros "(HPC & Hr0 & Hr1 & _)". *)
+    (* Show that the contents of r1 are safe *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hdata") as "Hdata". solve_addr.
+    iDestruct (region_integers_alloc' _ _ _ (a_first ^+ 4)%a _ RWX with "Hdata") as ">#Hdata".
+      by repeat constructor.
 
-(*     (* Show that the contents of r1 are safe *) *)
-(*     iDestruct (mkregion_sepM_to_sepL2 with "Hdata") as "Hdata". solve_addr. *)
-(*     iDestruct (region_integers_alloc' _ _ _ (a_first ^+ 4)%a _ RWX with "Hdata") as ">#Hdata". *)
-(*       by repeat constructor. *)
+    (* Show that the contents of unused registers is safe *)
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
+      destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
 
-(*     (* Show that the contents of unused registers is safe *) *)
-(*     iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap". *)
-(*     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame. *)
-(*       destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. } *)
-
-(*     (* put the other registers back into the register map *) *)
-(*     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap". *)
-(*       apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+. *)
-(*     { iFrame. rewrite (_: (a_first ^+ _) ^+ _ = a_first ^+ 7)%a //. solve_addr+. } *)
-(*     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap Hr0]") as "Hrmap". *)
-(*       rewrite lookup_insert_ne //. apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+. *)
-(*     { by iFrame. } *)
-
-(*     iApply (wp_wand with "[-]"). *)
-(*     { iApply "Hcont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom. *)
-(*       rewrite !singleton_union_difference_L. set_solver+. } *)
-(*     eauto. *)
-(* Qed. *)
+    (* put the other registers back into the register map *)
+    iDestruct (big_sepM_insert _ _ (i, r_t1) with "[$Hrmap Hr1]") as "Hrmap".
+      apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
+    { iFrame. rewrite (_: (a_first ^+ _) ^+ _ = a_first ^+ 7)%a. solve_addr+. solve_addr. }
+    iDestruct (big_sepM_insert _ _ (i, r_t0) with "[$Hrmap Hr0]") as "Hrmap".
+      rewrite lookup_insert_ne ; [| clear Hrmap_dom ; simplify_pair_eq].
+      apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
+      { by iFrame. }
+    iApply (wp_wand with "[-]").
+    { iApply "Hcont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom.
+      clear Hrmap_dom.
+      do 2 rewrite singleton_union_difference_L.
+      set_solver+. }
+    eauto.
+Qed.
 
 End buffer.
 
