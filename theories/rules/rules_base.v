@@ -795,6 +795,15 @@ Lemma pair_neq_inv :
   intros *. inversion 2 ; subst ; firstorder.
 Qed.
 
+Lemma pair_neq_inv' :
+  forall {A B} {a c : A} {b d:B} `{decA: EqDecision A} `{debB: EqDecision B}, (a,b) ≠ (c,d) -> (a ≠ c) \/ (b ≠ d) .
+  intros * dacA decB Hneq.
+  destruct (decide (a = c)) ; subst.
+  - right ; intro ; subst ; contradiction.
+  - left ; intro ; subst ; contradiction.
+Qed.
+
+
 (* TODO: integrate into stdpp? *)
 Tactic Notation "simplify_pair_eq" :=
   repeat

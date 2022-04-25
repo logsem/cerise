@@ -1,5 +1,4 @@
-(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea.  *)
-From cap_machine.ftlr Require Export Jmp Mov Load Subseg Get Lea.
+From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -63,8 +62,8 @@ Section fundamental.
         iApply (jmp_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Jnz *)
-        (* iApply (jnz_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (jnz_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Mov *)
         iApply (mov_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -72,29 +71,32 @@ Section fundamental.
         iApply (load_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Store *)
-        (* iApply (store_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (store_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Lt *)
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption.
+        2,3,4,5,6: eauto. apply is_AddSubLt_Lt ; auto.
       + (* Add *)
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption.
+        2,3,4,5,6: eauto. apply is_AddSubLt_Add ; auto.
       + (* Sub *)
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (add_sub_lt_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption.
+        2,3,4,5,6: eauto. apply is_AddSubLt_Sub ; auto.
       + (* Lea *)
         iApply (lea_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Restrict *)
-        (* iApply (restrict_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (restrict_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Subseg *)
         iApply (subseg_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* IsPtr *)
-        (* iApply (isptr_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]"); *)
-        (*   try iAssumption; eauto. *) admit.
+        iApply (isptr_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* GetP *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -137,7 +139,7 @@ Section fundamental.
      iApply wp_pure_step_later; auto.
      iApply wp_value.
      iNext. iIntros (Hcontr); inversion Hcontr.
-  Admitted.
+  Qed.
 
   Theorem fundamental i w r :
     ⊢ interp w -∗ interp_expression i r w.
