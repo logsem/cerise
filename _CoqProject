@@ -37,6 +37,7 @@ theories/rules/rules_IsPtr.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
+theories/rules/rules_CAS.v
 theories/rules.v
 # theories/rules_binary/rules_binary_base.v
 # theories/rules_binary/rules_binary_Get.v
@@ -71,6 +72,7 @@ theories/ftlr/IsPtr.v
 theories/ftlr/Jmp.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
+theories/ftlr/Cas.v
 theories/fundamental.v
 # theories/ftlr_binary/ftlr_base_binary.v
 # theories/ftlr_binary/Load_binary.v

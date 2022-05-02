@@ -1,4 +1,5 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea.
+From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
+  Subseg IsPtr Get Lea Cas.
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -131,6 +132,8 @@ Section fundamental.
           - subst r0; rewrite lookup_insert; eauto.
           - rewrite lookup_insert_ne; auto ; simplify_pair_eq. }
         iFrame "HA".
+      + iApply (cas_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ (i, PC)) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (WCap p b e a)).

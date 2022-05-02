@@ -42,7 +42,9 @@ Inductive instr: Type :=
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
 | Fail
-| Halt.
+| Halt
+| CAS (loc r1 r2: RegName)
+.
 
 (* Convenient coercion when writing instructions *)
 Definition regn : RegName → (Z+RegName)%type := inr.
@@ -54,7 +56,8 @@ Coercion cst : Z >-> sum.
 
 (* Definition CoreNum := 4. *)
 Context {CoreNum : Z}.
-Global Opaque CoreNum.
+Context {CorePos: (CoreNum >= 1)%Z}.
+Global Opaque CoreNum CorePos.
 Definition CoreN := finz CoreNum.
 
 Definition Reg := gmap (CoreN * RegName) Word.
@@ -549,6 +552,7 @@ Proof.
       | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Fail => GenNode 17 []
       | Halt => GenNode 18 []
+      | CAS loc r1 r2 => GenNode 19 [GenLeaf (inl loc); GenLeaf (inl r1) ; GenLeaf (inl r2)]
       end).
   set (dec := fun e =>
       match e with
@@ -570,6 +574,7 @@ Proof.
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
       | GenNode 17 [] => Fail
       | GenNode 18 [] => Halt
+      | GenNode 19 [GenLeaf (inl loc); GenLeaf (inl r1); GenLeaf (inl r2)] => CAS loc r1 r2
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

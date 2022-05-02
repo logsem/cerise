@@ -318,7 +318,22 @@ Section opsem.
       | WInt _ => updatePC i (update_reg φ i dst (WInt 0%Z))
       | WCap _ _ _ _ => updatePC i (update_reg φ i dst (WInt 1%Z))
       end
-  end.
+  | CAS loc r1 r2 =>
+      wloc ← (reg φ) !! (i,loc);
+      cond ← (reg φ) !! (i,r1);
+      newvalue ← (reg φ) !! (i,r2);
+      match wloc with
+        | WCap p b e a =>
+          oldvalue ← (mem φ) !! a;
+          if writeAllowed p && withinBounds b e a
+          then
+            if (decide (oldvalue = cond))
+            then updatePC i (update_reg (update_mem φ a newvalue) i r1 oldvalue)
+            else updatePC i (update_reg φ i r1 oldvalue)
+          else None
+        | WInt _ => None
+      end
+    end.
 
   Definition exec (it: instr) (i : CoreN) (φ: ExecConf)
     : CoreConf :=

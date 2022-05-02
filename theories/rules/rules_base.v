@@ -654,6 +654,7 @@ Definition regs_of (i: instr): gset RegName :=
   | Load r1 r2 => {[ r1; r2 ]}
   | Store r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | Jnz r1 r2 => {[ r1; r2 ]}
+  | CAS loc cond newvalue => {[ loc ; cond ; newvalue ]}
   | _ => ∅
   end.
 
