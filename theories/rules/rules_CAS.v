@@ -502,11 +502,10 @@ Section cap_lang_rules.
   Lemma wp_cas_success_eq
     E i r1 r2 r3
     pc_p pc_b pc_e pc_a pc_a'
-    instr p b e a oldv cond newv
+    instr p b e a oldv newv
     :
    decodeInstrW instr = CAS r1 r2 r3 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-   oldv = cond ->
    (pc_a + 1)%a = Some pc_a' →
    writeAllowed p = true → withinBounds b e a = true →
 
@@ -514,14 +513,14 @@ Section cap_lang_rules.
         ∗ ▷ pc_a ↦ₐ instr
         ∗ ▷ (i, r1) ↦ᵣ (WCap p b e a)
         ∗ ▷ a ↦ₐ oldv
-        ∗ ▷ (i, r2) ↦ᵣ cond
+        ∗ ▷ (i, r2) ↦ᵣ oldv
         ∗ ▷ (i, r3) ↦ᵣ newv }}}
       (i, Instr Executable) @ E
       {{{ RET (i, NextIV);
           (i, PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↦ₐ instr
         ∗ (i, r1) ↦ᵣ (WCap p b e a)
-        ∗ ▷ a ↦ₐ newv
+        ∗ a ↦ₐ newv
         ∗ (i, r2) ↦ᵣ oldv
         ∗ (i, r3) ↦ᵣ newv }}}.
    Proof.
@@ -544,9 +543,9 @@ Section cap_lang_rules.
        destruct o. all: congruence.
     - (* Success with equality *)
       iApply "Hφ".
-      destruct H4 as [Hrr2 _].
+      (* destruct H4 as [Hrr2 _]. *)
       incrementPC_inv.
-      simplify_map_eq by simplify_pair_eq.
+      inversion H14 ; subst ; simplify_map_eq by simplify_pair_eq.
       rewrite (insert_commute _ (i, PC) (i, r2)) ; simplify_pair_eq.
       rewrite insert_insert.
       rewrite (insert_commute _ (i, r2) (i, PC)) ; simplify_pair_eq.
@@ -577,18 +576,7 @@ Section cap_lang_rules.
       ; rename x0 into pc_b
       ; rename x1 into pc_e
       ; rename x2 into pc_a.
-      inversion H4.
-      match goal with
-      | h: context[ ?x = Some _ ] |- _ =>
-          match x with
-          | context[ <[(i, PC):=WCap pc_p pc_b pc_e pc_a]> _ ] =>
-              let Heq := fresh "Heq" in
-              assert (Heq : x = Some ( WCap p b e a ))
-                by (simplify_map_eq by simplify_pair_eq ; reflexivity)
-              ; rewrite Heq in h ; simplify_eq ; clear Heq
-          end
-      end.
-      simplify_map_eq by simplify_pair_eq.
+      inversion H14 ; subst ; simplify_map_eq by simplify_pair_eq.
    Qed.
 
   Lemma wp_cas_success_neq
@@ -613,7 +601,7 @@ Section cap_lang_rules.
           (i, PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↦ₐ instr
         ∗ (i, r1) ↦ᵣ (WCap p b e a)
-        ∗ ▷ a ↦ₐ oldv
+        ∗ a ↦ₐ oldv
         ∗ (i, r2) ↦ᵣ oldv
         ∗ (i, r3) ↦ᵣ newv }}}.
    Proof.
@@ -641,20 +629,7 @@ Section cap_lang_rules.
       ; rename x0 into pc_b
       ; rename x1 into pc_e
       ; rename x2 into pc_a.
-      inversion H15.
-      match goal with
-      | h: context[ ?x = Some _ ] |- _ =>
-          match x with
-          | context[ <[(i, PC):=WCap pc_p pc_b pc_e pc_a]> _ ] =>
-              let Heq := fresh "Heq" in
-              assert (Heq : x = Some ( WCap p b e a ))
-                by (simplify_map_eq by simplify_pair_eq ; reflexivity)
-              ; rewrite Heq in h ; simplify_eq ; clear Heq
-          end
-      end.
-
-      clear -H4 H14 H16.
-      simplify_map_eq by simplify_pair_eq.
+      inversion H15 ; subst ; simplify_map_eq by simplify_pair_eq.
     - (* Success with non-equality - contradiction *)
       incrementPC_inv.
       simplify_map_eq by simplify_pair_eq.
@@ -662,17 +637,7 @@ Section cap_lang_rules.
       ; rename x0 into pc_b
       ; rename x1 into pc_e
       ; rename x2 into pc_a.
-      inversion H15.
-      match goal with
-      | h: context[ ?x = Some _ ] |- _ =>
-          match x with
-          | context[ <[(i, PC):=WCap pc_p pc_b pc_e pc_a]> _ ] =>
-              let Heq := fresh "Heq" in
-              assert (Heq : x = Some ( WCap p b e a ))
-                by (simplify_map_eq by simplify_pair_eq ; reflexivity)
-              ; rewrite Heq in h ; simplify_eq ; clear Heq
-          end
-      end.
+      inversion H15 ; subst ; simplify_map_eq by simplify_pair_eq.
 
       rewrite (insert_commute _ (i, PC) (i, r2)) ; simplify_pair_eq.
       rewrite insert_insert.
@@ -685,10 +650,7 @@ Section cap_lang_rules.
       ; eauto.
       rewrite memMap_resource_2ne ; last eassumption.
       iDestruct "Hmem" as "[? ?]".
-      replace oldv with oldv0.
       iFrame.
-      clear - H14 H17.
-      by simplify_map_eq.
    Qed.
 
 

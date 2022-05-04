@@ -113,6 +113,10 @@ Ltac dispatch_instr_rule instr cont :=
   | Fail => cont (@wp_fail)
   (* Halt *)
   | Halt => cont (@wp_halt)
+  | CAS PC _ _ => (cont (@wp_cas_success_eq_PC)
+                  || cont (@wp_cas_success_neq_PC)
+                  || cont (@wp_cas_fail_PC))
+  | CAS _ _ _ => (cont (@wp_cas_success_eq) || cont (@wp_cas_success_neq))
   (* not found *)
   | _ => fail "No suitable rule found for instruction" instr
   end.
