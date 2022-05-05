@@ -217,6 +217,15 @@ Section logrel.
   Lemma interp_int n : ⊢ interp (WInt n).
   Proof. iIntros. rewrite /interp fixpoint_interp1_eq //. Qed.
 
+  Lemma interp_cap_range p b e a :
+    forall a', p ≠ E -> ⊢ interp (WCap p b e a) -∗ interp (WCap p b e a') .
+  Proof.
+    iIntros (? ?) "#Hinterp".
+    rewrite /interp /= (fixpoint_interp1_eq (WCap _ _ _ _)) /= ; cbn.
+    destruct p ; try contradiction ;
+    rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /= ; cbn ; eauto.
+  Qed.
+
   Lemma read_allowed_inv (a' a b e: Addr) p :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
