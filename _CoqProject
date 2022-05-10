@@ -91,7 +91,7 @@ theories/fundamental.v
 theories/examples/addr_reg_sample.v
 # theories/examples/malloc.v
 # theories/examples/assert.v
-# theories/examples/contiguous.v
+theories/examples/contiguous.v
 # theories/examples/macros_helpers.v
 # theories/examples/macros.v
 # theories/examples/macros_new.v

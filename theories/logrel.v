@@ -3,7 +3,7 @@ From iris.program_logic Require Export weakestpre.
 (* From cap_machine.rules Require Export rules. *)
 From cap_machine Require Export cap_lang region.
 From iris.algebra Require Import gmap agree auth.
-From iris.base_logic Require Export invariants na_invariants saved_prop.
+From iris.base_logic Require Export invariants saved_prop.
 From cap_machine.rules Require Import rules_base.
 From Coq Require Import Eqdep_dec.
 Import uPred.
