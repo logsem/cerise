@@ -498,17 +498,17 @@ Section adequacy.
   Definition is_initial_memory
     (P1 P2 : prog)
     (A1 A2 : prog)
-    b_buf e_buf buf
+    (SB : prog)
     (m: gmap Addr Word) :=
     let p1 := prog_region P1 in
     let p2 := prog_region P2 in
     let a1 := prog_region A1 in
     let a2 := prog_region A2 in
-    let B := (mkregion b_buf e_buf buf) in
-    ( p1 ∪ p2 ∪ B) ⊆ m /\ (prog_region A1) ⊆ m /\ (prog_region A2) ⊆ m
-    /\ ( p1 ##ₘ p2 ) /\ ( p1 ##ₘ B ) /\ ( p2 ##ₘ B ) /\ ( p2 ##ₘ B )
-    /\ ( a1 ##ₘ p1 ) /\ ( a1 ##ₘ p2 ) /\ ( a1 ##ₘ B ) /\ ( a1 ##ₘ a2 )
-    /\ ( a2 ##ₘ p1 ) /\ ( a2 ##ₘ p2 ) /\ ( a2 ##ₘ B ) .
+    let sb := prog_region SB in
+    p1 ∪ p2 ∪ sb ∪ a1 ∪ a2 ⊆ m
+    /\ ( p1 ##ₘ p2 ) /\ ( p1 ##ₘ sb ) /\ ( p2 ##ₘ sb ) /\ ( p2 ##ₘ sb )
+    /\ ( a1 ##ₘ p1 ) /\ ( a1 ##ₘ p2 ) /\ ( a1 ##ₘ sb ) /\ ( a1 ##ₘ a2 )
+    /\ ( a2 ##ₘ p1 ) /\ ( a2 ##ₘ p2 ) /\ ( a2 ##ₘ sb ) .
 
   Definition mem_inv (m : Mem) (b_buf : Addr ):=
     (m !! (b_buf^+3)%a = Some (WInt 0) \/ m !! (b_buf^+3)%a = Some (WInt 42) )
@@ -517,29 +517,30 @@ Section adequacy.
   Lemma adequacy_shared_buffer
     (m m': Mem) (reg reg': Reg) (es : list cap_lang.expr)
     (P1 Adv1 P2 Adv2 : prog) (* Programs and adversary *)
-    b_buf e_buf (* shared buffer *)
+    (SB : prog) (* shared buffer *)
     (i j : CoreN) :
+
+    let b_buf := (prog_start SB) in
+    let e_buf := (prog_end SB) in
 
     (* Machine with 2 cores identified by {0, 1} *)
     machine_base.CoreNum = 2 ->
     i = (finz.FinZ 0 all_cores_obligation_1 all_cores_obligation_2) ->
     j = (i^+1)%f ->
     
-    (* Shared buffer addresses *)
-    e_buf = (b_buf ^+ (length shared_buffer))%a ->
-    (b_buf + 5)%a = Some (b_buf ^+ 5)%a →
-
     (* The adversary contains only instructions *)
     Forall (λ w, is_cap w = false) (prog_instrs Adv1) →
     Forall (λ w, is_cap w = false) (prog_instrs Adv2) →
     (* The programs P1 and P2 are the instructions of buffer_codeX *)
     prog_instrs P1 = (buffer_code1 b_buf e_buf ++ data1 b_buf e_buf) ->
     prog_instrs P2 = (buffer_code2 b_buf e_buf ++ data2 b_buf e_buf) ->
+    (* The initial content of the shared buffer *)
+    prog_instrs SB = shared_buffer ->
 
     (* Initial state *)
     is_initial_registers P1 Adv1 r_t0 reg i ->
     is_initial_registers P2 Adv2 r_t0 reg j ->
-    is_initial_memory P1 P2 Adv1 Adv2 b_buf e_buf shared_buffer m ->
+    is_initial_memory P1 P2 Adv1 Adv2 SB m ->
 
     (* The invariant holds on the initial memory *)
     mem_inv m b_buf ->
@@ -549,8 +550,8 @@ Section adequacy.
     mem_inv m' b_buf.
 
   Proof.
-    intros Hn_cores Hi Hj Hebuf HVbuffer Hadv1 Hadv2 Hprog1 Hprog2 Hreg1 Hreg2 Hmem Hmem_inv Hstep
-    ; cbn in Hebuf.
+    intros b_buf e_buf.
+    intros Hn_cores Hi Hj Hadv1 Hadv2 Hprog1 Hprog2 Hsbuf Hreg1 Hreg2 Hmem Hmem_inv Hstep.
     apply erased_steps_nsteps in Hstep as (n & κs & Hstep).
 
     (* We apply the Iris adequacy theorem, and we unfold the definition,
@@ -573,40 +574,25 @@ Section adequacy.
 
     (* Split the memory into 5 parts: prog1, prog2, adv1, adv2, shared_buffer*)
     iDestruct (big_sepM_subseteq with "Hmem") as "Hmem".
-    { transitivity (prog_region P1 ∪
-                      prog_region P2 ∪
-                      mkregion b_buf e_buf shared_buffer ∪
-                      prog_region Adv1 ∪
-                      prog_region Adv2); eauto.
-      rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (Hmem1& Hmem2& Hmem3& (?&?&?&?&?&?&?&?&?&?&?)).
-      rewrite map_subseteq_spec. intros * HH.
-      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
-      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
-      eapply map_subseteq_spec in Hmem1; eauto.
-      eapply map_subseteq_spec in Hmem2; eauto.
-      do 2 (apply map_disjoint_union_l_2 ; auto).
-      eapply map_subseteq_spec in Hmem3; eauto.
-      do 3 (apply map_disjoint_union_l_2 ; auto).
-    }
+    by apply Hmem.
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv2]".
     { rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      destruct Hmem as (_ & (?&?&?&?&?&?&?&?&?&?&?)).
       repeat (apply map_disjoint_union_l_2 ; auto).
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv1]".
     { rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      destruct Hmem as (_ & (?&?&?&?&?&?&?&?&?&?&?)).
       repeat (apply map_disjoint_union_l_2 ; auto).
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hbuffer]".
     { rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      destruct Hmem as (_ & (?&?&?&?&?&?&?&?&?&?&?)).
       repeat (apply map_disjoint_union_l_2 ; auto).
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hprog1 Hprog2]".
     { rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      destruct Hmem as (_ & (?&?&?&?&?&?&?&?&?&?&?)).
       set_solver.
     }
 
@@ -614,26 +600,35 @@ Section adequacy.
     (* Split the shared_buffer into public and secret buffer *)
     rewrite /buffer_inv.
     iDestruct (mkregion_sepM_to_sepL2 with "Hbuffer") as "Hbuffer".
-    { cbn. subst e_buf. solve_addr. }
-    rewrite /shared_buffer.
+    apply (prog_size SB).
+    rewrite Hsbuf /shared_buffer.
     rewrite ( finz_seq_between_split b_buf (b_buf ^+3)%a e_buf ).
-    2: { solve_addr. }
+    2: { pose proof (Hsize := prog_size SB)
+         ; rewrite Hsbuf in Hsize
+         ; subst b_buf e_buf ; solve_addr. }
     iDestruct (big_sepL2_app' _ _ _ _
                  (finz.seq_between b_buf (b_buf ^+ 3)%a)
                  (finz.seq_between (b_buf ^+ 3)%a e_buf)
                  public_buffer secret_buffer
                 with "Hbuffer") as "[Hpublic Hsecret]".
     { cbn. rewrite finz_seq_between_length. apply finz_incr_iff_dist.
-      solve_addr. }
+      pose proof (Hsize := prog_size SB)
+      ; rewrite Hsbuf in Hsize
+      ; subst b_buf e_buf ; solve_addr. }
 
     (* Allocates the invariant about the secret buffer *)
     rewrite /secret_buffer ; simpl.
     rewrite (finz_seq_between_cons (b_buf ^+ 3)%a).
-    2: { solve_addr. }
+    2: { pose proof (Hsize := prog_size SB)
+      ; rewrite Hsbuf in Hsize
+      ; subst b_buf e_buf ; solve_addr. }
     replace ( ((b_buf ^+ 3) ^+ 1)%a ) with ( (b_buf ^+ 4)%a ) by solve_addr.
     replace (finz.seq_between (b_buf ^+ 4)%a e_buf)
       with ([(b_buf ^+ 4)%a]).
-    2: { subst e_buf. rewrite finz_seq_between_singleton ; [done| solve_addr]. }
+    2: { rewrite finz_seq_between_singleton
+         ; [done| pose proof (Hsize := prog_size SB)
+               ; rewrite Hsbuf in Hsize
+               ; subst b_buf e_buf ; solve_addr]. }
     simpl.
     iDestruct "Hsecret" as "(Hsecret1 & Hsecret2& _)".
     iMod (inv_alloc (invG0 := Hinv)
@@ -648,7 +643,10 @@ Section adequacy.
 
     (* Allocates the invariant about the public buffer *)
     rewrite /public_buffer /=.
-    do 3 (rewrite finz_seq_between_cons; last solve_addr).
+    do 3 (rewrite finz_seq_between_cons
+          ; last ( pose proof (Hsize := prog_size SB)
+                   ; rewrite Hsbuf in Hsize
+                   ; subst b_buf e_buf ; solve_addr )).
     rewrite finz_seq_between_empty; last solve_addr.
     replace ( ((b_buf ^+ 1) ^+ 1)%a ) with (b_buf ^+ 2)%a by solve_addr.
     iDestruct "Hpublic" as "(Hp1 & Hp2 & Hp3 & _)".
@@ -674,7 +672,10 @@ Section adequacy.
           (inv (invG0 := Hinv) (logN .@ a) (@interp_ref_inv Σ (MemG Σ mem_invG  mem_heapg) a (λne w, interp w))))%I
       ) as "Hinv_public".
     {
-    do 3 (rewrite finz_seq_between_cons; last solve_addr).
+    do 3 (rewrite finz_seq_between_cons
+          ; last ( pose proof (Hsize := prog_size SB)
+                   ; rewrite Hsbuf in Hsize
+                   ; subst b_buf e_buf ; solve_addr)).
     rewrite finz_seq_between_empty; last solve_addr.
     replace ( ((b_buf ^+ 1) ^+ 1)%a ) with (b_buf ^+ 2)%a by solve_addr.
     rewrite /interp_ref_inv ; cbn.
@@ -840,8 +841,12 @@ Section adequacy.
       pose proof (prog_size P1) ; solve_addr. }
       { apply contiguous_between_region_addrs.
         pose proof (prog_size P1) ; solve_addr. }
-      solve_addr.
-      solve_addr.
+      { pose proof (Hsize := prog_size SB)
+        ; rewrite Hsbuf in Hsize
+        ; subst b_buf e_buf ; solve_addr. }
+     { pose proof (Hsize := prog_size SB)
+        ; rewrite Hsbuf in Hsize
+        ; subst b_buf e_buf ; solve_addr. }
       assumption.
       apply (prog_size Adv1).
       { rewrite !dom_delete_L.
@@ -905,8 +910,12 @@ Section adequacy.
           pose proof (prog_size P2) ; solve_addr. }
         { apply contiguous_between_region_addrs.
           pose proof (prog_size P2) ; solve_addr. }
-        solve_addr.
-        solve_addr.
+        { pose proof (Hsize := prog_size SB)
+          ; rewrite Hsbuf in Hsize
+          ; subst b_buf e_buf ; solve_addr. }
+        { pose proof (Hsize := prog_size SB)
+          ; rewrite Hsbuf in Hsize
+          ; subst b_buf e_buf ; solve_addr. }
         assumption.
         apply (prog_size Adv2).
         { rewrite !dom_delete_L.
@@ -922,8 +931,11 @@ Section adequacy.
     rewrite /mem_inv.
     iInv "Hinv_secret1" as ">Hsecret1" "_".
     iInv "Hinv_secret2" as ">Hsecret2" "_".
-    assert (Hneq: (b_buf ^+ 4)%a ≠ (b_buf ^+ 3)%a ) by solve_addr
-    ; solve_ndisj ; clear Hneq.
+    assert (Hneq: (b_buf ^+ 4)%a ≠ (b_buf ^+ 3)%a )
+      by ( pose proof (Hsize := prog_size SB)
+          ; rewrite Hsbuf in Hsize
+          ; subst b_buf e_buf ; solve_addr).
+    solve_ndisj ; clear Hneq.
     iDestruct "Hsecret1" as "[Hsecret1 | Hsecret1 ]"
     ; iDestruct "Hsecret2" as "[Hsecret2 | Hsecret2 ]".
 
