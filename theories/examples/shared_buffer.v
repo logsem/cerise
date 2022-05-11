@@ -6,7 +6,7 @@ From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
 From cap_machine.examples Require Export mkregion_helpers
   disjoint_regions_tactics contiguous.
-(* From cap_machine.examples Require Import template_adequacy. *)
+From iris.program_logic Require Import adequacy.
 Open Scope Z_scope.
 
 Section shared_buffer.
@@ -258,44 +258,55 @@ Section shared_buffer.
     (i: CoreN)
     p b e a a_first a_last (* PC capabilities *)
     (b_buf e_buf: Addr) (* Shared buffer *)
-    wadv (* Adversary *)
-    rmap w1 :
+    b_adv e_adv adv (* Adversary *)
+    rmap :
 
     ExecPCPerm p →
     SubBounds b e a_first a_last ->
     contiguous_between a a_first a_last →
     e_buf = (b_buf ^+ (length shared_buffer))%a ->
-    (b_buf ^+ 3 < e_buf)%a →
-    (b_buf ^+ 4 < e_buf)%a →
+    (b_buf + 5)%a = Some (b_buf ^+ 5)%a →
+
+    Forall (λ w, is_cap w = false) adv →
+    (b_adv + length adv)%a = Some e_adv →
 
     dom (gset (CoreN*RegName)) rmap =
-      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0); (i, r_t1) ]} →
+      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]} →
 
-   ⊢ (  (i, PC) ↦ᵣ WCap p b e a_first
-      ∗ (i, r_t0) ↦ᵣ wadv
-      ∗ (i, r_t1) ↦ᵣ w1
-      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+    ⊢ (  (i, PC) ↦ᵣ WCap p b e a_first
+         ∗ (i, r_t0) ↦ᵣ WCap RWX b_adv e_adv b_adv
+         ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
 
-      ∗ buffer_prog1 a b_buf e_buf
-      ∗ buffer_inv b_buf e_buf
+         ∗ buffer_prog1 a b_buf e_buf
+         ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
+         ∗ buffer_inv b_buf e_buf
 
-      ∗ interp wadv
-
-      -∗ WP (i, Seq (Instr Executable)) {{ λ _, True }})%I.
+         -∗ WP (i, Seq (Instr Executable)) {{ λ _, True }})%I.
 
   Proof.
-    iIntros (HPCperm HPCbounds Hcont He_buf Hsecret1 Hsecret2 Hrmap_dom)
-      "(HPC & Hr0 & Hr1 & Hrmap & Hprog & #(Hbuffer_pub & Hsecret1_inv & Hsecret2_inv) & #Hadv)" .
+    iIntros (HPCperm HPCbounds Hcont He_buf HV_buf
+               HVadv Hlength_adv Hrmap_dom)
+      "(HPC & Hr0 & Hrmap & Hprog & Hadv & #(Hbuffer_pub & Hsecret1_inv & Hsecret2_inv))" .
 
     (* Continuation - executes completelety after the jump to the adversary *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
-    iApply (buffer_spec1 with "[-]"); eauto. iFrame "∗#".
+    (* Extract the register r1 *)
+    assert (is_Some (rmap !! (i,r_t1)))
+      as [w1 Hw1]
+           by (rewrite elem_of_gmap_dom Hrmap_dom; set_solver+). 
+      iDestruct (big_sepM_delete _ _ (i, r_t1) with "Hrmap") as "[[Hr1 %HVw1] Hrmap]"
+      ; first eauto.
+
+    iApply (buffer_spec1 with "[-]"); eauto ; try solve_addr.
+    iFrame "∗#".
     iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
 
     (* Show that the contents of r1 is safe *)
     iAssert ( interp (WCap RWX b_buf (b_buf ^+ 3 )%a b_buf)) as "HvR1".
-    { rewrite (fixpoint_interp1_eq (WCap _ _ _ _)).
+    { rewrite (fixpoint_interp1_eq (WCap _ b_buf _ _)).
       cbn.
       iApply (big_sepL_mono with "Hbuffer_pub").
       cbn.
@@ -307,18 +318,20 @@ Section shared_buffer.
     }
 
     (* Show that the contents of unused registers is safe *)
-    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    set (rmap' := delete (i, r_t1) rmap).
+    iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
       destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
 
     (* put the other registers back into the register map *)
     iDestruct (big_sepM_insert _ _ (i, r_t1) with "[$Hrmap Hr1]") as "Hrmap".
-      apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
-    { iFrame "∗#". }
+    { apply not_elem_of_dom ; set_solver+. }
+    iFrame "∗#".
+    subst rmap' ; rewrite insert_delete.
     iDestruct (big_sepM_insert _ _ (i, r_t0) with "[$Hrmap Hr0]") as "Hrmap".
-      rewrite lookup_insert_ne ; [| clear Hrmap_dom ; simplify_pair_eq].
-      apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
-      { by iFrame. }
+    { rewrite lookup_insert_ne ; [| clear Hrmap_dom ; simplify_pair_eq].
+    apply not_elem_of_dom . rewrite Hrmap_dom; set_solver+. }
+    by iFrame.
     iApply (wp_wand with "[-]").
     { iApply "Hcont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom.
       clear Hrmap_dom.
@@ -331,44 +344,55 @@ Section shared_buffer.
     (i: CoreN)
     p b e a a_first a_last (* PC capabilities *)
     (b_buf e_buf: Addr) (* Shared buffer *)
-    wadv (* Adversary *)
-    rmap w1 :
+    b_adv e_adv adv (* Adversary *)
+    rmap :
 
     ExecPCPerm p →
     SubBounds b e a_first a_last ->
     contiguous_between a a_first a_last →
     e_buf = (b_buf ^+ (length shared_buffer))%a ->
-    (b_buf ^+ 3 < e_buf)%a →
-    (b_buf ^+ 4 < e_buf)%a →
+    (b_buf + 5)%a = Some (b_buf ^+ 5)%a →
+
+    Forall (λ w, is_cap w = false) adv →
+    (b_adv + length adv)%a = Some e_adv →
+
 
     dom (gset (CoreN*RegName)) rmap =
-      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0); (i, r_t1) ]} →
+      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]} →
 
     ⊢ (  (i, PC) ↦ᵣ WCap p b e a_first
-         ∗ (i, r_t0) ↦ᵣ wadv
-         ∗ (i, r_t1) ↦ᵣ w1
+         ∗ (i, r_t0) ↦ᵣ WCap RWX b_adv e_adv b_adv
          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
 
          ∗ buffer_prog2 a b_buf e_buf
+         ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
          ∗ buffer_inv b_buf e_buf
-
-         ∗ interp wadv
 
          -∗ WP (i, Seq (Instr Executable)) {{ λ _, True }})%I.
 
   Proof.
-    iIntros (HPCperm HPCbounds Hcont He_buf Hsecret1 Hsecret2 Hrmap_dom)
-      "(HPC & Hr0 & Hr1 & Hrmap & Hprog & #(Hbuffer_pub & Hsecret1_inv & Hsecret2_inv) & #Hadv)" .
+    iIntros (HPCperm HPCbounds Hcont He_buf HV_buf
+               HVadv Hlength_adv Hrmap_dom)
+      "(HPC & Hr0 & Hrmap & Hprog & Hadv & #(Hbuffer_pub & Hsecret1_inv & Hsecret2_inv))" .
 
     (* Continuation - executes completelety after the jump to the adversary *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
-    iApply (buffer_spec2 with "[-]"); eauto. iFrame "∗#".
+    (* Extract the register r1 *)
+    assert (is_Some (rmap !! (i,r_t1)))
+      as [w1 Hw1]
+           by (rewrite elem_of_gmap_dom Hrmap_dom; set_solver+).
+      iDestruct (big_sepM_delete _ _ (i, r_t1) with "Hrmap") as "[[Hr1 %HVw1] Hrmap]"
+      ; first eauto.
+
+    iApply (buffer_spec2 with "[-]"); eauto ; try solve_addr. iFrame "∗#".
     iNext. iIntros "(HPC & Hr0 & Hr1 & _)".
 
     (* Show that the contents of r1 is safe *)
     iAssert ( interp (WCap RWX b_buf (b_buf ^+ 3 )%a b_buf)) as "HvR1".
-    { rewrite (fixpoint_interp1_eq (WCap _ _ _ _)).
+    { rewrite (fixpoint_interp1_eq (WCap _ b_buf _ _)).
       cbn.
       iApply (big_sepL_mono with "Hbuffer_pub").
       cbn.
@@ -380,18 +404,20 @@ Section shared_buffer.
     }
 
     (* Show that the contents of unused registers is safe *)
-    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    set (rmap' := delete (i, r_t1) rmap).
+    iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
       destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
 
     (* put the other registers back into the register map *)
     iDestruct (big_sepM_insert _ _ (i, r_t1) with "[$Hrmap Hr1]") as "Hrmap".
-    apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
-    { iFrame "∗#". }
+    { apply not_elem_of_dom ; set_solver+. }
+    iFrame "∗#".
+    subst rmap' ; rewrite insert_delete.
     iDestruct (big_sepM_insert _ _ (i, r_t0) with "[$Hrmap Hr0]") as "Hrmap".
-    rewrite lookup_insert_ne ; [| clear Hrmap_dom ; simplify_pair_eq].
-    apply not_elem_of_dom. rewrite Hrmap_dom. set_solver+.
-    { by iFrame. }
+    { rewrite lookup_insert_ne ; [| clear Hrmap_dom ; simplify_pair_eq].
+    apply not_elem_of_dom . rewrite Hrmap_dom; set_solver+. }
+    by iFrame.
     iApply (wp_wand with "[-]").
     { iApply "Hcont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom.
       clear Hrmap_dom.
@@ -399,31 +425,6 @@ Section shared_buffer.
       set_solver+. }
     eauto.
   Qed.
-
-
-
-
-
-  Definition mem_inv (m : Mem) (b_buf : Addr ):=
-    (m !! (b_buf^+3)%a = Some (WInt 0) \/ m !! (b_buf^+3)%a = Some (WInt 42) )
-    /\ (m !! (b_buf^+4)%a = Some (WInt 0) \/ m !! (b_buf^+4)%a = Some (WInt (-42))
-      ).
-
-
-  Program Definition all_cores :=
-    finz.seq
-      (@finz.FinZ machine_base.CoreNum 0 _ _)
-      (BinIntDef.Z.to_nat machine_base.CoreNum).
-  Next Obligation.
-    pose machine_base.CorePos. lia.
-  Qed.
-  Next Obligation. lia. Qed.
-
-  Compute all_cores.
-  Definition init_cores : list expr :=
-    map (fun (i : CoreN) => (i, Seq (Instr Executable))) all_cores.
-
-From iris.program_logic Require Import adequacy.
 
 End shared_buffer.
 
@@ -435,11 +436,18 @@ Section adequacy.
   Context {reg_preg: gen_heapPreG (CoreN * RegName) Word Σ}.
   Context `{MP: MachineParameters}.
 
+  (* TODO : Move into a template file *)
+  Program Definition all_cores :=
+    finz.seq
+      (@finz.FinZ machine_base.CoreNum 0 _ _)
+      (BinIntDef.Z.to_nat machine_base.CoreNum).
+  Next Obligation.
+    pose machine_base.CorePos. lia.
+  Qed.
+  Next Obligation. lia. Qed.
 
-  Instance filter_reg : Filter (CoreN * RegName) Reg.
-  Proof.
-    eapply map_filter ; eauto.
-  Admitted.
+  Definition init_cores : list cap_lang.expr :=
+    map (fun (i : CoreN) => (i, Seq (Instr Executable))) all_cores.
 
   Record prog :=
     MkProg {
@@ -452,13 +460,33 @@ Section adequacy.
       }.
 
 
+  Definition prog_region (P: prog): gmap Addr Word :=
+    mkregion (prog_start P) (prog_end P) (prog_instrs P).
 
-  (* All the registers of the core i points-to a valid word *)
+  (* TODO : move somewhere else - stdpp_extra.v ?*)
+  Lemma map_filter_commute :
+    ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A))
+      (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
+      (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
+    FinMap K M
+    → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (Q : K * A → Prop)
+        (H8 : ∀ x : K * A, Decision (Q x)) (m : M A),
+    filter P (filter Q m) = filter Q (filter P m).
+  Proof.
+    intros.
+    rewrite !map_filter_filter.
+    apply map_filter_strong_ext.
+    intros.
+    split ;
+      (intros [filter Hsome]; split ; [rewrite Logic.and_comm|] ; auto).
+  Qed.
+
+
+  (** Shared buffer adequacy theorem *)
+
   Definition is_initial_registers
-    (* (b e a : Addr) (* PC Capability *) *)
     (P A : prog)
     (r_adv : RegName)
-    (* (b_adv e_adv a_adv : Addr) (* Adversary capability *) *)
     (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
     reg !! (i, PC) = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P))  (* PC *)
     /\ reg !! (i, r_adv) = Some (WCap RWX (prog_start A) (prog_end A) (prog_start A)) (* adversary *)
@@ -467,96 +495,73 @@ Section adequacy.
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 
-  Definition prog_region (P: prog): gmap Addr Word :=
-    mkregion (prog_start P) (prog_end P) (prog_instrs P).
-
-  (* Definition is_initial_memory *)
-  (*   (P1 P2 : prog) *)
-  (*   (A1 A2 : prog) *)
-  (*   b_buf e_buf buf *)
-  (*   (m: gmap Addr Word) := *)
-  (*   let p1 := prog_region P1 in *)
-  (*   let p2 := prog_region P1 in *)
-  (*   let a1 := prog_region A1 in *)
-  (*   let a2 := prog_region A2 in *)
-  (*   let B := (mkregion b_buf e_buf buf) in *)
-  (*   ( p1 ∪ p2 ∪ B) ⊆ m *)
-  (*   /\ (prog_region A1) ⊆ m *)
-  (*   /\ (prog_region A2) ⊆ m *)
-  (*   /\ ( p1 ##ₘ p2 ) *)
-  (*   /\ ( p1 ##ₘ B ) *)
-  (*   /\ ( p2 ##ₘ B ) *)
-  (*   /\ ( p2 ##ₘ B ) *)
-  (*   /\ ( a1 ##ₘ p1 ) *)
-  (*   /\ ( a1 ##ₘ p2 ) *)
-  (*   /\ ( a1 ##ₘ B ) *)
-  (*   /\ ( a1 ##ₘ a2 ) *)
-  (*   /\ ( a2 ##ₘ p1 ) *)
-  (*   /\ ( a2 ##ₘ p2 ) *)
-  (*   /\ ( a2 ##ₘ B ) *)
-  (* . *)
-
-
-
   Definition is_initial_memory
     (P1 P2 : prog)
+    (A1 A2 : prog)
     b_buf e_buf buf
     (m: gmap Addr Word) :=
     let p1 := prog_region P1 in
-    let p2 := prog_region P1 in
+    let p2 := prog_region P2 in
+    let a1 := prog_region A1 in
+    let a2 := prog_region A2 in
     let B := (mkregion b_buf e_buf buf) in
-    ( p1 ∪ p2 ∪ B) ⊆ m
-    /\ ( p1 ##ₘ p2 )
-    /\ ( p1 ##ₘ B )
-    /\ ( p2 ##ₘ B ).
+    ( p1 ∪ p2 ∪ B) ⊆ m /\ (prog_region A1) ⊆ m /\ (prog_region A2) ⊆ m
+    /\ ( p1 ##ₘ p2 ) /\ ( p1 ##ₘ B ) /\ ( p2 ##ₘ B ) /\ ( p2 ##ₘ B )
+    /\ ( a1 ##ₘ p1 ) /\ ( a1 ##ₘ p2 ) /\ ( a1 ##ₘ B ) /\ ( a1 ##ₘ a2 )
+    /\ ( a2 ##ₘ p1 ) /\ ( a2 ##ₘ p2 ) /\ ( a2 ##ₘ B ) .
 
+  Definition mem_inv (m : Mem) (b_buf : Addr ):=
+    (m !! (b_buf^+3)%a = Some (WInt 0) \/ m !! (b_buf^+3)%a = Some (WInt 42) )
+    /\ (m !! (b_buf^+4)%a = Some (WInt 0) \/ m !! (b_buf^+4)%a = Some (WInt (-42))).
 
   Lemma adequacy_shared_buffer
     (m m': Mem) (reg reg': Reg) (es : list cap_lang.expr)
-
-    (P1 Adv1 P2 Adv2 : prog)
-
+    (P1 Adv1 P2 Adv2 : prog) (* Programs and adversary *)
     b_buf e_buf (* shared buffer *)
+    (i j : CoreN) :
 
-    i j :
-    i ≠ j ->
+    (* Machine with 2 cores identified by {0, 1} *)
+    machine_base.CoreNum = 2 ->
+    i = (finz.FinZ 0 all_cores_obligation_1 all_cores_obligation_2) ->
+    j = (i^+1)%f ->
     
     (* Shared buffer addresses *)
     e_buf = (b_buf ^+ (length shared_buffer))%a ->
     (b_buf + 5)%a = Some (b_buf ^+ 5)%a →
 
+    (* The adversary contains only instructions *)
     Forall (λ w, is_cap w = false) (prog_instrs Adv1) →
     Forall (λ w, is_cap w = false) (prog_instrs Adv2) →
-
+    (* The programs P1 and P2 are the instructions of buffer_codeX *)
     prog_instrs P1 = (buffer_code1 b_buf e_buf ++ data1 b_buf e_buf) ->
     prog_instrs P2 = (buffer_code2 b_buf e_buf ++ data2 b_buf e_buf) ->
+
     (* Initial state *)
     is_initial_registers P1 Adv1 r_t0 reg i ->
     is_initial_registers P2 Adv2 r_t0 reg j ->
-    is_initial_memory P1 P2 b_buf e_buf shared_buffer m ->
+    is_initial_memory P1 P2 Adv1 Adv2 b_buf e_buf shared_buffer m ->
 
     (* The invariant holds on the initial memory *)
     mem_inv m b_buf ->
 
-    (* Final goal *)
-    (* At all step of the execution *)
+    (* Final goal - at all steps of execution, the invariant holds *)
     rtc (@erased_step cap_lang) (init_cores, (reg, m)) (es, (reg', m')) →
-    (* the invariant holds on the memory *)
     mem_inv m' b_buf.
 
   Proof.
-    intros Hcores Hebuf HVbuffer Hadv1 Hadv2 Hprog1 Hprog2 Hreg1 Hreg2 Hmem Hmem_inv Hstep
+    intros Hn_cores Hi Hj Hebuf HVbuffer Hadv1 Hadv2 Hprog1 Hprog2 Hreg1 Hreg2 Hmem Hmem_inv Hstep
     ; cbn in Hebuf.
     apply erased_steps_nsteps in Hstep as (n & κs & Hstep).
 
+    (* We apply the Iris adequacy theorem, and we unfold the definition,
+       generate the resources and unfold the definition *)
+    (* Mostly boilerplates *)
     apply (@wp_strong_adequacy Σ cap_lang _
              init_cores (reg,m) n κs es (reg', m')) ; last assumption.
     intros.
-    (* iModIntro. *)
 
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
-
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ Hinv reg_heapg.
 
@@ -564,18 +569,49 @@ Section adequacy.
     iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
     iExists (map (fun _ => (fun _ => True)%I) all_cores).
     iExists (fun _ => True)%I. cbn.
-
     iFrame.
 
-    iDestruct (big_sepM_subseteq with "Hmem") as "Hmem". by eapply Hmem.
-    iDestruct (big_sepM_union with "Hmem") as "[Hprogs Hbuffer]".
+    (* Split the memory into 5 parts: prog1, prog2, adv1, adv2, shared_buffer*)
+    iDestruct (big_sepM_subseteq with "Hmem") as "Hmem".
+    { transitivity (prog_region P1 ∪
+                      prog_region P2 ∪
+                      mkregion b_buf e_buf shared_buffer ∪
+                      prog_region Adv1 ∪
+                      prog_region Adv2); eauto.
+      rewrite /is_initial_memory in Hmem.
+      destruct Hmem as (Hmem1& Hmem2& Hmem3& (?&?&?&?&?&?&?&?&?&?&?)).
+      rewrite map_subseteq_spec. intros * HH.
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      eapply map_subseteq_spec in Hmem1; eauto.
+      eapply map_subseteq_spec in Hmem2; eauto.
+      do 2 (apply map_disjoint_union_l_2 ; auto).
+      eapply map_subseteq_spec in Hmem3; eauto.
+      do 3 (apply map_disjoint_union_l_2 ; auto).
+    }
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv2]".
     { rewrite /is_initial_memory in Hmem.
-      destruct Hmem as (_ & Hmem1 & Hmem2 & Hmem3).
-      apply map_disjoint_union_l_2; set_solver. }
-    iDestruct (big_sepM_union with "Hprogs") as "[Hprog1 Hprog2]".
-    { rewrite /is_initial_memory in Hmem; set_solver. }
+      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      repeat (apply map_disjoint_union_l_2 ; auto).
+    }
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv1]".
+    { rewrite /is_initial_memory in Hmem.
+      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      repeat (apply map_disjoint_union_l_2 ; auto).
+    }
+    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hbuffer]".
+    { rewrite /is_initial_memory in Hmem.
+      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      repeat (apply map_disjoint_union_l_2 ; auto).
+    }
+    iDestruct (big_sepM_union with "Hmem") as "[Hprog1 Hprog2]".
+    { rewrite /is_initial_memory in Hmem.
+      destruct Hmem as (_ & _& _& (?&?&?&?&?&?&?&?&?&?&?)).
+      set_solver.
+    }
 
-    (* Allocation invariant *)
+    (* Allocation of all the required invariants *)
+    (* Split the shared_buffer into public and secret buffer *)
     rewrite /buffer_inv.
     iDestruct (mkregion_sepM_to_sepL2 with "Hbuffer") as "Hbuffer".
     { cbn. subst e_buf. solve_addr. }
@@ -590,6 +626,7 @@ Section adequacy.
     { cbn. rewrite finz_seq_between_length. apply finz_incr_iff_dist.
       solve_addr. }
 
+    (* Allocates the invariant about the secret buffer *)
     rewrite /secret_buffer ; simpl.
     rewrite (finz_seq_between_cons (b_buf ^+ 3)%a).
     2: { solve_addr. }
@@ -609,31 +646,29 @@ Section adequacy.
            with "[Hsecret2]") as "#Hinv_secret2".
     { iNext ; iLeft ; iFrame. }
 
+    (* Allocates the invariant about the public buffer *)
     rewrite /public_buffer /=.
     do 3 (rewrite finz_seq_between_cons; last solve_addr).
     rewrite finz_seq_between_empty; last solve_addr.
     replace ( ((b_buf ^+ 1) ^+ 1)%a ) with (b_buf ^+ 2)%a by solve_addr.
     iDestruct "Hpublic" as "(Hp1 & Hp2 & Hp3 & _)".
-
-
+    (* TODO : annoying, it probably exists a better way to allocate each
+              invariant *)
     iMod (inv_alloc (invG0 := Hinv)
             (logN.@b_buf)
             ⊤ (∃ (w : leibnizO Word), b_buf ↦ₐ w ∗ interp w)
            with "[Hp1]") as "#Hinv_p1".
     { iNext ; iExists _ ; iFrame ; iApply interp_int. }
-
     iMod (inv_alloc (invG0 := Hinv)
             (logN.@(b_buf ^+1)%a)
             ⊤ (∃ (w : leibnizO Word), (b_buf ^+1)%a ↦ₐ w ∗ interp w)
            with "[Hp2]") as "#Hinv_p2".
     { iNext ; iExists _ ; iFrame ; iApply interp_int. }
-
     iMod (inv_alloc (invG0 := Hinv)
             (logN.@(b_buf ^+2)%a)
             ⊤ (∃ (w : leibnizO Word), (b_buf ^+2)%a ↦ₐ w ∗ interp w)
            with "[Hp3]") as "#Hinv_p3".
     { iNext ; iExists _ ; iFrame ; iApply interp_int. }
-
     iAssert (
         ([∗ list] a ∈ (finz.seq_between b_buf (b_buf ^+3)%a ),
           (inv (invG0 := Hinv) (logN .@ a) (@interp_ref_inv Σ (MemG Σ mem_invG  mem_heapg) a (λne w, interp w))))%I
@@ -649,16 +684,17 @@ Section adequacy.
 
     iModIntro.
     iSplitL.
+    (** For all cores, prove that it executes completely and safely *)
     {
-      (* TODO we assume some properties on the machine
-         -> this is temporary. We want these admits to be parameter of the theorem.
-       *)
+      (* Since we have a machine with 2 cores, split the list into 2 WP *)
+      unfold CoreN in i,j,Hi,Hj.
       rewrite /init_cores /all_cores.
-      replace (BinIntDef.Z.to_nat machine_base.CoreNum) with 2 by admit.
-      cbn.
-      replace (finz.FinZ 0 all_cores_obligation_1 all_cores_obligation_2) with
-        i by admit.
-      replace (i^+1)%f with j by admit.
+      assert (Hn_cores': (BinIntDef.Z.to_nat machine_base.CoreNum) = 2%nat) by lia.
+      rewrite Hn_cores' ; cbn.
+      assert (Hcores: i ≠ j).
+      { solve_finz. }
+      rewrite <- Hi ; rewrite <- Hj ; clear Hi Hj.
+      fold CoreN in i,j.
 
       (* We separate the registers into two sets of registers:
          - the registers for i
@@ -688,7 +724,8 @@ Section adequacy.
       assert (dom _ ( filter Pj regs_ni ) = rmap_j).
       { subst rmap_j.
         subst regs_ni.
-        erewrite <- dom_filter_L. reflexivity.
+        erewrite <- dom_filter_L.
+        reflexivity.
         intros.
         split; intros.
         { destruct i0.
@@ -729,19 +766,23 @@ Section adequacy.
           with
           (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ i)
              (filter (λ v : CoreN * RegName * Word, v.1.1 = j) reg))
-          by admit.
-
+          by (by rewrite map_filter_commute).
         replace
           (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ j)
              (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ i) reg))
           with
           (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ i)
              (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ j) reg))
-          by admit.
+          by (by rewrite map_filter_commute).
+
         (set X := (filter (λ v : CoreN * RegName * Word, v.1.1 = j) reg)).
         (set Y := (filter (λ v : CoreN * RegName * Word, v.1.1 ≠ j) reg)).
         (set Pi := (λ v : CoreN * RegName * Word, v.1.1 ≠ i)).
-        replace ( filter Pi X ∪ filter Pi Y ) with (filter Pi (X ∪ Y)) by admit.
+        replace ( filter Pi X ∪ filter Pi Y ) with (filter Pi (X ∪ Y)).
+        2: { eapply map_filter_union.
+             apply gmap_finmap.
+             subst X Y.
+             apply map_disjoint_filter. }
         subst X Y Pi.
         replace ((filter (λ v : CoreN * RegName * Word, v.1.1 = j) reg
          ∪ filter (λ v : CoreN * RegName * Word, v.1.1 ≠ j) reg))
@@ -752,45 +793,41 @@ Section adequacy.
       { apply map_disjoint_filter. }
       iClear "Hreg"; clear regs.
 
-      (* We prove the WP for each core *)
-      iSplitL "Hprog1 Hreg_i".
+      (* For each core, we prove the WP, using the specification previously
+         defined *)
+      iSplitL "Hprog1 Hadv1 Hreg_i".
       - (* We extracts the needed registers for the full_run_spec *)
       iDestruct (big_sepM_delete _ _ (i, PC) with "Hreg_i") as "[HPC_i Hreg_i]".
       apply map_filter_lookup_Some_2 ; [|by subst Pi ; cbn] ; eauto.
       iDestruct (big_sepM_delete _ _ (i, r_t0) with "Hreg_i") as "[Hadv_i Hreg_i]".
       rewrite lookup_delete_ne ; [|simplify_pair_eq] ; eauto.
       apply map_filter_lookup_Some_2 ; [|by subst Pi ; cbn] ; eauto.
-      destruct (Hreg1_valid r_t1) as (w1_i & Hr1_i & _); first (clear -i ; set_solver).
-      iDestruct (big_sepM_delete _ _ (i, r_t1) with "Hreg_i") as "[Hr1_i Hreg_i]"; eauto.
-      do 2 (rewrite lookup_delete_ne ; [|simplify_pair_eq]) ; eauto.
-      apply map_filter_lookup_Some_2 ; [|by subst Pi ; cbn] ; eauto.
 
+      (* Apply the specification *)
       iApply (buffer_full_run_spec1 _ _ _ _ _  _ (prog_end P1) _ _ _ _ _
-               with "[$HPC_i $Hadv_i $Hr1_i Hreg_i Hprog1]") ; cycle -1.
+               with "[$HPC_i $Hadv_i Hreg_i Hprog1 Hadv1]") ; cycle -1.
       iDestruct (mkregion_sepM_to_sepL2 with "Hprog1") as "Hprog1".
       { apply (prog_size P1). }
       rewrite /buffer_prog1 Hprog1.
       iFrame "#∗".
-      iSplitL ; last admit. (* TODO add hypothesis validity adversary --> only instructions ? *)
 
       iAssert ([∗ map] r↦w ∈
-                 (delete (i, r_t1) (delete (i, r_t0) (delete (i, PC) regs_i) ))
+                 (delete (i, r_t0) (delete (i, PC) regs_i) )
                 , r ↦ᵣ w ∗ ⌜is_cap w = false⌝)%I
         with "[Hreg_i]" as "Hreg_i".
       { iApply (big_sepM_mono with "Hreg_i"). intros r w Hr. cbn.
-        apply lookup_delete_Some in Hr as [? Hr].
-        apply lookup_delete_Some in Hr as [? Hr].
-        apply lookup_delete_Some in Hr as [? Hr].
+        apply lookup_delete_Some in Hr as [Hr_r0 Hr].
+        apply lookup_delete_Some in Hr as [Hr_PC Hr].
         subst regs_i.
         assert (Hr' := Hr).
         apply (map_filter_lookup_Some_1_2
                  (λ v : CoreN * RegName * Word, Pi v) reg r w) in Hr.
         subst Pi ; cbn in Hr.
         destruct r as [? r] ; inversion Hr ; subst.
-        feed pose proof (Hreg1_valid r) as HH. clear -H3 ; set_solver.
-        destruct HH as [? (? & ?)].
+        feed pose proof (Hreg1_valid r) as HH. clear -Hr_PC ; set_solver.
+        destruct HH as [? (Hr_reg & Hcap)].
         iIntros ; iFrame ; iPureIntro.
-        clear -H5 Hr' H6.
+        clear -Hr_reg Hr' Hcap.
         cbn in *.
         apply map_filter_lookup_Some in Hr'.
         destruct Hr' as [? _].
@@ -805,16 +842,82 @@ Section adequacy.
         pose proof (prog_size P1) ; solve_addr. }
       solve_addr.
       solve_addr.
-      solve_addr.
+      assumption.
+      apply (prog_size Adv1).
       { rewrite !dom_delete_L.
         set (X := set_map (λ r : RegName, (i, r)) all_registers_s).
         rewrite - !difference_difference_L.
         replace ( dom (gset (CoreN * RegName)) regs_i) with X by set_solver.
         set_solver.
       }
-      - admit.
+
+      - (* We extracts the needed registers for the full_run_spec *)
+        iSplitL ; [|done].
+        iDestruct (big_sepM_delete _ _ (j, PC) with "Hreg_j") as "[HPC_j Hreg_j]".
+        apply map_filter_lookup_Some_2.
+        { subst regs_ni Pj Pi ; cbn.
+          apply map_filter_lookup_Some_2 ; [eauto| cbn ; by apply not_eq_sym].
+        }
+        by subst Pj ; cbn.
+        iDestruct (big_sepM_delete _ _ (j, r_t0) with "Hreg_j") as "[Hadv_j Hreg_j]".
+        rewrite lookup_delete_ne ; [|simplify_pair_eq] ; eauto.
+        apply map_filter_lookup_Some_2.
+        { subst regs_ni Pj Pi ; cbn.
+          apply map_filter_lookup_Some_2 ; [eauto| cbn ; by apply not_eq_sym].
+        }
+        by subst Pj ; cbn.
+
+        iApply (buffer_full_run_spec2 _ _ _ _ _  _ (prog_end P2) _ _ _ _ _
+                 with "[$HPC_j $Hadv_j Hreg_j Hprog2 Hadv2]") ; cycle -1.
+        iDestruct (mkregion_sepM_to_sepL2 with "Hprog2") as "Hprog2".
+        { apply (prog_size P2). }
+        rewrite /buffer_prog2 Hprog2.
+        iFrame "#∗".
+
+        iAssert ([∗ map] r↦w ∈
+                   (delete (j, r_t0) (delete (j, PC) regs_j) )
+                  , r ↦ᵣ w ∗ ⌜is_cap w = false⌝)%I
+          with "[Hreg_j]" as "Hreg_j".
+        { iApply (big_sepM_mono with "Hreg_j"). intros r w Hr. cbn.
+          apply lookup_delete_Some in Hr as [Hr_r0 Hr].
+          apply lookup_delete_Some in Hr as [Hr_PC Hr].
+          subst regs_j.
+          assert (Hr' := Hr).
+          apply (map_filter_lookup_Some_1_2
+                   (λ v : CoreN * RegName * Word, Pj v) regs_ni r w) in Hr.
+          subst Pj ; cbn in Hr.
+          destruct r as [? r] ; inversion Hr ; subst.
+          feed pose proof (Hreg2_valid r) as HH. clear -Hr_PC ; set_solver.
+          destruct HH as [? (Hr_reg & Hcap)].
+          iIntros ; iFrame ; iPureIntro.
+          clear -Hr_reg Hr' Hcap.
+          cbn in *.
+          apply map_filter_lookup_Some in Hr'.
+          destruct Hr' as [? _].
+          subst regs_ni.
+          apply map_filter_lookup_Some_1_1 in H.
+          simplify_map_eq. auto.
+        }
+        iFrame.
+        apply ExecPCPerm_RWX.
+        { split ; [solve_addr |].
+          split ; [|solve_addr ].
+          pose proof (prog_size P2) ; solve_addr. }
+        { apply contiguous_between_region_addrs.
+          pose proof (prog_size P2) ; solve_addr. }
+        solve_addr.
+        solve_addr.
+        assumption.
+        apply (prog_size Adv2).
+        { rewrite !dom_delete_L.
+          set (X := set_map (λ r : RegName, (j, r)) all_registers_s).
+          rewrite - !difference_difference_L.
+          replace ( dom (gset (CoreN * RegName)) regs_j) with X by set_solver.
+          set_solver.
+        }
     }
 
+    (** The invariant holds on the resulting memory *)
     iIntros (es' t2) "%Hes %Hlength_es %Hstuck [Hreg' Hmem'] Hopt _".
     rewrite /mem_inv.
     iInv "Hinv_secret1" as ">Hsecret1" "_".
@@ -836,13 +939,11 @@ Section adequacy.
       iPureIntro.
       split ; [left|right] ; auto.
 
-
     - iDestruct (gen_heap_valid with "Hmem' Hsecret1") as "#%secret1".
       iDestruct (gen_heap_valid with "Hmem' Hsecret2") as "#%secret2".
       iApply fupd_mask_intro_discard; [set_solver|].
       iPureIntro.
       split ; [right|left] ; auto.
-
 
     - iDestruct (gen_heap_valid with "Hmem' Hsecret1") as "#%secret1".
       iDestruct (gen_heap_valid with "Hmem' Hsecret2") as "#%secret2".
@@ -850,11 +951,18 @@ Section adequacy.
       iPureIntro.
       split ; right ; auto.
 
-  Admitted.
+      Unshelve.
+      apply gmap_fmap.
+      apply gmap_omap.
+      apply gmap_merge.
+      solve_decision.
+      apply gset_empty.
+      apply gset_singleton.
+      apply gset_union.
+      apply gset_intersection.
+      apply gset_difference.
+      apply gset_dom_spec.
+      apply gset_leibniz.
+  Qed.
 
-End Adequacy.
-
-
-  
-
-End shared_buffer.
+End adequacy.

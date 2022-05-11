@@ -120,5 +120,6 @@ theories/examples/mkregion_helpers.v
 # theories/examples/counter_binary.v
 # theories/examples/counter_binary_preamble.v
 theories/examples/buffer.v
+theories/examples/shared_buffer.v
 # theories/examples/minimal_counter.v
 # theories/examples/ocpl_lowval_like.v
