@@ -321,12 +321,11 @@ Section logrel.
     : Decision (writeAllowed_in_r_a r i a).
   Proof.
     eapply finite.exists_dec.
-  (*   intros x. destruct (r !! x) eqn:Hsome; *)
-  (*   first destruct (decide (writeAllowedWord w)), (decide (hasValidAddress w a)). *)
-  (*   left. eexists _; auto. *)
-  (*   all : (right; intros [w1 (Heq & ? & ?)]; inversion Heq; try congruence ). *)
-  (* Qed. *)
-  Admitted.
+    intros x. destruct (r !! (i, x)) eqn:Hsome;
+    first destruct (decide (writeAllowedWord w)), (decide (hasValidAddress w a)).
+    left. eexists _; auto.
+    all : (right; intros [w1 (Heq & ? & ?)]; inversion Heq; try congruence ).
+  Qed.
 
   Global Instance writeAllowed_in_r_a_Persistent P r i a
     : Persistent (if decide (writeAllowed_in_r_a r i a) then write_cond P interp else emp)%I.

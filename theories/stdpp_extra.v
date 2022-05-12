@@ -236,6 +236,13 @@ Proof.
     f_equiv. apply IHl1.
 Qed.
 
+Fixpoint disjoint_list_map {K V : Type} `{Countable K, EqDecision K}
+  (f : list (gmap K V)) :=
+  match f with
+  | [] => True
+  | x::l => x ##ₘ ( ⋃ l ) /\ (disjoint_list_map l)
+  end.
+
 (* Map difference for heterogeneous maps, and lemmas relating it to delete_list *)
 
 Definition map_difference_het
@@ -711,6 +718,23 @@ Proof.
     + rewrite map_filter_insert_not'//.
       { intros; simplify_eq. }
       apply IHm1;auto.
+Qed.
+
+Lemma map_filter_commute :
+  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A))
+    (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
+    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
+  FinMap K M
+  → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (Q : K * A → Prop)
+      (H8 : ∀ x : K * A, Decision (Q x)) (m : M A),
+  filter P (filter Q m) = filter Q (filter P m).
+Proof.
+  intros.
+  rewrite !map_filter_filter.
+  apply map_filter_strong_ext.
+  intros.
+  split
+  ; (intros [filter Hsome]; split ; [rewrite Logic.and_comm|] ; auto).
 Qed.
 
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :
