@@ -154,3 +154,19 @@ Lemma mkregion_prepare `{memG Σ} (a e: Addr) l :
 Proof.
   iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
 Qed.
+
+Lemma mkregion_sepL2_to_sepM `{Σ: gFunctors} (a e: Addr) l (φ: Addr → Word → iProp Σ) :
+  (a + length l)%a = Some e →
+  ⊢  ([∗ list] k;v ∈ (finz.seq_between a e); l, φ k v) -∗ ([∗ map] k↦v ∈ mkregion a e l, φ k v).
+Proof.
+  rewrite /mkregion. revert a e. induction l as [| x l].
+  { cbn. intros. rewrite zip_with_nil_r /=. assert (a = e) as -> by solve_addr.
+    rewrite /finz.seq_between finz_dist_0. 2: solve_addr. cbn. eauto. }
+  { cbn. intros a e Hlen. rewrite finz_seq_between_cons. 2: solve_addr.
+    cbn. iIntros "H". iApply big_sepM_insert.
+    { rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    iDestruct "H" as "[? ?]".
+    iFrame. iApply IHl. solve_addr. iFrame. }
+Qed.
