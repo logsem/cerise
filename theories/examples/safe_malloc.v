@@ -30,13 +30,11 @@ Section SimpleMalloc.
     ; try (match goal with
            | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
            end)
-    ; try (match goal with
-           | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [admit| auto]
-           end)
+    (* ; try (match goal with *)
+    (*        | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [admit| auto] *)
+    (*        end) *)
     ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
 
-  (* TODO we actually NEED to store the capability pointing to the lock,
-          because we only have the RX permission, not RWX. *)
   (* offset_lock -> bmid *)
   Definition malloc_pre_spin (offset : Z) :=
     encodeInstrsW [
@@ -102,7 +100,7 @@ Section SimpleMalloc.
     Eval cbv in (length (malloc_post_spin 0%Z)).
 
   Definition malloc_clear_length : Z :=
-    Eval cbv in (length (malloc_post_spin 0%Z)).
+    Eval cbv in (length malloc_clear).
 
   Definition malloc_subroutine_instrs' (offset_bmid : Z) :=
      malloc_pre_spin offset_bmid
@@ -120,26 +118,6 @@ Section SimpleMalloc.
   Definition malloc_subroutine_instrs (offset_lock : Z) :=
     malloc_subroutine_instrs' offset_bm.
 
-
-
-
-
-  Definition malloc_inv (b e : Addr) γ : iProp Σ :=
-    let b_m := (b ^+ malloc_subroutine_instrs_length)%a in
-    (codefrag b (malloc_subroutine_instrs e)
-     ∗ b_m ↦ₐ WCap RWX b e (b_m ^+1)%a
-     ∗ ⌜(b + malloc_subroutine_instrs_length)%a = Some b_m⌝
-     ∗ is_lock γ (b_m ^+1)%a
-         (  ∃ a_m,
-               (b_m ^+ 2)%a ↦ₐ (WCap RWX b_m e a_m)
-             ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
-             ∗ ⌜((b_m ^+2)%a < a_m)%a ∧ (a_m <= e)%a⌝)%I).
-
-
-
-
-
-
   Lemma malloc_prelock_spec
     (i : CoreN)
     (wsize: Word)
@@ -151,6 +129,7 @@ Section SimpleMalloc.
     let e_pre := (a_pre ^+ malloc_pre_length)%a in
     (b + malloc_subroutine_instrs_length)%a = Some b_m ->
     b = a_pre ->
+    withinBounds a_pre e b_m = true ->
     SubBounds b e a_pre e_pre ->
 
     ↑N ⊆ E →
@@ -173,7 +152,7 @@ Section SimpleMalloc.
     intro e_pre.
     subst e_pre.
     rewrite /malloc_pre_length.
-    iIntros (Hbm -> Hbounds HN) "(#Hfinv & HPC & Hr1 & Hr2 & Hr3 & Hr5 & Hφ)".
+    iIntros (Hbm -> Hbm_bounds Hbounds HN) "(#Hfinv & HPC & Hr1 & Hr2 & Hr3 & Hr5 & Hφ)".
     iDestruct (inv_split_l with "Hfinv") as "Hinv".
     destruct (wsize) as [size|].
 
@@ -205,7 +184,7 @@ Section SimpleMalloc.
     { rewrite decode_encode_instrW_inv ; auto. }
     { apply isCorrectPC_intro; [solve_addr| auto]. }
     { auto. }
-    { admit. }
+    { auto. }
     { transitivity (Some (a_pre ^+8)%a) ; solve_addr ; done. }
     iNext ; iIntros "(HPC & Hr5 & Hi & Hcaplock)".
     iDestruct ("Hcont" with "Hi") as "Hprog".
@@ -218,7 +197,7 @@ Section SimpleMalloc.
       iFrame.
       iPureIntro. eexists. split ; eauto. }
     iIntros (?) "?" ; iFrame.
-  Admitted.
+  Qed.
 
   (* TODO move somewhere else *)
   Tactic Notation "solve_length_seq" "by" tactic3(solve_a) :=
@@ -243,7 +222,7 @@ Section SimpleMalloc.
   Lemma malloc_postlock_spec
     (i : CoreN)
     (size: Z)
-    (b e e' a_post a_m : Addr)
+    (b e a_post a_m : Addr)
     w2 w3 w4
     N E
     (φ : language.val cap_lang → iProp Σ) :
@@ -252,6 +231,7 @@ Section SimpleMalloc.
     let b_m := (b ^+ (malloc_subroutine_instrs_length))%a in
     a_post = (b ^+ malloc_pre_length ^+ acquire_spinlock_length)%a ->
 
+    withinBounds b e (b ^+ 43)%a = true ->
     SubBounds b e a_post e_post ->
     ↑N ⊆ E →
     (    inv N (codefrag a_post (malloc_post_spin (offset_bm - malloc_pre_length - acquire_spinlock_length)))
@@ -260,23 +240,23 @@ Section SimpleMalloc.
          ∗ (i, r_t2) ↦ᵣ w2
          ∗ (i, r_t3) ↦ᵣ w3
          ∗ (i, r_t4) ↦ᵣ w4
-         ∗ (b_m ^+ 2)%a ↦ₐ WCap RWX b_m e' a_m
+         ∗ (b_m ^+ 2)%a ↦ₐ WCap RWX b_m e a_m
          ∗ ▷ (   (i, PC) ↦ᵣ WCap RX b e (a_post ^+ malloc_post_length)%a
                  ∗ (i, r_t1) ↦ᵣ WCap RWX a_m (a_m ^+ size)%a a_m
-                 ∗ (i, r_t2) ↦ᵣ WCap RWX b_m e' (a_m ^+ size)%a
-                 ∗ (i, r_t3) ↦ᵣ WCap RWX b_m e' (b_m ^+ 2)%a
+                 ∗ (i, r_t2) ↦ᵣ WCap RWX b_m e (a_m ^+ size)%a
+                 ∗ (i, r_t3) ↦ᵣ WCap RWX b_m e (b_m ^+ 2)%a
                  ∗ (i, r_t4) ↦ᵣ WCap RWX a_m (a_m ^+ size)%a a_m
-                 ∗ (b_m ^+ 2)%a ↦ₐ WCap RWX b_m e' (a_m ^+ size)%a
-                 ∗ ⌜ exists am', (a_m ^+ size)%a = am' /\ isWithin a_m am' (b ^+ malloc_subroutine_instrs_length)%a e = true⌝
+                 ∗ (b_m ^+ 2)%a ↦ₐ WCap RWX b_m e (a_m ^+ size)%a
+                 ∗ ⌜ exists am', (a_m + size)%a = Some am' /\ isWithin a_m am' (b ^+ malloc_subroutine_instrs_length)%a e = true⌝
                  -∗ WP (i, Seq (Instr Executable)) @ E {{ φ }}%I))
     ⊢ WP (i, Seq (Instr Executable)) @ E {{ λ v, φ v ∨ ⌜v = (i, FailedV)⌝ }}%I.
   Proof.
     intros e_post b_m.
-    iIntros ( -> Hbounds HN) "(#Hinv & HPC & Hr1 & Hr2 & Hr3 & Hr4 & Hb_m & Hφ)".
+    iIntros ( -> Hbm_bounds Hbounds HN) "(#Hinv & HPC & Hr1 & Hr2 & Hr3 & Hr4 & Hb_m & Hφ)".
     iInstr_inv "Hinv".
     iInstr_inv "Hinv".
     { rewrite /offset_bm /malloc_pre_length /acquire_spinlock_length.
-      transitivity (Some (b ^+ 43)%a). admit. done. }
+      transitivity (Some (b ^+ 43)%a); solve_addr. }
     subst b_m.
     replace ((b ^+ malloc_subroutine_instrs_length) ^+ 2)%a
       with ( b ^+ 43 )%a
@@ -284,11 +264,9 @@ Section SimpleMalloc.
 
 
     iInstr_inv "Hinv".
-    admit.
     iInstr_inv "Hinv".
 
-    (* Lea might fail *)
-    (* Lea *)
+    (* Lea - might fail *)
     (* Open the invariant *)
     wp_instr
     ; iInv "Hinv" as ">Hprog" "Hcls"
@@ -297,7 +275,6 @@ Section SimpleMalloc.
 
     destruct (a_m + size)%a as [a_m'|] eqn:Ha_m'; cycle 1.
     { (* Failure case: no registered rule for that yet; do it the manual way *)
-      (* TODO: cf malloc, do not use rmap, but an empty map *)
       iAssert ([∗ map] k↦x ∈ (∅:gmap (CoreN * RegName) Word), k ↦ᵣ x)%I as "-#Hregs".
         by rewrite big_sepM_empty.
 
@@ -319,7 +296,9 @@ Section SimpleMalloc.
       iApply (wp_lea _ i RX b e (((b ^+ malloc_pre_length) ^+ acquire_spinlock_length) ^+ 4)%a
                with "[$Hregs $Hi]").
       { rewrite decode_encode_instrW_inv; done. }
-      { admit. }
+      { apply isCorrectPC_intro
+        ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
+        solve_addr | auto]. }
       { apply lookup_insert. }
       { rewrite /regs_of_core !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & Hi & ?)".
@@ -340,7 +319,9 @@ Section SimpleMalloc.
 
     iApply ( wp_lea_success_reg with "[ $HPC $Hr2 $Hr1 $Hi ]") ; eauto.
     { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { admit. }
+    { apply isCorrectPC_intro
+      ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
+         solve_addr | auto]. }
     { transitivity (Some (((b ^+ malloc_pre_length) ^+ acquire_spinlock_length) ^+ 5)%a); solve_addr; done. }
     iNext; iIntros "(HPC & Hi & Hr1 & Hr2)".
     (* Close the invariant *)
@@ -352,8 +333,7 @@ Section SimpleMalloc.
     iInstr_inv "Hinv".
 
 
-    (* might fail *)
-    (* subseg *)
+    (* Subseg - might fail *)
     (* Open the invariant *)
     wp_instr
     ; iInv "Hinv" as ">Hprog" "Hcls"
@@ -386,9 +366,15 @@ Section SimpleMalloc.
                 | h:_ |- _ ≠ _ => simplify_pair_eq
                 end).
 
-      iApply (wp_Subseg with "[$Hregs $Hi]").
+      iApply (wp_Subseg _ _ RX b e
+                (((b ^+ malloc_pre_length) ^+ acquire_spinlock_length) ^+ 7)%a
+                _ _ _ _ _
+               with "[$Hregs $Hi]").
       { rewrite decode_encode_instrW_inv; done. }
-      { admit. }
+      { apply isCorrectPC_intro
+        ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
+           solve_addr | eauto]. }
+
       { apply lookup_insert. }
       { rewrite /regs_of_core !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & Hi & ?)".
@@ -399,19 +385,18 @@ Section SimpleMalloc.
       iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| Hfail].
       { exfalso. unfold addr_of_argument in *.
-        (* clear -H6 H8 H9 H10 Ha_m'_within Ha_m'. *)
         simplify_map_eq by simplify_pair_eq.
         repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
-        admit. }
-        (* congruence. } *)
+        congruence. }
       { cbn. iModIntro. wp_pure. wp_end. auto. } }
 
     iApply ( wp_subseg_success with "[ $HPC $Hr4 $Hr3 $Hr1 $Hi ]") ; eauto.
     { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { admit. }
+    { apply isCorrectPC_intro
+      ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
+         solve_addr | auto]. }
     { transitivity (Some a_m); solve_addr; done. }
     { transitivity (Some (a_m ^+ size)%a); solve_addr; done. }
-    { admit. }
     { transitivity (Some (((b ^+ malloc_pre_length) ^+ acquire_spinlock_length) ^+ 8)%a); solve_addr; done. }
     iNext; iIntros "(HPC & Hi & Hr3 & Hr1 & Hr4)".
     (* Close the invariant *)
@@ -430,28 +415,27 @@ Section SimpleMalloc.
     iInstr_inv "Hinv".
     iInstr_inv "Hinv".
 
+    (* NOTE - iInstr is too long *)
     (* Lea *)
-    (* Open the invariant *)
     wp_instr
     ; iInv "Hinv" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
     ; iInstr_lookup "Hprog" as "Hi" "Hcont".
     iApply ( wp_lea_success_reg with "[ $HPC $Hr3 $Hr1 $Hi ]") ; eauto.
     { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { admit. }
+    { apply isCorrectPC_intro
+      ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
+         solve_addr | auto]. }
     { transitivity (Some (( (b ^+ malloc_pre_length) ^+ acquire_spinlock_length)^+16)%a); solve_addr; done. }
     { transitivity (Some ((b ^+ 43)%a))
-      ; rewrite /malloc_subroutine_instrs_length. admit. done. }
+      ; rewrite /malloc_subroutine_instrs_length; solve_addr. }
     iNext; iIntros "(HPC & Hi & Hr1 & Hr3)".
-    (* Close the invariant *)
     iDestruct ("Hcont" with "Hi") as "Hprog".
     iMod ("Hcls" with "Hprog") as "_".
     simpl ; iModIntro ; wp_pure.
 
-
-
     iInstr_inv "Hinv".
-    { admit. }
+    { rewrite /malloc_subroutine_instrs_length.
+      solve_addr. }
     iInstr_inv "Hinv".
 
 
@@ -461,8 +445,63 @@ Section SimpleMalloc.
       iFrame. iPureIntro ; eexists a_m' ; split ; eauto ; solve_addr.
     }
     iIntros (?) "?" ; iFrame.
-  Admitted.
+  Qed.
 
+  Lemma malloc_clear_spec
+    (i : CoreN)
+    p (b e a_clear : Addr)
+    w2 w3 w4 w5 w6 w7 w8 cont
+    N E
+    (φ : language.val cap_lang → iProp Σ) :
+
+    let e_clear := (a_clear ^+ malloc_clear_length)%a in
+
+    ExecPCPerm p ->
+    SubBounds b e a_clear e_clear ->
+    ↑N ⊆ E →
+
+    ( inv N (codefrag a_clear malloc_clear)
+      ∗ (i, PC) ↦ᵣ WCap p b e a_clear
+      ∗ (i, r_t0) ↦ᵣ cont
+      ∗ (i, r_t2) ↦ᵣ w2
+      ∗ (i, r_t3) ↦ᵣ w3
+      ∗ (i, r_t4) ↦ᵣ w4
+      ∗ (i, r_t5) ↦ᵣ w5
+      ∗ (i, r_t6) ↦ᵣ w6
+      ∗ (i, r_t7) ↦ᵣ w7
+      ∗ (i, r_t8) ↦ᵣ w8
+      ∗ ▷ ( (i, PC) ↦ᵣ updatePcPerm cont
+            ∗ (i, r_t0) ↦ᵣ cont
+            ∗ (i, r_t2) ↦ᵣ WInt 0
+            ∗ (i, r_t3) ↦ᵣ WInt 0
+            ∗ (i, r_t4) ↦ᵣ WInt 0
+            ∗ (i, r_t5) ↦ᵣ WInt 0
+            ∗ (i, r_t6) ↦ᵣ WInt 0
+            ∗ (i, r_t7) ↦ᵣ WInt 0
+            ∗ (i, r_t8) ↦ᵣ WInt 0
+            -∗ WP (i, Seq (Instr Executable)) @ E {{ φ }}%I))
+    ⊢ WP (i, Seq (Instr Executable)) @ E {{ λ v, φ v ∨ ⌜v = (i, FailedV)⌝ }}%I.
+  Proof.
+    intro e_clear ; subst e_clear ; rewrite /malloc_clear_length.
+    iIntros (HPC_perm HPC_bounds HNE)
+      "(#Hinv & HPC & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hr7 & Hr8 & Hφ )".
+
+    repeat iInstr_inv "Hinv".
+    iApply (wp_wand with "[-]").
+    { iApply "Hφ" ; iFrame. }
+    iIntros (?) "?" ; iFrame.
+  Qed.
+
+  Definition malloc_inv (b e : Addr) γ : iProp Σ :=
+    let b_m := (b ^+ malloc_subroutine_instrs_length)%a in
+    (codefrag b (malloc_subroutine_instrs e)
+     ∗ b_m ↦ₐ WCap RWX b e (b_m ^+1)%a
+     ∗ ⌜(b + malloc_subroutine_instrs_length)%a = Some b_m⌝
+     ∗ is_lock γ (b_m ^+1)%a
+         (  ∃ a_m,
+               (b_m ^+ 2)%a ↦ₐ (WCap RWX b_m e a_m)
+             ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
+             ∗ ⌜((b_m ^+2)%a < a_m)%a ∧ (a_m <= e)%a⌝)%I).
 
   Lemma simple_malloc_subroutine_spec
     (i : CoreN)
@@ -476,6 +515,9 @@ Section SimpleMalloc.
     dom (gset (CoreN*RegName)) rmap =
       (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ; (i, r_t1) ]} →
 
+    (* TODO is it possible to get rid off this hypothesis ?
+            for instance, thanks to a pure property in the invariant ?
+     *)
     (exists b_m, (b + malloc_subroutine_instrs_length)%a = Some b_m /\ ((b_m ^+ 2)%a < e)%a) ->
     ↑N ⊆ E →
     (  inv N (malloc_inv b e γ)
@@ -503,7 +545,7 @@ Section SimpleMalloc.
     iIntros (Hrmap_dom Hbm HN) "(#Hinv & Hrmap & Hr0 & HPC & Hr1 & Hφ)".
     destruct Hbm as ( bm & Hbm & Hbme ).
     unfold malloc_subroutine_instrs_length in Hbm.
-    assert (Hbounds: SubBounds b (e ^+ 2)%a b (b ^+ (length (malloc_subroutine_instrs e)))%a) by solve_addr.
+    assert (Hbounds: SubBounds b e b (b ^+ (length (malloc_subroutine_instrs e)))%a) by solve_addr.
     rewrite /malloc_inv.
 
     (* Get some registers *)
@@ -637,6 +679,7 @@ Section SimpleMalloc.
     { iIntros (v) "[H|H] /=";auto. }
     iApply (malloc_prelock_spec _ _ _ _ _ _ _ _ _ _ _ (fun v => (φ v ∨ ⌜v = (i, FailedV)⌝)%I)
              with "[-$HPC $Hr1 $Hr2 $Hr3 $Hr5]") ;eauto.
+    { solve_addr. }
     { rewrite /malloc_pre_length; solve_addr. }
     iSplitR.
    { (* We have to manipulate the invariant Hinv to extract the right one *)
@@ -685,6 +728,8 @@ Section SimpleMalloc.
     }
     iNext ; iIntros "(HPC & Hr1 & Hr2 & Hr3 & Hr5 & %Hsize)".
     destruct Hsize as (size & ? & ->).
+
+
 
     (** ====== Spinlock ====== *)
     iApply (spinlock_spec i _ _ _ _ r_t5 r_t6 r_t7 r_t8 with
@@ -783,11 +828,14 @@ Section SimpleMalloc.
              ; solve_addr).
 
 
-    iApply ((malloc_postlock_spec i size b _ _ b_post a_m) with
+    iApply (wp_wand_l _ _ _ (λ v, ((φ v ∨ ⌜v = (i, FailedV)⌝) ∨ ⌜v = (i, FailedV)⌝)))%I. iSplitR.
+    { iIntros (v) "[H|H] /=";auto. }
+    iApply ((malloc_postlock_spec i size b _ b_post a_m) with
              "[-$HPC $Hr1 $Hr2 $Hr3 $Hr4]").
     { subst b_post b_spin.
       rewrite /malloc_pre_length /acquire_spinlock_length /malloc_post_length.
       solve_addr. }
+    { solve_addr. }
     { subst b_post b_spin.
       rewrite /malloc_pre_length /malloc_post_length /acquire_spinlock_length.
       solve_addr. }
@@ -813,7 +861,7 @@ Section SimpleMalloc.
       as "[Hmem_fresh Hmem]".
     solve_addr. by rewrite replicate_length //.
 
-    iApply (release_spec i _ _ _ _ r_t5 _ _ _ _ _ (* define P ? *) N E γ _
+    iApply (release_spec i _ _ _ _ r_t5 _ _ _ _ _ N E γ _
              with "[-$HPC $Hlocked $Hr5]") ; auto.
     { apply ExecPCPerm_RX. }
     { subst b_post b_spin ; rewrite /malloc_post_length /malloc_pre_length /acquire_spinlock_length.
@@ -831,90 +879,79 @@ Section SimpleMalloc.
       ; iClear "Hinv_release"
       ; iClear "Hinv_clear".
 
-    (* iDestruct (inv_split with "Hinv") as "[Hinv_code Hinv_lock]". *)
-    (* rewrite {1}/codefrag. *)
-    (* rewrite {1}/malloc_subroutine_instrs /malloc_subroutine_instrs'. *)
-    (* rewrite (region_mapsto_split _ _ (b ^+ malloc_pre_length)%a). *)
-    (* 2:{ cbn; rewrite /malloc_pre_length; solve_addr. } *)
-    (* 2:{ cbn; rewrite /malloc_pre_length ; solve_dist_finz. } *)
-    (* rewrite (region_mapsto_split (b ^+ malloc_pre_length)%a _ *)
-    (*            ((b ^+ malloc_pre_length ^+ spinlock_length)%a)). *)
-    (* 2:{ rewrite /malloc_pre_length /spinlock_length; solve_addr. } *)
-    (* 2:{ cbn; rewrite /malloc_pre_length /acquire_spinlock_length; solve_dist_finz. } *)
-    (* match goal with *)
-    (* | h: _ |- context [ is_lock ?g ?b ?P] => set (L := is_lock g b P) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P1 := region_mapsto b e l) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P2 := region_mapsto b e l) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P3 := region_mapsto b e l) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ mapsto ?e ?d ?v ] => set (IE := mapsto e d v) *)
-    (* end. *)
+      iDestruct (inv_split_l with "Hinv") as "Hinv_code".
+      rewrite {1}/codefrag.
+      rewrite {1}/malloc_subroutine_instrs /malloc_subroutine_instrs'.
+      rewrite (region_mapsto_split _ _ b_spin).
+      2:{ cbn; subst b_spin ; rewrite /malloc_pre_length; solve_addr. }
+      2:{ cbn; subst b_spin ; rewrite /malloc_pre_length; solve_dist_finz. }
 
-    (* subst P3. simpl. *)
-    (* replace (malloc_post_spin (malloc_subroutine_instrs_length - (5 + spinlock_length))) *)
-    (*   with *)
-    (*   (encodeInstrsW *)
-    (*   [Mov r_t2 PC; Lea r_t2 (malloc_subroutine_instrs_length - (5 + spinlock_length))%Z; *)
-    (*    Load r_t2 r_t2; GetA r_t3 r_t2; Lea r_t2 r_t1; *)
-    (*    GetA r_t1 r_t2; Mov r_t4 r_t2; Subseg r_t4 r_t3 r_t1; Sub r_t3 r_t3 r_t1; *)
-    (*    Lea r_t4 r_t3; Mov r_t3 r_t2; Sub r_t1 0%Z r_t1; Lea r_t3 r_t1; GetB r_t1 r_t3; *)
-    (*    Lea r_t3 r_t1; Store r_t3 r_t2; Mov r_t1 r_t4] *)
-    (*   ++ encodeInstrsW [Store r_t5 0] *)
-    (*   ++ *)
-    (*   encodeInstrsW [Mov r_t2 0%Z; *)
-    (*                  Mov r_t3 0%Z; Mov r_t4 0%Z; Mov r_t5 0%Z; Mov r_t6 0%Z; Mov r_t7 0%Z; Mov r_t8 0%Z; *)
-    (*                  Jmp r_t0]) *)
-    (* by (rewrite /malloc_post_spin ; auto). *)
-    (* rewrite (region_mapsto_split ((b ^+ malloc_pre_length) ^+ spinlock_length)%a _ *)
-    (*            ((b ^+ 14) ^+ 17)%a ). *)
-    (* 2:{ rewrite /malloc_pre_length /spinlock_length; solve_addr. } *)
-    (* 2:{ cbn; rewrite /malloc_pre_length /acquire_spinlock_length. *)
-    (*     replace ( ((b ^+ 8) ^+ 6)%a ) with ((b ^+ 14))%a by solve_addr. *)
-    (*     set (b' := (b ^+ 14)%a). *)
-    (*     assert (H' : ((b ^+ 14)%a+17)%f = Some ((b ^+ 14)%a ^+17)%a) by solve_addr. *)
-    (*     apply (finz_incr_iff_dist b' (b' ^+17)%a 17%nat) in H'. *)
-    (*     destruct H' as [_ H']. *)
-    (*     symmetry; apply H'. } *)
+      rewrite (region_mapsto_split b_spin _ b_post).
+      2:{ cbn ; subst b_spin b_post
+          ; rewrite /malloc_pre_length /acquire_spinlock_length; solve_addr. }
+      2:{ cbn ; subst b_spin b_post
+          ; rewrite /malloc_pre_length /acquire_spinlock_length
+          ; solve_dist_finz. }
 
-    (* rewrite (region_mapsto_split ((b ^+ 14) ^+ 17)%a _ *)
-    (*            ((b ^+ 14) ^+ 18)%a ). *)
-    (* 2:{ solve_addr. } *)
-    (* 2:{ cbn. *)
-    (*     replace ((b ^+ 14) ^+ 17)%a with ((b ^+ 31))%a by solve_addr. *)
-    (*     replace ((b ^+ 14) ^+ 18)%a with ((b ^+ 31) ^+1)%a by solve_addr. *)
-    (*     rewrite finz_dist_S ; last solve_addr. *)
-    (*     rewrite finz_dist_0 ; last solve_addr. *)
-    (*     done. } *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P3 := region_mapsto b e l) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P4 := region_mapsto b e l) *)
-    (* end. *)
-    (* match goal with *)
-    (* | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P5 := region_mapsto b e l) *)
-    (* end. *)
-    (* iAssert ( inv N ( (P4 ∗ L) ∗ (P1 ∗ P2 ∗ P3 ∗ P5) ∗ IE ) ) as "Hinv1". *)
-    (* iApply (inv_iff with "[$Hinv]") *)
-    (*  ; first (do 2 iModIntro ; iSplit ; *)
-    (*           [iIntros "((?&?&?&?&?) & ? & ?)" | iIntros "((? & ?) & (?&?&?&?) & ?)" ] *)
-    (*            ; iFrame). *)
-    (* iDestruct (inv_split_l with "Hinv1") as "Hinv2". *)
-    (* iClear "Hinv" ; iClear "Hinv1" ; clear -P4. *)
-    (* assert (P4 =  codefrag ((b ^+ 14) ^+ 17)%a [encodeInstrW (Store r_t5 0)]). *)
-    (* { subst P4. rewrite /codefrag /=. *)
-    (*   replace (((b ^+ 14) ^+ 17) ^+ 1%nat)%a with ((b ^+ 14) ^+ 18)%a by solve_addr. *)
-    (*   done. } *)
-    (* rewrite H0. *)
-    (* iFrame "Hinv2". *)
-      admit. (* TODO manipule with the invariant *)
+    rewrite (region_mapsto_split b_post _ b_release).
+    2:{ cbn ; subst b_spin b_post b_release
+        ; rewrite /malloc_pre_length /acquire_spinlock_length /malloc_post_length
+        ; solve_addr. }
+    2:{ cbn ; subst b_spin b_post b_release
+        ; rewrite /malloc_pre_length /acquire_spinlock_length /malloc_post_length
+        ; solve_dist_finz. }
+
+    rewrite (region_mapsto_split b_release _ b_clear).
+    2:{ cbn ; subst b_spin b_post b_release b_clear
+        ; rewrite /malloc_pre_length /acquire_spinlock_length /malloc_post_length
+        ; solve_addr. }
+    2:{ cbn ; subst b_spin b_post b_release b_clear
+        ; rewrite /malloc_pre_length /acquire_spinlock_length /malloc_post_length
+        ; solve_dist_finz. }
+    simpl.
+
+
+      match goal with
+      | h: _ |- context [ is_lock ?g ?b ?P] => set (L := is_lock g b P)
+      end.
+      match goal with
+      | h: _ |- context [ mapsto ?e ?d ?v ] => set (IE := mapsto e d v)
+      end.
+      match goal with
+      | h: _ |- context [ ⌜?x1 = ?x2⌝%I ] => set (EQ := ⌜x1 = x2⌝%I)
+      end.
+      match goal with
+      | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P1 := region_mapsto b e l)
+      end.
+      match goal with
+      | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P2 := region_mapsto b e l)
+      end.
+      match goal with
+      | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P3 := region_mapsto b e l)
+      end.
+      match goal with
+      | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P4 := region_mapsto b e l)
+      end.
+      match goal with
+      | h: _ |- context [ region_mapsto ?b ?e ?l ] => set (P5 := region_mapsto b e l)
+      end.
+
+      iAssert ( inv N ( (P4 ∗ L) ∗ (P1 ∗ P2 ∗ P3 ∗ P5) ∗ IE ∗ EQ ) ) as "Hinv1".
+      iApply (inv_iff with "[$Hinv]")
+      ; first (do 2 iModIntro ; iSplit ;
+               [iIntros "((?&?&?&?&?) & ? & ? & ?)"
+               | iIntros "((? & ?) & (?&?&?&?) & ? & ?)" ]
+               ; iFrame).
+      iDestruct (inv_split_l with "Hinv1") as "Hinv2".
+      iClear "Hinv" ; iClear "Hinv1" ; clear -P4.
+      assert (P4 =  codefrag (b_post ^+ malloc_post_length)%a (release_spinlock_instrs r_t5)).
+      { subst P4.
+        subst b_clear b_release b_post b_spin.
+        rewrite /codefrag /acquire_spinlock_length /malloc_post_length
+          /malloc_pre_length /=.
+        done. }
+      rewrite H0.
+      iFrame "Hinv2".
     }
 
     iSplitL "Hbm2 Hmem".
@@ -925,139 +962,15 @@ Section SimpleMalloc.
     iNext; iIntros "(HPC & Hr5)".
     (* replace (((b ^+ 14) ^+ 17) ^+ 1)%a with (((b ^+ 14) ^+ 18)%a) by solve_addr. *)
 
-    (* TODO specification clear *)
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_clear" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr2 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+19)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr2)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr3 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+20)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr3)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr4 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+21)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr4)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr5 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+22)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr5)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr6 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+23)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr6)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
+    (** ====== Clear ====== *)
     iDestruct "Hr7" as (w7) "Hr7".
-    iApply ( wp_move_success_z with "[ $HPC $Hr7 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+24)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr7)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-    (* Mov *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_move_success_z with "[ $HPC $Hr8 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    { transitivity (Some ((b ^+ 14) ^+25)%a); solve_addr; done. }
-    iNext; iIntros "(HPC & Hi & Hr8)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
-
-    (* Jmp *)
-    (* Open the invariant *)
-    wp_instr
-    ; iInv "Hinv_post" as ">Hprog" "Hcls"
-    (* Apply the invariant *)
-    ; iInstr_lookup "Hprog" as "Hi" "Hcont".
-    iApply ( wp_jmp_success with "[ $HPC $Hr0 $Hi ]") ; eauto.
-    { cbn ;rewrite decode_encode_instr_inv; eauto. }
-    { apply isCorrectPC_intro ; [solve_addr| auto]. }
-    iNext; iIntros "(HPC & Hi & Hr0)".
-    (* Close the invariant *)
-    iDestruct ("Hcont" with "Hi") as "Hprog".
-    iMod ("Hcls" with "Hprog") as "_".
-    simpl ; iModIntro ; wp_pure.
-
+    iApply (malloc_clear_spec with
+             "[-$HPC $Hr0 $Hr2 $Hr3 $Hr4 $Hr5 $Hr6 $Hr7 $Hr8 $Hinv_clear ]") ; auto.
+    { apply ExecPCPerm_RX. }
+    { subst b_post b_spin ; rewrite /malloc_post_length /malloc_pre_length
+                              /acquire_spinlock_length /malloc_clear_length.
+      solve_addr. }
+    iNext ; iIntros "(HPC & Hr0 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hr7 & Hr8)".
 
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
@@ -1123,95 +1036,11 @@ Section SimpleMalloc.
       iExists a_m, a_m', size.
       replace (a_m ^+ size)%a with a_m' by solve_addr.
       iFrame.
-      iSplit ; eauto.
+      iSplit ; [done | eauto].
     }
-      iIntros (v) "Hφ" ; iLeft ; done.
-Admitted.
-
-
-
-
-
-  (*   (* otherwise we continue malloc *) *)
-  (*   iInstr "Hprog". { apply Z.ltb_lt in Hsize. rewrite Hsize. auto. } *)
-  (*   iInstr "Hprog". *)
-  (*   iInstr "Hprog". *)
-  (*   rewrite (_: (b ^+ 26)%a = b_m); [| solve_addr]. *)
-  (*   iInstr "Hprog". solve_pure_addr. *)
-  (*   iInstr "Hprog". *)
-  (*   (* Lea r_t1 r_t2 might fail. *) *)
-  (*   destruct (a_m + size)%a as [a_m'|] eqn:Ha_m'; cycle 1. *)
-  (*   { (* Failure case: no registered rule for that yet; do it the manual way *) *)
-  (*     iInstr_lookup "Hprog" as "Hi" "Hcont". *)
-  (*     iAssert ([∗ map] k↦x ∈ (∅:gmap RegName Word), k ↦ᵣ x)%I as "-#Hregs". *)
-  (*       by rewrite big_sepM_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "-#Hregs". *)
-  (*       by apply lookup_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "-#Hregs". *)
-  (*       by rewrite lookup_insert_ne // lookup_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "-#Hregs". *)
-  (*       by rewrite !lookup_insert_ne // lookup_empty. *)
-  (*     wp_instr. *)
-  (*     iApply (wp_lea with "[$Hregs $Hi]"); [ | |done|..]; try solve_pure. *)
-  (*     { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. } *)
-  (*     iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec. *)
-  (*     destruct Hspec as [| Hfail]. *)
-  (*     { exfalso. simplify_map_eq. } *)
-  (*     { cbn. iApply wp_pure_step_later; auto. iNext. *)
-  (*       iApply wp_value. auto. } } *)
-
-  (*   do 3 iInstr "Hprog". *)
-  (*   (* Subseg r_t4 r_t3 r_t1 might fail. *) *)
-  (*   destruct (isWithin a_m a_m' b_m e) eqn:Ha_m'_within; cycle 1. *)
-  (*   { (* Failure case: manual mode. *) *)
-  (*     iInstr_lookup "Hprog" as "Hi" "Hcont". *)
-  (*     iAssert ([∗ map] k↦x ∈ (∅:gmap RegName Word), k ↦ᵣ x)%I as "-#Hregs". *)
-  (*       by rewrite big_sepM_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "-#Hregs". *)
-  (*       by apply lookup_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "-#Hregs". *)
-  (*       by rewrite lookup_insert_ne // lookup_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "-#Hregs". *)
-  (*       by rewrite !lookup_insert_ne // lookup_empty. *)
-  (*     iDestruct (big_sepM_insert with "[$Hregs $Hr4]") as "-#Hregs". *)
-  (*       by rewrite !lookup_insert_ne // lookup_empty. *)
-  (*     wp_instr. *)
-  (*     iApply (wp_Subseg with "[$Hregs $Hi]"); [ | |done|..]; try solve_pure. *)
-  (*     { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. } *)
-  (*     iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec. *)
-  (*     destruct Hspec as [| Hfail]. *)
-  (*     { exfalso. unfold addr_of_argument in *. simplify_map_eq. *)
-  (*       repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst. *)
-  (*       congruence. } *)
-  (*     { cbn. wp_pure. wp_end. auto. } } *)
-  (*   do 3 iInstr "Hprog". { transitivity (Some a_m); eauto. solve_addr. } *)
-  (*   do 3 iInstr "Hprog". { transitivity (Some 0%a); eauto. solve_addr. } *)
-  (*   do 2 iInstr "Hprog". { transitivity (Some b_m); eauto. solve_addr. } *)
-  (*   iInstr "Hprog". solve_pure_addr. *)
-  (*   iGo "Hprog". *)
-  (*   (* continuation *) *)
-  (*   rewrite (region_addrs_zeroes_split _ a_m') //; [| solve_addr]. *)
-  (*   iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]". *)
-  (*   solve_addr. by rewrite replicate_length //. *)
-  (*   iDestruct ("Hinv_close" with "[Hprog Hmemptr Hmem $Hna]") as ">Hna". *)
-  (*   { iNext. iExists b_m, a_m'. iFrame. iSplitR. iPureIntro. *)
-  (*     by unfold malloc_subroutine_instrs_length. iPureIntro; solve_addr. } *)
-  (*   iApply (wp_wand with "[-]"). *)
-  (*   { iApply "Hφ". iFrame. *)
-  (*     iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap". *)
-  (*     by rewrite lookup_delete. rewrite insert_delete. *)
-  (*     iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap". *)
-  (*     by rewrite lookup_insert_ne // lookup_delete //. *)
-  (*     rewrite insert_commute // insert_delete. *)
-  (*     iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap". *)
-  (*     by rewrite !lookup_insert_ne // lookup_delete //. *)
-  (*     rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //. *)
-  (*     rewrite insert_delete. *)
-  (*     rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //. *)
-  (*     rewrite (insert_commute _ r_t4 r_t3) //. iFrame. *)
-  (*     iExists a_m, a_m', size. iFrame. auto. } *)
-  (*   { auto. } *)
-  (* Qed. *)
+    iIntros (v) "Hφ" ; done.
+  Qed.
+  (* Admitted. (* NOTE Qed works, but 5 minutes to complete the Qed. *) *)
 
   (* Lemma simple_malloc_subroutine_valid N b e : *)
   (*   na_inv logrel_nais N (malloc_inv b e) -∗ *)
