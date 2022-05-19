@@ -39,7 +39,7 @@ Section StaticSpinlock.
           `{lockG Σ, MP: MachineParameters}.
 
   (* r0 contains the capability pointing to the lock address *)
-  Definition spinlock_instrs' r0 r1 r2 r3 :=
+  Definition acquire_spinlock_instrs r0 r1 r2 r3 :=
     encodeInstrsW [
      Mov r1 1  ; (* value when lock acquired *)
      Mov r2 PC ; (* Adresse loop to wait --> label loop*)
@@ -52,6 +52,13 @@ Section StaticSpinlock.
      (* if (r1 -> 1), then the lock was locked, we can wait and loop *)
       ].
 
+  (* r0 contains the capability pointing to the lock address *)
+  Definition release_spinlock_instrs r0 :=
+    encodeInstrsW [
+        Store r0 0
+      ].
+
+
   Lemma spinlock_spec (i : CoreN)
     p_pc b_pc e_pc a_spinlock
     r0 r1 r2 r3
@@ -59,7 +66,7 @@ Section StaticSpinlock.
     p_lock (b_lock e_lock a_lock : Addr) P
     N E (γ : gname) φ :
 
-    let e_spinlock := (a_spinlock ^+ length (spinlock_instrs' r0 r1 r2 r3))%a in
+    let e_spinlock := (a_spinlock ^+ length (acquire_spinlock_instrs r0 r1 r2 r3))%a in
 
     ExecPCPerm p_pc ->
     SubBounds b_pc e_pc a_spinlock e_spinlock ->
@@ -68,7 +75,7 @@ Section StaticSpinlock.
     withinBounds b_lock e_lock a_lock = true ->
 
     ↑N ⊆ E ->
-    ⊢ ( inv N (codefrag a_spinlock (spinlock_instrs' r0 r1 r2 r3) ∗ is_lock γ a_lock P)
+    ⊢ ( inv N (codefrag a_spinlock (acquire_spinlock_instrs r0 r1 r2 r3) ∗ is_lock γ a_lock P)
         ∗ (i, PC) ↦ᵣ WCap p_pc b_pc e_pc a_spinlock
         ∗ (i, r0) ↦ᵣ (WCap p_lock b_lock e_lock a_lock)
         ∗ (i,r1) ↦ᵣ w1
@@ -118,7 +125,6 @@ Section StaticSpinlock.
                          [$Hφ] [$Hr1] [$HPC] [$Hr2]").
   Qed.
 
-  (* TODO release function instead of store hard-coded *)
   Lemma release_spec (i : CoreN)
     p_pc b_pc e_pc pc_a
     r0
@@ -132,7 +138,7 @@ Section StaticSpinlock.
     withinBounds b_lock e_lock a_lock = true ->
 
     ↑N ⊆ E ->
-    ⊢ ( inv N (codefrag pc_a (encodeInstrsW [Store r0 0])
+    ⊢ ( inv N (codefrag pc_a (release_spinlock_instrs r0)
                ∗ is_lock γ a_lock P)
         ∗ (i, PC) ↦ᵣ WCap p_pc b_pc e_pc pc_a
         ∗ (i, r0) ↦ᵣ (WCap p_lock b_lock e_lock a_lock)
@@ -163,7 +169,7 @@ Section StaticSpinlock.
       iApply "Hφ" ; iFrame.
   Qed.
 
-  Definition spinlock_length : Z :=
-    Eval cbv in (length (spinlock_instrs' PC PC PC PC)).
+  Definition acquire_spinlock_length : Z :=
+    Eval cbv in (length (acquire_spinlock_instrs PC PC PC PC)).
 
 End StaticSpinlock.
