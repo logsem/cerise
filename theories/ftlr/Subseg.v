@@ -32,7 +32,7 @@ Section fundamental.
       (e' <= e)%a ->
       (□ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
-          -∗ (∀ (j: CoreN) (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ (j: CoreN) (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i)) -∗
       (fixpoint interp1) (WCap p b e a) -∗

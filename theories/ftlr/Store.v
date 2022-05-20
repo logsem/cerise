@@ -54,7 +54,7 @@ Section fundamental.
       (b e a : Addr) (r1 : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
       read_reg_inr (<[(i, PC):=WCap p b e a]> r) i r1 p0 b0 e0 a0
-      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
+      → (∀ (r1 : RegName) v, ⌜(i, r1) ≠ (i, PC)⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ allow_store_res r1 (<[(i, PC):=WCap p b e a]> r) i a a0 p0 b0 e0.
   Proof.
     intros r i p b e a r1 p0 b0 e0 a0 HVr1.
@@ -65,8 +65,9 @@ Section fundamental.
       apply andb_prop in Hwb as [Hle Hge].
       revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
       assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+      assert ((i,r1) ≠ (i,PC)) by simplify_pair_eq.
       rewrite lookup_insert_ne in Hrinr; last by congruence.
-      iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
+      iDestruct ("Hreg" $! r1 _ H0 Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #". 
@@ -232,8 +233,10 @@ Section fundamental.
         2 : { rewrite Hsomer0 in Hwoa. done. }
         destruct (decide (r0 = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".
-        - simplify_map_eq by simplify_pair_eq. iSpecialize ("Hreg" $! i _ _ n Hwoa).
-           iFrame "Hreg".
+        - simplify_map_eq by simplify_pair_eq.
+          assert ((i,r0) ≠ (i,PC)) by simplify_pair_eq.
+          iSpecialize ("Hreg" $! i _ _ H0 Hwoa).
+          iFrame "Hreg".
       }
       
       (* Step 4: return all the resources we had in order to close the second location in the region, in the cases where we need to *)

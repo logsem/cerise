@@ -230,6 +230,7 @@ Section fundamental.
     { iIntros (j ri v Hri Hvs).
       rewrite lookup_insert_ne in Hvs;[| clear Hrmap; simplify_pair_eq].
       iDestruct (big_sepM_lookup _ _ (j, ri) with "HrV") as "HrV"; eauto.
+      by apply pair_neq_inv' ; apply not_eq_sym.
     }
     rewrite insert_insert. iApply big_sepM_insert.
     { apply elem_of_gmap_dom_none. rewrite Hrmap ; clear Hrmap.

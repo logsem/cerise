@@ -47,6 +47,7 @@ Section fundamental.
       destruct (decide ((j, ri) = (i,dst))); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }
       { iApply "Hreg". done. iPureIntro. eauto. }
+      by apply pair_neq_inv'; apply not_eq_sym.
       rewrite lookup_insert_ne in H1
       ;[| simplify_pair_eq] ; simplify_map_eq.
       rewrite !fixpoint_interp1_eq /=.

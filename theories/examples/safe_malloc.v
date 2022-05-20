@@ -16,7 +16,7 @@ From cap_machine.examples Require Import static_spinlock.
 
    This is obviously not very realistic, but is good enough for our simple case
    studies. *)
-
+(* TODO document specifically the safe_malloc *)
 
 Section SimpleMalloc.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -25,14 +25,23 @@ Section SimpleMalloc.
   Ltac iInstr_inv Hinv :=
     wp_instr
     ; iInv Hinv as ">Hprog" "Hcls"
-    ; codefrag_facts "Hprog" (* TODO fix this, because it duplicates the hypothesis *)
+    (* check if the codefrag_facts already exists, otherwise generate them *)
+    ; match goal with
+      | h : @ContiguousRegion _ ?a (Z.of_nat (@Datatypes.length _ ?code))
+        |- context [(@environments.Esnoc _ _ (INamed "Hprog") (@codefrag _ _ ?a ?code))]
+        => match goal with
+          | h: SubBounds ?b ?e ?a
+                 (?a ^+ (Z.of_nat (@Datatypes.length _ ?code)))%a
+            |- context [(@environments.Esnoc _ _ _ ((_, PC) ↦ᵣ WCap _ ?b ?e _))]
+            => idtac
+          | _ => codefrag_facts "Hprog"
+          end
+      | _ => codefrag_facts "Hprog"
+      end
     ; iInstr "Hprog"
     ; try (match goal with
            | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
            end)
-    (* ; try (match goal with *)
-    (*        | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [admit| auto] *)
-    (*        end) *)
     ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
 
   (* offset_lock -> bmid *)
@@ -45,7 +54,7 @@ Section SimpleMalloc.
      Jnz r_t2 r_t3;  (* ;; fail if not         *)
      Fail;
         (* xm: *)
-     Mov r_t5 PC;
+     Mov r_t5 PC; (* ;; prepare the spinlock *)
      Lea r_t5 (offset - 5)%Z;
      Load r_t5 r_t5
       ].
@@ -118,6 +127,9 @@ Section SimpleMalloc.
   Definition malloc_subroutine_instrs (offset_lock : Z) :=
     malloc_subroutine_instrs' offset_bm.
 
+  (* NOTE : we begin the specification at (a_pre + 1), because we to do
+            an execution step before, in order to get some pure property from the invariant
+   *)
   Lemma malloc_prelock_spec
     (i : CoreN)
     (size: Z)
@@ -138,7 +150,6 @@ Section SimpleMalloc.
     (    inv N (codefrag a_pre (malloc_pre_spin offset_bm)
                 ∗ b_m ↦ₐ WCap RWX b e (b_m^+1)%a)
          ∗ (i, PC) ↦ᵣ WCap RX b e (a_pre ^+1)%a
-         (* ∗ (i, PC) ↦ᵣ WCap RX b e a_pre *)
          ∗ (i, r_t1) ↦ᵣ WInt size
          ∗ (i, r_t2) ↦ᵣ w2
          ∗ (i, r_t3) ↦ᵣ WInt (Z.b2z (0%nat <? size)%Z)
@@ -176,8 +187,7 @@ Section SimpleMalloc.
       solve_addr. done. }
 
     wp_instr
-    ; iInv "Hfinv" as ">[Hprog Hcaplock]" "Hcls"
-    ; codefrag_facts "Hprog" (* TODO fix this, because it duplicates the hypothesis *).
+    ; iInv "Hfinv" as ">[Hprog Hcaplock]" "Hcls".
     iInstr_lookup "Hprog" as "Hi" "Hcont".
     iApply ( wp_load_success_same_notinstr with "[$HPC $Hi $Hr5 $Hcaplock]").
     { exact (WInt 0). } (* TODO : why do I have to provide a word ? *)

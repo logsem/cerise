@@ -59,7 +59,7 @@ Section fundamental.
       (b e a : Addr) (r1 : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
       read_reg_inr (<[(i, PC):=WCap p b e a]> r) i r1 p0 b0 e0 a0
-      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
+      → (∀ (r1 : RegName) v, ⌜(i, r1) ≠ (i, PC)⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ allow_store_res r1 (<[(i, PC):=WCap p b e a]> r) i a a0 p0 b0 e0.
   Proof.
     intros r i p b e a r1 p0 b0 e0 a0 HVr1.
@@ -70,8 +70,9 @@ Section fundamental.
       apply andb_prop in Hwb as [Hle Hge].
       revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
       assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+      assert ((i,r1) ≠ (i,PC)) by simplify_pair_eq.
       rewrite lookup_insert_ne in Hrinr; last by congruence.
-      iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
+      iDestruct ("Hreg" $! r1 _ H0 Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #".
@@ -295,7 +296,9 @@ Section fundamental.
          ;simplify_map_eq by simplify_pair_eq.
         destruct (decide (newvalue = PC)).
         - subst. simplify_map_eq by simplify_pair_eq. iFrame "Hinv".
-        - simplify_map_eq by simplify_pair_eq. iSpecialize ("Hreg" $! i _ _ n Hsomenewvalue).
+        - simplify_map_eq by simplify_pair_eq.
+         assert ((i,newvalue) ≠ (i,PC)) by simplify_pair_eq.
+          iSpecialize ("Hreg" $! i _ _ H3 Hsomenewvalue).
           iFrame "Hreg".
       }
 
@@ -337,14 +340,19 @@ Section fundamental.
           rewrite lookup_insert in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).
           - simplify_eq. iFrame "Hw".
-          - simplify_eq. rewrite lookup_insert_ne in H4
+          - simplify_eq.
+            rewrite lookup_insert_ne in H4
+            ; simplify_map_eq by simplify_pair_eq.
+            rewrite lookup_insert_ne in H2
             ; simplify_map_eq by simplify_pair_eq.
             iApply "Hreg"; eauto.
+            all: by apply pair_neq_inv'; apply not_eq_sym.
         }
         rewrite lookup_insert_ne in Hvs ; simplify_map_eq by simplify_pair_eq.
         iApply "Hreg" ; eauto.
-        simplify_pair_eq.
-        apply pair_neq_inv' ; by apply not_eq_sym.
+        rewrite lookup_insert_ne in Hvs. done.
+        simplify_pair_eq. 
+        all: apply pair_neq_inv' ; by apply not_eq_sym.
       }
       { destruct ( decide (cond = PC))
         ; subst
@@ -369,7 +377,9 @@ Section fundamental.
          ;simplify_map_eq by simplify_pair_eq.
         destruct (decide (newvalue = PC)).
         - subst. simplify_map_eq by simplify_pair_eq. iFrame "Hinv".
-        - simplify_map_eq by simplify_pair_eq. iSpecialize ("Hreg" $! i _ _ n Hsomenewvalue).
+        - simplify_map_eq by simplify_pair_eq.
+          assert ((i,newvalue) ≠ (i,PC)) by simplify_pair_eq.
+          iSpecialize ("Hreg" $! i _ _ H4 Hsomenewvalue).
           iFrame "Hreg".
       }
 
@@ -432,11 +442,13 @@ Section fundamental.
           - simplify_eq. rewrite lookup_insert_ne in H5
             ; simplify_map_eq by simplify_pair_eq.
             iFrame "#".
+            apply pair_neq_inv' ; by apply not_eq_sym.
         }
         rewrite lookup_insert_ne in Hvs ; simplify_map_eq by simplify_pair_eq.
         iApply "Hreg" ; eauto.
+        rewrite lookup_insert_ne in Hvs. done.
         simplify_pair_eq.
-        apply pair_neq_inv' ; by apply not_eq_sym.
+        all: apply pair_neq_inv' ; by apply not_eq_sym.
       }
       { destruct ( decide (cond = PC)) eqn:Heq
         ; subst

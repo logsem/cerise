@@ -91,7 +91,7 @@ Section fundamental.
         - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv".
       }
     }
-    Unshelve. all: auto.
+    Unshelve. simplify_pair_eq. simplify_pair_eq.
   Qed.
 
 End fundamental.

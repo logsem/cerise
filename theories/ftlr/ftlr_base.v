@@ -22,12 +22,12 @@ Section fundamental.
     → decodeInstrW w = it
     -> □ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
-          -∗ (∀ (j : CoreN) (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ (j : CoreN) (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
              -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ (interp_conf i))
     -∗ (fixpoint interp1) (WCap p b e a)
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
-    -∗ (∀ (j : CoreN) (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+    -∗ (∀ (j : CoreN) (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜r !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
             ∗ (if decide (writeAllowed_in_r_a (<[(i, PC):=WCap p b e a]> r) i a) then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w) else emp)
     -∗ a ↦ₐ w

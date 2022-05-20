@@ -44,7 +44,7 @@ Section logrel.
   Program Definition interp_reg (interp : D) (i : CoreN) : R :=
    λne (reg : leibnizO Reg), (full_map reg i ∧
                               ∀ (j : CoreN) (r : RegName) (v : Word)
-                              , (⌜r ≠ PC⌝
+                              , (⌜(j, r) ≠ (i, PC)⌝
                                  → ⌜reg !! (j, r) = Some v⌝
                                  → interp v))%I.
 
@@ -353,8 +353,8 @@ Section logrel.
       + simplify_map_eq.
         destruct (r !! (i, reg)) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
-        assert (reg ≠ PC) by (intros ->; simplify_pair_eq).
-        iSpecialize ("Hregvalid" $! _ _ _ H0 Hsome). simplify_eq. iClear "Hinterp".
+        (* assert (reg ≠ PC) by (intros ->; simplify_pair_eq). *)
+        iSpecialize ("Hregvalid" $! _ _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p0; try contradiction; inversion Hwa;
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).

@@ -20,7 +20,7 @@ Section fundamental.
     (□ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
 
-          -∗ (∀ j (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ j (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i)) -∗
     (fixpoint interp1) (WCap p b e a) -∗
@@ -102,7 +102,7 @@ Section fundamental.
           iDestruct ("Hreg" $! i dst _ Hri H0) as "Hdst".
           iApply PermPairFlows_interp_preserved; eauto.
         + repeat rewrite lookup_insert_ne in Hvs; simplify_pair_eq ; auto.
-          iApply "Hreg"; auto. by apply pair_neq_inv'.
+          iApply "Hreg"; auto. all: by apply pair_neq_inv'.
       - iModIntro.
         simplify_map_eq by simplify_pair_eq.
         rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }

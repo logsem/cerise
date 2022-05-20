@@ -48,11 +48,11 @@ Section fundamental.
           rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
           unshelve iSpecialize ("Hreg" $! i dst _ _ Hdst); eauto.
           iApply interp_weakening; eauto; try solve_addr.
-          destruct p0; simpl; auto. }
+          destruct p0; simpl; auto.
+          by apply pair_neq_inv'; apply not_eq_sym.
+        }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto.
-          simplify_pair_eq.
-      } simplify_pair_eq. }
+          iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
     { iApply wp_pure_step_later; auto.

@@ -54,7 +54,7 @@ Section fundamental.
       (b e a : Addr) (src : RegName) (p0 : Perm)
       (b0 e0 a0 : Addr),
       read_reg_inr (<[(i, PC):=WCap p b e a]> r) i src p0 b0 e0 a0
-      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
+      → (∀ (r1 : RegName) v, ⌜(i, r1) ≠ (i, PC)⌝ → ⌜r !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ ∃ P, allow_load_res src (<[(i, PC):=WCap p b e a]> r) i a a0 p0 b0 e0 P.
   Proof.
     intros r i p b e a src p0 b0 e0 a0 HVsrc.
@@ -68,7 +68,8 @@ Section fundamental.
          assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
          rewrite lookup_insert_ne in Hrinr; last by congruence.
-         iDestruct ("Hreg" $! src _ n Hrinr) as "Hvsrc".
+         assert ((i,src) ≠ (i,PC)) by simplify_pair_eq.
+         iDestruct ("Hreg" $! src _ H0 Hrinr) as "Hvsrc".
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
@@ -284,7 +285,8 @@ Section fundamental.
           - iClear "HLoadRes Hwrite". rewrite decide_True. iFrame "#". auto.
         }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto. simplify_pair_eq. }
+          iApply "Hreg"; auto. }
+        by apply pair_neq_inv'; apply not_eq_sym.
        }
        { subst regs'. rewrite insert_insert. iApply "Hmap". }
        { iModIntro.

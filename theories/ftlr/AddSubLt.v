@@ -51,7 +51,7 @@ Section fundamental.
       simplify_map_eq by simplify_pair_eq.
       destruct (decide ((j, ri) = (i, dst))); simplify_map_eq.
       { repeat rewrite fixpoint_interp1_eq; auto. }
-      { rewrite lookup_insert_ne in Hsv ; simplify_pair_eq.
+      { (* rewrite lookup_insert_ne in Hsv ; simplify_pair_eq. *)
         by iApply "Hreg". }
       { iModIntro.
         simplify_map_eq by simplify_pair_eq.
