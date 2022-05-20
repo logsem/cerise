@@ -204,44 +204,6 @@ Proof.
   - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.
 
-Lemma regmap_full_dom_i {A} (r : gmap (CoreN*RegName) A) (i : CoreN) :
-  (∀ x : RegName, is_Some (r !! (i, x)) ∧ (∀ j : CoreN, i ≠ j → r !! (j, x) = None))
-  -> dom (gset (CoreN * RegName)) r = set_map (λ r0 : RegName, (i, r0)) all_registers_s.
-Proof.
-  intros Hfull.
-  apply forall_and_distr in Hfull.
-  destruct Hfull as [Hfull Hnone].
-  apply (anti_symm _); rewrite elem_of_subseteq.
-  - intros rr Hr. (* apply all_registers_s_correct. *)
-    destruct rr as [j rr].
-    specialize (Hfull rr).
-    specialize (Hnone rr j).
-    destruct (decide (i = j)).
-    { subst; eauto.
-      apply elem_of_map_2.
-      apply all_registers_s_correct.
-    }
-    { exfalso.
-      rewrite <- elem_of_gmap_dom in Hr.
-      destruct Hr.
-      apply Hnone in n.
-      rewrite H0 in n.
-      done. }
-  - intros rr Hr. rewrite -elem_of_gmap_dom.
-    destruct rr as [j rr].
-    specialize (Hfull rr).
-    specialize (Hnone rr j).
-    destruct (decide (i = j)).
-    { subst; eauto. }
-    { exfalso.
-      apply elem_of_map_1 in Hr.
-      destruct Hr as (? & ? & ?).
-      simplify_eq. }
-Qed.
-
-
-
-
 (* -------------------------------- Memory addresses -----------------------------------*)
 
 Notation Addr := (finz MemNum).
