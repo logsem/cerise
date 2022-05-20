@@ -645,3 +645,21 @@ Ltac iInstr_inv Hinv :=
          | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
          end)
   ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
+
+Tactic Notation "solve_length_seq" "by" tactic3(solve_a) :=
+  cbn ; try (rewrite finz_seq_between_length)
+  ; repeat (rewrite finz_dist_S ; last solve_a)
+  ; by rewrite finz_dist_0 ; last solve_a.
+
+Ltac solve_dist_finz :=
+  match goal with
+  | h: _ |- ?n = finz.dist _ _
+    => symmetry
+  end
+  ; match goal with
+    | h: _ |- finz.dist ?b (?b^+?n)%a = ?n' =>
+        let H := fresh in
+        assert (H : (b+n)%f = Some (b ^+ n)%a) by solve_addr
+        ; apply (finz_incr_iff_dist b (b ^+n)%a n') in H
+        ; destruct H as [_ H] ; apply H
+    end.
