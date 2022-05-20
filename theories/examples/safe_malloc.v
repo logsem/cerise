@@ -16,33 +16,15 @@ From cap_machine.examples Require Import static_spinlock.
 
    This is obviously not very realistic, but is good enough for our simple case
    studies. *)
-(* TODO document specifically the safe_malloc *)
+
+(* This malloc is concurrent safe : it cannot allocates the same memory
+   addresses to two different concurrent cores. It uses a spinlock after the
+   size check, before the capability (RWX, bm, em, am) is fetched. The lock is
+   released once the capability (RWX,bm,em,am+size) is restored. *)
 
 Section SimpleMalloc.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{lockG Σ, MP: MachineParameters}.
-
-  Ltac iInstr_inv Hinv :=
-    wp_instr
-    ; iInv Hinv as ">Hprog" "Hcls"
-    (* check if the codefrag_facts already exists, otherwise generate them *)
-    ; match goal with
-      | h : @ContiguousRegion _ ?a (Z.of_nat (@Datatypes.length _ ?code))
-        |- context [(@environments.Esnoc _ _ (INamed "Hprog") (@codefrag _ _ ?a ?code))]
-        => match goal with
-          | h: SubBounds ?b ?e ?a
-                 (?a ^+ (Z.of_nat (@Datatypes.length _ ?code)))%a
-            |- context [(@environments.Esnoc _ _ _ ((_, PC) ↦ᵣ WCap _ ?b ?e _))]
-            => idtac
-          | _ => codefrag_facts "Hprog"
-          end
-      | _ => codefrag_facts "Hprog"
-      end
-    ; iInstr "Hprog"
-    ; try (match goal with
-           | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
-           end)
-    ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
 
   (* offset_lock -> bmid *)
   Definition malloc_pre_spin (offset : Z) :=
@@ -208,26 +190,6 @@ Section SimpleMalloc.
       iPureIntro ; eauto. }
     iIntros (?) "?" ; iFrame.
   Qed.
-
-  (* TODO move somewhere else *)
-  Tactic Notation "solve_length_seq" "by" tactic3(solve_a) :=
-    cbn ; try (rewrite finz_seq_between_length)
-    ; repeat (rewrite finz_dist_S ; last solve_a)
-    ; by rewrite finz_dist_0 ; last solve_a.
-
-  Ltac solve_dist_finz :=
-    match goal with
-    | h: _ |- ?n = finz.dist _ _
-      => symmetry
-    end
-    ; match goal with
-      | h: _ |- finz.dist ?b (?b^+?n)%a = ?n' =>
-          let H := fresh in
-          assert (H : (b+n)%f = Some (b ^+ n)%a) by solve_addr
-          ; apply (finz_incr_iff_dist b (b ^+n)%a n') in H
-          ; destruct H as [_ H] ; apply H
-      end.
-
 
   Lemma malloc_postlock_spec
     (i : CoreN)
@@ -1071,43 +1033,6 @@ Section SimpleMalloc.
   (* Qed. *)
   Admitted. (* NOTE Qed works, but 5 minutes to complete the Qed. *)
 
-
-
-  (* TODO move somewhere *)
-  Lemma regmap_full_dom_i {A} (r : gmap (CoreN*RegName) A) (i : CoreN) :
-    (∀ x : RegName, is_Some (r !! (i, x)) ∧ (∀ j : CoreN, i ≠ j → r !! (j, x) = None))
-    -> dom (gset (CoreN * RegName)) r = set_map (λ r0 : RegName, (i, r0)) all_registers_s.
-  Proof.
-  intros Hfull.
-  apply forall_and_distr in Hfull.
-  destruct Hfull as [Hfull Hnone].
-  apply (anti_symm _); rewrite elem_of_subseteq.
-  - intros rr Hr. (* apply all_registers_s_correct. *)
-    destruct rr as [j rr].
-    specialize (Hfull rr).
-    specialize (Hnone rr j).
-    destruct (decide (i = j)).
-    { subst; eauto.
-      apply elem_of_map_2.
-      apply all_registers_s_correct.
-    }
-    { exfalso.
-      rewrite <- elem_of_gmap_dom in Hr.
-      destruct Hr.
-      apply Hnone in n.
-      rewrite H0 in n.
-      done. }
-  - intros rr Hr. rewrite -elem_of_gmap_dom.
-    destruct rr as [j rr].
-    specialize (Hfull rr).
-    specialize (Hnone rr j).
-    destruct (decide (i = j)).
-    { subst; eauto. }
-    { exfalso.
-      apply elem_of_map_1 in Hr.
-      destruct Hr as (? & ? & ?).
-      simplify_eq. }
-  Qed.
 
 
   Lemma simple_malloc_subroutine_valid N γ b e :

@@ -22,18 +22,6 @@ Section lock_model.
 
 End lock_model.
 
-(* TODO move proofmode *)
-  Ltac iInstr_inv Hinv :=
-    wp_instr
-    ; iInv Hinv as ">Hprog" "Hcls"
-    ; codefrag_facts "Hprog" (* TODO fix this, because it duplicates the hypothesis *)
-    ; iInstr "Hprog"
-    ; try (match goal with
-           | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
-           end)
-    ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
-
-
 Section StaticSpinlock.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{lockG Σ, MP: MachineParameters}.

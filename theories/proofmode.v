@@ -621,3 +621,27 @@ Ltac2 rec iGo hprog :=
 Ltac iGo hprog :=
   let f := ltac2:(hprog |- iGo (Option.get (Ltac1.to_constr hprog))) in
   f hprog.
+
+(* The code is in an Iris invariant - we need to open the invariant and
+   close it at each execution step *)
+Ltac iInstr_inv Hinv :=
+  wp_instr
+  ; iInv Hinv as ">Hprog" "Hcls"
+  (* check if the codefrag_facts already exists, otherwise generate them *)
+  ; match goal with
+    | h : @ContiguousRegion _ ?a (Z.of_nat (@Datatypes.length _ ?code))
+      |- context [(@environments.Esnoc _ _ (INamed "Hprog") (@codefrag _ _ ?a ?code))]
+      => match goal with
+        | h: SubBounds ?b ?e ?a
+               (?a ^+ (Z.of_nat (@Datatypes.length _ ?code)))%a
+          |- context [(@environments.Esnoc _ _ _ ((_, PC) ↦ᵣ WCap _ ?b ?e _))]
+          => idtac
+        | _ => codefrag_facts "Hprog"
+        end
+    | _ => codefrag_facts "Hprog"
+    end
+  ; iInstr "Hprog"
+  ; try (match goal with
+         | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
+         end)
+  ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
