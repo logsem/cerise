@@ -32,7 +32,7 @@ Section fundamental.
       (e' <= e)%a ->
       (□ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
-          -∗ (∀ (j: CoreN) (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ (r1 : RegName) v, ⌜(i, r1) ≠ (i, PC)⌝ → ⌜a0 !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i)) -∗
       (fixpoint interp1) (WCap p b e a) -∗
@@ -49,6 +49,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Subseg dst r1 r2) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -71,6 +72,7 @@ Section fundamental.
       { subst dst. repeat (rewrite insert_insert in HPC). simplify_map_eq by simplify_pair_eq.
         rewrite !insert_insert.
         iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
+        intros ; cbn. split ; auto.
         iModIntro.
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
         destruct (Z_le_dec b'' e'').
@@ -91,14 +93,27 @@ Section fundamental.
         iApply ("IH" $! i (<[(i, dst):=_]> _) with "[%] [] [Hmap]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.
-          destruct (reg_eq_dec dst x0); simplify_pair_eq ; auto; right; split ; auto; simplify_pair_eq.
+          destruct (decide (dst=x0)); simplify_pair_eq ; auto.
+          split ; first by left.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
           rewrite lookup_insert_is_Some.
-          destruct (reg_eq_dec PC x0); simplify_pair_eq ; auto; right; split ; auto; simplify_pair_eq.
-        - iIntros (j ri v Hri Hvs).
-          destruct (decide ((j, ri) = (i, dst))).
+          destruct (decide (PC= x0)); simplify_pair_eq ; auto.
+          split. right.
+          split ; auto ; simplify_pair_eq.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
+          split. right.
+          split ; auto ; simplify_pair_eq.
+          right.
+          split ; auto ; simplify_pair_eq.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
+        - iIntros (ri v Hri Hvs).
+          destruct (decide ((i, ri) = (i, dst))).
           + simplify_pair_eq. rewrite lookup_insert in Hvs. inv Hvs.
             simplify_map_eq by simplify_pair_eq.
-            iDestruct ("Hreg" $! i dst _ Hri H0) as "Hdst".
+            iDestruct ("Hreg" $! dst _ Hri H0) as "Hdst".
             generalize (isWithin_implies _ _ _ _ H4). intros [A B].
             iApply subseg_interp_preserved; eauto.
           + repeat rewrite lookup_insert_ne in Hvs; auto ; simplify_pair_eq.

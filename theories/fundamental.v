@@ -110,27 +110,39 @@ Section fundamental.
       + (* GetA *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetA _ _) with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
+
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-        iNext. iIntros (Hcontr); inversion Hcontr. 
+        iNext. iIntros (Hcontr); inversion Hcontr.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
-        iNext. iIntros "[HPC Ha] /=". 
+        iNext. iIntros "[HPC Ha] /=".
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. iNext. iIntros (_). 
+        rewrite insert_insert. iNext. iIntros (_).
         iExists (<[(i, PC):=WCap p b e a]> r). iFrame.
-        iAssert (∀ r0 : RegName, ⌜is_Some (<[(i, PC):=WCap p b e a]> r !! (i, r0))⌝)%I as "HA".
-        { iIntros. destruct (reg_eq_dec PC r0).
-          - subst r0; rewrite lookup_insert; eauto.
-          - rewrite lookup_insert_ne; auto ; simplify_pair_eq. }
+        iAssert (∀ r0 : RegName,
+                   ⌜is_Some (<[(i, PC):=WCap p b e a]> r !! (i, r0))
+                   /\  (∀ j : CoreN, i ≠ j → <[(i, PC):=WCap p b e a]> r !! (j, r0) = None)⌝)%I as "HA".
+        { iIntros. destruct (decide ((i, PC) = (i,r0))).
+          specialize (H r0) ; destruct H.
+          - simplify_eq ; rewrite lookup_insert.
+            iSplit ; eauto.
+            iPureIntro. intros.
+            rewrite lookup_insert_ne; auto ; simplify_pair_eq.
+          - rewrite lookup_insert_ne; auto ; simplify_pair_eq.
+            specialize (H r0) ; destruct H.
+            iSplit ; auto.
+            iPureIntro; intros.
+            rewrite lookup_insert_ne; auto ; simplify_pair_eq.
+        }
         iFrame "HA".
       + iApply (cas_case with "[] [] [] [] [] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -221,15 +233,41 @@ Section fundamental.
     iApply "Hw'". iClear "Hw'". iFrame. rewrite /registers_mapsto.
     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
     iSplitL "HrV"; [iSplit|].
-    { unfold full_map. iIntros (r). 
-      destruct (decide (r = PC)).
-      { subst r. rewrite lookup_insert. iPureIntro. eauto. }
+    { unfold full_map. iIntros (r).
+      destruct (decide ( r = PC)).
+      { inversion e ; subst.
+        rewrite lookup_insert. iPureIntro.
+        split ; eauto.
+        intros j Hneq.
+        subst rmap'.
+        rewrite lookup_insert_ne ; last (apply pair_neq_inv ; left ; auto).
+        apply elem_of_gmap_dom_none.
+        rewrite Hrmap.
+        intro contra.
+        apply elem_of_difference in contra.
+        destruct contra as [contra _].
+        apply elem_of_map_1 in contra.
+        destruct contra as (? & contra & ?).
+        clear -Hneq contra ; simplify_eq.
+        }
       rewrite lookup_insert_ne;[| clear Hrmap; simplify_pair_eq].
       iPureIntro. rewrite elem_of_gmap_dom Hrmap.
-      clear Hrmap; set_solver. }
-    { iIntros (j ri v Hri Hvs).
+      split. clear Hrmap; set_solver.
+      intros j Hneq.
+      subst rmap'.
+      rewrite lookup_insert_ne ; last (apply pair_neq_inv ; left ; auto).
+      apply elem_of_gmap_dom_none.
+      rewrite Hrmap.
+      intro contra.
+      apply elem_of_difference in contra.
+      destruct contra as [contra _].
+      apply elem_of_map_1 in contra.
+      destruct contra as (? & contra & ?).
+      clear -Hneq contra ; simplify_eq.
+    }
+    { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne in Hvs;[| clear Hrmap; simplify_pair_eq].
-      iDestruct (big_sepM_lookup _ _ (j, ri) with "HrV") as "HrV"; eauto.
+      iDestruct (big_sepM_lookup _ _ (i, ri) with "HrV") as "HrV"; eauto.
       by apply pair_neq_inv' ; apply not_eq_sym.
     }
     rewrite insert_insert. iApply big_sepM_insert.

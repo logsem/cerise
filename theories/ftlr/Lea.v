@@ -18,6 +18,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Lea dst r0) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -38,15 +39,20 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iNext.
       iApply ("IH" $! _ regs' with "[%] [] [Hmap]").
-      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (j ri v Hri Hvs).
+      { cbn. intros. subst regs'.
+        split.
+        by repeat (apply lookup_insert_is_Some'; right).
+        intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone.
+      }
+      { iIntros (ri v Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide ((j, ri) = (i, dst))).
+        destruct (decide ((i, ri) = (i, dst))).
         { simplify_pair_eq.
           rewrite lookup_insert_ne in Hdst; simplify_pair_eq ; auto.
           rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
-          unshelve iSpecialize ("Hreg" $! i dst _ _ Hdst); eauto.
+          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
           iApply interp_weakening; eauto; try solve_addr.
           destruct p0; simpl; auto.
           by apply pair_neq_inv'; apply not_eq_sym.

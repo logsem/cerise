@@ -40,12 +40,13 @@ Section logrel.
   Definition registers_mapsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
-  Definition full_map (reg : Reg) (i : CoreN) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! (i,r))⌝)%I.
+  Definition full_map (reg : Reg) (i : CoreN) : iProp Σ
+    := (∀ (r : RegName), ⌜is_Some (reg !! (i,r)) /\ ( forall j, i ≠ j -> (reg !! (j,r)) = None)⌝)%I.
   Program Definition interp_reg (interp : D) (i : CoreN) : R :=
    λne (reg : leibnizO Reg), (full_map reg i ∧
-                              ∀ (j : CoreN) (r : RegName) (v : Word)
-                              , (⌜(j, r) ≠ (i, PC)⌝
-                                 → ⌜reg !! (j, r) = Some v⌝
+                              ∀ (r : RegName) (v : Word)
+                              , (⌜(i, r) ≠  (i, PC)⌝
+                                 → ⌜reg !! (i, r) = Some v⌝
                                  → interp v))%I.
 
   Definition interp_conf (i: CoreN) : iProp Σ :=
@@ -301,14 +302,7 @@ Section logrel.
 
 
   Global Instance coren_finite : finite.Finite CoreN.
-  Proof. eapply (finite.enc_finite (λ i : CoreN, Z.to_nat i)
-                   (λ n : nat,
-                       match (finz.of_z (Z.of_nat n)) with
-                       | Some i => i
-                       | None => _
-                       end)
-                   (Z.to_nat machine_base.CoreNum)).
-         - intros x. destruct x;auto.
+  Proof.
   Admitted.
 
   Global Instance writeAllowedWord_dec w: Decision (writeAllowedWord w).
@@ -354,7 +348,7 @@ Section logrel.
         destruct (r !! (i, reg)) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
         (* assert (reg ≠ PC) by (intros ->; simplify_pair_eq). *)
-        iSpecialize ("Hregvalid" $! _ _ _ n Hsome). simplify_eq. iClear "Hinterp".
+        iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p0; try contradiction; inversion Hwa;
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).

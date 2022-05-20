@@ -20,6 +20,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Jmp r0) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r0).
@@ -36,7 +37,7 @@ Section fundamental.
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* apply IH *)
       iApply ("IH" $! i _ _ b e a with "[] [] [Hmap]"); eauto.
-      { iPureIntro. apply Hsome. }
+      { iPureIntro. intros. cbn. split ; [apply Hsome | apply Hnone]. }
       destruct Hp as [-> | ->]; iFrame.
     * specialize Hsome with r0 as Hr0.
       destruct Hr0 as [wsrc Hsomesrc].
@@ -86,7 +87,7 @@ Section fundamental.
         - iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r (i, r0)); auto.
-          iDestruct ("Hreg" $! i r0 _ _ Hsomesrc) as "Hwsrc".
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
           destruct wsrc; simpl in Heq; try congruence.
           destruct p0; try congruence.
           + iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -94,6 +95,7 @@ Section fundamental.
             inv Heq.
             iNext.
             iApply ("IH" with "[] [] [$Hmap]"); eauto.
+            iIntros (?); cbn ; iPureIntro. split ; [apply Hsome | apply Hnone].
           + inv Heq.
             rewrite /interp_expr /=.
             iDestruct "Hwsrc" as "#H".
@@ -101,6 +103,9 @@ Section fundamental.
             iModIntro.
             rewrite !fixpoint_interp1_eq /=. iDestruct ("H" with "[$Hmap]") as
               "Hcont"; auto.
+            iNext. iSplit.
+            iIntros (?); cbn ; iPureIntro. split ; [apply Hsome | apply Hnone].
+            auto.
         - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
           iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
@@ -118,9 +123,10 @@ Section fundamental.
           rewrite (insert_id r (i, r0)); auto.
           destruct wsrc; simpl in Heq; try congruence.
           destruct p0; try congruence. inv Heq.
-          iDestruct ("Hreg" $! i r0 _ _ Hsomesrc) as "Hwsrc".
+          iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "Hwsrc".
           iClear "Hinv".
           iApply ("IH" with "[] [] [Hmap]"); iFrame "#"; eauto.
+          iIntros (?); cbn ; iPureIntro. split ; [apply Hsome | apply Hnone].
       }
       Unshelve. all: auto ; simplify_pair_eq.
   Qed.

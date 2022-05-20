@@ -20,6 +20,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Mov dst src) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -51,11 +52,14 @@ Section fundamental.
         destruct (reg_eq_dec PC r0).
         { subst r0. simplify_map_eq by simplify_pair_eq.
           iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
+          { intros ; cbn.
+            split ; auto. }
           iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv". }
         { simplify_map_eq by simplify_pair_eq.
-          iDestruct ("Hreg" $! i r0 _ _ H0) as "Hr0".
+          iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0".
           destruct (PermFlowsTo RX x) eqn:Hpft.
           - iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
+           { intros ; cbn. split ; auto. }
             + iModIntro.
               destruct x; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; auto.
           - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
@@ -70,11 +74,24 @@ Section fundamental.
         iApply ("IH" $! i (<[(i, dst):=w0]> _) with "[%] [] [Hmap]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.
-          destruct (reg_eq_dec dst x4); simplify_pair_eq; auto ; right ; split; auto ; simplify_pair_eq.
+          destruct (decide (dst=x4)); simplify_pair_eq ; auto.
+          split ; first by left.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
           rewrite lookup_insert_is_Some.
-          destruct (reg_eq_dec PC x4); simplify_pair_eq ; auto ; right; split ; auto ; simplify_pair_eq.
-       - iIntros (j ri v Hri Hvs).
-        destruct (decide ((j, ri) = (i, dst))).
+          destruct (decide (PC= x4)); simplify_pair_eq ; auto.
+          split. right.
+          split ; auto ; simplify_pair_eq.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
+          split. right.
+          split ; auto ; simplify_pair_eq.
+          right.
+          split ; auto ; simplify_pair_eq.
+          intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
+       - iIntros (ri v Hri Hvs).
+        destruct (decide ((i, ri) = (i, dst))).
           + simplify_pair_eq. rewrite lookup_insert in Hvs.
             destruct src; simplify_map_eq.
             * repeat rewrite fixpoint_interp1_eq; auto.
@@ -85,7 +102,7 @@ Section fundamental.
                 destruct Hp as [Hp | Hp]; subst x; try subst g'';
                   (iFrame "Hinv Hexec"). }
               simplify_map_eq by simplify_pair_eq.
-              iDestruct ("Hreg" $! i r0 _ _ H0) as "Hr0". auto.
+              iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0". auto.
           + repeat rewrite lookup_insert_ne in Hvs; auto ; simplify_pair_eq.
             iApply "Hreg"; auto.
         - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv".

@@ -20,7 +20,7 @@ Section fundamental.
     (□ ▷ (∀ i a0 a1 a2 a3 a4,
              full_map a0 i
 
-          -∗ (∀ j (r1 : RegName) v, ⌜(j, r1) ≠ (i, PC)⌝ → ⌜a0 !! (j, r1) = Some v⌝ → (fixpoint interp1) v)
+          -∗ (∀ (r1 : RegName) v, ⌜(i, r1) ≠ (i, PC)⌝ → ⌜a0 !! (i, r1) = Some v⌝ → (fixpoint interp1) v)
           -∗ registers_mapsto (<[(i, PC):=WCap a1 a2 a3 a4]> a0)
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf i)) -∗
     (fixpoint interp1) (WCap p b e a) -∗
@@ -46,6 +46,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Restrict dst r0) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -77,7 +78,8 @@ Section fundamental.
         destruct (PermFlowsTo RX (decodePerm n)) eqn:Hpft.
         { assert (Hpg: (decodePerm n) = RX ∨ (decodePerm n) = RWX).
           { destruct (decodePerm n); simpl in Hpft; eauto; try discriminate. }
-          iApply ("IH" $! i r with "[%] [] [Hmap]");auto. 
+          iApply ("IH" $! i r with "[%] [] [Hmap]");auto.
+          split ; auto.
           iModIntro. rewrite !fixpoint_interp1_eq /=.
           destruct Hpg as [Heq | Heq];destruct Hp as [Heq' | Heq'];rewrite Heq Heq';try iFrame "Hinv".
           - iApply (big_sepL_mono with "Hinv").
@@ -94,12 +96,16 @@ Section fundamental.
       
       simplify_map_eq.
       iApply ("IH" $! i (<[(i, dst):=_]> _) with "[%] [] [Hmap]"); eauto.
-      - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
-      - iIntros (j ri v Hri Hvs).
-        destruct (decide ((j, ri) = (i, dst))).
+      - intros; simpl.
+        split.
+        repeat (rewrite lookup_insert_is_Some'; right); eauto.
+        intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone.
+      - iIntros ( ri v Hri Hvs).
+        destruct (decide ((i, ri) = (i, dst))).
         + simplify_map_eq by simplify_pair_eq.
           (* rewrite lookup_insert in Hvs. inversion Hvs. simplify_eq. *)
-          iDestruct ("Hreg" $! i dst _ Hri H0) as "Hdst".
+          iDestruct ("Hreg" $! dst _ Hri H0) as "Hdst".
           iApply PermPairFlows_interp_preserved; eauto.
         + repeat rewrite lookup_insert_ne in Hvs; simplify_pair_eq ; auto.
           iApply "Hreg"; auto. all: by apply pair_neq_inv'.

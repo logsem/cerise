@@ -19,6 +19,7 @@ Section fundamental.
     ftlr_instr r p b e a w (IsPtr dst r0) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -39,12 +40,17 @@ Section fundamental.
       simplify_map_eq.
       iApply ("IH" $! i (<[(i, dst):= _]> _) with "[%] [] [Hmap]");
         try iClear "IH"; eauto.
-      { cbn; intro. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
-      { iIntros (j ri v Hri Hvs).
+      { cbn. intros.
+        split.
+        by repeat (apply lookup_insert_is_Some'; right).
+        intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone.
+      }
+      { iIntros (ri v Hri Hvs).
         simplify_map_eq by simplify_pair_eq.
         (* rewrite insert_commute in Hvs ;  *)
         (*   // lookup_insert_ne // in Hvs. *)
-        destruct (decide ((j, ri) = (i, dst))); simplify_map_eq by simplify_pair_eq.
+        destruct (decide ((i, ri) = (i, dst))); simplify_map_eq by simplify_pair_eq.
         * repeat rewrite fixpoint_interp1_eq; auto.
         * repeat rewrite lookup_insert_ne in Hvs ; simplify_pair_eq.
           iApply "Hreg"; auto. all: by apply pair_neq_inv'.

@@ -19,6 +19,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Jnz r1 r2) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -42,6 +43,7 @@ Section fundamental.
       ;[iExists w;iFrame|iModIntro]. iNext.
       rewrite insert_insert.
       iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
+      intros ; cbn. split ; auto.
       iModIntro.
       rewrite !fixpoint_interp1_eq /=.
       destruct Hp as [-> | ->];iFrame "Hinv". }
@@ -62,23 +64,27 @@ Section fundamental.
           clear Hw. destruct (perm_eq_dec p0 p1); [subst p1; destruct Heq as (_ & -> & -> & ->)| destruct Heq as ((-> & ->) & -> & -> & ->)].
           { iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
+            intros ; cbn. split ; auto.
             - destruct (reg_eq_dec r1 PC).
               + subst r1. simplify_map_eq. auto.
               + simplify_map_eq by simplify_pair_eq.
                 assert ((i,r1) ≠ (i,PC)) by simplify_pair_eq.
-                iDestruct ("Hreg" $! i r1 _ H3 H1) as "Hr1".
+                iDestruct ("Hreg" $! r1 _ H3 H1) as "Hr1".
                 rewrite !fixpoint_interp1_eq.
                 destruct p0; simpl in *; try discriminate; eauto. }
           { assert (r1 <> PC) as HPCnr1.
             { intro; subst r1; simplify_map_eq. naive_solver. }
             simplify_map_eq by simplify_pair_eq.
             assert ((i,r1) ≠ (i,PC)) by simplify_pair_eq.
-            iDestruct ("Hreg" $! i r1 _ H3 H1) as "Hr1".
+            iDestruct ("Hreg" $! r1 _ H3 H1) as "Hr1".
             rewrite !fixpoint_interp1_eq /=.
             iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
             rewrite /interp_expr /=.
             iDestruct "Hr1" as "#H".
-            iNext. iDestruct ("H" with "[$Hmap]") as "Hcont"; auto. } }
+            iNext. iDestruct ("H" with "[$Hmap]") as "Hcont"; auto.
+            iSplit ; auto.
+            iIntros ; iPureIntro ; cbn. split ; auto.
+        } }
         iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)).
         iDestruct ((big_sepM_delete _ _ (i, PC)) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC").

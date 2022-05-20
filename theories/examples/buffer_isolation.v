@@ -209,7 +209,7 @@ Section buffer.
     eauto.
   Qed.
 
-
+  (* TODO move somewhere - similar than non-adv, but without the later *)
   Lemma interp_updatePcPerm_adv p b e a :
     p = RX \/ p = RWX ->
     ⊢ interp (WCap p b e a) -∗ (∀ i r, interp_expression i r (updatePcPerm (WCap p b e a))).
@@ -241,13 +241,37 @@ Section buffer.
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).
       destruct (decide (r = PC)).
-      { subst r. rewrite lookup_insert. iPureIntro. eauto. }
+      { subst r. rewrite lookup_insert. iPureIntro. split ; eauto.
+        intros j Hneq.
+        subst rmap'.
+        rewrite lookup_insert_ne ; last (apply pair_neq_inv ; left ; auto).
+        apply elem_of_gmap_dom_none.
+        rewrite Hrmap.
+        intro contra.
+        apply elem_of_difference in contra.
+        destruct contra as [contra _].
+        apply elem_of_map_1 in contra.
+        destruct contra as (? & contra & ?).
+        clear -Hneq contra ; simplify_eq.
+      }
       rewrite lookup_insert_ne;[| clear Hrmap; simplify_pair_eq].
       iPureIntro. rewrite elem_of_gmap_dom Hrmap.
-      clear Hrmap; set_solver. }
-    { iIntros (j ri v Hri Hvs).
+      split ;[ clear Hrmap; set_solver | ].
+      intros j Hneq.
+      subst rmap'.
+      rewrite lookup_insert_ne ; last (apply pair_neq_inv ; left ; auto).
+      apply elem_of_gmap_dom_none.
+      rewrite Hrmap.
+      intro contra.
+      apply elem_of_difference in contra.
+      destruct contra as [contra _].
+      apply elem_of_map_1 in contra.
+      destruct contra as (? & contra & ?).
+      clear -Hneq contra ; simplify_eq.
+    }
+    { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne in Hvs;[| clear Hrmap; simplify_pair_eq].
-      iDestruct (big_sepM_lookup _ _ (j, ri) with "HrV") as "HrV"; eauto.
+      iDestruct (big_sepM_lookup _ _ (i, ri) with "HrV") as "HrV"; eauto.
       by apply pair_neq_inv' ; apply not_eq_sym.
     }
     rewrite insert_insert. iApply big_sepM_insert.

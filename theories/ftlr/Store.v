@@ -173,6 +173,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Store dst src) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -235,7 +236,7 @@ Section fundamental.
         - subst. simplify_map_eq. iFrame "Hinv".
         - simplify_map_eq by simplify_pair_eq.
           assert ((i,r0) ≠ (i,PC)) by simplify_pair_eq.
-          iSpecialize ("Hreg" $! i _ _ H0 Hwoa).
+          iSpecialize ("Hreg" $! _ _ H0 Hwoa).
           iFrame "Hreg".
       }
       
@@ -263,7 +264,8 @@ Section fundamental.
       rewrite insert_insert.
       
       iApply ("IH" with "[%] [] Hmap");auto.
-      { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
+      { intros; cbn. split ; auto. }
+      {rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
     { rewrite /allow_store_res /allow_store_mem.
       destruct (decide (reg_allows_store i (<[(i, PC):=WCap p b e a]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).

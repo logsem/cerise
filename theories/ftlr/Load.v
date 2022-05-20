@@ -197,6 +197,7 @@ Section fundamental.
     ftlr_instr r p b e a w (Load dst src) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
@@ -267,17 +268,21 @@ Section fundamental.
       iApply ("IH" $! i regs' with "[%] [Hinterp] [Hmap]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.
-        destruct (decide (PC = x4))
-        ; [left ; by simplify_pair_eq | right ; split ; simplify_pair_eq].
-        rewrite lookup_insert_is_Some.
-        destruct (decide (dst = x4))
-        ; [ by left ; simplify_pair_eq
-          | right; split; auto ; simplify_pair_eq]. }
+        split.
+        - destruct (decide (PC = x4))
+          ; [left ; by simplify_pair_eq | right ; split ; simplify_pair_eq].
+          rewrite lookup_insert_is_Some.
+          destruct (decide (dst = x4))
+          ; [ by left ; simplify_pair_eq
+            | right; split; auto ; simplify_pair_eq].
+        - intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+          by apply Hnone.
+      }
       (* Prove in the general case that the value relation holds for the register that was loaded to - unless it was the PC.*)
-       { iIntros (j ri v Hri Hvs).
+       { iIntros (ri v Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; simplify_pair_eq.
-        destruct (decide ((j, ri) = (i, dst))).
+        destruct (decide ((i, ri) = (i, dst))).
         { simplify_pair_eq.
           rewrite lookup_insert in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).

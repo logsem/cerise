@@ -219,6 +219,7 @@ Section fundamental.
     ftlr_instr r p b e a w (CAS loc cond newvalue) i P.
   Proof.
     intros Hp Hsome i' Hbae Hi.
+    apply forall_and_distr in Hsome ; destruct Hsome as [Hsome Hnone].
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Ha HP Hcls HPC Hmap".
 
 
@@ -298,7 +299,7 @@ Section fundamental.
         - subst. simplify_map_eq by simplify_pair_eq. iFrame "Hinv".
         - simplify_map_eq by simplify_pair_eq.
          assert ((i,newvalue) ≠ (i,PC)) by simplify_pair_eq.
-          iSpecialize ("Hreg" $! i _ _ H3 Hsomenewvalue).
+          iSpecialize ("Hreg" $! _ _ H3 Hsomenewvalue).
           iFrame "Hreg".
       }
 
@@ -328,14 +329,20 @@ Section fundamental.
       iApply ("IH" with "[%] [] Hmap");auto.
       { intros; cbn.
         destruct (decide ( cond = x4 )) ; subst.
-        simplify_map_eq ; by eexists.
+        split ; simplify_map_eq ; [by eexists|].
+        intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone.
+        split ; simplify_map_eq.
+        2: { intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone. }
+
         rewrite lookup_insert_ne ; simplify_map_eq by simplify_pair_eq.
         destruct (decide ( PC = x4 )) ; subst.
         simplify_map_eq ; by eexists.
         rewrite lookup_insert_ne ; simplify_map_eq by simplify_pair_eq.
         by apply Hsome. }
-      { iIntros (j ri v Hri Hvs).
-        destruct (decide ((j, ri) = (i, cond))).
+      { iIntros (ri v Hri Hvs).
+        destruct (decide ((i, ri) = (i, cond))).
         { simplify_pair_eq.
           rewrite lookup_insert in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).
@@ -379,7 +386,7 @@ Section fundamental.
         - subst. simplify_map_eq by simplify_pair_eq. iFrame "Hinv".
         - simplify_map_eq by simplify_pair_eq.
           assert ((i,newvalue) ≠ (i,PC)) by simplify_pair_eq.
-          iSpecialize ("Hreg" $! i _ _ H4 Hsomenewvalue).
+          iSpecialize ("Hreg" $! _ _ H4 Hsomenewvalue).
           iFrame "Hreg".
       }
 
@@ -427,14 +434,20 @@ Section fundamental.
       iApply ("IH" with "[%] [] Hmap");auto.
       { intros; cbn.
         destruct (decide ( cond = x4 )) ; subst.
-        simplify_map_eq ; by eexists.
+        split ; simplify_map_eq ; [by eexists|].
+        intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone.
+        split ; simplify_map_eq.
+        2: { intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
+        by apply Hnone. }
+
         rewrite lookup_insert_ne ; simplify_map_eq by simplify_pair_eq.
         destruct (decide ( PC = x4 )) ; subst.
         simplify_map_eq ; by eexists.
         rewrite lookup_insert_ne ; simplify_map_eq by simplify_pair_eq.
         by apply Hsome. }
-      { iIntros (j ri v Hri Hvs).
-        destruct (decide ((j, ri) = (i, cond))).
+      { iIntros (ri v Hri Hvs).
+        destruct (decide ((i, ri) = (i, cond))).
         { simplify_pair_eq.
           rewrite lookup_insert in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).
