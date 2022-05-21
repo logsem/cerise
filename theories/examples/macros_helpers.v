@@ -3,7 +3,7 @@ From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec List.
 From cap_machine Require Import cap_lang region contiguous.
-From cap_machine.rules_binary Require Import rules_binary_base.
+(* From cap_machine.rules_binary Require Import rules_binary_base. *)
 
 Section helpers.
 
@@ -77,22 +77,22 @@ Ltac iPrologue_pre :=
 Ltac iPrologue prog :=
   (try iPrologue_pre);
   iDestruct prog as "[Hi Hprog]";
-  iApply (wp_bind (fill [SeqCtx])).
+  iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _).
 
-Ltac iPrologue_both prog prog' :=
-  iDestruct prog as "[Hi Hprog]";
-  iDestruct prog' as "[Hsi Hsprog]";
-  iApply (wp_bind (fill [SeqCtx])).
+(* Ltac iPrologue_both prog prog' := *)
+(*   iDestruct prog as "[Hi Hprog]"; *)
+(*   iDestruct prog' as "[Hsi Hsprog]"; *)
+(*   iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _ *)
 
 Ltac iEpilogue prog :=
   iNext; iIntros prog; iSimpl;
   iApply wp_pure_step_later;auto;iNext.
 
-Ltac iEpilogue_both prog :=
-  iNext; iIntros prog; iSimpl;
-  iApply wp_pure_step_later;auto;iNext;
-  iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto;
-  iSimpl in "Hj".
+(* Ltac iEpilogue_both prog := *)
+(*   iNext; iIntros prog; iSimpl; *)
+(*   iApply wp_pure_step_later;auto;iNext; *)
+(*   iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto; *)
+(*   iSimpl in "Hj". *)
 
 Ltac iCombinePtrn :=
   iCombine "Hi" "Hprog_done" as "Hprog_done";

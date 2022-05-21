@@ -90,7 +90,8 @@ theories/fundamental.v
 # theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
 # theories/examples/malloc.v
-# theories/examples/assert.v
+theories/examples/safe_malloc.v
+theories/examples/assert.v
 theories/examples/contiguous.v
 # theories/examples/macros_helpers.v
 # theories/examples/macros.v
@@ -124,6 +125,5 @@ theories/examples/buffer.v
 theories/examples/shared_buffer.v
 theories/examples/buffer_isolation.v
 theories/examples/static_spinlock.v
-theories/examples/safe_malloc.v
 # theories/examples/minimal_counter.v
 # theories/examples/ocpl_lowval_like.v
