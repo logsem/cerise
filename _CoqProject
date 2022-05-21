@@ -93,8 +93,8 @@ theories/examples/addr_reg_sample.v
 theories/examples/safe_malloc.v
 theories/examples/assert.v
 theories/examples/contiguous.v
-# theories/examples/macros_helpers.v
-# theories/examples/macros.v
+theories/examples/macros_helpers.v
+theories/examples/macros.v
 # theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v

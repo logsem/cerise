@@ -36,9 +36,9 @@ Section SimpleMalloc.
      Jnz r_t2 r_t3;  (* ;; fail if not         *)
      Fail;
         (* xm: *)
-     Mov r_t5 PC; (* ;; prepare the spinlock *)
-     Lea r_t5 (offset - 5)%Z;
-     Load r_t5 r_t5
+     Mov r_t9 PC; (* ;; prepare the spinlock *)
+     Lea r_t9 (offset - 5)%Z;
+     Load r_t9 r_t9
       ].
 
   Definition malloc_post_spin (offset: Z) :=
@@ -70,7 +70,7 @@ Section SimpleMalloc.
      Mov r_t2 0%Z;    (* Clear the registers *)
      Mov r_t3 0%Z;
      Mov r_t4 0%Z;
-     Mov r_t5 0%Z;
+     Mov r_t9 0%Z;
      Mov r_t6 0%Z;
      Mov r_t7 0%Z;
      Mov r_t8 0%Z;
@@ -95,9 +95,9 @@ Section SimpleMalloc.
 
   Definition malloc_subroutine_instrs' (offset_bmid : Z) :=
      malloc_pre_spin offset_bmid
-       ++ acquire_spinlock_instrs r_t5 r_t6 r_t7 r_t8
+       ++ acquire_spinlock_instrs r_t9 r_t6 r_t7 r_t8
        ++ malloc_post_spin (offset_bmid - malloc_pre_length - acquire_spinlock_length)
-       ++ release_spinlock_instrs r_t5
+       ++ release_spinlock_instrs r_t9
        ++ malloc_clear.
 
   Definition malloc_subroutine_instrs_length : Z :=
@@ -116,7 +116,7 @@ Section SimpleMalloc.
     (i : CoreN)
     (size: Z)
     (b e b_m a_pre: Addr)
-    w2 w5
+    w2 w9
     N E
     (φ : language.val cap_lang → iProp Σ) :
 
@@ -135,12 +135,12 @@ Section SimpleMalloc.
          ∗ (i, r_t1) ↦ᵣ WInt size
          ∗ (i, r_t2) ↦ᵣ w2
          ∗ (i, r_t3) ↦ᵣ WInt (Z.b2z (0%nat <? size)%Z)
-         ∗ (i, r_t5) ↦ᵣ w5
+         ∗ (i, r_t9) ↦ᵣ w9
          ∗ ▷ (   (i, PC) ↦ᵣ WCap RX b e e_pre
                  ∗ (i, r_t1) ↦ᵣ WInt size
                  ∗ (i, r_t2) ↦ᵣ WCap RX b e (a_pre ^+ 5)%a
                  ∗ (i, r_t3) ↦ᵣ WInt 1%nat
-                 ∗ (i, r_t5) ↦ᵣ WCap RWX b e (b_m ^+ 1)%a
+                 ∗ (i, r_t9) ↦ᵣ WCap RWX b e (b_m ^+ 1)%a
                  ∗ ⌜ (0 < size)%Z ⌝
                  -∗ WP (i, Seq (Instr Executable)) @ E {{ φ }}%I))
     ⊢ WP (i, Seq (Instr Executable)) @ E {{ λ v, φ v ∨ ⌜v = (i, FailedV)⌝ }}%I.
@@ -438,7 +438,7 @@ Section SimpleMalloc.
       ∗ (i, r_t2) ↦ᵣ w2
       ∗ (i, r_t3) ↦ᵣ w3
       ∗ (i, r_t4) ↦ᵣ w4
-      ∗ (i, r_t5) ↦ᵣ w5
+      ∗ (i, r_t9) ↦ᵣ w5
       ∗ (i, r_t6) ↦ᵣ w6
       ∗ (i, r_t7) ↦ᵣ w7
       ∗ (i, r_t8) ↦ᵣ w8
@@ -447,7 +447,7 @@ Section SimpleMalloc.
             ∗ (i, r_t2) ↦ᵣ WInt 0
             ∗ (i, r_t3) ↦ᵣ WInt 0
             ∗ (i, r_t4) ↦ᵣ WInt 0
-            ∗ (i, r_t5) ↦ᵣ WInt 0
+            ∗ (i, r_t9) ↦ᵣ WInt 0
             ∗ (i, r_t6) ↦ᵣ WInt 0
             ∗ (i, r_t7) ↦ᵣ WInt 0
             ∗ (i, r_t8) ↦ᵣ WInt 0
@@ -496,7 +496,7 @@ Section SimpleMalloc.
        ∗ ▷ (([∗ map] r↦w ∈ <[(i, r_t2) := WInt 0%Z]>
                (<[(i, r_t3) := WInt 0%Z]>
                   (<[(i, r_t4) := WInt 0%Z]>
-                     (<[(i, r_t5) := WInt 0%Z]>
+                     (<[(i, r_t9) := WInt 0%Z]>
                         (<[(i, r_t6) := WInt 0%Z]>
                            (<[(i, r_t7) := WInt 0%Z]>
                               (<[(i, r_t8) := WInt 0%Z]> rmap)))))), r ↦ᵣ w)
@@ -523,7 +523,7 @@ Section SimpleMalloc.
     assert (is_Some (rmap !! (i, r_t4))) as [r4w Hr4w].
     { rewrite elem_of_gmap_dom Hrmap_dom.
       apply elem_of_difference. set_solver+. }
-    assert (is_Some (rmap !! (i, r_t5))) as [r5w Hr5w].
+    assert (is_Some (rmap !! (i, r_t9))) as [r5w Hr5w].
     { rewrite elem_of_gmap_dom Hrmap_dom.
       apply elem_of_difference. set_solver+. }
     assert (is_Some (rmap !! (i, r_t6))) as [r6w Hr6w].
@@ -543,7 +543,7 @@ Section SimpleMalloc.
       by rewrite lookup_delete_ne //.
     iDestruct (big_sepM_delete _ _ (i, r_t4) with "Hrmap") as "[Hr4 Hrmap]".
       by rewrite !lookup_delete_ne //.
-    iDestruct (big_sepM_delete _ _ (i, r_t5) with "Hrmap") as "[Hr5 Hrmap]".
+    iDestruct (big_sepM_delete _ _ (i, r_t9) with "Hrmap") as "[Hr5 Hrmap]".
       by rewrite !lookup_delete_ne //.
     iDestruct (big_sepM_delete _ _ (i, r_t6) with "Hrmap") as "[Hr6 Hrmap]".
       by rewrite !lookup_delete_ne //.
@@ -644,7 +644,7 @@ Section SimpleMalloc.
     ; iClear "Hinv_pre'".
 
     iAssert ( inv N (codefrag b_spin
-                       (acquire_spinlock_instrs r_t5 r_t6 r_t7 r_t8)))
+                       (acquire_spinlock_instrs r_t9 r_t6 r_t7 r_t8)))
               as "Hinv_spin"
     ; first iFrame "#"
     ; iClear "Hinv_spin'".
@@ -656,7 +656,7 @@ Section SimpleMalloc.
     ; iClear "Hinv_post'".
 
 
-    iAssert ( inv N (codefrag b_release (release_spinlock_instrs r_t5)))
+    iAssert ( inv N (codefrag b_release (release_spinlock_instrs r_t9)))
               as "Hinv_release"
     ; first iFrame "#"
     ; iClear "Hinv_release'".
@@ -734,7 +734,7 @@ Section SimpleMalloc.
 
 
     (** ====== Spinlock ====== *)
-    iApply (spinlock_spec i _ _ _ _ r_t5 r_t6 r_t7 r_t8 with
+    iApply (spinlock_spec i _ _ _ _ r_t9 r_t6 r_t7 r_t8 with
              "[-$HPC $Hr5 $Hr6 $Hr7 $Hr8]")
     ;[ apply ExecPCPerm_RX
        |.. ].
@@ -796,7 +796,7 @@ Section SimpleMalloc.
                ; iFrame).
       iDestruct (inv_split_l with "Hinv1") as "Hinv2".
       iClear "Hinv" ; iClear "Hinv1" ; clear -P2.
-      assert (P2 =  codefrag (b ^+ malloc_pre_length)%a (acquire_spinlock_instrs r_t5 r_t6 r_t7 r_t8)).
+      assert (P2 =  codefrag (b ^+ malloc_pre_length)%a (acquire_spinlock_instrs r_t9 r_t6 r_t7 r_t8)).
       { subst P2. rewrite /codefrag /acquire_spinlock_length /=.
         done. }
       rewrite H3.
@@ -851,7 +851,7 @@ Section SimpleMalloc.
       as "[Hmem_fresh Hmem]".
     solve_addr. by rewrite replicate_length //.
 
-    iApply (release_spec i _ _ _ _ r_t5 _ _ _ _ _ N E γ _
+    iApply (release_spec i _ _ _ _ r_t9 _ _ _ _ _ N E γ _
              with "[-$HPC $Hlocked $Hr5]") ; auto.
     { apply ExecPCPerm_RX. }
     { subst b_post b_spin ; rewrite /malloc_post_length /malloc_pre_length /acquire_spinlock_length.
@@ -934,7 +934,7 @@ Section SimpleMalloc.
                ; iFrame).
       iDestruct (inv_split_l with "Hinv1") as "Hinv2".
       iClear "Hinv" ; iClear "Hinv1" ; clear -P4.
-      assert (P4 =  codefrag (b_post ^+ malloc_post_length)%a (release_spinlock_instrs r_t5)).
+      assert (P4 =  codefrag (b_post ^+ malloc_post_length)%a (release_spinlock_instrs r_t9)).
       { subst P4.
         subst b_clear b_release b_post b_spin.
         rewrite /codefrag /acquire_spinlock_length /malloc_post_length
@@ -1009,7 +1009,7 @@ Section SimpleMalloc.
         rewrite insert_delete.
         do 2 (rewrite (insert_commute _ (i, r_t6) _) ; last simplify_pair_eq).
         rewrite insert_delete.
-        do 3 (rewrite (insert_commute _ (i, r_t5) _) ; last simplify_pair_eq).
+        do 3 (rewrite (insert_commute _ (i, r_t9) _) ; last simplify_pair_eq).
         rewrite insert_delete.
         do 4 (rewrite (insert_commute _ (i, r_t4) _) ; last simplify_pair_eq).
         rewrite insert_delete.
@@ -1020,7 +1020,7 @@ Section SimpleMalloc.
         do 6 (rewrite (insert_commute _ (i, r_t8) _) ; last simplify_pair_eq).
         do 5 (rewrite (insert_commute _ (i, r_t7) _) ; last simplify_pair_eq).
         do 4 (rewrite (insert_commute _ (i, r_t6) _) ; last simplify_pair_eq).
-        do 3 (rewrite (insert_commute _ (i, r_t5) _) ; last simplify_pair_eq).
+        do 3 (rewrite (insert_commute _ (i, r_t9) _) ; last simplify_pair_eq).
         do 2 (rewrite (insert_commute _ (i, r_t4) _) ; last simplify_pair_eq).
         rewrite (insert_commute _ (i, r_t3) _) ; last simplify_pair_eq.
         iFrame. }
@@ -1090,7 +1090,7 @@ Section SimpleMalloc.
     destruct (decide (r' = (i, r_t4))).
     { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
       simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = (i, r_t5))).
+    destruct (decide (r' = (i, r_t9))).
     { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
       simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
     destruct (decide (r' = (i, r_t6))).
