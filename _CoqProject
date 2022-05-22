@@ -125,5 +125,6 @@ theories/examples/buffer.v
 theories/examples/shared_buffer.v
 theories/examples/buffer_isolation.v
 theories/examples/static_spinlock.v
+theories/examples/concurrent_alloc.v
 # theories/examples/minimal_counter.v
 # theories/examples/ocpl_lowval_like.v
