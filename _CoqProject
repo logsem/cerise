@@ -99,6 +99,7 @@ theories/examples/macros.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v
 theories/examples/template_adequacy_concurrency.v
+theories/examples/template_adequacy_concurrency_ocpl.v
 # theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
 # theories/examples/call.v
