@@ -7,6 +7,7 @@ From cap_machine.examples Require Export mkregion_helpers
   disjoint_regions_tactics contiguous.
 From cap_machine Require Import safe_malloc macros.
 From cap_machine.examples Require Export template_adequacy_concurrency.
+From cap_machine.examples Require Import template_adequacy_concurrency_ocpl.
 From iris.program_logic Require Import adequacy.
 Open Scope Z_scope.
 
@@ -105,7 +106,7 @@ Section concurrent_alloc.
     (a_link + f_a)%a = Some assert_entry →
 
     dom (gset (CoreN *RegName)) rmap =
-      (set_map (fun r1 => (i, r1)) all_registers_s) ∖ {[ (i, PC)]} →
+      (all_registers_s_core i) ∖ {[ (i, PC)]} →
     ↑c_mallocN ⊆ EN ->
 
     ⊢ ( mallocN_inv b_m e_m γ

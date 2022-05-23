@@ -218,7 +218,7 @@ Section fundamental.
   Lemma jmp_to_unknown w :
     ⊢ interp w -∗
       ▷ (∀ (i: CoreN) rmap,
-          ⌜dom (gset (CoreN*RegName)) rmap = (set_map (fun r=> (i,r)) all_registers_s) ∖ {[ (i, PC) ]}⌝ →
+          ⌜dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
           (i, PC) ↦ᵣ updatePcPerm w
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           -∗ WP (i, Seq (Instr Executable)) {{ λ v, ⌜v = (i, HaltedV)⌝ →
@@ -246,6 +246,7 @@ Section fundamental.
         intro contra.
         apply elem_of_difference in contra.
         destruct contra as [contra _].
+        rewrite /all_registers_s_core in contra.
         apply elem_of_map_1 in contra.
         destruct contra as (? & contra & ?).
         clear -Hneq contra ; simplify_eq.
@@ -261,6 +262,7 @@ Section fundamental.
       intro contra.
       apply elem_of_difference in contra.
       destruct contra as [contra _].
+      rewrite /all_registers_s_core in contra.
       apply elem_of_map_1 in contra.
       destruct contra as (? & contra & ?).
       clear -Hneq contra ; simplify_eq.
@@ -305,7 +307,7 @@ Section fundamental.
     p = RX \/ p = RWX ->
     ⊢ interp (WCap p b e a) -∗
       ∀ (i: CoreN) rmap,
-          ⌜dom (gset (CoreN*RegName)) rmap = (set_map (fun r=> (i,r)) all_registers_s) ∖ {[ (i, PC) ]}⌝ →
+          ⌜dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
           (i, PC) ↦ᵣ updatePcPerm (WCap p b e a)
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           -∗ WP (i, Seq (Instr Executable)) {{ λ v, ⌜v = (i, HaltedV)⌝ →
@@ -332,6 +334,7 @@ Section fundamental.
         intro contra.
         apply elem_of_difference in contra.
         destruct contra as [contra _].
+        rewrite /all_registers_s_core in contra.
         apply elem_of_map_1 in contra.
         destruct contra as (? & contra & ?).
         clear -Hneq contra ; simplify_eq.
@@ -347,6 +350,7 @@ Section fundamental.
       intro contra.
       apply elem_of_difference in contra.
       destruct contra as [contra _].
+      rewrite /all_registers_s_core in contra.
       apply elem_of_map_1 in contra.
       destruct contra as (? & contra & ?).
       clear -Hneq contra ; simplify_eq.

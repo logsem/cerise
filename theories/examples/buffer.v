@@ -150,8 +150,8 @@ Section adequacy.
     prog_instrs P = buffer_code (prog_start P) ++ buffer_data →
 
     (* Initial state *)
-    is_initial_registers_with_adv P Adv r_t0 reg i ->
-    is_initial_memory [P;Adv] [] m ->
+    with_adv.is_initial_registers_with_adv P Adv r_t0 reg i ->
+    with_adv.is_initial_memory [P;Adv] [] m ->
 
     (* The invariant holds on the initial memory *)
     mem_inv m (prog_start P) ->
@@ -187,7 +187,7 @@ Section adequacy.
     by apply Hmem.
     cbn.
     iDestruct (big_sepM_union with "Hmem") as "[Hprog Hmem]".
-    { rewrite /is_initial_memory in Hmem.
+    { rewrite /with_adv.is_initial_memory in Hmem.
       destruct Hmem as (_ & Hmem)
       ; rewrite /disjoint_list_map /= in Hmem
       ; destruct Hmem as (?&_&_).

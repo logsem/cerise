@@ -271,7 +271,7 @@ Section shared_buffer.
     (b_adv + length adv)%a = Some e_adv →
 
     dom (gset (CoreN*RegName)) rmap =
-      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]} →
+      (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
 
     ⊢ (  (i, PC) ↦ᵣ WCap p b e a_first
          ∗ (i, r_t0) ↦ᵣ WCap RWX b_adv e_adv b_adv
@@ -358,7 +358,7 @@ Section shared_buffer.
 
 
     dom (gset (CoreN*RegName)) rmap =
-      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]} →
+      (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
 
     ⊢ (  (i, PC) ↦ᵣ WCap p b e a_first
          ∗ (i, r_t0) ↦ᵣ WCap RWX b_adv e_adv b_adv
@@ -470,9 +470,9 @@ Section adequacy.
     prog_instrs SB = shared_buffer ->
 
     (* Initial state *)
-    is_initial_registers_with_adv P1 Adv1 r_t0 reg i ->
-    is_initial_registers_with_adv P2 Adv2 r_t0 reg j ->
-    is_initial_memory [P1;P2;Adv1;Adv2;SB] [] m ->
+    with_adv.is_initial_registers_with_adv P1 Adv1 r_t0 reg i ->
+    with_adv.is_initial_registers_with_adv P2 Adv2 r_t0 reg j ->
+    with_adv.is_initial_memory [P1;P2;Adv1;Adv2;SB] [] m ->
 
     (* The invariant holds on the initial memory *)
     mem_inv m b_buf ->
@@ -508,7 +508,7 @@ Section adequacy.
     iDestruct (big_sepM_subseteq with "Hmem") as "Hmem".
     by apply Hmem.
     iDestruct (big_sepM_union with "Hmem") as "[Hprog1 Hmem]".
-    { rewrite /is_initial_memory in Hmem.
+    { rewrite /with_adv.is_initial_memory in Hmem.
       destruct Hmem as (_ & Hmem)
       ; rewrite /disjoint_list_map /= in Hmem
       ; destruct Hmem as (?&?&?&?&?).
@@ -516,7 +516,7 @@ Section adequacy.
       ; auto.
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hprog2 Hmem]".
-    { rewrite /is_initial_memory in Hmem.
+    { rewrite /with_adv.is_initial_memory in Hmem.
       destruct Hmem as (_ & Hmem)
       ; rewrite /disjoint_list_map /= in Hmem
       ; destruct Hmem as (?&?&?&?&?).
@@ -524,7 +524,7 @@ Section adequacy.
       ; auto.
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hadv1 Hmem]".
-    { rewrite /is_initial_memory in Hmem.
+    { rewrite /with_adv.is_initial_memory in Hmem.
       destruct Hmem as (_ & Hmem)
       ; rewrite /disjoint_list_map /= in Hmem
       ; destruct Hmem as (?&?&?&?&?).
@@ -532,7 +532,7 @@ Section adequacy.
       ; auto.
     }
     iDestruct (big_sepM_union with "Hmem") as "[Hadv2 Hmem]".
-    { rewrite /is_initial_memory in Hmem.
+    { rewrite /with_adv.is_initial_memory in Hmem.
       destruct Hmem as (_ & Hmem)
       ; rewrite /disjoint_list_map /= in Hmem
       ; destruct Hmem as (?&?&?&?&?).
@@ -619,15 +619,11 @@ Section adequacy.
          - the registers for i
          - the registers for j
        *)
-      rewrite /is_initial_registers in Hreg1, Hreg2.
+      rewrite /with_adv.is_initial_registers in Hreg1, Hreg2.
       destruct Hreg1 as ((Hreg1_some & Hreg1_dom & Hreg1_valid) & Hreg1_adv & Hneq1).
       destruct Hreg2 as ((Hreg2_some & Hreg2_dom & Hreg2_valid) & Hreg2_adv & Hneq2).
-      set (rmap_i := @set_map _ _ _ _ _ _ _
-                       (@gset_union (CoreN * RegName) _ _)
-                       (fun r : RegName => (i,r)) all_registers_s).
-      set (rmap_j := @set_map _ _ _ _ _ _ _
-                       (@gset_union (CoreN * RegName) _ _)
-                       (fun r : RegName => (j,r)) all_registers_s).
+      set (rmap_i := all_registers_s_core i).
+      set (rmap_j := all_registers_s_core j).
       set (Pi:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = i )).
       set (Pj:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = j )).
       set (NPi := (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) ≠ i )).
@@ -651,6 +647,7 @@ Section adequacy.
         intros.
         split; intros.
         { destruct i0.
+          rewrite /all_registers_s_core in H0.
           apply elem_of_map_1 in H0.
           destruct H0 as (? & ? & ?). inversion H0 ; subst.
           destruct (decide (x = PC)) as [->|Hx] ; subst.
@@ -670,6 +667,7 @@ Section adequacy.
         { destruct H0 as (w & Hfilter & core_i0).
           destruct i0.
           cbn in core_i0. subst c.
+          rewrite /all_registers_s_core.
           apply elem_of_map_2.
           apply all_registers_s_correct.
         }
@@ -746,7 +744,7 @@ Section adequacy.
       assumption.
       apply (prog_size Adv1).
       { rewrite !dom_delete_L.
-        set (X := set_map (λ r : RegName, (i, r)) all_registers_s).
+        set (X := all_registers_s_core i).
         rewrite - !difference_difference_L.
         replace ( dom (gset (CoreN * RegName)) (filter Pi reg)) with X by set_solver.
         set_solver.
@@ -810,8 +808,11 @@ Section adequacy.
         assumption.
         apply (prog_size Adv2).
         { rewrite !dom_delete_L.
-          set (X := set_map (λ r : RegName, (j, r)) all_registers_s).
+          set (X := all_registers_s_core j).
           rewrite - !difference_difference_L.
+          rewrite /all_registers_s_core.
+          unfold all_registers_s_core in X.
+          
           replace ( dom (gset (CoreN * RegName)) (filter Pj regs_ni)) with X by set_solver.
           set_solver.
         }
@@ -835,17 +836,7 @@ Section adequacy.
     ; assumption.
 
       Unshelve.
-      apply gmap_fmap.
-      apply gmap_omap.
-      apply gmap_merge.
-      solve_decision.
-      apply gset_empty.
-      apply gset_singleton.
-      apply gset_union.
-      apply gset_intersection.
-      apply gset_difference.
-      apply gset_dom_spec.
-      apply gset_leibniz.
+      all: typeclasses eauto.
   Qed.
 
 End adequacy.

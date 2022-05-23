@@ -307,7 +307,7 @@ Section macros.
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
     dom (gset (CoreN * RegName)) rmap =
-      ((set_map (fun r=> (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]}) →
+      (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
 
@@ -498,7 +498,7 @@ Section macros.
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
     dom (gset (CoreN * RegName)) rmap =
-      ((set_map (fun r=> (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ]}) →
+      (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
 

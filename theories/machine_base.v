@@ -581,13 +581,17 @@ Proof.
   intros i. destruct i; simpl; done.
 Defined.
 
+(* Set of all registers of core i *)
+Definition all_registers_s_core (i:CoreN) : gset (CoreN * RegName)
+  := set_map (fun r => (i,r)) all_registers_s.
 
 Lemma regmap_full_dom_i {A} (r : gmap (CoreN*RegName) A) (i : CoreN) :
   (∀ x : RegName, is_Some (r !! (i, x)) ∧ (∀ j : CoreN, i ≠ j → r !! (j, x) = None))
-  -> dom (gset (CoreN * RegName)) r = set_map (λ r0 : RegName, (i, r0)) all_registers_s.
+  -> dom (gset (CoreN * RegName)) r = all_registers_s_core i.
 Proof.
   intros Hfull.
   apply forall_and_distr in Hfull.
+  rewrite /all_registers_s_core.
   destruct Hfull as [Hfull Hnone].
   apply (anti_symm _); rewrite elem_of_subseteq.
   - intros rr Hr. (* apply all_registers_s_correct. *)

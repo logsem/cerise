@@ -106,7 +106,7 @@ Section SimpleMalloc.
   Definition offset_bm : Z :=
     Eval cbv in (malloc_subroutine_instrs_length).
 
-  Definition malloc_subroutine_instrs (offset_lock : Z) :=
+  Definition malloc_subroutine_instrs :=
     malloc_subroutine_instrs' offset_bm.
 
   (* NOTE : we begin the specification at (a_pre + 1), because we to do
@@ -466,7 +466,7 @@ Section SimpleMalloc.
 
   Definition malloc_inv (b e : Addr) γ : iProp Σ :=
     let b_m := (b ^+ malloc_subroutine_instrs_length)%a in
-    (codefrag b (malloc_subroutine_instrs e)
+    (codefrag b malloc_subroutine_instrs
      ∗ b_m ↦ₐ WCap RWX b e (b_m ^+1)%a
      ∗ ⌜(b + malloc_subroutine_instrs_length)%a = Some b_m /\ ((b_m ^+ 2)%a < e)%a ⌝
      ∗ is_lock γ (b_m ^+1)%a
@@ -485,7 +485,7 @@ Section SimpleMalloc.
     (φ : language.val cap_lang → iProp Σ) :
 
     dom (gset (CoreN*RegName)) rmap =
-      (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0) ; (i, r_t1) ]} →
+      (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ; (i, r_t1) ]} →
 
     ↑N ⊆ E →
     (  inv N (malloc_inv b e γ)

@@ -84,7 +84,7 @@ Definition init_cores : list cap_lang.expr :=
 Definition core_zero := (finz.FinZ 0
                            all_cores_obligation_1
                            all_cores_obligation_2).
-
+Module with_adv.
 Definition is_initial_memory
   (mem_frags : list prog) (adv_frags : list adv_prog) (m: gmap Addr Word) :=
   let prog_list := map (fun f => prog_region f) mem_frags in
@@ -111,3 +111,4 @@ Definition is_initial_registers_adv
   ∧ dom (gset (CoreN*RegName)) reg ⊆ (set_map (fun r => (i,r)) all_registers_s)
   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                      ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
+End with_adv.
