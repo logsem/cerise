@@ -170,3 +170,42 @@ Proof.
     iDestruct "H" as "[? ?]".
     iFrame. iApply IHl. solve_addr. iFrame. }
 Qed.
+
+
+Lemma mkregion_lookup_none (b e a : Addr) (l : list Word) :
+  (finz.lt a b)%a \/ (e <= a)%a -> mkregion b e l !! a = None.
+Proof.
+  intros [].
+  all :
+  apply not_elem_of_list_to_map
+  ; intro contra
+  ; apply fst_elem_of_cons in contra
+  ; (apply not_elem_of_finz_seq_between in contra ; first done)
+  ; solve_addr.
+Qed.
+
+
+Lemma mkregion_disjoints b1 e1 a1 b2 e2 a2 :
+  (e1 <= b2)%a ->
+  mkregion b1 e1 a1 ##ₘ mkregion b2 e2 a2.
+Proof.
+  generalize dependent b1.
+  generalize dependent e1.
+  generalize dependent b2.
+  generalize dependent e2.
+  induction a1 as [| x l] ; intros.
+  - rewrite /mkregion /=.
+    rewrite zip_with_nil_r /=.
+    apply map_disjoint_empty_l.
+  - rewrite /mkregion /=.
+    destruct ( decide (b1 < e1 )%a).
+    rewrite finz_seq_between_cons ; last auto.
+    simpl.
+    apply map_disjoint_insert_l_2.
+    2: { apply IHl ; eauto. }
+    apply mkregion_lookup_none ; solve_addr.
+    rewrite finz_seq_between_empty.
+    cbn.
+    apply map_disjoint_empty_l.
+    solve_addr.
+Qed.
