@@ -620,8 +620,8 @@ Section adequacy.
          - the registers for j
        *)
       rewrite /with_adv.is_initial_registers in Hreg1, Hreg2.
-      destruct Hreg1 as ((Hreg1_some & Hreg1_dom & Hreg1_valid) & Hreg1_adv & Hneq1).
-      destruct Hreg2 as ((Hreg2_some & Hreg2_dom & Hreg2_valid) & Hreg2_adv & Hneq2).
+      destruct Hreg1 as ((Hreg1_some & Hreg1_valid) & Hreg1_adv & Hneq1).
+      destruct Hreg2 as ((Hreg2_some & Hreg2_valid) & Hreg2_adv & Hneq2).
       set (rmap_i := all_registers_s_core i).
       set (rmap_j := all_registers_s_core j).
       set (Pi:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = i )).

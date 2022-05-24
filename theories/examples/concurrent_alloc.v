@@ -842,9 +842,8 @@ Proof.
          - the registers for j
        *)
       rewrite /with_lib.is_initial_registers in Hreg, Hreg_adv.
-      destruct Hreg as (Hreg1_some & Hreg1_dom & Hreg1_valid).
-      destruct Hreg_adv as (Hreg2_some & Hreg2_dom & Hreg2_valid).
-      (* clear Hreg1_dom Hreg2_dom. *)
+      destruct Hreg as (Hreg1_some & Hreg1_valid).
+      destruct Hreg_adv as (Hreg2_some & Hreg2_valid).
 
       set (rmap_i := all_registers_s_core i).
       set (rmap_j := all_registers_s_core j).

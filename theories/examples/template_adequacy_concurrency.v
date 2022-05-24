@@ -95,7 +95,6 @@ Definition is_initial_memory
 Definition is_initial_registers
   (P : prog) (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
   reg !! (i, PC) = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P))  (* PC *)
-  ∧ dom (gset (CoreN*RegName)) reg ⊆ (set_map (fun r => (i,r)) all_registers_s)
   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                      ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 
@@ -108,7 +107,6 @@ Definition is_initial_registers_with_adv
 Definition is_initial_registers_adv
   (P : adv_prog) (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
   reg !! (i, PC) = Some (WCap RWX (adv_start P) (adv_end P) (adv_start P))  (* PC *)
-  ∧ dom (gset (CoreN*RegName)) reg ⊆ (set_map (fun r => (i,r)) all_registers_s)
   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                      ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 End with_adv.
@@ -188,14 +186,12 @@ Module with_lib.
   Definition is_initial_registers
     (P : prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P))
-    ∧ dom (gset (CoreN*RegName)) reg ⊆ (all_registers_s_core i) (* TODO do I need this hyp ? *)
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
   
   Definition is_initial_registers_adv (Adv: prog) (Lib : lib)
     (Adv_tbl : tbl_pub Adv Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv))
-    ∧ dom (gset (CoreN*RegName)) reg ⊆ (all_registers_s_core i) (* TODO do I need this hyp ? *)
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 
@@ -220,7 +216,7 @@ Module with_lib.
     is_initial_registers P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).
   Proof.
-    intros (HPC & Hdom & Hothers) r.
+    intros (HPC & Hothers) r.
     destruct (decide (r = PC)) as [->|]. by eauto.
     destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
   Qed.
@@ -230,7 +226,7 @@ Module with_lib.
     is_initial_registers_adv P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).
   Proof.
-    intros (HPC & Hdom & Hothers) r.
+    intros (HPC & Hothers) r.
     destruct (decide (r = PC)) as [->|]. by eauto.
     destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
   Qed.
