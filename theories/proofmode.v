@@ -653,8 +653,8 @@ Tactic Notation "solve_length_seq" "by" tactic3(solve_a) :=
 
 Ltac solve_dist_finz :=
   match goal with
-  | h: _ |- ?n = finz.dist _ _
-    => symmetry
+  | h: _ |- ?n = finz.dist _ _ => symmetry
+  | h: _ |- finz.dist _ _ = ?n=> idtac
   end
   ; match goal with
     | h: _ |- finz.dist ?b (?b^+?n)%a = ?n' =>

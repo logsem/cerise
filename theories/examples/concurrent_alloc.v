@@ -306,7 +306,7 @@ Class memory_layout `{MachineParameters} := {
     = Some l_malloc_memptr;
 
   l_malloc_memptr_size :
-    (l_malloc_memptr + 1)%a = Some l_malloc_mem_start;
+    (l_malloc_memptr + 3)%a = Some l_malloc_mem_start;
 
   l_malloc_mem_size :
     (l_malloc_mem_start <= l_malloc_end)%a;
@@ -430,6 +430,8 @@ Next Obligation.
   disjoint_map_to_list. set_solver.
 Qed.
 
+
+
 Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
   `{static_spinlock.lockG Σ, MP: MachineParameters}.
 
@@ -438,9 +440,9 @@ Definition assertInv (layout : ocpl_library) :=
 Definition mallocInv (layout : ocpl_library) γ :=
   malloc_inv (malloc_start layout) (malloc_end layout) γ.
 
+
 Context {mem_layout:memory_layout}.
 Lemma alloc_correct (i : CoreN) γ:
-  Forall (λ w, is_cap w = false) adv_instrs →
   (∀ (rmap : (gmap (CoreN*RegName) Word)) ,
       dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
     ⊢
@@ -454,14 +456,13 @@ Lemma alloc_correct (i : CoreN) γ:
        ∗ (prog_lower_bound alloc_table) ↦ₐ (WCap RO (tbl_start alloc_table) (tbl_end alloc_table) (tbl_start alloc_table))
        ∗ ([∗ map] a↦w ∈ (tbl_region alloc_table), a ↦ₐ w)
        ∗ ([∗ map] a↦w ∈ (prog_region alloc_prog), a ↦ₐ w)
-     -∗ WP (i, Seq (Instr Executable)) {{ v, True ∨ ⌜v = (i, FailedV)⌝ }}%I).
+     -∗ WP (i, Seq (Instr Executable)) {{ fun _ => True }}%I).
 Proof.
-  iIntros (Hints rmap Hdom) "(#Hinv & #Hmalloc & #Hassert & HPC & Hrmap & Hlink & Htable & Hprog)".
-
+  iIntros (rmap Hdom) "(#Hinv & #Hmalloc & #Hassert & HPC & Hrmap & Hlink & Htable & Hprog)".
   iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap #Hrmapvalid]".
   simpl.
 
-  (* setting up read only example program *)
+  (* setting up example program *)
   iAssert (check_alloc_instrs (finz.seq_between f_start f_end) 0 1) with "[Hprog] "as "Hprog".
   { rewrite /check_alloc_instrs /prog_region /= /mkregion.
     iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
@@ -483,24 +484,111 @@ Proof.
   iDestruct (simple_malloc_subroutine_valid with "[$Hmalloc]") as "#Hmalloc_val" .
   rewrite /mallocInv /assertInv.
 
-  iApply (prog_malloc_spec with
-           "[- $Hmalloc $Hassert $Hlink $Hlink_table_start $Hlink_table_mid $Hprog $HPC $Hrmap]");auto.
-  apply ExecPCPerm_RWX.
-  instantiate (1:=f_end).
-  { split;auto
-    ; pose proof (f_region_start_offset) as HH
-    ; pose proof (f_size) as HH2.
-    solve_addr+HH.
-    split; solve_addr+HH2. }
-  { apply contiguous_between_of_region_addrs;auto. pose proof (f_size) as HH. solve_addr+HH. }
-  { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
-  { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
-  { solve_addr. }
+
+
+  iApply (wp_wand with "[-]").
+  - iApply (prog_malloc_spec with
+             "[- $Hmalloc $Hassert $Hlink $Hlink_table_start $Hlink_table_mid $Hprog $HPC $Hrmap]");auto.
+    apply ExecPCPerm_RWX.
+    instantiate (1:=f_end).
+    { split;auto
+      ; pose proof (f_region_start_offset) as HH
+      ; pose proof (f_size) as HH2.
+      solve_addr+HH.
+      split; solve_addr+HH2. }
+    { apply contiguous_between_of_region_addrs;auto. pose proof (f_size) as HH. solve_addr+HH. }
+    { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
+    { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
+    { solve_addr. }
+  - by iIntros.
 Qed.
 
+Lemma adv_correct (i: CoreN) γ :
+  Forall (λ w, is_cap w = false) adv_instrs →
+  (∀ (rmap : (gmap (CoreN*RegName) Word)) ,
+     dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
+     ⊢ inv mallocN (mallocInv layout γ)
+       ∗ (i, PC) ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+
+       (* P program and table *)
+       ∗ (prog_lower_bound adv_table) ↦ₐ (WCap RO (tbl_start adv_table) (tbl_end adv_table) (tbl_start adv_table))
+       ∗ ([∗ map] a↦w ∈ (tbl_region adv_table), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region adv_prog), a ↦ₐ w)
+       -∗ WP (i, Seq (Instr Executable)) {{ fun _ => True }}%I).
+Proof.
+  iIntros (Hints rmap Hdom) "(#Hmalloc & HPC & Hrmap & Hlink & Htable & Hprog)".
+  iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap #Hrmapvalid]".
+  simpl.
+
+
+  (* cleaning up the environment tables *)
+  rewrite /tbl_region /mkregion /=.
+  pose proof adv_link_table_size as Hsize_adv.
+  rewrite finz_seq_between_singleton /=;[|solve_addr +Hsize_adv].
+    iDestruct (big_sepM_insert with "Htable") as "[Hadv_link_table_start _]";auto.
+
+  (* determine malloc validity *)
+  iDestruct (simple_malloc_subroutine_valid with "[$Hmalloc]") as "#Hmalloc_val".
+
+
+  (* allocate adversary table *)
+  iMod (inv_alloc (logN .@ adv_link_table_start) ⊤ (interp_ref_inv adv_link_table_start interp)
+         with "[Hadv_link_table_start]") as "#Hadv_table_valid".
+  { iNext. iExists _; iFrame; auto. }
+
+  (* allocate validity of adversary *)
+  pose proof adv_size as Hadv_size'.
+  pose proof adv_region_start_offset as Hadv_region_offset.
+  iDestruct (big_sepM_to_big_sepL2 with "Hprog") as "Hadv". apply finz_seq_between_NoDup.
+  rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
+  iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hlink]") as "#Hadv".
+  { rewrite (finz_seq_between_cons adv_region_start);
+      [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
+    iFrame. iSplit.
+    { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
+      rewrite finz_seq_between_singleton /= ; last solve_addr.
+      iSplit;[|done].
+      iExists interp. iFrame "Hadv_table_valid". auto. }
+    iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
+    rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
+    iApply big_sepL_forall. iIntros (k n Hin).
+    revert Hints; rewrite Forall_forall =>Hints.
+    assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
+    iApply fixpoint_interp1_eq;eauto. }
+
+  iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
+  { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
+    iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
+    { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
+    iApply (big_sepL_mono with "Hadv'").
+    iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
+
+  iDestruct (jmp_to_unknown_adv with "Hadv_valid") as "#Hcont"; first by right.
+
+  iDestruct (big_sepM_sep with "[$Hrmap $Hrmapvalid]") as "Hrmap".
+  iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+  { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]".
+    iFrame. destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
+
+  iApply (wp_wand with "[-]").
+  { iApply "Hcont" ; cycle 1. iFrame. iPureIntro. assumption. }
+    eauto.
+Qed.
+End adequacy.
+
+
+Section adequacy.
+
+Context (Σ: gFunctors).
+Context {inv_preg: invPreG Σ}.
+Context {mem_preg: gen_heapPreG Addr Word Σ}.
+Context {reg_preg: gen_heapPreG (CoreN * RegName) Word Σ}.
+Context `{static_spinlock.lockG Σ, MP: MachineParameters}.
+Context {mem_layout:memory_layout}.
 
 Theorem alloc_adequacy
-    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr) (γ : gname) (i j : CoreN):
+    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr) (i j : CoreN):
 
 
   (* Machine with 2 cores identified by {0, 1} *)
@@ -530,6 +618,8 @@ Proof.
 
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    pose memg := MemG Σ Hinv mem_heapg.
+    pose regg := RegG Σ Hinv reg_heapg.
 
     iExists NotStuck.
     iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
@@ -542,22 +632,24 @@ Proof.
 
     (* Split the memory *)
     iDestruct (big_sepM_subseteq with "Hmem") as "Hmem".
-    Unshelve. 3: { exact (prog_tbl_region alloc_prog alloc_table
-                            ∪ prog_tbl_region adv_prog adv_table
-                            ∪ lib_region (pub_libs OCPLLibrary ++ priv_libs OCPLLibrary)
-                     ). }
-    { destruct Hmem as (? & ? & ? & _).
-      admit. }
+    by apply Hmem.
     iDestruct (big_sepM_union with "Hmem") as "[Hmem_prog Hmem_lib]".
-    { cbn ; destruct Hmem as (?&?&?&?&?&?&?); eauto.
-      rewrite /lib_region /= in H3,H4,H5,H6. eauto.
-      admit.
+    { cbn ; destruct Hmem as (?&?&?&?&?); eauto.
+      rewrite /lib_region /= in H1,H2,H3,H4. eauto.
+      rewrite map_union_empty.
+      rewrite !map_union_empty in H2,H3,H4.
+      apply map_disjoint_union_r in H2 ;destruct H2.
+      apply map_disjoint_union_r in H3 ;destruct H3.
+      apply map_disjoint_union_l_2
+      ; apply map_disjoint_sym
+      ; apply map_disjoint_union_l_2
+      ; eauto.
     }
     iDestruct (big_sepM_union with "Hmem_prog") as "[Hmem_alloc Hmem_adv]".
-    { cbn. destruct Hmem as (?&?&?&?&?&?&?); eauto. }
+    { cbn. destruct Hmem as (?&?&?&?&?); eauto. }
     iDestruct (big_sepM_union with "Hmem_lib") as "[Hmem_lib_malloc Hmem_lib_assert]".
-    { cbn. destruct Hmem as (?&?&?&?&?&?&?); eauto.
-      by rewrite /lib_region /= map_union_empty in H6.
+    { cbn. destruct Hmem as (?&?&?&?&?); eauto.
+      by rewrite /lib_region /= map_union_empty in H4.
     }
     rewrite map_union_empty.
     cbn.
@@ -567,41 +659,120 @@ Proof.
 
 
 
+    iMod (@own_alloc _ (excl.exclR unitO) _ (excl.Excl ())) as (γ) "Hown" ; first done.
     (* Allocation of all the required invariants *)
     (* invariant malloc *)
     iMod (inv_alloc
             mallocN
             ⊤ (mallocInv layout γ)
-           with "[Hmem_lib_malloc]") as "#Hinv_malloc".
+           with "[Hmem_lib_malloc Hown]") as "#Hinv_malloc".
+
     { iNext. rewrite /mallocInv /malloc_inv.
       simpl.
-    iDestruct (big_sepM_union with "Hmem_lib_malloc") as "[Hmem_lib_malloc Hmalloc_mem_pool]".
-    { admit. }
-    iDestruct (big_sepM_union with "Hmem_lib_malloc") as "[Hmalloc_prog Hmalloc_cap]".
-    { admit. }
+
+      replace (l_malloc_start ^+ malloc_subroutine_instrs_length)%a
+        with l_malloc_memptr.
+      2 : { pose proof l_malloc_code_size.
+            rewrite /malloc_subroutine_instrs_length ; cbn in* ; solve_addr. }
+      iDestruct (big_sepM_union with "Hmem_lib_malloc") as
+        "[Hmem_lib_malloc Hmalloc_mem_pool]".
+      { pose proof (libs_disjoint layout) as Hdisjoint.
+        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
+        apply map_disjoint_union_l_2.
+        apply mkregion_disjoints.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_insert_l_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_insert_l_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_insert_l_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_empty_l.
+      }
+      iDestruct (big_sepM_union with "Hmem_lib_malloc") as "[Hmalloc_prog Hmalloc_caps]".
+      { clear.
+        apply map_disjoint_insert_r_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_insert_r_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_insert_r_2.
+        apply mkregion_lookup_none.
+        pose proof l_malloc_memptr_size ; solve_addr.
+        apply map_disjoint_empty_r. }
+      iDestruct (big_sepM_insert with "Hmalloc_caps") as "[Hmalloc_cap_lock Hmalloc_caps]".
+      { pose proof l_malloc_memptr_size.
+        do 2 (rewrite lookup_insert_ne ; last solve_addr).
+        by simplify_map_eq. }
+      iDestruct (big_sepM_insert with "Hmalloc_caps") as "[Hmalloc_lock Hmalloc_cap]".
+      { pose proof l_malloc_memptr_size.
+        rewrite lookup_insert_ne ; last solve_addr.
+        by simplify_map_eq. }
+      iDestruct (big_sepM_insert with "Hmalloc_cap") as "[Hmalloc_cap _]".
+      { set_solver. }
+
 
     iSplitL "Hmalloc_prog".
-    { admit. }
-    (* TODO the specification of malloc_library_content needs to be updated,
-       because it doesn't involve the lock *)
-    iSplitL "Hmalloc_cap".
-    { admit. }
+    { rewrite /codefrag /region_mapsto /mkregion.
+      iDestruct (big_sepM_to_big_sepL2 with "Hmalloc_prog") as "Hprog".
+      apply finz_seq_between_NoDup.
+      cbn.
+      rewrite finz_seq_between_length.
+      clear ; pose proof l_malloc_code_size.
+      cbn in *.
+      replace l_malloc_memptr with (l_malloc_start ^+ 41)%a by solve_addr.
+      solve_dist_finz.
+      replace (l_malloc_start ^+ length malloc_subroutine_instrs)%a
+        with l_malloc_memptr
+             by (pose proof l_malloc_code_size
+                 ; rewrite /malloc_subroutine_instrs_length ; cbn in*
+                 ; solve_addr).
+      iFrame.
+    }
+    iSplitL "Hmalloc_cap_lock".
+    { iFrame. }
     iSplitR.
-    { admit. }
+    { iPureIntro.
+      clear.
+      split.
+      pose proof l_malloc_code_size.
+      rewrite /malloc_subroutine_instrs_length ; cbn in* ; solve_addr.
+      pose proof l_malloc_mem_size.
+      pose proof l_malloc_memptr_size.
+      solve_addr. }
     rewrite /static_spinlock.is_lock.
-    iLeft.
-    iSplitR.
-    { admit. }
+    iLeft ; iFrame.
+    iExists l_malloc_mem_start.
+    iFrame.
     iSplitL.
-    { iExists _. admit. }
-    rewrite /static_spinlock.locked.
-    (* iMod (own_alloc _ _ (excl.Excl ())) as (γ) "Hld". ; first done. *)
-    admit.
+    { rewrite /region_mapsto /mkregion.
+      iDestruct (big_sepM_to_big_sepL2 with "Hmalloc_mem_pool") as "Hmem".
+      apply finz_seq_between_NoDup.
+      by rewrite /region_addrs_zeroes replicate_length finz_seq_between_length.
+      iFrame.
+    }
+    iPureIntro. clear.
+    pose proof l_malloc_memptr_size.
+    pose proof l_malloc_mem_size.
+    solve_addr.
     }
 
 
     iDestruct (big_sepM_union with "Hmem_lib_assert") as "[Hmem_assert Hmem_flag]".
-    { admit. }
+    { clear.
+      apply map_disjoint_union_l_2.
+      apply map_disjoint_insert_r_2 ; last apply map_disjoint_empty_r.
+      apply mkregion_lookup_none.
+      pose proof l_assert_cap_size ; solve_addr.
+      apply map_disjoint_insert_l_2 ; last apply map_disjoint_empty_l.
+      pose proof l_assert_cap_size.
+      rewrite lookup_insert_ne ; last solve_addr.
+      by simplify_map_eq.
+    }
     (* invariant flag *)
     iMod (inv_alloc
             flagN
@@ -620,7 +791,35 @@ Proof.
            with "[Hmem_assert]") as "#Hinv_assert".
     { iNext.
       rewrite /assertInv /assert_inv /=; simpl.
-      admit.
+    iDestruct (big_sepM_union with "Hmem_assert") as "[Hassert Hcap]".
+    { apply map_disjoint_insert_r_2 ; last apply map_disjoint_empty_r.
+      apply mkregion_lookup_none.
+      pose proof l_assert_cap_size ; solve_addr.
+    }
+    iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]".
+    { set_solver. }
+    iSplitL "Hassert".
+    { rewrite /codefrag /region_mapsto /mkregion.
+      iDestruct (big_sepM_to_big_sepL2 with "Hassert") as "Hprog".
+      apply finz_seq_between_NoDup.
+      cbn.
+      rewrite finz_seq_between_length.
+      clear ; pose proof l_assert_code_size.
+      cbn in *.
+      replace l_assert_cap with (l_assert_start ^+ 13)%a by solve_addr.
+      solve_dist_finz.
+      replace (l_assert_start ^+ length assert_subroutine_instrs)%a
+        with l_assert_cap
+             by (pose proof l_assert_code_size ; solve_addr ).
+      iFrame.
+    }
+    { iExists l_assert_cap.
+      pose proof l_assert_code_size.
+      pose proof l_assert_cap_size.
+      pose proof l_assert_flag_size.
+      cbn in H0.
+      iFrame "%∗".
+    }
     }
 
     iModIntro.
@@ -643,89 +842,244 @@ Proof.
          - the registers for j
        *)
       rewrite /with_lib.is_initial_registers in Hreg, Hreg_adv.
-      destruct Hreg as (Hreg1_some & Hreg1_valid).
-      destruct Hreg_adv as (Hreg2_some & Hreg2_valid).
-      set (rmap_i := @set_map _ _ _ _ _ _ _
-                       (@gset_union (CoreN * RegName) _ _)
-                       (fun r : RegName => (i,r)) all_registers_s).
-      set (rmap_j := @set_map _ _ _ _ _ _ _
-                       (@gset_union (CoreN * RegName) _ _)
-                       (fun r : RegName => (j,r)) all_registers_s).
+      destruct Hreg as (Hreg1_some & Hreg1_dom & Hreg1_valid).
+      destruct Hreg_adv as (Hreg2_some & Hreg2_dom & Hreg2_valid).
+      (* clear Hreg1_dom Hreg2_dom. *)
+
+      set (rmap_i := all_registers_s_core i).
+      set (rmap_j := all_registers_s_core j).
       set (Pi:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = i )).
       set (Pj:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = j )).
       set (NPi := (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) ≠ i )).
       set (NPj := (λ v : CoreN * RegName * Word, (¬ Pj v)%type)).
+      replace reg with
+        (filter Pi reg ∪
+           filter NPi reg)
+        by apply map_union_filter.
+      assert (dom _ ( filter Pi reg ) = rmap_i).
+      { subst rmap_i.
+        erewrite <- dom_filter_L.
+        reflexivity.
+        intros.
+        split; intros.
+        { destruct i0.
+          rewrite /all_registers_s_core in H0.
+          apply elem_of_map_1 in H0.
+          destruct H0 as (? & ? & ?). inversion H0 ; subst.
+          destruct (decide (x = PC)) as [->|Hx] ; subst.
+          - eexists ; split.
+            eassumption.
+            cbn ; auto.
+          - destruct (Hreg1_valid x) as (? & ? & _); eauto.
+            { clear -Hx. set_solver. }
+        }
+        { destruct H0 as (w & Hfilter & core_i0).
+          destruct i0.
+          cbn in core_i0. subst c.
+          rewrite /all_registers_s_core.
+          apply elem_of_map_2.
+          apply all_registers_s_correct.
+        }
+      }
+      set (regs_ni := filter NPi reg).
+      replace regs_ni with
+        (filter Pj regs_ni ∪
+           filter NPj regs_ni)
+      by (by rewrite map_union_filter).
+      assert (dom _ ( filter Pj regs_ni ) = rmap_j).
+      { subst rmap_j.
+        subst regs_ni.
+        erewrite <- dom_filter_L.
+        reflexivity.
+        intros.
+        split; intros.
+        { destruct i0.
+          rewrite /all_registers_s_core in H1.
+          apply elem_of_map_1 in H1.
+          destruct H1 as (? & ? & ?). inversion H1 ; subst.
+          destruct (decide (x = PC)) as [->|Hx] ; subst.
+          - eexists ; split.
+            apply map_filter_lookup_Some_2.
+            eassumption.
+            subst NPi ; cbn ; auto.
+            cbn ; auto.
+          - destruct (Hreg2_valid x) as (? & ? & _); eauto.
+            { clear -Hx. set_solver. }
+            eexists ; split.
+            apply map_filter_lookup_Some_2.
+            eassumption.
+            subst NPi ; cbn ; auto.
+            cbn ; auto.
+        }
+        { destruct H1 as (w & Hfilter & core_i0).
+          destruct i0.
+          cbn in core_i0. subst c.
+          rewrite /all_registers_s_core.
+          apply elem_of_map_2.
+          apply all_registers_s_correct.
+        }
+      }
 
-      (* replace reg with *)
-      (*   (filter Pi reg ∪ *)
-      (*      filter NPi reg) by set_solver. *)
-      (* assert (dom _ ( filter Pi reg ) = rmap_i). *)
-      (* { set_solver. } *)
-      (* set (regs_ni := filter NPi reg). *)
-      (* replace regs_ni with *)
-      (*   (filter Pj regs_ni ∪ *)
-      (*      filter NPj regs_ni) *)
-      (* by (by rewrite map_union_filter). *)
-      (* assert (dom _ ( filter Pj regs_ni ) = rmap_j). *)
-      (* { subst rmap_j. *)
-      (*   subst regs_ni. *)
-      (*   erewrite <- dom_filter_L. *)
-      (*   reflexivity. *)
-      (*   intros. *)
-      (*   split; intros. *)
-      (*   { destruct i0. *)
-      (*     apply elem_of_map_1 in H0. *)
-      (*     destruct H0 as (? & ? & ?). inversion H0 ; subst. *)
-      (*     destruct (decide (x = PC)) as [->|Hx] ; subst. *)
-      (*     - eexists ; split. *)
-      (*       apply map_filter_lookup_Some_2. *)
-      (*       eassumption. *)
-      (*       subst NPi ; cbn ; auto. *)
-      (*       cbn ; auto. *)
-      (*     - destruct (Hreg2_valid x) as (? & ? & _); eauto. *)
-      (*       { clear -Hx. set_solver. } *)
-      (*       eexists ; split. *)
-      (*       apply map_filter_lookup_Some_2. *)
-      (*       eassumption. *)
-      (*       subst NPi ; cbn ; auto. *)
-      (*       cbn ; auto. *)
-      (*   } *)
-      (*   { destruct H0 as (w & Hfilter & core_i0). *)
-      (*     destruct i0. *)
-      (*     cbn in core_i0. subst c. *)
-      (*     apply elem_of_map_2. *)
-      (*     apply all_registers_s_correct. *)
-      (*   } *)
-      (* } *)
+      iDestruct (big_sepM_union with "Hreg") as "[Hreg_i Hreg]".
+      {
+        cbn.
 
-      (* iDestruct (big_sepM_union with "Hreg") as "[Hreg_i Hreg]". *)
-      (* { *)
-      (*   cbn. *)
+        rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ Pj _ NPi).
+        rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ NPj _ NPi).
 
-      (*   rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ Pj _ NPi). *)
-      (*   rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ NPj _ NPi). *)
-
-      (*   replace ( filter NPi (filter Pj reg) ∪ filter NPi (filter NPj reg) ) *)
-      (*     with (filter NPi ((filter Pj reg) ∪ (filter NPj reg))). *)
-      (*   2: { eapply map_filter_union. *)
-      (*        apply gmap_finmap. *)
-      (*        apply map_disjoint_filter. } *)
-      (*   replace (filter Pj reg ∪ filter NPj reg) *)
-      (*     with reg by (by rewrite map_union_filter). *)
-      (*   apply map_disjoint_filter. *)
-      (* } *)
-      (* iDestruct (big_sepM_union with "Hreg") as "[Hreg_j Hreg]". *)
-      (* { apply map_disjoint_filter. } *)
-      (* iClear "Hreg". *)
+        replace ( filter NPi (filter Pj reg) ∪ filter NPi (filter NPj reg) )
+          with (filter NPi ((filter Pj reg) ∪ (filter NPj reg))).
+        2: { eapply map_filter_union.
+             apply gmap_finmap.
+             apply map_disjoint_filter. }
+        replace (filter Pj reg ∪ filter NPj reg)
+          with reg by (by rewrite map_union_filter).
+        apply map_disjoint_filter.
+      }
+      iDestruct (big_sepM_union with "Hreg") as "[Hreg_j Hreg]".
+      { apply map_disjoint_filter. }
+      iClear "Hreg".
 
       (* For each core, we prove the WP, using the specification previously
          defined *)
-      (* iSplitL "Hmem_alloc Hreg_i". *)
+      iSplitL "Hmem_alloc Hreg_i".
+      - (* We extracts the needed registers for the full_run_spec *)
+      iDestruct (big_sepM_delete _ _ (i, PC) with "Hreg_i") as "[HPC_i Hreg_i]".
+      apply map_filter_lookup_Some_2 ; [|by subst Pi ; cbn] ; eauto.
 
+      (* Apply the specification *)
+      iApply (alloc_correct
+               with
+               "[$HPC_i Hreg_i Hmem_alloc $Hinv_malloc $Hinv_flag $Hinv_assert]").
+      { instantiate (1 := delete (i, PC) (filter Pi reg)).
+        rewrite dom_delete_L.
+        rewrite (regmap_full_dom_i _ i).
+        reflexivity.
+        intros. split.
+        (* admit. *)
+        destruct (decide (x = PC)) as [->|Hx] ; subst.
+        - eexists; apply map_filter_lookup_Some_2 ; eauto.
+          by subst Pi ; cbn.
+        - feed pose proof (Hreg1_valid x) as HH.
+        { apply not_elem_of_singleton_2. clear -Hx ; simplify_pair_eq. }
+        destruct HH as (?&?&_).
+        eexists; apply map_filter_lookup_Some_2 ; eauto.
+        by subst Pi ; cbn.
+        - intros.
+          apply map_filter_lookup_None; right.
+          intros ; subst Pi ; cbn; congruence.
+      }
+      iSplitL "Hreg_i".
+      { iApply (big_sepM_mono with "Hreg_i"). intros r w Hr. cbn.
+        apply lookup_delete_Some in Hr as [Hr_PC Hr].
+        assert (Hr' := Hr).
+        apply (map_filter_lookup_Some_1_2
+                 (λ v : CoreN * RegName * Word, Pi v) reg r w) in Hr.
+        subst Pi ; cbn in Hr.
+        destruct r as [? r] ; inversion Hr ; subst.
+        feed pose proof (Hreg1_valid r) as HH. clear -Hr_PC ; set_solver.
+        destruct HH as [? (Hr_reg & Hcap)].
+        iIntros ; iFrame ; iPureIntro.
+        clear -Hr_reg Hr' Hcap.
+        cbn in *.
+        apply map_filter_lookup_Some in Hr'.
+        destruct Hr' as [? _].
+        simplify_map_eq. auto.
+      }
+      { rewrite /prog_tbl_region /tbl_region /=.
+        iDestruct (big_sepM_union with "Hmem_alloc") as "[Halloc Htable]".
+        { clear.
+          pose proof regions_disjoint as Hdisjoint.
+          rewrite !disjoint_list_cons in Hdisjoint |- *.
+          intros (Hadv & Hf & Hling & Hadv_link & Hassert & Hmalloc).
+          disjoint_map_to_list. set_solver. }
+        iFrame.
+        rewrite /prog_lower_bound_region /prog_region.
+        assert ( forall {A} (x:A) (y : list A) , x::y  = [x]++y) by auto.
+        rewrite (H2 _ (WCap RO (tbl_start alloc_table) (tbl_end alloc_table)
+                                (tbl_start alloc_table)) (prog_instrs alloc_prog)).
+        rewrite mkregion_app /=.
+        2: {
+        pose proof f_region_start_offset; pose proof f_size; solve_addr.
+        }
+        iDestruct (big_sepM_union with "Halloc") as "[Hf_start Hmem]".
+        { apply mkregion_disjoints ; solve_addr. }
+        pose proof f_region_start_offset.
+        replace (f_region_start ^+ 1%nat)%a with f_start by solve_addr.
+        iFrame.
+        iDestruct (mkregion_sepM_to_sepL2 with "Hf_start") as "Hfstart"
+        ; first solve_addr.
+        rewrite finz_seq_between_singleton.
+        iDestruct "Hfstart" as "[? _]" ; iFrame.
+        solve_addr.
+      }
 
+      (* The adversary code safely and completely executes *)
+      - iSplitL ; [|done].
+        iDestruct (big_sepM_delete _ _ (j, PC) with "Hreg_j") as "[HPC_j Hreg_j]".
+        apply map_filter_lookup_Some_2.
+        { subst regs_ni Pj Pi ; cbn.
+          apply map_filter_lookup_Some_2 ; [eauto| cbn ; by apply not_eq_sym].
+        }
+        by subst Pj ; cbn.
+        rewrite /prog_tbl_region.
+        iApply (adv_correct
+                 with
+                 "[$HPC_j Hreg_j Hmem_adv $Hinv_malloc]").
+        { eauto. }
+        { instantiate (1 := delete (j, PC) (filter Pj regs_ni)).
+          rewrite !dom_delete_L.
+          set (X := all_registers_s_core j).
+          rewrite /all_registers_s_core.
+          unfold all_registers_s_core in X.
+          replace ( dom (gset (CoreN * RegName)) (filter Pj regs_ni)) with X by set_solver.
+          set_solver. }
+        iSplitL "Hreg_j".
+        { iApply (big_sepM_mono with "Hreg_j"). intros r w Hr. cbn.
+          apply lookup_delete_Some in Hr as [Hr_PC Hr].
+          assert (Hr' := Hr).
+          apply (map_filter_lookup_Some_1_2 Pj regs_ni r w) in Hr.
+          do 2 (apply map_filter_lookup_Some_1_1 in Hr').
+          subst Pj ; cbn in Hr.
 
-
-      admit. }
+          destruct r as [? r] ; inversion Hr ; subst.
+          feed pose proof (Hreg2_valid r) as HH. clear -Hr_PC ; set_solver.
+          destruct HH as [? (Hr_reg & Hcap)].
+          clear -Hr_reg Hr' Hcap.
+          iIntros ; iFrame ; iPureIntro.
+          cbn in *.
+          simplify_map_eq. auto.
+        }
+        { rewrite /prog_tbl_region /tbl_region /=.
+          iDestruct (big_sepM_union with "Hmem_adv") as "[Hadv Htable]".
+        { clear.
+          pose proof regions_disjoint as Hdisjoint.
+          rewrite !disjoint_list_cons in Hdisjoint |- *.
+          intros (Hadv & Hf & Hling & Hadv_link & Hassert & Hmalloc).
+          disjoint_map_to_list. set_solver. }
+          iFrame.
+          rewrite /prog_lower_bound_region.
+          rewrite /prog_lower_bound_region /prog_region.
+          assert ( forall {A} (x:A) (y : list A) , x::y  = [x]++y) by auto.
+          rewrite (H2 _ (WCap RO (tbl_start adv_table) (tbl_end adv_table)
+                           (tbl_start adv_table))
+                     (prog_instrs adv_prog)).
+          rewrite mkregion_app /=.
+          2: {
+            pose proof adv_region_start_offset; pose proof adv_size; solve_addr.
+          }
+          iDestruct (big_sepM_union with "Hadv") as "[Hs Hmem]".
+          { apply mkregion_disjoints ; solve_addr. }
+          pose proof adv_region_start_offset.
+          replace (adv_region_start ^+ 1%nat)%a with adv_start by solve_addr.
+          iFrame.
+          iDestruct (mkregion_sepM_to_sepL2 with "Hs") as "Hs"
+          ; first solve_addr.
+          rewrite finz_seq_between_singleton.
+          iDestruct "Hs" as "[? _]" ; iFrame.
+          solve_addr.
+        }
+    }
 
 
     (** The invariant holds on the resulting memory *)
@@ -737,9 +1091,6 @@ Proof.
     intros.
     clear - flag H0. by simplify_map_eq.
     Unshelve.
-Admitted.
-
-
-
-
+    all: try typeclasses eauto.
+Qed.
 End adequacy.

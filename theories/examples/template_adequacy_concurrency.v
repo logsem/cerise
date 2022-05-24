@@ -188,12 +188,14 @@ Module with_lib.
   Definition is_initial_registers
     (P : prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P))
+    ∧ dom (gset (CoreN*RegName)) reg ⊆ (all_registers_s_core i) (* TODO do I need this hyp ? *)
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
   
   Definition is_initial_registers_adv (Adv: prog) (Lib : lib)
     (Adv_tbl : tbl_pub Adv Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv))
+    ∧ dom (gset (CoreN*RegName)) reg ⊆ (all_registers_s_core i) (* TODO do I need this hyp ? *)
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 
@@ -218,7 +220,7 @@ Module with_lib.
     is_initial_registers P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).
   Proof.
-    intros (HPC & Hothers) r.
+    intros (HPC & Hdom & Hothers) r.
     destruct (decide (r = PC)) as [->|]. by eauto.
     destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
   Qed.
@@ -228,7 +230,7 @@ Module with_lib.
     is_initial_registers_adv P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).
   Proof.
-    intros (HPC & Hothers) r.
+    intros (HPC & Hdom & Hothers) r.
     destruct (decide (r = PC)) as [->|]. by eauto.
     destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
   Qed.
@@ -240,9 +242,10 @@ Module with_lib.
     ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
 
   Definition is_initial_memory_with_adv (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (m: gmap Addr Word) :=
-    prog_tbl_region P P_tbl ⊆ m
-    ∧ prog_tbl_region Adv Adv_tbl ⊆ m
-    ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
+    (prog_tbl_region P P_tbl
+       ∪ prog_tbl_region Adv Adv_tbl
+       ∪ lib_region ((pub_libs Lib) ++ (priv_libs Lib)))
+      ⊆ m
     ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_region Adv Adv_tbl
     ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
     ∧ prog_tbl_region Adv Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))

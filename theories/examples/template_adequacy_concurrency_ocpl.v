@@ -23,7 +23,7 @@ Record ocpl_library `{MachineParameters} := MkOcplLibrary {
     = Some malloc_memptr;
 
   malloc_memptr_size :
-    (malloc_memptr + 1)%a = Some malloc_mem_start;
+    (malloc_memptr + 3)%a = Some malloc_mem_start;
 
   malloc_mem_size :
     (malloc_mem_start <= malloc_end)%a;
@@ -53,8 +53,11 @@ Record ocpl_library `{MachineParameters} := MkOcplLibrary {
 Definition malloc_library_content `{MachineParameters} (layout : ocpl_library) : gmap Addr Word :=
   (* code for the malloc subroutine *)
   mkregion (malloc_start layout) (malloc_memptr layout) malloc_subroutine_instrs
-  (* Capability to malloc's memory pool, used by the malloc subroutine *)
-  ∪ list_to_map [((malloc_memptr layout), WCap RWX (malloc_memptr layout) (malloc_end layout) (malloc_mem_start layout))]
+  (* Capability to lock, lock and malloc's memory pool, used by the malloc subroutine *)
+  ∪ list_to_map [  ((malloc_memptr layout     ), WCap RWX (malloc_start layout) (malloc_end layout) (malloc_memptr layout ^+ 1)%a)
+                 ; ((malloc_memptr layout ^+ 1)%a, WInt 0)
+                 ; ((malloc_memptr layout ^+ 2)%a , WCap RWX (malloc_memptr layout) (malloc_end layout) (malloc_mem_start layout)%a)
+  ]
   (* Malloc's memory pool, initialized to zero *)
   ∪ mkregion (malloc_mem_start layout) (malloc_end layout) (region_addrs_zeroes (malloc_mem_start layout) (malloc_end layout)).
 
