@@ -6,7 +6,7 @@ From cap_machine.ftlr Require Export ftlr_base.
 From cap_machine.rules Require Export rules_Get rules_base.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
   Notation D := ((leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).

@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base stdpp_extra.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -240,7 +240,8 @@ Section cap_lang_rules.
       assert (incrementPC (<[ (i, r1) := loadv]> r) i = None).
       { eapply incrementPC_overflow_mono; first eapply Hregs'.
           by rewrite lookup_insert_is_Some'; eauto.
-            by apply insert_mono; eauto. }
+            eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto. apply finmap_reg.
+      }
 
       rewrite incrementPC_fail_updatePC /= in Hstep; auto.
       symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
@@ -252,7 +253,8 @@ Section cap_lang_rules.
     rewrite /update_reg /= in Hstep.
     eapply (incrementPC_success_updatePC _ i m) in Hregs'
       as (p1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
-    eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono.
+    eapply updatePC_success_incl in HuPC.
+    2 : eapply (@insert_mono (prod (@CoreN CP) RegName)) ; eauto ; apply finmap_reg.
     rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
     iFrame.
     iMod ((gen_heap_update_inSepM _ _ (i, r1)) with "Hr Hmap") as "[Hr Hmap]"; eauto.

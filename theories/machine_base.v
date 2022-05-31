@@ -55,13 +55,42 @@ Coercion cst : Z >-> sum.
 (* Registers and memory: maps from register names/addresses to words *)
 
 (* Definition CoreNum := 4. *)
-Context {CoreNum : Z}.
-Context {CorePos: (CoreNum >= 1)%Z}.
-Global Opaque CoreNum CorePos.
-Definition CoreN := finz CoreNum.
+Class CoreParameters := {
+  coreNum : Z ;
+  corePos : (coreNum >= 1)%Z;
+}.
 
-Definition Reg := gmap (CoreN * RegName) Word.
+Definition CoreN `{CoreParameters} := finz coreNum.
+Definition Reg `{CoreParameters} := gmap (CoreN * RegName) Word.
 Definition Mem := gmap Addr Word.
+
+(* Instance *)
+Instance subseteq_reg `{CoreParameters} : SubsetEq Reg.
+Proof.
+  rewrite /Reg.
+  apply map_subseteq.
+Defined.
+
+Instance insert_reg `{CoreParameters} : Insert (CoreN * RegName) Word Reg.
+Proof.
+  rewrite /Reg.
+  apply map_insert.
+Defined.
+
+Instance lookup_reg `{CoreParameters} : Lookup (CoreN * RegName) Word Reg.
+  rewrite /Reg.
+  apply gmap_lookup.
+Defined.
+
+Instance finmap_reg `{CoreParameters} : FinMap (CoreN * RegName) (gmap (CoreN * RegName)).
+  apply gmap_finmap.
+Defined.
+
+Instance union_reg {CP : CoreParameters} : Union (@Reg CP).
+Proof.
+  intros. rewrite /Reg.
+  apply map_union.
+Defined.
 
 (* EqDecision instances *)
 
@@ -582,10 +611,10 @@ Proof.
 Defined.
 
 (* Set of all registers of core i *)
-Definition all_registers_s_core (i:CoreN) : gset (CoreN * RegName)
+Definition all_registers_s_core `{CoreParameters} (i:CoreN) : gset (CoreN * RegName)
   := set_map (fun r => (i,r)) all_registers_s.
 
-Lemma regmap_full_dom_i {A} (r : gmap (CoreN*RegName) A) (i : CoreN) :
+Lemma regmap_full_dom_i `{CP : CoreParameters} {A} (r : gmap (CoreN*RegName) A) (i : CoreN) :
   (∀ x : RegName, is_Some (r !! (i, x)) ∧ (∀ j : CoreN, i ≠ j → r !! (j, x) = None))
   -> dom (gset (CoreN * RegName)) r = all_registers_s_core i.
 Proof.

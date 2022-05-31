@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{HM: memG Σ, HR: regG Σ}.
+  Context `{HM: memG Σ, HR: @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -127,7 +127,8 @@ Section cap_lang_rules.
        assert (incrementPC (<[ (i , r1) := WCap p b e a' ]> r) i = None) as HH.
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
          by rewrite lookup_insert_is_Some'; eauto.
-         by apply insert_mono; eauto. }
+         eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto.
+         apply finmap_reg. }
        apply (incrementPC_fail_updatePC _ i m) in HH. rewrite HH in Hstep.
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
@@ -136,7 +137,8 @@ Section cap_lang_rules.
      (* Success *)
      eapply (incrementPC_success_updatePC _ i m) in Hregs'
        as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-     eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto.
+     eapply updatePC_success_incl in HuPC.
+     2: by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto ; apply finmap_reg).
      rewrite HuPC in Hstep; clear HuPC.
      eassert ((c, σ2) = (NextI, _)) as HH.
      { destruct p; cbn in Hstep; eauto. congruence. }

@@ -6,7 +6,7 @@ From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_IsPtr.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -42,7 +42,8 @@ Section fundamental.
         try iClear "IH"; eauto.
       { cbn. intros.
         split.
-        by repeat (apply lookup_insert_is_Some'; right).
+        by repeat ( apply (@lookup_insert_is_Some'
+                         (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg); right).
         intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
         by apply Hnone.
       }

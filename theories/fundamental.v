@@ -4,9 +4,10 @@ From iris.proofmode Require Import tactics.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
+From cap_machine.examples Require Import mkregion_helpers.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MP: MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
@@ -291,7 +292,6 @@ Section fundamental.
          iDestruct (fundamental r _ i with "H") as "H'". eauto. }
     all: iApply region_integers_alloc; eauto.
   Qed.
-
 
   (* similar than the others, but without the later *)
   Lemma interp_updatePcPerm_adv p b e a :

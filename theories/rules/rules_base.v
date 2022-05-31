@@ -10,13 +10,13 @@ Class memG Σ := MemG {
   mem_gen_memG :> gen_heapG Addr Word Σ}.
 
 (* CMRA for registers *)
-Class regG Σ := RegG {
+Class regG Σ (CP : CoreParameters)  := RegG {
   reg_invG : invG Σ;
   reg_gen_regG :> gen_heapG (CoreN * RegName) Word Σ; }.
 
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisG cap_lang Σ := {
+Instance memG_irisG `{MachineParameters} `{CP : CoreParameters} `{memG Σ , @regG Σ CP} : irisG cap_lang Σ := {
   iris_invG := mem_invG;
   state_interp σ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
@@ -51,8 +51,9 @@ Ltac inv_head_step :=
          end.
 
 Section cap_lang_rules.
+  Context `{CP : CoreParameters}.
   Context `{MachineParameters}.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -602,7 +603,6 @@ Section cap_lang_rules.
   Proof. by solve_exec_pure. Qed.
 
 End cap_lang_rules.
-
 (* Used to close the failing cases of the ftlr.
   - Hcont is the (iris) name of the closing hypothesis (usually "Hφ")
   - fail_case_name is one constructor of the spec_name,
@@ -619,7 +619,7 @@ Ltac iFailWP Hcont fail_case_name :=
 (* ----------------- useful definitions to factor out the wp specs ---------------- *)
 
 (*--- register equality ---*)
-  Lemma addr_ne_reg_ne {regs : leibnizO Reg} {i : CoreN} {r1 r2 : RegName}
+  Lemma addr_ne_reg_ne `{CP : CoreParameters} {regs : leibnizO Reg} {i : CoreN} {r1 r2 : RegName}
         {p0 b0 e0 a0 p b e a}:
     regs !! (i,r1) = Some (WCap p0 b0 e0 a0)
     → regs !! (i,r2) = Some (WCap p b e a)
@@ -658,11 +658,12 @@ Definition regs_of (i: instr): gset RegName :=
   | _ => ∅
   end.
 
-  Definition regs_of_core (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
+  Definition regs_of_core `{CP : CoreParameters} (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
     set_map (fun r => (i,r)) (regs_of it).
 
-Lemma indom_regs_incl D (regs regs': Reg) :
-  D ⊆ dom (gset (CoreN * RegName)) regs →
+
+Lemma indom_regs_incl `{CP : CoreParameters} D (regs regs': Reg) :
+  D ⊆ dom (gset (@CoreN CP * RegName)) regs →
   regs ⊆ regs' →
   ∀ i r, (i,r) ∈ D →
        ∃ (w:Word), (regs !! (i,r) = Some w) ∧ (regs' !! (i,r) = Some w).
@@ -671,12 +672,13 @@ Proof.
   assert (is_Some (regs !! (ii,rr))) as [w Hw].
   { eapply @elem_of_dom with (D := gset (CoreN *RegName)). typeclasses eauto.
     eapply elem_of_subseteq; eauto. }
-  exists w. split; auto. eapply lookup_weaken; eauto.
+  exists w. split; auto.
+  eapply (@lookup_weaken (prod (@CoreN CP) RegName)); eauto.
 Qed.
 
 (*--- incrementPC ---*)
 
-Definition incrementPC (regs: Reg) (i : CoreN) : option Reg :=
+Definition incrementPC `{CP : CoreParameters} (regs: Reg) (i : CoreN) : option Reg :=
   match regs !! (i,PC) with
   | Some (WCap p b e a) =>
     match (a + 1)%a with
@@ -686,7 +688,7 @@ Definition incrementPC (regs: Reg) (i : CoreN) : option Reg :=
   | _ => None
   end.
 
-Lemma incrementPC_Some_inv regs regs' i :
+Lemma incrementPC_Some_inv `{CP : CoreParameters} regs regs' i :
   incrementPC regs i = Some regs' ->
   exists p b e a a',
     regs !! (i, PC) = Some (WCap p b e a) ∧
@@ -700,7 +702,7 @@ Proof.
   do 5 eexists. split; eauto.
 Qed.
 
-Lemma incrementPC_None_inv regs i pg b e a :
+Lemma incrementPC_None_inv `{CP : CoreParameters} regs i pg b e a :
   incrementPC regs i = None ->
   regs !! (i, PC) = Some (WCap pg b e a) ->
   (a + 1)%a = None.
@@ -711,7 +713,7 @@ Proof.
   case_eq (u+1)%a; congruence.
 Qed.
 
-Lemma incrementPC_overflow_mono regs regs' i :
+Lemma incrementPC_overflow_mono `{CP : CoreParameters} regs regs' i :
   incrementPC regs i = None →
   is_Some (regs !! (i, PC)) →
   regs ⊆ regs' →
@@ -724,7 +726,7 @@ Proof.
 Qed.
 
 (* todo: instead, define updatePC on top of incrementPC *)
-Lemma incrementPC_fail_updatePC regs i m :
+Lemma incrementPC_fail_updatePC `{CP : CoreParameters} regs i m :
    incrementPC regs i = None ->
    updatePC i (regs, m) = None.
 Proof.
@@ -734,7 +736,7 @@ Proof.
    destruct (a' + 1)%a; auto. congruence.
 Qed.
 
-Lemma incrementPC_success_updatePC regs i m regs' :
+Lemma incrementPC_success_updatePC `{CP : CoreParameters} regs i m regs' :
   incrementPC regs i = Some regs' ->
   ∃ p b e a a',
     regs !! (i, PC) = Some (WCap p b e a) ∧
@@ -749,7 +751,7 @@ Proof.
   do 5 eexists. repeat split; auto.
 Qed.
 
-Lemma updatePC_success_incl i m m' regs regs' w :
+Lemma updatePC_success_incl `{CP : CoreParameters} i m m' regs regs' (w : Word) :
   regs ⊆ regs' →
   updatePC i (regs, m) = Some (NextI, (<[ (i, PC) := w ]> regs, m)) →
   updatePC i (regs', m') = Some (NextI, (<[ (i, PC) := w ]> regs', m')).
@@ -766,7 +768,7 @@ Proof.
   {  inversion Hu. }
 Qed.
 
-Lemma updatePC_fail_incl i m m' regs regs' :
+Lemma updatePC_fail_incl `{CP : CoreParameters} i m m' regs regs' :
   is_Some (regs !! (i, PC)) →
   regs ⊆ regs' →
   updatePC i (regs, m) = None →

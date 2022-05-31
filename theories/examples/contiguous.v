@@ -245,7 +245,7 @@ Section Contiguous.
       { cbn in *. eauto. } }
   Qed.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}.
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}.
 
   (* Note that we are assuming that both prog1 and prog2 are nonempty *)
   Lemma contiguous_between_program_split prog1 prog2 (φ : Addr → Word → iProp Σ) a i j :

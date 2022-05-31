@@ -5,8 +5,8 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
   Context `{MachineParameters}.
+  Context `{memG Σ, @regG Σ CP}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -120,19 +120,28 @@ Section cap_lang_rules.
     destruct (incrementPC (<[ (i,dst) := WInt (denote get_i p b e a) ]> regs) i)
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
-      apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
+      apply (@incrementPC_fail_updatePC _ _ _ m) in Hregs'.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
-      2: by apply lookup_insert_is_Some'; eauto.
-      2: by apply insert_mono; eauto.
+      2: by apply (@lookup_insert_is_Some'
+                         (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg)
+      ; eauto.
+      2: eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto.
       simplify_pair_eq.
       rewrite Hregs' in Hstep. inversion Hstep.
-      iFailWP "Hφ" Get_fail_overflow_PC. }
+      iFailWP "Hφ" Get_fail_overflow_PC.
+      apply finmap_reg.
+    }
 
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ i m) in Hregs'
         as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+    eapply updatePC_success_incl with (m':=m) in HuPC.
+    2: { Unshelve. 2: exact ( <[(i, dst):=WInt (denote get_i p b e a)]> r).
+         eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto.
+         apply finmap_reg.
+    }
+    rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ (i,dst)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ (i,PC)) with "Hr Hmap") as "[Hr Hmap]"; eauto.

@@ -5,7 +5,7 @@ From cap_machine Require Import rules logrel macros_helpers map_simpl.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous safe_malloc assert.
 
 Section macros.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{static_spinlock.lockG Σ, MP: MachineParameters}.
 
 

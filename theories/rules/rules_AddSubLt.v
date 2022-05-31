@@ -6,7 +6,7 @@ From cap_machine Require Import machine_base.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -140,15 +140,16 @@ Section cap_lang_rules.
     destruct (incrementPC (<[ (i, dst) := WInt (denote it n1 n2) ]> regs) i)
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
-    { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
+    { apply incrementPC_fail_updatePC with (m0:=m) in Hregs'.
       eapply updatePC_fail_incl with (m':=m) in Hregs'.
-      2: by apply lookup_insert_is_Some'; eauto.
-      2: by apply insert_mono; eauto.
+      2: by apply (@lookup_insert_is_Some'
+                         (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg)
+      ; eauto.
+      2: eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto.
       simplify_pair_eq.
       rewrite Hregs' in Hstep. inversion Hstep.
-      iFail "Hφ" AddSubLt_fail_incrPC. }
-
-
+      iFail "Hφ" AddSubLt_fail_incrPC.
+      apply finmap_reg. }
     (* Success *)
 
     eapply (incrementPC_success_updatePC _ i m) in Hregs'

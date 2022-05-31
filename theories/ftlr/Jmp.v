@@ -6,7 +6,7 @@ From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Jmp.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).

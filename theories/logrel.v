@@ -26,7 +26,7 @@ Ltac solve_proper ::= (repeat intros ?; simpl; auto_equiv).
 
 (** interp : is a unary logical relation. *)
 Section logrel.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).

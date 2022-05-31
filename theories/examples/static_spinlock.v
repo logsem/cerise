@@ -23,7 +23,7 @@ Section lock_model.
 End lock_model.
 
 Section StaticSpinlock.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{lockG Σ, MP: MachineParameters}.
 
   (* r0 contains the capability pointing to the lock address *)

@@ -8,7 +8,7 @@ Import uPred.
 
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).

@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.

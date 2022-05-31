@@ -9,7 +9,7 @@ From iris.program_logic Require Import adequacy.
 Open Scope Z_scope.
 
 Section buffer.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MP: MachineParameters}.
 
   Definition buffer_code (off: Z) : list Word :=
@@ -108,12 +108,20 @@ End buffer.
 
 Section adequacy.
 
+  (* TODO move *)
+  Instance union_reg {CP : CoreParameters} : Union (@Reg CP).
+  Proof.
+    intros. rewrite /Reg.
+    apply map_union.
+  Defined.
+
   Context (Σ: gFunctors).
   Context {inv_preg: invPreG Σ}.
   Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG (CoreN * RegName) Word Σ}.
+  Program Definition CP := {| coreNum := 1 ;  corePos := _ |}.
+  Next Obligation. lia. Defined.
+  Context {reg_preg: gen_heapPreG ((@CoreN CP) * RegName) Word Σ}.
   Context `{MP: MachineParameters}.
-
 
   (** Buffer adequacy theorem *)
 
@@ -134,13 +142,13 @@ Section adequacy.
     ; repeat (rewrite finz_dist_S ; last solve_a)
     ; by rewrite finz_dist_0 ; last solve_a.
 
+
   Lemma adequacy_shared_buffer
-    (m m': Mem) (reg reg': Reg) (es : list cap_lang.expr)
+    (m m': Mem) (reg reg': @Reg CP) (es : list cap_lang.expr)
     (P Adv : prog) (* Programs, adversaries and buffer *)
-    (i j : CoreN) :
+    (i : @CoreN CP) :
 
     (* Machine with one single-core identified by {0} *)
-    machine_base.CoreNum = 1 ->
     i = core_zero ->
 
     (* The adversary contains only instructions *)
@@ -161,7 +169,8 @@ Section adequacy.
     mem_inv m' (prog_start P).
 
   Proof.
-    intros Hn_cores Hi Hadv Hprog Hreg1 Hmem Hmem_inv Hstep.
+    intros Hi Hadv Hprog Hreg1 Hmem Hmem_inv Hstep.
+    assert ( Hn_cores : (@coreNum CP) = 1 )  by done.
     apply erased_steps_nsteps in Hstep as (n & κs & Hstep).
 
     (* We apply the Iris adequacy theorem, and we unfold the definition,
@@ -174,11 +183,11 @@ Section adequacy.
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
     pose memg := MemG Σ Hinv mem_heapg.
-    pose regg := RegG Σ Hinv reg_heapg.
+    pose regg := RegG Σ CP Hinv reg_heapg.
 
     iExists NotStuck.
     iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
-    iExists (map (fun _ => (fun _ => True)%I) all_cores).
+    iExists (map (fun _ => (fun _ => True)%I) (@all_cores CP)).
     iExists (fun _ => True)%I. cbn.
     iFrame.
 
@@ -242,12 +251,14 @@ Section adequacy.
     {
       (* Since we have a machine with 2 cores, split the list into 2 WP *)
       unfold CoreN in i,Hi.
-      rewrite /init_cores /all_cores.
+      rewrite /init_cores.
+      rewrite /all_cores.
       rewrite /core_zero in Hi.
-      assert (Hn_cores': (BinIntDef.Z.to_nat machine_base.CoreNum) = 1%nat) by lia.
-      rewrite Hn_cores' ; cbn.
       rewrite <- Hi ; clear Hi.
-      fold CoreN in i.
+      assert (Hn_cores': (BinIntDef.Z.to_nat (@coreNum CP)) = 1%nat) by lia.
+      rewrite Hn_cores' ; cbn.
+      fold (@CoreN CP) in i.
+      rewrite -/(@core_zero CP).
 
       (* We separate the registers into two sets of registers:
          - the registers for i
@@ -259,14 +270,16 @@ Section adequacy.
                        (fun r : RegName => (i,r)) all_registers_s).
       set (Pi:= (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) = i )).
       set (NPi := (fun (v : (CoreN * RegName) * Word) => (fst (fst v)) ≠ i )).
+      unfold Reg in reg, reg'.
 
+
+      (* assert ( forall CP, Union (@Reg CP) ) by ( intros ; rewrite /Reg ; eapply map_union). *)
       replace reg with
         (filter Pi reg ∪
            filter NPi reg) by set_solver.
       assert (dom _ ( filter Pi reg ) = rmap_i).
       { set_solver. }
-
-      iDestruct (big_sepM_union with "Hreg") as "[Hreg_i _]"
+      iDestruct (@big_sepM_union with "Hreg") as "[Hreg_i _]"
       ; first apply map_disjoint_filter.
 
       (* For each core, we prove the WP, using the specification previously
@@ -288,7 +301,7 @@ Section adequacy.
       rewrite lookup_delete_ne ; [|simplify_pair_eq] ; eauto.
       apply map_filter_lookup_Some_2 ; [|by subst Pi ; cbn] ; eauto.
       iSplitL ; [|done].
-      iApply (buffer_full_run_spec i (prog_start P) _ _ _
+      iApply (@buffer_full_run_spec Σ CP memg regg _ i (prog_start P) _ _ _
                 ( delete (i, r_t1) (delete (i, r_t0) (delete (i, PC) (filter Pi reg))))
                with "[HPC_i $Hadv_i $Hr1_i $Hadv Hreg_i $Hprog Hpublic]")
       ; cycle -1.
@@ -314,7 +327,7 @@ Section adequacy.
         iIntros ; iFrame ; iPureIntro.
         clear -Hr_reg Hr' Hcap.
         cbn in *.
-        apply map_filter_lookup_Some in Hr'.
+        apply (map_filter_lookup_Some _ reg _ _) in Hr'.
         destruct Hr' as [? _].
         simplify_map_eq. auto.
       }

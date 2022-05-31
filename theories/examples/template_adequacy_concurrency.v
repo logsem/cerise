@@ -69,20 +69,20 @@ Proof.
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
-Program Definition all_cores :=
+Program Definition all_cores `{CP: CoreParameters} :=
   finz.seq
-    (@finz.FinZ machine_base.CoreNum 0 _ _)
-    (BinIntDef.Z.to_nat machine_base.CoreNum).
+    (@finz.FinZ coreNum 0 _ _)
+    (BinIntDef.Z.to_nat coreNum).
 Next Obligation.
-  pose machine_base.CorePos. lia.
+  intros; pose corePos ; lia.
 Qed.
 Next Obligation. lia. Qed.
 
-Definition init_cores : list cap_lang.expr :=
+Definition init_cores `{CP: CoreParameters} : list cap_lang.expr :=
   map (fun (i : CoreN) => (i, Seq (Instr Executable))) all_cores.
 
-Definition core_zero := (finz.FinZ 0
-                           all_cores_obligation_1
+Definition core_zero `{CP: CoreParameters} := (finz.FinZ 0
+                           (all_cores_obligation_1 CP)
                            all_cores_obligation_2).
 Module with_adv.
 Definition is_initial_memory
@@ -92,19 +92,19 @@ Definition is_initial_memory
   let region_list := prog_list ∪ adv_list in
   ⋃ region_list ⊆ m /\ disjoint_list_map region_list.
 
-Definition is_initial_registers
+Definition is_initial_registers `{CP: CoreParameters}
   (P : prog) (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
   reg !! (i, PC) = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P))  (* PC *)
   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                      ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
 
-Definition is_initial_registers_with_adv
+Definition is_initial_registers_with_adv `{CP: CoreParameters}
   (P A : prog) (r_adv : RegName) (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
   is_initial_registers P reg i
   /\ reg !! (i, r_adv) = Some (WCap RWX (prog_start A) (prog_end A) (prog_start A)) (* adversary *)
   /\ PC ≠ r_adv.
 
-Definition is_initial_registers_adv
+Definition is_initial_registers_adv `{CP: CoreParameters}
   (P : adv_prog) (reg: gmap (CoreN * RegName) Word) (i:CoreN) :=
   reg !! (i, PC) = Some (WCap RWX (adv_start P) (adv_end P) (adv_start P))  (* PC *)
   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
@@ -183,13 +183,14 @@ Definition tbl_priv (p : prog) (l : lib) := @tbl p ((pub_libs l) ++ (priv_libs l
 
 Module with_lib.
 
-  Definition is_initial_registers
+  Definition is_initial_registers `{CP: CoreParameters}
     (P : prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P))
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
                        ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false).
   
-  Definition is_initial_registers_adv (Adv: prog) (Lib : lib)
+  Definition is_initial_registers_adv `{CP: CoreParameters}
+    (Adv: prog) (Lib : lib)
     (Adv_tbl : tbl_pub Adv Lib) (reg: gmap (CoreN * RegName) Word) (i:CoreN):=
     reg !! (i, PC) = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv))
     /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) →
@@ -201,7 +202,7 @@ Module with_lib.
   (*   /\ (∀ (r: RegName), (i, r) ∉ ({[ (i, PC) ]} : gset (CoreN * RegName)) → *)
   (*                      ∃ (w:Word), reg !! (i, r) = Some w ∧ is_cap w = false). *)
 
-  Definition is_initial_registers_with_adv
+  Definition is_initial_registers_with_adv `{CP: CoreParameters}
     (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib)
     (Adv_tbl : tbl_pub Adv Lib) (reg: gmap (CoreN*RegName) Word)
     (r_adv: RegName) (i:CoreN) :=
@@ -211,7 +212,7 @@ Module with_lib.
     ∧ (∀ (r: RegName), (i,r) ∉ ({[ (i,PC) ; (i,r_adv) ]} : gset (CoreN*RegName)) →
                        ∃ (w:Word), reg !! (i,r) = Some w ∧ is_cap w = false).
 
-  Lemma initial_registers_full_map (P : prog) (Lib : lib)
+  Lemma initial_registers_full_map `{CP: CoreParameters} (P : prog) (Lib : lib)
     (P_tbl : tbl_priv P Lib) reg (i:CoreN) :
     is_initial_registers P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).
@@ -221,7 +222,7 @@ Module with_lib.
     destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
   Qed.
 
-  Lemma initial_registers_adv_full_map (P : prog) (Lib : lib)
+  Lemma initial_registers_adv_full_map `{CP: CoreParameters} (P : prog) (Lib : lib)
     (P_tbl : tbl_pub P Lib) reg (i:CoreN) :
     is_initial_registers_adv P Lib P_tbl reg  i →
     (∀ r, is_Some (reg !! (i,r))).

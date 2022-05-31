@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -193,8 +193,11 @@ Section cap_lang_rules.
       2: { (* Failure: the PC could not be incremented correctly *)
         assert ((incrementPC (<[ (i, cond) := oldv ]> r) i) = None).
         { eapply incrementPC_overflow_mono; first eapply Hregs'.
-          by rewrite lookup_insert_is_Some'; eauto.
-            by apply insert_mono; eauto. }
+        by apply (@lookup_insert_is_Some'
+                    (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg)
+        ; eauto.
+        by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto
+            ; apply finmap_reg). }
         rewrite incrementPC_fail_updatePC /= in Hstep; auto.
         simplify_eq.
         iFailWP "Hφ" Cas_fail_invalid_PC.
@@ -208,7 +211,9 @@ Section cap_lang_rules.
       Unshelve.
       eapply (incrementPC_success_updatePC _ i (<[a:=nv]> m) ) in Hregs'
         as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
-      eapply (updatePC_success_incl i _ (<[a:=nv]> m)) in HuPC. 2: by eapply insert_mono.
+      eapply (updatePC_success_incl i _ (<[a:=nv]> m)) in HuPC.
+      2: by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto
+            ; apply finmap_reg).
       rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
       iFrame.
       iMod ((gen_heap_update_inSepM _ _ (i, cond)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
@@ -223,8 +228,11 @@ Section cap_lang_rules.
       2: { (* Failure: the PC could not be incremented correctly *)
         assert ((incrementPC (<[ (i, cond) := oldv ]> r) i) = None).
         { eapply incrementPC_overflow_mono; first eapply Hregs'.
-          by rewrite lookup_insert_is_Some'; eauto.
-            by apply insert_mono; eauto. }
+        by apply (@lookup_insert_is_Some'
+                    (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg)
+        ; eauto.
+        by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto
+            ; apply finmap_reg). }
         rewrite incrementPC_fail_updatePC /= in Hstep; auto.
         simplify_eq.
         iFailWP "Hφ" Cas_fail_invalid_PC.
@@ -236,7 +244,8 @@ Section cap_lang_rules.
       eapply (incrementPC_success_updatePC _ i m) in Hregs'
         as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
       eapply (updatePC_success_incl i _ m) in HuPC.
-      2: by eapply insert_mono.
+      2: by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto
+            ; apply finmap_reg).
       rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
       iFrame.
       iMod ((gen_heap_update_inSepM _ _ (i, cond)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
@@ -322,7 +331,9 @@ Section cap_lang_rules.
 
     iApply (wp_Cas with "[$Hmap $Hmem]"); eauto
     ; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core ; set_solver. }
+    { rewrite /regs_of_core /regs_of.
+      rewrite !set_map_union_L !set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all : by simplify_map_eq by simplify_pair_eq. }
     iModIntro.
@@ -387,7 +398,9 @@ Section cap_lang_rules.
 
     iApply (wp_Cas with "[$Hmap $Hmem]"); eauto
     ; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core ; set_solver. }
+    { rewrite /regs_of_core /regs_of.
+      rewrite !set_map_union_L !set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all : by simplify_map_eq by simplify_pair_eq. }
     iModIntro.
@@ -457,7 +470,9 @@ Section cap_lang_rules.
 
     iApply (wp_Cas with "[$Hmap $Hmem]"); eauto
     ; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core ; set_solver. }
+    { rewrite /regs_of_core /regs_of.
+      rewrite !set_map_union_L !set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all : by simplify_map_eq by simplify_pair_eq. }
     iModIntro.
@@ -531,7 +546,9 @@ Section cap_lang_rules.
 
     iApply (wp_Cas with "[$Hmap $Hmem]"); eauto
     ; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core ; set_solver. }
+    { rewrite /regs_of_core /regs_of.
+      rewrite !set_map_union_L !set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
       all : by simplify_map_eq by simplify_pair_eq. }
     iModIntro.
@@ -612,7 +629,9 @@ Section cap_lang_rules.
 
     iApply (wp_Cas with "[$Hmap $Hmem]"); eauto
     ; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core ; set_solver. }
+    { rewrite /regs_of_core /regs_of.
+      rewrite !set_map_union_L !set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
       all : by simplify_map_eq by simplify_pair_eq. }
     iModIntro.
@@ -652,6 +671,5 @@ Section cap_lang_rules.
       iDestruct "Hmem" as "[? ?]".
       iFrame.
    Qed.
-
 
 End cap_lang_rules.

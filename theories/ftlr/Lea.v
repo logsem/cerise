@@ -6,7 +6,7 @@ From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_base rules_Lea.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
   Notation D := ((leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
@@ -41,7 +41,8 @@ Section fundamental.
       iApply ("IH" $! _ regs' with "[%] [] [Hmap]").
       { cbn. intros. subst regs'.
         split.
-        by repeat (apply lookup_insert_is_Some'; right).
+        by repeat ( apply (@lookup_insert_is_Some'
+                         (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg); right).
         intros j Hneq. repeat (rewrite lookup_insert_ne ; simplify_pair_eq).
         by apply Hnone.
       }

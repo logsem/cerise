@@ -4,7 +4,12 @@ From stdpp Require Import gmap fin_maps list.
 From cap_machine Require Export addr_reg machine_base machine_parameters.
 Set Warnings "-redundant-canonical-projection".
 
+(* Context { M : CoreParameters }. *)
 Ltac inv H := inversion H; clear H; subst.
+
+Section cap_lang.
+
+  Context `{CP : CoreParameters}.
 
 Definition ExecConf := (Reg * Mem)%type.
 
@@ -16,25 +21,26 @@ Inductive CoreState : Type :=
 
 Definition ExecState := gmap CoreN CoreState.
 
-Definition CoreConf: Type := CoreState * ExecConf.
-Definition Conf: Type := ExecState * ExecConf.
+Definition CoreConf  : Type := CoreState * ExecConf.
+Definition Conf  : Type := ExecState * ExecConf.
 
-Definition reg (ϕ: ExecConf) := fst ϕ.
+Definition reg  (ϕ: ExecConf) := fst ϕ.
 
-Definition mem (ϕ: ExecConf) := snd ϕ.
+Definition mem  (ϕ: ExecConf) := snd ϕ.
 
-Definition update_reg (φ: ExecConf) (i: CoreN) (r: RegName) (w: Word): ExecConf
+Definition update_reg  (φ: ExecConf) (i: CoreN) (r: RegName) (w: Word): ExecConf
   := (<[(i,r):=w]>(reg φ),mem φ).
-Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf
+Definition update_mem  (φ: ExecConf) (a: Addr) (w: Word): ExecConf
   := (reg φ, <[a:=w]>(mem φ)).
-Definition update_state (s: ExecState) (i : CoreN) (cs : CoreState) : ExecState
+Definition update_state  (s: ExecState) (i : CoreN) (cs : CoreState) : ExecState
   := <[i:=cs]> s.
 
-Lemma update_state_lookup:
+Lemma update_state_lookup :
   forall es i c,
   update_state es i c !! i = Some c.
 Proof.
-  intros. by apply lookup_insert.
+  intros.
+  by apply lookup_insert.
 Qed.
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
@@ -101,7 +107,7 @@ Proof.
   intros.
   unfold z_of_argument in *.
   destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
-  eapply lookup_weaken in Heq as ->; auto.
+  eapply (@lookup_weaken (prod (@CoreN CP) RegName)) in Heq as ->; auto.
 Qed.
 
 (*--- word_of_argument ---*)
@@ -149,7 +155,7 @@ Proof.
   intros.
   unfold word_of_argument in *.
   destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
-  eapply lookup_weaken in Heq as ->; auto.
+  eapply (@lookup_weaken (prod (@CoreN CP) RegName)) in Heq as ->; auto.
 Qed.
 
 (*--- addr_of_argument ---*)
@@ -188,11 +194,12 @@ Proof.
   intros.
   unfold addr_of_argument, z_of_argument in *.
   destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
-  eapply lookup_weaken in Heq as ->; auto.
+  eapply (@lookup_weaken (prod (@CoreN CP) RegName)) in Heq as ->; auto.
 Qed.
-
+End cap_lang.
 
 Section opsem.
+  Context `{CP : CoreParameters}.
   Context `{MachineParameters}.
 
   Definition exec_opt (it: instr) (i : CoreN) (φ : ExecConf)
@@ -622,9 +629,9 @@ Qed.
 
 End opsem.
 
-Canonical Structure cap_ectxi_lang `{MachineParameters} := EctxiLanguage cap_lang_mixin.
-Canonical Structure cap_ectx_lang `{MachineParameters} := EctxLanguageOfEctxi cap_ectxi_lang.
-Canonical Structure cap_lang `{MachineParameters} := LanguageOfEctx cap_ectx_lang.
+Canonical Structure cap_ectxi_lang `{CoreParameters} `{MachineParameters} := EctxiLanguage cap_lang_mixin.
+Canonical Structure cap_ectx_lang `{CoreParameters} `{MachineParameters} := EctxLanguageOfEctxi cap_ectxi_lang.
+Canonical Structure cap_lang `{CoreParameters} `{MachineParameters} := LanguageOfEctx cap_ectx_lang.
 
 #[export] Hint Extern 20 (PureExec _ _ _) => progress simpl : typeclass_instances.
 
@@ -649,7 +656,7 @@ Proof. intro; reflexivity. Qed.
 
 (****)
 
-Global Instance is_atomic_correct `{MachineParameters} s (e : expr) : is_atomic e → Atomic s e.
+Global Instance is_atomic_correct `{CoreParameters} `{MachineParameters} s (e : expr) : is_atomic e → Atomic s e.
 Proof.
   intros Ha; apply strongly_atomic_atomic, ectx_language_atomic.
   - destruct e.
@@ -676,7 +683,7 @@ Ltac solve_atomic :=
 #[export] Hint Extern 0 (Atomic _ _) => solve_atomic : core.
 #[export] Hint Extern 0 (Atomic _ _) => solve_atomic : typeclass_instances.
 
-Lemma head_reducible_from_step `{MachineParameters} i σ1 c2 σ2 :
+Lemma head_reducible_from_step `{CoreParameters} `{MachineParameters} i σ1 c2 σ2 :
   core_step i (Executable, σ1) (c2, σ2) →
   @head_reducible cap_ectx_lang  (i, (Instr Executable)) σ1.
 Proof. intros * HH. rewrite /head_reducible /head_step //=.
@@ -684,7 +691,7 @@ Proof. intros * HH. rewrite /head_reducible /head_step //=.
        by econstructor.
 Qed.
 
-Lemma normal_always_head_reducible `{MachineParameters} σ i :
+Lemma normal_always_head_reducible `{CoreParameters} `{MachineParameters} σ i :
   @head_reducible cap_ectx_lang  (i, (Instr Executable)) σ.
 Proof.
   intros.

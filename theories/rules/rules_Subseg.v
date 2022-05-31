@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -150,8 +150,11 @@ Section cap_lang_rules.
       pose proof Hregs' as H'regs'; cycle 1.
     { assert (incrementPC (<[ (i, dst) := (WCap p a1 a2 a) ]> r) i = None) as HH.
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
-         by rewrite lookup_insert_is_Some'; eauto.
-         by apply insert_mono; eauto. }
+        by apply (@lookup_insert_is_Some'
+                    (prod (@CoreN CP) RegName) _ _ _ _ _ _ _ _ _ finmap_reg)
+        ; eauto.
+        by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto
+            ; apply finmap_reg). }
        apply (incrementPC_fail_updatePC _ i m) in HH. rewrite HH in Hstep.
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
            by (destruct p; inversion Hstep; auto).
@@ -159,9 +162,11 @@ Section cap_lang_rules.
 
     eapply (incrementPC_success_updatePC _ i m) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
-     eassert ((c, σ2) = (NextI, _)) as HH.
-     { destruct p; cbn in Hstep; eauto. congruence. }
+    eapply updatePC_success_incl with (m':=m) in HuPC.
+    2: by (eapply (@insert_mono (prod (@CoreN CP) RegName)); eauto ; apply finmap_reg).
+    rewrite HuPC in Hstep.
+    eassert ((c, σ2) = (NextI, _)) as HH.
+    { destruct p; cbn in Hstep; eauto. congruence. }
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ (i, dst)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ (i, PC)) with "Hr Hmap") as "[Hr Hmap]"; eauto.

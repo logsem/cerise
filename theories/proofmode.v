@@ -14,7 +14,7 @@ From Ltac2 Require Option Bool Constr.
 Set Default Proof Mode "Classic".
 
 Section codefrag.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MP: MachineParameters}.
 
 (* TODO: move elsewhere: to region.v? *)
@@ -137,7 +137,7 @@ Proof. unfold NthSubBlock. intros -> ->. rewrite app_assoc //. Qed.
 #[export] Hint Resolve NthSubBlock_S : proofmode_focus.
 
 Section codefrag_subblock.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MP: MachineParameters}.
 
   Lemma codefrag_block0_acc a0 (l1 l2: list Word):

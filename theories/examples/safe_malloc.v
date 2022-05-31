@@ -23,7 +23,7 @@ From cap_machine.examples Require Import static_spinlock.
    released once the capability (RWX,bm,em,am+size) is restored. *)
 
 Section SimpleMalloc.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{lockG Σ, MP: MachineParameters}.
 
   (* offset_lock -> bmid *)
@@ -271,7 +271,7 @@ Section SimpleMalloc.
       { apply isCorrectPC_intro
         ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
         solve_addr | auto]. }
-      { apply lookup_insert. }
+      { apply (@lookup_insert _ _ _ _ _ _ _ _ _ _ finmap_reg). }
       { rewrite /regs_of_core !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & Hi & ?)".
       iDestruct "Hspec" as %Hspec.
@@ -347,7 +347,7 @@ Section SimpleMalloc.
         ; [rewrite /malloc_pre_length /acquire_spinlock_length ;
            solve_addr | eauto]. }
 
-      { apply lookup_insert. }
+      { apply (@lookup_insert _ _ _ _ _ _ _ _ _ _ finmap_reg). }
       { rewrite /regs_of_core !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & Hi & ?)".
 
@@ -729,7 +729,6 @@ Section SimpleMalloc.
       iFrame "Hinv2".
     }
     iNext ; iIntros "(HPC & Hr1 & Hr2 & Hr3 & Hr5 & %Hsize)".
-    (* destruct Hsize as (size & ? & ->). *)
 
 
 

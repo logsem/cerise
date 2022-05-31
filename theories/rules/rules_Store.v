@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, @regG Σ CP}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -543,8 +543,9 @@ Section cap_lang_rules.
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
 
     iApply (wp_store _ i pc_p with "[$Hmap $Hmem]"); eauto; simplify_map_eq by simplify_pair_eq; eauto.
-    { rewrite /regs_of_core /regs_of /regs_of_argument
-      ; set_solver+. }
+    { rewrite /regs_of_core /regs_of /regs_of_argument.
+      rewrite set_map_union_L set_map_singleton_L dom_insert_L.
+      set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all: by simplify_map_eq by simplify_pair_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
