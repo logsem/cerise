@@ -300,10 +300,43 @@ Section logrel.
            lia.
   Qed.
 
+  Program Definition n_to_coreN (n : nat) : option CoreN :=
+    match Z_lt_dec n coreNum with left _ => Some (finz.FinZ n _ _) | right _ => None end.
+  Next Obligation.
+    intros. lia.
+  Defined.
+  Next Obligation.
+    intros. lia.
+  Defined.
 
   Global Instance coren_finite : finite.Finite CoreN.
   Proof.
-  Admitted.
+    eapply (finite.enc_finite
+              (λ r : CoreN, match r with
+                            | finz.FinZ z _ _ => Z.to_nat z
+                            end)
+              (λ n : nat,
+                  match (n_to_coreN n) with
+                  | Some fz => fz
+                  | None => finz.FinZ 0%Z _ _
+                  end)
+              (Z.to_nat coreNum)).
+    - intros.
+      destruct x eqn:Hx.
+      unfold n_to_coreN.
+      destruct ( Z_lt_dec (Z.to_nat z) coreNum ).
+      + apply finz_to_z_eq.
+        cbn. lia.
+      + exfalso; lia.
+    - intros. destruct x; lia.
+    - intros.
+      unfold n_to_coreN.
+      destruct ( Z_lt_dec i coreNum ).
+      lia.
+      exfalso. lia.
+      Unshelve.
+      pose proof corePos ; lia. lia.
+  Qed.
 
   Global Instance writeAllowedWord_dec w: Decision (writeAllowedWord w).
   Proof. destruct w;[right;auto|]. destruct p;simpl;apply _. Qed.
