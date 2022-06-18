@@ -1,17 +1,30 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
-Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import register_tactics subseg_buffer.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
+From cap_machine Require Import call callback.
 Open Scope Z_scope.
 
 (** Variant of the exercise where we use the call macro
     to jump to the adversary *)
+
+(** The full program does the following:
+      - allocates a region
+      - stores a secret data in the newly allocated region
+      - derives 2 capabilities:
+        + Cs: from the beginning of the buffer to the secret address
+        + Cp: from the secret address (not included) to the end of the buffer
+      - calls the adversary (with the call macro)
+        + locally encapsulates Cs
+        + gives Cp in parameter for the adversary
+      - after the call, restores the locals and asserts the integrity of
+        the secret data
+      - halts *)
+
 Section program_call.
-  From cap_machine Require Import call callback.
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{MP: MachineParameters}.
@@ -36,19 +49,6 @@ Section program_call.
     iHide0 irisH coqH.
 
   (** Definition of the program *)
-
-  (** The full program does the following:
-      - allocates a region
-      - stores a secret data in the newly allocated region
-      - derives 2 capabilities:
-        + Cs: from the beginning of the buffer to the secret address
-        + Cp: from the secret address (not included) to the end of the buffer
-      - calls the adversary (with the call macro)
-        + locally encapsulates Cs
-        + gives Cp in parameter for the adversary
-      - after the call, restores the locals and asserts the integrity of
-        the secret data
-      - halts *)
 
   (** P1) First part: store the secret data, derive Cp and derive Cs *)
   (* - r_mem is the register that contains the capability pointing to
@@ -91,31 +91,29 @@ Section program_call.
   Definition prog_call_inv a f_m f_a size secret_off secret_val :=
     na_inv logrel_nais call_codeN (prog_call_code a f_m f_a size secret_off secret_val ).
 
-  (* Malloc invariant *)
-  Definition malloc_callN := (call_versionN.@"malloc").
+  (* Definition malloc_callN := (call_versionN.@"malloc"). *)
   Definition malloc_call_inv b_m e_m :=
-    na_inv logrel_nais malloc_callN (malloc_inv b_m e_m).
+    na_inv logrel_nais ocpl.mallocN (malloc_inv b_m e_m).
 
   (* Assert invariant *)
-  Definition assert_callN := (call_versionN.@"assert").
   Definition assert_call_inv b_a e_a a_flag :=
-    na_inv logrel_nais assert_callN (assert_inv b_a a_flag e_a).
+    na_inv logrel_nais ocpl.assertN (assert_inv b_a a_flag e_a).
 
   Definition flag_call_inv a_flag flagN :=
     inv flagN (a_flag ↦ₐ WInt 0%Z) .
 
   (* Linking table invariant *)
-  Definition link_table_callN := (call_versionN.@"link_table").
-  Definition link_table_call_inv
-    table_addr b_link e_link a_link
-    malloc_entry b_m e_m
-    assert_entry b_a e_a
-    :=
-    na_inv logrel_nais link_table_callN
-      (table_addr ↦ₐ WCap RO b_link e_link a_link
-       ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m
-       ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
-      )%I.
+  (* Definition link_table_callN := (call_versionN.@"link_table"). *)
+  (* Definition link_table_call_inv *)
+  (*   table_addr b_link e_link a_link *)
+  (*   malloc_entry b_m e_m *)
+  (*   assert_entry b_a e_a *)
+  (*   := *)
+  (*   na_inv logrel_nais link_table_callN *)
+  (*     (table_addr ↦ₐ WCap RO b_link e_link a_link *)
+  (*      ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m *)
+  (*      ∗ assert_entry ↦ₐ WCap E b_a e_a b_a *)
+  (*     )%I. *)
 
 
   Definition call_actN : namespace := call_versionN .@ "act".
@@ -168,6 +166,8 @@ Section program_call.
     iIntros (Hpc_perm Hpc_bounds Hsecret_bounds Hp_mem)
             "(HPC & Hr_mem & Hr_mem' & Hr2 & Hr3 & Hmem & Hprog & Post)"
     ; iDestruct "Hr_mem'" as (wmem) "Hr_mem'".
+
+    (* For more clarity, we split the fragments of the programs *)
     rewrite /region_mapsto /prog_secret_instrs.
     match goal with
     | h:_ |- context [codefrag _ (?l1 ++ ?l2 ++ ?l3)] =>
@@ -176,11 +176,15 @@ Section program_call.
         ; set (secret_instrs := l3)
     end.
     simpl in e_prog; subst e_prog.
+
+    (* Fragment 1 - copy the buffer capability *)
     codefrag_facts "Hprog".
     focus_block_0 "Hprog" as "Hcopy" "Hcont".
     iGo "Hcopy".
     unfocus_block "Hcopy" "Hcont" as "Hprog".
 
+    (* Fragment 2 - execute base program (cf. subseg_buffer)
+                    restrict capability to public buffer *)
     focus_block 1%nat "Hprog" as amid Hamid "Hprog_base" "Hcont".
     iApply (prog_base_spec with "[- $HPC $Hr2 $Hr3 $Hmem $Hr_mem $Hprog_base]")
     ; auto.
@@ -188,13 +192,13 @@ Section program_call.
     ; iIntros "(HPC & Hr_mem & Hr2 & Hr3 & Hmem & Hsecret & Hmem' & Hprog_base)".
     unfocus_block "Hprog_base" "Hcont" as "Hprog".
 
+    (* Fragment 3 - restrict capability to secret buffer *)
     focus_block 2%nat "Hprog" as apc_secret Hapc_secret "Hprog_secret" "Hcont".
     iGo "Hprog_secret".
     { transitivity (Some (b_mem ^+ (secret_off+1))%a) ; auto ; solve_addr'. }
     { intros -> ; simpl in Hp_mem ; discriminate. }
     { solve_addr'. }
     unfocus_block "Hprog_secret" "Hcont" as "Hprog".
-
 
     (* Post condition *)
     iApply "Post".
@@ -268,13 +272,16 @@ Section program_call.
     (* linking *) b_link a_link e_link malloc_entry assert_entry
     (size : nat) secret_off secret_val :
 
+    (* Validity PC *)
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first a_last ->
     contiguous_between a a_first a_last →
+    (* Validity linking table *)
     withinBounds b_link e_link malloc_entry = true →
     withinBounds b_link e_link assert_entry = true →
     (a_link + f_m)%a = Some malloc_entry →
     (a_link + f_a)%a = Some assert_entry →
+    (* Validity secret*)
     (0 <= secret_off < size %a) ->
 
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
@@ -283,11 +290,15 @@ Section program_call.
         ∗ malloc_call_inv b_m e_m
         ∗ assert_call_inv b_a e_a a_flag
         ∗ flag_call_inv a_flag flagN
-        ∗ link_table_call_inv pc_b b_link e_link a_link malloc_entry b_m e_m
-            assert_entry b_a e_a
         ∗ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
         ∗ r_t30 ↦ᵣ wadv
         ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+
+        (* Linking table *)
+        ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+        ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m
+        ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
+                       
         ∗ na_own logrel_nais ⊤
         ∗ interp w0 ∗ interp wadv
 
@@ -298,33 +309,20 @@ Section program_call.
   Proof with (try solve_addr').
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
-      "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& #Hinv_link& HPC& Hr30& Hrmap& Hna& #Hw0& #Hadv)".
+      "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& HPC& Hr30& Hrmap&
+Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
-    (* FTLR on wadv *)
+    
+    (* FTLR on wadv - we do it now because of the later modality *)
     iDestruct (jmp_to_unknown with "Hadv") as "Cont".
     iHide "Cont" as cont.
 
-    (* -------------------------------------------------------------------- *)
-    (* ------------------------ Spec Known Program ------------------------ *)
-    (* -------------------------------------------------------------------- *)
-    iMod (na_inv_acc with "Hinv_link Hna") as "(>[Hlink [Hentry_malloc Hentry_assert]] & Hna & Hcls_link)"
-    ; auto ; try solve_ndisj.
-    iHide "Hcls_link" as Hcls_link.
-    iHide "Hna" as Hna.
-
-    (* Prepare the resource for the malloc spec *)
-    insert_register r_t30 with "[$Hrmap $Hr30]" as "Hrmap".
-    set (rmap' :=  <[r_t30:=wadv]> rmap).
-    assert (Hdom' :
-              dom (gset RegName) rmap' = all_registers_s ∖ {[PC]}).
-    { subst rmap'.
-      rewrite dom_insert_L.
-      rewrite Hdom.
-      rewrite - difference_difference_L.
-      rewrite -union_difference_L; auto.
-      set_solver.
-    }
-    extract_register r_t0 with "Hrmap" as ( w0 Hw0 ) "[Hr0 Hrmap]".
+    (* The program is composed of multiple part. Most of them already have their
+       own specification.
+       The main method is the following:
+       - split the code into the different parts of the program
+       - when splitting, generate hypothesis about addresses, required by solve_addr
+       - for each part, prepare the resources and use the specification *)
 
     (* Split the program between each parts *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog.
@@ -385,12 +383,27 @@ Section program_call.
     iDestruct (big_sepL2_length with "Hrest6") as %Hlength_rest6.
     (* assert and end *)
     iDestruct (contiguous_between_program_split with "Hrest6")
-      as (asert_addrs end_addrs a_end) "(Hassert & Hend & #Hcont7)"
+      as (assert_addrs end_addrs a_end) "(Hassert & Hend & #Hcont7)"
     ;[apply Hcont_rest6|].
     iDestruct "Hcont7" as %(Hcont_assert & Hcont_end & Heqapp7 & Ha_end).
     iDestruct (big_sepL2_length with "Hassert") as %Hlength_assert.
     iDestruct (big_sepL2_length with "Hend") as %Hlength_end.
 
+
+    (* Part 1 - Malloc *)
+    (* Prepare the resource for the malloc spec *)
+    insert_register r_t30 with "[$Hrmap $Hr30]" as "Hrmap".
+    set (rmap' :=  <[r_t30:=wadv]> rmap).
+    assert (Hdom' :
+              dom (gset RegName) rmap' = all_registers_s ∖ {[PC]}).
+    { subst rmap'.
+      rewrite dom_insert_L.
+      rewrite Hdom.
+      rewrite - difference_difference_L.
+      rewrite -union_difference_L; auto.
+      set_solver.
+    }
+    extract_register r_t0 with "Hrmap" as ( w0 Hw0 ) "[Hr0 Hrmap]".
 
     (* malloc specification *)
     rewrite -/(malloc _ _ _).
@@ -421,7 +434,8 @@ Section program_call.
     ; iDestruct "Hreg" as (b_mem e_mem Hmem_size) "(Hr1 & Hmem)".
 
 
-    (* --- Specification clear r1 --- *)
+    (* Part 2 - Clear register *)
+    (* Unlike the other part of the code, we prove this one instructions by instructions *)
     iHide "Cont" as Cont.
     extract_register r_t7 with "Hrmap" as ( w7 Hw7 ) "[Hr7 Hrmap]".
 
@@ -474,7 +488,7 @@ Section program_call.
     iEpilogue "(HPC & Ha_f0 & Hr1)".
     iDestruct "Hend" as "[Hend _]".
 
-
+    (* Part 3 - Prog_base *)
     (* Prepare the resources for the prog_base_spec *)
     extract_register r_t8 with "Hrmap" as ( w8 Hw8 ) "[Hr8 Hrmap]".
 
@@ -512,6 +526,7 @@ Section program_call.
     replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off+1))%a by solve_addr.
     replace ((b_mem + secret_off) + 1) with (b_mem + (secret_off+1)) by lia.
 
+    (* Part 4 - Call *)
     (* Prepare the ressource for the call_spec *)
     iAssert ( call _ f_m r_t30 [r_t8] [r_t7])
       with "Hcall"
@@ -523,7 +538,6 @@ Section program_call.
     subst rmap'.
     extract_register r_t30 with "Hrmap" as "[Hr30 Hrmap]".
     do 2 (rewrite (delete_insert_ne _ _ r_t30) ; auto).
-    (* rewrite (delete_commute _ r_t30) ; auto. *)
     do 2 (rewrite (delete_insert_ne _ r_t30) ; auto).
     do 2 (rewrite (delete_commute _ r_t30) ; auto).
     do 2 (rewrite (delete_insert_ne _ r_t30) ; auto).
@@ -561,7 +575,7 @@ Section program_call.
     ; rewrite !dom_delete_L
     ; rewrite Hdom
     ; set_solver+).
-    { solve_ndisj. }
+    (* { solve_ndisj. } *)
 
     Unshelve.
     iSplitL "Hcall" ; first (iNext ; rewrite !map_to_list_singleton /= ; done).
@@ -572,29 +586,39 @@ Section program_call.
     iIntros "H" ; iDestruct "H" as
       (b_act e_act b_local e_locals a_end_call)
         "( %Hnext & HPC & Hrmap & Hr7 & Hpcb & Hentry_malloc & Hr30 & Hr0 & Hact & Hlocals & Hcall & Hna )".
-
-    (* --------------------------------------------------------------- *)
-    (* ------------------ Jump to the adversary code ----------------- *)
-    (* --------------------------------------------------------------- *)
-
-    (* Close the table invariant *)
-    iMod ("Hcls_link" with "[$Hpcb $Hentry_malloc $Hentry_assert $Hna]") as "Hna".
-    iDestruct (big_sepM_singleton (fun r w => r ↦ᵣ w)%I r_t7 w7 with "Hr7") as
-      "Hr7".
     rewrite map_to_list_singleton /=.
 
-    (* Allocate the invariant necessary for the continuation *)
+    (* ------------------ Jump to the adversary code ----------------- *)
+    (** In order to jump to the adversary code, we have to prove that the context is safe,
+       i.e. all the registers are safe to share.
+       We need to prove that all the registers contains safe-to-share words.
+       In particular the register that contains the activation code is a
+       sentry-capability, which relies on persistent proposition only.
+       Thus, we encapsulate the needed memory resources for the remaining code
+       into invariants. *)
+
+
+    (* Allocate the invariants necessary for the continuation *)
+    (* Activation record *)
     iMod (na_inv_alloc logrel_nais _ call_actN with "Hact") as "#Hact".
+    (* Locals*)
     iDestruct (big_sepL2_length with "Hlocals") as %Hlength_locals
     ; rewrite finz_seq_between_length /= in Hlength_locals.
     iMod (na_inv_alloc logrel_nais _ call_localsN with "Hlocals") as "#Hlocals".
+    (* Code after the call *)
     iCombine "Hrestore" "Hprepa" as "Hcallback".
     iCombine "Hcallback" "Hassert" as "Hcallback".
     iCombine "Hcallback" "Hend" as "Hcallback".
     iMod (na_inv_alloc logrel_nais _  call_codeN with "Hcallback") as
       "#Hcallback".
+    (* Secret address *)
     iMod (na_inv_alloc logrel_nais _ (call_versionN.@"secret") with "Hsecret")
       as "#Hsecret".
+    (* Linking table *)
+    iCombine "Hentry_malloc" "Hentry_assert" as "Hlink_entries".
+    iCombine "Hpcb" "Hlink_entries" as "Hlink".
+    iMod (na_inv_alloc logrel_nais _ (call_versionN.@"link_table") with "Hlink")
+      as "#Hinv_link".
 
     (* Cleaning *)
     iClear "Hclear Hmalloc_prog Ha_clear Ha_f0 Hprogi".
@@ -602,6 +626,7 @@ Section program_call.
     iHide "Hw0" as Hinterp_w0.
     iHide "Hadv" as Hinterp_adv.
     iHide "Hlocals" as Hlocals.
+    iHide "Hinv_link" as Hinv_link.
     subst rmap_call'.
 
     (* Re-insert the registers into the map *)
@@ -626,6 +651,7 @@ Section program_call.
       ; rewrite Hdom.
       clear. set_solver. }
     (* r7 *)
+    iDestruct (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t7 _ with "Hr7") as "Hr7".
     iDestruct (big_sepM_insert with "[$Hrmap $Hr7]") as "Hrmap".
     { apply elem_of_gmap_dom_none.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
@@ -662,6 +688,7 @@ Section program_call.
       destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
       iIntros (?). simplify_eq. done. iIntros (?). done. }
+
     (* The activation code is safe to share - ie. safe to execute *)
     { cbn beta. rewrite !fixpoint_interp1_eq.
       iIntros (r). iNext; iModIntro.
@@ -671,7 +698,7 @@ Section program_call.
       iClear "Cont".
       rewrite /interp_conf /registers_mapsto.
 
-      (* get the registers we need *)
+      (* get all the registers we need for the remaining code *)
       extract_register PC with "Hrmap" as "[HPC Hrmap]".
       some_register r_t0 with r as w0 Hw0
       ; extract_register r_t0 with "Hrmap" as "[Hr0 Hrmap]".
@@ -688,7 +715,6 @@ Section program_call.
       some_register r_t8 with r as w8' Hw8
       ; extract_register r_t8 with "Hrmap" as "[Hr8 Hrmap]".
 
-
       (* 1 - step through the activation record *)
       iMod (na_inv_acc with "Hact Hna") as "[Hact' [Hna Hcls'] ]";[solve_ndisj|solve_ndisj|].
       iApply (scall_epilogue_spec with "[- $HPC $Hact' $Hr1 $Hr2]") ;[|apply Hnext|].
@@ -697,10 +723,10 @@ Section program_call.
       iMod ("Hcls'" with "[$Hact' $Hna]") as "Hna".
       iDestruct "Hr1" as (w1') "Hr1".
 
+      (* Code after the return of the call *)
       iMod (na_inv_acc with "Hcallback Hna") as
         "[>[[[Hrestore Hprepa] Hassert] Hend] [Hna Hcls] ]"
       ;[solve_ndisj|solve_ndisj|].
-
 
       (* 2 - restore locals *)
       iMod (na_inv_acc with "Hlocals Hna") as "[>Hlocal [Hna Hcls'] ]"
@@ -726,7 +752,6 @@ Section program_call.
       insert_register r_t8 with "[$Hrmap $Hr8]" as "Hrmap".
 
 
-
       (* 3 - Preparation of the assert *)
       iDestruct (big_sepL2_length with "Hlocal") as %Hlength_local.
       assert ( (b_local + 1)%a = Some e_locals ) as Hsize_locals.
@@ -736,7 +761,7 @@ Section program_call.
       iDestruct "Hlocal" as (?) "[Hlocal %Hv]".
       inversion Hv as [Hv'] ; clear Hv Hv' v.
       subst w8.
-
+      (* The specification requires the codefrag assertions *)
       iAssert (codefrag a_prepa instrs_prepa) with "[Hprepa]" as "Hprepa".
       { rewrite /codefrag /region_mapsto.
         rewrite <- (region_addrs_of_contiguous_between prepa_addrs).
@@ -763,11 +788,16 @@ Section program_call.
       end) ; solve_addr.
       solve_addr.
       iNext ; iIntros "(HPC & Hr2 & Hr4 & Hr5 & Hlocal & Ha_secret & Hprepa)".
-
       simpl.
       replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
 
-
+      (* + Cleaning + *)
+      iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
+        with "[Hprepa]" as "Hprepa".
+      { rewrite /codefrag /region_mapsto. simpl.
+        replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
+        rewrite <- (region_addrs_of_contiguous_between prepa_addrs) ; done.
+      }
       iMod ("Hcls_secret" with "[$Ha_secret $Hna]") as "Hna".
       iMod ("Hcls'" with "[Hlocal $Hna]") as "Hna".
       { iNext. rewrite /region_mapsto.
@@ -797,7 +827,6 @@ Section program_call.
       wp_instr.
       iApply (wp_halt with "[$HPC $Hend]")
       ; [apply decode_encode_instrW_inv|..].
-
       { apply isCorrectPC_ExecPCPerm_InBounds ; auto.
         subst.
         assert ( Hcont_end:= Hcont_end').
@@ -813,13 +842,7 @@ Section program_call.
       }
       iNext ; iIntros "[HPC Hi]".
 
-      iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
-        with "[Hprepa]" as "Hprepa".
-      { rewrite /codefrag /region_mapsto. simpl.
-        replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
-        rewrite <- (region_addrs_of_contiguous_between prepa_addrs) ; done.
-      }
-      (* reassemble registers, close invariants and finish *)
+      (* close invariants, reassemble registers, and finish *)
       iMod ("Hcls" with "[$Hna $Hrestore $Hi $Hprepa $Hassert]") as "Hna".
       insert_register r_t0 with "[$Hrmap $Hr0]" as "Hrmap".
       insert_register r_t1 with "[$Hrmap $Hr1]" as "Hrmap".
@@ -853,13 +876,16 @@ Section program_call.
     (* linking *) b_link a_link e_link malloc_entry assert_entry
     (size : nat) secret_off secret_val :
 
+    (* Validity PC *)
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first a_last ->
     contiguous_between a a_first a_last →
+    (* Validity linking table *)
     withinBounds b_link e_link malloc_entry = true →
     withinBounds b_link e_link assert_entry = true →
     (a_link + f_m)%a = Some malloc_entry →
     (a_link + f_a)%a = Some assert_entry →
+    (* Validity secret*)
     (0 <= secret_off < size %a) ->
 
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
@@ -868,20 +894,27 @@ Section program_call.
         ∗ malloc_call_inv b_m e_m
         ∗ assert_call_inv b_a e_a a_flag
         ∗ flag_call_inv a_flag flagN
-        ∗ link_table_call_inv pc_b b_link e_link a_link malloc_entry b_m e_m
-            assert_entry b_a e_a
         ∗ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
         ∗ r_t30 ↦ᵣ wadv
         ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+
+        (* Linking table *)
+        ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+        ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m
+        ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
+
         ∗ na_own logrel_nais ⊤
         ∗ interp w0 ∗ interp wadv
-
        -∗ WP Seq (Instr Executable) {{λ v, True}})%I.
     Proof.
+
       intros.
-      iIntros "(?&?&?&?&?&?&?&?&?)".
+      iIntros "(?&?&?&?&?&Hr30&?&?&?&assert_entry&?&?&Hadv)".
       iApply (wp_wand with "[-]").
-      { iApply prog_call_full_run_spec_aux ; cycle -1 ; [iFrame|..] ; eauto. }
+      { iApply (prog_call_full_run_spec_aux
+                  wadv w0 _ _ _ _ _ _ _ f_m b_m e_m f_a)
+        ; cycle -1
+        ; [iFrame|..] ; eauto. }
       iIntros (?) "?" ; done.
     Qed.
 End program_call.
@@ -1049,19 +1082,19 @@ Next Obligation.
   disjoint_map_to_list. set_solver.
 Qed.
 
-Section adequacy.
+Section prog_call_correct.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
           `{memlayout: memory_layout}.
 
-  Lemma call_correct :
+  Lemma prog_call_correct :
     Forall (λ w, is_cap w = false) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
-        ∗ na_inv logrel_nais malloc_callN (mallocInv layout)
-        ∗ na_inv logrel_nais assert_callN (assertInv layout)
+        ∗ na_inv logrel_nais mallocN (mallocInv layout)
+        ∗ na_inv logrel_nais assertN (assertInv layout)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound call_table) (prog_end call_prog) (prog_start call_prog)
         ∗ r_t30 ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
@@ -1139,17 +1172,12 @@ Section adequacy.
       iApply (big_sepL_mono with "Hadv'").
       iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
 
-    iCombine "Hlink_table_start" "Hlink_table_mid" as "Hlink".
-    iCombine "Hcall_link" "Hlink" as "Htable".
-    iMod (na_inv_alloc logrel_nais _ link_table_callN with "Htable") as
-      "#Hlink_table".
-
     iApply (prog_call_full_run_spec
-             with "[- $HPC $Hown $Hr_adv $Hrmap $Hprog Hmalloc Hassert
-                              Hlink_table $Hadv_valid]");auto ; cycle -1.
+             with "[- $HPC $Hown $Hr_adv $Hrmap $Hprog
+             $Hlink_table_start $Hlink_table_mid $Hcall_link
+             $Hadv_valid]");auto ; cycle -1.
     { rewrite /malloc_call_inv /mallocInv.
       rewrite /assert_call_inv /assertInv.
-      rewrite /link_table_call_inv.
       rewrite /flag_call_inv.
       iFrame "#".
       iApply (inv_iff with "Hinv []"). iNext. iModIntro.
@@ -1173,9 +1201,8 @@ Section adequacy.
     { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
     { apply le_addr_withinBounds'. solve_addr+Hsize Hmid. }
     { solve_addr. }
-    { solve_ndisj. }
   Qed.
-End adequacy.
+End prog_call_correct.
 
 Theorem prog_call_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
@@ -1191,9 +1218,8 @@ Proof.
   pose proof (ocpl_template_adequacy Σ' layout call_prog adv_prog call_table adv_table) as Hadequacy.
   eapply Hadequacy;eauto.
   intros Σ ? ? ? ?.
-(*   apply (@call_correct Σ H4 H5 H6 H H0). *)
-(*   apply Hints. *)
-(* Qed. *)
-Admitted.
+  apply prog_call_correct.
+  apply Hints.
+Qed.
 
 End program_call_adequacy.
