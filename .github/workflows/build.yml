@@ -38,6 +38,7 @@ jobs:
       - name: Install Coq and Iris
         run: |
           opam repo add coq-released https://coq.inria.fr/opam/released
+          opam repo add iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
           opam install . --deps-only -y
 
       - name: Build
