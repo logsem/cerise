@@ -99,7 +99,8 @@ Proof.
 Qed.
 Instance monotone_op_ne : NonExpansive2 (@op (monotone R) _).
 Proof. by intros n x1 x2 Hx y1 y2 Hy; rewrite Hy !(comm _ _ y2) Hx. Qed.
-Instance monotone_op_proper : Proper ((≡) ==> (≡) ==> (≡)) op := ne_proper_2 _.
+Instance monotone_op_proper :
+  Proper ((≡) ==> (≡) ==> (≡)) (@op (monotone R) _) := ne_proper_2 _.
 
 Lemma monotone_included (x y : monotone R) : x ≼ y ↔ y ≡ x ⋅ y.
 Proof.
@@ -307,6 +308,7 @@ Arguments monotoneUR {_} _.
 all lemmas provided in this module to be used. See type classes
 required by some of preceding the lemmas and instances in the to see
 how this works.
+
 The only lemma that requires extra conditions on R is the injectivity
 of principal which requires antisymmetry. *)
 Class ProperPreOrder {A : Type} `{Dist A} (R : relation A) := {

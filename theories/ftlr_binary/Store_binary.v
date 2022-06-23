@@ -1,5 +1,5 @@
 From stdpp Require Import base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel_binary.
 From cap_machine Require Import ftlr_base_binary.

@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import proofmode logrel.
 Open Scope Z_scope.
@@ -116,7 +116,7 @@ Ltac clean_rmap :=
   repeat (
       match goal with
       | h: _ |- context [ <[ ?reg := _ ]> (delete ?reg _) ]
-        => rewrite insert_delete
+        => rewrite insert_delete_insert
       | h: _ |- context [ <[ ?reg := _ ]> ?rmap ]
         => match rmap with
           | context[ (delete reg _) ] =>
@@ -129,7 +129,7 @@ Ltac clean_rmap :=
 (*   (* repeat ( *) *)
 (*       match goal with *)
 (*       | h: _ |- context [ <[ ?reg := _ ]> (delete ?reg _) ] *)
-(*         => set (Hb:= "insert_delete") ; rewrite insert_delete *)
+(*         => set (Hb:= "insert_delete_insert") ; rewrite insert_delete_insert *)
 (*       | h: _ |- context [ <[ ?reg := _ ]> ?rmap ] *)
 (*         => set (Hb:= "insert") ; *)
 (*           match rmap with *)

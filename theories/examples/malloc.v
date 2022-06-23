@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmode.
 
 (* A toy malloc implementation *)
@@ -189,14 +189,14 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
-      by rewrite lookup_delete. rewrite insert_delete.
+      by rewrite lookup_delete. rewrite insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
       by rewrite lookup_insert_ne // lookup_delete //.
-      rewrite insert_commute // insert_delete.
+      rewrite insert_commute // insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
       by rewrite !lookup_insert_ne // lookup_delete //.
       rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //.
-      rewrite insert_delete.
+      rewrite insert_delete_insert.
       rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
       iExists a_m, a_m', size. iFrame. auto. }
@@ -227,15 +227,15 @@ Section SimpleMalloc.
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
     rewrite -!(delete_insert_ne _ r_t1)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -!(delete_insert_ne _ r_t0)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete delete_insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
     set regs := <[_:=_]> _.
 
     iApply ("Hcont" $! regs).
     { iPureIntro. subst regs. rewrite !dom_insert_L dom_delete_L.
       rewrite regmap_full_dom; eauto. set_solver. }
-    iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intuitionistically_forall.
+    iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
     destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. }
     destruct (decide (r' = r_t1)).

@@ -1,27 +1,30 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac auth.
 From cap_machine Require Export cap_lang iris_extra.
 
+(* TODO: rename {mem,reg,Mem,Reg}G into {mem,reg,Mem,Reg}GS for consistency ? *)
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
-  mem_invG : invG Σ;
-  mem_gen_memG :> gen_heapG Addr Word Σ}.
+  mem_invG : invGS Σ;
+  mem_gen_memG :> gen_heapGS Addr Word Σ}.
 
 (* CMRA for registers *)
 Class regG Σ := RegG {
-  reg_invG : invG Σ;
-  reg_gen_regG :> gen_heapG RegName Word Σ; }.
+  reg_invG : invGS Σ;
+  reg_gen_regG :> gen_heapGS RegName Word Σ; }.
 
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisG cap_lang Σ := {
-  iris_invG := mem_invG;
-  state_interp σ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
+Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisGS cap_lang Σ := {
+  iris_invGS := mem_invG;
+  state_interp σ _ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
+  num_laters_per_step _ := 0%nat;
+  state_interp_mono _ _ _ _ := fupd_intro _ _;
 }.
-Global Opaque iris_invG.
+Global Opaque iris_invGS.
 
 (* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
@@ -31,7 +34,116 @@ Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at le
 (* Points to predicates for memory *)
 Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
-Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
+Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20)
+    : bi_scope.
+
+(* TODO find a better fix for the inference of Wp *)
+(** Notations for partial weakest preconditions *)
+(** Notations without binder -- only parsing because they overlap with the
+notations with binder. *)
+Notation "'WP' e @ s ; E {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) s E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e @ E {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e @ E ? {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e ? {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+(** Notations with binder. *)
+(** The general approach we use for all these complex notations: an outer '[hv'
+to switch bwteen "horizontal mode" where it all fits on one line, and "vertical
+mode" where each '/' becomes a line break. Then, as appropriate, nested boxes
+('['...']') for things like preconditions and postconditions such that they are
+maximally horizontal and suitably indented inside the parentheses that surround
+them. *)
+Notation "'WP' e @ s ; E {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) s E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+Notation "'WP' e @ E {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' @  E  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+Notation "'WP' e @ E ? {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' @  E  '/' ? {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+Notation "'WP' e {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+Notation "'WP' e ? {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' ? {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+(* Texan triples *)
+Notation "'{{{' P } } } e @ s ; E {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E {{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e @ E {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E {{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e @ E ? {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E ?{{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' ? {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e {{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e ? {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e ?{{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' ? {{{  '[' x  ..  y ,   RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+Notation "'{{{' P } } } e @ s ; E {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; E {{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e @ E {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E {{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e @ E ? {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E ?{{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' ? {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e {{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+Notation "'{{{' P } } } e ? {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e ?{{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' ? {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
+Notation "'{{{' P } } } e @ s ; E {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e @ E {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e @ E ? {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E ?{{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e ? {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e ?{{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e @ s ; E {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; E {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e @ E {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e @ E ? {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E ?{{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e ? {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e ?{{ Φ }}) : stdpp_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -175,7 +287,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (l : L) (q : Qp) (v : V),
       σ' !! l = Some v →
       gen_heap_interp σ -∗
@@ -189,7 +301,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM':
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -202,7 +314,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inclSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -218,7 +330,7 @@ Section cap_lang_rules.
   Lemma gen_heap_valid_allSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (EV: Equiv V) (REV: Reflexive EV) (LEV: @LeibnizEquiv V EV)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       (forall (l:L), is_Some (σ' !! l)) →
       gen_heap_interp σ -∗
@@ -242,7 +354,7 @@ Section cap_lang_rules.
   Lemma gen_heap_update_inSepM :
     ∀ {L V : Type} {EqDecision0 : EqDecision L}
       {H : Countable L} {Σ : gFunctors}
-      {gen_heapG0 : gen_heapG L V Σ}
+      {gen_heapGS0 : gen_heapGS L V Σ}
       (σ σ' : gmap L V) (l : L) (v : V),
       is_Some (σ' !! l) →
       gen_heap_interp σ
@@ -259,16 +371,21 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  Lemma wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
+  (* TODO *)
+  Lemma wp_lift_atomic_head_step_no_fork_determ
+    {s E Φ}
+    (* {s : stuckness} {E : coPset} {Φ : cap_lang.val -> iPropI Σ} *)
+    (e1 : cap_lang.expr) :
     to_val e1 = None →
-    (∀ (σ1:cap_lang.state) κ κs n, state_interp σ1 (κ ++ κs) n ={E}=∗
-     ∃ κ e2 (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
-      (▷ |==> (state_interp σ2 κs n ∗ from_option Φ False (to_val e2))))
-      ⊢ WP e1 @ s; E {{ Φ }}.
+    (∀ (σ1:cap_lang.state) (ns : nat) κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
+     ∃ κ (e2 : cap_lang.expr) (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
+      (▷ |==> (state_interp σ2 (S ns) κs nt ∗ from_option Φ False (to_val e2))))
+      (* ⊢ (@wp _ _ _ _ (@wp' _ _ _) s E e1%E Φ). *)
+        ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 κ κs n)  "Hσ1 /=".
-    iMod ("H" $! σ1 κ κs n with "[Hσ1]") as "H"; auto.
+    iIntros (σ1 ns κ κs nt)  "Hσ1 /=".
+    iMod ("H" $! σ1 ns κ κs nt with "[Hσ1]") as "H"; auto.
     iDestruct "H" as (κ' e2 σ2 efs) "[H1 H2]".
     iModIntro. iSplit.
     - rewrite /head_reducible /=.
@@ -419,7 +536,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_mem_update_inSepM :
-    ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapG Addr Word Σ}
+    ∀ {Σ : gFunctors} {gen_heapGS0 : gen_heapGS Addr Word Σ}
       (σ : gmap Addr Word) mem0 (l : Addr) (v' v : Word),
       mem0 !! l = Some v' →
       gen_heap_interp σ
@@ -435,7 +552,7 @@ Section cap_lang_rules.
     iSplitL "Hh"; eauto.
     iDestruct (big_sepM_insert _ _ l with "[$Hmap $Hl]") as "H".
     apply lookup_delete.
-    rewrite insert_delete. iFrame.
+    rewrite insert_delete_insert. iFrame.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
@@ -443,6 +560,12 @@ Section cap_lang_rules.
   Lemma wp_notCorrectPC:
     forall E w,
       ~ isCorrectPC w ->
+      (* ⊢ (□ ∀ Φ, *)
+      (*      PC ↦ᵣ w *)
+      (*      -∗ ▷ (PC ↦ᵣ w -∗ Φ FailedV) *)
+      (*      -∗ (@wp _ _ _ _ *)
+      (*            (@wp' _ _ _) NotStuck E (Instr Executable) Φ)). *)
+
       {{{ PC ↦ᵣ w }}}
         Instr Executable @ E
         {{{ RET FailedV; PC ↦ᵣ w }}}.
@@ -450,7 +573,7 @@ Section cap_lang_rules.
     intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+    iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl;
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
@@ -489,7 +612,7 @@ Section cap_lang_rules.
     by iApply "Hwp".
   Qed.
 
-  (* ----------------------------------- ATOMIC RULES -------------------------------- *)
+  (* (* ----------------------------------- ATOMIC RULES -------------------------------- *) *)
 
   Lemma wp_halt E pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Halt →
@@ -502,7 +625,7 @@ Section cap_lang_rules.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
@@ -525,7 +648,7 @@ Section cap_lang_rules.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.

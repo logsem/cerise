@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
@@ -334,7 +334,7 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs".
     { rewrite !lookup_insert_ne; auto. apply lookup_delete. }
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -349,7 +349,7 @@ Section counter.
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne//.
       apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete).
+    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_insert).
     set regs' := <[_:=_]> _.
     (* jump to unknown code *)
     iDestruct (jmp_to_unknown _ with "Hcallback") as "Hcallback_now".

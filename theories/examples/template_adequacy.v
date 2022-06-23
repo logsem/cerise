@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -50,10 +50,10 @@ Proof.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
   { eapply elem_of_gmap_dom.
-    rewrite elem_of_subseteq in Hdom |- * => Hdom.
+    rewrite elem_of_subseteq in Hdom |- *.
     eapply Hdom. auto. }
   eexists. split; eauto.
-  rewrite map_subseteq_spec in Hsub |- * => Hsub.
+  rewrite map_subseteq_spec in Hsub |- *.
   eapply Hsub. eauto.
 Qed.
 
@@ -68,10 +68,10 @@ Proof.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
   { eapply elem_of_gmap_dom.
-    rewrite elem_of_subseteq in Hdom |- * => Hdom.
+    rewrite elem_of_subseteq in Hdom |- *.
     eapply Hdom. auto. }
   eexists. split; eauto.
-  rewrite map_subseteq_spec in Hsub |- * => Hsub.
+  rewrite map_subseteq_spec in Hsub |- *.
   eapply Hsub; eauto.
 Qed.
 
@@ -82,7 +82,7 @@ Proof.
   intros Hd. eapply set_eq. intros a.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
-  { rewrite elem_of_subseteq in Hd |- * => Hd. specialize (Hd _ H).
+  { rewrite elem_of_subseteq in Hd |- *. specialize (Hd _ H).
     eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
@@ -114,9 +114,9 @@ Definition is_initial_memory (P: prog) (m: gmap Addr Word) :=
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -165,9 +165,9 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
@@ -266,9 +266,9 @@ Definition is_initial_memory (P Adv: prog) (m: gmap Addr Word) :=
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -331,9 +331,9 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
@@ -518,9 +518,9 @@ Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P L
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -621,9 +621,9 @@ Section Adequacy.
     set prog_nin_inv :=
       filter (fun '(a, _) => a ∉ minv_dom I) (lib_region (priv_libs Lib)).
     rewrite (_: lib_region (priv_libs Lib) = prog_in_inv ∪ prog_nin_inv).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hlib_priv") as "[Hlib_inv Hlib_priv]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hlib_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
@@ -721,7 +721,7 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; Σ]).
-  intros. eapply (@template_adequacy' Σ'); eauto; (* rewrite /invPreG. solve_inG. *)
+  intros. eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
             typeclasses eauto.
 Qed.
 

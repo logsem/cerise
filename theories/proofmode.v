@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
@@ -65,7 +65,16 @@ Ltac wp_instr :=
 
 Ltac changePCto0 new_a :=
   match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?a)%I ] =>
-    rewrite (_: a = new_a); [| solve_addr]
+    rewrite (_: a = new_a)
+    ; [|
+    (* TODO is it stable ? *)
+    try (match goal with
+    | h1: context[( _ + _ )%a = Some new_a] |- _ =>
+        match goal with
+        | h2: context[( _ + _ )%a = Some ?a_prev] |-
+            (?a_prev ^+ _)%a = _ => clear -h1 h2
+        end
+    end);solve_addr]
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
 
@@ -402,7 +411,7 @@ Ltac2 iFresh () :=
   | [ |- envs_entails (Envs ?Δp ?Δs ?c) ?q ] =>
     let c' := eval vm_compute in (Pos.succ $c) in
     ltac1:(Δp Δs c' q |-
-           convert_concl_no_check (envs_entails (Envs Δp Δs c') q))
+           change_no_check (envs_entails (Envs Δp Δs c') q))
       (Ltac1.of_constr Δp) (Ltac1.of_constr Δs) (Ltac1.of_constr c')
       (Ltac1.of_constr q);
     '(IAnon $c)

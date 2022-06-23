@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
@@ -554,7 +554,7 @@ Section macros.
         iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete//.
         iApply (big_sepM_delete _ _ r0). done. iFrame. }
       { iPureIntro. solve_pure_addr. }
-      { rewrite insert_delete. iPureIntro. set_solver. } }
+      { rewrite insert_delete_insert. iPureIntro. set_solver. } }
     { iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont Hr0]"); eauto.
       { iPureIntro. set_solver. }
       { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".

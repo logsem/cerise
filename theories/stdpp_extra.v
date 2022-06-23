@@ -8,8 +8,8 @@ Proof.
   induction l.
   - intros. rewrite list_to_set_nil elements_empty //.
   - intros ND. rewrite list_to_set_cons elements_union_singleton.
-    + rewrite IHl //. eauto using NoDup_cons_1_2.
     + rewrite not_elem_of_list_to_set. by apply NoDup_cons_1_1.
+    + rewrite IHl //. eauto using NoDup_cons_1_2.
 Qed.
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
@@ -313,7 +313,7 @@ Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
   rewrite map_filter_lookup_Some lookup_insert_Some.
-  rewrite -map_filter_insert;auto.
+  rewrite -map_filter_insert_True;auto.
     by rewrite map_filter_lookup_Some lookup_insert_Some.
 Qed.
 
@@ -334,10 +334,11 @@ Lemma dom_difference_het
     (m1: gmap A B) (m2: gmap A C):
   dom (gset A) (m1 ∖∖ m2) = dom (gset A) m1 ∖ dom (gset A) m2.
 Proof.
-  apply (anti_symm _).
+  apply (@anti_symm _ _ subseteq).
+  typeclasses eauto.
   { rewrite elem_of_subseteq. intro k.
     rewrite -elem_of_gmap_dom. intros [v Hv].
-    rewrite difference_het_lookup_Some in Hv * => Hv.
+    rewrite difference_het_lookup_Some in Hv *.
     destruct Hv as [? ?].
     rewrite elem_of_difference -!elem_of_gmap_dom. split; eauto.
     intros [? ?]. congruence. }
@@ -357,12 +358,12 @@ Proof.
   clearbody l. revert l Hl. revert m1. pattern m2. revert m2.
   apply map_ind.
   - intros m1 l. rewrite dom_empty_L elements_empty difference_het_empty.
-    rewrite Permutation_nil. intros ->. reflexivity.
+    rewrite Permutation_nil_r. intros ->. reflexivity.
   - intros k v m2 Hm2k HI m1 l Hm1l.
     rewrite difference_het_insert_r.
-    rewrite dom_insert in Hm1l * => Hm1l.
+    rewrite dom_insert in Hm1l *.
     move: Hm1l. rewrite elements_union_singleton.
-    2: rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
+    rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
     intros Hm1l.
     transitivity (delete k (delete_list (elements (dom (gset A) m2)) m1)).
     { erewrite delete_list_permutation. 2: eauto. reflexivity. }
@@ -675,44 +676,6 @@ Proof.
   - apply map_filter_lookup_None_2;auto.
 Qed.
 
-Lemma map_filter_union :
-  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
-    FinMap K M → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m1 m2 : M A),
-      m1 ##ₘ m2 →
-      filter P (m1 ∪ m2) = filter P m1 ∪ filter P m2.
-Proof.
-  intros. induction m1 using map_ind.
-  - by rewrite map_filter_empty !map_empty_union.
-  - apply map_disjoint_insert_l in H8 as [Hm2None Hdisj].
-    destruct (decide (P (i,x))).
-    + rewrite -insert_union_l !map_filter_insert// IHm1//.
-      rewrite insert_union_l. auto.
-    + rewrite map_filter_insert_not'//.
-      { intros y Hy. simplify_eq. }
-      rewrite -IHm1// -insert_union_l map_filter_insert_not'//.
-      intros y Hy. rewrite lookup_union_r// in Hy. simplify_eq.
-Qed.
-
-Lemma map_filter_disjoint :
-  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
-    FinMap K M → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m1 m2 : M A),
-      m1 ##ₘ m2 →
-      filter P m1 ##ₘfilter P m2.
-Proof.
-  intros. induction m1 using map_ind.
-  - rewrite map_filter_empty. apply map_disjoint_empty_l.
-  - apply map_disjoint_insert_l in H8 as [Hm2None Hdisj].
-    destruct (decide (P (i,x))).
-    + rewrite map_filter_insert//.
-      apply map_disjoint_insert_l_2;auto.
-      apply map_filter_lookup_None_2. left;auto.
-    + rewrite map_filter_insert_not'//.
-      { intros; simplify_eq. }
-      apply IHm1;auto.
-Qed.
-
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :
   (zip l k).*1 `prefix_of` l.
 Proof.
@@ -928,7 +891,8 @@ Lemma last_lookup {A : Type} (l : list A) :
 Proof.
   induction l.
   - done.
-  - simpl. destruct l; auto.
+  - simpl; rewrite {1}/last -/last.
+    destruct l; auto.
     rewrite IHl. simpl. rewrite PeanoNat.Nat.sub_0_r. done.
 Qed.
 
@@ -939,7 +903,7 @@ Proof.
   - intros Hl2.
     induction l1.
     + destruct l2; inversion Hl2. simpl. split; auto. lia.
-    + destruct IHl1 as [Hlt Hlast]. split; auto. simpl. rewrite Hlast.
+    + destruct IHl1 as [Hlt Hlast]. split; auto. simpl; rewrite {1}/last -/last. rewrite Hlast.
       destruct (l1 ++ l2); auto.
       inversion Hlast.
   - generalize l1. induction l2; intros l1' [Hlen Hl].

@@ -1,6 +1,6 @@
 From cap_machine Require Export stdpp_extra cap_lang rules_base.
 From cap_machine Require Import rules_binary_base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From machine_utils Require Import finz_interval.
 From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 
@@ -93,7 +93,7 @@ Section region.
       iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame.
       iSplitR. iPureIntro. by rewrite {1}Hws //.
       rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]".
-      cbn. iFrame.
+      simpl. iFrame.
   Qed.
 
   Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
@@ -262,7 +262,7 @@ Section region.
       iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame.
       iSplitR. iPureIntro. by rewrite {1}Hws //.
       rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]".
-      cbn. iFrame.
+      simpl. iFrame.
   Qed.
 
   Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws)

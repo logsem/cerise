@@ -64,12 +64,12 @@ Defined.
 (* TODO: separate the proof parts into lemmas *)
 
 Definition Z_of_regname (r: RegName): Z.
-  destruct r. exact 0.
-  exact (S n).
+  destruct r. exact 0%Z.
+  exact (Z.of_nat (S n)).
 Defined.
 
 Instance RegName_InjTyp : InjTyp RegName Z.
-  refine (mkinj _ _ Z_of_regname (fun n => n <= RegNum + 1)%Z _).
+  refine (mkinj _ _ Z_of_regname (fun n => n <= ((Z.of_nat RegNum) + 1))%Z _).
   intros [|]. cbn. lia. cbn. apply Nat.leb_le in fin. lia.
 Defined.
 Add Zify InjTyp RegName_InjTyp.
@@ -180,7 +180,7 @@ Qed.
 Lemma all_registers_union_l s :
   s ∪ all_registers_s = all_registers_s.
 Proof.
-  eapply (anti_symm _). 2: set_solver.
+  eapply (anti_symm subseteq). 2: set_solver.
   rewrite elem_of_subseteq. intros ? _.
   apply all_registers_s_correct.
 Qed.
@@ -199,7 +199,7 @@ Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
   dom (gset RegName) r = all_registers_s.
 Proof.
-  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.
   - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.

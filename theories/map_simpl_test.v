@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules_base addr_reg_sample map_simpl.
 
 Section test.

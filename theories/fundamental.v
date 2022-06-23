@@ -1,5 +1,5 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea. 
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
@@ -146,7 +146,7 @@ Section fundamental.
     { iClear "Hw". iIntros "(? & Hreg & ?)". unfold interp_conf.
       iApply (wp_wand with "[-]"). 2: iIntros (?) "H"; iApply "H".
       iApply (wp_bind (fill [SeqCtx])). cbn.
-      unfold registers_mapsto. rewrite -insert_delete.
+      unfold registers_mapsto. rewrite -insert_delete_insert.
       iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]". by rewrite lookup_delete.
       iApply (wp_notCorrectPC with "HPC"). by inversion 1.
       iNext. iIntros. cbn. iApply wp_pure_step_later; auto. iNext.
@@ -217,7 +217,7 @@ Section fundamental.
     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).
-      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. eauto. }
+      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. }
       rewrite lookup_insert_ne //. iPureIntro. rewrite elem_of_gmap_dom Hrmap. set_solver. }
     { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne // in Hvs.

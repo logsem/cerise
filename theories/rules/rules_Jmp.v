@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
@@ -32,7 +32,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr0 Hm]".
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
@@ -60,7 +60,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; cbn.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; cbn.
     iDestruct "Hσ1" as "[Hr0 Hm]".
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC.

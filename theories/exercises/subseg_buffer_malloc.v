@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
@@ -384,6 +384,7 @@ Section malloc_program.
     rewrite {1}/registers_mapsto.
 
     (* Extract the registers from the map *)
+    cbn in Hrfull.
     extract_register PC with "Hregs" as "[HPC Hregs]".
     extract_register r_t0 with "Hregs" as ( w0 Hw0 ) "[Hr0 Hregs]".
     extract_register r_t30 with "Hregs" as ( w30 Hw30 ) "[Hr30 Hregs]".
@@ -414,7 +415,7 @@ Section malloc_program.
       rewrite Hrfull.
       set_solver.
     - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
-      { iSplitL. by iApply "Hregs". iApply big_sepM_intuitionistically_forall. iModIntro.
+      { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
         iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
         iApply ("Hrsafe" $! r'); auto. }
       simpl.

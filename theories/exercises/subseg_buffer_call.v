@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
@@ -657,7 +657,7 @@ Section program_call.
     iApply big_sepM_insert_2 ; first iFrame "#".
     iApply big_sepM_insert_2 ; cycle 1.
     (* The remaining registers contains WInt*)
-    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+    { iApply big_sepM_intro. iIntros "!>" (r ?).
       (set rmap' := delete r_t7 _ ).
       destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
@@ -672,6 +672,7 @@ Section program_call.
       rewrite /interp_conf /registers_mapsto.
 
       (* get the registers we need *)
+      cbn in H.
       extract_register PC with "Hrmap" as "[HPC Hrmap]".
       some_register r_t0 with r as w0 Hw0
       ; extract_register r_t0 with "Hrmap" as "[Hr0 Hrmap]".
@@ -1014,7 +1015,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -1030,7 +1031,7 @@ Program Definition call_table `{memory_layout} : @tbl_priv call_prog OCPLLibrary
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -1045,7 +1046,7 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 

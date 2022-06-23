@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
@@ -513,17 +513,17 @@ Section program_closure_ro.
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap Hr3]") as "Hrmap"
     ; [| iFrame ; iApply interp_int |].
     { by rewrite lookup_delete. }
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
     (* r2 *)
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap Hr2]") as "Hrmap"
     ; [| iFrame ; iApply interp_int |].
     { rewrite lookup_insert_ne ; auto. by rewrite lookup_delete. }
-    rewrite <- delete_insert_ne, insert_delete ; auto.
+    rewrite <- delete_insert_ne, insert_delete_insert ; auto.
     (* r1 *)
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap"
     ; [| by iFrame ; iFrame "#" |].
     { rewrite !lookup_insert_ne ; auto. by rewrite lookup_delete. }
-    rewrite <- 2delete_insert_ne, insert_delete ; auto.
+    rewrite <- 2delete_insert_ne, insert_delete_insert ; auto.
     (* r30 *)
     iDestruct (big_sepM_insert _ _ r_t30 with "[$Hrmap Hr30]") as "Hrmap"
     ; [| by iFrame |].
@@ -587,7 +587,7 @@ Section program_closure_ro.
      apply regmap_full_dom in Hrfull; rewrite Hrfull.
      set_solver.
    - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
-     { iSplitL. by iApply "Hregs". iApply big_sepM_intuitionistically_forall. iModIntro.
+     { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
        iApply ("Hrsafe" $! r'); auto. }
      simpl.

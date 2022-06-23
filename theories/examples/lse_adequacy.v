@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -127,7 +127,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -143,7 +143,7 @@ Program Definition roe_table `{memory_layout} : @tbl_priv roe_prog OCPLLibrary :
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -158,7 +158,7 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 

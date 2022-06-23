@@ -1,5 +1,5 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.

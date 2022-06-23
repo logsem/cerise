@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -117,7 +117,7 @@ Proof.
   pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
   pose proof (assert_flag_size layout).
   assert (list_to_map [(assert_flag layout, WInt 0)] ⊆ m) as Hassert_flag.
-  { etrans;[|eauto]. eapply map_union_subseteq_r_alt. 2: done.
+  { etrans;[|eauto]. eapply map_union_subseteq_r'. 2: done.
     pose proof (libs_disjoint layout) as Hdisjoint. disjoint_map_to_list.
     apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
     intros [ [? ?]|?] ->; solve_addr. }
@@ -129,7 +129,7 @@ Lemma flag_inv_sub `{MachineParameters} (layout : ocpl_library) :
   minv_dom (flag_inv layout) ⊆ dom (gset Addr) (lib_region (priv_libs (library layout))).
 Proof.
   cbn. rewrite map_union_empty.
-  intros ? Hinit. rewrite elem_of_singleton in Hinit |- * => ->.
+  intros ? Hinit. rewrite elem_of_singleton in Hinit |- *.
   rewrite /assert_library_content.
   pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
   pose proof (assert_flag_size layout).
@@ -182,7 +182,7 @@ Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; Σ]).
   intros ? ? ? ? Hspec.
-  eapply (template_adequacy Σ');[eauto..|]; (* rewrite /invPreG. solve_inG. *)
+  eapply (template_adequacy Σ');[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
     try typeclasses eauto.
   eapply flag_inv_is_initial_memory;eauto.
   eapply flag_inv_sub;eauto.
@@ -198,11 +198,11 @@ Proof.
     rewrite /malloc_library_content.
     iDestruct (big_sepM_union with "Hmalloc") as "[Hpubs Hinit]".
     { pose proof (libs_disjoint layout) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
+      rewrite !disjoint_list_cons in Hdisjoint |- *.
       disjoint_map_to_list. set_solver. }
     iDestruct (big_sepM_union with "Hpubs") as "[Hpubs Hmid]".
     { pose proof (libs_disjoint layout) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
+      rewrite !disjoint_list_cons in Hdisjoint |- *.
       disjoint_map_to_list. set_solver. }
     pose proof (malloc_code_size layout) as Hmalloc_size.
     pose proof (malloc_memptr_size layout) as Hmalloc_memptr_size.
@@ -230,7 +230,7 @@ Proof.
          rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
          intros [ [? ?]|?]; solve_addr. }
     iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
-    { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
+    { eapply map_disjoint_filter. disjoint_map_to_list.
       apply elem_of_disjoint. intro.
       rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
       intros [ [? ?]|?]; solve_addr. }

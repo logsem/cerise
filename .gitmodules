@@ -1,3 +1,4 @@
 [submodule "machine_utils"]
 	path = machine_utils
 	url = https://github.com/logsem/machine_utils
+	branch = coq-8.15

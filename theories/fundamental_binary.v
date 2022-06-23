@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary Jmp_binary Jnz_binary Lea_binary Subseg_binary Restrict_binary Store_binary.

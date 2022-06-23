@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
@@ -96,9 +96,9 @@ Qed.
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -134,20 +134,20 @@ Section Adequacy.
 
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_act & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_act & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hact]".
     { disjoint_map_to_list. set_solver +Hdisj_act. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_x & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_x & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hx]".
     { disjoint_map_to_list. set_solver +Hdisj_x. }
     iDestruct (big_sepM_insert with "Hx") as "[Hx _]". by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_f & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_f & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hg Hf]".
     { disjoint_map_to_list. set_solver +Hdisj_f. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_g & _).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_g & _).
     clear Hdisj_adv Hdisj_act Hdisj_x Hdisj_f Hdisj_g.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
