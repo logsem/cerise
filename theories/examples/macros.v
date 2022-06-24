@@ -1763,7 +1763,7 @@ Section macros.
   (*   withinBounds b_link e_link a_entry = true → *)
   (*   (a_link + f_m)%a = Some a_entry → *)
   (*   dom (gset (CoreN * RegName)) rmap = *)
-  (*     ((set_map (fun r=> (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0); (i, r_t1);(i, r_t2) ]}) → *)
+  (*     ((all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0); (i, r_t1);(i, r_t2) ]}) → *)
   (*   ↑mallocN ⊆ EN → *)
 
   (*     ▷ crtcls f_m a *)
@@ -1838,11 +1838,14 @@ Section macros.
   (*   assert (∀ (r:RegName), *)
   (*             (i,r) ∈ ({[(i,PC);(i,r_t0);(i,r_t1);(i,r_t2)]} : gset (CoreN*RegName)) *)
   (*                          → rmap !! (i, r) = None) as Hnotin_rmap. *)
-  (*   { intros r Hr. eapply (@not_elem_of_dom _ _ (gset (CoreN*RegName))). typeclasses eauto. *)
-  (*     rewrite Hrmap_dom. set (rmap' := set_map (λ r0 : RegName, (i, r0)) *)
-  (*                                        all_registers_s). *)
-  (*     admit. } *)
-  (*     (* set_solver. } *) *)
+  (*   { intros r Hr. *)
+  (*     clear -Hr Hrmap_dom. *)
+  (*     eapply (@not_elem_of_dom (CoreN * RegName) _ _ *)
+  (*               _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Word). *)
+  (*     rewrite Hrmap_dom. *)
+  (*     rewrite elem_of_difference. *)
+  (*     intros [_ contra]. *)
+  (*     clear -Hr contra ; set_solver. } *)
   (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs". *)
   (*   do 2 (rewrite lookup_insert_ne ; last simplify_pair_eq). *)
   (*     apply Hnotin_rmap ; last set_solver+. *)
@@ -1859,11 +1862,9 @@ Section macros.
   (*     revert Hcont Hcont_rest Hmid; clear. solve_addr. } *)
   (*   { rewrite !dom_insert_L. rewrite Hrmap_dom. *)
   (*     clear. *)
-  (*     rewrite singleton_union_difference_L. *)
-  (*     admit. } *)
-  (*     (* set_solver+. *) *)
-  (*     (* repeat (rewrite singleton_union_difference_L all_registers_union_l). *) *)
-  (*     (* f_equal. clear; set_solver+. } *) *)
+  (*     do 4 (rewrite singleton_union_difference_L). *)
+  (*     set_solver. *)
+  (*   } *)
   (*   iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hregs)". *)
   (*   iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)". *)
   (*   rewrite delete_insert_delete. *)
@@ -1902,7 +1903,9 @@ Section macros.
   (*   by simpl_map. *)
   (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs". *)
   (*   by simpl_map. *)
-  (*   repeat (repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []); rewrite delete_insert_delete). *)
+  (*   rewrite delete_insert_delete. *)
+  (*   repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []). *)
+  (*   (* repeat (repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []); rewrite delete_insert_delete). *) *)
   (*   rewrite (delete_notin _ r_t1). 2: apply Hnotin_rmap; set_solver. *)
   (*   rewrite (delete_notin _ r_t2). 2: rewrite !lookup_delete_ne //; apply Hnotin_rmap; set_solver. *)
   (*   repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete. *)
@@ -1911,97 +1914,97 @@ Section macros.
   (*   repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite (insert_commute _ r_t6 r_t5) //. *)
   (* Qed. *)
 
-  (* ------------------------------- Closure Activation --------------------------------- *)
+  (* (* ------------------------------- Closure Activation --------------------------------- *) *)
 
-  (* Lemma closure_activation_spec pc_p b_cls e_cls r1v renvv wcode wenv φ : *)
-  (*   readAllowed pc_p = true → *)
-  (*   isCorrectPC_range pc_p b_cls e_cls b_cls e_cls → *)
-  (*   pc_p ≠ E → *)
-  (*   PC ↦ᵣ WCap pc_p b_cls e_cls b_cls *)
-  (*   ∗ r_t1 ↦ᵣ r1v *)
-  (*   ∗ r_env ↦ᵣ renvv *)
-  (*   ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]] *)
-  (*   ∗ (  PC ↦ᵣ updatePcPerm wcode *)
-  (*      ∗ r_t1 ↦ᵣ wcode *)
-  (*      ∗ r_env ↦ᵣ wenv *)
-  (*      ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]] *)
-  (*      -∗ WP Seq (Instr Executable) {{ φ }}) *)
-  (*   ⊢ *)
-  (*     WP Seq (Instr Executable) {{ φ }}. *)
-  (* Proof. *)
-  (*   iIntros (Hrpc Hvpc HnpcE) "(HPC & Hr1 & Hrenv & Hcls & Hcont)". *)
-  (*   rewrite /region_mapsto. *)
-  (*   iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len. *)
-  (*   assert (b_cls + 8 = Some e_cls)%a as Hbe. *)
-  (*   { rewrite finz_seq_between_length /finz.dist in Hcls_len. *)
-  (*     revert Hcls_len; clear; solve_addr. } *)
-  (*   assert (contiguous_between (finz.seq_between b_cls e_cls) b_cls e_cls) as Hcont_cls. *)
-  (*   { apply contiguous_between_of_region_addrs; auto. revert Hbe; clear; solve_addr. } *)
-  (*   pose proof (finz_seq_between_NoDup b_cls e_cls) as Hcls_nodup. *)
-  (*   iDestruct (big_sepL2_split_at 6 with "Hcls") as "[Hcls_code Hcls_data]". *)
-  (*   cbn [take drop]. *)
-  (*   destruct (finz.seq_between b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|]. *)
-  (*   pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_cls). subst. *)
-  (*   do 7 (destruct ll as [| ? ll]; [by inversion Hcls_len|]). *)
-  (*   destruct ll;[| by inversion Hcls_len]. cbn [take drop]. *)
-  (*   iDestruct "Hcls_data" as "(Hcls_ptr & Hcls_env & _)". *)
-  (*   (* move r_t1 PC *) *)
-  (*   iPrologue "Hcls_code". *)
-  (*   iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]"); *)
-  (*     [apply decode_encode_instrW_inv| iCorrectPC b_cls e_cls | *)
-  (*      iContiguous_next Hcont_cls 0 |..]. *)
-  (*   iEpilogue "(HPC & Hprog_done & Hr1)". *)
-  (*   (* lea r_t1 7 *) *)
-  (*   iPrologue "Hprog". *)
-  (*   iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]"); *)
-  (*     [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | *)
-  (*      iContiguous_next Hcont_cls 1 | | done | ..]. *)
-  (*   { eapply contiguous_between_incr_addr_middle' with (i:=0); eauto. *)
-  (*     cbn. clear. lia. } *)
-  (*   iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done". *)
-  (*   (* load r_env r_t1 *) *)
-  (*   iPrologue "Hprog". *)
-  (*   (* FIXME: tedious & fragile *) *)
-  (*   assert ((f5 =? f0)%a = false) as H_5_0. *)
-  (*   { apply Z.eqb_neq. intros Heqb. assert (f5 = f0) as ->. revert Heqb; clear; solve_addr. *)
-  (*     exfalso. by pose proof (NoDup_lookup _ 2 7 _ Hcls_nodup eq_refl eq_refl). } *)
-  (*   iApply (wp_load_success with "[$HPC $Hi $Hrenv $Hr1 Hcls_env]"); *)
-  (*     [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | *)
-  (*      split;[done|] | iContiguous_next Hcont_cls 2 | ..]. *)
-  (*   { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?]. *)
-  (*     by eapply le_addr_withinBounds; eauto. repeat constructor. } *)
-  (*   { rewrite H_5_0. iFrame. } *)
-  (*   iEpilogue "(HPC & Hrenv & Hi & Hr1 & Hcls_env)". rewrite H_5_0. *)
-  (*   iCombine "Hi Hprog_done" as "Hprog_done". *)
-  (*   (* lea r_t1 (-1) *) *)
-  (*   iPrologue "Hprog". *)
-  (*   iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]"); *)
-  (*     [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | *)
-  (*      iContiguous_next Hcont_cls 3 | | done | ..]. *)
-  (*   { assert ((f4 + 1)%a = Some f5) as HH. by iContiguous_next Hcont_cls 6. *)
-  (*     instantiate (1 := f4). revert HH. clear; solve_addr. } *)
-  (*   iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done". *)
-  (*   (* load r_t1 r_t1 *) *)
-  (*   iPrologue "Hprog". *)
-  (*   (* FIXME: tedious & fragile *) *)
-  (*   assert ((f4 =? f2)%a = false) as H_4_2. *)
-  (*   { apply Z.eqb_neq. intros Heqb. assert (f4 = f2) as ->. revert Heqb; clear; solve_addr. *)
-  (*     exfalso. by pose proof (NoDup_lookup _ 4 6 _ Hcls_nodup eq_refl eq_refl). } *)
-  (*   iApply (wp_load_success_same with "[$HPC $Hi $Hr1 Hcls_ptr]"); *)
-  (*     [(* FIXME *) auto | apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | *)
-  (*      done | auto | iContiguous_next Hcont_cls 4 | ..]. *)
-  (*   { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?]. *)
-  (*     by eapply le_addr_withinBounds; eauto. repeat constructor. } *)
-  (*   { rewrite H_4_2. iFrame. } *)
-  (*   iEpilogue "(HPC & Hr1 & Hi & Hcls_ptr)". rewrite H_4_2. *)
-  (*   iCombine "Hi Hprog_done" as "Hprog_done". *)
-  (*   (* jmp r_t1 *) *)
-  (*   iPrologue "Hprog". *)
-  (*   iApply (wp_jmp_success with "[$HPC $Hi $Hr1]"); *)
-  (*     [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | .. ]. *)
-  (*   iEpilogue "(HPC & Hi & Hr1)". *)
+  Lemma closure_activation_spec i pc_p b_cls e_cls r1v renvv wcode wenv φ :
+    readAllowed pc_p = true →
+    isCorrectPC_range pc_p b_cls e_cls b_cls e_cls →
+    pc_p ≠ E →
+    (i, PC) ↦ᵣ WCap pc_p b_cls e_cls b_cls
+    ∗ (i, r_t1) ↦ᵣ r1v
+    ∗ (i, r_env) ↦ᵣ renvv
+    ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
+    ∗ (  (i,PC) ↦ᵣ updatePcPerm wcode
+       ∗ (i,r_t1) ↦ᵣ wcode
+       ∗ (i, r_env) ↦ᵣ wenv
+       ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
+       -∗ WP (i, Seq (Instr Executable)) {{ φ }})
+    ⊢
+      WP (i, Seq (Instr Executable)) {{ φ }}.
+  Proof.
+    iIntros (Hrpc Hvpc HnpcE) "(HPC & Hr1 & Hrenv & Hcls & Hcont)".
+    rewrite /region_mapsto.
+    iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
+    assert (b_cls + 8 = Some e_cls)%a as Hbe.
+    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
+      revert Hcls_len; clear; solve_addr. }
+    assert (contiguous_between (finz.seq_between b_cls e_cls) b_cls e_cls) as Hcont_cls.
+    { apply contiguous_between_of_region_addrs; auto. revert Hbe; clear; solve_addr. }
+    pose proof (finz_seq_between_NoDup b_cls e_cls) as Hcls_nodup.
+    iDestruct (big_sepL2_split_at 6 with "Hcls") as "[Hcls_code Hcls_data]".
+    cbn [take drop].
+    destruct (finz.seq_between b_cls e_cls) as [| ? ll]; [by inversion Hcls_len|].
+    pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_cls). subst.
+    do 7 (destruct ll as [| ? ll]; [by inversion Hcls_len|]).
+    destruct ll;[| by inversion Hcls_len]. cbn [take drop].
+    iDestruct "Hcls_data" as "(Hcls_ptr & Hcls_env & _)".
+    (* move r_t1 PC *)
+    iPrologue "Hcls_code".
+    iApply (wp_move_success_reg_fromPC with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv| iCorrectPC b_cls e_cls |
+       iContiguous_next Hcont_cls 0 |..].
+    iEpilogue "(HPC & Hprog_done & Hr1)".
+    (* lea r_t1 7 *)
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
+       iContiguous_next Hcont_cls 1 | | done | ..].
+    { eapply contiguous_between_incr_addr_middle' with (i:=0); eauto.
+      cbn. clear. lia. }
+    iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
+    (* load r_env r_t1 *)
+    iPrologue "Hprog".
+    (* FIXME: tedious & fragile *)
+    assert ((f5 =? f0)%a = false) as H_5_0.
+    { apply Z.eqb_neq. intros Heqb. assert (f5 = f0) as ->. revert Heqb; clear; solve_addr.
+      exfalso. by pose proof (NoDup_lookup _ 2 7 _ Hcls_nodup eq_refl eq_refl). }
+    iApply (wp_load_success with "[$HPC $Hi $Hrenv $Hr1 Hcls_env]");
+      [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
+       split;[done|] | iContiguous_next Hcont_cls 2 | ..].
+    { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
+      by eapply le_addr_withinBounds; eauto. repeat constructor. }
+    { rewrite H_5_0. iFrame. }
+    iEpilogue "(HPC & Hrenv & Hi & Hr1 & Hcls_env)". rewrite H_5_0.
+    iCombine "Hi Hprog_done" as "Hprog_done".
+    (* lea r_t1 (-1) *)
+    iPrologue "Hprog".
+    iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
+       iContiguous_next Hcont_cls 3 | | done | ..].
+    { assert ((f4 + 1)%a = Some f5) as HH. by iContiguous_next Hcont_cls 6.
+      instantiate (1 := f4). revert HH. clear; solve_addr. }
+    iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
+    (* load r_t1 r_t1 *)
+    iPrologue "Hprog".
+    (* FIXME: tedious & fragile *)
+    assert ((f4 =? f2)%a = false) as H_4_2.
+    { apply Z.eqb_neq. intros Heqb. assert (f4 = f2) as ->. revert Heqb; clear; solve_addr.
+      exfalso. by pose proof (NoDup_lookup _ 4 6 _ Hcls_nodup eq_refl eq_refl). }
+    iApply (wp_load_success_same with "[$HPC $Hi $Hr1 Hcls_ptr]");
+      [(* FIXME *) auto | apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
+       done | auto | iContiguous_next Hcont_cls 4 | ..].
+    { eapply contiguous_between_middle_bounds' in Hcont_cls as [? ?].
+      by eapply le_addr_withinBounds; eauto. repeat constructor. }
+    { rewrite H_4_2. iFrame. }
+    iEpilogue "(HPC & Hr1 & Hi & Hcls_ptr)". rewrite H_4_2.
+    iCombine "Hi Hprog_done" as "Hprog_done".
+    (* jmp r_t1 *)
+    iPrologue "Hprog".
+    iApply (wp_jmp_success with "[$HPC $Hi $Hr1]");
+      [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls | .. ].
+    iEpilogue "(HPC & Hi & Hr1)".
 
-  (*   iApply "Hcont". do 4 (iDestruct "Hprog_done" as "(? & Hprog_done)"). iFrame. *)
-  (* Qed. *)
+    iApply "Hcont". do 4 (iDestruct "Hprog_done" as "(? & Hprog_done)"). iFrame.
+  Qed.
 
 End macros.

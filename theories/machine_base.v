@@ -649,3 +649,11 @@ Proof.
       destruct Hr as (? & ? & ?).
       simplify_eq. }
 Qed.
+
+Lemma all_registers_core_union_l `{CoreParameters} (i : CoreN) (r : RegName) :
+  {[(i, r)]} ∪ (all_registers_s_core i) = (all_registers_s_core i).
+Proof.
+  eapply (anti_symm _). 2: set_solver.
+  rewrite /all_registers_s_core.
+  set_solver.
+Qed.

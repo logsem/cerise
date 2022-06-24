@@ -69,7 +69,7 @@ Proof.
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
-Program Definition all_cores `{CP: CoreParameters} :=
+Program Definition all_cores `{CP: CoreParameters} : list CoreN :=
   finz.seq
     (@finz.FinZ coreNum 0 _ _)
     (BinIntDef.Z.to_nat coreNum).
@@ -81,7 +81,7 @@ Next Obligation. lia. Qed.
 Definition init_cores `{CP: CoreParameters} : list cap_lang.expr :=
   map (fun (i : CoreN) => (i, Seq (Instr Executable))) all_cores.
 
-Definition core_zero `{CP: CoreParameters} := (finz.FinZ 0
+Definition core_zero `{CP: CoreParameters} : CoreN := (finz.FinZ 0
                            (all_cores_obligation_1 CP)
                            all_cores_obligation_2).
 Module with_adv.
