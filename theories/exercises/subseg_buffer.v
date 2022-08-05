@@ -190,9 +190,6 @@ Section base_program_CPS.
          ∗ r_mem ↦ᵣ WCap p_mem b_mem e_mem b_mem
          ∗ r_t2 ↦ᵣ w2
          ∗ r_t3 ↦ᵣ w3
-         (* I'd like to generelize more this hypothesis, such that it can be
-            usefull even if I don't have a region of zeroes *)
-         (* ∗ ([∗ list] a;w ∈ finz.seq_between b_mem e_mem;buffer , a ↦ₐ w ∗ ⌜is_capw = false⌝)  *)
          ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
          ∗ codefrag s_prog (prog_base_instrs r_mem secret_off secret)
          ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
