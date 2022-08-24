@@ -17,7 +17,7 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
    studies. *)
 
 Section SimpleMalloc.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -111,8 +111,8 @@ Section SimpleMalloc.
     rewrite {2}/malloc_subroutine_instrs /malloc_subroutine_instrs'.
     unfold malloc_subroutine_instrs_length in Hbm.
     assert (SubBounds b e b (b ^+ length malloc_subroutine_instrs)%a) by solve_addr.
-    destruct (wsize) as [size|].
-    2: { iInstr "Hprog". wp_end. eauto. }
+    destruct wsize as [size | [ | ] | ].
+    2,3,4: iInstr "Hprog"; wp_end; eauto.
     do 3 iInstr "Hprog".
 
     (* we need to destruct on the cases for the size *)
@@ -145,7 +145,8 @@ Section SimpleMalloc.
       iApply (wp_lea with "[$Hregs $Hi]"); [ | |done|..]; try solve_pure.
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
-      destruct Hspec as [| Hfail].
+      destruct Hspec as [| | Hfail].
+      { exfalso. simplify_map_eq. }
       { exfalso. simplify_map_eq. }
       { cbn. iApply wp_pure_step_later; auto. iNext.
         iApply wp_value. auto. } }
@@ -169,10 +170,11 @@ Section SimpleMalloc.
       iApply (wp_Subseg with "[$Hregs $Hi]"); [ | |done|..]; try solve_pure.
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
-      destruct Hspec as [| Hfail].
+      destruct Hspec as [ | | Hfail].
       { exfalso. unfold addr_of_argument in *. simplify_map_eq.
         repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
+      { exfalso. simplify_map_eq. }
       { cbn. wp_pure. wp_end. auto. } }
     do 3 iInstr "Hprog". { transitivity (Some a_m); eauto. solve_addr. }
     do 3 iInstr "Hprog". { transitivity (Some 0%a); eauto. solve_addr. }

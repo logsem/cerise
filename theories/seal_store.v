@@ -139,6 +139,7 @@ Qed.
 End Store.
 
 (* Initialize the seal store under an arbitrary name *)
+(* TODO: version that has certain contents from the start? *)
 Lemma seal_store_init `{sealStorePreG Σ'}:
  ⊢ (|==> ∃ (_ : sealStoreG Σ'), seal_store (∅ :  gmap OType (Word → iProp Σ') ) : iProp Σ')%I.
 Proof.

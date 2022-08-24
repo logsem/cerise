@@ -97,6 +97,13 @@ Proof. auto. Qed.
 #[export] Hint Resolve is_AddSubLt_Sub : solve_pure.
 #[export] Hint Resolve is_AddSubLt_Lt : solve_pure.
 
+(* is_z *)
+#[export] Hint Extern 1 (is_z _ = false) => reflexivity : solve_pure.
+#[export] Hint Extern 1 (is_z _ = true) => reflexivity : solve_pure.
+
+(* denote - required for Get *)
+#[export] Hint Extern 1 (rules_Get.denote _ _ = Some _) => reflexivity : solve_pure. (* unification fails if lhs has evars *)
+
 (* Tests *)
 
 Goal forall (r_t1 PC: RegName) `{MachineParameters}, exists r1 r2,

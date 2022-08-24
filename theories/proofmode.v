@@ -503,7 +503,7 @@ Ltac2 reintro_cap_resources tbl :=
   iNamedIntro ().
 
 (* cleanup *)
-(* TODO: make this extensible *)
+(* TODO: make this extensible. Remove updatePcPerm? unfolding sometimes causes issues. *)
 Ltac2 iApplyCapAuto_cleanup () :=
   cbn [rules_Get.denote rules_AddSubLt.denote updatePcPerm].
 

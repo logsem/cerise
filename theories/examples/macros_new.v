@@ -350,7 +350,8 @@ Section macros.
       by rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
     iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
+    destruct Hspec as [* Hsucc | * Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
     { (* Success (contradiction) *) simplify_map_eq. }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
@@ -360,8 +361,13 @@ Section macros.
 
   Definition reqperm_instrs r z :=
     encodeInstrsW [
-        GetP r_t1 r
-        ; Sub r_t1 r_t1 z
+        IsPtr r_t1 r;
+        Sub r_t1 r_t1 1;
+        Mov r_t2 PC;
+        Lea r_t2 11;
+        Jnz r_t2 r_t1;
+        GetP r_t1 r;
+         Sub r_t1 r_t1 z
         ; Mov r_t2 PC
         ; Lea r_t2 6
         ; Jnz r_t2 r_t1
@@ -371,6 +377,7 @@ Section macros.
         ; Fail
         ; Mov r_t1 0
         ; Mov r_t2 0].
+
 
   Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
     ExecPCPerm pc_p →
@@ -393,38 +400,43 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
     codefrag_facts "Hprog".
-    destruct w.
-    { (* if w is an integer, the getL will fail *)
+    do 4 iInstr "Hprog".
+    destruct (is_cap w) eqn:Hcap; cycle 1.
+    {
+      assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }
+
+      (* if w is not a capability we jump to the failure case *)
+      iInstr "Hprog". rewrite -/(updatePcPerm (WCap _ _ _ _ )). rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iGo "Hprog".
+      by wp_end. }
+    {
+    (* now we know that w is a capability *)
+    assert (∃ p b e a, w = WCap p b e a)  as (pc & bc & ec & ac & ->). {destruct_word w; inversion Hcap. eauto. }
+    assert (1-1%nat = 0)%Z as ->. lia.
+    do 5 iInstr "Hprog".
+    destruct (isPermWord (WCap pc bc ec ac) perm) eqn:Hperm.
+    {
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
-      iApply (wp_Get_fail with "[$HPC $Hi $Hr_t1 $Hr]");iFrameAutoSolve.
-      iNext. iIntros "_".
-      wp_pure.
-      iApply wp_value. done. }
-    (* if w is a capability, the getL will succeed *)
-    do 3 iInstr "Hprog".
-    destruct (isPermWord (WCap p b e a) perm) eqn:Hperm.
-    { iInstr "Hprog".
-      iInstr_lookup "Hprog" as "Hi" "Hcont".
-      wp_instr.
-      assert (encodePerm p - encodePerm perm = 0)%Z as ->.
+      assert (encodePerm pc - encodePerm perm = 0)%Z as ->.
       { inversion Hperm as [Hp]. apply bool_decide_eq_true_1 in Hp as ->. lia. }
       iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");iFrameAutoSolve.
       iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
       iDestruct ("Hcont" with "Hi") as "Hprog".
       iGo "Hprog".
-      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 9)%a)).
+      rewrite -/(updatePcPerm (WCap _ _ _ _)).
       rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
       iDestruct "Hφ" as (b' e' a' Heq) "Hφ". inv Heq.
       iApply "Hφ"; iFrame. }
-    { iGo "Hprog".
+    {
+      iGo "Hprog".
       inversion Hperm as [Hp]. apply bool_decide_eq_false_1 in Hp. intros Hcontr; inversion Hcontr as [Heq].
-      apply Zminus_eq,encodePerm_inj in Heq. subst p. done.
-      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 8)%a)).
+      apply Zminus_eq,encodePerm_inj in Heq. subst pc. done.
+      rewrite -/(updatePcPerm (WCap _ _ _ _)%a).
       rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
-      iApply wp_value. iFrame. }
+      iApply wp_value. iFrame. } }
   Qed.
 
   (* --------------------------------------- REQSIZE ----------------------------------- *)

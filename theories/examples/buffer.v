@@ -7,7 +7,7 @@ From cap_machine.examples Require Import template_adequacy.
 Open Scope Z_scope.
 
 Section buffer.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           `{MP: MachineParameters}.
 
   Definition buffer_code (off: Z) : list Word :=
@@ -55,13 +55,13 @@ Section buffer.
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
-    Forall (λ w, is_cap w = false) adv →
+    Forall (λ w, is_z w = true) adv →
     (b_adv + length adv)%a = Some e_adv →
 
    ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
       ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv
       ∗ r_t1 ↦ᵣ w1
-      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
       ∗ codefrag a_first (buffer_code a_first)
       ∗ ([∗ map] a↦w ∈ mkregion (a_first ^+ 4)%a (a_first ^+ 7)%a (take 3%nat buffer_data), a ↦ₐ w)
       ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
@@ -69,7 +69,6 @@ Section buffer.
       -∗ WP Seq (Instr Executable) {{ λ _, True }})%I.
   Proof.
     iIntros (? ? Hrmap_dom ? ?) "(HPC & Hr0 & Hr1 & Hrmap & Hcode & Hdata & Hadv & Hna)".
-
     (* The capability to the adversary is safe and we can also jmp to it *)
     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
     iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
@@ -86,7 +85,7 @@ Section buffer.
     (* Show that the contents of unused registers is safe *)
     iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
-      destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
+      destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //. }
 
     (* put the other registers back into the register map *)
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap".
@@ -101,6 +100,7 @@ Section buffer.
       rewrite !singleton_union_difference_L. set_solver+. }
     eauto.
 Qed.
+
 
 End buffer.
 
@@ -119,7 +119,7 @@ Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es
   prog_instrs P = buffer_code (prog_start P) ++ buffer_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_cap w = false) (prog_instrs Adv) →
+  Forall (λ w, is_z w = true) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   m' !! (prog_start P ^+ 7)%a = Some (WInt 42).
