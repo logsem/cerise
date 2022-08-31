@@ -40,6 +40,7 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     unfold exec, exec_opt in Hstep. rewrite Hr_r0 /= in Hstep. simplify_pair_eq.
 
@@ -67,6 +68,7 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     unfold exec, exec_opt in Hstep. rewrite Hr_PC /= in Hstep. simplify_pair_eq.
 

@@ -65,7 +65,7 @@ Section SimpleMalloc.
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝)%I.
 
   Lemma simple_malloc_subroutine_spec (wsize: Word) (cont: Word) b e rmap N E φ :
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
     ↑N ⊆ E →
     (  na_inv logrel_nais N (malloc_inv b e)
      ∗ na_own logrel_nais E
@@ -147,7 +147,7 @@ Section SimpleMalloc.
       iNext. iIntros (regs' retv) "(Hspec & ? & ?)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| Hfail].
       { exfalso. simplify_map_eq. }
-      { cbn. iApply wp_pure_step_later; auto. iNext.
+      { cbn. iApply wp_pure_step_later; auto. iNext ; iIntros "_".
         iApply wp_value. auto. } }
 
     do 3 iInstr "Hprog".

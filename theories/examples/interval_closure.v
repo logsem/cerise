@@ -149,7 +149,7 @@ Section interval_closure.
     (a_move + offset_to_interval)%a = Some i_first →
 
     (* registers *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* Code of the preamble *)
     codefrag a_first (interval_closure f_m f_s offset_to_interval)

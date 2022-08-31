@@ -63,7 +63,7 @@ Proof.
 Qed.
 
 Lemma dom_mkregion_incl a e l:
-  dom (gset Addr) (mkregion a e l) ⊆ list_to_set (finz.seq_between a e).
+  dom (mkregion a e l) ⊆ list_to_set (finz.seq_between a e).
 Proof.
   rewrite /mkregion. generalize (finz.seq_between a e). induction l.
   { intros. rewrite zip_with_nil_r /=. rewrite dom_empty_L. apply empty_subseteq. }
@@ -75,7 +75,7 @@ Qed.
 
 Lemma dom_mkregion_incl_rev a e l:
   (a + length l = Some e)%a →
-  list_to_set (finz.seq_between a e) ⊆ dom (gset Addr) (mkregion a e l).
+  list_to_set (finz.seq_between a e) ⊆ dom (mkregion a e l).
 Proof.
   rewrite /mkregion. intros Hl.
   assert (length (finz.seq_between a e) = length l) as Hl'.
@@ -91,7 +91,7 @@ Qed.
 
 Lemma dom_mkregion_eq a e l:
   (a + length l = Some e)%a →
-  dom (gset Addr) (mkregion a e l) = list_to_set (finz.seq_between a e).
+  dom (mkregion a e l) = list_to_set (finz.seq_between a e).
 Proof.
   intros Hlen. apply (anti_symm subseteq).
   - apply dom_mkregion_incl.
@@ -99,7 +99,7 @@ Proof.
 Qed.
 
 Lemma in_dom_mkregion a e l k:
-  k ∈ dom (gset Addr) (mkregion a e l) →
+  k ∈ dom (mkregion a e l) →
   k ∈ finz.seq_between a e.
 Proof.
   intros H.
@@ -112,7 +112,7 @@ Qed.
 Lemma in_dom_mkregion' a e l k:
   (a + length l = Some e)%a →
   k ∈ finz.seq_between a e →
-  k ∈ dom (gset Addr) (mkregion a e l).
+  k ∈ dom (mkregion a e l).
 Proof.
   intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
 Qed.
@@ -128,7 +128,7 @@ Ltac disjoint_map_to_list :=
         end;
     [ first [ apply dom_mkregion_incl | reflexivity ] |..]
   );
-  try match goal with |- _ ## dom _ (mkregion _ _ _) =>
+  try match goal with |- _ ## dom (mkregion _ _ _) =>
     eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
   rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
   apply stdpp_extra.list_to_set_disj.

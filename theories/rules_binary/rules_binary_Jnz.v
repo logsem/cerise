@@ -19,7 +19,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = Jnz dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (Jnz dst src) ⊆ dom _ regs →
+    regs_of (Jnz dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
@@ -101,8 +101,8 @@ Section cap_lang_spec_rules.
     destruct Hspec as [ | | ];eauto. 
     { incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence. }
     { iFrame. incrementPC_inv. rewrite insert_insert. 
-      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. rewrite lookup_insert in H7; simplify_eq. by iFrame. }
-    { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. }
+      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. rewrite lookup_insert in H6; simplify_eq. by iFrame. }
+    { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. simplify_eq. }
   Qed.
 
   Lemma step_jnz_success_jmp E K r1 r2 pc_p pc_b pc_e pc_a w w1 w2 :
@@ -133,10 +133,10 @@ Section cap_lang_spec_rules.
       apply Hne. f_equal. by apply Z.compare_eq. }
     
    destruct Hspec as [ | | ].
-   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H6. simplify_eq. congruence. }
-   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H6. simplify_eq. congruence. }
-   { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H6.
-     rewrite lookup_insert_ne// lookup_insert in H7. 
+   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. congruence. }
+   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. congruence. }
+   { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5.
+     rewrite lookup_insert_ne// lookup_insert in H6.
      simplify_eq. rewrite insert_insert. iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. by iFrame. 
    } 
   Qed.

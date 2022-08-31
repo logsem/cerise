@@ -54,7 +54,7 @@ Section buffer.
   Lemma buffer_full_run_spec (a_first: Addr) b_adv e_adv w1 rmap adv :
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
     Forall (λ w, is_cap w = false) adv →
     (b_adv + length adv)%a = Some e_adv →
 

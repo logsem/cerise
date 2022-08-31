@@ -331,7 +331,7 @@ Section base_program_CPS.
       writeAllowed p_mem = true ->
 
       (* Register map for the big_sep of registers *)
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
 
       ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
           ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem
@@ -401,7 +401,7 @@ Section base_program_CPS.
     (* Prepare the resources *)
     set (rmap'' := <[r_t1:=WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem (b_mem ^+ secret_off)%a]>
                      (<[r_t30:= w_adv]> rmap')).
-    assert (dom (gset RegName) rmap'' = all_registers_s ∖ {[PC]}) as Hdomeq.
+    assert (dom rmap'' = all_registers_s ∖ {[PC]}) as Hdomeq.
     { do 2 (rewrite dom_insert_L).
       assert (all_registers_s ∖ {[PC]} =
                 ({[r_t1; r_t30]} ∪ all_registers_s ∖ {[PC; r_t1; r_t30]})) as ->.

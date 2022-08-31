@@ -33,30 +33,36 @@ Section fundamental.
     destruct HSpec.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
+      iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
       end. simplify_map_eq. rewrite insert_insert.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
+      iIntros "_".
       iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iModIntro.
       rewrite !fixpoint_interp1_eq /=.
       destruct Hp as [-> | ->];iFrame "Hinv". }
     { simplify_map_eq. iApply wp_pure_step_later; auto.
       rewrite !insert_insert.
       destruct (updatePcPerm w') as [n0|p0] eqn:Hw.
-      { iApply (wp_bind (fill [SeqCtx])).
+      {
+        iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
+        iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
-        iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
-        iNext. iNext. iIntros "HPC /=".
+        iNext. iIntros "HPC /=".
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value.
-        iNext. iIntros. discriminate. }
+        iIntros. discriminate. }
       { destruct (PermFlowsTo RX p0) eqn:Hpft.
         { destruct w'; simpl in Hw; try discriminate.
           assert (Heq: (if perm_eq_dec p0 p1 then True else p0 = RX /\ p1 = E) /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) by (destruct (perm_eq_dec p0 p1); destruct p1; inv Hw; simpl in Hpft; try congruence; auto; repeat split; auto).
           clear Hw. destruct (perm_eq_dec p0 p1); [subst p1; destruct Heq as (_ & -> & -> & ->)| destruct Heq as ((-> & ->) & -> & -> & ->)].
-          { iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
+          { iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
+            iNext ; iIntros "_".
             iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
             - destruct (reg_eq_dec r1 PC).
               + subst r1. simplify_map_eq. auto.
@@ -72,15 +78,17 @@ Section fundamental.
             rewrite /interp_expr /=.
             iDestruct "Hr1" as "#H".
             iNext. iDestruct ("H" with "[$Hmap $Hown]") as "Hcont"; auto. } }
+        iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
         iApply (wp_bind (fill [SeqCtx])).
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
         iApply (wp_notCorrectPC with "HPC").
         - intros HH. inv HH. naive_solver.
-        - iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
-          iNext. iNext. iIntros "HPC /=".
+        - iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate. } }
+          iIntros. discriminate. } }
   Qed.
 
 End fundamental.

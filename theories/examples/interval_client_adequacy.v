@@ -306,7 +306,7 @@ Proof.
 Qed.
 
 Lemma flag_inv_sub `{memory_layout} :
-  minv_dom flag_inv ⊆ dom (gset Addr) (lib_region (priv_libs library)).
+  minv_dom flag_inv ⊆ dom (lib_region (priv_libs library)).
 Proof.
   cbn. rewrite map_union_empty.
   rewrite /assert_library_content.
@@ -362,7 +362,7 @@ Section int_client_adequacy.
     Forall (λ w, is_cap w = false) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom flag_inv) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
       ⊢ inv invN (minv_sep flag_inv)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound interval_client_table) (prog_end int_client_prog) (prog_start int_client_prog)

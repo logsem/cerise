@@ -7,7 +7,7 @@ Ltac some_register0 reg w Hw :=
   let nw := fresh w in
   let nHw := fresh Hw in
   match goal with
-  | hdom: dom (gset RegName) ?rrmap = ?all_regs |- _ =>
+  | hdom: dom ?rrmap = ?all_regs |- _ =>
       assert (is_Some (rrmap !! reg))
       as [nw nHw]
            by ( rewrite elem_of_gmap_dom hdom ; set_solver+)
@@ -21,7 +21,7 @@ Ltac some_register0' reg rmap w Hw :=
   let nw := fresh w in
   let nHw := fresh Hw in
   match goal with
-  | hdom: dom (gset RegName) rmap = ?all_regs |- _ =>
+  | hdom: dom rmap = ?all_regs |- _ =>
       assert (is_Some (rmap !! reg))
       as [nw nHw]
            by ( rewrite elem_of_gmap_dom hdom ; set_solver+)
@@ -53,7 +53,7 @@ Ltac solve_lookup_none :=
           by rewrite lookup_delete
       | h: _ |- (delete ?reg ?rmap) !! ?reg' = None =>
           erewrite (lookup_delete_ne _)
-      | hdom: dom (gset RegName) ?rmap = ?all_regs |-
+      | hdom: dom ?rmap = ?all_regs |-
           _ !! _ = None => apply not_elem_of_dom ; set_solver
       |  _ => idtac
       end ; eauto ).

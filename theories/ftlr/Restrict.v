@@ -61,6 +61,7 @@ Section fundamental.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iNext.
+      iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
@@ -81,6 +82,7 @@ Section fundamental.
         destruct (PermFlowsTo RX (decodePerm n)) eqn:Hpft.
         { assert (Hpg: (decodePerm n) = RX ∨ (decodePerm n) = RWX).
           { destruct (decodePerm n); simpl in Hpft; eauto; try discriminate. }
+          iIntros "_".
           iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]");auto. 
           iModIntro. rewrite !fixpoint_interp1_eq /=.
           destruct Hpg as [Heq | Heq];destruct Hp as [Heq' | Heq'];rewrite Heq Heq';try iFrame "Hinv".
@@ -88,15 +90,18 @@ Section fundamental.
             iIntros (k y _) "H". iDestruct "H" as (P') "(H1 & H2 & H3)". iExists P'. iFrame. 
           - rewrite Heq Heq' in H3. inversion H3. 
         }
-        { iApply (wp_bind (fill [SeqCtx])).
+        { iIntros "_".
+          iApply (wp_bind (fill [SeqCtx])).
           iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct (decodePerm n); simpl in Hpft; eauto; discriminate|].
           iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate. } }
+          iIntros. discriminate. } }
       
       simplify_map_eq.
+      iIntros "_".
       iApply ("IH" $! (<[dst:=_]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
       - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
       - iIntros (ri v Hri Hvs).

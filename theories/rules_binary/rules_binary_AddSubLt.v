@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
     is_AddSubLt i dst arg1 arg2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of i ⊆ dom _ regs →
+    regs_of i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
@@ -93,7 +93,7 @@ Section cap_lang_spec_rules.
     simplify_pair_eq. iFrame.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hr Hmap]"; eauto.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
+    iMod (exprspec_mapsto_update _ _ (fill K (_ NextI)) with "Hr Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
@@ -116,7 +116,7 @@ Section cap_lang_spec_rules.
     iMod (step_AddSubLt with "[$Hmap $Hown $Hj Hpc_a]") as (? ? Hspec) "(Hj & HH)"; eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. }
+    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. }
     { (* Failure, done *) by iFrame. }
   Qed.
 
@@ -149,7 +149,7 @@ Section cap_lang_spec_rules.
       iFrame. incrementPC_inv. simplify_map_eq. 
       rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
               (insert_commute _ dst PC) // insert_insert.
-      rewrite lookup_insert_ne// lookup_insert in H6. rewrite lookup_insert_ne// lookup_insert in H7. simplify_eq. 
+      rewrite lookup_insert_ne// lookup_insert in H5. rewrite lookup_insert_ne// lookup_insert in H6. simplify_eq.
       by iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail; simplify_map_eq; eauto.

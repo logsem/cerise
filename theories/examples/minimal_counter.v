@@ -169,7 +169,7 @@ Section counter.
     let a_data := (a_code ^+ data_off)%a in
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     Forall (λ w, is_cap w = false) adv →
     (b_adv + length adv)%a = Some e_adv →
 

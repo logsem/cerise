@@ -38,6 +38,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iNext.
+      iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hvs).
@@ -55,8 +56,9 @@ Section fundamental.
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
-      iApply wp_value; auto. iNext. iIntros; discriminate. }
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|do 2 iModIntro].
+      iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate. }
   Qed.
 
 End fundamental.

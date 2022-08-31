@@ -76,7 +76,7 @@ Section malloc_program.
     (0 <= secret_off < size %a) ->
 
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ; r_t30 ]} →
     ↑malloc_versionN ⊆ EN ->
 
     ⊢ (( prog_malloc_inv a f_m size secret_off secret_val
@@ -116,7 +116,7 @@ Section malloc_program.
     iDestruct "Hcont1" as %(Hcont1 & Hcont2 & Heqapp1 & Hlink1).
 
     (* Insert r30 in rmap *)
-    assert (dom (gset RegName) (<[r_t30:=wadv]> rmap) =
+    assert (dom (<[r_t30:=wadv]> rmap) =
               all_registers_s ∖ {[PC; r_t0]}) as Hdomeq.
     { rewrite dom_insert_L.
       rewrite Hdom.
@@ -240,7 +240,7 @@ Section malloc_program.
       (a_link + f_m)%a = Some a_entry →
       (0 <= secret_off < size %a) ->
 
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t0 ; r_t30 ]} →
 
       ⊢ (( malloc_nainv b_m e_m
             ∗ prog_malloc_inv a f_m size secret_off secret_val
@@ -285,7 +285,7 @@ Section malloc_program.
                             (<[r_t4:=WInt 0]> (<[r_t5:=WInt 0]> rmap)))))
         ).
     (* Insert the registers r0 and r30 in the register map *)
-    assert (dom (gset RegName) (<[r_t0 := w0]> (<[r_t30:=wadv]> rmap'))
+    assert (dom (<[r_t0 := w0]> (<[r_t30:=wadv]> rmap'))
             = all_registers_s ∖ {[PC]}).
     { rewrite !dom_insert_L. rewrite Hdom.
       replace (all_registers_s ∖ {[PC]})

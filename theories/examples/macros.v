@@ -307,7 +307,7 @@ Section macros.
     contiguous_between a a_first a_last →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
 
@@ -474,7 +474,7 @@ Section macros.
     contiguous_between a a_first a_last →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
 
@@ -660,7 +660,7 @@ Section macros.
     contiguous_between a a1 an →
     ¬ PC ∈ r → hd_error a = Some a1 →
     isCorrectPC_range p b e a1 an →
-    list_to_set r = dom (gset RegName) rmap →
+    list_to_set r = dom rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ PC ↦ᵣ WCap p b e a1
@@ -687,7 +687,8 @@ Section macros.
     pose proof (contiguous_between_cons_inv _ _ _ _ Ha) as [-> [a2 [? Hcont'] ] ].
     iApply (wp_move_success_z with "[$HPC $Hr $Ha1]");
       [apply decode_encode_instrW_inv|iCorrectPC a1 an|eauto|..].
-    iNext. iIntros "(HPC & Ha1 & Hr)". iApply wp_pure_step_later; auto. iNext.
+    iNext. iIntros "(HPC & Ha1 & Hr)". iApply wp_pure_step_later; auto. iNext
+    ; iIntros "_".
     destruct a.
     { iApply "Hφ". iFrame. inversion Hcont'; subst. iFrame.
       destruct r0; inversion Har. simpl in Hrdom.
@@ -837,7 +838,7 @@ Section macros.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     rewrite /region_mapsto /finz.seq_between.
-    destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl.
+    destruct (Z.le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
       { rewrite /Z.b2z. destruct (e_r - 1 <? b_r + z)%Z eqn:HH; auto.
         apply Z.ltb_lt in HH. lia. }
@@ -905,7 +906,7 @@ Section macros.
         apply Z.ltb_nlt in HH. lia. }
       rewrite Heq0.
       assert (e_r <= a_r)%Z by solve_addr.
-      (* destruct (Z_le_dec a_r e_r). *)
+      (* destruct (Z.le_dec a_r e_r). *)
       rewrite finz_dist_0 //=.
       destruct ws;[|by iApply bi.False_elim].
       (* jnz *)
@@ -1720,7 +1721,7 @@ Section macros.
     contiguous_between a a_first a_last →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
       ▷ crtcls f_m a

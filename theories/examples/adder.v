@@ -204,7 +204,7 @@ Section adder.
       { erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. }
       iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| * _]; [by exfalso; incrementPC_inv|].
-      iApply wp_pure_step_later; auto; iNext. iApply wp_value. auto. }
+      iApply wp_pure_step_later; auto; iNext;iIntros "_". iApply wp_value. auto. }
     iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr3 $Hr2]");
       [apply decode_encode_instrW_inv|done|iContiguous_next Hcont 2|iCorrectPC f_start f_end|..].
     iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -282,7 +282,7 @@ Section adder.
     iNext. iIntros "(HPC & Hr3 & Hi & Hrenv & Hx)". rewrite Hfalse.
     iMod ("Hclose" with "[Hx]") as "_".
     { iNext. iExists n. iFrame; eauto. }
-    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iModIntro. iApply wp_pure_step_later; auto; iNext;iIntros "_".
     iDestruct "Hxpos" as %Hnpos. clear Hfalse.
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* add r_t3 r_t3 r_t2 *)
@@ -303,7 +303,7 @@ Section adder.
     iNext. iIntros "(HPC & Hi & Hr3 & Hrenv & Hx)".
     iMod ("Hclose" with "[Hx]") as "_".
     { iNext. iExists (n + z2)%Z. iFrame. iPureIntro. lia. }
-    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iModIntro. iApply wp_pure_step_later; auto; iNext;iIntros "_".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* invoque the spec for the cleanup code established earlier *)
     assert (ac = a_cleanup) as ->.
@@ -327,7 +327,7 @@ Section adder.
     (x+1)%a = Some x' →
     (act_start + 8)%a = Some act_end →
     (f_start <= f_end)%a →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
 
     inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ adder_g ag ∗ adder_f af

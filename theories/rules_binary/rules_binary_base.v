@@ -100,21 +100,21 @@ Section definitionsS.
     iDestruct (own_valid_2 with "Hown Ha")
       as %[[? _]%prod_included _]%auth_both_valid_discrete.
     assert (e ≡ e') as Heq.
-    { apply symmetry. apply Excl_included. simpl in H2. apply H2. }
+    { apply symmetry. apply Excl_included. simpl in H1. apply H1. }
     iPureIntro. apply leibniz_equiv. auto.
   Qed.
 
   Lemma regspec_mapsto_agree l q1 q2 v1 v2 : regspec_mapsto l q1 v1 -∗ regspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [[_ Hr]%singleton_valid _]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma regspec_mapsto_valid r q v : regspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [[? _]%singleton_valid _]]. auto.
   Qed.
@@ -142,14 +142,14 @@ Section definitionsS.
   Lemma memspec_mapsto_agree l q1 q2 v1 v2 : memspec_mapsto l q1 v1 -∗ memspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [_ [_ Hr]%singleton_valid]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma memspec_mapsto_valid r q v : memspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /memspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /memspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [_ [? _]%singleton_valid]]. auto.
   Qed.

@@ -131,7 +131,7 @@ Section cap_lang_rules.
    decodeInstrW w = Store r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Store r1 r2) ⊆ dom _ regs →
+   regs_of (Store r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
 
@@ -158,6 +158,7 @@ Section cap_lang_rules.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
      iNext. iIntros (e2 σ2 efs Hpstep).
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+     iIntros "_".
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
      unfold exec in Hstep. simpl in Hstep.

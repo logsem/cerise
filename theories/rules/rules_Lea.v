@@ -62,7 +62,7 @@ Section cap_lang_rules.
      decodeInstrW w = Lea r1 arg →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-     regs_of (Lea r1 arg) ⊆ dom _ regs →
+     regs_of (Lea r1 arg) ⊆ dom regs →
      {{{ ▷ pc_a ↦ₐ w ∗
          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
        Instr Executable @ Ep
@@ -81,6 +81,7 @@ Section cap_lang_rules.
      iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
      iNext. iIntros (e2 σ2 efs Hpstep).
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+     iIntros "_".
      iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
      unfold exec in Hstep; simpl in Hstep.
 

@@ -261,7 +261,7 @@ Section program_call.
          ∗ r_t8 ↦ᵣ WCap pc_p pc_b pc_e a_first
          ∗ r_t9 ↦ᵣ WInt n7
          ∗ (∃ wadv, r_t30 ↦ᵣ wadv ∗ interp wadv)
-         ∗ (([∗ map] r_i↦w_i ∈ rmap , r_i ↦ᵣ w_i) ∗ ⌜ dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t30 ; r_t7 ; r_t8 ; r_t9]} ⌝)
+         ∗ (([∗ map] r_i↦w_i ∈ rmap , r_i ↦ᵣ w_i) ∗ ⌜ dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t30 ; r_t7 ; r_t8 ; r_t9]} ⌝)
          ∗ na_own logrel_nais ⊤
          ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
          ∗ na_inv logrel_nais incrN_link
@@ -611,7 +611,7 @@ Section program_call.
 
     (up_close (B:=coPset)mallocN ⊆ ⊤ ∖ ↑incrN) ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]} ->
+    dom rmap = all_registers_s ∖ {[ PC ]} ->
 
     (* Specification *)
     ⊢ (( PC ↦ᵣ WCap pc_p pc_b pc_e a_first

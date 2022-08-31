@@ -57,13 +57,13 @@ Definition Mem := gmap Addr Word.
 
 (* EqDecision instances *)
 
-Instance perm_eq_dec : EqDecision Perm.
+#[global] Instance perm_eq_dec : EqDecision Perm.
 Proof. solve_decision. Defined.
-Instance cap_eq_dec : EqDecision Cap.
+#[global] Instance cap_eq_dec : EqDecision Cap.
 Proof. solve_decision. Defined.
-Instance word_eq_dec : EqDecision Word.
+#[global] Instance word_eq_dec : EqDecision Word.
 Proof. solve_decision. Defined.
-Instance instr_eq_dec : EqDecision instr.
+#[global] Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
 
 
@@ -472,7 +472,7 @@ Qed.
 
 (* Useful instances *)
 
-Instance perm_countable : Countable Perm.
+#[global] Instance perm_countable : Countable Perm.
 Proof.
   set encode := fun p => match p with
     | O => 1
@@ -495,7 +495,7 @@ Proof.
   intro p. destruct p; reflexivity.
 Defined.
 
-Instance cap_countable : Countable Cap.
+#[global] Instance cap_countable : Countable Cap.
 Proof.
   (* NB: this relies on the fact that cap_eq_dec has been Defined, because the
   eq decision we have for Cap has to match the one used in the conclusion of the
@@ -503,7 +503,7 @@ Proof.
   apply prod_countable.
 Defined.
 
-Instance word_countable : Countable Word.
+#[global] Instance word_countable : Countable Word.
 Proof.
   set (enc := fun w =>
        match w with
@@ -518,11 +518,11 @@ Proof.
   intros i. destruct i; simpl; done.
 Qed.
 
-Instance word_inhabited: Inhabited Word := populate (WInt 0).
-Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+#[global] Instance word_inhabited: Inhabited Word := populate (WInt 0).
+#[global] Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 
 
-Instance instr_countable : Countable instr.
+#[global] Instance instr_countable : Countable instr.
 Proof.
   set (enc := fun e =>
       match e with

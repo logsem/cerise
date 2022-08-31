@@ -63,7 +63,7 @@ Section roe.
     (up_close (B:=coPset) assertN ## ↑roeN) →
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
+    dom rmap = all_registers_s ∖ {[PC;r_adv]} →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_adv ↦ᵣ wadv
@@ -323,7 +323,7 @@ Section roe.
       iNext. iIntros "(HPC & Hr_t4 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
       iMod ("Hcls''" with "[Hd]") as "_".
       { iNext. iExists _. iFrame. auto. }
-      iModIntro. iApply wp_pure_step_later;auto;iNext.
+      iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
       (* move r_t5 1 *)
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".

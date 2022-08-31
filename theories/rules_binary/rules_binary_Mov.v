@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = Mov dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (Mov dst src) ⊆ dom _ regs →
+    regs_of (Mov dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     
@@ -110,8 +110,8 @@ Section cap_lang_spec_rules.
     
     destruct Hspec as [|].
     { (* Success *)
-      iFrame. incrementPC_inv; rewrite lookup_insert_ne// lookup_insert in H4. 
-      rewrite /= lookup_insert in H3. simplify_eq.
+      iFrame. incrementPC_inv; rewrite lookup_insert_ne// lookup_insert in H3.
+      rewrite /= lookup_insert in H2. simplify_eq.
       rewrite (insert_commute _ PC r1) // insert_insert insert_commute // insert_insert.
       iDestruct (rules_binary_base.regs_of_map_2 with "Hmap") as "(?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
@@ -143,8 +143,8 @@ Section cap_lang_spec_rules.
 
     destruct Hspec as [|].
     { (* Success *)
-      iFrame. incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H6. 
-      rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq.
+      iFrame. incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H5.
+      rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. simplify_eq.
       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ PC r1) // insert_insert.
       iDestruct (rules_binary_base.regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)

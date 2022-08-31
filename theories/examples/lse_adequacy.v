@@ -171,7 +171,7 @@ Section roe_adequacy.
     Forall (λ w, is_cap w = false) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
         ∗ na_inv logrel_nais assertN (assertInv layout)

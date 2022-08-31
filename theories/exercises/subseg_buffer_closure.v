@@ -291,7 +291,7 @@ Section closure_program.
     (b_mem <= secret < e_mem)%a ->
     writeAllowed p_mem = true ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC ; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC ; r_t30 ]} →
 
     ⊢ ( code_closure_inv s_closure secret_off secret_val
         ∗ start_mem_inv b_mem secret_off

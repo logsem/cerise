@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = Subseg dst src1 src2 ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (Subseg dst src1 src2) ⊆ dom _ regs →
+    regs_of (Subseg dst src1 src2) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     

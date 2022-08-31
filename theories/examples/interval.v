@@ -210,7 +210,7 @@ Section interval.
     withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
 
     (* The two invariants have different names *)
     (up_close (B:=coPset)ι0 ⊆ ⊤ ∖ ↑ι1) ->
@@ -510,7 +510,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: required by the seal and malloc spec *)
     withinBounds b_r e_r a_r' = true →
@@ -758,7 +758,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (imin))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: only required by the seal spec *)
     (* withinBounds (RW, b_r, e_r, a_r') = true → *)
@@ -1003,7 +1003,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (imax))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: only required by the seal spec *)
     (* withinBounds (RW, b_r, e_r, a_r') = true → *)

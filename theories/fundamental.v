@@ -111,18 +111,20 @@ Section fundamental.
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
-        iApply wp_value.
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-        iNext. iIntros (Hcontr); inversion Hcontr. 
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=". 
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. iNext. iIntros (_). 
+        rewrite insert_insert. iIntros (_).
         iExists (<[PC:=WCap p b e a]> r). iFrame.
         iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=WCap p b e a]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
@@ -135,8 +137,9 @@ Section fundamental.
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
+     iNext ; iIntros "_".
      iApply wp_value.
-     iNext. iIntros (Hcontr); inversion Hcontr.
+     iIntros (Hcontr); inversion Hcontr.
   Qed.
 
   Theorem fundamental w r :
@@ -150,6 +153,7 @@ Section fundamental.
       iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]". by rewrite lookup_delete.
       iApply (wp_notCorrectPC with "HPC"). by inversion 1.
       iNext. iIntros. cbn. iApply wp_pure_step_later; auto. iNext.
+      iIntros "_".
       iApply wp_value. iIntros (?). congruence. }
     { iApply fundamental_cap. done. }
   Qed.
@@ -201,7 +205,7 @@ Section fundamental.
   Lemma jmp_to_unknown w :
     ⊢ interp w -∗
       ▷ (∀ rmap,
-          ⌜dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]}⌝ →
+          ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
           PC ↦ᵣ updatePcPerm w
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           ∗ na_own logrel_nais ⊤

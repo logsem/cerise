@@ -57,7 +57,7 @@ Qed.
 
 Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
       (m : gmap K V) (i : K) :
-  is_Some (m !! i) ↔ i ∈ dom (gset K) m.
+  is_Some (m !! i) ↔ i ∈ dom m.
 Proof.
   split.
   - intros [x Hsome].
@@ -67,7 +67,7 @@ Qed.
 
 Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
       (m : gmap K V) (i : K) :
-  m !! i = None ↔ i ∉ dom (gset K) m.
+  m !! i = None ↔ i ∉ dom m.
 Proof.
   split.
   - intros Hnone. intros Hcontr%elem_of_gmap_dom.
@@ -81,7 +81,7 @@ Lemma dom_map_imap_full {K A B}
       `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
       (f: K -> A -> option B) (m: gmap K A):
   (∀ k a, m !! k = Some a → is_Some (f k a)) →
-  dom (gset K) (map_imap f m) = dom (gset K) m.
+  dom (map_imap f m) = dom m.
 Proof.
   intros Hf.
   apply set_eq. intros k.
@@ -92,7 +92,7 @@ Proof.
 Qed.
 
 Lemma dom_list_to_map_singleton {K V: Type} `{EqDecision K, Countable K} (x:K) (y:V):
-  dom (gset K) (list_to_map [(x, y)] : gmap K V) = list_to_set [x].
+  dom (list_to_map [(x, y)] : gmap K V) = list_to_set [x].
 Proof. rewrite dom_insert_L /= dom_empty_L. set_solver. Qed.
 
 Lemma list_to_set_disj {A} `{Countable A, EqDecision A} (l1 l2: list A) :
@@ -332,7 +332,7 @@ Qed.
 Lemma dom_difference_het
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C):
-  dom (gset A) (m1 ∖∖ m2) = dom (gset A) m1 ∖ dom (gset A) m2.
+  dom (m1 ∖∖ m2) = dom m1 ∖ dom m2.
 Proof.
   apply (@anti_symm _ _ subseteq).
   typeclasses eauto.
@@ -351,10 +351,10 @@ Qed.
 Lemma delete_elements_eq_difference_het
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C):
-  delete_list (elements (dom (gset A) m2)) m1 = m1 ∖∖ m2.
+  delete_list (elements (dom m2)) m1 = m1 ∖∖ m2.
 Proof.
-  set (l := elements (dom (gset A) m2)).
-  assert (l ≡ₚ elements (dom (gset A) m2)) as Hl by reflexivity.
+  set (l := elements (dom m2)).
+  assert (l ≡ₚ elements (dom m2)) as Hl by reflexivity.
   clearbody l. revert l Hl. revert m1. pattern m2. revert m2.
   apply map_ind.
   - intros m1 l. rewrite dom_empty_L elements_empty difference_het_empty.
@@ -365,7 +365,7 @@ Proof.
     move: Hm1l. rewrite elements_union_singleton.
     rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
     intros Hm1l.
-    transitivity (delete k (delete_list (elements (dom (gset A) m2)) m1)).
+    transitivity (delete k (delete_list (elements (dom m2)) m1)).
     { erewrite delete_list_permutation. 2: eauto. reflexivity. }
     { rewrite HI//. }
 Qed.
@@ -640,7 +640,7 @@ Proof.
 Qed.
 
 Lemma create_gmap_default_dom {K V} `{EqDecision K, Countable K} (l: list K) (d: V):
-  dom (gset K) (create_gmap_default l d) = list_to_set l.
+  dom (create_gmap_default l d) = list_to_set l.
 Proof.
   induction l as [| a l].
   - cbn. rewrite dom_empty_L //.
@@ -866,7 +866,7 @@ Qed.
 
 Lemma list_to_set_map_to_list {K V : Type} `{EqDecision K} `{Countable K}
       (m : gmap K V) :
-  list_to_set (map_to_list m).*1 = dom (gset K) m.
+  list_to_set (map_to_list m).*1 = dom m.
 Proof.
   induction m using map_ind.
   - rewrite map_to_list_empty dom_empty_L. auto.

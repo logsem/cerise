@@ -27,7 +27,7 @@ Section cap_lang_spec_rules.
    decodeInstrW w = Store r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Store r1 r2) ⊆ dom _ regs →
+   regs_of (Store r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
    nclose specN ⊆ Ep →
@@ -158,7 +158,7 @@ Section cap_lang_spec_rules.
 
     destruct Hspec. 
      { (* Success *)
-       destruct H7 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq. 
+       destruct H6 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
@@ -166,7 +166,7 @@ Section cap_lang_spec_rules.
        rewrite insert_insert.
        iDestruct (rules_binary_base.regs_of_map_3 with "[$Hregs]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. done. }
      { (* Failure (contradiction) *)
-       destruct H7; simpl in *; simplify_map_eq_alt.
+       destruct H6; simpl in *; simplify_map_eq_alt.
        destruct o. all: try congruence.
        incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence.
      }
@@ -205,7 +205,7 @@ Section cap_lang_spec_rules.
     destruct Hspec. 
      { (* Success *)
        iFrame. 
-       destruct H5 as [Hrr2 _]. simplify_map_eq_alt.
+       destruct H4 as [Hrr2 _]. simplify_map_eq_alt.
        rewrite insert_commute // insert_insert.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv. simpl in *. 
@@ -213,7 +213,7 @@ Section cap_lang_spec_rules.
        rewrite insert_insert.
        iDestruct (rules_binary_base.regs_of_map_2 with "[$Hregs]") as "[HPC Hdst]"; eauto. by iFrame. }
      { (* Failure (contradiction) *)
-       destruct H5; simplify_map_eq_alt. 
+       destruct H4; simplify_map_eq_alt.
        destruct o. all: try congruence.
        incrementPC_inv;[|rewrite lookup_insert;eauto].
        congruence.

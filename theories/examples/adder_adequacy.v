@@ -184,7 +184,7 @@ Section Adequacy.
     iAssert ([∗ map] r↦w ∈ rmap, (r ↦ᵣ w ∗ interp w))%I with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       iIntros "?". iFrame. rewrite fixpoint_interp1_eq.
-      assert (HH: r ∈ dom (gset RegName) rmap). by apply elem_of_gmap_dom; eauto.
+      assert (HH: r ∈ dom rmap). by apply elem_of_gmap_dom; eauto.
       rewrite /rmap !dom_delete_L in HH.
       destruct (Hrothers r) as [w' [? Hncap] ]. { subst rmap. set_solver+ HH. }
       subst rmap. repeat (rewrite lookup_delete_ne in Hr; [|set_solver+ HH]).

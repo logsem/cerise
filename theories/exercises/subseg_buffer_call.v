@@ -277,7 +277,7 @@ Section program_call.
     (a_link + f_a)%a = Some assert_entry →
     (0 <= secret_off < size %a) ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
 
     ⊢ ( prog_call_code a f_m f_a size secret_off secret_val
         ∗ malloc_call_inv b_m e_m
@@ -316,7 +316,7 @@ Section program_call.
     insert_register r_t30 with "[$Hrmap $Hr30]" as "Hrmap".
     set (rmap' :=  <[r_t30:=wadv]> rmap).
     assert (Hdom' :
-              dom (gset RegName) rmap' = all_registers_s ∖ {[PC]}).
+              dom rmap' = all_registers_s ∖ {[PC]}).
     { subst rmap'.
       rewrite dom_insert_L.
       rewrite Hdom.
@@ -863,7 +863,7 @@ Section program_call.
     (a_link + f_a)%a = Some assert_entry →
     (0 <= secret_off < size %a) ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
 
     ⊢ ( prog_call_code a f_m f_a size secret_off secret_val
         ∗ malloc_call_inv b_m e_m
@@ -1059,7 +1059,7 @@ Section adequacy.
     Forall (λ w, is_cap w = false) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais malloc_callN (mallocInv layout)
         ∗ na_inv logrel_nais assert_callN (assertInv layout)

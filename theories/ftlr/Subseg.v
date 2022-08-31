@@ -63,6 +63,7 @@ Section fundamental.
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro;iNext].
+      iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
@@ -71,10 +72,11 @@ Section fundamental.
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro;iNext].
       destruct (reg_eq_dec PC dst).
       { subst dst. repeat rewrite insert_insert in HPC |- *. simplify_map_eq.
+        iIntros "_".
         iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
         iModIntro. 
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
-        destruct (Z_le_dec b'' e'').
+        destruct (Z.le_dec b'' e'').
         + rewrite !fixpoint_interp1_eq. destruct Hp as [-> | ->].
           - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
             iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
@@ -87,8 +89,9 @@ Section fundamental.
         + rewrite !fixpoint_interp1_eq /=.
           (destruct Hp as [-> | ->]; replace (finz.seq_between b'' e'') with (nil: list Addr);
           try rewrite big_sepL_nil); auto; 
-          unfold finz.seq_between, finz.dist;rewrite Z_to_nat_nonpos //; lia. }
+          unfold finz.seq_between, finz.dist; rewrite Z2Nat.nonpos //; lia. }
       { simplify_map_eq.
+        iIntros "_".
         iApply ("IH" $! (<[dst:=_]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.

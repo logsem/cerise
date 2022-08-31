@@ -21,7 +21,7 @@ Section cap_lang_spec_rules.
 
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of get_i ⊆ dom _ regs →
+    regs_of get_i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     
@@ -109,8 +109,9 @@ Section cap_lang_spec_rules.
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iFrame. incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H6.
-      rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. 
+      iFrame. incrementPC_inv.
+      rewrite lookup_insert_ne// lookup_insert in H5.
+      rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. simplify_eq.
       rewrite insert_commute // insert_insert (insert_commute _ PC dst) // insert_insert.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)

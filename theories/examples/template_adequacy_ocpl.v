@@ -126,7 +126,7 @@ Proof.
 Qed.
 
 Lemma flag_inv_sub `{MachineParameters} (layout : ocpl_library) :
-  minv_dom (flag_inv layout) ⊆ dom (gset Addr) (lib_region (priv_libs (library layout))).
+  minv_dom (flag_inv layout) ⊆ dom (lib_region (priv_libs (library layout))).
 Proof.
   cbn. rewrite map_union_empty.
   intros ? Hinit. rewrite elem_of_singleton in Hinit |- *.
@@ -157,7 +157,7 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
 
   let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ `{memG Σ', regG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
         ∗ na_inv logrel_nais assertN (assertInv layout)

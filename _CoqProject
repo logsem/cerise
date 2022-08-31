@@ -72,20 +72,20 @@ theories/ftlr/Jmp.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/fundamental.v
-theories/ftlr_binary/ftlr_base_binary.v
-theories/ftlr_binary/Load_binary.v
-theories/ftlr_binary/Mov_binary.v
-theories/ftlr_binary/AddSubLt_binary.v
-theories/ftlr_binary/Get_binary.v
-theories/ftlr_binary/IsPtr_binary.v
-theories/ftlr_binary/Jmp_binary.v
-theories/ftlr_binary/Jnz_binary.v
-theories/ftlr_binary/interp_weakening.v
-theories/ftlr_binary/Lea_binary.v
-theories/ftlr_binary/Subseg_binary.v
-theories/ftlr_binary/Restrict_binary.v
-theories/ftlr_binary/Store_binary.v
-theories/fundamental_binary.v
+# theories/ftlr_binary/ftlr_base_binary.v
+# theories/ftlr_binary/Load_binary.v
+# theories/ftlr_binary/Mov_binary.v
+# theories/ftlr_binary/AddSubLt_binary.v
+# theories/ftlr_binary/Get_binary.v
+# theories/ftlr_binary/IsPtr_binary.v
+# theories/ftlr_binary/Jmp_binary.v
+# theories/ftlr_binary/Jnz_binary.v
+# theories/ftlr_binary/interp_weakening.v
+# theories/ftlr_binary/Lea_binary.v
+# theories/ftlr_binary/Subseg_binary.v
+# theories/ftlr_binary/Restrict_binary.v
+# theories/ftlr_binary/Store_binary.v
+# theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v
 theories/examples/assert.v
@@ -106,7 +106,7 @@ theories/examples/adder_adequacy.v
 theories/examples/callback.v
 theories/examples/lse.v
 theories/examples/lse_adequacy.v
-theories/examples/macros_binary.v
+# theories/examples/macros_binary.v
 theories/examples/dynamic_sealing.v
 theories/examples/keylist.v
 theories/examples/interval.v
@@ -114,9 +114,9 @@ theories/examples/interval_closure.v
 theories/examples/interval_client.v
 theories/examples/interval_client_closure.v
 theories/examples/interval_client_adequacy.v
-theories/examples/malloc_binary.v
-theories/examples/counter_binary.v
-theories/examples/counter_binary_preamble.v
+# theories/examples/malloc_binary.v
+# theories/examples/counter_binary.v
+# theories/examples/counter_binary_preamble.v
 theories/examples/buffer.v
 theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v

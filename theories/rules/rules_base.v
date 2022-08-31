@@ -17,7 +17,7 @@ Class regG Σ := RegG {
 
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisGS cap_lang Σ := {
+#[global] Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisGS cap_lang Σ := {
   iris_invGS := mem_invG;
   state_interp σ _ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
@@ -36,114 +36,6 @@ Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
 Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20)
     : bi_scope.
-
-(* TODO find a better fix for the inference of Wp *)
-(** Notations for partial weakest preconditions *)
-(** Notations without binder -- only parsing because they overlap with the
-notations with binder. *)
-Notation "'WP' e @ s ; E {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) s E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e @ E {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e @ E ? {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck ⊤ e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e ? {{ Φ } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck ⊤ e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-
-(** Notations with binder. *)
-(** The general approach we use for all these complex notations: an outer '[hv'
-to switch bwteen "horizontal mode" where it all fits on one line, and "vertical
-mode" where each '/' becomes a line break. Then, as appropriate, nested boxes
-('['...']') for things like preconditions and postconditions such that they are
-maximally horizontal and suitably indented inside the parentheses that surround
-them. *)
-Notation "'WP' e @ s ; E {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) s E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e @ E {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' @  E  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e @ E ? {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' @  E  '/' ? {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) NotStuck ⊤ e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e ? {{ v , Q } }" := (@wp _ _ _ _ (@wp' _ _ _) MaybeStuck ⊤ e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' ? {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-
-(* Texan triples *)
-Notation "'{{{' P } } } e @ s ; E {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E {{ Φ }})%I
-    (at level 20, x closed binder, y closed binder,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e @ E {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E {{ Φ }})%I
-    (at level 20, x closed binder, y closed binder,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e @ E ? {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E ?{{ Φ }})%I
-    (at level 20, x closed binder, y closed binder,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' ? {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e {{ Φ }})%I
-    (at level 20, x closed binder, y closed binder,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e ? {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e ?{{ Φ }})%I
-    (at level 20, x closed binder, y closed binder,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' ? {{{  '[' x  ..  y ,   RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-
-Notation "'{{{' P } } } e @ s ; E {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; E {{ Φ }})%I
-    (at level 20,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e @ E {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E {{ Φ }})%I
-    (at level 20,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e @ E ? {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E ?{{ Φ }})%I
-    (at level 20,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' @  E  '/' ? {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e {{ Φ }})%I
-    (at level 20,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-Notation "'{{{' P } } } e ? {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e ?{{ Φ }})%I
-    (at level 20,
-     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/' ? {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
-
-(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
-Notation "'{{{' P } } } e @ s ; E {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e @ E {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e @ E ? {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E ?{{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e ? {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e ?{{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e @ s ; E {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; E {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e @ E {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e @ E ? {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ E ?{{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e {{ Φ }}) : stdpp_scope.
-Notation "'{{{' P } } } e ? {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e ?{{ Φ }}) : stdpp_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -165,10 +57,10 @@ Section cap_lang_rules.
   Context `{memG Σ, regG Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr.
+  Implicit Types c : (language.expr cap_lang).
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val.
+  Implicit Types v : (language.val cap_lang).
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
@@ -371,16 +263,14 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  (* TODO *)
   Lemma wp_lift_atomic_head_step_no_fork_determ
-    {s E Φ}
-    (* {s : stuckness} {E : coPset} {Φ : cap_lang.val -> iPropI Σ} *)
-    (e1 : cap_lang.expr) :
+    (* {s E Φ} *)
+    {s : stuckness} {E : coPset} {Φ : cap_lang.val -> iPropI Σ}
+    (e1 : (language.expr (@cap_lang H))) :
     to_val e1 = None →
     (∀ (σ1:cap_lang.state) (ns : nat) κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
      ∃ κ (e2 : cap_lang.expr) (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
       (▷ |==> (state_interp σ2 (S ns) κs nt ∗ from_option Φ False (to_val e2))))
-      (* ⊢ (@wp _ _ _ _ (@wp' _ _ _) s E e1%E Φ). *)
         ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
@@ -394,7 +284,8 @@ Section cap_lang_rules.
       iDestruct "H" as %Hs1.
       iDestruct "H1" as %Hs2.
       destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ Hs1 Hs2) as [Heq1 [Heq2 [Heq3 Heq4]]].
-      subst. iMod "H2". iModIntro. iFrame. inv Hs1; auto.
+      subst. iMod "H2". iIntros "_".
+      iModIntro. iFrame. inv Hs1; auto.
   Qed.
 
   (* -------------- predicates on memory maps -------------------------- *)
@@ -557,17 +448,11 @@ Section cap_lang_rules.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
 
-  Lemma wp_notCorrectPC:
+  Lemma wp_notCorrectPC :
     forall E w,
       ~ isCorrectPC w ->
-      (* ⊢ (□ ∀ Φ, *)
-      (*      PC ↦ᵣ w *)
-      (*      -∗ ▷ (PC ↦ᵣ w -∗ Φ FailedV) *)
-      (*      -∗ (@wp _ _ _ _ *)
-      (*            (@wp' _ _ _) NotStuck E (Instr Executable) Φ)). *)
-
       {{{ PC ↦ᵣ w }}}
-        Instr Executable @ E
+        (Instr Executable : language.expr cap_lang) @ E
         {{{ RET FailedV; PC ↦ᵣ w }}}.
   Proof.
     intros *. intros Hnpc.
@@ -581,7 +466,8 @@ Section cap_lang_rules.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
-    iNext. iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
+    iNext. iIntros "_".
+    iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
   Qed.
 
   (* Subcases for respecitvely permissions and bounds *)
@@ -634,7 +520,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext. iIntros "_". iModIntro.
+    iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_fail E pc_p pc_b pc_e pc_a w :
@@ -657,7 +544,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext. iIntros "_".
+    iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
    Qed.
 
   (* ----------------------------------- PURE RULES ---------------------------------- *)
@@ -724,7 +612,7 @@ Definition regs_of (i: instr): gset RegName :=
   | GetB r1 r2 => {[ r1; r2 ]}
   | GetE r1 r2 => {[ r1; r2 ]}
   | GetA r1 r2 => {[ r1; r2 ]}
-  | Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | machine_base.Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | IsPtr dst src => {[ dst; src ]}
@@ -738,7 +626,7 @@ Definition regs_of (i: instr): gset RegName :=
   end.
 
 Lemma indom_regs_incl D (regs regs': Reg) :
-  D ⊆ dom (gset RegName) regs →
+  D ⊆ dom regs →
   regs ⊆ regs' →
   ∀ r, r ∈ D →
        ∃ (w:Word), (regs !! r = Some w) ∧ (regs' !! r = Some w).
