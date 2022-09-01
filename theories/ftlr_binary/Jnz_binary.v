@@ -58,11 +58,12 @@ Section fundamental.
     destruct Hregs as [-> | ->].
     { destruct HSpec.
       - iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+        iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro].
+        iNext;iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
       - incrementPC_inv; simplify_map_eq.
         iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w',w'; iFrame|iModIntro].
-        iApply wp_pure_step_later; auto. iNext.
+        iApply wp_pure_step_later; auto. iNext;iIntros "_".
         iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
         rewrite lookup_insert in H2; inv H2. rewrite !insert_insert.
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
@@ -82,7 +83,7 @@ Section fundamental.
         + destruct (reg_eq_dec dst PC).
           * subst dst. rewrite lookup_insert// in H1; inv H1.
             replace (updatePcPerm (WCap p b e a)) with ((WCap p b e a):Word); [|destruct Hp; subst p; auto].
-            iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
+            iNext;iIntros "_". iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
             iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
             { iPureIntro. simpl. intros reg. destruct Hsome with reg; auto. }
             { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
@@ -112,9 +113,9 @@ Section fundamental.
                   assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                   { rewrite Heq; auto. }
                   rewrite !lookup_insert_ne in H3; auto.
-              - iDestruct "Hinvdst''" as (_) "$". }
+              - iIntros "_". iDestruct "Hinvdst''" as (_) "$". }
             { iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
-              iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
+              iNext;iIntros "_". iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
               iApply ("IH" $! (r1,r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]"); simpl; auto.
               - destruct p0; auto. congruence.
               - replace (<[PC:=WCap p0 b0 e0 a0]> r2) with (<[PC:=WCap p0 b0 e0 a0]> r1); [destruct p0; auto; congruence|].
@@ -123,14 +124,15 @@ Section fundamental.
                 assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                 { rewrite Heq; auto. }
                 rewrite !lookup_insert_ne in H3; auto. }
-        + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
+        + iNext;iIntros "_". iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
           simpl. iApply (wp_bind (fill [SeqCtx])).
           iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [eapply lookup_insert|].
           iApply (wp_notCorrectPC with "HPC"); [eapply isCorrectPCb_nisCorrectPC; auto|].
           iNext. iIntros. iApply wp_pure_step_later; auto.
-          iApply wp_value; auto. iNext. iIntros; discriminate. }
+          iNext;iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate. }
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.
 

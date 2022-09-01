@@ -303,13 +303,14 @@ Section fundamental.
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
         { subst. by rewrite lookup_insert. }
+        iNext; iIntros "_".
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
-        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iApply wp_pure_step_later; auto. iNext; iIntros "_". iApply wp_value.
         iIntros (a1); inversion a1.
       }
 
-      destruct Hregs as [<- | Hcontr];[|inversion Hcontr]. iNext.
+      destruct Hregs as [<- | Hcontr];[|inversion Hcontr]. iNext;iIntros "_".
 
       iApply ("IH" $! (regs',regs') with "[%] [Hinterp] [Hmap] [Hsmap] Hown Hs Hspec").
       { cbn. intros. subst regs'.
@@ -362,12 +363,14 @@ Section fundamental.
         iMod ("Hcls'" with "[HP' Ha0 Ha0']");[iExists w',w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha Ha' HP]");[iExists w,w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext;iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
       - iModIntro. iDestruct "HLoadMem" as "(_&->)". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem Ha' HP]");[iExists w,w;iFrame|iModIntro].
         { iDestruct (big_sepM_insert with "Ha'") as "[$ _]". auto. }
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext;iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

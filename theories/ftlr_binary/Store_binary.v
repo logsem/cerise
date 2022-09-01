@@ -312,6 +312,7 @@ Section fundamental.
       rewrite insert_insert.
 
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs /=". solve_ndisj.
+      iModIntro;iNext;iIntros "_".
       iApply ("IH" $! (r1, r1) with "[] [] Hmap Hsmap Hown Hs Hspec");auto.
       { iPureIntro. simpl. intros.  destruct (Hsome x4) as [A _]. auto. }
       { iModIntro. rewrite lookup_insert in H3; inv H3.
@@ -328,12 +329,14 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hsa0 Hres]");[iExists w';iExists w'; iFrame|iModIntro].
         iMod ("Hcls" with "[Ha Hsa HP]");[iExists w; iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext;iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
       - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
         iDestruct (big_sepM_insert with "Hsmem") as "[Hsmem _]"; auto.
         iMod ("Hcls" with "[Hmem Hsmem HP]");[iExists w;iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext;iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

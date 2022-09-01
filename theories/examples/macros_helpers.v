@@ -90,7 +90,7 @@ Ltac iEpilogue prog :=
 
 Ltac iEpilogue_both prog :=
   iNext; iIntros prog; iSimpl;
-  iApply wp_pure_step_later;auto;iNext;
+  iApply wp_pure_step_later;auto;iNext;iIntros "_";
   iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto;
   iSimpl in "Hj".
 

@@ -1,4 +1,4 @@
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel_binary.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -61,12 +61,12 @@ Section fundamental.
     specialize (Lea_spec_determ _ _ _ _ _ _ _ HSpec HSpec') as [Hregs <-].
     destruct HSpec; cycle 1.
     - iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate.
     - destruct Hregs as [-> |]; [| congruence].
       incrementPC_inv; simplify_map_eq.
       iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w',w'; iFrame|iModIntro].
-      iApply wp_pure_step_later; auto. iNext.
+      iApply wp_pure_step_later; auto. iNext;iIntros "_".
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs' /=";auto.
 
       destruct (reg_eq_dec dst PC).
