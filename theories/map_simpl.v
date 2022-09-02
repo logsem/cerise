@@ -223,7 +223,7 @@ Ltac2 rec make_list_from_unions h x :=
 
 Ltac2 post_process k m :=
   ltac1:(k m |- match goal with
-               | [h : dom (gset k) m = _ ∖ ?x |- _ ] =>
+               | [h : dom m = _ ∖ ?x |- _ ] =>
                  let f := ltac2:(h x |- make_list_from_unions (Option.get (Ltac1.to_constr h)) (Option.get (Ltac1.to_constr x)))
                  in f h x
                | _ => idtac

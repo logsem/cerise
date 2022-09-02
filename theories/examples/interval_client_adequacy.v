@@ -11,7 +11,7 @@ From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tacti
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine Require Import monotone.
 
-Instance DisjointList_list_Addr : DisjointList (list Addr).
+#[global] Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Import with_adv_and_link.

@@ -347,29 +347,29 @@ Class FramableMemoryPointsto (a: Addr) (dq: dfrac) (w: Word) := {}.
 Class FramableCodefrag (a: Addr) (l: list Word) := {}.
 #[export] Hint Mode FramableCodefrag + - : typeclass_instances.
 
-Instance FramableRegisterPointsto_default r w :
+#[global] Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
 | 100. Qed.
 
-Instance FramableMemoryPointsto_default a dq w :
+#[global] Instance FramableMemoryPointsto_default a dq w :
   FramableMemoryPointsto a dq w
 | 100. Qed.
 
-Instance FramableCodefrag_default a l :
+#[global] Instance FramableCodefrag_default a l :
   FramableCodefrag a l
 | 100. Qed.
 
-Instance FramableMachineResource_reg `{regG Σ} r w :
+#[global] Instance FramableMachineResource_reg `{regG Σ} r w :
   FramableRegisterPointsto r w →
   FramableMachineResource (r ↦ᵣ w).
 Qed.
 
-Instance FramableMachineResource_mem `{memG Σ} a dq w :
+#[global] Instance FramableMachineResource_mem `{memG Σ} a dq w :
   FramableMemoryPointsto a dq w →
   FramableMachineResource (a ↦ₐ{dq} w).
 Qed.
 
-Instance FramableMachineResource_codefrag `{memG Σ} a l :
+#[global] Instance FramableMachineResource_codefrag `{memG Σ} a l :
   FramableCodefrag a l →
   FramableMachineResource (codefrag a l).
 Qed.

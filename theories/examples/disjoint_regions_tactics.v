@@ -4,7 +4,7 @@ From cap_machine Require Import addr_reg region.
 
 Class DisjointList A := disjoint_list : list A → Prop.
 #[export] Hint Mode DisjointList ! : typeclass_instances.
-Instance: Params (@disjoint_list) 2 := {}.
+#[global] Instance: Params (@disjoint_list) 2 := {}.
 Notation "## Xs" := (disjoint_list Xs) (at level 20, format "##  Xs") : stdpp_scope.
 Notation "##@{ A } Xs" :=
   (@disjoint_list A _ Xs) (at level 20, only parsing) : stdpp_scope.
@@ -79,9 +79,9 @@ Proof.
 Qed.
 #[export] Hint Resolve AddrRegionsRange_cons | 10 : disj_regions.
 
-Instance Empty_list {A}: Empty (list A). exact []. Defined.
-Instance Union_list {A}: Union (list A). exact app. Defined.
-Instance Singleton_list {A}: Singleton A (list A). exact (λ a, [a]). Defined.
+#[global] Instance Empty_list {A}: Empty (list A). exact []. Defined.
+#[global] Instance Union_list {A}: Union (list A). exact app. Defined.
+#[global] Instance Singleton_list {A}: Singleton A (list A). exact (λ a, [a]). Defined.
 
 Lemma addr_range_union_incl_range (ll: list (list Addr)) (b e: Addr):
   AddrRegionsRange ll b e →

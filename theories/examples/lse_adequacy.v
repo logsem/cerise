@@ -9,7 +9,7 @@ From cap_machine.examples Require Import addr_reg_sample malloc macros_new lse.
 From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
 
-Instance DisjointList_list_Addr : DisjointList (list Addr).
+#[global] Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Import ocpl.

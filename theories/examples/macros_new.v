@@ -787,14 +787,13 @@ Section macros.
       by simplify_map_eq.
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]"; eauto.
       by simplify_map_eq.
-    map_simpl "Hregs". (* FIXME delete r2 and delete r1 remain, while they didn't before *)
+    map_simpl "Hregs".
     unfocus_block "Hscrtcls" "Hcont" as "Hprog".
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
     iExists _,_. iSplitR; [eauto|]. iFrame "∗".
     clear; iFrameMapSolve "Hregs".
-  Admitted.
-  (* Qed. *)
+  Qed.
 
   Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e
         a_first b_link a_link e_link a_entry b_m e_m mallocN EN rmap cont φ :

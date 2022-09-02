@@ -759,7 +759,7 @@ Section list.
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        iFrameMapSolve+ Hdom "Hregs". admit. (* FIXME *)
+        iFrameMapSolve+ Hdom "Hregs".
       }
       destruct Hpref. iFrame "∗".
       iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew".
@@ -784,11 +784,10 @@ Section list.
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        iFrameMapSolve+ Hdom "Hregs". admit. (* FIXME *)
+        iFrameMapSolve+ Hdom "Hregs".
       }
       { iExists _,_,_,[]. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } }
-    Admitted.
-  (* Qed. *)
+  Qed.
 
   (* ------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------- FINDB ---------------------------------------------- *)

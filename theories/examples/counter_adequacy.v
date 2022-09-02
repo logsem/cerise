@@ -9,7 +9,7 @@ From cap_machine Require Import
 From cap_machine.examples Require Import
      macros malloc counter_preamble disjoint_regions_tactics mkregion_helpers.
 
-Instance DisjointList_list_Addr : DisjointList (list Addr).
+#[global] Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Class memory_layout `{MachineParameters} := {
