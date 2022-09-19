@@ -424,8 +424,8 @@ Section logrel.
     ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
     interp (WSealRange (b1,b2) b e a).
   Proof.
-    assert (∃ l, l = finz.seq_between b e) as (l & Hgen). by eexists.
-    revert Hgen; generalize b e. clear b e.
+    remember (finz.seq_between b e) as l eqn:Hgen. rewrite Hgen; revert Hgen.
+    generalize b e. clear b e.
     induction l as [|hd tl IH].
     - iIntros (b e Hfinz) "_ !>".
       rewrite /interp fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
