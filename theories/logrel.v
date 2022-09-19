@@ -420,4 +420,32 @@ Section logrel.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
+  Lemma region_seal_pred_interp E (b e a: OType) b1 b2:
+    ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
+    interp (WSealRange (b1,b2) b e a).
+  Proof.
+    assert (∃ l, l = finz.seq_between b e) as (l & Hgen). by eexists.
+    revert Hgen; generalize b e. clear b e.
+    induction l as [|hd tl IH].
+    - iIntros (b e Hfinz) "_ !>".
+      rewrite /interp fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
+      rewrite -Hfinz. destruct b1, b2; iSplit; done.
+    - iIntros (b e Hfinz).
+      assert (b < e)%ot as Hlbe.
+      {destruct (decide (b < e)%ot) as [|HF]; first auto. rewrite finz_seq_between_empty in Hfinz; [inversion Hfinz | solve_addr  ]. }
+      apply finz_cons_tl in Hfinz as (b' & Hplus & Hfinz).
+      specialize (IH b' e Hfinz). rewrite (finz_seq_between_split _ b' _).
+      2 : split; solve_addr.
+      iIntros "[#Hfirst Hca]".
+      iMod (IH with "Hca") as "Hca". iModIntro.
+      rewrite /interp !fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
+      rewrite !(finz_seq_between_split b b' e). 2: { split ; solve_addr. }
+      iDestruct "Hca" as "[Hseal Hunseal]".
+      iSplitL "Hseal"; [destruct b1| destruct b2]; iFrame.
+      all: iApply (big_sepL_mono with "Hfirst").
+      all: iIntros (k a' Hk) "H"; cbn.
+      all: iExists _; iFrame; auto.
+      iSplit; auto. iPureIntro; apply _.
+  Qed.
+
 End logrel.
