@@ -208,10 +208,10 @@ Section SimpleSalloc.
   Qed.
 
   Lemma simple_salloc_subroutine_valid N b e :
-    na_inv logrel_nais N (malloc_inv b e) -∗
+    na_inv logrel_nais N (salloc_inv b e) -∗
     interp (WCap E b e b).
   Proof.
-    iIntros "#Hmalloc".
+    iIntros "#Hsalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
@@ -220,7 +220,7 @@ Section SimpleSalloc.
     destruct H with r_t1 as [? ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iApply (wp_wand with "[-]").
-    iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|].
+    iApply (simple_salloc_subroutine_spec with "[- $Hown $Hsalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|].
     3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
     unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.
@@ -228,8 +228,7 @@ Section SimpleSalloc.
     iNext. iIntros "((Hown & Hregs) & Hr_t0 & HPC & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize) "[Hr_t1 Hbe]".
 
-    iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
-    by apply Forall_replicate.
+    iMod (region_can_alloc_interp _ _ _ _ true true with "Hbe") as "#Hbe"; auto.
     rewrite -!(delete_insert_ne _ r_t1)//.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
     rewrite -!(delete_insert_ne _ r_t0)//.
@@ -257,4 +256,4 @@ Section SimpleSalloc.
     unshelve iSpecialize ("Hregs_valid" $! r' _ _ Hr'). done. done.
   Qed.
 
-End SimpleMalloc.
+End SimpleSalloc.
