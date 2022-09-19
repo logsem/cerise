@@ -448,4 +448,18 @@ Section logrel.
       iSplit; auto. iPureIntro; apply _.
   Qed.
 
+  (* Get the validity of sealing capabilities if we can allocate an arbitrary predicate, and can hence choose interp itself as the sealing predicate *)
+  Lemma region_can_alloc_interp E (b e a: OType) b1 b2:
+    ([∗ list] o ∈ finz.seq_between b e, can_alloc_pred o) ={E}=∗
+    interp (WSealRange (b1,b2) b e a).
+  Proof.
+    iIntros "Hca".
+    iDestruct (big_sepL_mono with "Hca") as "Hca".
+    iIntros (k a' Hk) "H". iDestruct (seal_store_update_alloc _ interp  with "H") as "H". iExact "H".
+
+    iDestruct (big_sepL_bupd with "Hca") as "Hca".
+    iMod "Hca".
+    by iApply region_seal_pred_interp.
+  Qed.
+
 End logrel.
