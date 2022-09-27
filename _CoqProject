@@ -74,18 +74,18 @@ theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v
 theories/examples/mkregion_helpers.v
 theories/examples/template_adequacy.v
-theories/examples/template_adequacy_ocpl.v
-theories/examples/call.v
-theories/examples/counter.v
-theories/examples/counter_preamble.v
-theories/examples/counter_adequacy.v
-theories/examples/adder.v
-theories/examples/adder_adequacy.v
-theories/examples/callback.v
-theories/examples/lse.v
-theories/examples/lse_adequacy.v
-theories/examples/dynamic_sealing.v
+# theories/examples/template_adequacy_ocpl.v
+# theories/examples/call.v
+# theories/examples/counter.v
+# theories/examples/counter_preamble.v
+# theories/examples/counter_adequacy.v
+# theories/examples/adder.v
+# theories/examples/adder_adequacy.v
+# theories/examples/callback.v
+# theories/examples/lse.v
+# theories/examples/lse_adequacy.v
 theories/examples/keylist.v
+theories/examples/dynamic_sealing.v
 theories/examples/interval.v
 theories/examples/interval_closure.v
 theories/examples/interval_client.v
