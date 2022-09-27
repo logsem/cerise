@@ -2,11 +2,11 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
-From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
+From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc salloc assert.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section macros.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -299,6 +299,177 @@ Section macros.
     iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN Hsize)
             "(>Hprog & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hφ)".
     iApply malloc_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hmalloc".
+    iSplitL. iNext. eauto. eauto.
+  Qed.
+
+  (* --------------------------------------------------------------------------------- *)
+  (* ------------------------------------- SALLOC ------------------------------------ *)
+  (* --------------------------------------------------------------------------------- *)
+
+  (* salloc stores the result in r_t1, rather than a user chosen destination.
+     f_m is the offset of the salloc capability *)
+  Definition salloc_instrs f_m (size: Z) :=
+    fetch_instrs f_m ++
+    encodeInstrsW [
+     Mov r_t5 r_t0;
+     Mov r_t3 r_t1;
+     Mov r_t1 size;
+     Mov r_t0 PC;
+     Lea r_t0 3;
+     Jmp r_t3;
+     Mov r_t0 r_t5;
+     Mov r_t5 0
+  ].
+
+  (* salloc spec *)
+  Lemma salloc_spec_alt φ ψ size cont pc_p pc_b pc_e a_first
+        b_link e_link a_link f_m a_entry sallocN b_m e_m EN rmap :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
+    withinBounds b_link e_link a_entry = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    ↑sallocN ⊆ EN →
+    (size > 0)%Z →
+
+    (* salloc program and subroutine *)
+    ▷ codefrag a_first (salloc_instrs f_m size)
+    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m)
+    ∗ na_own logrel_nais EN
+    (* we need to assume that the salloc capability is in the linking table at offset f_m *)
+    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
+    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    (* register state *)
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r_t0 ↦ᵣ cont
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+    (* failure/continuation *)
+    ∗ ▷ (∀ v, ψ v -∗ φ v)
+    ∗ ▷ (φ FailedV)
+    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a
+         ∗ codefrag a_first (salloc_instrs f_m size)
+         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+         (* the newly allocated region *)
+         ∗ (∃ (bs es : OType),
+            ⌜(bs + size)%ot = Some es⌝
+            ∗ r_t1 ↦ᵣ WSealRange (true,true) bs es bs
+            ∗ ([∗ list] o ∈ finz.seq_between bs es, can_alloc_pred o))
+         ∗ r_t0 ↦ᵣ cont
+         ∗ na_own logrel_nais EN
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         (* the newly allocated region is fresh in the current world *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
+         -∗ WP Seq (Instr Executable) {{ ψ }})
+    ⊢
+      WP Seq (Instr Executable) {{ λ v, φ v }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HsallocN Hsize)
+            "(>Hprog & #Hsalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hψ & Hφfailed & Hφ)".
+    (* extract necessary registers from regs *)
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
+    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]"; eauto.
+    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]". by rewrite lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]". by rewrite !lookup_delete_ne //.
+    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]". by rewrite !lookup_delete_ne //.
+
+    rewrite {1}/salloc_instrs.
+    focus_block_0 "Hprog" as "Hfetch" "Hcont".
+    iApply fetch_spec; iFrameAutoSolve.
+    iNext. iIntros "(HPC & Hfetch & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Ha_entry)".
+    unfocus_block "Hfetch" "Hcont" as "Hprog".
+
+    focus_block 1 "Hprog" as amid1 Hamid1 "Hprog" "Hcont".
+    iGo "Hprog". (* PC is now at b_m *)
+    (* we are now ready to use the salloc subroutine spec. For this we prepare the registers *)
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
+      by simplify_map_eq.
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
+      by simplify_map_eq.
+    map_simpl "Hregs".
+    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
+      by simplify_map_eq.
+    map_simpl "Hregs".
+    iApply (wp_wand with "[- Hφfailed Hψ]").
+    iApply (simple_salloc_subroutine_spec with "[- $Hsalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
+    { set_solver+ Hrmap_dom. }
+    iNext.
+    rewrite updatePcPerm_cap_non_E; [| solve_pure].
+    iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
+    iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'.
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
+      simplify_map_eq. eauto.
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]".
+      simplify_map_eq. eauto.
+    (* back our program, in the continuation of salloc *)
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    (* continuation *)
+    iApply "Hφ". changePCto (a_first ^+ length (salloc_instrs f_m size)%nat)%a.
+    iFrame. iSplitL "Hr_t1 Hbe".
+    { iExists _,_. iFrame. iPureIntro; eauto. }
+    { iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
+        simplify_map_eq. reflexivity.
+      iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
+      simplify_map_eq. reflexivity.
+      iFrameMapSolve+ Hrmap_dom "Hregs". }
+    { iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
+  Qed.
+
+  (* salloc spec - alternative formulation *)
+  Lemma salloc_spec φ size cont pc_p pc_b pc_e a_first
+        b_link e_link a_link f_m a_entry sallocN b_m e_m EN rmap :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
+    withinBounds b_link e_link a_entry = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    ↑sallocN ⊆ EN →
+    (size > 0)%Z →
+
+    (* salloc program and subroutine *)
+    ▷ codefrag a_first (salloc_instrs f_m size)
+    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m)
+    ∗ na_own logrel_nais EN
+    (* we need to assume that the salloc capability is in the linking table at offset f_m *)
+    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
+    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    (* register state *)
+    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ r_t0 ↦ᵣ cont
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+    (* continuation *)
+    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a
+         ∗ codefrag a_first (salloc_instrs f_m size)
+         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+         (* the newly allocated region *)
+         ∗ (∃ (bs es : OType),
+            ⌜(bs + size)%ot = Some es⌝
+            ∗ r_t1 ↦ᵣ WSealRange (true,true) bs es bs
+            ∗ ([∗ list] o ∈ finz.seq_between bs es, can_alloc_pred o))
+         ∗ r_t0 ↦ᵣ cont
+         ∗ na_own logrel_nais EN
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
+                               (<[r_t3:=WInt 0%Z]>
+                                (<[r_t4:=WInt 0%Z]>
+                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         (* the newly allocated region is fresh in the current world *)
+         (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HsallocN Hsize)
+            "(>Hprog & #Hsalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hφ)".
+    iApply salloc_spec_alt; iFrameAutoSolve; eauto. iFrame. iFrame "Hsalloc".
     iSplitL. iNext. eauto. eauto.
   Qed.
 

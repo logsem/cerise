@@ -181,7 +181,7 @@ Section SimpleSalloc.
         repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
       { cbn. wp_pure. wp_end. auto. } }
-    do 3 iInstr "Hprog". { transitivity (Some a_s); eauto. solve_addr. }
+    iGo "Hprog". { transitivity (Some a_s); eauto. solve_addr. }
     iGo "Hprog".
     (* continuation *)
     rewrite (finz_seq_between_split _ a_s') //; [| solve_addr].
