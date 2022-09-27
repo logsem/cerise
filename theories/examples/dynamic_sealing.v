@@ -181,7 +181,7 @@ Section sealing.
     focus_block 1 "Hprog" as mid Hmid "Hprog" "Hcont".
     iApply reqperm_spec;iFrameAutoSolve.
     iNext. destruct (isPermWord wsealed RWX) eqn:Hperm;[|iFrame].
-    destruct wsealed as [z|p b e a];[inversion Hperm|].
+    destruct wsealed as [z|[p b e a|]|];try by inversion Hperm.
     apply bool_decide_eq_true_1 in Hperm as <-.
     iExists _,_,_. iSplit;eauto. iIntros "(HPC & Hprog & Hr_t3 & Hr_t1 & Hr_t2)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
