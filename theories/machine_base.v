@@ -688,6 +688,8 @@ Qed.
 
 Instance word_inhabited: Inhabited Word := populate (WInt 0).
 Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+
 
 Instance instr_countable : Countable instr.
 Proof.
