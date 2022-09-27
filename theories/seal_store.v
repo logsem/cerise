@@ -97,7 +97,6 @@ Section Store.
 End Store.
 
 (* Initialize the seal store under an arbitrary name *)
-(* TODO: version that has certain contents from the start? *)
 Lemma seal_store_init `{sealStorePreG Σ'} oset:
  ⊢ (|==> ∃ (_ : sealStoreG Σ'), ([∗ set] o ∈ oset, can_alloc_pred o) : iProp Σ')%I.
 Proof.
