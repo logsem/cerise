@@ -441,7 +441,7 @@ Section sealing.
       -∗
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
-    iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
+    iIntros (Hvpc Hcont Hdom Hbounds_m Hf_m Hbounds_r Hf_r Hnclose' Hnclose'' Hndisj) "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & #Hsalloc & Hpc_b & Ha_r' & Ha_r'' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
@@ -455,6 +455,7 @@ Section sealing.
     rewrite insert_delete.
 
     rewrite /make_seal_preamble_instrs.
+
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
     iApply malloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
     set_solver. auto. lia.
@@ -464,10 +465,29 @@ Section sealing.
     iDestruct "Hll" as (ll ll') "(%Heqb & Hr_t1 & Hll)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    focus_block 4 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
+    focus_block 4 "Hprog" as a_middle1' Ha_middle1' "Hprog" "Hcont".
+    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
+    iInstr "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
+    rewrite insert_delete.
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs"; [simplify_map_eq;auto|].
+    Search "delete" "insert" "ne".
+    rewrite -delete_insert_ne.
+    map_simpl "Hregs".
+
+    focus_block 5 "Hprog" as a_middle1'' Ha_middle1'' "Hprog" "Hcont".
+    iApply salloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
+    clear -Hdom. set_solver -Hdom. auto. lia.
+    iSplitL "". iNext. auto.
+    iSplitL "". iNext. iRight. auto.
+    iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hll & Hr_t0 & Hown & Hregs)".
+    iDestruct "Hll" as (ll ll') "(%Heqb & Hr_t1 & Hll)".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog".
@@ -530,6 +550,6 @@ Section sealing.
       iFrame "%". iExists γ. iFrame. }
     { rewrite delete_commute //.
       rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //. }
-  Qed.
+Qed.
 
 End sealing.
