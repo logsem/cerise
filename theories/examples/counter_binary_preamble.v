@@ -193,7 +193,7 @@ Section counter_example_preamble.
       [auto..|].
     
     rewrite /registers_mapsto /spec_registers_mapsto.
-    rewrite -(insert_delete r1') -(insert_delete r2').
+    rewrite -(insert_delete_insert r1') -(insert_delete_insert r2').
 
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
     destruct (Hr'_full_left r_t1) as [r1v ?].
@@ -306,7 +306,7 @@ Section counter_example_preamble.
       [auto..|].
     
     rewrite /registers_mapsto /spec_registers_mapsto.
-    rewrite -(insert_delete r1') -(insert_delete r2').
+    rewrite -(insert_delete_insert r1') -(insert_delete_insert r2').
 
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
     destruct (Hr'_full_left r_t1) as [r1v ?].
@@ -579,8 +579,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t8 $Hr2]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 3|..].
     iEpilogue_both "(HPC & Hi & Hr_t8 & Hr2)". iCombinePtrn. 
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert].
     (* move_r r_t9 r_t1 *)
     destruct Hr_full with r_t9 as [ [? Hrt9] [? Hst9] ].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t8 Hregs]".
@@ -595,8 +595,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t8 $Hr1]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 4|..].
     iEpilogue_both "(HPC & Hi & Hr_t8 & Hr1)". iCombinePtrn. 
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert].
 
     (* lea_z r_t1 offset_to_awkward *)
     
@@ -715,8 +715,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t10 $Hr1]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end a_end|iContiguous_next Hcont_rest1 0|..].
     iEpilogue_both "(HPC & Hi & Hr_t10 & Hr1)". iCombinePtrn. 
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hsegs $Hs_t10]") as "Hsegs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hsegs $Hs_t10]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert].
     (* move r_t2 r_t8 *)
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]".
     { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert. eauto. }
@@ -731,9 +731,9 @@ Section counter_example_preamble.
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end a_end|iContiguous_next Hcont_rest1 1|..].
     iEpilogue_both "(HPC & Hi & Hr2 & Hr_t8)". iCombinePtrn. 
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|].
-    rewrite insert_delete (insert_commute _ r_t8 r_t10) // (insert_commute _ r_t8 r_t9)// insert_insert.
+    rewrite insert_delete_insert (insert_commute _ r_t8 r_t10) // (insert_commute _ r_t8 r_t9)// insert_insert.
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|].
-    rewrite insert_delete (insert_commute _ r_t8 r_t10)// (insert_commute _ r_t8 r_t9)// insert_insert.
+    rewrite insert_delete_insert (insert_commute _ r_t8 r_t10)// (insert_commute _ r_t8 r_t9)// insert_insert.
     (* move r_t1 r_t9 *)
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[rewrite lookup_insert_ne// lookup_insert;eauto|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hsegs") as "[Hs_t9 Hsegs]";[rewrite lookup_insert_ne// lookup_insert;eauto|].
@@ -745,8 +745,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr1 $Hr_t9]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end a_end|iContiguous_next Hcont_rest1 2|..].
     iEpilogue_both "(HPC & Hi & Hr1 & Hr_t9)". iCombinePtrn.
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete !(insert_commute _ _ r_t9)// insert_insert].
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t9]") as "Hsegs";[apply lookup_delete|rewrite insert_delete insert_insert].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert !(insert_commute _ _ r_t9)// insert_insert].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t9]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     (* lea r_t1 offset_to_counter + length incr_instrs *)
     assert ((a_move + (offset_to_counter + (length incr_instrs)))%a = Some linkc) as H_counter_offset1.
     { revert Hlinkrestc H_counter_offset incr_length. clear. intros. solve_addr. }
@@ -838,8 +838,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t10]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end' a_end|iContiguous_next Hcont_rest2 1|..].
     iEpilogue_both "(HPC & Hi & Hr_t10)". iCombinePtrn. 
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete insert_insert].
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hsegs $Hs_t10]") as "Hsegs";[apply lookup_delete|rewrite insert_delete insert_insert].
+    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
+    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hsegs $Hs_t10]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     (* move r_t8 0 *)
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]". 
     { repeat (rewrite lookup_insert_ne;[|by auto]). apply lookup_insert. }
@@ -853,8 +853,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t8]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end' a_end|iContiguous_next Hcont_rest2 2|..].
     iEpilogue_both "(HPC & Hi & Hr_t8)". iCombinePtrn.
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hsegs $Hs_t8]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert].
     (* move r_t9 0 *)
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]". 
     { repeat (rewrite lookup_insert_ne;[|by auto]). apply lookup_insert. }
@@ -868,8 +868,8 @@ Section counter_example_preamble.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t9]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end' a_end|iContiguous_next Hcont_rest2 3|..].
     iEpilogue_both "(HPC & Hi & Hr_t9)". iCombinePtrn.
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t9]") as "Hsegs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hsegs $Hs_t9]") as "Hsegs";[apply lookup_delete|rewrite insert_delete_insert].
     
     (* WE WILL NOW PREPARE THΕ JUMP *)
     iCombine "Hbes_cls" "Hbes_cls'" as "Hbes_cls".
@@ -943,10 +943,10 @@ Section counter_example_preamble.
       repeat (rewrite lookup_insert_ne //;[]). do 2 rewrite lookup_delete_ne //.
       apply lookup_delete. }
     
-    do 2 (repeat (rewrite -(delete_insert_ne _ r_t2) //;[]);rewrite insert_delete).
-    do 2 (repeat (rewrite -(delete_insert_ne _ r_t1) //;[]);rewrite insert_delete).
-    do 2 (repeat (rewrite -(delete_insert_ne _ r_t0) //;[]);rewrite insert_delete).
-    do 2 (repeat (rewrite -(delete_insert_ne _ PC) //;[]);rewrite insert_delete).
+    do 2 (repeat (rewrite -(delete_insert_ne _ r_t2) //;[]);rewrite insert_delete_insert).
+    do 2 (repeat (rewrite -(delete_insert_ne _ r_t1) //;[]);rewrite insert_delete_insert).
+    do 2 (repeat (rewrite -(delete_insert_ne _ r_t0) //;[]);rewrite insert_delete_insert).
+    do 2 (repeat (rewrite -(delete_insert_ne _ PC) //;[]);rewrite insert_delete_insert).
        
     rewrite -(insert_insert _ PC (updatePcPerm s0) (WInt 0%Z))  -(insert_insert _ PC _ (WInt 0%Z)).
     

@@ -57,12 +57,12 @@ Section callback.
   Proof.
     iIntros (Hvpc Hcont Hsize Hnz Hwa Hwb Hperm Hlength Hreveq) "(>Hprog & >HPC& >Hr_t1& >Hlocals& >Hbl& Hcont)".
     iInduction (revlocals) as [|r revlocals] "IH" forall (a_l mlocals locals wsr a a_first Hreveq Hvpc Hcont Hnz Hsize Hwb Hperm Hlength). 
-    { apply rev_nil_inv in Hreveq as ->. apply Permutation.Permutation_nil in Hperm. inversion Hnz. }
+    { apply rev_nil_inv in Hreveq as ->. apply Permutation.Permutation_nil_r in Hperm. inversion Hnz. }
     destruct revlocals as [|r' revlocals]. 
     - apply rev_singleton_inv in Hreveq as ->. destruct wsr;[inversion Hlength|]. destruct wsr;[|inversion Hlength]. 
-      apply Permutation_sym, Permutation_singleton in Hperm. 
+      apply Permutation_sym, Permutation_singleton_r in Hperm. 
       assert (mlocals = {[r:=w]}) as Heq;[|subst mlocals]. 
-      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton. auto. }
+      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton_r. auto. }
       rewrite big_sepM_singleton. 
       rewrite /restore_locals /restore_locals_instrs.
       iDestruct (big_sepL2_length with "Hbl") as %Hlength_bl.

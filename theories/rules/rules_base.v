@@ -437,7 +437,7 @@ Section cap_lang_rules.
     iSplitL "Hh"; eauto.
     iDestruct (big_sepM_insert _ _ l with "[$Hmap $Hl]") as "H".
     apply lookup_delete.
-    rewrite insert_delete. iFrame.
+    rewrite insert_delete_insert. iFrame.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)

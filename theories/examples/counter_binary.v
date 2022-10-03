@@ -382,7 +382,7 @@ Section counter.
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsegs $Hs_t1]") as "Hsegs".
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
-    rewrite !insert_delete. 
+    rewrite !insert_delete_insert. 
     
     (* now we are ready to apply the jump or fail pattern *)
     iDestruct (interp_eq with "Hcallback") as %<-.  

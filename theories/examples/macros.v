@@ -586,12 +586,12 @@ Section macros.
       by rewrite lookup_delete_ne // lookup_delete.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
       by rewrite lookup_insert_ne // lookup_delete_ne // lookup_delete_ne // lookup_delete.
-    rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete.
+    rewrite -(delete_insert_ne _ r_t5 r_t3) // insert_delete_insert.
     rewrite -(delete_insert_ne _ r_t5 r_t2) //.
     rewrite (insert_commute ((delete r_t2 _)) r_t2 r_t3) //.
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
-      by rewrite lookup_delete. rewrite insert_delete.
+      by rewrite lookup_delete. rewrite insert_delete_insert.
     iApply (wp_wand with "[- Hφfailed Hψ]").
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
@@ -635,11 +635,11 @@ Section macros.
       repeat (rewrite lookup_insert_ne //;[]).
       rewrite lookup_delete_ne // lookup_delete //.
     repeat (rewrite (insert_commute _ r_t5) //;[]).
-    rewrite insert_delete -(delete_insert_ne _ _ r_t5) //.
+    rewrite insert_delete_insert -(delete_insert_ne _ _ r_t5) //.
     rewrite (insert_commute _ r_t5 r_t2) // (delete_insert_ne _ r_t3 r_t2)//.
     rewrite (insert_commute _ r_t4 r_t2) // insert_insert.
     rewrite (insert_commute _ r_t3 r_t2) //.
-    rewrite -(delete_insert_ne _ r_t3) // insert_delete.
+    rewrite -(delete_insert_ne _ r_t3) // insert_delete_insert.
     iFrame.
     iExists b,e. iFrame. auto. iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. iApply "Hψ". iFrame.
   Qed.
@@ -701,7 +701,7 @@ Section macros.
 
     destruct (decide (r ∈ r0)).
     { iDestruct (big_sepM_insert with "[$Hreg $Hr]") as "Hreg".
-        by rewrite lookup_delete. rewrite insert_delete.
+        by rewrite lookup_delete. rewrite insert_delete_insert.
       iApply ("IH" with "Hreg HPC Hrclear [Hφ Ha1]"); eauto.
       { iNext. iIntros "(? & Hreg & ?)". iApply "Hφ". iFrame.
         iApply (big_sepM_delete _ _ r). eauto.
@@ -1843,10 +1843,10 @@ Section macros.
     (* we start by putting the registers back together *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs".
       by rewrite lookup_delete_ne // lookup_delete.
-      rewrite delete_commute // insert_delete.
+      rewrite delete_commute // insert_delete_insert.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
       by rewrite lookup_insert_ne // lookup_delete.
-      rewrite (insert_commute _ r_t7 r_t6) // insert_delete.
+      rewrite (insert_commute _ r_t7 r_t6) // insert_delete_insert.
     assert (∀ (r:RegName), r ∈ ({[PC;r_t0;r_t1;r_t2]} : gset RegName) → rmap !! r = None) as Hnotin_rmap.
     { intros r Hr. eapply (@not_elem_of_dom _ _ (gset RegName)). typeclasses eauto.
       rewrite Hrmap_dom. set_solver. }
@@ -1897,8 +1897,8 @@ Section macros.
     repeat (repeat (rewrite delete_insert_ne //; []); rewrite delete_insert_delete).
     rewrite (delete_notin _ r_t1). 2: apply Hnotin_rmap; set_solver.
     rewrite (delete_notin _ r_t2). 2: rewrite !lookup_delete_ne //; apply Hnotin_rmap; set_solver.
-    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete.
-    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete.
+    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert.
+    repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert.
     repeat (rewrite (insert_commute _ r_t7) //;[]).
     repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite (insert_commute _ r_t6 r_t5) //.
   Qed.

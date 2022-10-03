@@ -167,9 +167,9 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
@@ -335,9 +335,9 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
@@ -627,9 +627,9 @@ Section Adequacy.
     set prog_nin_inv :=
       filter (fun '(a, _) => a ∉ minv_dom I) (lib_region (priv_libs Lib)).
     rewrite (_: lib_region (priv_libs Lib) = prog_in_inv ∪ prog_nin_inv).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hlib_priv") as "[Hlib_inv Hlib_priv]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hlib_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.

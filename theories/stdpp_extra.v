@@ -313,7 +313,7 @@ Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
   rewrite map_filter_lookup_Some lookup_insert_Some.
-  rewrite -map_filter_insert;auto.
+  rewrite -map_filter_insert_True;auto.
     by rewrite map_filter_lookup_Some lookup_insert_Some.
 Qed.
 
@@ -357,7 +357,7 @@ Proof.
   clearbody l. revert l Hl. revert m1. pattern m2. revert m2.
   apply map_ind.
   - intros m1 l. rewrite dom_empty_L elements_empty difference_het_empty.
-    rewrite Permutation_nil. intros ->. reflexivity.
+    rewrite Permutation_nil_r. intros ->. reflexivity.
   - intros k v m2 Hm2k HI m1 l Hm1l.
     rewrite difference_het_insert_r.
     rewrite dom_insert in Hm1l * => Hm1l.
@@ -686,7 +686,7 @@ Proof.
   - by rewrite map_filter_empty !map_empty_union.
   - apply map_disjoint_insert_l in H8 as [Hm2None Hdisj].
     destruct (decide (P (i,x))).
-    + rewrite -insert_union_l !map_filter_insert// IHm1//.
+    + rewrite -insert_union_l !map_filter_insert_True// IHm1//.
       rewrite insert_union_l. auto.
     + rewrite map_filter_insert_not'//.
       { intros y Hy. simplify_eq. }
@@ -705,7 +705,7 @@ Proof.
   - rewrite map_filter_empty. apply map_disjoint_empty_l.
   - apply map_disjoint_insert_l in H8 as [Hm2None Hdisj].
     destruct (decide (P (i,x))).
-    + rewrite map_filter_insert//.
+    + rewrite map_filter_insert_True//.
       apply map_disjoint_insert_l_2;auto.
       apply map_filter_lookup_None_2. left;auto.
     + rewrite map_filter_insert_not'//.

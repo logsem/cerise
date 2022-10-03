@@ -154,7 +154,7 @@ Section fundamental.
     all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
     all:  iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
     all:  iApply (wp_bind (fill [SeqCtx])); cbn.
-    all:  unfold registers_mapsto; rewrite -insert_delete.
+    all:  unfold registers_mapsto; rewrite -insert_delete_insert.
     all:  iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]"; first by rewrite lookup_delete.
     all:  iApply (wp_notCorrectPC with "HPC"); first by inversion 1.
     all:  iNext; iIntros; cbn; iApply wp_pure_step_later; auto.

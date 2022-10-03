@@ -452,7 +452,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     rewrite /make_seal_preamble_instrs.
 
@@ -472,7 +472,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs"; [simplify_map_eq;auto|].
     Search "delete" "insert" "ne".
     rewrite -delete_insert_ne.
@@ -496,8 +496,8 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete. rewrite (delete_commute _ _ r_t8)//.
-    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete.
+    rewrite insert_delete_insert. rewrite (delete_commute _ _ r_t8)//.
+    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_insert.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
     iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".

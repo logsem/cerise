@@ -191,14 +191,14 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
-      by rewrite lookup_delete. rewrite insert_delete.
+      by rewrite lookup_delete. rewrite insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
       by rewrite lookup_insert_ne // lookup_delete //.
-      rewrite insert_commute // insert_delete.
+      rewrite insert_commute // insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
       by rewrite !lookup_insert_ne // lookup_delete //.
       rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //.
-      rewrite insert_delete.
+      rewrite insert_delete_insert.
       rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
       iExists a_m, a_m', size. iFrame. auto. }
@@ -229,9 +229,9 @@ Section SimpleMalloc.
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
     rewrite -!(delete_insert_ne _ r_t1)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -!(delete_insert_ne _ r_t0)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete delete_insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
     set regs := <[_:=_]> _.
 
     iApply ("Hcont" $! regs).

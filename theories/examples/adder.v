@@ -403,19 +403,19 @@ Section adder.
         (* Put the registers back in the map *)
         iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hrenv]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         match goal with |- context [ ([∗ map] _↦_ ∈ ?r, _)%I ] => set rmap'' := r end.
         iApply "Hcont"; cycle 1.
         { iFrame. iApply (big_sepM_sep with "[$Hregs HrV]"). cbn beta.

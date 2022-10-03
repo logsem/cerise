@@ -516,8 +516,8 @@ Section cap_lang_spec_rules.
       (exclusive_local_update (A:=exprR) _ (Excl (fill K e'))). }
     iFrame. iApply "Hclose".
     iNext. iExists (fill K e'),σ. iFrame. iPureIntro.
-    apply rtc_nsteps in Hstep; destruct Hstep as [m Hrtc].
-    specialize (Hpure HP). apply (nsteps_rtc (m + n)).
+    apply rtc_nsteps_1 in Hstep; destruct Hstep as [m Hrtc].
+    specialize (Hpure HP). apply (rtc_nsteps_2 (m + n)).
     eapply nsteps_trans; eauto. clear -Hpure.
     revert e e' Hpure. induction n => e e' Hpure.
     - inversion Hpure. subst. apply nsteps_O.

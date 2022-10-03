@@ -63,12 +63,12 @@ Section fundamental.
           iClear "Hinv".
           rewrite fixpoint_interp1_eq; simpl.
 
-          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete; auto.
+          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
           iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iAssert (PC ↦ᵣ WCap p' b' e' a')%I  with "[HPC]" as "HPC".
           { destruct p'; auto. congruence. }
 
-          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete; auto.
+          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
           iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
           { iIntros (ri v Hri Hvs).

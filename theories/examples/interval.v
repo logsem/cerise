@@ -282,8 +282,8 @@ Section interval.
     (* malloc *)
     iApply (wp_wand _ _ _ (λ v, (Ψ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[ [H1 | H1] | H1]";iApply "HΨ";iFrame; iSimplifyEq; iFrame. }
-    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
@@ -371,12 +371,12 @@ Section interval.
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       repeat (rewrite -delete_insert_ne//).
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
@@ -440,12 +440,12 @@ Section interval.
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       repeat (rewrite -delete_insert_ne//).
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
@@ -821,11 +821,11 @@ Section interval.
     iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert; repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
@@ -1066,11 +1066,11 @@ Section interval.
     iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert; repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 

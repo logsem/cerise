@@ -117,7 +117,7 @@ Proof.
   pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
   pose proof (assert_flag_size layout).
   assert (list_to_map [(assert_flag layout, WInt 0)] ⊆ m) as Hassert_flag.
-  { etrans;[|eauto]. eapply map_union_subseteq_r_alt. 2: done.
+  { etrans;[|eauto]. eapply map_union_subseteq_r'. 2: done.
     pose proof (libs_disjoint layout) as Hdisjoint. disjoint_map_to_list.
     apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
     intros [ [? ?]|?] ->; solve_addr. }

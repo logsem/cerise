@@ -737,7 +737,7 @@ Section macros.
         iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete//.
         iApply (big_sepM_delete _ _ r0). done. iFrame. }
       { iPureIntro. solve_pure_addr. }
-      { rewrite insert_delete. iPureIntro. set_solver. } }
+      { rewrite insert_delete_insert. iPureIntro. set_solver. } }
     { iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont Hr0]"); eauto.
       { iPureIntro. set_solver. }
       { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
