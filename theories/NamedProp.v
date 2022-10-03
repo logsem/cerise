@@ -1,5 +1,4 @@
-From iris.proofmode Require Import tactics environments intro_patterns.
-From iris_string_ident Require Import ltac2_string_ident.
+From iris.proofmode Require Import tactics environments intro_patterns string_ident.
 
 Set Default Proof Using "Type".
 
