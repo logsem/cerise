@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import subprocess
+import json
 COQWC = "coqwc"
 COQPROJECT_FILES_PATH = "file_categories.txt"
 
@@ -57,10 +58,8 @@ def measure_cerise():
     return measurements
 
 def main():
-    dicti = coq_wc_parse(coq_wc_get("theories/addr_reg.v"))
-    print(dicti)
-    print(combine_counts(dicti,dicti))
-    print(measure_cerise())
+    print(json.dumps(measure_cerise(),\
+                     sort_keys=True, indent=4))
 
 if __name__ == "__main__":
     main()
