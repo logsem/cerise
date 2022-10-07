@@ -3,17 +3,9 @@
 
 @OPSEM
 #Operational semantics (includes a lot of set-up; main file is `cap_lang.v`)
-theories/iris_extra.v
-theories/stdpp_extra.v
-theories/map_simpl.v
 theories/addr_reg.v
-theories/solve_addr.v
 theories/machine_base.v
 theories/machine_parameters.v
-theories/machine_run.v
-theories/classes.v
-theories/class_instances.v
-theories/solve_addr_extra.v
 theories/cap_lang.v
 
 @MODEL
@@ -62,11 +54,19 @@ machine_utils/theories/classes.v
 machine_utils/theories/class_instances.v
 machine_utils/theories/solve_pure.v
 machine_utils/theories/tactics.v
+theories/map_simpl.v
+theories/classes.v
+theories/class_instances.v
+theories/solve_addr.v
+theories/solve_addr_extra.v
 theories/solve_pure.v
 theories/NamedProp.v
 theories/proofmode_instr_rules.v
 theories/proofmode.v
 theories/monotone.v
+theories/machine_run.v
+theories/iris_extra.v
+theories/stdpp_extra.v
 theories/rules_binary/rules_binary_base.v
 theories/rules_binary/rules_binary_Get.v
 theories/rules_binary/rules_binary_Load.v
