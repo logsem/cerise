@@ -3,19 +3,33 @@ import subprocess
 import json
 COQWC = "coqwc"
 COQPROJECT_FILES_PATH = "file_categories.txt"
+KEYWORDS = ["Theorem", "Lemma", "Fact", "Remark", "Corollary", "Proposition", "Property"]
 
 def coq_wc_get(filepath):
     output = subprocess.Popen([COQWC, filepath],stdout=subprocess.PIPE)
     return output.stdout.read()
 
-def coq_wc_parse(string):
-    lines = string.splitlines()
+def count_keywords(filepath):
+    count = 0
+    with open(filepath) as f:
+        for l in f:
+            words = l.strip().split()
+            if len(words) > 0 and words[0] in KEYWORDS:
+                count += 1
+    return count
+
+def coq_file_get_stats(filepath):
+    lines = coq_wc_get(filepath).splitlines()
     cats = lines[0].strip().split()
     vals = lines[1].strip().split()
 
     valdict = dict()
     for c,v in zip(cats,vals) :
         valdict[c.decode('UTF-8')] = int(v)
+
+    #add the number of KEYWORD appearances to the dict
+    valdict["#Lemma"] = count_keywords(filepath)
+
     return valdict
 
 def mergeDictionary(dict_1, dict_2):
@@ -39,12 +53,13 @@ def coqproject_parse(cp_file):
             cur_category = line[1:]
             file_categories[cur_category] = []
         else:
+            ##TODO: add filters for sections/Lemmas
             if cur_category:
                 file_categories[cur_category] += [line]
     return file_categories
 
 def measure_files_as_dict(files):
-    file_dicts = [coq_wc_parse(coq_wc_get(f)) for f in files]
+    file_dicts = [coq_file_get_stats(f) for f in files]
     acc_dict = dict()
     [acc_dict := combine_counts(d,acc_dict) for d in file_dicts]
     return acc_dict
