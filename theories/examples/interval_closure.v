@@ -1,5 +1,5 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
@@ -361,6 +361,7 @@ Section interval_closure.
     iDestruct "Hres" as (b0 e0 He0) "(Hr_t1 & Hact0 & Hr_t0 & Hr_t2 & Hown & Hregs)".
     map_simpl "Hregs".
     unfocus_block "Hblock" "Hcont" as "Hcode".
+    clear dependent a_mid0 a_mid3 a_mid4.
 
     focus_block 7 "Hcode" as a_mid6 Ha_mid6 "Hblock" "Hcont".
     assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].

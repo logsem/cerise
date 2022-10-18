@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules logrel fundamental.
@@ -772,7 +772,7 @@ Section counter_example_preamble.
     { iFrame. iApply big_sepM_sep. iFrame "Hregs".
       repeat (iApply big_sepM_insert_2; cbn beta;
               [first [done | by rewrite /= !fixpoint_interp1_eq // ]|]).
-      iApply big_sepM_intuitionistically_forall. iIntros "!>" (r' ? Hr').
+      iApply big_sepM_intro. iIntros "!>" (r' ? Hr').
       eapply lookup_delete_Some in Hr' as [? Hr'].
       unshelve iSpecialize ("Hr_valid" $! r' _ _ Hr'). by auto. done. }
     { iPureIntro. rewrite !dom_insert_L dom_delete_L Hdom_r. set_solver+. }

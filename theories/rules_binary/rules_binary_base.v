@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac auth gmap excl list.
 From cap_machine Require Export cap_lang iris_extra rules_base.
 
@@ -49,7 +49,7 @@ Section to_spec_map.
 End to_spec_map.
 
 Section definitionsS.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
 
   Definition memspec_mapsto (a : Addr) (q : Qp) (w : Word) : iProp Σ :=
     own cfg_name (◯ (ε, (∅,{[ a := (q, to_agree w) ]}))).
@@ -209,7 +209,7 @@ Ltac iAsimpl :=
          end.
 
 Section cap_lang_spec_resources.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
 
   (* ------------------------- registers points-to --------------------------------- *)
 
@@ -477,7 +477,7 @@ End cap_lang_spec_resources.
 
 
 Section cap_lang_spec_rules.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -563,7 +563,7 @@ Ltac iFailStep fail_type :=
             end); simplify_eq.
 
 Section cap_lang_spec_rules.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.

@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import gmap fin_maps list countable.
 From cap_machine Require Export addr_reg solve_addr.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 
 (* Definition and auxiliary facts on capabilities, permissions and addresses.
 

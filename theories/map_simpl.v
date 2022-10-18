@@ -269,7 +269,7 @@ Ltac map_simpl_debug name :=
     end
   end.
 
-From iris.proofmode Require Import reduction tactics.
+From iris.proofmode Require Import reduction proofmode.
 
 Ltac disjunct_cases m i :=
   match m with

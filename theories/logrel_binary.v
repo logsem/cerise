@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Export weakestpre.
 From cap_machine Require Export cap_lang region logrel rules_binary_base.
 From iris.algebra Require Import gmap agree auth.

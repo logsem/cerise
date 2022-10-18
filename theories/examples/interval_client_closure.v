@@ -1,5 +1,5 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
@@ -7,7 +7,7 @@ From cap_machine Require Import dynamic_sealing interval keylist malloc interval
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section interval_client.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
           `{MP: MachineParameters}.
 

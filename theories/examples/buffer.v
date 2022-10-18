@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
@@ -135,7 +135,7 @@ Proof.
     { apply prog_size. } }
   { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_finz_seq_between. solve_addr. }
 
-  intros * Hrmap_dom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
+  intros * Hss * Hrmap_dom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
 
   (* Extract the code & data regions from the program resources *)
   iAssert (codefrag (prog_start P) (buffer_code (prog_start P)) ∗

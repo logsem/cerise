@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base stdpp_extra.
 
@@ -160,8 +160,8 @@ Section cap_lang_rules.
   Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
     λ m1 m2, merge prod_op m1 m2.
 
-  Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)).
-  Proof. cbv. auto. Qed.
+  (* Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)). *)
+  (* Proof. cbv. auto. Qed. *)
 
   Lemma wp_load_general Ep
      pc_p pc_b pc_e pc_a
@@ -184,7 +184,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad Hdomeq φ) "(>Hmem & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
 
     (* Derive necessary register values in r *)
@@ -310,11 +310,11 @@ Section cap_lang_rules.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iApply big_sepM_insert.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto; rewrite H2;auto. }
         iFrame. iApply "IH". iFrame.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto; rewrite H2;auto. }
         iApply big_sepM_insert. auto.
         iFrame. iApply "IH". iFrame.
   Qed.

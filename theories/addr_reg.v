@@ -5,6 +5,9 @@ From Coq Require Import ssreflect.
 From cap_machine Require Import stdpp_extra.
 From machine_utils Require Export finz.
 
+(* No longer a coercion in Coq >= 8.14*)
+Local Coercion Z.of_nat : nat >-> Z.
+
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
    The exact size of the address space does not matter, it could be made a
@@ -180,7 +183,7 @@ Qed.
 Lemma all_registers_union_l s :
   s ∪ all_registers_s = all_registers_s.
 Proof.
-  eapply (anti_symm _). 2: set_solver.
+  apply (anti_symm subseteq). 2: set_solver.
   rewrite elem_of_subseteq. intros ? _.
   apply all_registers_s_correct.
 Qed.
@@ -199,7 +202,7 @@ Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
   dom (gset RegName) r = all_registers_s.
 Proof.
-  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.
   - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.

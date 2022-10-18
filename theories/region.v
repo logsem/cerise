@@ -1,5 +1,5 @@
 From cap_machine Require Export stdpp_extra cap_lang rules_base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From machine_utils Require Import finz_interval.
 From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 

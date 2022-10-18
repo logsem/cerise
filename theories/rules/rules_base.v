@@ -1,27 +1,31 @@
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
 From iris.algebra Require Import frac auth.
 From cap_machine Require Export cap_lang iris_extra.
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
-  mem_invG : invG Σ;
-  mem_gen_memG :> gen_heapG Addr Word Σ}.
+  mem_invG : invGS Σ;
+  mem_gen_memG :> gen_heapGS Addr Word Σ}.
 
 (* CMRA for registers *)
 Class regG Σ := RegG {
-  reg_invG : invG Σ;
-  reg_gen_regG :> gen_heapG RegName Word Σ; }.
+  reg_invG : invGS Σ;
+  reg_gen_regG :> gen_heapGS RegName Word Σ; }.
 
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{MachineParameters} `{memG Σ, regG Σ} : irisG cap_lang Σ := {
-  iris_invG := mem_invG;
-  state_interp σ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
+Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
+  iris_invGS := mem_invG;
+  state_interp σ _ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
+  num_laters_per_step _ := 0;
+  state_interp_mono _ _ _ _ := fupd_intro _ _
 }.
-Global Opaque iris_invG.
+
+(* This extra instance is needed because the regular `wp'` instance does not look for any `MachineParameters`, hence the `simple apply` fails during typeclass search *)
+Global Instance wp_MP `{MachineParameters} Σ : irisGS cap_lang Σ → Wp (iProp Σ) expr val stuckness. Proof. apply _. Defined.
 
 (* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
@@ -177,7 +181,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (l : L) (q : Qp) (v : V),
       σ' !! l = Some v →
       gen_heap_interp σ -∗
@@ -191,7 +195,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM':
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -204,7 +208,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inclSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -220,7 +224,7 @@ Section cap_lang_rules.
   Lemma gen_heap_valid_allSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (EV: Equiv V) (REV: Reflexive EV) (LEV: @LeibnizEquiv V EV)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       (forall (l:L), is_Some (σ' !! l)) →
       gen_heap_interp σ -∗
@@ -244,7 +248,7 @@ Section cap_lang_rules.
   Lemma gen_heap_update_inSepM :
     ∀ {L V : Type} {EqDecision0 : EqDecision L}
       {H : Countable L} {Σ : gFunctors}
-      {gen_heapG0 : gen_heapG L V Σ}
+      {gen_heapG0 : gen_heapGS L V Σ}
       (σ σ' : gmap L V) (l : L) (v : V),
       is_Some (σ' !! l) →
       gen_heap_interp σ
@@ -261,16 +265,16 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  Lemma wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
+  Program Definition wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
     to_val e1 = None →
-    (∀ (σ1:cap_lang.state) κ κs n, state_interp σ1 (κ ++ κs) n ={E}=∗
+    (∀ (σ1:cap_lang.state) ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
      ∃ κ e2 (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
-      (▷ |==> (state_interp σ2 κs n ∗ from_option Φ False (to_val e2))))
+      (▷ |==> (state_interp σ2 (S ns) κs nt ∗ from_option Φ False (to_val e2))))
       ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 κ κs n)  "Hσ1 /=".
-    iMod ("H" $! σ1 κ κs n with "[Hσ1]") as "H"; auto.
+    iIntros (σ1 ns κ κs nt)  "Hσ1 /=".
+    iMod ("H" $! σ1 ns κ κs nt with "[Hσ1]") as "H"; auto.
     iDestruct "H" as (κ' e2 σ2 efs) "[H1 H2]".
     iModIntro. iSplit.
     - rewrite /head_reducible /=.
@@ -421,7 +425,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_mem_update_inSepM :
-    ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapG Addr Word Σ}
+    ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapGS Addr Word Σ}
       (σ : gmap Addr Word) mem0 (l : Addr) (v' v : Word),
       mem0 !! l = Some v' →
       gen_heap_interp σ
@@ -441,18 +445,19 @@ Section cap_lang_rules.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
+  (* Bind Scope expr_scope with language.expr cap_lang. *)
 
   Lemma wp_notCorrectPC:
     forall E w,
       ~ isCorrectPC w ->
       {{{ PC ↦ᵣ w }}}
-        Instr Executable @ E
+         Instr Executable @ E
         {{{ RET FailedV; PC ↦ᵣ w }}}.
   Proof.
     intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /="; destruct σ1; simpl;
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
@@ -504,7 +509,7 @@ Section cap_lang_rules.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
@@ -527,7 +532,7 @@ Section cap_lang_rules.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.

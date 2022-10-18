@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac auth list.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
@@ -11,7 +11,7 @@ Definition prefR (al al' : addrwordLO) := al `prefix_of` al'.
 Class sealLLG Σ := CCounterG { ccounter_inG :> inG Σ (authUR (monotoneUR prefR)) }.
 
 Section list.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}
           {mono : sealLLG Σ}.
@@ -275,7 +275,7 @@ Section list.
         apply list_lookup_fmap_inv in Hj as [ [k1 k2] [Heqk Hj] ]. simplify_eq.
         iSplit;auto.
         iPureIntro. split;auto. destruct Hhd' as [ [-> Heq] | [? [? (?&?&?&?&?)] ] ];auto.
-        - left. rewrite fmap_cons. simpl. split;auto. rewrite Heq.
+        - left. rewrite fmap_cons. simpl. split;auto.
           destruct ptrs;inversion Heq. auto.
         - right. exists x,x0,x1. repeat split;eauto. constructor;auto.
         - iIntros "[Ha Ha']". iExists _,_,_,_. iSplit;eauto. iFrame.

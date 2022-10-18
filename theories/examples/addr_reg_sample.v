@@ -1,6 +1,6 @@
 From Coq Require Import Eqdep_dec.
 From stdpp Require Import gmap fin_maps list.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Export addr_reg cap_lang region.
 
 (* Instructions and their decodings *)

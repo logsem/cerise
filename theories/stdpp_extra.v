@@ -334,10 +334,10 @@ Lemma dom_difference_het
     (m1: gmap A B) (m2: gmap A C):
   dom (gset A) (m1 ∖∖ m2) = dom (gset A) m1 ∖ dom (gset A) m2.
 Proof.
-  apply (anti_symm _).
+  apply (anti_symm subseteq).
   { rewrite elem_of_subseteq. intro k.
     rewrite -elem_of_gmap_dom. intros [v Hv].
-    rewrite difference_het_lookup_Some in Hv * => Hv.
+    rewrite difference_het_lookup_Some in Hv.
     destruct Hv as [? ?].
     rewrite elem_of_difference -!elem_of_gmap_dom. split; eauto.
     intros [? ?]. congruence. }
@@ -360,7 +360,7 @@ Proof.
     rewrite Permutation_nil_r. intros ->. reflexivity.
   - intros k v m2 Hm2k HI m1 l Hm1l.
     rewrite difference_het_insert_r.
-    rewrite dom_insert in Hm1l * => Hm1l.
+    rewrite dom_insert in Hm1l.
     move: Hm1l. rewrite elements_union_singleton.
     2: rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
     intros Hm1l.
@@ -928,7 +928,7 @@ Lemma last_lookup {A : Type} (l : list A) :
 Proof.
   induction l.
   - done.
-  - simpl. destruct l; auto.
+  - simpl. destruct l; auto. cbn.
     rewrite IHl. simpl. rewrite PeanoNat.Nat.sub_0_r. done.
 Qed.
 
@@ -939,7 +939,7 @@ Proof.
   - intros Hl2.
     induction l1.
     + destruct l2; inversion Hl2. simpl. split; auto. lia.
-    + destruct IHl1 as [Hlt Hlast]. split; auto. simpl. rewrite Hlast.
+    + destruct IHl1 as [Hlt Hlast]. split; auto. simpl.
       destruct (l1 ++ l2); auto.
       inversion Hlast.
   - generalize l1. induction l2; intros l1' [Hlen Hl].

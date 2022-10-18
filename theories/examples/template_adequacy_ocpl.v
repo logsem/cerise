@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -182,7 +182,7 @@ Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; Σ]).
   intros ? ? ? ? Hspec.
-  eapply (template_adequacy Σ');[eauto..|]; (* rewrite /invPreG. solve_inG. *)
+  eapply (template_adequacy Σ');[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
     try typeclasses eauto.
   eapply flag_inv_is_initial_memory;eauto.
   eapply flag_inv_sub;eauto.

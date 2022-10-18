@@ -1,6 +1,6 @@
 From iris.algebra Require Import gmap auth excl csum.
 From iris.base_logic Require Import lib.own saved_prop.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import cap_lang stdpp_extra.
 
 
@@ -76,7 +76,7 @@ Section Store.
     iDestruct "Hr1" as (γ1) "[Hown1 Hpred1]".
     iDestruct "Hr2" as (γ2) "[Hown2 Hpred2]".
     iDestruct (own_valid_2 with "Hown1 Hown2") as %Hv.
-    rewrite singleton_op singleton_valid -Cinr_op Cinr_valid  to_agree_op_valid_L in Hv |- * => <-.
+    rewrite singleton_op singleton_valid -Cinr_op Cinr_valid  to_agree_op_valid_L in Hv. subst.
     iIntros (x). iApply (saved_pred_agree with "Hpred1 Hpred2").
   Qed.
 

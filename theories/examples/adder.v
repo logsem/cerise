@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
@@ -421,7 +421,7 @@ Section adder.
         { iFrame. iApply (big_sepM_sep with "[$Hregs HrV]"). cbn beta.
           repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
           rewrite delete_insert_delete.
-          iApply big_sepM_intuitionistically_forall. iModIntro.
+          iApply big_sepM_intro. iModIntro.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
           by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
         { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.

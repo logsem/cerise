@@ -1,5 +1,5 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea Seal UnSeal.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
@@ -224,7 +224,7 @@ Section fundamental.
     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).
-      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. eauto. }
+      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. }
       rewrite lookup_insert_ne //. iPureIntro. rewrite elem_of_gmap_dom Hrmap. set_solver. }
     { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne // in Hvs.

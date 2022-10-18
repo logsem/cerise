@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
@@ -93,7 +93,7 @@ Lemma dom_mkregion_eq a e l:
   (a + length l = Some e)%a →
   dom (gset Addr) (mkregion a e l) = list_to_set (finz.seq_between a e).
 Proof.
-  intros Hlen. apply (anti_symm _).
+  intros Hlen. apply (anti_symm subseteq).
   - apply dom_mkregion_incl.
   - by apply dom_mkregion_incl_rev.
 Qed.
@@ -104,7 +104,7 @@ Lemma in_dom_mkregion a e l k:
 Proof.
   intros H.
   pose proof (dom_mkregion_incl a e l) as HH.
-  rewrite elem_of_subseteq in HH |- * => HH.
+  rewrite elem_of_subseteq in HH.
   specialize (HH _ H). eapply @elem_of_list_to_set; eauto.
   typeclasses eauto.
 Qed.

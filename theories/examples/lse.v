@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
 
 Section roe.
@@ -402,7 +402,7 @@ Section roe.
     (* adversary *)
     iApply big_sepM_insert_2. done.
     (* the remaining 0'ed out capabilities *)
-    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+    { iApply big_sepM_intro. iIntros "!>" (r ?).
       destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
       iIntros (?). simplify_eq. done. iIntros (?). done. }

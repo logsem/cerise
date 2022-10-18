@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine.examples Require Import stack_macros.
 From cap_machine Require Import rules logrel fundamental. 
@@ -7,7 +7,7 @@ From cap_machine Require Import rules logrel fundamental.
 Section wbcf.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+            Heap: heapGS Σ}.
 
    Ltac iPrologue_pre :=
     match goal with
