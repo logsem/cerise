@@ -64,6 +64,7 @@ theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
 theories/fundamental.v
+theories/register_tactics.v
 theories/examples/addr_reg_sample.v
 theories/examples/malloc.v
 theories/examples/salloc.v
