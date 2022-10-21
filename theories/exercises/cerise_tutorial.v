@@ -66,7 +66,7 @@ Section base_program.
         buffer and `r2` contains the new data (in our case, 42)
 
       The usual way to specify a program in Cerise in Coq is to use the
-      weakest-precondition (WP) with a Continuation Pathing Style, instead of
+      weakest-precondition (WP) with a Continuation Passing Style, instead of
       the Hoare Triples.
       The CPS style is defined as follows:
 
@@ -206,7 +206,7 @@ Section base_program.
       Prove the specification of the previous example using the automated
       tactic iGo. In order to leverage the strengh of the tactic, the memory
       resources should be ready before the execution of the tactic, in
-      particular, the memory buffer should be splitted at the beginning of the
+      particular, the memory buffer should be split at the beginning of the
       proof: it will allows the tactic `iGo` to step through multiple
       instructions at once.
 
@@ -365,23 +365,12 @@ Section base_program.
     Admitted.
 
 
-
-  (** TODO new exercise with a new program:
-      - define the program, longer than 2 instructions
-      - define its specification
-      - let the user do the full proof
-
-    Why not the counter library, or the subbuffer, or a part of the malloc,
-    or the activation record of the calling convention ?
-   *)
-
-  (** Now that you are familiar with the Cerise Proofmode,
-      we recommand to try defining a program by yourself, as
-      well as its specification.
-      We also recommand to continue the tutorial with
-      TODO (next file) to learn how to define the specification,
-      how to use the logical relation to reason with unknown code,
-      and how to deal with local encapsulation.
+  (** The next step to learn how to use the Cerise Proofmode is to leverage
+      the modularity of program logic to define macros and use their
+      specification inside bigger programs.
+      The next part of the tutorial "cerise_modularity.v" will learn you how
+      to define, specify and use user-defined macros, and present you the main
+      macros already defined in Cerise.
    *)
 
 End base_program.
