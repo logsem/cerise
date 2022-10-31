@@ -4,7 +4,7 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
 From cap_machine Require Import monotone.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine Require Import solve_pure proofmode map_simpl register_tactics.
 Import uPred. (* exist_persistent *)
 
 (* Architectural variant of the sealing/unsealing functionality in the dynamic_sealing file. *)
@@ -367,11 +367,12 @@ Section sealing.
     iSplit; auto.
   Qed.
 
-  Lemma sealLL_alloc ι ll o o_e Ep Φ {Hpers : ∀ w, Persistent (Φ w)} :
-    ll ↦ₐ WSealRange (true,true) o o_e o -∗ ⌜ (o < o_e)%ot ⌝ -∗ seal_pred o Φ -∗
+  Lemma sealLL_alloc ι Φ ll o o_e Ep {Hpers : ∀ w, Persistent (Φ w)} :
+    (o < o_e)%ot → ll ↦ₐ WSealRange (true,true) o o_e o -∗ can_alloc_pred o -∗
     |={Ep}=> seal_state ι ll o Φ.
   Proof.
-    iIntros "Hll %Hooe #Hsp".
+    iIntros (Hooe) "Hll Hsp".
+    iMod (seal_store_update_alloc with "Hsp") as "#Hsp".
     iMod (na_inv_alloc logrel_nais _ ι _ with "[Hll Hsp]")%I as "Hinv"; last by iFrame "∗ #".
     iExists _; iFrame "∗ %".
   Qed.
@@ -434,7 +435,7 @@ Section sealing.
                                    (* linked list invariants *)
                                    ∗ ⌜(ll + 1)%a = Some ll'⌝
                                    ∗ ∃ o, seal_state ι ll o Φ)
-          ∗ ([∗ map] r↦w ∈ (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r_t8:=WInt 0%Z]> (<[r_t9:=WInt 0%Z]> (<[r_t10:=WInt 0%Z]> (delete r_t1 (delete r_t2 rmap)))))))), r ↦ᵣ w)
+          ∗ ([∗ map] r↦w ∈ (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]> (<[r_t8:=WInt 0%Z]> (<[r_t9:=WInt 0%Z]> (<[r_t10:=WInt 0%Z]> (delete r_t1 (delete r_t2 rmap)))))))))), r ↦ᵣ w)
           ∗ codefrag a_first (unseal_instrs ++ seal_instrs ++ make_seal_preamble_instrs f_m f_m')
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -444,110 +445,90 @@ Section sealing.
     iIntros (Hvpc Hcont Hdom Hbounds_m Hf_m Hbounds_r Hf_r Hnclose' Hnclose'' Hndisj) "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & #Hsalloc & Hpc_b & Ha_r' & Ha_r'' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
-    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply Hw8|].
+    iExtract "Hregs" r_t8 as "Hr_t8".
     iGo "Hprog".
     { rewrite /seal_instrs_length. instantiate (1 := (a_first ^+ length (unseal_instrs))%a).
       solve_addr. }
+    iInsert "Hregs" r_t8. clear vr_t8.
     unfocus_block "Hprog" "Hcont" as "Hprog".
-
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete_insert.
 
     rewrite /make_seal_preamble_instrs.
 
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
     iApply malloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
-    set_solver. auto. lia.
+    solve_map_dom. auto. lia.
     iSplitL "". iNext. auto.
     iSplitL "". iNext. iRight. auto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hll & Hr_t0 & Hown & Hregs)".
-    iDestruct "Hll" as (ll ll') "(%Heqb & Hr_t1 & Hll)".
+    iDestruct "Hll" as (lla lla') "(%Heqb & Hr_t1 & Hll)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
+
+    (* Allocated one address *)
+    iAssert (lla ↦ₐ _)%I with "[Hll]" as "Hll".
+    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist lla lla' 1) ltac:(auto))). simpl replicate. iDestruct "Hll" as "[$ _]".}
 
     focus_block 4 "Hprog" as a_middle1' Ha_middle1' "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
-    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
+    iExtract "Hregs" r_t9 as "Hr_t9".
     iInstr "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
-
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete_insert.
-    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs"; [simplify_map_eq;auto|].
-    Search "delete" "insert" "ne".
-    rewrite -delete_insert_ne.
-    map_simpl "Hregs".
+    iInsertList "Hregs" [r_t9;r_t1]. clear vr_t9.
 
     focus_block 5 "Hprog" as a_middle1'' Ha_middle1'' "Hprog" "Hcont".
     iApply salloc_spec_alt; iFrameAutoSolve. 4: iFrame "# ∗".
-    clear -Hdom. set_solver -Hdom. auto. lia.
+    solve_map_dom. auto. lia.
     iSplitL "". iNext. auto.
     iSplitL "". iNext. iRight. auto.
-    iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hll & Hr_t0 & Hown & Hregs)".
-    iDestruct "Hll" as (ll ll') "(%Heqb & Hr_t1 & Hll)".
+    iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r'' & Hll' & Hr_t0 & Hown & Hregs)".
+    iDestruct "Hll'" as (lls lls') "(%Heqb' & Hr_t1 & Hll')".
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
-    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
-    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    map_simpl "Hregs".
+
+    (* Allocated one sealpred *)
+    iAssert (can_alloc_pred lls)%I with "[Hll']" as "Hll'".
+    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+      iDestruct "Hll'" as "[$ _]".}
+
+    focus_block 6 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
+    iExtractList "Hregs" [r_t8;r_t2;r_t9] as ["Hr_t8";"Hr_t2";"Hr_t9"].
+    iInstr "Hprog". { clear -Heqb; solve_pure_addr . }
     iGo "Hprog".
+    iInsertList "Hregs" [r_t8;r_t9].
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
-    (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete_insert. rewrite (delete_commute _ _ r_t8)//.
-    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_insert.
-
-    focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
+    focus_block 7 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
     iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".
-    set_solver+ Hdom. auto.
+    solve_map_dom. auto.
     iSplitL ""; eauto. iSplitL ""; eauto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hseal)".
     iDestruct "Hseal" as (b1 e1) "(Hb1eq & Hr_t1 & Hseal & Hr_t0 & Hr_t2 & Hown & Hregs)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    focus_block 6 "Hprog" as a_middle4 Ha_middle4 "Hprog" "Hcont".
-    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
-    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite elem_of_gmap_dom Hdom; set_solver|].
-    iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[simplify_map_eq; auto|].
-    map_simpl "Hregs".
+    focus_block 8 "Hprog" as a_middle4 Ha_middle4 "Hprog" "Hcont".
+    iExtractList "Hregs" [r_t8;r_t10;r_t9] as ["Hr_t8";"Hr_t10";"Hr_t9"].
     iGo "Hprog". instantiate (1 := a_first). rewrite /unseal_instrs_length. solve_addr.
     iGo "Hprog".
+    iInsertList "Hregs" [r_t8;r_t9;r_t10]. clear vr_t10.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    focus_block 7 "Hprog" as a_middle5 Ha_middle5 "Hprog" "Hcont".
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [simplify_map_eq; auto|].
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs"; [simplify_map_eq; auto|].
-    map_simpl "Hregs".
+    focus_block 9 "Hprog" as a_middle5 Ha_middle5 "Hprog" "Hcont".
     iApply crtcls_spec; iFrameAutoSolve. 3: iFrame "# ∗".
-    set_solver+ Hdom. auto.
+    solve_map_dom. auto.
     iNext. iIntros "(HPC & Hprog & Hpc_b & Ha_r' & Hunseal)".
     iDestruct "Hunseal" as (b2 e2) "(Hb2eq & Hr_t1 & Hunseal & Hr_t0 & Hr_t2 & Hown & Hregs)".
-    map_simpl "Hregs".
+    iExtractList "Hregs" [r_t8;r_t10;r_t9] as ["Hr_t8";"Hr_t10";"Hr_t9"].
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    focus_block 8 "Hprog" as a_middle6 Ha_middle6 "Hprog" "Hcont".
-    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
-    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[simplify_map_eq; auto|].
+    clear dependent a_middle1 a_middle1' a_middle1'' a_middle2. (* TODO: investigate stack overflow bug *)
+    focus_block 10 "Hprog" as a_middle6 Ha_middle6 "Hprog" "Hcont".
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iMod (sealLL_alloc with "[Hll]") as (γ) "Hsealinv".
-    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
-      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist ll ll' 1) ltac:(auto))).
-      simpl replicate. iDestruct "Hll" as "(Hll & _)". iFrame. }
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [simplify_map_eq; auto|].
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs"; [simplify_map_eq; auto|].
-    map_simpl "Hregs".
+    iMod (sealLL_alloc ι Φ with "Hll Hll'") as "Hsealinv". { clear -Heqb'; solve_addr. }
+    iInsertList "Hregs" [r_t8;r_t9;r_t10].
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hregs".
-    { iExists b2, e2, b1, e1, ll, ll'. iFrame "∗".
-      iFrame "%". iExists γ. iFrame. }
+    { iExists b2, e2, b1, e1, lla, lla'. iFrame "% ∗".
+ iExists _. iFrame. }
     { rewrite delete_commute //.
       rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //. }
 Qed.
