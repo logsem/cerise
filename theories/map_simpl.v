@@ -229,11 +229,15 @@ Ltac2 post_process k m :=
                | _ => idtac
                end) (Ltac1.of_constr k) (Ltac1.of_constr m).
 
+(* vm_compute does not work here, as it does to much calculation *)
+Ltac repeat_simpl_rmap :=
+  repeat (progress (simp simpl_rmap) ; simpl).
+
 Ltac2 map_simpl_aux k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(repeat_simpl_rmap); reflexivity];
   cbn [denote list_lookup lookup];
   post_process k m.
 
@@ -241,7 +245,7 @@ Ltac2 map_simpl_aux_debug k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | vm_compute; reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(repeat_simpl_rmap); reflexivity];
   time (cbn [denote list_lookup lookup]);
   time (post_process k m).
 

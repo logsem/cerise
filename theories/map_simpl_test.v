@@ -23,11 +23,11 @@ Section test.
     map_simpl "H".
   Abort.
 
-  Lemma stuck pc_p pc_b pc_e a_first:
+  Lemma expressions_allowed pc_p pc_b pc_e a_first:
     ([∗ map] k↦y ∈  (<[r_t8:= WCap pc_p pc_b pc_e (a_first ^+ 0)%a]>
-                                                 ∅),
+                       (<[r_t8 := WInt 0]> ∅)),
             k ↦ᵣ y) -∗ ⌜ True ⌝.
   Proof. iIntros "Ht".
-         (* map_simpl_debug "Ht". *)
+         map_simpl "Ht".
   Abort.
 End test.
