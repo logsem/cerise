@@ -51,10 +51,27 @@ Tactic Notation "get_map_dom" constr(m) "as" ident(hdom) :=
   match type of m with
   | gmap ?K ?A => let hdom' := fresh "hdom" in get_map_dom0 K A m ident:(hdom'); rename hdom' into hdom end.
 
+(* solving goals with map domains faster than set_solver *)
+Tactic Notation "solve_map_dom" :=
+  let Hdom := fresh "Hdom" in
+  match goal with | |- dom _ ?m = ?dom => get_map_dom m as Hdom; rewrite Hdom; clear Hdom; set_solver+ end.
+
+(* try to find concrete value in gmap *)
+Ltac solve_lookup_some :=
+repeat (
+    match goal with
+    | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg = Some _ =>
+        rewrite lookup_insert
+    | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg' = Some _ =>
+        rewrite lookup_insert_ne; [ | solve [auto]]
+    | |- (delete ?reg ?rmap) !! ?reg' = Some _ =>
+        rewrite lookup_delete_ne; [ | solve [auto]]
+    end ); reflexivity.
+
 Ltac extract_pointsto_map regs Hmap rname Hrdom Hreg :=
   let rval := fresh "v"rname in
   let Hsome := fresh "Hsome" in
-  first [ eassert (regs !! rname = Some _) as Hsome by assumption (* Try to reuse existing value, if any *) |
+  first [ eassert (regs !! rname = Some _) as Hsome by solve_lookup_some (* Try to reuse existing value, if any *) |
   assert (is_Some (regs !! rname)) as [rval Hsome] by (rewrite elem_of_gmap_dom Hrdom; set_solver +) ];
   let str_destr := constr:(("[" ++ Hreg ++ " " ++ Hmap ++ "]")%string) in
   iDestruct (big_sepM_delete _ _ rname with Hmap) as str_destr; first exact Hsome; clear Hsome.
