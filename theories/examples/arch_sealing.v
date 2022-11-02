@@ -466,7 +466,7 @@ Section sealing.
     (* Allocated one address *)
     iAssert (lla ↦ₐ _)%I with "[Hll]" as "Hll".
     { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
-      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist lla lla' 1) ltac:(auto))). simpl replicate. iDestruct "Hll" as "[$ _]".}
+      rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist lla lla' 1) ltac:(auto))). simpl replicate. iDestruct "Hll" as "[$ _]". }
 
     focus_block 4 "Hprog" as a_middle1' Ha_middle1' "Hprog" "Hcont".
     iExtract "Hregs" r_t9 as "Hr_t9".
@@ -486,7 +486,7 @@ Section sealing.
     (* Allocated one sealpred *)
     iAssert (can_alloc_pred lls)%I with "[Hll']" as "Hll'".
     { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
-      iDestruct "Hll'" as "[$ _]".}
+      iDestruct "Hll'" as "[$ _]". }
 
     focus_block 6 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
     iExtractList "Hregs" [r_t8;r_t2;r_t9] as ["Hr_t8";"Hr_t2";"Hr_t9"].
