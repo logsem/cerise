@@ -86,6 +86,8 @@ theories/examples/template_adequacy.v
 # theories/examples/callback.v
 # theories/examples/lse.v
 # theories/examples/lse_adequacy.v
+theories/examples/arch_sealing.v
+theories/examples/interval_arch.v
 theories/examples/keylist.v
 theories/examples/dynamic_sealing.v
 theories/examples/interval.v
