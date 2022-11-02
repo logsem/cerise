@@ -357,15 +357,8 @@ Section interval.
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
       iInsertList "Hregs" [r_t20;r_t8;r_t3;r_t7;r_t6;r_t2].
-      (* get the empty prefix resource *)
-      (* iDestruct "HsealLL" as "[HsealLL HsealP]". *)
-      (* iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto. *)
       iMod (intervals_alloc with "Hi1 Hi2") as "#Hcond";eauto.
       { clear -Hz. apply Z.ltb_lt in Hz. lia. }
-      (* iDestruct "Hll" as (o_e) "[Hll Hooe]". *)
-      (* iDestruct "Hex" as (awvals) "[Hlist [>Hexact Hint] ]". *)
-      (* iMod (get_partial_pref _ _ [] with "Hexact") as "[Hexact #Hpref]";[exists awvals;auto|]. *)
-      (* iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|]. *)
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
       iApply (seal_spec);
@@ -405,8 +398,7 @@ Section interval.
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
-      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
-      iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
+      iExtract "Hregs" r_t20 as "Hr_t20".
       iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
 
@@ -415,36 +407,20 @@ Section interval.
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
-      repeat (rewrite -delete_insert_ne//).
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
-      (* get the empty prefix resource *)
-      iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
+      iInsertList "Hregs" [r_t20;r_t8;r_t3;r_t7;r_t6;r_t2].
       iMod (intervals_alloc with "Hi1 Hi2") as "#Hcond";eauto.
       { clear -Hz. apply Z.ltb_ge in Hz. lia. }
-      iDestruct "Hll" as (hd) "[Hll Hex]". iDestruct "Hex" as (awvals) "[Hlist [>Hexact Hint] ]".
-      iMod (get_partial_pref _ _ [] with "Hexact") as "[Hexact #Hpref]";[exists awvals;auto|].
-      iMod ("Hcls''" with "[$Hown Hexact Hint Hlist Hll]") as "Hown";[iExists _; iFrame;iExists _;iFrame|].
       (* apply the seal spec *)
       codefrag_facts "Hblock'".
-      iApply (seal_spec );
-        [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
-      { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
-        assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
-        rewrite union_comm_L union_assoc_L (difference_union_L).
-        assert (∀ r, r ∈ all_registers_s);[apply all_registers_s_correct|]. set_solver. }
-      { solve_addr+Hstable. }
-      { solve_addr-. }
-      iSplitR.
+      iApply (seal_spec);
+        [..|iFrame "Hown HsealLL Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
+      iSplitL "Hcond".
       { iExists _,_. iFrame "Hcond". }
-      iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hb & Hb_t & Hregs & Hres & Hblock' & Hown)".
-      (* we will need r_t20 and r_t8 for the final cleanup*)
-      iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
-      iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
+      iSplitR; [auto|].
+      iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hres & Hblock' & Hown)".
+      iDestruct "Hres" as (?) "(%Heq & Hr_t1 & _)". inversion Heq as [Hinv]; clear Heq. subst sb.
+      (* we will need some regs for the final cleanup*)
+      iExtractList "Hregs" [r_t20;r_t8;r_t2;r_t3;r_t6;r_t7] as ["Hr_t20";"Hr_t8";"Hr_t2";"Hr_t3";"Hr_t6";"Hr_t7"].
       unfocus_block "Hblock'" "Hcont'" as "Hunsealseal".
       rewrite updatePcPerm_cap_non_E;[|inversion Hexec;subst;auto].
 
@@ -452,20 +428,19 @@ Section interval.
 
       (* we can finally finish by closing all invariants, cleanup the register map, and apply the continuation *)
       unfocus_block "Hblock" "Hcont" as "Hcode".
-      iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hb Hb_t Hd1 Hd]") as "Hown".
+      iMod ("Hcls'" with "[$Hown Hseal Hunseal Hunsealseal Hd1 Hd]") as "Hown".
       { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-      iDestruct "Hres" as (a1 a2 pbvals Ha1) "(#Hpref' & Hr_t1 & Ha1)". rewrite app_nil_l.
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|].
-      map_simpl "Hregs".
-      repeat (rewrite -(insert_commute _ _ r_t8);[|by auto]).
-      repeat (rewrite -(insert_commute _ _ r_t20);[|by auto]).
+      iInsertList "Hregs" [r_t20;r_t8;r_t7;r_t6;r_t3;r_t2].
+      do 4 (rewrite (insert_commute _ _ r_t4);[|by auto]).
+      do 4 (rewrite (insert_commute _ _ r_t5);[|by auto]).
 
-      iApply "Hφ". iExists _,_,_,_,_,_. iFrame "∗ #".
+      iApply (wp_wand with "[-]").
+      iApply "Hφ". 2: {auto.}
+      iExists z1,z2,_. iFrame "∗ #".
       assert (z1 `min` z2 = z2)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|].
       assert (z1 `max` z2 = z1)%Z as ->;[clear -Hz;apply Z.ltb_ge in Hz;lia|]. iFrame "#".
-      iSplit;auto. iPureIntro. apply elem_of_app. right. constructor.
+      iSplit;auto.
   Qed.
 
   Lemma makint_valid pc_p pc_b pc_e (* PC *)
