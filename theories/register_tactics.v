@@ -59,7 +59,7 @@ Tactic Notation "solve_map_dom" :=
 (* try to find concrete value in gmap *)
 Ltac solve_lookup_some :=
 repeat (
-    match goal with
+    lazymatch goal with
     | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg = Some _ =>
         rewrite lookup_insert
     | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg' = Some _ =>
