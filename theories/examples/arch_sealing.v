@@ -61,6 +61,14 @@ Section sealing.
     iApply (seal_pred_agree with "Hsp Hsp'").
   Qed.
 
+  Lemma sealLL_pred_interp ι ll o w Φ {Hpers : ∀ w, Persistent (Φ w)}: seal_state ι ll o Φ -∗ Φ (WSealable w) -∗ interp (WSealed o w).
+  Proof. iIntros "Hss HΦ".
+         iDestruct "Hss" as "[ Hss #Hpred ]".
+         iAssert (valid_sealed (WSealed o w) o Φ) with "[HΦ]" as "Hvals".
+         { iExists _. iFrame "∗ #". auto. }
+         by iApply valid_sealed_interp.
+  Qed.
+
   (* USE the sealing capability in the environment to unseal the argument. Fails if the otypes do not match, or if the argument is not sealed.
      Result is returned in r_t1; clear r_env for security and return. *)
   (* Arguments: r_t1
@@ -223,7 +231,7 @@ Section sealing.
       ∗ ▷ (PC ↦ᵣ updatePcPerm wret
           ∗ r_t0 ↦ᵣ wret
           ∗ r_env ↦ᵣ WInt 0%Z
-          ∗ (∃ o sb, ⌜wsealed = WSealed o sb⌝ ∗ r_t1 ↦ᵣ WSealable sb ∗ Φ (WSealable sb))
+          ∗ (∃ sb, ⌜wsealed = WSealed o sb⌝ ∗ r_t1 ↦ᵣ WSealable sb ∗ Φ (WSealable sb))
           ∗ codefrag a_first unseal_instrs
           ∗ na_own logrel_nais Ep
           -∗ WP Seq (Instr Executable) {{ φ }})
@@ -266,7 +274,7 @@ Section sealing.
       iSpecialize ("Heqv" $! (WSealable x)).
       by iRewrite "Heqv". }
     iApply "Hφ". iFrame "∗".
-    iExists _,_. iFrame "∗ #".
+    iExists _. iFrame "∗ #".
     eauto.
   Qed.
 
@@ -523,7 +531,7 @@ Section sealing.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iMod (sealLL_alloc ι Φ with "Hll Hll'") as "Hsealinv". { clear -Heqb'; solve_addr. }
+    iMod (sealLL_alloc ι Φ with "Hll Hll'") as "Healing". { clear -Heqb'; solve_addr. }
     iInsertList "Hregs" [r_t8;r_t9;r_t10].
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hregs".
