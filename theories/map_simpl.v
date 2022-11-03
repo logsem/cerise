@@ -1,5 +1,6 @@
 From stdpp Require Import gmap.
 From cap_machine Require Import stdpp_extra.
+From iris.proofmode Require Import proofmode.
 From Equations Require Import Equations.
 
 Section simpl_gmap.
@@ -72,7 +73,7 @@ Section simpl_gmap.
         eapply IHrm; eauto.
       + case_eq (fm k); intros.
         * cbn. destruct (decide (k1 = k')).
-          { subst k1. rewrite insert_insert, H0.
+          { subst k1. rewrite insert_insert H0.
             rewrite insert_insert.
             eapply IHrm. auto.
           }
@@ -108,7 +109,7 @@ Section simpl_gmap.
             erewrite IHrm, <- delete_insert_ne; eauto. }
         * eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite H, delete_idemp. eauto.
+      + subst k0; rewrite H delete_idemp. eauto.
       + simpl. case_eq (fm k); intros.
         * destruct (decide (k1 = k')).
           { subst k1. rewrite !delete_idemp.
@@ -216,9 +217,9 @@ Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
 Ltac2 rec make_list_from_unions h x :=
   match! x with
   | union ?a (singleton ?b) =>
-    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite elem_of_gmap_dom_none, h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
+    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite elem_of_gmap_dom_none h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
     make_list_from_unions h a
-  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite elem_of_gmap_dom_none, h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
+  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite elem_of_gmap_dom_none h; set_solver+; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
   end.
 
 Ltac2 post_process k m :=
@@ -229,15 +230,28 @@ Ltac2 post_process k m :=
                | _ => idtac
                end) (Ltac1.of_constr k) (Ltac1.of_constr m).
 
-(* vm_compute does not work here, as it does to much calculation *)
-Ltac repeat_simpl_rmap :=
-  repeat (progress (simp simpl_rmap) ; simpl).
+
+(* vm_compute does not work here, as it does to much calculation, so we come up with a more refined way of simplifying `simpl_rmap` expressions *)
+
+(* Clear all hypothesis that do not explicitly feature in the goal, to avoid incorrect substitutions later. *)
+Local Ltac clear_all :=
+  repeat (match goal with
+        | H : _ |- _ => clear H end ).
+
+Definition boxed {A} (P: A): A := P.
+Theorem boxed_eq `(P : A): (boxed P) = P. Proof. auto. Qed.
+Local Ltac box_all := repeat (match goal with
+      |  |- context [Ins ?k ?v] => lazymatch v with
+                                 | boxed _ => fail | _ => let name := fresh "name" in remember v as name in * at 1; rewrite -{1}(boxed_eq name) end end).
+
+Ltac simpl_rmap_compute :=
+  clear_all; box_all; vm_compute simpl_rmap; subst.
 
 Ltac2 map_simpl_aux k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(repeat_simpl_rmap); reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(simpl_rmap_compute); reflexivity];
   cbn [denote list_lookup lookup];
   post_process k m.
 
@@ -245,7 +259,7 @@ Ltac2 map_simpl_aux_debug k a x encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
-  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(repeat_simpl_rmap); reflexivity];
+  (erewrite (@simpl_rmap_correct _ _ _ _ (fun n => @list_lookup _ n $env))) > [() | ltac1:(simpl_rmap_compute); reflexivity];
   time (cbn [denote list_lookup lookup]);
   time (post_process k m).
 
@@ -317,22 +331,22 @@ Tactic Notation "iFrameMapSolve" "+" hyp_list(Hs) constr(name) := clear -Hs; iFr
 (*           {nainv: logrel_na_invs Σ} *)
 (*           `{MP: MachineParameters}. *)
 
-(*   Lemma test: *)
+(*   Lemma test pc_p pc_b pc_e a_first: *)
 (*     forall (rmap: gmap RegName Word), *)
 (*       dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_env; r_t0; r_t1]} -> *)
+(*       a_first = 0%a → *)
 (*       (([∗ map] k↦y ∈ <[r_t6:=WInt 0%Z]> *)
-(*         (delete r_env *)
+(*         (delete r_t1 *)
 (*                 (<[r_t4:=WInt 0%Z]> *)
 (*                  (<[r_t2:=WInt 0%Z]> *)
-(*                   (<[r_t3:=WInt 0%Z]> (<[r_env:=WInt 42%Z]> (<[r_t5:=WInt 0%Z]> rmap)))))), *)
+(*                   (<[r_t3:=WCap pc_p pc_b pc_e (a_first ^+ 0)%a]> (<[r_env:=WInt 42%Z]> (<[r_t5:=WInt 0%Z]> rmap)))))), *)
 (*         k ↦ᵣ y)) -∗ *)
 (*            ([∗ map] r↦w0 ∈ <[r_t3:=WInt 0%Z]> *)
 (*             (<[r_t2:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> rmap)))), *)
 (*             r ↦ᵣ w0). *)
 (*   Proof. *)
-(*     iIntros (rmap Hdom) "Hregs". *)
-(*     map_simpl "Hregs". *)
-(*     time (iFrameMapSolve "Hregs"). *)
-(*   Qed. *)
+(*     iIntros (rmap Hdom Heq) "Hregs". *)
+(*     map_simpl_debug "Hregs". *)
+(*  Abort. *)
 
 (* End test. *)
