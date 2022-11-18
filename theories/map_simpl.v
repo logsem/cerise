@@ -271,9 +271,12 @@ Ltac map_simpl name :=
   match goal with
   | |- context [ Esnoc _ (base.ident.INamed name) ([∗ map] _↦_ ∈ ?m, _)%I ] =>
     match type of m with
-    | gmap ?K ?A =>
-      let f := ltac2:(k a m encode |- map_simpl_aux (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m)) (Option.get (Ltac1.to_constr encode))) in
-      f K A m (@encode K _ _)
+
+    | ?t => match eval compute in t with (* type will not compute for very large maps *)
+      | gmap ?K ?A =>
+        let f := ltac2:(k a m encode |- map_simpl_aux (Option.get (Ltac1.to_constr k)) (Option.get (Ltac1.to_constr a)) (Option.get (Ltac1.to_constr m)) (Option.get (Ltac1.to_constr encode))) in
+        f K A m (@encode K _ _)
+      end
     end
   end.
 
@@ -309,10 +312,12 @@ Ltac iFrameMapSolve' name :=
       lazymatch X with
       | ([∗ map] _↦_ ∈ ?m', _)%I =>
         match type of m' with
-        | gmap ?K ?A =>
-          replace m' with m; [iFrame name| apply map_eq_iff; intros; solve_map_eq]
+        | ?t => match eval compute in t with (* type will not compute for very large maps *)
+          | gmap ?K ?A =>
+            replace m' with m; [iFrame name| apply map_eq_iff; intros; solve_map_eq]
+          end
         end
-        | _ => idtac "The given hypothesis is not of the form ([∗ map] _↦_ ∈ _, _)"; idtac X
+      | _ => idtac "The given hypothesis is not of the form ([∗ map] _↦_ ∈ _, _)"; idtac X
       end
     | _ => idtac "Can't find the given hypothesis"
     end

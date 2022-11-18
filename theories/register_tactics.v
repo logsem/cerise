@@ -49,7 +49,8 @@ Ltac get_map_dom0 k a m hdom :=
 (* generate a domain hypothesis for a given gmap *)
 Tactic Notation "get_map_dom" constr(m) "as" ident(hdom) :=
   match type of m with
-  | gmap ?K ?A => let hdom' := fresh "hdom" in get_map_dom0 K A m ident:(hdom'); rename hdom' into hdom end.
+  | ?t => match eval compute in t with (* type will not compute for very large maps *)
+         | gmap ?K ?A => let hdom' := fresh "hdom" in get_map_dom0 K A m ident:(hdom'); rename hdom' into hdom end end.
 
 (* solving goals with map domains faster than set_solver *)
 Tactic Notation "solve_map_dom" :=
