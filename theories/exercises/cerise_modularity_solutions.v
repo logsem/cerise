@@ -94,10 +94,10 @@ Section increment_macro.
    *)
 
   (** The following is a very simple example of program that uses the macro. The
-        program assumes that R0 contains a writing capability pointing to the
-        memory. It initializes the value of this memory address at 0, calls the
-        increment macro to increment the value, and finally loads the
-        incremented value in the register R1.
+      program assumes that R0 contains a writing capability pointing to the
+      memory. It initializes the value of this memory address at 0, calls the
+      increment macro to increment the value, and finally loads the
+      incremented value in the register R1.
 
       The reader may notice 3 blocks of instructions, separated by the `++`
       operator. The proof will leverage this block separation using new

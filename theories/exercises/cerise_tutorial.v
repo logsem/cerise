@@ -172,8 +172,8 @@ Section base_program.
 
     (* Store requires the resource (b_mem ^+ 1), we need to
        destruct the region_mapsto.
-       This essentially the same as destructing a list into (first element)::(rest of list)
-       We do it twice since we need the second element (b_mem ^+ 1) *)
+       This essentially the same as destructing a list into (first element)::(rest of list).
+       We do it twice since we need the second element (b_mem ^+ 1). *)
     iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
