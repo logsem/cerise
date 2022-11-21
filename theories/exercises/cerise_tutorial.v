@@ -273,7 +273,7 @@ Section base_program.
       However, in order to get a better understanding of the way to use the
       WP rules in Cerise, we propose to prove the previous lemma using the
       fully detailed tactics.
-      It is also useful if the assertion that embed the code is not the
+      It is also useful if the assertion that embeds the code is not the
       `codefrag` predicate, but for instance, the big conjonction separation
       `[∗ list]` --- even though it is usually possible to rewrite the one
       in term of the other. *)
@@ -284,6 +284,8 @@ Section base_program.
         We explain the different steps for the first instruction `Lea`.
         Complete the proof.
    *)
+
+  From cap_machine Require Import contiguous.
 
   Lemma prog_spec_detailed
     p_pc b_pc e_pc (* pc *)
@@ -315,7 +317,7 @@ Section base_program.
     intros * Hpc_perm Hpc_bounds Hprog_addr Hmem_bounds.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
     subst e_mem e_prog; simpl in *.
-    (* In order to use the tactic `iCorrectPC` that solve the side-condition
+    (* In order to use the tactic `iCorrectPC` that solves the side-condition
        about the PC, we need this assertion, equivalent to
        `Hpc_perm /\ Hpc_bounds` *)
     assert (Hpc_correct : isCorrectPC_range p_pc b_pc e_pc a_prog (a_prog ^+ 2)%a).
@@ -339,7 +341,7 @@ Section base_program.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]").
     { apply decode_encode_instrW_inv. }
     { iCorrectPC a_prog (a_prog ^+ 2)%a. }
-    { iContiguous_next Hprog_addr 0. }
+    { iContiguous_next Hprog_addr 0%nat. }
     { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
     { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
