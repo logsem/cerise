@@ -206,8 +206,7 @@ Section base_program.
   (** The tactic `iGo "Hprog"` steps through multiple instructions,
      until a side-condition needs to be prove manually. *)
 
-  (** ========== Exercise 1 --- More automation with iGo ============
-
+  (** **** Exercise 1 --- More automation with iGo
       Prove the specification of the previous example using the automated
       tactic `iGo`. In order to leverage the strengh of the tactic, the memory
       resources should be ready before the execution of the tactic, in
