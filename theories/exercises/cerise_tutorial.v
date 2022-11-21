@@ -206,19 +206,20 @@ Section base_program.
   (** The tactic `iGo "Hprog"` steps through multiple instructions,
      until a side-condition needs to be prove manually. *)
 
-  (** **** Exercise 1 --- More automation with iGo
+  (** ========== Exercise 1 --- More automation with iGo ============
+
       Prove the specification of the previous example using the automated
-      tactic iGo. In order to leverage the strengh of the tactic, the memory
+      tactic `iGo`. In order to leverage the strengh of the tactic, the memory
       resources should be ready before the execution of the tactic, in
       particular, the memory buffer should be split at the beginning of the
       proof: it will allows the tactic `iGo` to step through multiple
       instructions at once.
 
       Tips: take inspiration on the proof of the previous exercise, but we
-            recommend to try to manipulate the SL resources and the addresses
+            recommend to try to manipulate the SL resources and the address
             arithmetic by yourself.
-            Indeed, adresses arithmetic is a very common side-condition,
-            and the lemmas often requires you to manipulate the PL resources
+            Indeed, address arithmetic is a very common side-condition,
+            and the lemmas often require you to manipulate the PL resources
             in order to make them fit with the hypothesis. *)
 
   Lemma prog_spec_igo
@@ -251,7 +252,7 @@ Section base_program.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
     subst e_mem e_prog; simpl.
 
-    (* Derives the facts from the codefrag *)
+    (* Derive the facts from the codefrag *)
     (* FILL IN HERE *)
 
     (* Prepare the memory resource for the Store *)
