@@ -5,7 +5,7 @@
  *)
 
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules proofmode macros_helpers.
+From cap_machine Require Import rules proofmode macros_helpers contiguous.
 Open Scope Z_scope.
 
 Section base_program.
@@ -17,20 +17,7 @@ Section base_program.
       Lea r_t1 1 ;
       Store r_t1 r_t2 ].
 
-  (** **** Exercise 1 - More automation with iGo
-      Prove the specification of the previous example using the automated
-      tactic iGo. In order to leverage the strengh of the tactic, the memory
-      resources should be ready before the execution of the tactic, in
-      particular, the memory buffer should be splitted at the beginning of the
-      proof: it will allows the tactic `iGo` to step through multiple
-      instructions at once.
-
-      Tips: take inspiration on the proof of the previous exercise, but I
-            recommend to try to manipulate the SL resources and the adresses
-            arithmetic by yourself.
-            Indeed, adresses arithmetic is a very common side-condition,
-            and the lemmas often requires you to manipulate the resources
-            in order to make them fit with the hypethesis. *)
+  (** **** Exercise 1 - More automation with iGo *)
 
   Lemma prog_spec_igo
     p_pc b_pc e_pc a_prog (* pc *)
@@ -95,13 +82,7 @@ Section base_program.
     done.
   Qed.
 
-  (** **** Exercise 2 --- Manual detailled proofs
-        For this exercise, we propose to re-do the proof of the previous
-        specification, using the manual WP rules.
-        We explain the different steps for the first instruction `Lea`.
-        Complete the proof, for the instruction `Store` and the
-        postcondition.
-   *)
+  (** **** Exercise 2 --- Manual detailled proofs *)
 
   Lemma prog_spec_detailed
     p_pc b_pc e_pc (* pc *)
@@ -156,7 +137,7 @@ Section base_program.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]").
     { apply decode_encode_instrW_inv. }
     { iCorrectPC a_prog (a_prog ^+ 2)%a. }
-    { iContiguous_next Hprog_addr 0. }
+    { iContiguous_next Hprog_addr 0%nat. }
     { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
     { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
