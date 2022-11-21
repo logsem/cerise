@@ -1,9 +1,9 @@
 (** This file is a tutorial to learn how to use the Cerise Program Logic within Coq.
     We will use the modularity of the program logic to use the specification of
-    a macro into a program, and show how the macro can be linked via a linking table.
+    a macro in a program, and show how the macro can be linked via a linking table.
 
     Prerequisites:
-    We assume the user have already followed the first part of the tutorial
+    We assume the user has already followed the first part of the tutorial
     "cerise_tutorial.v" and is able to prove the specification of a program
     with known code using the Cerise Proof Mode. *)
 
