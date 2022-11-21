@@ -101,17 +101,17 @@ Section base_program.
 
       Because we work with addresses, which are actually finite integers,
       we need to assume the addresses are always valid when we do addresses
-      arithmetic operations ( for instance, there is no overflow of the memory).
+      arithmetic operations (for instance, there is no overflow of the memory).
       In particular, the memory buffer is a contiguous region of memory where
       all the addresses are in the bounds of the memory.
 
       For simplicity, we assume the buffer is filled with 0.
 
-      When the whole program is a list of instruction, it is required to
+      When the whole program is a list of instructions, it is required to
       manually get some helping facts before reasoning on the instructions,
       using the tactic `codefrag_facts "Hprog"`. This tactic has to be used
       when the `codefrag` assertion is used. It allows to get some additionnal
-      fact about the memory addresses containing the code. It is a boilerplate.
+      facts about the memory addresses containing the code. It is a boilerplate.
 
       To prove the specification, the idea is to manipulate the resources, such
       that we have all the required assertion that fit with the corresponding
