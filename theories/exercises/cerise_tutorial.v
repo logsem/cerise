@@ -42,8 +42,9 @@ Section base_program.
 
   Definition prog_instrs : list Word :=
     encodeInstrsW [
-      Lea r_t1 1 ;
-      Store r_t1 r_t2 ].
+      Lea r_t1 1 ;    (* load effective address 1 into `r1` *)
+      Store r_t1 r_t2 (* store value from `r2` at address specified by `r1` *)
+    ].
 
   (** We use the program logic to specify the program. In the program logic,
       there is 2 types of ressources:
@@ -79,7 +80,7 @@ Section base_program.
       However, the WP property requires an expression. In this way, an
       expression in the Cerise program logic encodes only the execution state of
       the machine (Running, Halted or Failed) (1).
-      Thus, the WP rules only describes how the resources of the machine evolves
+      Thus, the WP rules only describes how the resources of the machine evolve
       at each execution step.
 
 
@@ -116,41 +117,42 @@ Section base_program.
       To prove the specification, the idea is to manipulate the resources, such
       that we have all the required assertion that fit with the corresponding
       WP rule. Once all the resource are ready, the tactic `iInstr "Hprog"`
-      step through one instruction, automatically find the appropriate rule,
-      and try to discharge as much goal as possible (e.g. side-condition
+      steps through one instruction, automatically finds the appropriate rule,
+      and tries to discharge as much goal as possible (e.g. side-condition
       about the PC). It only remains some side-condition to prove manually,
-      such as addresse arithmetic.
-      We can use the tactic `solve_addr` to solve automatically the addresses
-      arithmetic goals. It sometimes requires to transform a bit the goal, or
-      the hypotheses, to make it works.
+      such as address arithmetic.
+      We can use the tactic `solve_addr` to solve automatically the address
+      arithmetic goals. It sometimes requires to transform the goal or
+      hypotheses a bit to work.
 
       We advice to read carefully the following specification and to try to
       understand each statement in the lemma.
       Then, we urge to execute the proof step by step, and to understand
-      each time what happen to the proof state and why we are doing it. *)
+      each time what happens to the proof state and why we are doing it. *)
 
   Lemma prog_spec_instr
     p_pc b_pc e_pc a_prog (* pc *)
     b_mem (* mem *)
     φ :
 
-    let e_mem := (b_mem ^+ 2)%a in
-    let e_prog := (a_prog ^+ length prog_instrs)%a in
+    let e_mem := (b_mem ^+ 2)%a in (* end of memory buffer at b_mem+2 *)
+    let e_prog := (a_prog ^+ length prog_instrs)%a in (* end of program at a_prog + length of instructions *)
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
-    ContiguousRegion b_mem 2 →
+    ExecPCPerm p_pc -> (* p_pc has at least the executable permission*)
+    SubBounds b_pc e_pc a_prog e_prog -> (* [b_pc : e_pc) contains [a_prog : e_prog) *)
+    ContiguousRegion b_mem 2 → (* addresses in [b_mem : b_mem+2) are valid *)
 
-    ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog*)
+    ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog *)
         ∗ codefrag a_prog prog_instrs (* the prog instruction start at a_prog *)
-        ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem b_mem (* r1 points to the allocated memory*)
+        ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem b_mem (* r1 points to the allocated memory *)
         ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 0] ]] (* memory buffer, filled with 0 *)
-        ∗ r_t2 ↦ᵣ WInt 42 (* new value *)
-         ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
-                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a
-                ∗ r_t2 ↦ᵣ WInt 42
-                ∗ codefrag a_prog prog_instrs
-                ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]]
+        ∗ r_t2 ↦ᵣ WInt 42 (* new value 42 *)
+         ∗ ▷ ( (* everything under the later `▷` and before the wand `-*` is our postcondition *)
+                PC ↦ᵣ WCap p_pc b_pc e_pc e_prog (* PC has reached the end of the program *)
+                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a (* r1 points to b_mem + 1*)
+                ∗ r_t2 ↦ᵣ WInt 42 (* unchanged *)
+                ∗ codefrag a_prog prog_instrs (* unchanged *)
+                ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]] (* our memory buffer now contains 42 *)
                -∗ WP Seq (Instr Executable) {{ φ }}))
        -∗ WP Seq (Instr Executable) {{ φ }}%I.
   Proof.
@@ -159,7 +161,7 @@ Section base_program.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
 
     (* 1 - prepare the assertions for the proof *)
-    subst e_mem e_prog; simpl.
+    subst e_mem e_prog; simpl. (* replace e_mem and e_prog with their known values *)
     (* Derives the facts from the codefrag *)
     codefrag_facts "Hprog".
     simpl in *.
@@ -169,7 +171,9 @@ Section base_program.
     iInstr "Hprog".
 
     (* Store requires the resource (b_mem ^+ 1), we need to
-       destruct the region_mapsto *)
+       destruct the region_mapsto.
+       This essentially the same as destructing a list into (first element)::(rest of list)
+       We do it twice since we need the second element (b_mem ^+ 1) *)
     iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
