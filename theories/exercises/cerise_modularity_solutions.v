@@ -1,9 +1,9 @@
 (** This file is a tutorial to learn how to use the Cerise Program Logic within Coq.
     We will use the modularity of the program logic to use the specification of
-    a macro into a program, and show how the macro can be linked via a linking table.
+    a macro in a program, and show how the macro can be linked via a linking table.
 
     Prerequisites:
-    We assume the user have already followed the first part of the tutorial
+    We assume the user has already followed the first part of the tutorial
     "cerise_tutorial.v" and is able to prove the specification of a program
     with known code using the Cerise Proof Mode. *)
 
@@ -93,16 +93,16 @@ Section increment_macro.
       is necessary.
    *)
 
-  (** The following program is a very simple example of program that use
-      the macro. The program assumes that R0 contains a writing capability
-      pointing to the memory. The program initializes the value of this memory
-      address at 0, calls the increment macro to increment the value, and
-      finally load the value of the incremented value in the register R1.
+  (** The following is a very simple example of program that uses the macro. The
+      program assumes that R0 contains a writing capability pointing to the
+      memory. It initializes the value of this memory address at 0, calls the
+      increment macro to increment the value, and finally loads the
+      incremented value in the register R1.
 
       The reader may notice 3 blocks of instructions, separated by the `++`
       operator. The proof will leverage this block separation using new
-      tactics, detailled in `proofmode.md`, section `Focusing a sub-block`.
-      The new tactics allow to focus on a block, prove its specification
+      `focus_block` tactics, detailled in `proofmode.md`, section `Focusing a
+      sub-block`. They allow us to focus on a block, prove its specification
       locally, and then continue the proof of the global program.
    *)
   Definition prog_instrs: list Word :=
@@ -178,14 +178,14 @@ Section rclear_macro.
           `{MP: MachineParameters}.
 
   (** In this section, we will use a pre-defined macro in Cerise, `rclear`.
-      `rclear` is a macro that clears (puts 0) a list of registers given in
+      `rclear` is a macro that clears (puts 0) the list of registers given as
       argument. *)
 
   (** The following program assumes that the register r0 contains a capability
       that points to a buffer with at least 2 integers.
       It performs the addition of the 2 integers of the buffer and stores the
       result at the address of the second integer.
-      Then, the program clears all the used registers (to remove every trace of
+      Then, it clears all the used registers (to remove every trace of
       the computations) and halts the machine. *)
   Definition secret_add_instrs: list Word :=
     encodeInstrsW
@@ -199,8 +199,8 @@ Section rclear_macro.
             encodeInstrsW [Halt].
 
   (** **** Exercise 3 --- Secret addition
-        Define the lemma `secret_add_spec` that specify the program
-        `secret_add_instrs` and prove the specification.
+        Define the lemma `secret_add_spec` that specifies the program
+        `secret_add_instrs` and prove it.
 
         Use the tactics to focus and unfocus the block.
         The specification of the `rclear` macro is `rclear_spec`,
@@ -212,7 +212,7 @@ Section rclear_macro.
         We urge the reader to search lemmas about `big_sepM` and
         `gmap`.
 
-        Hint (proof): usefull lemmas
+        Hint (proof): useful lemmas
         - big_sepM_insert
         - big_sepM_insert_delete
         - delete_insert_ne

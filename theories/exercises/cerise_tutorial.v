@@ -42,8 +42,9 @@ Section base_program.
 
   Definition prog_instrs : list Word :=
     encodeInstrsW [
-      Lea r_t1 1 ;
-      Store r_t1 r_t2 ].
+      Lea r_t1 1 ;    (* load effective address 1 into `r1` *)
+      Store r_t1 r_t2 (* store value from `r2` at address specified by `r1` *)
+    ].
 
   (** We use the program logic to specify the program. In the program logic,
       there is 2 types of ressources:
@@ -79,7 +80,7 @@ Section base_program.
       However, the WP property requires an expression. In this way, an
       expression in the Cerise program logic encodes only the execution state of
       the machine (Running, Halted or Failed) (1).
-      Thus, the WP rules only describes how the resources of the machine evolves
+      Thus, the WP rules only describes how the resources of the machine evolve
       at each execution step.
 
 
@@ -101,56 +102,57 @@ Section base_program.
 
       Because we work with addresses, which are actually finite integers,
       we need to assume the addresses are always valid when we do addresses
-      arithmetic operations ( for instance, there is no overflow of the memory).
+      arithmetic operations (for instance, there is no overflow of the memory).
       In particular, the memory buffer is a contiguous region of memory where
       all the addresses are in the bounds of the memory.
 
       For simplicity, we assume the buffer is filled with 0.
 
-      When the whole program is a list of instruction, it is required to
+      When the whole program is a list of instructions, it is required to
       manually get some helping facts before reasoning on the instructions,
       using the tactic `codefrag_facts "Hprog"`. This tactic has to be used
       when the `codefrag` assertion is used. It allows to get some additionnal
-      fact about the memory addresses containing the code. It is a boilerplate.
+      facts about the memory addresses containing the code. It is a boilerplate.
 
       To prove the specification, the idea is to manipulate the resources, such
       that we have all the required assertion that fit with the corresponding
       WP rule. Once all the resource are ready, the tactic `iInstr "Hprog"`
-      step through one instruction, automatically find the appropriate rule,
-      and try to discharge as much goal as possible (e.g. side-condition
+      steps through one instruction, automatically finds the appropriate rule,
+      and tries to discharge as much goal as possible (e.g. side-condition
       about the PC). It only remains some side-condition to prove manually,
-      such as addresse arithmetic.
-      We can use the tactic `solve_addr` to solve automatically the addresses
-      arithmetic goals. It sometimes requires to transform a bit the goal, or
-      the hypotheses, to make it works.
+      such as address arithmetic.
+      We can use the tactic `solve_addr` to solve automatically the address
+      arithmetic goals. It sometimes requires to transform the goal or
+      hypotheses a bit to work.
 
       We advice to read carefully the following specification and to try to
       understand each statement in the lemma.
       Then, we urge to execute the proof step by step, and to understand
-      each time what happen to the proof state and why we are doing it. *)
+      each time what happens to the proof state and why we are doing it. *)
 
   Lemma prog_spec_instr
     p_pc b_pc e_pc a_prog (* pc *)
     b_mem (* mem *)
     φ :
 
-    let e_mem := (b_mem ^+ 2)%a in
-    let e_prog := (a_prog ^+ length prog_instrs)%a in
+    let e_mem := (b_mem ^+ 2)%a in (* end of memory buffer at b_mem+2 *)
+    let e_prog := (a_prog ^+ length prog_instrs)%a in (* end of program at a_prog + length of instructions *)
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
-    ContiguousRegion b_mem 2 →
+    ExecPCPerm p_pc -> (* p_pc has at least the executable permission*)
+    SubBounds b_pc e_pc a_prog e_prog -> (* [b_pc : e_pc) contains [a_prog : e_prog) *)
+    ContiguousRegion b_mem 2 → (* addresses in [b_mem : b_mem+2) are valid *)
 
-    ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog*)
+    ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog *)
         ∗ codefrag a_prog prog_instrs (* the prog instruction start at a_prog *)
-        ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem b_mem (* r1 points to the allocated memory*)
+        ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem b_mem (* r1 points to the allocated memory *)
         ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 0] ]] (* memory buffer, filled with 0 *)
-        ∗ r_t2 ↦ᵣ WInt 42 (* new value *)
-         ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
-                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a
-                ∗ r_t2 ↦ᵣ WInt 42
-                ∗ codefrag a_prog prog_instrs
-                ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]]
+        ∗ r_t2 ↦ᵣ WInt 42 (* new value 42 *)
+         ∗ ▷ ( (* everything under the later `▷` and before the wand `-*` is our postcondition *)
+                PC ↦ᵣ WCap p_pc b_pc e_pc e_prog (* PC has reached the end of the program *)
+                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a (* r1 points to b_mem + 1*)
+                ∗ r_t2 ↦ᵣ WInt 42 (* unchanged *)
+                ∗ codefrag a_prog prog_instrs (* unchanged *)
+                ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]] (* our memory buffer now contains 42 *)
                -∗ WP Seq (Instr Executable) {{ φ }}))
        -∗ WP Seq (Instr Executable) {{ φ }}%I.
   Proof.
@@ -159,7 +161,7 @@ Section base_program.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
 
     (* 1 - prepare the assertions for the proof *)
-    subst e_mem e_prog; simpl.
+    subst e_mem e_prog; simpl. (* replace e_mem and e_prog with their known values *)
     (* Derives the facts from the codefrag *)
     codefrag_facts "Hprog".
     simpl in *.
@@ -169,7 +171,9 @@ Section base_program.
     iInstr "Hprog".
 
     (* Store requires the resource (b_mem ^+ 1), we need to
-       destruct the region_mapsto *)
+       destruct the region_mapsto.
+       This essentially the same as destructing a list into (first element)::(rest of list).
+       We do it twice since we need the second element (b_mem ^+ 1). *)
     iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
@@ -204,17 +208,17 @@ Section base_program.
 
   (** **** Exercise 1 --- More automation with iGo
       Prove the specification of the previous example using the automated
-      tactic iGo. In order to leverage the strengh of the tactic, the memory
+      tactic `iGo`. In order to leverage the strengh of the tactic, the memory
       resources should be ready before the execution of the tactic, in
       particular, the memory buffer should be split at the beginning of the
       proof: it will allows the tactic `iGo` to step through multiple
       instructions at once.
 
       Tips: take inspiration on the proof of the previous exercise, but we
-            recommend to try to manipulate the SL resources and the addresses
+            recommend to try to manipulate the SL resources and the address
             arithmetic by yourself.
-            Indeed, adresses arithmetic is a very common side-condition,
-            and the lemmas often requires you to manipulate the PL resources
+            Indeed, address arithmetic is a very common side-condition,
+            and the lemmas often require you to manipulate the PL resources
             in order to make them fit with the hypothesis. *)
 
   Lemma prog_spec_igo
@@ -247,7 +251,7 @@ Section base_program.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
     subst e_mem e_prog; simpl.
 
-    (* Derives the facts from the codefrag *)
+    (* Derive the facts from the codefrag *)
     (* FILL IN HERE *)
 
     (* Prepare the memory resource for the Store *)
@@ -269,7 +273,7 @@ Section base_program.
       However, in order to get a better understanding of the way to use the
       WP rules in Cerise, we propose to prove the previous lemma using the
       fully detailed tactics.
-      It is also useful if the assertion that embed the code is not the
+      It is also useful if the assertion that embeds the code is not the
       `codefrag` predicate, but for instance, the big conjonction separation
       `[∗ list]` --- even though it is usually possible to rewrite the one
       in term of the other. *)
@@ -280,6 +284,8 @@ Section base_program.
         We explain the different steps for the first instruction `Lea`.
         Complete the proof.
    *)
+
+  From cap_machine Require Import contiguous.
 
   Lemma prog_spec_detailed
     p_pc b_pc e_pc (* pc *)
@@ -311,7 +317,7 @@ Section base_program.
     intros * Hpc_perm Hpc_bounds Hprog_addr Hmem_bounds.
     iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
     subst e_mem e_prog; simpl in *.
-    (* In order to use the tactic `iCorrectPC` that solve the side-condition
+    (* In order to use the tactic `iCorrectPC` that solves the side-condition
        about the PC, we need this assertion, equivalent to
        `Hpc_perm /\ Hpc_bounds` *)
     assert (Hpc_correct : isCorrectPC_range p_pc b_pc e_pc a_prog (a_prog ^+ 2)%a).
@@ -335,7 +341,7 @@ Section base_program.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]").
     { apply decode_encode_instrW_inv. }
     { iCorrectPC a_prog (a_prog ^+ 2)%a. }
-    { iContiguous_next Hprog_addr 0. }
+    { iContiguous_next Hprog_addr 0%nat. }
     { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
     { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
