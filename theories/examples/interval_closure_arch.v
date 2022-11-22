@@ -147,7 +147,7 @@ Section interval_closure.
     (* malloc and salloc different *)
     (up_close (B:=coPset) mallocN ## ↑sallocN) →
 
-    (* OFFSET between preamble and interval library *)
+    (* offset between preamble and interval library *)
     (a_first + interval_closure_move_offset)%a = Some a_move →
     (a_move + offset_to_interval)%a = Some i_first →
 
