@@ -6,13 +6,13 @@ From cap_machine Require Import cap_lang stdpp_extra.
 
 (* No Excl' here: do not want the valid option element, as this disallows us from changing the branch in the sum type *)
 Lemma csum_alter_l_r {A : cmra} {C : ofe} (a : A) (c : C) : ✓ a → Cinl (Excl c) ~~> Cinr a.
-Proof. intros Hv n [[l|r|]|]; simpl in *; auto; intro Hval.
-        - by exfalso.
-        - generalize n. by rewrite <- cmra_valid_validN.
+Proof.
+  intros Hv. by apply cmra_update_exclusive.
 Qed.
 
 Lemma Excl_included_false : ∀ {A : ofe} {a b : A}, Excl a ≼ Excl b → False.
-Proof. intros * Hi. unfold "_ ≼ _" in Hi. destruct Hi as [z Hi]. rewrite /op /cmra_op in Hi. cbn in Hi. rewrite /excl_op_instance in Hi. inversion Hi.
+Proof.
+  intros * Hi. by apply (exclusive_included _ _ Hi).
 Qed.
 
 (* resources *)
