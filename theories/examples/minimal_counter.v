@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import template_adequacy macros_new.
@@ -169,7 +169,7 @@ Section counter.
     let a_data := (a_code ^+ data_off)%a in
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     Forall (λ w, is_cap w = false) adv →
     (b_adv + length adv)%a = Some e_adv →
 
@@ -216,7 +216,7 @@ Section counter.
       destruct (Hrfull r_t1) as [w1' Hr1'].
       destruct (Hrfull r_t2) as [w2' Hr2'].
       unfold registers_mapsto.
-      rewrite -insert_delete.
+      rewrite -insert_delete_insert.
       iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]".
         by rewrite lookup_delete.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hrr") as "[Hr0 Hrr]".
@@ -239,17 +239,17 @@ Section counter.
 
       (* put the registers back together *)
       iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hrr]") as "Hrr".
-      { iSplitL. by iApply "Hrr". iApply big_sepM_intuitionistically_forall. iModIntro.
+      { iSplitL. by iApply "Hrr". iApply big_sepM_intro. iModIntro.
         iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
         iApply ("Hrsafe" $! r'); auto. }
       iDestruct (big_sepM_insert with "[$Hrr $Hr2]") as "Hrr". by rewrite lookup_delete.
-        by iApply interp_int. rewrite insert_delete.
+        by iApply interp_int. rewrite insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrr $Hr1]") as "Hrr".
         by rewrite lookup_insert_ne // lookup_delete.
-        by iApply interp_int. rewrite insert_commute // insert_delete.
+        by iApply interp_int. rewrite insert_commute // insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrr $Hr0]") as "Hrr".
         by rewrite !lookup_insert_ne // lookup_delete.
-        by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete.
+        by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete_insert.
 
       (* jmp to continuation *)
       iApply "Hcont_prog". 2: iFrame. iPureIntro.
@@ -390,7 +390,7 @@ Proof.
   iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)".
   iExists (<[ (a_data ^+ 1)%a := WInt n' ]> mι). iSplitL "Hm Hn'".
   { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete.
-    rewrite insert_delete //. }
+    rewrite insert_delete_insert //. }
   iPureIntro. split. rewrite dom_insert_L Hmιdom /Hmιdom /=. 2: exists n'.
   all: rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a; [| solve_addr']. set_solver+.
   rewrite lookup_insert //.

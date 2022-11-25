@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac auth list.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
@@ -239,7 +239,7 @@ Section sealing.
     (* linked list ptr element head *)
     (ll + 1)%a = Some ll' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
 
     (* environment table *)
     withinBounds b_r e_r a_r' = true →
@@ -288,7 +288,7 @@ Section sealing.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     iApply appendb_spec; try iFrame "∗ #"; auto. rewrite dom_insert_L Hdom. set_solver.
@@ -349,7 +349,7 @@ Section sealing.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m) + length (make_seal_preamble_instrs f_m)))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* environment table *)
     withinBounds b_r e_r a_r' = true →
@@ -400,7 +400,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
@@ -424,8 +424,8 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete. rewrite (delete_commute _ _ r_t8)//.
-    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete.
+    rewrite insert_delete_insert. rewrite (delete_commute _ _ r_t8)//.
+    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_insert.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
     iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".

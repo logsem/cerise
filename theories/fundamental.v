@@ -1,7 +1,8 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
   Subseg IsPtr Get Lea Cas.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
+
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
 From cap_machine.examples Require Import mkregion_helpers.
@@ -116,18 +117,20 @@ Section fundamental.
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
-        iApply wp_value.
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-        iNext. iIntros (Hcontr); inversion Hcontr.
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. iNext. iIntros (_).
+        rewrite insert_insert. iIntros (_).
         iExists (<[(i, PC):=WCap p b e a]> r). iFrame.
         iAssert (∀ r0 : RegName,
                    ⌜is_Some (<[(i, PC):=WCap p b e a]> r !! (i, r0))
@@ -153,8 +156,9 @@ Section fundamental.
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
+     iNext ; iIntros "_".
      iApply wp_value.
-     iNext. iIntros (Hcontr); inversion Hcontr.
+     iIntros (Hcontr); inversion Hcontr.
   Qed.
 
   Theorem fundamental i w r :
@@ -164,10 +168,11 @@ Section fundamental.
     { iClear "Hw". iIntros "(? & Hreg)". unfold interp_conf.
       iApply (wp_wand with "[-]"). 2: iIntros (?) "H"; iApply "H".
       iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)). cbn.
-      unfold registers_mapsto. rewrite -insert_delete.
+      unfold registers_mapsto. rewrite -insert_delete_insert.
       iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]". by rewrite lookup_delete.
       iApply (wp_notCorrectPC with "HPC"). by inversion 1.
       iNext. iIntros. cbn. iApply wp_pure_step_later; auto. iNext.
+      iIntros "_".
       iApply wp_value. iIntros (?). congruence. }
     { iApply fundamental_cap. done. }
   Qed.
@@ -219,7 +224,7 @@ Section fundamental.
   Lemma jmp_to_unknown w :
     ⊢ interp w -∗
       ▷ (∀ (i: CoreN) rmap,
-          ⌜dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
+          ⌜dom rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
           (i, PC) ↦ᵣ updatePcPerm w
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           -∗ WP (i, Seq (Instr Executable)) {{ λ v, ⌜v = (i, HaltedV)⌝ →
@@ -307,7 +312,7 @@ Section fundamental.
     p = RX \/ p = RWX ->
     ⊢ interp (WCap p b e a) -∗
       ∀ (i: CoreN) rmap,
-          ⌜dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
+          ⌜dom rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]}⌝ →
           (i, PC) ↦ᵣ updatePcPerm (WCap p b e a)
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           -∗ WP (i, Seq (Instr Executable)) {{ λ v, ⌜v = (i, HaltedV)⌝ →

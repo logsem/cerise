@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -9,7 +9,7 @@ From cap_machine.examples Require Import addr_reg_sample malloc macros_new lse.
 From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
 
-Instance DisjointList_list_Addr : DisjointList (list Addr).
+#[global] Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Import ocpl.
@@ -127,7 +127,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -143,7 +143,7 @@ Program Definition roe_table `{memory_layout} : @tbl_priv roe_prog OCPLLibrary :
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -158,7 +158,7 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -171,7 +171,7 @@ Section roe_adequacy.
     Forall (λ w, is_cap w = false) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
         ∗ na_inv logrel_nais assertN (assertInv layout)

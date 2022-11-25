@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmode.
 
 (* Assert routine *)
@@ -96,7 +96,8 @@ Section Assert.
       iApply "Hφ". iFrame. rewrite Z.eqb_refl //. }
     { (* n1 ≠ n2 *)
       iInstr_inv "Hinv_code". { assert (n1 - n2 ≠ 0)%Z by lia. congruence. }
-      iInstr_inv "Hinv_code". rewrite (_: (b ^+ 13)%a = cap_addr). 2: solve_addr .
+      iInstr_inv "Hinv_code". rewrite (_: (b ^+ 13)%a = cap_addr).
+      2: solve_addr.
 
       (* Load *)
       wp_instr.

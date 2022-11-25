@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers map_simpl.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous safe_malloc assert.
@@ -306,7 +306,7 @@ Section macros.
     contiguous_between a a_first a_last →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset (CoreN * RegName)) rmap =
+    dom rmap =
       (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
@@ -497,7 +497,7 @@ Section macros.
     contiguous_between a a_first a_last →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset (CoreN * RegName)) rmap =
+    dom rmap =
       (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ]} →
     ↑mallocN ⊆ EN →
     size > 0 →
@@ -698,7 +698,7 @@ Section macros.
     isCorrectPC_range p b e a1 an →
     (set_map (fun (r' : RegName) => (i,r'))
        (@list_to_set RegName (gset RegName) _ _ _ r))
-    = dom (gset (CoreN * RegName)) rmap →
+    = dom rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ (i,PC) ↦ᵣ WCap p b e a1
@@ -727,7 +727,8 @@ Section macros.
     pose proof (contiguous_between_cons_inv _ _ _ _ Ha) as [-> [a2 [? Hcont'] ] ].
     iApply (wp_move_success_z with "[$HPC $Hr $Ha1]");
       [apply decode_encode_instrW_inv|iCorrectPC a1 an|eauto|..].
-    iNext. iIntros "(HPC & Ha1 & Hr)". iApply wp_pure_step_later; auto. iNext.
+    iNext. iIntros "(HPC & Ha1 & Hr)". iApply wp_pure_step_later; auto. iNext
+    ; iIntros "_".
     destruct a.
     { iApply "Hφ". iFrame. inversion Hcont'; subst. iFrame.
       destruct r0; inversion Har. simpl in Hrdom.
@@ -741,7 +742,7 @@ Section macros.
 
     destruct (decide (r ∈ r0)).
     { iDestruct (big_sepM_insert with "[$Hreg $Hr]") as "Hreg".
-        by rewrite lookup_delete. rewrite insert_delete.
+        by rewrite lookup_delete. rewrite insert_delete_insert.
       iApply ("IH" with "Hreg HPC Hrclear [Hφ Ha1]"); eauto.
       { iNext. iIntros "(? & Hreg & ?)". iApply "Hφ". iFrame.
         iApply (big_sepM_delete _ _ (i,r)). eauto.
@@ -877,7 +878,7 @@ Section macros.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     rewrite /region_mapsto /finz.seq_between.
-    destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl.
+    destruct (Z.le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
       { rewrite /Z.b2z. destruct (e_r - 1 <? b_r + z)%Z eqn:HH; auto.
         apply Z.ltb_lt in HH. lia. }
@@ -945,7 +946,7 @@ Section macros.
         apply Z.ltb_nlt in HH. lia. }
       rewrite Heq0.
       assert (e_r <= a_r)%Z by solve_addr.
-      (* destruct (Z_le_dec a_r e_r). *)
+      (* destruct (Z.le_dec a_r e_r). *)
       rewrite finz_dist_0 //=.
       destruct ws;[|by iApply bi.False_elim].
       (* jnz *)
@@ -1756,13 +1757,14 @@ Section macros.
 
 
   (* crtcls spec *)
+  (* FIXME fix the the function: use registers that are not erased by malloc *)
   (* Lemma crtcls_spec i f_m wvar wcode a pc_p pc_b pc_e *)
   (*       a_first a_last b_link a_link e_link a_entry b_m e_m mallocN γ EN rmap cont φ : *)
   (*   isCorrectPC_range pc_p pc_b pc_e a_first a_last → *)
   (*   contiguous_between a a_first a_last → *)
   (*   withinBounds b_link e_link a_entry = true → *)
   (*   (a_link + f_m)%a = Some a_entry → *)
-  (*   dom (gset (CoreN * RegName)) rmap = *)
+  (*   dom rmap = *)
   (*     ((all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0); (i, r_t1);(i, r_t2) ]}) → *)
   (*   ↑mallocN ⊆ EN → *)
 
@@ -1790,7 +1792,10 @@ Section macros.
   (*                              (<[(i,r_t4):=WInt 0%Z]> *)
   (*                               (<[(i,r_t5):=WInt 0%Z]> *)
   (*                                (<[(i,r_t6):=WInt 0%Z]> *)
-  (*                                 (<[(i,r_t7):=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i)) *)
+  (*                                 (<[(i,r_t7):=WInt 0%Z]> *)
+  (*                                    (<[(i,r_t8):=WInt 0%Z]> *)
+  (*                                       (<[(i,r_t9):=WInt 0%Z]> *)
+  (*                                          rmap)))))), r_i ↦ᵣ w_i)) *)
   (*        -∗ WP (i,Seq (Instr Executable)) @ EN {{ φ }}) *)
   (*   ⊢ *)
   (*     WP (i,Seq (Instr Executable)) @ EN {{ λ v, φ v ∨ ⌜v = (i,FailedV)⌝ }}. *)
@@ -1829,12 +1834,12 @@ Section macros.
   (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs". *)
   (*   rewrite lookup_delete_ne ; last simplify_pair_eq. *)
   (*   by rewrite lookup_delete. *)
-  (*   rewrite delete_commute insert_delete. *)
+  (*   rewrite delete_commute insert_delete_insert. *)
   (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs". *)
   (*   rewrite lookup_insert_ne ; last simplify_pair_eq. *)
   (*   by rewrite lookup_delete. *)
   (*   rewrite (insert_commute _ (i,r_t7) (i,r_t6)) ; last simplify_pair_eq. *)
-  (*   rewrite insert_delete. *)
+  (*   rewrite insert_delete_insert. *)
   (*   assert (∀ (r:RegName), *)
   (*             (i,r) ∈ ({[(i,PC);(i,r_t0);(i,r_t1);(i,r_t2)]} : gset (CoreN*RegName)) *)
   (*                          → rmap !! (i, r) = None) as Hnotin_rmap. *)
@@ -1906,14 +1911,19 @@ Section macros.
   (*   rewrite delete_insert_delete. *)
   (*   repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []). *)
   (*   (* repeat (repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []); rewrite delete_insert_delete). *) *)
-  (*   rewrite (delete_notin _ r_t1). 2: apply Hnotin_rmap; set_solver. *)
-  (*   rewrite (delete_notin _ r_t2). 2: rewrite !lookup_delete_ne //; apply Hnotin_rmap; set_solver. *)
-  (*   repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete. *)
-  (*   repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete. *)
+  (*   do 2 rewrite (delete_commute _ (i, r_t1)). *)
+  (*   rewrite (delete_notin _ (i, r_t1)). 2: apply Hnotin_rmap; set_solver +. *)
+  (*   do 2 rewrite (delete_commute _ (i, r_t2)). *)
+  (*   rewrite (delete_notin _ (i, r_t2)). *)
+  (*   2 : apply Hnotin_rmap; set_solver +. *)
+  (*   (* repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert. *) *)
+  (*   (* repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert. *) *)
+  (*   repeat (rewrite (insert_commute _ (i, r_t6)) ; [|simplify_pair_eq]). rewrite insert_delete_insert. *)
+  (*   repeat (rewrite (insert_commute _ (i, r_t7)); [|simplify_pair_eq]). rewrite insert_delete_insert. *)
+  (*   iFrame. *)
   (*   repeat (rewrite (insert_commute _ r_t7) //;[]). *)
   (*   repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite (insert_commute _ r_t6 r_t5) //. *)
   (* Qed. *)
-
   (* (* ------------------------------- Closure Activation --------------------------------- *) *)
 
   Lemma closure_activation_spec i pc_p b_cls e_cls r1v renvv wcode wenv φ :

@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
 
 Section roe.
@@ -63,7 +63,7 @@ Section roe.
     (up_close (B:=coPset) assertN ## ↑roeN) →
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
+    dom rmap = all_registers_s ∖ {[PC;r_adv]} →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_adv ↦ᵣ wadv
@@ -187,7 +187,7 @@ Section roe.
     rewrite (delete_insert_ne _ _ r_adv)// !(insert_commute _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert.
     2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete|].
-    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete.
+    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete_insert.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _).
@@ -323,7 +323,7 @@ Section roe.
       iNext. iIntros "(HPC & Hr_t4 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
       iMod ("Hcls''" with "[Hd]") as "_".
       { iNext. iExists _. iFrame. auto. }
-      iModIntro. iApply wp_pure_step_later;auto;iNext.
+      iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
       (* move r_t5 1 *)
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
@@ -379,14 +379,14 @@ Section roe.
       iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown".
       { iNext. iDestruct "Hprog_done" as "($&$&$&$)".
         rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert].
 
       iApply wp_value. iIntros (_).
       iExists _. iFrame. iPureIntro.
@@ -402,7 +402,7 @@ Section roe.
     (* adversary *)
     iApply big_sepM_insert_2. done.
     (* the remaining 0'ed out capabilities *)
-    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+    { iApply big_sepM_intro. iIntros "!>" (r ?).
       destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
       iIntros (?). simplify_eq. done. iIntros (?). done. }

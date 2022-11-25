@@ -101,7 +101,7 @@ Section cap_lang_rules.
    decodeInstrW w = CAS loc cond newvalue →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! (i, PC) = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of_core (CAS loc cond newvalue) i ⊆ dom _ regs →
+   regs_of_core (CAS loc cond newvalue) i ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true i loc regs mem → (* ???? *)
 
@@ -115,7 +115,7 @@ Section cap_lang_rules.
   Proof.
      iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore φ) "(>Hmem & >Hmap) Hφ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
-     iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+     iIntros (σ1 ns l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
      iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
 
      (* Derive necessary register values in r *)
@@ -126,7 +126,7 @@ Section cap_lang_rules.
 
      iModIntro.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
-     iNext. iIntros (e2 σ2 efs Hpstep).
+     iNext. iIntros (e2 σ2 efs Hpstep). iIntros "_".
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
      iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
 

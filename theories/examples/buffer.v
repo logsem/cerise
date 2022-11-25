@@ -1,5 +1,6 @@
+From iris.base_logic Require Export gen_inv_heap.
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
@@ -54,7 +55,7 @@ Section buffer.
   Lemma buffer_full_run_spec i (a_first: Addr) b_adv e_adv w1 rmap adv :
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
-    dom (gset (CoreN*RegName)) rmap =
+    dom rmap =
       (set_map (fun r => (i,r)) all_registers_s) ∖ {[ (i, PC); (i, r_t0); (i, r_t1) ]} →
     Forall (λ w, is_cap w = false) adv →
     (b_adv + length adv)%a = Some e_adv →
@@ -108,19 +109,19 @@ End buffer.
 
 Section adequacy.
 
-  (* TODO move *)
-  Instance union_reg {CP : CoreParameters} : Union (@Reg CP).
-  Proof.
-    intros. rewrite /Reg.
-    apply map_union.
-  Defined.
+  (* (* TODO move *) *)
+  (* Instance union_reg {CP : CoreParameters} : Union (@Reg CP). *)
+  (* Proof. *)
+  (*   intros. rewrite /Reg. *)
+  (*   apply map_union. *)
+  (* Defined. *)
 
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
   Program Definition CP := {| coreNum := 1 ;  corePos := _ |}.
   Next Obligation. lia. Defined.
-  Context {reg_preg: gen_heapPreG ((@CoreN CP) * RegName) Word Σ}.
+  Context {reg_preg: gen_heapGpreS ((@CoreN CP) * RegName) Word Σ}.
   Context `{MP: MachineParameters}.
 
   (** Buffer adequacy theorem *)
@@ -176,7 +177,7 @@ Section adequacy.
     (* We apply the Iris adequacy theorem, and we unfold the definition,
        generate the resources and unfold the definition *)
     (* Mostly boilerplates *)
-    apply (@wp_strong_adequacy Σ cap_lang _
+    eapply (@wp_strong_adequacy Σ cap_lang _ _
              init_cores (reg,m) n κs es (reg', m')) ; last assumption.
     intros.
 
@@ -185,10 +186,10 @@ Section adequacy.
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ CP Hinv reg_heapg.
 
-    iExists NotStuck.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun σ κs _ _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
     iExists (map (fun _ => (fun _ => True)%I) (@all_cores CP)).
     iExists (fun _ => True)%I. cbn.
+    iExists _.
     iFrame.
 
     (* Split the memory into 2 parts: prog and adv*)
@@ -277,10 +278,10 @@ Section adequacy.
       replace reg with
         (filter Pi reg ∪
            filter NPi reg) by set_solver.
-      assert (dom _ ( filter Pi reg ) = rmap_i).
+      assert (dom ( filter Pi reg ) = rmap_i).
       { set_solver. }
-      iDestruct (@big_sepM_union with "Hreg") as "[Hreg_i _]"
-      ; first apply map_disjoint_filter.
+      iDestruct (@big_sepM_union with "Hreg") as "[Hreg_i _]";
+      first apply map_disjoint_filter_complement.
 
       (* For each core, we prove the WP, using the specification previously
          defined *)
@@ -337,7 +338,7 @@ Section adequacy.
       { rewrite !dom_delete_L.
         set (X := set_map (λ r : RegName, (i, r)) all_registers_s).
         rewrite - !difference_difference_L.
-        replace ( dom (gset (CoreN * RegName)) (filter Pi reg)) with X by set_solver.
+        replace ( dom (filter Pi reg)) with X by set_solver.
         set_solver.
       }
       assumption.

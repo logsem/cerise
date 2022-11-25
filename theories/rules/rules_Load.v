@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base stdpp_extra.
 
@@ -162,19 +162,16 @@ Section cap_lang_rules.
   Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
     λ m1 m2, merge prod_op m1 m2.
 
-  Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)).
-  Proof. cbv. auto. Qed.
-
   Lemma wp_load_general Ep i
      pc_p pc_b pc_e pc_a
      r1 r2 w mem (dfracs : gmap Addr dfrac) regs :
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! (i, PC) = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of_core (Load r1 r2) i ⊆ dom _ regs →
+   regs_of_core (Load r1 r2) i ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true i r2 regs mem →
-   dom (gset Addr) mem = dom (gset Addr) dfracs →
+   dom mem = dom dfracs →
 
    {{{ (▷ [∗ map] a↦dw ∈ prod_merge dfracs mem, a ↦ₐ{dw.1} dw.2) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
@@ -186,7 +183,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad Hdomeq φ) "(>Hmem & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
 
     (* Derive necessary register values in r *)
@@ -205,6 +202,7 @@ Section cap_lang_rules.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
 
     unfold exec in Hstep; simpl in Hstep. rewrite Hr2 in Hstep.
@@ -296,13 +294,13 @@ Section cap_lang_rules.
 
   Lemma mem_remove_dq mem dq :
     ([∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ⊣⊢
-    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom (gset Addr) mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
+    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
   Proof.
     iInduction (mem) as [|a k mem] "IH" using map_ind.
     - rewrite big_sepM_empty dom_empty_L elements_empty
               /= /prod_merge merge_empty big_sepM_empty. done.
     - rewrite dom_insert_L.
-      assert (elements ({[a]} ∪ dom (gset Addr) mem) ≡ₚ a :: elements (dom (gset Addr) mem)) as Hperm.
+      assert (elements ({[a]} ∪ dom mem) ≡ₚ a :: elements (dom mem)) as Hperm.
       { apply elements_union_singleton. apply not_elem_of_dom. auto. }
       apply (create_gmap_default_permutation _ _ dq) in Hperm. rewrite Hperm /=.
       rewrite /prod_merge -(insert_merge _ _ _ _ (dq,k)) //.
@@ -310,11 +308,14 @@ Section cap_lang_rules.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iApply big_sepM_insert.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a)
+          ; auto. rewrite H2;auto. cbn. destruct (mem !! a) ; auto.
+        }
         iFrame. iApply "IH". iFrame.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a)
+          ; auto. rewrite H2;auto. cbn. destruct (mem !! a) ; auto. }
         iApply big_sepM_insert. auto.
         iFrame. iApply "IH". iFrame.
   Qed.
@@ -325,7 +326,7 @@ Section cap_lang_rules.
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! (i, PC) = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of_core (Load r1 r2) i ⊆ dom _ regs →
+   regs_of_core (Load r1 r2) i ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true i r2 regs mem →
 
@@ -709,7 +710,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq by simplify_pair_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb].
-       destruct o; apply Is_true_false in H3. all: try congruence. done.
+       destruct o; apply Is_true_false_2 in H3. all: try congruence. done.
      }
   Qed.
 

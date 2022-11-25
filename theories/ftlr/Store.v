@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
@@ -263,8 +263,8 @@ Section fundamental.
       simplify_map_eq.
       rewrite insert_insert.
       
+      iModIntro ; iNext ; iIntros "_".
       iApply ("IH" with "[%] [] Hmap");auto.
-      { intros; cbn. split ; auto. }
       {rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
     { rewrite /allow_store_res /allow_store_mem.
@@ -276,10 +276,12 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hres]");[iExists w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value; auto.
-      - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1. 
+      - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro]. 
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value; auto.
     }
     Unshelve. all: auto.

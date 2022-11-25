@@ -1,5 +1,5 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
@@ -132,7 +132,7 @@ Section interval_client.
     withinBounds b_r e_r a_r' = true →
     (a_r + f_a)%a = Some a_r' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t20]} →
 
     (* The two invariants have different names *)
     (up_close (B:=coPset)ι2 ⊆ ⊤ ∖ ↑ι1) ->

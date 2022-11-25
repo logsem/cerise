@@ -1,5 +1,5 @@
 From stdpp Require Import base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel.
 From cap_machine.ftlr Require Import ftlr_base.
@@ -259,12 +259,14 @@ Section fundamental.
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
         iDestruct ((big_sepM_delete _ _ (i, PC)) with "Hmap") as "[HPC Hmap]".
         { subst. by rewrite lookup_insert. }
+        iModIntro. iIntros "_".
         iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
-        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
-        iIntros (a1); inversion a1.
+        iApply wp_pure_step_later; auto. iNext.
+        iIntros "_". iApply wp_value. iIntros (a1); inversion a1.
       }
 
+      iModIntro ; iIntros "_".
       iApply ("IH" $! i regs' with "[%] [Hinterp] [Hmap]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.
@@ -299,13 +301,13 @@ Section fundamental.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).
            destruct (decide (a = a0)).
            + simplify_map_eq.
-           + iClear "HLoadRes Hwrite". rewrite decide_True;auto. iModIntro.
+           + iClear "HLoadRes Hwrite". rewrite decide_True;auto.
              rewrite !fixpoint_interp1_eq.
              destruct o as [-> | ->]; iFrame "Hinterp".
          - (* iExists p'. *)
            assert ((i, dst) ≠ (i, PC)) by simplify_pair_eq.
            simplify_map_eq.
-           iModIntro. iClear "Hw Hinterp Hwrite".
+           iClear "Hw Hinterp Hwrite".
            rewrite !fixpoint_interp1_eq /=.
            destruct o as [-> | ->]; iFrame "Hinv".
        }
@@ -319,10 +321,12 @@ Section fundamental.
         iMod ("Hcls'" with "[HP' Ha0]");[iExists w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iModIntro ; iIntros "_".
         iApply wp_value; auto.
       - iModIntro. iDestruct "HLoadMem" as "(_&->)". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iModIntro ; iIntros "_".
         iApply wp_value; auto.
     }
     Unshelve. all: auto.

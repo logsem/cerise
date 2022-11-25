@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
@@ -8,6 +8,7 @@ From cap_machine.rules Require Import rules_base rules_Lea.
 Section fundamental.
   Context {Σ:gFunctors} {CP:CoreParameters} {memg:memG Σ} {regg:@regG Σ CP}
           `{MachineParameters}.
+
   Notation D := ((leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
@@ -38,6 +39,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iNext.
+      iIntros "_".
       iApply ("IH" $! _ regs' with "[%] [] [Hmap]").
       { cbn. intros. subst regs'.
         split.
@@ -63,7 +65,8 @@ Section fundamental.
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|do 2 iModIntro].
+      iIntros "_".
       iApply wp_value; auto. }
   Qed.
 

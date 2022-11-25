@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
@@ -63,7 +63,7 @@ Section cap_lang_rules.
      decodeInstrW w = Lea r1 arg →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      regs !! (i, PC) = Some (WCap pc_p pc_b pc_e pc_a) →
-     regs_of_core (Lea r1 arg) i ⊆ dom _ regs →
+     regs_of_core (Lea r1 arg) i ⊆ dom regs →
      {{{ ▷ pc_a ↦ₐ w ∗
          ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
        (i, Instr Executable) @ Ep
@@ -74,7 +74,7 @@ Section cap_lang_rules.
    Proof.
      iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
-     iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
      iDestruct "Hσ1" as "[Hr Hm]".
      iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
@@ -82,6 +82,7 @@ Section cap_lang_rules.
      iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
      iNext. iIntros (e2 σ2 efs Hpstep).
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+     iIntros "_".
      iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
      unfold exec in Hstep; simpl in Hstep.
 

@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules logrel macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
@@ -157,7 +157,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -259,7 +259,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -502,7 +502,7 @@ Section macros.
     r ≠ [] →
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (rclear_instrs r))%a →
-    list_to_set r = dom (gset RegName) rmap →
+    list_to_set r = dom rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
@@ -554,7 +554,7 @@ Section macros.
         iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete//.
         iApply (big_sepM_delete _ _ r0). done. iFrame. }
       { iPureIntro. solve_pure_addr. }
-      { rewrite insert_delete. iPureIntro. set_solver. } }
+      { rewrite insert_delete_insert. iPureIntro. set_solver. } }
     { iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont Hr0]"); eauto.
       { iPureIntro. set_solver. }
       { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
@@ -701,7 +701,7 @@ Section macros.
 
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)
@@ -802,7 +802,7 @@ Section macros.
 
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)

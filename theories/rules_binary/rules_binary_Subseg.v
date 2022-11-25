@@ -1,12 +1,12 @@
 From cap_machine Require Export rules_Subseg rules_binary_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 
 
 Section cap_lang_spec_rules. 
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = Subseg dst src1 src2 ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (Subseg dst src1 src2) ⊆ dom _ regs →
+    regs_of (Subseg dst src1 src2) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     

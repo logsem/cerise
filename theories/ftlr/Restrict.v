@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
@@ -62,6 +62,7 @@ Section fundamental.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
       iNext.
+      iIntros "_".
       iApply wp_value; auto. }
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto.
@@ -78,23 +79,26 @@ Section fundamental.
         destruct (PermFlowsTo RX (decodePerm n)) eqn:Hpft.
         { assert (Hpg: (decodePerm n) = RX ∨ (decodePerm n) = RWX).
           { destruct (decodePerm n); simpl in Hpft; eauto; try discriminate. }
+          iIntros "_".
           iApply ("IH" $! i r with "[%] [] [Hmap]");auto.
-          split ; auto.
           iModIntro. rewrite !fixpoint_interp1_eq /=.
           destruct Hpg as [Heq | Heq];destruct Hp as [Heq' | Heq'];rewrite Heq Heq';try iFrame "Hinv".
           - iApply (big_sepL_mono with "Hinv").
             iIntros (k y _) "H". iDestruct "H" as (P') "(H1 & H2 & H3)". iExists P'. iFrame. 
           - rewrite Heq Heq' in H3. inversion H3. 
         }
-        { iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)).
+        { iIntros "_".
+          iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)).
           iDestruct ((big_sepM_delete _ _ (i, PC)) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct (decodePerm n); simpl in Hpft; eauto; discriminate|].
           iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate. } }
+          iIntros. discriminate. } }
       
       simplify_map_eq.
+      iIntros "_".
       iApply ("IH" $! i (<[(i, dst):=_]> _) with "[%] [] [Hmap]"); eauto.
       - intros; simpl.
         split.
@@ -104,7 +108,6 @@ Section fundamental.
       - iIntros ( ri v Hri Hvs).
         destruct (decide ((i, ri) = (i, dst))).
         + simplify_map_eq by simplify_pair_eq.
-          (* rewrite lookup_insert in Hvs. inversion Hvs. simplify_eq. *)
           iDestruct ("Hreg" $! dst _ Hri H0) as "Hdst".
           iApply PermPairFlows_interp_preserved; eauto.
         + repeat rewrite lookup_insert_ne in Hvs; simplify_pair_eq ; auto.

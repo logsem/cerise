@@ -22,10 +22,10 @@ CI_EXAMPLES:="\
 all: coq
 
 fundamental: Makefile.coq
-	$(MAKE) -f Makefile.coq pretty-timed only TGTS="theories/fundamental.vo"
+	$(MAKE) -f Makefile.coq only TGTS="theories/fundamental.vo"
 
 coq: Makefile.coq
-	$(MAKE) -f Makefile.coq pretty-timed
+	$(MAKE) -f Makefile.coq
 
 html: Makefile.coq
 	rm -rf html

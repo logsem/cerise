@@ -1,27 +1,32 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac auth.
 From cap_machine Require Export cap_lang iris_extra.
 
+(* TODO: rename {mem,reg,Mem,Reg}G into {mem,reg,Mem,Reg}GS for consistency ? *)
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
-  mem_invG : invG Σ;
-  mem_gen_memG :> gen_heapG Addr Word Σ}.
+  mem_invG : invGS Σ;
+  mem_gen_memG :> gen_heapGS Addr Word Σ}.
 
 (* CMRA for registers *)
-Class regG Σ (CP : CoreParameters)  := RegG {
-  reg_invG : invG Σ;
-  reg_gen_regG :> gen_heapG (CoreN * RegName) Word Σ; }.
-
+Class regG Σ (CP : CoreParameters) := RegG {
+  reg_invG : invGS Σ;
+  reg_gen_regG :> gen_heapGS (CoreN * RegName) Word Σ; }.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Instance memG_irisG `{MachineParameters} `{CP : CoreParameters} `{memG Σ , @regG Σ CP} : irisG cap_lang Σ := {
-  iris_invG := mem_invG;
-  state_interp σ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
+#[global] Instance memG_irisG `{MachineParameters} `{CP : CoreParameters} `{memG Σ , @regG Σ CP} : irisGS cap_lang Σ := {
+  iris_invGS := mem_invG;
+  state_interp σ _ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
   fork_post _ := True%I;
+  num_laters_per_step _ := 0%nat;
+  state_interp_mono _ _ _ _ := fupd_intro _ _;
 }.
-Global Opaque iris_invG.
+Global Opaque iris_invGS.
+
+(* This extra instance is needed because the regular `wp'` instance does not look for any `MachineParameters`, hence the `simple apply` fails during typeclass search *)
+Global Instance wp_MP `{MachineParameters} `{CoreParameters} Σ : irisGS cap_lang Σ → Wp (iProp Σ) expr val stuckness. Proof. apply _. Defined.
 
 (* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=CoreN * RegName) (V:=Word)
@@ -33,7 +38,8 @@ Notation "r  ↦ᵣ w" := (mapsto (L:=CoreN * RegName) (V:=Word)
 (* Points to predicates for memory *)
 Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
-Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
+Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20)
+    : bi_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -56,11 +62,11 @@ Section cap_lang_rules.
   Context `{memG Σ, @regG Σ CP}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr.
+  Implicit Types c : (language.expr cap_lang).
   Implicit Types a b : Addr.
   Implicit Types i : CoreN.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val.
+  Implicit Types v : (language.val cap_lang).
   Implicit Types w : Word.
   Implicit Types reg : gmap (CoreN * RegName) Word.
   Implicit Types ms : gmap Addr Word.
@@ -210,7 +216,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (l : L) (q : Qp) (v : V),
       σ' !! l = Some v →
       gen_heap_interp σ -∗
@@ -224,7 +230,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inSepM':
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -237,7 +243,7 @@ Section cap_lang_rules.
 
   Lemma gen_heap_valid_inclSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
       ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
@@ -253,7 +259,7 @@ Section cap_lang_rules.
   Lemma gen_heap_valid_allSepM:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (EV: Equiv V) (REV: Reflexive EV) (LEV: @LeibnizEquiv V EV)
-      (Σ : gFunctors) (gen_heapG0 : gen_heapG L V Σ)
+      (Σ : gFunctors) (gen_heapGS0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       (forall (l:L), is_Some (σ' !! l)) →
       gen_heap_interp σ -∗
@@ -277,7 +283,7 @@ Section cap_lang_rules.
   Lemma gen_heap_update_inSepM :
     ∀ {L V : Type} {EqDecision0 : EqDecision L}
       {H : Countable L} {Σ : gFunctors}
-      {gen_heapG0 : gen_heapG L V Σ}
+      {gen_heapGS0 : gen_heapGS L V Σ}
       (σ σ' : gmap L V) (l : L) (v : V),
       is_Some (σ' !! l) →
       gen_heap_interp σ
@@ -294,16 +300,19 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  Lemma wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
+  Lemma wp_lift_atomic_head_step_no_fork_determ
+    (* {s E Φ} *)
+    {s : stuckness} {E : coPset} {Φ : cap_lang.val -> iPropI Σ}
+    (e1 : (language.expr (@cap_lang CP H))) :
     to_val e1 = None →
-    (∀ (σ1:cap_lang.state) κ κs n, state_interp σ1 (κ ++ κs) n ={E}=∗
-     ∃ κ e2 (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
-      (▷ |==> (state_interp σ2 κs n ∗ from_option Φ False (to_val e2))))
-      ⊢ WP e1 @ s; E {{ Φ }}.
+    (∀ (σ1:cap_lang.state) (ns : nat) κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
+     ∃ κ (e2 : cap_lang.expr) (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
+      (▷ |==> (state_interp σ2 (S ns) κs nt ∗ from_option Φ False (to_val e2))))
+        ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 κ κs n)  "Hσ1 /=".
-    iMod ("H" $! σ1 κ κs n with "[Hσ1]") as "H"; auto.
+    iIntros (σ1 ns κ κs nt)  "Hσ1 /=".
+    iMod ("H" $! σ1 ns κ κs nt with "[Hσ1]") as "H"; auto.
     iDestruct "H" as (κ' e2 σ2 efs) "[H1 H2]".
     iModIntro. iSplit.
     - rewrite /head_reducible /=.
@@ -312,7 +321,8 @@ Section cap_lang_rules.
       iDestruct "H" as %Hs1.
       iDestruct "H1" as %Hs2.
       destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ Hs1 Hs2) as [Heq1 [Heq2 [Heq3 Heq4]]].
-      subst. iMod "H2". iModIntro. iFrame. inv Hs1; auto.
+      subst. iMod "H2". iIntros "_".
+      iModIntro. iFrame. inv Hs1; auto.
   Qed.
 
   (* -------------- predicates on memory maps -------------------------- *)
@@ -454,7 +464,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_mem_update_inSepM :
-    ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapG Addr Word Σ}
+    ∀ {Σ : gFunctors} {gen_heapGS0 : gen_heapGS Addr Word Σ}
       (σ : gmap Addr Word) mem0 (l : Addr) (v' v : Word),
       mem0 !! l = Some v' →
       gen_heap_interp σ
@@ -470,12 +480,12 @@ Section cap_lang_rules.
     iSplitL "Hh"; eauto.
     iDestruct (big_sepM_insert _ _ l with "[$Hmap $Hl]") as "H".
     apply lookup_delete.
-    rewrite insert_delete. iFrame.
+    rewrite insert_delete_insert. iFrame.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
 
-  Lemma wp_notCorrectPC:
+  Lemma wp_notCorrectPC :
     forall E i w,
       ~ isCorrectPC w ->
       {{{ (i, PC) ↦ᵣ w }}}
@@ -485,7 +495,7 @@ Section cap_lang_rules.
     intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /="; destruct σ1; simpl;
+    iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl;
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
@@ -493,9 +503,7 @@ Section cap_lang_rules.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     inversion Hstep ; subst.
     eapply core_step_fail_inv in H4 as [-> ->]; eauto.
-    (* apply prim_step_exec_inv in Hstep as (-> & -> & (i' & c & -> & Hstep)). *)
-    (* eapply core_step_fail_inv in Hstep as [-> ->]; eauto. *)
-    iNext. iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
+    iNext; iIntros "_" ; iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
   Qed.
 
   (* Subcases for respecitvely permissions and bounds *)
@@ -526,20 +534,20 @@ Section cap_lang_rules.
     by iApply "Hwp".
   Qed.
 
-  (* ----------------------------------- ATOMIC RULES -------------------------------- *)
+  (* (* ----------------------------------- ATOMIC RULES -------------------------------- *) *)
 
   Lemma wp_halt E i pc_p pc_b pc_e pc_a w :
     decodeInstrW w = Halt →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ (i, PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}
-      (i, Instr Executable) @ E
+      (i, Instr Executable)  @ E
     {{{ RET (i,HaltedV); (i,PC) ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}.
   Proof.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
@@ -548,10 +556,7 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     inversion Hstep ; subst.
     eapply core_step_exec_inv in H5; eauto. cbn in H5; simplify_eq.
-
-    (* eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)). *)
-    (* eapply core_step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq. *)
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext; iIntros "_". iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_fail E i pc_p pc_b pc_e pc_a w :
@@ -565,7 +570,7 @@ Section cap_lang_rules.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
@@ -574,11 +579,7 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     inversion Hstep ; subst.
     eapply core_step_exec_inv in H5; eauto. cbn in H5; simplify_eq.
-
-
-    (* eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)). *)
-    (* eapply core_step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq. *)
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext; iIntros "_". iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
    Qed.
 
   (* ----------------------------------- PURE RULES ---------------------------------- *)
@@ -644,7 +645,7 @@ Definition regs_of (i: instr): gset RegName :=
   | GetB r1 r2 => {[ r1; r2 ]}
   | GetE r1 r2 => {[ r1; r2 ]}
   | GetA r1 r2 => {[ r1; r2 ]}
-  | Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
+  | machine_base.Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | IsPtr dst src => {[ dst; src ]}
@@ -658,15 +659,15 @@ Definition regs_of (i: instr): gset RegName :=
   | _ => ∅
   end.
 
-  Definition regs_of_core `{CP : CoreParameters} (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
-    set_map (fun r => (i,r)) (regs_of it).
+Definition regs_of_core `{CP : CoreParameters} (it: instr) (i : CoreN) : gset (CoreN * RegName) :=
+  set_map (fun r => (i,r)) (regs_of it).
 
 
 Lemma indom_regs_incl `{CP : CoreParameters} D (regs regs': Reg) :
-  D ⊆ dom (gset (@CoreN CP * RegName)) regs →
+  D ⊆ dom  regs →
   regs ⊆ regs' →
   ∀ i r, (i,r) ∈ D →
-       ∃ (w:Word), (regs !! (i,r) = Some w) ∧ (regs' !! (i,r) = Some w).
+         ∃ (w:Word), (regs !! (i,r) = Some w) ∧ (regs' !! (i,r) = Some w).
 Proof.
   intros * HD Hincl ii rr Hr.
   assert (is_Some (regs !! (ii,rr))) as [w Hw].

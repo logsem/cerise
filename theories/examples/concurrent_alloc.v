@@ -105,7 +105,7 @@ Section concurrent_alloc.
     (a_link + f_m)%a = Some malloc_entry →
     (a_link + f_a)%a = Some assert_entry →
 
-    dom (gset (CoreN *RegName)) rmap =
+    dom rmap =
       (all_registers_s_core i) ∖ {[ (i, PC)]} →
     ↑c_mallocN ⊆ EN ->
 
@@ -403,7 +403,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -420,7 +420,7 @@ Program Definition alloc_table `{memory_layout} : @tbl_priv alloc_prog OCPLLibra
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -435,7 +435,7 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -453,7 +453,7 @@ Definition mallocInv (layout : ocpl_library) γ :=
 Context {mem_layout:memory_layout}.
 Lemma alloc_correct (i : CoreN) γ:
   (∀ (rmap : (gmap (CoreN*RegName) Word)) ,
-      dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
+      dom rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
     ⊢
      inv flagN (assert_flag layout ↦ₐ WInt 0)
        ∗ inv mallocN (mallocInv layout γ)
@@ -515,7 +515,7 @@ Qed.
 Lemma adv_correct (i: CoreN) γ :
   Forall (λ w, is_cap w = false) adv_instrs →
   (∀ (rmap : (gmap (CoreN*RegName) Word)) ,
-     dom (gset (CoreN*RegName)) rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
+     dom rmap = (all_registers_s_core i) ∖ {[ (i, PC) ]} →
      ⊢ inv mallocN (mallocInv layout γ)
        ∗ (i, PC) ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
@@ -590,11 +590,11 @@ End adequacy.
 Section adequacy.
 
 Context (Σ: gFunctors).
-Context {inv_preg: invPreG Σ}.
-Context {mem_preg: gen_heapPreG Addr Word Σ}.
+Context {inv_preg: invGpreS Σ}.
+Context {mem_preg: gen_heapGpreS Addr Word Σ}.
 Program Definition CP := {| coreNum := 2 ;  corePos := _ |}.
 Next Obligation. lia. Defined.
-Context {reg_preg: gen_heapPreG ((@CoreN CP) * RegName) Word Σ}.
+Context {reg_preg: gen_heapGpreS ((@CoreN CP) * RegName) Word Σ}.
 Context `{static_spinlock.lockG Σ, MP: MachineParameters}.
 Context {mem_layout:memory_layout}.
 
@@ -622,7 +622,7 @@ Proof.
     (* We apply the Iris adequacy theorem, and we unfold the definition,
        generate the resources and unfold the definition *)
     (* Mostly boilerplates *)
-    apply (@wp_strong_adequacy Σ cap_lang _
+    eapply (@wp_strong_adequacy Σ cap_lang _ _
              init_cores (reg,m) n κs es (reg', m')) ; last assumption.
     intros.
 
@@ -631,10 +631,10 @@ Proof.
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ CP Hinv reg_heapg.
 
-    iExists NotStuck.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun σ κs _ _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
     iExists (map (fun _ => (fun _ => True)%I) (@all_cores CP)).
     iExists (fun _ => True)%I. cbn.
+    iExists _.
     iFrame.
 
     cbn in *.
@@ -688,7 +688,7 @@ Proof.
       iDestruct (big_sepM_union with "Hmem_lib_malloc") as
         "[Hmem_lib_malloc Hmalloc_mem_pool]".
       { pose proof (libs_disjoint layout) as Hdisjoint.
-        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint |- *.
         apply map_disjoint_union_l_2.
         apply mkregion_disjoints.
         clear ; pose proof l_malloc_memptr_size ; solve_addr.
@@ -833,7 +833,6 @@ Proof.
     }
     }
 
-    iModIntro.
     iSplitL.
     (** For all cores, prove that it executes completely and safely *)
     {
@@ -867,8 +866,8 @@ Proof.
       replace reg with
         (filter Pi reg ∪
            filter NPi reg)
-        by apply map_union_filter.
-      assert (dom _ ( filter Pi reg ) = rmap_i).
+        by apply map_filter_union_complement.
+      assert (dom ( filter Pi reg ) = rmap_i).
       { subst rmap_i.
         erewrite <- dom_filter_L.
         reflexivity.
@@ -897,8 +896,8 @@ Proof.
       replace regs_ni with
         (filter Pj regs_ni ∪
            filter NPj regs_ni)
-      by (by rewrite map_union_filter).
-      assert (dom _ ( filter Pj regs_ni ) = rmap_j).
+      by (by rewrite map_filter_union_complement).
+      assert (dom ( filter Pj regs_ni ) = rmap_j).
       { subst rmap_j.
         subst regs_ni.
         erewrite <- dom_filter_L.
@@ -936,20 +935,19 @@ Proof.
       {
         cbn.
 
-        rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ Pj _ NPi).
-        rewrite (map_filter_commute _ _ _ _ _ _ _ _ _ _ _ _ NPj _ NPi).
+        rewrite (map_filter_comm Pj NPi).
+        rewrite (map_filter_comm NPj NPi).
 
         replace ( filter NPi (filter Pj reg) ∪ filter NPi (filter NPj reg) )
           with (filter NPi ((filter Pj reg) ∪ (filter NPj reg))).
         2: { eapply map_filter_union.
-             apply gmap_finmap.
-             apply map_disjoint_filter. }
+             apply map_disjoint_filter_complement. }
         replace (filter Pj reg ∪ filter NPj reg)
-          with reg by (by rewrite map_union_filter).
-        apply map_disjoint_filter.
+          with reg by (by rewrite map_filter_union_complement).
+        apply map_disjoint_filter_complement.
       }
       iDestruct (big_sepM_union with "Hreg") as "[Hreg_j Hreg]".
-      { apply map_disjoint_filter. }
+      { apply map_disjoint_filter_complement. }
       iClear "Hreg".
 
       (* For each core, we prove the WP, using the specification previously
@@ -1003,7 +1001,6 @@ Proof.
         { clear.
           pose proof regions_disjoint as Hdisjoint.
           rewrite !disjoint_list_cons in Hdisjoint |- *.
-          intros (Hadv & Hf & Hling & Hadv_link & Hassert & Hmalloc).
           disjoint_map_to_list. set_solver. }
         iFrame.
         rewrite /prog_lower_bound_region /prog_region.
@@ -1044,7 +1041,7 @@ Proof.
           set (X := all_registers_s_core j).
           rewrite /all_registers_s_core.
           unfold all_registers_s_core in X.
-          replace ( dom (gset (CoreN * RegName)) (filter Pj regs_ni)) with X by set_solver.
+          replace ( dom (filter Pj regs_ni)) with X by set_solver.
           set_solver. }
         iSplitL "Hreg_j".
         { iApply (big_sepM_mono with "Hreg_j"). intros r w Hr. cbn.
@@ -1069,7 +1066,6 @@ Proof.
         { clear.
           pose proof regions_disjoint as Hdisjoint.
           rewrite !disjoint_list_cons in Hdisjoint |- *.
-          intros (Hadv & Hf & Hling & Hadv_link & Hassert & Hmalloc).
           disjoint_map_to_list. set_solver. }
           iFrame.
           rewrite /prog_lower_bound_region.
@@ -1097,6 +1093,7 @@ Proof.
 
 
     (** The invariant holds on the resulting memory *)
+    iModIntro.
     iIntros (es' t2) "%Hes %Hlength_es %Hstuck [Hreg' Hmem'] Hopt _".
 
     iInv "Hinv_flag" as ">Hflag" "_".

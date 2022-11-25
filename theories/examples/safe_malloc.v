@@ -286,6 +286,7 @@ Section SimpleMalloc.
       { cbn.
         iApply wp_pure_step_later; auto.
         do 2 iModIntro.
+        iIntros "_".
         iApply wp_value.
         auto. } }
 
@@ -484,7 +485,7 @@ Section SimpleMalloc.
     N E γ
     (φ : language.val cap_lang → iProp Σ) :
 
-    dom (gset (CoreN*RegName)) rmap =
+    dom rmap =
       (all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0) ; (i, r_t1) ]} →
 
     ↑N ⊆ E →
@@ -965,7 +966,7 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr8]") as "Hrmap".
-      by rewrite lookup_delete. rewrite insert_delete.
+      by rewrite lookup_delete. rewrite insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr7]") as "Hrmap".
       rewrite !lookup_insert_ne ;
         [by rewrite lookup_delete | simplify_pair_eq].
@@ -1005,18 +1006,18 @@ Section SimpleMalloc.
       by rewrite lookup_delete.
       iSplitL "Hrmap".
       { rewrite (insert_commute _ (i, r_t7) (i, r_t8)) ; last simplify_pair_eq.
-        rewrite insert_delete.
+        rewrite insert_delete_insert.
         do 2 (rewrite (insert_commute _ (i, r_t6) _) ; last simplify_pair_eq).
-        rewrite insert_delete.
+        rewrite insert_delete_insert.
         do 3 (rewrite (insert_commute _ (i, r_t9) _) ; last simplify_pair_eq).
-        rewrite insert_delete.
+        rewrite insert_delete_insert.
         do 4 (rewrite (insert_commute _ (i, r_t4) _) ; last simplify_pair_eq).
-        rewrite insert_delete.
+        rewrite insert_delete_insert.
         do 5 (rewrite (insert_commute _ (i, r_t3) _) ; last simplify_pair_eq).
-        rewrite insert_delete.
+        rewrite insert_delete_insert.
         do 6 (rewrite (insert_commute _ (i, r_t2) _) ; last simplify_pair_eq).
-        rewrite insert_delete.
-        do 6 (rewrite (insert_commute _ (i, r_t8) _) ; last simplify_pair_eq).
+        rewrite insert_delete_insert.
+        do 6 (rewrite (insert_commute _ _ (i, r_t8)) ; last simplify_pair_eq).
         do 5 (rewrite (insert_commute _ (i, r_t7) _) ; last simplify_pair_eq).
         do 4 (rewrite (insert_commute _ (i, r_t6) _) ; last simplify_pair_eq).
         do 3 (rewrite (insert_commute _ (i, r_t9) _) ; last simplify_pair_eq).
@@ -1067,15 +1068,15 @@ Section SimpleMalloc.
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
     rewrite -!(delete_insert_ne _ (i, r_t1))//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -!(delete_insert_ne _ (i, r_t0))//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete delete_insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
     set regs := <[_:=_]> _.
 
     iApply ("Hcont" $! i regs).
     { iPureIntro. subst regs. rewrite !dom_insert_L dom_delete_L.
       rewrite (regmap_full_dom_i _ i); eauto. set_solver. }
-    iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intuitionistically_forall.
+    iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
     destruct (decide (r' = (i, r_t0))). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. }
     destruct (decide (r' = (i, r_t1))).

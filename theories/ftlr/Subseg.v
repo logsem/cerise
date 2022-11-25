@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
@@ -63,6 +63,7 @@ Section fundamental.
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro;iNext].
+      iIntros "_".
       iApply wp_value; auto. }
     {
       apply incrementPC_Some_inv in H5 as (p''&b''&e''&a''& ? & HPC & Z & Hregs').
@@ -71,25 +72,26 @@ Section fundamental.
       destruct (reg_eq_dec PC dst).
       { subst dst. repeat (rewrite insert_insert in HPC). simplify_map_eq by simplify_pair_eq.
         rewrite !insert_insert.
+        iIntros "_".
         iApply ("IH" $! i r with "[%] [] [Hmap]"); try iClear "IH"; eauto.
-        intros ; cbn. split ; auto.
         iModIntro.
         generalize (isWithin_implies _ _ _ _ H4). intros [A B].
-        destruct (Z_le_dec b'' e'').
+        destruct (Z.le_dec b'' e'').
         + rewrite !fixpoint_interp1_eq. destruct Hp as [-> | ->].
-        - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
-          iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
-          iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
-          iFrame "#".
-        - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
-          iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
-          iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
-          iFrame "#".
-          + rewrite !fixpoint_interp1_eq /=.
-            (destruct Hp as [-> | ->]; replace (finz.seq_between b'' e'') with (nil: list Addr);
-             try rewrite big_sepL_nil); auto;
-            unfold finz.seq_between, finz.dist;rewrite Z_to_nat_nonpos //; lia. }
+          - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
+            iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
+            iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
+            iFrame "#".
+          - iSimpl in "Hinv". rewrite (isWithin_finz_seq_between_decomposition b'' e'' b0 e0); auto.
+            iDestruct (big_sepL_app with "Hinv") as "[Hinv1 Hinv2]".
+            iDestruct (big_sepL_app with "Hinv2") as "[Hinv3 Hinv4]".
+            iFrame "#".
+        + rewrite !fixpoint_interp1_eq /=.
+          (destruct Hp as [-> | ->]; replace (finz.seq_between b'' e'') with (nil: list Addr);
+          try rewrite big_sepL_nil); auto;
+          unfold finz.seq_between, finz.dist; rewrite Z2Nat.nonpos //; lia. }
       { simplify_map_eq.
+        iIntros "_".
         iApply ("IH" $! i (<[(i, dst):=_]> _) with "[%] [] [Hmap]"); eauto.
         - intros; simpl.
           rewrite lookup_insert_is_Some.

@@ -1,6 +1,6 @@
 From cap_machine Require Export stdpp_extra cap_lang rules_base.
 (* From cap_machine Require Import rules_binary_base. *)
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From machine_utils Require Import finz_interval.
 From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 
@@ -93,7 +93,7 @@ Section region.
       iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame.
       iSplitR. iPureIntro. by rewrite {1}Hws //.
       rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]".
-      cbn. iFrame.
+      simpl. iFrame.
   Qed.
 
   Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
@@ -242,28 +242,28 @@ Section region.
 (*       rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame. *)
 (*   Qed. *)
 
-(*   Lemma extract_from_region_spec' b e a ws φ `{!∀ x, Persistent (φ x)}: *)
-(*     let n := length (finz.seq_between b a) in *)
-(*     (b <= a ∧ a < e)%a → *)
-(*     (region_mapsto_spec b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢ *)
-(*      (∃ w, *)
-(*         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝ *)
-(*         ∗ region_mapsto_spec b a (take n ws) *)
-(*         ∗ ([∗ list] w ∈ ws, φ w) *)
-(*         ∗ a ↣ₐ w ∗ φ w *)
-(*         ∗ region_mapsto_spec (a^+1)%a e (drop (S n) ws))%I. *)
-(*   Proof. *)
-(*     intros. iSplit. *)
-(*     - iIntros "H". *)
-(*       iDestruct (extract_from_region_spec with "H") as (w Hws) "(?&?&?&#Hφ&?&?)"; eauto. *)
-(*       iExists _. iFrame. iSplitR. iPureIntro. by rewrite {1}Hws //. *)
-(*       rewrite {3}Hws. iFrame. iSplit; iApply "Hφ". *)
-(*     - iIntros "H". iApply (extract_from_region_spec with "[H]"); eauto. *)
-(*       iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame. *)
-(*       iSplitR. iPureIntro. by rewrite {1}Hws //. *)
-(*       rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]". *)
-(*       cbn. iFrame. *)
-(*   Qed. *)
+  (* Lemma extract_from_region_spec' b e a ws φ `{!∀ x, Persistent (φ x)}: *)
+  (*   let n := length (finz.seq_between b a) in *)
+  (*   (b <= a ∧ a < e)%a → *)
+  (*   (region_mapsto_spec b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢ *)
+  (*    (∃ w, *)
+  (*       ⌜ws = take n ws ++ (w::drop (S n) ws)⌝ *)
+  (*       ∗ region_mapsto_spec b a (take n ws) *)
+  (*       ∗ ([∗ list] w ∈ ws, φ w) *)
+  (*       ∗ a ↣ₐ w ∗ φ w *)
+  (*       ∗ region_mapsto_spec (a^+1)%a e (drop (S n) ws))%I. *)
+  (* Proof. *)
+  (*   intros. iSplit. *)
+  (*   - iIntros "H". *)
+  (*     iDestruct (extract_from_region_spec with "H") as (w Hws) "(?&?&?&#Hφ&?&?)"; eauto. *)
+  (*     iExists _. iFrame. iSplitR. iPureIntro. by rewrite {1}Hws //. *)
+  (*     rewrite {3}Hws. iFrame. iSplit; iApply "Hφ". *)
+  (*   - iIntros "H". iApply (extract_from_region_spec with "[H]"); eauto. *)
+  (*     iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame. *)
+  (*     iSplitR. iPureIntro. by rewrite {1}Hws //. *)
+  (*     rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]". *)
+  (*     simpl. iFrame. *)
+  (* Qed. *)
 
 (*   Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws) *)
 (*             (at level 50, format "[[ b , e ]] ↣ₐ [[ ws ]]") : bi_scope. *)

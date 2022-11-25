@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
@@ -74,7 +74,7 @@ Section counter.
     (d + 1)%a = Some d' ->
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+    dom rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
@@ -119,7 +119,7 @@ Section counter.
     iNext. iIntros "(HPC & Hr_t1 & Ha_first & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_".
     { iNext. iExists w. iFrame "∗ #". }
-    iModIntro. iApply wp_pure_step_later;auto;iNext.
+    iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
     (* add r_t1 r_t1 1 *)
     destruct w;[|done].
     iPrologue "Hprog".
@@ -135,7 +135,7 @@ Section counter.
     iNext. iIntros "(HPC & Hi & Hr_t1 & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_".
     { iNext. iExists (WInt (z + 1)%Z). iFrame. iDestruct "Hcond" as %Hcond. iPureIntro. revert Hcond;clear;lia. }
-    iModIntro. iApply wp_pure_step_later;auto;iNext. iCombine "Hi Hprog_done" as "Hprog_done".
+    iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_". iCombine "Hi Hprog_done" as "Hprog_done".
     (* move r_env 0 *)
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_env]");
@@ -196,7 +196,7 @@ Section counter.
     (d + 1)%a = Some d' →
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+    dom rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
     (* The invariants have different names *)
     (up_close (B:=coPset) ι2 ## ↑ι1) →
@@ -273,7 +273,7 @@ Section counter.
     iNext. iIntros "(HPC & Hr_ret & Ha_first & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_".
     { iNext. iExists w. iFrame "∗ #". }
-    iModIntro. iApply wp_pure_step_later;auto;iNext.
+    iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
     (* Lt r_t4 r_ret 0 *)
     let a := fresh "a" in destruct read_addrs as [|a read_addrs];[inversion Hprog_length|].
     destruct w;[|done].
@@ -334,7 +334,7 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs".
     { rewrite !lookup_insert_ne; auto. apply lookup_delete. }
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -349,7 +349,7 @@ Section counter.
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne//.
       apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete).
+    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_insert).
     set regs' := <[_:=_]> _.
     (* jump to unknown code *)
     iDestruct (jmp_to_unknown _ with "Hcallback") as "Hcallback_now".
@@ -389,7 +389,7 @@ Section counter.
     (d + 1)%a = Some d' ->
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+    dom rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_t0 ↦ᵣ wret
@@ -427,7 +427,7 @@ Section counter.
     iNext. iIntros "(HPC & Hprog_done & Hr_env & Hd)".
     iMod ("Hcls'" with "[Hd]") as "_".
     { iNext. iExists _;iFrame. auto. }
-    iModIntro. iApply wp_pure_step_later;auto;iNext.
+    iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
     (* move r_env 0 *)
     iPrologue "Hprog".
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_env]");

@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary Jmp_binary Jnz_binary Lea_binary Subseg_binary Restrict_binary Store_binary.
@@ -101,10 +101,11 @@ Section fundamental.
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
+        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro]
+        ; [iNext;iExists w'; iFrame|].
+        iNext;iIntros "_".
         iApply wp_value.
-        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
-        * iNext. iExists w'. iFrame.
-        * iIntros (Hcontr); inversion Hcontr.
+        iIntros (Hcontr); inversion Hcontr.
       + (* Halt *)
         iApply (wp_halt with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -117,31 +118,33 @@ Section fundamental.
         iMod (step_halt _ [SeqCtx] with "[$Ha' $HsPC $Hs $Hspec]") as "(Hs' & HsPC & Ha') /=";[rewrite Heqw in Hi|..];eauto.
         { solve_ndisj. }
         iApply wp_pure_step_later; auto.
+        iMod (spec_step_pure _ [] with "[$Hs' $Hspec]") as "Hss"; auto.
+        { solve_ndisj. }
+        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame;iExists w';iFrame
+                                         |iModIntro].
+        iNext;iIntros "_".
         iApply wp_value.
+        iIntros (_).
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
         apply lookup_insert. rewrite delete_insert_delete. iFrame.
         rewrite insert_insert.
-        iMod (spec_step_pure _ [] with "[$Hs' $Hspec]") as "Hss"; auto.
-        { solve_ndisj. }
-        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
-        * iExists w'. iFrame.
-        * iNext. iIntros (_).
-          iExists (<[PC:=WCap p b e a]> r1, <[PC:=WCap p b e a]> r2). iFrame.
-          iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=WCap p b e a]> r1 !! r0) ∧ is_Some (<[PC:=WCap p b e a]> r2 !! r0)⌝)%I as "HA".
-          { iPureIntro. intros. simpl. destruct (reg_eq_dec PC x).
-            - subst x. rewrite !lookup_insert. split; eauto.
-            - rewrite !lookup_insert_ne; auto. }
-          rewrite /full_map /=. iFrame "HA".
-          iDestruct ((big_sepM_delete _ _ PC) with "[HsPC Hsreg]") as "Hsreg /=";
-            [apply lookup_insert|iFrame|rewrite -Heq; iFrame].
+        iExists (<[PC:=WCap p b e a]> r1, <[PC:=WCap p b e a]> r2). iFrame.
+        iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=WCap p b e a]> r1 !! r0) ∧ is_Some (<[PC:=WCap p b e a]> r2 !! r0)⌝)%I as "HA".
+        { iPureIntro. intros. simpl. destruct (reg_eq_dec PC x).
+          - subst x. rewrite !lookup_insert. split; eauto.
+          - rewrite !lookup_insert_ne; auto. }
+        rewrite /full_map /=. iFrame "HA".
+        iDestruct ((big_sepM_delete _ _ PC) with "[HsPC Hsreg]") as "Hsreg /=";
+          [apply lookup_insert|iFrame|rewrite -Heq; iFrame].
     - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
        first apply (lookup_insert _ _ (WCap p b e a)).
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
+     iNext;iIntros "_".
      iApply wp_value.
-     iNext. iIntros (Hcontr); inversion Hcontr.
+     iIntros (Hcontr); inversion Hcontr.
   Qed.
 
   (* The fundamental theorem implies the binary exec_cond *)
@@ -205,7 +208,7 @@ Section fundamental.
       iApply (wp_bind (fill [SeqCtx])).
       iApply (wp_notCorrectPC with "HPC");eauto.
       iNext. iIntros "_".
-      iApply wp_pure_step_later;auto;iNext.
+      iApply wp_pure_step_later;auto;iNext;iIntros "_".
       iApply wp_value. iFrame.
   Qed.
 

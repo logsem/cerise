@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
@@ -33,11 +33,13 @@ Section fundamental.
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
+      iIntros "_".
       iApply wp_value; auto.  }
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
       assert (dst <> PC) as HdstPC. { intros ->. simplify_map_eq. }
       simplify_map_eq.
+      iIntros "_".
       iApply ("IH" $! i (<[(i, dst):= _]> _) with "[%] [] [Hmap]");
         try iClear "IH"; eauto.
       { cbn. intros.

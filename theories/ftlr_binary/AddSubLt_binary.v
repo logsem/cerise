@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -64,12 +64,13 @@ Section fundamental.
 
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro]. iNext
+      ;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { destruct Hregs as [<-|Hcontr];[|inversion Hcontr].
       incrementPC_inv; simplify_map_eq.
       iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w,w; iFrame|iModIntro].
-      iApply wp_pure_step_later; auto. iNext.
+      iApply wp_pure_step_later; auto. iNext;iIntros "_".
       iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
 
       destruct (decide (PC = dst));simplify_eq;simplify_map_eq.

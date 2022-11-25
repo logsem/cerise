@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
@@ -32,7 +32,8 @@ Section fundamental.
       iModIntro. 
       iApply wp_pure_step_later; auto.
       (* reconstruct registers *)
-      iNext. 
+      iNext.
+      iIntros "_".
       iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* apply IH *)
@@ -45,45 +46,48 @@ Section fundamental.
       rewrite (lookup_delete_ne r (i, PC) (i, r0)) ; eauto ; simplify_pair_eq.
       iApply (wp_jmp_success with "[$HPC $Ha $Hsrc]"); eauto.
       iNext. iIntros "[HPC [Ha Hsrc]] /=".
-      iApply wp_pure_step_later; auto. 
+      iApply wp_pure_step_later; auto.
       (* reconstruct regions *)
       iDestruct ((big_sepM_delete _ _ (i, r0)) with "[Hsrc Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-      rewrite -delete_insert_ne; auto. 
+      rewrite -delete_insert_ne; auto.
       destruct (updatePcPerm wsrc) eqn:Heq.
-      { iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _).
-        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
+      {
         iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-        iModIntro. 
-        iNext. iNext. iIntros "HPC /=".
+        iModIntro ; iNext ; iIntros "_".
+        iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _).
+        iApply (wp_notCorrectPC with "HPC"); [intro; match goal with H: isCorrectPC (WInt _) |- _ => inv H end|].
+        iModIntro.
+        iIntros "HPC /=".
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value.
-        iNext. iIntros. discriminate. }
+        iIntros. discriminate.
+    }
       { destruct p0.
+        1,2,3: iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|] ;
+        iModIntro ; iNext ; iIntros "_".
         - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-          iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-          iModIntro. 
-          iNext. iNext. iIntros "HPC /=".
+          iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate.
+          iIntros. discriminate.
         - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-          iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-          iModIntro. 
-          iNext. iNext. iIntros "HPC /=".
+          iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate.
+          iIntros. discriminate.
         - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-          iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-          iModIntro. 
-          iNext. iNext. iIntros "HPC /=".
+          iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext ; iIntros "_".
           iApply wp_value.
-          iNext. iIntros. discriminate.
+          iIntros. discriminate.
         - iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r (i, r0)); auto.
@@ -91,9 +95,9 @@ Section fundamental.
           destruct wsrc; simpl in Heq; try congruence.
           destruct p0; try congruence.
           + iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-            iModIntro. 
+            iModIntro.
             inv Heq.
-            iNext.
+            iNext ; iIntros "_".
             iApply ("IH" with "[] [] [$Hmap]"); eauto.
             iIntros (?); cbn ; iPureIntro. split ; [apply Hsome | apply Hnone].
           + inv Heq.
@@ -106,18 +110,18 @@ Section fundamental.
             iNext. iSplit.
             iIntros (?); cbn ; iPureIntro. split ; [apply Hsome | apply Hnone].
             auto.
-        - iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
+        - iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
+          iModIntro ; iNext ; iIntros "_".
+          iApply (wp_bind (fill [SeqCtx]) _ _ (_,_) _).
           iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; eauto|].
-          iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
-          iModIntro.
-          iNext. iNext. iIntros "HPC /=".
+          iNext. iIntros "HPC /=".
           iApply wp_pure_step_later; auto.
+          iNext; iIntros "_".
           iApply wp_value.
-          iNext. iIntros.
-          discriminate.
+          iIntros. discriminate.
         - iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|].
           iModIntro.
-          iNext.
+          iNext ; iIntros "_".
           iDestruct ((big_sepM_delete _ _ (i, PC)) with "[HPC Hmap]") as "Hmap /=".
           apply lookup_insert. rewrite delete_insert_delete. iFrame.
           rewrite (insert_id r (i, r0)); auto.

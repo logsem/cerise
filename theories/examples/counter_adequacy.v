@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
@@ -9,7 +9,7 @@ From cap_machine Require Import
 From cap_machine.examples Require Import
      macros malloc counter_preamble disjoint_regions_tactics mkregion_helpers.
 
-Instance DisjointList_list_Addr : DisjointList (list Addr).
+#[global] Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
 
 Class memory_layout `{MachineParameters} := {
@@ -162,9 +162,9 @@ Qed.
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -201,45 +201,40 @@ Section Adequacy.
 
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint).
-    (* iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail_flag]". *)
-    (* { disjoint_map_to_list. set_solver +Hdisj_fail_flag. } *)
-    (* iDestruct (big_sepM_insert with "Hfail_flag") as "[Hfail_flag _]". *)
-    (*   by apply lookup_empty. cbn [fst snd]. *)
-    (* rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint). *)
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
     { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_flag & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert_flag & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_flag]".
     { disjoint_map_to_list. set_solver +Hdisj_assert_flag. }
     iDestruct (big_sepM_insert with "Hassert_flag") as "[Hassert_flag _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_cap & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert_cap & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_cap]".
     { disjoint_map_to_list. set_solver +Hdisj_assert_cap. }
     iDestruct (big_sepM_insert with "Hassert_cap") as "[Hassert_cap _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert]".
     { disjoint_map_to_list. set_solver +Hdisj_assert. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_mem & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_memptr & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
     iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_code & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_body & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
     { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_preamble & _).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
     iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
     { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
     iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.

@@ -82,10 +82,10 @@ Section simpl_gmap.
             rewrite insert_commute; eauto. }
         * simpl. rewrite H0. eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite H. rewrite insert_delete. eapply IHrm; eauto.
+      + subst k0; rewrite H. rewrite insert_delete_insert. eapply IHrm; eauto.
       + simpl. case_eq (fm k); intros.
         * destruct (decide (k1 = k')).
-          { subst k1. rewrite !insert_delete.
+          { subst k1. rewrite !insert_delete_insert.
             eapply IHrm; eauto. }
           { erewrite <- delete_insert_ne; auto.
             erewrite IHrm, delete_insert_ne; eauto. }
@@ -223,7 +223,7 @@ Ltac2 rec make_list_from_unions h x :=
 
 Ltac2 post_process k m :=
   ltac1:(k m |- match goal with
-               | [h : dom (gset k) m = _ ∖ ?x |- _ ] =>
+               | [h : dom m = _ ∖ ?x |- _ ] =>
                  let f := ltac2:(h x |- make_list_from_unions (Option.get (Ltac1.to_constr h)) (Option.get (Ltac1.to_constr x)))
                  in f h x
                | _ => idtac
@@ -269,7 +269,7 @@ Ltac map_simpl_debug name :=
     end
   end.
 
-From iris.proofmode Require Import reduction tactics.
+From iris.proofmode Require Import reduction proofmode.
 
 Ltac disjunct_cases m i :=
   match m with

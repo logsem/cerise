@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
@@ -204,7 +204,7 @@ Section adder.
       { erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. }
       iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
       destruct Hspec as [| * _]; [by exfalso; incrementPC_inv|].
-      iApply wp_pure_step_later; auto; iNext. iApply wp_value. auto. }
+      iApply wp_pure_step_later; auto; iNext;iIntros "_". iApply wp_value. auto. }
     iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr3 $Hr2]");
       [apply decode_encode_instrW_inv|done|iContiguous_next Hcont 2|iCorrectPC f_start f_end|..].
     iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -282,7 +282,7 @@ Section adder.
     iNext. iIntros "(HPC & Hr3 & Hi & Hrenv & Hx)". rewrite Hfalse.
     iMod ("Hclose" with "[Hx]") as "_".
     { iNext. iExists n. iFrame; eauto. }
-    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iModIntro. iApply wp_pure_step_later; auto; iNext;iIntros "_".
     iDestruct "Hxpos" as %Hnpos. clear Hfalse.
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* add r_t3 r_t3 r_t2 *)
@@ -303,7 +303,7 @@ Section adder.
     iNext. iIntros "(HPC & Hi & Hr3 & Hrenv & Hx)".
     iMod ("Hclose" with "[Hx]") as "_".
     { iNext. iExists (n + z2)%Z. iFrame. iPureIntro. lia. }
-    iModIntro. iApply wp_pure_step_later; auto; iNext.
+    iModIntro. iApply wp_pure_step_later; auto; iNext;iIntros "_".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* invoque the spec for the cleanup code established earlier *)
     assert (ac = a_cleanup) as ->.
@@ -327,7 +327,7 @@ Section adder.
     (x+1)%a = Some x' →
     (act_start + 8)%a = Some act_end →
     (f_start <= f_end)%a →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2; r_t3 ]} →
 
     inv N (∃ (n:Z), x ↦ₐ WInt n ∗ ⌜(0 ≤ n)%Z⌝)
     ∗ adder_g ag ∗ adder_f af
@@ -403,25 +403,25 @@ Section adder.
         (* Put the registers back in the map *)
         iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         iDestruct (big_sepM_insert with "[$Hregs $Hrenv]") as "Hregs".
         by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
         match goal with |- context [ ([∗ map] _↦_ ∈ ?r, _)%I ] => set rmap'' := r end.
         iApply "Hcont"; cycle 1.
         { iFrame. iApply (big_sepM_sep with "[$Hregs HrV]"). cbn beta.
           repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
           rewrite delete_insert_delete.
-          iApply big_sepM_intuitionistically_forall. iModIntro.
+          iApply big_sepM_intro. iModIntro.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
           by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
         { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.

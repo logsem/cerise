@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 (* From cap_machine Require Import classes rules macros_helpers. *)
 From cap_machine Require Import classes rules.
@@ -53,7 +53,8 @@ Qed.
 End codefrag.
 
 (* Administrative reduction steps *)
-Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ].
+Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ; iIntros "_" ].
+(* TODO iIntros "_" fixes the lc 1 introduces in Iris 4.0.0, but I'm not sure that is the right place *)
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]) _ _ (_, _) _);
@@ -66,7 +67,16 @@ Ltac wp_instr :=
 
 Ltac changePCto0 new_a :=
   match goal with |- context [ Esnoc _ _ ((?i, PC) ↦ᵣ WCap _ _ _ ?a)%I ] =>
-    rewrite (_: a = new_a); [| solve_addr]
+    rewrite (_: a = new_a)
+    ; [|
+    (* TODO is it stable ? *)
+    try (match goal with
+    | h1: context[( _ + _ )%a = Some new_a] |- _ =>
+        match goal with
+        | h2: context[( _ + _ )%a = Some ?a_prev] |-
+            (?a_prev ^+ _)%a = _ => clear -h1 h2
+        end
+    end);solve_addr]
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
 
@@ -307,7 +317,7 @@ Lemma tac_specialize_assert_delay {PROP: bi} (Δ: envs PROP) j q R P1 P2 P1' F Q
   | None => False
   end → envs_entails Δ Q.
 Proof.
-  rewrite envs_entails_eq. intros ??? HH.
+  rewrite envs_entails_unseal. intros ??? HH.
   destruct (envs_app _ _ _) eqn:?; last done.
   intros HQ.
   rewrite envs_lookup_sound //.
@@ -338,29 +348,29 @@ Class FramableMemoryPointsto (a: Addr) (dq: dfrac) (w: Word) := {}.
 Class FramableCodefrag (a: Addr) (l: list Word) := {}.
 #[export] Hint Mode FramableCodefrag + - : typeclass_instances.
 
-Instance FramableRegisterPointsto_default r w :
+#[global] Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
 | 100. Qed.
 
-Instance FramableMemoryPointsto_default a dq w :
+#[global] Instance FramableMemoryPointsto_default a dq w :
   FramableMemoryPointsto a dq w
 | 100. Qed.
 
-Instance FramableCodefrag_default a l :
+#[global] Instance FramableCodefrag_default a l :
   FramableCodefrag a l
 | 100. Qed.
 
-Instance FramableMachineResource_reg `{regG Σ} i r w :
+#[global] Instance FramableMachineResource_reg `{regG Σ} i r w :
   FramableRegisterPointsto r w →
   FramableMachineResource ((i, r) ↦ᵣ w).
 Qed.
 
-Instance FramableMachineResource_mem `{memG Σ} a dq w :
+#[global] Instance FramableMachineResource_mem `{memG Σ} a dq w :
   FramableMemoryPointsto a dq w →
   FramableMachineResource (a ↦ₐ{dq} w).
 Qed.
 
-Instance FramableMachineResource_codefrag `{memG Σ} a l :
+#[global] Instance FramableMachineResource_codefrag `{memG Σ} a l :
   FramableCodefrag a l →
   FramableMachineResource (codefrag a l).
 Qed.
@@ -403,7 +413,7 @@ Ltac2 iFresh () :=
   | [ |- envs_entails (Envs ?Δp ?Δs ?c) ?q ] =>
     let c' := eval vm_compute in (Pos.succ $c) in
     ltac1:(Δp Δs c' q |-
-           convert_concl_no_check (envs_entails (Envs Δp Δs c') q))
+           change_no_check (envs_entails (Envs Δp Δs c') q))
       (Ltac1.of_constr Δp) (Ltac1.of_constr Δs) (Ltac1.of_constr c')
       (Ltac1.of_constr q);
     '(IAnon $c)

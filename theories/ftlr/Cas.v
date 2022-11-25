@@ -309,10 +309,12 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hres]");[iExists w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value; auto.
       + iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
         iApply wp_value; auto.
 
     - (* Success - Equality  *)
@@ -353,6 +355,8 @@ Section fundamental.
           split_and!; done.
       }
 
+      iModIntro.
+      iNext ; iIntros "_".
       simplify_map_eq  by simplify_pair_eq.
       (* rewrite insert_insert. *)
 
@@ -395,7 +399,7 @@ Section fundamental.
         ; subst
         ; [|rewrite lookup_insert_ne in H4]
         ; simplify_map_eq by simplify_pair_eq
-        ; do 3 iModIntro
+        ; iModIntro
         ; iApply interp_cap_range ; eauto
         ; destruct Hp ; subst ; auto.
       }
@@ -444,12 +448,14 @@ Section fundamental.
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
         iDestruct ((big_sepM_delete _ _ (i, PC)) with "Hmap") as "[HPC Hmap]".
         { subst. by rewrite lookup_insert. }
+        iModIntro ; iNext ; iIntros "_".
         iApply (wp_bind (fill [SeqCtx]) _ _ (_,_)).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
-        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iApply wp_pure_step_later; auto. iNext; iIntros "_". iApply wp_value.
         iIntros (a1); inversion a1.
       }
 
+      iModIntro ; iNext ; iIntros "_".
       iApply ("IH" with "[%] [] Hmap");auto.
       { intros; cbn.
         destruct (decide ( cond = x4 )) ; subst.
@@ -484,12 +490,12 @@ Section fundamental.
         - simplify_map_eq. rewrite (fixpoint_interp1_eq).
           destruct (decide (a = a0)).
           + simplify_map_eq.
-          + iClear "Hwrite". rewrite decide_True;auto. iModIntro.
+          + iClear "Hwrite". rewrite decide_True;auto.
             rewrite !fixpoint_interp1_eq.
             destruct o as [-> | ->]; iFrame "Hinterp".
         - assert ((i, cond) ≠ (i, PC)) by simplify_pair_eq.
           simplify_map_eq.
-          iModIntro. iClear "Hw Hinterp Hwrite".
+          iClear "Hw Hinterp Hwrite".
           rewrite !fixpoint_interp1_eq /=.
           destruct o as [-> | ->]; iFrame "Hinv".
       }

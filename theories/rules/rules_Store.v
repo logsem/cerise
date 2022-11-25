@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
@@ -132,7 +132,7 @@ Section cap_lang_rules.
    decodeInstrW w = Store r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! (i, PC) = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of_core (Store r1 r2) i ⊆ dom _ regs →
+   regs_of_core (Store r1 r2) i ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true i r1 regs mem →
 
@@ -146,7 +146,7 @@ Section cap_lang_rules.
    Proof.
      iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore φ) "(>Hmem & >Hmap) Hφ".
      iApply wp_lift_atomic_head_step_no_fork; auto.
-     iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+     iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl.
      iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
 
      (* Derive necessary register values in r *)
@@ -159,6 +159,7 @@ Section cap_lang_rules.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
      iNext. iIntros (e2 σ2 efs Hpstep).
      apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+     iIntros "_".
      iSplitR; auto. eapply core_step_exec_inv in Hstep; eauto.
 
      unfold exec in Hstep. simpl in Hstep.
@@ -264,7 +265,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H3; try incrementPC_inv; simplify_map_eq by simplify_pair_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H2. all:try congruence. done.
+       destruct o; last apply Is_true_false_2 in H2. all:try congruence. done.
      }
    Qed.
 
@@ -309,7 +310,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct H4; try incrementPC_inv; simplify_map_eq by simplify_pair_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H3. congruence. done. congruence.
+       destruct o; last apply Is_true_false_2 in H3. congruence. done. congruence.
      }
     Qed.
 
@@ -352,7 +353,7 @@ Section cap_lang_rules.
       { (* Failure (contradiction) *)
        destruct H3; try incrementPC_inv; simplify_map_eq by simplify_pair_eq; eauto.
        apply isCorrectPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H2. congruence. done. congruence.
+       destruct o; last apply Is_true_false_2 in H2. congruence. done. congruence.
      }
     Qed.
 

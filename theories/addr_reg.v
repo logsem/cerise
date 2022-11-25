@@ -23,7 +23,7 @@ Inductive RegName: Type :=
 
 Global Instance reg_eq_dec : EqDecision RegName.
 Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
-       destruct (nat_eq_dec n n0).
+       destruct (Nat.eq_dec n n0).
        + subst n0. left.
          assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
          { intros. apply eq_proofs_unicity.
@@ -35,7 +35,7 @@ Defined.
 Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
-  match nat_le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
+  match Nat.le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
 Defined.
@@ -55,7 +55,7 @@ Proof.
   intro r. destruct r; auto.
   rewrite decode_encode.
   unfold n_to_regname.
-  destruct (nat_le_dec n RegNum).
+  destruct (Nat.le_dec n RegNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
   - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
@@ -64,17 +64,17 @@ Defined.
 (* TODO: separate the proof parts into lemmas *)
 
 Definition Z_of_regname (r: RegName): Z.
-  destruct r. exact 0.
-  exact (S n).
+  destruct r. exact 0%Z.
+  exact (Z.of_nat (S n)).
 Defined.
 
-Instance RegName_InjTyp : InjTyp RegName Z.
-  refine (mkinj _ _ Z_of_regname (fun n => n <= RegNum + 1)%Z _).
+#[global] Instance RegName_InjTyp : InjTyp RegName Z.
+  refine (mkinj _ _ Z_of_regname (fun n => n <= ((Z.of_nat RegNum) + 1))%Z _).
   intros [|]. cbn. lia. cbn. apply Nat.leb_le in fin. lia.
 Defined.
 Add Zify InjTyp RegName_InjTyp.
 
-Instance Op_RegName_eq : BinRel (@eq RegName).
+#[global] Instance Op_RegName_eq : BinRel (@eq RegName).
   refine ({| TR := @eq Z; TRInj := _ |}).
   cbn. intros r1 r2. split.
   - intros ->; eauto.
@@ -170,7 +170,7 @@ Proof.
   apply all_registers_correct.
 Qed.
 
-Instance setunfold_all_regs:
+#[global] Instance setunfold_all_regs:
   forall x, SetUnfoldElemOf x all_registers_s True.
 Proof.
   intros. constructor. split; auto.
@@ -180,7 +180,7 @@ Qed.
 Lemma all_registers_union_l s :
   s ∪ all_registers_s = all_registers_s.
 Proof.
-  eapply (anti_symm _). 2: set_solver.
+  eapply (anti_symm subseteq). 2: set_solver.
   rewrite elem_of_subseteq. intros ? _.
   apply all_registers_s_correct.
 Qed.
@@ -197,9 +197,9 @@ Qed.
 
 Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
-  dom (gset RegName) r = all_registers_s.
+  dom r = all_registers_s.
 Proof.
-  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.
   - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
 Qed.

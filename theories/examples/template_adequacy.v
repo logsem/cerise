@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -21,7 +21,7 @@ Definition prog_region (P: prog): gmap Addr Word :=
   mkregion (prog_start P) (prog_end P) (prog_instrs P).
 
 Lemma prog_region_dom (P: prog):
-  dom (gset Addr) (prog_region P) =
+  dom (prog_region P) =
   list_to_set (finz.seq_between (prog_start P) (prog_end P)).
 Proof.
   rewrite /prog_region /mkregion dom_list_to_map_L fst_zip //.
@@ -40,7 +40,7 @@ Record memory_inv := MkMemoryInv {
 }.
 
 Lemma minv_sub_extend (m m': gmap Addr Word) (I: memory_inv) :
-  minv_dom I ⊆ dom (gset Addr) m →
+  minv_dom I ⊆ dom m →
   m ⊆ m' →
   minv I m →
   minv I m'.
@@ -50,15 +50,15 @@ Proof.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
   { eapply elem_of_gmap_dom.
-    rewrite elem_of_subseteq in Hdom |- * => Hdom.
+    rewrite elem_of_subseteq in Hdom |- *.
     eapply Hdom. auto. }
   eexists. split; eauto.
-  rewrite map_subseteq_spec in Hsub |- * => Hsub.
+  rewrite map_subseteq_spec in Hsub |- *.
   eapply Hsub. eauto.
 Qed.
 
 Lemma minv_sub_restrict (m m': gmap Addr Word) (I: memory_inv) :
-  minv_dom I ⊆ dom (gset Addr) m →
+  minv_dom I ⊆ dom m →
   m ⊆ m' →
   minv I m' →
   minv I m.
@@ -68,28 +68,28 @@ Proof.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
   { eapply elem_of_gmap_dom.
-    rewrite elem_of_subseteq in Hdom |- * => Hdom.
+    rewrite elem_of_subseteq in Hdom |- *.
     eapply Hdom. auto. }
   eexists. split; eauto.
-  rewrite map_subseteq_spec in Hsub |- * => Hsub.
+  rewrite map_subseteq_spec in Hsub |- *.
   eapply Hsub; eauto.
 Qed.
 
 Lemma filter_dom_is_dom (m: gmap Addr Word) (d: gset Addr):
-  d ⊆ dom (gset Addr) m →
-  dom (gset Addr) (filter (λ '(a, _), a ∈ d) m) = d.
+  d ⊆ dom m →
+  dom (filter (λ '(a, _), a ∈ d) m) = d.
 Proof.
   intros Hd. eapply set_eq. intros a.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
-  { rewrite elem_of_subseteq in Hd |- * => Hd. specialize (Hd _ H).
+  { rewrite elem_of_subseteq in Hd |- *. specialize (Hd _ H).
     eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
 Definition minv_sep `{memG Σ} (I: memory_inv): iProp Σ :=
   ∃ (m: gmap Addr Word),
-    ([∗ map] a↦w ∈ m, a ↦ₐ w) ∗ ⌜dom (gset Addr) m = minv_dom I⌝ ∗
+    ([∗ map] a↦w ∈ m, a ↦ₐ w) ∗ ⌜dom m = minv_dom I⌝ ∗
     ⌜minv I m⌝.
 
 
@@ -114,9 +114,9 @@ Definition is_initial_memory (P: prog) (m: gmap Addr Word) :=
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -133,7 +133,7 @@ Section Adequacy.
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
     (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
-     dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]} →
+     dom rmap = all_registers_s ∖ {[ PC ]} →
      ⊢ inv invN (minv_sep I)
        ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
@@ -165,13 +165,13 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
-      assert (minv_dom I ⊆ dom (gset Addr) (prog_region P)).
+      assert (minv_dom I ⊆ dom (prog_region P)).
       { etransitivity. eapply HIdom. rewrite prog_region_dom//. }
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
@@ -223,7 +223,7 @@ Theorem template_adequacy `{MachineParameters}
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
-   dom (gset RegName) rmap = all_registers_s ∖ {[ PC ]} →
+   dom rmap = all_registers_s ∖ {[ PC ]} →
    ⊢ inv invN (minv_sep I)
      ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
@@ -266,9 +266,9 @@ Definition is_initial_memory (P Adv: prog) (m: gmap Addr Word) :=
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -287,7 +287,7 @@ Section Adequacy.
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
     (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ} rmap,
-     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
        ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
@@ -331,13 +331,13 @@ Section Adequacy.
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
-      assert (minv_dom I ⊆ dom (gset Addr) (prog_region P)).
+      assert (minv_dom I ⊆ dom (prog_region P)).
       { etransitivity. eapply HIdom. rewrite prog_region_dom//. }
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
@@ -394,7 +394,7 @@ Theorem template_adequacy `{MachineParameters}
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
   (∀ `{memG Σ, regG Σ, logrel_na_invs Σ} rmap,
-   dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+   dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
    ⊢ inv invN (minv_sep I)
      ∗ na_own logrel_nais ⊤
      ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
@@ -512,15 +512,15 @@ Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) 
   ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
 
 Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
-  dom (gset Addr) (prog_tbl_region P P_tbl)
-      ∪ dom (gset Addr) (prog_tbl_region Adv Adv_tbl)
-      ∪ dom (gset Addr) (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
+  dom (prog_tbl_region P P_tbl)
+      ∪ dom (prog_tbl_region Adv Adv_tbl)
+      ∪ dom (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -538,11 +538,11 @@ Section Adequacy.
     is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
     Forall (λ w, is_cap w = false) (prog_instrs Adv) →
     minv I m →
-    minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
+    minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
 
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
     (∀ `{memG Σ, regG Σ, NA: logrel_na_invs Σ, subG Σ' Σ} rmap,
-     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
@@ -621,13 +621,13 @@ Section Adequacy.
     set prog_nin_inv :=
       filter (fun '(a, _) => a ∉ minv_dom I) (lib_region (priv_libs Lib)).
     rewrite (_: lib_region (priv_libs Lib) = prog_in_inv ∪ prog_nin_inv).
-    2: { symmetry. apply map_union_filter. }
+    2: { symmetry. apply map_filter_union_complement. }
     iDestruct (big_sepM_union with "Hlib_priv") as "[Hlib_inv Hlib_priv]".
-    by apply map_disjoint_filter.
+    by apply map_disjoint_filter_complement.
 
     iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hlib_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
-      assert (minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib))).
+      assert (minv_dom I ⊆ dom (lib_region (priv_libs Lib))).
       { etransitivity. eapply HIdom. auto. }
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
@@ -692,11 +692,11 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
   is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_cap w = false) (prog_instrs Adv) →
   minv I m →
-  minv_dom I ⊆ dom (gset Addr) (lib_region (priv_libs Lib)) →
+  minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
 
   let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
   (∀ `{memG Σ', regG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep I)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
@@ -721,7 +721,7 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; Σ]).
-  intros. eapply (@template_adequacy' Σ'); eauto; (* rewrite /invPreG. solve_inG. *)
+  intros. eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
             typeclasses eauto.
 Qed.
 

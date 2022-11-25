@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec List.
 From cap_machine Require Import cap_lang region contiguous.
@@ -86,11 +86,11 @@ Ltac iPrologue prog :=
 
 Ltac iEpilogue prog :=
   iNext; iIntros prog; iSimpl;
-  iApply wp_pure_step_later;auto;iNext.
+  iApply wp_pure_step_later;auto;iNext;iIntros "_".
 
 (* Ltac iEpilogue_both prog := *)
 (*   iNext; iIntros prog; iSimpl; *)
-(*   iApply wp_pure_step_later;auto;iNext; *)
+(*   iApply wp_pure_step_later;auto;iNext;iIntros "_"; *)
 (*   iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto; *)
 (*   iSimpl in "Hj". *)
 
@@ -115,7 +115,7 @@ Ltac iContiguous_next Ha index :=
 
 Ltac disjoint_from_rmap rmap :=
   match goal with
-  | Hsub : _ ⊆ dom (gset RegName) rmap |- _ !! ?r = _ =>
+  | Hsub : _ ⊆ dom rmap |- _ !! ?r = _ =>
     assert (is_Some (rmap !! r)) as [x Hx];[apply elem_of_gmap_dom;apply Hsub;constructor|];
     apply map_disjoint_Some_l with rmap x;auto;apply map_disjoint_union_r_2;auto
   end.

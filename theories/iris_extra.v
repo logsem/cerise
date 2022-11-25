@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From cap_machine Require Import stdpp_extra.
 
@@ -420,7 +420,7 @@ Proof.
     destruct l2; [| by inversion Hlen]. cbn. eauto. }
   { intros. iIntros "H".
     iDestruct (big_sepL2_length with "H") as %Hlen. cbn in Hlen.
-    destruct l2; [by inversion Hlen |]. cbn. iDestruct "H" as "[>? H]".
+    destruct l2; [by inversion Hlen |]. simpl. iDestruct "H" as "[>? H]".
     iDestruct (IHl1 with "H") as ">?". iModIntro. iFrame. }
 Qed.
 
@@ -447,7 +447,7 @@ Proof.
       { apply elem_of_gmap_dom. rewrite Hdom dom_insert_L.
         apply elem_of_union_l, elem_of_singleton; auto. }
       rewrite -(insert_id m' a ρ); auto.
-      rewrite -insert_delete.
+      rewrite -insert_delete_insert.
       iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete|auto|].
       iApply big_sepM_insert;auto.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.

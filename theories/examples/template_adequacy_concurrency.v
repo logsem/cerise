@@ -49,7 +49,7 @@ Definition adv_region (P: adv_prog): gmap Addr Word :=
   mkregion (adv_start P) (adv_end P) (adv_instrs P).
 
 Lemma prog_region_dom (P: prog):
-  dom (gset Addr) (prog_region P) =
+  dom (prog_region P) =
   list_to_set (finz.seq_between (prog_start P) (prog_end P)).
 Proof.
   rewrite /prog_region /mkregion dom_list_to_map_L fst_zip //.
@@ -58,13 +58,13 @@ Proof.
 Qed.
 
 Lemma filter_dom_is_dom (m: gmap Addr Word) (d: gset Addr):
-  d ⊆ dom (gset Addr) m →
-  dom (gset Addr) (filter (λ '(a, _), a ∈ d) m) = d.
+  d ⊆ dom m →
+  dom (filter (λ '(a, _), a ∈ d) m) = d.
 Proof.
   intros Hd. eapply set_eq. intros a.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
-  { rewrite elem_of_subseteq in Hd |- * => Hd. specialize (Hd _ H).
+  { rewrite elem_of_subseteq in Hd. specialize (Hd _ H).
     eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
@@ -249,12 +249,12 @@ Module with_lib.
     ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
 
   Definition initial_memory_domain (P : prog) (Lib : lib) (P_tbl : tbl_priv P Lib) : gset Addr :=
-    dom (gset Addr) (prog_tbl_region P P_tbl)
-      ∪ dom (gset Addr) (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
+    dom (prog_tbl_region P P_tbl)
+      ∪ dom (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
 
   Definition initial_memory_domain_with_adv (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
-    dom (gset Addr) (prog_tbl_region P P_tbl)
-      ∪ dom (gset Addr) (prog_tbl_region Adv Adv_tbl)
-      ∪ dom (gset Addr) (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
+    dom (prog_tbl_region P P_tbl)
+      ∪ dom (prog_tbl_region Adv Adv_tbl)
+      ∪ dom (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
 
 End with_lib.
