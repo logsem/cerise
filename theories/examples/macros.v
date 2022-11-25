@@ -1543,10 +1543,10 @@ Section macros.
   (* f_m denotes the offset to the malloc capability in the lookup table *)
   (* crtcls assumes that the code lies in register r_t1 and the variable lies in r_t2 *)
   Definition crtcls_instrs f_m :=
-    [move_r r_t6 r_t1;
-    move_r r_t7 r_t2] ++
+    [move_r r_t10 r_t1;
+    move_r r_t11 r_t2] ++
     malloc_instrs f_m 8%nat ++
-    scrtcls_instrs r_t6 r_t7.
+    scrtcls_instrs r_t10 r_t11.
 
   Definition crtcls f_m a : iProp Σ :=
     ([∗ list] a_i;w_i ∈ a;(crtcls_instrs f_m), a_i ↦ₐ w_i)%I.
@@ -1758,173 +1758,196 @@ Section macros.
 
   (* crtcls spec *)
   (* FIXME fix the the function: use registers that are not erased by malloc *)
-  (* Lemma crtcls_spec i f_m wvar wcode a pc_p pc_b pc_e *)
-  (*       a_first a_last b_link a_link e_link a_entry b_m e_m mallocN γ EN rmap cont φ : *)
-  (*   isCorrectPC_range pc_p pc_b pc_e a_first a_last → *)
-  (*   contiguous_between a a_first a_last → *)
-  (*   withinBounds b_link e_link a_entry = true → *)
-  (*   (a_link + f_m)%a = Some a_entry → *)
-  (*   dom rmap = *)
-  (*     ((all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0); (i, r_t1);(i, r_t2) ]}) → *)
-  (*   ↑mallocN ⊆ EN → *)
+  Lemma crtcls_spec i f_m wvar wcode a pc_p pc_b pc_e
+        a_first a_last b_link a_link e_link a_entry b_m e_m mallocN γ EN rmap cont φ :
+    isCorrectPC_range pc_p pc_b pc_e a_first a_last →
+    contiguous_between a a_first a_last →
+    withinBounds b_link e_link a_entry = true →
+    (a_link + f_m)%a = Some a_entry →
+    dom rmap =
+      ((all_registers_s_core i) ∖ {[ (i, PC); (i, r_t0); (i, r_t1);(i, r_t2) ]}) →
+    ↑mallocN ⊆ EN →
 
-  (*     ▷ crtcls f_m a *)
-  (*   ∗ ▷ (i,PC) ↦ᵣ WCap pc_p pc_b pc_e a_first *)
-  (*   ∗ inv mallocN (malloc_inv b_m e_m γ) *)
-  (*   (* we need to assume that the malloc capability is in the linking table at offset 0 *) *)
-  (*   ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link *)
-  (*   ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m *)
-  (*   (* register state *) *)
-  (*   ∗ ▷ (i,r_t0) ↦ᵣ cont *)
-  (*   ∗ ▷ (i,r_t1) ↦ᵣ wcode *)
-  (*   ∗ ▷ (i,r_t2) ↦ᵣ wvar *)
-  (*   ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i) *)
-  (*   (* continuation *) *)
-  (*   ∗ ▷ ((i,PC) ↦ᵣ WCap pc_p pc_b pc_e a_last ∗ crtcls f_m a *)
-  (*        ∗ pc_b ↦ₐ WCap RO b_link e_link a_link *)
-  (*        ∗ a_entry ↦ₐ WCap E b_m e_m b_m *)
-  (*        (* the newly allocated region *) *)
-  (*        ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ (i,r_t1) ↦ᵣ WCap E b e b *)
-  (*        ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]] *)
-  (*        ∗ (i,r_t0) ↦ᵣ cont *)
-  (*        ∗ (i,r_t2) ↦ᵣ WInt 0%Z *)
-  (*        ∗ ([∗ map] r_i↦w_i ∈ <[(i,r_t3):=WInt 0%Z]> *)
-  (*                              (<[(i,r_t4):=WInt 0%Z]> *)
-  (*                               (<[(i,r_t5):=WInt 0%Z]> *)
-  (*                                (<[(i,r_t6):=WInt 0%Z]> *)
-  (*                                 (<[(i,r_t7):=WInt 0%Z]> *)
-  (*                                    (<[(i,r_t8):=WInt 0%Z]> *)
-  (*                                       (<[(i,r_t9):=WInt 0%Z]> *)
-  (*                                          rmap)))))), r_i ↦ᵣ w_i)) *)
-  (*        -∗ WP (i,Seq (Instr Executable)) @ EN {{ φ }}) *)
-  (*   ⊢ *)
-  (*     WP (i,Seq (Instr Executable)) @ EN {{ λ v, φ v ∨ ⌜v = (i,FailedV)⌝ }}. *)
-  (* Proof. *)
-  (*   iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN) *)
-  (*           "(>Hprog & >HPC & #Hmalloc & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)". *)
-  (*   (* get some registers out of regs *) *)
-  (*   iDestruct (big_sepL2_length with "Hprog") as %Hlength. *)
-  (*   assert (is_Some (rmap !! (i,r_t6))) as [rv6 ?]. rewrite elem_of_gmap_dom Hrmap_dom; set_solver+. *)
-  (*   iDestruct (big_sepM_delete _ _ (i,r_t6) with "Hregs") as "[Hr_t6 Hregs]"; eauto. *)
-  (*   assert (is_Some (rmap !! (i,r_t7))) as [rv7 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver+. *)
-  (*   iDestruct (big_sepM_delete _ _ (i,r_t7) with "Hregs") as "[Hr_t7 Hregs]". by rewrite lookup_delete_ne //. *)
-  (*   destruct a as [|a l];[inversion Hlength|]. *)
-  (*   apply contiguous_between_cons_inv_first in Hcont as Heq. subst. *)
-  (*   (* move r_t6 r_t1 *) *)
-  (*   destruct l;[inversion Hlength|]. *)
-  (*   iPrologue "Hprog". *)
-  (*   iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t6 $Hr_t1]"); *)
-  (*     [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|]. *)
-  (*   iEpilogue "(HPC & Hprog_done & Hr_t6 & Hr_t1)". *)
-  (*   (* move r_t7 r_t2 *) *)
-  (*   destruct l;[inversion Hlength|]. *)
-  (*   iPrologue "Hprog". *)
-  (*   iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t7 $Hr_t2]"); *)
-  (*     [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1|]. *)
-  (*   iEpilogue "(HPC & Hi & Hr_t7 & Hr_t2)"; iCombine "Hi Hprog_done" as "Hprog_done". *)
-  (*   assert (contiguous_between (f0 :: l) f0 a_last) as Hcont'. *)
-  (*   { apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)]. *)
-  (*     apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)]. *)
-  (*     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst. apply Hcont. } *)
-  (*   (* malloc 8 *) *)
-  (*   iDestruct (contiguous_between_program_split with "Hprog") as *)
-  (*       (malloc_prog rest link) "(Hmalloc_prog & Hprog & #Hcont)";[apply Hcont'|]. *)
-  (*   iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink). *)
-  (*   (* we start by putting the registers back together *) *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs". *)
-  (*   rewrite lookup_delete_ne ; last simplify_pair_eq. *)
-  (*   by rewrite lookup_delete. *)
-  (*   rewrite delete_commute insert_delete_insert. *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs". *)
-  (*   rewrite lookup_insert_ne ; last simplify_pair_eq. *)
-  (*   by rewrite lookup_delete. *)
-  (*   rewrite (insert_commute _ (i,r_t7) (i,r_t6)) ; last simplify_pair_eq. *)
-  (*   rewrite insert_delete_insert. *)
-  (*   assert (∀ (r:RegName), *)
-  (*             (i,r) ∈ ({[(i,PC);(i,r_t0);(i,r_t1);(i,r_t2)]} : gset (CoreN*RegName)) *)
-  (*                          → rmap !! (i, r) = None) as Hnotin_rmap. *)
-  (*   { intros r Hr. *)
-  (*     clear -Hr Hrmap_dom. *)
-  (*     eapply (@not_elem_of_dom (CoreN * RegName) _ _ *)
-  (*               _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Word). *)
-  (*     rewrite Hrmap_dom. *)
-  (*     rewrite elem_of_difference. *)
-  (*     intros [_ contra]. *)
-  (*     clear -Hr contra ; set_solver. } *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs". *)
-  (*   do 2 (rewrite lookup_insert_ne ; last simplify_pair_eq). *)
-  (*     apply Hnotin_rmap ; last set_solver+. *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs". *)
-  (*   do 3 (rewrite lookup_insert_ne ; last simplify_pair_eq). *)
-  (*     apply Hnotin_rmap ; last set_solver+. *)
-  (*   (* apply the malloc spec *) *)
-  (*   rewrite -/(malloc _ _ _). *)
-  (*   iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr_t0 $Hregs $Hmalloc_prog]"); *)
-  (*     [|apply Hcont_fetch|apply Hwb|apply Ha_entry| |auto|lia|..]. *)
-  (*   { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto. *)
-  (*     apply contiguous_between_bounds in Hcont_rest. *)
-  (*     apply contiguous_between_incr_addr with (i:=2) (ai:=f0) in Hcont;auto. *)
-  (*     revert Hcont Hcont_rest Hmid; clear. solve_addr. } *)
-  (*   { rewrite !dom_insert_L. rewrite Hrmap_dom. *)
-  (*     clear. *)
-  (*     do 4 (rewrite singleton_union_difference_L). *)
-  (*     set_solver. *)
-  (*   } *)
-  (*   iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hregs)". *)
-  (*   iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)". *)
-  (*   rewrite delete_insert_delete. *)
-  (*   rewrite (delete_insert_ne _ (i, r_t1) (i, r_t2)) ; last simplify_pair_eq. *)
-  (*   do 7 (rewrite (insert_commute _ _ (i, r_t2)) ; last simplify_pair_eq). *)
-  (*   rewrite insert_insert. *)
-  (*   iDestruct (big_sepM_delete _ _ (i, r_t6) with "Hregs") as "[Hr_t6 Hregs]". *)
-  (*   do 4 (rewrite lookup_insert_ne ; last simplify_pair_eq). *)
-  (*   rewrite lookup_insert //. *)
-  (*   iDestruct (big_sepM_delete _ _ (i, r_t7) with "Hregs") as "[Hr_t7 Hregs]". *)
-  (*   rewrite lookup_delete_ne ; last simplify_pair_eq. *)
-  (*   do 5 (rewrite lookup_insert_ne ; last simplify_pair_eq). *)
-  (*   rewrite lookup_insert //. *)
-  (*   do 8 (rewrite delete_insert_ne ; last simplify_pair_eq) ; []. *)
-  (*   rewrite delete_insert_delete. *)
-  (*   do 1 (rewrite delete_insert_ne ; last simplify_pair_eq) ; []. *)
-  (*   rewrite delete_insert_delete. *)
-  (*   do 4 (rewrite delete_insert_ne ; last simplify_pair_eq) ; []. *)
-  (*   rewrite (delete_commute _ (i, r_t6)) delete_insert_delete. *)
-  (*   do 2 (rewrite (delete_commute _ (i, r_t7))) ; rewrite delete_insert_delete. *)
-  (*   iApply (scrtcls_spec with "[- $Hprog $HPC $Hr_t1 $Hr_t6 $Hr_t7 $Hbe]"); eauto. *)
-  (*   { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto. *)
-  (*     apply contiguous_between_bounds in Hcont_rest. *)
-  (*     apply contiguous_between_bounds in Hcont_fetch. *)
-  (*     apply contiguous_between_incr_addr with (i:=2) (ai:=f0) in Hcont; auto. *)
-  (*     revert Hmid Hcont_rest Hcont_fetch Hcont ; clear. solve_addr. } *)
-  (*   iNext. iIntros "(HPC & Hscrtcls_prog & Hr_t1 & Hact & Hr_t6 & Hr_t7)". *)
-  (*   (* continuation *) *)
-  (*   iApply "Hφ". iFrame "HPC Hpc_b Ha_entry". iSplitL "Hprog_done Hmalloc_prog Hscrtcls_prog". *)
-  (*   { rewrite Heqapp. iDestruct "Hprog_done" as "[? ?]". iFrame. } *)
-  (*   iExists b,e. iSplitR;auto. iFrame. *)
-  (*   iDestruct (big_sepM_delete _ _ (i, r_t2) with "Hregs") as "[Hr_t2 Hregs]". *)
-  (*     rewrite lookup_insert //. *)
-  (*   iFrame "Hr_t2". *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs". *)
-  (*   by simpl_map. *)
-  (*   iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs". *)
-  (*   by simpl_map. *)
-  (*   rewrite delete_insert_delete. *)
-  (*   repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []). *)
-  (*   (* repeat (repeat (rewrite delete_insert_ne ; last simplify_pair_eq; []); rewrite delete_insert_delete). *) *)
-  (*   do 2 rewrite (delete_commute _ (i, r_t1)). *)
-  (*   rewrite (delete_notin _ (i, r_t1)). 2: apply Hnotin_rmap; set_solver +. *)
-  (*   do 2 rewrite (delete_commute _ (i, r_t2)). *)
-  (*   rewrite (delete_notin _ (i, r_t2)). *)
-  (*   2 : apply Hnotin_rmap; set_solver +. *)
-  (*   (* repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert. *) *)
-  (*   (* repeat (rewrite -delete_insert_ne //; []). rewrite insert_delete_insert. *) *)
-  (*   repeat (rewrite (insert_commute _ (i, r_t6)) ; [|simplify_pair_eq]). rewrite insert_delete_insert. *)
-  (*   repeat (rewrite (insert_commute _ (i, r_t7)); [|simplify_pair_eq]). rewrite insert_delete_insert. *)
-  (*   iFrame. *)
-  (*   repeat (rewrite (insert_commute _ r_t7) //;[]). *)
-  (*   repeat (rewrite (insert_commute _ r_t6) //;[]). rewrite (insert_commute _ r_t6 r_t5) //. *)
-  (* Qed. *)
-  (* (* ------------------------------- Closure Activation --------------------------------- *) *)
+      ▷ crtcls f_m a
+    ∗ ▷ (i,PC) ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ inv mallocN (malloc_inv b_m e_m γ)
+    (* we need to assume that the malloc capability is in the linking table at offset 0 *)
+    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
+    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    (* register state *)
+    ∗ ▷ (i,r_t0) ↦ᵣ cont
+    ∗ ▷ (i,r_t1) ↦ᵣ wcode
+    ∗ ▷ (i,r_t2) ↦ᵣ wvar
+    ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
+    (* continuation *)
+    ∗ ▷ ((i,PC) ↦ᵣ WCap pc_p pc_b pc_e a_last ∗ crtcls f_m a
+         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
+         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+         (* the newly allocated region *)
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ (i,r_t1) ↦ᵣ WCap E b e b
+         ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
+         ∗ (i,r_t0) ↦ᵣ cont
+         ∗ (i,r_t2) ↦ᵣ WInt 0%Z
+         ∗ ([∗ map] r_i↦w_i ∈ <[(i,r_t3):=WInt 0%Z]>
+                               (<[(i,r_t4):=WInt 0%Z]>
+                                (<[(i,r_t5):=WInt 0%Z]>
+                                 (<[(i,r_t6):=WInt 0%Z]>
+                                  (<[(i,r_t7):=WInt 0%Z]>
+                                   (<[(i,r_t8):=WInt 0%Z]>
+                                    (<[(i,r_t9):=WInt 0%Z]>
+                                     (<[(i,r_t10):=WInt 0%Z]>
+                                      (<[(i,r_t11):=WInt 0%Z]>
+                                           rmap)))))))), r_i ↦ᵣ w_i))
+         -∗ WP (i,Seq (Instr Executable)) @ EN {{ φ }})
+    ⊢
+      WP (i,Seq (Instr Executable)) @ EN {{ λ v, φ v ∨ ⌜v = (i,FailedV)⌝ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Ha_entry Hrmap_dom HmallocN)
+            "(>Hprog & >HPC & #Hmalloc & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
+    (* get some registers out of regs *)
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
+    assert (is_Some (rmap !! (i,r_t10))) as [rv10 ?]. rewrite elem_of_gmap_dom Hrmap_dom; set_solver+.
+    iDestruct (big_sepM_delete _ _ (i,r_t10) with "Hregs") as "[Hr_t10 Hregs]"; eauto.
+    assert (is_Some (rmap !! (i,r_t11))) as [rv11 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver+.
+    iDestruct (big_sepM_delete _ _ (i,r_t11) with "Hregs") as "[Hr_t11 Hregs]". by rewrite lookup_delete_ne //.
+    destruct a as [|a l];[inversion Hlength|].
+    apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
+    (* move r_t6 r_t1 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t10 $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|].
+    iEpilogue "(HPC & Hprog_done & Hr_t10 & Hr_t1)".
+    (* move r_t7 r_t2 *)
+    destruct l;[inversion Hlength|].
+    iPrologue "Hprog".
+    iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t11 $Hr_t2]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1|].
+    iEpilogue "(HPC & Hi & Hr_t11 & Hr_t2)"; iCombine "Hi Hprog_done" as "Hprog_done".
+    assert (contiguous_between (f0 :: l) f0 a_last) as Hcont'.
+    { apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)].
+      apply contiguous_between_cons_inv in Hcont as [_ (? & ? & Hcont)].
+      pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst. apply Hcont. }
+    (* malloc 8 *)
+    iDestruct (contiguous_between_program_split with "Hprog") as
+        (malloc_prog rest link) "(Hmalloc_prog & Hprog & #Hcont)";[apply Hcont'|].
+    iDestruct "Hcont" as %(Hcont_fetch & Hcont_rest & Heqapp & Hlink).
+    (* we start by putting the registers back together *)
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t10]") as "Hregs".
+    rewrite lookup_delete_ne ; last simplify_pair_eq.
+    by rewrite lookup_delete.
+    rewrite delete_commute insert_delete_insert.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t11]") as "Hregs".
+    rewrite lookup_insert_ne ; last simplify_pair_eq.
+    by rewrite lookup_delete.
+    rewrite (insert_commute _ (i,r_t11) (i,r_t10)) ; last simplify_pair_eq.
+    rewrite insert_delete_insert.
+    assert (∀ (r:RegName),
+              (i,r) ∈ ({[(i,PC);(i,r_t0);(i,r_t1);(i,r_t2)]} : gset (CoreN*RegName))
+                           → rmap !! (i, r) = None) as Hnotin_rmap.
+    { intros r Hr.
+      clear -Hr Hrmap_dom.
+      eapply (@not_elem_of_dom (CoreN * RegName) _ _
+                _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Word).
+      rewrite Hrmap_dom.
+      rewrite elem_of_difference.
+      intros [_ contra].
+      clear -Hr contra ; set_solver. }
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs".
+    do 2 (rewrite lookup_insert_ne ; last simplify_pair_eq).
+      apply Hnotin_rmap ; last set_solver+.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs".
+    do 3 (rewrite lookup_insert_ne ; last simplify_pair_eq).
+      apply Hnotin_rmap ; last set_solver+.
+    (* apply the malloc spec *)
+    rewrite -/(malloc _ _ _).
+    iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr_t0 $Hregs $Hmalloc_prog]");
+      [|apply Hcont_fetch|apply Hwb|apply Ha_entry| |auto|lia|..].
+    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
+      apply contiguous_between_bounds in Hcont_rest.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f0) in Hcont;auto.
+      revert Hcont Hcont_rest Hmid; clear. solve_addr. }
+    { rewrite !dom_insert_L. rewrite Hrmap_dom.
+      clear.
+      do 4 (rewrite singleton_union_difference_L).
+      set_solver.
+    }
+    iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hregs)".
+    iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)".
+    rewrite delete_insert_delete.
+    rewrite (delete_insert_ne _ (i, r_t1) (i, r_t2)) ; last simplify_pair_eq.
+    do 7 (rewrite (insert_commute _ _ (i, r_t2)) ; last simplify_pair_eq).
+    rewrite insert_insert.
+    iDestruct (big_sepM_delete _ _ (i, r_t10) with "Hregs") as "[Hr_t10 Hregs]".
+    by simpl_map.
+    iDestruct (big_sepM_delete _ _ (i, r_t11) with "Hregs") as "[Hr_t11 Hregs]".
+    by simpl_map.
+    iApply (scrtcls_spec with "[- $Hprog $HPC $Hr_t1 $Hr_t10 $Hr_t11 $Hbe]"); eauto.
+    { intros mid Hmid. apply isCorrectPC_inrange with a_first a_last; auto.
+      apply contiguous_between_bounds in Hcont_rest.
+      apply contiguous_between_bounds in Hcont_fetch.
+      apply contiguous_between_incr_addr with (i:=2) (ai:=f0) in Hcont; auto.
+      revert Hmid Hcont_rest Hcont_fetch Hcont ; clear. solve_addr. }
+    iNext. iIntros "(HPC & Hscrtcls_prog & Hr_t1 & Hact & Hr_t10 & Hr_t11)".
+    (* continuation *)
+    iApply "Hφ". iFrame "HPC Hpc_b Ha_entry". iSplitL "Hprog_done Hmalloc_prog Hscrtcls_prog".
+    { rewrite Heqapp. iDestruct "Hprog_done" as "[? ?]". iFrame. }
+    iExists b,e. iSplitR;auto. iFrame.
+    iDestruct (big_sepM_delete _ _ (i, r_t2) with "Hregs") as "[Hr_t2 Hregs]".
+    by simpl_map.
+    iFrame "Hr_t2".
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t10]") as "Hregs".
+    by simpl_map.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t11]") as "Hregs".
+    by simpl_map.
+    set ( map_goal :=
+           <[(i, r_t3):=WInt 0]>
+                      (<[(i, r_t4):=WInt 0]>
+                         (<[(i, r_t5):=WInt 0]>
+                            (<[(i, r_t6):=WInt 0]>
+                               (<[(i, r_t7):=WInt 0]>
+                                  (<[(i, r_t8):=WInt 0]>
+                                     (<[(i, r_t9):=WInt 0]>
+                                        (<[(i, r_t10):=WInt 0]> (<[(i, r_t11):=WInt 0]> rmap))))))))
+      ).
+    set ( map_hyp :=
+       <[(i, r_t11):=WInt 0]>
+                            (<[(i, r_t10):=WInt 0]>
+                               (delete (i, r_t2)
+                                  (delete (i, r_t11)
+                                     (delete (i, r_t10)
+                                        (<[(i, r_t2):=WInt 0]>
+                                           (<[(i, r_t3):=WInt 0]>
+                                              (<[(i, r_t4):=WInt 0]>
+                                                 (<[(i, r_t5):=WInt 0]>
+                                                    (<[(i, r_t6):=WInt 0]>
+                                                       (<[(i, r_t7):=WInt 0]>
+                                                          (<[(i, r_t8):=WInt 0]>
+                                                             (<[(i, r_t9):=
+                                                                WInt 0]>
+                                                                (delete (i, r_t1)
+                                                                   (<[(i, r_t10):=wcode]>
+                                                                      (<[(i, r_t11):=wvar]> rmap)))))))))))))))
+        ).
+    replace map_hyp with map_goal. iFrame.
+    subst map_goal map_hyp.
+    (* clear delete r2 *)
+    do 2 rewrite (delete_commute _ (i, r_t2) _).
+    rewrite delete_insert; last (simpl_map; apply Hnotin_rmap; set_solver +).
+    (* clear delete r1 *)
+    do 2 (rewrite (delete_insert_ne _ (i, r_t1) _) ; last simplify_pair_eq).
+    rewrite (delete_notin _ (i, r_t1)). 2: apply Hnotin_rmap; set_solver +.
+    (* move r10 to the end *)
+    rewrite <- (delete_insert_ne _ _ (i, r_t10)) ; last simplify_pair_eq.
+    do 2 rewrite insert_delete_insert.
+    do 7 (rewrite (insert_commute _ (i, r_t10)) ; last simplify_pair_eq).
+    rewrite insert_insert.
+    (* move r11 to the end *)
+    do 8 (rewrite (insert_commute _ (i, r_t11)) ; last simplify_pair_eq).
+    rewrite insert_insert.
+    reflexivity.
+  Qed.
+  (* ------------------------------- Closure Activation --------------------------------- *)
 
   Lemma closure_activation_spec i pc_p b_cls e_cls r1v renvv wcode wenv φ :
     readAllowed pc_p = true →
