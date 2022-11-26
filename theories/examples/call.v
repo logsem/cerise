@@ -221,7 +221,7 @@ Section call.
     malloc_instrs f_m (strings.length locals) ++
     store_locals_instrs r_t1 locals ++
     (* allocate the space for the activation record *)
-    [move_r r_t6 r_t1] ++
+    [move_r r_t10 r_t1] ++
     malloc_instrs f_m 7 ++
     (* store the activation code *)
     [move_r r_t0 r_t1;
@@ -236,7 +236,7 @@ Section call.
     store_z r_t0 hw_5;
     lea_z r_t0 1;
     (* store locals cap *)
-    store_r r_t0 r_t6;
+    store_r r_t0 r_t10;
     lea_z r_t0 1;
     (* prepare and store continuation *)
     move_r r_t1 PC;
@@ -269,30 +269,61 @@ Definition registers_s_core (i:CoreN) (regs : gset RegName) : gset (CoreN * RegN
 
 (* Requires newer version of stdpp *)
 Program Definition registers_map_core `{A : Type} (i:CoreN) (regs : gmap RegName A)
-  : gmap (CoreN * RegName) A := _.
-Next Obligation. Admitted.
-(* := kmap (fun r => (i,r)) regs. *)
+  : gmap (CoreN * RegName) A := kmap (fun r => (i,r)) regs.
 
 Lemma big_sepM_register_map_core (i : CoreN) (l : gmap RegName Word) :
   ([∗ map] k↦y ∈ (registers_map_core i l), k ↦ᵣ y)
   ⊣⊢ ([∗ map] k↦y ∈ l, (i, k) ↦ᵣ y).
 Proof.
   iSplit ; iIntros "H".
-Admitted.
+  - unfold registers_map_core.
+    iInduction l as [|l'] "IH" using map_ind.
+    + by rewrite kmap_empty.
+    + rewrite kmap_insert.
+      do 2 rewrite big_sepM_insert_delete.
+      iDestruct "H" as "[? H]"; iFrame.
+      rewrite delete_notin; last by rewrite lookup_kmap.
+      rewrite delete_notin; auto.
+      by iApply "IH".
+  - unfold registers_map_core.
+    iInduction l as [|l'] "IH" using map_ind.
+    + by rewrite kmap_empty.
+    + rewrite kmap_insert.
+      do 2 rewrite big_sepM_insert_delete.
+      iDestruct "H" as "[? H]"; iFrame.
+      rewrite delete_notin; auto.
+      rewrite delete_notin; last by rewrite lookup_kmap.
+      by iApply "IH".
+Qed.
+
+Instance registers_map_core_inj {i : CoreN} : Inj eq eq (λ r : RegName, (i, r)).
+Proof.
+  repeat intro.
+  by inversion H.
+Defined.
+Hint Resolve registers_map_core_inj : core.
+
+Lemma registers_map_core_union (i : CoreN) (m1 m2 : gmap RegName Word) :
+  registers_map_core i (m1 ∪ m2) =
+    registers_map_core i m1 ∪ registers_map_core i m2.
+Proof.
+  unfold registers_map_core.
+  apply kmap_union;auto.
+Qed.
 
 
-  Lemma call_spec (i : CoreN)
-        (* call *) (r1 : RegName) (mlocals mparams : gmap RegName Word) (wadv : Word)
-        (* remaining registers *) (rmap rmap' : gmap (CoreN*RegName) Word)
-        (* pc *) a p b e a_first a_last
-        (* malloc *) f_m b_m e_m mallocN EN γ
-        (* linking *) b_link a_link e_link a_entry
-        (* cont *) φ :
-    isCorrectPC_range p b e a_first a_last →
-    contiguous_between a a_first a_last →
-    withinBounds b_link e_link a_entry = true →
-    (a_link + f_m)%a = Some a_entry →
-    strings.length (map_to_list mlocals).*1 > 0 →
+Lemma call_spec (i : CoreN)
+  (* call *) (r1 : RegName) (mlocals mparams : gmap RegName Word) (wadv : Word)
+  (* remaining registers *) (rmap rmap' : gmap (CoreN*RegName) Word)
+  (* pc *) a p b e a_first a_last
+  (* malloc *) f_m b_m e_m mallocN EN γ
+  (* linking *) b_link a_link e_link a_entry
+  (* cont *) φ :
+  isCorrectPC_range p b e a_first a_last →
+  contiguous_between a a_first a_last →
+  withinBounds b_link e_link a_entry = true →
+  (a_link + f_m)%a = Some a_entry →
+  strings.length (map_to_list mlocals).*1 > 0 →
 
     dom rmap = ((all_registers_s_core i)
                   ∖ registers_s_core i {[ PC; r_t0; r1 ]}
@@ -301,7 +332,7 @@ Admitted.
     dom rmap' = ((all_registers_s_core i)
                    ∖ registers_s_core i {[ PC; r_t0; r1 ]}
                    ∖ registers_s_core i (dom mparams)) →
-    registers_s_core i {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆
+    registers_s_core i {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9 ; r_t10]} ⊆
       dom rmap → (* we need to know that neither params nor locals use these gen pur registers *)
     ↑mallocN ⊆ EN →
 
@@ -329,7 +360,7 @@ Admitted.
             ∗ [[b_c,e_c]]↦ₐ[[ [WInt hw_1;WInt hw_2;WInt hw_3;WInt hw_4;WInt hw_5;WCap RWX b_l e_l e_l;WCap p b e a_end] ]]
             ∗ [[b_l,e_l]]↦ₐ[[ (map_to_list mlocals).*2 ]]
             ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
-            -∗ WP (i, Seq (Instr Executable)) @EN {{ φ }}))
+            -∗ WP (i, Seq (Instr Executable)) @EN {{ λ v, φ v }}))
     ⊢ WP (i, Seq (Instr Executable)) @EN {{ λ v, φ v ∨ ⌜v = (i, FailedV)⌝ }})%I.
   Proof.
     iIntros (Hvpc Hcont Hwb Hlink Hnz Hdom1 Hdom2 Hsub Hnainv)
@@ -341,32 +372,32 @@ Admitted.
       iDestruct (big_sepM_delete _ _ j with "Hparams") as "[Hi1 Hparams]";[eauto|].
       iDestruct (big_sepM_delete _ _ j with "Hlocals") as "[Hi2 Hlocals]";[eauto|].
       iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
-    iAssert ([∗ map] k↦y ∈ (registers_map_core i mparams), k ↦ᵣ y)%I
-    with "[Hparams]" as "Hparams".
-    { rewrite /registers_map_core.
-      (* rewrite /kmap. *)
-      admit. }
+    assert (Hdisj1': registers_map_core i mlocals ##ₘ registers_map_core i mparams).
+    { apply map_disjoint_kmap; auto. }
 
     iAssert (⌜ registers_map_core i mparams ##ₘrmap⌝)%I as %Hdisj2.
     { rewrite map_disjoint_spec. iIntros (j x y Hx Hy).
       iDestruct (big_sepM_delete _ _ j with "Hgen") as "[Hi2 Hgen]";[eauto|].
-      (* iDestruct (big_sepM_delete _ _ (snd j) with "[Hparams]") as "[Hi1 Hparams]". ;[eauto|]. *)
-      (* iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. } *)
-      admit. }
+      unfold registers_map_core in Hx.
+      rewrite lookup_kmap_Some in Hx.
+      destruct Hx as (k' & -> & Hx).
+      iDestruct (big_sepM_delete _ _ k' with "Hparams") as "[Hi1 Hparams]";[eauto|].
+      iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
     iAssert (⌜registers_map_core i mlocals ##ₘrmap⌝)%I as %Hdisj3.
-    { admit. }
-    (* { rewrite map_disjoint_spec. iIntros (i x y Hx Hy). *)
-    (*   iDestruct (big_sepM_delete _ _ i with "Hgen") as "[Hi1 Hgen]";[eauto|]. *)
-    (*   iDestruct (big_sepM_delete _ _ i with "Hlocals") as "[Hi2 Hlocals]";[eauto|]. *)
-    (*   iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. } *)
+    { rewrite map_disjoint_spec.
+      iIntros (k x y Hx Hy).
+      iDestruct (big_sepM_delete _ _ k with "Hgen") as "[Hi1 Hgen]";[eauto|].
+      unfold registers_map_core in Hx.
+      rewrite lookup_kmap_Some in Hx.
+      destruct Hx as (k' & -> & Hx).
+      iDestruct (big_sepM_delete _ _ k' with "Hlocals") as "[Hi2 Hlocals]";[eauto|].
+      iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
     iAssert (⌜PC ∉ dom mparams ∧ r_t0 ∉ dom mparams ∧ r1 ∉ dom mparams⌝)%I as %Hdisj4.
-    {
-      (* iSplit; iIntros (Hcontr); apply elem_of_gmap_dom in Hcontr as [? Hi]. *)
-      (*   (iDestruct (big_sepM_delete with "Hparams") as "[Hi1 Hparams]";[by eauto|]). *)
-      (* by iDestruct (regname_dupl_false with "Hi1 HPC") as "Hfalse". *)
-      (* by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse". *)
-      (* by iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse". *)
-      admit.
+    { repeat iSplit; iIntros (Hcontr); apply elem_of_gmap_dom in Hcontr as [? Hi];
+        (iDestruct (big_sepM_delete with "Hparams") as "[Hi1 Hparams]";[by eauto|]).
+      by iDestruct (regname_dupl_false with "Hi1 HPC") as "Hfalse".
+      by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse".
+      by iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse".
     }
     iAssert (⌜PC ∉ dom mlocals ∧ r_t0 ∉ dom mlocals ∧ r1 ∉ dom mlocals⌝)%I as %Hdisj5.
     { repeat iSplit; iIntros (Hcontr); apply elem_of_gmap_dom in Hcontr as [? Hi];
@@ -375,7 +406,8 @@ Admitted.
       by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse".
       by iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse".
     }
-    iAssert (⌜∀ r, (i,r) ∈ registers_s_core i {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} → (i,r) ≠ (i,r1)⌝)%I as %Hneregs.
+    iAssert (⌜∀ r, (i,r) ∈ registers_s_core i {[r_t1; r_t2; r_t3; r_t4; r_t5
+                                                ; r_t6; r_t7; r_t8; r_t9; r_t10]} → (i,r) ≠ (i,r1)⌝)%I as %Hneregs.
     { iIntros (r Hin Hcontr). subst. apply Hsub in Hin.
       apply elem_of_gmap_dom in Hin as [x Hx].
       iDestruct (big_sepM_delete with "Hgen") as "[Hr Hgen]";[apply Hx|].
@@ -383,27 +415,28 @@ Admitted.
       by iDestruct (regname_dupl_false with "Hr Hr1") as "Hfalse".
     }
 
-    (* iDestruct (big_sepM_union with "[$Hlocals $Hparams]") as "Hlocalsparams" *)
-    (* ;[auto|]. *)
+    iDestruct (big_sepM_union with "[$Hlocals $Hparams]") as "Hlocalsparams"
+    ;[auto|].
 
     iAssert ([∗ map] k↦y ∈ (registers_map_core i (mlocals ∪ mparams)), k ↦ᵣ y)%I
-    with "[Hlocals Hparams]" as "Hlocalsparams".
-    { admit. }
+    with "[Hlocalsparams]" as "Hlocalsparams".
+    { rewrite big_sepM_register_map_core; iFrame. }
 
-    iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams"
-    ; [admit|].
-    (* ;[apply map_disjoint_union_r_2;auto|]. *)
-    iAssert (⌜(rmap ∪ registers_map_core i (mlocals ∪ mparams)) !! (i, r1) = None⌝)%I
+    iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as
+      "Hgenlocalsparams".
+    { rewrite registers_map_core_union.
+      apply map_disjoint_union_r_2; auto. }
+
+    set (rmap_full :=  (rmap ∪ registers_map_core i (mlocals ∪ mparams))).
+    iAssert (⌜rmap_full !! (i, r1) = None⌝)%I
       as %Hnone.
-    { admit. }
-    (* { destruct ((rmap ∪ (mlocals ∪ mparams)) !! r1) eqn:Hsome;auto. *)
-    (*   iDestruct (big_sepM_delete _ _ r1 with "Hgenlocalsparams") as "[Hi1 Hgen]";[eauto|]. *)
-    (*   iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse". done. } *)
-    iAssert (⌜(rmap ∪ registers_map_core i (mlocals ∪ mparams)) !! (i, r_t0) = None⌝)%I as %Hnone'.
-    { admit. }
-    (* { destruct ((rmap ∪ (mlocals ∪ mparams)) !! r_t0) eqn:Hsome;auto. *)
-    (*   iDestruct (big_sepM_delete _ _ r_t0 with "Hgenlocalsparams") as "[Hi1 Hgen]";[eauto|]. *)
-    (*   iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse". done. } *)
+    { destruct (rmap_full !! (i, r1)) eqn:Hsome ; last auto.
+      iDestruct (big_sepM_delete _ _ (i, r1) with "Hgenlocalsparams") as "[Hi1 Hgen]";[eauto|].
+      iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse". done. }
+    iAssert (⌜rmap_full !! (i, r_t0) = None⌝)%I as %Hnone'.
+    { destruct (rmap_full !! (i, r_t0)) eqn:Hsome ; last auto.
+      iDestruct (big_sepM_delete _ _ (i, r_t0) with "Hgenlocalsparams") as "[Hi1 Hgen]";[eauto|].
+      iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse". done. }
     iAssert (⌜r1 ≠ PC⌝)%I as %Hne1.
     { iIntros (->). iDestruct (regname_dupl_false with "HPC Hr1") as "Hfalse". done. }
     iAssert (⌜r1 ≠ r_t0⌝)%I as %Hne2.
@@ -412,33 +445,57 @@ Admitted.
       "Hgenlocalsparams";[eauto|].
 
     assert (dom
-              (<[(i, r1):=wadv]> (rmap ∪ (registers_map_core i (mlocals ∪ mparams))))
+              (<[(i, r1):=wadv]> rmap_full)
             = all_registers_s_core i ∖ {[(i, PC); (i, r_t0)]}) as Hdomeq.
-    { rewrite dom_insert_L !dom_union_L. revert Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5. clear. intros Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5.
+    { rewrite dom_insert_L !dom_union_L.
+      revert Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5.
+      clear.
+      intros Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5.
       assert (all_registers_s_core i ∖ {[(i, PC); (i, r_t0)]}
               = {[(i, r1)]} ∪ all_registers_s_core i ∖
                   {[(i, PC); (i, r_t0); (i, r1)]}) as ->.
       { rewrite - !difference_difference_L.
         rewrite -union_difference_L; auto.
         rewrite /all_registers_s_core.
-        admit. }
-        (* apply subseteq_difference_r;[set_solver|]. *)
-        (* apply subseteq_difference_r;[set_solver|]. *)
-        (* apply all_registers_subseteq. } *)
-      (* assert (dom rmap *)
-      (*           ∪ (dom (registers_map_core i mlocals) *)
-      (*                ∪ dom (registers_map_core i mparams)) = *)
-      (*         dom (registers_map_core i mparams) *)
-      (*           ∪ (dom (registers_map_core i mlocals) *)
-      (*                ∪ dom rmap)) as ->. *)
-      (* { rewrite (union_comm_L _ (dom _ mparams)). rewrite union_assoc_L. rewrite (union_comm_L _ (dom _ mparams)). *)
-      (*   rewrite -union_assoc_L. rewrite (union_comm_L _ (dom _ mlocals)). auto. } *)
-      (* rewrite Hdom1. rewrite - !difference_difference_L - !union_difference_L; auto. *)
-      (* repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq. *)
-      (* repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq. *)
-      (* apply subseteq_difference_r;[apply map_disjoint_dom;auto|]. *)
-      (* repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq. *)
-      admit. }
+        replace {[(i, r1)]} with (@set_map _ _ _ _
+                                    (@gset (@CoreN CP * RegName)
+                                       (@prod_eq_dec (@CoreN CP) (@finz_eq_dec (@coreNum CP)) RegName reg_eq_dec)
+                                       (@prod_countable (@CoreN CP) (@finz_eq_dec (@coreNum CP)) (@finz_countable (@coreNum CP))
+                                          RegName reg_eq_dec reg_countable))
+                                    _ _ _
+                                    (λ r : RegName, (i, r))
+                                    (@singleton RegName (@gset RegName reg_eq_dec reg_countable)
+                                       (@gset_singleton RegName reg_eq_dec
+                                          reg_countable) r1)) by set_solver +.
+        clear -Hne1 Hne2.
+        set_solver.
+      }
+      assert ( (dom rmap ∪ dom (registers_map_core i (mlocals ∪ mparams))) =
+                 all_registers_s_core i ∖ {[(i, PC); (i, r_t0); (i, r1)]}) as ->.
+     { assert ( dom rmap ∪ dom (registers_map_core i (mlocals ∪ mparams)) =
+                  dom (registers_map_core i (mlocals ∪ mparams)) ∪ dom rmap) as ->.
+       set_solver +.
+       rewrite registers_map_core_union.
+       rewrite dom_union_L.
+       rewrite !dom_kmap_L.
+       rewrite Hdom1.
+       assert ( all_registers_s_core i ∖ registers_s_core i {[PC; r_t0; r1]}
+                = all_registers_s_core i ∖ {[(i, PC); (i, r_t0); (i, r1)]}) as ->.
+       { set_solver +. }
+       unfold all_registers_s_core.
+       unfold registers_s_core.
+       set ( mmlocals := set_map (λ r : RegName, (i, r)) (dom mlocals)).
+       set ( mmparams := set_map (λ r : RegName, (i, r)) (dom mparams)).
+       set (base := set_map (λ r : RegName, (i, r)) all_registers_s ∖ {[(i, PC); (i, r_t0); (i, r1)]}).
+       rewrite difference_difference_L.
+       rewrite (union_comm_L mmlocals).
+       set (garbage := (mmparams ∪ mmlocals)).
+       rewrite -(union_difference_L _ base); auto.
+       subst garbage.
+       apply union_subseteq.
+       subst mmparams mmlocals base.
+       split; [clear -Hdisj4 | clear -Hdisj5]; set_solver. }
+     reflexivity. }
     (* malloc f_m |locals| *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (malloc_prog rest1 link1) "(Hmalloc_prog & Hprog & #Hcont1)";[apply Hcont|].
@@ -453,30 +510,37 @@ Admitted.
     eauto.
     iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hgenlocalsparams)".
     iDestruct "Hregion" as (b_l e_l Hlocals_size) "(Hr_t1 & Hbl)".
+    (* TODO move*)
+    Ltac disjoint_from_rmap rmap i :=
+      match goal with
+      | Hsub : _ ⊆ dom rmap |- _ !! ?r = _ =>
+          assert (is_Some (rmap !! r)) as [x Hx]
+          ;[apply elem_of_gmap_dom;apply Hsub;set_solver+|];
+      apply map_disjoint_Some_l with rmap x;auto;rewrite registers_map_core_union; apply map_disjoint_union_r_2;auto
+      end.
 
     (* in order to store the locals, we need to extract locals from the map *)
     rewrite delete_insert_ne. 2: { apply Hneregs. rewrite /registers_s_core. set_solver+. }
     rewrite delete_union. rewrite !insert_union_l.
-    rewrite (delete_notin (registers_map_core i (mlocals ∪ mparams)))
-              ;[| admit].
-    (* [|disjoint_from_rmap rmap]. *)
+    rewrite (delete_notin (registers_map_core i (mlocals ∪ mparams)));
+    [|disjoint_from_rmap rmap i].
     iDestruct (big_sepM_union with "Hgenlocalsparams") as "[Hgen Hlocalsparams]".
-    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
-      admit. }
-      (* apply map_disjoint_insert_l_2. apply lookup_union_None in Hnone as [? ?];auto. *)
-      (* apply map_disjoint_delete_l. apply map_disjoint_union_r_2;auto. } *)
-    (* iDestruct (big_sepM_union with "Hlocalsparams") as "[Hlocals Hparams]";auto. *)
-    iAssert ( ([∗ map] k↦y ∈ registers_map_core i (mlocals), k ↦ᵣ y)
-              ∗ ([∗ map] k↦y ∈ registers_map_core i (mparams), k ↦ᵣ y))%I
-      with "[Hlocalsparams]"
-      as "[Hlocals Hparams]".
-    { admit. }
+    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap i|]).
+      apply map_disjoint_insert_l_2. rewrite registers_map_core_union.
+      subst rmap_full.
+      rewrite registers_map_core_union in Hnone.
+      epose proof (lookup_union_None rmap) ; apply H in Hnone as [? ?];auto.
+      apply map_disjoint_delete_l.
+      rewrite registers_map_core_union; apply map_disjoint_union_r_2;auto. }
+    rewrite registers_map_core_union.
+    iDestruct (big_sepM_union with "Hlocalsparams") as "[Hlocals Hparams]";auto.
+
     (* store locals *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (storelocals_prog rest2 link2) "(Hstorelocals_prog & Hprog & #Hcont2)";[apply Hcont2|].
     iDestruct "Hcont2" as %(Hcont3 & Hcont4 & Heqapp2 & Hlink2).
     iAssert ([∗ map] k↦y ∈ mlocals, (i,k) ↦ᵣ y)%I with "[Hlocals]" as
-      "Hlocals" ; [admit|].
+      "Hlocals" ; [by rewrite big_sepM_register_map_core|].
     iApply (store_locals_spec _ _ _ _ ((map_to_list mlocals).*1) with "[-$HPC $Hstorelocals_prog $Hr_t1 $Hlocals]");[|apply Hcont3|auto..].
     { eapply isCorrectPC_range_restrict;[apply Hvpc|].
       apply contiguous_between_bounds in Hcont1.
@@ -499,46 +563,60 @@ Admitted.
     apply contiguous_between_cons_inv_first in Hcont4 as Heq; subst f.
 
     (* get some general purpose registers *)
-    assert (is_Some (rmap !! (i, r_t6))) as [w6 Hw6]
+    assert (is_Some (rmap !! (i, r_t10))) as [w10 Hw10]
     ;[apply elem_of_gmap_dom;apply Hsub;rewrite /registers_s_core;set_solver+|].
-    iDestruct (big_sepM_delete _ _ (i, r_t6) with "Hgen") as "[Hr_t6 Hgen]".
-    { assert ((i, r_t6) ≠ (i, r1)) as Hne
+    iDestruct (big_sepM_delete _ _ (i, r_t10) with "Hgen") as "[Hr_t10 Hgen]".
+    { assert ((i, r_t10) ≠ (i, r1)) as Hne
       ;[apply Hneregs;rewrite /registers_s_core;set_solver+|].
-      Unshelve. 2: exact (WInt 0).
-      admit.
-      (* rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne;auto. eauto. *)
-    }
+      rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne;auto. eauto. }
 
     (* move r_t6 r_t1 *)
     destruct rest2 as [|? rest2];[inversion Hlength_prog|].
     iPrologue "Hprog".
-    iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t6 $Hr_t1]");
+    iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t10 $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC link2 a_last|iContiguous_next Hcont4 0|].
-    iEpilogue "(HPC & Hi & Hr_t6 & Hr_t1)". iCombine "Hstorelocals_prog Hmalloc" as "Hprog_done".
+    iEpilogue "(HPC & Hi & Hr_t10 & Hr_t1)". iCombine "Hstorelocals_prog Hmalloc" as "Hprog_done".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* malloc 7 *)
     (* prepare the registers *)
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t10]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -delete_insert_ne;[|apply Hneregs;rewrite /registers_s_core ;set_solver+].
     rewrite - !delete_insert_ne;auto.
     iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen"
     ; [apply lookup_delete|rewrite insert_delete_insert].
-    (* TODO *)
     iAssert ([∗ map] k↦y ∈ (registers_map_core i (mlocals ∪ mparams)), k ↦ᵣ y)%I
     with "[Hmlocals Hparams]" as "Hlocalsparams".
-    { admit. }
+    { rewrite registers_map_core_union.
+      rewrite <- big_sepM_register_map_core.
+      iApply big_sepM_union;auto.
+      iFrame. }
     (* iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|]. *)
     iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
-    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
-      admit. }
-      (* apply map_disjoint_insert_l_2;[|apply map_disjoint_union_r_2];auto. apply lookup_union_None in Hnone as [? ?];auto. } *)
+    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap i|]).
+      apply map_disjoint_insert_l_2. rewrite registers_map_core_union.
+      subst rmap_full.
+      rewrite registers_map_core_union in Hnone.
+      epose proof (lookup_union_None rmap) ; apply H in Hnone as [? ?];auto.
+      rewrite registers_map_core_union; apply map_disjoint_union_r_2;auto. }
+
     (* we assert the register state has the needed domain *)
-    assert (dom (<[r_t1:=WCap RWX b_l e_l e_l]> (<[r_t6:=WCap RWX b_l e_l e_l]> (<[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]>
-            (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r1:=wadv]> rmap)))))) ∪ (mlocals ∪ mparams)) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq'.
-    { rewrite dom_union_L 6!dom_insert_L.
-      assert ({[r_t1]} ∪ ({[r_t6]} ∪ ({[r_t2]} ∪ ({[r_t3]} ∪ ({[r_t4]} ∪ ({[r_t5]}
-             ∪ dom (<[r1:=wadv]> rmap)))))) = dom (<[r1:=wadv]> rmap)) as ->.
+    assert (dom (<[(i, r_t1):=WCap RWX b_l e_l e_l]>
+                   (<[(i, r_t10):=WCap RWX b_l e_l e_l]>
+                      (<[(i, r_t2):=WInt 0%Z]>
+                         (<[(i, r_t3):=WInt 0%Z]>
+                            (<[(i, r_t4):=WInt 0%Z]>
+                               (<[(i, r_t5):=WInt 0%Z]>
+                                  (<[(i, r_t6):=WInt 0%Z]>
+                                     (<[(i, r_t7):=WInt 0%Z]>
+                                        (<[(i, r_t8):=WInt 0%Z]>
+                                           (<[(i, r_t9):=WInt 0%Z]>
+                                              (<[(i, r1):=wadv]> rmap)))))))))) ∪
+                     registers_map_core i (mlocals ∪ mparams)) =
+              all_registers_s_core i ∖ {[(i, PC); (i, r_t0)]}) as Hdomeq'.
+    { rewrite dom_union_L 10!dom_insert_L.
+      assert ( {[(i, r_t1)]} ∪ ({[(i, r_t10)]} ∪ ({[(i, r_t2)]} ∪ ({[(i, r_t3)]} ∪ ({[(i, r_t4)]} ∪ ({[(i, r_t5)]} ∪ ({[(i, r_t6)]} ∪ ({[(i, r_t7)]} ∪ ({[(i, r_t8)]} ∪ ({[(i, r_t9)]} ∪ dom (<[(i, r1) :=wadv]> rmap))))))))))
+                       = dom (<[(i, r1):=wadv]> rmap)) as ->.
       { clear -Hsub. rewrite dom_insert_L. set_solver. }
       rewrite -dom_union_L -insert_union_l. auto. }
 
@@ -550,11 +628,14 @@ Admitted.
     iDestruct "Hcont5" as %(Hcont5 & Hcont6 & Heqapp3 & Hlink3).
 
     (* apply malloc spec *)
-    iApply (malloc_spec _ 7 with "[- $HPC $Hnainv $Hna $Hb $Ha_entry $Hmalloc $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont5|clear;lia|].
+    iApply (malloc_spec i _ 7 with
+             "[- $HPC $Hinv $Hb $Ha_entry $Hmalloc $Hr_t0 $Hgenlocalsparams]")
+    ;auto
+    ;[|apply Hcont5|clear;lia|].
     { eapply isCorrectPC_range_restrict;eauto.
       assert (link2 + 1 = Some f)%a as Hnext;[iContiguous_next Hcont4 0|].
       apply contiguous_between_bounds in Hcont6. clear -Hnext Hcont6. solve_addr. }
-    iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hna & Hgenlocalsparams)".
+    iNext. iIntros "(HPC & Hmalloc & Hb & Ha_entry & Hregion & Hr_t0 & Hgenlocalsparams)".
     iDestruct "Hregion" as (b_l' e_l' Hact_size) "(Hr_t1 & Hbl')". iCombine "Hmalloc" "Hprog_done" as "Hprog_done".
 
     (* prepare for the rest of the program: new correct PC range, get length of rest2, and assert its first element is link2 *)
@@ -662,20 +743,23 @@ Admitted.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 10|iContiguous_next Hcontbl' 4|auto..].
     iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* store r_t0 r_t6 *)
-    (* first we must get r_t6 *)
-    rewrite (insert_commute _ _ r_t6)// -(insert_union_l _ _ r_t6) delete_insert_ne// !(insert_commute _ _ r_t6)//.
-    iDestruct (big_sepM_delete with "Hgenlocalsparams") as "[Hr_t6 Hgenlocalsparams]";[apply lookup_insert|].
+    (* store r_t0 r_t10 *)
+    (* first we must get r_t10 *)
+    rewrite (insert_commute _ _ (i, r_t10)); last (simplify_pair_eq).
+    rewrite -(insert_union_l _ _ (i, r_t10)).
+    rewrite delete_insert_ne; last simplify_pair_eq.
+    repeat (rewrite (insert_commute _ _ (i, r_t10)) ; last simplify_pair_eq).
+    iDestruct (big_sepM_delete with "Hgenlocalsparams") as "[Hr_t10 Hgenlocalsparams]";[apply lookup_insert|].
     (* next we get the next memory of the activation *)
     destruct l;[inversion Hlength_l|].
     iDestruct (region_mapsto_cons with "Hbl'") as "[Ha6 Hbl']";[iContiguous_next Hcontbl' 5|iContiguous_le Hcontbl' 6|].
     (* and we store *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
-    iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t6 $Hr_t0 $Ha6]");
+    iApply (wp_store_success_reg with "[$HPC $Hi $Hr_t10 $Hr_t0 $Ha6]");
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 11|..]; auto.
     { apply Hwbbl'. repeat constructor. }
-    iEpilogue "(HPC & Hi & Hr_t6 & Hr_t0 & Ha6)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+    iEpilogue "(HPC & Hi & Hr_t10 & Hr_t0 & Ha6)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* lea r_t0 1 *)
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
@@ -792,26 +876,66 @@ Admitted.
     (* rclear all_registers \ { PC; r_t0; r1 } \ params *)
 
     (* rebuild register map *)
-    (* we begin by clearning up the current register map *)
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
-    rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne//.
+    (* we begin by cleaning up the current register map *)
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t10]") as
+      "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert
+                                                insert_insert].
+
+    rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne.
+    all: try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end).
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert].
-    rewrite !(insert_commute _ _ r_t2)// insert_insert. rewrite !(insert_commute _ _ r_t3)// insert_insert.
-    rewrite !(insert_commute _ _ r_t4)// insert_insert. rewrite !(insert_commute _ _ r_t5)// insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t2))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t3))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t4))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t5))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t6))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t7))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t8))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
+    rewrite !(insert_commute _ _ (i, r_t9))
+    ; try (match goal with | h: _ |- _ <> _ => simplify_pair_eq end)
+    ; rewrite insert_insert.
     rewrite !insert_union_l.
     (* next we separate the params from the map, since we do not want to clear it *)
     iDestruct (big_sepM_union with "Hgenlocalsparams") as "[Hgen Hlocalsparams]".
-    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
-      apply map_disjoint_insert_l_2;[|apply map_disjoint_union_r_2];auto. apply lookup_union_None in Hnone as [? ?];auto. }
+    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap i|]);
+      apply map_disjoint_insert_l_2 ;[|rewrite registers_map_core_union
+                                       ; apply map_disjoint_union_r_2];auto.
+      epose proof (lookup_union_None _) ; apply H in Hnone as [? ?];auto. }
+    rewrite registers_map_core_union.
     iDestruct (big_sepM_union with "Hlocalsparams") as "[Hlocals Hparams]";[auto|].
     iDestruct (big_sepM_union with "[$Hgen $Hlocals]") as "Hgenlocals".
-    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
-      apply map_disjoint_insert_l_2;auto. do 2 (apply lookup_union_None in Hnone as [? Hnone]). auto. }
-    repeat (rewrite (insert_commute _ _ r1);[|apply Hneregs;constructor]). rewrite -insert_union_l.
+    { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap i|]).
+      apply map_disjoint_insert_l_2;auto.
+      epose proof (lookup_union_None _)
+      ;apply H in Hnone as [? Hnone]; clear H.
+      rewrite registers_map_core_union in Hnone.
+      epose proof (lookup_union_None _)
+      ;apply H in Hnone as [? Hnone]; clear H. auto. }
+    repeat (rewrite (insert_commute _ _ (i, r1));[|apply Hneregs;set_solver+]). rewrite -insert_union_l.
     iDestruct (big_sepM_delete with "Hgenlocals") as "[Hradv Hgenlocals]"; [apply lookup_insert|].
     rewrite delete_insert.
-    2: { rewrite - !insert_union_l. repeat (rewrite lookup_insert_ne;[|apply Hneregs;constructor]).
-         do 2 apply lookup_union_None in Hnone as [? Hnone]. apply lookup_union_None. split; auto. }
+    2: { rewrite - !insert_union_l.
+         repeat (rewrite lookup_insert_ne;[|apply Hneregs;set_solver+]).
+         epose proof (lookup_union_None _)
+         ;apply H in Hnone as [? Hnone]; clear H.
+         rewrite registers_map_core_union in Hnone.
+         epose proof (lookup_union_None _)
+         ;apply H in Hnone as [? Hnone]; clear H.
+         apply lookup_union_None. split ;auto. }
 
     (* prepare the program memory *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -828,33 +952,66 @@ Admitted.
       intros Hcontr;inversion Hcontr.
       apply all_registers_NoDup. apply all_registers_correct.
       apply not_elem_of_app. split.
-      - repeat (apply not_elem_of_cons;split;[auto|]);[|apply not_elem_of_nil]. apply Hneregs. constructor.
+      - do 2 (apply not_elem_of_cons;split;[auto|]).
+        apply not_elem_of_cons;split;[|apply not_elem_of_nil].
+        assert (Htmp : forall r, (i, r) ≠ (i, r1) -> r <> r1).
+        { clear. intros. intro. subst. contradiction. }
+        apply Htmp; apply Hneregs.
+        set_solver +.
       - intros Hcontr%map_to_list_fst. destruct Hcontr as [x Hx].
-        apply elem_of_map_to_list in Hx. apply map_disjoint_Some_r with (m1:=rmap) in Hx;auto.
-        apply elem_of_gmap_dom_none in Hx. apply Hx. apply Hsub. constructor.
+        apply elem_of_map_to_list in Hx.
+        assert (Hy: (registers_map_core i mparams) !! (i, r_t1) = Some x).
+        { rewrite lookup_kmap_Some. eexists;eauto. }
+        apply map_disjoint_Some_r with (m1:=rmap) in Hy;auto.
+        apply elem_of_gmap_dom_none in Hy. apply Hy. apply Hsub. set_solver +.
     }
     apply contiguous_between_cons_inv_first in Hcont7 as Heq. subst f24.
 
     (* a useful assumption about the current register state to clear *)
     assert (dom rmap' =
-            {[r_t5; r_t4; r_t3; r_t2; r_t1; r_t6]} ∪ (dom mlocals ∪ dom rmap' ∖ dom mlocals))
+            {[(i, r_t9); (i, r_t8); (i, r_t7); (i, r_t6); (i, r_t5); (i, r_t4); (i, r_t3); (i, r_t2); (i, r_t1); (i, r_t10)]}
+              ∪ (dom (registers_map_core i mlocals) ∪ dom rmap' ∖ dom (registers_map_core i mlocals)))
       as Hrmap'eq.
     { rewrite Hdom2. rewrite Hdom1 in Hsub. clear -Hsub Hdisj1 Hdisj5. rewrite -union_difference_L.
-      assert ({[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆ all_registers_s ∖ {[PC; r_t0; r1]} ∖ dom mparams) as Hsub'.
-      { etrans;[eauto|]. apply subseteq_difference_l. auto. }
+      assert ({[(i, r_t1); (i, r_t2); (i, r_t3); (i, r_t4); (i, r_t5); (i, r_t6); (i, r_t7); (i, r_t8); (i, r_t9); (i, r_t10)]}
+                ⊆ all_registers_s_core i ∖ {[(i, PC); (i, r_t0); (i, r1)]} ∖
+                registers_s_core i (dom mparams)) as Hsub'.
+      (* { etrans;[eauto|]. apply subseteq_difference_l. auto. } *)
+      { clear -Hsub.
+        unfold registers_s_core in Hsub.
+        match goal with
+          | h: _ |- ?s ⊆ _ => set (rmap := s)
+        end.
+        assert ( @set_map _ _ (@gset_elements RegName _ _) _ _ gset_singleton _ _
+           (λ r : RegName, (i, r))
+           {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6; r_t7; r_t8; r_t9; r_t10]}
+                 = rmap
+          ) as <- by set_solver+.
+        etrans;[eauto|].
+        set_solver. }
       apply subseteq_union_L in Hsub'.
-      assert ({[r_t5; r_t4; r_t3; r_t2; r_t1; r_t6]} = {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]}) as ->;[clear;set_solver|rewrite Hsub';auto].
-      apply subseteq_difference_r. apply map_disjoint_dom;auto.
-      apply subseteq_difference_r;[|apply all_registers_subseteq].
-      apply elem_of_disjoint. intros x Hin Heq. destruct Hdisj5 as [? [? ?] ].
-      repeat (apply elem_of_union in Heq as [Heq | Heq];[try apply elem_of_singleton_1 in Heq|apply elem_of_singleton_1 in Heq];subst;try done).
+      assert ({[(i, r_t9); (i, r_t8); (i, r_t7); (i, r_t6); (i, r_t5); (i, r_t4); (i, r_t3);
+                (i, r_t2); (i, r_t1); (i, r_t10)]}
+              = {[(i, r_t1); (i, r_t2); (i, r_t3); (i, r_t4); (i, r_t5)
+                  ; (i, r_t6); (i, r_t7); (i, r_t8); (i, r_t9); (i, r_t10)]})
+        as ->
+      ;[clear;set_solver|].
+      assert ( registers_s_core i {[PC; r_t0; r1]} =
+                 {[(i, PC); (i, r_t0); (i, r1)]} ) as ->
+      ;[clear;set_solver|].
+      rewrite Hsub';auto.
+      rewrite dom_kmap_L.
+      apply subseteq_difference_r.
+      { clear -Hdisj1.
+        apply map_disjoint_dom in Hdisj1 ; set_solver. }
+      apply subseteq_difference_r.
+      { clear -Hdisj5; set_solver. }
+      clear; set_solver.
     }
 
     (* rclear *)
     set instrs := (list_difference all_registers ([PC; r_t0; r1] ++ (map_to_list mparams).*1)).
-    iApply (rclear_spec _ instrs with "[-]");[apply Hcont7|..];last (iFrame "Hgenlocals HPC").
-
-
+    iApply (rclear_spec i _ instrs with "[-]");[apply Hcont7|..];last (iFrame "Hgenlocals HPC").
     { apply not_elem_of_list. constructor. }
     { auto. }
     { eapply isCorrectPC_range_restrict;[apply Hvpc|].
@@ -868,7 +1025,16 @@ Admitted.
       rewrite -/all_registers_s. rewrite -difference_difference_L.
       rewrite - !insert_union_l !dom_insert_L. rewrite !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1.
       assert (list_to_set (map_to_list mparams).*1 = dom mparams) as ->;[apply list_to_set_map_to_list|].
-      rewrite -Hdom2. apply Hrmap'eq.
+      rewrite -Hdom2.
+      assert (Hdom2': dom rmap' = set_map (λ r' : RegName, (i, r')) (all_registers_s ∖ {[PC; r_t0; r1]} ∖ dom mparams)).
+      { rewrite Hdom2. set_solver+. }
+      assert (Hdom_reg:
+               dom (registers_map_core i mlocals)
+               = registers_s_core i (dom mlocals)).
+      { by rewrite dom_kmap_L. }
+      rewrite -Hdom_reg.
+      rewrite -Hdom2'.
+      apply Hrmap'eq.
     }
 
     iSplitL "Hrclear". iNext. rewrite /rclear. iExact "Hrclear".
@@ -893,6 +1059,7 @@ Admitted.
     iEpilogue "(HPC & Hi & Hradv)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* continuation *)
+    (* FIXME : why can't I apply Hcont here ?? *)
     iApply "Hcont".
     iExists b_l',e_l',b_l,e_l,a_end.
     iSplitR.

@@ -692,7 +692,7 @@ Section macros.
       ([∗ list] k↦a_i;w_i ∈ a;(rclear_instrs r), a_i ↦ₐ w_i)%I.
 
   Lemma rclear_spec (i : CoreN) (a : list Addr) (r: list RegName)
-    (rmap : gmap (CoreN*RegName) Word) p b e a1 an φ :
+    (rmap : gmap (CoreN*RegName) Word) p b e a1 an E φ :
     contiguous_between a a1 an →
     ¬ PC ∈ r → hd_error a = Some a1 →
     isCorrectPC_range p b e a1 an →
@@ -706,8 +706,8 @@ Section macros.
     ∗ ▷ ((i, PC) ↦ᵣ WCap p b e an
          ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ WInt 0%Z)
          ∗ rclear a r
-         -∗ WP (i, Seq (Instr Executable)) {{ φ }})
-    ⊢  WP (i, Seq (Instr Executable)) {{ φ }}.
+         -∗ WP (i, Seq (Instr Executable)) @E {{ φ }})
+    ⊢  WP (i, Seq (Instr Executable)) @E {{ φ }}.
   Proof.
     iIntros (Ha Hne Hhd Hvpc Hrdom) "(>Hreg & >HPC & >Hrclear & Hφ)".
     iDestruct (big_sepL2_length with "Hrclear") as %Har.
