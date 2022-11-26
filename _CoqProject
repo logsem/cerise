@@ -102,7 +102,7 @@ theories/examples/template_adequacy_concurrency.v
 theories/examples/template_adequacy_concurrency_ocpl.v
 # theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
-# theories/examples/call.v
+theories/examples/call.v
 # theories/examples/counter.v
 # theories/examples/counter_preamble.v
 # theories/examples/counter_adequacy.v

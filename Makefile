@@ -8,15 +8,10 @@ COQDOCFLAGS:= \
 export COQDOCFLAGS
 
 CI_EXAMPLES:="\
-  theories/examples/buffer.vo \
-  theories/examples/minimal_counter.vo \
-  theories/examples/counter_adequacy.vo \
-  theories/examples/adder_adequacy.vo \
-  theories/examples/counter_binary.vo \
-  theories/examples/counter_binary_preamble.vo \
-  theories/examples/lse.vo \
-	theories/examples/dynamic_sealing.vo \
-	theories/examples/ocpl_lowval_like.vo"
+	theories/examples/buffer.vo \
+	theories/examples/shared_buffer.vo \
+	theories/examples/buffer_isolation.vo \
+	theories/examples/concurrent_alloc.vo"
 
 .PHONY: all coq clean html skip-qed ci
 all: coq

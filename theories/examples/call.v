@@ -359,8 +359,8 @@ Lemma call_spec (i : CoreN)
             ∗ (i, r_t0) ↦ᵣ WCap E b_c e_c b_c
             ∗ [[b_c,e_c]]↦ₐ[[ [WInt hw_1;WInt hw_2;WInt hw_3;WInt hw_4;WInt hw_5;WCap RWX b_l e_l e_l;WCap p b e a_end] ]]
             ∗ [[b_l,e_l]]↦ₐ[[ (map_to_list mlocals).*2 ]]
-            ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
-            -∗ WP (i, Seq (Instr Executable)) @EN {{ λ v, φ v }}))
+            ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1)
+            -∗ WP (i, Seq (Instr Executable)) @EN {{ λ v, φ v }})%I
     ⊢ WP (i, Seq (Instr Executable)) @EN {{ λ v, φ v ∨ ⌜v = (i, FailedV)⌝ }})%I.
   Proof.
     iIntros (Hvpc Hcont Hwb Hlink Hnz Hdom1 Hdom2 Hsub Hnainv)
@@ -874,7 +874,6 @@ Lemma call_spec (i : CoreN)
 
 
     (* rclear all_registers \ { PC; r_t0; r1 } \ params *)
-
     (* rebuild register map *)
     (* we begin by cleaning up the current register map *)
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t10]") as
@@ -976,7 +975,6 @@ Lemma call_spec (i : CoreN)
       assert ({[(i, r_t1); (i, r_t2); (i, r_t3); (i, r_t4); (i, r_t5); (i, r_t6); (i, r_t7); (i, r_t8); (i, r_t9); (i, r_t10)]}
                 ⊆ all_registers_s_core i ∖ {[(i, PC); (i, r_t0); (i, r1)]} ∖
                 registers_s_core i (dom mparams)) as Hsub'.
-      (* { etrans;[eauto|]. apply subseteq_difference_l. auto. } *)
       { clear -Hsub.
         unfold registers_s_core in Hsub.
         match goal with
@@ -1059,18 +1057,30 @@ Lemma call_spec (i : CoreN)
     iEpilogue "(HPC & Hi & Hradv)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* continuation *)
-    (* FIXME : why can't I apply Hcont here ?? *)
     iApply "Hcont".
     iExists b_l',e_l',b_l,e_l,a_end.
     iSplitR.
     { iPureIntro. revert Hlea Hlea'. clear.
       rewrite /offset_to_cont_call. set (l := strings.length (rclear_instrs (list_difference all_registers (map_to_list mparams).*1))).
       generalize l. clear. solve_addr. }
-    iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna".
+    rewrite big_sepM_register_map_core.
+    iFrame "HPC Hradv Hr_t0 Hbl Hb Ha_entry Hparams".
     iSplitL "Hgenlocals".
     { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals").
       rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1.
-      rewrite -Hdom2. rewrite Hrmap'eq. clear. set_solver. }
+      rewrite -Hdom2. rewrite Hrmap'eq.
+      set (rmap0 := {[(i, r_t9); (i, r_t8); (i, r_t7); (i, r_t6); (i, r_t5); (i, r_t4); (i, r_t3);
+                     (i, r_t2); (i, r_t1); (i, r_t10)]}).
+      replace (registers_s_core i (dom mlocals))
+         with (dom (registers_map_core i mlocals))
+         by (by rewrite dom_kmap_L).
+      set (m := dom (registers_map_core i mlocals)).
+      apply union_mono_l.
+      set (m' :=  m ∪ dom rmap' ∖ m ).
+      clear.
+      rewrite -(union_difference_L m _).
+      set_solver. set_solver+.
+      }
     iSplitL "Ha1 Ha2 Ha3 Ha4 Ha5 Ha6 Ha7".
     { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }
     rewrite Heqapp1 Heqapp2 Heqapp3 Heqapp4.
