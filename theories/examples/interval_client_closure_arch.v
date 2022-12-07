@@ -95,7 +95,7 @@ Section interval_client.
   Definition actN : namespace := clientN .@ "actN".
 
   Definition mallocN : namespace := nroot .@ "mallocN".
-  Definition sallocN : namespace := nroot .@ "mallocN".
+  Definition sallocN : namespace := nroot .@ "sallocN".
   Definition assertN : namespace := nroot .@ "assertN".
 
   Definition int_bounds i_b i_e i_a_first f_m_i f_s_i i_first s_b s_e s_first offset_to_interval :=
