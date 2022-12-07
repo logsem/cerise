@@ -496,7 +496,7 @@ Section int_client_adequacy.
     rewrite (addr_incr_eq Hmidd'). iSimpl in "Hroe_table".
     iDestruct (big_sepM_insert with "Hroe_table") as "[Hlink_table_mid Htable]".
     { rewrite lookup_insert_ne//. 2: solve_addr +Hmidd.
-      rewrite lookup_insert_ne//. solve_addr + Hmidd Hmidd'.}
+      rewrite lookup_insert_ne//. solve_addr + Hmidd Hmidd'. }
     iDestruct (big_sepM_insert with "Htable") as "[Hlink_table_mid' Htable]".
     { rewrite lookup_insert_ne//. solve_addr +Hmidd'. }
     iDestruct (big_sepM_insert with "Htable") as "[Hlink_table_mid'' _]";auto.
@@ -822,9 +822,7 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  Search gFunctors.
-  pose proof (template_adequacy gFunctors.nil (* The extra resource needed by seal library *)
-                                int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
+  pose proof (template_adequacy gFunctors.nil int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
   { apply flag_inv_sub. }
