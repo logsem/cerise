@@ -7,7 +7,7 @@ From cap_machine.examples Require Import macros macros_helpers malloc counter.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

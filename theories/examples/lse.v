@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
 
 Section roe.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

@@ -140,7 +140,7 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   (* the adversarial region in memory must only contain instructions, no
      capabilities (it can thus only access capabilities the awkward preamble
      passes it through the registers) *)
-  Forall (λ w, is_cap w = false) adv_val
+  Forall (λ w, is_z w = true) adv_val
   ∧
   (adv_start + (length adv_val + 1)%nat)%a = Some adv_end.
 
@@ -148,7 +148,7 @@ Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
   reg !! PC = Some (WCap RX counter_region_start counter_region_end counter_preamble_start) ∧
   reg !! r_t0 = Some (WCap RWX adv_start adv_end adv_start) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_t0 ]} : gset RegName) →
-    ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
+    ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
 
 Lemma initial_registers_full_map `{MachineParameters, memory_layout} reg :
   is_initial_registers reg →
@@ -165,6 +165,7 @@ Section Adequacy.
   Context {inv_preg: invGpreS Σ}.
   Context {mem_preg: gen_heapGpreS Addr Word Σ}.
   Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -187,6 +188,7 @@ Section Adequacy.
     destruct Hm as (adv_val & Hm & Hadv_val & adv_size).
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)".
+    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
     pose memg := MemG Σ Hinv mem_heapg.
@@ -194,14 +196,14 @@ Section Adequacy.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
     
     pose proof (
-      @counter_preamble_spec Σ memg regg logrel_na_invs
+      @counter_preamble_spec Σ memg regg seal_storeg logrel_na_invs
     ) as Spec.
 
     (* Extract points-to for the various regions in memory *)
 
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
     (* iDestruct (big_sepM_union with "Hmem") as "[Hmem Hfail_flag]". *)
     (* { disjoint_map_to_list. set_solver +Hdisj_fail_flag. } *)
     (* iDestruct (big_sepM_insert with "Hfail_flag") as "[Hfail_flag _]". *)
@@ -209,37 +211,37 @@ Section Adequacy.
     (* rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_link_table & Hdisjoint). *)
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
     { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_flag & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert_flag & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_flag]".
     { disjoint_map_to_list. set_solver +Hdisj_assert_flag. }
     iDestruct (big_sepM_insert with "Hassert_flag") as "[Hassert_flag _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert_cap & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert_cap & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert_cap]".
     { disjoint_map_to_list. set_solver +Hdisj_assert_cap. }
     iDestruct (big_sepM_insert with "Hassert_cap") as "[Hassert_cap _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_assert & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_assert & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hassert]".
     { disjoint_map_to_list. set_solver +Hdisj_assert. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_mem & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_memptr & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
     iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
       by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_malloc_code & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
     { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_body & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
     { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_counter_preamble & _).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
     iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
     { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
     iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
@@ -311,7 +313,7 @@ Section Adequacy.
       - iApply (big_sepL2_mono with "Hadv").
         intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
         pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
-        destruct v2; [| by inversion Hncap].
+        destruct v2; [| by inversion Hncap..].
         rewrite fixpoint_interp1_eq /=. done.
       - destruct malloc_word;[inversion Hlen1|]. destruct malloc_word;[|inversion Hlen1].
         iDestruct "Hmalloc" as "[Hmalloc _]". iFrame "∗ #". done. 
@@ -390,7 +392,7 @@ Section Adequacy.
 
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
-        destruct rw; [| by inversion Hncap]. simplify_map_eq.
+        destruct rw; [| by inversion Hncap..]. simplify_map_eq.
         by rewrite !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
@@ -404,6 +406,7 @@ Section Adequacy.
     iInv flagN as ">Hflag" "Hclose".
     iDestruct (gen_heap_valid with "Hmem' Hflag") as %Hm'_flag.
     iModIntro. iPureIntro. apply Hm'_flag.
+    Unshelve.
   Qed.
 
 End Adequacy.
@@ -415,7 +418,7 @@ Theorem counter_adequacy `{MachineParameters} `{memory_layout}
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   m' !! assert_flag = Some (WInt 0%Z).
 Proof.
-  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word; sealStorePreΣ;
               na_invΣ]).
   eapply (@counter_adequacy' Σ); typeclasses eauto.
 Qed.

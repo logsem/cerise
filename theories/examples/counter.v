@@ -4,7 +4,7 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
 Section counter.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -43,7 +43,7 @@ Section counter.
   Definition pos_word (w : Word) : iProp Σ :=
     (match w with
     | WInt z => ⌜(0 ≤ z)%Z⌝
-    | WCap _ _ _ _ => False
+    | _ => False
     end)%I.
   Definition counter_inv d : iProp Σ :=
     (∃ w, d ↦ₐ w ∗ pos_word w)%I.
@@ -121,7 +121,7 @@ Section counter.
     { iNext. iExists w. iFrame "∗ #". }
     iModIntro. iApply wp_pure_step_later;auto;iNext.
     (* add r_t1 r_t1 1 *)
-    destruct w;[|done].
+    destruct w;[|done..].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|eauto|iContiguous_next Hcont 1|iCorrectPC a_first a_last|].
@@ -276,7 +276,7 @@ Section counter.
     iModIntro. iApply wp_pure_step_later;auto;iNext.
     (* Lt r_t4 r_ret 0 *)
     let a := fresh "a" in destruct read_addrs as [|a read_addrs];[inversion Hprog_length|].
-    destruct w;[|done].
+    destruct w;[|done..].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr_t4 $Hr_ret]");
       [apply decode_encode_instrW_inv|eauto|iContiguous_next Hcont 1|iCorrectPC a_first a_last|].

@@ -153,10 +153,10 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory P Adv (library layout) P_tbl Adv_tbl m →
   is_initial_registers P Adv (library layout) P_tbl Adv_tbl reg r_adv →
-  Forall (λ w, is_cap w = false) (prog_instrs Adv) →
+  Forall (λ w, is_z w = true) (prog_instrs Adv) →
 
   let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
-  (∀ `{memG Σ', regG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
+  (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
@@ -164,7 +164,7 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
         ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
-        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
         (* P program and table *)
         ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
         ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
@@ -179,10 +179,8 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   minv (flag_inv layout) m'.
 Proof.
-  set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
-              na_invΣ; Σ]).
   intros ? ? ? ? Hspec.
-  eapply (template_adequacy_no_seals Σ');[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
+  eapply (template_adequacy_no_seals Σ);[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
     try typeclasses eauto.
   eapply flag_inv_is_initial_memory;eauto.
   eapply flag_inv_sub;eauto.
@@ -198,12 +196,12 @@ Proof.
     rewrite /malloc_library_content.
     iDestruct (big_sepM_union with "Hmalloc") as "[Hpubs Hinit]".
     { pose proof (libs_disjoint layout) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
-      disjoint_map_to_list. set_solver. }
+      rewrite !disjoint_list_cons in Hdisjoint |- *.
+      disjoint_map_to_list. set_solver + Hdisjoint. }
     iDestruct (big_sepM_union with "Hpubs") as "[Hpubs Hmid]".
     { pose proof (libs_disjoint layout) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?).
-      disjoint_map_to_list. set_solver. }
+      rewrite !disjoint_list_cons in Hdisjoint |- *.
+      disjoint_map_to_list. set_solver + Hdisjoint. }
     pose proof (malloc_code_size layout) as Hmalloc_size.
     pose proof (malloc_memptr_size layout) as Hmalloc_memptr_size.
     pose proof (malloc_mem_size layout) as Hmalloc_mem_size.
@@ -248,7 +246,7 @@ Proof.
     iFrame "Hassert". iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]". done.
     iFrame "Hcap". iPureIntro. repeat split; solve_addr. }
 
-  iApply Hspec;[..|iFrame "∗ #"];auto. solve_inG.
+  iApply Hspec; [exact|..|iFrame "∗ #"];auto.
 Qed.
 
 End ocpl.

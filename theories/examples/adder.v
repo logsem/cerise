@@ -4,7 +4,7 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
 Section adder.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -196,15 +196,16 @@ Section adder.
     (* lt r_t3 r_t2 0 *)
     destruct af' as [| ? af'];[inversion Hlength|].
     iPrologue "Hprog".
-    destruct w2 as [z2|c2]; cycle 1.
+    destruct (is_z w2) eqn:Hisz; cycle 1.
     { (* Failure case: the argument is not an integer *)
       iDestruct (map_of_regs_3 with "HPC Hr3 Hr2") as "[Hmap %]".
       iApply (wp_AddSubLt with "[$Hi $Hmap]"); rewrite ?decode_encode_instrW_inv; eauto.
       { iCorrectPC f_start f_end. }
       { erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. }
       iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-      destruct Hspec as [| * _]; [by exfalso; incrementPC_inv|].
+      destruct Hspec as [| * _]; [ destruct w2; by inversion Hisz|].
       iApply wp_pure_step_later; auto; iNext. iApply wp_value. auto. }
+    destruct w2 as [z2|  |  ] ;try by inversion Hisz.
     iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr3 $Hr2]");
       [apply decode_encode_instrW_inv|done|iContiguous_next Hcont 2|iCorrectPC f_start f_end|..].
     iEpilogue "(HPC & Hi & Hr2 & Hr3)". iCombine "Hi" "Hprog_done" as "Hprog_done".

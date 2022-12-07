@@ -70,7 +70,7 @@ Section call.
   Proof.
     iIntros (Hvpc Hcont Hsize Hnz Hwa Hwb Hperm Hlength) "(>Hprog & >HPC& >Hr_t1& >Hlocals& >Hbl& Hcont)".
     iInduction (locals) as [|r locals] "IH" forall (a_l mlocals wsr a a_first Hvpc Hcont Hnz Hsize Hwb Hperm Hlength).
-    { apply Permutation.Permutation_nil_r in Hperm. inversion Hnz. }
+    { inversion Hnz. }
     destruct locals as [|r' locals].
     - destruct wsr;[inversion Hlength|]. destruct wsr;[|inversion Hlength].
       apply Permutation_sym, Permutation_singleton_r in Hperm.
@@ -387,7 +387,7 @@ Section call.
         (malloc_prog rest1 link1) "(Hmalloc_prog & Hprog & #Hcont1)";[apply Hcont|].
     iDestruct "Hcont1" as %(Hcont1 & Hcont2 & Heqapp1 & Hlink1).
     rewrite -/(malloc _ _ _).
-    iApply (wp_wand_l _ _ _ (λne v, ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
+    iApply (wp_wand_l _ _ _ (λne (v : discreteO val), ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
     { iIntros (v) "[H|H] /=";auto. }
     iApply (malloc_spec with "[- $HPC $Hnainv $Hown $Hb $Ha_entry $Hmalloc_prog $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont1|..].
     { eapply isCorrectPC_range_restrict;eauto. split;[clear;solve_addr|]. apply contiguous_between_bounds in Hcont2. auto. }
