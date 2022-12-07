@@ -129,7 +129,7 @@ Lemma flag_inv_sub `{MachineParameters} (layout : ocpl_library) :
   minv_dom (flag_inv layout) ⊆ dom (gset Addr) (lib_region (priv_libs (library layout))).
 Proof.
   cbn. rewrite map_union_empty.
-  intros ? Hinit. rewrite elem_of_singleton in Hinit |- * => ->.
+  intros ? Hinit. rewrite elem_of_singleton in Hinit.
   rewrite /assert_library_content.
   pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
   pose proof (assert_flag_size layout).
@@ -182,7 +182,7 @@ Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; Σ]).
   intros ? ? ? ? Hspec.
-  eapply (template_adequacy Σ');[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
+  eapply (template_adequacy_no_seals Σ');[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
     try typeclasses eauto.
   eapply flag_inv_is_initial_memory;eauto.
   eapply flag_inv_sub;eauto.
