@@ -685,7 +685,7 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
+  pose proof (template_adequacy_no_seals (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
                                 int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
