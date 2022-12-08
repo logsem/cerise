@@ -156,7 +156,7 @@ Section cap_lang_rules.
        iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
-     (* Now, the case where wsrc is a capability *)
+     (* Now, the case where wsrc is a sealrange *)
      + destruct (SealPermFlowsTo (decodeSealPerms wsrc) p) eqn:Hflows; cycle 1.
        { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Restrict_fail_invalid_perm_sr. }
        rewrite /update_reg /= in Hstep.

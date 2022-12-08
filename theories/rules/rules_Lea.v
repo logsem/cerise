@@ -165,7 +165,7 @@ Section cap_lang_rules.
        iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
        iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro.
        eapply Lea_spec_success_cap; eauto.
-    (* Now, the case where r1v is a capability *)
+    (* Now, the case where r1v is a sealrange *)
      + destruct (a + argz)%ot as [ a' |] eqn:Hoffset; cycle 1.
        { (* Failure: offset is too large *)
          assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)

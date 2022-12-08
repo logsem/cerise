@@ -399,7 +399,7 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x |];auto.
+    unfold equiv. unfold Reflexive. intros [ x | |];auto.
   Qed.
   Lemma regspec_heap_valid_allSepM e σ σ' q :
       (forall l, is_Some (σ' !! l)) →
@@ -417,7 +417,7 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x |];auto.
+    unfold equiv. unfold Reflexive. intros [ x | |];auto.
   Qed.
 
   Lemma memspec_v_implies_m_v:

@@ -131,7 +131,6 @@ theories/examples/buffer.v
 theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v
 theories/examples/macros_binary.v
-theories/examples/list_new.v
 theories/examples/malloc_binary.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble.v
