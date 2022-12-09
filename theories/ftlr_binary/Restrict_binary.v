@@ -24,9 +24,17 @@ Section fundamental.
   Proof.
     intros Hspec1 Hspec2.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; split; auto; try congruence.
-    - inv H6; try congruence.
-    - inv H6; try congruence.
-    - inv H0; try congruence.
+    all: match goal with
+      | H : Restrict_failure _ _ _ |- _ => inv H; try congruence end.
+    (* TODO: make other determinism proofs less brittle in this fashion *)
+    Local Ltac mutable_range_contradiction dst p := match goal with
+      | H : ?r !! dst = _ |- _ =>
+          move H at top;
+          match goal with
+           | H' : r !! dst = _ |- _ =>
+               rewrite H in H'; inv H';
+               destruct p; by exfalso end end.
+    all: try mutable_range_contradiction dst p.
   Qed.
 
   Lemma restrict_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -59,7 +67,7 @@ Section fundamental.
     iDestruct "Hs'" as %HSpec'.
 
     specialize (Restrict_spec_determ _ _ _ _ _ _ _ HSpec HSpec') as [Hregs <-].
-    destruct HSpec; cycle 1.
+    destruct HSpec; cycle 2.
     - iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
       iApply wp_value; auto. iIntros; discriminate.
@@ -103,6 +111,16 @@ Section fundamental.
             rewrite Heqrr in H7.
             by iDestruct ("Hreg" $! r0 _ _ H4 H6 H7) as "Hr0". }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
+  - incrementPC_inv; simplify_map_eq.
+    destruct (reg_eq_dec dst PC).
+    + subst dst. rewrite lookup_insert in H3; inv H3.
+    + rewrite lookup_insert_ne in H3; auto.
+      rewrite lookup_insert in H3; inv H3.
+      assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
+      rewrite Heq lookup_insert_ne in H0'; auto.
+      iDestruct ("Hreg" $! dst _ _ n0 H0 H0') as "Hinvdst".
+      rewrite !fixpoint_interp1_eq. by iSimpl in "Hinvdst".
+      (* FIXME: no longer a contradiction once we extend the binary model*)
   Qed.
 
 End fundamental.

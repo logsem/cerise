@@ -80,6 +80,7 @@ theories/ftlr/UnSeal.v
 theories/fundamental.v
 theories/register_tactics.v
 theories/ftlr_binary/ftlr_base_binary.v
+theories/ftlr_binary/interp_weakening.v
 theories/ftlr_binary/Load_binary.v
 theories/ftlr_binary/Mov_binary.v
 theories/ftlr_binary/AddSubLt_binary.v
@@ -87,7 +88,6 @@ theories/ftlr_binary/Get_binary.v
 theories/ftlr_binary/IsPtr_binary.v
 theories/ftlr_binary/Jmp_binary.v
 theories/ftlr_binary/Jnz_binary.v
-theories/ftlr_binary/interp_weakening.v
 theories/ftlr_binary/Lea_binary.v
 theories/ftlr_binary/Subseg_binary.v
 theories/ftlr_binary/Restrict_binary.v

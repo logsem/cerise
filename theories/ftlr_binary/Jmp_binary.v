@@ -91,7 +91,7 @@ Section fundamental.
       iDestruct ("Hreg" $! dst _ _ ltac:(auto) Hdst1 Hdst2) as "Hinvdst"; auto.
 
       case_eq (isCorrectPCb (updatePcPerm wdst1)); intro HPCb.
-      - destruct wdst1; simpl in HPCb; [congruence|].
+      - destruct wdst1 as [ | [p0 b0 e0 a0 | ] | ]; simpl in HPCb; try congruence.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
           [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
 

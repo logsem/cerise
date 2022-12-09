@@ -28,12 +28,8 @@ Section fundamental.
   Proof.
       intros Hrar H3.
       pose (Hrar' := Hrar).
-      destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
-      * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        subst. auto.
-      * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
+      destruct Hrar' as (Hinr0 & _). rewrite /read_reg_inr Hinr0 in H3. by inversion H3.
   Qed.
-
 
   (* Description of what the resources are supposed to look like after opening the region if we need to, but before closing the region up again*)
   Definition allow_load_res r (regs : Reg) pc_a a p b e (P : D) :=
@@ -240,8 +236,9 @@ Section fundamental.
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].
-      unfold read_reg_inr. destruct wsrc. all: repeat eexists.
-      right. by exists z. by left.
+      unfold read_reg_inr. rewrite Hsomesrc.
+      destruct wsrc as [|[ p0 b0 e0 a0|] | ]; try done.
+      by repeat eexists.
     }
 
     iDestruct (interp_reg_dupl with "[Hreg]") as "[_ #Hreg']";[iSplit;[iPureIntro;apply Hsome|iFrame "Hreg"]|].
@@ -339,10 +336,10 @@ Section fundamental.
         destruct (decide (PC = dst)); simplify_eq.
         - simplify_map_eq. rewrite /interp. rewrite !(fixpoint_interp1_eq). iApply fixpoint_interp1_eq.
           destruct (decide (a = a0)).
-          + subst a. rewrite HReadPC in H1; inversion H1. rewrite lookup_insert in H2; inversion H2.
+          + subst a. rewrite HReadPC in H1; inversion H1.
             destruct o as [-> | ->]; iDestruct "Hw" as "[% Hw]"; iSplit;auto.
           + iClear "HLoadRes Hwrite". rewrite decide_True;auto.
-            rewrite !fixpoint_interp1_eq. rewrite lookup_insert in H2; inversion H2.
+            rewrite !fixpoint_interp1_eq.
             destruct o as [-> | ->]; iDestruct "Hinterp" as "[% Hinterp]"; iSplit;auto.
         - rewrite lookup_insert_ne// lookup_insert in H2; inversion H2.
           iClear "Hw Hinterp Hwrite".
