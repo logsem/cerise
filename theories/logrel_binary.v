@@ -149,7 +149,7 @@ Section logrel.
     | (WCap RX b e a,WCap RX b' e' a') => interp_cap_RX interp w
     | (WCap E b e a,WCap E b' e' a') => interp_cap_E interp w
     | (WCap RWX b e a,WCap RWX b' e' a') => interp_cap_RWX interp w
-    | _ => False
+    | _ => False (* NOTE: `SealRange`s and `Sealed` caps are currently implemented as `False`*)
     end)%I.
   Solve All Obligations with solve_proper.
 
@@ -163,14 +163,14 @@ Section logrel.
     Contractive (interp_cap_RO).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct o,o0;auto. destruct p,p0; auto.
+    repeat (case_match; auto).
     solve_contractive.
   Qed.
   Global Instance interp_cap_RW_contractive :
     Contractive (interp_cap_RW).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct o,o0;auto. destruct p,p0; auto.
+    repeat (case_match; auto).
     solve_contractive.
   Qed.
   Global Instance enter_cond_contractive b e a b' e' a'  :
@@ -182,21 +182,21 @@ Section logrel.
     Contractive (interp_cap_RX).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct o,o0;auto. destruct p,p0; auto.
+    repeat (case_match; auto).
     solve_contractive.
   Qed.
   Global Instance interp_cap_E_contractive :
     Contractive (interp_cap_E).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct o,o0;auto. destruct p,p0; auto.
+    repeat (case_match ; auto).
     solve_contractive.
   Qed.
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
     solve_proper_prepare.
-    destruct x0; auto. destruct o,o0;auto. destruct p,p0; auto.
+    repeat (case_match ; auto).
     solve_contractive.
   Qed.
 
@@ -206,7 +206,9 @@ Section logrel.
   Proof.
     intros n x y Hdistn [w w0].
     rewrite /interp1.
-    destruct w,w0; [auto..|].
+    destruct w as [ | [p b e a | p b e a] | ];
+    destruct w0 as [ | [p0 b0 e0 a0 | p0 b0 e0 a0] | ];
+      [auto..| by cbn].
     destruct p,p0; try auto.
     - by apply interp_cap_RO_contractive.
     - by apply interp_cap_RW_contractive.
@@ -224,8 +226,9 @@ Section logrel.
   Definition interp_registers : R := interp_reg interp.
 
   Global Instance interp_persistent w : Persistent (interp w).
-  Proof. intros. destruct w as [w w0]. destruct w,w0; simpl; rewrite fixpoint_interp1_eq; simpl;
-         try destruct p;try apply _;destruct p0; repeat (apply exist_persistent; intros); try apply _.
+  Proof. intros. destruct w as [w w0].
+         rewrite fixpoint_interp1_eq; cbn.
+         repeat case_match; auto; apply _.
   Qed.
 
   Lemma read_allowed_inv (a'' a b e a' b' e' : Addr) p p' :
@@ -293,10 +296,10 @@ Section logrel.
       + rewrite lookup_insert_ne // in Hw.
         destruct (r.1 !! reg) eqn:Hsome;rewrite Hsome in Hw; inversion Hw.
         assert (is_Some(r.2 !! reg)) as [? Hsome'];[by destruct H0 with reg|].
-        destruct w;[inversion Ha|]. destruct Ha as [Hwba ->].
+        destruct w as [ | [p0 b0 e0 a0 | ] | ]; try by inversion Ha. destruct Ha as [Hwba ->].
         iSpecialize ("Hregvalid" $! _ _ _ n Hsome Hsome'). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
-        destruct x; [destruct p0; done |].
+        destruct x as [ | [p1 b1 e1 a1 | ] | ]; try (destruct p0; done).
         destruct p0,p1; try contradiction; try done; inversion Hwa;
         try (iDestruct "Hregvalid" as "[(%&%&%) Hregvalid]";simplify_eq);
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
@@ -331,8 +334,9 @@ Section logrel.
   Proof.
     iIntros "Hv".
     rewrite fixpoint_interp1_eq /=.
-    destruct w,w';try done. by iDestruct "Hv" as %->. destruct p;done.
-    destruct p,p0;try done;[by iDestruct "Hv" as %(->&->&->)|by iDestruct "Hv" as "[Hv _]"; iDestruct "Hv" as %(->&->&->)..].
+    destruct_word w; destruct_word w';try done. by iDestruct "Hv" as %->. case_match;done.
+    repeat case_match;try done;[by iDestruct "Hv" as %(->&->&->)|by iDestruct "Hv" as "[Hv _]"; iDestruct "Hv" as %(->&->&->)..].
+    all: by case_match.
   Qed.
 
   Lemma interp_reg_eq (r r' : Reg) (w : Word) :
