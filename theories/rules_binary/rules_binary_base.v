@@ -542,7 +542,7 @@ Ltac prim_step_from_exec :=
     | H : exec _ _ = ?res |- _ =>
       exists [];eapply step_atomic with (t1:=[]) (t2:=[]);eauto;
       econstructor;eauto;constructor;
-      eapply step_exec_instr with (c:=res); try exact; simplify_map_eq;eauto
+      let c := fresh "c" in eapply step_exec_instr with (c:=res); try exact; simplify_map_eq;eauto (* `fresh` hack because `apply ... with` is fragile pre Coq 8.15*)
     end.
 
 Ltac iFailStep fail_type :=

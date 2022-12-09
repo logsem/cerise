@@ -43,7 +43,7 @@ Section cap_lang_spec_rules.
     destruct (Hri src) as [wsrc [Hwsrc Hwsrc']]; [set_solver+|]. simpl in Hwsrc'.
 
     assert (exec_opt (IsPtr dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
-    {  rewrite /= Hwsrc'. unfold is_cap; destruct wsrc; auto. }
+    {  rewrite /= Hwsrc'. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs)) as [regs''|] eqn:Hregs';
