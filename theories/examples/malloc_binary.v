@@ -148,12 +148,13 @@ Section SimpleMalloc.
     destruct l as [|? l];[inversion Hprog_len|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
     iPrologue "Hprog" "Hsprog".
-    destruct (wsize) as [size|].
+    destruct (is_z wsize) eqn:Hsize.
     2: { iApply (wp_add_sub_lt_fail_z_r with "[$HPC $Hi $Hr3 $Hr1]");
-         [apply decode_encode_instrW_inv|right;right;eauto|..].
+         [apply decode_encode_instrW_inv|right;right;eauto| | auto|..].
          { apply HPC; repeat constructor. }
          iEpilogue "_". iApply wp_value. by iRight.
     }
+    destruct wsize as [size | [ | ] | ]; try inversion Hsize. clear Hsize.
     iMod (step_add_sub_lt_success_z_r _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs3 $Hs1]")
       as "(Hj & HsPC & Hsprog_done & Hs1 & Hs3)";
       [apply decode_encode_instrW_inv|right;right;eauto|iContiguous_next Hcont 0| |auto|..].
@@ -285,12 +286,12 @@ Section SimpleMalloc.
     (* geta r_t3 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog" "Hsprog".
-    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs3 $Hs2]")
+    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2 $Hs3]")
       as "(Hj & HsPC & Hsi & Hs2 & Hs3)";
       [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 8|auto..].
     { apply HPC; repeat constructor. }
-    iApply (wp_Get_success with "[$HPC $Hi $Hr3 $Hr2]");
-      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 8|..].
+    iApply (wp_Get_success with "[$HPC $Hi $Hr2 $Hr3]");
+      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 8|auto..].
     { apply HPC; repeat constructor. }
     iEpilogue_both "(HPC & Hi & Hr2 & Hr3)".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -313,7 +314,8 @@ Section SimpleMalloc.
       { apply HPC; repeat constructor. }
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec' & ? & ?)". iDestruct "Hspec'" as %Hspec.
-      destruct Hspec as [| Hfail].
+      destruct Hspec as [| | Hfail].
+      { exfalso. simplify_map_eq. }
       { exfalso. simplify_map_eq. }
       { cbn. iApply wp_pure_step_later; auto. iNext.
         iApply wp_value. auto. } }
@@ -330,12 +332,12 @@ Section SimpleMalloc.
     (* geta r_t1 r_t2 *)
     destruct l as [|? l];[inversion Hprog_len|].
     iPrologue "Hprog" "Hsprog".
-    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs1 $Hs2]")
+    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs2 & Hs1)";
       [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 10|auto..].
     { apply HPC; repeat constructor. }
-    iApply (wp_Get_success with "[$HPC $Hi $Hr1 $Hr2]");
-      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 10|..].
+    iApply (wp_Get_success with "[$HPC $Hi $Hr2 $Hr1]");
+      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 10|auto..].
     { apply HPC; repeat constructor. }
     iEpilogue_both "(HPC & Hi & Hr2 & Hr1)".
     iCombine "Hi" "Hprog_done" as "Hprog_done".
@@ -373,10 +375,11 @@ Section SimpleMalloc.
       { apply HPC; repeat constructor. }
       { rewrite /regs_of /regs_of_argument !dom_insert_L dom_empty_L. set_solver-. }
       iNext. iIntros (regs' retv) "(Hspec' & ? & ?)". iDestruct "Hspec'" as %Hspec.
-      destruct Hspec as [| Hfail].
+      destruct Hspec as [| | Hfail].
       { exfalso. unfold addr_of_argument in *. simplify_map_eq.
         repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
+      { exfalso. by simplify_map_eq. }
       { cbn. iApply wp_pure_step_later; auto. iNext. iApply wp_value. auto. } }
     iMod (step_subseg_success _ [SeqCtx] with "[$Hj $Hspec $HsPC $Hsi $Hs4 $Hs3 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs3 & Hs1 & Hs4)";
@@ -468,8 +471,8 @@ Section SimpleMalloc.
       as "(Hj & HsPC & Hsi & Hs3 & Hs1)";
       [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 18|auto..].
     { apply HPC; repeat constructor. }
-    iApply (wp_Get_success with "[$HPC $Hi $Hr1 $Hr3]");
-      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 18|..].
+    iApply (wp_Get_success with "[$HPC $Hi $Hr3 $Hr1]");
+      [apply decode_encode_instrW_inv|done| |iContiguous_next Hcont 18|auto..].
     { apply HPC; repeat constructor. }
     iEpilogue_both "(HPC & Hi & Hr3 & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
@@ -573,8 +576,8 @@ Section SimpleMalloc.
     destruct l;[|inversion Hprog_len].
     assert ((a_m <= a_m')%a ∧ (a_m' <= e)%a).
     { unfold isWithin in Ha_m'_within. (* FIXME? *)
-      rewrite andb_true_iff !Z.leb_le in Ha_m'_within |- *.
-      revert Ha_m' Hsize; clear. solve_addr. }
+      rewrite andb_true_iff !Z.leb_le in Ha_m'_within.
+      revert Ha_m' Ha_m'_within Hsize; clear. solve_addr. }
     rewrite (region_addrs_zeroes_split _ a_m') //;[].
     iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]"; auto.
     { rewrite replicate_length //. }
@@ -587,8 +590,8 @@ Section SimpleMalloc.
       do 25 iDestruct "Hprog_done" as "[? Hprog_done]". iFrame.
       do 25 iDestruct "Hsprog_done" as "[? Hsprog_done]". iFrame.
       iPureIntro. unfold isWithin in Ha_m'_within. (* FIXME? *)
-      rewrite andb_true_iff !Z.leb_le in Ha_m'_within |- *.
-      revert Ha_m' Hsize; clear; solve_addr. }
+      rewrite andb_true_iff !Z.leb_le in Ha_m'_within.
+      revert Ha_m' Hsize Ha_m'_within; clear; solve_addr. }
 
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.

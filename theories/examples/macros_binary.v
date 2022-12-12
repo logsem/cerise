@@ -69,14 +69,14 @@ Section macros.
     (* getb r_t2 r_t1 *)
     destruct l;[inversion Hlength|]. 
     iPrologue_s "Hprog".
-    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t2 $Hr_t1]")
+    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1 $Hr_t2]")
       as "(Hj & HPC & Hi & Hr_t1 & Hr_t2)";
       [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|iContiguous_next Hcont 1|auto..].
     iEpilogue_s. iCombine "Hi" "Hprog_done" as "Hprog_done". 
     (* geta r_t3 r_t1 *)
     destruct l;[inversion Hlength|]. 
     iPrologue_s "Hprog".
-    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t3 $Hr_t1]")
+    iMod (step_Get_success _ [SeqCtx] with "[$Hspec $Hj $HPC $Hi $Hr_t1 $Hr_t3]")
       as "(Hj & HPC & Hi & Hr_t1 & Hr_t3)";
       [apply decode_encode_instrW_inv|auto|iCorrectPC a_first a_last|iContiguous_next Hcont 2|auto..].
     iEpilogue_s; iCombine "Hi" "Hprog_done" as "Hprog_done". 
