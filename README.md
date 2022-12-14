@@ -1,6 +1,12 @@
 This repository contains the Coq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
+The repository depends on the submodule `machine_utils`. After cloning Cerise,
+you can load the submodule using
+```
+git submodule update --init
+```
+
 We consider here a machine with so-called *sentry* (or "enter") capabilities on
 top of the usual memory capabilities, and focus on reasoning about the
 *local-state encapsulation* properties they can enforce.
@@ -8,9 +14,12 @@ top of the usual memory capabilities, and focus on reasoning about the
 We instantiate the Iris program logic to reason about programs running on the
 machine, and we use it to define a logical relation characterizing the behavior
 of unknown code. The logical relation is much simpler than what one would need
-do reason about more complex stack-like properties: in particular, we only need
+to reason about more complex stack-like properties: in particular, we only need
 to rely on standard Iris invariants.
 
+For more information, see this [extended
+article](https://cs.au.dk/~birke/papers/cerise.pdf) which provides a pedagogical
+but thorough overview of the work (currently submitted for publication).
 
 # Building the proofs
 

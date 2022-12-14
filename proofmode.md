@@ -145,7 +145,7 @@ manual steps. One needs to do:
    by `iInstr`); `wp_end`: when the execution stopped (on fail/halt).
 
 - `changePCto a`: change the current address of pc to `a`. Uses `solve_addr` to
-  prove that the current addres is indeed equal to `a`.
+  prove that the current address is indeed equal to `a`.
 
 
 ## Understanding and debugging the tactics
