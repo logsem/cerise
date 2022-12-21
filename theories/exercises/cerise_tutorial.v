@@ -9,6 +9,7 @@
 
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import rules proofmode macros_helpers.
+From cap_machine Require Import contiguous.
 Open Scope Z_scope.
 
 (** The imports correspond to the following:
@@ -284,8 +285,6 @@ Section base_program.
         We explain the different steps for the first instruction `Lea`.
         Complete the proof.
    *)
-
-  From cap_machine Require Import contiguous.
 
   Lemma prog_spec_detailed
     p_pc b_pc e_pc (* pc *)

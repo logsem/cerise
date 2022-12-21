@@ -1,10 +1,10 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import malloc macros.
+From cap_machine Require Import malloc macros register_tactics.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine.exercises Require Import register_tactics subseg_buffer.
+From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
 
 (** Firtly, we create a closure around our code and buffer. The capability
@@ -14,7 +14,7 @@ Open Scope Z_scope.
  *)
 Section closure_program.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
   Definition Nclosure : namespace := nroot .@ "closure".
@@ -324,9 +324,7 @@ Section closure_program.
       as "(Hmem'& Hna& Hnainv_close)" ; auto.
 
     (* Extract the register r_t1 - r_t3 *)
-    extract_register r_t1 with "Hrmap" as (w1 Hw1) "[[Hr1 _] Hrmap]".
-    extract_register r_t2 with "Hrmap" as (w2 Hw2) "[[Hr2 _] Hrmap]".
-    extract_register r_t3 with "Hrmap" as (w3 Hw3) "[[Hr3 _] Hrmap]".
+    iExtractList "Hrmap" [r_t1;r_t2;r_t3] as ["[Hr1 _]"; "[Hr2 _]"; "[Hr3 _]"].
 
     (* Apply the spec *)
     iApply (closure_spec with "[-]")
@@ -340,7 +338,7 @@ Section closure_program.
     (* We also need to prove that Hr1 is safe to share *)
     iAssert (interp (WCap p_mem (b_mem ^+(secret_off+1))%a e_mem (b_mem ^+ secret_off)%a))
       with "[Hmem']"
-      as "#Hinterp_r1" .
+      as "#Hinterp_r1".
     { unfold interp.
       destruct p_mem ; try discriminate.
       all: simpl.
@@ -353,10 +351,15 @@ Section closure_program.
     rewrite /interp.
 
     (* Re-insert the registers *)
-    insert_register r_t3 with "[$Hrmap Hr3]" as "Hrmap".
-    insert_register r_t2 with "[$Hrmap Hr2]" as "Hrmap".
-    insert_register r_t30 with "[$Hrmap Hr30]" as "Hrmap".
-    insert_register r_t1 with "[$Hrmap Hr1]" as "Hrmap".
+    iCombine "Hr1 Hinterp_r1" as "Hr1".
+    iCombine "Hr30 Hvadv" as "Hr30".
+    iAssert (interp (WInt (b_mem + (secret_off + 1)))) as "Hr2i". iApply interp_int.
+    iCombine "Hr2 Hr2i" as "Hr2".
+    iAssert (interp (WInt e_mem)) as "Hr3i". iApply interp_int.
+    iCombine "Hr3 Hr3i" as "Hr3".
+
+    (* iAssert (interp vr_t1) as "Hrt1". auto. *)
+    iInsertList "Hrmap" [r_t3;r_t2;r_t30;r_t1].
 
     (* Close the invariant *)
     iMod ("Hnainv_close" with "[$Hna]") as "Hna".
@@ -406,9 +409,10 @@ Section closure_program.
    rewrite {1}/registers_mapsto.
 
    (* 2 - prepare the registers for closure_full_run_spec *)
-   extract_register PC with "Hregs" as "[HPC Hregs]".
-   extract_register r_t30 with "Hregs" as (w30 Hw30) "[Hr30 Hregs]".
-   iAssert (interp w30) as "Hw30".
+   apply regmap_full_dom in Hrfull.
+    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[rewrite elem_of_gmap_dom Hrfull; set_solver|].
+   iExtractList "Hregs" [PC;r_t30] as  ["HPC"; "Hw30"].
+   iAssert (interp w30) as "Hw30i".
    { iApply ("Hrsafe" $! r_t30 w30) ; eauto.  }
    set (rmap:= delete r_t30 (delete PC regs)).
 
@@ -417,27 +421,23 @@ Section closure_program.
              RX b_pc e_pc a_prog
              p_mem b_mem e_mem
              secret_off secret_val
-             w30
+             _
              rmap
             with "[-]")
    ; eauto
    ; try apply ExecPCPerm_RX
    ; try (iFrame ; iFrame "#").
-   - subst rmap.
-     rewrite !dom_delete_L.
-     rewrite difference_difference_L.
-     apply regmap_full_dom in Hrfull; rewrite Hrfull.
-     set_solver.
+   - subst rmap. solve_map_dom.
    - subst rmap.
      iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
-     { iSplitL. by iApply "Hregs". iApply big_sepM_intuitionistically_forall. iModIntro.
+     { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
        iApply ("Hrsafe" $! r'); auto. }
      simpl.
      iFrame.
  Qed.
 
- (** Adequecy theorem - the template of the adequacy theorem defined in Cerise
+ (** Adequacy theorem - the template of the adequacy theorem defined in Cerise
     requires the memory invariant being in the memory of the program.
     However, the memory buffer is not inside the memory closure of the program.
     Therefore, we cannot apply the adequacy theorem on this instance. *)

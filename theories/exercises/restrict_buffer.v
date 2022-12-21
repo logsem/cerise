@@ -4,12 +4,13 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
+From cap_machine Require Import register_tactics.
 Open Scope Z_scope.
 
 (** Variant of the `subseg_buffer` where we don't restrict the range
     of the buffer, but we restrict the permission *)
 Section program_ro.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
 
@@ -248,7 +249,7 @@ End program_ro.
 
 Section program_closure_ro.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
   Definition closure_roN : namespace := nroot .@ "closure_ro".
@@ -280,7 +281,7 @@ Section program_closure_ro.
 
   (** Specifications *)
 
-  (* We specifie the closure program in a modular way, so we firstly specifie
+  (* We specify the closure program in a modular way, so we firstly specifie
      the part of the code that load the capability *)
   Lemma load_spec p_pc b_pc e_pc s_load (* pc *)
         p_mem b_mem e_mem (* mem *)
@@ -445,22 +446,11 @@ Section program_closure_ro.
 
     (* Preparation resources for `closure_ro_spec` *)
 
+    iExtractList "Hrmap" [r_t1;r_t2;r_t3] as ["[Hr1 _]";"[Hr2 _]";"[Hr3 _]"].
     (* Extract the register r_t1 - r_t3 *)
-    assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
-    iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"
-    ; eauto.
-    assert (is_Some (rmap !! r_t2)) as [w2 Hr2].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
-    iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[[Hr2 _] Hrmap]"
-    ; [erewrite lookup_delete_ne ; eauto|].
-    assert (is_Some (rmap !! r_t3)) as [w3 Hr3].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[[Hr3 _] Hrmap]"
-    ; [erewrite !lookup_delete_ne ; eauto|].
 
     iApply (closure_ro_spec with "[-]")
-    ; try (iFrame ; iFrame "#") ; eauto.
+    ; try (iFrame "∗ #") ; eauto.
     iNext
     ; iIntros "(HPC & Hr1 & Hr2 & Hr3 & Hr30 & Hna)"
     ; iDestruct "Hr2" as (n2) "Hr2"
@@ -508,28 +498,11 @@ Section program_closure_ro.
      all: iNext ; iModIntro; iIntros (w) "->" ; iApply interp_int.
     }
 
-    (* Re-insert the registers in the [* map] *)
-    (* r3 *)
-    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap Hr3]") as "Hrmap"
-    ; [| iFrame ; iApply interp_int |].
-    { by rewrite lookup_delete. }
-    rewrite insert_delete.
-    (* r2 *)
-    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap Hr2]") as "Hrmap"
-    ; [| iFrame ; iApply interp_int |].
-    { rewrite lookup_insert_ne ; auto. by rewrite lookup_delete. }
-    rewrite <- delete_insert_ne, insert_delete ; auto.
-    (* r1 *)
-    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap Hr1]") as "Hrmap"
-    ; [| by iFrame ; iFrame "#" |].
-    { rewrite !lookup_insert_ne ; auto. by rewrite lookup_delete. }
-    rewrite <- 2delete_insert_ne, insert_delete ; auto.
-    (* r30 *)
-    iDestruct (big_sepM_insert _ _ r_t30 with "[$Hrmap Hr30]") as "Hrmap"
-    ; [| by iFrame |].
-    { rewrite !lookup_insert_ne ; auto.
-      apply elem_of_gmap_dom_none.
-      set_solver. }
+    iCombine "Hr1 Hmem_safe" as "Hr1".
+    iPoseProof (interp_int n2)%I as "Hr2_safe"; iCombine "Hr2 Hr2_safe" as "Hr2".
+    iPoseProof (interp_int n3)%I as "Hr3_safe"; iCombine "Hr3 Hr3_safe" as "Hr3".
+    iCombine "Hr30 Hinterp_adv" as "Hr30".
+    iInsertList "Hrmap" [r_t1;r_t2;r_t3;r_t30].
 
     (* Apply the continuation *)
     iApply "Cont" ; [|iFrame].
@@ -587,7 +560,7 @@ Section program_closure_ro.
      apply regmap_full_dom in Hrfull; rewrite Hrfull.
      set_solver.
    - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
-     { iSplitL. by iApply "Hregs". iApply big_sepM_intuitionistically_forall. iModIntro.
+     { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
        iApply ("Hrsafe" $! r'); auto. }
      simpl.

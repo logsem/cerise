@@ -125,12 +125,14 @@ Ltac iInsert_core m' Hmap rnames Hrdom :=
   match rnames with
   | nil => idtac
   | ?rname :: ?rtail =>
-      lazymatch goal with |- context [ Esnoc _ (INamed ?Hname) (rname ↦ᵣ ?rval)%I ] =>
-          insert_pointsto_map m' Hmap rname Hrdom Hname;
-          (* rewrite hrdom with the inserted register `rname` in mind *)
-          apply (f_equal (fun x => ({[rname]} ∪ x))) in Hrdom;
-          rewrite -(dom_insert_L _ _ rval) in Hrdom;
-          iInsert_core (<[rname:=rval]> m') Hmap rtail Hrdom
+      match goal with |- context [ Esnoc _ (INamed ?Hname) ?mtch ] =>
+          lazymatch mtch with | context [(rname ↦ᵣ ?rval)%I] =>
+            insert_pointsto_map m' Hmap rname Hrdom Hname;
+            (* rewrite hrdom with the inserted register `rname` in mind *)
+            apply (f_equal (fun x => ({[rname]} ∪ x))) in Hrdom;
+            rewrite -(dom_insert_L _ _ rval) in Hrdom;
+            iInsert_core (<[rname:=rval]> m') Hmap rtail Hrdom
+          end
       end
   end.
 
