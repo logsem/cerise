@@ -42,7 +42,7 @@ jobs:
 
       - name: Build
         run: |
-          ulimit -S -s 16384
+          opam exec -- ulimit -S -s 16384
           opam exec -- make ci -j $(nproc)
 
       - name: Build docs
