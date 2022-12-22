@@ -41,9 +41,7 @@ jobs:
           opam install . --deps-only -y
 
       - name: Build
-        run: |
-          ulimit -s unlimited
-          opam exec -- make ci -j $(nproc)
+        run: opam exec -- make ci -j $(nproc)
 
       - name: Build docs
         run: opam exec -- make html
