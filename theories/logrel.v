@@ -287,7 +287,7 @@ Section logrel.
            + do 2 f_equal. apply eq_proofs_unicity. decide equality.
            + exfalso. by apply (Nat.leb_le n RegNum) in fin.
          - intros x.
-           + destruct x;[lia|]. apply leb_le in fin. lia.
+           + destruct x;[lia|]. apply Nat.leb_le in fin. lia.
          - intros i Hlt. unfold n_to_regname.
            destruct (Nat.le_dec i RegNum);auto.
            lia.

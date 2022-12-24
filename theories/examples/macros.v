@@ -960,7 +960,7 @@ Section macros.
     iAssert (⌜((length a) =? (length (mclear_instrs r)) = true)%nat⌝)%I as %Hlen.
     { destruct (((length a) =? (length (mclear_instrs r)))%nat) eqn:Hlen; auto.
       rewrite /mclear Hlen. by iApply bi.False_elim. }
-    rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply beq_nat_true in Hlen.
+    rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply Nat.eqb_eq in Hlen.
     destruct a as [| a1 a]; inversion Hlen; simpl.
     move: (contiguous_between_cons_inv_first _ _ _ _ Hnext).
     match goal with |- (?a = _) -> _ => intro; subst a end.
@@ -1032,7 +1032,7 @@ Section macros.
     { have: (isCorrectPC (WCap p b e a_first)).
       { apply Hvpc. eapply contiguous_between_middle_bounds'; eauto. constructor. }
       inversion 1; subst.
-      destruct H14 as [? | ? ]; subst; auto. }
+      destruct H15 as [? | ? ]; subst; auto. }
     iApply (wp_lea_success_z _ _ _ _ a7 a8 _ r_t2 p _ _ a6 10 a_end with "[HPC Hi Hr_t2]");
       first apply decode_encode_instrW_inv; first iCorrectPC a_first a'; auto.
     { iContiguous_next Hnext 8. }

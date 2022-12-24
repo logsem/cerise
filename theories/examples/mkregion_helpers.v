@@ -18,7 +18,8 @@ Proof.
   { intros * Hl. cbn.
     rewrite (_: b = e). 2: solve_addr.
     rewrite finz_seq_between_empty //. 2: solve_addr. cbn.
-    split. by inversion 1. intros [? [? ?] ]. congruence. }
+    split. by inversion 1. intros [? [? ?] ].
+    rewrite lookup_nil in H0. discriminate H0. }
   { intros * Hl. cbn in *.
     rewrite finz_seq_between_cons. 2: solve_addr. cbn.
     split.
