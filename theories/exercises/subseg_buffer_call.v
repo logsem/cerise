@@ -6,12 +6,12 @@ From cap_machine Require Import fundamental logrel macros_helpers rules proofmod
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import register_tactics subseg_buffer.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
+From cap_machine Require Import call callback.
 Open Scope Z_scope.
 
 (** Variant of the exercise where we use the call macro
     to jump to the adversary *)
 Section program_call.
-  From cap_machine Require Import call callback.
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{MP: MachineParameters}.
@@ -294,7 +294,7 @@ Section program_call.
        -∗ WP Seq (Instr Executable) {{λ v,
                (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                ∨ ⌜v = FailedV⌝ }})%I.
-  
+
   Proof with (try solve_addr').
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
@@ -489,7 +489,7 @@ Section program_call.
       replace (a_prog ^+ 11%nat)%a with a_call. done.
       rewrite Hlength_progi in Ha_call... }
     do 4 (rewrite delete_insert_ne ; eauto).
-    
+
     (* 2 - extract r2 and r3 *)
     extract_register r_t2 with "Hrmap" as ( w2 Hw2 ) "[Hr2 Hrmap]".
     rewrite delete_insert_ne ; auto.
