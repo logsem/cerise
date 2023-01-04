@@ -1,3 +1,5 @@
+<!-- LTeX: language=en -->
+
 This repository contains the Coq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
@@ -14,7 +16,7 @@ top of the usual memory capabilities, and focus on reasoning about the
 We instantiate the Iris program logic to reason about programs running on the
 machine, and we use it to define a logical relation characterizing the behavior
 of unknown code. The logical relation is much simpler than what one would need
-do reason about more complex stack-like properties: in particular, we only need
+to reason about more complex stack-like properties: in particular, we only need
 to rely on standard Iris invariants.
 
 For more information, see this [extended
@@ -31,7 +33,7 @@ The simplest option is to create a fresh *local* opam switch with everything
 needed, by running the following commands:
 
 ```
-opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released,iris-dev=git+https://gitlab.mpi-sws.org/iris/opam.git . ocaml-base-compiler.4.11.2
+opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released,iris-dev=git+https://gitlab.mpi-sws.org/iris/opam.git . ocaml-base-compiler.4.14.0
 eval $(opam env)
 ```
 
