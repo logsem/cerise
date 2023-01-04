@@ -1,5 +1,3 @@
-<!-- LTeX: language=en -->
-
 This repository contains the Coq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
