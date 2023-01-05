@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import template_adequacy macros_new.
@@ -7,7 +7,7 @@ From cap_machine Require Import proofmode.
 Open Scope Z_scope.
 
 Section counter.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -170,7 +170,7 @@ Section counter.
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
-    Forall (λ w, is_cap w = false) adv →
+    Forall (λ w, is_z w = true) adv →
     (b_adv + length adv)%a = Some e_adv →
 
   ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
@@ -178,7 +178,7 @@ Section counter.
       ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv
       ∗ r_t1 ↦ᵣ w1
       ∗ r_t2 ↦ᵣ w2
-      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
       ∗ codefrag a_init (counter_init a_init)
       ∗ codefrag a_code (counter_code a_code)
       ∗ a_data ↦ₐ wdat
@@ -216,7 +216,7 @@ Section counter.
       destruct (Hrfull r_t1) as [w1' Hr1'].
       destruct (Hrfull r_t2) as [w2' Hr2'].
       unfold registers_mapsto.
-      rewrite -insert_delete.
+      rewrite -insert_delete_insert.
       iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]".
         by rewrite lookup_delete.
       iDestruct (big_sepM_delete _ _ r_t0 with "Hrr") as "[Hr0 Hrr]".
@@ -228,7 +228,7 @@ Section counter.
 
       (* the continuation is safe, and we can jump to it *)
       iAssert (interp w0') as "Hv0". by iApply "Hrsafe"; eauto; done.
-      iDestruct (jmp_to_unknown with "Hv0") as "#Hcont_prog".
+      iDestruct (jmp_to_unknown with "[$Hv0]") as "#Hcont_prog".
 
       (* apply the spec *)
       iApply (counter_code_spec a_init with "[-]"). solve_addr'.
@@ -239,17 +239,17 @@ Section counter.
 
       (* put the registers back together *)
       iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hrr]") as "Hrr".
-      { iSplitL. by iApply "Hrr". iApply big_sepM_intuitionistically_forall. iModIntro.
+      { iSplitL. by iApply "Hrr". iApply big_sepM_intro. iModIntro.
         iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
         iApply ("Hrsafe" $! r'); auto. }
       iDestruct (big_sepM_insert with "[$Hrr $Hr2]") as "Hrr". by rewrite lookup_delete.
-        by iApply interp_int. rewrite insert_delete.
+        by iApply interp_int. rewrite insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrr $Hr1]") as "Hrr".
         by rewrite lookup_insert_ne // lookup_delete.
-        by iApply interp_int. rewrite insert_commute // insert_delete.
+        by iApply interp_int. rewrite insert_commute // insert_delete_insert.
       iDestruct (big_sepM_insert with "[$Hrr $Hr0]") as "Hrr".
         by rewrite !lookup_insert_ne // lookup_delete.
-        by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete.
+        by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete_insert.
 
       (* jmp to continuation *)
       iApply "Hcont_prog". 2: iFrame. iPureIntro.
@@ -301,7 +301,7 @@ Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es
     counter_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_cap w = false) (prog_instrs Adv) →
+  Forall (λ w, is_z w = true) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   ∃ n, m' !! (prog_start P ^+ (code_off + data_off + 1))%a = Some (WInt n) ∧ 0 ≤ n.
@@ -317,7 +317,7 @@ Proof.
     { apply prog_size. } }
   { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_finz_seq_between. solve_addr'. }
 
-  intros * Hrdom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
+  intros * Hss * Hrdom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)".
   set (a_init := prog_start P) in *.
   set (a_code := (a_init ^+ code_off)%a) in *.
   set (a_data := (a_code ^+ data_off)%a) in *.
@@ -390,7 +390,7 @@ Proof.
   iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)".
   iExists (<[ (a_data ^+ 1)%a := WInt n' ]> mι). iSplitL "Hm Hn'".
   { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete.
-    rewrite insert_delete //. }
+    rewrite insert_delete_insert //. }
   iPureIntro. split. rewrite dom_insert_L Hmιdom /Hmιdom /=. 2: exists n'.
   all: rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a; [| solve_addr']. set_solver+.
   rewrite lookup_insert //.

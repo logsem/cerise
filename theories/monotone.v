@@ -99,7 +99,7 @@ Proof.
 Qed.
 Instance monotone_op_ne : NonExpansive2 (@op (monotone R) _).
 Proof. by intros n x1 x2 Hx y1 y2 Hy; rewrite Hy !(comm _ _ y2) Hx. Qed.
-Instance monotone_op_proper : Proper ((≡) ==> (≡) ==> (≡)) op := ne_proper_2 _.
+Instance monotone_op_proper : Proper ((≡) ==> (≡) ==> (≡)) (@op (monotone R) _) := ne_proper_2 _.
 
 Lemma monotone_included (x y : monotone R) : x ≼ y ↔ y ≡ x ⋅ y.
 Proof.

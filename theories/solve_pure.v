@@ -24,7 +24,7 @@ Ltac solve_pure_addr := solve_pure_finz.
    extend [solve_pure] with more hints.
 *)
 
-Lemma withinBounds_InCtx b e a :
+Lemma withinBounds_InCtx {z} (b e a : finz z) :
   InCtx (withinBounds b e a = true) →
   InBounds b e a.
 Proof.
@@ -96,6 +96,13 @@ Proof. auto. Qed.
 #[export] Hint Resolve is_AddSubLt_Add : solve_pure.
 #[export] Hint Resolve is_AddSubLt_Sub : solve_pure.
 #[export] Hint Resolve is_AddSubLt_Lt : solve_pure.
+
+(* is_z *)
+#[export] Hint Extern 1 (is_z _ = false) => reflexivity : solve_pure.
+#[export] Hint Extern 1 (is_z _ = true) => reflexivity : solve_pure.
+
+(* denote - required for Get *)
+#[export] Hint Extern 1 (rules_Get.denote _ _ = Some _) => reflexivity : solve_pure. (* unification fails if lhs has evars *)
 
 (* Tests *)
 

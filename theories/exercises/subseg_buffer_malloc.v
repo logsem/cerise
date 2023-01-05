@@ -4,13 +4,14 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine.exercises Require Import register_tactics subseg_buffer.
+From cap_machine Require Import register_tactics.
+From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
 
 (** Secondly, the other approach is to dynamically allocate the region with
     the `malloc` macro. *)
 Section malloc_program.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -124,7 +125,7 @@ Section malloc_program.
       rewrite -union_difference_L; auto.
       set_solver.
     }
-    insert_register r_t30 with "[$Hrmap Hr30]" as "Hrmap".
+    iInsert "Hrmap" r_t30.
 
     (* Malloc spec *)
     rewrite -/(malloc _ _ _).
@@ -144,11 +145,7 @@ Section malloc_program.
 
     (* Prepare ressources for the use of prof_spec_CPS *)
     (* Extract some registers *)
-    some_register r_t2 with rmap as w2 Hw2.
-    extract_register r_t2 with "Hgen"  as "[Hr2 Hgen]".
-    some_register r_t3 with rmap as w3 Hw3.
-    extract_register r_t3 with "Hgen"  as "[Hr3 Hgen]".
-    extract_register r_t30 with "Hgen"  as "[Hadv Hgen]".
+    iExtractList "Hgen" [r_t2;r_t3;r_t30] as ["Hr2";"Hr3";"Hadv"].
 
     (* Convert the [* list] of instructions into a codefrag *)
     set (prog_instrs := (encodeInstrsW
@@ -211,17 +208,7 @@ Section malloc_program.
     iExists _, _.
     iFrame.
 
-    (* Re-insert rt1, rt2 and rt3 in the map *)
-    do 2 (rewrite (delete_commute _ r_t30 _)).
-    do 3 (rewrite (delete_insert_ne _ r_t30 _) ; [|auto]).
-    rewrite (delete_commute _ r_t30 _).
-    rewrite (delete_insert _ r_t30);
-      [| rewrite <- not_elem_of_dom; set_solver].
-    rewrite (delete_commute _ r_t3 _); rewrite (delete_insert_delete _ r_t3).
-
-    insert_register r_t3 with "[$Hgen Hr3]" as "Hgen".
-    insert_register r_t2 with "[$Hgen Hr2]" as "Hgen".
-    insert_register r_t1 with "[$Hgen Hr1]" as "Hgen".
+    iInsertList "Hgen" [r_t3;r_t2;r_t1].
     iAssumption.
   Qed.
 
@@ -315,45 +302,20 @@ Section malloc_program.
        into the rmap, proving both points_to and interp.
      *)
     (* First, extract the new registers *)
-    (* r1 *)
-    some_register r_t1 with rmap as w1 Hw1.
-    extract_register r_t1 with "Hrmap" as "[Hr1 Hrmap]".
-    extract_register r_t1 with "Hrmap_interp" as "[_ Hrmap_interp]".
-    rewrite !delete_insert_ne; auto.
-    (* r2 *)
-    some_register r_t2 with rmap as w2 Hw2.
-    extract_register r_t2 with "Hrmap" as "[Hr2 Hrmap]".
-    extract_register r_t2 with "Hrmap_interp" as "[_ Hrmap_interp]".
-    rewrite !delete_insert_ne; auto.
-    (* r3 *)
-    some_register r_t3 with rmap as w3 Hw3.
-    extract_register r_t3 with "Hrmap" as "[Hr3 Hrmap]".
-    extract_register r_t3 with "Hrmap_interp" as "[_ Hrmap_interp]".
-    rewrite !delete_insert_ne; auto.
-    (* r4 *)
-    some_register r_t4 with rmap as w4 Hw4.
-    extract_register r_t4 with "Hrmap" as "[Hr4 Hrmap]".
-    extract_register r_t4 with "Hrmap_interp" as "[_ Hrmap_interp]".
-    rewrite !delete_insert_ne; auto.
-    (* r5 *)
-    some_register r_t5 with rmap as w5 Hw5.
-    extract_register r_t5 with "Hrmap" as "[Hr5 Hrmap]".
-    extract_register r_t5 with "Hrmap_interp" as "[_ Hrmap_interp]".
-
-    (* Then, recombine the [* map] over rmap *)
-    iDestruct (big_sepM_sep with "[$Hrmap $Hrmap_interp]") as "Hrmap".
-
-    (* Finally, re-insert the registers and prove both mapsto and interp *)
-    insert_register r_t5 with "[$Hrmap Hr5]" as "Hrmap".
-    insert_register r_t4 with "[$Hrmap Hr4]" as "Hrmap".
-    insert_register r_t3 with "[$Hrmap Hr3]" as "Hrmap".
-    insert_register r_t2 with "[$Hrmap Hr2]" as "Hrmap".
-    insert_register r_t1 with "[$Hrmap Hr1]" as "Hrmap".
-    insert_register r_t30 with "[$Hrmap Hr30]" as "Hrmap".
-    insert_register r_t0 with "[$Hrmap Hr0]" as "Hrmap".
-
-    iFrame.
-  Qed.
+    iApply (big_sepM_sep_2 with "[- Hrmap_interp]").
+    - by iInsertList "Hrmap" [r_t30;r_t0].
+    - iApply big_sepM_intro. iDestruct "Hrmap_interp" as "#Hmap_interp".
+      iIntros "!>" (r w).
+      consider_next_reg r r_t0; [iIntros (Hr0) ; by inversion Hr0 |].
+      consider_next_reg r r_t30; [iIntros (Hr0) ; by inversion Hr0 |].
+      consider_next_reg r r_t1; [iIntros (Hr0) ; by inversion Hr0 |].
+      consider_next_reg r r_t2; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t3; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t4; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t5; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
+      iIntros (Hr).
+      iDestruct (big_sepM_delete _ _ r with "Hmap_interp") as "[Hr_t7 Hregs]"; eauto.
+Qed.
 
   Lemma prog_malloc_safe_to_share
         pc_b pc_e
@@ -384,9 +346,11 @@ Section malloc_program.
     rewrite {1}/registers_mapsto.
 
     (* Extract the registers from the map *)
-    extract_register PC with "Hregs" as "[HPC Hregs]".
-    extract_register r_t0 with "Hregs" as ( w0 Hw0 ) "[Hr0 Hregs]".
-    extract_register r_t30 with "Hregs" as ( w30 Hw30 ) "[Hr30 Hregs]".
+    apply regmap_full_dom in Hrfull as Hrfull'.
+    assert (is_Some (regs !! r_t0)) as [w0 Hw0];[set_solver|].
+    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[set_solver|].
+    iExtractList "Hregs" [PC;r_t0;r_t30] as ["HPC";"Hr0";"Hr30"].
+
     iAssert (interp w0) as "Hw0" ; first (iApply ("Hrsafe" $! r_t0 w0) ; eauto).
     iAssert (interp w30) as "Hw30" ; first (iApply ("Hrsafe" $! r_t30 w30) ; eauto).
 
@@ -414,10 +378,11 @@ Section malloc_program.
       rewrite Hrfull.
       set_solver.
     - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
-      { iSplitL. by iApply "Hregs". iApply big_sepM_intuitionistically_forall. iModIntro.
+      { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
         iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
         iApply ("Hrsafe" $! r'); auto. }
       simpl.
       iFrame.
 Qed.
+
 End malloc_program.

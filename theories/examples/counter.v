@@ -1,10 +1,10 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental.
 
 Section counter.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -43,7 +43,7 @@ Section counter.
   Definition pos_word (w : Word) : iProp Σ :=
     (match w with
     | WInt z => ⌜(0 ≤ z)%Z⌝
-    | WCap _ _ _ _ => False
+    | _ => False
     end)%I.
   Definition counter_inv d : iProp Σ :=
     (∃ w, d ↦ₐ w ∗ pos_word w)%I.
@@ -121,7 +121,7 @@ Section counter.
     { iNext. iExists w. iFrame "∗ #". }
     iModIntro. iApply wp_pure_step_later;auto;iNext.
     (* add r_t1 r_t1 1 *)
-    destruct w;[|done].
+    destruct w;[|done..].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_dst_z with "[$HPC $Hi $Hr_t1]");
       [apply decode_encode_instrW_inv|eauto|iContiguous_next Hcont 1|iCorrectPC a_first a_last|].
@@ -276,7 +276,7 @@ Section counter.
     iModIntro. iApply wp_pure_step_later;auto;iNext.
     (* Lt r_t4 r_ret 0 *)
     let a := fresh "a" in destruct read_addrs as [|a read_addrs];[inversion Hprog_length|].
-    destruct w;[|done].
+    destruct w;[|done..].
     iPrologue "Hprog".
     iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hi $Hr_t4 $Hr_ret]");
       [apply decode_encode_instrW_inv|eauto|iContiguous_next Hcont 1|iCorrectPC a_first a_last|].
@@ -334,7 +334,7 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs".
     { rewrite !lookup_insert_ne; auto. apply lookup_delete. }
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -349,7 +349,7 @@ Section counter.
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne//.
       apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
-    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete).
+    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_insert).
     set regs' := <[_:=_]> _.
     (* jump to unknown code *)
     iDestruct (jmp_to_unknown _ with "Hcallback") as "Hcallback_now".

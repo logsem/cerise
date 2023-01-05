@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -95,7 +95,7 @@ Section fundamental.
             { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
           * assert (H1' := H1). rewrite lookup_insert_ne in H1; auto.
             rewrite Heq lookup_insert_ne // in H1'.
-            destruct w'0; simpl in HPCb; [congruence|].
+            destruct w'0 as [ | [p0 b0 e0 a0 | ] | ]; simpl in HPCb; try congruence.
             destruct (perm_eq_dec p0 E).
             { subst p0. iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
               rewrite /interp (fixpoint_interp1_eq (WCap E _ _ _, WCap _ _ _ _)) /=.

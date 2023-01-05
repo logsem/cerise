@@ -1,12 +1,12 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_base rules_Restrict.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
   
@@ -57,56 +57,69 @@ Section fundamental.
       apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec; cycle 1.
-    { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
+    destruct HSpec as [ * Hdst ? Hz Hfl HincrPC | * Hdst Hz Hfl HincrPC | ].
+    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+
+      assert (a'' = a ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
+      { destruct (decide (PC = dst)); simplify_map_eq; auto. }
+
+      iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iNext.
+      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
+      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hvs).
+        subst regs'.
+        rewrite lookup_insert_ne in Hvs; auto.
+        destruct (decide (ri = dst)).
+        { subst ri.
+          rewrite lookup_insert_ne in Hdst; auto.
+          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
+          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+          iApply (interp_weakening with "IH Hreg"); auto; solve_addr. }
+        { repeat (rewrite lookup_insert_ne in Hvs); auto.
+          iApply "Hreg"; auto. } }
+        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+      iModIntro.
+      iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+      { destruct Hp; by subst p. }
+      { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
+        auto. by rewrite PermFlowsToReflexive. }
+    }
+    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+
+      assert (dst ≠ PC) as Hne.
+      { destruct (decide (PC = dst)); last auto. simplify_map_eq; auto. }
+
+      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ a'' = a) as (-> & -> & -> & ->).
+      { simplify_map_eq; auto. }
+
+      iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iNext.
+      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
+      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hvs).
+        subst regs'.
+        rewrite lookup_insert_ne in Hvs; auto.
+        destruct (decide (ri = dst)).
+        { subst ri.
+          rewrite lookup_insert_ne in Hdst; auto.
+          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
+          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+          iApply (interp_weakening_ot with "Hreg"); auto; solve_addr. }
+        { repeat (rewrite lookup_insert_ne in Hvs); auto.
+          iApply "Hreg"; auto. } }
+        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+      iModIntro.
+      iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+      { destruct Hp; by subst p. }
+      { by rewrite PermFlowsToReflexive. }
+    }
+     { iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext.
       iApply wp_value; auto. iIntros; discriminate. }
-    { match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
-      iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
-      iNext. 
-      assert (HPCr0: match r0 with inl _ => True | inr r0 => PC <> r0 end).
-      { destruct r0; auto.
-        intro; subst r0. simplify_map_eq. }
-
-      destruct (reg_eq_dec PC dst).
-      { subst dst. repeat rewrite insert_insert.
-        repeat rewrite insert_insert in HPC.
-        rewrite lookup_insert in HPC. inv HPC.
-        rewrite lookup_insert in H0. inv H0.
-
-        destruct (PermFlowsTo RX (decodePerm n)) eqn:Hpft.
-        { assert (Hpg: (decodePerm n) = RX ∨ (decodePerm n) = RWX).
-          { destruct (decodePerm n); simpl in Hpft; eauto; try discriminate. }
-          iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]");auto. 
-          iModIntro. rewrite !fixpoint_interp1_eq /=.
-          destruct Hpg as [Heq | Heq];destruct Hp as [Heq' | Heq'];rewrite Heq Heq';try iFrame "Hinv".
-          - iApply (big_sepL_mono with "Hinv").
-            iIntros (k y _) "H". iDestruct "H" as (P') "(H1 & H2 & H3)". iExists P'. iFrame. 
-          - rewrite Heq Heq' in H3. inversion H3. 
-        }
-        { iApply (wp_bind (fill [SeqCtx])).
-          iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
-          iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct (decodePerm n); simpl in Hpft; eauto; discriminate|].
-          iNext. iIntros "HPC /=".
-          iApply wp_pure_step_later; auto.
-          iApply wp_value.
-          iNext. iIntros. discriminate. } }
-      
-      simplify_map_eq.
-      iApply ("IH" $! (<[dst:=_]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
-      - intros; simpl. repeat (rewrite lookup_insert_is_Some'; right); eauto.
-      - iIntros (ri v Hri Hvs).
-        destruct (decide (ri = dst)).
-        + subst ri. rewrite lookup_insert in Hvs. inversion Hvs. simplify_eq.
-          iDestruct ("Hreg" $! dst _ Hri H0) as "Hdst".
-          iApply PermPairFlows_interp_preserved; eauto.
-        + repeat rewrite lookup_insert_ne in Hvs; auto.
-          iApply "Hreg"; auto. 
-      - iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iFrame "Hinv". }
   Qed.
 
 End fundamental.

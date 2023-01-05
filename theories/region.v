@@ -7,8 +7,8 @@ From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug
 Section region.
   Context `{MachineParameters, memG Σ, regG Σ, cfg: cfgSG Σ}.
 
-  Lemma isWithin_finz_seq_between_decomposition a0 a1 b e:
-    (b <= a0 /\ a1 <= e /\ a0 <= a1)%a ->
+  Lemma isWithin_finz_seq_between_decomposition {z} (a0 a1 b e : finz z):
+    (b <= a0 /\ a1 <= e /\ a0 <= a1)%f ->
     finz.seq_between b e = finz.seq_between b a0 ++
                            finz.seq_between a0 a1 ++
                            finz.seq_between a1 e.
@@ -320,7 +320,7 @@ Section region.
        rewrite (_: finz.dist b e - finz.dist b a = finz.dist a e)...
    Qed.
 
-   
+
 End region.
 
 Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)

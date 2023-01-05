@@ -1,12 +1,12 @@
-From cap_machine Require Export rules_Load rules_binary_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
+From cap_machine Require Export rules_Load rules_binary_base.
 
 
 Section cap_lang_spec_rules. 
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -44,21 +44,25 @@ Section cap_lang_spec_rules.
 
      specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
      eapply step_exec_inv in Hstep; eauto. simpl in H3,Hr2,Hma.
-     pose proof (Hstep' := Hstep). unfold exec in Hstep.
-     cbn in Hstep. rewrite Hr2 in Hstep.
-     
+     pose proof (Hstep' := Hstep).
+     rewrite /exec /= Hr2 /= in Hstep.
+
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-     destruct r2v as  [| p b e a ] eqn:Hr2v.
-     { (* Failure: r2 is not a capability *)
-       symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
+     destruct (is_cap r2v) eqn:Hr2v.
+     2:{ (* Failure: r2 is not a capability *)
+       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
+       {
+         unfold is_cap in Hr2v.
+         destruct_word r2v; try by simplify_pair_eq.
+       }
        iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
-       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_const. 
+       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_const.
      }
+     destruct r2v as [ | [p b e a | ] | ]; try inversion Hr2v. clear Hr2v.
 
-     cbn in Hstep.
      destruct (readAllowed p && withinBounds b e a) eqn:HRA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
@@ -144,7 +148,6 @@ Section cap_lang_spec_rules.
     iDestruct "Hmem'" as %Hmem.
 
     iMod (step_Load with "[$Hown $Hj $Hmap $Hmem]") as (retv regs') "(Hj & #Hspec & Hmem & Hmap)"; eauto; simplify_map_eq; eauto.
-    { rewrite lookup_insert;auto. }
     { by rewrite !dom_insert; set_solver+. }
     { destruct (a =? pc_a)%a; by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto. rewrite lookup_insert_ne// lookup_insert;eauto. }
@@ -153,19 +156,15 @@ Section cap_lang_spec_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        destruct H3 as [Hrr2 _].
-       rewrite lookup_insert_ne// lookup_insert in Hrr2. simplify_eq.
-       incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H3. simplify_eq. 
+       incrementPC_inv; simplify_map_eq.
        iDestruct (memMap_resource_2gen_d with "[Hmem]") as "[Hpc_a Ha]".
        {iExists mem; iSplitL; auto. }
-       pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H4) as Hloadv; eauto.
+       pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H4) as Hloadv; eauto. subst.
        rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
-       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. rewrite Hloadv. by iFrame. }
+       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. by iFrame. }
      { (* Failure (contradiction) *)
-       destruct Hfail; try (incrementPC_inv;[|rewrite lookup_insert_ne//]);simplify_map_eq;eauto. 
-       rewrite lookup_insert_ne// lookup_insert in e0;simplify_eq.
-       rewrite lookup_insert_ne// lookup_insert in e1;simplify_eq.
-       destruct o. all: congruence.
-     }
+       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
+       destruct o. all: congruence. }
   Qed.
 
   Lemma step_load_success_same_alt E K r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :

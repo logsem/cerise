@@ -4,7 +4,7 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine.exercises Require Import register_tactics.
+From cap_machine Require Import register_tactics.
 Open Scope Z_scope.
 
 
@@ -147,7 +147,7 @@ End base_program.
     ressources. *)
 Section base_program_CPS.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
           `{MP: MachineParameters}.
 
   Local Ltac solve_addr' :=
@@ -336,7 +336,7 @@ Section base_program_CPS.
           ∗ codefrag a_prog (prog_code secret_off secret_val)
           ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
           (* All the registers contains integers *)
-          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
           (* The NA token is required for the post condition *)
           ∗ na_own logrel_nais ⊤
           (* The adversary word is safe to share *)
@@ -362,8 +362,10 @@ Section base_program_CPS.
 
     (* 1 - Specification of the known program *)
     (* Extract the register r_t2 and r_t3, required for `prog_spec_CPS` *)
-    extract_register r_t2 with "Hrmap" as (w2 Hw2) "[[Hr2 _] Hrmap]".
-    extract_register r_t3 with "Hrmap" as (w3 Hw3) "[[Hr3 _] Hrmap]".
+
+    iExtractList "Hrmap" [r_t2;r_t3] as ["[Hr2 _]";"[Hr3 _]"].
+    (* extract_register r_t2 with "Hrmap" as (w2 Hw2) "[[Hr2 _] Hrmap]". *)
+    (* extract_register r_t3 with "Hrmap" as (w3 Hw3) "[[Hr3 _] Hrmap]". *)
 
     iApply (prog_spec_CPS with "[-]") ; try eassumption.
     iFrame "HPC Hr1 Hr30 Hregion Hr2 Hr3 Hprog".
@@ -379,26 +381,30 @@ Section base_program_CPS.
     { rewrite /region_addrs_zeroes. apply Forall_replicate. auto. }
 
     (* put the other registers back into the register map *)
-    insert_register r_t3 with "[$Hrmap Hr3]" as "Hrmap".
-    insert_register r_t2 with "[$Hrmap Hr2]" as "Hrmap".
+
+    iAssert ( ⌜is_z (WInt (b_mem + (secret_off + 1))) = true ⌝)%I as "Hvr2". auto.
+    iCombine "Hr2 Hvr2" as "Hr2".
+    iAssert ( ⌜is_z (WInt e_mem) = true ⌝)%I as "Hvr3". auto.
+    iCombine "Hr3 Hvr3" as "Hr3".
+    iInsertList "Hrmap" [r_t3;r_t2]. iClear "Hvr2 Hvr3".
 
     (* Show that the contents of unused registers is safe *)
     set (rmap' :=  <[r_t2:=WInt _]> (<[r_t3:= _]> rmap)).
     iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { subst rmap'.
       iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
-      destruct w; [| by inversion Hw]. rewrite fixpoint_interp1_eq //. }
+      destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //. }
 
     (* put the registers with capability back into the register map *)
-    insert_register r_t30 with "[$Hrmap Hr30]" as "Hrmap".
-    insert_register r_t1 with "[$Hrmap Hr1]" as "Hrmap".
+    iCombine "Hr1 Hmem_safe" as "Hr1".
+    iCombine "Hr30 Hadv" as "Hr30".
+    subst rmap'; iInsertList "Hrmap" [r_t1;r_t30].
 
     (* 3 - Use the continuation *)
 
     (* Prepare the resources *)
-    set (rmap'' := <[r_t1:=WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem (b_mem ^+ secret_off)%a]>
-                     (<[r_t30:= w_adv]> rmap')).
-    assert (dom (gset RegName) rmap'' = all_registers_s ∖ {[PC]}) as Hdomeq.
+    iApply "Cont" ; eauto. 2 : iFrame.
+    iPureIntro. subst.
     { do 2 (rewrite dom_insert_L).
       assert (all_registers_s ∖ {[PC]} =
                 ({[r_t1; r_t30]} ∪ all_registers_s ∖ {[PC; r_t1; r_t30]})) as ->.
@@ -410,7 +416,6 @@ Section base_program_CPS.
         apply subseteq_difference_r;[set_solver|].
         apply all_registers_subseteq. }
       set_solver. }
-    iApply "Cont" ; eauto. iFrame.
 
     (* Alternative for (3) *)
     (* iApply (wp_wand with "[-]"). *)

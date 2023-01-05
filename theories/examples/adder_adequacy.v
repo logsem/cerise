@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
@@ -70,7 +70,7 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
      through the registers, including a capability to the adversarial region
      (so the adversarial code *CAN* access (RWX) its own memory)
   *)
-  ∧ Forall (λ w, is_cap w = false) adv_val
+  ∧ Forall (λ w, is_z w = true) adv_val
   ∧ length act_val = 8
   ∧ (adv_start + length adv_val)%a = Some adv_end.
 
@@ -80,7 +80,7 @@ Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
   reg !! r_t1 = Some (WCap RWX act_start act_end act_start) ∧
   reg !! r_t3 = Some (WCap RW x x' x) ∧
   (∀ (r: RegName), r ∉ ({[ PC; r_t0; r_t1; r_t3 ]} : gset RegName) →
-     ∃ (w:Word), reg !! r = Some w ∧ is_cap w = false).
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
 
 Lemma initial_registers_full_map `{MachineParameters, memory_layout} reg :
   is_initial_registers reg →
@@ -96,9 +96,10 @@ Qed.
 
 Section Adequacy.
   Context (Σ: gFunctors).
-  Context {inv_preg: invPreG Σ}.
-  Context {mem_preg: gen_heapPreG Addr Word Σ}.
-  Context {reg_preg: gen_heapPreG RegName Word Σ}.
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
@@ -120,6 +121,7 @@ Section Adequacy.
     destruct Hm as (adv_val & act_val & Hm & Hadv_val & act_len & adv_size).
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
     pose memg := MemG Σ Hinv mem_heapg.
@@ -127,27 +129,27 @@ Section Adequacy.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
 
     pose proof (
-      @adder_full_spec Σ memg regg logrel_na_invs MP invN f_start f_end
+      @adder_full_spec Σ memg regg seal_storeg logrel_na_invs MP invN f_start f_end
     ) as Spec.
 
     (* Extract points-to for the various regions in memory *)
 
     pose proof regions_disjoint as Hdisjoint.
     rewrite {2}Hm.
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_adv & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_adv & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]".
     { disjoint_map_to_list. set_solver +Hdisj_adv. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_act & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_act & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hact]".
     { disjoint_map_to_list. set_solver +Hdisj_act. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_x & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_x & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hx]".
     { disjoint_map_to_list. set_solver +Hdisj_x. }
     iDestruct (big_sepM_insert with "Hx") as "[Hx _]". by apply lookup_empty. cbn [fst snd].
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_f & Hdisjoint).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_f & Hdisjoint).
     iDestruct (big_sepM_union with "Hmem") as "[Hg Hf]".
     { disjoint_map_to_list. set_solver +Hdisj_f. }
-    rewrite disjoint_list_cons in Hdisjoint |- *. intros (Hdisj_g & _).
+    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_g & _).
     clear Hdisj_adv Hdisj_act Hdisj_x Hdisj_f Hdisj_g.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
@@ -188,7 +190,7 @@ Section Adequacy.
       rewrite /rmap !dom_delete_L in HH.
       destruct (Hrothers r) as [w' [? Hncap] ]. { subst rmap. set_solver+ HH. }
       subst rmap. repeat (rewrite lookup_delete_ne in Hr; [|set_solver+ HH]).
-      simplify_eq. destruct w'; [|by inversion Hncap]. eauto. }
+      simplify_eq. destruct w'; [|by inversion Hncap..]. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
     { intros r.
@@ -233,7 +235,7 @@ Theorem adder_adequacy `{MachineParameters} `{memory_layout}
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   ∃ (n: Z), m' !! x = Some (WInt n) ∧ (n >= 0)%Z.
 Proof.
-  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word; sealStorePreΣ;
               na_invΣ]).
   eapply (@adder_adequacy' Σ); typeclasses eauto.
 Qed.

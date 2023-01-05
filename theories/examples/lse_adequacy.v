@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -127,7 +127,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -143,7 +143,7 @@ Program Definition roe_table `{memory_layout} : @tbl_priv roe_prog OCPLLibrary :
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -158,17 +158,17 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
 Section roe_adequacy.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{memlayout: memory_layout}.
 
   Lemma roe_correct :
-    Forall (λ w, is_cap w = false) adv_instrs →
+    Forall (λ w, is_z w = true) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
@@ -178,7 +178,7 @@ Section roe_adequacy.
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound roe_table) (prog_end roe_prog) (prog_start roe_prog)
         ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
-        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
         (* P program and table *)
         ∗ (prog_lower_bound roe_table) ↦ₐ (WCap RO (tbl_start roe_table) (tbl_end roe_table) (tbl_start roe_table))
         ∗ ([∗ map] a↦w ∈ (tbl_region roe_table), a ↦ₐ w)
@@ -236,7 +236,7 @@ Section roe_adequacy.
       iFrame. iSplit.
       { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
         rewrite finz_seq_between_singleton// /=. iSplit;[|done].
-        iExists interp. iFrame "Hadv_table_valid". auto. }
+        iExists interp. iFrame "Hadv_table_valid". do 2 iModIntro. auto. }
       iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
       rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
       iApply big_sepL_forall. iIntros (k n Hin).
@@ -280,7 +280,7 @@ Theorem roe_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory roe_prog adv_prog OCPLLibrary roe_table adv_table m →
   is_initial_registers roe_prog adv_prog OCPLLibrary roe_table adv_table reg r_adv →
-  Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
+  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).
@@ -289,5 +289,5 @@ Proof.
   set (Σ' := #[]).
   pose proof (ocpl_template_adequacy Σ' layout roe_prog adv_prog roe_table adv_table) as Hadequacy.
   eapply Hadequacy;eauto.
-  intros Σ ? ? ? ?. apply roe_correct. apply Hints.
+  intros Σ ? ? ? ? ?. apply roe_correct. apply Hints.
 Qed.

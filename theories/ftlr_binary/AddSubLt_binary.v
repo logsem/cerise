@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -73,22 +73,21 @@ Section fundamental.
       iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
 
       destruct (decide (PC = dst));simplify_eq;simplify_map_eq.
-      - rewrite !insert_insert. rewrite lookup_insert in H2. inv H2.
-      - rewrite (insert_commute _ _ PC)// insert_insert.
-        iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
-        { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
-          destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
-        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
-          destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s, Hv2s|].
-          - rewrite /interp !fixpoint_interp1_eq /=; simplify_eq; auto.
-          - rewrite !lookup_insert_ne// in Hv1s,Hv2s. simplify_eq.
-            revert Heq; rewrite map_eq' =>Heq.
-            destruct (r1 !! rr) eqn:Hsome';rewrite Hsome' in Hv1s;[|rewrite !fixpoint_interp1_eq;congruence]. inversion Hv1s. subst v1.
-            specialize (Heq rr w0). rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
-            by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
-        }
-        { rewrite lookup_insert_ne// lookup_insert in H2. simplify_eq.
-          rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
+      rewrite (insert_commute _ _ PC)// insert_insert.
+      iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
+      { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
+        destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
+      { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+        destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s, Hv2s|].
+        - rewrite /interp !fixpoint_interp1_eq /=; simplify_eq; auto.
+        - rewrite !lookup_insert_ne// in Hv1s,Hv2s. simplify_eq.
+          revert Heq; rewrite map_eq' =>Heq.
+          destruct (r1 !! rr) eqn:Hsome';rewrite Hsome' in Hv1s;[|rewrite !fixpoint_interp1_eq;congruence]. inversion Hv1s. subst v1.
+          specialize (Heq rr w0). rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
+          by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
+      }
+      {  simplify_eq.
+        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
     }
   Qed.
 

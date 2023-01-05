@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel macros_helpers macros rules proofmode.
 
 Section call.
@@ -70,12 +70,12 @@ Section call.
   Proof.
     iIntros (Hvpc Hcont Hsize Hnz Hwa Hwb Hperm Hlength) "(>Hprog & >HPC& >Hr_t1& >Hlocals& >Hbl& Hcont)".
     iInduction (locals) as [|r locals] "IH" forall (a_l mlocals wsr a a_first Hvpc Hcont Hnz Hsize Hwb Hperm Hlength).
-    { apply Permutation.Permutation_nil in Hperm. inversion Hnz. }
+    { inversion Hnz. }
     destruct locals as [|r' locals].
     - destruct wsr;[inversion Hlength|]. destruct wsr;[|inversion Hlength].
-      apply Permutation_sym, Permutation_singleton in Hperm.
+      apply Permutation_sym, Permutation_singleton_r in Hperm.
       assert (mlocals = {[r:=w]}) as Heq;[|subst mlocals].
-      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton. auto. }
+      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton_r. auto. }
       rewrite big_sepM_singleton.
       rewrite /store_locals /store_locals_instrs.
       iDestruct "Hbl" as (ws) "Hbl".
@@ -387,7 +387,7 @@ Section call.
         (malloc_prog rest1 link1) "(Hmalloc_prog & Hprog & #Hcont1)";[apply Hcont|].
     iDestruct "Hcont1" as %(Hcont1 & Hcont2 & Heqapp1 & Hlink1).
     rewrite -/(malloc _ _ _).
-    iApply (wp_wand_l _ _ _ (λne v, ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
+    iApply (wp_wand_l _ _ _ (λne (v : discreteO val), ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
     { iIntros (v) "[H|H] /=";auto. }
     iApply (malloc_spec with "[- $HPC $Hnainv $Hown $Hb $Ha_entry $Hmalloc_prog $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont1|..].
     { eapply isCorrectPC_range_restrict;eauto. split;[clear;solve_addr|]. apply contiguous_between_bounds in Hcont2. auto. }
@@ -443,9 +443,9 @@ Section call.
 
     (* malloc 7 *)
     (* prepare the registers *)
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite - !delete_insert_ne;auto.
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|].
     iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
@@ -710,9 +710,9 @@ Section call.
 
     (* rebuild register map *)
     (* we begin by clearning up the current register map *)
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete insert_insert].
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne//.
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite !(insert_commute _ _ r_t2)// insert_insert. rewrite !(insert_commute _ _ r_t3)// insert_insert.
     rewrite !(insert_commute _ _ r_t4)// insert_insert. rewrite !(insert_commute _ _ r_t5)// insert_insert.
     rewrite !insert_union_l.

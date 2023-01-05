@@ -1,7 +1,7 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary Jmp_binary Jnz_binary Lea_binary Subseg_binary Restrict_binary Store_binary.
+From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_binary Get_binary IsPtr_binary Jmp_binary Jnz_binary Lea_binary Subseg_binary Restrict_binary Store_binary Seal_binary UnSeal_binary.
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
@@ -97,6 +97,8 @@ Section fundamental.
       + (* GetB *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* GetE *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* GetA *) iApply (get_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* Seal *) iApply (seal_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
+      + (* UnSeal *) iApply (unseal_case with "[] [] [] [] [] [] [Hsreg] [Hown] [Hs] [Ha] [Ha'] [HP] [Hcls] [HPC] [Hmap]"); try (eapply Hi); try iAssumption; eauto.
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -187,7 +189,7 @@ Section fundamental.
     iDestruct (interp_eq with "Hw") as %<-.
     destruct (decide (isCorrectPC (updatePcPerm w))).
     - inversion i.
-      destruct w;inversion H.
+      destruct w as [ | [p0 b0 e0 a0 | ] | ];inversion H.
       destruct H1 as [-> | ->].
       + destruct p0; simpl in H; simplify_eq.
         * iExists _,_,_,_; iSplit;[eauto|].

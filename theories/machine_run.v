@@ -19,8 +19,8 @@ Fixpoint machine_run `{MachineParameters} (fuel: nat) (c: Conf): option ConfFlag
       | Some pc =>
         if isCorrectPCb pc then (
           let a := match pc with
-                  | WInt _ => top (* dummy *)
                   | WCap _ _ _ a => a
+                  | _ => top (* dummy *)
                   end in
           match m !! a with
           | None => Some Failed
@@ -58,7 +58,7 @@ Proof.
       constructor. }
     destruct (isCorrectPCb wpc) eqn:HPC.
     { apply isCorrectPCb_isCorrectPC in HPC.
-      destruct wpc eqn:Hr; [by inversion HPC|].
+      destruct wpc eqn:Hr; [by inversion HPC| | by inversion HPC]. destruct sb as [p b e a | ]; last by inversion HPC.
       destruct (m !! a) as [wa | ] eqn:HeMem.
       2: {
         eexists. eapply rtc_l. unfold erased_step. exists [].

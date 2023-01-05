@@ -1,9 +1,9 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
+From cap_machine Require Import fundamental logrel macros_helpers rules proofmode register_tactics.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine.exercises Require Import register_tactics subseg_buffer.
+From cap_machine.exercises Require Import subseg_buffer.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
 From cap_machine Require Import call callback.
 Open Scope Z_scope.
@@ -26,7 +26,7 @@ Open Scope Z_scope.
 
 Section program_call.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
 
@@ -392,7 +392,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
     (* Part 1 - Malloc *)
     (* Prepare the resource for the malloc spec *)
-    insert_register r_t30 with "[$Hrmap $Hr30]" as "Hrmap".
+    iInsert "Hrmap" r_t30.
     set (rmap' :=  <[r_t30:=wadv]> rmap).
     assert (Hdom' :
               dom (gset RegName) rmap' = all_registers_s ∖ {[PC]}).
@@ -403,7 +403,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       rewrite -union_difference_L; auto.
       set_solver.
     }
-    extract_register r_t0 with "Hrmap" as ( w0 Hw0 ) "[Hr0 Hrmap]".
+    iExtract "Hrmap" r_t0 as "Hr0".
 
     (* malloc specification *)
     rewrite -/(malloc _ _ _).
@@ -437,7 +437,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* Part 2 - Clear register *)
     (* Unlike the other part of the code, we prove this one instructions by instructions *)
     iHide "Cont" as Cont.
-    extract_register r_t7 with "Hrmap" as ( w7 Hw7 ) "[Hr7 Hrmap]".
+    iExtract "Hrmap" r_t7 as "Hr7".
 
     do 2 (destruct clear_addrs;[inversion Hlength_clear|]).
     simpl in *.
@@ -490,7 +490,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
     (* Part 3 - Prog_base *)
     (* Prepare the resources for the prog_base_spec *)
-    extract_register r_t8 with "Hrmap" as ( w8 Hw8 ) "[Hr8 Hrmap]".
+    iExtract "Hrmap" r_t8 as "Hr8".
 
     iAssert (codefrag a_prog (prog_secret_instrs r_t7 r_t8 secret_off secret_val))
       with "[Hprogi]" as "Hprogi".
@@ -505,9 +505,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     do 4 (rewrite delete_insert_ne ; eauto).
     
     (* 2 - extract r2 and r3 *)
-    extract_register r_t2 with "Hrmap" as ( w2 Hw2 ) "[Hr2 Hrmap]".
-    rewrite delete_insert_ne ; auto.
-    extract_register r_t3 with "Hrmap" as ( w3 Hw3 ) "[Hr3 Hrmap]".
+    iExtractList "Hrmap" [r_t2;r_t3] as ["Hr2";"Hr3"].
 
     (* Apply the base_prog_spec *)
     iApply (prog_secret_spec with "[- $HPC $Hr2 $Hr3 $Hprogi]")
@@ -532,21 +530,12 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       with "Hcall"
       as "Hcall".
     (* Re-insert r2 and r3 in the [* map] *)
-    insert_register r_t3 with "[$Hrmap $Hr3]" as "Hrmap".
-    insert_register r_t2 with "[$Hrmap $Hr2]" as "Hrmap".
+    iInsertList "Hrmap" [r_t3;r_t2;r_t1].
     (* Extract r30 - adv *)
     subst rmap'.
-    extract_register r_t30 with "Hrmap" as "[Hr30 Hrmap]".
-    do 2 (rewrite (delete_insert_ne _ _ r_t30) ; auto).
-    do 2 (rewrite (delete_insert_ne _ r_t30) ; auto).
-    do 2 (rewrite (delete_commute _ r_t30) ; auto).
-    do 2 (rewrite (delete_insert_ne _ r_t30) ; auto).
-    rewrite delete_insert;
-      [| simplify_map_eq ; rewrite elem_of_gmap_dom_none ; set_solver].
-    insert_register r_t1 with "[$Hrmap $Hr1]" as "Hrmap".
+    iExtract "Hrmap" r_t30 as "Hr30".
 
     set (rmap_call' := delete r_t7 _).
-    clear w7 Hw7 w8 Hw8.
     set (w7 := (WCap RWX _ e_mem _ )).
     set (w8 := (WCap RWX b_mem _ _ )).
     (* Call_spec *)
@@ -569,14 +558,12 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     { replace (a_prog ^+ 11%nat)%a with (a_call) by solve_addr.
       eassumption.
     }
-    1,2,3: (
-    rewrite !dom_delete_L
-    ; rewrite !dom_insert_L
-    ; rewrite !dom_delete_L
-    ; rewrite Hdom
-    ; set_solver+).
-    (* { solve_ndisj. } *)
 
+ (*    set_solver +. *)
+    all : subst rmap_call'.
+    1,2: (solve_map_dom).
+    match goal with | |- _ ⊆ dom (gset RegName) ?m => get_map_dom m as Hid; rewrite Hid end.
+    set_solver+.
     Unshelve.
     iSplitL "Hcall" ; first (iNext ; rewrite !map_to_list_singleton /= ; done).
     iSplitL "Hr7"; first (iApply big_sepM_singleton; iFrame).
@@ -683,7 +670,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     iApply big_sepM_insert_2 ; first iFrame "#".
     iApply big_sepM_insert_2 ; cycle 1.
     (* The remaining registers contains WInt*)
-    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+    { iApply big_sepM_intro. iIntros "!>" (r ?).
       (set rmap' := delete r_t7 _ ).
       destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
@@ -697,23 +684,10 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       iHide "Hrmap_safe" as Hrmap_safe.
       iClear "Cont".
       rewrite /interp_conf /registers_mapsto.
+      apply regmap_full_dom in H as H'.
 
       (* get all the registers we need for the remaining code *)
-      extract_register PC with "Hrmap" as "[HPC Hrmap]".
-      some_register r_t0 with r as w0 Hw0
-      ; extract_register r_t0 with "Hrmap" as "[Hr0 Hrmap]".
-      some_register r_t1 with r as w1 Hw1
-      ; extract_register r_t1 with "Hrmap" as "[Hr1 Hrmap]".
-      some_register r_t2 with r as w2 Hw2
-      ; extract_register r_t2 with "Hrmap" as "[Hr2 Hrmap]".
-      some_register r_t3 with r as w3 Hw3
-      ; extract_register r_t3 with "Hrmap" as "[Hr3 Hrmap]".
-      some_register r_t4 with r as w4 Hw4
-      ; extract_register r_t4 with "Hrmap" as "[Hr4 Hrmap]".
-      some_register r_t5 with r as w5 Hw5
-      ; extract_register r_t5 with "Hrmap" as "[Hr5 Hrmap]".
-      some_register r_t8 with r as w8' Hw8
-      ; extract_register r_t8 with "Hrmap" as "[Hr8 Hrmap]".
+      iExtractList "Hrmap" [PC;r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8] as ["HPC";"Hr0";"Hr1";"Hr2";"Hr3";"Hr4";"Hr5";"Hr8"].
 
       (* 1 - step through the activation record *)
       iMod (na_inv_acc with "Hact Hna") as "[Hact' [Hna Hcls'] ]";[solve_ndisj|solve_ndisj|].
@@ -749,7 +723,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       iAssert (r_t8 ↦ᵣ w8)%I with "[Hr8]" as "Hr8".
       { iApply (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t8 w8).
         done. }
-      insert_register r_t8 with "[$Hrmap $Hr8]" as "Hrmap".
+      iInsert "Hrmap" r_t8.
 
 
       (* 3 - Preparation of the assert *)
@@ -844,13 +818,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
       (* close invariants, reassemble registers, and finish *)
       iMod ("Hcls" with "[$Hna $Hrestore $Hi $Hprepa $Hassert]") as "Hna".
-      insert_register r_t0 with "[$Hrmap $Hr0]" as "Hrmap".
-      insert_register r_t1 with "[$Hrmap $Hr1]" as "Hrmap".
-      insert_register r_t2 with "[$Hrmap $Hr2]" as "Hrmap".
-      insert_register r_t3 with "[$Hrmap $Hr3]" as "Hrmap".
-      insert_register r_t4 with "[$Hrmap $Hr4]" as "Hrmap".
-      insert_register r_t5 with "[$Hrmap $Hr5]" as "Hrmap".
-      insert_register PC with "[$Hrmap $HPC]" as "Hrmap".
+      iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;PC].
       wp_pure; wp_end.
       iIntros "_".
       iExists _. iFrame.
@@ -1047,7 +1015,7 @@ Program Definition layout `{memory_layout} : ocpl_library :=
 Next Obligation.
   intros.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   set_solver.
 Qed.
 Definition OCPLLibrary `{memory_layout} := library layout.
@@ -1063,7 +1031,7 @@ Program Definition call_table `{memory_layout} : @tbl_priv call_prog OCPLLibrary
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -1078,17 +1046,17 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog OCPLLibrary :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint |- *.
   disjoint_map_to_list. set_solver.
 Qed.
 
 Section prog_call_correct.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{memlayout: memory_layout}.
 
   Lemma prog_call_correct :
-    Forall (λ w, is_cap w = false) adv_instrs →
+    Forall (λ w, is_z w = true) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
@@ -1098,7 +1066,7 @@ Section prog_call_correct.
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound call_table) (prog_end call_prog) (prog_start call_prog)
         ∗ r_t30 ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
-        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
         (* P program and table *)
         ∗ (prog_lower_bound call_table) ↦ₐ (WCap RO (tbl_start call_table) (tbl_end call_table) (tbl_start call_table))
         ∗ ([∗ map] a↦w ∈ (tbl_region call_table), a ↦ₐ w)
@@ -1208,7 +1176,7 @@ Theorem prog_call_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory call_prog adv_prog OCPLLibrary call_table adv_table m →
   is_initial_registers call_prog adv_prog OCPLLibrary call_table adv_table reg r_t30 →
-  Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
+  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).
@@ -1217,7 +1185,9 @@ Proof.
   set (Σ' := #[]).
   pose proof (ocpl_template_adequacy Σ' layout call_prog adv_prog call_table adv_table) as Hadequacy.
   eapply Hadequacy;eauto.
-  intros Σ ? ? ? ?.
+
+  intros Σ ? ? ? ? ?.
+  cbn.
   apply prog_call_correct.
   apply Hints.
 Qed.

@@ -1,5 +1,5 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
@@ -269,17 +269,17 @@ Section interval_closure.
 
     repeat (rewrite -(delete_insert_ne _ r_t1)//); rewrite !(delete_commute _ _ r_t1)//;
     rewrite -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)//.
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     repeat (rewrite -(delete_insert_ne _ r_t2)//); rewrite !(delete_commute _ _ r_t2)//.
-    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete.
+    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete_insert.
 
-    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete.
+    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete_insert.
 
-    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete.
+    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete_insert.
 
     rewrite (insert_commute _ r_t2 r_t3)//. rewrite delete_insert_delete.
-    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete.
+    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete_insert.
 
     rewrite (insert_commute _ r_temp1 r_t2)//. rewrite insert_insert.
 
@@ -361,6 +361,7 @@ Section interval_closure.
     iDestruct "Hres" as (b0 e0 He0) "(Hr_t1 & Hact0 & Hr_t0 & Hr_t2 & Hown & Hregs)".
     map_simpl "Hregs".
     unfocus_block "Hblock" "Hcont" as "Hcode".
+    clear dependent a_mid0 a_mid3 a_mid4.
 
     focus_block 7 "Hcode" as a_mid6 Ha_mid6 "Hblock" "Hcont".
     assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].

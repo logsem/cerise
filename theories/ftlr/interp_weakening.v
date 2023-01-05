@@ -1,12 +1,12 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine Require Import addr_reg region.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
@@ -88,6 +88,60 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
   Qed.
-  
+
+  Lemma safe_to_unseal_weakening b e b' e':
+    (b <= b')%ot ->
+    (e' <= e)%ot ->
+    safe_to_unseal (fixpoint interp1) b e -∗
+    safe_to_unseal (fixpoint interp1) b' e'.
+  Proof.
+    iIntros (Hb He) "HA".
+    rewrite /safe_to_unseal.
+    destruct (decide (b' <= e')%ot).
+    - rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
+      rewrite !big_sepL_app; iDestruct "HA" as "[_ [$ _]]".
+    - iClear "HA"; rewrite !finz_seq_between_empty;[done |solve_addr].
+  Qed.
+
+  Lemma safe_to_seal_weakening b e b' e':
+    (b <= b')%ot ->
+    (e' <= e)%ot ->
+    safe_to_seal (fixpoint interp1) b e -∗
+    safe_to_seal (fixpoint interp1) b' e'.
+  Proof.
+    iIntros (Hb He) "HA".
+    rewrite /safe_to_seal.
+    destruct (decide (b' <= e')%ot).
+    - rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
+      rewrite !big_sepL_app; iDestruct "HA" as "[_ [$ _]]".
+    - iClear "HA"; rewrite !finz_seq_between_empty;[done |solve_addr].
+  Qed.
+
+  Ltac destruct_sealperm p :=
+     let b := fresh "b" in
+     let b1 := fresh "b1" in
+     destruct p as [b b1]; destruct b, b1.
+  Lemma permit_seal_flowsto p' p:
+    SealPermFlowsTo p' p = true -> permit_seal p' = true → permit_seal p = true.
+  Proof.  destruct_sealperm p; destruct_sealperm p'; done. Qed.
+  Lemma permit_unseal_flowsto p' p:
+    SealPermFlowsTo p' p = true -> permit_unseal p' = true → permit_unseal p = true.
+  Proof.  destruct_sealperm p; destruct_sealperm p'; done. Qed.
+
+  Lemma interp_weakening_ot p p' b b' e e' a a':
+    (b <= b')%ot ->
+    (e' <= e)%ot ->
+    SealPermFlowsTo p' p = true ->
+    (fixpoint interp1) (WSealRange p b e a) -∗
+    (fixpoint interp1) (WSealRange p' b' e' a').
+  Proof.
+  intros Hb He Hp. iIntros "#HA".
+  rewrite !fixpoint_interp1_eq. cbn.
+  destruct (permit_seal p') eqn:Hseal; [eapply (permit_seal_flowsto _ p) in Hseal as ->; auto | ].
+  all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as ->; auto | ]; iDestruct "HA" as "[Hs Hus]".
+  all: iSplitL "Hs";
+  [try iApply (safe_to_seal_weakening with "Hs") | try iApply (safe_to_unseal_weakening with "Hus")]; auto.
+  Qed.
+
 
 End fundamental.

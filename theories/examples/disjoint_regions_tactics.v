@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From stdpp Require Import sets list.
 From cap_machine Require Import addr_reg region.
 
@@ -98,7 +98,7 @@ Proof.
       { intros ? ? ? ?. eapply HInd. apply elem_of_list_further; eassumption.
         auto. }
       specialize (IHll _ _ HI).
-      rewrite elem_of_subseteq in IHll |- * => IHll.
+      rewrite elem_of_subseteq in IHll.
       by apply IHll.
 Qed.
 
@@ -128,7 +128,7 @@ Proof.
   intros Hl Hll. unfold ByReflexivity.
   rewrite orb_true_iff !Z.leb_le.
   intros.
-  rewrite AddrRegionRange_iff_incl_region_addrs in Hl |- * => Hl.
+  rewrite AddrRegionRange_iff_incl_region_addrs in Hl.
   eapply disjoint_mono_l; eauto.
   eapply disjoint_mono_r. eapply addr_range_union_incl_range; eauto.
   unfold disjoint.

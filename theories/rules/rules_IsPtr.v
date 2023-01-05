@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
@@ -43,7 +43,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -52,14 +52,14 @@ Section cap_lang_rules.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    unfold exec in Hstep.
+    rewrite /exec in Hstep.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
 
     assert (exec_opt (IsPtr dst src) (r, m) = updatePC (update_reg (r, m) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
-    {  rewrite /= Hsrc. unfold is_cap; destruct wsrc; auto. }
+    {  rewrite /= Hsrc. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs))
