@@ -186,7 +186,7 @@ Section definitionsS.
   Qed.
 
 End definitionsS.
-Typeclasses Opaque memspec_mapsto regspec_mapsto exprspec_mapsto.
+#[global] Typeclasses Opaque memspec_mapsto regspec_mapsto exprspec_mapsto.
 
 Notation "a ↣ₐ{ q } v" := (memspec_mapsto a q v)
   (at level 20, q at level 50, format "a  ↣ₐ{ q }  v") : bi_scope.

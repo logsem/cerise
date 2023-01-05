@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import keylist dynamic_sealing.
+From cap_machine.examples Require Import keylist dynamic_sealing.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.

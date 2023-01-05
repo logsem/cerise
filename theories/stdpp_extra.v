@@ -514,13 +514,13 @@ Proof.
     simpl.
     assert (a ∈ [a]); first apply elem_of_list_here.
     destruct (decide_rel elem_of a [a]); last contradiction.
-    rewrite -minus_n_O.
+    rewrite Nat.sub_0_r.
     apply list_difference_length_ni; auto.
   - simpl.
     assert (¬ (a ∈ [b])).
     { rewrite /not. intros Hin. apply elem_of_list_singleton in Hin. congruence. }
     destruct (decide_rel elem_of a [b]); first contradiction.
-    rewrite -minus_n_O /=.
+    rewrite Nat.sub_0_r /=.
     inversion Hndup; subst.
     apply elem_of_cons in Ha.
     destruct Ha as [Hcontr | Ha]; first congruence.
