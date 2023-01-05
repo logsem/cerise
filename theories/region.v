@@ -53,7 +53,7 @@ Section region.
       iDestruct (big_sepL2_length with "A") as %Hlen.
       rewrite (finz_seq_between_decomposition b a e) //.
       assert (Hlnws: n = length (take n ws)).
-      { rewrite take_length. rewrite Min.min_l; auto.
+      { rewrite take_length. rewrite Nat.min_l; auto.
         rewrite <- Hlen. subst n. rewrite !finz_seq_between_length /finz.dist.
         solve_addr. }
       generalize (take_drop n ws). intros HWS.
@@ -118,7 +118,7 @@ Section region.
     iDestruct (big_sepL2_length with "Hreg") as %Hlen.
     rewrite (finz_seq_between_decomposition b a e) //.
     assert (Hlnws: n = length (take n ws)).
-    { rewrite take_length. rewrite Min.min_l; auto.
+    { rewrite take_length. rewrite Nat.min_l; auto.
       rewrite <- Hlen. subst n. rewrite !finz_seq_between_length /finz.dist.
       solve_addr. }
     generalize (take_drop n ws). intros HWS.
@@ -222,7 +222,7 @@ Section region.
       iDestruct (big_sepL2_length with "A") as %Hlen.
       rewrite (finz_seq_between_decomposition b a e) //.
       assert (Hlnws: n = length (take n ws)).
-      { rewrite take_length. rewrite Min.min_l; auto.
+      { rewrite take_length. rewrite Nat.min_l; auto.
         rewrite <- Hlen. subst n. rewrite !finz_seq_between_length /finz.dist.
         solve_addr. }
       generalize (take_drop n ws). intros HWS.
@@ -320,7 +320,7 @@ Section region.
        rewrite (_: finz.dist b e - finz.dist b a = finz.dist a e)...
    Qed.
 
-   
+
 End region.
 
 Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)

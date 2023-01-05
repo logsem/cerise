@@ -583,4 +583,3 @@ Proof.
   generalize (normal_always_step σ); intros (?&?&?).
   eapply head_reducible_from_step. eauto.
 Qed.
-
