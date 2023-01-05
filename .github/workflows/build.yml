@@ -33,7 +33,7 @@ jobs:
       - name: Install OCaml
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: 4.12.0
+          ocaml-version: 4.14.0
 
       - name: Install Coq and Iris
         run: |
@@ -41,7 +41,7 @@ jobs:
           opam install . --deps-only -y
 
       - name: Build
-        run: opam exec -- make ci -j $(nproc)
+        run: opam exec -- make ci
 
       - name: Build docs
         run: opam exec -- make html
