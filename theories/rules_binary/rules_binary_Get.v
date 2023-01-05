@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
 
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of get_i ⊆ dom _ regs →
+    regs_of get_i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     

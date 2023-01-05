@@ -9,10 +9,10 @@ Section cap_lang_rules.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr. 
+  Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val. 
+  Implicit Types v : cap_lang.val.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
@@ -169,10 +169,10 @@ Section cap_lang_rules.
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Load r1 r2) ⊆ dom _ regs →
+   regs_of (Load r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true r2 regs mem →
-   dom (gset Addr) mem = dom (gset Addr) dfracs →
+   dom mem = dom dfracs →
 
    {{{ (▷ [∗ map] a↦dw ∈ prod_merge dfracs mem, a ↦ₐ{dw.1} dw.2) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
@@ -203,6 +203,7 @@ Section cap_lang_rules.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
     rewrite /exec /= Hr2 /= in Hstep.
@@ -296,13 +297,13 @@ Section cap_lang_rules.
 
   Lemma mem_remove_dq mem dq :
     ([∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ⊣⊢
-    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom (gset Addr) mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
+    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
   Proof.
     iInduction (mem) as [|a k mem] "IH" using map_ind.
     - rewrite big_sepM_empty dom_empty_L elements_empty
               /= /prod_merge merge_empty big_sepM_empty. done.
     - rewrite dom_insert_L.
-      assert (elements ({[a]} ∪ dom (gset Addr) mem) ≡ₚ a :: elements (dom (gset Addr) mem)) as Hperm.
+      assert (elements ({[a]} ∪ dom mem) ≡ₚ a :: elements (dom mem)) as Hperm.
       { apply elements_union_singleton. apply not_elem_of_dom. auto. }
       apply (create_gmap_default_permutation _ _ dq) in Hperm. rewrite Hperm /=.
       rewrite /prod_merge -(insert_merge _ _ _ _ (dq,k)) //.
@@ -310,11 +311,11 @@ Section cap_lang_rules.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iApply big_sepM_insert.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto; rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
         iFrame. iApply "IH". iFrame.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto; rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
         iApply big_sepM_insert. auto.
         iFrame. iApply "IH". iFrame.
   Qed.
@@ -325,7 +326,7 @@ Section cap_lang_rules.
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Load r1 r2) ⊆ dom _ regs →
+   regs_of (Load r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true r2 regs mem →
    {{{ (▷ [∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ∗

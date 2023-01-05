@@ -20,7 +20,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = Subseg dst src1 src2 ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (Subseg dst src1 src2) ⊆ dom _ regs →
+    regs_of (Subseg dst src1 src2) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     
@@ -161,7 +161,7 @@ Section cap_lang_spec_rules.
           }
           destruct_word r1v; try congruence.
           cbn in Hstep.
-          all: by iFailStep Subseg_fail_src1_nonotype. }
+          all: try by iFailStep Subseg_fail_src1_nonotype. }
       apply (otype_of_arg_mono _ σr) in Ha1; auto. rewrite Ha1 /= in Hstep.
 
       destruct (otype_of_argument regs src2) as [a2|] eqn:Ha2;

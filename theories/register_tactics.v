@@ -24,7 +24,7 @@ Section denote_domain.
       end.
 
    Local Arguments denote {_ _ _ _} _ _ _.
-   Lemma denote_domain_correct {A : Type} (rm: @rgmap A) (fm: nat -> option K) (m : gmap K A) (mdom : gset K) : dom (gset K) m = mdom → dom (gset K) (denote rm fm m) = denote_domain rm fm mdom.
+   Lemma denote_domain_correct {A : Type} (rm: @rgmap A) (fm: nat -> option K) (m : gmap K A) (mdom : gset K) : dom m = mdom → dom (denote rm fm m) = denote_domain rm fm mdom.
      intro Hmdom.
      induction rm; cbn [denote denote_domain].
      - case_eq (fm k); intros; set_solver + IHrm.
@@ -55,7 +55,7 @@ Tactic Notation "get_map_dom" constr(m) "as" ident(hdom) :=
 (* solving goals with map domains faster than set_solver *)
 Tactic Notation "solve_map_dom" :=
   let Hdom := fresh "Hdom" in
-  match goal with | |- dom _ ?m = ?dom => get_map_dom m as Hdom; rewrite Hdom; clear Hdom; set_solver+ end.
+  match goal with | |- dom ?m = ?dom => get_map_dom m as Hdom; rewrite Hdom; clear Hdom; set_solver+ end.
 
 (* try to find concrete value in gmap *)
 Ltac solve_lookup_some :=

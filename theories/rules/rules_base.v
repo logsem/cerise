@@ -283,7 +283,8 @@ Section cap_lang_rules.
       iDestruct "H" as %Hs1.
       iDestruct "H1" as %Hs2.
       destruct (cap_lang_determ _ _ _ _ _ _ _ _ _ _ Hs1 Hs2) as [Heq1 [Heq2 [Heq3 Heq4]]].
-      subst. iMod "H2". iModIntro. iFrame. inv Hs1; auto.
+      subst. iMod "H2". iIntros "_".
+      iModIntro. iFrame. inv Hs1; auto.
   Qed.
 
   (* -------------- predicates on memory maps -------------------------- *)
@@ -457,7 +458,7 @@ Section cap_lang_rules.
     intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 ns l1 l2 nt) "Hσ1 /="; destruct σ1; simpl;
+    iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl;
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
@@ -465,7 +466,8 @@ Section cap_lang_rules.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
-    iNext. iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
+    iNext. iIntros "_".
+    iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
   Qed.
 
   (* Subcases for respecitvely permissions and bounds *)
@@ -518,7 +520,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext. iIntros "_". iModIntro.
+    iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
   Qed.
 
   Lemma wp_fail E pc_p pc_b pc_e pc_a w :
@@ -541,7 +544,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iModIntro. iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    iNext. iIntros "_". iModIntro.
+    iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
    Qed.
 
   (* ----------------------------------- PURE RULES ---------------------------------- *)
@@ -624,7 +628,7 @@ Definition regs_of (i: instr): gset RegName :=
   end.
 
 Lemma indom_regs_incl D (regs regs': Reg) :
-  D ⊆ dom (gset RegName) regs →
+  D ⊆ dom regs →
   regs ⊆ regs' →
   ∀ r, r ∈ D →
        ∃ (w:Word), (regs !! r = Some w) ∧ (regs' !! r = Some w).

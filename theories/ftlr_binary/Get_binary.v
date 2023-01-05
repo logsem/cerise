@@ -62,7 +62,8 @@ Section fundamental.
 
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro].
+      iNext;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { destruct Hregs as [<-|Hcontr];[|inversion Hcontr].
       incrementPC_inv; simplify_map_eq.
@@ -72,6 +73,7 @@ Section fundamental.
 
       destruct (decide (PC = dst));simplify_eq;simplify_map_eq.
       rewrite (insert_commute _ _ PC)// insert_insert.
+      iIntros "_".
       iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
       { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
         destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }

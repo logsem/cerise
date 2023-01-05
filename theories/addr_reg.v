@@ -26,7 +26,7 @@ Inductive RegName: Type :=
 
 Global Instance reg_eq_dec : EqDecision RegName.
 Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
-       destruct (nat_eq_dec n n0).
+       destruct (Nat.eq_dec n n0).
        + subst n0. left.
          assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
          { intros. apply eq_proofs_unicity.
@@ -38,7 +38,7 @@ Defined.
 Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
-  match nat_le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
+  match Nat.le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
 Defined.
@@ -58,7 +58,7 @@ Proof.
   intro r. destruct r; auto.
   rewrite decode_encode.
   unfold n_to_regname.
-  destruct (nat_le_dec n RegNum).
+  destruct (Nat.le_dec n RegNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
   - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
@@ -200,7 +200,7 @@ Qed.
 
 Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
-  dom (gset RegName) r = all_registers_s.
+  dom r = all_registers_s.
 Proof.
   intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.

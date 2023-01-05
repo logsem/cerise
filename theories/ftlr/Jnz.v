@@ -33,11 +33,13 @@ Section fundamental.
     destruct HSpec.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
+      iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
       end. simplify_map_eq. rewrite insert_insert.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
+      iIntros "_".
       iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iModIntro.
       rewrite !fixpoint_interp1_eq /=.
       destruct Hp as [-> | ->];iFrame "Hinv". }
@@ -63,6 +65,7 @@ Section fundamental.
           iDestruct ("HECap" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iAssert ([∗ map] k↦y ∈ <[PC:= WCap p' b' e' a']> r, k ↦ᵣ y)%I  with "[Hmap]" as "Hmap".
           { destruct p'; auto. congruence. }
+          iNext; iIntros "_".
 
           iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
@@ -74,14 +77,16 @@ Section fundamental.
       }
      (* Non-capability cases *)
 
+      all: iNext; iIntros "_".
      all: iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap] /=";
       [apply lookup_insert|]; simpl.
      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
         iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
      all: repeat iNext; iIntros "HPC /=".
      all: iApply wp_pure_step_later; auto.
+     all: iNext; iIntros "_".
      all: iApply wp_value.
-     all: iNext; iIntros.
+     all: iIntros.
      all: discriminate.
      }
 Qed.

@@ -585,9 +585,13 @@ Section opsem.
           (exec i φ = (Halted, φ')).
   Proof.
     unfold exec, exec_opt.
-    repeat case_match; simplify_eq; eauto.
+    repeat case_match; simplify_eq; eauto;rename H0 into Heqo.
     (* Create more goals through *_of_argument, now that some have been pruned *)
-    all: repeat destruct (addr_of_argument (reg φ) _); repeat destruct (otype_of_argument (reg φ) _); repeat destruct (word_of_argument (reg φ) _); repeat destruct (z_of_argument (reg φ) _); cbn in *; try by exfalso.
+    all: repeat destruct (addr_of_argument (reg φ) _)
+    ; repeat destruct (otype_of_argument (reg φ) _)
+    ; repeat destruct (word_of_argument (reg φ) _)
+    ; repeat destruct (z_of_argument (reg φ) _)
+    ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
     all: simplify_eq; try by exfalso.

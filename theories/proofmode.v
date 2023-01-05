@@ -306,7 +306,7 @@ Lemma tac_specialize_assert_delay {PROP: bi} (Δ: envs PROP) j q R P1 P2 P1' F Q
   | None => False
   end → envs_entails Δ Q.
 Proof.
-  rewrite envs_entails_eq. intros ??? HH.
+  rewrite envs_entails_unseal. intros ??? HH.
   destruct (envs_app _ _ _) eqn:?; last done.
   intros HQ.
   rewrite envs_lookup_sound //.

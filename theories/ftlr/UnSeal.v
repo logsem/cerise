@@ -67,7 +67,7 @@ Section fundamental.
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
+      iNext; iIntros "_".
 
       (* If PC=dst and perm of unsealed cap = E -> error! *)
       destruct (decide (PC = dst ∧ p'' = E)) as [ [Herr1 Herr2] | HNoError].
@@ -78,7 +78,9 @@ Section fundamental.
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
         iIntros "!> _".
-        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iApply wp_pure_step_later; auto.
+        iNext; iIntros "_".
+        iApply wp_value.
         iIntros (a1); inversion a1.
       }
       (* Otherwise, we will be able to derive validity of the PC below*)
@@ -104,7 +106,8 @@ Section fundamental.
     }
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iApply wp_value; auto. iNext. iIntros; discriminate. }
+      iNext ; iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate. }
     Qed.
 
 End fundamental.

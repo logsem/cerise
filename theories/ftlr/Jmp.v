@@ -35,6 +35,7 @@ Section fundamental.
       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* apply IH *)
+      iIntros "_".
       iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
       { iPureIntro. apply Hsome. }
       destruct Hp as [-> | ->]; iFrame.
@@ -69,6 +70,7 @@ Section fundamental.
           { destruct p'; auto. congruence. }
 
           iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
+          iNext; iIntros "_".
           iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
           { iIntros (ri v Hri Hvs).
@@ -85,12 +87,14 @@ Section fundamental.
       }
 
      (* Non-capability cases *)
-     all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
+      all: iNext; iIntros "_".
+      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
         iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
-     all: repeat iNext; iIntros "HPC /=".
-     all: iApply wp_pure_step_later; auto.
-     all: iApply wp_value.
-     all:   iNext; iIntros; discriminate.
+      all: repeat iNext; iIntros "HPC /=".
+      all: iApply wp_pure_step_later; auto.
+      all: iNext; iIntros "_".
+      all: iApply wp_value.
+      all: iIntros; discriminate.
   Qed.
 
 End fundamental.

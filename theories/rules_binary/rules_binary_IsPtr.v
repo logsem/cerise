@@ -18,7 +18,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = IsPtr dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (IsPtr dst src) ⊆ dom _ regs →
+    regs_of (IsPtr dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 

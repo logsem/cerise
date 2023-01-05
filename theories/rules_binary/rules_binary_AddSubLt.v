@@ -19,7 +19,7 @@ Section cap_lang_spec_rules.
     is_AddSubLt i dst arg1 arg2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of i ⊆ dom _ regs →
+    regs_of i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
@@ -114,7 +114,7 @@ Section cap_lang_spec_rules.
     iMod (step_AddSubLt with "[$Hmap $Hown $Hj Hpc_a]") as (? ? Hspec) "(Hj & HH)"; eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. }
+    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. }
     { (* Failure, done *) by iFrame. }
   Qed.
 

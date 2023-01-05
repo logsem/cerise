@@ -65,7 +65,7 @@ Section fundamental.
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
+      iNext; iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hvs).
@@ -96,7 +96,7 @@ Section fundamental.
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
+      iNext; iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hvs).
@@ -118,7 +118,7 @@ Section fundamental.
     }
      { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
+      iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.
 

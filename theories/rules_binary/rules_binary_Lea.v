@@ -19,7 +19,7 @@ Section cap_lang_spec_rules.
      decodeInstrW w = Lea r1 arg →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-     regs_of (Lea r1 arg) ⊆ dom _ regs →
+     regs_of (Lea r1 arg) ⊆ dom regs →
 
      nclose specN ⊆ Ep →
 

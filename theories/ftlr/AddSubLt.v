@@ -63,11 +63,11 @@ Section fundamental.
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
+      iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext;iIntros "_".
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       simplify_map_eq.
       iApply ("IH" $! (<[dst:=_]> (<[PC:=_]> r)) with "[%] [] [Hmap] [$Hown]");

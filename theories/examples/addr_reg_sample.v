@@ -71,5 +71,5 @@ Lemma region_addrs_zeroes_split (b a e: Addr) :
 Proof.
   intros. rewrite /region_addrs_zeroes.
   rewrite (finz_dist_split a). 2: solve_addr.
-  rewrite replicate_plus //.
+  rewrite replicate_add //.
 Qed.

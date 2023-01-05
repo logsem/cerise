@@ -31,7 +31,7 @@ The simplest option is to create a fresh *local* opam switch with everything
 needed, by running the following commands:
 
 ```
-opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.11.2
+opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.14.0
 eval $(opam env)
 ```
 

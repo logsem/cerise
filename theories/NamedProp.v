@@ -191,7 +191,7 @@ Lemma tac_name_intuitionistic {PROP:bi} Δ i i' p (P P' Q: PROP) name :
   envs_entails Δ Q.
 Proof.
   rewrite /named.
-  rewrite envs_entails_eq => ? HP' HPQ HQ.
+  rewrite envs_entails_unseal => ? HP' HPQ HQ.
   destruct (envs_replace _ _ _ _ _) as [Δ'|] eqn:Hrep; last done.
   rewrite envs_replace_singleton_sound //.
   rewrite HQ.

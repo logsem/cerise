@@ -311,10 +311,11 @@ Section fundamental.
       rewrite insert_insert.
 
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs /=". solve_ndisj.
+      iModIntro;iNext;iIntros "_".
       iApply ("IH" $! (r1, r1) with "[] [] Hmap Hsmap Hown Hs Hspec");auto.
       { iPureIntro. simpl. intros.  destruct (Hsome x4) as [A _]. auto. }
-      { iModIntro.
-        rewrite /interp !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iDestruct "Hinv" as "[_ $]";auto. }
+      { rewrite /interp !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]
+        ; iDestruct "Hinv" as "[_ $]";auto. }
     }
     { rewrite /allow_store_res /allow_store_mem.
       destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
@@ -327,12 +328,14 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hsa0 Hres]");[iExists w';iExists w'; iFrame|iModIntro].
         iMod ("Hcls" with "[Ha Hsa HP]");[iExists w; iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
       - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
         iDestruct (big_sepM_insert with "Hsmem") as "[Hsmem _]"; auto.
         iMod ("Hcls" with "[Hmem Hsmem HP]");[iExists w;iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

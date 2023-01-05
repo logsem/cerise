@@ -44,6 +44,7 @@ Section fundamental.
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       iDestruct ((big_sepM_delete _ _ PC) with "[HsPC Hsmap]") as "Hsmap /=";
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      iIntros "_".
       iApply ("IH" $! (r1, r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]").
       { iPureIntro. intros; simpl; auto. }
       { simpl. iIntros (rr Hne). iDestruct ("Hreg" $! rr Hne) as "Hrr".
@@ -115,8 +116,9 @@ Section fundamental.
                 - rewrite (insert_commute r1 dst); auto. rewrite insert_insert; auto.
                 - rewrite Heq. rewrite (insert_commute r2 dst); auto. rewrite insert_insert; auto. }
               rewrite H0. iFrame. }
-          * iDestruct "Hinvdst''" as "(_ & Hinvdst'')". iFrame.
-        + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
+          * iDestruct "Hinvdst''" as "(_ & Hinvdst'')". iFrame. by iIntros.
+        + iNext;iIntros "_".
+          iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
           iApply ("IH" $! (<[dst:=_]>r1, <[dst:=_]>r2)
                        match p0 with E => RX | _ => p0 end b0 e0 a0
                     with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]").
@@ -148,11 +150,13 @@ Section fundamental.
                 rewrite insert_insert. rewrite Hdst2. destruct p0; reflexivity. }
             rewrite H0 Hdst2. iFrame. }
           { destruct p0; auto. congruence. }
-      - iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
+      - iNext;iIntros "_".
+        iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
         simpl. iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC with "HPC"); [eapply isCorrectPCb_nisCorrectPC; auto|].
         iIntros "!>". iDestruct 1 as "HPC".
-        iApply wp_pure_step_later; auto. iNext.
+        iApply wp_pure_step_later; auto.
+        iNext;iIntros "_".
         iApply wp_value. iIntros (Hne). congruence. }
     Unshelve. all:auto.
   Qed.

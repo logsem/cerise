@@ -258,6 +258,7 @@ Section fundamental.
       simplify_map_eq.
       rewrite insert_insert.
       
+      iModIntro; iNext; iIntros "_".
       iApply ("IH" with "[%] [] Hmap [$Hown]");auto.
       { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
@@ -270,11 +271,13 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hres]");[iExists w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. 
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
-      - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1. 
-        iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro]. 
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+      - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
+        iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext ; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

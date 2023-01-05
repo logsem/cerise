@@ -42,7 +42,8 @@ Section fundamental.
     destruct HSpec; cycle 1.
     - (* In case of failure, we do not necessarily get a contradiction, but the proof is trivial *)
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro].
+      iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate.
     - destruct (decide (src1 = PC)) as [->|Hnesp]; simplify_map_eq.
       specialize (Hsome src1) as (_ & (vr2 & Hsr1')).

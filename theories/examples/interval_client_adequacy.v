@@ -647,7 +647,8 @@ Section int_client_adequacy.
       1,2: apply le_addr_withinBounds'. all: try solve_addr.
       apply seal_table_size. }
     { eauto. }
-    { rewrite /offset_to_checki. pose proof interval_client_closure_size.
+    { rewrite /offset_to_checki.
+      pose proof interval_client_closure_size. rewrite /offset_to_checki.
       rewrite /interval_client_closure_move_offset in HH.
       rewrite /interval_client_closure_move_offset /interval_client_closure_instrs_length.
       simpl in *. solve_addr. }

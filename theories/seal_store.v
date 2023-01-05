@@ -40,7 +40,7 @@ Global Instance subG_sealStorePreΣ {Σ}:
 Proof. solve_inG. Qed.
 
 (* Auxiliary lemma's about gmap domains *)
-Lemma gmap_none_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K B) (i : K): dom (gset K) g1 = dom (gset K) g2 →
+Lemma gmap_none_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K B) (i : K): dom g1 = dom g2 →
     g1 !! i = None → g2 !! i = None.
 Proof.
   intros Hdom Hnon.
@@ -49,7 +49,7 @@ Proof.
   by apply elem_of_gmap_dom_none.
 Qed.
 
-Lemma gmap_isSome_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K B) (i : K): dom (gset K) g1 = dom (gset K) g2 →
+Lemma gmap_isSome_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K B) (i : K): dom g1 = dom g2 →
     is_Some (g1 !! i) → is_Some (g2 !! i).
 Proof.
   intros Hdom Hnon.
@@ -62,7 +62,8 @@ Section Store.
   Context `{!sealStoreG Σ}.
 
   Definition seal_pred (o : OType) (P : Word → iProp Σ) :=
-    (∃ γpred: gname, own SG_sealN ({[o := Cinr (to_agree γpred)]}) ∗ saved_pred_own γpred P)%I.
+    (∃ γpred: gname, own SG_sealN ({[o := Cinr (to_agree γpred)]})
+                     ∗ saved_pred_own γpred DfracDiscarded P)%I.
   Global Instance seal_pred_persistent i P : Persistent (seal_pred i P).
   Proof. apply _. Qed.
   Definition can_alloc_pred (o : OType) :=
@@ -85,7 +86,7 @@ Section Store.
   Proof.
     rewrite /seal_pred /can_alloc_pred.
     iIntros "Hown".
-    iMod (saved_pred_alloc P) as (γalloc) "#HsaveP".
+    iMod (saved_pred_alloc P) as (γalloc) "#HsaveP"; first apply dfrac_valid_discarded.
 
 
     iMod (own_update _ _ ({[o := Cinr (to_agree γalloc)]}) with "Hown").

@@ -837,7 +837,7 @@ Section macros.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     rewrite /region_mapsto /finz.seq_between.
-    destruct (Z_le_dec (b_r + z) (e_r - 1))%Z; simpl.
+    destruct (Z.le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
       { rewrite /Z.b2z. destruct (e_r - 1 <? b_r + z)%Z eqn:HH; auto.
         apply Z.ltb_lt in HH. lia. }
@@ -905,7 +905,7 @@ Section macros.
         apply Z.ltb_nlt in HH. lia. }
       rewrite Heq0.
       assert (e_r <= a_r)%Z by solve_addr.
-      (* destruct (Z_le_dec a_r e_r). *)
+      (* destruct (Z.le_dec a_r e_r). *)
       rewrite finz_dist_0 //=.
       destruct ws;[|by iApply bi.False_elim].
       (* jnz *)
@@ -959,7 +959,7 @@ Section macros.
     iAssert (⌜((length a) =? (length (mclear_instrs r)) = true)%nat⌝)%I as %Hlen.
     { destruct (((length a) =? (length (mclear_instrs r)))%nat) eqn:Hlen; auto.
       rewrite /mclear Hlen. by iApply bi.False_elim. }
-    rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply beq_nat_true in Hlen.
+    rewrite /mclear Hlen /mclear_instrs; simpl in Hlen. apply Nat.eqb_eq in Hlen.
     destruct a as [| a1 a]; inversion Hlen; simpl.
     move: (contiguous_between_cons_inv_first _ _ _ _ Hnext).
     match goal with |- (?a = _) -> _ => intro; subst a end.
@@ -1031,7 +1031,7 @@ Section macros.
     { have: (isCorrectPC (WCap p b e a_first)).
       { apply Hvpc. eapply contiguous_between_middle_bounds'; eauto. constructor. }
       inversion 1; subst.
-      destruct H14 as [? | ? ]; subst; auto. }
+      destruct H15 as [? | ? ]; subst; auto. }
     iApply (wp_lea_success_z _ _ _ _ a7 a8 _ r_t2 p _ _ a6 10 a_end with "[HPC Hi Hr_t2]");
       first apply decode_encode_instrW_inv; first iCorrectPC a_first a'; auto.
     { iContiguous_next Hnext 8. }

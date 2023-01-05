@@ -100,21 +100,21 @@ Section definitionsS.
     iDestruct (own_valid_2 with "Hown Ha")
       as %[[? _]%prod_included _]%auth_both_valid_discrete.
     assert (e ≡ e') as Heq.
-    { apply symmetry. apply Excl_included. simpl in H2. apply H2. }
+    { apply symmetry. apply Excl_included. auto. }
     iPureIntro. apply leibniz_equiv. auto.
   Qed.
 
   Lemma regspec_mapsto_agree l q1 q2 v1 v2 : regspec_mapsto l q1 v1 -∗ regspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [[_ Hr]%singleton_valid _]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma regspec_mapsto_valid r q v : regspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [[? _]%singleton_valid _]]. auto.
   Qed.
@@ -142,14 +142,14 @@ Section definitionsS.
   Lemma memspec_mapsto_agree l q1 q2 v1 v2 : memspec_mapsto l q1 v1 -∗ memspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [_ [_ Hr]%singleton_valid]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma memspec_mapsto_valid r q v : memspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /memspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /memspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [_ [? _]%singleton_valid]]. auto.
   Qed.
@@ -399,7 +399,6 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x | |];auto.
   Qed.
   Lemma regspec_heap_valid_allSepM e σ σ' q :
       (forall l, is_Some (σ' !! l)) →
@@ -417,7 +416,6 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x | |];auto.
   Qed.
 
   Lemma memspec_v_implies_m_v:
@@ -526,7 +524,7 @@ Section cap_lang_spec_rules.
       inversion H1 as [Hexs Hexd].
       specialize (Hexs σ). destruct Hexs as [e'' [σ' [efs Hexs]]].
       specialize (Hexd σ [] e'' σ' efs Hexs); destruct Hexd as [? [? [? ?]]]; subst.
-      simpl in Hexs. apply fill_prim_step with (K0:=K) in Hexs.
+      simpl in Hexs. apply fill_prim_step with (K:=K) in Hexs.
       econstructor;auto. eapply step_atomic with (t1:=[]) (t2:=[]);eauto.
   Qed.
 
@@ -542,7 +540,7 @@ Ltac prim_step_from_exec :=
     | H : exec _ _ = ?res |- _ =>
       exists [];eapply step_atomic with (t1:=[]) (t2:=[]);eauto;
       econstructor;eauto;constructor;
-      let c := fresh "c" in eapply step_exec_instr with (c:=res); try exact; simplify_map_eq;eauto (* `fresh` hack because `apply ... with` is fragile pre Coq 8.15*)
+      eapply step_exec_instr with (c:=res); try exact; simplify_map_eq;eauto
     end.
 
 Ltac iFailStep fail_type :=
