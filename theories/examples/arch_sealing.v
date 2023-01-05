@@ -253,7 +253,7 @@ Section sealing.
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       iApply (wp_unseal_nomatch_r2 with "[$HPC $Hr_t1 $Hr_env $Hi]"); try solve_pure.
       iIntros "!> _".
-      cbn. iApply wp_pure_step_later; auto. iNext.
+      cbn. iApply wp_pure_step_later; auto. iNext;iIntros "_".
       iApply wp_value. auto. }
     destruct wsealed as [| | o' sb]; try by exfalso.
     (* If o ≠ o', we also have failure *)
@@ -359,7 +359,7 @@ Section sealing.
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       iApply (wp_seal_nosb_r2 with "[$HPC $Hr_t1 $Hr_env $Hi]"); try solve_pure.
       iIntros "!> _".
-      cbn. iApply wp_pure_step_later; auto. iNext.
+      cbn. iApply wp_pure_step_later; auto. iNext;iIntros "_".
       iApply wp_value. auto. }
     destruct w as [| sb |]; try by exfalso.
 
@@ -401,7 +401,7 @@ Section sealing.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ (length (unseal_instrs) + length (seal_instrs) + length (make_seal_preamble_instrs f_m f_m')))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* environment table: malloc and salloc in bounds *)
     withinBounds b_r e_r a_r' = true →

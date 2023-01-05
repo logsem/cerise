@@ -239,7 +239,7 @@ Section sealing.
     (* linked list ptr element head *)
     (ll + 1)%a = Some ll' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
 
     (* environment table *)
     withinBounds b_r e_r a_r' = true →
@@ -349,7 +349,7 @@ Section sealing.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ (length (unseal_instrs) + length (seal_instrs f_m) + length (make_seal_preamble_instrs f_m)))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* environment table *)
     withinBounds b_r e_r a_r' = true →

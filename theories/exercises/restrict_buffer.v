@@ -161,7 +161,7 @@ Section program_ro.
     (b_mem <= secret < e_mem)%a ->
     writeAllowed p_mem = true ->
     (* the adversary code contains only instructions *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
 
     ⊢ (( prog_ro_inv a_prog secret_off secret_val
          ∗ inv_secret secret secret_val
@@ -421,7 +421,7 @@ Section program_closure_ro.
 
     (b_mem <= secret < e_mem)%a ->
     writeAllowed p_mem = true ->
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
 
     ⊢ (( inv_secret secret secret_val
         ∗ code_closure_ro_inv a_prog secret_off secret_val

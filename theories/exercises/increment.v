@@ -4,7 +4,7 @@ Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine.exercises Require Import register_tactics subseg_buffer.
+From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
 
 

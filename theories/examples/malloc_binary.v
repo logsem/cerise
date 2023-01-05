@@ -42,11 +42,11 @@ Section SimpleMalloc.
 
   Ltac iEpilogue prog :=
     iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext.
+    iApply wp_pure_step_later;auto;iNext;iIntros "_".
 
   Ltac iEpilogue_both prog :=
     iNext; iIntros prog; iSimpl;
-    iApply wp_pure_step_later;auto;iNext;
+    iApply wp_pure_step_later;auto;iNext;iIntros "_";
     iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto;
     iSimpl in "Hj".
 
@@ -58,8 +58,8 @@ Section SimpleMalloc.
     generalize (contiguous_between_spec _ _ _ Ha index); auto.
 
   Lemma simple_malloc_subroutine_spec (wsize: Word) (cont cont': Word) b e rmap smap N E φ :
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
-    dom (gset RegName) smap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom smap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
     (* (size > 0)%Z → *)
     ↑N ⊆ E →
     (  na_inv logrel_nais N (malloc_inv_binary b e)
@@ -317,7 +317,7 @@ Section SimpleMalloc.
       destruct Hspec as [| | Hfail].
       { exfalso. simplify_map_eq. }
       { exfalso. simplify_map_eq. }
-      { cbn. iApply wp_pure_step_later; auto. iNext.
+      { cbn. iApply wp_pure_step_later; auto. iNext;iIntros "_".
         iApply wp_value. auto. } }
     iMod (step_lea_success_reg _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs2 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs1 & Hs2)";
@@ -380,7 +380,7 @@ Section SimpleMalloc.
         repeat match goal with H:_ |- _ => apply finz_of_z_eq_inv in H end; subst.
         congruence. }
       { exfalso. by simplify_map_eq. }
-      { cbn. iApply wp_pure_step_later; auto. iNext. iApply wp_value. auto. } }
+      { cbn. iApply wp_pure_step_later; auto. iNext;iIntros "_". iApply wp_value. auto. } }
     iMod (step_subseg_success _ [SeqCtx] with "[$Hj $Hspec $HsPC $Hsi $Hs4 $Hs3 $Hs1]")
       as "(Hj & HsPC & Hsi & Hs3 & Hs1 & Hs4)";
       [apply decode_encode_instrW_inv| |split;apply finz_of_z_to_z|done|done|auto..].

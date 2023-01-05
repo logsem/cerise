@@ -142,7 +142,7 @@ Section base_program.
     { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
     iNext; iIntros "(HPC& Hdone& Hr1)"; iSimpl.
-    iApply wp_pure_step_later;auto;iNext.
+    iApply wp_pure_step_later;auto;iNext;iIntros "_".
 
     (* Lea *)
     (* Destruct the list of addresses of the code fragment *)
@@ -172,7 +172,8 @@ Section base_program.
 
     (* Introduce the postconditions of the rule and re-focus the expression. *)
     iNext; iIntros "(HPC& Hi& Hr2& Hr1& Hmem1 )"; iSimpl.
-    iCombine "Hdone Hi" as "Hdone". iApply wp_pure_step_later;auto;iNext.
+    iCombine "Hdone Hi" as "Hdone".
+    iApply wp_pure_step_later;auto;iNext ;iIntros "_".
 
     (* 3 - Continuation *)
     iApply "Hcont".

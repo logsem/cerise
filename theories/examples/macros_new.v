@@ -157,7 +157,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -259,7 +259,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑mallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -328,7 +328,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑sallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -430,7 +430,7 @@ Section macros.
     SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
     ↑sallocN ⊆ EN →
     (size > 0)%Z →
 
@@ -685,7 +685,7 @@ Section macros.
     r ≠ [] →
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (rclear_instrs r))%a →
-    list_to_set r = dom (gset RegName) rmap →
+    list_to_set r = dom rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
@@ -884,7 +884,7 @@ Section macros.
 
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)
@@ -975,7 +975,9 @@ Section macros.
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
     iExists _,_. iSplitR; [eauto|]. iFrame "∗".
-    clear; iFrameMapSolve "Hregs".
+    rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
+    rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
+    clear -Hrmap_dom; iFrameMapSolve "Hregs".
   Qed.
 
   Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e
@@ -985,7 +987,7 @@ Section macros.
 
     withinBounds b_link e_link a_entry = true →
     (a_link + f_m)%a = Some a_entry →
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
     ▷ codefrag a_first (crtcls_instrs f_m)

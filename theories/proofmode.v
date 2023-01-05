@@ -52,7 +52,8 @@ Qed.
 End codefrag.
 
 (* Administrative reduction steps *)
-Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ].
+Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ; iIntros "_" ].
+(* TODO iIntros "_" fixes the lc 1 introduces in Iris 4.0.0, but I'm not sure that is the right place *)
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]));

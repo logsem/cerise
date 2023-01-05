@@ -69,7 +69,7 @@ Section SimpleSalloc.
      ∗ ⌜(b_s <= a_s)%ot ∧ (a_s <= e_s)%ot⌝)%I.
 
   Lemma simple_salloc_subroutine_spec (wsize: Word) (cont: Word) b e rmap N E φ :
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
     ↑N ⊆ E →
     ( na_inv logrel_nais N (salloc_inv b e)
      ∗ na_own logrel_nais E
@@ -153,7 +153,8 @@ Section SimpleSalloc.
       destruct Hspec as [| | Hfail].
       { exfalso. simplify_map_eq. }
       { exfalso. simplify_map_eq. }
-      { cbn. iApply wp_pure_step_later; auto. iNext.
+      { cbn. iApply wp_pure_step_later; auto.
+        iNext; iIntros "_".
         iApply wp_value. auto. } }
 
     do 3 iInstr "Hprog". {solve_pure_addr. }

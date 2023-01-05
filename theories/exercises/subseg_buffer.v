@@ -328,7 +328,7 @@ Section base_program_CPS.
       writeAllowed p_mem = true ->
 
       (* Register map for the big_sep of registers *)
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
 
       ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
           ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem

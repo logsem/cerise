@@ -345,7 +345,7 @@ Proof.
 Qed.
 
 Lemma flag_inv_sub `{memory_layout} :
-  minv_dom flag_inv ⊆ dom (gset Addr) (lib_region (priv_libs library)).
+  minv_dom flag_inv ⊆ dom (lib_region (priv_libs library)).
 Proof.
   cbn. rewrite map_union_empty.
   rewrite /assert_library_content.
@@ -415,9 +415,9 @@ Section int_client_adequacy.
     eapply disjoint_mono_l;
     rewrite ?dom_list_to_map_singleton;
     union_resolve_mkregion;
-    try match goal with |- _ ## dom _ (mkregion _ _ _) =>
+    try match goal with |- _ ## dom (mkregion _ _ _) =>
       eapply disjoint_mono_r; [ apply dom_mkregion_incl | ] end;
-    try match goal with |- _ ## dom _ (list_to_map _ ) =>
+    try match goal with |- _ ## dom (list_to_map _ ) =>
     rewrite dom_list_to_map_L end;
     rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
     apply stdpp_extra.list_to_set_disj.
@@ -426,7 +426,7 @@ Section int_client_adequacy.
     Forall (λ w, is_z w = true) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom flag_inv) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
       ⊢ inv invN (minv_sep flag_inv)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound interval_client_table) (prog_end int_client_prog) (prog_start int_client_prog)
@@ -632,7 +632,7 @@ Section int_client_adequacy.
     rewrite map_filter_union; [|auto].
 
     iDestruct (big_sepM_union with "Hprivs") as "[Hassert Hprivs]".
-    { eapply map_filter_disjoint;auto. apply _. }
+    { eapply map_disjoint_filter;auto. }
 
     (* allocate the assert invariant *)
     iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
@@ -644,7 +644,7 @@ Section int_client_adequacy.
            rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
            intros [ [? ?]|?]; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
-      { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
+      { eapply map_disjoint_filter. disjoint_map_to_list.
         apply elem_of_disjoint. intro.
         rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
         intros [ [? ?]|?]; solve_addr. }
@@ -784,7 +784,7 @@ Section int_client_adequacy.
       1,2: apply le_addr_withinBounds'. all: pose proof seal_table_size as Hsts; solve_addr. }
     { rewrite /mallocN /sallocN. apply ndot_ne_disjoint; auto. }
     { done. }
-    { rewrite /offset_to_checki. pose proof interval_client_closure_size.
+    { unfold offset_to_checki. pose proof interval_client_closure_size.
       rewrite /interval_client_closure_move_offset in HH.
       rewrite /interval_client_closure_move_offset /interval_client_closure_instrs_length.
       simpl in *. solve_addr. }

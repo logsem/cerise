@@ -321,12 +321,12 @@ Section linking_table.
  End linking_table.
 
 
-  (** Outline
+  (** Outline
     2 steps:
     1. use the macro in the middle of the code (as a real macro)
     2. capture the macro into a sentry-capability (as a function), and use a linking table
 
-    1.1) Demo
+    1.1) Demo
     Define a program that use this specification that do the following:
     - takes a capability input
     - store 0 into it
@@ -341,14 +341,14 @@ Section linking_table.
     It requires some boilerplate about the linking table and shows
     how to set it up.
 
-    2.2) Exercise
+    2.2) Exercise
     At last exercise, the reader should be able to use the Cerise macros,
     so why not a program that does the following:
     - dyn alloc a region of memory with malloc
     - stores 42 in the last adresse
     - assert it is 42
 
-    Finally, list the macros available in Cerise *)
+    Finally, list the macros available in Cerise *)
 
 
   (** Now that you are familiar with the Cerise Proofmode,

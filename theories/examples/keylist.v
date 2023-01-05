@@ -630,7 +630,7 @@ Section list.
     (* linked list ptr element head *)
     (ll + 1)%a = Some ll' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_env; r_t0; r_t1 ]} →
 
     (* environment table *)
     withinBounds b_r e_r a_r' = true →
@@ -759,6 +759,8 @@ Section list.
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+        do 3 (rewrite (delete_insert_ne) ; auto).
+        rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
         iFrameMapSolve+ Hdom "Hregs". }
       destruct Hpref. iFrame "∗".
       iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew".
@@ -783,6 +785,8 @@ Section list.
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+        do 3 (rewrite (delete_insert_ne) ; auto).
+        rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
         iFrameMapSolve+ Hdom "Hregs". }
       { iExists _,_,_,[]. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } }
   Qed.

@@ -284,7 +284,7 @@ Section program_call.
     (* Validity secret*)
     (0 <= secret_off < size %a) ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
 
     ⊢ ( prog_call_code a f_m f_a size secret_off secret_val
         ∗ malloc_call_inv b_m e_m
@@ -395,7 +395,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     iInsert "Hrmap" r_t30.
     set (rmap' :=  <[r_t30:=wadv]> rmap).
     assert (Hdom' :
-              dom (gset RegName) rmap' = all_registers_s ∖ {[PC]}).
+              dom rmap' = all_registers_s ∖ {[PC]}).
     { subst rmap'.
       rewrite dom_insert_L.
       rewrite Hdom.
@@ -562,7 +562,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
  (*    set_solver +. *)
     all : subst rmap_call'.
     1,2: (solve_map_dom).
-    match goal with | |- _ ⊆ dom (gset RegName) ?m => get_map_dom m as Hid; rewrite Hid end.
+    match goal with | |- _ ⊆ dom ?m => get_map_dom m as Hid; rewrite Hid end.
     set_solver+.
     Unshelve.
     iSplitL "Hcall" ; first (iNext ; rewrite !map_to_list_singleton /= ; done).
@@ -856,7 +856,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* Validity secret*)
     (0 <= secret_off < size %a) ->
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
 
     ⊢ ( prog_call_code a f_m f_a size secret_off secret_val
         ∗ malloc_call_inv b_m e_m
@@ -1059,7 +1059,7 @@ Section prog_call_correct.
     Forall (λ w, is_z w = true) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
       ⊢ inv invN (minv_sep (flag_inv layout))
         ∗ na_inv logrel_nais mallocN (mallocInv layout)
         ∗ na_inv logrel_nais assertN (assertInv layout)

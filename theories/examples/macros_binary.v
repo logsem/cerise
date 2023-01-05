@@ -174,8 +174,8 @@ Section macros.
     withinBounds bs_link es_link as_entry = true →
     (as_link + fs_m)%a = Some as_entry →
     
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
-    dom (gset RegName) smap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+    dom smap = all_registers_s ∖ {[ PC; r_t0 ]} →
     
     ↑mallocN ⊆ EN →
     nclose specN ⊆ EN →
@@ -452,7 +452,7 @@ Section macros.
     contiguous_between a a1 an →
     ¬ PC ∈ r → hd_error a = Some a1 →
     isCorrectPC_range p b e a1 an →
-    list_to_set r = dom (gset RegName) rmap →
+    list_to_set r = dom rmap →
      nclose specN ⊆ E →
 
      spec_ctx
@@ -769,8 +769,8 @@ Section macros.
     withinBounds bs_link es_link as_entry = true →
     (as_link + fs_m)%a = Some as_entry →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
-    dom (gset RegName) smap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
+    dom smap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
 
     ↑mallocN ⊆ EN →
     nclose specN ⊆ EN →
