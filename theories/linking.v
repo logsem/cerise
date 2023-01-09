@@ -134,8 +134,6 @@ Section Linking.
       (Hexp_disj: comp_l.(exports) ##ₘ comp_r.(exports)),
       can_link comp_l comp_r.
 
-  Infix "##ₗ" := can_link (at level 70).
-
   (** Creates link for two components
       the arguments should satisfy can_link *)
   Definition link comp_l comp_r :=
@@ -154,6 +152,9 @@ Section Linking.
           (fun '(_,s) => exp !! s = None)
           (comp_l.(imports) ∪ comp_r.(imports));
     |}.
+
+  Infix "##ₗ" := can_link (at level 70).
+  Infix "⋈" := link (at level 50).
 
   (** Asserts that context is a valid context to run library lib.
       i.e. sufficient condition to ensure that (link context lib) is a program *)
@@ -296,7 +297,7 @@ Section Linking.
     Lemma resolve_imports_link_dom {c1 c2} :
       well_formed_comp c1 ->
       well_formed_comp c2 ->
-      dom (gset Addr) (link c1 c2).(segment) =
+      dom (gset Addr) (c1 ⋈ c2).(segment) =
       dom _ (c1.(segment) ∪ c2.(segment)).
     Proof.
       intros wf1 wf2.
@@ -342,14 +343,35 @@ Section Linking.
       split; assumption.
     Qed.
 
+    Lemma resolve_imports_comm:
+      ∀ {imp1 imp2 exp ms},
+        imp1 ##ₘ imp2 ->
+        resolve_imports imp1 exp (resolve_imports imp2 exp ms) =
+        resolve_imports imp2 exp (resolve_imports imp1 exp ms).
+    Proof.
+      intros.
+      rewrite (resolve_imports_twice H).
+      symmetry in H. rewrite (resolve_imports_twice H).
+      f_equal; try reflexivity.
+      apply map_union_comm. symmetry. apply H.
+    Qed.
   End resolve_imports.
 
   (** well_formedness of [link a b] and usefull lemmas *)
   Section LinkWellFormed.
+    Lemma link_segment_dom {c1 c2}:
+      well_formed_comp c1 ->
+      well_formed_comp c2 ->
+      dom _ (segment c1) ∪ dom _ (segment c2) = dom (gset Addr) (segment (c1 ⋈ c2)).
+    Proof.
+      intros wf1 wf2. rewrite (resolve_imports_link_dom wf1 wf2).
+      rewrite dom_union_L. reflexivity.
+    Qed.
+
     Lemma link_segment_dom_subseteq_l {c1 c2} :
       well_formed_comp c1 ->
       well_formed_comp c2 ->
-      dom (gset Addr) (segment c1) ⊆ dom _ (segment (link c1 c2)).
+      dom (gset Addr) (segment c1) ⊆ dom _ (segment (c1 ⋈ c2)).
     Proof.
       intros wf1 wf2. rewrite (resolve_imports_link_dom wf1 wf2).
       rewrite dom_union_L. apply union_subseteq_l.
@@ -358,7 +380,7 @@ Section Linking.
     Lemma link_segment_dom_subseteq_r {c1 c2} :
       well_formed_comp c1 ->
       well_formed_comp c2 ->
-      dom (gset Addr) (segment c2) ⊆ dom _ (segment (link c1 c2)).
+      dom (gset Addr) (segment c2) ⊆ dom _ (segment (c1 ⋈ c2)).
     Proof.
       intros wf1 wf2.
       rewrite (resolve_imports_link_dom wf1 wf2).
@@ -369,7 +391,7 @@ Section Linking.
         if its arguments are well formed and disjoint *)
     Lemma link_well_formed {comp1 comp2} :
       comp1 ##ₗ comp2 ->
-      well_formed_comp (link comp1 comp2).
+      well_formed_comp (comp1 ⋈ comp2).
     Proof.
       intros disj.
       inversion disj.
@@ -437,7 +459,7 @@ Section Linking.
 
     Lemma is_context_is_program {context lib regs}:
       is_context context lib regs ->
-      is_program (link context lib) regs.
+      is_program (context ⋈ lib) regs.
     Proof.
       intros [ ].
       apply is_program_intro.
@@ -476,16 +498,15 @@ Section Linking.
       apply can_link_intro; try apply map_disjoint_sym; assumption.
     Qed.
 
-    Lemma link_comm {a b}: a ##ₗ b -> link a b = link b a.
+    Lemma link_comm {a b}: a ##ₗ b -> a ⋈ b = b ⋈ a.
     Proof.
       intros sep. inversion sep.
       specialize (can_link_disjoint_impls sep). intros Himp_disj.
       unfold link. f_equal.
-      - rewrite resolve_imports_twice.
-        rewrite resolve_imports_twice.
-        f_equal; apply map_union_comm.
-        1,5: apply map_disjoint_sym.
-        all: try assumption.
+      - rewrite resolve_imports_comm.
+        f_equal. apply map_union_comm.
+        2: f_equal; apply map_union_comm.
+        all: auto using symmetry.
       - rewrite map_union_comm.
         f_equal. apply map_union_comm.
         all: assumption.
@@ -497,7 +518,7 @@ Section Linking.
   Section LinkAssociative.
     Lemma can_link_weaken_l {a b c} :
       a ##ₗ b ->
-      link a b ##ₗ c ->
+      a ⋈ b ##ₗ c ->
       a ##ₗ c.
     Proof.
       intros a_b ab_c.
@@ -516,7 +537,7 @@ Section Linking.
 
     Lemma can_link_weaken_r {a b c} :
       a ##ₗ b ->
-      link a b ##ₗ c ->
+      a ⋈ b ##ₗ c ->
       b ##ₗ c.
     Proof.
       intros a_b ab_c.
@@ -529,7 +550,7 @@ Section Linking.
       a ##ₗ b ->
       a ##ₗ c ->
       b ##ₗ c ->
-      link a b ##ₗ c.
+      a ⋈ b ##ₗ c.
     Proof.
       intros ab ac bc.
       inversion ab. inversion ac. inversion bc.
@@ -546,15 +567,15 @@ Section Linking.
     Qed.
 
     Lemma link_exports_assoc a b c :
-      exports a ∪ exports (link b c) = exports (link a b) ∪ exports c.
+      exports a ∪ exports (b ⋈ c) = exports (a ⋈ b) ∪ exports c.
     Proof. apply map_union_assoc. Qed.
 
     Lemma link_imports_rev {a b} :
       a ##ₗ b ->
       ∀ addr symbol,
-        imports (link a b) !! addr = Some symbol <->
+        imports (a ⋈ b) !! addr = Some symbol <->
         ((imports a !! addr = Some symbol \/ imports b !! addr = Some symbol)
-        /\ exports (link a b) !! symbol = None).
+        /\ exports (a ⋈ b) !! symbol = None).
     Proof.
       intros sep addr symbol.
       split.
@@ -574,8 +595,8 @@ Section Linking.
     Lemma link_imports_rev_no_exports {a b} :
       a ##ₗ b ->
       ∀ addr symbol,
-        exports (link a b) !! symbol = None ->
-        imports (link a b) !! addr = Some symbol <->
+        exports (a ⋈ b) !! symbol = None ->
+        imports (a ⋈ b) !! addr = Some symbol <->
         (imports a !! addr = Some symbol \/ imports b !! addr = Some symbol).
     Proof.
       intros sep addr symbol exp.
@@ -588,7 +609,7 @@ Section Linking.
       ∀ addr,
         imports a !! addr = None ->
         imports b !! addr = None ->
-        imports (link a b) !! addr = None.
+        imports (a ⋈ b) !! addr = None.
     Proof.
       intros.
       rewrite map_filter_lookup_None.
@@ -610,15 +631,15 @@ Section Linking.
       a ##ₗ c ->
       b ##ₗ c ->
       resolve_imports
-        (imports (link a b))
-        (exports (link a b) ∪ exports c)
-        (segment (link a b) ∪ segment c) =
+        (imports (a ⋈ b))
+        (exports (a ⋈ b) ∪ exports c)
+        (segment (a ⋈ b) ∪ segment c) =
       resolve_imports
         (imports a)
-        (exports (link a b) ∪ exports c)
+        (exports (a ⋈ b) ∪ exports c)
         (resolve_imports
           (imports b)
-          (exports (link a b) ∪ exports c)
+          (exports (a ⋈ b) ∪ exports c)
           (segment a ∪ segment b ∪ segment c)).
     Proof.
       intros ab ac bc.
@@ -627,7 +648,7 @@ Section Linking.
       specialize (can_link_disjoint_impls ab). intro iab.
       destruct (
         map_filter_lookup_None
-          (fun '(_,s) => (exports (link a b)) !! s = None)
+          (fun '(_,s) => (exports (a ⋈ b)) !! s = None)
           (imports a ∪ imports b) addr) as [ _ l_none ].
       do 3 rewrite resolve_imports_spec.
       destruct (Some_dec (imports a !! addr)) as [[sa ia_addr] | ia_addr];
@@ -643,7 +664,7 @@ Section Linking.
       destruct (Some_dec (exports b !! s)) as [[w eb_s] | eb_s].
       3: destruct (Some_dec (exports a !! s)) as [[w ea_s] | ea_s].
 
-      1,3: assert (ab_s: exports (link a b) !! s = Some w).
+      1,3: assert (ab_s: exports (a ⋈ b) !! s = Some w).
            apply lookup_union_Some_r; assumption.
            2: apply lookup_union_Some_l; assumption.
       1,2: assert (∀ x : Symbols, (imports a ∪ imports b) !! addr = Some x → (exports (link a b)) !! x ≠ None).
@@ -670,10 +691,10 @@ Section Linking.
            try (apply lookup_union_None; split; assumption).
       1,2: destruct (
             map_filter_lookup_Some
-              (fun '(_,s) => (exports (link a b)) !! s = None)
+              (fun '(_,s) => (exports (a ⋈ b)) !! s = None)
               (imports a ∪ imports b) addr s) as [ _ l_some ].
       1,2: rewrite (l_some (conj Hi He));
-           destruct ((exports (link a b) ∪ exports c) !! s); try reflexivity.
+           destruct ((exports (a ⋈ b) ∪ exports c) !! s); try reflexivity.
       assert (is_Some (segment a !! addr)).
       3: assert (is_Some (segment b !! addr)).
       1,3: rewrite -elem_of_dom;
@@ -703,7 +724,7 @@ Section Linking.
       apply lookup_union_None. split; assumption.
       destruct (Some_dec (segment b !! addr)) as [[w sb] | sb].
       pose (disjoint_segment_is_none ab sb).
-      assert (sab_w: segment (link a b) !! addr = Some w).
+      assert (sab_w: segment (a ⋈ b) !! addr = Some w).
       do 2 rewrite resolve_imports_spec.
       rewrite ib_addr. rewrite ia_addr.
       rewrite lookup_union_r; assumption.
@@ -734,21 +755,21 @@ Section Linking.
       a ##ₗ c ->
       b ##ₗ c ->
       resolve_imports
-        (imports (link a b))
-        (exports c ∪ exports (link a b))
-        (segment c ∪ segment (link a b)) =
+        (imports (a ⋈ b))
+        (exports c ∪ exports (a ⋈ b))
+        (segment c ∪ segment (a ⋈ b)) =
       resolve_imports
         (imports a)
-        (exports c ∪ exports (link a b))
+        (exports c ∪ exports (a ⋈ b))
         (resolve_imports
           (imports b)
-          (exports c ∪ exports (link a b) )
+          (exports c ∪ exports (a ⋈ b))
           (segment c ∪ segment a ∪ segment b)).
     Proof.
       intros ab ac bc.
       specialize (can_link_assoc ab ac bc). intros ab_c.
-      replace (exports c ∪ exports (link a b)) with (exports (link a b) ∪ exports c).
-      replace (segment c ∪ segment (link a b)) with (segment (link a b) ∪ segment c).
+      replace (exports c ∪ exports (a ⋈ b)) with (exports (a ⋈ b) ∪ exports c).
+      replace (segment c ∪ segment (a ⋈ b)) with (segment (a ⋈ b) ∪ segment c).
       replace (segment c ∪ segment a ∪ segment b) with (segment a ∪ segment b ∪ segment c).
       apply resolve_imports_assoc_l; assumption.
       all: inversion ab; inversion ac; inversion bc; inversion ab_c.
@@ -762,19 +783,19 @@ Section Linking.
       a ##ₗ b ->
       a ##ₗ c ->
       b ##ₗ c ->
-      link a (link b c) = link (link a b) c.
+      a ⋈ (b ⋈ c) = (a ⋈ b) ⋈ c.
     Proof.
       intros ab ac bc.
-      assert (a_bc: a ##ₗ link b c).
+      assert (a_bc: a ##ₗ b ⋈  c).
       { symmetry. apply can_link_assoc; auto using symmetry. }
-      assert (ab_c: link a b ##ₗ c).
+      assert (ab_c: a ⋈ b ##ₗ c).
       { apply can_link_assoc; auto using symmetry. }
       specialize (link_exports_assoc a b c). intros exp_eq.
       unfold link at 1. symmetry. unfold link at 1. f_equal.
       - rewrite resolve_imports_assoc_l; try auto using symmetry.
-        replace (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c)) (resolve_imports (imports a) (exports a ∪ exports (link b c)) (segment a ∪ segment (link b c))))
-        with (resolve_imports (imports a) (exports a ∪ exports (link b c)) (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c))
-        (segment a ∪ segment (link b c)))).
+        replace (resolve_imports (imports (b ⋈ c)) (exports a ∪ exports (b ⋈ c)) (resolve_imports (imports a) (exports a ∪ exports (b ⋈ c)) (segment a ∪ segment (b ⋈ c))))
+        with (resolve_imports (imports a) (exports a ∪ exports (b ⋈ c)) (resolve_imports (imports (b ⋈ c)) (exports a ∪ exports (b ⋈ c))
+        (segment a ∪ segment (b ⋈ c)))).
         rewrite resolve_imports_assoc_r; try auto using symmetry.
         all: repeat rewrite resolve_imports_twice.
         f_equal. 2: symmetry; apply exp_eq.
@@ -810,11 +831,11 @@ Section Linking.
 
     Lemma no_imports_assoc_l {a b c} :
       b ##ₗ c ->
-      (∀ addr s, imports (link b c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
-      ∀ addr s, imports c !! addr = Some s → s ∈ dom (gset Symbols) (exports (link a b)).
+      (∀ addr s, imports (b ⋈ c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
+      ∀ addr s, imports c !! addr = Some s → s ∈ dom (gset Symbols) (exports (a ⋈ b)).
     Proof.
       intros bc Hno_imps addr s ic_addr.
-      destruct (Some_dec (exports (link b c) !! s)) as [[w' ebc_s] | ebc_s];
+      destruct (Some_dec (exports (b ⋈ c) !! s)) as [[w' ebc_s] | ebc_s];
       rewrite dom_union_L; apply elem_of_union.
       right.
       inversion bc. inversion Hwf_r.
@@ -831,9 +852,9 @@ Section Linking.
 
     Lemma no_imports_assoc_r {a b c} :
       a ##ₗ b -> b ##ₗ c ->
-      (∀ addr s, imports (link b c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
-      (∀ addr s, imports a !! addr = Some s → s ∈ dom (gset Symbols) (exports (link b c))) ->
-      ∀ addr s, imports (link a b) !! addr = Some s → s ∈ dom (gset Symbols) (exports c).
+      (∀ addr s, imports (b ⋈ c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
+      (∀ addr s, imports a !! addr = Some s → s ∈ dom (gset Symbols) (exports (b ⋈ c))) ->
+      ∀ addr s, imports (a ⋈ b) !! addr = Some s → s ∈ dom (gset Symbols) (exports c).
     Proof.
       intros ab bc Hno_imps_l Hno_imps_r addr s iab_addr.
       apply link_imports_rev in iab_addr. 2: exact ab.
@@ -842,7 +863,7 @@ Section Linking.
       apply elem_of_dom. rewrite -(lookup_union_r (exports b)).
       apply elem_of_dom. exact (Hno_imps_r _ _ ia_addr).
       exact eb_s.
-      destruct (Some_dec (imports (link b c) !! addr)) as [[s' ibc_addr] | ibc_addr].
+      destruct (Some_dec (imports (b ⋈ c) !! addr)) as [[s' ibc_addr] | ibc_addr].
       replace s' with s in ibc_addr.
       specialize (Hno_imps_l addr s ibc_addr).
       apply elem_of_dom in Hno_imps_l. rewrite ea_s in Hno_imps_l.
@@ -869,7 +890,7 @@ Section Linking.
 
     Lemma is_context_move_in {a b c regs} :
       b ##ₗ c ->
-      is_context a (link b c) regs -> is_context (link a b) c regs.
+      is_context a (b ⋈ c) regs -> is_context (a ⋈ b) c regs.
     Proof.
       intros bc [ ]. inversion bc.
       apply is_context_intro.
@@ -890,7 +911,7 @@ Section Linking.
     Lemma is_context_move_out {a b c regs} :
       a ##ₗ b ->
       (∀ r w, regs !! r = Some w -> word_restrictions w (dom _ a.(segment))) ->
-      is_context (link a b) c regs -> is_context a (link b c) regs.
+      is_context (a ⋈ b) c regs -> is_context a (b ⋈ c) regs.
     Proof.
       intros ab Hregs [].
       assert (disj: a ##ₗ c /\ b ##ₗ c).
@@ -914,8 +935,10 @@ Arguments component _ {_ _}.
 Arguments exports_type _ {_ _}.
 Arguments imports_type _ : clear implicits.
 
+#[global] Infix "⋈" := link (at level 50).
+
 (** Simple lemmas used to weaken word_restrictions
-    and address_restrictions in is_link and well_formed_xxx *)
+    and address_restrictions in well_formed_comp, can_link, is_program... *)
 Section LinkWeakenRestrictions.
   Context {Symbols: Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
