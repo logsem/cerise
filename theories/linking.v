@@ -99,7 +99,7 @@ Section Linking.
   Inductive well_formed_comp (comp:component) : Prop :=
   | wf_comp_intro: forall
       (* This should be "dom comp.(exports) ## img comp.(imports)" but stdpp doesn't have img/codom... *)
-      (Hdisj: ∀ s, is_Some (comp.(exports) !! s) -> ~ ∃ a, comp.(imports) !! a = Some s)
+      (Hdisj: ∀ s a, is_Some (comp.(exports) !! s) -> comp.(imports) !! a = Some s -> False)
       (* We import only to addresses in our segment *)
       (Himp: dom (gset Addr) comp.(imports) ⊆ dom _ comp.(segment))
       (* Word restriction on segment and exports, again would be better expresses with img/codom... *)
@@ -169,23 +169,24 @@ Section Linking.
   Section resolve_imports.
     Lemma resolve_imports_spec:
       forall imp exp ms a,
+      (resolve_imports imp exp ms) !! a =
         match imp !! a with
-        | None => (resolve_imports imp exp ms) !! a = ms !! a
+        | None => ms !! a
         | Some s =>
             match exp !! s with
-            | None => (resolve_imports imp exp ms) !! a = ms !! a
-            | Some wexp => (resolve_imports imp exp ms) !! a = Some wexp
+            | None => ms !! a
+            | Some wexp => Some wexp
             end
         end.
     Proof.
       intros imp exp ms a.
       eapply (map_fold_ind
       (fun m imp => forall a,
-        match imp !! a with
-        | None => m !! a = ms !! a
+         m !! a = match imp !! a with
+        | None => ms !! a
         | Some s => match exp !! s with
-                    | None => m !! a = ms !! a
-                    | Some wexp => m !! a = Some wexp
+                    | None => ms !! a
+                    | Some wexp => Some wexp
                     end
         end)
        (fun a s m => match exp !! s with
@@ -213,9 +214,10 @@ Section Linking.
     Lemma resolve_imports_spec_in:
       forall imp exp ms a s,
         imp !! a = Some s ->
+        (resolve_imports imp exp ms) !! a =
         match exp !! s with
-        | None => (resolve_imports imp exp ms) !! a = ms !! a
-        | Some wexp => (resolve_imports imp exp ms) !! a = Some wexp
+        | None => ms !! a
+        | Some wexp => Some wexp
         end.
     Proof.
       intros imp exp ms a s H.
@@ -339,6 +341,7 @@ Section Linking.
       rewrite spec2. rewrite spec3. reflexivity.
       split; assumption.
     Qed.
+
   End resolve_imports.
 
   (** well_formedness of [link a b] and usefull lemmas *)
@@ -376,8 +379,8 @@ Section Linking.
       specialize (link_segment_dom_subseteq_r Hwf_l Hwf_r).
       intros imp2 imp1.
       apply wf_comp_intro.
-      + intros s is_some_s. (* exports are disjoint from import *)
-        intros [a sa_in_imps].
+      + intros s a is_some_s. (* exports are disjoint from import *)
+        intros sa_in_imps.
         apply map_filter_lookup_Some in sa_in_imps.
         destruct sa_in_imps as [_ is_none_s].
         rewrite is_none_s in is_some_s.
@@ -568,6 +571,134 @@ Section Linking.
         assumption.
     Qed.
 
+    Lemma link_imports_none {a b}:
+      ∀ addr,
+        imports a !! addr = None ->
+        imports b !! addr = None ->
+        imports (link a b) !! addr = None.
+    Proof.
+      intros.
+      rewrite map_filter_lookup_None.
+      left. rewrite lookup_union_None.
+      split; assumption.
+    Qed.
+
+    Lemma resolve_imports_assoc {a b c} :
+      a ##ₗ b ->
+      a ##ₗ c ->
+      b ##ₗ c ->
+      resolve_imports
+        (imports (link a b))
+        (exports (link a b) ∪ exports c)
+        (segment (link a b) ∪ segment c) =
+      resolve_imports
+        (imports a)
+        (exports (link a b) ∪ exports c)
+        (resolve_imports
+          (imports b)
+          (exports (link a b) ∪ exports c)
+          (segment a ∪ segment b ∪ segment c)).
+    Proof.
+      intros ab ac bc.
+      (* destruct a as [ ms imps exp ]. simpl.
+      assert (imps = map_fold (fun '(k,v) m => (@insert Addr Symbols (gmap Addr Symbols) k v m)) (∅ : imports_type) imps).
+      apply (map_fold_ind
+        (fun (m:segment_type) (imp:imports_type) =>
+        imp = imps ->
+        resolve_imports
+          (filter
+              (λ '(_, s), (exp ∪ exports b) !! s = None)
+              (imp ∪ imports b))
+          (exp ∪ exports b ∪ exports c)
+          (m) =
+        resolve_imports imp (exp ∪ exports b ∪ exports c)
+          (resolve_imports (imports b) (exp ∪ exports b ∪ exports c)
+            (ms ∪ segment b ∪ segment c)))).
+
+        dom (gset Addr) imp ⊆ dom _ ms -> dom _ m = dom _ ms)). *)
+      inversion ab. inversion Hwf_l. inversion Hwf_r.
+      apply map_eq. intros addr.
+      specialize (can_link_disjoint_impls ab). intro iab.
+      destruct (
+        map_filter_lookup_None
+          (fun '(_,s) => (exports (link a b)) !! s = None)
+          (imports a ∪ imports b) addr) as [ _ l_none ].
+      do 3 rewrite resolve_imports_spec.
+      destruct (Some_dec (imports a !! addr)) as [[sa ia_addr] | ia_addr];
+      destruct (Some_dec (imports b !! addr)) as [[sb ib_addr] | ib_addr].
+      exfalso.
+      apply (map_disjoint_spec (imports a) (imports b)) with addr sa sb; assumption.
+      all: rewrite ia_addr; rewrite ib_addr.
+      rename sa into s. 2: rename sb into s.
+      destruct (Some_dec (exports a !! s)) as [[wa ea_s] | ea_s].
+      exfalso. apply (Hdisj s addr (mk_is_Some _ _ ea_s) ia_addr).
+      2: destruct (Some_dec (exports b !! s)) as [[wb eb_s] | eb_s].
+      2: exfalso; apply (Hdisj0 s addr (mk_is_Some _ _ eb_s) ib_addr).
+      destruct (Some_dec (exports b !! s)) as [[w eb_s] | eb_s].
+      3: destruct (Some_dec (exports a !! s)) as [[w ea_s] | ea_s].
+
+      1,3: assert (ab_s: exports (link a b) !! s = Some w).
+           apply lookup_union_Some_r; assumption.
+           2: apply lookup_union_Some_l; assumption.
+      1,2: assert (∀ x : Symbols, (imports a ∪ imports b) !! addr = Some x → (exports (link a b)) !! x ≠ None).
+      1,3: intros x ux;
+           apply lookup_union_Some in ux; try assumption;
+           rewrite ia_addr in ux; rewrite ib_addr in ux;
+           destruct ux as [ H | H ]; try discriminate H;
+           apply Some_inj in H; rewrite <- H; rewrite ab_s;
+           discriminate.
+      1,2: rewrite (l_none (or_intror H));
+           unfold link; simpl;
+           rewrite resolve_imports_twice; try auto using map_disjoint_sym.
+      1,2: assert (abc_s: (exports a ∪ exports b ∪ exports c) !! s = Some w).
+      1,3: apply lookup_union_Some_l; assumption.
+      1,2: rewrite abc_s; apply lookup_union_Some_l;
+           rewrite resolve_imports_spec.
+      rewrite lookup_union_r; try assumption. rewrite ia_addr.
+      2: rewrite (lookup_union_Some_l _ _ _ _ ib_addr).
+      1,2: rewrite ab_s; reflexivity.
+
+      1,2: assert (Hi : (imports a ∪ imports b) !! addr = Some s).
+           apply lookup_union_Some_l. assumption.
+           2: rewrite lookup_union_r; assumption.
+      1,2: assert (He: (exports a ∪ exports b) !! s = None);
+           try (apply lookup_union_None; split; assumption).
+      1,2: destruct (
+            map_filter_lookup_Some
+              (fun '(_,s) => (exports (link a b)) !! s = None)
+              (imports a ∪ imports b) addr s) as [ _ l_some ].
+
+      1,2: rewrite (l_some (conj Hi He));
+           destruct ((exports (link a b) ∪ exports c) !! s); try reflexivity.
+      assert (is_Some (segment a !! addr)).
+      3: assert (is_Some (segment b !! addr)).
+      1,3: rewrite -elem_of_dom;
+           apply Himp || apply Himp0; rewrite elem_of_dom;
+           apply (mk_is_Some _ _ ia_addr) || apply (mk_is_Some _ _ ib_addr).
+      1,2: destruct H as [w sa_w];
+           rewrite -map_union_assoc.
+      2: assert (segment a !! addr = None).
+      2: {
+          destruct (Some_dec ((segment a) !! addr)) as [[w' sa_w' ] | sa_w' ].
+          exfalso. apply (map_disjoint_spec (segment a) (segment b)) with addr w' w; assumption.
+          assumption.
+       }
+      2: symmetry; rewrite lookup_union_r; try assumption; symmetry.
+      1,2:
+      rewrite (lookup_union_Some_l _ _ _ _ sa_w);
+      apply lookup_union_Some_l; rewrite resolve_imports_spec;
+      rewrite ib_addr;
+      rewrite resolve_imports_spec;
+      rewrite ia_addr; rewrite He.
+      apply lookup_union_Some_l. assumption.
+      rewrite lookup_union_r. assumption. assumption.
+      assert (imports (link a b) !! addr = None).
+      apply l_none. left.
+      apply lookup_union_None; split; assumption.
+      rewrite H.
+    Admitted.
+
+
     Lemma link_assoc {a b c} :
       a ##ₗ b ->
       a ##ₗ c ->
@@ -589,6 +720,49 @@ Section Linking.
       unfold link at 1. symmetry. unfold link at 1. f_equal.
       - repeat rewrite resolve_imports_twice.
         2,3: apply can_link_disjoint_impls; auto using can_link_sym.
+        apply map_eq. intros addr.
+        rewrite resolve_imports_spec.
+        rewrite resolve_imports_spec.
+        unfold link. simpl.
+        repeat rewrite resolve_imports_twice.
+        2,3: apply can_link_disjoint_impls; auto using can_link_sym.
+        rewrite exp_eq.
+        specialize (can_link_disjoint_impls ab).
+        specialize (can_link_disjoint_impls ac).
+        specialize (can_link_disjoint_impls bc).
+        intros Hbc Hac Hab.
+        inversion ab. inversion ac. inversion bc.
+        inversion Hwf_l. inversion Hwf_r. inversion Hwf_r0.
+        destruct (Some_dec (imports c !! addr)) as [[sc ic_addr] | ic_addr];
+        destruct (Some_dec (imports b !! addr)) as [[sb ib_addr] | ib_addr];
+        destruct (Some_dec (imports a !! addr)) as [[sa ia_addr] | ia_addr];
+        try (exfalso; apply (map_disjoint_spec (imports a) (imports b)) with addr sa sb; assumption);
+        try (exfalso; apply (map_disjoint_spec (imports a) (imports c)) with addr sa sc; assumption);
+        try (exfalso; apply (map_disjoint_spec (imports b) (imports c)) with addr sb sc; assumption).
+        rewrite (lookup_union_Some_l _ _ _ _ ic_addr).
+        rename sc into s. 2: rename sb into s. 3: rename sa into s.
+        destruct (Some_dec (exports c !! s)) as [[sc ec_s] | ec_s];
+        destruct (Some_dec (exports b !! s)) as [[sb eb_s] | eb_s];
+        destruct (Some_dec (exports a !! s)) as [[sa ea_s] | ea_s];
+        try (exfalso; apply (map_disjoint_spec (exports a) (exports b)) with s sa sb; assumption);
+        try (exfalso; apply (map_disjoint_spec (exports a) (exports c)) with s sa sc; assumption);
+        try (exfalso; apply (map_disjoint_spec (exports b) (exports c)) with s sb sc; assumption).
+        contradiction (Hdisj1 s addr (mk_is_Some _ _ ec_s) ic_addr).
+        rewrite -map_union_assoc.
+        rewrite (lookup_union_r _ _ _ ea_s).
+        rewrite (lookup_union_Some_l _ _ _ _ eb_s).
+        (* rewrite (lookup_union_r _ _ _ eb_s).
+        rewrite ec_s. *)
+        rewrite map_filter_lookup_Some.
+        destruct ()
+        rewrite (lookup_union)
+        ia_addr ib_addr.
+        contradiction (map_disjoint_spec Hbc addr ib_addr ic_addr).
+        specialize (Hbc addr).
+        contradiction (Hbc addr ib_addr ia_addr).
+
+        destruct (Some_dec ((imports c ∪ imports (link a b)) !! addr)) as [[s cab_addr] | cab_addr];
+        rewrite cab_addr.
         shelve.
       - apply map_filter_strong_ext.
         intros addr symbol. rewrite exp_eq.
