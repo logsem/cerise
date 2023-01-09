@@ -6,7 +6,7 @@ From cap_machine Require Import machine_parameters cap_lang linking machine_run.
 Definition reserved_context_size: Addr := (za ^+ 100000)%a.
 
 Section contextual_refinement.
-  Context `{MachineParameters}.
+  Context {MP: MachineParameters}.
 
   (* Type of symbols to uniquely identify exports/inports. *)
   Context {Symbols : Type}.
@@ -62,14 +62,14 @@ Section contextual_refinement.
 
     (** Component with proof of their well-formedness *)
     Record component_wf := {
-      comp : pre_component Symbols_countable;
+      comp : pre_component Symbols;
       comp_is_wf : well_formed_pre_comp word_restrictions addr_restrictions comp
     }.
 
     (** Create a initial machine state from a component:
         - registers are all 0, except PC which is main, and r_stk which points to the stack
         - the memory is the one specified in the segment *)
-    Definition initial_state (c: component Symbols_countable) :=
+    Definition initial_state (c: component Symbols) :=
       match c with
       | Lib pre_comp => (∅, ∅) (* dummy value *)
       | Main pre_comp c_main =>
@@ -91,9 +91,8 @@ Section contextual_refinement.
         then
         - 'ctxt' is a valid context to run 'spec'
         - 'ctxt' linked with 'spce' also terminates in 'c' *)
-    Definition contextual_refinement : relation component_wf :=
-      fun impl spec =>
-      forall (context: pre_component Symbols_countable) (main:Word) (c: ConfFlag),
+    Definition contextual_refinement impl spec :=
+      forall (context: pre_component Symbols) (main:Word) (c: ConfFlag),
         let linked_impl := link_main_lib context impl.(comp) main in
         let linked_spec := link_main_lib context spec.(comp) main in
         let ctxt := Main context main in
@@ -169,7 +168,7 @@ Section contextual_refinement_weaken.
     (c: @component_wf Symbols _ _ word_restrictions addr_restrictions) := {|
     comp := c.(comp);
     comp_is_wf := well_formed_pre_comp_weaken_word_restrictions
-      word_restrictions' word_restrictions_weaken c.(comp_is_wf)
+      word_restrictions_weaken c.(comp_is_wf)
   |}.
 
   Lemma contextual_refinement_weaken_word_restrictions :
@@ -186,7 +185,7 @@ Section contextual_refinement_weaken.
     (c: @component_wf Symbols _ _ word_restrictions addr_restrictions) := {|
     comp := c.(comp);
     comp_is_wf := well_formed_pre_comp_weaken_addr_restrictions
-      addr_restrictions' addr_restrictions_weaken c.(comp_is_wf)
+      addr_restrictions_weaken c.(comp_is_wf)
   |}.
 
   Lemma contextual_refinement_weaken_addr_restrictions :

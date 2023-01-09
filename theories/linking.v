@@ -8,9 +8,9 @@ Section Linking.
 
   (** Symbols are used to identify imported/exported word (often capabilites)
       They can be of any type with decidable equality *)
-  Variable Symbols: Type.
-  Variable Symbols_eq_dec: EqDecision Symbols.
-  Variable Symbols_countable: Countable Symbols.
+  Context {Symbols: Type}.
+  Context {Symbols_eq_dec: EqDecision Symbols}.
+  Context {Symbols_countable: Countable Symbols}.
 
   (** A predicate that must hold on all word of our segments
       Typically that if it is a capability, it only points into the segment
@@ -72,8 +72,6 @@ Section Linking.
   Definition exports_type := (gmap Symbols Word).
   Definition segment_type := (gmap Addr Word).
 
-  Set Implicit Arguments.
-
   #[global] Instance exports_subseteq : SubsetEq exports_type.
     unfold exports_type.
     apply map_subseteq.
@@ -133,7 +131,7 @@ Section Linking.
         | None => m end) ms imp.
 
     Lemma resolve_imports_spec:
-      forall imp exp ms a
+      forall {imp exp ms a}
         (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
         ((~ exists s, (s, a) ∈ imp) ->
         (resolve_imports imp exp ms) !! a = ms !! a) /\
@@ -183,7 +181,7 @@ Section Linking.
         - unchanged if the address are in not in the exports
         - the exported value if it is in exports *)
     Lemma resolve_imports_spec_in:
-      forall imp exp ms a s
+      forall {imp exp ms a s}
         (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
         (s, a) ∈ imp ->
         (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/
@@ -194,7 +192,7 @@ Section Linking.
 
     (** Resolve imports does not change addresses not in imports *)
     Lemma resolve_imports_spec_not_in:
-      forall imp exp ms a
+      forall {imp exp ms a}
         (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
         ((~ exists s, (s, a) ∈ imp) ->
         (resolve_imports imp exp ms) !! a = ms !! a).
@@ -206,7 +204,7 @@ Section Linking.
         - an added export
         - an original memory segment value *)
     Lemma resolve_imports_spec_simple :
-      forall imp exp ms a w
+      forall {imp exp ms a w}
         (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
         (resolve_imports imp exp ms) !! a = Some w ->
           (∃ s, exp !! s = Some w) \/ (ms !! a = Some w).
@@ -229,7 +227,7 @@ Section Linking.
 
     (** Resolve imports increases the domain of the memory segment *)
     Lemma resolve_imports_dom :
-      forall imp exp ms,
+      forall {imp exp ms},
         dom (gset Addr) ms ⊆ dom (gset Addr) (resolve_imports imp exp ms).
     Proof.
       intros imp exp ms a a_in_ms.
@@ -241,7 +239,7 @@ Section Linking.
     Qed.
 
     Lemma resolve_imports_dom_rev :
-      forall imp exp ms a,
+      forall {imp exp ms a},
         a ∈ dom (gset Addr) (resolve_imports imp exp ms) ->
         a ∈ dom (gset Addr) ms \/ ∃ s, (s,a) ∈ imp.
     Proof.
@@ -265,14 +263,14 @@ Section Linking.
     Qed.
 
     Lemma resolve_imports_dom_eq :
-      forall imp exp ms,
+      forall {imp exp ms},
         (∀ s a, (s,a) ∈ imp -> is_Some (ms !! a)) ->
         dom (gset Addr) (resolve_imports imp exp ms) = dom (gset Addr) ms.
     Proof.
       intros imp exp ms imp_issome.
       apply (anti_symm _).
       - intros a a_in_ri.
-        destruct (resolve_imports_dom_rev imp exp ms a_in_ri) as [a_in_ms | [s sa_in_imps]].
+        destruct (resolve_imports_dom_rev a_in_ri) as [a_in_ms | [s sa_in_imps]].
         assumption.
         rewrite elem_of_dom.
         apply (imp_issome s a sa_in_imps).
@@ -509,11 +507,11 @@ Section Linking.
         - apply (Himpdisj2 s1 s2 a s1_a_in_imp2 s2_a_in_imp2).
       + intros a w ms_a_w.
         specialize (Hwr_ms1 a w). specialize (Hwr_ms2 a w).
-        destruct (resolve_imports_spec_simple _ _ _ Himpdisj2 ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
+        destruct (resolve_imports_spec_simple Himpdisj2 ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
         destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
-        destruct (resolve_imports_spec_simple _ _ _ Himpdisj1 ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
+        destruct (resolve_imports_spec_simple Himpdisj1 ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
         destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
@@ -596,27 +594,32 @@ Section Linking.
   End LinkExists.
 End Linking.
 
+Arguments pre_component _ {_ _}.
+Arguments component _ {_ _}.
+Arguments exports_type _ {_ _}.
+Arguments imports_type _ {_ _}.
+
 (** Simple lemmas used to weaken word_restrictions
     and address_restrictions in is_link and well_formed_xxx *)
 Section LinkWeakenRestrictions.
-  Context [Symbols: Type].
-  Context [Symbols_eq_dec: EqDecision Symbols].
-  Context [Symbols_countable: Countable Symbols].
+  Context {Symbols: Type}.
+  Context {Symbols_eq_dec: EqDecision Symbols}.
+  Context {Symbols_countable: Countable Symbols}.
 
-  Variable word_restrictions: Word -> gset Addr -> Prop.
-  Variable word_restrictions': Word -> gset Addr -> Prop.
+  Context {word_restrictions: Word -> gset Addr -> Prop}.
+  Context {word_restrictions': Word -> gset Addr -> Prop}.
   Variable word_restrictions_weaken:
     ∀ w a, word_restrictions w a -> word_restrictions' w a.
 
-  Variable addr_restrictions: gset Addr -> Prop.
-  Variable addr_restrictions': gset Addr -> Prop.
+  Context {addr_restrictions: gset Addr -> Prop}.
+  Context {addr_restrictions': gset Addr -> Prop}.
   Variable addr_restrictions_weaken:
     ∀ a, addr_restrictions a -> addr_restrictions' a.
 
   (* ==== Well formed pre comp ==== *)
 
   Lemma well_formed_pre_comp_weaken_word_restrictions :
-    ∀ pre_comp : pre_component Symbols_countable,
+    ∀ {pre_comp : pre_component Symbols},
     well_formed_pre_comp word_restrictions addr_restrictions pre_comp ->
     well_formed_pre_comp word_restrictions' addr_restrictions pre_comp.
   Proof.
@@ -632,7 +635,7 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma well_formed_pre_comp_weaken_addr_restrictions :
-    ∀ pre_comp : pre_component Symbols_countable,
+    ∀ {pre_comp : pre_component Symbols},
     well_formed_pre_comp word_restrictions addr_restrictions pre_comp ->
     well_formed_pre_comp word_restrictions addr_restrictions' pre_comp.
   Proof.
@@ -646,7 +649,7 @@ Section LinkWeakenRestrictions.
   (* ==== Well formed comp ==== *)
 
   Lemma well_formed_comp_weaken_word_restrictions :
-    ∀ comp : component Symbols_countable,
+    ∀ {comp : component Symbols},
     well_formed_comp word_restrictions addr_restrictions comp ->
     well_formed_comp word_restrictions' addr_restrictions comp.
   Proof.
@@ -658,7 +661,7 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma well_formed_comp_weaken_addr_restrictions :
-    ∀ comp : component Symbols_countable,
+    ∀ {comp : component Symbols},
     well_formed_comp word_restrictions addr_restrictions comp ->
     well_formed_comp word_restrictions addr_restrictions' comp.
   Proof.
@@ -670,7 +673,7 @@ Section LinkWeakenRestrictions.
   (* ==== is_program ==== *)
 
   Lemma is_program_weaken_word_restrictions :
-    ∀ comp : component Symbols_countable,
+    ∀ {comp : component Symbols},
     is_program word_restrictions addr_restrictions comp ->
     is_program word_restrictions' addr_restrictions comp.
   Proof.
@@ -681,7 +684,7 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_program_weaken_addr_restrictions :
-    ∀ comp : component Symbols_countable,
+    ∀ {comp : component Symbols},
     is_program word_restrictions addr_restrictions comp ->
     is_program word_restrictions addr_restrictions' comp.
   Proof.
@@ -694,7 +697,7 @@ Section LinkWeakenRestrictions.
   (* ==== is link ==== *)
 
   Lemma is_link_weaken_word_restrictions :
-    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    ∀ {comp_a comp_b comp_c : component Symbols},
     is_link word_restrictions addr_restrictions comp_a comp_b comp_c ->
     is_link word_restrictions' addr_restrictions comp_a comp_b comp_c.
   Proof.
@@ -707,7 +710,7 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_link_weaken_addr_restrictions :
-    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    ∀ {comp_a comp_b comp_c : component Symbols},
     is_link word_restrictions addr_restrictions comp_a comp_b comp_c ->
     is_link word_restrictions addr_restrictions' comp_a comp_b comp_c.
   Proof.
@@ -722,7 +725,7 @@ Section LinkWeakenRestrictions.
   (* ==== is context ==== *)
 
   Lemma is_context_weaken_word_restrictions :
-    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    ∀ {comp_a comp_b comp_c : component Symbols},
     is_context word_restrictions addr_restrictions comp_a comp_b comp_c ->
     is_context word_restrictions' addr_restrictions comp_a comp_b comp_c.
   Proof.
@@ -733,7 +736,7 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_context_weaken_addr_restrictions :
-    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    ∀ {comp_a comp_b comp_c : component Symbols},
     is_context word_restrictions addr_restrictions comp_a comp_b comp_c ->
     is_context word_restrictions addr_restrictions' comp_a comp_b comp_c.
   Proof.
