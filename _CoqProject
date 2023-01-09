@@ -15,6 +15,7 @@ machine_utils/theories/solve_pure.v
 machine_utils/theories/tactics.v
 theories/iris_extra.v
 theories/stdpp_extra.v
+theories/stdpp_img.v
 theories/map_simpl.v
 theories/addr_reg.v
 theories/linking.v

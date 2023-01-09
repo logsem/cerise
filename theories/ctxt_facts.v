@@ -1,7 +1,7 @@
 From stdpp Require Import gmap fin_maps fin_sets.
 
 From cap_machine Require Import machine_parameters cap_lang linking machine_run.
-From cap_machine Require Import contextual_refinement addr_reg_sample.
+From cap_machine Require Import stdpp_img contextual_refinement addr_reg_sample.
 
 Section examples.
   Context {MR:MachineParameters}.
@@ -44,7 +44,7 @@ Section examples.
 
   Lemma wlist2segment_disjoint (cmp : component Symbols) {wlist: list Word} :
     (length wlist <= reserved_context_size_z)%Z ->
-    addr_gt_than reserved_context_size (dom _ (segment cmp)) ->
+    addr_gt_than reserved_context_size (dom (segment cmp)) ->
     wlist2segment za wlist ##ₘ cmp.(segment).
   Proof.
     intros list_short segment_big.
@@ -66,49 +66,55 @@ Section examples.
 
   Lemma dummy_exports_spec target : forall s,
     match dummy_exports target !! s with
-      | None => ∀ a s', target.(imports) !! a = Some s' -> s = s' -> False
-      | Some w => w = WInt 0 /\ ∃ a, target.(imports) !! a = Some s
+      | None => s ∉ img target.(imports)
+      | Some w => w = WInt 0 /\ s ∈ img target.(imports)
     end.
   Proof.
     unfold dummy_exports, exports_type, imports_type.
     apply (map_fold_ind
       (fun m imp => ∀ k, match m !! k with
-        | None => ∀ a s', imp !! a = Some s' -> k = s' -> False
-        | Some w => w = WInt 0 /\ ∃ a, imp !! a = Some k
+        | None => k ∉ img imp
+        | Some w => w = WInt 0 /\ k ∈ img imp
       end)
       (fun (_:Addr) (s:Symbols) exp => <[s:=WInt 0]> exp)).
-    intros s. rewrite lookup_empty.
-    intros a s' oas'. rewrite lookup_empty in oas'. discriminate.
+    intros s. rewrite lookup_empty. rewrite img_empty_L. set_solver.
     intros a s exp exp' imp IH k.
     destruct (Symbols_eq_dec s k) as [sk | sk].
     rewrite sk. rewrite lookup_insert.
-    split. reflexivity. exists a. apply lookup_insert.
+    split. reflexivity. rewrite elem_of_img. exists a. apply lookup_insert.
     rewrite lookup_insert_ne. 2: exact sk.
     specialize (IH k). destruct (exp' !! k).
-    destruct IH as [IHw [a' Hexp_a'] ].
-    split. exact IHw. exists a'.
-    rewrite lookup_insert_ne. exact Hexp_a'.
-    intros aa'. rewrite aa' in imp. rewrite imp in Hexp_a'. discriminate.
-    intros a' s' H. specialize (IH a' s').
-    apply lookup_insert_Some in H.
-    destruct H as [ [aa' ss'] | [aa' Hexpa'] ].
-    intro ks'. rewrite -ks' in ss'. rewrite ss' in sk.
-    apply sk. reflexivity.
-    apply (IH Hexpa').
+    destruct IH as [IHw Hexp].
+    split. exact IHw.
+    rewrite elem_of_img. rewrite elem_of_img in Hexp. destruct Hexp as [a' Hexp].
+    exists a'. rewrite lookup_insert_ne. exact Hexp.
+    intros aa'. rewrite aa' in imp. rewrite imp in Hexp. discriminate.
+    rewrite elem_of_img. rewrite elem_of_img in IH.
+    intros [a' Hexp].
+    apply lookup_insert_Some in Hexp.
+    destruct Hexp as [ [aa' ss'] | [aa' Hexpa'] ].
+    contradiction.
+    apply (IH (ex_intro _ _ Hexpa')).
   Qed.
   Lemma dummy_exports_lookup {target} :
-    ∀ s w, dummy_exports target !! s = Some w -> w = WInt 0.
+    ∀ w, w ∈ img (dummy_exports target) -> w = WInt 0.
   Proof.
-    intros s w Hsw.
+    intros w Hsw. rewrite elem_of_img in Hsw. destruct Hsw as [s Hsw].
     specialize (dummy_exports_spec target s). intros H.
     rewrite Hsw in H. destruct H. exact H.
   Qed.
   Lemma dummy_exports_from_imports {target} :
-    ∀ s w, dummy_exports target !! s = Some w -> ∃ a, target.(imports) !! a = Some s.
+    dom (dummy_exports target) = img (target.(imports)).
   Proof.
-    intros s w Hsw.
+    apply set_eq.
+    intros s.
     specialize (dummy_exports_spec target s). intros H.
-    rewrite Hsw in H. destruct H. exact H0.
+    rewrite elem_of_dom.
+    split. intros [w Hde_s_w]. rewrite Hde_s_w in H. destruct H. exact H0.
+    intros Himg.
+    destruct (Some_dec (dummy_exports target !! s)) as [ [w Hexp_s] | Hexp_s];
+    rewrite Hexp_s; rewrite Hexp_s in H. auto.
+    contradiction.
   Qed.
 
   (** Basic context to prove the forall is non-empty
@@ -124,18 +130,16 @@ Section examples.
   Proof.
     unfold halt_context.
     apply wf_comp_intro; simpl.
-    - intros s a _ Himp_s. unfold imports_type in Himp_s.
-      rewrite lookup_empty in Himp_s. discriminate.
+    - rewrite img_empty_L. apply disjoint_empty_r.
     - unfold imports_type.
       rewrite dom_empty. apply empty_subseteq.
-    - intros s w exp_s.
+    - intros w exp_s.
       apply dummy_exports_lookup in exp_s.
       rewrite exp_s. unfold can_address_only. exact I.
-    - intros a w H.
+    - intros w H.
       rewrite insert_empty in H.
-      apply lookup_singleton_Some in H.
-      destruct H as [a_a h_v].
-      rewrite -h_v. exact I.
+      apply img_singleton in H. rewrite elem_of_singleton in H.
+      rewrite H. exact I.
     - exact I.
   Qed.
 
@@ -151,11 +155,9 @@ Section examples.
       simpl. unfold reserved_context_size_z. lia.
       inversion t_wf. assumption.
     - inversion t_wf.
-      rewrite map_disjoint_spec.
-      intros s w w' hexp_s exp_s.
-      apply dummy_exports_from_imports in hexp_s.
-      destruct hexp_s as [a Himpt_a].
-      apply (Hdisj s a (mk_is_Some _ _ exp_s) Himpt_a).
+      rewrite map_disjoint_dom.
+      rewrite dummy_exports_from_imports.
+      symmetry. exact Hdisj.
   Qed.
 
   Lemma halt_context_machine_run {target} :
@@ -204,34 +206,26 @@ Section examples.
     intros Hwf_t.
     apply is_context_intro.
     - apply (halt_context_can_link Hwf_t).
-    - intros r w Hsr_w.
-      apply lookup_singleton_Some in Hsr_w.
-      destruct Hsr_w as [Hpc_r Hcap_w].
-      rewrite -Hcap_w.
+    - intros w Hsr_w.
+      apply img_singleton, elem_of_singleton in Hsr_w.
+      rewrite Hsr_w.
       intros a Ha01. simpl. rewrite insert_empty.
       rewrite dom_singleton. rewrite elem_of_singleton.
       solve_finz.
-    - intros a s Himp_t_a.
-      simpl.
-      destruct (Some_dec (dummy_exports target !! s)) as [ [w Hde_s_w] | Hde_s_w].
-      rewrite elem_of_dom. apply (mk_is_Some _ _ Hde_s_w).
-      specialize (dummy_exports_spec target s). intros Hde_spec.
-      rewrite Hde_s_w in Hde_spec.
-      contradiction (Hde_spec a s Himp_t_a eq_refl).
-    - simpl. intros a s Hempty.
-      unfold imports_type in Hempty.
-      rewrite lookup_empty in Hempty.
-      discriminate.
+    - rewrite dummy_exports_from_imports.
+      reflexivity.
+    - simpl.
+      rewrite img_empty_L.
+      apply empty_subseteq.
   Qed.
 
   (** Contextual refinement implies that the
       implementation imports all the specifications symbols *)
-  Lemma ctxt_ref_imports_subseteq {impl spec}:
+  Lemma ctxt_ref_imports_subseteq {impl spec: component Symbols}:
     contextual_refinement impl spec ->
-    ∀ a (s: Symbols), spec.(imports) !! a = Some s ->
-    ∃ a', impl.(imports) !! a' = Some s.
+    img spec.(imports) ⊆ img impl.(imports).
   Proof.
-    intros Href a s Hspec_a_s.
+    intros Href s Hspec_s.
     inversion Href.
     specialize (Hrefines
       (halt_context impl)
@@ -240,13 +234,10 @@ Section examples.
       (ex_intro _ 2 (halt_context_machine_run Hwf_impl))).
     destruct Hrefines as [Hctxt_spec _].
     inversion Hctxt_spec.
-    specialize (Hno_imps_l a s Hspec_a_s).
+    specialize (Hno_imps_l s Hspec_s).
     simpl in Hno_imps_l.
-    apply (elem_of_dom (dummy_exports impl) s) in Hno_imps_l.
-    destruct Hno_imps_l as [w Hde_s_w].
-    specialize (dummy_exports_spec impl s).
-    intros Hspec. rewrite Hde_s_w in Hspec.
-    destruct Hspec as [_ Hres]. exact Hres.
+    rewrite dummy_exports_from_imports in Hno_imps_l.
+    apply Hno_imps_l.
   Qed.
 
   (** Instructions that assert that the to be imported value
@@ -287,7 +278,7 @@ Section examples.
           ∅ imps;
     |}, (WCap RWX za addr_e za)).
 
-
+(*
   Lemma assert_exports_incl_context_is_context (cmp : component_wf word_restrictions addr_restrictions) {s w} :
     cmp.(comp).(exports) !! s = Some w ->
     let ctxt := fst (assert_exports_incl_context s w cmp.(comp).(imports)) in
@@ -327,6 +318,6 @@ Section examples.
     destruct (Some_dec (b.(comp).(exports) !! x)) as [[wb exp_bx] | exp_bx];
     unfold exports_type in exp_ax, exp_bx;
     rewrite exp_bx, exp_ax.
-    3,4: trivial.
+    3,4: trivial. *)
 
 End examples.

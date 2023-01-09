@@ -51,7 +51,7 @@ Section contextual_refinement.
   | ctxt_ref_intro : forall
     (Hwf_impl : wf_comp impl)
     (Hwf_spec : wf_comp spec)
-    (Hexp_incl : dom (gset Symbols) (exports spec) ⊆ dom _ (exports impl))
+    (Hexp_incl : dom (exports spec) ⊆ dom (exports impl))
     (Hrefines :
       forall (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
         is_context can_address_only unconstrained_addr ctxt impl regs ->
@@ -76,7 +76,7 @@ Section contextual_refinement.
       intros a b c a_b b_c.
       inversion a_b. inversion b_c.
       apply ctxt_ref_intro; try assumption.
-      transitivity (dom (gset Symbols) (exports b)); assumption.
+      transitivity (dom (exports b)); assumption.
       intros ctxt regs conf ctxt_a mr_ctxt_a.
       destruct (Hrefines ctxt regs conf ctxt_a mr_ctxt_a) as [ctxt_b mr_ctxt_b].
       apply (Hrefines0 ctxt regs conf ctxt_b mr_ctxt_b).
@@ -101,7 +101,7 @@ Section contextual_refinement.
       rewrite (dom_union_L (exports common) (exports impl)).
       apply union_subseteq. split.
       apply union_subseteq_l.
-      transitivity (dom (gset Symbols) (exports impl)).
+      transitivity (dom (exports impl)).
       exact Hexp_incl. apply union_subseteq_r.
       intros ctxt regs c ctxt_impl mr_impl.
       inversion ctxt_impl.

@@ -131,7 +131,7 @@ Section machine_run.
   Proof.
     intros n n'. generalize n. clear n.
     induction n'.
-    - intros n init c n_inf_0. apply le_n_0_eq in n_inf_0.
+    - intros n init c n_inf_0. apply Nat.le_0_r in n_inf_0.
       rewrite n_inf_0. auto.
     - intros n [ conf [r m] ] c n_inf_n'.
       apply PeanoNat.Nat.le_succ_r in n_inf_n'.

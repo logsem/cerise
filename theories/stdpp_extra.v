@@ -908,38 +908,3 @@ Proof.
     simpl. rewrite rev_unit. rewrite rev_involutive. rewrite -Hsome /=.
     f_equiv. rewrite firstn_all. auto.
 Qed.
-
-(** The function [img m] should yield the image/codomain of [m]. That is a finite
-set of type [D] that contains the values that appear in [m].
-[D] is an output of the typeclass, i.e., there can be only one instance per map
-type [M]. *)
-Class Img (M D : Type) := img: M → D.
-Global Hint Mode Img ! - : typeclass_instances.
-Global Instance: Params (@img) 3 := {}.
-Global Arguments img : clear implicits.
-Global Arguments img {_ _ _} !_ / : simpl nomatch, assert.
-
-Global Instance fin_map_img K A M D
-  `{FinMapToList K A M, Singleton A D, Empty D, Union D}
-: Img M D := map_to_set (fun _ a => a).
-
-Class FinMapImg (K A M D: Type) `{Img M D, ElemOf A D, Lookup K A M} := {
-  elem_of_img (m:M) v : v ∈ img m <-> ∃ k, m !! k = Some v
-}.
-
-Global Instance fin_map_img_spec K A M D `{
-  Singleton A D, Empty D, Union D, Intersection D,
-  Difference D, Elements A D, EqDecision A, FinSet A D,
-  FinMap K M
-} : FinMapImg K A (M A) D.
-Proof.
-  split. intros m v.
-  unfold img, fin_map_img.
-  destruct (elem_of_map_to_set (fun _ a => a) m v) as [l r].
-  split.
-  intros v_i.
-  apply l in v_i. destruct v_i as [k [x [m_k_x x_v]]].
-  exists k. rewrite x_v in m_k_x. exact m_k_x.
-  intros [k mkv].
-  apply r. exists k. exists v. split; auto.
-Qed.
