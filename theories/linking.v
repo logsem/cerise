@@ -68,7 +68,7 @@ Section Linking.
     apply (gt_dom2 a a_in_2).
   Qed.
 
-  Definition imports_type := (gset (Symbols * Addr)).
+  Definition imports_type := (gmap Addr Symbols).
   Definition exports_type := (gmap Symbols Word).
   Definition segment_type := (gmap Addr Word).
 
@@ -95,10 +95,12 @@ Section Linking.
   Inductive well_formed_pre_comp: pre_component -> Prop :=
   | wf_pre_intro:
       ∀ pcomp
-        (Hdisj: ∀ s, is_Some (pcomp.(exports) !! s) -> ~ ∃ a, (s, a) ∈ pcomp.(imports))
+        (* This should be "dom pcomp.(exports) ## img pcomp.(imports)" but stdpp doesn't have img/codom... *)
+        (Hdisj: ∀ s, is_Some (pcomp.(exports) !! s) -> ~ ∃ a, pcomp.(imports) !! a = Some s)
+        (* We import only to addresses in our segment *)
+        (Himp: dom (gset Addr) pcomp.(imports) ⊆ dom _ pcomp.(segment))
+        (* Word restriction on segment and exports, again would be better expresses with img/codom... *)
         (Hwr_exp: ∀ s w, pcomp.(exports) !! s = Some w -> word_restrictions w (dom _ pcomp.(segment)))
-        (Himp: ∀ s a, (s, a) ∈ pcomp.(imports) -> is_Some (pcomp.(segment) !! a))
-        (Himpdisj: ∀ s1 s2 a, (s1, a) ∈ pcomp.(imports) -> (s2, a) ∈ pcomp.(imports) -> s1 = s2)
         (Hwr_ms: ∀ a w, pcomp.(segment) !! a = Some w -> word_restrictions w (dom _ pcomp.(segment)))
         (Har_ms: addr_restrictions (dom _ pcomp.(segment))),
         well_formed_pre_comp pcomp.
@@ -126,102 +128,95 @@ Section Linking.
         at addresses specified in imp *)
     Definition resolve_imports
       (imp: imports_type) (exp: exports_type) (ms: segment_type) :=
-      set_fold (fun '(s, a) m => match exp !! s with
+      map_fold (fun a s m => match exp !! s with
         | Some w => <[a:=w]> m
         | None => m end) ms imp.
 
     Lemma resolve_imports_spec:
-      forall {imp exp ms a}
-        (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
-        ((~ exists s, (s, a) ∈ imp) -> (resolve_imports imp exp ms) !! a = ms !! a) /\
-        (forall s, (s, a) ∈ imp ->
-        (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/ (exists wexp, exp !! s = Some wexp /\ (resolve_imports imp exp ms) !! a = Some wexp)).
+      forall imp exp ms a,
+        match imp !! a with
+        | None => (resolve_imports imp exp ms) !! a = ms !! a
+        | Some s =>
+            match exp !! s with
+            | None => (resolve_imports imp exp ms) !! a = ms !! a
+            | Some wexp => (resolve_imports imp exp ms) !! a = Some wexp
+            end
+        end.
     Proof.
-      intros imp exp ms a. eapply (set_fold_ind_L (fun m imp => (forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2) -> ((~ exists s, (s, a) ∈ imp) -> m !! a = ms !! a) /\ (forall s, (s, a) ∈ imp -> (exp !! s = None /\ m !! a = ms !! a) \/ (exists wexp, exp !! s = Some wexp /\ m !! a = Some wexp))) (fun '(s, a) m => match exp !! s with Some w => <[a:=w]> m | None => m end)); eauto.
-      { intros. split; auto. intros.
-        eapply elem_of_empty in H0; elim H0; auto. }
-      intros. destruct x. split.
-      { intros. destruct (exp !! s).
-        - rewrite lookup_insert_ne; auto.
-          + apply H0.
-            * intros. eapply H1; eapply elem_of_union; right; eauto.
-            * intro Y. destruct Y as [sy Hiny].
-              eapply H2. exists sy. eapply elem_of_union. right; eauto.
-          + intro. eapply H2. exists s.
-            eapply elem_of_union. left. eapply elem_of_singleton. rewrite H3. reflexivity.
-        - apply H0.
-          + intros. eapply H1; eapply elem_of_union; right; eauto.
-          + intro Y. destruct Y as [sy Hiny].
-            eapply H2. exists sy. eapply elem_of_union. right; auto. }
-      { intros; destruct (exp !! s) eqn:Hexp.
-        - destruct (addr_eq_dec a f) as [eq | neq].
-          + rewrite eq. rewrite lookup_insert.
-            right. assert (s0 = s) as ->; eauto.
-            eapply elem_of_union in H2. destruct H2.
-            * generalize (proj1 (elem_of_singleton _ _) H2). inversion 1; subst; auto.
-            * eapply (H1 s0 s a); [eapply elem_of_union_r; auto|eapply elem_of_union_l; eapply elem_of_singleton; eauto].
-              rewrite eq. reflexivity.
-          + rewrite lookup_insert_ne; auto.
-            eapply elem_of_union in H2; destruct H2.
-            * erewrite elem_of_singleton in H2. inversion H2; congruence.
-            * eapply H0; auto.
-              intros; eapply H1; eapply elem_of_union; right; eauto.
-        - eapply elem_of_union in H2. destruct H2.
-          + erewrite elem_of_singleton in H2. inversion H2; subst; clear H2.
-            left; split; auto. eapply (proj1 (H0 ltac:(intros; eapply H1; eapply elem_of_union; right; eauto))).
-            intro Y. destruct Y as [sy Hsy].
-            eapply H. replace s with sy; auto.
-            eapply H1; [eapply elem_of_union_r; eauto| eapply elem_of_union_l; eapply elem_of_singleton; eauto].
-          + eapply H0; auto.
-            intros; eapply H1; eapply elem_of_union_r; eauto. }
+      intros imp exp ms a.
+      eapply (map_fold_ind
+      (fun m imp => forall a,
+        match imp !! a with
+        | None => m !! a = ms !! a
+        | Some s => match exp !! s with
+                    | None => m !! a = ms !! a
+                    | Some wexp => m !! a = Some wexp
+                    end
+        end)
+       (fun a s m => match exp !! s with
+      | Some w => <[a:=w]> m
+      | None => m end)).
+      - intros. split.
+      - intros addr s imp' ms' imp'_addr_none Himp' addr'.
+        specialize (Himp' addr').
+        destruct (addr_eq_dec addr addr') as [addr_addr' | addr_addr'].
+        rewrite addr_addr'.
+        rewrite addr_addr' in imp'_addr_none.
+        rewrite imp'_addr_none in Himp'.
+        rewrite lookup_insert.
+        destruct (exp !! s). rewrite lookup_insert. reflexivity. apply Himp'.
+        rewrite (lookup_insert_ne _ _ _ _ addr_addr').
+        destruct (imp' !! addr').
+        destruct (exp !! s0).
+        all: destruct (exp !! s);
+        try rewrite (lookup_insert_ne _ _ _ _ addr_addr'); apply Himp'.
     Qed.
 
     (** Resolve imports of an address in imports is either
         - unchanged if the address are in not in the exports
         - the exported value if it is in exports *)
     Lemma resolve_imports_spec_in:
-      forall {imp exp ms a s}
-        (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
-        (s, a) ∈ imp ->
-        (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/
-        (exists wexp, exp !! s = Some wexp /\ (resolve_imports imp exp ms) !! a = Some wexp).
+      forall imp exp ms a s,
+        imp !! a = Some s ->
+        match exp !! s with
+        | None => (resolve_imports imp exp ms) !! a = ms !! a
+        | Some wexp => (resolve_imports imp exp ms) !! a = Some wexp
+        end.
     Proof.
-      intros. eapply resolve_imports_spec; eauto.
+      intros imp exp ms a s H.
+      pose resolve_imports_spec as spec.
+      specialize (spec imp exp ms a).
+      rewrite H in spec. apply spec.
     Qed.
 
     (** Resolve imports does not change addresses not in imports *)
     Lemma resolve_imports_spec_not_in:
-      forall {imp exp ms a}
-        (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
-        ((~ exists s, (s, a) ∈ imp) ->
-        (resolve_imports imp exp ms) !! a = ms !! a).
+      forall imp exp ms a,
+        imp !! a = None ->
+        (resolve_imports imp exp ms) !! a = ms !! a.
     Proof.
-      intros. eapply resolve_imports_spec; eauto.
+      intros imp exp ms a H.
+      pose resolve_imports_spec as spec.
+      specialize (spec imp exp ms a).
+      rewrite H in spec. apply spec.
     Qed.
 
     (** A address from resolve imports contains either:
         - an added export
         - an original memory segment value *)
     Lemma resolve_imports_spec_simple :
-      forall {imp exp ms a w}
-        (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
+      forall {imp exp ms a w},
         (resolve_imports imp exp ms) !! a = Some w ->
           (∃ s, exp !! s = Some w) \/ (ms !! a = Some w).
     Proof.
-      intros imp exp ms a w Himpdisj.
-      apply (set_fold_ind_L (
-        fun ms' imp' =>
-          ms' !! a = Some w ->
-          (∃ s, exp !! s = Some w) \/ (ms !! a = Some w))).
-      auto.
-      intros [s a'] imps' ms' _ Hind.
-      destruct (Some_dec (exp !! s)) as [ [w' ex_w] | ex_w ];
-      rewrite ex_w.
-      - destruct (decide (a' = a)) as [ aa' | aa']. rewrite <- aa'.
-        + rewrite lookup_insert. intros ww'. rewrite ww' in ex_w.
-          left. exists s. apply ex_w.
-        + rewrite (lookup_insert_ne _ _ _ _ aa'). apply Hind.
-      - apply Hind.
+      intros imp exp ms a w H.
+      pose resolve_imports_spec as spec.
+      specialize (spec imp exp ms a).
+      destruct (imp !! a).
+      destruct (Some_dec (exp !! s)) as [[w' exp_s] | exp_s];
+      rewrite exp_s in spec. all: rewrite spec in H.
+      left. rewrite <- exp_s in H. exists s. apply H.
+      all: right; apply H.
     Qed.
 
     (** Resolve imports increases the domain of the memory segment *)
@@ -230,14 +225,13 @@ Section Linking.
         dom (gset Addr) ms ⊆ dom (gset Addr) (resolve_imports imp exp ms).
     Proof.
       intros imp exp ms a a_in_ms.
-      apply (set_fold_ind_L (fun ms imp => a ∈ dom _ ms)).
+      apply (map_fold_ind (fun ms imp => a ∈ dom _ ms)).
       - apply a_in_ms.
-      - intros. destruct x as [s a0]. destruct (exp !! s).
-        apply dom_insert_subseteq. apply H0.
-        apply H0.
+      - intros a' s m ms' ma'_none H. destruct (exp !! s).
+        apply dom_insert_subseteq. all: apply H.
     Qed.
 
-    Lemma resolve_imports_dom_rev :
+    (* Lemma resolve_imports_dom_rev :
       forall {imp exp ms a},
         a ∈ dom (gset Addr) (resolve_imports imp exp ms) ->
         a ∈ dom (gset Addr) ms \/ ∃ s, (s,a) ∈ imp.
@@ -259,21 +253,29 @@ Section Linking.
           left. apply H. right. exists s'. apply elem_of_union_r, H.
       - intros a_in_ms'. destruct (Hind a_in_ms') as [H | [s' H]].
         left. apply H. right. exists s'. apply elem_of_union_r, H.
-    Qed.
+    Qed. *)
 
     Lemma resolve_imports_dom_eq :
       forall {imp exp ms},
-        (∀ s a, (s,a) ∈ imp -> is_Some (ms !! a)) ->
+        dom (gset Addr) imp ⊆ dom _ ms ->
         dom (gset Addr) (resolve_imports imp exp ms) = dom (gset Addr) ms.
     Proof.
-      intros imp exp ms imp_issome.
-      apply (anti_symm _).
-      - intros a a_in_ri.
-        destruct (resolve_imports_dom_rev a_in_ri) as [a_in_ms | [s sa_in_imps]].
-        assumption.
-        rewrite elem_of_dom.
-        apply (imp_issome s a sa_in_imps).
-      - apply resolve_imports_dom.
+      intros imp exp ms.
+      apply (map_fold_ind (fun m imp => dom (gset Addr) imp ⊆ dom _ ms -> dom _ m = dom _ ms)).
+      - reflexivity.
+      - intros addr s m ms' m_addr_none dom_ms'_dom_ms dom_incl.
+        assert (m_ms: dom (gset Addr) m ⊆ dom _ ms).
+        transitivity (dom (gset Addr) (<[addr:=s]> m)); auto.
+        apply dom_insert_subseteq.
+        rewrite <- (dom_ms'_dom_ms m_ms).
+        destruct (exp !! s).
+        rewrite dom_insert_L.
+        rewrite <- subseteq_union_L.
+        rewrite dom_insert_L in dom_incl.
+        rewrite <- (dom_ms'_dom_ms m_ms) in dom_incl.
+        apply union_subseteq in dom_incl.
+        destruct dom_incl as [ addr_in_ms' _ ]. auto.
+        auto.
     Qed.
 
     (* Lemma resolve_imports_twice:
@@ -302,26 +304,28 @@ Section Linking.
       Search set_Exists. _exists *)
   End resolve_imports.
 
-  Definition opt_merge_fun {T:Type} (o1 o2: option T) :=
-    match o1 with
-    | Some _ => o1
-    | None => o2
-    end.
+  (** To form well defined links, our componements memory segments and exported
+      symbols must be disjoint *)
+  Inductive disjoint_pre_component: pre_component -> pre_component -> Prop :=
+  | disjoint_pre_component_intro :
+      ∀ pcomp1 pcomp2
+        (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+        (Hexp_disj: pcomp1.(exports) ##ₘ pcomp2.(exports)),
+        disjoint_pre_component pcomp1 pcomp2.
 
-  Instance : @DiagNone Word Word Word opt_merge_fun. split. Defined.
+  Infix "##ₚ" := disjoint_pre_component (at level 70).
 
   Inductive is_link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
   | is_link_pre_comp_intro:
       forall pcomp1 pcomp2 pcomp_link
-        (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
-        (Hexp_disj: pcomp1.(exports) ##ₘ pcomp2.(exports))
-        (Hexp: pcomp_link.(exports) = merge opt_merge_fun pcomp1.(exports) pcomp2.(exports))
-        (Himp: ∀ s a, (s, a) ∈ pcomp_link.(imports) <->
-               (((s, a) ∈ pcomp1.(imports) \/ (s, a) ∈ pcomp2.(imports)) /\ pcomp_link.(exports) !! s = None))
+        (Hdisj: pcomp1 ##ₚ pcomp2)
+        (Hexp: pcomp_link.(exports) = pcomp1.(exports) ∪ pcomp2.(exports))
+        (Himp: pcomp_link.(imports) = filter (fun '(a,s) => pcomp_link.(exports) !! s = None)
+               (pcomp1.(imports) ∪ pcomp2.(imports)))
         (Hms: pcomp_link.(segment) =
               resolve_imports pcomp2.(imports) pcomp_link.(exports) (
               resolve_imports pcomp1.(imports) pcomp_link.(exports) (
-                map_union pcomp1.(segment) pcomp2.(segment)))),
+                pcomp1.(segment) ∪ pcomp2.(segment)))),
         is_link_pre_comp pcomp1 pcomp2 pcomp_link.
 
   Inductive is_link: component -> component -> component -> Prop :=
@@ -369,11 +373,8 @@ Section Linking.
       f_equal.
       rewrite Hms. rewrite Hms0.
       rewrite H_exp. reflexivity.
-      rewrite set_eq.
-      intros [s addr].
-      rewrite (Himp s addr).
-      rewrite (Himp0 s addr).
-      rewrite H_exp. auto.
+      rewrite Himp. rewrite Himp0.
+      rewrite H_exp. reflexivity.
       apply H_exp.
     Qed.
 
@@ -411,72 +412,33 @@ Section Linking.
     Definition link_pre_comp : pre_component -> pre_component -> pre_component :=
       fun pcomp1 pcomp2 =>
         (* exports is union of exports *)
-        let exp := merge opt_merge_fun
-                     pcomp1.(exports) pcomp2.(exports) in
+        let exp := pcomp1.(exports) ∪ pcomp2.(exports) in
         {|
           exports := exp;
           (* memory segment is union of segments, with resolved imports *)
           segment :=
               resolve_imports pcomp2.(imports) exp (
               resolve_imports pcomp1.(imports) exp (
-              map_union pcomp1.(segment) pcomp2.(segment)));
+              pcomp1.(segment) ∪ pcomp2.(segment)));
           (* imports is union of imports minus symbols is export *)
           imports :=
               filter
-              (fun '(s,_) => exp !! s = None)
+              (fun '(_,s) => exp !! s = None)
               (pcomp1.(imports) ∪ pcomp2.(imports));
         |}.
 
     (** link_pre_comp forms an is_link_pre_comp with its arguments (if segments are disjoint) *)
     Lemma link_pre_comp_is_link_pre_comp
       pcomp1 pcomp2 :
-      pcomp1.(segment) ##ₘ pcomp2.(segment) ->
-      pcomp1.(exports) ##ₘ pcomp2.(exports) ->
+      pcomp1 ##ₚ pcomp2 ->
       is_link_pre_comp pcomp1 pcomp2 (link_pre_comp pcomp1 pcomp2).
     Proof.
-      intros Hms_disj Hexp_disj.
+      intros Hdisj.
       apply is_link_pre_comp_intro.
-      + apply Hms_disj.
-      + apply Hexp_disj.
+      + apply Hdisj.
       + reflexivity.
-      + intros s a. rewrite elem_of_filter. rewrite elem_of_union.
-        split.
-        - intros [merg unio]. split. apply unio. apply merg.
-        - intros [unio merg]. split. apply merg. apply unio.
       + reflexivity.
-    Qed.
-
-    Local Lemma opt_merge_l_or_r
-      {exp1 exp2:exports_type} {s w} :
-      merge opt_merge_fun exp1 exp2 !! s = Some w ->
-      exp1 !! s = Some w \/ exp2 !! s = Some w.
-    Proof.
-      rewrite lookup_merge. intros m_eq_w.
-      destruct (Some_dec (exp1 !! s)) as [[x exp1_s_eq] | exp1_s_eq];
-      rewrite exp1_s_eq in m_eq_w; rewrite <- m_eq_w.
-      left. apply exp1_s_eq. right. reflexivity.
-    Qed.
-
-    Local Lemma resolve_imports_dom_dom1 {ms1 imp1 exp1 ms2 imp2 exp2} :
-      dom (gset Addr) ms1 ⊆ dom (gset Addr)
-        (resolve_imports imp2 (merge opt_merge_fun exp1 exp2)
-          (resolve_imports imp1 (merge opt_merge_fun exp1 exp2) (map_union ms1 ms2))).
-    Proof.
-      transitivity (dom (gset Addr) (resolve_imports imp1 (merge opt_merge_fun exp1 exp2) (map_union ms1 ms2))).
-      transitivity (dom (gset Addr) (map_union ms1 ms2)).
-      rewrite dom_union. apply union_subseteq_l.
-      all: apply resolve_imports_dom.
-    Qed.
-
-    Local Lemma resolve_imports_dom_dom2 {ms1 imp1 exp1 ms2 imp2 exp2} :
-      dom (gset Addr) ms2 ⊆ dom (gset Addr)
-        (resolve_imports imp2 (merge opt_merge_fun exp1 exp2)
-          (resolve_imports imp1 (merge opt_merge_fun exp1 exp2) (map_union ms1 ms2))).
-    Proof.
-      transitivity (dom (gset Addr) (resolve_imports imp1 (merge opt_merge_fun exp1 exp2) (map_union ms1 ms2))).
-      transitivity (dom (gset Addr) (map_union ms1 ms2)).
-      rewrite dom_union. apply union_subseteq_r.
-      all: apply resolve_imports_dom.
+      + reflexivity.
     Qed.
 
     (** make_link_pre_comp generates a well formed component
@@ -485,93 +447,73 @@ Section Linking.
       pcomp1 pcomp2
       (wf_1: well_formed_pre_comp pcomp1)
       (wf_2: well_formed_pre_comp pcomp2)
-      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment)) :
+      (Hdisj: pcomp1 ##ₚ pcomp2) :
       well_formed_pre_comp (link_pre_comp pcomp1 pcomp2).
     Proof.
-      inversion wf_1 as [pcomp1' Hdisj1 Hexp1 Himp1 Himpdisj1 Hwr_ms1 Har_ms1].
-      inversion wf_2 as [pcomp2' Hdisj2 Hexp2 Himp2 Himpdisj2 Hwr_ms2 Har_ms2].
+      inversion wf_1 as [pcomp1' Hdisj1 Himp1 Hexp1 Hwr_ms1 Har_ms1].
+      inversion wf_2 as [pcomp2' Hdisj2 Himp2 Hexp2 Hwr_ms2 Har_ms2].
+      assert (imp1: dom (gset Addr) (segment pcomp1) ⊆ dom _ (segment (link_pre_comp pcomp1 pcomp2))).
+      { do 2 rewrite resolve_imports_dom_eq; rewrite dom_union_L.
+        3: transitivity (dom (gset Addr) (segment pcomp2));
+           assumption || apply union_subseteq_r.
+        all: transitivity (dom (gset Addr) (segment pcomp1));
+           assumption || apply union_subseteq_l || reflexivity. }
+      assert (imp2: dom (gset Addr) (segment pcomp2) ⊆ dom _ (segment (link_pre_comp pcomp1 pcomp2))).
+      { do 2 rewrite resolve_imports_dom_eq; rewrite dom_union_L.
+        1,3: transitivity (dom (gset Addr) (segment pcomp2));
+             assumption || apply union_subseteq_r || reflexivity.
+        all: transitivity (dom (gset Addr) (segment pcomp1));
+             assumption || apply union_subseteq_l. }
+      inversion Hdisj.
       apply wf_pre_intro.
       + intros s is_some_s. (* exports are disjoint from import *)
-        specialize (Hdisj1 s). specialize (Hdisj2 s).
-        rewrite lookup_merge in is_some_s.
         intros [a sa_in_imps].
-        apply elem_of_filter in sa_in_imps.
-        rewrite lookup_merge in sa_in_imps.
-        destruct sa_in_imps as [is_nons_s _].
-        rewrite is_nons_s in is_some_s. apply (is_Some_None is_some_s).
-      + intros s w exp_s_w. (* export point to addresses in the memory segment *)
-        destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
-      + intros s a sa_in_filter. (* imports are defined addresses *)
-        apply elem_of_filter in sa_in_filter.
-        destruct sa_in_filter as [_ sa_in_imp].
-        apply elem_of_dom.
-        apply resolve_imports_dom. apply resolve_imports_dom.
-        rewrite dom_union. rewrite elem_of_union.
-        apply elem_of_union in sa_in_imp.
-        destruct sa_in_imp as [sa_in_imp | sa_in_imp].
-        left. rewrite elem_of_dom. apply (Himp1 s a sa_in_imp).
-        right. rewrite elem_of_dom. apply (Himp2 s a sa_in_imp).
-      + intros s1 s2 a s1_a_in_imps s2_a_in_imps. (* import at most one symbol per address *)
-        apply elem_of_filter in s1_a_in_imps, s2_a_in_imps.
-        destruct s1_a_in_imps as [_ s1_a_in_imps].
-        destruct s2_a_in_imps as [_ s2_a_in_imps].
-        apply elem_of_union in s1_a_in_imps, s2_a_in_imps.
-        destruct s1_a_in_imps as [s1_a_in_imp1 | s1_a_in_imp2];
-        destruct s2_a_in_imps as [s2_a_in_imp1 | s2_a_in_imp2].
-        - apply (Himpdisj1 s1 s2 a s1_a_in_imp1 s2_a_in_imp1).
-        - apply Himp1 in s1_a_in_imp1.
-          apply Himp2 in s2_a_in_imp2.
-          destruct s1_a_in_imp1 as [w ms1a].
-          rewrite (map_disjoint_Some_l pcomp1.(segment) pcomp2.(segment) _ _ Hms_disj ms1a) in s2_a_in_imp2.
-          contradiction (is_Some_None s2_a_in_imp2).
-        - apply Himp2 in s1_a_in_imp2.
-          apply Himp1 in s2_a_in_imp1.
-          destruct s1_a_in_imp2 as [w ms2a].
-          rewrite (map_disjoint_Some_r pcomp1.(segment) pcomp2.(segment) _ _ Hms_disj ms2a) in s2_a_in_imp1.
-          contradiction (is_Some_None s2_a_in_imp1).
-        - apply (Himpdisj2 s1 s2 a s1_a_in_imp2 s2_a_in_imp2).
-      + intros a w ms_a_w.
+        apply map_filter_lookup_Some in sa_in_imps.
+        destruct sa_in_imps as [_ is_none_s].
+        rewrite is_none_s in is_some_s.
+        apply (is_Some_None is_some_s).
+      + transitivity (dom (gset Addr) (map_union pcomp1.(imports) pcomp2.(imports))).
+        apply dom_filter_subseteq.
+        rewrite dom_union_L.
+        rewrite union_subseteq. split.
+        transitivity (dom (gset Addr) (segment pcomp1)); assumption.
+        transitivity (dom (gset Addr) (segment pcomp2)); assumption.
+      + intros s w exp_s_w. (* exported word respect word restrictions *)
+        apply lookup_union_Some in exp_s_w. 2: assumption.
+        destruct exp_s_w as [exp1_s | exp2_s].
+        apply (word_restrictions_incr _ _ _ imp1 (Hexp1 s w exp1_s)).
+        apply (word_restrictions_incr _ _ _ imp2 (Hexp2 s w exp2_s)).
+      + intros a w ms_a_w. (* word in segment follow word restrictions *)
         specialize (Hwr_ms1 a w). specialize (Hwr_ms2 a w).
-        destruct (resolve_imports_spec_simple Himpdisj2 ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
-        destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
-        destruct (resolve_imports_spec_simple Himpdisj1 ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
-        destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
-        apply lookup_union_Some in ms_a_w''.
+        destruct (resolve_imports_spec_simple ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
+        apply lookup_union_Some in exp_s_w. 2: assumption.
+        destruct exp_s_w as [exp1_s | exp2_s].
+        apply (word_restrictions_incr _ _ _ imp1 (Hexp1 s w exp1_s)).
+        apply (word_restrictions_incr _ _ _ imp2 (Hexp2 s w exp2_s)).
+        destruct (resolve_imports_spec_simple ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
+        apply lookup_union_Some in exp_s_w. 2: assumption.
+        destruct exp_s_w as [exp1_s | exp2_s].
+        apply (word_restrictions_incr _ _ _ imp1 (Hexp1 s w exp1_s)).
+        apply (word_restrictions_incr _ _ _ imp2 (Hexp2 s w exp2_s)).
+        apply lookup_union_Some in ms_a_w''. 2: assumption.
         destruct ms_a_w'' as [ms1_a_w | ms2_a_w].
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hwr_ms1 ms1_a_w)).
-        apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hwr_ms2 ms2_a_w)).
-        apply Hms_disj.
-      + rewrite resolve_imports_dom_eq.
-        rewrite resolve_imports_dom_eq.
-        assert (Hdom: dom (gset Addr) (map_union (segment pcomp1) (segment pcomp2)) = dom _ (segment pcomp1) ∪ dom _ (segment pcomp2)).
-        { apply (anti_symm _); rewrite dom_union; reflexivity. }
-        rewrite Hdom. clear Hdom.
+        apply (word_restrictions_incr _ _ _ imp1 (Hwr_ms1 ms1_a_w)).
+        apply (word_restrictions_incr _ _ _ imp2 (Hwr_ms2 ms2_a_w)).
+      + rewrite resolve_imports_dom_eq; rewrite resolve_imports_dom_eq.
+        rewrite dom_union_L.
         apply addr_restrictions_union_stable; assumption.
-        intros s a sa_in_imps1.
-        apply elem_of_dom. rewrite dom_union.
-        apply elem_of_union_l. rewrite elem_of_dom.
-        apply (Himp1 s a sa_in_imps1).
-        intros s a sa_in_imps2.
-        apply elem_of_dom.
-        apply resolve_imports_dom. rewrite dom_union.
-        apply elem_of_union_r. rewrite elem_of_dom.
-        apply (Himp2 s a sa_in_imps2).
+        2: transitivity (dom (gset Addr) (segment pcomp2)); assumption ||
+        rewrite dom_union_L; apply union_subseteq_r.
+        all: transitivity (dom (gset Addr) (segment pcomp1)); assumption ||
+        rewrite dom_union_L; apply union_subseteq_l.
     Qed.
 
     (** mlink_main_lib forms a link from a main and a lib *)
     Definition link_main_lib main lib main_s :=
       Main (link_pre_comp main lib) main_s.
 
-    Lemma link_main_lib_is_link
-      pcomp1 main pcomp2 :
-      pcomp1.(segment) ##ₘ pcomp2.(segment) ->
-      pcomp1.(exports) ##ₘ pcomp2.(exports) ->
+    Lemma link_main_lib_is_link pcomp1 main pcomp2 :
+      pcomp1 ##ₚ pcomp2 ->
       well_formed_comp (Main pcomp1 main) ->
       well_formed_comp (Lib pcomp2) ->
       is_link
@@ -585,29 +527,36 @@ Section Linking.
       all: try assumption.
     Qed.
 
-    Lemma link_main_lib_well_formed
-      pcomp1 main pcomp2
-      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
-      (wf_main' : well_formed_comp (Main pcomp1 main))
-      (wf_lib' : well_formed_comp (Lib pcomp2)) :
+    Lemma link_main_lib_well_formed pcomp1 main pcomp2 :
+      pcomp1 ##ₚ pcomp2 ->
+      well_formed_comp (Main pcomp1 main) ->
+      well_formed_comp (Lib pcomp2) ->
       well_formed_comp
         (link_main_lib pcomp1 pcomp2 main).
     Proof.
+      intros H wf_main' wf_lib'.
       apply wf_main.
       apply link_pre_comp_well_formed.
       inversion wf_main'. assumption.
       inversion wf_lib'. assumption. assumption.
       inversion wf_main'.
-      apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 Hw_main).
+      eapply (word_restrictions_incr _ _ _ _ Hw_main).
+      Unshelve.
+      inversion wf_main'. inversion Hwf_pre0.
+      inversion wf_lib'. inversion Hwf_pre1.
+      do 2 rewrite resolve_imports_dom_eq; rewrite dom_union_L.
+      3: transitivity (dom (gset Addr) (segment pcomp2));
+          assumption || apply union_subseteq_r.
+        all: transitivity (dom (gset Addr) (segment pcomp1));
+           assumption || apply union_subseteq_l || reflexivity.
     Qed.
 
     Lemma link_main_lib_is_context
       pcomp1 main pcomp2
-      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
-      (Hexp_disj: pcomp1.(exports) ##ₘ pcomp2.(exports))
+      (Hdisj: pcomp1 ##ₚ pcomp2)
       (wf_main' : well_formed_comp (Main pcomp1 main))
       (wf_lib' : well_formed_comp (Lib pcomp2))
-      (no_imps: filter (λ '(s, _), merge opt_merge_fun pcomp1.(exports) pcomp2.(exports) !! s = None)
+      (no_imps: filter (λ '(_, s), (pcomp1.(exports) ∪ pcomp2.(exports)) !! s = None)
       (pcomp1.(imports) ∪ pcomp2.(imports)) = ∅) :
       is_context
         (Main pcomp1 main)
@@ -660,7 +609,7 @@ End Linking.
 Arguments pre_component _ {_ _}.
 Arguments component _ {_ _}.
 Arguments exports_type _ {_ _}.
-Arguments imports_type _ {_ _}.
+Arguments imports_type _ : clear implicits.
 
 (** Simple lemmas used to weaken word_restrictions
     and address_restrictions in is_link and well_formed_xxx *)
