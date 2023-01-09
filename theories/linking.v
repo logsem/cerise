@@ -74,6 +74,11 @@ Section Linking.
 
   Set Implicit Arguments.
 
+  #[global] Instance exports_subseteq : SubsetEq exports_type.
+    unfold exports_type.
+    apply map_subseteq.
+  Defined.
+
   Record pre_component := {
     segment : segment_type;
     (** the component's memory segment, a map addr -> word *)
