@@ -196,6 +196,59 @@ Section examples.
     auto.
   Qed.
 
+  Lemma halt_context_is_context {target} :
+    well_formed_comp can_address_only (addr_gt_than reserved_context_size) target ->
+    is_context can_address_only unconstrained_addr
+      (halt_context target) target {[ PC := WCap RWX za (za^+1)%a za ]}.
+  Proof.
+    intros Hwf_t.
+    apply is_context_intro.
+    - apply (halt_context_can_link Hwf_t).
+    - intros r w Hsr_w.
+      apply lookup_singleton_Some in Hsr_w.
+      destruct Hsr_w as [Hpc_r Hcap_w].
+      rewrite -Hcap_w.
+      intros a Ha01. simpl. rewrite insert_empty.
+      rewrite dom_singleton. rewrite elem_of_singleton.
+      solve_finz.
+    - intros a s Himp_t_a.
+      simpl.
+      destruct (Some_dec (dummy_exports target !! s)) as [ [w Hde_s_w] | Hde_s_w].
+      rewrite elem_of_dom. apply (mk_is_Some _ _ Hde_s_w).
+      specialize (dummy_exports_spec target s). intros Hde_spec.
+      rewrite Hde_s_w in Hde_spec.
+      contradiction (Hde_spec a s Himp_t_a eq_refl).
+    - simpl. intros a s Hempty.
+      unfold imports_type in Hempty.
+      rewrite lookup_empty in Hempty.
+      discriminate.
+  Qed.
+
+  (** Contextual refinement implies that the
+      implementation imports all the specifications symbols *)
+  Lemma ctxt_ref_imports_subseteq {impl spec}:
+    contextual_refinement impl spec ->
+    ∀ a (s: Symbols), spec.(imports) !! a = Some s ->
+    ∃ a', impl.(imports) !! a' = Some s.
+  Proof.
+    intros Href a s Hspec_a_s.
+    inversion Href.
+    specialize (Hrefines
+      (halt_context impl)
+      {[ PC := WCap RWX za (za^+1)%a za ]} _
+      (halt_context_is_context Hwf_impl)
+      (ex_intro _ 2 (halt_context_machine_run Hwf_impl))).
+    destruct Hrefines as [Hctxt_spec _].
+    inversion Hctxt_spec.
+    specialize (Hno_imps_l a s Hspec_a_s).
+    simpl in Hno_imps_l.
+    apply (elem_of_dom (dummy_exports impl) s) in Hno_imps_l.
+    destruct Hno_imps_l as [w Hde_s_w].
+    specialize (dummy_exports_spec impl s).
+    intros Hspec. rewrite Hde_s_w in Hspec.
+    destruct Hspec as [_ Hres]. exact Hres.
+  Qed.
+
   (** Instructions that assert that the to be imported value
       at PC.end - 1 is equal to w *)
   Definition assert_exports_incl_instr w :=
