@@ -298,6 +298,26 @@ Section Linking.
 
   Infix "##ₚ" := disjoint_pre_component (at level 70).
 
+  Lemma disjoint_pre_comp_impl_disjoint_impls {pcomp1 pcomp2} :
+    (* We only need the Himp hypothesis, so this could be weakeaned if needed *)
+    well_formed_pre_comp pcomp1 ->
+    well_formed_pre_comp pcomp2 ->
+    pcomp1 ##ₚ pcomp2 ->
+    pcomp1.(imports) ##ₘ pcomp2.(imports).
+  Proof.
+    intros [] [] sep.
+    apply map_disjoint_spec.
+    intros a s t p1_a p2_a.
+    apply mk_is_Some in p1_a, p2_a.
+    apply elem_of_dom in p1_a, p2_a.
+    apply Himp in p1_a. apply Himp0 in p2_a.
+    apply elem_of_dom in p1_a, p2_a.
+    destruct p1_a as [w1 p1_a]. destruct p2_a as [w2 p2_a].
+    inversion sep.
+    apply (map_disjoint_spec pcomp.(segment) pcomp0.(segment)) with a w1 w2;
+    assumption.
+  Qed.
+
   Inductive is_link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
   | is_link_pre_comp_intro:
       forall pcomp1 pcomp2 pcomp_link
@@ -491,7 +511,7 @@ Section Linking.
         rewrite dom_union_L; apply union_subseteq_l.
     Qed.
 
-    (** mlink_main_lib forms a link from a main and a lib *)
+    (** link_main_lib forms a link from a main and a lib *)
     Definition link_main_lib main lib main_s :=
       Main (link_pre_comp main lib) main_s.
 
@@ -554,39 +574,82 @@ Section Linking.
     Qed.
 
   End LinkExists.
-  (*
-  (** Results on commutativity and associativity of links *)
-  Section LinkCommutativeAssociative.
-    Lemma is_link_pre_comp_commutative c1 c2 c3 :
-      is_link_pre_comp c1 c2 c3 -> is_link_pre_comp c2 c1 c3.
-    Proof.
-      intros [ ].
-      apply is_link_pre_comp_intro.
-      - apply map_disjoint_sym. assumption.
-      - apply map_disjoint_sym. assumption.
-      - rewrite Hexp. apply map_eq. intros symbol.
-        rewrite lookup_merge. rewrite lookup_merge.
-        unfold opt_merge_fun.
-        destruct (Some_dec (exports pcomp1 !! symbol)) as [ [w1 ep1] | ep1 ];
-        destruct (Some_dec (exports pcomp2 !! symbol)) as [ [w2 ep2] | ep2 ];
-        rewrite ep1; rewrite ep2; try reflexivity.
-        rewrite (map_disjoint_Some_l _ _ _ _ Hexp_disj ep1) in ep2.
-        discriminate ep2.
-      - intros s a.
-        split; rewrite (Himp s a);
-        intros [ [sa1|sa2] exp ]; split; auto.
-      - rewrite Hms.
-        apply map_eq. intros addr.
-        apply resolve_imports_spec.
-      Search "map_eq".
-        resolve_imports_spec
-      Search map_disjoint.
-      split.
 
-    Lemma is_link_pre_comp_associative c1 c2 c3 cres :
-      is_link_pre_comp (c1) (link_pre_comp c2 c3) cres <->
-      is_link_pre_comp (link_pre_comp c1 c2) c3 cres.
-  End LinkAssociative.*)
+  (** Results on the symmetry/commutativity of links *)
+  Section LinkSymmetric.
+    Lemma disjoint_pre_component_sym : Symmetric disjoint_pre_component.
+    Proof.
+      intros x y [ ].
+      apply disjoint_pre_component_intro;
+      apply map_disjoint_sym;
+      assumption.
+    Qed.
+
+    Lemma is_link_pre_comp_sym {a b c}:
+      well_formed_pre_comp a ->
+      well_formed_pre_comp b ->
+      is_link_pre_comp a b c ->
+      is_link_pre_comp b a c.
+    Proof.
+      intros wf_b wf_a f. inversion f.
+      assert (imp_disj: imports a ##ₘ imports b).
+      apply disjoint_pre_comp_impl_disjoint_impls; assumption.
+      inversion Hdisj.
+      apply is_link_pre_comp_intro.
+      - apply disjoint_pre_component_sym. assumption.
+      - rewrite Hexp. rewrite map_union_comm. reflexivity.
+        assumption.
+      - rewrite Himp. rewrite map_union_comm. reflexivity.
+        assumption.
+      - rewrite Hms.
+        rewrite resolve_imports_twice.
+        rewrite resolve_imports_twice.
+        f_equal; rewrite map_union_comm; try reflexivity.
+        2: assumption.
+        1,3: apply map_disjoint_sym.
+        all: assumption.
+    Qed.
+
+    Lemma link_pre_comp_comm {a b}:
+      a ##ₚ b ->
+      well_formed_pre_comp a ->
+      well_formed_pre_comp b ->
+      link_pre_comp a b = link_pre_comp b a.
+    Proof.
+      intros sep wf_a wf_b.
+      apply (is_link_pre_comp_unique (link_pre_comp_is_link_pre_comp _ _ sep)).
+      apply is_link_pre_comp_sym; try assumption.
+      apply (link_pre_comp_is_link_pre_comp _ _).
+      apply disjoint_pre_component_sym. assumption.
+    Qed.
+
+    Lemma is_link_sym {c} : Symmetric (fun a b => is_link a b c).
+    Proof.
+      intros a b [].
+      apply is_link_lib_lib.
+      eapply (is_link_pre_comp_sym _ _ Hlink).
+      assumption. assumption.
+      apply is_link_main_lib.
+      eapply (is_link_pre_comp_sym _ _ Hlink).
+      assumption. assumption.
+      apply is_link_lib_main.
+      eapply (is_link_pre_comp_sym _ _ Hlink).
+      assumption. assumption.
+      Unshelve.
+      all: inversion Hwf_l; try assumption.
+      all: inversion Hwf_r; assumption.
+    Qed.
+
+    Lemma is_context_sym {c} : Symmetric (fun a b => is_context a b c).
+    Proof.
+      intros a b [[link prgm]].
+      apply is_context_intro.
+      split.
+      apply is_link_sym.
+      all: assumption.
+    Qed.
+  End LinkSymmetric.
+
 End Linking.
 
 Arguments pre_component _ {_ _}.
