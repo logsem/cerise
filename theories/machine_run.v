@@ -99,3 +99,48 @@ Proof.
       econstructor. cbn. apply Hc. } }
 Qed.
 
+Lemma machine_run_ends_in_halted_or_error `{MachineParameters}:
+  ∀ n init c, machine_run n init = Some c ->
+  c = Halted \/ c = Failed.
+Proof.
+  intros n.
+  induction n; intros init c mr.
+  - discriminate mr.
+  - simpl in mr.
+    destruct init as [[ | | | ] [r m]].
+    destruct (r !! PC).
+    destruct (isCorrectPCb w).
+    destruct (m !! match w with
+    | WInt _ => finz.largest 0%a
+    | WCap _ _ _ a => a
+    end). apply IHn in mr. apply mr.
+    1,2,3,5: right; symmetry; apply Some_inj in mr; apply mr.
+    left; symmetry. apply Some_inj in mr; apply mr.
+    apply IHn in mr. apply mr.
+Qed.
+
+Lemma machine_run_ends_incr `{MachineParameters}:
+  ∀ n' n init c,
+    n <= n' ->
+    machine_run n init = Some c ->
+    machine_run n' init = Some c.
+Proof.
+  induction n'.
+  - intros n init c n_inf_0. apply le_n_0_eq in n_inf_0.
+    rewrite n_inf_0. auto.
+  - intros n [ conf [r m] ] c n_inf_n'.
+    apply PeanoNat.Nat.le_succ_r in n_inf_n'.
+    destruct n_inf_n' as [n_inf_n' | n_eq_n'].
+    2: { rewrite n_eq_n'. auto. }
+    destruct n as [ | n ]. intros mr_n. discriminate mr_n.
+    simpl.
+    destruct conf.
+    destruct (r !! PC).
+    destruct (isCorrectPCb w).
+    destruct (m !! match w with
+    | WInt _ => finz.largest 0%a
+    | WCap _ _ _ a => a
+    end).
+    all: try auto.
+    all: apply IHn'; lia.
+Qed.
