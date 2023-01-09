@@ -25,45 +25,57 @@ Section Linking.
       word_restrictions w dom1 ->
       word_restrictions w dom2.
 
-  Definition imports: Type := gset (Symbols * Addr).
-  Definition exports: Type := gmap Symbols Word.
-  Definition segment: Type := gmap Addr Word.
+  Notation imports_type := (gset (Symbols * Addr)).
+  Notation exports_type := (gmap Symbols Word).
+  Notation segment_type := (gmap Addr Word).
 
-  Definition pre_component: Type := (segment * imports * exports).
+  Record pre_component := {
+    segment : segment_type;
+    (** the component's memory segment, a map addr -> word *)
+
+    imports : imports_type;
+    (** the segment imports, a pair (symbol, address to place word) *)
+
+    exports : exports_type;
+    (** Segment exports, a map symbols -> word (often capabilities) *)
+  }.
+
   Inductive component: Type :=
   | Lib: pre_component -> component
   | Main: pre_component -> Word -> component.
 
   Inductive well_formed_pre_comp: pre_component -> Prop :=
   | wf_pre_intro:
-      forall ms imp exp
-        (Hdisj: forall s, is_Some (exp !! s) -> ~ exists a, (s, a) ∈ imp)
-        (Hwr_exp: forall s w, exp !! s = Some w -> word_restrictions w (dom _ ms))
-        (Himp: forall s a, (s, a) ∈ imp -> is_Some (ms !! a))
-        (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2)
-        (Hwr_ms: forall a w, ms !! a = Some w -> word_restrictions w (dom _ ms))
-        (Hdisjstk: forall a, a ∈ dom (gset _) ms -> (e_stk <= a)%a), (* \/ (a < b_stk)%a *)
-        well_formed_pre_comp (ms, imp, exp).
+      ∀ pcomp
+        (Hdisj: ∀ s, is_Some (pcomp.(exports) !! s) -> ~ ∃ a, (s, a) ∈ pcomp.(imports))
+        (Hwr_exp: ∀ s w, pcomp.(exports) !! s = Some w -> word_restrictions w (dom _ pcomp.(segment)))
+        (Himp: ∀ s a, (s, a) ∈ pcomp.(imports) -> is_Some (pcomp.(segment) !! a))
+        (Himpdisj: ∀ s1 s2 a, (s1, a) ∈ pcomp.(imports) -> (s2, a) ∈ pcomp.(imports) -> s1 = s2)
+        (Hwr_ms: ∀ a w, pcomp.(segment) !! a = Some w -> word_restrictions w (dom _ pcomp.(segment))),
+        well_formed_pre_comp pcomp.
 
   Inductive well_formed_comp: component -> Prop :=
   | wf_lib:
-      forall comp
-        (Hwf_pre: well_formed_pre_comp comp),
-        well_formed_comp (Lib comp)
+      forall pcomp
+        (Hwf_pre: well_formed_pre_comp pcomp),
+        well_formed_comp (Lib pcomp)
   | wf_main:
-      forall comp w_main
-        (Hwf_pre: well_formed_pre_comp comp)
-        (Hw_main: word_restrictions w_main (dom _ (comp.1.1))),
-        well_formed_comp (Main comp w_main).
+      forall pcomp w_main
+        (Hwf_pre: well_formed_pre_comp pcomp)
+        (Hw_main: word_restrictions w_main (dom _ (pcomp.(segment)))),
+        well_formed_comp (Main pcomp w_main).
 
   Inductive is_program: component -> Prop :=
   | is_program_intro:
-      forall ms imp exp w_main
-        (Hnoimports: imp = ∅)
-        (Hwfcomp: well_formed_comp (Main (ms, imp, exp) w_main)),
-        is_program (Main (ms,imp, exp) w_main).
+      forall pcomp w_main
+        (Hnoimports: pcomp.(imports) = ∅)
+        (Hwfcomp: well_formed_comp (Main pcomp w_main)),
+        is_program (Main pcomp w_main).
 
-  Definition resolve_imports (imp: imports) (exp: exports) (ms: segment) :=
+  (** Add values defined in exp to the segment
+      at addresses specified in imp *)
+  Definition resolve_imports
+     (imp: imports_type) (exp: exports_type) (ms: segment_type) :=
     set_fold (fun '(s, a) m => match exp !! s with
       | Some w => <[a:=w]> m
       | None => m end) ms imp.
@@ -206,58 +218,62 @@ Section Linking.
     | None => o2
     end.
 
-  Inductive link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
-  | link_pre_comp_intro:
-      forall ms1 ms2 ms imp1 imp2 imp exp1 exp2 exp
-        (Hms_disj: ms1 ##ₘ ms2)
-        (Hexp: exp = merge opt_merge_fun exp1 exp2)
-        (Himp: forall s a, (s, a) ∈ imp <-> (((s, a) ∈ imp1 \/ (s, a) ∈ imp2) /\ exp !! s = None))
-        (Hms: ms = resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2))),
-        link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2) (ms, imp, exp).
+  Inductive is_link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
+  | is_link_pre_comp_intro:
+      forall pcomp1 pcomp2 pcomp_link
+        (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+        (Hexp: pcomp_link.(exports) = merge opt_merge_fun pcomp1.(exports) pcomp2.(exports))
+        (Himp: ∀ s a, (s, a) ∈ pcomp_link.(imports) <->
+               (((s, a) ∈ pcomp1.(imports) \/ (s, a) ∈ pcomp2.(imports)) /\ pcomp_link.(exports) !! s = None))
+        (Hms: pcomp_link.(segment) =
+              resolve_imports pcomp2.(imports) pcomp_link.(exports) (
+              resolve_imports pcomp1.(imports) pcomp_link.(exports) (
+                map_union pcomp1.(segment) pcomp2.(segment)))),
+        is_link_pre_comp pcomp1 pcomp2 pcomp_link.
 
-  Inductive link: component -> component -> component -> Prop :=
-  | link_lib_lib:
+  Inductive is_link: component -> component -> component -> Prop :=
+  | is_link_lib_lib:
       forall comp1 comp2 comp
-        (Hlink: link_pre_comp comp1 comp2 comp)
+        (Hlink: is_link_pre_comp comp1 comp2 comp)
         (Hwf_l: well_formed_comp (Lib comp1))
         (Hwf_r: well_formed_comp (Lib comp2)),
-        link (Lib comp1) (Lib comp2) (Lib comp)
-  | link_lib_main:
+        is_link (Lib comp1) (Lib comp2) (Lib comp)
+  | is_link_lib_main:
       forall comp1 comp2 comp w_main
-        (Hlink: link_pre_comp comp1 comp2 comp)
+        (Hlink: is_link_pre_comp comp1 comp2 comp)
         (Hwf_l: well_formed_comp (Lib comp1))
         (Hwf_r: well_formed_comp (Main comp2 w_main)),
-        link (Lib comp1) (Main comp2 w_main) (Main comp w_main)
-  | link_main_lib:
+        is_link (Lib comp1) (Main comp2 w_main) (Main comp w_main)
+  | is_link_main_lib:
       forall comp1 comp2 comp w_main
-        (Hlink: link_pre_comp comp1 comp2 comp)
+        (Hlink: is_link_pre_comp comp1 comp2 comp)
         (Hwf_l: well_formed_comp (Main comp1 w_main))
         (Hwf_r: well_formed_comp (Lib comp2)),
-        link (Main comp1 w_main) (Lib comp2) (Main comp w_main).
+        is_link (Main comp1 w_main) (Lib comp2) (Main comp w_main).
 
   Inductive is_context (c comp p: component): Prop :=
   | is_context_intro:
-      forall (His_program: link c comp p /\ is_program p),
+      forall (His_program: is_link c comp p /\ is_program p),
       is_context c comp p.
 
   (** Lemmas about the uniqueness of [c] in [link a b c] and variations thereof *)
   Section LinkUnique.
-    Lemma link_pre_comp_unique {c_left c_right c1 c2} :
-      link_pre_comp c_left c_right c1 ->
-      link_pre_comp c_left c_right c2 ->
+    Lemma is_link_pre_comp_unique {c_left c_right c1 c2} :
+      is_link_pre_comp c_left c_right c1 ->
+      is_link_pre_comp c_left c_right c2 ->
       c1 = c2.
     Proof.
       intros a b.
-      destruct c_left as [[msl impl] expl].
-      destruct c_right as [[msr impr] expr].
-      destruct c1 as [[ms1 imp1] exp1].
-      destruct c2 as [[ms2 imp2] exp2].
+      destruct c_left as [msl impl expl].
+      destruct c_right as [msr impr expr].
+      destruct c1 as [ms1 imp1 exp1].
+      destruct c2 as [ms2 imp2 exp2].
       inversion a.
       inversion b.
+      simpl in *.
       assert (H_exp: exp1 = exp2).
       { rewrite Hexp. rewrite Hexp0. reflexivity. }
-      apply pair_equal_spec. split.
-      apply pair_equal_spec. split.
+      f_equal.
       rewrite Hms. rewrite Hms0.
       rewrite H_exp. reflexivity.
       rewrite set_eq.
@@ -268,19 +284,19 @@ Section Linking.
       apply H_exp.
     Qed.
 
-    Lemma link_unique {c_left c_right c1 c2} :
-      link c_left c_right c1 ->
-      link c_left c_right c2 ->
+    Lemma is_link_unique {c_left c_right c1 c2} :
+      is_link c_left c_right c1 ->
+      is_link c_left c_right c2 ->
       c1 = c2.
     Proof.
       intros a b.
-      destruct c_left as [[[msl impl] expl] | [[[msl impl] expl] mainl]];
-      destruct c_right as [[[msr impr] expr] | [[[msr impr] expr] mainr]];
-      destruct c1 as [[[ms1 imp1] exp1] | [[[ms1 imp1] exp1] main1]];
-      destruct c2 as [[[ms2 imp2] exp2] | [[[ms2 imp2] exp2] main2]].
+      destruct c_left as [[msl impl expl] | [msl impl expl] mainl];
+      destruct c_right as [[msr impr expr] | [msr impr expr] mainr];
+      destruct c1 as [[ms1 imp1 exp1] | [ms1 imp1 exp1] main1];
+      destruct c2 as [[ms2 imp2 exp2] | [ms2 imp2 exp2] main2].
       all: inversion a.
       all: inversion b.
-      all: rewrite (link_pre_comp_unique Hlink Hlink0).
+      all: rewrite (is_link_pre_comp_unique Hlink Hlink0).
       reflexivity.
       all: f_equal; rewrite <- H4, H9; reflexivity.
     Qed.
@@ -291,7 +307,7 @@ Section Linking.
       c1 = c2.
     Proof.
       intros [[link1 _]] [[link2 _]].
-      apply (link_unique link1 link2).
+      apply (is_link_unique link1 link2).
     Qed.
   End LinkUnique.
 
@@ -299,23 +315,32 @@ Section Linking.
   Section LinkExists.
 
     (** Creates link candidate for two precomponents *)
-    Definition make_link_pre_comp : pre_component -> pre_component -> pre_component :=
-      fun '(ms1, imp1, exp1) '(ms2, imp2, exp2) =>
+    Definition link_pre_comp : pre_component -> pre_component -> pre_component :=
+      fun pcomp1 pcomp2 =>
         (* exports is union of exports *)
-        let exp := merge opt_merge_fun exp1 exp2 in
-        (* memory segment is union of segments, with resolved imports *)
-        let seg := resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2)) in
-        (* imports is union of imports minus symbols is export *)
-        let inp := filter (fun '(s,_) => exp !! s = None) (imp1 ∪ imp2) in
-        (seg, inp, exp).
+        let exp := merge opt_merge_fun
+                     pcomp1.(exports) pcomp2.(exports) in
+        {|
+          exports := exp;
+          (* memory segment is union of segments, with resolved imports *)
+          segment :=
+              resolve_imports pcomp2.(imports) exp (
+              resolve_imports pcomp1.(imports) exp (
+              map_union pcomp1.(segment) pcomp2.(segment)));
+          (* imports is union of imports minus symbols is export *)
+          imports :=
+              filter
+              (fun '(s,_) => exp !! s = None)
+              (pcomp1.(imports) ∪ pcomp2.(imports));
+        |}.
 
-    (** make_link_pre_comp forms a link_pre_comp with its arguments (if segments are disjoint) *)
-    Lemma make_link_pre_comp_is_pre_link_comp
-      ms1 imp1 exp1 ms2 imp2 exp2
-      (Hms_disj: ms1 ##ₘ ms2) :
-      link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2) (make_link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2)).
+    (** link_pre_comp forms an is_link_pre_comp with its arguments (if segments are disjoint) *)
+    Lemma link_pre_comp_is_pre_link_comp
+      pcomp1 pcomp2
+      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment)) :
+      is_link_pre_comp pcomp1 pcomp2 (link_pre_comp pcomp1 pcomp2).
     Proof.
-      apply link_pre_comp_intro.
+      apply is_link_pre_comp_intro.
       + apply Hms_disj.
       + reflexivity.
       + intros s a. rewrite elem_of_filter. rewrite elem_of_union.
@@ -328,7 +353,7 @@ Section Linking.
     Instance : @DiagNone Word Word Word opt_merge_fun. split. Defined.
 
     Local Lemma opt_merge_l_or_r
-      {exp1 exp2:exports} {s w} :
+      {exp1 exp2:exports_type} {s w} :
       merge opt_merge_fun exp1 exp2 !! s = Some w ->
       exp1 !! s = Some w \/ exp2 !! s = Some w.
     Proof.
@@ -362,15 +387,15 @@ Section Linking.
 
     (** make_link_pre_comp generates a well formed component
         if its arguments are well formed and disjoint *)
-    Lemma make_link_pre_comp_well_formed
-      ms1 imp1 exp1 ms2 imp2 exp2
-      (wf_1: well_formed_pre_comp (ms1, imp1, exp1))
-      (wf_2: well_formed_pre_comp (ms2, imp2, exp2))
-      (Hms_disj: ms1 ##ₘ ms2) :
-      well_formed_pre_comp (make_link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2)).
+    Lemma link_pre_comp_well_formed
+      pcomp1 pcomp2
+      (wf_1: well_formed_pre_comp pcomp1)
+      (wf_2: well_formed_pre_comp pcomp2)
+      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment)) :
+      well_formed_pre_comp (link_pre_comp pcomp1 pcomp2).
     Proof.
-      inversion wf_1 as [ms1' imp1' exp1' Hdisj1 Hexp1 Himp1 Himpdisj1 Hnpwl1 Hdisjstk1].
-      inversion wf_2 as [ms2' imp2' exp2' Hdisj2 Hexp2 Himp2 Himpdisj2 Hnpwl2 Hdisjstk2].
+      inversion wf_1 as [pcomp1' Hdisj1 Hexp1 Himp1 Himpdisj1 Hnpwl1 Hdisjstk1].
+      inversion wf_2 as [pcomp2' Hdisj2 Hexp2 Himp2 Himpdisj2 Hnpwl2 Hdisjstk2].
       apply wf_pre_intro.
       + intros s is_some_s. (* exports are disjoint from import *)
         specialize (Hdisj1 s). specialize (Hdisj2 s).
@@ -405,12 +430,12 @@ Section Linking.
         - apply Himp1 in s1_a_in_imp1.
           apply Himp2 in s2_a_in_imp2.
           destruct s1_a_in_imp1 as [w ms1a].
-          rewrite (map_disjoint_Some_l ms1 ms2 _ _ Hms_disj ms1a) in s2_a_in_imp2.
+          rewrite (map_disjoint_Some_l pcomp1.(segment) pcomp2.(segment) _ _ Hms_disj ms1a) in s2_a_in_imp2.
           contradiction (is_Some_None s2_a_in_imp2).
         - apply Himp2 in s1_a_in_imp2.
           apply Himp1 in s2_a_in_imp1.
           destruct s1_a_in_imp2 as [w ms2a].
-          rewrite (map_disjoint_Some_r ms1 ms2 _ _ Hms_disj ms2a) in s2_a_in_imp1.
+          rewrite (map_disjoint_Some_r pcomp1.(segment) pcomp2.(segment) _ _ Hms_disj ms2a) in s2_a_in_imp1.
           contradiction (is_Some_None s2_a_in_imp1).
         - apply (Himpdisj2 s1 s2 a s1_a_in_imp2 s2_a_in_imp2).
       + intros a w ms_a_w. (* HERE *)
@@ -428,7 +453,7 @@ Section Linking.
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hnpwl1 ms1_a_w)).
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hnpwl2 ms2_a_w)).
         apply Hms_disj.
-      + intros a a_in_ri.
+      (* + intros a a_in_ri.
         destruct (resolve_imports_dom_rev _ _ _ a a_in_ri) as [a_in_ri' | [s sa_in_imp2]].
         destruct (resolve_imports_dom_rev _ _ _ a a_in_ri') as [a_in_ri'' | [s sa_in_imp1]].
         apply dom_union, elem_of_union in a_in_ri''.
@@ -439,61 +464,61 @@ Section Linking.
         eauto using Hdisjstk1.
         specialize (Himp2 _ _ sa_in_imp2).
         apply elem_of_dom in Himp2.
-        eauto using Hdisjstk2.
+        eauto using Hdisjstk2. *)
     Qed.
 
-    (** make_link_main_lib forms a link from a main and a lib *)
-    Definition make_link_main_lib main lib main_s :=
-      Main (make_link_pre_comp main lib) main_s.
+    (** mlink_main_lib forms a link from a main and a lib *)
+    Definition link_main_lib main lib main_s :=
+      Main (link_pre_comp main lib) main_s.
 
-    Lemma make_link_main_lib_is_link
-      ms1 imp1 exp1 main ms2 imp2 exp2
-      (Hms_disj: ms1 ##ₘ ms2)
-      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
-      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2))) :
-      link
-        (Main (ms1, imp1, exp1) main)
-        (Lib (ms2, imp2, exp2))
-        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+    Lemma link_main_lib_is_link
+      pcomp1 main pcomp2
+      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+      (wf_main' : well_formed_comp (Main pcomp1 main))
+      (wf_lib' : well_formed_comp (Lib pcomp2)) :
+      is_link
+        (Main pcomp1 main)
+        (Lib pcomp2)
+        (link_main_lib pcomp1 pcomp2 main).
     Proof.
-      apply link_main_lib.
-      apply make_link_pre_comp_is_pre_link_comp.
+      apply is_link_main_lib.
+      apply link_pre_comp_is_pre_link_comp.
       all: try assumption.
     Qed.
 
-    Lemma make_link_main_lib_well_formed
-      ms1 imp1 exp1 main ms2 imp2 exp2
-      (Hms_disj: ms1 ##ₘ ms2)
-      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
-      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2))) :
+    Lemma link_main_lib_well_formed
+      pcomp1 main pcomp2
+      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+      (wf_main' : well_formed_comp (Main pcomp1 main))
+      (wf_lib' : well_formed_comp (Lib pcomp2)) :
       well_formed_comp
-        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+        (link_main_lib pcomp1 pcomp2 main).
     Proof.
       apply wf_main.
-      apply make_link_pre_comp_well_formed.
+      apply link_pre_comp_well_formed.
       inversion wf_main'. assumption.
       inversion wf_lib'. assumption. assumption.
       inversion wf_main'.
       apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 Hw_main).
     Qed.
 
-    Lemma make_link_main_lib_is_context
-      ms1 imp1 exp1 main ms2 imp2 exp2
-      (Hms_disj: ms1 ##ₘ ms2)
-      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
-      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2)))
-      (no_imps: filter (λ '(s, _), merge opt_merge_fun exp1 exp2 !! s = None)
-      (imp1 ∪ imp2) = ∅) :
+    Lemma link_main_lib_is_context
+      pcomp1 main pcomp2
+      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+      (wf_main' : well_formed_comp (Main pcomp1 main))
+      (wf_lib' : well_formed_comp (Lib pcomp2))
+      (no_imps: filter (λ '(s, _), merge opt_merge_fun pcomp1.(exports) pcomp2.(exports) !! s = None)
+      (pcomp1.(imports) ∪ pcomp2.(imports)) = ∅) :
       is_context
-        (Main (ms1, imp1, exp1) main)
-        (Lib (ms2, imp2, exp2))
-        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+        (Main pcomp1 main)
+        (Lib pcomp2)
+        (link_main_lib pcomp1 pcomp2 main).
     Proof.
       apply is_context_intro.
-      split. apply make_link_main_lib_is_link; assumption.
+      split. apply link_main_lib_is_link; assumption.
       apply is_program_intro.
       apply no_imps.
-      apply make_link_main_lib_well_formed; assumption.
+      apply link_main_lib_well_formed; assumption.
     Qed.
 
   End LinkExists.
