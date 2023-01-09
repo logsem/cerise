@@ -552,23 +552,36 @@ Section Linking.
     Lemma link_imports_rev {a b} :
       a ##ₗ b ->
       ∀ addr symbol,
-        exports (link a b) !! symbol = None ->
         imports (link a b) !! addr = Some symbol <->
-        (imports a !! addr = Some symbol \/ imports b !! addr = Some symbol).
+        ((imports a !! addr = Some symbol \/ imports b !! addr = Some symbol)
+        /\ exports (link a b) !! symbol = None).
     Proof.
-      intros sep addr symbol exp_diff.
+      intros sep addr symbol.
       split.
       - intros ab_addr.
         apply map_filter_lookup_Some in ab_addr.
         destruct ab_addr as [union_addr export_symbol].
-        rewrite - lookup_union_Some. assumption.
+        rewrite - lookup_union_Some. split; assumption.
         apply (can_link_disjoint_impls sep).
-      - intros imps_union.
+      - intros [imps_union exp_disj].
         rewrite map_filter_lookup_Some.
         split.
         rewrite lookup_union_Some. assumption.
         apply (can_link_disjoint_impls sep).
         assumption.
+    Qed.
+
+    Lemma link_imports_rev_no_exports {a b} :
+      a ##ₗ b ->
+      ∀ addr symbol,
+        exports (link a b) !! symbol = None ->
+        imports (link a b) !! addr = Some symbol <->
+        (imports a !! addr = Some symbol \/ imports b !! addr = Some symbol).
+    Proof.
+      intros sep addr symbol exp.
+      rewrite (link_imports_rev sep addr symbol).
+      split. intros [H _]. exact H. intros H.
+      split. exact H. exact exp.
     Qed.
 
     Lemma link_imports_none {a b}:
@@ -678,10 +691,7 @@ Section Linking.
       rewrite ia_addr; rewrite He.
       apply lookup_union_Some_l. assumption.
       rewrite lookup_union_r. assumption. assumption.
-      assert (imports (link a b) !! addr = None).
-      apply l_none. left.
-      apply lookup_union_None; split; assumption.
-      rewrite H.
+      rewrite (link_imports_none _ ia_addr ib_addr).
       destruct (Some_dec (segment c !! addr)) as [[w sc] | sc].
       pose (disjoint_segment_is_none ac sc).
       pose (disjoint_segment_is_none bc sc).
@@ -693,11 +703,11 @@ Section Linking.
       apply lookup_union_None. split; assumption.
       destruct (Some_dec (segment b !! addr)) as [[w sb] | sb].
       pose (disjoint_segment_is_none ab sb).
-      assert (segment (link a b) !! addr = Some w).
+      assert (sab_w: segment (link a b) !! addr = Some w).
       do 2 rewrite resolve_imports_spec.
       rewrite ib_addr. rewrite ia_addr.
       rewrite lookup_union_r; assumption.
-      rewrite (lookup_union_Some_l _ _ _ _ H0).
+      rewrite (lookup_union_Some_l _ _ _ _ sab_w).
       rewrite -map_union_assoc.
       rewrite lookup_union_r. symmetry.
       apply lookup_union_Some_l.
@@ -705,11 +715,10 @@ Section Linking.
       destruct (Some_dec (segment a !! addr)) as [[w sa] | sa].
       rewrite -map_union_assoc.
       rewrite (lookup_union_Some_l _ _ _ _ sa).
-      assert (segment (link a b) !! addr = Some w).
+      apply lookup_union_Some_l.
       do 2 rewrite resolve_imports_spec.
       rewrite ib_addr. rewrite ia_addr.
       apply lookup_union_Some_l. apply sa.
-      apply lookup_union_Some_l. apply H0.
       assert (abc_none: (segment a ∪ segment b ∪ segment c) !! addr = None).
       rewrite lookup_union_None. split; try (rewrite lookup_union_None; split); assumption.
       rewrite abc_none.
@@ -783,20 +792,121 @@ Section Linking.
           destruct export_symbol as [ea eb].
         all: rewrite lookup_union_Some;
           try (apply can_link_disjoint_impls; auto using can_link_sym).
-        rewrite (link_imports_rev bc).
-        3: rewrite (link_imports_rev ab).
+        rewrite (link_imports_rev_no_exports bc).
+        3: rewrite (link_imports_rev_no_exports ab).
         2,4: apply lookup_union_None; split; assumption.
         all: apply lookup_union_Some in import_addr.
         2,4: apply can_link_disjoint_impls; auto using can_link_sym.
         all: destruct import_addr as [import_addr | import_addr].
-        apply (link_imports_rev ab) in import_addr.
+        apply (link_imports_rev_no_exports ab) in import_addr.
         apply or_assoc. auto.
         apply lookup_union_None; split; assumption.
         auto. auto.
-        apply (link_imports_rev bc) in import_addr.
+        apply (link_imports_rev_no_exports bc) in import_addr.
         apply or_assoc. auto.
         apply lookup_union_None; split; assumption.
       - symmetry. apply exp_eq.
+    Qed.
+
+    Lemma no_imports_assoc_l {a b c} :
+      b ##ₗ c ->
+      (∀ addr s, imports (link b c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
+      ∀ addr s, imports c !! addr = Some s → s ∈ dom (gset Symbols) (exports (link a b)).
+    Proof.
+      intros bc Hno_imps addr s ic_addr.
+      destruct (Some_dec (exports (link b c) !! s)) as [[w' ebc_s] | ebc_s];
+      rewrite dom_union_L; apply elem_of_union.
+      right.
+      inversion bc. inversion Hwf_r.
+      apply lookup_union_Some in ebc_s.
+      destruct ebc_s as [in_l | in_r].
+      apply elem_of_dom. exists w'. apply in_l.
+      exfalso. apply (Hdisj s addr (mk_is_Some _ _ in_r) ic_addr).
+      assumption.
+      left.
+      apply or_intror with (A := (imports b !! addr = Some s)) in ic_addr.
+      apply link_imports_rev_no_exports in ic_addr; try assumption.
+      apply (Hno_imps addr s ic_addr).
+    Qed.
+
+    Lemma no_imports_assoc_r {a b c} :
+      a ##ₗ b -> b ##ₗ c ->
+      (∀ addr s, imports (link b c) !! addr = Some s → s ∈ dom (gset Symbols) (exports a)) ->
+      (∀ addr s, imports a !! addr = Some s → s ∈ dom (gset Symbols) (exports (link b c))) ->
+      ∀ addr s, imports (link a b) !! addr = Some s → s ∈ dom (gset Symbols) (exports c).
+    Proof.
+      intros ab bc Hno_imps_l Hno_imps_r addr s iab_addr.
+      apply link_imports_rev in iab_addr. 2: exact ab.
+      destruct iab_addr as [[ia_addr | ib_addr] eab_s];
+      apply lookup_union_None in eab_s; destruct eab_s as [ea_s eb_s].
+      apply elem_of_dom. rewrite -(lookup_union_r (exports b)).
+      apply elem_of_dom. exact (Hno_imps_r _ _ ia_addr).
+      exact eb_s.
+      destruct (Some_dec (imports (link b c) !! addr)) as [[s' ibc_addr] | ibc_addr].
+      replace s' with s in ibc_addr.
+      specialize (Hno_imps_l addr s ibc_addr).
+      apply elem_of_dom in Hno_imps_l. rewrite ea_s in Hno_imps_l.
+      contradiction (is_Some_None Hno_imps_l).
+      apply link_imports_rev in ibc_addr; try exact bc.
+      destruct ibc_addr as [[ib_addr' | ic_addr] _].
+      rewrite ib_addr in ib_addr'. apply (Some_inj _ _ ib_addr').
+      exfalso. apply (map_disjoint_spec (imports b) (imports c)) with addr s s'.
+      apply (can_link_disjoint_impls bc). exact ib_addr. exact ic_addr.
+      apply map_filter_lookup_None in ibc_addr.
+      destruct ibc_addr as [ibc_addr | ibc_addr].
+      apply lookup_union_None in ibc_addr.
+      rewrite ib_addr in ibc_addr. destruct ibc_addr as [ibc_addr _].  discriminate ibc_addr.
+      apply (lookup_union_Some_l _ (imports c)) in ib_addr.
+      specialize (ibc_addr s ib_addr).
+      apply not_eq_None_Some in ibc_addr.
+      destruct ibc_addr as [w ebc_s].
+      apply lookup_union_Some in ebc_s.
+      destruct ebc_s as [eb_s' | ec_s].
+      rewrite eb_s' in eb_s. discriminate eb_s.
+      apply elem_of_dom. exists w. exact ec_s.
+      inversion bc. exact Hexp_disj.
+    Qed.
+
+    Lemma is_context_move_in {a b c regs} :
+      b ##ₗ c ->
+      is_context a (link b c) regs -> is_context (link a b) c regs.
+    Proof.
+      intros bc [ ]. inversion bc.
+      apply is_context_intro.
+      - apply can_link_sym in Hcan_link.
+        apply can_link_assoc. 3: exact bc.
+        all: apply can_link_sym.
+        apply (can_link_weaken_l bc Hcan_link).
+        apply (can_link_weaken_r bc Hcan_link).
+      - intros r' w rr'. inversion Hcan_link.
+        apply (word_restrictions_incr w _ _ (link_segment_dom_subseteq_l Hwf_l0 Hwf_l)).
+        apply (Hwr_regs r' w rr').
+      - exact (no_imports_assoc_l bc Hno_imps_l).
+      - apply no_imports_assoc_r; try assumption.
+        apply can_link_sym.
+        apply can_link_sym in Hcan_link.
+        apply (can_link_weaken_l bc Hcan_link).
+    Qed.
+
+    Lemma is_context_move_out {a b c regs} :
+      a ##ₗ b ->
+      (∀ r w, regs !! r = Some w -> word_restrictions w (dom _ a.(segment))) ->
+      is_context (link a b) c regs -> is_context a (link b c) regs.
+    Proof.
+      intros ab Hregs [].
+      assert (disj: a ##ₗ c /\ b ##ₗ c).
+      { split. apply (can_link_weaken_l ab Hcan_link).
+        apply (can_link_weaken_r ab Hcan_link). }
+      destruct disj as [ac bc].
+      apply is_context_intro.
+      - apply can_link_sym. apply can_link_assoc;
+        auto using can_link_sym.
+      - exact Hregs.
+      - apply no_imports_assoc_r; try auto using can_link_sym.
+        apply no_imports_assoc_r; try auto using can_link_sym.
+        apply no_imports_assoc_l; assumption.
+      - apply no_imports_assoc_l. auto using can_link_sym.
+        apply no_imports_assoc_r; auto using can_link_sym.
     Qed.
   End LinkAssociative.
 End Linking.
