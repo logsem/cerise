@@ -148,6 +148,28 @@ Section Linking.
         (Hms: ms = resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2))),
         link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2) (ms, imp, exp).
 
+  Definition make_link_pre : pre_component -> pre_component -> pre_component :=
+    fun '(ms1, imp1, exp1) '(ms2, imp2, exp2) =>
+      let exp := merge (fun o1 o2 => match o1 with | Some _ => o1 | None => o2 end) exp1 exp2 in
+      let seg := resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2)) in
+      let inp := filter (fun '(s,_) => exp !! s = None) (imp1 ∪ imp2) in
+      (seg, inp, exp).
+
+  Lemma make_link_pre_is_pre_link
+    ms1 imp1 exp1 ms2 imp2 exp2
+    (Hms_disj: forall a, is_Some (ms1 !! a) -> is_Some (ms2 !! a) -> False) :
+    link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2) (make_link_pre (ms1, imp1, exp1) (ms2, imp2, exp2)).
+  Proof.
+    apply link_pre_comp_intro.
+    + apply Hms_disj.
+    + reflexivity.
+    + intros s a. rewrite elem_of_filter. rewrite elem_of_union.
+      split.
+      - intros [merg unio]. split. apply unio. apply merg.
+      - intros [unio merg]. split. apply merg. apply unio.
+    + reflexivity.
+  Qed.
+
   Inductive link: component -> component -> component -> Prop :=
   | link_lib_lib:
       forall comp1 comp2 comp
