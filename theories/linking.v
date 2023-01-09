@@ -72,6 +72,8 @@ Section Linking.
   Definition exports_type := (gmap Symbols Word).
   Definition segment_type := (gmap Addr Word).
 
+  Set Implicit Arguments.
+
   Record pre_component := {
     segment : segment_type;
     (** the component's memory segment, a map addr -> word *)
@@ -265,7 +267,7 @@ Section Linking.
       intros imp exp ms imp_issome.
       apply (anti_symm _).
       - intros a a_in_ri.
-        destruct (resolve_imports_dom_rev imp exp ms a a_in_ri) as [a_in_ms | [s sa_in_imps]].
+        destruct (resolve_imports_dom_rev imp exp ms a_in_ri) as [a_in_ms | [s sa_in_imps]].
         assumption.
         rewrite elem_of_dom.
         apply (imp_issome s a sa_in_imps).
@@ -502,11 +504,11 @@ Section Linking.
         - apply (Himpdisj2 s1 s2 a s1_a_in_imp2 s2_a_in_imp2).
       + intros a w ms_a_w.
         specialize (Hwr_ms1 a w). specialize (Hwr_ms2 a w).
-        destruct (resolve_imports_spec_simple _ _ _ _ _ Himpdisj2 ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
+        destruct (resolve_imports_spec_simple _ _ _ Himpdisj2 ms_a_w) as [[ s exp_s_w ] | ms_a_w'].
         destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
-        destruct (resolve_imports_spec_simple _ _ _ _ _ Himpdisj1 ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
+        destruct (resolve_imports_spec_simple _ _ _ Himpdisj1 ms_a_w') as [[ s exp_s_w ] | ms_a_w''].
         destruct (opt_merge_l_or_r exp_s_w) as [exp1_s | exp2_s].
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 (Hexp1 s w exp1_s)).
         apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom2 (Hexp2 s w exp2_s)).
@@ -592,34 +594,26 @@ End Linking.
 (** Simple lemmas used to weaken word_restrictions
     and address_restrictions in is_link and well_formed_xxx *)
 Section LinkWeakenRestrictions.
-  Variable Symbols: Type.
-  Variable Symbols_eq_dec: EqDecision Symbols.
-  Variable Symbols_countable: Countable Symbols.
+  Context [Symbols: Type].
+  Context [Symbols_eq_dec: EqDecision Symbols].
+  Context [Symbols_countable: Countable Symbols].
 
   Variable word_restrictions: Word -> gset Addr -> Prop.
   Variable word_restrictions': Word -> gset Addr -> Prop.
   Variable word_restrictions_weaken:
-    ∀ w a,
-    word_restrictions w a ->
-    word_restrictions' w a.
+    ∀ w a, word_restrictions w a -> word_restrictions' w a.
 
   Variable addr_restrictions: gset Addr -> Prop.
   Variable addr_restrictions': gset Addr -> Prop.
   Variable addr_restrictions_weaken:
-    ∀ a,
-    addr_restrictions a ->
-    addr_restrictions' a.
+    ∀ a, addr_restrictions a -> addr_restrictions' a.
 
   (* ==== Well formed pre comp ==== *)
 
   Lemma well_formed_pre_comp_weaken_word_restrictions :
-    ∀ pre_comp,
-    well_formed_pre_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions pre_comp ->
-    well_formed_pre_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions' addr_restrictions pre_comp.
+    ∀ pre_comp : pre_component Symbols_countable,
+    well_formed_pre_comp word_restrictions addr_restrictions pre_comp ->
+    well_formed_pre_comp word_restrictions' addr_restrictions pre_comp.
   Proof.
     intros pre_comp [ ].
     apply wf_pre_intro.
@@ -633,13 +627,9 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma well_formed_pre_comp_weaken_addr_restrictions :
-    ∀ pre_comp,
-    well_formed_pre_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions pre_comp ->
-    well_formed_pre_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions' pre_comp.
+    ∀ pre_comp : pre_component Symbols_countable,
+    well_formed_pre_comp word_restrictions addr_restrictions pre_comp ->
+    well_formed_pre_comp word_restrictions addr_restrictions' pre_comp.
   Proof.
     intros pre_comp [ ].
     apply wf_pre_intro.
@@ -651,13 +641,9 @@ Section LinkWeakenRestrictions.
   (* ==== Well formed comp ==== *)
 
   Lemma well_formed_comp_weaken_word_restrictions :
-    ∀ comp,
-    well_formed_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp ->
-    well_formed_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions' addr_restrictions comp.
+    ∀ comp : component Symbols_countable,
+    well_formed_comp word_restrictions addr_restrictions comp ->
+    well_formed_comp word_restrictions' addr_restrictions comp.
   Proof.
     intros pcomp [].
     apply wf_lib. 2: apply wf_main.
@@ -667,13 +653,9 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma well_formed_comp_weaken_addr_restrictions :
-    ∀ comp,
-    well_formed_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp ->
-    well_formed_comp
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions' comp.
+    ∀ comp : component Symbols_countable,
+    well_formed_comp word_restrictions addr_restrictions comp ->
+    well_formed_comp word_restrictions addr_restrictions' comp.
   Proof.
     intros pcomp [ ].
     apply wf_lib. 2: apply wf_main.
@@ -683,13 +665,9 @@ Section LinkWeakenRestrictions.
   (* ==== is_program ==== *)
 
   Lemma is_program_weaken_word_restrictions :
-    ∀ comp,
-    is_program
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp ->
-    is_program
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions' addr_restrictions comp.
+    ∀ comp : component Symbols_countable,
+    is_program word_restrictions addr_restrictions comp ->
+    is_program word_restrictions' addr_restrictions comp.
   Proof.
     intros pcomp [].
     apply is_program_intro.
@@ -698,13 +676,9 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_program_weaken_addr_restrictions :
-    ∀ comp,
-    is_program
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp ->
-    is_program
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions' comp.
+    ∀ comp : component Symbols_countable,
+    is_program word_restrictions addr_restrictions comp ->
+    is_program word_restrictions addr_restrictions' comp.
   Proof.
     intros pcomp [].
     apply is_program_intro.
@@ -715,13 +689,9 @@ Section LinkWeakenRestrictions.
   (* ==== is link ==== *)
 
   Lemma is_link_weaken_word_restrictions :
-    ∀ comp_a comp_b comp_c,
-    is_link
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp_a comp_b comp_c ->
-    is_link
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions' addr_restrictions comp_a comp_b comp_c.
+    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    is_link word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_link word_restrictions' addr_restrictions comp_a comp_b comp_c.
   Proof.
     intros comp_a comp_b comp_c [].
     3: apply is_link_main_lib.
@@ -732,13 +702,9 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_link_weaken_addr_restrictions :
-    ∀ comp_a comp_b comp_c,
-    is_link
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp_a comp_b comp_c ->
-    is_link
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions' comp_a comp_b comp_c.
+    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    is_link word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_link word_restrictions addr_restrictions' comp_a comp_b comp_c.
   Proof.
     intros comp_a comp_b comp_c [].
     3: apply is_link_main_lib.
@@ -751,13 +717,9 @@ Section LinkWeakenRestrictions.
   (* ==== is context ==== *)
 
   Lemma is_context_weaken_word_restrictions :
-    ∀ comp_a comp_b comp_c,
-    is_context
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp_a comp_b comp_c ->
-    is_context
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions' addr_restrictions comp_a comp_b comp_c.
+    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    is_context word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_context word_restrictions' addr_restrictions comp_a comp_b comp_c.
   Proof.
     intros comp_a comp_b comp_c [ [is_link' is_prog'] ].
     apply is_context_intro. split.
@@ -766,13 +728,9 @@ Section LinkWeakenRestrictions.
   Qed.
 
   Lemma is_context_weaken_addr_restrictions :
-    ∀ comp_a comp_b comp_c,
-    is_context
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions comp_a comp_b comp_c ->
-    is_context
-      Symbols Symbols_eq_dec Symbols_countable
-      word_restrictions addr_restrictions' comp_a comp_b comp_c.
+    ∀ comp_a comp_b comp_c : component Symbols_countable,
+    is_context word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_context word_restrictions addr_restrictions' comp_a comp_b comp_c.
   Proof.
     intros comp_a comp_b comp_c [ [is_link' is_prog'] ].
     apply is_context_intro. split.
