@@ -60,6 +60,142 @@ Section examples.
     apply segment_big. rewrite elem_of_dom. exists y. apply cmp_a_y.
   Qed.
 
+  Example dummy_exports target : exports_type Symbols :=
+    map_fold (fun _ s exp => <[s:=WInt 0]> exp)
+    ∅ target.(imports).
+
+  Lemma dummy_exports_spec target : forall s,
+    match dummy_exports target !! s with
+      | None => ∀ a s', target.(imports) !! a = Some s' -> s = s' -> False
+      | Some w => w = WInt 0 /\ ∃ a, target.(imports) !! a = Some s
+    end.
+  Proof.
+    unfold dummy_exports, exports_type, imports_type.
+    apply (map_fold_ind
+      (fun m imp => ∀ k, match m !! k with
+        | None => ∀ a s', imp !! a = Some s' -> k = s' -> False
+        | Some w => w = WInt 0 /\ ∃ a, imp !! a = Some k
+      end)
+      (fun (_:Addr) (s:Symbols) exp => <[s:=WInt 0]> exp)).
+    intros s. rewrite lookup_empty.
+    intros a s' oas'. rewrite lookup_empty in oas'. discriminate.
+    intros a s exp exp' imp IH k.
+    destruct (Symbols_eq_dec s k) as [sk | sk].
+    rewrite sk. rewrite lookup_insert.
+    split. reflexivity. exists a. apply lookup_insert.
+    rewrite lookup_insert_ne. 2: exact sk.
+    specialize (IH k). destruct (exp' !! k).
+    destruct IH as [IHw [a' Hexp_a'] ].
+    split. exact IHw. exists a'.
+    rewrite lookup_insert_ne. exact Hexp_a'.
+    intros aa'. rewrite aa' in imp. rewrite imp in Hexp_a'. discriminate.
+    intros a' s' H. specialize (IH a' s').
+    apply lookup_insert_Some in H.
+    destruct H as [ [aa' ss'] | [aa' Hexpa'] ].
+    intro ks'. rewrite -ks' in ss'. rewrite ss' in sk.
+    apply sk. reflexivity.
+    apply (IH Hexpa').
+  Qed.
+  Lemma dummy_exports_lookup {target} :
+    ∀ s w, dummy_exports target !! s = Some w -> w = WInt 0.
+  Proof.
+    intros s w Hsw.
+    specialize (dummy_exports_spec target s). intros H.
+    rewrite Hsw in H. destruct H. exact H.
+  Qed.
+  Lemma dummy_exports_from_imports {target} :
+    ∀ s w, dummy_exports target !! s = Some w -> ∃ a, target.(imports) !! a = Some s.
+  Proof.
+    intros s w Hsw.
+    specialize (dummy_exports_spec target s). intros H.
+    rewrite Hsw in H. destruct H. exact H0.
+  Qed.
+
+  (** Basic context to prove the forall is non-empty
+      Halt immediatly *)
+  Example halt_context target : component Symbols := {|
+    segment := wlist2segment za [ halt ];
+    imports := ∅;
+    exports := dummy_exports target;
+  |}.
+
+  Lemma halt_context_wf {target}:
+    well_formed_comp can_address_only unconstrained_addr (halt_context target).
+  Proof.
+    unfold halt_context.
+    apply wf_comp_intro; simpl.
+    - intros s a _ Himp_s. unfold imports_type in Himp_s.
+      rewrite lookup_empty in Himp_s. discriminate.
+    - unfold imports_type.
+      rewrite dom_empty. apply empty_subseteq.
+    - intros s w exp_s.
+      apply dummy_exports_lookup in exp_s.
+      rewrite exp_s. unfold can_address_only. exact I.
+    - intros a w H.
+      rewrite insert_empty in H.
+      apply lookup_singleton_Some in H.
+      destruct H as [a_a h_v].
+      rewrite -h_v. exact I.
+    - exact I.
+  Qed.
+
+  Lemma halt_context_can_link {target} :
+    well_formed_comp can_address_only (addr_gt_than reserved_context_size) target ->
+    can_link can_address_only unconstrained_addr (halt_context target) target.
+  Proof.
+    intros t_wf.
+    apply can_link_intro.
+    - apply halt_context_wf.
+    - apply (wf_comp_weaken_ar addr_gt_than_implies_unconstrained t_wf).
+    - apply wlist2segment_disjoint.
+      simpl. unfold reserved_context_size_z. lia.
+      inversion t_wf. assumption.
+    - inversion t_wf.
+      rewrite map_disjoint_spec.
+      intros s w w' hexp_s exp_s.
+      apply dummy_exports_from_imports in hexp_s.
+      destruct hexp_s as [a Himpt_a].
+      apply (Hdisj s a (mk_is_Some _ _ exp_s) Himpt_a).
+  Qed.
+
+  Lemma halt_context_machine_run {target} :
+    well_formed_comp can_address_only (addr_gt_than reserved_context_size) target ->
+    machine_run 2 (Executable, (
+      {[ PC := WCap RWX za (za^+1)%a za ]},
+      segment ((halt_context target) ⋈ target))
+    ) = Some Halted.
+  Proof.
+    intros wft.
+    unfold machine_run.
+    rewrite lookup_singleton.
+    unfold isCorrectPCb.
+    replace ((0 <=? 0)%a && (0 <? 0 ^+ 1)%a && (isPerm RWX RX || isPerm RWX RWX)) with true.
+    simpl.
+    rewrite resolve_imports_spec.
+    replace (imports target !! 0%a) with (@None Symbols).
+    rewrite resolve_imports_spec.
+    unfold imports_type, exports_type, segment_type.
+    rewrite lookup_empty.
+    replace ((<[0%a:=halt]> ∅ ∪ segment target) !! 0%a) with (Some halt).
+    unfold exec, exec_opt, halt.
+    rewrite (decode_encode_instrW_inv Halt). simpl.
+    reflexivity.
+    symmetry. apply lookup_union_Some_l.
+    rewrite insert_empty. apply lookup_singleton.
+    destruct (Some_dec (imports target !! 0%a)) as [ [w Hita] | Hita].
+    exfalso.
+    inversion wft. apply mk_is_Some in Hita.
+    unfold imports_type, exports_type, segment_type in Hita.
+    apply elem_of_dom in Hita.
+    specialize (Har_ms 0%a (Himp 0%a Hita)).
+    unfold finz.lt in Har_ms.
+    rewrite reserved_context_size_to_z in Har_ms.
+    simpl in Har_ms. unfold reserved_context_size_z in Har_ms.
+    lia.
+    rewrite Hita. reflexivity.
+    auto.
+  Qed.
+
   (** Instructions that assert that the to be imported value
       at PC.end - 1 is equal to w *)
   Definition assert_exports_incl_instr w :=
