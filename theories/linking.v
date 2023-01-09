@@ -2,7 +2,7 @@ From Coq Require Import Eqdep_dec.
 From iris Require Import base.
 From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps fin_sets.
-From cap_machine Require Import addr_reg.
+From cap_machine Require Import addr_reg machine_base.
 
 Lemma z_of_eq a1 a2 :
   z_of a1 = z_of a2 ->
@@ -28,8 +28,13 @@ Section Linking.
   Variable Symbols_eq_dec: EqDecision Symbols.
   Variable Symbols_countable: Countable Symbols.
 
-  Variable Word: Type.
-  Variable can_address_only: Word -> gset Addr -> Prop.
+  Definition can_address_only (w: Word) (addrs: gset Addr): Prop :=
+    match w with
+    | WInt _ => True
+    | WCap _ b e _ =>
+      forall a, (b <= a < e)%a -> a ∈ addrs
+    end.
+
   Variable pwl: Word -> bool.
   Variable is_global: Word -> bool.
 
@@ -72,7 +77,9 @@ Section Linking.
         is_program (Main (ms,imp, exp) w_main).
 
   Definition resolve_imports (imp: imports) (exp: exports) (ms: segment) :=
-    set_fold (fun '(s, a) m => match exp !! s with Some w => <[a:=w]> m | None => m end) ms imp.
+    set_fold (fun '(s, a) m => match exp !! s with
+      | Some w => <[a:=w]> m
+      | None => m end) ms imp.
 
   Lemma resolve_imports_spec:
     forall imp exp ms a
@@ -125,7 +132,8 @@ Section Linking.
     forall imp exp ms a s
       (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
       (s, a) ∈ imp ->
-      (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/ (exists wexp, exp !! s = Some wexp /\ (resolve_imports imp exp ms) !! a = Some wexp).
+      (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/
+      (exists wexp, exp !! s = Some wexp /\ (resolve_imports imp exp ms) !! a = Some wexp).
   Proof.
     intros. eapply resolve_imports_spec; eauto.
   Qed.
@@ -139,18 +147,37 @@ Section Linking.
     intros. eapply resolve_imports_spec; eauto.
   Qed.
 
+  (** Resolve imports increases the domain of the memory segment *)
+  Lemma resolve_imports_dom :
+    forall imp exp ms a,
+      a ∈ dom (gset Addr) ms -> a ∈ dom (gset Addr) (resolve_imports imp exp ms).
+  Proof.
+    intros.
+    apply (set_fold_ind_L (fun ms imp => a ∈ dom _ ms)).
+    - apply H.
+    - intros. destruct x as [s a0]. destruct (exp !! s).
+      apply dom_insert_subseteq. apply H1.
+      apply H1.
+  Qed.
+
+  Definition opt_merge_fun {T:Type} (o1 o2: option T) :=
+    match o1 with
+    | Some _ => o1
+    | None => o2
+    end.
+
   Inductive link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
   | link_pre_comp_intro:
       forall ms1 ms2 ms imp1 imp2 imp exp1 exp2 exp
         (Hms_disj: forall a, is_Some (ms1 !! a) -> is_Some (ms2 !! a) -> False)
-        (Hexp: exp = merge (fun o1 o2 => match o1 with | Some _ => o1 | None => o2 end) exp1 exp2)
+        (Hexp: exp = merge opt_merge_fun exp1 exp2)
         (Himp: forall s a, (s, a) ∈ imp <-> (((s, a) ∈ imp1 \/ (s, a) ∈ imp2) /\ exp !! s = None))
         (Hms: ms = resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2))),
         link_pre_comp (ms1, imp1, exp1) (ms2, imp2, exp2) (ms, imp, exp).
 
   Definition make_link_pre : pre_component -> pre_component -> pre_component :=
     fun '(ms1, imp1, exp1) '(ms2, imp2, exp2) =>
-      let exp := merge (fun o1 o2 => match o1 with | Some _ => o1 | None => o2 end) exp1 exp2 in
+      let exp := merge opt_merge_fun exp1 exp2 in
       let seg := resolve_imports imp2 exp (resolve_imports imp1 exp (map_union ms1 ms2)) in
       let inp := filter (fun '(s,_) => exp !! s = None) (imp1 ∪ imp2) in
       (seg, inp, exp).
