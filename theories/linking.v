@@ -588,3 +588,196 @@ Section Linking.
 
   End LinkExists.
 End Linking.
+
+(** Simple lemmas used to weaken word_restrictions
+    and address_restrictions in is_link and well_formed_xxx *)
+Section LinkWeakenRestrictions.
+  Variable Symbols: Type.
+  Variable Symbols_eq_dec: EqDecision Symbols.
+  Variable Symbols_countable: Countable Symbols.
+
+  Variable word_restrictions: Word -> gset Addr -> Prop.
+  Variable word_restrictions': Word -> gset Addr -> Prop.
+  Variable word_restrictions_weaken:
+    ∀ w a,
+    word_restrictions w a ->
+    word_restrictions' w a.
+
+  Variable addr_restrictions: gset Addr -> Prop.
+  Variable addr_restrictions': gset Addr -> Prop.
+  Variable addr_restrictions_weaken:
+    ∀ a,
+    addr_restrictions a ->
+    addr_restrictions' a.
+
+  (* ==== Well formed pre comp ==== *)
+
+  Lemma well_formed_pre_comp_weaken_word_restrictions :
+    ∀ pre_comp,
+    well_formed_pre_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions pre_comp ->
+    well_formed_pre_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions' addr_restrictions pre_comp.
+  Proof.
+    intros pre_comp [ ].
+    apply wf_pre_intro.
+    all: try assumption.
+    intros s a H.
+    apply word_restrictions_weaken.
+    apply (Hwr_exp s a H).
+    intros a w H.
+    apply word_restrictions_weaken.
+    apply (Hwr_ms a w H).
+  Qed.
+
+  Lemma well_formed_pre_comp_weaken_addr_restrictions :
+    ∀ pre_comp,
+    well_formed_pre_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions pre_comp ->
+    well_formed_pre_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions' pre_comp.
+  Proof.
+    intros pre_comp [ ].
+    apply wf_pre_intro.
+    all: try assumption.
+    apply addr_restrictions_weaken.
+    assumption.
+  Qed.
+
+  (* ==== Well formed comp ==== *)
+
+  Lemma well_formed_comp_weaken_word_restrictions :
+    ∀ comp,
+    well_formed_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp ->
+    well_formed_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions' addr_restrictions comp.
+  Proof.
+    intros pcomp [].
+    apply wf_lib. 2: apply wf_main.
+    all: try (apply well_formed_pre_comp_weaken_word_restrictions; assumption).
+    apply word_restrictions_weaken.
+    assumption.
+  Qed.
+
+  Lemma well_formed_comp_weaken_addr_restrictions :
+    ∀ comp,
+    well_formed_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp ->
+    well_formed_comp
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions' comp.
+  Proof.
+    intros pcomp [ ].
+    apply wf_lib. 2: apply wf_main.
+    all: try apply well_formed_pre_comp_weaken_addr_restrictions; assumption.
+  Qed.
+
+  (* ==== is_program ==== *)
+
+  Lemma is_program_weaken_word_restrictions :
+    ∀ comp,
+    is_program
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp ->
+    is_program
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions' addr_restrictions comp.
+  Proof.
+    intros pcomp [].
+    apply is_program_intro.
+    assumption.
+    apply well_formed_comp_weaken_word_restrictions. assumption.
+  Qed.
+
+  Lemma is_program_weaken_addr_restrictions :
+    ∀ comp,
+    is_program
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp ->
+    is_program
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions' comp.
+  Proof.
+    intros pcomp [].
+    apply is_program_intro.
+    assumption.
+    apply well_formed_comp_weaken_addr_restrictions. assumption.
+  Qed.
+
+  (* ==== is link ==== *)
+
+  Lemma is_link_weaken_word_restrictions :
+    ∀ comp_a comp_b comp_c,
+    is_link
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_link
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions' addr_restrictions comp_a comp_b comp_c.
+  Proof.
+    intros comp_a comp_b comp_c [].
+    3: apply is_link_main_lib.
+    2: apply is_link_lib_main.
+    apply is_link_lib_lib.
+    all: try assumption.
+    all: apply well_formed_comp_weaken_word_restrictions; assumption.
+  Qed.
+
+  Lemma is_link_weaken_addr_restrictions :
+    ∀ comp_a comp_b comp_c,
+    is_link
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_link
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions' comp_a comp_b comp_c.
+  Proof.
+    intros comp_a comp_b comp_c [].
+    3: apply is_link_main_lib.
+    2: apply is_link_lib_main.
+    apply is_link_lib_lib.
+    all: try assumption.
+    all: apply well_formed_comp_weaken_addr_restrictions; assumption.
+  Qed.
+
+  (* ==== is context ==== *)
+
+  Lemma is_context_weaken_word_restrictions :
+    ∀ comp_a comp_b comp_c,
+    is_context
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_context
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions' addr_restrictions comp_a comp_b comp_c.
+  Proof.
+    intros comp_a comp_b comp_c [ [is_link' is_prog'] ].
+    apply is_context_intro. split.
+    apply is_link_weaken_word_restrictions. assumption.
+    apply is_program_weaken_word_restrictions. assumption.
+  Qed.
+
+  Lemma is_context_weaken_addr_restrictions :
+    ∀ comp_a comp_b comp_c,
+    is_context
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions comp_a comp_b comp_c ->
+    is_context
+      Symbols Symbols_eq_dec Symbols_countable
+      word_restrictions addr_restrictions' comp_a comp_b comp_c.
+  Proof.
+    intros comp_a comp_b comp_c [ [is_link' is_prog'] ].
+    apply is_context_intro. split.
+    apply is_link_weaken_addr_restrictions. assumption.
+    apply is_program_weaken_addr_restrictions. assumption.
+  Qed.
+
+End LinkWeakenRestrictions.
