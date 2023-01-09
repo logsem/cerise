@@ -231,30 +231,6 @@ Section Linking.
         apply dom_insert_subseteq. all: apply H.
     Qed.
 
-    (* Lemma resolve_imports_dom_rev :
-      forall {imp exp ms a},
-        a ∈ dom (gset Addr) (resolve_imports imp exp ms) ->
-        a ∈ dom (gset Addr) ms \/ ∃ s, (s,a) ∈ imp.
-    Proof.
-      intros imp exp ms a.
-      apply (set_fold_ind_L (
-        fun ms' imp' =>
-          a ∈ dom (gset Addr) ms' ->
-          a ∈ dom (gset Addr) ms \/ ∃ s, (s,a) ∈ imp')).
-      auto.
-      intros [s a'] imps' ms' sa'_notin_imps' Hind.
-      destruct (Some_dec (exp !! s)) as [ [w' ex_w] | ex_w ];
-      rewrite ex_w.
-      - destruct (decide (a' = a)) as [ aa' | aa']. rewrite <- aa'.
-        + right. exists s. apply elem_of_union_l, elem_of_singleton. reflexivity.
-        + rewrite elem_of_dom. rewrite (lookup_insert_ne _ _ _ _ aa').
-          rewrite <- elem_of_dom. intros a_in_ms'.
-          destruct (Hind a_in_ms') as [H | [s' H]].
-          left. apply H. right. exists s'. apply elem_of_union_r, H.
-      - intros a_in_ms'. destruct (Hind a_in_ms') as [H | [s' H]].
-        left. apply H. right. exists s'. apply elem_of_union_r, H.
-    Qed. *)
-
     Lemma resolve_imports_dom_eq :
       forall {imp exp ms},
         dom (gset Addr) imp ⊆ dom _ ms ->
@@ -278,30 +254,37 @@ Section Linking.
         auto.
     Qed.
 
-    (* Lemma resolve_imports_twice:
+    Lemma resolve_imports_twice:
       ∀ {imp1 imp2 exp ms},
+        imp1 ##ₘ imp2 ->
         resolve_imports imp1 exp (resolve_imports imp2 exp ms) =
         resolve_imports (imp1 ∪ imp2) exp ms.
     Proof.
       intros. apply map_eq. intros addr.
-      unfold resolve_imports.
-      destruct (set_Exists_dec (fun '(s,a) => a = addr) imp1).
-      apply set_Exists_elements in s.
-      apply Exists_exists in s.
-      destruct s as [[s a] [sa_imp1 a_addr]].
-      rewrite a_addr in sa_imp1. clear a_addr. clear a.
-      apply elem_of_elements in sa_imp1.
-      admit.
-      apply set_Exists_elements in n.
-      apply not_set_Exists_Forall, set_Forall_elements in n.
-      Search set_Forall.
-      destruct (Forall_forall (not ∘ fun '(s,a) => a = addr) (elements imp1)) as [ F _ ].
-      specialize (F n). unfold not in F. simpl in F.
-      apply (Forall_forall _ _) in n.
-      rewrite Forall_forall in n.
-
-      pose resolve_imports_spec_in
-      Search set_Exists. _exists *)
+      destruct (map_disjoint_spec imp1 imp2) as [ H' ].
+      pose resolve_imports_spec as spec1.
+      specialize (spec1 imp1 exp (resolve_imports imp2 exp ms) addr).
+      pose resolve_imports_spec as spec2.
+      specialize (spec2 imp2 exp ms addr).
+      pose resolve_imports_spec as spec3.
+      specialize (spec3 (imp1 ∪ imp2) exp ms addr).
+      destruct (Some_dec (imp1 !! addr)) as [[w1 imp1_a] | imp1_a];
+      rewrite imp1_a in spec1.
+      rewrite (lookup_union_Some_l _ imp2 _ _ imp1_a) in spec3.
+      destruct (exp !! w1); rewrite spec1; rewrite spec3. reflexivity.
+      destruct (Some_dec (imp2 !! addr)) as [[w2 imp2_a] | imp2_a].
+      contradiction (H' H _ _ _ imp1_a imp2_a).
+      rewrite imp2_a in spec2. rewrite spec2. reflexivity.
+      rewrite spec1.
+      destruct (Some_dec (imp2 !! addr)) as [[w2 imp2_a] | imp2_a];
+      rewrite imp2_a in spec2.
+      rewrite (lookup_union_Some_r _ imp2 _ _ H imp2_a) in spec3.
+      destruct (exp !! w2); rewrite spec2; rewrite spec3; reflexivity.
+      destruct (lookup_union_None imp1 imp2 addr) as [ _ r ].
+      rewrite (r _) in spec3.
+      rewrite spec2. rewrite spec3. reflexivity.
+      split; assumption.
+    Qed.
   End resolve_imports.
 
   (** To form well defined links, our componements memory segments and exported
