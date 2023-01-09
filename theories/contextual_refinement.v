@@ -3,7 +3,20 @@ From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import machine_parameters cap_lang linking machine_run.
 
 (** Minimal free memory in which to write our contexts *)
-Definition reserved_context_size: Addr := (za ^+ 100000)%a.
+Definition reserved_context_size_z: Z := 100000.
+Definition reserved_context_size: Addr := (za ^+ reserved_context_size_z)%a.
+
+Lemma reserved_context_size_le_mem :
+  (reserved_context_size_z < MemNum)%Z.
+Proof.
+  Transparent MemNum.
+  unfold MemNum, reserved_context_size_z.
+  lia.
+Qed.
+
+Lemma reserved_context_size_to_z :
+  finz.to_z reserved_context_size = reserved_context_size_z.
+Proof. simpl. lia. Qed.
 
 Section contextual_refinement.
   Context {MP: MachineParameters}.
@@ -143,6 +156,15 @@ Section contextual_refinement.
       apply (impl_spec1 context main c wf_context is_ctxt mr).
     Qed.
 
+    (* Lemma ctxt_ref_of_link impl impl' impl'' spec spec' spec'' :
+      is_link word_restrictions addr_restrictions (Lib impl.(comp)) (Lib impl'.(comp)) (Lib impl''.(comp)) ->
+      is_link word_restrictions addr_restrictions (Lib spec.(comp)) (Lib spec'.(comp)) (Lib spec''.(comp)) ->
+      contextual_refinement impl spec ->
+      contextual_refinement impl' spec' ->
+      contextual_refinement impl'' spec''.
+    Proof.
+      intros link_impl link_spec is is'.
+      intros context main c linked_impl linked_spec ctxt wf_context is_ctxt mr. *)
   End facts.
 
 End contextual_refinement.

@@ -133,8 +133,7 @@ Section Linking.
     Lemma resolve_imports_spec:
       forall {imp exp ms a}
         (Himpdisj: forall s1 s2 a, (s1, a) ∈ imp -> (s2, a) ∈ imp -> s1 = s2),
-        ((~ exists s, (s, a) ∈ imp) ->
-        (resolve_imports imp exp ms) !! a = ms !! a) /\
+        ((~ exists s, (s, a) ∈ imp) -> (resolve_imports imp exp ms) !! a = ms !! a) /\
         (forall s, (s, a) ∈ imp ->
         (exp !! s = None /\ (resolve_imports imp exp ms) !! a = ms !! a) \/ (exists wexp, exp !! s = Some wexp /\ (resolve_imports imp exp ms) !! a = Some wexp)).
     Proof.
@@ -277,6 +276,30 @@ Section Linking.
       - apply resolve_imports_dom.
     Qed.
 
+    (* Lemma resolve_imports_twice:
+      ∀ {imp1 imp2 exp ms},
+        resolve_imports imp1 exp (resolve_imports imp2 exp ms) =
+        resolve_imports (imp1 ∪ imp2) exp ms.
+    Proof.
+      intros. apply map_eq. intros addr.
+      unfold resolve_imports.
+      destruct (set_Exists_dec (fun '(s,a) => a = addr) imp1).
+      apply set_Exists_elements in s.
+      apply Exists_exists in s.
+      destruct s as [[s a] [sa_imp1 a_addr]].
+      rewrite a_addr in sa_imp1. clear a_addr. clear a.
+      apply elem_of_elements in sa_imp1.
+      admit.
+      apply set_Exists_elements in n.
+      apply not_set_Exists_Forall, set_Forall_elements in n.
+      Search set_Forall.
+      destruct (Forall_forall (not ∘ fun '(s,a) => a = addr) (elements imp1)) as [ F _ ].
+      specialize (F n). unfold not in F. simpl in F.
+      apply (Forall_forall _ _) in n.
+      rewrite Forall_forall in n.
+
+      pose resolve_imports_spec_in
+      Search set_Exists. _exists *)
   End resolve_imports.
 
   Definition opt_merge_fun {T:Type} (o1 o2: option T) :=
@@ -285,10 +308,13 @@ Section Linking.
     | None => o2
     end.
 
+  Instance : @DiagNone Word Word Word opt_merge_fun. split. Defined.
+
   Inductive is_link_pre_comp: pre_component -> pre_component -> pre_component -> Prop :=
   | is_link_pre_comp_intro:
       forall pcomp1 pcomp2 pcomp_link
         (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+        (Hexp_disj: pcomp1.(exports) ##ₘ pcomp2.(exports))
         (Hexp: pcomp_link.(exports) = merge opt_merge_fun pcomp1.(exports) pcomp2.(exports))
         (Himp: ∀ s a, (s, a) ∈ pcomp_link.(imports) <->
                (((s, a) ∈ pcomp1.(imports) \/ (s, a) ∈ pcomp2.(imports)) /\ pcomp_link.(exports) !! s = None))
@@ -402,13 +428,16 @@ Section Linking.
         |}.
 
     (** link_pre_comp forms an is_link_pre_comp with its arguments (if segments are disjoint) *)
-    Lemma link_pre_comp_is_pre_link_comp
-      pcomp1 pcomp2
-      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment)) :
+    Lemma link_pre_comp_is_link_pre_comp
+      pcomp1 pcomp2 :
+      pcomp1.(segment) ##ₘ pcomp2.(segment) ->
+      pcomp1.(exports) ##ₘ pcomp2.(exports) ->
       is_link_pre_comp pcomp1 pcomp2 (link_pre_comp pcomp1 pcomp2).
     Proof.
+      intros Hms_disj Hexp_disj.
       apply is_link_pre_comp_intro.
       + apply Hms_disj.
+      + apply Hexp_disj.
       + reflexivity.
       + intros s a. rewrite elem_of_filter. rewrite elem_of_union.
         split.
@@ -416,8 +445,6 @@ Section Linking.
         - intros [unio merg]. split. apply merg. apply unio.
       + reflexivity.
     Qed.
-
-    Instance : @DiagNone Word Word Word opt_merge_fun. split. Defined.
 
     Local Lemma opt_merge_l_or_r
       {exp1 exp2:exports_type} {s w} :
@@ -542,17 +569,19 @@ Section Linking.
       Main (link_pre_comp main lib) main_s.
 
     Lemma link_main_lib_is_link
-      pcomp1 main pcomp2
-      (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
-      (wf_main' : well_formed_comp (Main pcomp1 main))
-      (wf_lib' : well_formed_comp (Lib pcomp2)) :
+      pcomp1 main pcomp2 :
+      pcomp1.(segment) ##ₘ pcomp2.(segment) ->
+      pcomp1.(exports) ##ₘ pcomp2.(exports) ->
+      well_formed_comp (Main pcomp1 main) ->
+      well_formed_comp (Lib pcomp2) ->
       is_link
         (Main pcomp1 main)
         (Lib pcomp2)
         (link_main_lib pcomp1 pcomp2 main).
     Proof.
+      intros.
       apply is_link_main_lib.
-      apply link_pre_comp_is_pre_link_comp.
+      apply link_pre_comp_is_link_pre_comp.
       all: try assumption.
     Qed.
 
@@ -575,6 +604,7 @@ Section Linking.
     Lemma link_main_lib_is_context
       pcomp1 main pcomp2
       (Hms_disj: pcomp1.(segment) ##ₘ pcomp2.(segment))
+      (Hexp_disj: pcomp1.(exports) ##ₘ pcomp2.(exports))
       (wf_main' : well_formed_comp (Main pcomp1 main))
       (wf_lib' : well_formed_comp (Lib pcomp2))
       (no_imps: filter (λ '(s, _), merge opt_merge_fun pcomp1.(exports) pcomp2.(exports) !! s = None)
@@ -592,6 +622,39 @@ Section Linking.
     Qed.
 
   End LinkExists.
+  (*
+  (** Results on commutativity and associativity of links *)
+  Section LinkCommutativeAssociative.
+    Lemma is_link_pre_comp_commutative c1 c2 c3 :
+      is_link_pre_comp c1 c2 c3 -> is_link_pre_comp c2 c1 c3.
+    Proof.
+      intros [ ].
+      apply is_link_pre_comp_intro.
+      - apply map_disjoint_sym. assumption.
+      - apply map_disjoint_sym. assumption.
+      - rewrite Hexp. apply map_eq. intros symbol.
+        rewrite lookup_merge. rewrite lookup_merge.
+        unfold opt_merge_fun.
+        destruct (Some_dec (exports pcomp1 !! symbol)) as [ [w1 ep1] | ep1 ];
+        destruct (Some_dec (exports pcomp2 !! symbol)) as [ [w2 ep2] | ep2 ];
+        rewrite ep1; rewrite ep2; try reflexivity.
+        rewrite (map_disjoint_Some_l _ _ _ _ Hexp_disj ep1) in ep2.
+        discriminate ep2.
+      - intros s a.
+        split; rewrite (Himp s a);
+        intros [ [sa1|sa2] exp ]; split; auto.
+      - rewrite Hms.
+        apply map_eq. intros addr.
+        apply resolve_imports_spec.
+      Search "map_eq".
+        resolve_imports_spec
+      Search map_disjoint.
+      split.
+
+    Lemma is_link_pre_comp_associative c1 c2 c3 cres :
+      is_link_pre_comp (c1) (link_pre_comp c2 c3) cres <->
+      is_link_pre_comp (link_pre_comp c1 c2) c3 cres.
+  End LinkAssociative.*)
 End Linking.
 
 Arguments pre_component _ {_ _}.
