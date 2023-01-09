@@ -56,6 +56,8 @@ Section contextual_refinement.
       since we quantify over all programs *)
   Definition r_stk := r_t1.
 
+  Set Implicit Arguments.
+
   Section definition.
 
     (** Component with proof of their well-formedness *)
@@ -95,10 +97,10 @@ Section contextual_refinement.
         let linked_impl := link_main_lib context impl.(comp) main in
         let linked_spec := link_main_lib context spec.(comp) main in
         let ctxt := Main context main in
-        well_formed_comp word_restrictions unconstrained_addr ctxt ->
-        is_context word_restrictions unconstrained_addr ctxt (Lib impl.(comp)) linked_impl ->
+        well_formed_comp can_address_only unconstrained_addr ctxt ->
+        is_context can_address_only unconstrained_addr ctxt (Lib impl.(comp)) linked_impl ->
         (exists n, machine_run n (Executable, initial_state linked_impl) = Some c) ->
-        is_context word_restrictions unconstrained_addr ctxt (Lib spec.(comp)) linked_spec /\
+        is_context can_address_only unconstrained_addr ctxt (Lib spec.(comp)) linked_spec /\
           (exists n, machine_run n (Executable, initial_state linked_spec) = Some c).
   End definition.
 
@@ -145,3 +147,56 @@ Section contextual_refinement.
   End facts.
 
 End contextual_refinement.
+
+Section contextual_refinement_weaken.
+  Context `{MachineParameters}.
+
+  Context [Symbols: Type].
+  Context [Symbols_eq_dec: EqDecision Symbols].
+  Context [Symbols_countable: Countable Symbols].
+
+  Variable word_restrictions: Word -> gset Addr -> Prop.
+  Variable word_restrictions': Word -> gset Addr -> Prop.
+  Variable word_restrictions_weaken:
+    ∀ w a, word_restrictions w a -> word_restrictions' w a.
+
+  Variable addr_restrictions: gset Addr -> Prop.
+  Variable addr_restrictions': gset Addr -> Prop.
+  Variable addr_restrictions_weaken:
+    ∀ a, addr_restrictions a -> addr_restrictions' a.
+
+  Definition component_wf_weaken_word_restrictions
+    (c: @component_wf Symbols _ _ word_restrictions addr_restrictions) := {|
+    comp := c.(comp);
+    comp_is_wf := well_formed_pre_comp_weaken_word_restrictions
+      word_restrictions' word_restrictions_weaken c.(comp_is_wf)
+  |}.
+
+  Lemma contextual_refinement_weaken_word_restrictions :
+    ∀ impl spec,
+    contextual_refinement impl spec ->
+    contextual_refinement (component_wf_weaken_word_restrictions impl) (component_wf_weaken_word_restrictions spec).
+  Proof.
+    intros impl spec impl_spec.
+    intros context main c linked_impl linked_spec ctxt wf_context is_ctxt mr.
+    apply (impl_spec context main c wf_context is_ctxt mr).
+  Qed.
+
+  Definition component_wf_weaken_addr_restrictions
+    (c: @component_wf Symbols _ _ word_restrictions addr_restrictions) := {|
+    comp := c.(comp);
+    comp_is_wf := well_formed_pre_comp_weaken_addr_restrictions
+      addr_restrictions' addr_restrictions_weaken c.(comp_is_wf)
+  |}.
+
+  Lemma contextual_refinement_weaken_addr_restrictions :
+    ∀ impl spec,
+    contextual_refinement impl spec ->
+    contextual_refinement (component_wf_weaken_addr_restrictions impl) (component_wf_weaken_addr_restrictions spec).
+  Proof.
+    intros impl spec impl_spec.
+    intros context main c linked_impl linked_spec ctxt wf_context is_ctxt mr.
+    apply (impl_spec context main c wf_context is_ctxt mr).
+  Qed.
+
+End contextual_refinement_weaken.
