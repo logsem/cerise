@@ -195,5 +195,55 @@ Section Linking.
       forall (His_program: link c comp p /\ is_program p),
       is_context c comp p.
 
+  Lemma link_pre_comp_unique {c_left c_right c1 c2} :
+    link_pre_comp c_left c_right c1 ->
+    link_pre_comp c_left c_right c2 ->
+    c1 = c2.
+  Proof.
+    intros a b.
+    destruct c_left as [[msl impl] expl].
+    destruct c_right as [[msr impr] expr].
+    destruct c1 as [[ms1 imp1] exp1].
+    destruct c2 as [[ms2 imp2] exp2].
+    inversion a.
+    inversion b.
+    assert (H_exp: exp1 = exp2).
+    { rewrite Hexp. rewrite Hexp0. reflexivity. }
+    apply pair_equal_spec. split.
+    apply pair_equal_spec. split.
+    rewrite Hms. rewrite Hms0.
+    rewrite H_exp. reflexivity.
+    rewrite set_eq.
+    intros [s addr].
+    rewrite (Himp s addr).
+    rewrite (Himp0 s addr).
+    rewrite H_exp. auto.
+    apply H_exp.
+  Qed.
 
+  Lemma link_unique {c_left c_right c1 c2} :
+    link c_left c_right c1 ->
+    link c_left c_right c2 ->
+    c1 = c2.
+  Proof.
+    intros a b.
+    destruct c_left as [[[msl impl] expl] | [[[msl impl] expl] mainl]];
+    destruct c_right as [[[msr impr] expr] | [[[msr impr] expr] mainr]];
+    destruct c1 as [[[ms1 imp1] exp1] | [[[ms1 imp1] exp1] main1]];
+    destruct c2 as [[[ms2 imp2] exp2] | [[[ms2 imp2] exp2] main2]].
+    all: inversion a.
+    all: inversion b.
+    all: rewrite (link_pre_comp_unique Hlink Hlink0).
+    reflexivity.
+    all: f_equal; rewrite <- H4, H9; reflexivity.
+  Qed.
+
+  Lemma context_unique {c_left c_right c1 c2} :
+    is_context c_left c_right c1 ->
+    is_context c_left c_right c2 ->
+    c1 = c2.
+  Proof.
+    intros [[link1 _]] [[link2 _]].
+    apply (link_unique link1 link2).
+  Qed.
 End Linking.
