@@ -464,26 +464,39 @@ Section Linking.
         eauto using Hdisjstk2.
     Qed.
 
-    Definition make_context main lib main_s :=
-      Main (make_link_pre main lib) main_s.
+    Definition make_link_main_lib main lib main_s :=
+      Main (make_link_pre_comp main lib) main_s.
 
-    Lemma make_context_is_context
+    Lemma make_link_main_lib_is_link
       ms1 imp1 exp1 main ms2 imp2 exp2
-      (Hms_disj: forall a, is_Some (ms1 !! a) -> is_Some (ms2 !! a) -> False)
-      (wf_main : well_formed_comp (Main (ms1, imp1, exp1) main))
-      (wf_lib : well_formed_comp (Lib (ms2, imp2, exp2)))
-      :
-      is_context
+      (Hms_disj: ms1 ##ₘ ms2)
+      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
+      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2))) :
+      link
         (Main (ms1, imp1, exp1) main)
         (Lib (ms2, imp2, exp2))
-        (make_context (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
     Proof.
-      apply is_context_intro.
-      split.
       apply link_main_lib.
-      apply make_link_pre_is_pre_link. assumption.
-      apply wf_main. apply wf_lib.
-      apply is_program_intro.
+      apply make_link_pre_comp_is_pre_link_comp.
+      all: try assumption.
+    Qed.
+
+    Lemma make_link_main_lib_well_formed
+      ms1 imp1 exp1 main ms2 imp2 exp2
+      (Hms_disj: ms1 ##ₘ ms2)
+      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
+      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2))) :
+      well_formed_comp
+        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+    Proof.
+      apply wf_main.
+      apply make_link_pre_comp_well_formed.
+      inversion wf_main'. assumption.
+      inversion wf_lib'. assumption. assumption.
+      inversion wf_main'.
+      apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 Hw_main).
+    Qed.
 
   End LinkExists.
 End Linking.
