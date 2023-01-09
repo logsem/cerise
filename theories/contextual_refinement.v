@@ -9,9 +9,9 @@ Section contextual_refinement.
   Context `{MachineParameters}.
 
   (* Type of symbols to uniquely identify exports/inports. *)
-  Variable Symbols : Type.
-  Variable Symbols_eq_dec: EqDecision Symbols.
-  Variable Symbols_countable: Countable Symbols.
+  Context {Symbols : Type}.
+  Context {Symbols_eq_dec: EqDecision Symbols}.
+  Context {Symbols_countable: Countable Symbols}.
 
   (** A predicate that must hold on all word of our segments
       Typically that if it is a capability, it only points into the segment
@@ -118,6 +118,28 @@ Section contextual_refinement.
       intros context main c linked_a linked_c ctxt wf_context is_ctxt_a mr_a.
       destruct (a_b context main c wf_context is_ctxt_a mr_a) as [is_ctxt_b mr_b].
       apply (b_c context main c wf_context is_ctxt_b mr_b).
+    Qed.
+
+    Lemma ctxt_ref_proof_irrelevance_l impl1 impl2 spec :
+      impl1.(comp) = impl2.(comp) ->
+      contextual_refinement impl1 spec ->
+      contextual_refinement impl2 spec.
+    Proof.
+      intros eq1_2 impl1_spec context main c linked_impl linked_spec ctxt wf_context is_ctxt mr.
+      unfold ctxt, linked_impl in is_ctxt, mr.
+      rewrite <- eq1_2 in is_ctxt, mr.
+      apply (impl1_spec context main c wf_context is_ctxt mr).
+    Qed.
+
+    Lemma ctxt_ref_proof_irrelevance_r impl spec1 spec2 :
+      spec1.(comp) = spec2.(comp) ->
+      contextual_refinement impl spec1 ->
+      contextual_refinement impl spec2.
+    Proof.
+      intros eq1_2 impl_spec1 context main c linked_impl linked_spec ctxt wf_context is_ctxt mr.
+      unfold contextual_refinement, linked_spec in impl_spec1.
+      rewrite eq1_2 in impl_spec1.
+      apply (impl_spec1 context main c wf_context is_ctxt mr).
     Qed.
 
   End facts.
