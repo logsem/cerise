@@ -97,6 +97,7 @@ theories/ftlr_binary/Seal_binary.v
 theories/ftlr_binary/UnSeal_binary.v
 theories/fundamental_binary.v
 theories/examples/addr_reg_sample.v
+theories/contextual_refinement.v
 theories/examples/malloc.v
 theories/examples/salloc.v
 theories/examples/assert.v
