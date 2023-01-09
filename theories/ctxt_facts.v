@@ -10,24 +10,6 @@ Section examples.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
-  Variable word_restrictions: Word -> gset Addr -> Prop.
-  Variable word_restrictions_incr:
-    forall w dom1 dom2,
-      dom1 ⊆ dom2 ->
-      word_restrictions w dom1 ->
-      word_restrictions w dom2.
-  Variable word_restrictions_implies_address_only:
-      ∀ w dom, word_restrictions w dom -> can_address_only w dom.
-
-  Variable addr_restrictions: gset Addr -> Prop.
-  Variable addr_restrictions_union_stable:
-    forall dom1 dom2,
-      addr_restrictions dom1 ->
-      addr_restrictions dom2 ->
-      addr_restrictions (dom1 ∪ dom2).
-  Variable addr_restrictions_implies_addr_gt:
-    ∀ dom, addr_restrictions dom -> addr_gt_than reserved_context_size dom.
-
 
   (** Transform a list of word (instructions) into a memory segment
       The first element has address za, the second za+1... *)
@@ -37,8 +19,6 @@ Section examples.
     | i::instrs =>
         <[addr:=i]> (wlist2segment (addr ^+ 1)%a instrs)
     end.
-
-
 
   Lemma wlist2segment_max {n addr:Addr} {wlist: list Word} :
     is_Some (wlist2segment n wlist !! addr) ->
@@ -62,11 +42,12 @@ Section examples.
       lia.
   Qed.
 
-  Lemma wlist2segment_disjoint (cmp : @component_wf Symbols _ _ word_restrictions addr_restrictions) {wlist: list Word} :
+  Lemma wlist2segment_disjoint (cmp : component Symbols) {wlist: list Word} :
     (length wlist <= reserved_context_size_z)%Z ->
-    wlist2segment za wlist ##ₘ cmp.(comp).(segment).
+    addr_gt_than reserved_context_size (dom _ (segment cmp)) ->
+    wlist2segment za wlist ##ₘ cmp.(segment).
   Proof.
-    intros list_short.
+    intros list_short segment_big.
     apply map_disjoint_spec. intros a x y wlist_a_x cmp_a_y.
     destruct cmp as [cmp [] ]. simpl in cmp_a_y.
     assert (a_inf: (a <= reserved_context_size)%Z).
@@ -76,8 +57,7 @@ Section examples.
     apply (Z.le_trans _ _ _ wlist_a_x).
     apply list_short.
     apply (Zle_not_lt _ _ a_inf).
-    apply (addr_restrictions_implies_addr_gt _ Har_ms).
-    rewrite elem_of_dom. exists y. apply cmp_a_y.
+    apply segment_big. rewrite elem_of_dom. exists y. apply cmp_a_y.
   Qed.
 
   (** Instructions that assert that the to be imported value
@@ -111,14 +91,13 @@ Section examples.
     ({|
         segment := wlist2segment za (assert_exports_incl_instr w);
         (* imports only the single value to test *)
-        imports := singleton (s, (addr_e ^+ (-1))%a);
+        imports := {[ (addr_e ^+ (-1))%a := s ]};
         (* exports are all dummy values, just to ensure we can link *)
-        exports := set_fold (fun '(s, _) exp => <[s:=WInt 0]> exp) ∅ imps;
+        exports := map_fold
+          (fun _ s exp => <[s:=WInt 0]> exp)
+          ∅ imps;
     |}, (WCap RWX za addr_e za)).
 
-  Lemma addr_restrictions_implies_unconstrained a :
-    addr_restrictions a -> unconstrained_addr a.
-  Proof. intros. apply I. Qed.
 
   Lemma assert_exports_incl_context_is_context (cmp : component_wf word_restrictions addr_restrictions) {s w} :
     cmp.(comp).(exports) !! s = Some w ->
