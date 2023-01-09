@@ -470,7 +470,7 @@ Section Linking.
 
   (** Lemmas on the symmetry/commutativity of links *)
   Section LinkSymmetric.
-    Lemma can_link_sym : Symmetric can_link.
+    #[global] Instance can_link_sym : Symmetric can_link.
     Proof.
       intros x y [ ].
       apply can_link_intro; try apply map_disjoint_sym; assumption.
@@ -520,7 +520,7 @@ Section Linking.
       b ##ₗ c.
     Proof.
       intros a_b ab_c.
-      apply can_link_sym in a_b.
+      symmetry in a_b.
       apply (@can_link_weaken_l b a). assumption.
       rewrite link_comm; assumption.
     Qed.
@@ -766,22 +766,22 @@ Section Linking.
     Proof.
       intros ab ac bc.
       assert (a_bc: a ##ₗ link b c).
-      { apply can_link_sym. apply can_link_assoc; auto using can_link_sym. }
+      { symmetry. apply can_link_assoc; auto using symmetry. }
       assert (ab_c: link a b ##ₗ c).
-      { apply can_link_assoc; auto using can_link_sym. }
+      { apply can_link_assoc; auto using symmetry. }
       specialize (link_exports_assoc a b c). intros exp_eq.
       unfold link at 1. symmetry. unfold link at 1. f_equal.
-      - rewrite resolve_imports_assoc_l; try auto using can_link_sym.
+      - rewrite resolve_imports_assoc_l; try auto using symmetry.
         replace (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c)) (resolve_imports (imports a) (exports a ∪ exports (link b c)) (segment a ∪ segment (link b c))))
         with (resolve_imports (imports a) (exports a ∪ exports (link b c)) (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c))
         (segment a ∪ segment (link b c)))).
-        rewrite resolve_imports_assoc_r; try auto using can_link_sym.
+        rewrite resolve_imports_assoc_r; try auto using symmetry.
         all: repeat rewrite resolve_imports_twice.
         f_equal. 2: symmetry; apply exp_eq.
         rewrite -map_union_assoc. rewrite -map_union_comm. reflexivity.
         6: f_equal; rewrite map_union_comm; try reflexivity.
         all: try (apply map_disjoint_union_l; split).
-        all: try (apply can_link_disjoint_impls; auto using can_link_sym).
+        all: try (apply can_link_disjoint_impls; auto using symmetry).
       - apply map_filter_strong_ext.
         intros addr symbol. rewrite exp_eq.
         split;
@@ -791,12 +791,12 @@ Section Linking.
           apply lookup_union_None in export_symbol;
           destruct export_symbol as [ea eb].
         all: rewrite lookup_union_Some;
-          try (apply can_link_disjoint_impls; auto using can_link_sym).
+          try (apply can_link_disjoint_impls; auto using symmetry).
         rewrite (link_imports_rev_no_exports bc).
         3: rewrite (link_imports_rev_no_exports ab).
         2,4: apply lookup_union_None; split; assumption.
         all: apply lookup_union_Some in import_addr.
-        2,4: apply can_link_disjoint_impls; auto using can_link_sym.
+        2,4: apply can_link_disjoint_impls; auto using symmetry.
         all: destruct import_addr as [import_addr | import_addr].
         apply (link_imports_rev_no_exports ab) in import_addr.
         apply or_assoc. auto.
@@ -873,9 +873,9 @@ Section Linking.
     Proof.
       intros bc [ ]. inversion bc.
       apply is_context_intro.
-      - apply can_link_sym in Hcan_link.
+      - symmetry in Hcan_link.
         apply can_link_assoc. 3: exact bc.
-        all: apply can_link_sym.
+        all: symmetry.
         apply (can_link_weaken_l bc Hcan_link).
         apply (can_link_weaken_r bc Hcan_link).
       - intros r' w rr'. inversion Hcan_link.
@@ -883,8 +883,7 @@ Section Linking.
         apply (Hwr_regs r' w rr').
       - exact (no_imports_assoc_l bc Hno_imps_l).
       - apply no_imports_assoc_r; try assumption.
-        apply can_link_sym.
-        apply can_link_sym in Hcan_link.
+        symmetry. symmetry in Hcan_link.
         apply (can_link_weaken_l bc Hcan_link).
     Qed.
 
@@ -900,13 +899,13 @@ Section Linking.
       destruct disj as [ac bc].
       apply is_context_intro.
       - apply can_link_sym. apply can_link_assoc;
-        auto using can_link_sym.
+        auto using symmetry.
       - exact Hregs.
-      - apply no_imports_assoc_r; try auto using can_link_sym.
-        apply no_imports_assoc_r; try auto using can_link_sym.
+      - apply no_imports_assoc_r; try auto using symmetry.
+        apply no_imports_assoc_r; try auto using symmetry.
         apply no_imports_assoc_l; assumption.
-      - apply no_imports_assoc_l. auto using can_link_sym.
-        apply no_imports_assoc_r; auto using can_link_sym.
+      - apply no_imports_assoc_l. auto using symmetry.
+        apply no_imports_assoc_r; auto using symmetry.
     Qed.
   End LinkAssociative.
 End Linking.
