@@ -583,7 +583,16 @@ Section Linking.
       split; assumption.
     Qed.
 
-    Lemma resolve_imports_assoc {a b c} :
+    Local Lemma disjoint_segment_is_none {a b addr w} :
+      a ##ₗ b -> segment b !! addr = Some w -> segment a !! addr = None.
+    Proof.
+      intros ab sb. inversion ab.
+      destruct (Some_dec ((segment a) !! addr)) as [[w' sa_w' ] | sa_w' ].
+      exfalso. apply (map_disjoint_spec (segment a) (segment b)) with addr w' w; assumption.
+      apply sa_w'.
+    Qed.
+
+    Lemma resolve_imports_assoc_l {a b c} :
       a ##ₗ b ->
       a ##ₗ c ->
       b ##ₗ c ->
@@ -600,22 +609,6 @@ Section Linking.
           (segment a ∪ segment b ∪ segment c)).
     Proof.
       intros ab ac bc.
-      (* destruct a as [ ms imps exp ]. simpl.
-      assert (imps = map_fold (fun '(k,v) m => (@insert Addr Symbols (gmap Addr Symbols) k v m)) (∅ : imports_type) imps).
-      apply (map_fold_ind
-        (fun (m:segment_type) (imp:imports_type) =>
-        imp = imps ->
-        resolve_imports
-          (filter
-              (λ '(_, s), (exp ∪ exports b) !! s = None)
-              (imp ∪ imports b))
-          (exp ∪ exports b ∪ exports c)
-          (m) =
-        resolve_imports imp (exp ∪ exports b ∪ exports c)
-          (resolve_imports (imports b) (exp ∪ exports b ∪ exports c)
-            (ms ∪ segment b ∪ segment c)))).
-
-        dom (gset Addr) imp ⊆ dom _ ms -> dom _ m = dom _ ms)). *)
       inversion ab. inversion Hwf_l. inversion Hwf_r.
       apply map_eq. intros addr.
       specialize (can_link_disjoint_impls ab). intro iab.
@@ -657,7 +650,6 @@ Section Linking.
       rewrite lookup_union_r; try assumption. rewrite ia_addr.
       2: rewrite (lookup_union_Some_l _ _ _ _ ib_addr).
       1,2: rewrite ab_s; reflexivity.
-
       1,2: assert (Hi : (imports a ∪ imports b) !! addr = Some s).
            apply lookup_union_Some_l. assumption.
            2: rewrite lookup_union_r; assumption.
@@ -667,7 +659,6 @@ Section Linking.
             map_filter_lookup_Some
               (fun '(_,s) => (exports (link a b)) !! s = None)
               (imports a ∪ imports b) addr s) as [ _ l_some ].
-
       1,2: rewrite (l_some (conj Hi He));
            destruct ((exports (link a b) ∪ exports c) !! s); try reflexivity.
       assert (is_Some (segment a !! addr)).
@@ -677,12 +668,7 @@ Section Linking.
            apply (mk_is_Some _ _ ia_addr) || apply (mk_is_Some _ _ ib_addr).
       1,2: destruct H as [w sa_w];
            rewrite -map_union_assoc.
-      2: assert (segment a !! addr = None).
-      2: {
-          destruct (Some_dec ((segment a) !! addr)) as [[w' sa_w' ] | sa_w' ].
-          exfalso. apply (map_disjoint_spec (segment a) (segment b)) with addr w' w; assumption.
-          assumption.
-       }
+      2: pose (disjoint_segment_is_none ab sa_w).
       2: symmetry; rewrite lookup_union_r; try assumption; symmetry.
       1,2:
       rewrite (lookup_union_Some_l _ _ _ _ sa_w);
@@ -696,7 +682,71 @@ Section Linking.
       apply l_none. left.
       apply lookup_union_None; split; assumption.
       rewrite H.
-    Admitted.
+      destruct (Some_dec (segment c !! addr)) as [[w sc] | sc].
+      pose (disjoint_segment_is_none ac sc).
+      pose (disjoint_segment_is_none bc sc).
+      rewrite lookup_union_r.
+      rewrite lookup_union_r. reflexivity.
+      apply lookup_union_None. split; assumption.
+      do 2 rewrite resolve_imports_spec.
+      rewrite ib_addr. rewrite ia_addr.
+      apply lookup_union_None. split; assumption.
+      destruct (Some_dec (segment b !! addr)) as [[w sb] | sb].
+      pose (disjoint_segment_is_none ab sb).
+      assert (segment (link a b) !! addr = Some w).
+      do 2 rewrite resolve_imports_spec.
+      rewrite ib_addr. rewrite ia_addr.
+      rewrite lookup_union_r; assumption.
+      rewrite (lookup_union_Some_l _ _ _ _ H0).
+      rewrite -map_union_assoc.
+      rewrite lookup_union_r. symmetry.
+      apply lookup_union_Some_l.
+      1,2: assumption.
+      destruct (Some_dec (segment a !! addr)) as [[w sa] | sa].
+      rewrite -map_union_assoc.
+      rewrite (lookup_union_Some_l _ _ _ _ sa).
+      assert (segment (link a b) !! addr = Some w).
+      do 2 rewrite resolve_imports_spec.
+      rewrite ib_addr. rewrite ia_addr.
+      apply lookup_union_Some_l. apply sa.
+      apply lookup_union_Some_l. apply H0.
+      assert (abc_none: (segment a ∪ segment b ∪ segment c) !! addr = None).
+      rewrite lookup_union_None. split; try (rewrite lookup_union_None; split); assumption.
+      rewrite abc_none.
+      rewrite lookup_union_None. split.
+      do 2 rewrite resolve_imports_spec.
+      rewrite ib_addr. rewrite ia_addr.
+      rewrite lookup_union_None. split.
+      all: assumption.
+    Qed.
+
+    Lemma resolve_imports_assoc_r {a b c} :
+      a ##ₗ b ->
+      a ##ₗ c ->
+      b ##ₗ c ->
+      resolve_imports
+        (imports (link a b))
+        (exports c ∪ exports (link a b))
+        (segment c ∪ segment (link a b)) =
+      resolve_imports
+        (imports a)
+        (exports c ∪ exports (link a b))
+        (resolve_imports
+          (imports b)
+          (exports c ∪ exports (link a b) )
+          (segment c ∪ segment a ∪ segment b)).
+    Proof.
+      intros ab ac bc.
+      specialize (can_link_assoc ab ac bc). intros ab_c.
+      replace (exports c ∪ exports (link a b)) with (exports (link a b) ∪ exports c).
+      replace (segment c ∪ segment (link a b)) with (segment (link a b) ∪ segment c).
+      replace (segment c ∪ segment a ∪ segment b) with (segment a ∪ segment b ∪ segment c).
+      apply resolve_imports_assoc_l; assumption.
+      all: inversion ab; inversion ac; inversion bc; inversion ab_c.
+      all: rewrite map_union_comm; try reflexivity; try assumption.
+      rewrite map_union_assoc. reflexivity.
+      apply map_disjoint_union_l. split; assumption.
+    Qed.
 
 
     Lemma link_assoc {a b c} :
@@ -711,59 +761,18 @@ Section Linking.
       assert (ab_c: link a b ##ₗ c).
       { apply can_link_assoc; auto using can_link_sym. }
       specialize (link_exports_assoc a b c). intros exp_eq.
-      (* assert (imp_eq: imports a ∪ imports (link b c) = imports (link a b) ∪ imports c).
-
-      apply map_union_assoc.
-      inversion ab. inversion ac. inversion bc.
-      inversion a_bc. inversion ab_c. *)
-
       unfold link at 1. symmetry. unfold link at 1. f_equal.
-      - repeat rewrite resolve_imports_twice.
-        2,3: apply can_link_disjoint_impls; auto using can_link_sym.
-        apply map_eq. intros addr.
-        rewrite resolve_imports_spec.
-        rewrite resolve_imports_spec.
-        unfold link. simpl.
-        repeat rewrite resolve_imports_twice.
-        2,3: apply can_link_disjoint_impls; auto using can_link_sym.
-        rewrite exp_eq.
-        specialize (can_link_disjoint_impls ab).
-        specialize (can_link_disjoint_impls ac).
-        specialize (can_link_disjoint_impls bc).
-        intros Hbc Hac Hab.
-        inversion ab. inversion ac. inversion bc.
-        inversion Hwf_l. inversion Hwf_r. inversion Hwf_r0.
-        destruct (Some_dec (imports c !! addr)) as [[sc ic_addr] | ic_addr];
-        destruct (Some_dec (imports b !! addr)) as [[sb ib_addr] | ib_addr];
-        destruct (Some_dec (imports a !! addr)) as [[sa ia_addr] | ia_addr];
-        try (exfalso; apply (map_disjoint_spec (imports a) (imports b)) with addr sa sb; assumption);
-        try (exfalso; apply (map_disjoint_spec (imports a) (imports c)) with addr sa sc; assumption);
-        try (exfalso; apply (map_disjoint_spec (imports b) (imports c)) with addr sb sc; assumption).
-        rewrite (lookup_union_Some_l _ _ _ _ ic_addr).
-        rename sc into s. 2: rename sb into s. 3: rename sa into s.
-        destruct (Some_dec (exports c !! s)) as [[sc ec_s] | ec_s];
-        destruct (Some_dec (exports b !! s)) as [[sb eb_s] | eb_s];
-        destruct (Some_dec (exports a !! s)) as [[sa ea_s] | ea_s];
-        try (exfalso; apply (map_disjoint_spec (exports a) (exports b)) with s sa sb; assumption);
-        try (exfalso; apply (map_disjoint_spec (exports a) (exports c)) with s sa sc; assumption);
-        try (exfalso; apply (map_disjoint_spec (exports b) (exports c)) with s sb sc; assumption).
-        contradiction (Hdisj1 s addr (mk_is_Some _ _ ec_s) ic_addr).
-        rewrite -map_union_assoc.
-        rewrite (lookup_union_r _ _ _ ea_s).
-        rewrite (lookup_union_Some_l _ _ _ _ eb_s).
-        (* rewrite (lookup_union_r _ _ _ eb_s).
-        rewrite ec_s. *)
-        rewrite map_filter_lookup_Some.
-        destruct ()
-        rewrite (lookup_union)
-        ia_addr ib_addr.
-        contradiction (map_disjoint_spec Hbc addr ib_addr ic_addr).
-        specialize (Hbc addr).
-        contradiction (Hbc addr ib_addr ia_addr).
-
-        destruct (Some_dec ((imports c ∪ imports (link a b)) !! addr)) as [[s cab_addr] | cab_addr];
-        rewrite cab_addr.
-        shelve.
+      - rewrite resolve_imports_assoc_l; try auto using can_link_sym.
+        replace (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c)) (resolve_imports (imports a) (exports a ∪ exports (link b c)) (segment a ∪ segment (link b c))))
+        with (resolve_imports (imports a) (exports a ∪ exports (link b c)) (resolve_imports (imports (link b c)) (exports a ∪ exports (link b c))
+        (segment a ∪ segment (link b c)))).
+        rewrite resolve_imports_assoc_r; try auto using can_link_sym.
+        all: repeat rewrite resolve_imports_twice.
+        f_equal. 2: symmetry; apply exp_eq.
+        rewrite -map_union_assoc. rewrite -map_union_comm. reflexivity.
+        6: f_equal; rewrite map_union_comm; try reflexivity.
+        all: try (apply map_disjoint_union_l; split).
+        all: try (apply can_link_disjoint_impls; auto using can_link_sym).
       - apply map_filter_strong_ext.
         intros addr symbol. rewrite exp_eq.
         split;
@@ -788,8 +797,7 @@ Section Linking.
         apply or_assoc. auto.
         apply lookup_union_None; split; assumption.
       - symmetry. apply exp_eq.
-      Admitted.
-
+    Qed.
   End LinkAssociative.
 End Linking.
 
