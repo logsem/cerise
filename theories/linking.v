@@ -464,6 +464,7 @@ Section Linking.
         eauto using Hdisjstk2.
     Qed.
 
+    (** make_link_main_lib forms a link from a main and a lib *)
     Definition make_link_main_lib main lib main_s :=
       Main (make_link_pre_comp main lib) main_s.
 
@@ -496,6 +497,25 @@ Section Linking.
       inversion wf_lib'. assumption. assumption.
       inversion wf_main'.
       apply (word_restrictions_incr _ _ _ resolve_imports_dom_dom1 Hw_main).
+    Qed.
+
+    Lemma make_link_main_lib_is_context
+      ms1 imp1 exp1 main ms2 imp2 exp2
+      (Hms_disj: ms1 ##ₘ ms2)
+      (wf_main' : well_formed_comp (Main (ms1, imp1, exp1) main))
+      (wf_lib' : well_formed_comp (Lib (ms2, imp2, exp2)))
+      (no_imps: filter (λ '(s, _), merge opt_merge_fun exp1 exp2 !! s = None)
+      (imp1 ∪ imp2) = ∅) :
+      is_context
+        (Main (ms1, imp1, exp1) main)
+        (Lib (ms2, imp2, exp2))
+        (make_link_main_lib (ms1, imp1, exp1) (ms2, imp2, exp2) main).
+    Proof.
+      apply is_context_intro.
+      split. apply make_link_main_lib_is_link; assumption.
+      apply is_program_intro.
+      apply no_imps.
+      apply make_link_main_lib_well_formed; assumption.
     Qed.
 
   End LinkExists.
