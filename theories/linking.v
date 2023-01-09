@@ -4,20 +4,6 @@ From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import addr_reg machine_base.
 
-Lemma z_of_eq a1 a2 :
-  z_of a1 = z_of a2 ->
-  a1 = a2.
-Proof.
-  destruct a1, a2; cbn. intros ->.
-  repeat f_equal; apply eq_proofs_unicity; decide equality.
-Qed.
-
-Global Instance addr_eq_dec: EqDecision Addr.
-intros x y. destruct x,y. destruct (Z_eq_dec z z0).
-- left. eapply z_of_eq; eauto.
-- right. inversion 1. simplify_eq.
-Defined.
-
 Section Linking.
 
   Variable b_stk: Addr.
@@ -38,14 +24,6 @@ Section Linking.
       dom1 ⊆ dom2 ->
       word_restrictions w dom1 ->
       word_restrictions w dom2.
-
-  (* * any capability contained by w must point to addresses in addrs
-  Definition can_address_only (w: Word) (addrs: gset Addr): Prop :=
-    match w with
-    | WInt _ => True
-    | WCap _ b e _ =>
-      forall a, (b <= a < e)%a -> a ∈ addrs
-    end. *)
 
   Definition imports: Type := gset (Symbols * Addr).
   Definition exports: Type := gmap Symbols Word.
