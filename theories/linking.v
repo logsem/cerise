@@ -354,6 +354,13 @@ Section Linking.
       f_equal; try reflexivity.
       apply map_union_comm. symmetry. apply H.
     Qed.
+
+    Lemma resolve_imports_empty:
+      ∀ exp ms, resolve_imports ∅ exp ms = ms.
+    Proof.
+      intros exp ms. apply map_eq. intros addr.
+      rewrite resolve_imports_spec. reflexivity.
+    Qed.
   End resolve_imports.
 
   (** well_formedness of [link a b] and usefull lemmas *)
@@ -939,6 +946,82 @@ Section Linking.
         apply no_imports_assoc_r; auto using symmetry.
     Qed.
   End LinkAssociative.
+
+  (** Linking a list of segments*)
+  Section LinkList.
+    Variable addr_restrictions_empty : addr_restrictions ∅.
+
+    Instance empty_comp: Empty component := {|
+      segment := ∅; exports := ∅; imports := ∅
+    |}.
+
+    Lemma empty_comp_wf : well_formed_comp ∅.
+    Proof.
+      apply wf_comp_intro; try set_solver.
+      rewrite dom_empty_L.
+      apply addr_restrictions_empty.
+    Qed.
+
+    Lemma can_link_empty_l {c}:
+      well_formed_comp c -> c ##ₗ ∅.
+    Proof.
+      intros Hwf_c.
+      apply can_link_intro.
+      exact Hwf_c. exact empty_comp_wf.
+      all: simpl; apply map_disjoint_empty_r.
+    Qed.
+
+    Lemma can_link_empty_r {c}:
+      well_formed_comp c -> ∅ ##ₗ c.
+    Proof.
+      intros Hwf_c.
+      apply can_link_intro.
+      exact empty_comp_wf. exact Hwf_c.
+      all: simpl; apply map_disjoint_empty_l.
+    Qed.
+
+    Lemma empty_left_id {c}:
+      well_formed_comp c -> ∅ ⋈ c = c.
+    Proof.
+      destruct c as [ seg imp exp ]. intros [].
+      unfold link, empty_comp. simpl.
+      f_equal; repeat rewrite map_empty_union.
+      rewrite resolve_imports_empty.
+      apply map_eq. intros a.
+      rewrite resolve_imports_spec.
+      destruct (Some_dec (imp !! a)) as [[s His] | His];
+      rewrite His.
+      destruct (Some_dec (exp !! s)) as [[w Hes] | Hes];
+      rewrite Hes.
+      apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
+      contradiction (Hdisj s Hes His).
+      all: try reflexivity.
+      apply map_eq. intros a.
+      rewrite map_filter_lookup.
+      destruct (Some_dec (imp !! a)) as [[s His] | His];
+      rewrite His; simpl.
+      apply option_guard_True.
+      destruct (Some_dec (exp !! s)) as [[w Hes] | Hes];
+      apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
+      contradiction (Hdisj s Hes His).
+      exact Hes.
+      reflexivity.
+    Qed.
+
+    Lemma empty_right_id {c}:
+      well_formed_comp c -> c ⋈ ∅ = c.
+    Proof.
+      intros Hwf_c. rewrite link_comm.
+      exact (empty_left_id Hwf_c).
+      exact (can_link_empty_l Hwf_c).
+    Qed.
+
+    Fixpoint link_list l :=
+      match l with
+      | [] => ∅
+      | l::ls => l ⋈ (link_list ls)
+      end.
+  End LinkList.
 End Linking.
 
 Arguments component _ {_ _}.
