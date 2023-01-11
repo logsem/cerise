@@ -60,9 +60,11 @@ Section contextual_refinement.
           exists n, machine_run n (Executable, (regs, segment (ctxt ⋈ spec))) = Some c),
     contextual_refinement impl spec.
 
+  Infix "≼" := contextual_refinement (at level 80).
+
   Section facts.
     Lemma ctxt_ref_reflexive {comp}:
-      wf_comp comp -> contextual_refinement comp comp.
+      wf_comp comp -> comp ≼ comp.
     Proof.
       intros wcomp.
       apply ctxt_ref_intro. 1,2: exact wcomp.
@@ -88,8 +90,8 @@ Section contextual_refinement.
 
     Lemma ctxt_ref_link_l {common impl spec} :
       common ##ₗ impl -> common ##ₗ spec ->
-      contextual_refinement impl spec ->
-      contextual_refinement (link common impl) (link common spec).
+      impl ≼ spec ->
+      common ⋈ impl ≼ common ⋈ spec.
     Proof.
       intros sep_impl sep_spec impl_spec.
       inversion impl_spec.
@@ -124,8 +126,8 @@ Section contextual_refinement.
 
     Lemma ctxt_ref_link_r {common impl spec} :
       common ##ₗ impl -> common ##ₗ spec ->
-      contextual_refinement impl spec ->
-      contextual_refinement (link impl common) (link spec common).
+      impl ≼ spec ->
+      impl ⋈ common ≼ spec ⋈ common.
     Proof.
       intros common_impl common_spec impl_spec.
       rewrite <- (link_comm _ _ common_impl).
@@ -137,18 +139,9 @@ Section contextual_refinement.
     Lemma exec_preserve_can_addr_only:
     ∀ {regs regs':Reg} {seg seg' seg'':Mem} w cf,
       (∀ a w, seg !! a = Some w -> can_address_only w (dom _ seg)) ->
-      (∀ r w, regs !! r = Some w -> can_address_only w (dom _ seg)) ->
-      (cf, (regs', seg')) = (exec (decodeInstrW w) (regs, seg'')) ->
-      (∀ r w, regs' !! r = Some w -> can_address_only w (dom _ seg)).
-    Proof.
-      intros.
-      unfold exec, exec_opt in H1.
-      destruct (decodeInstrW w);
-      simpl in H1.
-      destruct (Some_dec (regs !! r0)) as [[wr rwr] | rwr];
-      rewrite rwr in H1. simpl in H1.
-      apply pair_equal_spec in H1.
-      destruct H1. apply pair_equal_spec in H3.
+      (∀ r w, regs !!
+      contextual_refinement impl spec ->
+      contextual_refinement (link impl common) (link spec common).ly pair_equal_spec in H3.
       destruct H3 as [nr nms]. simpl in nr, nms.
       rewrite nr in H2.
       unfold updatePcPerm in nr.
@@ -218,3 +211,5 @@ Section contextual_refinement.
   End facts.
 
 End contextual_refinement.
+
+Infix "≼" := contextual_refinement (at level 80).
