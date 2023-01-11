@@ -96,6 +96,19 @@ Section Linking.
     (** Segment exports, a map symbols -> word (often capabilities) *)
   }.
 
+  #[global] Instance component_eq_dec : EqDecision component.
+  Proof.
+    intros [seg imp exp] [seg' imp' exp'].
+    destruct (decide (seg = seg')) as [Hs | Hs].
+    destruct (decide (imp = imp')) as [Hi | Hi].
+    destruct (decide (exp = exp')) as [He | He].
+    left. rewrite Hs. rewrite Hi. rewrite He. reflexivity.
+    all: right; intros eq.
+    apply (f_equal exports) in eq. contradiction (He eq).
+    apply (f_equal imports) in eq. contradiction (Hi eq).
+    apply (f_equal segment) in eq. contradiction (Hs eq).
+  Qed.
+
   Inductive well_formed_comp (comp:component) : Prop :=
   | wf_comp_intro: forall
       (* the exported symbols and the imported symbols are disjoint *)
@@ -124,7 +137,7 @@ Section Linking.
     | Some w => <[a:=w]> m
     | None => m end) ms imp.
 
-  (** To form well defined links, our componement must be well-formed
+  (** To form well defined links, our components must be well-formed
       and have separates memory segments and exported symbols *)
   Inductive can_link (comp_l comp_r : component) : Prop :=
   | can_link_intro: forall
@@ -1015,6 +1028,82 @@ Section Linking.
       exact (empty_left_id Hwf_c).
       exact (can_link_empty_l Hwf_c).
     Qed.
+
+    Inductive can_link_list: list component -> Prop :=
+      | can_link_nil : can_link_list []
+      | can_link_cons : ∀ seg seg_list,
+          Forall (fun c => can_link seg c) seg_list ->
+          can_link_list seg_list ->
+          can_link_list (seg :: seg_list).
+
+    Lemma can_link_list_pairwise_1 {l}:
+      can_link_list l ->
+      ∀ i j, i ≠ j ->
+        ∀ a b,
+          l !! i = Some a ->
+          l !! j = Some b -> a ##ₗ b.
+    Proof.
+      induction l.
+      - intros _ i j _ a b Ha.
+        rewrite lookup_nil in Ha. discriminate.
+      - intros H i j Hij b c Hbl Hcl. inversion H.
+        rewrite lookup_cons in Hbl.
+        rewrite lookup_cons in Hcl.
+        rewrite Forall_forall in H2.
+        destruct i as [|i]; destruct j as [|j].
+        contradiction (Hij eq_refl).
+        apply Some_inj in Hbl.
+        rewrite Hbl in H2. apply H2.
+        rewrite elem_of_list_lookup. exists j. exact Hcl.
+        apply Some_inj in Hcl.
+        rewrite Hcl in H2. symmetry. apply H2.
+        rewrite elem_of_list_lookup. exists i. exact Hbl.
+        apply (IHl H3 i j).
+        intro ij. apply (f_equal S) in ij. contradiction (Hij ij).
+        all: assumption.
+    Qed.
+
+    Lemma can_link_list_pairwise_neq {l}:
+      can_link_list l ->
+      ∀ a b, a ∈ l -> b ∈ l -> a ≠ b -> a ##ₗ b.
+    Proof.
+      intros Hl a b Ha Hb Hab.
+      apply elem_of_list_lookup in Ha, Hb.
+      destruct Ha as [i Ha]. destruct Hb as [j Hb].
+      assert (Hij: i ≠ j).
+      intros Hij. rewrite Hij in Ha. rewrite Ha in Hb.
+      apply Some_inj in Hb. contradiction (Hab Hb).
+      exact (can_link_list_pairwise_1 Hl i j Hij a b Ha Hb).
+    Qed.
+
+    Lemma can_link_list_pairwise_2 {l}:
+      (∀ i j, i ≠ j ->
+      ∀ a b,
+        l !! i = Some a ->
+        l !! j = Some b -> a ##ₗ b) ->
+      can_link_list l.
+    Proof.
+      intros H.
+      induction l.
+      apply can_link_nil.
+      apply can_link_cons.
+      rewrite Forall_forall. intros x Hx.
+      rewrite elem_of_list_lookup in Hx. destruct Hx as [i Hx].
+      apply (H 0 (S i)).
+      auto. rewrite -head_lookup. reflexivity.
+      rewrite -lookup_tail. apply Hx.
+      apply IHl. intros i j Hij b c Hb Hc.
+      apply (H (S i) (S j)).
+      intros Hij'. lia.
+      all: rewrite -lookup_tail; assumption.
+    Qed.
+
+    Lemma can_link_list_pairwise l:
+      can_link_list l <->
+      (∀ i j, i ≠ j -> ∀ a b,
+        l !! i = Some a ->
+        l !! j = Some b -> a ##ₗ b).
+    Proof. split. apply can_link_list_pairwise_1. apply can_link_list_pairwise_2. Qed.
 
     Fixpoint link_list l :=
       match l with
