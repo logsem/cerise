@@ -975,7 +975,7 @@ Section Linking.
       apply addr_restrictions_empty.
     Qed.
 
-    Lemma can_link_empty_l {c}:
+    Lemma can_link_empty_r {c}:
       well_formed_comp c -> c ##ₗ ∅.
     Proof.
       intros Hwf_c.
@@ -984,7 +984,7 @@ Section Linking.
       all: simpl; apply map_disjoint_empty_r.
     Qed.
 
-    Lemma can_link_empty_r {c}:
+    Lemma can_link_empty_l {c}:
       well_formed_comp c -> ∅ ##ₗ c.
     Proof.
       intros Hwf_c.
@@ -1026,12 +1026,15 @@ Section Linking.
     Proof.
       intros Hwf_c. rewrite link_comm.
       exact (empty_left_id Hwf_c).
-      exact (can_link_empty_l Hwf_c).
+      exact (can_link_empty_r Hwf_c).
     Qed.
 
+    (** Required property for linking a list of component
+        They must verify can_link pairwise *)
     Inductive can_link_list: list component -> Prop :=
       | can_link_nil : can_link_list []
       | can_link_cons : ∀ seg seg_list,
+          well_formed_comp seg ->
           Forall (fun c => can_link seg c) seg_list ->
           can_link_list seg_list ->
           can_link_list (seg :: seg_list).
@@ -1049,18 +1052,29 @@ Section Linking.
       - intros H i j Hij b c Hbl Hcl. inversion H.
         rewrite lookup_cons in Hbl.
         rewrite lookup_cons in Hcl.
-        rewrite Forall_forall in H2.
+        rewrite Forall_forall in H3.
         destruct i as [|i]; destruct j as [|j].
         contradiction (Hij eq_refl).
         apply Some_inj in Hbl.
-        rewrite Hbl in H2. apply H2.
+        rewrite Hbl in H3. apply H3.
         rewrite elem_of_list_lookup. exists j. exact Hcl.
         apply Some_inj in Hcl.
-        rewrite Hcl in H2. symmetry. apply H2.
+        rewrite Hcl in H3. symmetry. apply H3.
         rewrite elem_of_list_lookup. exists i. exact Hbl.
-        apply (IHl H3 i j).
+        apply (IHl H4 i j).
         intro ij. apply (f_equal S) in ij. contradiction (Hij ij).
         all: assumption.
+    Qed.
+
+    Lemma can_link_list_well_formed_all {l}:
+      can_link_list l ->
+      Forall well_formed_comp l.
+    Proof.
+      intros Hl. induction l.
+      apply Forall_nil_2.
+      inversion Hl.
+      apply Forall_cons_2.
+      apply H1. apply (IHl H3).
     Qed.
 
     Lemma can_link_list_pairwise_neq {l}:
@@ -1081,12 +1095,15 @@ Section Linking.
       ∀ a b,
         l !! i = Some a ->
         l !! j = Some b -> a ##ₗ b) ->
+      Forall well_formed_comp l ->
       can_link_list l.
     Proof.
-      intros H.
+      intros H Hf.
       induction l.
       apply can_link_nil.
       apply can_link_cons.
+      rewrite Forall_forall in Hf. apply Hf.
+      apply elem_of_cons. left. reflexivity.
       rewrite Forall_forall. intros x Hx.
       rewrite elem_of_list_lookup in Hx. destruct Hx as [i Hx].
       apply (H 0 (S i)).
@@ -1095,21 +1112,110 @@ Section Linking.
       apply IHl. intros i j Hij b c Hb Hc.
       apply (H (S i) (S j)).
       intros Hij'. lia.
-      all: rewrite -lookup_tail; assumption.
+      1,2: rewrite -lookup_tail; assumption.
+      destruct (Forall_cons_1 _ _ _ Hf) as [_ H'].
+      exact H'.
     Qed.
 
     Lemma can_link_list_pairwise l:
       can_link_list l <->
-      (∀ i j, i ≠ j -> ∀ a b,
+      Forall well_formed_comp l /\
+      ∀ i j, i ≠ j -> ∀ a b,
         l !! i = Some a ->
-        l !! j = Some b -> a ##ₗ b).
-    Proof. split. apply can_link_list_pairwise_1. apply can_link_list_pairwise_2. Qed.
+        l !! j = Some b -> a ##ₗ b.
+    Proof.
+      split.
+      intros H. split.
+      apply (can_link_list_well_formed_all H).
+      apply (can_link_list_pairwise_1 H).
+      intros [].
+      apply can_link_list_pairwise_2;
+      assumption.
+    Qed.
+
+    Lemma can_link_list_Permutation {l l'}:
+      can_link_list l -> l ≡ₚ l' ->
+      can_link_list l'.
+    Proof.
+      intros Hl Hperm.
+      rewrite can_link_list_pairwise.
+      split.
+      rewrite -(Forall_Permutation well_formed_comp _ _ _ _ Hperm).
+      apply (can_link_list_well_formed_all Hl).
+      intros c. reflexivity.
+      intros i j Hij a b Hl'ia Hl'jb.
+      rewrite can_link_list_pairwise in Hl.
+      destruct Hl as [_ Hl].
+      symmetry in Hperm.
+      rewrite Permutation_inj in Hperm.
+      destruct Hperm as [_ [f [Hinj_f Hf]]].
+      apply (Hl (f i) (f j)).
+      intros Hij'. apply Hinj_f in Hij'. contradiction (Hij Hij').
+      all: rewrite -Hf; assumption.
+    Qed.
 
     Fixpoint link_list l :=
       match l with
       | [] => ∅
       | l::ls => l ⋈ (link_list ls)
       end.
+
+    Lemma can_link_link_list {c l} :
+      can_link_list (c :: l) -> c ##ₗ link_list l.
+    Proof.
+      generalize c. clear c.
+      induction l.
+      simpl. intros c H.
+      inversion H. apply (can_link_empty_r H2).
+      intros c H. simpl.
+      symmetry.
+      inversion H. inversion H4.
+      apply can_link_assoc.
+      apply IHl.
+      apply can_link_cons; assumption.
+      rewrite Forall_forall in H3.
+      symmetry. apply H3. apply elem_of_cons. left. reflexivity.
+      symmetry. apply IHl. apply can_link_cons; try assumption.
+      destruct (Forall_cons_1 _ _ _ H3) as [_ H'].
+      exact H'.
+    Qed.
+
+    Lemma link_list_well_formed {l}:
+      can_link_list l ->
+      well_formed_comp (link_list l).
+    Proof.
+      intros H.
+      induction l; simpl.
+      exact empty_comp_wf.
+      apply link_well_formed.
+      apply (can_link_link_list H).
+    Qed.
+
+    Lemma link_list_Permutation {l l'}:
+      can_link_list l -> l ≡ₚ l' ->
+      link_list l = link_list l'.
+    Proof.
+      intros Hcl Hperm.
+      induction Hperm.
+      - reflexivity.
+      - inversion Hcl. simpl. f_equal. apply IHHperm. assumption.
+      - assert (Hxy : x ##ₗ y).
+        { apply (can_link_list_pairwise_1 Hcl 1 0); auto. }
+        assert (Hxl : x ##ₗ link_list l).
+        { inversion Hcl. apply (can_link_link_list H3). }
+        assert (Hyl : y ##ₗ link_list l).
+        { apply (@can_link_list_Permutation _ (x::y::l)) in Hcl.
+          inversion Hcl. apply (can_link_link_list H3).
+          apply perm_swap. }
+        simpl.
+        rewrite link_assoc; try auto using symmetry.
+        rewrite link_assoc; try auto using symmetry.
+        replace (y ⋈ x) with (x ⋈ y). reflexivity.
+        rewrite link_comm. reflexivity. apply Hxy.
+      - rewrite (IHHperm1 Hcl).
+        apply IHHperm2.
+        apply (can_link_list_Permutation Hcl Hperm1).
+    Qed.
   End LinkList.
 End Linking.
 
