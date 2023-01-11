@@ -476,8 +476,8 @@ Section counter.
       (d + 1)%a = Some d' ->
       (ds + 1)%a = Some ds' ->
       (* footprint of the register map *)
-      dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
-      dom (gset RegName) smap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+      dom rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+      dom smap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
       nclose specN ## ↑ι →
 
@@ -533,7 +533,7 @@ Section counter.
       iMod ("Hcls'" with "[Hd Hds]") as "_".
       { iNext. iExists z. iFrame "∗ #". }
       iModIntro. iApply wp_pure_step_later;auto;iNext.
-      iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj /=";[auto|].
+      iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj /=";[auto|]. iIntros "_".
       (* add r_t1 r_t1 1 || sub r_t1 r_t1 1 *)
       iPrologue_both "Hprog" "Hsprog".
       iMod (step_add_sub_lt_success_dst_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs_t1]")
@@ -557,7 +557,7 @@ Section counter.
       iMod ("Hcls'" with "[Hd Hds]") as "_".
       { iNext. iExists ((z + 1)%Z). assert ((z + 1 + offset)%Z = (z + offset + 1)%Z) as ->;[clear;lia|]. iFrame. }
       iModIntro. iApply wp_pure_step_later;auto;iNext.
-      iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj /=";[auto|]. iCombinePtrn.
+      iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj /=";[auto|]. iCombinePtrn. iIntros "_".
       (* move r_env 0 *)
       iPrologue_both "Hprog" "Hsprog".
       iMod (step_move_success_z _ [SeqCtx] with "[$Hspec $Hj $HsPC $Hsi $Hs_env]")
@@ -665,8 +665,8 @@ Section counter.
       (ds + 1)%a = Some ds' ->
 
       (* footprint of the register map *)
-      dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
-      dom (gset RegName) smap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+      dom rmap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
+      dom smap = all_registers_s ∖ {[PC;r_t0;r_env;r_t1]} →
 
       nclose specN ## ↑ι →
 
@@ -724,7 +724,7 @@ Section counter.
       { split;auto. simpl. apply andb_true_iff. rewrite Z.leb_le Z.ltb_lt. revert Hds;clear;solve_addr. }
       iMod ("Hcls'" with "[Hd Hds]") as "_".
       { iNext. iExists z. iFrame "∗ #". }
-      iModIntro. iApply wp_pure_step_later;auto;iNext.
+      iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
       iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj /=";[auto|].
       (* SPEC ONLY: sub r_ret r_ret offset *)
       (* This is a crucial part of the RHS such that return value will match *)
@@ -774,7 +774,7 @@ Section counter.
       { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsegs $Hs_t1]") as "Hsegs".
       { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
-      rewrite !insert_delete.
+      rewrite !insert_delete_insert.
 
       (* now we are ready to apply the jump or fail pattern *)
       iDestruct (interp_eq with "Hcallback") as %<-.
