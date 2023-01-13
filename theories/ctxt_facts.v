@@ -4,7 +4,7 @@ From cap_machine Require Import machine_parameters cap_lang linking machine_run.
 From cap_machine Require Import stdpp_img contextual_refinement addr_reg_sample.
 
 Section examples.
-  Context {MR:MachineParameters}.
+  Context {MP:MachineParameters}.
 
   Context {Symbols: Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
