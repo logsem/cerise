@@ -1,6 +1,7 @@
-From stdpp Require Import base.
+From stdpp Require Import base fin_maps fin_sets gmap.
 From iris.program_logic Require Import language.
 From cap_machine Require Import machine_parameters machine_base cap_lang.
+From cap_machine Require Import stdpp_img linking.
 
 Section machine_run.
   Context {MP:MachineParameters}.
@@ -102,14 +103,14 @@ Section machine_run.
         econstructor. cbn. apply Hc. } }
   Qed.
 
-  Fixpoint depth expr :=
+  Fixpoint context_depth expr :=
     match expr with
     | Instr _ => 0
-    | Seq expr => S (depth expr)
+    | Seq expr => S (context_depth expr)
     end.
 
   Lemma fill_depth K cf :
-    depth (ectx_language.fill K cf) = length K + depth cf.
+    context_depth (ectx_language.fill K cf) = length K + context_depth cf.
   Proof.
     generalize cf. clear cf.
     induction K.
@@ -124,7 +125,7 @@ Section machine_run.
     K = [] /\ cf = cf'.
   Proof.
     intros H.
-    apply (f_equal depth) in H as Hd.
+    apply (f_equal context_depth) in H as Hd.
     rewrite fill_depth in Hd. simpl in Hd.
     assert (Hk : K = []).
     apply nil_length_inv.
@@ -139,7 +140,7 @@ Section machine_run.
     k = [ SeqCtx ] /\ cf = cf'.
   Proof.
     intros H.
-    apply (f_equal depth) in H as Hd.
+    apply (f_equal context_depth) in H as Hd.
     rewrite fill_depth in Hd. simpl in Hd.
     destruct k; simpl in Hd. lia.
     apply (inj S) in Hd. rewrite Nat.add_0_r in Hd.
@@ -154,7 +155,7 @@ Section machine_run.
     e = Instr cf \/ e = Seq (Instr cf).
   Proof.
     intros H.
-    apply (f_equal depth) in H as Hd.
+    apply (f_equal context_depth) in H as Hd.
     rewrite fill_depth in Hd.
     destruct e; simpl in Hd.
     left.
@@ -174,7 +175,7 @@ Section machine_run.
   Lemma fill_instr {c k e}:
     Instr c = ectx_language.fill k e -> Instr c = e.
   Proof.
-    intros H. apply (f_equal depth) in H as Hd.
+    intros H. apply (f_equal context_depth) in H as Hd.
     rewrite fill_depth in Hd. simpl in Hd.
     assert (Hk : k = []).
     apply nil_length_inv. symmetry in Hd. apply Nat.eq_add_0 in Hd.
@@ -438,5 +439,262 @@ Section machine_run.
     apply Some_inj in mr'. apply mr'.
     apply Some_inj in mr. symmetry. apply mr.
   Qed.
+
+  (** Shows machine_run is unchanged when adding
+      values in the segment at addresses which can't
+      be reached by any capability *)
+  Section machine_run_subseteq.
+
+    (* A lot of intermediate lemmas showing preservation of can_address_only *)
+
+    Lemma updatePcPerm_preserve_can_addr_only {w s}:
+      can_address_only w s -> can_address_only (updatePcPerm w) s.
+    Proof.
+      unfold can_address_only, updatePcPerm. destruct w; try destruct p; auto.
+    Qed.
+
+    Lemma updatePcPerm_regs_preserve_can_addr_only {regs:Reg} {w' seg r}:
+      (∀ w, w ∈ img regs -> can_address_only w seg) ->
+      w' ∈ img regs ->
+      ∀ w, w ∈ img (<[r:=updatePcPerm w']> regs) -> can_address_only w seg.
+    Proof.
+      intros Hr Hw' w Hw. apply elem_of_img in Hw as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. apply updatePcPerm_preserve_can_addr_only. apply (Hr w' Hw').
+      apply Hr. apply (elem_of_img_rev _ _ _ Hrw).
+    Qed.
+
+    Lemma updatePC_preserve_can_addr_only {regs:Reg} {r p p' b e a a' seg} :
+      (∀ w, w ∈ img regs -> can_address_only w seg) ->
+      WCap p b e a ∈ img regs ->
+      ∀ w, w ∈ img (<[r:=WCap p' b e a']> regs) -> can_address_only w seg.
+    Proof.
+      intros Hr Hw' w Hw. apply elem_of_img in Hw as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. unfold can_address_only. apply (Hr _ Hw').
+      apply Hr. apply (elem_of_img_rev _ _ _ Hrw).
+    Qed.
+
+    Lemma restrict_preserve_can_addr_only {regs:Reg} {r p p' b b' e' e a a' seg} :
+      (∀ w, w ∈ img regs -> can_address_only w seg) ->
+      isWithin b' e' b e = true ->
+      WCap p b e a ∈ img regs ->
+      ∀ w, w ∈ img (<[r:=WCap p' b' e' a']> regs) -> can_address_only w seg.
+    Proof.
+      intros Hr Hb Hw' w Hw. apply elem_of_img in Hw as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. unfold can_address_only.
+      intros addr Haddr. apply (Hr _ Hw'). apply isWithin_implies in Hb. solve_addr.
+      apply Hr. apply (elem_of_img_rev _ _ _ Hrw).
+    Qed.
+
+    Lemma word_of_argument_preserve_can_addr_only {regs:Reg} {r w' src seg} :
+      (∀ w, w ∈ img regs -> can_address_only w seg) ->
+      word_of_argument regs src = Some w' ->
+      ∀ w, w ∈ img (<[r:=w']> regs) -> can_address_only w seg.
+    Proof.
+      intros Hr Hw' w Hw. apply elem_of_img in Hw as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. destruct src. apply Some_inj in Hw'. rewrite -Hw'. exact I.
+      apply Hr. unfold word_of_argument in Hw'. apply elem_of_img_rev in Hw'. exact Hw'.
+      apply Hr. apply (elem_of_img_rev _ _ _ Hrw).
+    Qed.
+
+    Lemma insert_wint_preserve_can_addr_only {regs:Reg} {r x seg} :
+      (∀ w, w ∈ img regs -> can_address_only w seg) ->
+      ∀ w, w ∈ img (<[r:=WInt x]> regs) -> can_address_only w seg.
+    Proof.
+      intros Hr w Hw. apply elem_of_img in Hw as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. exact I.
+      apply Hr. apply (elem_of_img_rev _ _ _ Hrw).
+    Qed.
+
+    (* Smart matching to apply the above lemmas *)
+    Local Ltac solve_can_addr_only :=
+      match goal with
+      | H: _ !! _ = Some ?w'
+      |- ∀ w, w ∈ img (<[_:=updatePcPerm ?w']> _) -> can_address_only w _
+        => apply updatePcPerm_regs_preserve_can_addr_only; solve_can_addr_only;
+          apply elem_of_img_rev in H; apply H
+      | H: _ !! _ = Some (WCap _ ?b ?e _)
+      |- ∀ w, w ∈ img (<[_:=WCap _ ?b ?e _]> _) -> can_address_only w _
+        => eapply updatePC_preserve_can_addr_only; solve_can_addr_only;
+          apply elem_of_img_rev in H; apply H
+      | H: _ !! _ = Some (WCap _ ?b ?e _), H1 : isWithin ?b' ?e' ?b ?e = true
+      |- ∀ w, w ∈ img (<[_:=WCap _ ?b' ?e' _]> _) -> can_address_only w _
+        => eapply restrict_preserve_can_addr_only; solve_can_addr_only ||
+          apply H1 || (apply elem_of_img_rev in H; apply H)
+      | H: word_of_argument _ ?src = Some ?w'
+      |- ∀ w, w ∈ img (<[_:=?w']> _) -> can_address_only w _
+        => eapply word_of_argument_preserve_can_addr_only; solve_can_addr_only;
+          apply H
+      | H: _ |- ∀ w, w ∈ img (<[_:=WInt _]> _) -> can_address_only w _
+        => eapply insert_wint_preserve_can_addr_only; solve_can_addr_only
+      | _ => auto
+      end.
+
+    (** This destruct the successive matches/tests in exec to
+        quickly get to a base simple case; then it tries to solve it with
+        solve_can_addr_only
+
+        Called with H of the form (_, (_, _)) = exec i (_, _) *)
+    Local Ltac destruct_exec H :=
+      match type of H with
+      | _ = match ?b ≫= _ with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d; simpl in H; destruct_exec H
+      | _ = match (if ?b then _ else _) with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d; simpl in H; destruct_exec H
+      | _ = match (match ?b with _ => _ end) with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d; simpl in H; destruct_exec H
+      | _ = match updatePC _ with _ => _ end =>
+          unfold updatePC in H; simpl in H; destruct_exec H
+      | _ = (_, update_reg _ _ _) =>
+          unfold update_reg in H; simpl in H; destruct_exec H
+      | (_, (_, _)) = (_, (_, _)) =>
+          apply pair_equal_spec in H as [_ H];
+          apply pair_equal_spec in H as [Heq_reg Heq_ms];
+          simpl in Heq_ms, Heq_reg; rewrite Heq_ms Heq_reg;
+          split; try split; solve_can_addr_only
+      end.
+
+    (* exec preserve our can_address_only predicate,
+       and stays in the designated memory region *)
+    Lemma exec_segment_preserve_can_addr_only {i c regs seg regs' seg'} :
+      (∀ w, w ∈ img seg -> can_address_only w (dom seg)) ->
+      (∀ w, w ∈ img regs -> can_address_only w (dom seg)) ->
+      (c, (regs', seg')) = exec i (regs, seg) ->
+      dom seg = dom seg' /\
+      (∀ w, w ∈ img seg' -> can_address_only w (dom seg')) /\
+      (∀ w, w ∈ img regs' -> can_address_only w (dom seg')).
+    Proof.
+      intros Hwr_seg Hwr_regs Heq.
+      unfold exec, exec_opt in Heq.
+      destruct i; simpl in Heq.
+
+      all: destruct_exec Heq.
+      eapply updatePC_preserve_can_addr_only. auto.
+      intros w' Hw'. apply elem_of_img in Hw' as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w. apply Hwr_seg. apply elem_of_img_rev in Heq_d2. apply Heq_d2.
+      apply Hwr_regs. apply elem_of_img_rev in Hrw. apply Hrw.
+      apply elem_of_img_rev in Heq_d3. apply Heq_d3.
+
+      symmetry. apply dom_insert_lookup_L.
+      apply elem_of_img_rev, Hwr_regs in Heq_d0.
+      specialize (Heq_d0 a).
+      rewrite -elem_of_dom. apply Heq_d0.
+      apply andb_true_iff in Heq_d2 as [_ Hwithinbounds].
+      apply withinBounds_true_iff in Hwithinbounds. apply Hwithinbounds.
+
+      intros w' Hw'. apply elem_of_img in Hw' as [r' Hrw].
+      apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
+      rewrite -Hw'w.
+      destruct src; simpl in Heq_d.
+      apply Some_inj in Heq_d. rewrite -Heq_d. exact I.
+      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply Hwr_regs. apply elem_of_img_rev in Heq_d. apply Heq_d.
+      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply Hwr_seg. apply elem_of_img_rev in Hrw. exact Hrw.
+
+      eapply updatePC_preserve_can_addr_only. intros w' Hw'.
+      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply (Hwr_regs w' Hw'). apply elem_of_img_rev in Heq_d3. apply Heq_d3.
+    Qed.
+
+    (* Same concept as destruct_exec, but with two hypotheses of the form
+       (_, (_, _)) = exec i (_, _) *)
+    Local Ltac destruct_exec2 H H2 :=
+      match type of H with
+      | _ = match ?b ≫= _ with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d;
+          try rewrite (lookup_union_Some_l _ _ _ _ Heq_d) in H2; simpl in H, H2;
+          destruct_exec2 H H2
+      | _ = match (if ?b then _ else _) with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d; simpl in H, H2; destruct_exec2 H H2
+      | _ = match (match ?b with _ => _ end) with _ => _ end =>
+          let Heq_d := fresh "Heq_d" in
+          destruct b eqn:Heq_d; simpl in H, H2; destruct_exec2 H H2
+      | _ = match updatePC _ with _ => _ end =>
+          unfold updatePC in H, H2; simpl in H, H2; destruct_exec2 H H2
+      | _ = (_, update_reg _ _ _) =>
+          unfold update_reg in H, H2; simpl in H, H2; destruct_exec2 H H2
+      | (_, (_, _)) = (_, (_, _)) =>
+          apply pair_equal_spec in H as [Hc H];
+          apply pair_equal_spec in H as [Heq_reg Heq_ms];
+          apply pair_equal_spec in H2 as [H2c H2];
+          apply pair_equal_spec in H2 as [H2eq_reg H2eq_ms];
+          simpl in Heq_ms, Heq_reg, H2eq_ms, H2eq_reg;
+          split; try split; (try simplify_eq; auto)
+      | _ => idtac
+      end.
+
+    (** Calling exec on (r,s ∪ s') when r and s can_address_only s
+        is the same as calling exec on (r,s) and then adding s'.
+
+        writing s2 as s ∪ s' is a just a way of saying s ⊆ s2
+        and calling s' the difference between s and s' *)
+    Lemma exec_segment_subseteq {i c c1 regs seg seg1 regs' regs1' seg' seg1'} :
+      (∀ w, w ∈ img seg -> can_address_only w (dom seg)) ->
+      (∀ w, w ∈ img regs -> can_address_only w (dom seg)) ->
+      (c, (regs', seg')) = exec i (regs, seg) ->
+      (c1, (regs1', seg1')) = exec i (regs, seg ∪ seg1) ->
+      c = c1 /\ regs' = regs1' /\ seg1' = seg' ∪ seg1.
+    Proof.
+      intros Hwr_seg Hwr_regs Heq Heq'.
+      unfold exec, exec_opt in Heq, Heq'.
+      destruct i; simpl in Heq, Heq'.
+      all: destruct_exec2 Heq Heq'.
+      apply andb_true_iff in Heq_d1 as [_ Hbounds]. apply withinBounds_true_iff in Hbounds.
+      specialize (Hwr_regs (WCap p b e a) (elem_of_img_rev _ _ _ Heq_d) a Hbounds).
+      rewrite elem_of_dom Heq_d2 in Hwr_regs. contradiction (is_Some_None Hwr_regs).
+      apply insert_union_l.
+    Qed.
+
+    Lemma machine_run_segment_subseteq {n cf regs seg1 seg2 c}:
+      seg1 ⊆ seg2 ->
+      (∀ w, w ∈ img seg1 -> can_address_only w (dom seg1)) ->
+      (∀ w, w ∈ img regs -> can_address_only w (dom seg1)) ->
+      machine_run n (cf, (regs, seg1)) = Some c ->
+      machine_run n (cf, (regs, seg2)) = Some c.
+    Proof.
+      revert n cf regs seg1 seg2 c.
+      induction n.
+      intros cf regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr. discriminate.
+      intros cf regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr. simpl. simpl in Hmr.
+      destruct cf.
+      4: apply (IHn _ regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr).
+      destruct (regs !! PC) as [pc|] eqn:regs_pc.
+      destruct (isCorrectPCb pc) eqn:pcv.
+      rewrite isCorrectPCb_isCorrectPC in pcv.
+      inversion pcv.
+      rewrite <- H1 in Hmr, regs_pc.
+      specialize (Hwr_regs _ (elem_of_img_rev _ _ _ regs_pc) a H) as Ha.
+      apply elem_of_dom in Ha as [w seg1a_w].
+      unfold Mem in *.
+      rewrite seg1a_w in Hmr.
+      destruct (map_subseteq_spec seg1 seg2) as [ seg2a_w _ ].
+      specialize (seg2a_w Hincl a w seg1a_w).
+      rewrite seg2a_w.
+      destruct (exec (decodeInstrW w) (regs, seg1)) as [c' [regs' seg']] eqn:Heq'.
+      destruct (exec (decodeInstrW w) (regs, seg2)) as [c1' [regs1' seg1']] eqn:Heq1'.
+      symmetry in Heq', Heq1'. simpl in Hmr. simpl.
+      destruct (exec_segment_preserve_can_addr_only Hwr_ms Hwr_regs Heq') as [Hdom [Hwr_seg' Hwr_regs']].
+      assert (Hseg: seg2 = seg1 ∪ seg2).
+      symmetry. apply map_subseteq_union. exact Hincl.
+      rewrite Hseg in Heq1'.
+
+      destruct (exec_segment_subseteq Hwr_ms Hwr_regs Heq' Heq1') as [Hc [Hr Hs]].
+      rewrite -Hc -Hr Hs.
+      eapply (IHn c' regs' seg' _ c _ Hwr_seg' Hwr_regs' Hmr).
+      all: apply Hmr.
+      Unshelve. apply map_union_subseteq_l.
+    Qed.
+  End machine_run_subseteq.
 
 End machine_run.
