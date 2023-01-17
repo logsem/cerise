@@ -958,6 +958,30 @@ Section Linking.
       - apply no_imports_assoc_l. auto using symmetry.
         apply no_imports_assoc_r; auto using symmetry.
     Qed.
+
+    Lemma is_context_pop {ctxt comp extra regs} :
+      comp ##ₗ extra -> exports extra = ∅ ->
+      is_context ctxt (comp ⋈ extra) regs ->
+      is_context ctxt comp regs.
+    Proof.
+      intros Hsep Hex_null [ ].
+      apply is_context_intro. symmetry in Hcan_link.
+      symmetry. apply (can_link_weaken_l Hsep Hcan_link).
+      assumption.
+      intros s Hs. apply elem_of_img in Hs as [a Has].
+      apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
+      apply elem_of_img. exists a. rewrite map_filter_lookup_Some.
+      split. apply (lookup_union_Some_l _ _ _ _ Has).
+      rewrite map_union_empty.
+      destruct (exports comp !! s) eqn:Hexp.
+      inversion Hsep. inversion Hwf_l.
+      apply elem_of_img_rev in Has.
+      apply mk_is_Some, elem_of_dom in Hexp.
+      contradiction (Hdisj s Hexp Has). reflexivity.
+      replace (exports comp) with (exports (comp ⋈ extra)).
+      apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
+      apply map_union_empty.
+    Qed.
   End LinkAssociative.
 
   (** Linking a list of segments*)
