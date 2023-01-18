@@ -72,9 +72,9 @@ Section Linking.
     OperatorStable (∪) unconstrained_addr.
   Proof. intros a. auto. Qed.
 
-  Definition imports_type := (gmap Addr Symbols).
-  Definition exports_type := (gmap Symbols Word).
-  Definition segment_type := (gmap Addr Word).
+  Notation imports_type := (gmap Addr Symbols).
+  Notation exports_type := (gmap Symbols Word).
+  Notation segment_type := (gmap Addr Word).
 
   #[global] Instance exports_subseteq : SubsetEq exports_type := map_subseteq.
 
@@ -356,16 +356,14 @@ Section Linking.
       specialize (spec2 imp2 exp ms addr).
       pose resolve_imports_spec as spec3.
       specialize (spec3 (imp1 ∪ imp2) exp ms addr).
-      destruct (imp1 !! addr) as [w1|] eqn:imp1_a;
-      rewrite imp1_a in spec1.
+      destruct (imp1 !! addr) as [w1|] eqn:imp1_a.
       rewrite (lookup_union_Some_l _ imp2 _ _ imp1_a) in spec3.
       destruct (exp !! w1); rewrite spec1; rewrite spec3. reflexivity.
       destruct (imp2 !! addr) as [w2|] eqn:imp2_a.
       contradiction (H' H _ _ _ imp1_a imp2_a).
-      rewrite imp2_a in spec2. rewrite spec2. reflexivity.
+      rewrite spec2. reflexivity.
       rewrite spec1.
-      destruct (imp2 !! addr) as [w2|] eqn:imp2_a;
-      rewrite imp2_a in spec2.
+      destruct (imp2 !! addr) as [w2|] eqn:imp2_a.
       rewrite (lookup_union_Some_r _ imp2 _ _ H imp2_a) in spec3.
       destruct (exp !! w2); rewrite spec2; rewrite spec3; reflexivity.
       destruct (lookup_union_None imp1 imp2 addr) as [ _ r ].
@@ -421,7 +419,7 @@ Section Linking.
       specialize (Himp addr Hib_addr). rewrite elem_of_dom Hb_addr in Himp.
       contradiction (is_Some_None Himp).
       rewrite lookup_union_r; try assumption.
-      destruct (imports a !! addr) as [s|] eqn:Hia_addr; rewrite Hia_addr.
+      destruct (imports a !! addr) as [s|] eqn:Hia_addr.
       destruct (exports a !! s) eqn:Hea.
       inversion Hwf_l. apply mk_is_Some, elem_of_dom in Hea. apply elem_of_img_rev in Hia_addr.
       contradiction (Hdisj _ Hea Hia_addr).
@@ -438,7 +436,7 @@ Section Linking.
       specialize (Himp addr Hia_addr). rewrite elem_of_dom Ha_addr in Himp.
       contradiction (is_Some_None Himp).
       rewrite lookup_union_l; try assumption.
-      destruct (imports b !! addr) as [s|] eqn:Hib_addr; rewrite Hib_addr.
+      destruct (imports b !! addr) as [s|] eqn:Hib_addr.
       destruct (exports b !! s) eqn:Heb.
       inversion Hwf_r. apply mk_is_Some, elem_of_dom in Heb. apply elem_of_img_rev in Hib_addr.
       contradiction (Hdisj _ Heb Hib_addr).
@@ -827,7 +825,7 @@ Section Linking.
               (imports a ∪ imports b) addr s) as [ _ l_some ].
       1,2: rewrite (l_some (conj Hi He)).
       1,2: destruct ((exports (a ⋈ b) ∪ exports c) !! s) as [w|] eqn:Hew;
-           rewrite Hew; try reflexivity.
+           try reflexivity.
       assert (is_Some (segment a !! addr)).
       3: assert (is_Some (segment b !! addr)).
       1,3: rewrite -elem_of_dom;
@@ -1150,14 +1148,13 @@ Section Linking.
       apply map_eq. intros a.
       rewrite resolve_imports_spec.
       destruct (imp !! a) as [s|] eqn:His.
-      destruct (exp !! s) as [w|] eqn:Hes; rewrite Hes.
+      destruct (exp !! s) as [w|] eqn:Hes.
       apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
       contradiction (Hdisj s Hes His).
       all: try reflexivity.
       apply map_eq. intros a.
       rewrite map_filter_lookup.
-      destruct (imp !! a) as [s|] eqn:His;
-      rewrite His; simpl.
+      destruct (imp !! a) as [s|] eqn:His; simpl.
       apply option_guard_True.
       destruct (exp !! s) as [w|] eqn:Hes;
       apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
@@ -1364,8 +1361,10 @@ Section Linking.
 End Linking.
 
 Arguments component _ {_ _}.
-Arguments exports_type _ {_ _}.
-Arguments imports_type _ : clear implicits.
+
+Notation imports_type Symbols := (gmap Addr Symbols).
+Notation exports_type Symbols := (gmap Symbols Word).
+Notation segment_type := (gmap Addr Word).
 
 #[global] Infix "⋈" := link (at level 50).
 
