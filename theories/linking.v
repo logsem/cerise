@@ -387,11 +387,19 @@ Section Linking.
       apply map_union_comm. symmetry. apply H.
     Qed.
 
-    Lemma resolve_imports_empty:
+    Lemma resolve_imports_imports_empty:
       ∀ exp ms, resolve_imports ∅ exp ms = ms.
     Proof.
       intros exp ms. apply map_eq. intros addr.
       rewrite resolve_imports_spec. reflexivity.
+    Qed.
+
+    Lemma resolve_imports_exports_empty:
+      ∀ imp ms, resolve_imports imp ∅ ms = ms.
+    Proof.
+      intros imp ms. apply map_eq. intros addr.
+      rewrite resolve_imports_spec.
+      destruct (imp !! addr). rewrite lookup_empty. all: reflexivity.
     Qed.
 
     Lemma link_segment_union {a b}:
@@ -1138,7 +1146,7 @@ Section Linking.
       destruct c as [ seg imp exp ]. intros [].
       unfold link, empty_comp. simpl.
       f_equal; repeat rewrite map_empty_union.
-      rewrite resolve_imports_empty.
+      rewrite resolve_imports_imports_empty.
       apply map_eq. intros a.
       rewrite resolve_imports_spec.
       destruct (imp !! a) as [s|] eqn:His.
@@ -1540,7 +1548,7 @@ Ltac solve_can_link :=
       apply can_link_weaken_r in H as H2;
       clear H; solve_can_link
   | H: _ |- can_link _ _ (_ ⋈ _) _ =>
-       apply can_link_assoc; solve_can_link
+       apply (can_link_assoc _ _); solve_can_link
   | H: _ |- can_link _ _ _ (_ ⋈ _) =>
-       symmetry; apply can_link_assoc; solve_can_link
+       symmetry; apply (can_link_assoc _ _); solve_can_link
   end.

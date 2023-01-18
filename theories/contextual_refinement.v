@@ -1,6 +1,7 @@
 From stdpp Require Import gmap fin_maps fin_sets.
 
-From cap_machine Require Import machine_parameters cap_lang linking machine_run.
+From cap_machine Require Import machine_parameters cap_lang.
+From cap_machine Require Import stdpp_img linking machine_run.
 
 (** Minimal free memory in which to write our contexts *)
 Definition reserved_context_size_z: Z := 100000.
@@ -25,14 +26,6 @@ Section contextual_refinement.
   Context {Symbols : Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
-
-  Definition unconstrained_addr : gset Addr -> Prop :=
-    fun _ => True.
-  Lemma unconstrained_addr_union_stable:
-    ∀ dom1 dom2,
-      unconstrained_addr dom1 -> unconstrained_addr dom2 ->
-      unconstrained_addr (dom1 ∪ dom2).
-  Proof. auto. Qed.
 
   Notation wf_comp := (well_formed_comp can_address_only (addr_gt_than reserved_context_size)).
   Infix "##ₗ" := (can_link can_address_only (addr_gt_than reserved_context_size)) (at level 70).
@@ -60,11 +53,11 @@ Section contextual_refinement.
           exists n, machine_run n (Executable, (regs, segment (ctxt ⋈ spec))) = Some c),
     contextual_refinement impl spec.
 
-  Infix "≼" := contextual_refinement (at level 80).
+  Infix "≼ᵣ" := contextual_refinement (at level 80).
 
   Section facts.
     Lemma ctxt_ref_reflexive {comp}:
-      wf_comp comp -> comp ≼ comp.
+      wf_comp comp -> comp ≼ᵣ comp.
     Proof.
       intros wcomp.
       apply ctxt_ref_intro. 1,2: exact wcomp.
@@ -84,14 +77,106 @@ Section contextual_refinement.
       apply (Hrefines0 ctxt regs conf ctxt_b mr_ctxt_b).
     Qed.
 
-    Lemma addr_gt_than_implies_unconstrained:
-      ∀ a, addr_gt_than reserved_context_size a -> unconstrained_addr a.
-    Proof. intros. unfold unconstrained_addr. auto. Qed.
+    (* Infix "###" := (can_link can_address_only unconstrained_addr) (at level 70). *)
+
+    Lemma ctxt_ref_grow_impl {impl spec extra}:
+      extra ##ₗ impl -> exports extra = ∅ -> impl ≼ᵣ spec ->
+      extra ⋈ impl ≼ᵣ spec.
+    Proof.
+      intros Hsep_ei Hexp [ ].
+      apply ctxt_ref_intro.
+      apply (link_well_formed _ _). solve_can_link. assumption.
+      unfold link. simpl. clear Hexp. set_solver.
+      intros ctxt regs c ctxt_impl mr_impl.
+      apply (is_context_move_in _ _) in ctxt_impl as Hctxt; try solve_can_link.
+      rewrite (link_assoc can_address_only unconstrained_addr) in mr_impl; try solve_can_link.
+      destruct (Hrefines (ctxt ⋈ extra) regs c Hctxt mr_impl) as [Hc Hmr].
+      split.
+      eapply (is_context_remove_exportless_r _ _ _ Hexp).
+      rewrite <- (link_comm can_address_only unconstrained_addr).
+      apply (is_context_move_out can_address_only unconstrained_addr).
+      all: try solve_can_link. inversion ctxt_impl.
+      exact Hwr_regs. exact Hc.
+
+      destruct Hmr as [n Hmr]. exists n.
+      rewrite (@machine_run_segment_subseteq _ _ _ _ (segment (ctxt ⋈ spec)) (segment ((ctxt ⋈ extra) ⋈ spec))).
+      exact Hmr.
+      replace ((ctxt ⋈ extra) ⋈ spec) with ((ctxt ⋈ spec) ⋈ extra).
+      2: {
+        rewrite <- (link_assoc can_address_only unconstrained_addr).
+        rewrite <- (link_assoc can_address_only unconstrained_addr).
+        f_equal. apply (link_comm can_address_only unconstrained_addr).
+        all: solve_can_link.
+       }
+      rewrite (link_segment_union can_address_only unconstrained_addr).
+      rewrite (link_segment_union can_address_only unconstrained_addr).
+      rewrite <- (link_segment_union can_address_only unconstrained_addr).
+      2,3,4: solve_can_link.
+      transitivity (resolve_imports (imports (ctxt ⋈ spec)) (exports extra) (segment (ctxt ⋈ spec))).
+      rewrite Hexp.
+      pose (@resolve_imports_exports_empty Symbols _ _) as ri.
+      unfold exports_type in ri. rewrite ri. reflexivity.
+      apply map_union_subseteq_l.
+      inversion Hc.
+
+      1,2: assert (Hdom_ctxt: dom (segment ctxt) ⊆ dom (segment (ctxt ⋈ spec))).
+      1,3: apply (link_segment_dom_subseteq_l can_address_only unconstrained_addr);
+           inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; try assumption.
+           apply (wf_comp_weaken_ar any_implies_unconstrained_addr Hwf_spec).
+
+      assert (Hdom_spec: dom (segment spec) ⊆ dom (segment (ctxt ⋈ spec))).
+      apply (link_segment_dom_subseteq_r can_address_only unconstrained_addr);
+      inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; assumption.
+
+      assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only w (dom (segment (ctxt ⋈ spec)))).
+      intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
+      apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw']].
+      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      inversion ctxt_impl as [[[]]]. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
+      apply (can_address_only_subseteq_stable2 w (dom (segment spec)) _ Hdom_spec).
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
+
+      assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only w (dom (segment (ctxt ⋈ spec)))).
+      intros a w Hw'.
+      apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw']].
+      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      inversion ctxt_impl as [[[]]]. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
+      apply (can_address_only_subseteq_stable2 w (dom (segment spec)) _ Hdom_spec).
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
+
+      intros w Hw.
+      apply elem_of_img in Hw as [a Hw].
+      unfold link in Hw. simpl in Hw.
+      rewrite resolve_imports_spec in Hw.
+      destruct (imports spec !! a).
+      destruct ((exports ctxt ∪ exports spec) !! s) eqn:He;
+      unfold exports_type in Hw; rewrite He in Hw. apply Some_inj in Hw. rewrite <-Hw.
+      apply elem_of_img_rev in He. apply (Hex _ He).
+      1,2: rewrite resolve_imports_spec in Hw;
+           destruct (imports ctxt !! a) as [s'|]; apply (Hse _ _ Hw) ||
+           destruct ((exports ctxt ∪ exports spec) !! s') eqn:He';
+           unfold exports_type in Hw; rewrite He' in Hw;
+           apply (Hse _ _ Hw) || apply Some_inj in Hw; rewrite <-Hw;
+           apply elem_of_img_rev in He'; apply (Hex _ He').
+
+
+      inversion ctxt_impl. intros w Hw.
+      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (Hwr_regs w Hw).
+
+      Unshelve. solve_can_link.
+    Qed.
+
+    (* Lemma ctxt_ref_segment_subseteq {impl spec}:
+      impl ≼ᵣ spec ->
+      dom spec.(segment) ⊆ dom impl.(segment).
+    Proof.
+      intros [ ] a Ha. *)
 
     Lemma ctxt_ref_link_l {common impl spec} :
       common ##ₗ impl -> common ##ₗ spec ->
-      impl ≼ spec ->
-      common ⋈ impl ≼ common ⋈ spec.
+      impl ≼ᵣ spec ->
+      common ⋈ impl ≼ᵣ common ⋈ spec.
     Proof.
       intros sep_impl sep_spec impl_spec.
       inversion impl_spec.
@@ -126,8 +211,8 @@ Section contextual_refinement.
 
     Lemma ctxt_ref_link_r {common impl spec} :
       common ##ₗ impl -> common ##ₗ spec ->
-      impl ≼ spec ->
-      impl ⋈ common ≼ spec ⋈ common.
+      impl ≼ᵣ spec ->
+      impl ⋈ common ≼ᵣ spec ⋈ common.
     Proof.
       intros common_impl common_spec impl_spec.
       rewrite <- (link_comm _ _ common_impl).
@@ -135,62 +220,31 @@ Section contextual_refinement.
       exact (ctxt_ref_link_l common_impl common_spec impl_spec).
     Qed.
 
-(*
-    Lemma exec_preserve_can_addr_only:
-    ∀ {regs regs':Reg} {seg seg' seg'':Mem} w cf,
-      (∀ a w, seg !! a = Some w -> can_address_only w (dom _ seg)) ->
-      (∀ r w, regs !!
-      contextual_refinement impl spec ->
-      contextual_refinement (link impl common) (link spec common).ly pair_equal_spec in H3.
-      destruct H3 as [nr nms]. simpl in nr, nms.
-      rewrite nr in H2.
-      unfold updatePcPerm in nr.
-      destruct wr.
-
-    Lemma exec_segment_incr:
-      ∀ regs seg1 seg2 w cf regs2,,
-        seg1 ⊆ seg2 ->
-        (∀ a w, seg1 !! a = Some w -> can_address_only w (dom _ seg1)) ->
-        (∀ r w, regs !! r = Some w -> can_address_only w (dom _ seg1)) ->
-
-    ((exec (decodeInstrW w) (regs, seg1)).1,
-       (exec (decodeInstrW w) (regs, seg1)).2)
-
-    Lemma machine_run_segment_incr:
-      ∀ n cf regs seg1 seg2 c,
-        seg1 ⊆ seg2 ->
-        (∀ a w, seg1 !! a = Some w -> can_address_only w (dom _ seg1)) ->
-        (∀ r w, regs !! r = Some w -> can_address_only w (dom _ seg1)) ->
-        machine_run n (cf, (regs, seg1)) = Some c ->
-        machine_run n (cf, (regs, seg2)) = Some c.
+    Lemma ctxt_ref_link {impl impl' spec spec'} :
+      impl ##ₗ impl' -> spec ##ₗ spec' ->
+      impl ≼ᵣ spec -> impl' ≼ᵣ spec' ->
+      impl ⋈ impl' ≼ᵣ spec ⋈ spec'.
     Proof.
-      induction n.
-      intros. discriminate.
-      intros. simpl. simpl in H2.
-      destruct cf.
-      4: apply (IHn _ regs seg1 seg2 c H H0 H1 H2).
-      destruct (Some_dec (regs !! PC)) as [[pc regs_pc] | regs_pc];
-      rewrite regs_pc; rewrite regs_pc in H2.
-      destruct (bool_dec (isCorrectPCb pc) true) as [pcv | pcv].
-      rewrite pcv; rewrite pcv in H2.
-      rewrite isCorrectPCb_isCorrectPC in pcv.
-      inversion pcv.
-      rewrite <- H5 in H2, regs_pc.
-      specialize (H1 PC _ regs_pc a H3).
-      apply elem_of_dom in H1.
-      destruct H1 as [w seg1a_w].
-      unfold Mem in *.
-      rewrite seg1a_w in H2.
-      destruct (map_subseteq_spec seg1 seg2) as [ seg2a_w _ ].
-      specialize (seg2a_w H a w seg1a_w).
-      rewrite seg2a_w.
-      unfold exec, exec_opt.
-      destruct (decodeInstrW w).
-      apply IHn.
-      admit.
-      apply not_true_is_false in pcv.
-      rewrite pcv. rewrite pcv in H2.
-      all: apply H2.
+      intros Hii' Hss' His Hi's'.
+      transitivity (spec ⋈ impl').
+      apply ctxt_ref_link_r.
+      symmetry. exact Hii'. admit. exact His.
+      apply ctxt_ref_link_l. admit. exact Hss'. exact Hi's'.
+    Admitted.
+
+    From iris.program_logic Require Import adequacy.
+
+    Search (rtc erased_step).
+
+(*
+    Context (Σ: gFunctors).
+    Context {inv_preg: invGpreS Σ}. *)
+
+    (* Let x := wp_invariance Σ (@cap_lang MP) NotStuck.
+    Let y := (state cap_lang). *)
+
+    From cap_machine Require Import stdpp_img.
+    dom_insert_lookup_L
 
     Lemma ctxt_ref_segment_subseteq {impl spec}:
       contextual_refinement impl spec ->
@@ -212,4 +266,4 @@ Section contextual_refinement.
 
 End contextual_refinement.
 
-Infix "≼" := contextual_refinement (at level 80).
+Infix "≼ᵣ" := contextual_refinement (at level 80).

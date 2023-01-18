@@ -595,13 +595,13 @@ Section machine_run.
       rewrite -Hw'w.
       destruct src; simpl in Heq_d.
       apply Some_inj in Heq_d. rewrite -Heq_d. exact I.
-      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
       apply Hwr_regs. apply elem_of_img_rev in Heq_d. apply Heq_d.
-      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
       apply Hwr_seg. apply elem_of_img_rev in Hrw. exact Hrw.
 
       eapply updatePC_preserve_can_addr_only. intros w' Hw'.
-      apply (can_address_only_incr _ (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
       apply (Hwr_regs w' Hw'). apply elem_of_img_rev in Heq_d3. apply Heq_d3.
     Qed.
 
@@ -656,34 +656,31 @@ Section machine_run.
       apply insert_union_l.
     Qed.
 
-    Lemma machine_run_segment_subseteq {n cf regs seg1 seg2 c}:
+    Lemma machine_run_segment_subseteq {n cf regs seg1 seg2}:
       seg1 ⊆ seg2 ->
       (∀ w, w ∈ img seg1 -> can_address_only w (dom seg1)) ->
       (∀ w, w ∈ img regs -> can_address_only w (dom seg1)) ->
-      machine_run n (cf, (regs, seg1)) = Some c ->
-      machine_run n (cf, (regs, seg2)) = Some c.
+      machine_run n (cf, (regs, seg1)) = machine_run n (cf, (regs, seg2)).
     Proof.
-      revert n cf regs seg1 seg2 c.
+      revert n cf regs seg1 seg2.
       induction n.
-      intros cf regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr. discriminate.
-      intros cf regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr. simpl. simpl in Hmr.
+      intros cf regs seg1 seg2 Hincl Hwr_ms Hwr_regs. reflexivity.
+      intros cf regs seg1 seg2 Hincl Hwr_ms Hwr_regs. simpl.
       destruct cf.
-      4: apply (IHn _ regs seg1 seg2 c Hincl Hwr_ms Hwr_regs Hmr).
+      4: apply (IHn _ regs seg1 seg2 Hincl Hwr_ms Hwr_regs).
       destruct (regs !! PC) as [pc|] eqn:regs_pc.
       destruct (isCorrectPCb pc) eqn:pcv.
       rewrite isCorrectPCb_isCorrectPC in pcv.
-      inversion pcv.
-      rewrite <- H1 in Hmr, regs_pc.
+      inversion pcv. rewrite <- H1 in regs_pc.
       specialize (Hwr_regs _ (elem_of_img_rev _ _ _ regs_pc) a H) as Ha.
       apply elem_of_dom in Ha as [w seg1a_w].
-      unfold Mem in *.
-      rewrite seg1a_w in Hmr.
+      unfold Mem in *. rewrite seg1a_w.
       destruct (map_subseteq_spec seg1 seg2) as [ seg2a_w _ ].
       specialize (seg2a_w Hincl a w seg1a_w).
       rewrite seg2a_w.
       destruct (exec (decodeInstrW w) (regs, seg1)) as [c' [regs' seg']] eqn:Heq'.
       destruct (exec (decodeInstrW w) (regs, seg2)) as [c1' [regs1' seg1']] eqn:Heq1'.
-      symmetry in Heq', Heq1'. simpl in Hmr. simpl.
+      symmetry in Heq', Heq1'. simpl.
       destruct (exec_segment_preserve_can_addr_only Hwr_ms Hwr_regs Heq') as [Hdom [Hwr_seg' Hwr_regs']].
       assert (Hseg: seg2 = seg1 ∪ seg2).
       symmetry. apply map_subseteq_union. exact Hincl.
@@ -691,8 +688,8 @@ Section machine_run.
 
       destruct (exec_segment_subseteq Hwr_ms Hwr_regs Heq' Heq1') as [Hc [Hr Hs]].
       rewrite -Hc -Hr Hs.
-      eapply (IHn c' regs' seg' _ c _ Hwr_seg' Hwr_regs' Hmr).
-      all: apply Hmr.
+      eapply (IHn c' regs' seg' _ _ Hwr_seg' Hwr_regs').
+      all: reflexivity.
       Unshelve. apply map_union_subseteq_l.
     Qed.
   End machine_run_subseteq.
