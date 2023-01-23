@@ -4,13 +4,26 @@ From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import stdpp_img addr_reg machine_base.
 
-
 Class RelationStable2 {A B:Type} (R:relation B) (P: A -> B -> Prop) :=
   relation_stable2 : ∀ w a b, R a b -> P w a -> P w b.
+
+#[global] Instance and_relation_stable2 {A B} R (P Q: A -> B -> Prop)
+  {H1:RelationStable2 R P} {H2:RelationStable2 R Q} : RelationStable2 R (fun w a => P w a /\ Q w a).
+Proof. intros w a b r [pwa qwa]. split. apply (H1 w a b r pwa). apply (H2 w a b r qwa). Qed.
+
+#[global] Instance or_relation_stable2 {A B} R (P Q: A -> B -> Prop)
+{H1:RelationStable2 R P} {H2:RelationStable2 R Q} : RelationStable2 R (fun w a => P w a \/ Q w a).
+Proof. intros w a b r [pwa | qwa]. left. apply (H1 w a b r pwa). right. apply (H2 w a b r qwa). Qed.
 
 Class OperatorStable {A:Type} (f:A -> A -> A) (P: A -> Prop) :=
   operator_stable : ∀ a b, P a -> P b -> P (f a b).
 
+#[global] Instance and_operator_stable {A} f (P Q: A -> Prop)
+  {H1:OperatorStable f P} {H2:OperatorStable f Q} : OperatorStable f (fun a => P a /\ Q a).
+Proof. intros a b [Hpa Hqa] [Hpb Hqb]. split. apply (H1 a b Hpa Hpb). apply (H2 a b Hqa Hqb). Qed.
+
+(** Definition of components, condition for well_formedness and linking,
+    the linking process, and properties (associativity, commutativity) *)
 Section Linking.
 
   (** Symbols are used to identify imported/exported word (often capabilites)
@@ -19,39 +32,46 @@ Section Linking.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
-  (** A predicate that must hold on all word of our segments
+  (** Word Restrictions, A predicate that must hold on all word of our segments
       Typically that if it is a capability, it only points into the segment
       (given as second argument)
       This should remain true if the segment increases *)
-  Variable word_restrictions: Word -> gset Addr -> Prop.
-  Context {word_restrictions_subseteq_stable2: RelationStable2 (⊆) word_restrictions}.
+  Variable WR: Word -> gset Addr -> Prop.
+  Context {WR_stable: RelationStable2 (⊆) WR}.
 
-  (** Example of a word_restrictions, ensure all capabilites point
+  (** Example of a WR, ensures all capabilites point
       into the given segment *)
-  Example can_address_only (word: Word) (addr_set: gset Addr) :=
+  Example can_address_only word (addr_set: gset Addr) :=
     match word with
     | WInt _ => True
     | WCap _ b e _ => ∀ a, (b <= a < e)%a -> a ∈ addr_set
     end.
-  #[global] Instance can_address_only_subseteq_stable2:
-    RelationStable2 (⊆) can_address_only.
+  #[global] Instance can_address_only_subseteq_stable2: RelationStable2 (⊆) can_address_only.
   Proof.
     intros w dom1 dom2 dom1_dom2. destruct w. auto.
     intros ca_dom1 addr addr_in_be.
     apply dom1_dom2. apply (ca_dom1 addr addr_in_be).
   Qed.
 
+  (** Another possible WR, not a capability *)
+  Example no_capability word (_:gset Addr) :=
+    match word with
+    | WInt _ => True
+    | _ => False
+    end.
+  #[global] Instance no_capability_subseteq_stable2: RelationStable2 (⊆) no_capability.
+  Proof. intros w a a' _ H. auto. Qed.
+
   (** Another example, no constraints on words at all *)
   Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
-  #[global] Instance unconstrained_word_subseteqstable:
-    RelationStable2 (⊆) unconstrained_word.
+  #[global] Instance unconstrained_word_subseteqstable: RelationStable2 (⊆) unconstrained_word.
   Proof. intros w a b _ _. apply I. Qed.
 
   (** A predicate that can be used to restrict the address space to a subsection
       of memory (ex: reserve space for a stack).
       This should remain true on the link (union of segments where it holds) *)
-  Variable addr_restrictions: gset Addr -> Prop.
-  Context {addr_restrictions_union_stable: OperatorStable (∪) addr_restrictions}.
+  Variable AR: gset Addr -> Prop.
+  Context {AR_union_stable: OperatorStable (∪) AR}.
 
   (** Example addr_restriction, address greater than a given end_stack parameter *)
   Example addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
@@ -93,9 +113,33 @@ Section Linking.
     imports : imports_type;
     (** the segment imports, a map addr -> symbol to place *)
 
-    exports : gmap Symbols Word;
+    exports : exports_type;
     (** Segment exports, a map symbols -> word (often capabilities) *)
   }.
+
+  Record component_alt := {
+    segment_alt : gmap Addr (Word + Symbols);
+    exports_alt : exports_type;
+  }.
+
+  Definition alt2comp alt := {|
+    segment := map_fold (fun addr v seg =>
+      match v with
+      | inl w => <[addr := w]> seg
+      | _ => seg
+      end) ∅ (segment_alt alt);
+    imports := map_fold (fun addr v seg =>
+      match v with
+      | inr s => <[addr := s]> seg
+      | _ => seg
+      end) ∅ (segment_alt alt);
+    exports := exports_alt alt;
+  |}.
+
+  Definition comp2alt comp := {|
+    segment_alt := fmap inr (imports comp) ∪ fmap inl (segment comp);
+    exports_alt := exports comp
+  |}.
 
   #[global] Instance component_eq_dec : EqDecision component.
   Proof.
@@ -117,9 +161,9 @@ Section Linking.
       (* We import only to addresses in our segment *)
       (Himp: dom comp.(imports) ⊆ dom comp.(segment))
       (* Word restriction on segment and exports *)
-      (Hwr_exp: ∀ w, w ∈ img comp.(exports) -> word_restrictions w (dom comp.(segment)))
-      (Hwr_ms: ∀ w, w ∈ img comp.(segment) -> word_restrictions w (dom comp.(segment)))
-      (Har_ms: addr_restrictions (dom comp.(segment))),
+      (Hwr_exp: ∀ w, w ∈ img comp.(exports) -> WR w (dom comp.(segment)))
+      (Hwr_ms: ∀ w, w ∈ img comp.(segment) -> WR w (dom comp.(segment)))
+      (Har_ms: AR (dom comp.(segment))),
       well_formed_comp comp.
 
   (** A program is a segment without imports and some register allocations *)
@@ -127,7 +171,7 @@ Section Linking.
   | is_program_intro: forall
       (Hwfcomp: well_formed_comp comp)
       (Hnoimports: comp.(imports) = ∅)
-      (Hwr_regs: ∀ w, w ∈ img regs -> word_restrictions w (dom comp.(segment))),
+      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom comp.(segment))),
       is_program comp regs.
 
   (** Add values defined in exp to the segment
@@ -175,7 +219,7 @@ Section Linking.
   Inductive is_context (context lib: component) (regs:Reg): Prop :=
   | is_context_intro: forall
       (Hcan_link: context ##ₗ lib)
-      (Hwr_regs: ∀ w, w ∈ img regs -> word_restrictions w (dom context.(segment)))
+      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom context.(segment)))
       (Hno_imps_l: img lib.(imports) ⊆ dom context.(exports))
       (Hno_imps_r: img context.(imports) ⊆ dom lib.(exports)),
       is_context context lib regs.
@@ -1040,7 +1084,7 @@ Section Linking.
 
     Lemma is_context_move_out {a b c regs} :
       a ##ₗ b ->
-      (∀ w, w ∈ img regs -> word_restrictions w (dom a.(segment))) ->
+      (∀ w, w ∈ img regs -> WR w (dom a.(segment))) ->
       is_context (a ⋈ b) c regs -> is_context a (b ⋈ c) regs.
     Proof.
       intros ab Hregs [].
@@ -1059,7 +1103,7 @@ Section Linking.
 
     Lemma is_context_remove_exportless_l {ctxt comp extra regs} :
       ctxt ##ₗ extra -> exports extra = ∅ ->
-      (∀ w : Word, w ∈ img regs → word_restrictions w (dom (segment ctxt))) ->
+      (∀ w : Word, w ∈ img regs → WR w (dom (segment ctxt))) ->
       is_context (ctxt ⋈ extra) comp regs ->
       is_context ctxt comp regs.
     Proof.
@@ -1107,7 +1151,7 @@ Section Linking.
 
   (** Linking a list of segments*)
   Section LinkList.
-    Variable addr_restrictions_empty : addr_restrictions ∅.
+    Variable AR_empty : AR ∅.
 
     Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
@@ -1117,7 +1161,7 @@ Section Linking.
     Proof.
       apply wf_comp_intro; try set_solver.
       rewrite dom_empty_L.
-      apply addr_restrictions_empty.
+      apply AR_empty.
     Qed.
 
     Lemma can_link_empty_r {c}:
@@ -1366,48 +1410,46 @@ Notation imports_type Symbols := (gmap Addr Symbols).
 Notation exports_type Symbols := (gmap Symbols Word).
 Notation segment_type := (gmap Addr Word).
 
-#[global] Infix "⋈" := link (at level 50).
+Infix "⋈" := link (at level 50).
 
-(** Simple lemmas used to weaken word_restrictions
+(** Simple lemmas used to weaken WR
     and address_restrictions in well_formed_comp, can_link, is_program... *)
 Section LinkWeakenRestrictions.
   Context {Symbols: Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
-  Context {word_restrictions: Word -> gset Addr -> Prop}.
-  Context {word_restrictions': Word -> gset Addr -> Prop}.
-  Variable word_restrictions_weaken:
-    ∀ w a, word_restrictions w a -> word_restrictions' w a.
+  Context {WR: Word -> gset Addr -> Prop}.
+  Context {WR': Word -> gset Addr -> Prop}.
+  Variable WR_weaken: ∀ w a, WR w a -> WR' w a.
 
-  Context {addr_restrictions: gset Addr -> Prop}.
-  Context {addr_restrictions': gset Addr -> Prop}.
-  Variable addr_restrictions_weaken:
-    ∀ a, addr_restrictions a -> addr_restrictions' a.
+  Context {AR: gset Addr -> Prop}.
+  Context {AR': gset Addr -> Prop}.
+  Variable AR_weaken: ∀ a, AR a -> AR' a.
 
   (* ==== Well formed comp ==== *)
 
   Lemma wf_comp_weaken_wr :
     ∀ {comp : component Symbols},
-    well_formed_comp word_restrictions addr_restrictions comp ->
-    well_formed_comp word_restrictions' addr_restrictions comp.
+    well_formed_comp WR AR comp ->
+    well_formed_comp WR' AR comp.
   Proof.
     intros comp [ ].
     apply wf_comp_intro.
     all: try assumption.
-    all: intros w H; apply word_restrictions_weaken.
+    all: intros w H; apply WR_weaken.
     exact (Hwr_exp w H). apply (Hwr_ms w H).
   Qed.
 
   Lemma wf_comp_weaken_ar :
     ∀ {comp : component Symbols},
-    well_formed_comp word_restrictions addr_restrictions comp ->
-    well_formed_comp word_restrictions addr_restrictions' comp.
+    well_formed_comp WR AR comp ->
+    well_formed_comp WR AR' comp.
   Proof.
     intros comp [ ].
     apply wf_comp_intro.
     all: try assumption.
-    apply addr_restrictions_weaken.
+    apply AR_weaken.
     assumption.
   Qed.
 
@@ -1415,8 +1457,8 @@ Section LinkWeakenRestrictions.
 
   Lemma can_link_weaken_wr :
     ∀ {a b : component Symbols},
-    can_link word_restrictions addr_restrictions a b ->
-    can_link word_restrictions' addr_restrictions a b.
+    can_link WR AR a b ->
+    can_link WR' AR a b.
   Proof.
     intros a b [ ].
     apply can_link_intro; try apply wf_comp_weaken_wr; assumption.
@@ -1424,8 +1466,8 @@ Section LinkWeakenRestrictions.
 
   Lemma can_link_weaken_ar :
     ∀ {a b : component Symbols},
-    can_link word_restrictions addr_restrictions a b ->
-    can_link word_restrictions addr_restrictions' a b.
+    can_link WR AR a b ->
+    can_link WR AR' a b.
   Proof.
     intros a b [ ].
     apply can_link_intro; try apply wf_comp_weaken_ar; assumption.
@@ -1435,21 +1477,21 @@ Section LinkWeakenRestrictions.
 
   Lemma is_program_weaken_wr :
     ∀ {comp : component Symbols} {regs},
-    is_program word_restrictions addr_restrictions comp regs ->
-    is_program word_restrictions' addr_restrictions comp regs.
+    is_program WR AR comp regs ->
+    is_program WR' AR comp regs.
   Proof.
     intros comp regs [].
     apply is_program_intro.
     apply wf_comp_weaken_wr. assumption.
     assumption.
     intros w rr_w.
-    exact (word_restrictions_weaken w _ (Hwr_regs w rr_w)).
+    exact (WR_weaken w _ (Hwr_regs w rr_w)).
   Qed.
 
   Lemma is_program_weaken_ar :
     ∀ {comp : component Symbols} {regs},
-    is_program word_restrictions addr_restrictions comp regs ->
-    is_program word_restrictions addr_restrictions' comp regs.
+    is_program WR AR comp regs ->
+    is_program WR AR' comp regs.
   Proof.
     intros comp regs [].
     apply is_program_intro.
@@ -1461,21 +1503,21 @@ Section LinkWeakenRestrictions.
 
   Lemma is_context_weaken_wr :
     ∀ {context lib : component Symbols} {regs},
-    is_context word_restrictions addr_restrictions context lib regs ->
-    is_context word_restrictions' addr_restrictions context lib regs.
+    is_context WR AR context lib regs ->
+    is_context WR' AR context lib regs.
   Proof.
     intros context lib regs [].
     apply is_context_intro.
     apply can_link_weaken_wr. assumption.
     intros w rr_w.
-    apply (word_restrictions_weaken w _ (Hwr_regs w rr_w)).
+    apply (WR_weaken w _ (Hwr_regs w rr_w)).
     all: assumption.
   Qed.
 
   Lemma is_context_weaken_ar :
     ∀ {context lib : component Symbols} {regs},
-    is_context word_restrictions addr_restrictions context lib regs ->
-    is_context word_restrictions addr_restrictions' context lib regs.
+    is_context WR AR context lib regs ->
+    is_context WR AR' context lib regs.
   Proof.
     intros context lib regs [].
     apply is_context_intro.
