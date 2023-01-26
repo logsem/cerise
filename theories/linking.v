@@ -15,13 +15,6 @@ Proof. intros w a b r [pwa qwa]. split. apply (H1 w a b r pwa). apply (H2 w a b 
 {H1:RelationStable2 R P} {H2:RelationStable2 R Q} : RelationStable2 R (fun w a => P w a \/ Q w a).
 Proof. intros w a b r [pwa | qwa]. left. apply (H1 w a b r pwa). right. apply (H2 w a b r qwa). Qed.
 
-Class OperatorStable {A:Type} (f:A -> A -> A) (P: A -> Prop) :=
-  operator_stable : ∀ a b, P a -> P b -> P (f a b).
-
-#[global] Instance and_operator_stable {A} f (P Q: A -> Prop)
-  {H1:OperatorStable f P} {H2:OperatorStable f Q} : OperatorStable f (fun a => P a /\ Q a).
-Proof. intros a b [Hpa Hqa] [Hpb Hqb]. split. apply (H1 a b Hpa Hpb). apply (H2 a b Hqa Hqb). Qed.
-
 (** Definition of components, condition for well_formedness and linking,
     the linking process, and properties (associativity, commutativity) *)
 Section Linking.
@@ -67,30 +60,6 @@ Section Linking.
   #[global] Instance unconstrained_word_subseteqstable: RelationStable2 (⊆) unconstrained_word.
   Proof. intros w a b _ _. apply I. Qed.
 
-  (** A predicate that can be used to restrict the address space to a subsection
-      of memory (ex: reserve space for a stack).
-      This should remain true on the link (union of segments where it holds) *)
-  Variable AR: gset Addr -> Prop.
-  Context {AR_union_stable: OperatorStable (∪) AR}.
-
-  (** Example addr_restriction, address greater than a given end_stack parameter *)
-  Example addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
-    forall a, a ∈ dom -> (e_stk < a)%a.
-  #[global] Instance addr_gt_than_union_stable (e_stk: Addr) :
-    OperatorStable (∪) (addr_gt_than e_stk).
-  Proof.
-    intros dom1 dom2 gt_dom1 gt_dom2 a a_in_1or2.
-    apply elem_of_union in a_in_1or2.
-    destruct a_in_1or2 as [ a_in_1 | a_in_2 ].
-    apply (gt_dom1 a a_in_1).
-    apply (gt_dom2 a a_in_2).
-  Qed.
-
-  (** Another example, no constraints at all here *)
-  Example unconstrained_addr : gset Addr -> Prop := fun _ => True.
-  #[global] Instance unconstrained_addr_union_stable:
-    OperatorStable (∪) unconstrained_addr.
-  Proof. intros a. auto. Qed.
 
   Notation imports_type := (gmap Addr Symbols).
   Notation exports_type := (gmap Symbols Word).
@@ -162,16 +131,16 @@ Section Linking.
       (Himp: dom comp.(imports) ⊆ dom comp.(segment))
       (* Word restriction on segment and exports *)
       (Hwr_exp: ∀ w, w ∈ img comp.(exports) -> WR w (dom comp.(segment)))
-      (Hwr_ms: ∀ w, w ∈ img comp.(segment) -> WR w (dom comp.(segment)))
-      (Har_ms: AR (dom comp.(segment))),
+      (Hwr_ms: ∀ w, w ∈ img comp.(segment) -> WR w (dom comp.(segment))),
       well_formed_comp comp.
 
   (** A program is a segment without imports and some register allocations *)
   Inductive is_program (comp:component) (regs:Reg) : Prop :=
   | is_program_intro: forall
-      (Hwfcomp: well_formed_comp comp)
-      (Hnoimports: comp.(imports) = ∅)
-      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom comp.(segment))),
+      (Hwf_comp: well_formed_comp comp)
+      (Hno_imports: comp.(imports) = ∅)
+      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom comp.(segment)))
+      (Hall_regs: ∀ r, is_Some (regs !! r)),
       is_program comp regs.
 
   (** Add values defined in exp to the segment
@@ -220,6 +189,7 @@ Section Linking.
   | is_context_intro: forall
       (Hcan_link: context ##ₗ lib)
       (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom context.(segment)))
+      (Hall_regs: ∀ r, is_Some (regs !! r))
       (Hno_imps_l: img lib.(imports) ⊆ dom context.(exports))
       (Hno_imps_r: img context.(imports) ⊆ dom lib.(exports)),
       is_context context lib regs.
@@ -548,8 +518,8 @@ Section Linking.
     Proof.
       intros disj.
       inversion disj.
-      inversion Hwf_l as [Hdisj1 Himp1 Hexp1 Hwr_ms1 Har_ms1].
-      inversion Hwf_r as [Hdisj2 Himp2 Hexp2 Hwr_ms2 Har_ms2].
+      inversion Hwf_l as [Hdisj1 Himp1 Hwr_exp1 Hwr_ms1].
+      inversion Hwf_r as [Hdisj2 Himp2 Hwr_exp2 Hwr_ms2].
       specialize (link_segment_dom_subseteq_l Hwf_l Hwf_r).
       specialize (link_segment_dom_subseteq_r Hwf_l Hwf_r).
       intros imp2 imp1.
@@ -573,23 +543,20 @@ Section Linking.
         apply lookup_union_Some in exp_s_w. 2: assumption.
         destruct exp_s_w as [exp_s | exp_s];
         apply elem_of_img_rev in exp_s.
-        exact (relation_stable2 _ _ _ imp1 (Hexp1 w exp_s)).
-        exact (relation_stable2 _ _ _ imp2 (Hexp2 w exp_s)).
+        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp_s)).
+        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp_s)).
       + intros w ms_w. (* word in segment follow word restrictions *)
         destruct (resolve_imports_spec_simple ms_w) as [ exp_w | ms_w'].
         destruct (img_union _ _ _ exp_w) as [exp1_w | exp2_w].
-        exact (relation_stable2 _ _ _ imp1 (Hexp1 w exp1_w)).
-        exact (relation_stable2 _ _ _ imp2 (Hexp2 w exp2_w)).
+        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
+        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
         destruct (resolve_imports_spec_simple ms_w') as [ exp_w | ms_w''].
         destruct (img_union _ _ _ exp_w) as [exp1_w | exp2_w].
-        exact (relation_stable2 _ _ _ imp1 (Hexp1 w exp1_w)).
-        exact (relation_stable2 _ _ _ imp2 (Hexp2 w exp2_w)).
+        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
+        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
         destruct (img_union _ _ _ ms_w'') as [ms1_w | ms2_w].
         exact (relation_stable2 _ _ _ imp1 (Hwr_ms1 w ms1_w)).
         exact (relation_stable2 _ _ _ imp2 (Hwr_ms2 w ms2_w)).
-      + rewrite (resolve_imports_link_dom Hwf_l Hwf_r).
-        rewrite dom_union_L.
-        apply operator_stable; assumption.
     Qed.
 
     Lemma is_context_is_program {context lib regs}:
@@ -623,8 +590,8 @@ Section Linking.
         inversion Hcan_link.
         apply (relation_stable2 _ _ _ (link_segment_dom_subseteq_l Hwf_l Hwf_r)).
         exact (Hwr_regs w rw).
+      - apply Hall_regs.
     Qed.
-
   End LinkWellFormed.
 
   (** Lemmas on the symmetry/commutativity of links *)
@@ -1077,6 +1044,7 @@ Section Linking.
       - intros w rr'. inversion Hcan_link.
         apply (relation_stable2 w _ _ (link_segment_dom_subseteq_l Hwf_l0 Hwf_l)).
         apply (Hwr_regs w rr').
+      - apply Hall_regs.
       - exact (no_imports_assoc_l bc Hno_imps_l).
       - apply no_imports_assoc_r; try assumption.
         solve_can_link.
@@ -1094,6 +1062,7 @@ Section Linking.
       - apply can_link_sym. apply can_link_assoc;
         auto using symmetry.
       - exact Hregs.
+      - exact Hall_regs.
       - apply no_imports_assoc_r; try auto using symmetry.
         apply no_imports_assoc_r; try auto using symmetry.
         apply no_imports_assoc_l; assumption.
@@ -1109,7 +1078,7 @@ Section Linking.
     Proof.
       intros Hsep Hex_null H [ ].
       apply is_context_intro. solve_can_link.
-      assumption.
+      assumption. assumption.
       unfold link in Hno_imps_l. simpl in Hno_imps_l.
       rewrite Hex_null map_union_empty in Hno_imps_l.
       apply Hno_imps_l.
@@ -1132,7 +1101,7 @@ Section Linking.
     Proof.
       intros Hsep Hex_null [ ].
       apply is_context_intro. solve_can_link.
-      assumption.
+      assumption. assumption.
       intros s Hs. apply elem_of_img in Hs as [a Has].
       apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
       apply elem_of_img. exists a. rewrite map_filter_lookup_Some.
@@ -1151,18 +1120,12 @@ Section Linking.
 
   (** Linking a list of segments*)
   Section LinkList.
-    Variable AR_empty : AR ∅.
-
     Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
     |}.
 
     Lemma empty_comp_wf : well_formed_comp ∅.
-    Proof.
-      apply wf_comp_intro; try set_solver.
-      rewrite dom_empty_L.
-      apply AR_empty.
-    Qed.
+    Proof. apply wf_comp_intro; try set_solver. Qed.
 
     Lemma can_link_empty_r {c}:
       well_formed_comp c -> c ##ₗ ∅.
@@ -1423,16 +1386,10 @@ Section LinkWeakenRestrictions.
   Context {WR': Word -> gset Addr -> Prop}.
   Variable WR_weaken: ∀ w a, WR w a -> WR' w a.
 
-  Context {AR: gset Addr -> Prop}.
-  Context {AR': gset Addr -> Prop}.
-  Variable AR_weaken: ∀ a, AR a -> AR' a.
-
-  (* ==== Well formed comp ==== *)
-
   Lemma wf_comp_weaken_wr :
     ∀ {comp : component Symbols},
-    well_formed_comp WR AR comp ->
-    well_formed_comp WR' AR comp.
+    well_formed_comp WR comp ->
+    well_formed_comp WR' comp.
   Proof.
     intros comp [ ].
     apply wf_comp_intro.
@@ -1441,44 +1398,19 @@ Section LinkWeakenRestrictions.
     exact (Hwr_exp w H). apply (Hwr_ms w H).
   Qed.
 
-  Lemma wf_comp_weaken_ar :
-    ∀ {comp : component Symbols},
-    well_formed_comp WR AR comp ->
-    well_formed_comp WR AR' comp.
-  Proof.
-    intros comp [ ].
-    apply wf_comp_intro.
-    all: try assumption.
-    apply AR_weaken.
-    assumption.
-  Qed.
-
-  (* ==== can_link ==== *)
-
   Lemma can_link_weaken_wr :
     ∀ {a b : component Symbols},
-    can_link WR AR a b ->
-    can_link WR' AR a b.
+    can_link WR a b ->
+    can_link WR' a b.
   Proof.
     intros a b [ ].
     apply can_link_intro; try apply wf_comp_weaken_wr; assumption.
   Qed.
 
-  Lemma can_link_weaken_ar :
-    ∀ {a b : component Symbols},
-    can_link WR AR a b ->
-    can_link WR AR' a b.
-  Proof.
-    intros a b [ ].
-    apply can_link_intro; try apply wf_comp_weaken_ar; assumption.
-  Qed.
-
-  (* ==== is_program ==== *)
-
   Lemma is_program_weaken_wr :
     ∀ {comp : component Symbols} {regs},
-    is_program WR AR comp regs ->
-    is_program WR' AR comp regs.
+    is_program WR comp regs ->
+    is_program WR' comp regs.
   Proof.
     intros comp regs [].
     apply is_program_intro.
@@ -1486,25 +1418,13 @@ Section LinkWeakenRestrictions.
     assumption.
     intros w rr_w.
     exact (WR_weaken w _ (Hwr_regs w rr_w)).
+    assumption.
   Qed.
-
-  Lemma is_program_weaken_ar :
-    ∀ {comp : component Symbols} {regs},
-    is_program WR AR comp regs ->
-    is_program WR AR' comp regs.
-  Proof.
-    intros comp regs [].
-    apply is_program_intro.
-    apply wf_comp_weaken_ar.
-    all: assumption.
-  Qed.
-
-  (* ==== is context ==== *)
 
   Lemma is_context_weaken_wr :
     ∀ {context lib : component Symbols} {regs},
-    is_context WR AR context lib regs ->
-    is_context WR' AR context lib regs.
+    is_context WR context lib regs ->
+    is_context WR' context lib regs.
   Proof.
     intros context lib regs [].
     apply is_context_intro.
@@ -1513,22 +1433,7 @@ Section LinkWeakenRestrictions.
     apply (WR_weaken w _ (Hwr_regs w rr_w)).
     all: assumption.
   Qed.
-
-  Lemma is_context_weaken_ar :
-    ∀ {context lib : component Symbols} {regs},
-    is_context WR AR context lib regs ->
-    is_context WR AR' context lib regs.
-  Proof.
-    intros context lib regs [].
-    apply is_context_intro.
-    apply can_link_weaken_ar. all: assumption.
-  Qed.
-
 End LinkWeakenRestrictions.
-
-Lemma any_implies_unconstrained_addr {P}:
-  ∀ a, P a -> unconstrained_addr a.
-Proof. intros. unfold unconstrained_addr. auto. Qed.
 
 Lemma any_implies_unconstrained_word {P}:
   ∀ w a, P w a -> unconstrained_word w a.
@@ -1541,71 +1446,57 @@ Ltac solve_can_link :=
   (* destruct a ##ₗ b to get a.xxx ##ₘ b.xxx
      where xxx=exports, imports or segment *)
   | H: _ |- imports ?a ##ₘ imports ?b =>
-      apply (can_link_disjoint_impls unconstrained_word unconstrained_addr);
+      apply (can_link_disjoint_impls unconstrained_word);
       solve_can_link || fail 1
   | H: _ |- exports ?a ##ₘ exports ?b =>
       let H := fresh in
-      assert (H: can_link unconstrained_word unconstrained_addr a b);
+      assert (H: can_link unconstrained_word a b);
       solve_can_link;
       inversion H; assumption || fail 1
   | H: _ |- segment ?a ##ₘ segment ?b =>
       let H := fresh in
-      assert (H: can_link unconstrained_word unconstrained_addr a b);
+      assert (H: can_link unconstrained_word a b);
       solve_can_link;
       inversion H; assumption || fail 1
   (* using symmetry *)
-  | H: can_link ?wr ?ar ?a ?b |- can_link ?wr ?ar ?a ?b => exact H
-  | H: can_link ?wr ?ar ?a ?b |- can_link ?wr ?ar ?b ?a => symmetry; exact H
-  | H: well_formed_comp ?wr ?ar ?a |- well_formed_comp ?wr ?ar ?a => exact H
-  | H: can_link _ _ ?a _ |- well_formed_comp _ _ ?a => inversion H; clear H; solve_can_link
-  | H: can_link _ _ _ ?a |- well_formed_comp _ _ ?a => inversion H; clear H; solve_can_link
+  | H: can_link ?wr ?a ?b |- can_link ?wr ?a ?b => exact H
+  | H: can_link ?wr ?a ?b |- can_link ?wr ?b ?a => symmetry; exact H
+  | H: well_formed_comp ?wr ?a |- well_formed_comp ?wr ?a => exact H
+  | H: can_link _ ?a _ |- well_formed_comp _ ?a => inversion H; clear H; solve_can_link
+  | H: can_link _ _ ?a |- well_formed_comp _ ?a => inversion H; clear H; solve_can_link
   (* using weakening *)
-  | H: can_link ?wr _ _ _ |- can_link unconstrained_word _ _ _ =>
+  | H: can_link ?wr _ _ |- can_link unconstrained_word _ _ =>
       tryif (unify wr unconstrained_word) then fail else (
         apply (can_link_weaken_wr (@any_implies_unconstrained_word wr)) in H;
         solve_can_link)
-  | H: can_link _ ?ar _ _ |- can_link _ unconstrained_addr _ _ =>
-      tryif (unify ar unconstrained_addr) then fail else (
-        apply (can_link_weaken_ar (@any_implies_unconstrained_addr ar)) in H;
-        solve_can_link)
-  | H: can_link ?wr _ _ _, H2: ∀ w a, ?wr w a -> ?wr' w a |- can_link ?wr' _ _ _ =>
+  | H: can_link ?wr _ _, H2: ∀ w a, ?wr w a -> ?wr' w a |- can_link ?wr' _ _ =>
       tryif (unify wr wr') then fail else (
         apply (can_link_weaken_wr H2) in H; solve_can_link)
-  | H: can_link _ ?ar _ _, H2: ∀ a, ?ar a -> ?ar' a |- can_link _ ?ar _ _ =>
-      tryif (unify ar ar') then fail else (
-        apply (can_link_weaken_ar H2) in H; solve_can_link)
-   (* using weakening for well_formed_comp *)
-  | H: well_formed_comp ?wr _ _ |- well_formed_comp unconstrained_word _ _ =>
+  (* using weakening for well_formed_comp *)
+  | H: well_formed_comp ?wr _ |- well_formed_comp unconstrained_word _ =>
       tryif (unify wr unconstrained_word) then fail else (
         apply (wf_comp_weaken_wr (@any_implies_unconstrained_word wr)) in H;
         solve_can_link)
-  | H: well_formed_comp _ ?ar _ |- well_formed_comp _ unconstrained_addr _ =>
-      tryif (unify ar unconstrained_addr) then fail else (
-        apply (wf_comp_weaken_ar (@any_implies_unconstrained_addr ar)) in H;
-        solve_can_link)
-  | H: well_formed_comp ?wr _ _, H2: ∀ w a, ?wr w a -> ?wr' w a |- well_formed_comp ?wr' _ _ =>
+  | H: well_formed_comp ?wr _, H2: ∀ w a, ?wr w a -> ?wr' w a |- well_formed_comp ?wr' _ =>
       tryif (unify wr wr') then fail else (
         apply (wf_comp_weaken_wr H2) in H; solve_can_link)
-  | H: well_formed_comp _ ?ar _, H2: ∀ a, ?ar a -> ?ar' a |- well_formed_comp _ ?ar' _ =>
-      tryif (unify ar ar') then fail else (
-        apply (wf_comp_weaken_ar H2) in H; solve_can_link)
   (* get extra can_link hypotheses hidden in inductives *)
-  | H: is_context _ _ _ _ _ |- _ =>
+  | H: is_context _ _ _ _ |- _ =>
       inversion H; clear H; solve_can_link || fail 1
-  | H: can_link _ _ (_ ⋈ _) _ |- can_link _ _ _ _ =>
+  | H: can_link _ (_ ⋈ _) _ |- can_link _ _ _ =>
       let H1 := fresh in let H2 := fresh in
       apply can_link_weaken_l in H as H1;
       apply can_link_weaken_r in H as H2;
       clear H; solve_can_link
-  | H: can_link _ _ _ (_ ⋈ _) |- can_link _ _ _ _ => symmetry in H;
+  | H: can_link _ _ (_ ⋈ _) |- can_link _ _ _ => symmetry in H;
       let H1 := fresh in let H2 := fresh in
       apply can_link_weaken_l in H as H1;
       apply can_link_weaken_r in H as H2;
       clear H; solve_can_link
-  | H: _ |- can_link _ _ (_ ⋈ _) _ =>
-      apply (can_link_assoc _ _); solve_can_link
-  | H: _ |- can_link _ _ _ (_ ⋈ _) =>
+  | H: _ |- can_link _ (_ ⋈ _) _ =>
+      apply (can_link_assoc _); solve_can_link
+  | H: _ |- can_link _ _ (_ ⋈ _) =>
       symmetry; apply (can_link_assoc _ _); solve_can_link
-  | H: _ |- well_formed_comp _ _ (_ ⋈ _) =>
-      apply (link_well_formed _ _); solve_can_link
+  | H: _ |- well_formed_comp _ (_ ⋈ _) =>
+      apply (link_well_formed _); solve_can_link
   end.

@@ -41,6 +41,15 @@ Section fin_map_img.
     all: rewrite elem_of_img; exists k; exact Hm.
   Qed.
 
+  Lemma img_union_l:
+    ∀ (m1 m2:M A), img m1 ⊆ img (m1 ∪ m2).
+  Proof.
+    intros m1 m2 v Hv.
+    apply elem_of_img in Hv as [k Hv].
+    rewrite elem_of_img.
+    exists k. apply lookup_union_Some_l. apply Hv.
+  Qed.
+
   Lemma img_empty:
     img (@empty (M A) _) ≡@{D} ∅.
   Proof.
@@ -57,6 +66,14 @@ Section fin_map_img.
     rewrite set_equiv. intros x.
     rewrite elem_of_img. rewrite elem_of_singleton.
     setoid_rewrite lookup_singleton_Some. set_solver.
+  Qed.
+
+  Lemma img_insert (k:K) (v:A) (m:M A) : img (<[k:=v]> m) ⊆ {[ v ]} ∪ img m.
+  Proof.
+    intros w Hw. apply elem_of_img in Hw as [k' Hw].
+    apply lookup_insert_Some in Hw as [[Hkk' Hvw] | [Hkk' Hmk']].
+    apply elem_of_union_l, elem_of_singleton. symmetry. apply Hvw.
+    apply elem_of_union_r, elem_of_img. exists k'. apply Hmk'.
   Qed.
 
   Lemma img_empty_L `{!LeibnizEquiv D}:
