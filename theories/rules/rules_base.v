@@ -24,9 +24,6 @@ Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS c
   state_interp_mono _ _ _ _ := fupd_intro _ _
 }.
 
-(* This extra instance is needed because the regular `wp'` instance does not look for any `MachineParameters`, hence the `simple apply` fails during typeclass search *)
-Global Instance wp_MP `{MachineParameters} Σ : irisGS cap_lang Σ → Wp (iProp Σ) expr val stuckness. Proof. apply _. Defined.
-
 (* Points to predicates for registers *)
 Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
   (at level 20, q at level 50, format "r  ↦ᵣ{ q }  w") : bi_scope.
