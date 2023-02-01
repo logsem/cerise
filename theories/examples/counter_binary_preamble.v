@@ -1822,10 +1822,10 @@ Section counter_example_preamble.
     iDestruct (interp_eq with "Hr0_valid") as %<-.
     iAssert (full_map (r'',s'')) as %Hr''_full.
     { rewrite /full_map. iIntros (rr). iPureIntro. split.
-      - rewrite elem_of_gmap_dom /r''.
+      - rewrite -elem_of_dom /r''.
         rewrite !dom_insert_L regmap_full_dom //.
         generalize (all_registers_s_correct rr). clear; set_solver.
-      - rewrite elem_of_gmap_dom /s''.
+      - rewrite -elem_of_dom /s''.
         rewrite !dom_insert_L regmap_full_dom //.
         generalize (all_registers_s_correct rr). clear; set_solver. }
     iSpecialize ("Hcont" $! (r'',s'') with "[$Hj $Hregs $Hsegs $HnaI]").

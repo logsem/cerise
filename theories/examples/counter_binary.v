@@ -587,13 +587,13 @@ Section counter.
 
       (* reassemble registers *)
       iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr_t1]") as "Hrmap".
-      { apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+      { apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsmap $Hs_t1]") as "Hsmap".
-      { apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+      { apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_env with "[$Hrmap $Hr_env]") as "Hrmap".
-      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+      { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_env with "[$Hsmap $Hs_env]") as "Hsmap".
-      { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+      { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
 
       (* now we are ready to apply the jump or fail pattern *)
       destruct (decide (isCorrectPC (updatePcPerm wret))).
@@ -603,9 +603,9 @@ Section counter.
         iMod ("Hcls" with "[Hprog_done Hsprog_done Hi Hsi $Hown]") as "Hown".
         { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$&$)". iDestruct "Hsprog_done" as "($&$&$&$&$)". iSplit; done. }
         iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr_t0]") as "Hrmap".
-        { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+        { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
         iDestruct (big_sepM_insert _ _ r_t0 with "[$Hsmap $Hs_t0]") as "Hsmap".
-        { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+        { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
         iDestruct (interp_eq with "Hcont") as %<-.
         set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> rmap)))).
         set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> smap)))).
@@ -617,7 +617,7 @@ Section counter.
               intros r'. simpl. consider_next_reg_both r' PC.
               consider_next_reg_both r' r_t0. consider_next_reg_both r' r_env.
               consider_next_reg_both r' r_t1.
-              split; apply elem_of_gmap_dom;[rewrite Hdom1|rewrite Hdom2];assert (r' ∈ all_registers_s) as Hin;
+              split; apply elem_of_dom;[rewrite Hdom1|rewrite Hdom2];assert (r' ∈ all_registers_s) as Hin;
                 [apply all_registers_s_correct| |apply all_registers_s_correct|];revert n n0 n1 n2 Hin;clear;set_solver.
             + iIntros (r v1 v2 Hne Hv1s Hv2s).
               consider_next_reg_both1 r PC Hv1s Hv2s. done.
@@ -629,11 +629,11 @@ Section counter.
             + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
               rewrite delete_insert. iFrame.
               repeat (rewrite lookup_insert_ne;auto).
-              apply elem_of_gmap_dom_none. rewrite Hdom1. clear;set_solver.
+              apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
             + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
               rewrite delete_insert. iFrame.
               repeat (rewrite lookup_insert_ne;auto).
-              apply elem_of_gmap_dom_none. rewrite Hdom2. clear;set_solver.
+              apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
         }
         rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr".
         iIntros (v). iApply "Hφ".
@@ -707,7 +707,7 @@ Section counter.
       apply contiguous_between_cons_inv_first in Hcont2 as Heq. subst a3.
       (* Get a general purpose register *)
       assert (is_Some (rmap !! r_ret) ∧ is_Some (smap !! r_ret)) as [ [w' Hrtret] [w'' Hstret] ].
-      { split; apply elem_of_gmap_dom;[rewrite Hdom1|rewrite Hdom2];apply elem_of_difference;
+      { split; apply elem_of_dom;[rewrite Hdom1|rewrite Hdom2];apply elem_of_difference;
         split;[apply all_registers_s_correct|clear;set_solver|apply all_registers_s_correct|clear;set_solver]. }
       iDestruct (big_sepM_delete _ _ r_ret with "Hregs") as "[Hr_ret Hregs]";[eauto|].
       iDestruct (big_sepM_delete _ _ r_ret with "Hsegs") as "[Hs_ret Hsegs]";[eauto|].
@@ -767,13 +767,13 @@ Section counter.
       iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs";[apply lookup_delete|].
       iDestruct (big_sepM_insert _ _ r_ret with "[$Hsegs $Hs_ret]") as "Hsegs";[apply lookup_delete|].
       iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
-      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_env with "[$Hsegs $Hs_env]") as "Hsegs".
-      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
-      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
       iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsegs $Hs_t1]") as "Hsegs".
-      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+      { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
       rewrite !insert_delete_insert.
 
       (* now we are ready to apply the jump or fail pattern *)
@@ -785,9 +785,9 @@ Section counter.
         iMod ("Hcls" with "[Hprog_done Hsprog_done Hi Hsi $Hown]") as "Hown".
         { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$)". iDestruct "Hsprog_done" as "($&$&$&$)". iSplit;done. }
         iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-        { rewrite !lookup_insert_ne//. apply elem_of_gmap_dom_none. rewrite Hdom1. clear; set_solver. }
+        { rewrite !lookup_insert_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
         iDestruct (big_sepM_insert _ _ r_t0 with "[$Hsegs $Hs_t0]") as "Hsegs".
-        { rewrite !lookup_insert_ne//. apply elem_of_gmap_dom_none. rewrite Hdom2. clear; set_solver. }
+        { rewrite !lookup_insert_ne//. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
         set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> rmap))))).
         set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> smap))))).
         iDestruct ("Hcallback'" $! (regs',segs') with "[Hregs Hsegs $Hj $Hown HPC HsPC]") as "[_ Hexpr]".
@@ -799,7 +799,7 @@ Section counter.
               consider_next_reg_both r' PC. consider_next_reg_both r' r_t0. consider_next_reg_both r' r_t1. consider_next_reg_both r' r_env.
               consider_next_reg_both r' r_ret.
               assert (r' ∈ all_registers_s) as Hin;[apply all_registers_s_correct|].
-              split;apply elem_of_gmap_dom;[rewrite Hdom1|rewrite Hdom2];revert n n0 n1 n2 Hin;clear;set_solver.
+              split;apply elem_of_dom;[rewrite Hdom1|rewrite Hdom2];revert n n0 n1 n2 Hin;clear;set_solver.
             + iIntros (r v1 v2 Hne Hv1s Hv2s).
               consider_next_reg_both1 r PC Hv1s Hv2s. done.
               consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
@@ -810,11 +810,11 @@ Section counter.
             + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
               rewrite delete_insert. iFrame.
               repeat (rewrite lookup_insert_ne;auto).
-              apply elem_of_gmap_dom_none. rewrite Hdom1. clear;set_solver.
+              apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
             + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
               rewrite delete_insert. iFrame.
               repeat (rewrite lookup_insert_ne;auto).
-              apply elem_of_gmap_dom_none. rewrite Hdom2. clear;set_solver.
+              apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
         }
         rewrite /interp_conf. iApply wp_wand_l. iFrame "Hexpr".
         iIntros (v). iApply "Hφ".
