@@ -1,16 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import countable gmap list.
 
-Lemma elements_list_to_set {A} `{Countable A} (l: list A) :
-  NoDup l →
-  elements (list_to_set l : gset A) ≡ₚ l.
-Proof.
-  induction l.
-  - intros. rewrite list_to_set_nil elements_empty //.
-  - intros ND. rewrite list_to_set_cons elements_union_singleton.
-    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_1_1.
-    + rewrite IHl //. eauto using NoDup_cons_1_2.
-Qed.
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
   is_Some ((list_to_map l : gmap A B) !! a) ↔ a ∈ l.*1.
@@ -37,14 +27,6 @@ Proof.
   revert l2. induction l1; intros l2 Hl2; auto.
   destruct l2; cbn in Hl2. exfalso; lia.
   cbn. rewrite IHl1; auto. lia.
-Qed.
-
-Lemma list_filter_app { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l1 l2:
-  @list_filter _ P _ (l1 ++ l2) = @list_filter _ P _ l1 ++ @list_filter _ P _ l2.
-Proof.
-  induction l1; simpl; auto.
-  destruct (decide (P a)); auto.
-  unfold filter. rewrite IHl1. auto.
 Qed.
 
 Lemma list_filter_forall { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l:
