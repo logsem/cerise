@@ -647,35 +647,6 @@ Proof.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
 Qed.
 
-Lemma map_filter_sub :
-∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 :
-                                             ∀ A : Type,
-                                               Lookup K A (M A))
-  (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-  (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A))
-  (EqDecision0 : EqDecision K),
-  FinMap K M →
-  ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x))
-    (m : M A),
-    filter P m ⊆ m.
-Proof.
-  intros. eapply map_subseteq_spec. intros ? ? ?.
-  eapply map_filter_lookup_Some_1_1; eauto.
-Qed.
-
-Lemma map_filter_id :
-  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
-    FinMap K M
-    → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m : M A),
-      (∀ i x, m !! i = Some x → P (i, x)) → filter P m = m.
-Proof.
-  intros. apply map_eq.
-  intros i. destruct (m !! i) eqn:Hsome.
-  - apply map_filter_lookup_Some_2;auto.
-  - apply map_filter_lookup_None_2;auto.
-Qed.
-
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :
   (zip l k).*1 `prefix_of` l.
 Proof.

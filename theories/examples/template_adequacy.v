@@ -178,7 +178,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hrothers).
@@ -346,7 +346,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
@@ -643,7 +643,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (lib_region (priv_libs Lib)); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto.
+      eapply map_filter_subseteq; typeclasses eauto.
       transitivity (lib_region (pub_libs Lib ++ priv_libs Lib)); auto.
       rewrite lib_region_app. apply map_union_subseteq_r. auto.
     }
