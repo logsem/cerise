@@ -185,11 +185,11 @@ Section interval_client.
     destruct Hcond as (He1 & He2 & He3).
     destruct Hi_pc as (Hvpci & Hboundsi).
 
-    assert (is_Some (rmap !! r_temp1)) as [w0 Hr_temp1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_temp3)) as [w2 Hr_temp3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_temp4)) as [w3 Hr_temp4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_t2)) as [w4 Hr_t2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp1)) as [w0 Hr_temp1];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp3)) as [w2 Hr_temp3];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp4)) as [w3 Hr_temp4];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_t2)) as [w4 Hr_t2];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
@@ -210,9 +210,9 @@ Section interval_client.
     iMod ("Hcls'" with "[$Hown Hact1 Hact2 Hact3 Hd1 Hd2 Hd3]") as "Hown".
     { iNext. iExists _,_. iFrame "Hact1 Hact2 Hact3". iFrame. auto. }
     iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
-    assert (is_Some (rmap !! r_t3)) as [w6 Hr_t3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_t4)) as [w7 Hr_t4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
-    assert (is_Some (rmap !! r_t5)) as [w8 Hr_t5];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_t3)) as [w6 Hr_t3];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_t4)) as [w7 Hr_t4];[apply elem_of_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_t5)) as [w8 Hr_t5];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[by simplify_map_eq|].

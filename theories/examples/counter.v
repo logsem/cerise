@@ -149,9 +149,9 @@ Section counter.
 
     (* reassemble registers *)
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
 
     (* jump to unknown code *)
     iDestruct (jmp_to_unknown with "Hcallback") as "Hcallback_now".
@@ -159,7 +159,7 @@ Section counter.
     iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
     { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$&$&$)". done. }
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. set_solver+. }
+    { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom. set_solver+. }
     iApply (wp_wand with "[-Hφ]").
     { iApply "Hcallback_now"; cycle 1.
       { iFrame. iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
@@ -238,19 +238,19 @@ Section counter.
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst a.
     (* Get a general purpose register *)
     assert (is_Some (rmap !! r_ret)) as [w' Hrtret].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
+    { apply elem_of_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     assert (is_Some (rmap !! r_t2)) as [w2 Hrt2].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
+    { apply elem_of_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     assert (is_Some (rmap !! r_t3)) as [w3 Hrt3].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
+    { apply elem_of_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     assert (is_Some (rmap !! r_t4)) as [w4 Hrt4].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
+    { apply elem_of_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     assert (is_Some (rmap !! r_t5)) as [w5 Hrt5].
-    { apply elem_of_gmap_dom. rewrite Hdom. apply elem_of_difference.
+    { apply elem_of_dom. rewrite Hdom. apply elem_of_difference.
       split;[apply all_registers_s_correct|clear;set_solver]. }
     iDestruct (big_sepM_delete _ _ r_ret with "Hregs") as "[Hr_ret Hregs]";[eauto|].
     iDestruct "Hr_t1" as (w1) "Hr_t1".
@@ -343,12 +343,12 @@ Section counter.
     { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]).
-      apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+      apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne//.
-      apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+      apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_insert).
     set regs' := <[_:=_]> _.
     (* jump to unknown code *)
@@ -357,7 +357,7 @@ Section counter.
     iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
     { iNext. rewrite Heqapp. iFrame. iDestruct "Hprog_done" as "($&Hassert&$&$&$)". iFrame. destruct rest; inversion Hrest_length. done. }
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iApply (wp_wand with "[-Hφ]").
     { iApply "Hcallback_now"; cycle 1. iFrame.
       { iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.
@@ -446,9 +446,9 @@ Section counter.
 
     (* reassemble registers *)
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
-    { rewrite lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { rewrite lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
 
     set rmap' := <[_:=_]> _.
     iDestruct (jmp_to_unknown with "Hcallback") as "Hcallback_now".
@@ -456,7 +456,7 @@ Section counter.
     iMod ("Hcls" with "[Hprog_done Hi $Hown]") as "Hown".
     { iNext. iFrame. iDestruct "Hprog_done" as "($&$&$)". done. }
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    { rewrite !lookup_insert_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iApply (wp_wand with "[-Hφ]").
     { iApply "Hcallback_now"; cycle 1.
       { iFrame. iApply (big_sepM_sep with "[$Hregs Hregs_val]"). cbn beta.

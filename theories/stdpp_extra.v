@@ -1,16 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import countable gmap list.
 
-Lemma elements_list_to_set {A} `{Countable A} (l: list A) :
-  NoDup l →
-  elements (list_to_set l : gset A) ≡ₚ l.
-Proof.
-  induction l.
-  - intros. rewrite list_to_set_nil elements_empty //.
-  - intros ND. rewrite list_to_set_cons elements_union_singleton.
-    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_1_1.
-    + rewrite IHl //. eauto using NoDup_cons_1_2.
-Qed.
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
   is_Some ((list_to_map l : gmap A B) !! a) ↔ a ∈ l.*1.
@@ -39,42 +29,12 @@ Proof.
   cbn. rewrite IHl1; auto. lia.
 Qed.
 
-Lemma list_filter_app { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l1 l2:
-  @list_filter _ P _ (l1 ++ l2) = @list_filter _ P _ l1 ++ @list_filter _ P _ l2.
-Proof.
-  induction l1; simpl; auto.
-  destruct (decide (P a)); auto.
-  unfold filter. rewrite IHl1. auto.
-Qed.
-
 Lemma list_filter_forall { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l:
   Forall P l ->
   @list_filter _ P _ l = l.
 Proof.
   induction 1; auto.
   simpl. destruct (decide (P x)); rewrite /filter; try congruence.
-Qed.
-
-Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  is_Some (m !! i) ↔ i ∈ dom m.
-Proof.
-  split.
-  - intros [x Hsome].
-    apply elem_of_dom. eauto.
-  - intros Hin. by apply elem_of_dom in Hin.
-Qed.
-
-Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  m !! i = None ↔ i ∉ dom m.
-Proof.
-  split.
-  - intros Hnone. intros Hcontr%elem_of_gmap_dom.
-    rewrite Hnone in Hcontr. inversion Hcontr. congruence.
-  - intros Hdom. destruct (m !! i) eqn:Hnone;auto.
-    assert (is_Some (m !! i)) as HisSome;eauto.
-    apply elem_of_gmap_dom in HisSome. contradiction.
 Qed.
 
 Lemma dom_map_imap_full {K A B}
@@ -85,7 +45,7 @@ Lemma dom_map_imap_full {K A B}
 Proof.
   intros Hf.
   apply set_eq. intros k.
-  rewrite -!elem_of_gmap_dom map_lookup_imap.
+  rewrite !elem_of_dom map_lookup_imap.
   destruct (m !! k) eqn:Hmk.
   - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
   - cbn. split; inversion 1; congruence.
@@ -337,13 +297,13 @@ Proof.
   apply (@anti_symm _ _ subseteq).
   typeclasses eauto.
   { rewrite elem_of_subseteq. intro k.
-    rewrite -elem_of_gmap_dom. intros [v Hv].
+    rewrite elem_of_dom. intros [v Hv].
     rewrite difference_het_lookup_Some in Hv *.
     destruct Hv as [? ?].
-    rewrite elem_of_difference -!elem_of_gmap_dom. split; eauto.
+    rewrite elem_of_difference !elem_of_dom. split; eauto.
     intros [? ?]. congruence. }
   { rewrite elem_of_subseteq. intro k.
-    rewrite elem_of_difference -!elem_of_gmap_dom. intros [[v ?] Hcontra].
+    rewrite elem_of_difference !elem_of_dom. intros [[v ?] Hcontra].
     exists v. rewrite difference_het_lookup_Some. split; eauto.
     destruct (m2 !! k) eqn:?; eauto. exfalso. apply Hcontra. eauto. }
 Qed.
@@ -363,7 +323,7 @@ Proof.
     rewrite difference_het_insert_r.
     rewrite dom_insert in Hm1l *.
     move: Hm1l. rewrite elements_union_singleton.
-    rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
+    rewrite elem_of_dom; intros [? ?]; congruence.
     intros Hm1l.
     transitivity (delete k (delete_list (elements (dom m2)) m1)).
     { erewrite delete_list_permutation. 2: eauto. reflexivity. }
@@ -645,35 +605,6 @@ Proof.
   induction l as [| a l].
   - cbn. rewrite dom_empty_L //.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
-Qed.
-
-Lemma map_filter_sub :
-∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 :
-                                             ∀ A : Type,
-                                               Lookup K A (M A))
-  (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-  (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A))
-  (EqDecision0 : EqDecision K),
-  FinMap K M →
-  ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x))
-    (m : M A),
-    filter P m ⊆ m.
-Proof.
-  intros. eapply map_subseteq_spec. intros ? ? ?.
-  eapply map_filter_lookup_Some_1_1; eauto.
-Qed.
-
-Lemma map_filter_id :
-  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
-    FinMap K M
-    → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m : M A),
-      (∀ i x, m !! i = Some x → P (i, x)) → filter P m = m.
-Proof.
-  intros. apply map_eq.
-  intros i. destruct (m !! i) eqn:Hsome.
-  - apply map_filter_lookup_Some_2;auto.
-  - apply map_filter_lookup_None_2;auto.
 Qed.
 
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :

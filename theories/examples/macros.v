@@ -347,13 +347,13 @@ Section macros.
             "(>Hprog & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hφ)".
     (* extract necessary registers from regs *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]"; eauto.
-    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]". by rewrite lookup_delete_ne //.
-    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]". by rewrite !lookup_delete_ne //.
-    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]". by rewrite !lookup_delete_ne //.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
@@ -516,13 +516,13 @@ Section macros.
             "(>Hprog & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >HPC & >Hr_t0 & >Hregs & Hψ & Hφfailed & Hφ)".
     (* extract necessary registers from regs *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t1)) as [rv1 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]"; eauto.
-    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t2)) as [rv2 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]". by rewrite lookup_delete_ne //.
-    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t3)) as [rv3 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]". by rewrite !lookup_delete_ne //.
-    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t5)) as [rv5 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]". by rewrite !lookup_delete_ne //.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
@@ -682,7 +682,7 @@ Section macros.
     iDestruct (big_sepL2_cons with "Hrclear") as "[Ha1 Hrclear]".
     rewrite list_to_set_cons in Hrdom.
     assert (is_Some (rmap !! r)) as [rv ?].
-    { rewrite elem_of_gmap_dom -Hrdom. set_solver. }
+    { rewrite -elem_of_dom -Hrdom. set_solver. }
     iDestruct (big_sepM_delete _ _ r with "Hreg") as "[Hr Hreg]". eauto.
     pose proof (contiguous_between_cons_inv _ _ _ _ Ha) as [-> [a2 [? Hcont'] ] ].
     iApply (wp_move_success_z with "[$HPC $Hr $Ha1]");
@@ -1815,9 +1815,9 @@ Section macros.
             "(>Hprog & >HPC & #Hmalloc & Hna & >Hpc_b & >Ha_entry & >Hr_t0 & >Hr_t1 & >Hr_t2 & >Hregs & Hφ)".
     (* get some registers out of regs *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    assert (is_Some (rmap !! r_t6)) as [rv6 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t6)) as [rv6 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]"; eauto.
-    assert (is_Some (rmap !! r_t7)) as [rv7 ?]. by rewrite elem_of_gmap_dom Hrmap_dom; set_solver.
+    assert (is_Some (rmap !! r_t7)) as [rv7 ?]. by rewrite -elem_of_dom Hrmap_dom; set_solver.
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]". by rewrite lookup_delete_ne //.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.

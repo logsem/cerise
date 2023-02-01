@@ -95,11 +95,11 @@ Section roe.
             "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & #Hassert & Hpc_b & Ha_entry & Ha_entry' & #Hflag) Hφ".
     (* extract r_t0 *)
     assert (is_Some (rmap !! r_t0)) as [w0 Hw0].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete with "Hregs") as "[Hr_t0 Hregs]";[apply Hw0|].
     (* put back r_adv *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_adv]") as "Hregs".
-    { rewrite lookup_delete_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver. }
+    { rewrite lookup_delete_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear;set_solver. }
 
     (* prepare the program addresses for malloc *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -124,11 +124,11 @@ Section roe.
 
     (* extract r_env and r_t7 *)
     assert (is_Some (rmap !! r_env)) as [wenv Hwenv].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[rewrite !lookup_insert_ne// lookup_delete_ne//
                                                                                     !lookup_insert_ne// lookup_delete_ne//|].
     assert (is_Some (rmap !! r_t7)) as [w7 Hw7].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[rewrite lookup_delete_ne// !lookup_insert_ne// lookup_delete_ne//
                                                                                     !lookup_insert_ne// lookup_delete_ne//|].
     (* continue *)
@@ -185,7 +185,7 @@ Section roe.
     iDestruct (big_sepM_delete _ _ r_adv with "Hregs") as "[Hr_adv Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//
                                                                                     lookup_delete_ne//; apply lookup_insert|].
     rewrite (delete_insert_ne _ _ r_adv)// !(insert_commute _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert.
-    2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete|].
     rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete_insert.
     (* apply the call spec *)
@@ -230,11 +230,11 @@ Section roe.
     (* Let's assert that the continuation holds *)
     iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hregs")  as "Hregs";[apply Permutation_refl|reflexivity|].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_adv]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
 
     match goal with |- context [ ([∗ map] k↦y ∈ ?regs, k ↦ᵣ y)%I ] =>
           set rmap2 := regs

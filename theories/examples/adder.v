@@ -433,16 +433,16 @@ Section adder.
     (* Step 4: use the fact that the continuation is in the expression relation *)
     (* put the registers back in the map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "Hregs".
-    { apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { rewrite /interp /= !fixpoint_interp1_eq //. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
-    { rewrite lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { rewrite /interp /= !fixpoint_interp1_eq //. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr1 Hclosure]") as "Hregs".
-    { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite !lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { eauto. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
-    { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite !lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { eauto. }
 
     iApply "Hcont_g"; cycle 1. by iFrame.

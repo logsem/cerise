@@ -265,7 +265,7 @@ Section roe_adequacy.
     iSplit.
     - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)".
       assert (is_Some (m !! l_assert_flag)) as [? Hlook].
-      { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. }
+      { apply elem_of_dom. rewrite Heq. apply elem_of_singleton. auto. }
       iDestruct (big_sepM_lookup _ _ l_assert_flag with "Hm") as "Hflag";eauto.
       apply HOK in Hlook as ->. iFrame.
     - iIntros "HH". iExists {[ l_assert_flag := WInt 0%Z ]}.

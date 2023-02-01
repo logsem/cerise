@@ -44,7 +44,7 @@ Section fundamental.
     iApply (interp_weakening with "IH Hinterp"); eauto.
     destruct p; reflexivity.
   Qed.
-  
+
   Lemma subseg_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (dst : RegName) (r1 r2 : Z + RegName) (P:D):
     ftlr_instr r p b e a w (Subseg dst r1 r2) P.
@@ -57,7 +57,7 @@ Section fundamental.
     iApply (wp_Subseg with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".

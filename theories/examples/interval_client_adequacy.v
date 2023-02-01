@@ -327,7 +327,7 @@ Proof.
       | _ : mkregion ?X1 ?X2 ?X3 !! _ = _ |- _ => set l := mkregion X1 X2 X3
       end.
       assert (is_Some (l !! assert_flag))
-        as Hdom%elem_of_gmap_dom;eauto.
+        as Hdom%elem_of_dom;eauto.
       apply in_dom_mkregion in Hdom.
       pose proof (regions_disjoint) as Hdisjoint.
       rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
@@ -663,7 +663,7 @@ Section int_client_adequacy.
     rewrite -(insert_insert _ PC _ (WInt 0)).
     iDestruct ("Hcont" with "[$Hown $Hrmap]") as "Hcont".
     { rewrite /interp_reg /=. iSplit.
-      iPureIntro. intros. simpl. apply elem_of_gmap_dom. rewrite !dom_insert_L Hdom.
+      iPureIntro. intros. simpl. apply elem_of_dom. rewrite !dom_insert_L Hdom.
       pose proof (all_registers_s_correct x1) as Hx1. set_solver +Hx1.
       iIntros (r v Hrv). rewrite lookup_insert_ne//.
       destruct (decide (r_t0 = r));[subst;rewrite lookup_insert|rewrite lookup_insert_ne//].

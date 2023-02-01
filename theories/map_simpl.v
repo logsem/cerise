@@ -217,9 +217,9 @@ Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
 Ltac2 rec make_list_from_unions h x :=
   match! x with
   | union ?a (singleton ?b) =>
-    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite elem_of_gmap_dom_none h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
+    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
     make_list_from_unions h a
-  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite elem_of_gmap_dom_none h; set_solver+; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
+  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver+; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
   end.
 
 Ltac2 post_process k m :=

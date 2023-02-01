@@ -173,7 +173,7 @@ Proof.
     iFrame. }
 
   assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
-  { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
+  { rewrite -elem_of_dom Hrmap_dom. set_solver+. }
   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
 
   iApply (buffer_full_run_spec with "[$Hadv HPC $Hr0 $Hr1 $Hcode $Hrmap $Hna $Hdata]"); auto.

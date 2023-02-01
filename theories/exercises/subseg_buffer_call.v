@@ -298,21 +298,21 @@ Section program_call.
         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
         ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
-                       
+
         ∗ na_own logrel_nais ⊤
         ∗ interp w0 ∗ interp wadv
 
        -∗ WP Seq (Instr Executable) {{λ v,
                (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                ∨ ⌜v = FailedV⌝ }})%I.
-  
+
   Proof with (try solve_addr').
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
       "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& HPC& Hr30& Hrmap&
 Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
-    
+
     (* FTLR on wadv - we do it now because of the later modality *)
     iDestruct (jmp_to_unknown with "Hadv") as "Cont".
     iHide "Cont" as cont.
@@ -503,7 +503,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       replace (a_prog ^+ 11%nat)%a with a_call. done.
       rewrite Hlength_progi in Ha_call... }
     do 4 (rewrite delete_insert_ne ; eauto).
-    
+
     (* 2 - extract r2 and r3 *)
     iExtractList "Hrmap" [r_t2;r_t3] as ["Hr2";"Hr3"].
 
@@ -620,7 +620,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* r0 *)
     iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hrmap")  as "Hrmap";[apply Permutation_refl|reflexivity|].
     iDestruct (big_sepM_insert with "[$Hrmap $Hr0]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -630,7 +630,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     }
     (* r30 *)
     iDestruct (big_sepM_insert with "[$Hrmap $Hr30]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -640,7 +640,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* r7 *)
     iDestruct (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t7 _ with "Hr7") as "Hr7".
     iDestruct (big_sepM_insert with "[$Hrmap $Hr7]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -1152,7 +1152,7 @@ Section prog_call_correct.
       iSplit.
       - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)".
         assert (is_Some (m !! l_assert_flag)) as [? Hlook].
-        { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. }
+        { apply elem_of_dom. rewrite Heq. apply elem_of_singleton. auto. }
         iDestruct (big_sepM_lookup _ _ l_assert_flag with "Hm") as "Hflag";eauto.
         apply HOK in Hlook as ->. iFrame.
       - iIntros "HH". iExists {[ l_assert_flag := WInt 0%Z ]}.

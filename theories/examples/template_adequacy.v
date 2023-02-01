@@ -49,7 +49,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -67,7 +67,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -83,7 +83,7 @@ Proof.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
   { rewrite elem_of_subseteq in Hd. specialize (Hd _ H).
-    eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
+    eapply elem_of_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
@@ -178,7 +178,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hrothers).
@@ -346,7 +346,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
@@ -643,7 +643,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (lib_region (priv_libs Lib)); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto.
+      eapply map_filter_subseteq; typeclasses eauto.
       transitivity (lib_region (pub_libs Lib ++ priv_libs Lib)); auto.
       rewrite lib_region_app. apply map_union_subseteq_r. auto.
     }
@@ -735,7 +735,7 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; sealStorePreΣ; Σ]).
-  intros. 
+  intros.
 eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
             typeclasses eauto.
 Qed.

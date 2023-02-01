@@ -265,8 +265,8 @@ Section interval.
     set rmap2 := <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
                                 (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]>
                                 (<[r_t8:=WInt 0%Z]> (<[r_t20:=WInt 0%Z]> rmap))))))).
-    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
-    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]";[eauto|].
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq;eauto|].
     (* open the program and seal env invariants *)
@@ -349,7 +349,7 @@ Section interval.
     assert (withinBounds ib ie ib = true) as Hwbi;[solve_addr+Hi Hibounds|].
     assert (withinBounds ib ie f = true) as Hwbi2;[solve_addr+Hi Hibounds|].
     (* get the general purpose register to remember r_t0 *)
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
 
     destruct (z1 <? z2)%Z eqn:Hz;iSimpl in "Hr_t2".
@@ -365,7 +365,7 @@ Section interval.
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
-      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
@@ -434,7 +434,7 @@ Section interval.
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
-      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
@@ -557,8 +557,8 @@ Section interval.
             "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown
             & #Hretval & #Hmalloc & #Htable & #Hprog & #Hregs_val) Hφ".
 
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
@@ -802,15 +802,15 @@ Section interval.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
 
     (* extract the registers used by the program *)
-    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[eauto|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
@@ -1047,15 +1047,15 @@ Section interval.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
 
     (* extract the registers used by the program *)
-    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[eauto|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 

@@ -363,7 +363,7 @@ Section program_call.
       (b_act e_act b_local e_local a_end_call)
         "( %Hnext & HPC & Hrmap & Hr9 & Hpcb & Haentry & Hr30 & Hr0 & Hact & Hlocals & Hcall & Hna )".
 
-    
+
     (* Cleaning *)
     iMod ("Hcls'" with "[$Hna $Haentry $Hpcb]") as "Hna".
     iHide "Hact" as Hact.
@@ -381,20 +381,20 @@ Section program_call.
     iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hrmap")  as "Hrmap";[apply Permutation_refl|reflexivity|].
     (* r0 *)
     iDestruct (big_sepM_insert with "[$Hrmap $Hr0]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_insert_L Hdom.
       clear; set_solver.
     }
     (* r30 *)
     iDestruct (big_sepM_insert with "[$Hrmap $Hr30]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_insert_L Hdom.
       clear; set_solver. }
     (* r7 *)
     iDestruct (big_sepM_insert with "[$Hrmap $Hr9]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_insert_L Hdom.
       clear; set_solver. }

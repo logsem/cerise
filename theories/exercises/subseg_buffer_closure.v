@@ -410,7 +410,7 @@ Section closure_program.
 
    (* 2 - prepare the registers for closure_full_run_spec *)
    apply regmap_full_dom in Hrfull.
-    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[rewrite elem_of_gmap_dom Hrfull; set_solver|].
+    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[rewrite -elem_of_dom Hrfull; set_solver|].
    iExtractList "Hregs" [PC;r_t30] as  ["HPC"; "Hw30"].
    iAssert (interp w30) as "Hw30i".
    { iApply ("Hrsafe" $! r_t30 w30) ; eauto.  }

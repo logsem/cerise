@@ -693,7 +693,7 @@ Section interval.
 
     (* extract the registers used by the program *)
     (* We need this value later; create an equality for it now *)
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iExtractList "Hregs" [r_t5;r_t2;r_t1] as ["Hr_t5";"Hr_t2";"Hr_t3";"Hr_t4";"Hr_t1"].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
@@ -893,7 +893,7 @@ Section interval.
 
     (* extract the registers used by the program *)
     (* We need this value later; create an equality for it now *)
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iExtractList "Hregs" [r_t5;r_t2;r_t1] as ["Hr_t5";"Hr_t2";"Hr_t3";"Hr_t4";"Hr_t1"].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
