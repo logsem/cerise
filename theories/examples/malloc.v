@@ -95,11 +95,11 @@ Section SimpleMalloc.
     destruct Hbounds as [Hbm_am Ham_e].
     (* Get some registers *)
     assert (is_Some (rmap !! r_t2)) as [r2w Hr2w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     assert (is_Some (rmap !! r_t3)) as [r3w Hr3w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     assert (is_Some (rmap !! r_t4)) as [r4w Hr4w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
       eassumption.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
@@ -219,7 +219,7 @@ Section SimpleMalloc.
     destruct H with r_t1 as [? ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iApply (wp_wand with "[-]").
-    iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|]. 
+    iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|].
     3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
     unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.

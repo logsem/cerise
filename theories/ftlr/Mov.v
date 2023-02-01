@@ -27,7 +27,7 @@ Section fundamental.
     iApply (wp_Mov with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
@@ -82,7 +82,7 @@ Section fundamental.
             * repeat rewrite fixpoint_interp1_eq; auto.
             * destruct (reg_eq_dec PC r0).
               { subst r0.
-                - simplify_map_eq. 
+                - simplify_map_eq.
                   rewrite !fixpoint_interp1_eq /=.
                 destruct Hp as [Hp | Hp]; subst p''; try subst g'';
                   (iFrame "Hinv Hexec"). }

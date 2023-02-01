@@ -260,13 +260,13 @@ Section counter.
     { intros ? w ?. cbn. iIntros "[? %Hw]". iFrame. destruct w; try inversion Hw.
       iApply interp_int. }
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
-      by rewrite elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite -not_elem_of_dom Hrdom; set_solver+.
       by iApply interp_int.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
-      by rewrite lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+.
       by iApply "Hcode_safe".
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
-      by rewrite !lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite !lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+.
       by iApply "Hadv".
 
     iApply (wp_wand with "[-]").
@@ -370,9 +370,9 @@ Proof.
   iDestruct "Hdat" as (wdat) "Hdat".
 
   assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
-  { rewrite elem_of_gmap_dom Hrdom. set_solver+. }
+  { rewrite -elem_of_dom Hrdom. set_solver+. }
   assert (is_Some (rmap !! r_t2)) as [w2 Hr2].
-  { rewrite elem_of_gmap_dom Hrdom. set_solver+. }
+  { rewrite -elem_of_dom Hrdom. set_solver+. }
   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
   iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[[Hr2 _] Hrmap]".
     by rewrite lookup_delete_ne //.

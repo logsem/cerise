@@ -49,7 +49,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -67,7 +67,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -83,7 +83,7 @@ Proof.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
   { rewrite elem_of_subseteq in Hd. specialize (Hd _ H).
-    eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
+    eapply elem_of_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
@@ -735,7 +735,7 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
               na_invΣ; sealStorePreΣ; Σ]).
-  intros. 
+  intros.
 eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
             typeclasses eauto.
 Qed.

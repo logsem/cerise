@@ -56,7 +56,7 @@ Section cap_lang_rules.
   Definition allow_load_map_or_true r (regs : Reg) (mem : gmap Addr Word):=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
       if decide (reg_allows_load regs r p b e a) then
-        ∃ w, mem !! a = Some w 
+        ∃ w, mem !! a = Some w
       else True.
 
   Lemma allow_load_implies_loadv:
@@ -194,7 +194,7 @@ Section cap_lang_rules.
     feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
     assert (is_Some (dfracs !! pc_a)) as [dq Hdq].
-    { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
     assert (prod_merge dfracs mem !! pc_a = Some (dq,w)) as Hmem_dpc.
     { rewrite lookup_merge Hmem_pc Hdq //. }
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m with "Hm Hmem") as %Hma; eauto.
@@ -232,7 +232,7 @@ Section cap_lang_rules.
     pose proof (allow_load_implies_loadv r2 mem regs p b e a) as (loadv & Hmema); auto.
 
     assert (is_Some (dfracs !! a)) as [dq' Hdq'].
-    { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
     assert (prod_merge dfracs mem !! a = Some (dq',loadv)) as Hmemadq.
     { rewrite lookup_merge Hmema Hdq' //. }
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m a loadv with "Hm Hmem" ) as %Hma' ; eauto.

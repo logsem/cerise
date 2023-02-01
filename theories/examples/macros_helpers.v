@@ -116,7 +116,7 @@ Ltac iContiguous_next Ha index :=
 Ltac disjoint_from_rmap rmap :=
   match goal with
   | Hsub : _ ⊆ dom rmap |- _ !! ?r = _ =>
-    assert (is_Some (rmap !! r)) as [x Hx];[apply elem_of_gmap_dom;apply Hsub;constructor|];
+    assert (is_Some (rmap !! r)) as [x Hx];[apply elem_of_dom;apply Hsub;constructor|];
     apply map_disjoint_Some_l with rmap x;auto;apply map_disjoint_union_r_2;auto
   end.
 

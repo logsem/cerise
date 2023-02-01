@@ -99,11 +99,11 @@ Section SimpleSalloc.
     destruct Hbounds as [Hbm_am Ham_e].
     (* Get some registers *)
     assert (is_Some (rmap !! r_t2)) as [r2w Hr2w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     assert (is_Some (rmap !! r_t3)) as [r3w Hr3w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     assert (is_Some (rmap !! r_t4)) as [r4w Hr4w].
-    { rewrite elem_of_gmap_dom Hrmap_dom. set_solver. }
+    { rewrite -elem_of_dom Hrmap_dom. set_solver. }
     iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
       eassumption.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".

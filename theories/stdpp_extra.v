@@ -55,28 +55,6 @@ Proof.
   simpl. destruct (decide (P x)); rewrite /filter; try congruence.
 Qed.
 
-Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  is_Some (m !! i) ↔ i ∈ dom m.
-Proof.
-  split.
-  - intros [x Hsome].
-    apply elem_of_dom. eauto.
-  - intros Hin. by apply elem_of_dom in Hin.
-Qed.
-
-Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  m !! i = None ↔ i ∉ dom m.
-Proof.
-  split.
-  - intros Hnone. intros Hcontr%elem_of_gmap_dom.
-    rewrite Hnone in Hcontr. inversion Hcontr. congruence.
-  - intros Hdom. destruct (m !! i) eqn:Hnone;auto.
-    assert (is_Some (m !! i)) as HisSome;eauto.
-    apply elem_of_gmap_dom in HisSome. contradiction.
-Qed.
-
 Lemma dom_map_imap_full {K A B}
       `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
       (f: K -> A -> option B) (m: gmap K A):
@@ -85,7 +63,7 @@ Lemma dom_map_imap_full {K A B}
 Proof.
   intros Hf.
   apply set_eq. intros k.
-  rewrite -!elem_of_gmap_dom map_lookup_imap.
+  rewrite !elem_of_dom map_lookup_imap.
   destruct (m !! k) eqn:Hmk.
   - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
   - cbn. split; inversion 1; congruence.
@@ -337,13 +315,13 @@ Proof.
   apply (@anti_symm _ _ subseteq).
   typeclasses eauto.
   { rewrite elem_of_subseteq. intro k.
-    rewrite -elem_of_gmap_dom. intros [v Hv].
+    rewrite elem_of_dom. intros [v Hv].
     rewrite difference_het_lookup_Some in Hv *.
     destruct Hv as [? ?].
-    rewrite elem_of_difference -!elem_of_gmap_dom. split; eauto.
+    rewrite elem_of_difference !elem_of_dom. split; eauto.
     intros [? ?]. congruence. }
   { rewrite elem_of_subseteq. intro k.
-    rewrite elem_of_difference -!elem_of_gmap_dom. intros [[v ?] Hcontra].
+    rewrite elem_of_difference !elem_of_dom. intros [[v ?] Hcontra].
     exists v. rewrite difference_het_lookup_Some. split; eauto.
     destruct (m2 !! k) eqn:?; eauto. exfalso. apply Hcontra. eauto. }
 Qed.
@@ -363,7 +341,7 @@ Proof.
     rewrite difference_het_insert_r.
     rewrite dom_insert in Hm1l *.
     move: Hm1l. rewrite elements_union_singleton.
-    rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
+    rewrite elem_of_dom; intros [? ?]; congruence.
     intros Hm1l.
     transitivity (delete k (delete_list (elements (dom m2)) m1)).
     { erewrite delete_list_permutation. 2: eauto. reflexivity. }

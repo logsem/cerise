@@ -74,7 +74,7 @@ Ltac extract_pointsto_map regs Hmap rname Hrdom Hreg :=
   let rval := fresh "v"rname in
   let Hsome := fresh "Hsome" in
   first [ eassert (regs !! rname = Some _) as Hsome by solve_lookup_some (* Try to reuse existing value, if any *) |
-  assert (is_Some (regs !! rname)) as [rval Hsome] by (rewrite elem_of_gmap_dom Hrdom; set_solver +) ];
+  assert (is_Some (regs !! rname)) as [rval Hsome] by (rewrite -elem_of_dom Hrdom; set_solver +) ];
   let str_destr := constr:(("[" ++ Hreg ++ " " ++ Hmap ++ "]")%string) in
   iDestruct (big_sepM_delete _ _ rname with Hmap) as str_destr; first exact Hsome; clear Hsome.
 
@@ -117,7 +117,7 @@ Tactic Notation "iExtractList" constr(Hmap) constr(rnames) "as" constr(Hregs):=
 
 Ltac insert_pointsto_map regs Hmap rname Hrdom Hreg :=
   let Hsome := fresh "Hsome" in
-  assert (regs !! rname = None) as Hsome by (rewrite elem_of_gmap_dom_none Hrdom; set_solver +);
+  assert (regs !! rname = None) as Hsome by (rewrite -not_elem_of_dom Hrdom; set_solver +);
   let str_destr := constr:(("[ $" ++ Hmap ++ " $" ++ Hreg ++ "]")%string) in
   iDestruct (big_sepM_insert _ _ rname with str_destr) as Hmap; first exact Hsome; clear Hsome.
 

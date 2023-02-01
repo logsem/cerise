@@ -283,7 +283,7 @@ Section sealing.
 
     codefrag_facts "Hprog".
     focus_block_0 "Hprog" as "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[apply Hw7|].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
@@ -392,7 +392,7 @@ Section sealing.
     iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply Hw8|].
     iGo "Hprog".
     { rewrite /seal_instrs_length. instantiate (1 := (a_first ^+ length (unseal_instrs))%a).
@@ -415,7 +415,7 @@ Section sealing.
     focus_block 4 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog".
@@ -438,7 +438,7 @@ Section sealing.
     focus_block 6 "Hprog" as a_middle4 Ha_middle4 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog". instantiate (1 := a_first). rewrite /unseal_instrs_length. solve_addr.
