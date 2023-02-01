@@ -1418,6 +1418,36 @@ Section Linking.
         apply (can_link_list_Permutation Hcl Hperm1).
     Qed.
   End LinkList.
+
+  (** An induction on a component's exports map *)
+  Lemma exports_ind (P: component -> Prop) c :
+    P {| segment := segment c; imports := imports c; exports := ∅ |} ->
+    (∀ s w exp,
+      exports c !! s = Some w ->
+      exp !! s = None ->
+      exp ⊆ exports c ->
+      P {| segment := segment c; imports := imports c; exports := exp |} ->
+      P {| segment := segment c; imports := imports c; exports := <[s := w]> exp |}
+    ) ->
+    P c.
+  Proof.
+    intros Hinit Hind.
+    destruct c as [s i e]. simpl in *.
+    apply (map_ind (fun exp =>
+      exp ⊆ e -> P {| segment := s; imports := i; exports := exp |}
+    )).
+    intros _. apply Hinit.
+    intros s' w exp Hexp Hi Hsubset.
+    assert (Hs: exp ⊆ e).
+    { apply map_subseteq_spec. intros j x Hj. rewrite map_subseteq_spec in Hsubset.
+      destruct (decide (s'=j)) as [Heq|Heq]. simplify_eq.
+      apply Hsubset. rewrite (lookup_insert_ne _ _ _ _ Heq).
+      apply Hj. }
+    apply Hind.
+    rewrite map_subseteq_spec in Hsubset. apply Hsubset. apply lookup_insert.
+    apply Hexp. apply Hs.
+    apply (Hi Hs). reflexivity.
+  Qed.
 End Linking.
 
 Arguments component _ {_ _}.

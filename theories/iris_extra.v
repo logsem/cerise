@@ -3,6 +3,17 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From cap_machine Require Import stdpp_extra.
 
+#[global] Instance big_sepL_Permutation {PROP : bi} {A} (φ : A -> PROP):
+  Proper ((≡ₚ) ==> (⊣⊢)) (fun l => ([∗ list] v ∈ l, φ v)%I).
+Proof.
+  intros l1 l2 Hp.
+  induction Hp.
+  - reflexivity.
+  - rewrite !big_sepL_cons IHHp. reflexivity.
+  - rewrite !big_sepL_cons. iSplit; iIntros "[H1 [H2 H3]]"; iFrame.
+  - rewrite IHHp1 IHHp2. reflexivity.
+Qed.
+
 Lemma big_sepM_to_big_sepL {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
       (r : gmap A B) (lr : list A) (φ : A → B → iProp Σ) :
   NoDup lr →
@@ -40,6 +51,34 @@ Proof.
     + eapply not_elem_of_list_to_map.
       rewrite fst_zip; auto. lia.
     + iFrame. iApply ("IH" $! l2 H4 H1 with "B"); auto.
+Qed.
+
+Lemma big_sepM_big_sepL_map_to_list {PROP:bi} {K A : Type} `{EqDecision K, Countable K}
+      (r : gmap K A) (φ : K → A → PROP) :
+  ([∗ map] k↦y ∈ r, φ k y) ⊣⊢
+  ([∗ list] x ∈ (map_to_list r), φ x.1 x.2).
+Proof.
+  apply (map_ind (fun r' => ([∗ map] k↦y ∈ r', φ k y) ⊣⊢ ([∗ list] x ∈ (map_to_list r'), φ x.1 x.2))).
+  - rewrite map_to_list_empty big_sepL_nil big_sepM_empty. done.
+  - intros k v m Hmk IH. rewrite map_to_list_insert.
+    rewrite big_sepL_cons. rewrite big_sepM_insert. simpl.
+    iSplit; iIntros "[Hφ Hl]"; iFrame; iApply IH; done.
+    all: apply Hmk.
+Qed.
+
+Lemma big_sepM_big_sepL2_map_to_list {PROP : bi} {K A} `{EqDecision K, Countable K, LeibnizEquiv A}
+      (φ : K -> A -> PROP) (m : gmap K A):
+  ([∗ map] k↦v ∈ m, φ k v) ⊣⊢
+  ([∗ list] k;v ∈ (map_to_list m).*1;(map_to_list m).*2, φ k v).
+Proof.
+  induction m using map_ind.
+  - rewrite big_sepM_empty map_to_list_empty. simpl. reflexivity.
+  - rewrite (big_sepM_insert _ _ _ _ H2) IHm !big_sepL2_alt !zip_fst_snd.
+    specialize (map_to_list_insert m i x H2) as Hf.
+    rewrite (big_sepL_Permutation _ _ _ Hf) !map_length.
+    assert (Heq: ∀ b : nat, (⌜b = b⌝:PROP) ⊣⊢ True).
+    intros b. iSplit; done.
+    rewrite !Heq. simpl. iSplit; iIntros "[H1 [H2 H3]]"; iFrame.
 Qed.
 
 Lemma NoDup_of_sepL2_exclusive {Σ : gFunctors} {A B: Type} (l1: list A) (l2: list B) (Φ: A -> B -> iProp Σ):
@@ -490,4 +529,28 @@ Proof.
       exfalso. apply NoDup_cons in Hdup as [Hnin Hdup].
       apply Hnin. apply create_gmap_default_lookup_is_Some in Hsome' as [Hin Hsome'].
       subst. auto.
+Qed.
+
+Lemma big_sepM_sep_zip_affine {PROP:bi} {K A B} `{EqDecision K, Countable K}
+      (Φ: K -> A -> PROP) (Ψ: K -> B -> PROP)
+      `{∀ k a, Affine (Φ k a), ∀ k b, Affine (Ψ k b)}
+      m1 m2 :
+  ([∗ map] a ↦ w ∈ m1, Φ a w) ∗ ([∗ map] a ↦ w ∈ m2, Ψ a w) -∗
+  [∗ map] a ↦ w ∈ map_zip m1 m2,
+    (⌜ m1 !! a = Some w.1 ⌝ ∗ Φ a w.1) ∗
+    (⌜ m2 !! a = Some w.2 ⌝ ∗ Ψ a w.2).
+Proof.
+  iIntros "[Hm1 Hm2]".
+  rewrite map_zip_filter.
+  rewrite (big_sepM_sep_zip (fun a v => ⌜m1!!a = Some v⌝ ∗ Φ a v)%I (fun a v => ⌜m2!!a = Some v⌝ ∗ Ψ a v)%I).
+  rewrite !big_sepM_sep.
+  iSplitL "Hm1"; iSplitR.
+  1,3: iApply big_sepM_intro; iModIntro; iIntros (k x) "%Hk"; iPureIntro;
+      rewrite map_filter_lookup_Some in Hk; destruct Hk as [Hk _]; apply Hk.
+  iApply (big_sepM_subseteq _ m1). apply map_filter_subseteq. done.
+  iApply (big_sepM_subseteq _ m2). apply map_filter_subseteq. done.
+  intros k. split;
+  intros [x Hx]; rewrite map_filter_lookup_Some in Hx;
+  destruct Hx as [Hx [y Hy] ]; exists y;
+  rewrite map_filter_lookup_Some; split; exact Hy || exists x; exact Hx.
 Qed.
