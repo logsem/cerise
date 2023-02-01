@@ -227,7 +227,7 @@ Section Linking.
         end.
     Proof.
       intros imp exp ms a.
-      eapply (map_fold_ind
+      apply (map_fold_ind
       (fun m imp => forall a,
          m !! a = match imp !! a with
         | None => ms !! a
@@ -414,6 +414,8 @@ Section Linking.
       destruct (imp !! addr). rewrite lookup_empty. all: reflexivity.
     Qed.
 
+    (** Alternative expression for the link of two components,
+        union of cross resolve imports *)
     Lemma link_segment_union {a b}:
       a ##ₗ b ->
       segment (a ⋈ b) =
@@ -477,6 +479,20 @@ Section Linking.
       rewrite resolve_imports_spec Hib_addr Hb_addr. reflexivity.
 
       symmetry; apply (can_link_disjoint_impls Hsep).
+    Qed.
+
+    Lemma link_segment_lookup_l {a b addr}:
+      a ##ₗ b ->
+      addr ∈ dom (segment a) ->
+      segment (a ⋈ b) !! addr = (resolve_imports a.(imports) b.(exports) a.(segment)) !! addr.
+    Proof.
+      intros Hsep Ha.
+      rewrite (link_segment_union Hsep).
+      apply lookup_union_l.
+      rewrite -not_elem_of_dom resolve_imports_dom_eq.
+      intros Hb. inversion Hsep. rewrite map_disjoint_dom in Hms_disj.
+      apply (Hms_disj addr Ha Hb).
+      inversion Hsep as [_ []]. assumption.
     Qed.
   End resolve_imports.
 
@@ -592,6 +608,21 @@ Section Linking.
         exact (Hwr_regs w rw).
       - apply Hall_regs.
     Qed.
+
+    Lemma link_img_l {a b addr w} :
+      a ##ₗ b ->
+      addr ∈ dom (segment a) ->
+      segment (a ⋈ b) !! addr = Some w ->
+      w ∈ img (exports b) \/ segment a !! addr = Some w.
+    Proof.
+      intros Hsep Hdom Haddr.
+      rewrite (link_segment_lookup_l Hsep Hdom) in Haddr.
+      rewrite resolve_imports_spec in Haddr.
+      destruct (imports a !! addr) as [s|].
+      destruct (exports b !! s) as [wexp|] eqn:Hb.
+      left. apply elem_of_img. exists s. rewrite Hb. exact Haddr.
+      1,2: right; exact Haddr.
+    Qed.
   End LinkWellFormed.
 
   (** Lemmas on the symmetry/commutativity of links *)
@@ -615,6 +646,28 @@ Section Linking.
         f_equal. apply map_union_comm.
         all: assumption.
       - apply map_union_comm; assumption.
+    Qed.
+
+    Lemma link_segment_lookup_r {a b addr}:
+      a ##ₗ b ->
+      addr ∈ dom (segment b) ->
+      segment (a ⋈ b) !! addr = (resolve_imports b.(imports) a.(exports) b.(segment)) !! addr.
+    Proof.
+      intros Hsep Ha.
+      rewrite (link_comm Hsep). symmetry in Hsep.
+      apply (link_segment_lookup_l Hsep Ha).
+    Qed.
+
+    Lemma link_img_r {a b addr w} :
+      a ##ₗ b ->
+      addr ∈ dom (segment b) ->
+      segment (a ⋈ b) !! addr = Some w ->
+      w ∈ img (exports a) \/ segment b !! addr = Some w.
+    Proof.
+      intros Hsep Ha Hs.
+      rewrite (link_comm Hsep) in Hs.
+      symmetry in Hsep.
+      apply (link_img_l Hsep Ha Hs).
     Qed.
   End LinkSymmetric.
 
