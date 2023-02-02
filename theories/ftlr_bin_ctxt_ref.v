@@ -13,7 +13,7 @@ Section logrel.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
-  Infix "##ₗ" := (can_link can_address_only) (at level 70).
+  Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
   (** Lifting the interp binary value relation from words to components
       This implies dom (exports y) ⊆ dom (exports x) *)
@@ -30,7 +30,7 @@ Section logrel.
   (** Allocates invariants for segment c in links (x ⋈ c) and (y ⋈ c)
       assuming the exports of x and y are valid. *)
   Lemma interp_exports_inv_alloc E {x y c: component Symbols} :
-    (∀ w, w ∈ img (segment c) -> no_capability w (dom (segment c))) ->
+    (∀ w, w ∈ img (segment c) -> is_word w (dom (segment c))) ->
     x ##ₗ c -> y ##ₗ c ->
     dom (exports x) ⊆ dom (exports y) ->
     ([∗ map] a ↦ w ∈ segment (x ⋈ c), a ↦ₐ w) ∗
@@ -70,9 +70,10 @@ Section logrel.
     contradiction (Hey (Hexp _ Hex)).
     (* else we know they are only words, and thus valid *)
     1,2: rewrite Hxca in Hyca; apply Some_inj in Hyca; rewrite -Hyca.
-    1,2: apply elem_of_img_rev in Hxca; apply Hno_caps in Hxca.
-    1,2: destruct w; try contradiction Hxca.
-    1,2: rewrite fixpoint_interp1_eq; done.
+    1,2: apply elem_of_img_rev in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
+    1,2: destruct w as [z | sb | z sb];
+         [ (rewrite fixpoint_interp1_eq; done) | | ];
+         destruct sb; contradiction Hxca.
 
     rewrite (big_sepM_sep (fun _ _ => interp_exports x y)).
     iSplitR.
@@ -83,14 +84,11 @@ Section logrel.
       (fun a v => a ↣ₐ v)%I).
     iFrame.
 
-    Unshelve. apply TCOr_l. unfold Affine.
-    iIntros (j z) "#H". done.
+    Unshelve. typeclasses eauto.
   Qed.
 
-
-
   Lemma interp_link {x y c:component Symbols}:
-    (∀ w, w ∈ img (segment c) -> no_capability w (dom (segment c))) ->
+    (∀ w, w ∈ img (segment c) -> is_word w (dom (segment c))) ->
     x ##ₗ c -> y ##ₗ c ->
     imports x = ∅ -> imports y = ∅ ->
     spec_ctx ∗ interp_exports x y ∗
@@ -120,7 +118,7 @@ Section logrel.
     (* For exports of c we need to do a bit of work.
        First, prove they are indeed exports of c and not x or y *)
     - iIntros (s w exp Hec Hexp Hexp_sub IH).
-      inversion Hsep1. inversion Hsep2.
+      inversion Hsep1. inversion Hsep2. inversion Hwf_r.
       destruct (exports y !! s) as [ey|] eqn:Hey.
       rewrite map_disjoint_dom in Hexp_disj0.
       apply mk_is_Some, elem_of_dom in Hec, Hey.
@@ -137,35 +135,34 @@ Section logrel.
       + rewrite (lookup_union_r _ _ _ Hex) lookup_insert.
         rewrite fixpoint_interp1_eq.
         destruct w. done.
+        destruct sb.
+        2,3: specialize (Hwr_exp _ (elem_of_img_rev _ _ _ Hec));
+             destruct s0; contradiction Hwr_exp.
         destruct p. done.
-        all: iSplitR; try done.
+        all: iSplitR; [done|].
         (* Use fundamental theorem to change interp_expr into interp *)
         4: iIntros (r); do 2 iModIntro; iApply fundamental_binary;
            done || rewrite fixpoint_interp1_eq; iSimpl; iSplitR; try done.
         (* add the hypothese a ∈ dom (segment c) which we need to access our invariants *)
-        all: iApply (big_sepL_mono (fun _ a => ⌜a ∈ dom (segment c)⌝ -∗ _)%I).
-        1,3,5,7,9:
-          iIntros (k y' Hk) "Hl"; iApply "Hl"; iPureIntro;
-          inversion Hwf_r;
-          apply (Hwr_exp _ (elem_of_img_rev _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
-          exists k; apply Hk.
-        all: induction (finz.seq_between b e);
-             try (iApply big_sepL_nil; done).
-        all: iApply big_sepL_cons; iSplitR; try apply IHl.
+        all: iApply (big_sepL_mono (fun _ a => ⌜a ∈ dom (segment c)⌝ -∗ _)%I);
+             [ (iIntros (k y' Hk) "Hl"; iApply "Hl"; iPureIntro;
+                apply (Hwr_exp _ (elem_of_img_rev _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
+                exists k; apply Hk) | ].
+        all: induction (finz.seq_between f f0);
+             [ (iApply big_sepL_nil; done) |].
+        all: iApply big_sepL_cons; iSplitR; [ | apply IHl].
         all: iIntros "%Ha"; iExists interp.
-        all: iSplitL.
         (* read_cond and write_cond boil down to interp -> interp,
            so they are trivial *)
-        4,10: iSplitL.
-        2,4,5,6,7,9,11: iSimpl; do 2 iModIntro; iIntros (ww ww') "H"; done.
+        all: iSplitL;
+             [ | (try iSplitL; iSimpl; do 2 iModIntro; iIntros (ww ww') "H"; done)].
         (* others results come from the invariants *)
-        all: assert (Ha': a0 ∈ dom (map_zip (segment (x ⋈ c)) (segment (y ⋈ c)))).
-        1,3,5,7,9:
-          rewrite map_zip_dom_L !(resolve_imports_link_dom can_address_only);
-          (rewrite !dom_union_L -union_intersection_r_L; apply (union_subseteq_r _ _ a0 Ha))
-          || solve_can_link.
+        all: assert (Ha': a ∈ dom (map_zip (segment (x ⋈ c)) (segment (y ⋈ c))));
+             [ (rewrite map_zip_dom_L !(resolve_imports_link_dom can_address_only_no_seals);
+               try (rewrite !dom_union_L -union_intersection_r_L; apply (union_subseteq_r _ _ a Ha))
+               || solve_can_link) | ].
         all: apply elem_of_dom in Ha' as [z Ha'].
-        all: iPoseProof (big_sepM_lookup _ _ a0 _ Ha' with "Hinv") as "Ha0".
+        all: iPoseProof (big_sepM_lookup _ _ a _ Ha' with "Hinv") as "Ha0".
         all: iApply "Ha0"; iPureIntro; exact Ha.
       + unfold interp_exports in IH. simpl in IH.
         iApply (big_sepM_mono (fun k wy =>
@@ -195,7 +192,6 @@ Section logrel.
         apply IH.
       + apply insert_union_r. assumption.
 
-    Unshelve. all: apply TCOr_l; unfold Affine;
-    iIntros (j t) "#H"; done.
+    Unshelve. all: typeclasses eauto.
   Qed.
 End logrel.

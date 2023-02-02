@@ -32,41 +32,84 @@ Section Linking.
   Variable WR: Word -> gset Addr -> Prop.
   Context {WR_stable: RelationStable2 (⊆) WR}.
 
-  (** Example of a WR, ensures all capabilites point
-      into the given segment *)
-  Example can_address_only word (addr_set: gset Addr) :=
-    match word with
-    | WSealable (SCap _ b e _)
-    | WSealed _ (SCap _ b e _) => ∀ a, (b <= a < e)%a -> a ∈ addr_set
-    | WSealable (SSealRange _ _ _ _)
-    | WSealed _ (SSealRange _ _ _ _)
-    | WInt _ => True
-    end.
-  #[global] Instance can_address_only_subseteq_stable2: RelationStable2 (⊆) can_address_only.
-  Proof.
-    intros w dom1 dom2 dom1_dom2. destruct w; try auto;
-    [ destruct sb | destruct s]; try auto.
-    all: intros ca_dom1 addr addr_in_be;
-    apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
-  Qed.
+  (** Various examples of WR predicates *)
+  Section WR.
+    (** Example of a WR, ensures all capabilites point
+        into the given segment *)
+    Example can_address_only word (addr_set: gset Addr) :=
+      match word with
+      | WSealable (SCap _ b e _)
+      | WSealed _ (SCap _ b e _) => ∀ a, (b <= a < e)%a -> a ∈ addr_set
+      | WSealable (SSealRange _ _ _ _)
+      | WSealed _ (SSealRange _ _ _ _)
+      | WInt _ => True
+      end.
+    #[global] Instance can_address_only_subseteq_stable2: RelationStable2 (⊆) can_address_only.
+    Proof.
+      intros w dom1 dom2 dom1_dom2. destruct w; try auto;
+      [ destruct sb | destruct s]; try auto.
+      all: intros ca_dom1 addr addr_in_be;
+      apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
+    Qed.
 
-  (** Another possible WR, not a capability *)
-  Example no_capability word (_:gset Addr) :=
-    match word with
-    | WSealable (SCap _ b e _)
-    | WSealed _ (SCap _ b e _) => False
-    | WSealable (SSealRange _ _ _ _)
-    | WSealed _ (SSealRange _ _ _ _)
-    | WInt _ => True
-    end.
-  #[global] Instance no_capability_subseteq_stable2: RelationStable2 (⊆) no_capability.
-  Proof. intros w a a' _ H. auto. Qed.
+    (** Example of a WR, ensures all capabilites point
+        into the given segment *)
+    Example can_address_only_no_seals word (addr_set: gset Addr) :=
+        match word with
+        | WSealable (SCap _ b e _) => ∀ a, (b <= a < e)%a -> a ∈ addr_set
+        | WSealed _ (SCap _ _ _ _)
+        | WSealable (SSealRange _ _ _ _)
+        | WSealed _ (SSealRange _ _ _ _) => False
+        | WInt _ => True
+        end.
+    #[global] Instance can_address_only_no_seals_subseteq_stable2: RelationStable2 (⊆) can_address_only_no_seals.
+    Proof.
+      intros w dom1 dom2 dom1_dom2. destruct w; auto.
+      destruct sb; [intros ca_dom1 addr addr_in_be | auto];
+      apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
+    Qed.
 
-  (** Another example, no constraints on words at all *)
-  Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
-  #[global] Instance unconstrained_word_subseteqstable: RelationStable2 (⊆) unconstrained_word.
-  Proof. intros w a b _ _. apply I. Qed.
+    Lemma can_address_only_no_seals_weaken {w a} :
+      can_address_only_no_seals w a -> can_address_only w a.
+    Proof.
+      unfold can_address_only_no_seals, can_address_only.
+      destruct w; [auto | destruct sb | destruct s]; auto.
+      intros H. contradiction H.
+    Qed.
 
+    (** Another WR, not a seal *)
+    Example is_not_seal word (_: gset Addr) :=
+      match word with
+      | WInt _
+      | WSealable (SCap _ _ _ _) => True
+      | WSealed _ (SCap _ _ _ _)
+      | WSealable (SSealRange _ _ _ _)
+      | WSealed _ (SSealRange _ _ _ _) => False
+      end.
+    #[global] Instance is_not_seal_subseteq_stable2: RelationStable2 (⊆) is_not_seal.
+    Proof. intros w dom1 dom2 dom1_dom2 H. auto. Qed.
+
+    (** Another possible WR, only allow words/intructions *)
+    Example is_word word (_:gset Addr) :=
+      match word with
+      | WSealable (SCap _ _ _ _)
+      | WSealed _ (SCap _ _ _ _)
+      | WSealable (SSealRange _ _ _ _)
+      | WSealed _ (SSealRange _ _ _ _) => False
+      | WInt _ => True
+      end.
+    #[global] Instance is_word_subseteq_stable2: RelationStable2 (⊆) is_word.
+    Proof. intros w a a' _ H. auto. Qed.
+
+    (** Another example, no constraints on words at all *)
+    Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
+    #[global] Instance unconstrained_word_subseteqstable: RelationStable2 (⊆) unconstrained_word.
+    Proof. intros w a b _ _. apply I. Qed.
+
+    Lemma any_implies_unconstrained_word {P}:
+      ∀ w a, P w a -> unconstrained_word w a.
+    Proof. intros. unfold unconstrained_word. auto. Qed.
+  End WR.
 
   Notation imports_type := (gmap Addr Symbols).
   Notation exports_type := (gmap Symbols Word).
@@ -1524,10 +1567,6 @@ Section LinkWeakenRestrictions.
     all: assumption.
   Qed.
 End LinkWeakenRestrictions.
-
-Lemma any_implies_unconstrained_word {P}:
-  ∀ w a, P w a -> unconstrained_word w a.
-Proof. intros. unfold unconstrained_word. auto. Qed.
 
 (** Can solve simpl can_link and well_formed_comp goals using
     symmetry, compatibility with link and weakening *)

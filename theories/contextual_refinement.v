@@ -41,10 +41,10 @@ Section contextual_refinement.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
-  Notation wf_comp := (well_formed_comp can_address_only).
-  Infix "##ₗ" := (can_link can_address_only) (at level 70).
+  Notation wf_comp := (well_formed_comp can_address_only_no_seals).
+  Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
-  Notation is_ctxt := (is_context can_address_only).
+  Notation is_ctxt := (is_context can_address_only_no_seals).
 
   Definition has_free_space (x: component Symbols) :=
     addr_gt_than reserved_context_size (dom (segment x)).
