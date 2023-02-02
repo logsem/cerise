@@ -55,7 +55,7 @@ Section contextual_refinement.
   Proof.
     intros Hxy Hx Hy.
     unfold has_free_space.
-    rewrite -(link_segment_dom can_address_only).
+    rewrite -(link_segment_dom can_address_only_no_seals).
     apply addr_gt_than_union_stable; assumption.
     all: solve_can_link.
   Qed.
@@ -123,12 +123,12 @@ Section contextual_refinement.
       apply has_free_space_link; assumption.
       intros ctxt regs c ctxt_impl mr_impl.
       apply (is_context_move_in _) in ctxt_impl as Hctxt; try solve_can_link.
-      rewrite (link_assoc can_address_only) in mr_impl; try solve_can_link.
+      rewrite (link_assoc can_address_only_no_seals) in mr_impl; try solve_can_link.
       destruct (Hrefines (ctxt ⋈ extra) regs c Hctxt mr_impl) as [Hc Hmr].
       split.
       eapply (is_context_remove_exportless_r _ _ Hexp).
-      rewrite <- (link_comm can_address_only).
-      apply (is_context_move_out can_address_only).
+      rewrite <- (link_comm can_address_only_no_seals).
+      apply (is_context_move_out can_address_only_no_seals).
       all: try solve_can_link. inversion ctxt_impl.
       exact Hwr_regs. exact Hc.
 
@@ -137,14 +137,14 @@ Section contextual_refinement.
       exact Hmr.
       replace ((ctxt ⋈ extra) ⋈ spec) with ((ctxt ⋈ spec) ⋈ extra).
       2: {
-        rewrite <- (link_assoc can_address_only).
-        rewrite <- (link_assoc can_address_only).
-        f_equal. apply (link_comm can_address_only).
+        rewrite <- (link_assoc can_address_only_no_seals).
+        rewrite <- (link_assoc can_address_only_no_seals).
+        f_equal. apply (link_comm can_address_only_no_seals).
         all: solve_can_link.
        }
-      rewrite (link_segment_union can_address_only).
-      rewrite (link_segment_union can_address_only).
-      rewrite <- (link_segment_union can_address_only).
+      rewrite (link_segment_union can_address_only_no_seals).
+      rewrite (link_segment_union can_address_only_no_seals).
+      rewrite <- (link_segment_union can_address_only_no_seals).
       2,3,4: solve_can_link.
       transitivity (resolve_imports (imports (ctxt ⋈ spec)) (exports extra) (segment (ctxt ⋈ spec))).
       rewrite Hexp.
@@ -153,32 +153,33 @@ Section contextual_refinement.
       inversion Hc.
 
       1,2: assert (Hdom_ctxt: dom (segment ctxt) ⊆ dom (segment (ctxt ⋈ spec))).
-      1,3: apply (link_segment_dom_subseteq_l can_address_only);
+      1,3: apply (link_segment_dom_subseteq_l can_address_only_no_seals);
            inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; try assumption.
 
       assert (Hdom_spec: dom (segment spec) ⊆ dom (segment (ctxt ⋈ spec))).
-      apply (link_segment_dom_subseteq_r can_address_only);
+      apply (link_segment_dom_subseteq_r can_address_only_no_seals);
       inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; assumption.
 
-      assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only w (dom (segment (ctxt ⋈ spec)))).
+      assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
       inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
-      apply (can_address_only_subseteq_stable2 w (dom (segment spec)) _ Hdom_spec).
+      apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
       inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
 
-      assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only w (dom (segment (ctxt ⋈ spec)))).
+      assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros a w Hw'.
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
       inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
-      apply (can_address_only_subseteq_stable2 w (dom (segment spec)) _ Hdom_spec).
+      apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
       inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
 
       intros w Hw.
       apply elem_of_img in Hw as [a Hw].
       unfold link in Hw. simpl in Hw.
+      apply can_address_only_no_seals_weaken.
       rewrite resolve_imports_spec in Hw.
       destruct (imports spec !! a).
       destruct ((exports ctxt ∪ exports spec) !! s) eqn:He.
@@ -191,7 +192,8 @@ Section contextual_refinement.
            apply elem_of_img_rev in He'; apply (Hex _ He').
 
       inversion ctxt_impl as [ [ [] ] ]. intros w Hw.
-      apply (can_address_only_subseteq_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply can_address_only_no_seals_weaken.
       apply (Hwr_regs w Hw).
       Unshelve. solve_can_link.
     Qed.
@@ -222,12 +224,12 @@ Section contextual_refinement.
       intros ctxt regs c ctxt_impl mr_impl.
       inversion ctxt_impl.
       apply (is_context_move_in _) in ctxt_impl as HC.
-      rewrite (link_assoc can_address_only) in mr_impl.
+      rewrite (link_assoc can_address_only_no_seals) in mr_impl.
       destruct (Hrefines (link ctxt common) regs c HC mr_impl) as [ctxt_spec mr_spec].
       split.
       apply (is_context_move_out _). solve_can_link.
       exact Hwr_regs. exact ctxt_spec.
-      rewrite (link_assoc can_address_only).
+      rewrite (link_assoc can_address_only_no_seals).
       exact mr_spec.
       all: solve_can_link.
     Qed.
@@ -370,7 +372,7 @@ Section contextual_refinement.
     |}.
 
     Local Lemma halt_context_wf {target}:
-      well_formed_comp can_address_only (halt_context target).
+      wf_comp (halt_context target).
     Proof.
       unfold halt_context.
       apply wf_comp_intro; simpl.
@@ -378,14 +380,14 @@ Section contextual_refinement.
       - rewrite dom_empty. apply empty_subseteq.
       - intros w exp_s.
         apply dummy_exports_lookup in exp_s.
-        rewrite exp_s. unfold can_address_only. exact I.
+        rewrite exp_s. unfold can_address_only_no_seals. exact I.
       - intros w H. apply img_singleton, elem_of_singleton in H.
         rewrite H. exact I.
     Qed.
 
     Local Lemma halt_context_can_link {target} :
       has_free_space target -> wf_comp target ->
-      can_link can_address_only (halt_context target) target.
+      (halt_context target) ##ₗ target.
     Proof.
       intros Hf Hwf.
       apply can_link_intro.
@@ -553,7 +555,7 @@ Section contextual_refinement.
       rewrite - (link_assoc _); try solve_can_link.
       rewrite (@addr_ctxt_halt_ctxt target a Hwf).
       apply halt_context_machine_run.
-      rewrite -(link_segment_dom can_address_only); try solve_can_link.
+      rewrite -(link_segment_dom can_address_only_no_seals); try solve_can_link.
       rewrite elem_of_union. intros [Ha | Ha].
       simpl in Ha. rewrite dom_singleton elem_of_singleton in Ha. auto.
       specialize (Hfree 0%a Ha). solve_addr.
