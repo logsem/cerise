@@ -30,7 +30,7 @@ Section logrel.
   (** Allocates invariants for segment c in links (x ⋈ c) and (y ⋈ c)
       assuming the exports of x and y are valid. *)
   Lemma interp_exports_inv_alloc E {x y c: component Symbols} :
-    (∀ w, w ∈ img (segment c) -> is_word w (dom (segment c))) ->
+    (∀ w, w ∈ img (segment c) -> is_word w) ->
     x ##ₗ c -> y ##ₗ c ->
     dom (exports x) ⊆ dom (exports y) ->
     ([∗ map] a ↦ w ∈ segment (x ⋈ c), a ↦ₐ w) ∗
@@ -88,7 +88,7 @@ Section logrel.
   Qed.
 
   Lemma interp_link {x y c:component Symbols}:
-    (∀ w, w ∈ img (segment c) -> is_word w (dom (segment c))) ->
+    (∀ w, w ∈ img (segment c) -> is_word w) ->
     x ##ₗ c -> y ##ₗ c ->
     imports x = ∅ -> imports y = ∅ ->
     spec_ctx ∗ interp_exports x y ∗

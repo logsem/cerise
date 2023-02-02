@@ -8,12 +8,18 @@ Class RelationStable2 {A B:Type} (R:relation B) (P: A -> B -> Prop) :=
   relation_stable2 : ∀ w a b, R a b -> P w a -> P w b.
 
 #[global] Instance and_relation_stable2 {A B} R (P Q: A -> B -> Prop)
-  {H1:RelationStable2 R P} {H2:RelationStable2 R Q} : RelationStable2 R (fun w a => P w a /\ Q w a).
+          {H1:RelationStable2 R P} {H2:RelationStable2 R Q} :
+  RelationStable2 R (fun w a => P w a /\ Q w a).
 Proof. intros w a b r [pwa qwa]. split. apply (H1 w a b r pwa). apply (H2 w a b r qwa). Qed.
 
 #[global] Instance or_relation_stable2 {A B} R (P Q: A -> B -> Prop)
-{H1:RelationStable2 R P} {H2:RelationStable2 R Q} : RelationStable2 R (fun w a => P w a \/ Q w a).
+          {H1:RelationStable2 R P} {H2:RelationStable2 R Q} :
+  RelationStable2 R (fun w a => P w a \/ Q w a).
 Proof. intros w a b r [pwa | qwa]. left. apply (H1 w a b r pwa). right. apply (H2 w a b r qwa). Qed.
+
+#[global] Instance constant_relation_stable2 {A B} {r:relation B} (f: A -> Prop):
+  RelationStable2 r (fun w _ => f w).
+Proof. intros w _ _ _ H. exact H. Qed.
 
 (** Definition of components, condition for well_formedness and linking,
     the linking process, and properties (associativity, commutativity) *)
@@ -78,7 +84,7 @@ Section Linking.
     Qed.
 
     (** Another WR, not a seal *)
-    Example is_not_seal word (_: gset Addr) :=
+    Example is_not_seal word :=
       match word with
       | WInt _
       | WSealable (SCap _ _ _ _) => True
@@ -86,11 +92,9 @@ Section Linking.
       | WSealable (SSealRange _ _ _ _)
       | WSealed _ (SSealRange _ _ _ _) => False
       end.
-    #[global] Instance is_not_seal_subseteq_stable2: RelationStable2 (⊆) is_not_seal.
-    Proof. intros w dom1 dom2 dom1_dom2 H. auto. Qed.
 
     (** Another possible WR, only allow words/intructions *)
-    Example is_word word (_:gset Addr) :=
+    Example is_word word :=
       match word with
       | WSealable (SCap _ _ _ _)
       | WSealed _ (SCap _ _ _ _)
@@ -98,13 +102,9 @@ Section Linking.
       | WSealed _ (SSealRange _ _ _ _) => False
       | WInt _ => True
       end.
-    #[global] Instance is_word_subseteq_stable2: RelationStable2 (⊆) is_word.
-    Proof. intros w a a' _ H. auto. Qed.
 
     (** Another example, no constraints on words at all *)
     Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
-    #[global] Instance unconstrained_word_subseteqstable: RelationStable2 (⊆) unconstrained_word.
-    Proof. intros w a b _ _. apply I. Qed.
 
     Lemma any_implies_unconstrained_word {P}:
       ∀ w a, P w a -> unconstrained_word w a.
