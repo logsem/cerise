@@ -68,6 +68,8 @@ Section fin_map_img.
     setoid_rewrite lookup_singleton_Some. set_solver.
   Qed.
 
+
+
   Lemma img_insert (k:K) (v:A) (m:M A) : img (<[k:=v]> m) ⊆ {[ v ]} ∪ img m.
   Proof.
     intros w Hw. apply elem_of_img in Hw as [k' Hw].
@@ -75,6 +77,9 @@ Section fin_map_img.
     apply elem_of_union_l, elem_of_singleton. symmetry. apply Hvw.
     apply elem_of_union_r, elem_of_img. exists k'. apply Hmk'.
   Qed.
+
+  Lemma elem_of_img_insert (k:K) (v:A) (m:M A) : v ∈ img (<[k:=v]> m).
+  Proof. apply elem_of_img. exists k. apply lookup_insert. Qed.
 
   Lemma img_empty_L `{!LeibnizEquiv D}:
     img (@empty (M A) _) = ∅.

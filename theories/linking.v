@@ -36,21 +36,28 @@ Section Linking.
       into the given segment *)
   Example can_address_only word (addr_set: gset Addr) :=
     match word with
+    | WSealable (SCap _ b e _)
+    | WSealed _ (SCap _ b e _) => ∀ a, (b <= a < e)%a -> a ∈ addr_set
+    | WSealable (SSealRange _ _ _ _)
+    | WSealed _ (SSealRange _ _ _ _)
     | WInt _ => True
-    | WCap _ b e _ => ∀ a, (b <= a < e)%a -> a ∈ addr_set
     end.
   #[global] Instance can_address_only_subseteq_stable2: RelationStable2 (⊆) can_address_only.
   Proof.
-    intros w dom1 dom2 dom1_dom2. destruct w. auto.
-    intros ca_dom1 addr addr_in_be.
-    apply dom1_dom2. apply (ca_dom1 addr addr_in_be).
+    intros w dom1 dom2 dom1_dom2. destruct w; try auto;
+    [ destruct sb | destruct s]; try auto.
+    all: intros ca_dom1 addr addr_in_be;
+    apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
   Qed.
 
   (** Another possible WR, not a capability *)
   Example no_capability word (_:gset Addr) :=
     match word with
+    | WSealable (SCap _ b e _)
+    | WSealed _ (SCap _ b e _) => False
+    | WSealable (SSealRange _ _ _ _)
+    | WSealed _ (SSealRange _ _ _ _)
     | WInt _ => True
-    | _ => False
     end.
   #[global] Instance no_capability_subseteq_stable2: RelationStable2 (⊆) no_capability.
   Proof. intros w a a' _ H. auto. Qed.
