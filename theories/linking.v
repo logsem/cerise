@@ -1629,3 +1629,7 @@ Ltac solve_can_link :=
   | H: _ |- well_formed_comp _ (_ ⋈ _) =>
       apply (link_well_formed _); solve_can_link
   end.
+
+
+#[global] Hint Extern 5 (can_link _ _ _) => solve_can_link : core.
+#[global] Hint Extern 5 (well_formed_comp _ _) => solve_can_link : core.
