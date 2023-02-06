@@ -929,26 +929,3 @@ Qed.
 Lemma map_zip_dom_L {K A B M D} `{FinMapDom K M D} `{!LeibnizEquiv D} (m1 : M A) (m2: M B) :
   dom (map_zip m1 m2) = dom m1 ∩ dom m2.
 Proof. unfold_leibniz. apply map_zip_dom. Qed.
-
-(** map_zip ignores keys that aren't shared by both maps *)
-Lemma map_zip_filter {K M A B} `{H:FinMap K M} (m1: M A) (m2: M B) :
-  map_zip m1 m2 =
-  map_zip
-    (filter (fun '(k,_) => is_Some (m2 !! k)) m1)
-    (filter (fun '(k,_) => is_Some (m1 !! k)) m2).
-Proof.
-  apply map_eq. intros k.
-  rewrite !map_lookup_zip_with.
-  destruct (m1 !! k) as [v1|] eqn:Hm1;
-  destruct (m2 !! k) as [v2|] eqn:Hm2; simpl.
-  - rewrite (map_filter_lookup_Some_2 _ _ _ _ Hm2 (mk_is_Some _ _ Hm1)).
-    rewrite (map_filter_lookup_Some_2 _ _ _ _ Hm1 (mk_is_Some _ _ Hm2)).
-    reflexivity.
-  - rewrite eq_None_not_Some in Hm2.
-    rewrite (map_filter_lookup_None_2 _ _ _ (or_intror (fun _ _ => Hm2))).
-    reflexivity.
-  - rewrite (map_filter_lookup_None_2 _ _ _ (or_introl Hm1)). reflexivity.
-  - rewrite eq_None_not_Some in Hm2.
-    rewrite (map_filter_lookup_None_2 _ _ _ (or_intror (fun _ _ => Hm2))).
-    reflexivity.
-Qed.

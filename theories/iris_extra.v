@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
-From cap_machine Require Import stdpp_extra.
+From cap_machine Require Import stdpp_extra stdpp_restrict.
 
 #[global] Instance big_sepL_Permutation {PROP : bi} {A} (φ : A -> PROP):
   Proper ((≡ₚ) ==> (⊣⊢)) (fun l => ([∗ list] v ∈ l, φ v)%I).
@@ -550,7 +550,7 @@ Proof.
   iApply (big_sepM_subseteq _ m1). apply map_filter_subseteq. done.
   iApply (big_sepM_subseteq _ m2). apply map_filter_subseteq. done.
   intros k. split;
-  intros [x Hx]; rewrite map_filter_lookup_Some in Hx;
+  intros [x Hx]; rewrite restrict_lookup_Some in Hx;
   destruct Hx as [Hx [y Hy] ]; exists y;
-  rewrite map_filter_lookup_Some; split; exact Hy || exists x; exact Hx.
+  rewrite restrict_lookup_Some; split; exact Hy || exists x; exact Hx.
 Qed.
