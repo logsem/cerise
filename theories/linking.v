@@ -613,14 +613,14 @@ Section Linking.
         exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp_s)).
       + intros w ms_w. (* word in segment follow word restrictions *)
         destruct (resolve_imports_spec_simple ms_w) as [ exp_w | ms_w'].
-        destruct (img_union _ _ _ exp_w) as [exp1_w | exp2_w].
+        destruct (elem_of_img_union _ _ _ exp_w) as [exp1_w | exp2_w].
         exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
         exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
         destruct (resolve_imports_spec_simple ms_w') as [ exp_w | ms_w''].
-        destruct (img_union _ _ _ exp_w) as [exp1_w | exp2_w].
+        destruct (elem_of_img_union _ _ _ exp_w) as [exp1_w | exp2_w].
         exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
         exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
-        destruct (img_union _ _ _ ms_w'') as [ms1_w | ms2_w].
+        destruct (elem_of_img_union _ _ _ ms_w'') as [ms1_w | ms2_w].
         exact (relation_stable2 _ _ _ imp1 (Hwr_ms1 w ms1_w)).
         exact (relation_stable2 _ _ _ imp2 (Hwr_ms2 w ms2_w)).
     Qed.
