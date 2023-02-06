@@ -1,8 +1,25 @@
 From iris.proofmode Require Import proofmode environments.
 From iris.program_logic Require Export weakestpre.
 From cap_machine Require Import linking logrel_binary.
-From cap_machine Require Import stdpp_img iris_extra.
+From cap_machine Require Import stdpp_restrict stdpp_img iris_extra.
 From cap_machine Require Import fundamental_binary.
+
+(* Definition big_op_segment
+  {M:ofe} (op: M -> M -> M) `{Monoid M op}
+  (Φ : Addr -> Word -> M)
+  s : M := big_opM op (fun a w => Φ a w) s. *)
+
+Notation "a ◁ b" := (restrict (a : gmap _ _) (b: gmap _ _)) (at level 80).
+Notation "a ⧖ b" := (map_zip (a:gmap _ _) (b: gmap _ _)) (at level 75).
+
+(* Notation "'[∗' 'seg]' a ↦ w ∈ m1 ◁ m2 , P" :=
+  (big_op_segment bi_sep (λ a w, P%I) (restrict_m (segment m1) (segment m2)))
+  (at level 200, m1 at level 10, m2 at level 10, a binder, w binder, right associativity)
+   : bi_scope.
+Notation "'[∗' 'seg]' a ↦ w ∈ m , P" :=
+  (big_op_segment bi_sep (λ a w, P%I) (segment m))
+  (at level 200, m at level 10, a binder, w binder, right associativity)
+    : bi_scope. *)
 
 Section logrel.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -12,6 +29,8 @@ Section logrel.
   Context {Symbols:Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
+
+  Coercion segment : component >-> segment_type.
 
   Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
@@ -33,27 +52,30 @@ Section logrel.
     (∀ w, w ∈ img (segment c) -> is_word w) ->
     x ##ₗ c -> y ##ₗ c ->
     dom (exports x) ⊆ dom (exports y) ->
-    ([∗ map] a ↦ w ∈ segment (x ⋈ c), a ↦ₐ w) ∗
-    ([∗ map] a ↦ w ∈ segment (y ⋈ c), a ↣ₐ w) ∗
+    ([∗ map] a ↦ w ∈ c ◁ (x ⋈ c), a ↦ₐ w) ∗
+    ([∗ map] a ↦ w ∈ c ◁ (y ⋈ c), a ↣ₐ w) ∗
     interp_exports x y ={E}=∗
-      ([∗ map] a ↦ _ ∈ map_zip (segment (x ⋈ c)) (segment (y ⋈ c)),
-        ⌜a ∈ dom (segment c)⌝ →
-          inv (logN.@a)
-          (∃ w w' : Word, a ↦ₐ w ∗ a ↣ₐ w' ∗ interp (w, w'))).
+      ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)).
   Proof.
     iIntros (Hno_caps Hsep1 Hsep2 Hexp) "[Hpx [Hpy #Hexp]]".
-    rewrite -(big_sepM_filter (fun '(a,_) => a ∈ _)).
+    rewrite big_sepM_dom.
+    assert (Hdc: dom (segment c) = dom (c ◁ (x ⋈ c) ⧖ (y ⋈ c))).
+    { rewrite dom_restrict_L map_zip_dom_L -!(link_segment_dom can_address_only_no_seals).
+      set_solver. all: solve_can_link. }
+    rewrite Hdc -big_sepM_dom.
+    (* rewrite -(big_sepM_filter (fun '(a,_) => a ∈ _)). *)
     rewrite (big_sepM_big_sepL2_map_to_list (fun a _ => inv _ _)).
     iApply region_inv_alloc.
     rewrite -(big_sepM_big_sepL2_map_to_list (fun a v => (a ↦ₐ v.1 ∗ a ↣ₐ v.2 ∗ interp v)%I)).
-    rewrite big_sepM_filter.
     iApply (big_sepM_mono (fun a w =>
       interp_exports x y ∗
-      (⌜ segment (x ⋈ c) !! a = Some w.1 ⌝ ∗ a ↦ₐ w.1) ∗
-      (⌜ segment (y ⋈ c) !! a = Some w.2 ⌝ ∗ a ↣ₐ w.2))%I).
-    iIntros (a [w w'] Hzip) "[#Hexp [[%Hxca Hw] [%Hyca Hw']]] %Ha".
+      (⌜ (c ◁ x ⋈ c) !! a = Some w.1 ⌝ ∗ a ↦ₐ w.1) ∗
+      (⌜ (c ◁ y ⋈ c) !! a = Some w.2 ⌝ ∗ a ↣ₐ w.2))%I).
+    iIntros (a [w w'] Hzip) "[#Hexp [[%Hxca Hw] [%Hyca Hw']]]".
     simpl. iFrame.
     (* assert validity of w,w' by case disjunction *)
+    apply map_filter_lookup_Some in Hxca as [Hxca Ha].
+    apply map_filter_lookup_Some in Hyca as [Hyca _].
     rewrite (link_segment_lookup_r _ Hsep1 Ha) in Hxca.
     rewrite (link_segment_lookup_r _ Hsep2 Ha) in Hyca.
     rewrite !resolve_imports_spec /= in Hxca, Hyca.
@@ -79,6 +101,7 @@ Section logrel.
     iSplitR.
     iApply big_sepM_dup. iModIntro. iIntros "H".
     iFrame. done. done.
+    rewrite restrict_map_zip_with.
     iApply (big_sepM_sep_zip_affine
       (fun a v => a ↦ₐ v)%I
       (fun a v => a ↣ₐ v)%I).
@@ -88,26 +111,18 @@ Section logrel.
   Qed.
 
   Lemma interp_link {x y c:component Symbols}:
-    (∀ w, w ∈ img (segment c) -> is_word w) ->
     x ##ₗ c -> y ##ₗ c ->
-    imports x = ∅ -> imports y = ∅ ->
     spec_ctx ∗ interp_exports x y ∗
-    ([∗ map] a ↦ _ ∈ map_zip (segment (x ⋈ c)) (segment (y ⋈ c)),
-    ⌜a ∈ dom (segment c)⌝ →
-      inv (logN.@a)
-      (∃ w w' : Word, a ↦ₐ w ∗ a ↣ₐ w' ∗ interp (w, w'))) -∗
+    ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)) -∗
     interp_exports (x ⋈ c) (y ⋈ c).
   Proof.
-    iIntros (Hno_caps Hsep1 Hsep2 Hno_imps_x Hno_imps_y) "[#Hspec [#Hexp #Hinv]]".
+    iIntros (Hsep1 Hsep2) "[#Hspec [#Hexp #Hinv]]".
     (* weird induction scheme: essentially an induction on the exports of c
        but keeping our persistent hypotheses out of the induction *)
     apply (exports_ind (fun c' => envs_entails
     (Envs
     (Esnoc _ "Hinv"
-       ([∗ map] a ↦ _ ∈ map_zip (segment (x ⋈ c)) (segment (y ⋈ c)),
-        ⌜a ∈ dom (segment c)⌝ →
-         inv _
-         (∃ w w' : Word, a ↦ₐ w ∗ a ↣ₐ w' ∗ interp (w, w'))))
+       ([∗ map] a ↦ _ ∈ c, inv _ (interp_ref_inv a interp)))
     _ _)
     _)%I c).
     (* For exports from x,y this is a direct result of our hypothese *)
@@ -157,12 +172,8 @@ Section logrel.
         all: iSplitL;
              [ | (try iSplitL; iSimpl; do 2 iModIntro; iIntros (ww ww') "H"; done)].
         (* others results come from the invariants *)
-        all: assert (Ha': a ∈ dom (map_zip (segment (x ⋈ c)) (segment (y ⋈ c))));
-             [ (rewrite map_zip_dom_L !(resolve_imports_link_dom can_address_only_no_seals);
-               try (rewrite !dom_union_L -union_intersection_r_L; apply (union_subseteq_r _ _ a Ha))
-               || solve_can_link) | ].
-        all: apply elem_of_dom in Ha' as [z Ha'].
-        all: iPoseProof (big_sepM_lookup _ _ a _ Ha' with "Hinv") as "Ha0".
+        all: apply elem_of_dom in Ha as [z Ha].
+        all: iPoseProof (big_sepM_lookup _ _ a _ Ha with "Hinv") as "Ha0".
         all: iApply "Ha0"; iPureIntro; exact Ha.
       + unfold interp_exports in IH. simpl in IH.
         iApply (big_sepM_mono (fun k wy =>
