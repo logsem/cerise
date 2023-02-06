@@ -18,8 +18,8 @@ Class FinMapImg K A M D
     OMap M, Merge M, ∀ A, FinMapToList K A (M A), EqDecision K,
     ElemOf A D, Empty D, Singleton A D,
     Union D, Intersection D, Difference D} := {
-  finmap_dom_map :> FinMap K M;
-  finmap_dom_set :> Set_ A D;
+  finmap_img_map :> FinMap K M;
+  finmap_img_set :> Set_ A D;
   elem_of_img (m:M A) (v:A) : v ∈ img m <-> ∃ (k:K), m !! k = Some v
 }.
 
@@ -67,8 +67,6 @@ Section fin_map_img.
     rewrite elem_of_img. rewrite elem_of_singleton.
     setoid_rewrite lookup_singleton_Some. set_solver.
   Qed.
-
-
 
   Lemma img_insert (k:K) (v:A) (m:M A) : img (<[k:=v]> m) ⊆ {[ v ]} ∪ img m.
   Proof.
