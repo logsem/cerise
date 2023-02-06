@@ -26,7 +26,7 @@ Class FinMapImg K A M D
 Section fin_map_img.
   Context `{FinMapImg K A M D}.
 
-  Lemma img_union:
+  Lemma elem_of_img_union:
     ∀ (m1 m2:M A) (v:A),
     v ∈ img (m1 ∪ m2) ->
     v ∈ img m1 \/ v ∈ img m2.
@@ -79,12 +79,30 @@ Section fin_map_img.
   Lemma elem_of_img_insert (k:K) (v:A) (m:M A) : v ∈ img (<[k:=v]> m).
   Proof. apply elem_of_img. exists k. apply lookup_insert. Qed.
 
-  Lemma img_empty_L `{!LeibnizEquiv D}:
-    img (@empty (M A) _) = ∅.
-  Proof. unfold_leibniz. exact img_empty. Qed.
+  Lemma img_insert_notin (k:K) (v:A) (m:M A) :
+    m!!k=None -> img (<[k:=v]> m) ≡@{D} {[ v ]} ∪ img m.
+  Proof.
+    intros Hm w. rewrite elem_of_union !elem_of_img elem_of_singleton.
+    setoid_rewrite lookup_insert_Some.
+    split.
+    intros [k' [[Hk Hv] | [Hk Hv]]]. left. done. right. exists k'. done.
+    intros [Hv | [k' Hv]]. exists k. left. done. exists k'. right.
+    destruct (decide (k=k')) as [Hk|Hk]. simplify_eq. done.
+  Qed.
 
-  Lemma img_singleton_L `{!LeibnizEquiv D} (k:K) (v:A) : img ({[ k := v ]} : M A) = {[ v ]}.
-  Proof. unfold_leibniz. apply img_singleton. Qed.
+  Section Leibniz.
+    Context `{!LeibnizEquiv D}.
+
+    Lemma img_empty_L : img (@empty (M A) _) = ∅.
+    Proof. unfold_leibniz. exact img_empty. Qed.
+
+    Lemma img_singleton_L (k:K) (v:A) : img ({[ k := v ]} : M A) = {[ v ]}.
+    Proof. unfold_leibniz. apply img_singleton. Qed.
+
+    Lemma img_insert_notin_L (k:K) (v:A) (m:M A) :
+      m!!k=None -> img (<[k:=v]> m) = {[ v ]} ∪ img m.
+    Proof. unfold_leibniz. apply img_insert_notin. Qed.
+  End Leibniz.
 End fin_map_img.
 
 Global Instance fin_map_img K A M D
