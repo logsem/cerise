@@ -90,6 +90,15 @@ Section fin_map_img.
     destruct (decide (k=k')) as [Hk|Hk]. simplify_eq. done.
   Qed.
 
+  Lemma subseteq_img (m1 m2:M A) :
+    m1 ⊆ m2 -> img m1 ⊆ img m2.
+  Proof.
+    intros Hm v Hv. rewrite elem_of_img.
+    apply elem_of_img in Hv as [k Hv]. exists k.
+    rewrite map_subseteq_spec in Hm.
+    apply (Hm k v Hv).
+  Qed.
+
   Section Leibniz.
     Context `{!LeibnizEquiv D}.
 
