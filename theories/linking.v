@@ -487,7 +487,7 @@ Section Linking.
       rewrite lookup_union_r; try assumption.
       destruct (imports a !! addr) as [s|] eqn:Hia_addr.
       destruct (exports a !! s) eqn:Hea.
-      inversion Hwf_l. apply mk_is_Some, elem_of_dom in Hea. apply elem_of_img_rev in Hia_addr.
+      inversion Hwf_l. apply mk_is_Some, elem_of_dom in Hea. apply elem_of_img_2 in Hia_addr.
       contradiction (Hdisj _ Hea Hia_addr).
       rewrite lookup_union_r; try assumption.
       symmetry. rewrite lookup_union_l. rewrite resolve_imports_spec Hia_addr.
@@ -504,7 +504,7 @@ Section Linking.
       rewrite lookup_union_l; try assumption.
       destruct (imports b !! addr) as [s|] eqn:Hib_addr.
       destruct (exports b !! s) eqn:Heb.
-      inversion Hwf_r. apply mk_is_Some, elem_of_dom in Heb. apply elem_of_img_rev in Hib_addr.
+      inversion Hwf_r. apply mk_is_Some, elem_of_dom in Heb. apply elem_of_img_2 in Hib_addr.
       contradiction (Hdisj _ Heb Hib_addr).
       rewrite lookup_union_l; try assumption.
       symmetry. rewrite lookup_union_r. rewrite resolve_imports_spec Hib_addr.
@@ -608,7 +608,7 @@ Section Linking.
         apply elem_of_img in exp_w. destruct exp_w as [s exp_s_w].
         apply lookup_union_Some in exp_s_w. 2: assumption.
         destruct exp_s_w as [exp_s | exp_s];
-        apply elem_of_img_rev in exp_s.
+        apply elem_of_img_2 in exp_s.
         exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp_s)).
         exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp_s)).
       + intros w ms_w. (* word in segment follow word restrictions *)
@@ -641,12 +641,12 @@ Section Linking.
         apply lookup_union_None in none.
         destruct none as [n_l n_r].
         destruct a_imps as [a_l | a_r].
-        apply elem_of_img_rev in a_l.
+        apply elem_of_img_2 in a_l.
         specialize (Hno_imps_r s a_l).
         apply elem_of_dom in Hno_imps_r.
         rewrite n_r in Hno_imps_r.
         contradiction (is_Some_None Hno_imps_r).
-        apply elem_of_img_rev in a_r.
+        apply elem_of_img_2 in a_r.
         specialize (Hno_imps_l s a_r).
         apply elem_of_dom in Hno_imps_l.
         rewrite n_l in Hno_imps_l.
@@ -899,11 +899,11 @@ Section Linking.
       rename sa into s. 2: rename sb into s.
       destruct (exports a !! s) as [wa|] eqn:ea_s.
       apply mk_is_Some, elem_of_dom in ea_s.
-      apply elem_of_img_rev in ia_addr.
+      apply elem_of_img_2 in ia_addr.
       contradiction (Hdisj s ea_s ia_addr).
       2: destruct (exports b !! s) as [wb|] eqn:eb_s.
       2: apply mk_is_Some, elem_of_dom in eb_s;
-         apply elem_of_img_rev in ib_addr;
+         apply elem_of_img_2 in ib_addr;
          contradiction (Hdisj0 s eb_s ib_addr).
       destruct (exports b !! s) as [w|] eqn:eb_s.
       3: destruct (exports a !! s) as [w|] eqn:ea_s.
@@ -1094,7 +1094,7 @@ Section Linking.
       apply elem_of_img in ic_addr. destruct ic_addr as [addr ic_addr].
       apply or_intror with (A := (imports b !! addr = Some s)) in ic_addr.
       apply (link_imports_rev_no_exports bc addr s ebc_s) in ic_addr.
-      apply elem_of_img_rev in ic_addr.
+      apply elem_of_img_2 in ic_addr.
       apply (Hno_imps s ic_addr).
     Qed.
 
@@ -1110,10 +1110,10 @@ Section Linking.
       destruct iab_addr as [[ia_addr | ib_addr] eab_s];
       apply lookup_union_None in eab_s; destruct eab_s as [ea_s eb_s].
       apply elem_of_dom. rewrite -(lookup_union_r (exports b)).
-      apply elem_of_dom. apply elem_of_img_rev in ia_addr. exact (Hno_imps_r _ ia_addr).
+      apply elem_of_dom. apply elem_of_img_2 in ia_addr. exact (Hno_imps_r _ ia_addr).
       exact eb_s.
       destruct (imports (b ⋈ c) !! addr) as [s'|] eqn:ibc_addr.
-      replace s' with s in ibc_addr. apply elem_of_img_rev in ibc_addr.
+      replace s' with s in ibc_addr. apply elem_of_img_2 in ibc_addr.
       specialize (Hno_imps_l s ibc_addr).
       apply elem_of_dom in Hno_imps_l. rewrite ea_s in Hno_imps_l.
       contradiction (is_Some_None Hno_imps_l).
@@ -1192,7 +1192,7 @@ Section Linking.
       rewrite map_union_empty.
       destruct (exports ctxt !! s) eqn:Hexp.
       inversion Hsep. inversion Hwf_l.
-      apply elem_of_img_rev in Has.
+      apply elem_of_img_2 in Has.
       apply mk_is_Some, elem_of_dom in Hexp.
       contradiction (Hdisj s Hexp Has). reflexivity.
     Qed.
@@ -1212,7 +1212,7 @@ Section Linking.
       rewrite map_union_empty.
       destruct (exports comp !! s) eqn:Hexp.
       inversion Hsep. inversion Hwf_l.
-      apply elem_of_img_rev in Has.
+      apply elem_of_img_2 in Has.
       apply mk_is_Some, elem_of_dom in Hexp.
       contradiction (Hdisj s Hexp Has). reflexivity.
       replace (exports comp) with (exports (comp ⋈ extra)).
@@ -1259,7 +1259,7 @@ Section Linking.
       rewrite resolve_imports_spec.
       destruct (imp !! a) as [s|] eqn:His.
       destruct (exp !! s) as [w|] eqn:Hes.
-      apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
+      apply elem_of_img_2 in His. apply mk_is_Some, elem_of_dom in Hes.
       contradiction (Hdisj s Hes His).
       all: try reflexivity.
       apply map_eq. intros a.
@@ -1267,7 +1267,7 @@ Section Linking.
       destruct (imp !! a) as [s|] eqn:His; simpl.
       apply option_guard_True.
       destruct (exp !! s) as [w|] eqn:Hes;
-      apply elem_of_img_rev in His. apply mk_is_Some, elem_of_dom in Hes.
+      apply elem_of_img_2 in His. apply mk_is_Some, elem_of_dom in Hes.
       contradiction (Hdisj s Hes His).
       all: reflexivity.
     Qed.

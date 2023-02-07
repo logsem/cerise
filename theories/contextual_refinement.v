@@ -164,17 +164,17 @@ Section contextual_refinement.
       intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
       apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
-      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
+      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
       apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
-      inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_rev in Hw'. assumption.
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
 
       assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros a w Hw'.
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
       apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
-      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
+      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
       apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
-      inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_rev in Hw'. assumption.
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
 
       intros w Hw.
       apply elem_of_img in Hw as [a Hw].
@@ -184,12 +184,12 @@ Section contextual_refinement.
       destruct (imports spec !! a).
       destruct ((exports ctxt ∪ exports spec) !! s) eqn:He.
       apply Some_inj in Hw. rewrite <-Hw.
-      apply elem_of_img_rev in He. apply (Hex _ He).
+      apply elem_of_img_2 in He. apply (Hex _ He).
       1,2: rewrite resolve_imports_spec in Hw;
            destruct (imports ctxt !! a) as [s'|]; apply (Hse _ _ Hw) ||
            destruct ((exports ctxt ∪ exports spec) !! s') eqn:He';
            apply (Hse _ _ Hw) || apply Some_inj in Hw; rewrite <-Hw;
-           apply elem_of_img_rev in He'; apply (Hex _ He').
+           apply elem_of_img_2 in He'; apply (Hex _ He').
 
       inversion ctxt_impl as [ [ [] ] ]. intros w Hw.
       apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
@@ -504,7 +504,7 @@ Section contextual_refinement.
       rewrite map_subseteq_spec. intros addr s Haddr.
       apply map_filter_lookup_Some. split. apply Haddr.
       inversion Hwf.
-      apply elem_of_img_rev in Haddr. rewrite -not_elem_of_dom.
+      apply elem_of_img_2 in Haddr. rewrite -not_elem_of_dom.
       set_solver.
       apply map_filter_subseteq; apply map_subseteq_spec.
     Qed.
