@@ -908,24 +908,3 @@ Proof.
     simpl. rewrite rev_unit. rewrite rev_involutive. rewrite -Hsome /=.
     f_equiv. rewrite firstn_all. auto.
 Qed.
-
-Lemma map_zip_dom {K A B M D} `{FinMapDom K M D} (m1 : M A) (m2: M B) :
-  dom (map_zip m1 m2) ≡@{D} dom m1 ∩ dom m2.
-Proof.
-  apply (anti_symm subseteq); intros k Hk.
-  - rewrite elem_of_intersection !elem_of_dom.
-    apply elem_of_dom in Hk as [ [v1 v2] Hk].
-    rewrite map_lookup_zip_with in Hk.
-    destruct (m1 !! k).
-    split. auto. destruct (m2 !! k). auto.
-    discriminate. discriminate.
-  - rewrite elem_of_intersection !elem_of_dom in Hk.
-    rewrite elem_of_dom.
-    destruct Hk as [ [v1 Hm1] [v2 Hm2] ].
-    exists (v1,v2). rewrite map_lookup_zip_with Hm1 Hm2.
-    reflexivity.
-Qed.
-
-Lemma map_zip_dom_L {K A B M D} `{FinMapDom K M D} `{!LeibnizEquiv D} (m1 : M A) (m2: M B) :
-  dom (map_zip m1 m2) = dom m1 ∩ dom m2.
-Proof. unfold_leibniz. apply map_zip_dom. Qed.
