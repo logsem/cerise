@@ -47,7 +47,7 @@ Section logrel.
     iIntros (Hno_caps Hsep1 Hsep2 Hexp) "[Hpx [Hpy #Hexp]]".
     rewrite big_sepM_dom.
     assert (Hdc: dom (segment c) = dom (x ⋈ c ⧖ y ⋈ c |ᵣ c)).
-    { rewrite dom_restrict_L map_zip_dom_L -!(link_segment_dom can_address_only_no_seals).
+    { rewrite dom_restrict_L dom_map_zip_with -!(link_segment_dom can_address_only_no_seals).
       set_solver. all: solve_can_link. }
     rewrite Hdc -big_sepM_dom.
     (* rewrite -(big_sepM_filter (fun '(a,_) => a ∈ _)). *)
@@ -79,7 +79,7 @@ Section logrel.
     contradiction (Hey (Hexp _ Hex)).
     (* else we know they are only words, and thus valid *)
     1,2: rewrite Hxca in Hyca; apply Some_inj in Hyca; rewrite -Hyca.
-    1,2: apply elem_of_img_rev in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
+    1,2: apply elem_of_img_2 in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
     1,2: destruct w as [z | sb | z sb];
          [ (rewrite fixpoint_interp1_eq; done) | | ];
          destruct sb; contradiction Hxca.
@@ -138,7 +138,7 @@ Section logrel.
         rewrite fixpoint_interp1_eq.
         destruct w. done.
         destruct sb.
-        2,3: specialize (Hwr_exp _ (elem_of_img_rev _ _ _ Hec));
+        2,3: specialize (Hwr_exp _ (elem_of_img_2 _ _ _ Hec));
              destruct s0; contradiction Hwr_exp.
         destruct p. done.
         all: iSplitR; [done|].
@@ -148,7 +148,7 @@ Section logrel.
         (* add the hypothese a ∈ dom (segment c) which we need to access our invariants *)
         all: iApply (big_sepL_mono (fun _ a => ⌜a ∈ dom (segment c)⌝ -∗ _)%I);
              [ (iIntros (k y' Hk) "Hl"; iApply "Hl"; iPureIntro;
-                apply (Hwr_exp _ (elem_of_img_rev _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
+                apply (Hwr_exp _ (elem_of_img_2 _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
                 exists k; apply Hk) | ].
         all: induction (finz.seq_between f f0);
              [ (iApply big_sepL_nil; done) |].

@@ -11,27 +11,28 @@ Section restrict.
 
   Section simple_facts.
     Context {D} (P: K -> D -> Prop) s `{∀ k, Decision (P k s)}.
-    Context {A} (m:M A).
+    Context {A:Type}.
+    Implicit Types (m : M A) (v:A).
 
     (* In case we feel another definition would be better *)
-    Lemma restrict_filter: restrict P s m = filter (fun '(k,_) => P k s) m.
+    Lemma restrict_filter m: restrict P s m = filter (fun '(k,_) => P k s) m.
     Proof. reflexivity. Qed.
 
-    Lemma restrict_lookup_Some k v:
+    Lemma restrict_lookup_Some m k v:
       restrict P s m !! k = Some v <-> m !! k = Some v /\ P k s.
     Proof. apply map_filter_lookup_Some. Qed.
 
-    Lemma restrict_lookup_Some_2 k v:
+    Lemma restrict_lookup_Some_2 m k v:
       m !! k = Some v -> P k s -> restrict P s m !! k = Some v.
     Proof. intros. rewrite restrict_lookup_Some. done. Qed.
 
-    Lemma restrict_lookup_None k:
+    Lemma restrict_lookup_None m k:
       restrict P s m !! k = None <-> m !! k = None \/ ¬ P k s.
     Proof.
       split. intros Hr.
       destruct (m!!k) eqn:Hm.
         destruct (decide (k ∈ s)) as [Heq|Heq].
-          rewrite (restrict_lookup_Some_2 k _ Hm Heq) in Hr. discriminate.
+          rewrite (restrict_lookup_Some_2 m k _ Hm Heq) in Hr. discriminate.
           right. done.
         left. done.
       destruct (restrict P s m !! k) eqn:Hm; [ | reflexivity ].
@@ -41,24 +42,24 @@ Section restrict.
         contradiction (Hp' Hp).
     Qed.
 
-    Lemma restrict_lookup_None_2l k:
+    Lemma restrict_lookup_None_2l m k:
       m !! k = None -> restrict P s m !! k = None.
     Proof. intros. rewrite restrict_lookup_None. left. done. Qed.
 
-    Lemma restrict_lookup_None_2r k:
+    Lemma restrict_lookup_None_2r m k:
       ¬ P k s -> restrict P s m !! k = None.
     Proof. intros. rewrite restrict_lookup_None. right. done. Qed.
 
-    Lemma restrict_subseteq: restrict P s m ⊆ m.
+    Lemma restrict_subseteq m: restrict P s m ⊆ m.
     Proof. apply map_filter_subseteq. Qed.
 
-    Lemma dom_restrict_subseteq
+    Lemma dom_restrict_subseteq m
       `{∀ A : Type, Dom (M A) D, ElemOf K D, Empty D, Singleton K D,
       Union D, Intersection D, Difference D, !FinMapDom K M D}:
       dom (restrict P s m) ⊆ dom m.
     Proof. apply subseteq_dom, restrict_subseteq. Qed.
 
-    Lemma restrict_lookup k:
+    Lemma restrict_lookup m k:
       restrict P s m !! k = (m !! k) ≫= λ v,
       match decide (P k s) with
         |left _ => Some v
@@ -72,6 +73,18 @@ Section restrict.
       simpl. apply restrict_lookup_None_2l. done.
     Qed.
 
+    Lemma restrict_empty: restrict P s (∅:M A) = ∅.
+    Proof.
+      apply map_eq. intros i. rewrite lookup_empty.
+      apply restrict_lookup_None_2l, lookup_empty.
+    Qed.
+
+    Lemma restrict_singleton k v:
+      restrict P s {[ k:=v ]} = match decide (P k s) with
+      |left _ => {[ k:=v ]}
+      |right _ => ∅
+      end.
+    Proof. apply map_filter_singleton. Qed.
   End simple_facts.
 
   Lemma restrict_restrict
