@@ -26,9 +26,7 @@ Class FinMapImg K A M D
 Section fin_map_img.
   Context `{FinMapImg K A M D}.
   Implicit Types (m:M A) (k:K) (v:A).
-
   Infix "≡" := (@equiv D _) (at level 70).
-
 
   Lemma elem_of_img_2 m k v: m !! k = Some v -> v ∈ img m.
   Proof. intros Hmkv. rewrite elem_of_img. exists k. exact Hmkv. Qed.

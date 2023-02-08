@@ -47,7 +47,7 @@ Section logrel.
     iIntros (Hno_caps Hsep1 Hsep2 Hexp) "[Hpx [Hpy #Hexp]]".
     rewrite big_sepM_dom.
     assert (Hdc: dom (segment c) = dom (x ⋈ c ⧖ y ⋈ c |ᵣ c)).
-    { rewrite dom_restrict_L dom_map_zip_with_L -!(link_segment_dom can_address_only_no_seals).
+    { rewrite dom_restrict_map_L dom_map_zip_with_L -!(link_segment_dom can_address_only_no_seals).
       set_solver. all: solve_can_link. }
     rewrite Hdc -big_sepM_dom.
     (* rewrite -(big_sepM_filter (fun '(a,_) => a ∈ _)). *)
