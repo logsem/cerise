@@ -85,6 +85,25 @@ Section restrict.
       |right _ => ∅
       end.
     Proof. apply map_filter_singleton. Qed.
+
+    Lemma restrict_union_complement m:
+      restrict P s m ∪ restrict (fun k s => ¬ P k s) s m = m.
+    Proof. apply map_filter_union_complement. Qed.
+
+    Lemma restrict_empty_not_lookup m k:
+      restrict P s m = ∅ -> P k s -> m!!k = None.
+    Proof.
+      rewrite map_empty. setoid_rewrite restrict_lookup_None.
+      intros Hi HP. destruct (Hi k) as [Hi'|Hi']. exact Hi'.
+      contradiction (Hi' HP).
+    Qed.
+
+    Lemma restrict_delete m i: restrict P s (delete i m) = delete i (restrict P s m).
+    Proof. apply map_filter_delete. Qed.
+
+    Lemma restrict_fmap {B} (f : B → A) (m : M B) :
+      restrict P s (f <$> m) = f <$> restrict P s m.
+    Proof. apply map_filter_fmap. Qed.
   End simple_facts.
 
   Lemma restrict_restrict
@@ -125,6 +144,17 @@ Section restrict.
     restrict P s (map_zip_with f ml mr) =
     map_zip_with f (restrict P s ml) (restrict P s mr).
   Proof. apply restrict_merge. Qed.
+
+  Lemma restrict_difference {A} (s:M A) (m:M A) :
+    restrict (fun k s => ¬is_Some(s!!k)) s m = m ∖ s.
+  Proof.
+    apply map_eq. intros k.
+    rewrite restrict_lookup.
+    destruct (m!!k) eqn:Hm. destruct (s!!k) eqn:Hs; simpl; symmetry.
+    rewrite lookup_difference_None. rewrite Hs. right. done.
+    rewrite lookup_difference_Some. split; done.
+    simpl. symmetry. rewrite lookup_difference_None. left. done.
+  Qed.
 
   (** Common case: restrict keys to elements of a set *)
   Section restrict_set.
