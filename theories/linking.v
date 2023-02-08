@@ -781,12 +781,12 @@ Section Linking.
           apply can_link_disjoint_impls; solve_can_link || fail 1
       | H: _ |- exports ?a ##ₘ exports ?b =>
           let H := fresh in
-          assert (H: a ##ₗ b); solve_can_link;
-          inversion H; assumption || fail 1
+          assert (H: a ##ₗ b);
+          [ solve_can_link | (inversion H; assumption) ] || fail 1
       | H: _ |- segment ?a ##ₘ segment ?b =>
           let H := fresh in
-          assert (H: a ##ₗ b); solve_can_link;
-          inversion H; assumption || fail 1
+          assert (H: a ##ₗ b);
+          [ solve_can_link | (inversion H; assumption) ] || fail 1
       (* prove a ##ₗ b *)
       | H: ?a ##ₗ ?b |- ?a ##ₗ ?b => exact H
       | H: ?b ##ₗ ?a |- ?a ##ₗ ?b => symmetry; exact H
@@ -1580,13 +1580,11 @@ Ltac solve_can_link :=
   | H: _ |- exports ?a ##ₘ exports ?b =>
       let H := fresh in
       assert (H: can_link unconstrained_word a b);
-      solve_can_link;
-      inversion H; assumption || fail 1
+      [ solve_can_link | (inversion H; assumption) ] || fail 1
   | H: _ |- segment ?a ##ₘ segment ?b =>
       let H := fresh in
       assert (H: can_link unconstrained_word a b);
-      solve_can_link;
-      inversion H; assumption || fail 1
+      [ solve_can_link | (inversion H; assumption) ] || fail 1
   (* using symmetry *)
   | H: can_link ?wr ?a ?b |- can_link ?wr ?a ?b => exact H
   | H: can_link ?wr ?a ?b |- can_link ?wr ?b ?a => symmetry; exact H
