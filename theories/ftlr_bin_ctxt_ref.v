@@ -1,8 +1,10 @@
 From iris.proofmode Require Import proofmode environments.
 From iris.program_logic Require Export weakestpre.
+From iris Require Import adequacy.
 From cap_machine Require Import linking logrel_binary.
 From cap_machine Require Import stdpp_restrict stdpp_img iris_extra.
 From cap_machine Require Import fundamental_binary contextual_refinement.
+From cap_machine Require Import machine_run.
 
 Section logrel.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
@@ -80,7 +82,7 @@ Section logrel.
     1,2: apply elem_of_img_2 in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
     1,2: destruct w as [z | sb | z sb];
          [ (rewrite fixpoint_interp1_eq; done) | | ];
-         destruct sb; contradiction Hxca.
+         destruct sb; simpl in Hxca; discriminate Hxca.
 
     rewrite (big_sepM_sep (fun _ _ => interp_exports x y)).
     iSplitR.
