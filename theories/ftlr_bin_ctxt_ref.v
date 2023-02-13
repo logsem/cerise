@@ -4,8 +4,6 @@ From cap_machine Require Import linking logrel_binary.
 From cap_machine Require Import stdpp_restrict stdpp_img iris_extra.
 From cap_machine Require Import fundamental_binary contextual_refinement.
 
-
-
 Section logrel.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
@@ -97,7 +95,7 @@ Section logrel.
     Unshelve. typeclasses eauto.
   Qed.
 
-  Lemma interp_link {x y c:component Symbols}:
+  Lemma interp_link_exports {x y c:component Symbols}:
     x ##ₗ c -> y ##ₗ c ->
     spec_ctx ∗ interp_exports x y ∗
     ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)) -∗
@@ -192,4 +190,21 @@ Section logrel.
 
     Unshelve. all: typeclasses eauto.
   Qed.
+
+  Lemma interp_link E {x y c: component Symbols} :
+    (∀ w, w ∈ img (segment c) -> is_word w) ->
+    x ##ₗ c -> y ##ₗ c ->
+    dom (exports x) ⊆ dom (exports y) ->
+    spec_ctx ∗ interp_exports x y ∗
+    ([∗ map] a ↦ w ∈ x ⋈ c |ᵣ c, a ↦ₐ w) ∗
+    ([∗ map] a ↦ w ∈ y ⋈ c |ᵣ c, a ↣ₐ w) ={E}=∗
+    interp_exports (x ⋈ c) (y ⋈ c).
+  Proof.
+    iIntros (Hno_caps Hsep1 Hsep2 Hdom_incl) "(#Hspec & #Hxy & Hx & Hy)".
+    iApply (interp_link_exports Hsep1 Hsep2).
+    iSplitR. done. iSplitR. done.
+    iApply (interp_exports_inv_alloc E Hno_caps Hsep1 Hsep2 Hdom_incl).
+    iFrame. done.
+  Qed.
+
 End logrel.
