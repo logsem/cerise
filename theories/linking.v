@@ -94,14 +94,7 @@ Section Linking.
       end.
 
     (** Another possible WR, only allow words/intructions *)
-    Example is_word word :=
-      match word with
-      | WSealable (SCap _ _ _ _)
-      | WSealed _ (SCap _ _ _ _)
-      | WSealable (SSealRange _ _ _ _)
-      | WSealed _ (SSealRange _ _ _ _) => False
-      | WInt _ => True
-      end.
+    Example is_word word := is_z word = true.
 
     (** Another example, no constraints on words at all *)
     Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
