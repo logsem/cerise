@@ -146,7 +146,7 @@ Section restrict.
   Proof. apply restrict_merge. Qed.
 
   Lemma restrict_difference {A} (s:M A) (m:M A) :
-    restrict (fun k s => ¬is_Some(s!!k)) s m = m ∖ s.
+    restrict (fun k s => s!!k=None) s m = m ∖ s.
   Proof.
     apply map_eq. intros k.
     rewrite restrict_lookup.

@@ -18,7 +18,6 @@ Section logrel.
   Local Coercion segment : component >-> segment_type.
 
   Notation "b |ᵣ a" := (restrict_map (a : gmap _ _) (b: gmap _ _)) (at level 80).
-  Notation "a ⧖ b" := (map_zip (a:gmap _ _) (b: gmap _ _)) (at level 75).
   Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
   (** Lifting the interp binary value relation from words to components
@@ -46,7 +45,9 @@ Section logrel.
   Proof.
     iIntros (Hno_caps Hsep1 Hsep2 Hexp) "[Hpx [Hpy #Hexp]]".
     rewrite big_sepM_dom.
-    assert (Hdc: dom (segment c) = dom (x ⋈ c ⧖ y ⋈ c |ᵣ c)).
+    assert (Hdc:
+      dom (segment c) =
+      dom (map_zip (x ⋈ c : segment_type) (y ⋈ c: segment_type) |ᵣ c)).
     { rewrite dom_restrict_map_L dom_map_zip_with_L -!(link_segment_dom can_address_only_no_seals).
       set_solver. all: solve_can_link. }
     rewrite Hdc -big_sepM_dom.

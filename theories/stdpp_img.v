@@ -1,3 +1,6 @@
+(** This is a concept missing from stdpp, an image/codomain set for maps
+    Hopefully it will get merged into stdpp and we can remove this from here.
+    https://gitlab.mpi-sws.org/iris/stdpp/-/merge_requests/444 *)
 From Coq Require Import ssreflect.
 From stdpp Require Import countable gmap list.
 
