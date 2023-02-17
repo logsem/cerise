@@ -619,13 +619,13 @@ Section machine_run.
       rewrite -Hw'w.
       destruct src; simpl in Heq_d.
       apply Some_inj in Heq_d. rewrite -Heq_d. exact I.
-      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
-      apply Hwr_regs. apply elem_of_img_2 in Heq_d. apply Heq_d.
-      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)).
+      set_solver. apply Hwr_regs. apply elem_of_img_2 in Heq_d. apply Heq_d.
+      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)). set_solver.
       apply Hwr_seg. apply elem_of_img_2 in Hrw. exact Hrw.
 
       intros w' Hw'.
-      apply (can_address_only_subseteq_stable2 _ (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)). set_solver.
       apply (Hwr_regs w' Hw').
 
       destruct (decide (dst=PC)) as [Heq|Hneq]. rewrite Heq lookup_insert in Heq_d5.

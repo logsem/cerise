@@ -163,17 +163,17 @@ Section contextual_refinement.
       assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
       inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
-      apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
+      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment spec)) _ Hdom_spec).
       inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
 
       assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros a w Hw'.
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
       inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
-      apply (relation_stable2 w (dom (segment spec)) _ Hdom_spec).
+      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment spec)) _ Hdom_spec).
       inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
 
       intros w Hw.
@@ -192,7 +192,7 @@ Section contextual_refinement.
            apply elem_of_img_2 in He'; apply (Hex _ He').
 
       inversion ctxt_impl as [ [ [] ] ]. intros w Hw.
-      apply (relation_stable2 w (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (can_address_only_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
       apply can_address_only_no_seals_weaken.
       apply (Hwr_regs w Hw).
       Unshelve. solve_can_link.

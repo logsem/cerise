@@ -4,23 +4,6 @@ From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import stdpp_img addr_reg machine_base.
 
-Class RelationStable2 {A B:Type} (R:relation B) (P: A -> B -> Prop) :=
-  relation_stable2 : ∀ w a b, R a b -> P w a -> P w b.
-
-#[global] Instance and_relation_stable2 {A B} R (P Q: A -> B -> Prop)
-          {H1:RelationStable2 R P} {H2:RelationStable2 R Q} :
-  RelationStable2 R (fun w a => P w a /\ Q w a).
-Proof. intros w a b r [pwa qwa]. split. apply (H1 w a b r pwa). apply (H2 w a b r qwa). Qed.
-
-#[global] Instance or_relation_stable2 {A B} R (P Q: A -> B -> Prop)
-          {H1:RelationStable2 R P} {H2:RelationStable2 R Q} :
-  RelationStable2 R (fun w a => P w a \/ Q w a).
-Proof. intros w a b r [pwa | qwa]. left. apply (H1 w a b r pwa). right. apply (H2 w a b r qwa). Qed.
-
-#[global] Instance constant_relation_stable2 {A B} {r:relation B} (f: A -> Prop):
-  RelationStable2 r (fun w _ => f w).
-Proof. intros w _ _ _ H. exact H. Qed.
-
 (** Definition of components, condition for well_formedness and linking,
     the linking process, and properties (associativity, commutativity) *)
 Section Linking.
@@ -36,7 +19,7 @@ Section Linking.
       (given as second argument)
       This should remain true if the segment increases *)
   Variable WR: Word -> gset Addr -> Prop.
-  Context {WR_stable: RelationStable2 (⊆) WR}.
+  Context {WR_stable: Proper ((=) ==> (⊆) ==> impl) WR}.
 
   (** Various examples of WR predicates *)
   Section WR.
@@ -50,9 +33,10 @@ Section Linking.
       | WSealed _ (SSealRange _ _ _ _)
       | WInt _ => True
       end.
-    #[global] Instance can_address_only_subseteq_stable2: RelationStable2 (⊆) can_address_only.
+    #[global] Instance can_address_only_subseteq_stable: Proper ((=) ==> (⊆) ==> impl) can_address_only.
     Proof.
-      intros w dom1 dom2 dom1_dom2. destruct w; try auto;
+      intros w w' Hw dom1 dom2 dom1_dom2. rewrite Hw. unfold impl.
+      destruct w'; try auto;
       [ destruct sb | destruct s]; try auto.
       all: intros ca_dom1 addr addr_in_be;
       apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
@@ -68,9 +52,10 @@ Section Linking.
         | WSealed _ (SSealRange _ _ _ _) => False
         | WInt _ => True
         end.
-    #[global] Instance can_address_only_no_seals_subseteq_stable2: RelationStable2 (⊆) can_address_only_no_seals.
+    #[global] Instance can_address_only_no_seals_subseteq_stable: Proper ((=) ==> (⊆) ==> impl) can_address_only_no_seals.
     Proof.
-      intros w dom1 dom2 dom1_dom2. destruct w; auto.
+      intros w w' Hw dom1 dom2 dom1_dom2. rewrite Hw. unfold impl.
+      destruct w'; auto.
       destruct sb; [intros ca_dom1 addr addr_in_be | auto];
       apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
     Qed.
@@ -602,20 +587,20 @@ Section Linking.
         apply lookup_union_Some in exp_s_w. 2: assumption.
         destruct exp_s_w as [exp_s | exp_s];
         apply elem_of_img_2 in exp_s.
-        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp_s)).
-        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp_s)).
+        exact (WR_stable _ _ eq_refl _ _ imp1 (Hwr_exp1 w exp_s)).
+        exact (WR_stable _ _ eq_refl _ _ imp2 (Hwr_exp2 w exp_s)).
       + intros w ms_w. (* word in segment follow word restrictions *)
         destruct (resolve_imports_spec_simple ms_w) as [ exp_w | ms_w'].
         destruct (elem_of_img_union _ _ _ exp_w) as [exp1_w | exp2_w].
-        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
-        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp1 (Hwr_exp1 w exp1_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp2 (Hwr_exp2 w exp2_w)).
         destruct (resolve_imports_spec_simple ms_w') as [ exp_w | ms_w''].
         destruct (elem_of_img_union _ _ _ exp_w) as [exp1_w | exp2_w].
-        exact (relation_stable2 _ _ _ imp1 (Hwr_exp1 w exp1_w)).
-        exact (relation_stable2 _ _ _ imp2 (Hwr_exp2 w exp2_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp1 (Hwr_exp1 w exp1_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp2 (Hwr_exp2 w exp2_w)).
         destruct (elem_of_img_union _ _ _ ms_w'') as [ms1_w | ms2_w].
-        exact (relation_stable2 _ _ _ imp1 (Hwr_ms1 w ms1_w)).
-        exact (relation_stable2 _ _ _ imp2 (Hwr_ms2 w ms2_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp1 (Hwr_ms1 w ms1_w)).
+        exact (WR_stable _ _ eq_refl _ _ imp2 (Hwr_ms2 w ms2_w)).
     Qed.
 
     Lemma is_context_is_program {context lib regs}:
@@ -647,7 +632,7 @@ Section Linking.
         apply can_link_disjoint_impls. assumption.
       - intros w rw.
         inversion Hcan_link.
-        apply (relation_stable2 _ _ _ (link_segment_dom_subseteq_l Hwf_l Hwf_r)).
+        apply (WR_stable _ _ eq_refl _ _ (link_segment_dom_subseteq_l Hwf_l Hwf_r)).
         exact (Hwr_regs w rw).
       - apply Hall_regs.
     Qed.
@@ -1138,7 +1123,7 @@ Section Linking.
       apply is_context_intro.
       - solve_can_link.
       - intros w rr'. inversion Hcan_link.
-        apply (relation_stable2 w _ _ (link_segment_dom_subseteq_l Hwf_l0 Hwf_l)).
+        apply (WR_stable w w eq_refl _ _ (link_segment_dom_subseteq_l Hwf_l0 Hwf_l)).
         apply (Hwr_regs w rr').
       - apply Hall_regs.
       - exact (no_imports_assoc_l bc Hno_imps_l).
