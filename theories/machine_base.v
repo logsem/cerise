@@ -54,8 +54,11 @@ Inductive instr: Type :=
 | GetB (dst r: RegName)
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
-| Seal (dst : RegName) (r1 r2: RegName)
-| UnSeal (dst : RegName) (r1 r2: RegName)
+| Seal (dst r1 r2: RegName)
+| UnSeal (dst r1 r2: RegName)
+| EInit (dst r: RegName)
+| EDeInit (dst r: RegName)
+| EStoreId (dst r1 r2: RegName)
 | Fail
 | Halt.
 
@@ -65,10 +68,21 @@ Definition cst : Z → (Z+RegName)%type := inl.
 Coercion regn : RegName >-> sum.
 Coercion cst : Z >-> sum.
 
+
 (* Registers and memory: maps from register names/addresses to words *)
 
 Definition Reg := gmap RegName Word.
 Definition Mem := gmap Addr Word.
+
+(* State involved in supporting enclaves *)
+Definition TableSize: nat := 128.
+Global Opaque TableSize.
+Definition MaxENum: nat := 1024.
+Global Opaque MaxENum.
+Definition TIndex := (finz TableSize).
+Definition EId := Z. (* For now, we assume the hash to be unbounded *)
+Definition ENum := (finz MaxENum). (* The max # of supported enclaves *)
+Definition ETable := gmap TIndex (EId * ENum).
 
 (* EqDecision instances *)
 
@@ -714,8 +728,11 @@ Proof.
       | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | Fail => GenNode 19 []
-      | Halt => GenNode 20 []
+      | EInit dst r => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | EDeInit dst r => GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | EStoreId dst r1 r2 => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | Fail => GenNode 22 []
+      | Halt => GenNode 23 []
       end).
   set (dec := fun e =>
       match e with
@@ -737,8 +754,11 @@ Proof.
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [] => Fail
-      |  GenNode 20 [] => Halt
+      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] => EInit dst r
+      | GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)] => EDeInit dst r
+      | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => EStoreId dst r1 r2
+      | GenNode 22 [] => Fail
+      |  GenNode 23 [] => Halt
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).
