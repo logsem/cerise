@@ -94,7 +94,7 @@ Notation "r ↦ᵣ{ q } lw" := (mapsto (L:=RegName) (V:=LWord) r q lw)
   (at level 20, q at level 50, format "r  ↦ᵣ{ q } lw") : bi_scope.
 Notation "r ↦ᵣ lw" := (mapsto (L:=RegName) (V:=LWord) r (DfracOwn 1) lw) (at level 20) : bi_scope.
 
-(* Points to predicates for logical memory *)
+(* Points-to predicates for logical memory *)
 Notation "la ↦ₐ{ q } lw" := (mapsto (L:=LAddr) (V:=LWord) la q lw)
   (at level 20, q at level 50, format "la  ↦ₐ{ q }  lw") : bi_scope.
 Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at level 20) : bi_scope.
