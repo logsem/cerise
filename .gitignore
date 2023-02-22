@@ -294,3 +294,6 @@ TSWLatexianTemp*
 Makefile.coq
 Makefile.coq.conf
 .Makefile.coq.d
+/interpreter/_opam/
+/interpreter/interactive
+/interpreter/interpreter

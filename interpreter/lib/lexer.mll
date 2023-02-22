@@ -14,7 +14,7 @@ let hex = (digit | ['a'-'f'] | ['A'-'F'])
 let reg_num = ((digit) | ('1' digit) | ('2' digit) | "30" | "31")
 let perm = ('O' | 'E' | "RO" | "RW" | "RWX")
 let letter = ['a'-'z' 'A'-'Z']
-let label = ('_' | letter) (letter | digit)*
+let label = ('_' | letter) (letter | '_' | digit)*
 
 rule token = parse
 | eof { EOF }
