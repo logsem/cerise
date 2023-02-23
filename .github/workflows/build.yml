@@ -35,29 +35,5 @@ jobs:
         with:
           ocaml-version: 4.14.0
 
-      - name: Install Coq and Iris
-        run: |
-          opam repo add coq-released https://coq.inria.fr/opam/released
-          opam install . --deps-only -y
-
       - name: Build
-        run: opam exec -- make ci
-
-      - name: Build docs
-        run: opam exec -- make html
-
-      - name: Deploy docs (if main branch)
-        uses: peaceiris/actions-gh-pages@v3
-        if: ${{ steps.get_branch.outputs.branch == 'main' }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./html
-          destination_dir: dev
-
-      - name: Deploy docs (if non-main branch)
-        uses: peaceiris/actions-gh-pages@v3
-        if: ${{ steps.get_branch.outputs.branch != 'main' }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./html
-          destination_dir: branch/${{ steps.get_branch.outputs.branch }}
+        run: opam exec -- make interpreter

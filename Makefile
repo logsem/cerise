@@ -18,8 +18,8 @@ CI_EXAMPLES:="\
 	theories/examples/dynamic_sealing.vo \
 	theories/examples/ocpl_lowval_like.vo"
 
-.PHONY: all coq clean html skip-qed ci
-all: coq
+.PHONY: all coq clean html skip-qed ci interpreter
+all: interpreter
 
 fundamental: Makefile.coq
 	$(MAKE) -f Makefile.coq pretty-timed only TGTS="theories/fundamental.vo"
@@ -46,6 +46,9 @@ skip-qed: Makefile.coq.conf
 ci: skip-qed
 #	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
 	$(MAKE) -f Makefile.coq pretty-timed
+
+interpreter:
+	$(MAKE) -C interpreter
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
