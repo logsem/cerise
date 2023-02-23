@@ -87,13 +87,29 @@ let is_pc_valid (conf : exec_conf) : bool =
     end
   | _ -> false
 
-(* Might change this later since it is a bit too dependent
-   on the encode implementation *)
 let flowsto (p1 : perm) (p2 : perm) : bool =
-  let open Encode in
-  let enc1 = encode_perm p1 in
-  let enc2 = encode_perm p2 in
-  Z.(equal (enc1 lor enc2) enc2)
+  match p1 with
+  | O -> true
+  | E ->
+    (match p2 with
+    | E | RX | RWX -> true
+    | _ -> false)
+  | RX ->
+    (match p2 with
+    | RX | RWX -> true
+    | _ -> false)
+  | RWX ->
+    (match p2 with
+    | RWX  -> true
+    | _ -> false)
+  | RO ->
+    (match p2 with
+    | E | O -> false
+    | _ -> true)
+  | RW ->
+    (match p2 with
+    | RW | RWX -> true
+    | _ -> false)
 
 let exec_single (conf : exec_conf) : mchn =
   let fail_state = (Failed, conf) in

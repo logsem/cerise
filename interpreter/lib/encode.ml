@@ -2,11 +2,6 @@ open Ast
 
 exception DecodeException of string
 
-(* Encodings of permissions satisfy
- * lattice structure by:
- * - join : bitwise or
- * - meet : bitwise and
- * - x flowsto y : y join x = y *)
 let encode_perm (p : perm) : Z.t =
   Z.of_int @@
   match p with
