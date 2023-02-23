@@ -16,7 +16,7 @@ init:
     mov r1 r31                  ; r1 = (RWX, init, end, init)
     lea r1 (malloc-init)	    ; r1 = (RWX, init, end, malloc)
 	subseg r1 malloc em 	    ; r1 = (RWX, malloc, em, malloc)
-    restrict r1 E               ; r1 = (E, malloc, em, malloc)
+    restrict r1 E GLOBAL               ; r1 = (E, malloc, em, malloc)
     ;; store malloc
     store r30 r1
 
@@ -24,7 +24,7 @@ init:
     mov r1 r31          ; r1 = (RWX, init, end, init)
 	lea r1 (assertdata-init)	; r1 = (RWX, init, end, assertdata)
 	subseg r1 assertdata assertend 	; r1 = (RWX, assert_data, end_assert, assert_data)
-    restrict r1 RW                      ; r1 = (RW, assert_data, end_assert, assert_data)
+    restrict r1 RW GLOBAL                      ; r1 = (RW, assert_data, end_assert, assert_data)
     store r1 r1
     lea r1 1
     store r1 0                  ; init the flag at 0
@@ -32,13 +32,13 @@ init:
     mov r1 r31                  ; r1 = (RWX, init, end, init)
     lea r1 (assert-init)	    ; r1 = (RWX, init, end, assert)
 	subseg r1 assert assertend 	    ; r1 = (RWX, assert, end_assert, assert)
-    restrict r1 E               ; r1 = (E, assert, end_assert, assert)
+    restrict r1 E GLOBAL               ; r1 = (E, assert, end_assert, assert)
     ;; store assert
     lea r30 1
     store r30 r1
     lea r30 -1
     ;; restrict linking table capability
-    restrict r30 RO
+    restrict r30 RO GLOBAL
 
     ;; closure code
     mov r0 r31          ; r0 = (RWX, init, end, init)
@@ -46,7 +46,7 @@ init:
     store r0 r30        ; store linking_table cap
     lea r0 (code-data) ; r0 = (RWX, init, end, code)
 	subseg r0 data endcode ; r0 = (RWX, data, endcode, code)
-    restrict r0 E       ; r0 = (E, data, endcode, code+1)
+    restrict r0 E GLOBAL     ; r0 = (E, data, endcode, code+1)
     ;; clear registers and jump
     mov r1 0
     mov r30 0

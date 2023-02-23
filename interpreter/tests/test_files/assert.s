@@ -2,7 +2,7 @@ _init:
     mov r1 r31          ; r1 = (RWX, init, end, init)
     lea r1 (_assert_data-init)	; r1 = (RWX, init, end, assertdata)
     subseg r1 _assert_data _assert_end 	; r1 = (RWX, assert_data, end_assert, assert_data)
-    restrict r1 RW                      ; r1 = (RW, assert_data, end_assert, assert_data)
+    restrict r1 RW GLOBAL                      ; r1 = (RW, assert_data, end_assert, assert_data)
     store r1 r1
     lea r1 1
     store r1 0                  ; init the flag at 0

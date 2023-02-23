@@ -57,7 +57,7 @@ code:
     mov r0 r5
     mov r5 0
 
-    ;; use assert to check idk ?
+    ;; use assert to check maybe ?
 
     halt
 end:

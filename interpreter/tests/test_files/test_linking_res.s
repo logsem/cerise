@@ -16,11 +16,11 @@ init:
 	mov r1 r31
 	lea r1 (_malloc-init)
 	subseg r1  _malloc _malloc_end
-	restrict r1 E
+	restrict r1 E GLOBAL
 	lea r30 0
 	store r30 r1
 	lea r30 -0
-	restrict r30 RO
+	restrict r30 RO GLOBAL
 	
 ; closure code
 	mov r0 r31
@@ -28,7 +28,7 @@ init:
 	store r0 r30
 	lea r0 (code-data)
 	subseg r0 data end
-	restrict r0 E
+	restrict r0 E GLOBAL
 	jmp r0
 	
 ; code prog 
