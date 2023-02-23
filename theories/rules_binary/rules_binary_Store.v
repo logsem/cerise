@@ -1,12 +1,12 @@
-From cap_machine Require Export rules_binary_base rules_Store.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
+From cap_machine Require Export rules_binary_base rules_Store.
 
 
 Section cap_lang_spec_rules. 
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -27,7 +27,7 @@ Section cap_lang_spec_rules.
    decodeInstrW w = Store r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Store r1 r2) ⊆ dom _ regs →
+   regs_of (Store r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_store_map_or_true r1 regs mem →
    nclose specN ⊆ Ep →
@@ -63,10 +63,13 @@ Section cap_lang_spec_rules.
      }
      apply (word_of_arg_mono _ σr) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep.
 
-     destruct r1v as  [| p b e a ] eqn:Hr1v.
-     { (* Failure: r1 is not a capability *)
-       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
-           by (destruct r2; inversion Hstep; auto).
+     destruct (is_cap r1v) eqn:Hr1v.
+     2: { (* Failure: r1 is not a capability *)
+       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
+       {
+         unfold is_cap in Hr1v.
+         destruct_word r1v; by simplify_pair_eq.
+       }
        iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
@@ -74,7 +77,8 @@ Section cap_lang_spec_rules.
        iExists (FailedV),_,_; iFrame. iModIntro.
        iPureIntro. econstructor; eauto. econstructor; eauto. 
      }
-     
+     destruct r1v as [ | [p b e a | ] | ]; try inversion Hr1v. clear Hr1v.
+
      destruct (writeAllowed p && withinBounds b e a) eqn:HWA.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
         assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->)
@@ -158,7 +162,7 @@ Section cap_lang_spec_rules.
 
     destruct Hspec. 
      { (* Success *)
-       destruct H7 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq. 
+       destruct H6 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
@@ -166,9 +170,8 @@ Section cap_lang_spec_rules.
        rewrite insert_insert.
        iDestruct (rules_binary_base.regs_of_map_3 with "[$Hregs]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. done. }
      { (* Failure (contradiction) *)
-       destruct H7; simpl in *; simplify_map_eq_alt.
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
-       incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence.
      }
     Qed.
 
@@ -205,7 +208,7 @@ Section cap_lang_spec_rules.
     destruct Hspec. 
      { (* Success *)
        iFrame. 
-       destruct H5 as [Hrr2 _]. simplify_map_eq_alt.
+       destruct H4 as [Hrr2 _]. simplify_map_eq_alt.
        rewrite insert_commute // insert_insert.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv. simpl in *. 
@@ -213,12 +216,9 @@ Section cap_lang_spec_rules.
        rewrite insert_insert.
        iDestruct (rules_binary_base.regs_of_map_2 with "[$Hregs]") as "[HPC Hdst]"; eauto. by iFrame. }
      { (* Failure (contradiction) *)
-       destruct H5; simplify_map_eq_alt. 
+       destruct X; try incrementPC_inv; simplify_map_eq; eauto.
        destruct o. all: try congruence.
-       incrementPC_inv;[|rewrite lookup_insert;eauto].
-       congruence.
      }
   Qed.
   
-  
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.

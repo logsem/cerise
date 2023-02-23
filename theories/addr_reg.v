@@ -5,6 +5,9 @@ From Coq Require Import ssreflect.
 From cap_machine Require Import stdpp_extra.
 From machine_utils Require Export finz.
 
+(* No longer a coercion in Coq >= 8.14*)
+Local Coercion Z.of_nat : nat >-> Z.
+
 (* We assume a fixed set of registers, and a finite set of memory addresses.
 
    The exact size of the address space does not matter, it could be made a
@@ -23,7 +26,7 @@ Inductive RegName: Type :=
 
 Global Instance reg_eq_dec : EqDecision RegName.
 Proof. intros r1 r2.  destruct r1,r2; [by left | by right | by right |].
-       destruct (nat_eq_dec n n0).
+       destruct (Nat.eq_dec n n0).
        + subst n0. left.
          assert (forall (b: bool) (n m: nat) (P1 P2: n <=? m = b), P1 = P2).
          { intros. apply eq_proofs_unicity.
@@ -35,7 +38,7 @@ Defined.
 Lemma reg_eq_sym (r1 r2 : RegName) : r1 ≠ r2 → r2 ≠ r1. Proof. auto. Qed.
 
 Program Definition n_to_regname (n : nat) : option RegName :=
-  match nat_le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
+  match Nat.le_dec n RegNum with left _ => Some (R n _) | right _ => None end.
 Next Obligation.
   intros. eapply Nat.leb_le; eauto.
 Defined.
@@ -55,7 +58,7 @@ Proof.
   intro r. destruct r; auto.
   rewrite decode_encode.
   unfold n_to_regname.
-  destruct (nat_le_dec n RegNum).
+  destruct (Nat.le_dec n RegNum).
   - do 2 f_equal. apply eq_proofs_unicity. decide equality.
   - exfalso. by apply (Nat.leb_le n RegNum) in fin.
 Defined.
@@ -180,7 +183,7 @@ Qed.
 Lemma all_registers_union_l s :
   s ∪ all_registers_s = all_registers_s.
 Proof.
-  eapply (anti_symm _). 2: set_solver.
+  apply (anti_symm subseteq). 2: set_solver.
   rewrite elem_of_subseteq. intros ? _.
   apply all_registers_s_correct.
 Qed.
@@ -197,11 +200,11 @@ Qed.
 
 Lemma regmap_full_dom {A} (r: gmap RegName A):
   (∀ x, is_Some (r !! x)) →
-  dom (gset RegName) r = all_registers_s.
+  dom r = all_registers_s.
 Proof.
-  intros Hfull. apply (anti_symm _); rewrite elem_of_subseteq.
+  intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.
-  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
+  - intros rr _. rewrite elem_of_dom. apply Hfull.
 Qed.
 
 (* -------------------------------- Memory addresses -----------------------------------*)
@@ -229,3 +232,33 @@ Notation eqb_addr := (λ (a1 a2: Addr), Z.eqb a1 a2).
 Notation "a1 =? a2" := (eqb_addr a1 a2) : Addr_scope.
 
 Notation addr_incr_eq := (finz_incr_eq).
+
+Global Open Scope general_if_scope.
+(* ---------------------------------- OTypes ----------------------------------------*)
+
+(* Number of otypes in our system *)
+Definition ONum: nat := 1000.
+Global Opaque ONum.
+Notation OType := (finz ONum).
+Declare Scope OType_scope.
+Delimit Scope OType_scope with ot.
+
+Notation "a1 <= a2 < a3" := (@finz.le_lt ONum a1 a2 a3) : OType_scope.
+Notation "a1 <= a2" := (@finz.le ONum a1 a2) : OType_scope.
+Notation "a1 <=? a2" := (@finz.leb ONum a1 a2) : OType_scope.
+Notation "a1 < a2" := (@finz.lt ONum a1 a2) : OType_scope.
+Notation "a1 <? a2" := (@finz.ltb ONum a1 a2) : OType_scope.
+Notation "a1 + z" := (@finz.incr ONum a1 z) : OType_scope.
+Notation "a ^+ off" := (@finz.incr_default ONum a off) (at level 50) : OType_scope.
+
+Notation z_to_otype := (@finz.of_z ONum).
+Notation z_of_ot := (@finz.to_z ONum).
+
+Notation za_ot := (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+Notation top_ot := (finz.largest za : OType).
+Notation "0" := (za_ot) : OType_scope.
+
+Notation eqb_otype := (λ (a1 a2: OType), Z.eqb a1 a2).
+Notation "a1 =? a2" := (eqb_otype a1 a2) : OType_scope.
+
+Notation otype_incr_eq := (finz_incr_eq).

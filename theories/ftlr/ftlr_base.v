@@ -1,10 +1,10 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
 
 Section fundamental.
- Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+ Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
@@ -13,6 +13,8 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
   
+
+  (* NOTE: I think having PC:= wsrc in the IH in below definition, rather than restricting induction to capabilities only, would allow us to more generally apply the induction hypothesis in multiple cases. Now we do the `wp_notCorrectPC`-related reasoning in multiple places, not just in the top-level ftlr. *)
 
   Definition ftlr_instr (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (i: instr) (P : D) := 

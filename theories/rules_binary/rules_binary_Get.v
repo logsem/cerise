@@ -1,12 +1,11 @@
-From cap_machine Require Export rules_Get rules_binary_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
-
+From cap_machine Require Export rules_Get rules_binary_base.
 
 Section cap_lang_spec_rules. 
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -21,7 +20,7 @@ Section cap_lang_spec_rules.
 
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of get_i ⊆ dom _ regs →
+    regs_of get_i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
     
@@ -43,20 +42,23 @@ Section cap_lang_spec_rules.
     erewrite regs_of_is_Get in Hri; eauto.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
-    destruct wsrc as [| p b e a ] eqn:Hwsrc.
-    { (* Failure: src is not a capability *)
+    destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
+    2 : { (* Failure: src is not of the right word type *)
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
-      { unfold exec in Hstep.
-        destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
-        all: rewrite Hsrc in Hstep; inversion Hstep; auto. }
-      iFailStep Get_fail_src_noncap. }
+      { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
+        all: rewrite Hsrc /= in Hstep.
+        all : destruct wsrc as [ | [  |  ] | ]; try (inversion Hstep; auto);
+          rewrite /denote /= in Hwsrc; rewrite Hinstr in Hwsrc; congruence. }
+      rewrite Hdecode. iFailStep Get_fail_src_denote. }
 
-    assert (exec_opt get_i (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (denote get_i p b e a)))) as HH.
-    { destruct_or! Hinstr; rewrite Hinstr /= in Hstep |- *; auto; cbn in Hstep.
-      all: destruct b, e, a; rewrite /update_reg Hsrc /= in Hstep |-*; auto. }
+    assert (exec_opt get_i (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt z))) as HH.
+    { destruct_or! Hinstr; clear Hdecode; subst get_i; cbn in Hstep |- *.
+      all: rewrite /update_reg Hsrc /= in Hstep |-*; auto.
+      all : destruct wsrc as [ | [  |  ] | ]; inversion Hwsrc; auto.
+    }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
-    destruct (incrementPC (<[ dst := WInt (denote get_i p b e a) ]> regs))
+    destruct (incrementPC (<[ dst := WInt z ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
       apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
@@ -84,39 +86,37 @@ Section cap_lang_spec_rules.
     iModIntro. iPureIntro. econstructor; eauto.
   Qed.
 
-  Lemma step_Get_success E K get_i dst src pc_p pc_b pc_e pc_a w wdst p b e a pc_a' :
+  Lemma step_Get_success E K get_i dst src pc_p pc_b pc_e pc_a w wdst wsrc z pc_a' :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' ->
+    denote get_i wsrc = Some z →
     nclose specN ⊆ E →
     
     spec_ctx ∗ ⤇ fill K (Instr Executable)
              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ src ↣ᵣ WCap p b e a
+             ∗ ▷ src ↣ᵣ wsrc
              ∗ ▷ dst ↣ᵣ wdst
     ={E}=∗ ⤇ fill K (Instr NextI)
         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ pc_a ↣ₐ w
-        ∗ src ↣ᵣ WCap p b e a
-        ∗ dst ↣ᵣ WInt (denote get_i p b e a).
+        ∗ src ↣ᵣ wsrc
+        ∗ dst ↣ᵣ WInt z.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc Hpca' Hnlose) "(#Hown & Hj & >HPC & >Hpc_a & >Hsrc & >Hdst)".
+    iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote Hnlose) "(#Hown & Hj & >HPC & >Hpc_a & >Hsrc & >Hdst)".
     iDestruct (map_of_regs_3 with "HPC Hdst Hsrc") as "[Hmap (%&%&%)]".
     iMod (step_Get with "[$Hmap $Hj $Hown $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; simplify_map_eq; eauto.
     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iFrame. incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H6.
-      rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. 
-      rewrite insert_commute // insert_insert (insert_commute _ PC dst) // insert_insert.
-      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
+      iFrame. incrementPC_inv; simplify_map_eq.
+      rewrite insert_commute // insert_insert insert_commute // insert_insert.
+      iDestruct (regs_of_map_3 with "Hmap") as "[? [? ?]]"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
-      destruct Hfail; eauto. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in e0; simplify_eq.
-      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert;eauto]. congruence. }
+      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
-    
 
 End cap_lang_spec_rules. 

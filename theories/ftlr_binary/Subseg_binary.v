@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -24,9 +24,17 @@ Section fundamental.
   Proof.
     intros Hspec1 Hspec2.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; split; auto; try congruence.
-    - inv H7; try congruence.
-    - inv H7; try congruence.
-    - inv H0; try congruence.
+    all: match goal with
+      | H : Subseg_failure _ _ _ _ _ |- _ => inv H; try congruence end.
+    (* TODO: make other determinism proofs less brittle in this fashion *)
+    Local Ltac mutable_range_contradiction dst p := match goal with
+      | H : ?r !! dst = _ |- _ =>
+          move H at top;
+          match goal with
+           | H' : r !! dst = _ |- _ =>
+               rewrite H in H'; inv H';
+               destruct p; by exfalso end end.
+    all: try mutable_range_contradiction dst p.
   Qed.
 
   Lemma subseg_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)
@@ -41,7 +49,7 @@ Section fundamental.
     iApply (wp_Subseg with "[$Ha $Hmap]"); eauto.
     { eapply lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
     (* we assert that w = w' *)
@@ -53,20 +61,22 @@ Section fundamental.
     iMod (step_Subseg _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs'" as %HSpec'.
 
     specialize (Subseg_spec_determ _ _ _ _ _ _ _ _ HSpec HSpec') as [Hregs <-].
-    destruct HSpec; cycle 1.
+    destruct HSpec; cycle 2.
     - iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro].
+      iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate.
     - destruct Hregs as [-> |]; [| congruence].
       incrementPC_inv; simplify_map_eq.
       iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w',w'; iFrame|iModIntro].
-      iApply wp_pure_step_later; auto. iNext.
+      iApply wp_pure_step_later; auto.
+      iNext; iIntros "_".
       iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
 
       destruct (reg_eq_dec dst PC).
@@ -107,8 +117,16 @@ Section fundamental.
             pose proof (Hr2 := H8). rewrite Heqrr in Hr2.
             by iDestruct ("Hreg" $! r0 _ _ H5 H8 Hr2) as "Hr0". }
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
+  - incrementPC_inv; simplify_map_eq.
+    destruct (reg_eq_dec dst PC).
+    + subst dst. rewrite lookup_insert in H4; inv H4.
+    + rewrite lookup_insert_ne in H4; auto.
+      rewrite lookup_insert in H4; inv H4.
+      assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
+      rewrite Heq lookup_insert_ne in H0'; auto.
+      iDestruct ("Hreg" $! dst _ _ n H0 H0') as "Hinvdst".
+      rewrite !fixpoint_interp1_eq. by iSimpl in "Hinvdst".
+      (* FIXME: no longer a contradiction once we extend the binary model*)
   Qed.
 
 End fundamental.
-
-

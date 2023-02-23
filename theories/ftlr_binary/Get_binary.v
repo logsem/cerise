@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -40,7 +40,7 @@ Section fundamental.
     iApply (wp_Get with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq. reflexivity. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
     (* we assert that w = w' *)
@@ -52,7 +52,7 @@ Section fundamental.
     iMod (step_Get _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs" as %HSpec'.
@@ -62,7 +62,8 @@ Section fundamental.
 
     destruct HSpec; cycle 1.
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w; iFrame|iModIntro].
+      iNext;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     { destruct Hregs as [<-|Hcontr];[|inversion Hcontr].
       incrementPC_inv; simplify_map_eq.
@@ -71,22 +72,23 @@ Section fundamental.
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs /=";auto.
 
       destruct (decide (PC = dst));simplify_eq;simplify_map_eq.
-      - rewrite !insert_insert. rewrite lookup_insert in H1. inv H1.
-      - rewrite (insert_commute _ _ PC)// insert_insert.
-        iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
-        { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
-          destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
-        { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
-          destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s, Hv2s|].
-          - rewrite /interp !fixpoint_interp1_eq /=; simplify_eq; auto.
-          - rewrite !lookup_insert_ne// in Hv1s,Hv2s. simplify_eq.
-            revert Heq; rewrite map_eq' =>Heq.
-            destruct (r1 !! rr) eqn:Hsome';rewrite Hsome' in Hv1s;[|rewrite !fixpoint_interp1_eq;congruence]. inversion Hv1s. subst v1.
-            specialize (Heq rr w0). rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
-            by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
-        }
-        { rewrite lookup_insert_ne// lookup_insert in H1. simplify_eq.
-          rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
+      rewrite (insert_commute _ _ PC)// insert_insert.
+      iIntros "_".
+      iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs Hspec").
+      { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
+        destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
+      { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
+        destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s, Hv2s|].
+        - rewrite /interp !fixpoint_interp1_eq /=; simplify_eq; auto.
+        - rewrite !lookup_insert_ne// in Hv1s,Hv2s. simplify_eq.
+          revert Heq; rewrite map_eq' =>Heq.
+          destruct (r1 !! rr) eqn:Hsome';rewrite Hsome' in Hv1s;[|rewrite !fixpoint_interp1_eq;congruence]. inversion Hv1s. subst v1.
+          specialize (Heq rr w1). rewrite !lookup_insert_ne// in Heq.
+          apply Heq in Hsome' as Heq'.
+          by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
+      }
+      { simplify_eq.
+        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
     }
   Qed.
 

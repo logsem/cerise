@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
@@ -18,7 +18,7 @@ Proof.
   { intros * Hl. cbn.
     rewrite (_: b = e). 2: solve_addr.
     rewrite finz_seq_between_empty //. 2: solve_addr. cbn.
-    split. by inversion 1. intros [? [? ?] ]. congruence. }
+    split. by inversion 1. intros [? [? ?] ].  rewrite lookup_nil in H0. congruence. }
   { intros * Hl. cbn in *.
     rewrite finz_seq_between_cons. 2: solve_addr. cbn.
     split.
@@ -63,7 +63,7 @@ Proof.
 Qed.
 
 Lemma dom_mkregion_incl a e l:
-  dom (gset Addr) (mkregion a e l) ⊆ list_to_set (finz.seq_between a e).
+  dom (mkregion a e l) ⊆ list_to_set (finz.seq_between a e).
 Proof.
   rewrite /mkregion. generalize (finz.seq_between a e). induction l.
   { intros. rewrite zip_with_nil_r /=. rewrite dom_empty_L. apply empty_subseteq. }
@@ -75,7 +75,7 @@ Qed.
 
 Lemma dom_mkregion_incl_rev a e l:
   (a + length l = Some e)%a →
-  list_to_set (finz.seq_between a e) ⊆ dom (gset Addr) (mkregion a e l).
+  list_to_set (finz.seq_between a e) ⊆ dom (mkregion a e l).
 Proof.
   rewrite /mkregion. intros Hl.
   assert (length (finz.seq_between a e) = length l) as Hl'.
@@ -91,20 +91,20 @@ Qed.
 
 Lemma dom_mkregion_eq a e l:
   (a + length l = Some e)%a →
-  dom (gset Addr) (mkregion a e l) = list_to_set (finz.seq_between a e).
+  dom (mkregion a e l) = list_to_set (finz.seq_between a e).
 Proof.
-  intros Hlen. apply (anti_symm _).
+  intros Hlen. apply (anti_symm subseteq).
   - apply dom_mkregion_incl.
   - by apply dom_mkregion_incl_rev.
 Qed.
 
 Lemma in_dom_mkregion a e l k:
-  k ∈ dom (gset Addr) (mkregion a e l) →
+  k ∈ dom (mkregion a e l) →
   k ∈ finz.seq_between a e.
 Proof.
   intros H.
   pose proof (dom_mkregion_incl a e l) as HH.
-  rewrite elem_of_subseteq in HH |- * => HH.
+  rewrite elem_of_subseteq in HH.
   specialize (HH _ H). eapply @elem_of_list_to_set; eauto.
   typeclasses eauto.
 Qed.
@@ -112,7 +112,7 @@ Qed.
 Lemma in_dom_mkregion' a e l k:
   (a + length l = Some e)%a →
   k ∈ finz.seq_between a e →
-  k ∈ dom (gset Addr) (mkregion a e l).
+  k ∈ dom (mkregion a e l).
 Proof.
   intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
 Qed.
@@ -128,7 +128,7 @@ Ltac disjoint_map_to_list :=
         end;
     [ first [ apply dom_mkregion_incl | reflexivity ] |..]
   );
-  try match goal with |- _ ## dom _ (mkregion _ _ _) =>
+  try match goal with |- _ ## dom (mkregion _ _ _) =>
     eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
   rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
   apply stdpp_extra.list_to_set_disj.

@@ -1,11 +1,11 @@
 From cap_machine Require Export rules_binary_base rules_IsPtr.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 
 Section cap_lang_spec_rules.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -18,7 +18,7 @@ Section cap_lang_spec_rules.
     decodeInstrW w = IsPtr dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (IsPtr dst src) ⊆ dom _ regs →
+    regs_of (IsPtr dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
@@ -43,7 +43,7 @@ Section cap_lang_spec_rules.
     destruct (Hri src) as [wsrc [Hwsrc Hwsrc']]; [set_solver+|]. simpl in Hwsrc'.
 
     assert (exec_opt (IsPtr dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
-    {  rewrite /= Hwsrc'. unfold is_cap; destruct wsrc; auto. }
+    {  rewrite /= Hwsrc'. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs)) as [regs''|] eqn:Hregs';

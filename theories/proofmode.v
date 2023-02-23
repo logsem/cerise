@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics spec_patterns coq_tactics ltac_tactics reduction.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
@@ -52,7 +52,8 @@ Qed.
 End codefrag.
 
 (* Administrative reduction steps *)
-Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ].
+Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ; iIntros "_" ].
+(* TODO iIntros "_" fixes the lc 1 introduces in Iris 4.0.0, but I'm not sure that is the right place *)
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]));
@@ -63,6 +64,27 @@ Ltac wp_instr :=
   subst X;
   cbv beta.
 
+Lemma z_addr_base {fb off off1 off2 : Z} {f0 f1 f2 : finz fb}: (f0 + off1)%f = Some f1 → (f0 + off2)%f = Some f2 → (off2 - off1)%Z = off → (f1 ^+ off)%f = f2.
+  Proof. solve_addr. Qed.
+Ltac solve_block_move :=
+    first [solve_addr+ |
+    lazymatch goal with
+      | |- (?prev_a ^+ ?off)%f = ?cur_a =>
+          match goal with
+            | H: (prev_a + ?off1)%a = Some cur_a |- _ => solve_addr+H
+            | H1: (?base_a + ?off1)%a = Some prev_a |- _ =>
+                match goal with
+                | H2 : (base_a + ?off2)%a = Some cur_a |- _ =>
+                    apply (z_addr_base H1 H2); solve_addr+
+                end
+          end
+     end ].
+
+(* Ltac specifically meant for switching to the next block. Use `changePCto` to perform more arbitrary moves *)
+Ltac changePC_next_block new_a :=
+  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?prev_a)%I ] =>
+                    rewrite (_: prev_a = new_a) ; [ | solve_block_move  ] end.
+(* More powerful ltac to change the address of the pc. Might take longer to solve than the more specific alternative above.*)
 Ltac changePCto0 new_a :=
   match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?a)%I ] =>
     rewrite (_: a = new_a); [| solve_addr]
@@ -258,12 +280,7 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
     eapply tac_and_destruct with y _ hi hcont _ _ _;
       [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
     focus_block_codefrag_facts hi a0 Ha_base;
-    changePCto a_base
-    (* FIXME: changePCto invokes solve_addr which can be quite slow here;
-       instead, a solution might be to implement a small decision procedure
-       (e.g. in solve_pure) to solve goals of the form (a = a') in presence of
-       assumptions of the form (a0 + n = Some a), by finding a common base
-       address and comparing the offsets. *)
+    changePC_next_block a_base
   end.
 
 Tactic Notation "focus_block" constr(n) constr(h) "as"
@@ -306,7 +323,7 @@ Lemma tac_specialize_assert_delay {PROP: bi} (Δ: envs PROP) j q R P1 P2 P1' F Q
   | None => False
   end → envs_entails Δ Q.
 Proof.
-  rewrite envs_entails_eq. intros ??? HH.
+  rewrite envs_entails_unseal. intros ??? HH.
   destruct (envs_app _ _ _) eqn:?; last done.
   intros HQ.
   rewrite envs_lookup_sound //.
@@ -402,7 +419,7 @@ Ltac2 iFresh () :=
   | [ |- envs_entails (Envs ?Δp ?Δs ?c) ?q ] =>
     let c' := eval vm_compute in (Pos.succ $c) in
     ltac1:(Δp Δs c' q |-
-           convert_concl_no_check (envs_entails (Envs Δp Δs c') q))
+           change_no_check (envs_entails (Envs Δp Δs c') q))
       (Ltac1.of_constr Δp) (Ltac1.of_constr Δs) (Ltac1.of_constr c')
       (Ltac1.of_constr q);
     '(IAnon $c)
@@ -503,7 +520,7 @@ Ltac2 reintro_cap_resources tbl :=
   iNamedIntro ().
 
 (* cleanup *)
-(* TODO: make this extensible *)
+(* TODO: make this extensible. Remove updatePcPerm? unfolding sometimes causes issues. *)
 Ltac2 iApplyCapAuto_cleanup () :=
   cbn [rules_Get.denote rules_AddSubLt.denote updatePcPerm].
 

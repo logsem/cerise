@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Import machine_base.
 From cap_machine Require Export rules_base.
@@ -70,7 +70,7 @@ Section cap_lang_rules.
     is_AddSubLt i dst arg1 arg2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of i ⊆ dom _ regs →
+    regs_of i ⊆ dom regs →
     {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
@@ -81,7 +81,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
@@ -89,6 +89,7 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     unfold exec in Hstep.
 
@@ -101,9 +102,10 @@ Section cap_lang_rules.
     (* Failure: arg1 is not an integer *)
     { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn1. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
+      { rewrite Hr'0 in Hn1.
+        destruct_word r0v; try congruence.
+        all: destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst1. }
     apply (z_of_arg_mono _ r) in Hn1; auto.
@@ -113,9 +115,10 @@ Section cap_lang_rules.
     (* Failure: arg2 is not an integer *)
     { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn2. destruct r0v as [| ? ? ? ? ]; [ congruence |].
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
+      {
+        rewrite Hr'0 in Hn2. destruct_word r0v; try congruence.
+        all: destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst2. }
     apply (z_of_arg_mono _ r) in Hn2; auto.
@@ -490,22 +493,24 @@ Section cap_lang_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_add_sub_lt_fail_z_r E ins dst n1 r2 w wdst p b e a pc_p pc_b pc_e pc_a :
+  (* Slightly generalized: fails in all cases where r2 does not contain an integer. *)
+  Lemma wp_add_sub_lt_fail_z_r E ins dst n1 r2 w w2 wdst pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inl n1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r2 ↦ᵣ WCap p b e a }}}
+    is_z w2 = false →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r2 ↦ᵣ w2 }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr2) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hisnz φ) "(HPC & Hpc_a & Hdst & Hr2) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hdst Hr2") as "[Hmap (%&%&%)]".
     iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *)  destruct w2; simplify_map_eq. }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
 

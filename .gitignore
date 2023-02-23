@@ -297,3 +297,4 @@ Makefile.coq.conf
 /interpreter/_opam/
 /interpreter/interactive
 /interpreter/interpreter
+/_opam/

@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac auth gmap excl list.
 From cap_machine Require Export cap_lang iris_extra rules_base.
 
@@ -49,7 +49,7 @@ Section to_spec_map.
 End to_spec_map.
 
 Section definitionsS.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
 
   Definition memspec_mapsto (a : Addr) (q : Qp) (w : Word) : iProp Σ :=
     own cfg_name (◯ (ε, (∅,{[ a := (q, to_agree w) ]}))).
@@ -100,21 +100,21 @@ Section definitionsS.
     iDestruct (own_valid_2 with "Hown Ha")
       as %[[? _]%prod_included _]%auth_both_valid_discrete.
     assert (e ≡ e') as Heq.
-    { apply symmetry. apply Excl_included. simpl in H2. apply H2. }
+    { apply symmetry. apply Excl_included. auto. }
     iPureIntro. apply leibniz_equiv. auto.
   Qed.
 
   Lemma regspec_mapsto_agree l q1 q2 v1 v2 : regspec_mapsto l q1 v1 -∗ regspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [[_ Hr]%singleton_valid _]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma regspec_mapsto_valid r q v : regspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [[? _]%singleton_valid _]]. auto.
   Qed.
@@ -142,14 +142,14 @@ Section definitionsS.
   Lemma memspec_mapsto_agree l q1 q2 v1 v2 : memspec_mapsto l q1 v1 -∗ memspec_mapsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /regspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [_ [_ Hr]%singleton_valid]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma memspec_mapsto_valid r q v : memspec_mapsto r q v -∗ ✓ q.
   Proof.
-    rewrite /memspec_mapsto /mapsto_def own_valid !uPred.discrete_valid
+    rewrite /memspec_mapsto own_valid !uPred.discrete_valid
             !auth_frag_valid. iPureIntro.
     intros [_ [_ [? _]%singleton_valid]]. auto.
   Qed.
@@ -186,7 +186,7 @@ Section definitionsS.
   Qed.
 
 End definitionsS.
-Typeclasses Opaque memspec_mapsto regspec_mapsto exprspec_mapsto.
+#[global] Typeclasses Opaque memspec_mapsto regspec_mapsto exprspec_mapsto.
 
 Notation "a ↣ₐ{ q } v" := (memspec_mapsto a q v)
   (at level 20, q at level 50, format "a  ↣ₐ{ q }  v") : bi_scope.
@@ -209,7 +209,7 @@ Ltac iAsimpl :=
          end.
 
 Section cap_lang_spec_resources.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
 
   (* ------------------------- registers points-to --------------------------------- *)
 
@@ -399,7 +399,6 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x |];auto.
   Qed.
   Lemma regspec_heap_valid_allSepM e σ σ' q :
       (forall l, is_Some (σ' !! l)) →
@@ -417,7 +416,6 @@ Section cap_lang_spec_resources.
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
     Unshelve.
-    unfold equiv. unfold Reflexive. intros [ x |];auto.
   Qed.
 
   Lemma memspec_v_implies_m_v:
@@ -477,7 +475,7 @@ End cap_lang_spec_resources.
 
 
 Section cap_lang_spec_rules.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -516,8 +514,8 @@ Section cap_lang_spec_rules.
       (exclusive_local_update (A:=exprR) _ (Excl (fill K e'))). }
     iFrame. iApply "Hclose".
     iNext. iExists (fill K e'),σ. iFrame. iPureIntro.
-    apply rtc_nsteps in Hstep; destruct Hstep as [m Hrtc].
-    specialize (Hpure HP). apply (nsteps_rtc (m + n)).
+    apply rtc_nsteps_1 in Hstep; destruct Hstep as [m Hrtc].
+    specialize (Hpure HP). apply (rtc_nsteps_2 (m + n)).
     eapply nsteps_trans; eauto. clear -Hpure.
     revert e e' Hpure. induction n => e e' Hpure.
     - inversion Hpure. subst. apply nsteps_O.
@@ -526,7 +524,7 @@ Section cap_lang_spec_rules.
       inversion H1 as [Hexs Hexd].
       specialize (Hexs σ). destruct Hexs as [e'' [σ' [efs Hexs]]].
       specialize (Hexd σ [] e'' σ' efs Hexs); destruct Hexd as [? [? [? ?]]]; subst.
-      simpl in Hexs. apply fill_prim_step with (K0:=K) in Hexs.
+      simpl in Hexs. apply fill_prim_step with (K:=K) in Hexs.
       econstructor;auto. eapply step_atomic with (t1:=[]) (t2:=[]);eauto.
   Qed.
 
@@ -563,7 +561,7 @@ Ltac iFailStep fail_type :=
             end); simplify_eq.
 
 Section cap_lang_spec_rules.
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.

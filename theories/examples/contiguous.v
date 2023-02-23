@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import addr_reg_sample.
 
 
@@ -36,7 +36,7 @@ Section Contiguous.
     l = [].
   Proof.
     induction 1; eauto.
-    destruct (Z_eq_dec a b).
+    destruct (Z.eq_dec a b).
     { intros. exfalso.
       eapply (contiguous_between_vacuous l a' b). 2: solve_addr. eauto. }
     { intros. exfalso. eapply contiguous_between_vacuous; eauto. solve_addr. }
@@ -123,7 +123,7 @@ Section Contiguous.
     l = finz.seq_between a b.
   Proof.
     intros.
-    destruct (Z_le_dec a b).
+    destruct (Z.le_dec a b).
     { eapply region_addrs_aux_of_contiguous_between; eauto.
       rewrite /finz.dist. solve_addr. }
     { rewrite /finz.seq_between (_: finz.dist a b = 0) /=.

@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac auth list.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
@@ -261,12 +261,12 @@ Section sealing.
 
     codefrag_facts "Hprog".
     focus_block_0 "Hprog" as "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[apply Hw7|].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     iApply appendb_spec; try iFrame "∗ #"; auto. rewrite dom_insert_L Hdom. set_solver.
@@ -286,9 +286,9 @@ Section sealing.
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hr_t1".
     - iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [apply lookup_delete|].
-      rewrite insert_delete -delete_insert_ne //.
+      rewrite insert_delete_insert -delete_insert_ne //.
       iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
-      rewrite insert_delete. rewrite !(insert_commute _ r_t7) //.
+      rewrite insert_delete_insert. rewrite !(insert_commute _ r_t7) //.
     - iExists _, _. rewrite decode_encode_perm_inv. iFrame "∗ #".
   Qed.
 
@@ -364,7 +364,7 @@ Section sealing.
     iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply Hw8|].
     iGo "Hprog".
     { rewrite /seal_instrs_length. instantiate (1 := (a_first ^+ length (unseal_instrs))%a).
@@ -372,7 +372,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
@@ -387,7 +387,7 @@ Section sealing.
     focus_block 4 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog".
@@ -396,8 +396,8 @@ Section sealing.
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete. rewrite (delete_commute _ _ r_t8)//.
-    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete.
+    rewrite insert_delete_insert. rewrite (delete_commute _ _ r_t8)//.
+    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_insert.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
     iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".
@@ -410,7 +410,7 @@ Section sealing.
     focus_block 6 "Hprog" as a_middle4 Ha_middle4 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog". instantiate (1 := a_first). rewrite /unseal_instrs_length. solve_addr.

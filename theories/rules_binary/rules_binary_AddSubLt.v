@@ -1,12 +1,11 @@
-From cap_machine Require Export rules_AddSubLt rules_binary_base.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
-
+From cap_machine Require Export rules_AddSubLt rules_binary_base.
 
 Section cap_lang_spec_rules. 
-  Context `{cfgSG Σ, MachineParameters, invG Σ}.
+  Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
@@ -20,7 +19,7 @@ Section cap_lang_spec_rules.
     is_AddSubLt i dst arg1 arg2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of i ⊆ dom _ regs →
+    regs_of i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
@@ -48,21 +47,20 @@ Section cap_lang_spec_rules.
     (* Failure: arg1 is not an integer *)
     { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn1. destruct r0v as [| ? ? ? ? ]; [ congruence |].
+      rewrite Hr'0 in Hn1.
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
-      iFailStep AddSubLt_fail_nonconst1. 
+      iFailStep AddSubLt_fail_nonconst1.
     }
    apply (z_of_arg_mono _ σr) in Hn1; auto.
-
 
     destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2;
       pose proof Hn2 as Hn2'; cycle 1.
     (* Failure: arg2 is not an integer *)
     { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      rewrite Hr'0 in Hn2. destruct r0v as [| ? ? ? ? ]; [ congruence |].
+      rewrite Hr'0 in Hn2.
       assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr /= Hn1 /= in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
@@ -116,7 +114,7 @@ Section cap_lang_spec_rules.
     iMod (step_AddSubLt with "[$Hmap $Hown $Hj Hpc_a]") as (? ? Hspec) "(Hj & HH)"; eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. }
+    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. }
     { (* Failure, done *) by iFrame. }
   Qed.
 
@@ -146,16 +144,12 @@ Section cap_lang_spec_rules.
     
     destruct Hspec as [| * Hfail].
     { (* Success *)
-      iFrame. incrementPC_inv. simplify_map_eq. 
+      iFrame. incrementPC_inv; simplify_map_eq.
       rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
               (insert_commute _ dst PC) // insert_insert.
-      rewrite lookup_insert_ne// lookup_insert in H6. rewrite lookup_insert_ne// lookup_insert in H7. simplify_eq. 
-      by iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
+      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
-      destruct Hfail; simplify_map_eq; eauto.
-      by rewrite lookup_insert_ne// lookup_insert in e.
-      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert; eauto]. congruence. 
-    } 
+      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
   Lemma step_add_sub_lt_success_dst_r E K dst pc_p pc_b pc_e pc_a w ins n1 r2 n2 pc_a' :

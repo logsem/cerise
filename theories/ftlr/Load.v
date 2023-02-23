@@ -1,5 +1,5 @@
 From stdpp Require Import base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel.
 From cap_machine.ftlr Require Import ftlr_base.
@@ -7,7 +7,7 @@ From cap_machine.rules Require Import rules_Load.
 Import uPred.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
@@ -28,10 +28,7 @@ Section fundamental.
   Proof.
       intros Hrar H3.
       pose (Hrar' := Hrar).
-      destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
-      * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        subst. auto.
-      * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
+      destruct Hrar' as (Hinr0 & _). rewrite /read_reg_inr Hinr0 in H3. by inversion H3.
   Qed.
 
 
@@ -215,8 +212,9 @@ Section fundamental.
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].
-      unfold read_reg_inr. destruct wsrc. all: repeat eexists.
-      right. by exists z. by left.
+      unfold read_reg_inr. rewrite Hsomesrc.
+      destruct wsrc as [|[ p0 b0 e0 a0|] | ]; try done.
+      by repeat eexists.
     }
 
 
@@ -235,7 +233,7 @@ Section fundamental.
     iApply (wp_load with "[Hmap HLoadRest]");eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. rewrite lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
@@ -258,12 +256,16 @@ Section fundamental.
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
         { subst. by rewrite lookup_insert. }
+        iNext; iIntros "_".
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
-        iApply wp_pure_step_later; auto. iNext. iApply wp_value.
+        iApply wp_pure_step_later; auto.
+        iNext; iIntros "_".
+        iApply wp_value.
         iIntros (a1); inversion a1.
       }
 
+      iNext; iIntros "_".
       iApply ("IH" $! regs' with "[%] [Hinterp] [Hmap] [$Hown]").
       { cbn. intros. subst regs'.
         rewrite lookup_insert_is_Some.
@@ -290,11 +292,11 @@ Section fundamental.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).
            destruct (decide (a = a0)).
            + simplify_map_eq.
-           + iClear "HLoadRes Hwrite". rewrite decide_True;auto. iModIntro.
+           + iClear "HLoadRes Hwrite". rewrite decide_True;auto.
              rewrite !fixpoint_interp1_eq.
              destruct o as [-> | ->]; iFrame "Hinterp".
          - (* iExists p'. *) simplify_map_eq.
-           iModIntro. iClear "Hw Hinterp Hwrite".
+           iClear "Hw Hinterp Hwrite".
            rewrite !fixpoint_interp1_eq /=.
            destruct o as [-> | ->]; iFrame "Hinv".
        }
@@ -308,11 +310,13 @@ Section fundamental.
         iMod ("Hcls'" with "[HP' Ha0]");[iExists w';iFrame|iModIntro].
         iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
       - iModIntro. iDestruct "HLoadMem" as "(_&->)". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base stdpp_extra.
 
@@ -9,10 +9,10 @@ Section cap_lang_rules.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr. 
+  Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val. 
+  Implicit Types v : cap_lang.val.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
@@ -22,8 +22,9 @@ Section cap_lang_rules.
     readAllowed p = true ∧ withinBounds b e a = true.
 
   Inductive Load_failure (regs: Reg) (r1 r2: RegName) (mem : gmap Addr Word) :=
-  | Load_fail_const z:
-      regs !! r2 = Some (WInt z) ->
+  | Load_fail_const w:
+      regs !! r2 = Some w ->
+      is_cap w = false →
       Load_failure regs r1 r2 mem
   | Load_fail_bounds p b e a:
       regs !! r2 = Some (WCap p b e a) ->
@@ -55,7 +56,7 @@ Section cap_lang_rules.
   Definition allow_load_map_or_true r (regs : Reg) (mem : gmap Addr Word):=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
       if decide (reg_allows_load regs r p b e a) then
-        ∃ w, mem !! a = Some w 
+        ∃ w, mem !! a = Some w
       else True.
 
   Lemma allow_load_implies_loadv:
@@ -68,14 +69,12 @@ Section cap_lang_rules.
           mem0 !! a = Some loadv.
   Proof.
     intros r2 mem0 r p b e a HaLoad Hr2v Hra Hwb.
-    unfold allow_load_map_or_true in HaLoad.
-    destruct HaLoad as (?&?&?&?&[Hrr | Hrl]&Hmem).
-    - assert (Hrr' := Hrr). rewrite Hrr in Hr2v; inversion Hr2v; subst.
-      case_decide as HAL.
-      * auto.
-      * unfold reg_allows_load in HAL.
-        destruct HAL; auto.
-    - destruct Hrl as [z Hrl]. by congruence.
+    unfold allow_load_map_or_true, read_reg_inr in HaLoad.
+    destruct HaLoad as (?&?&?&?& Hrinr & Hmem).
+    rewrite Hr2v in Hrinr. inversion Hrinr; subst.
+    case_decide as Hrega.
+    - exact Hmem.
+    - contradiction Hrega. done.
   Qed.
 
   Lemma mem_eq_implies_allow_load_map:
@@ -86,7 +85,7 @@ Section cap_lang_rules.
   Proof.
     intros regs mem r2 w p b e a Hmem Hrr2.
     exists p,b,e,a; split.
-    - left. by simplify_map_eq.
+    - unfold read_reg_inr. by rewrite Hrr2.
     - case_decide; last done.
       exists w. simplify_map_eq. auto.
   Qed.
@@ -99,11 +98,11 @@ Section cap_lang_rules.
       → regs !! r2 = Some (WCap p b e a)
       → allow_load_map_or_true r2 regs mem.
   Proof.
-    intros regs mem r2 pc_a w w' p b e a H4 Hrr2.
+    intros regs mem r2 pc_a w w' p b e a H4 Hrr2 Hreg2.
     exists p,b,e,a; split.
-    - left. by simplify_map_eq.
+    - unfold read_reg_inr. by rewrite Hreg2.
     - case_decide; last done.
-      exists w'. simplify_map_eq. split; auto.
+      exists w'. simplify_map_eq. auto.
   Qed.
 
   Lemma mem_implies_allow_load_map:
@@ -161,8 +160,8 @@ Section cap_lang_rules.
   Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
     λ m1 m2, merge prod_op m1 m2.
 
-  Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)).
-  Proof. cbv. auto. Qed.
+  (* Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)). *)
+  (* Proof. cbv. auto. Qed. *)
 
   Lemma wp_load_general Ep
      pc_p pc_b pc_e pc_a
@@ -170,10 +169,10 @@ Section cap_lang_rules.
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Load r1 r2) ⊆ dom _ regs →
+   regs_of (Load r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true r2 regs mem →
-   dom (gset Addr) mem = dom (gset Addr) dfracs →
+   dom mem = dom dfracs →
 
    {{{ (▷ [∗ map] a↦dw ∈ prod_merge dfracs mem, a ↦ₐ{dw.1} dw.2) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
@@ -185,7 +184,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad Hdomeq φ) "(>Hmem & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "[Hr Hm] /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
 
     (* Derive necessary register values in r *)
@@ -195,7 +194,7 @@ Section cap_lang_rules.
     feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
     assert (is_Some (dfracs !! pc_a)) as [dq Hdq].
-    { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
     assert (prod_merge dfracs mem !! pc_a = Some (dq,w)) as Hmem_dpc.
     { rewrite lookup_merge Hmem_pc Hdq //. }
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m with "Hm Hmem") as %Hma; eauto.
@@ -204,18 +203,23 @@ Section cap_lang_rules.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
-    unfold exec in Hstep; simpl in Hstep. rewrite Hr2 in Hstep.
+    rewrite /exec /= Hr2 /= in Hstep.
 
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-    destruct r2v as  [| p b e a ] eqn:Hr2v.
-    { (* Failure: r2 is not a capability *)
-      symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
-      iFailWP "Hφ" Load_fail_const.
-    }
+     destruct (is_cap r2v) eqn:Hr2v.
+     2:{ (* Failure: r2 is not a capability *)
+       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       {
+         unfold is_cap in Hr2v.
+         destruct_word r2v; by simplify_pair_eq.
+       }
+        iFailWP "Hφ" Load_fail_const.
+     }
+     destruct r2v as [ | [p b e a | ] | ]; try inversion Hr2v. clear Hr2v.
 
-    cbn in Hstep.
     destruct (readAllowed p && withinBounds b e a) eqn:HRA.
     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
       symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
@@ -228,7 +232,7 @@ Section cap_lang_rules.
     pose proof (allow_load_implies_loadv r2 mem regs p b e a) as (loadv & Hmema); auto.
 
     assert (is_Some (dfracs !! a)) as [dq' Hdq'].
-    { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
     assert (prod_merge dfracs mem !! a = Some (dq',loadv)) as Hmemadq.
     { rewrite lookup_merge Hmema Hdq' //. }
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m a loadv with "Hm Hmem" ) as %Hma' ; eauto.
@@ -293,13 +297,13 @@ Section cap_lang_rules.
 
   Lemma mem_remove_dq mem dq :
     ([∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ⊣⊢
-    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom (gset Addr) mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
+    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
   Proof.
     iInduction (mem) as [|a k mem] "IH" using map_ind.
     - rewrite big_sepM_empty dom_empty_L elements_empty
               /= /prod_merge merge_empty big_sepM_empty. done.
     - rewrite dom_insert_L.
-      assert (elements ({[a]} ∪ dom (gset Addr) mem) ≡ₚ a :: elements (dom (gset Addr) mem)) as Hperm.
+      assert (elements ({[a]} ∪ dom mem) ≡ₚ a :: elements (dom mem)) as Hperm.
       { apply elements_union_singleton. apply not_elem_of_dom. auto. }
       apply (create_gmap_default_permutation _ _ dq) in Hperm. rewrite Hperm /=.
       rewrite /prod_merge -(insert_merge _ _ _ _ (dq,k)) //.
@@ -307,11 +311,11 @@ Section cap_lang_rules.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iApply big_sepM_insert.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
         iFrame. iApply "IH". iFrame.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom (gset Addr) mem)) dq !! a);auto. rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
         iApply big_sepM_insert. auto.
         iFrame. iApply "IH". iFrame.
   Qed.
@@ -322,10 +326,9 @@ Section cap_lang_rules.
    decodeInstrW w = Load r1 r2 →
    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-   regs_of (Load r1 r2) ⊆ dom _ regs →
+   regs_of (Load r1 r2) ⊆ dom regs →
    mem !! pc_a = Some w →
    allow_load_map_or_true r2 regs mem →
-
    {{{ (▷ [∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ∗
        ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
      Instr Executable @ Ep

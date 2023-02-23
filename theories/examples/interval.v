@@ -1,16 +1,16 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import keylist dynamic_sealing.
+From cap_machine.examples Require Import keylist dynamic_sealing.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
 
 Section interval.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ} (* `{intg: intervalG Σ} *)
           `{MP: MachineParameters}
           {mono : sealLLG Σ}.
@@ -150,40 +150,42 @@ Section interval.
   Qed.
 
   (* TODO move to add sub lt rules file *)
-  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst p b e a w2 pc_p pc_b pc_e pc_a :
+  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst w1 w2 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ WCap p b e a ∗ r2 ↦ᵣ w2 }}}
+    is_z w1 = false →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 }}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
     iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
     iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *) simplify_map_eq. destruct w1; by exfalso. }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
-  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst p b e a w2 pc_p pc_b pc_e pc_a :
+  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst w2 w3 pc_p pc_b pc_e pc_a :
     decodeInstrW w = ins →
     is_AddSubLt ins dst (inr r1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ WCap p b e a }}}
+    is_z w3 = false →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ w3}}}
       Instr Executable
             @ E
     {{{ RET FailedV; pc_a ↦ₐ w }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
     iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
     iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *) simplify_map_eq. destruct w3; by exfalso. }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
 
@@ -210,7 +212,7 @@ Section interval.
     withinBounds b_r e_r a_r' = true →
     (a_r + f_m)%a = Some a_r' →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t1; r_t2]} →
 
     (* The two invariants have different names *)
     (up_close (B:=coPset)ι0 ⊆ ⊤ ∖ ↑ι1) ->
@@ -263,8 +265,8 @@ Section interval.
     set rmap2 := <[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]>
                                 (<[r_t5:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t7:=WInt 0%Z]>
                                 (<[r_t8:=WInt 0%Z]> (<[r_t20:=WInt 0%Z]> rmap))))))).
-    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
-    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[apply elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]";[eauto|].
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq;eauto|].
     (* open the program and seal env invariants *)
@@ -282,8 +284,8 @@ Section interval.
     (* malloc *)
     iApply (wp_wand _ _ _ (λ v, (Ψ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[ [H1 | H1] | H1]";iApply "HΨ";iFrame; iSimplifyEq; iFrame. }
-    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
@@ -315,18 +317,20 @@ Section interval.
 
     (* continue with the program *)
     focus_block 2 "Hcode" as a_mid1 Ha_mid1 "Hblock" "Hcont".
-    destruct w1 as [z1|cap].
+    destruct (is_z w1) eqn:Hisz1.
     2: { (* if w1 is not an int, program fails *)
       iInstr_lookup "Hblock" as "Hi" "Hcont2".
       wp_instr.
       iApplyCapAuto @wp_add_sub_lt_fail_r_r_1.
       wp_pure. iApply wp_value. by iRight. }
-    destruct w2 as [z2|cap].
+    destruct w1 as [z1 | |]; try inversion Hisz1. clear Hisz1.
+    destruct (is_z w2) eqn:Hisz2.
     2: { (* if w2 is not an int, program fails *)
       iInstr_lookup "Hblock" as "Hi" "Hcont2".
       wp_instr.
       iApplyCapAuto @wp_add_sub_lt_fail_r_r_2.
       wp_pure. iApply wp_value. by iRight. }
+    destruct w2 as [z2 | |]; try inversion Hisz2. clear Hisz2.
 
     (* at this point, we assume that the inputs were ints *)
     iDestruct (big_sepM_delete with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|rewrite delete_insert_delete].
@@ -345,7 +349,7 @@ Section interval.
     assert (withinBounds ib ie ib = true) as Hwbi;[solve_addr+Hi Hibounds|].
     assert (withinBounds ib ie f = true) as Hwbi2;[solve_addr+Hi Hibounds|].
     (* get the general purpose register to remember r_t0 *)
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[apply elem_of_dom;rewrite Hdom;set_solver-|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq;eauto|].
 
     destruct (z1 <? z2)%Z eqn:Hz;iSimpl in "Hr_t2".
@@ -361,7 +365,7 @@ Section interval.
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
-      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
@@ -371,12 +375,12 @@ Section interval.
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       repeat (rewrite -delete_insert_ne//).
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
@@ -430,7 +434,7 @@ Section interval.
       (* unfocus_block "Hblock" "Hcont" as "Hcode". *)
 
       (* activation code *)
-      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_gmap_dom;rewrite Hdom;set_solver-|].
+      assert (is_Some (rmap !! r_t20)) as [w20 Hw20];[apply elem_of_dom;rewrite Hdom;set_solver-|].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[simplify_map_eq;eauto|].
       iApply closure_activation_spec; iFrameAutoSolve. iFrame "Hseal".
       iNext. iIntros "(HPC & Hr_t20 & Hr_env & Hseal)".
@@ -440,12 +444,12 @@ Section interval.
       rewrite updatePcPerm_cap_non_E;[|inversion H2;subst;auto].
       focus_block 1 "Hunsealseal_codefrag" as a_mid2 Ha_mid2 "Hblock'" "Hcont'".
       (* first we must prepare the register map *)
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       repeat (rewrite -delete_insert_ne//).
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t8]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert -delete_insert_ne// -delete_insert_ne// -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert].
       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
       (* get the empty prefix resource *)
       iMod (na_inv_acc with "HsealLL Hown") as "(Hll & Hown & Hcls'')";auto.
@@ -510,7 +514,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (makeint f_m))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: required by the seal and malloc spec *)
     withinBounds b_r e_r a_r' = true →
@@ -553,8 +557,8 @@ Section interval.
             "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown
             & #Hretval & #Hmalloc & #Htable & #Hprog & #Hregs_val) Hφ".
 
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
@@ -758,7 +762,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (imin))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: only required by the seal spec *)
     (* withinBounds (RW, b_r, e_r, a_r') = true → *)
@@ -798,15 +802,15 @@ Section interval.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
 
     (* extract the registers used by the program *)
-    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[eauto|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
@@ -821,11 +825,11 @@ Section interval.
     iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert; repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
@@ -1003,7 +1007,7 @@ Section interval.
     (* Program adresses assumptions *)
     SubBounds pc_b pc_e a_first (a_first ^+ length (imax))%a →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_env; r_t20]} →
 
     (* environment table: only required by the seal spec *)
     (* withinBounds (RW, b_r, e_r, a_r') = true → *)
@@ -1043,15 +1047,15 @@ Section interval.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
 
     (* extract the registers used by the program *)
-    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t5)) as [w5 Hw5];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t5 with "Hregs") as "[Hr_t5 Hregs]";[eauto|].
-    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t2)) as [w2 Hw2];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t3)) as [w3 Hw3];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t4)) as [w4 Hw4];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
-    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver|].
+    assert (is_Some (rmap !! r_t1)) as [w1 Hw1];[apply elem_of_dom;rewrite Hdom;set_solver|].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[rewrite !lookup_delete_ne//;eauto|].
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
@@ -1066,11 +1070,11 @@ Section interval.
     iDestruct "HH" as ((?&?)) "(#Hpref & #Hi & HPC & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hr_t20 & Hr_env & Hr_t0 & Hown)".
 
     (* we can then rebuild the register map *)
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete; repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert; repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|repeat rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t5]") as "Hregs";[by simplify_map_eq|rewrite insert_delete_insert;repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t20]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|repeat rewrite -delete_insert_ne//].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_env]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 

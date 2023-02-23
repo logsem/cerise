@@ -1,9 +1,9 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
 
 Section roe.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
@@ -63,7 +63,7 @@ Section roe.
     (up_close (B:=coPset) assertN ## ↑roeN) →
 
     (* footprint of the register map *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[PC;r_adv]} →
+    dom rmap = all_registers_s ∖ {[PC;r_adv]} →
 
     {{{ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
       ∗ r_adv ↦ᵣ wadv
@@ -95,11 +95,11 @@ Section roe.
             "(HPC & Hr_adv & Hregs & Hown & Hprog & #Hwadv & #Hmalloc & #Hassert & Hpc_b & Ha_entry & Ha_entry' & #Hflag) Hφ".
     (* extract r_t0 *)
     assert (is_Some (rmap !! r_t0)) as [w0 Hw0].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete with "Hregs") as "[Hr_t0 Hregs]";[apply Hw0|].
     (* put back r_adv *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr_adv]") as "Hregs".
-    { rewrite lookup_delete_ne;auto. apply elem_of_gmap_dom_none. rewrite Hdom. clear;set_solver. }
+    { rewrite lookup_delete_ne;auto. apply not_elem_of_dom. rewrite Hdom. clear;set_solver. }
 
     (* prepare the program addresses for malloc *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -124,11 +124,11 @@ Section roe.
 
     (* extract r_env and r_t7 *)
     assert (is_Some (rmap !! r_env)) as [wenv Hwenv].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[rewrite !lookup_insert_ne// lookup_delete_ne//
                                                                                     !lookup_insert_ne// lookup_delete_ne//|].
     assert (is_Some (rmap !! r_t7)) as [w7 Hw7].
-    { apply elem_of_gmap_dom. rewrite Hdom. clear;set_solver. }
+    { apply elem_of_dom. rewrite Hdom. clear;set_solver. }
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[rewrite lookup_delete_ne// !lookup_insert_ne// lookup_delete_ne//
                                                                                     !lookup_insert_ne// lookup_delete_ne//|].
     (* continue *)
@@ -185,9 +185,9 @@ Section roe.
     iDestruct (big_sepM_delete _ _ r_adv with "Hregs") as "[Hr_adv Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//
                                                                                     lookup_delete_ne//; apply lookup_insert|].
     rewrite (delete_insert_ne _ _ r_adv)// !(insert_commute _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert.
-    2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply elem_of_gmap_dom_none. rewrite Hdom. clear; set_solver. }
+    2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete|].
-    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete.
+    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete_insert.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _).
@@ -230,11 +230,11 @@ Section roe.
     (* Let's assert that the continuation holds *)
     iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hregs")  as "Hregs";[apply Permutation_refl|reflexivity|].
     iDestruct (big_sepM_insert with "[$Hregs $Hr_adv]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t7]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs".
-    { apply elem_of_gmap_dom_none. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
+    { apply not_elem_of_dom. rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list !dom_delete_L Hdom. clear. set_solver. }
 
     match goal with |- context [ ([∗ map] k↦y ∈ ?regs, k ↦ᵣ y)%I ] =>
           set rmap2 := regs
@@ -323,7 +323,7 @@ Section roe.
       iNext. iIntros "(HPC & Hr_t4 & Hi & Hr_env & Hd)". iCombine "Hi" "Hprog_done" as "Hprog_done".
       iMod ("Hcls''" with "[Hd]") as "_".
       { iNext. iExists _. iFrame. auto. }
-      iModIntro. iApply wp_pure_step_later;auto;iNext.
+      iModIntro. iApply wp_pure_step_later;auto;iNext;iIntros "_".
       (* move r_t5 1 *)
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
@@ -379,14 +379,14 @@ Section roe.
       iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown".
       { iNext. iDestruct "Hprog_done" as "($&$&$&$)".
         rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert].
 
       iApply wp_value. iIntros (_).
       iExists _. iFrame. iPureIntro.
@@ -402,7 +402,7 @@ Section roe.
     (* adversary *)
     iApply big_sepM_insert_2. done.
     (* the remaining 0'ed out capabilities *)
-    { iApply big_sepM_intuitionistically_forall. iIntros "!>" (r ?).
+    { iApply big_sepM_intro. iIntros "!>" (r ?).
       destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
       iIntros (?). simplify_eq. done. iIntros (?). done. }

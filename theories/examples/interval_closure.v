@@ -1,9 +1,9 @@
 From iris.algebra Require Import agree auth gmap.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import dynamic_sealing interval keylist malloc.
+From cap_machine.examples Require Import dynamic_sealing interval keylist malloc.
 From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Section interval_closure.
@@ -149,7 +149,7 @@ Section interval_closure.
     (a_move + offset_to_interval)%a = Some i_first →
 
     (* registers *)
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0]} →
 
     (* Code of the preamble *)
     codefrag a_first (interval_closure f_m f_s offset_to_interval)
@@ -236,7 +236,7 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     (* get some general purpose registers *)
-    assert (is_Some (rmap !! r_temp1)) as [w Hr_temp1];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp1)) as [w Hr_temp1];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]".
     { rewrite !lookup_insert_ne// lookup_delete_ne//. }
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
@@ -254,7 +254,7 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     (* prepare to jump to makeseal *)
-    assert (is_Some (rmap !! r_temp6)) as [w0 Hr_temp6];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp6)) as [w0 Hr_temp6];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp6 with "Hregs") as "[Hr_temp6 Hregs]".
     { rewrite !lookup_delete_ne// !lookup_insert_ne// lookup_delete_ne//. }
     focus_block 3 "Hcode" as a_mid2 Ha_mid2 "Hblock" "Hcont".
@@ -269,17 +269,17 @@ Section interval_closure.
 
     repeat (rewrite -(delete_insert_ne _ r_t1)//); rewrite !(delete_commute _ _ r_t1)//;
     rewrite -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)//.
-    rewrite insert_delete.
+    rewrite insert_delete_insert.
 
     repeat (rewrite -(delete_insert_ne _ r_t2)//); rewrite !(delete_commute _ _ r_t2)//.
-    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete.
+    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete_insert.
 
-    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete.
+    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete_insert.
 
-    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete.
+    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete_insert.
 
     rewrite (insert_commute _ r_t2 r_t3)//. rewrite delete_insert_delete.
-    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete.
+    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete_insert.
 
     rewrite (insert_commute _ r_temp1 r_t2)//. rewrite insert_insert.
 
@@ -296,7 +296,7 @@ Section interval_closure.
     (* get some registers *)
     rewrite !(insert_commute _ _ r_temp1)// !(delete_insert_ne _ _ r_temp1)//
             !(insert_commute _ _ r_temp1)//.
-    assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]".
     { rewrite !lookup_insert_ne// !lookup_delete_ne// !lookup_insert_ne//. }
     rewrite delete_insert_ne//.
@@ -338,7 +338,7 @@ Section interval_closure.
 
     focus_block 5 "Hcode" as a_mid4 Ha_mid4 "Hblock" "Hcont".
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    assert (is_Some (rmap !! r_temp3)) as [w3 Hr_temp3];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp3)) as [w3 Hr_temp3];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
 
@@ -361,9 +361,10 @@ Section interval_closure.
     iDestruct "Hres" as (b0 e0 He0) "(Hr_t1 & Hact0 & Hr_t0 & Hr_t2 & Hown & Hregs)".
     map_simpl "Hregs".
     unfocus_block "Hblock" "Hcont" as "Hcode".
+    clear dependent a_mid0 a_mid3 a_mid4.
 
     focus_block 7 "Hcode" as a_mid6 Ha_mid6 "Hblock" "Hcont".
-    assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_gmap_dom;rewrite Hdom;set_solver+|].
+    assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp4 with "Hregs") as "[Hr_temp4 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
     iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].

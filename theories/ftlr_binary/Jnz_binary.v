@@ -1,5 +1,5 @@
 From cap_machine Require Export logrel.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Import ftlr_base_binary.
@@ -37,7 +37,7 @@ Section fundamental.
     iApply (wp_Jnz with "[$Ha $Hmap]"); eauto.
     { eapply lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
     (* we assert that w = w' *)
@@ -49,7 +49,7 @@ Section fundamental.
     iMod (step_Jnz _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs'" as %HSpec'.
@@ -58,13 +58,15 @@ Section fundamental.
     destruct Hregs as [-> | ->].
     { destruct HSpec.
       - iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+        iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro].
+        iNext;iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
       - incrementPC_inv; simplify_map_eq.
         iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w',w'; iFrame|iModIntro].
         iApply wp_pure_step_later; auto. iNext.
         iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
         rewrite lookup_insert in H2; inv H2. rewrite !insert_insert.
+        iIntros "_".
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
         { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
@@ -83,6 +85,7 @@ Section fundamental.
           * subst dst. rewrite lookup_insert// in H1; inv H1.
             replace (updatePcPerm (WCap p b e a)) with ((WCap p b e a):Word); [|destruct Hp; subst p; auto].
             iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
+            iIntros "_".
             iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
             { iPureIntro. simpl. intros reg. destruct Hsome with reg; auto. }
             { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
@@ -95,7 +98,7 @@ Section fundamental.
             { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
           * assert (H1' := H1). rewrite lookup_insert_ne in H1; auto.
             rewrite Heq lookup_insert_ne // in H1'.
-            destruct w'0; simpl in HPCb; [congruence|].
+            destruct w'0 as [ | [p0 b0 e0 a0 | ] | ]; simpl in HPCb; try congruence.
             destruct (perm_eq_dec p0 E).
             { subst p0. iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
               rewrite /interp (fixpoint_interp1_eq (WCap E _ _ _, WCap _ _ _ _)) /=.
@@ -112,9 +115,10 @@ Section fundamental.
                   assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                   { rewrite Heq; auto. }
                   rewrite !lookup_insert_ne in H3; auto.
-              - iDestruct "Hinvdst''" as (_) "$". }
+              - iDestruct "Hinvdst''" as (_) "$". by iIntros. }
             { iDestruct ("Hreg" $! dst _ _ n H1 H1') as "Hinvdst".
               iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
+              iIntros "_".
               iApply ("IH" $! (r1,r2) with "[] [] [Hmap] [Hsmap] [$Hown] [$Hs] [$Hspec]"); simpl; auto.
               - destruct p0; auto. congruence.
               - replace (<[PC:=WCap p0 b0 e0 a0]> r2) with (<[PC:=WCap p0 b0 e0 a0]> r1); [destruct p0; auto; congruence|].
@@ -124,13 +128,17 @@ Section fundamental.
                 { rewrite Heq; auto. }
                 rewrite !lookup_insert_ne in H3; auto. }
         + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
-          simpl. iApply (wp_bind (fill [SeqCtx])).
+          simpl. iIntros "_".
+          iApply (wp_bind (fill [SeqCtx])).
           iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [eapply lookup_insert|].
           iApply (wp_notCorrectPC with "HPC"); [eapply isCorrectPCb_nisCorrectPC; auto|].
-          iNext. iIntros. iApply wp_pure_step_later; auto.
-          iApply wp_value; auto. iNext. iIntros; discriminate. }
+          iNext.
+          iIntros. iApply wp_pure_step_later; auto.
+          iNext;iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate. }
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro]. iNext.
+      iMod ("Hcls" with "[Ha Ha' HP]"); [iExists w,w'; iFrame|iModIntro].
+      iNext;iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.
 

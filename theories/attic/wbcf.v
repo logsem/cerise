@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine.examples Require Import stack_macros.
 From cap_machine Require Import rules logrel fundamental. 
@@ -7,7 +7,7 @@ From cap_machine Require Import rules logrel fundamental.
 Section wbcf.
   Context `{memG Σ, regG Σ, STSG Σ, logrel_na_invs Σ,
             MonRef: MonRefG (leibnizO _) CapR_rtc Σ,
-            Heap: heapG Σ}.
+            Heap: heapGS Σ}.
 
    Ltac iPrologue_pre :=
     match goal with
@@ -465,7 +465,7 @@ Section wbcf.
     { assert (110 ≤ MemNum)%Z; [done|].
       assert (100 ≤ MemNum)%Z; [done|].
       rewrite /z_to_addr.
-      destruct ( Z_le_dec 109%Z MemNum),(Z_le_dec 100%Z MemNum); try contradiction.
+      destruct ( Z.le_dec 109%Z MemNum),(Z.le_dec 100%Z MemNum); try contradiction.
       split;
         do 2 f_equal; apply eq_proofs_unicity; decide equality. 
     }
@@ -1225,7 +1225,7 @@ Section wbcf.
           assert ((a- 209 + 1)%a = Some (a-210)) as ->; [addr_succ|]. 
           assert (region_addrs (a- 209) (get_addr_from_option_addr (Some (a-208))) = []) as ->.
           { rewrite /region_addrs.
-              by destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hle; inversion Hle. }
+              by destruct (Z.le_dec (a- 209) (a- 208)) eqn:Hle; inversion Hle. }
           rewrite app_nil_l. iApply big_sepL_cons.
           iSplitL "Ha209";[iExists _; iFrame|]. 
           iApply (big_sepL_mono with "Hstack_adv_r"). 
@@ -1270,7 +1270,7 @@ Section wbcf.
         assert ((a- 209 + 1)%a = Some (a-210)) as ->; [addr_succ|]. 
         assert (region_addrs (a- 209) (a- 208) = []) as ->.
         { rewrite /region_addrs.
-            by destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hle; inversion Hle. }
+            by destruct (Z.le_dec (a- 209) (a- 208)) eqn:Hle; inversion Hle. }
         rewrite app_nil_l.
         iDestruct "Hstack" as "[Ha209 Hstack]".         
         (* let's now close the invariant for the local stack. We will need to privately 
@@ -1543,10 +1543,10 @@ Section wbcf.
             rewrite /region_addrs.
             assert ((a- 209 + -1)%a = Some (a-208)) as ->;[addr_succ|].
             rewrite /get_addr_from_option_addr.
-            destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hcontr;
+            destruct (Z.le_dec (a- 209) (a- 208)) eqn:Hcontr;
               [inversion Hcontr|clear Hcontr]. rewrite app_nil_l.
             assert ((a- 209 + 1)%a = Some (a-210)) as ->;[addr_succ|].
-            destruct (Z_le_dec (a- 210) (a- 250)) eqn:Hcontr;
+            destruct (Z.le_dec (a- 210) (a- 250)) eqn:Hcontr;
               [clear Hcontr;iFrame "#"|inversion Hcontr].
             iAssert ([∗ list] y ∈ region_addrs (a-210) (a-250), read_write_cond y RWLX (fixpoint interp1)
                                                                 ∧ ⌜region_state_pwl W''' y⌝
@@ -1585,10 +1585,10 @@ Section wbcf.
               rewrite /region_addrs.
               assert ((a- 209 + -1)%a = Some (a-208)) as ->;[addr_succ|].
               rewrite /get_addr_from_option_addr.
-              destruct (Z_le_dec (a- 209) (a- 208)) eqn:Hcontr;
+              destruct (Z.le_dec (a- 209) (a- 208)) eqn:Hcontr;
                 [inversion Hcontr|clear Hcontr]. rewrite app_nil_l.
               assert ((a- 209 + 1)%a = Some (a-210)) as ->;[addr_succ|].
-              destruct (Z_le_dec (a- 210) (a- 250)) eqn:Hcontr;
+              destruct (Z.le_dec (a- 210) (a- 250)) eqn:Hcontr;
                 [clear Hcontr;iFrame "#"|inversion Hcontr].
               iSplit.
               ++ iSimpl. iPureIntro. split.

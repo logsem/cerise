@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel macros_helpers macros rules proofmode.
 
 Section call.
@@ -70,12 +70,12 @@ Section call.
   Proof.
     iIntros (Hvpc Hcont Hsize Hnz Hwa Hwb Hperm Hlength) "(>Hprog & >HPC& >Hr_t1& >Hlocals& >Hbl& Hcont)".
     iInduction (locals) as [|r locals] "IH" forall (a_l mlocals wsr a a_first Hvpc Hcont Hnz Hsize Hwb Hperm Hlength).
-    { apply Permutation.Permutation_nil in Hperm. inversion Hnz. }
+    { inversion Hnz. }
     destruct locals as [|r' locals].
     - destruct wsr;[inversion Hlength|]. destruct wsr;[|inversion Hlength].
-      apply Permutation_sym, Permutation_singleton in Hperm.
+      apply Permutation_sym, Permutation_singleton_r in Hperm.
       assert (mlocals = {[r:=w]}) as Heq;[|subst mlocals].
-      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton. auto. }
+      { apply map_to_list_inj. rewrite map_to_list_singleton. apply Permutation_singleton_r. auto. }
       rewrite big_sepM_singleton.
       rewrite /store_locals /store_locals_instrs.
       iDestruct "Hbl" as (ws) "Hbl".
@@ -273,9 +273,9 @@ Section call.
     (a_link + f_m)%a = Some a_entry →
     strings.length (map_to_list mlocals).*1 > 0 →
 
-    dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r1 ]} ∖ (dom (gset RegName) mparams) ∖ (dom (gset RegName) mlocals) →
-    dom (gset RegName) rmap' = all_registers_s ∖ {[ PC; r_t0; r1 ]} ∖ (dom (gset RegName) mparams) →
-    {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆ dom (gset RegName) rmap → (* we need to know that neither params nor locals use these gen pur registers *)
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r1 ]} ∖ (dom mparams) ∖ (dom mlocals) →
+    dom rmap' = all_registers_s ∖ {[ PC; r_t0; r1 ]} ∖ (dom mparams) →
+    {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆ dom rmap → (* we need to know that neither params nor locals use these gen pur registers *)
     ↑mallocN ⊆ EN →
 
     (▷ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
@@ -326,15 +326,15 @@ Section call.
       iDestruct (big_sepM_delete _ _ i with "Hgen") as "[Hi1 Hgen]";[eauto|].
       iDestruct (big_sepM_delete _ _ i with "Hlocals") as "[Hi2 Hlocals]";[eauto|].
       iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
-    iAssert (⌜PC ∉ dom (gset RegName) mparams ∧ r_t0 ∉ dom (gset RegName) mparams ∧ r1 ∉ dom (gset RegName) mparams⌝)%I as %Hdisj4.
-    { repeat iSplit; iIntros (Hcontr); apply elem_of_gmap_dom in Hcontr as [? Hi];
+    iAssert (⌜PC ∉ dom mparams ∧ r_t0 ∉ dom mparams ∧ r1 ∉ dom mparams⌝)%I as %Hdisj4.
+    { repeat iSplit; iIntros (Hcontr); apply elem_of_dom in Hcontr as [? Hi];
         (iDestruct (big_sepM_delete with "Hparams") as "[Hi1 Hparams]";[by eauto|]).
       by iDestruct (regname_dupl_false with "Hi1 HPC") as "Hfalse".
       by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse".
       by iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse".
     }
-    iAssert (⌜PC ∉ dom (gset RegName) mlocals ∧ r_t0 ∉ dom (gset RegName) mlocals ∧ r1 ∉ dom (gset RegName) mlocals⌝)%I as %Hdisj5.
-    { repeat iSplit; iIntros (Hcontr); apply elem_of_gmap_dom in Hcontr as [? Hi];
+    iAssert (⌜PC ∉ dom mlocals ∧ r_t0 ∉ dom mlocals ∧ r1 ∉ dom mlocals⌝)%I as %Hdisj5.
+    { repeat iSplit; iIntros (Hcontr); apply elem_of_dom in Hcontr as [? Hi];
         (iDestruct (big_sepM_delete with "Hlocals") as "[Hi1 Hlocals]";[by eauto|]).
       by iDestruct (regname_dupl_false with "Hi1 HPC") as "Hfalse".
       by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse".
@@ -342,7 +342,7 @@ Section call.
     }
     iAssert (⌜∀ r, r ∈ {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} → r ≠ r1⌝)%I as %Hneregs.
     { iIntros (r Hin Hcontr). subst. apply Hsub in Hin.
-      apply elem_of_gmap_dom in Hin as [x Hx].
+      apply elem_of_dom in Hin as [x Hx].
       iDestruct (big_sepM_delete with "Hgen") as "[Hr Hgen]";[apply Hx|].
       by iDestruct (regname_dupl_false with "Hr Hr1") as "Hfalse".
     }
@@ -363,7 +363,7 @@ Section call.
     { iIntros (->). iDestruct (regname_dupl_false with "Hr_t0 Hr1") as "Hfalse". done. }
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr1]") as "Hgenlocalsparams";[auto|].
 
-    assert (dom (gset RegName) (<[r1:=wadv]> (rmap ∪ (mlocals ∪ mparams))) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq.
+    assert (dom (<[r1:=wadv]> (rmap ∪ (mlocals ∪ mparams))) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq.
     { rewrite dom_insert_L !dom_union_L. revert Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5. clear. intros Hdom1 Hne1 Hne2 Hdisj1 Hdisj2 Hdisj3 Hdisj4 Hdisj5.
       assert (all_registers_s ∖ {[PC; r_t0]} = {[r1]} ∪ all_registers_s ∖ {[PC; r_t0; r1]}) as ->.
       { rewrite - !difference_difference_L.
@@ -371,10 +371,10 @@ Section call.
         apply subseteq_difference_r;[set_solver|].
         apply subseteq_difference_r;[set_solver|].
         apply all_registers_subseteq. }
-      assert (dom (gset RegName) rmap ∪ (dom (gset RegName) mlocals ∪ dom (gset RegName) mparams) =
-              dom (gset RegName) mparams ∪ (dom (gset RegName) mlocals ∪ dom (gset RegName) rmap)) as ->.
-      { rewrite (union_comm_L _ (dom _ mparams)). rewrite union_assoc_L. rewrite (union_comm_L _ (dom _ mparams)).
-        rewrite -union_assoc_L. rewrite (union_comm_L _ (dom _ mlocals)). auto. }
+      assert (dom rmap ∪ (dom mlocals ∪ dom mparams) =
+              dom mparams ∪ (dom mlocals ∪ dom rmap)) as ->.
+      { rewrite (union_comm_L _ (dom mparams)). rewrite union_assoc_L. rewrite (union_comm_L _ (dom mparams)).
+        rewrite -union_assoc_L. rewrite (union_comm_L _ (dom mlocals)). auto. }
       rewrite Hdom1. rewrite - !difference_difference_L - !union_difference_L; auto.
       repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq.
       repeat (apply subseteq_difference_r;[set_solver|]). apply all_registers_subseteq.
@@ -387,7 +387,7 @@ Section call.
         (malloc_prog rest1 link1) "(Hmalloc_prog & Hprog & #Hcont1)";[apply Hcont|].
     iDestruct "Hcont1" as %(Hcont1 & Hcont2 & Heqapp1 & Hlink1).
     rewrite -/(malloc _ _ _).
-    iApply (wp_wand_l _ _ _ (λne v, ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
+    iApply (wp_wand_l _ _ _ (λne (v : discreteO val), ((φ v ∨ ⌜v = FailedV⌝) ∨ ⌜v = FailedV⌝)))%I. iSplitR.
     { iIntros (v) "[H|H] /=";auto. }
     iApply (malloc_spec with "[- $HPC $Hnainv $Hown $Hb $Ha_entry $Hmalloc_prog $Hr_t0 $Hgenlocalsparams]");auto;[|apply Hcont1|..].
     { eapply isCorrectPC_range_restrict;eauto. split;[clear;solve_addr|]. apply contiguous_between_bounds in Hcont2. auto. }
@@ -428,7 +428,7 @@ Section call.
     apply contiguous_between_cons_inv_first in Hcont4 as Heq; subst f.
 
     (* get some general purpose registers *)
-    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_gmap_dom;apply Hsub;repeat constructor|].
+    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[apply elem_of_dom;apply Hsub;repeat constructor|].
     iDestruct (big_sepM_delete _ _ r_t6 with "Hgen") as "[Hr_t6 Hgen]".
     { assert (r_t6 ≠ r1) as Hne;[apply Hneregs;repeat constructor|].
       rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne;auto. eauto. }
@@ -443,19 +443,19 @@ Section call.
 
     (* malloc 7 *)
     (* prepare the registers *)
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite - !delete_insert_ne;auto.
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|].
     iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
       apply map_disjoint_insert_l_2;[|apply map_disjoint_union_r_2];auto. apply lookup_union_None in Hnone as [? ?];auto. }
     (* we assert the register state has the needed domain *)
-    assert (dom (gset RegName) (<[r_t1:=WCap RWX b_l e_l e_l]> (<[r_t6:=WCap RWX b_l e_l e_l]> (<[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]>
+    assert (dom (<[r_t1:=WCap RWX b_l e_l e_l]> (<[r_t6:=WCap RWX b_l e_l e_l]> (<[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]>
             (<[r_t4:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> (<[r1:=wadv]> rmap)))))) ∪ (mlocals ∪ mparams)) = all_registers_s ∖ {[PC; r_t0]}) as Hdomeq'.
     { rewrite dom_union_L 6!dom_insert_L.
       assert ({[r_t1]} ∪ ({[r_t6]} ∪ ({[r_t2]} ∪ ({[r_t3]} ∪ ({[r_t4]} ∪ ({[r_t5]}
-             ∪ dom (gset RegName) (<[r1:=wadv]> rmap)))))) = dom (gset RegName) (<[r1:=wadv]> rmap)) as ->.
+             ∪ dom (<[r1:=wadv]> rmap)))))) = dom (<[r1:=wadv]> rmap)) as ->.
       { clear -Hsub. rewrite dom_insert_L. set_solver. }
       rewrite -dom_union_L -insert_union_l. auto. }
 
@@ -632,11 +632,11 @@ Section call.
         all: try apply not_elem_of_nil. by apply NoDup_nil. }
       assert (∀ x : RegName, x ∈ [PC; r_t0; r1] → x ∉ (map_to_list mparams).*1) as Hforall.
       { intros x Hin. intros Hcontr%map_to_list_fst. destruct Hdisj4 as [HPC [Hr_t0 Hr1] ].
-        apply elem_of_cons in Hin as [-> | Hin]. apply HPC. apply elem_of_gmap_dom.
+        apply elem_of_cons in Hin as [-> | Hin]. apply HPC. apply elem_of_dom.
         destruct Hcontr as [? Hcontr]. apply elem_of_map_to_list in Hcontr. eauto.
-        apply elem_of_cons in Hin as [-> | Hin]. apply Hr_t0. apply elem_of_gmap_dom.
+        apply elem_of_cons in Hin as [-> | Hin]. apply Hr_t0. apply elem_of_dom.
         destruct Hcontr as [? Hcontr]. apply elem_of_map_to_list in Hcontr. eauto.
-        apply elem_of_cons in Hin as [-> | Hin]. apply Hr1. apply elem_of_gmap_dom.
+        apply elem_of_cons in Hin as [-> | Hin]. apply Hr1. apply elem_of_dom.
         destruct Hcontr as [? Hcontr]. apply elem_of_map_to_list in Hcontr. eauto. inversion Hin.  }
       assert (NoDup ([PC; r_t0; r1] ++ (map_to_list mparams).*1)) as Hdup3.
       { apply NoDup_app. split;[auto|].
@@ -710,9 +710,9 @@ Section call.
 
     (* rebuild register map *)
     (* we begin by clearning up the current register map *)
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete insert_insert].
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne//.
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite !(insert_commute _ _ r_t2)// insert_insert. rewrite !(insert_commute _ _ r_t3)// insert_insert.
     rewrite !(insert_commute _ _ r_t4)// insert_insert. rewrite !(insert_commute _ _ r_t5)// insert_insert.
     rewrite !insert_union_l.
@@ -748,16 +748,16 @@ Section call.
       - repeat (apply not_elem_of_cons;split;[auto|]);[|apply not_elem_of_nil]. apply Hneregs. constructor.
       - intros Hcontr%map_to_list_fst. destruct Hcontr as [x Hx].
         apply elem_of_map_to_list in Hx. apply map_disjoint_Some_r with (m1:=rmap) in Hx;auto.
-        apply elem_of_gmap_dom_none in Hx. apply Hx. apply Hsub. constructor.
+        apply not_elem_of_dom in Hx. apply Hx. apply Hsub. constructor.
     }
     apply contiguous_between_cons_inv_first in Hcont7 as Heq. subst f24.
 
     (* a useful assumption about the current register state to clear *)
-    assert (dom (gset RegName) rmap' =
-            {[r_t5; r_t4; r_t3; r_t2; r_t1; r_t6]} ∪ (dom (gset RegName) mlocals ∪ dom (gset RegName) rmap' ∖ dom (gset RegName) mlocals))
+    assert (dom rmap' =
+            {[r_t5; r_t4; r_t3; r_t2; r_t1; r_t6]} ∪ (dom mlocals ∪ dom rmap' ∖ dom mlocals))
       as Hrmap'eq.
     { rewrite Hdom2. rewrite Hdom1 in Hsub. clear -Hsub Hdisj1 Hdisj5. rewrite -union_difference_L.
-      assert ({[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆ all_registers_s ∖ {[PC; r_t0; r1]} ∖ dom (gset RegName) mparams) as Hsub'.
+      assert ({[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} ⊆ all_registers_s ∖ {[PC; r_t0; r1]} ∖ dom mparams) as Hsub'.
       { etrans;[eauto|]. apply subseteq_difference_l. auto. }
       apply subseteq_union_L in Hsub'.
       assert ({[r_t5; r_t4; r_t3; r_t2; r_t1; r_t6]} = {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]}) as ->;[clear;set_solver|rewrite Hsub';auto].
@@ -785,8 +785,8 @@ Section call.
     { rewrite list_to_set_difference list_to_set_app_L.
       assert (list_to_set [PC; r_t0; r1] = {[PC;r_t0;r1]}) as ->;[simpl;clear;set_solver|].
       rewrite -/all_registers_s. rewrite -difference_difference_L.
-      rewrite - !insert_union_l !dom_insert_L. rewrite !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
-      assert (list_to_set (map_to_list mparams).*1 = dom (gset RegName) mparams) as ->;[apply list_to_set_map_to_list|].
+      rewrite - !insert_union_l !dom_insert_L. rewrite !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1.
+      assert (list_to_set (map_to_list mparams).*1 = dom mparams) as ->;[apply list_to_set_map_to_list|].
       rewrite -Hdom2. apply Hrmap'eq.
     }
 
@@ -821,7 +821,7 @@ Section call.
     iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna".
     iSplitL "Hgenlocals".
     { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals").
-      rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom (gset RegName) rmap)) Hdom1.
+      rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1.
       rewrite -Hdom2. rewrite Hrmap'eq. clear. set_solver. }
     iSplitL "Ha1 Ha2 Ha3 Ha4 Ha5 Ha6 Ha7".
     { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }

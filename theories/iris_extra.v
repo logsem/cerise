@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From cap_machine Require Import stdpp_extra.
 
@@ -444,10 +444,10 @@ Proof.
     + done.
     + iDestruct (big_sepM2_dom with "Hmap") as %Hdom.
       assert (is_Some (m' !! a)) as [ρ Hρ].
-      { apply elem_of_gmap_dom. rewrite Hdom dom_insert_L.
+      { apply elem_of_dom. rewrite Hdom dom_insert_L.
         apply elem_of_union_l, elem_of_singleton; auto. }
       rewrite -(insert_id m' a ρ); auto.
-      rewrite -insert_delete.
+      rewrite -insert_delete_insert.
       iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete|auto|].
       iApply big_sepM_insert;auto.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
@@ -478,7 +478,7 @@ Proof.
     assert (a ∈ (map_to_list m).*1) as Hin'.
     { rewrite -Hl. constructor. }
     assert (is_Some(m !! a)) as [b' Hsome].
-    { apply elem_of_gmap_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
+    { apply elem_of_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
     iDestruct (big_sepM_delete _ _ a with "Hm") as "[Ha Hm]";eauto.
     iApply big_sepM_delete;[|iFrame].
     { rewrite Hm.  apply lookup_insert. }

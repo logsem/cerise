@@ -1,5 +1,5 @@
 From stdpp Require Import base.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From cap_machine Require Export logrel_binary.
 From cap_machine Require Import ftlr_base_binary.
@@ -24,17 +24,17 @@ Section fundamental.
     intros Hspec1 Hspec2.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; repeat split; auto; try congruence.
     - destruct H1. inv H7; try congruence.
-    - destruct H1. inv H7; try congruence.
-      rewrite H5 in H1; inv H1. destruct H3; destruct H6; congruence.
-    - destruct H1. inv H7; try congruence.
-      rewrite H5 in H1; inv H1.
+    - destruct H1. inv X; try congruence.
+      rewrite H5 in H1; inv H1. by exfalso.  destruct H3; destruct H6; congruence.
+    - destruct H1. inv X; try congruence.
+      rewrite H5 in H1; inv H1. inversion H6.
       destruct H3; destruct H6; congruence.
-    - destruct H1. inv H7; try congruence.
-      rewrite H5 in H1; inv H1. destruct H3; destruct H6; congruence.
-    - destruct H4; inv H1; try congruence.
-      rewrite H4 in H0; inv H0. destruct H2; destruct H6; congruence.
-    - destruct H4; inv H1; try congruence.
-      rewrite H4 in H0; inv H0. destruct H2; destruct H6; congruence.
+    - destruct H1. inv X; try congruence.
+      rewrite H5 in H1; inv H1. inversion H6. destruct H3; destruct H6; congruence.
+    - destruct H3; inv X; try congruence.
+      rewrite H3 in H0; inv H0. inversion H5. destruct H1; destruct H5; congruence.
+    - destruct H3; inv X; try congruence.
+      rewrite H3 in H0; inv H0. inversion H5. destruct H1; destruct H5; congruence.
   Qed.
 
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
@@ -49,10 +49,8 @@ Section fundamental.
   Proof.
       intros Hrar H3.
       pose (Hrar' := Hrar).
-      destruct Hrar' as (Hinr0 & _). destruct H3 as [Hinr1 | Hinl1].
-      * rewrite Hinr0 in Hinr1. inversion Hinr1.
-        subst;auto.
-      * destruct Hinl1 as [z Hinl1]. rewrite Hinl1 in Hinr0. by exfalso.
+      destruct Hrar' as (Hinr0 & _). rewrite /read_reg_inr Hinr0 in H3.
+        by inversion H3.
   Qed.
 
   (* Description of what the resources are supposed to look like after opening the region if we need to, but before closing the region up again*)
@@ -218,8 +216,9 @@ Section fundamental.
     {
       specialize Hsome' with dst as Hdst.
       destruct Hdst as [wdst Hsomedst].
-      unfold read_reg_inr. destruct wdst. all: repeat eexists.
-      right. by exists z. by left.
+      unfold read_reg_inr. rewrite Hsomedst.
+      destruct wdst as [|[ p0 b0 e0 a0|] | ]; try done.
+      by repeat eexists.
     }
 
     assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> r.1) src = Some storev) as [storev Hwoa].
@@ -247,7 +246,7 @@ Section fundamental.
     iApply (wp_store with "[Hmap HMemRes]"); eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. rewrite lookup_insert_is_Some'; eauto.
+      apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto.
       right; destruct (Hsome rr); auto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' mem' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
@@ -259,7 +258,7 @@ Section fundamental.
     iMod (step_store _ [SeqCtx] with "[$HMemRes' $Hsmap $Hs $Hspec]") as (retv' regs'' mem'') "(Hs & Hs' & Hsmem & Hsmap) /=";eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
     iDestruct "Hs" as %HSpec'.
@@ -279,7 +278,7 @@ Section fundamental.
         simplify_map_eq. destruct (Hsome' r) as [xx Hsomer0].
         destruct (decide (r = PC)).
         - subst. rewrite lookup_insert in Hsomer0; inv Hsomer0.
-          simplify_map_eq. rewrite lookup_insert in Hwoa; inv Hwoa; iFrame "Hinv".
+          simplify_map_eq. iFrame "Hinv".
         - rewrite lookup_insert_ne in Hwoa; auto.
           simplify_map_eq.
             by iSpecialize ("Hreg'" $! _ _ _ n Hwoa Hwoa).
@@ -304,18 +303,19 @@ Section fundamental.
           apply Hwrite. exists dst.
           destruct Hcontr as (Hlookup & Hwa & Hwb). simplify_map_eq.
           apply andb_prop in Hwb.
-          eexists _. split; first eassumption. cbn.
-          revert Hwb. rewrite Z.leb_le Z.ltb_lt. auto.
+          revert Hwb. rewrite Z.leb_le Z.ltb_lt. intros. eexists _.
+          split_and!; try done.
       }
 
       simplify_map_eq.
       rewrite insert_insert.
 
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs /=". solve_ndisj.
+      iModIntro;iNext;iIntros "_".
       iApply ("IH" $! (r1, r1) with "[] [] Hmap Hsmap Hown Hs Hspec");auto.
       { iPureIntro. simpl. intros.  destruct (Hsome x4) as [A _]. auto. }
-      { iModIntro. rewrite lookup_insert in H3; inv H3.
-        rewrite /interp !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iDestruct "Hinv" as "[_ $]";auto. }
+      { rewrite /interp !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]
+        ; iDestruct "Hinv" as "[_ $]";auto. }
     }
     { rewrite /allow_store_res /allow_store_mem.
       destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r1) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
@@ -328,12 +328,14 @@ Section fundamental.
         iMod ("Hcls'" with "[Ha0 Hsa0 Hres]");[iExists w';iExists w'; iFrame|iModIntro].
         iMod ("Hcls" with "[Ha Hsa HP]");[iExists w; iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
       - iModIntro. iDestruct "HStoreMem" as "(_&->)". rewrite -memMap_resource_1.
         iDestruct (big_sepM_insert with "Hsmem") as "[Hsmem _]"; auto.
         iMod ("Hcls" with "[Hmem Hsmem HP]");[iExists w;iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
-        iApply wp_value; auto. iNext. iIntros; discriminate.
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
     Unshelve. all: auto.
   Qed.

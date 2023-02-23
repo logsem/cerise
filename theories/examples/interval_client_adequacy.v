@@ -1,5 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
@@ -231,7 +231,7 @@ Program Definition interval_client_table `{memory_layout} : @tbl_priv int_client
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (_&Hd1&Hd2&Hd3&_).
+  rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (_&Hd1&Hd2&Hd3&_).
   disjoint_map_to_list.
   assert (finz.seq_between interval_client_region_start interval_client_region_end =
           [interval_client_region_start] ++ finz.seq_between interval_client_closure_start interval_client_body_start
@@ -256,7 +256,7 @@ Program Definition adv_table `{memory_layout} : @tbl_pub adv_prog library :=
 Next Obligation.
   intros. simpl.
   pose proof (regions_disjoint) as Hdisjoint.
-  rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+  rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
   disjoint_map_to_list. set_solver.
 Qed.
 
@@ -306,7 +306,7 @@ Proof.
 Qed.
 
 Lemma flag_inv_sub `{memory_layout} :
-  minv_dom flag_inv ⊆ dom (gset Addr) (lib_region (priv_libs library)).
+  minv_dom flag_inv ⊆ dom (lib_region (priv_libs library)).
 Proof.
   cbn. rewrite map_union_empty.
   rewrite /assert_library_content.
@@ -327,20 +327,20 @@ Proof.
       | _ : mkregion ?X1 ?X2 ?X3 !! _ = _ |- _ => set l := mkregion X1 X2 X3
       end.
       assert (is_Some (l !! assert_flag))
-        as Hdom%elem_of_gmap_dom;eauto.
+        as Hdom%elem_of_dom;eauto.
       apply in_dom_mkregion in Hdom.
       pose proof (regions_disjoint) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+      rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
       set_solver.
     - apply lookup_union_None. split.
       + apply not_elem_of_dom. intros Hcontr%in_dom_mkregion.
         pose proof (regions_disjoint) as Hdisjoint.
-        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
         set_solver.
       + simpl. destruct (decide (seal_region_start = assert_flag));simplify_map_eq;auto.
         exfalso.
         pose proof (regions_disjoint) as Hdisjoint.
-        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
         set_solver. }
   { apply lookup_union_None. split;[apply lookup_union_None;split|].
     1,3: apply not_elem_of_dom;intros Hcontr%in_dom_mkregion.
@@ -349,26 +349,26 @@ Proof.
     1: rewrite (finz_seq_between_split _ interval_body_start) in Hcontr;
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH; solve_addr].
     1: apply elem_of_app in Hcontr as [Hcontr | Hcontr].
-    all: rewrite !disjoint_list_cons in Hdisjoint |- *.
-    all: intros (?&?&?&?&?&?&?&?&?).
+    all: rewrite !disjoint_list_cons in Hdisjoint.
+    all: destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
     all: set_solver. }
 Qed.
 
 Section int_client_adequacy.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg:sealStoreG Σ}
           {nainv: logrel_na_invs Σ} {sealLLG: keylist.sealLLG Σ}
           `{memlayout: memory_layout}.
 
   Lemma int_client_correct :
-    Forall (λ w, is_cap w = false) adv_instrs →
+    Forall (λ w, is_z w = true) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom flag_inv) m in
   (∀ rmap,
-      dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
       ⊢ inv invN (minv_sep flag_inv)
         ∗ na_own logrel_nais ⊤
         ∗ PC ↦ᵣ WCap RWX (prog_lower_bound interval_client_table) (prog_end int_client_prog) (prog_start int_client_prog)
         ∗ r_t0 ↦ᵣ WCap RWX (prog_lower_bound adv_table) (prog_end adv_prog) (prog_start adv_prog)
-        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_cap w = false⌝)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
         (* P program and table *)
         ∗ (prog_lower_bound interval_client_table) ↦ₐ (WCap RO (tbl_start interval_client_table)
                                                             (tbl_end interval_client_table)
@@ -431,11 +431,11 @@ Section int_client_adequacy.
       rewrite /malloc_library_content.
       iDestruct (big_sepM_union with "Hpubs") as "[Hpubs Hinit]".
       { pose proof (regions_disjoint) as Hdisjoint.
-        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
         disjoint_map_to_list. set_solver. }
       iDestruct (big_sepM_union with "Hpubs") as "[Hpubs Hmid]".
       { pose proof (regions_disjoint) as Hdisjoint.
-        rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?).
         disjoint_map_to_list. set_solver. }
       pose proof malloc_code_size as Hmalloc_size.
       pose proof malloc_memptr_size as Hmalloc_memptr_size.
@@ -487,7 +487,7 @@ Section int_client_adequacy.
     assert (assert_library_content ##ₘ interval_library_content) as Hdisj.
     { rewrite /assert_library_content /interval_library_content.
       pose proof (regions_disjoint) as Hdisjoint.
-      rewrite !disjoint_list_cons in Hdisjoint |- *. intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
+      rewrite !disjoint_list_cons in Hdisjoint. destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
       rewrite map_disjoint_union_l !map_disjoint_union_r. repeat split;disjoint_map_to_list.
       rewrite (finz_seq_between_split interval_closure_start interval_body_start). set_solver.
       pose proof interval_closure_size as HH.
@@ -500,7 +500,7 @@ Section int_client_adequacy.
     rewrite map_filter_union; [|auto].
 
     iDestruct (big_sepM_union with "Hprivs") as "[Hassert Hprivs]".
-    { eapply map_filter_disjoint;auto. apply _. }
+    { eapply map_disjoint_filter;auto. }
 
     (* allocate the assert invariant *)
     iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
@@ -512,7 +512,7 @@ Section int_client_adequacy.
            rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
            intros [ [? ?]|?]; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
-      { eapply map_filter_disjoint. typeclasses eauto. disjoint_map_to_list.
+      { eapply map_disjoint_filter. disjoint_map_to_list.
         apply elem_of_disjoint. intro.
         rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
         intros [ [? ?]|?]; solve_addr. }
@@ -541,8 +541,8 @@ Section int_client_adequacy.
       1,2,3: rewrite (finz_seq_between_split _ interval_body_start);
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       all: pose proof (regions_disjoint) as Hdisjoint;
-        rewrite !disjoint_list_cons in Hdisjoint |- *;
-        intros (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
+        rewrite !disjoint_list_cons in Hdisjoint;
+        destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?).
       all: set_solver. }
 
     iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hint_table]".
@@ -552,7 +552,7 @@ Section int_client_adequacy.
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       all: pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
-        intros (?&?&?&?&?&?&?&?&?&?).
+        destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?).
       all: set_solver. }
     iDestruct (big_sepM_union with "Hinterval_cls") as "[Hinterval_cls Hinterval_link]".
     { disjoint_map_to_list.
@@ -560,7 +560,7 @@ Section int_client_adequacy.
         [|pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH].
       pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
-        intros (?&?&?&?&?&?&?&?&?&?).
+        destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?).
       set_solver. }
     iDestruct (mkregion_sepM_to_sepL2 with "Hinterval_cls") as "Hinterval".
     { pose proof interval_closure_size as HH; pose proof interval_body_size as HHH;solve_addr+HH HHH. }
@@ -590,13 +590,13 @@ Section int_client_adequacy.
       all: disjoint_map_to_list.
       all: pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
-        intros (?&?&?&?&?&?&?&?&?&?).
+        destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?).
       all: set_solver. }
     iDestruct (big_sepM_union with "Hprivs") as "[Hseal Hseal_link]".
     { disjoint_map_to_list.
       pose proof (regions_disjoint) as Hdisjoint;
         rewrite !disjoint_list_cons in Hdisjoint |- *;
-        intros (?&?&?&?&?&?&?&?&?&?).
+        destruct Hdisjoint as (?&?&?&?&?&?&?&?&?&?).
       set_solver. }
     iDestruct (big_sepM_insert with "Hseal_link") as "[Hseal_link _]";[auto|]. iSimpl in "Hseal_link".
     iDestruct (mkregion_sepM_to_sepL2 with "Hseal_table") as "Hseal_table".
@@ -647,7 +647,8 @@ Section int_client_adequacy.
       1,2: apply le_addr_withinBounds'. all: try solve_addr.
       apply seal_table_size. }
     { eauto. }
-    { rewrite /offset_to_checki. pose proof interval_client_closure_size.
+    { rewrite /offset_to_checki.
+      pose proof interval_client_closure_size. rewrite /offset_to_checki.
       rewrite /interval_client_closure_move_offset in HH.
       rewrite /interval_client_closure_move_offset /interval_client_closure_instrs_length.
       simpl in *. solve_addr. }
@@ -662,7 +663,7 @@ Section int_client_adequacy.
     rewrite -(insert_insert _ PC _ (WInt 0)).
     iDestruct ("Hcont" with "[$Hown $Hrmap]") as "Hcont".
     { rewrite /interp_reg /=. iSplit.
-      iPureIntro. intros. simpl. apply elem_of_gmap_dom. rewrite !dom_insert_L Hdom.
+      iPureIntro. intros. simpl. apply elem_of_dom. rewrite !dom_insert_L Hdom.
       pose proof (all_registers_s_correct x1) as Hx1. set_solver +Hx1.
       iIntros (r v Hrv). rewrite lookup_insert_ne//.
       destruct (decide (r_t0 = r));[subst;rewrite lookup_insert|rewrite lookup_insert_ne//].
@@ -679,17 +680,17 @@ Theorem template_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory int_client_prog adv_prog library interval_client_table adv_table m →
   is_initial_registers int_client_prog adv_prog library interval_client_table adv_table reg r_t0 →
-  Forall (λ w, is_cap w = false) (prog_instrs adv_prog) →
+  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
+  pose proof (template_adequacy_no_seals (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
                                 int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
   { apply flag_inv_sub. }
-  intros Σ ? ? ? ?.
+  intros Σ ? ? ? ? ?.
   eapply int_client_correct. apply Hints. Unshelve. solve_inG.
 Qed.

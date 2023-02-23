@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac auth list.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
 From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel contiguous.
@@ -670,7 +670,7 @@ Section list.
     iDestruct "HisList" as (hd) "[Hll HisList]". iDestruct "HisList" as (pbvals') "(>HisList & >Hexact & HΦ)".
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_length.
     (* extract some registers *)
-    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t6)) as [w6 Hw6];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t6 with "Hregs") as "[Hr_t6 Hregs]";[apply Hw6|].
 
     focus_block_0 "Hprog" as "Hprog" "Hcont".
@@ -678,11 +678,11 @@ Section list.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+    iDestruct (big_sepM_insert _ _ r_t6 with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
-    { rewrite !lookup_insert_ne//. rewrite elem_of_gmap_dom_none Hdom. set_solver. }
+    { rewrite !lookup_insert_ne//. rewrite -not_elem_of_dom Hdom. set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
-    { rewrite !lookup_insert_ne//. rewrite elem_of_gmap_dom_none Hdom. set_solver. }
+    { rewrite !lookup_insert_ne//. rewrite -not_elem_of_dom Hdom. set_solver. }
     iApply malloc_spec; iFrameAutoSolve. 4: iFrame "∗ #". rewrite !dom_insert_L Hdom. clear. set_solver by lia.
     solve_ndisj. lia.
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_r' & Hreg & Hr_t0 & Hown & Hregs)".
@@ -698,7 +698,7 @@ Section list.
     destruct l;[inversion Hlen_eq|]. apply contiguous_between_cons_inv_first in H1 as Heq. subst f.
     destruct l;[inversion Hlen_eq|]. destruct l;[|inversion Hlen_eq].
     iDestruct "Hbe'" as "[Hbnew [Ha _] ]".
-    rewrite delete_insert. 2: rewrite !lookup_insert_ne// elem_of_gmap_dom_none Hdom;set_solver.
+    rewrite delete_insert. 2: rewrite !lookup_insert_ne// -not_elem_of_dom Hdom;set_solver.
     repeat (rewrite -(insert_commute _ r_env)//).
     iDestruct (big_sepM_delete _ _ r_env with "Hregs") as "[Hr_env Hregs]";[apply lookup_insert|].
     rewrite !(insert_commute _ _ r_t6)// !(delete_insert_ne _ _ r_t6)//.
@@ -744,11 +744,11 @@ Section list.
       unfocus_block "Hprog" "Hcont" as "Hprog".
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
       iSplitR "Hr_t1 Hprog".
-      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
         repeat (rewrite -delete_insert_ne//).
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete; repeat (rewrite -delete_insert_ne//)].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
         iFrameMapSolve+ Hdom "Hregs". }
       destruct Hpref. iFrame "∗".
       iExists bnew,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1".
@@ -766,11 +766,11 @@ Section list.
         repeat iSplit;eauto. iContiguous_next H1 0. }
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
       iFrame "∗". iSplitR "Hr_t1".
-      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
         repeat (rewrite -delete_insert_ne//).
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete; repeat (rewrite -delete_insert_ne//)].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
+        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
         iFrameMapSolve+ Hdom "Hregs". }
       { iExists _,_,[]. iFrame. iFrame "Hpref'". auto. } }
   Qed.

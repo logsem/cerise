@@ -1,6 +1,6 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
@@ -17,14 +17,26 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Definition denote (i: instr) p b e a: Z :=
-    match i with
-    | GetP _ _ => encodePerm p
-    | GetB _ _ => b
-    | GetE _ _ => e
-    | GetA _ _ => a
-    | _ => 0%Z
-    end.
+  (* Generalized denote function, since multiple cases result in similar success *)
+  Definition denote (i: instr) (w : Word): option Z :=
+    match w with
+    | WCap p b e a =>
+      match i with
+      | GetP _ _ => Some (encodePerm p)
+      | GetB _ _ => Some (b:Z)
+      | GetE _ _ => Some (e:Z)
+      | GetA _ _ => Some (a:Z)
+      | _ => None
+      end
+    | WSealRange p b e a =>
+      match i with
+      | GetP _ _ => Some (encodeSealPerms p)
+      | GetB _ _ => Some (b:Z)
+      | GetE _ _ => Some (e:Z)
+      | GetA _ _ => Some (a:Z)
+      | _ => None
+      end
+    | _ => None end.
 
   Global Arguments denote : simpl nomatch.
 
@@ -41,23 +53,49 @@ Section cap_lang_rules.
     intros HH. destruct_or! HH; subst i; reflexivity.
   Qed.
 
+  (* Simpler definition, easier to use when proving wp-rules *)
+  Definition denote_cap (i: instr) (p : Perm) (b e a : Addr): Z :=
+      match i with
+      | GetP _ _ => (encodePerm p)
+      | GetB _ _ => b
+      | GetE _ _ => e
+      | GetA _ _ => a
+      | _ => 0%Z
+      end.
+  Lemma denote_cap_denote i p b e a z src dst: is_Get i src dst → denote_cap i p b e a = z → denote i (WCap p b e a) = Some z.
+  Proof. unfold denote_cap, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
+
+  Definition denote_seal (i: instr) (p : SealPerms) (b e a : OType): Z :=
+      match i with
+      | GetP _ _ => (encodeSealPerms p)
+      | GetB _ _ => b
+      | GetE _ _ => e
+      | GetA _ _ => a
+      | _ => 0%Z
+      end.
+  Lemma denote_seal_denote i (p : SealPerms) (b e a : OType) z src dst: is_Get i src dst → denote_seal i p b e a = z → denote i (WSealRange p b e a) = Some z.
+  Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
+
   Inductive Get_failure (i: instr) (regs: Reg) (dst src: RegName) :=
-    | Get_fail_src_noncap : forall n,
-        regs !! src = Some (WInt n) →
+    | Get_fail_src_denote w:
+        regs !! src = Some w →
+        denote i w = None →
         Get_failure i regs dst src
-    | Get_fail_overflow_PC : forall p b e a,
-        regs !! src = Some (WCap p b e a) →
-        incrementPC (<[ dst := WInt (denote i p b e a) ]> regs) = None →
+    | Get_fail_overflow_PC w z:
+        regs !! src = Some w →
+        denote i w = Some z →
+        incrementPC (<[ dst := WInt z ]> regs) = None →
         Get_failure i regs dst src.
 
   Inductive Get_spec (i: instr) (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
-  | Get_spec_success p b e a:
-      regs !! src = Some (WCap p b e a) →
-      incrementPC (<[ dst := WInt (denote i p b e a) ]> regs) = Some regs' →
-      Get_spec i regs dst src regs' NextIV
-  | Get_spec_failure:
-      Get_failure i regs dst src →
-      Get_spec i regs dst src regs' FailedV.
+    | Get_spec_success w z:
+        regs !! src = Some w →
+        denote i w = Some z →
+        incrementPC (<[ dst := WInt z ]> regs) = Some regs' →
+        Get_spec i regs dst src regs' NextIV
+    | Get_spec_failure:
+        Get_failure i regs dst src →
+        Get_spec i regs dst src regs' FailedV.
 
   Lemma wp_Get Ep pc_p pc_b pc_e pc_a w get_i dst src regs :
     decodeInstrW w = get_i →
@@ -65,7 +103,7 @@ Section cap_lang_rules.
 
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of get_i ⊆ dom _ regs →
+    regs_of get_i ⊆ dom regs →
     {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
@@ -76,7 +114,7 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 l1 l2 n) "Hσ1 /=". destruct σ1; simpl.
+    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
@@ -85,6 +123,7 @@ Section cap_lang_rules.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
+    iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     unfold exec in Hstep.
 
@@ -92,19 +131,23 @@ Section cap_lang_rules.
     erewrite regs_of_is_Get in Hri; eauto.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
-    destruct wsrc as [| p b e a ] eqn:Hwsrc.
-    { (* Failure: src is not a capability *)
+    destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
+    2 : { (* Failure: src is not of the right word type *)
       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
-        all: rewrite Hsrc in Hstep; inversion Hstep; auto. }
-      iFailWP "Hφ" Get_fail_src_noncap. }
+        all: rewrite Hsrc /= in Hstep.
+        all : destruct wsrc as [ | [  |  ] | ]; try (inversion Hstep; auto);
+          rewrite /denote /= in Hwsrc; rewrite Hinstr in Hwsrc; congruence. }
+      rewrite Hdecode. iFailWP "Hφ" Get_fail_src_denote. }
 
-    assert (exec_opt get_i (r, m) = updatePC (update_reg (r, m) dst (WInt (denote get_i p b e a)))) as HH.
-    { destruct_or! Hinstr; rewrite Hinstr /= in Hstep |- *; auto; cbn in Hstep.
-      all: destruct b, e, a; rewrite /update_reg Hsrc /= in Hstep |-*; auto. }
+    assert (exec_opt get_i (r, m) = updatePC (update_reg (r, m) dst (WInt z))) as HH.
+    { destruct_or! Hinstr; clear Hdecode; subst get_i; cbn in Hstep |- *.
+      all: rewrite /update_reg Hsrc /= in Hstep |-*; auto.
+      all : destruct wsrc as [ | [  |  ] | ]; inversion Hwsrc; auto.
+    }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
-    destruct (incrementPC (<[ dst := WInt (denote get_i p b e a) ]> regs))
+    destruct (incrementPC (<[ dst := WInt z ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
       apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
@@ -126,11 +169,13 @@ Section cap_lang_rules.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
   Qed.
 
-  Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a w wdst pc_a' :
+  (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
+  Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a w wdst pc_a' z :
     decodeInstrW w = get_i →
     is_Get get_i dst PC →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' ->
+    denote get_i (WCap pc_p pc_b pc_e pc_a) = Some z →
     
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
@@ -139,9 +184,9 @@ Section cap_lang_rules.
       {{{ RET NextIV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
-          ∗ dst ↦ᵣ WInt (denote get_i pc_p pc_b pc_e pc_a) }}}.
+          ∗ dst ↦ᵣ WInt z }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc Hpca' φ) "(>HPC & >Hpc_a & >Hdst) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote φ) "(>HPC & >Hpc_a & >Hdst) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
@@ -156,22 +201,23 @@ Section cap_lang_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_Get_same_success E get_i r pc_p pc_b pc_e pc_a w p' b' e' a' pc_a' :
+  Lemma wp_Get_same_success E get_i r pc_p pc_b pc_e pc_a w wr pc_a' z:
     decodeInstrW w = get_i →
     is_Get get_i r r →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' ->
+    denote get_i wr = Some z →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ r ↦ᵣ WCap p' b' e' a' }}}
+        ∗ ▷ r ↦ᵣ wr }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
-          ∗ r ↦ᵣ WInt (denote get_i p' b' e' a') }}}.
+          ∗ r ↦ᵣ WInt z }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc Hpca' φ) "(>HPC & >Hpc_a & >Hr) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote φ) "(>HPC & >Hpc_a & >Hr) Hφ".
     iDestruct (map_of_regs_2 with "HPC Hr") as "[Hmap %]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
@@ -186,24 +232,25 @@ Section cap_lang_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_Get_success E get_i dst src pc_p pc_b pc_e pc_a w wdst p' b' e' a' pc_a' :
+  Lemma wp_Get_success E get_i dst src pc_p pc_b pc_e pc_a w wsrc wdst pc_a' z :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' ->
+    denote get_i wsrc = Some z →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ src ↦ᵣ WCap p' b' e' a'
+        ∗ ▷ src ↦ᵣ wsrc
         ∗ ▷ dst ↦ᵣ wdst }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↦ₐ w
-          ∗ src ↦ᵣ WCap p' b' e' a'
-          ∗ dst ↦ᵣ WInt (denote get_i p' b' e' a') }}}.
+          ∗ src ↦ᵣ wsrc
+          ∗ dst ↦ᵣ WInt z }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc Hpca' φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hdst Hsrc") as "[Hmap (%&%&%)]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.

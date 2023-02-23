@@ -15,6 +15,13 @@ Class MachineParameters := {
 
   decode_encode_perm_inv :
     forall pl, decodePerm (encodePerm pl) = pl;
+
+  encodeSealPerms : SealPerms → Z;
+  encodeSealPerms_inj : Inj eq eq encodeSealPerms;
+  decodeSealPerms : Z → SealPerms;
+
+  decode_encode_seal_perms_inv :
+    forall pl, decodeSealPerms (encodeSealPerms pl) = pl;
 }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify
@@ -24,7 +31,7 @@ Definition decodeInstrW `{MachineParameters} : Word → instr :=
   fun w =>
     match w with
     | WInt z => decodeInstr z
-    | WCap _ _ _ _ => Fail
+    | _ => Fail
     end.
 
 Definition encodeInstrW `{MachineParameters} : instr → Word :=
