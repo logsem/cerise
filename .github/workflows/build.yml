@@ -35,5 +35,9 @@ jobs:
         with:
           ocaml-version: 4.14.0
 
+      - name: Install dependencies
+        run: |
+          opam install . --deps-only -y
+
       - name: Build
         run: opam exec -- make interpreter
