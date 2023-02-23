@@ -48,7 +48,7 @@ def create_closure(renv1, renv31, label_start, label_end, init):
         f"mov {renv1} {renv31}",
         f"lea {renv1} ({label_start}-{init})",
 	    f"subseg {renv1}  {label_start} {label_end}",
-        f"restrict {renv1} E",
+        f"restrict {renv1} E GLOBAL",
     ]
     return ("\n\t".join(prog_closure))
 
@@ -67,7 +67,7 @@ def create_closure_code(rcls, renv, rlt, start_label, end_label, code_label, ini
         f"store {rcls} {rlt}",
         f"lea {rcls} ({code_label}-{start_label})",
         f"subseg {rcls} {start_label} {end_label}",
-        f"restrict {rcls} E"
+        f"restrict {rcls} E GLOBAL"
     ]
     return ("\n\t".join(prog_closure))
 
@@ -102,7 +102,7 @@ def link_program(components, code, renv, rlt, slt, elt, init):
         prog += store_closure(i, rlt, rcls)
         i+=1
     # restrict capability and points to the first entry of the table
-    prog+=f"\n\trestrict {rlt} RO\n\t"
+    prog+=f"\n\trestrict {rlt} RO GLOBAL\n\t"
 
     prog+=f"\n; closure code\n\t"
     # closure for the code

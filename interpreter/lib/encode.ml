@@ -2,32 +2,77 @@ open Ast
 
 exception DecodeException of string
 
+let encode_locality (g : locality) : Z.t =
+  Z.of_int @@
+  match g with
+  | Local    -> 0b0
+  | Global   -> 0b1
+
+let decode_locality (i : Z.t) : locality =
+  let dec_perm_exception =
+    fun _ -> raise @@ DecodeException
+        "Error decoding locality: unexpected encoding"
+  in
+  let b0 = Z.testbit i 0 in
+  if Z.(i > (of_int 0b1))
+  then dec_perm_exception ()
+  else
+  match b0 with
+    | false -> Local
+    | true -> Global
+
 let encode_perm (p : perm) : Z.t =
   Z.of_int @@
   match p with
-  | O -> 0b000
-  | E -> 0b001
-  | RO -> 0b100
-  | RX -> 0b101
-  | RW -> 0b110
-  | RWX -> 0b111
+  (*          LRWX *)
+  | O    -> 0b0000
+  | E    -> 0b0001
+  | RO   -> 0b0100
+  | RX   -> 0b0101
+  | RW   -> 0b0110
+  | RWX  -> 0b0111
+  | RWL  -> 0b1110
+  | RWLX -> 0b1111
 
 let decode_perm (i : Z.t) : perm =
-  let dec_perm_exception = fun _ -> raise @@ DecodeException "Error decoding permission: unexpected encoding" in
+  let dec_perm_exception =
+    fun _ -> raise @@ DecodeException "Error decoding permission: unexpected encoding" in
   let b0 = Z.testbit i 0 in
   let b1 = Z.testbit i 1 in
   let b2 = Z.testbit i 2 in
-  if Z.(i > (of_int 0b111))
+  let b3 = Z.testbit i 3 in
+  if Z.(i > (of_int 0b1111))
   then dec_perm_exception ()
   else
-  match (b2,b1,b0) with
-  | (false, false, false) -> O
-  | (false, false, true)  -> E
-  | (true, false, false)  -> RO
-  | (true, false, true)   -> RX
-  | (true, true, false)   -> RW
-  | (true, true, true)    -> RWX
+  match (b3,b2,b1,b0) with
+  | (false, false, false, false) -> O
+  | (false, false, false, true)  -> E
+  | (false, true, false, false)  -> RO
+  | (false, true, false, true)   -> RX
+  | (false, true, true, false)   -> RW
+  | (false, true, true, true)    -> RWX
+  | (true, true, true, false)    -> RWL
+  | (true, true, true, true)     -> RWLX
   | _ -> dec_perm_exception ()
+
+let encode_perm_pair (p : perm) (g : locality) : Z.t =
+  let open Z in
+  let encoded_g = (encode_locality g) lsl 4 in (* size of perm *)
+  let encoded_p = (encode_perm p) in
+  encoded_g lor encoded_p
+
+
+let decode_perm_pair (i : Z.t) : (perm * locality) =
+  let dec_perm_exception =
+    fun _ -> raise @@ DecodeException "Error decoding permission pair: unexpected encoding" in
+  let open Z in
+  if (i > (of_int 0b11111))
+  then dec_perm_exception ()
+  else
+    let decode_g = (i land (of_int 0b10000)) asr 4 in
+    let decode_p = (i land (of_int 0b01111)) in
+    (decode_perm decode_p,
+     decode_locality decode_g)
 
 let encode_reg (r : regname) : Z.t =
   match r with
@@ -97,14 +142,14 @@ let encode_statement (s : statement): Z.t =
     match c with
     | Register r -> opcode, encode_reg r
     | CP (Const i) -> Z.(succ opcode, ~$i)
-    | CP (Perm p) -> Z.(succ @@ succ opcode, encode_perm p)
+    | CP (Perm (p,g)) -> Z.(succ @@ succ opcode, encode_perm_pair p g)
   end in
   let two_const_convert opcode c1 c2 = begin
     let (opc1, c1_enc) = begin
       match c1 with
       | Register r -> opcode, encode_reg r
       | CP (Const i) -> Z.(opcode + ~$3, ~$i)
-      | CP (Perm p) -> Z.(opcode + ~$6, encode_perm p)
+      | CP (Perm (p,g)) -> Z.(opcode + ~$6, encode_perm_pair p g)
     end in
     let (opc2, c2_enc) = const_convert opc1 c2 in
     (opc2, encode_int_int c1_enc c2_enc)
@@ -146,14 +191,18 @@ let encode_statement (s : statement): Z.t =
       opc ^! (encode_int_int (encode_reg r) c_enc)
     end
   | IsPtr (r1, r2) -> ~$0x33 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | GetP (r1, r2) -> ~$0x34 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | GetB (r1, r2) -> ~$0x35 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | GetE (r1, r2) -> ~$0x36 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | GetA (r1, r2) -> ~$0x37 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | Fail -> ~$0x38
-  | Halt -> ~$0x39
+  | GetL (r1, r2) -> ~$0x34 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
+  | GetP (r1, r2) -> ~$0x35 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
+  | GetB (r1, r2) -> ~$0x36 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
+  | GetE (r1, r2) -> ~$0x37 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
+  | GetA (r1, r2) -> ~$0x38 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
+  | Fail -> ~$0x39
+  | Halt -> ~$0x3a
 
 let decode_statement (i : Z.t) : statement =
+  let dec_perm =
+    fun c_enc -> let (p,g) = (decode_perm_pair c_enc) in Perm (p,g)
+  in
   let opc = Z.extract i 0 8 in
   let payload = Z.(i asr 8) in 
   (* Jmp *)
@@ -187,7 +236,7 @@ let decode_statement (i : Z.t) : statement =
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
-    let p = Perm (decode_perm c_enc) in
+    let p = dec_perm c_enc in
     Move (r, CP p)
   end else
   (* Load *)
@@ -217,7 +266,7 @@ let decode_statement (i : Z.t) : statement =
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
-    let p = Perm (decode_perm c_enc) in
+    let p = dec_perm c_enc in
     Store (r, CP p)
   end else
   (* Add *)
@@ -230,7 +279,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x09 then Register (decode_reg c2_enc) else
       if opc = ~$0x0a then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     Add (r, c1, c2)
   end else
@@ -243,7 +292,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x0c then Register (decode_reg c2_enc) else
       if opc = ~$0x0d then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+      CP (dec_perm c2_enc)
     end in
     Add (r, c1, c2)
   end else
@@ -252,11 +301,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = CP (Perm (decode_perm c1_enc)) in
+    let c1 = CP (dec_perm c1_enc) in
     let c2 = begin
       if opc = ~$0x0f then Register (decode_reg c2_enc) else
       if opc = ~$0x10 then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     Add (r, c1, c2)
   end else
@@ -270,7 +319,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x12 then Register (decode_reg c2_enc) else
       if opc = ~$0x13 then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     Sub (r, c1, c2)
   end else
@@ -283,7 +332,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x15 then Register (decode_reg c2_enc) else
       if opc = ~$0x16 then CP (Const (Z.to_int c2_enc)) else
-        CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     Sub (r, c1, c2)
   end else
@@ -292,11 +341,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = CP (Perm (decode_perm c1_enc)) in
+    let c1 = CP (dec_perm c1_enc) in
     let c2 = begin
       if opc = ~$0x18 then Register (decode_reg c2_enc) else
       if opc = ~$0x19 then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+      CP (dec_perm c2_enc)
     end in
     Sub (r, c1, c2)
   end else
@@ -310,7 +359,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x1b then Register (decode_reg c2_enc) else
       if opc = ~$0x1c then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+      CP (dec_perm c2_enc)
     end in
     Lt (r, c1, c2)
   end else
@@ -323,7 +372,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin 
       if opc = ~$0x1e then Register (decode_reg c2_enc) else
       if opc = ~$0x1f then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+      CP (dec_perm c2_enc)
     end in
     Lt (r, c1, c2)
   end else
@@ -332,11 +381,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = CP (Perm (decode_perm c1_enc)) in
+    let c1 = CP (dec_perm c1_enc) in
     let c2 = begin
       if opc = ~$0x21 then Register (decode_reg c2_enc) else
       if opc = ~$0x22 then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+      CP (dec_perm c2_enc)
     end in
     Lt (r, c1, c2)
   end else
@@ -359,7 +408,7 @@ let decode_statement (i : Z.t) : statement =
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
-    let p = Perm (decode_perm c_enc) in
+    let p = dec_perm c_enc in
     Lea (r, CP p)
   end else
   (* Restrict *)
@@ -381,7 +430,7 @@ let decode_statement (i : Z.t) : statement =
   then begin
     let (r_enc, c_enc) = decode_int payload in
     let r = decode_reg r_enc in
-    let p = Perm (decode_perm c_enc) in
+    let p = dec_perm c_enc in
     Restrict (r, CP p)
   end else
   (* SubSeg *)
@@ -394,7 +443,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x2a then Register (decode_reg c2_enc) else
       if opc = ~$0x2b then CP (Const (Z.to_int c2_enc)) else
-        CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     SubSeg (r, c1, c2)
   end else
@@ -407,7 +456,7 @@ let decode_statement (i : Z.t) : statement =
     let c2 = begin
       if opc = ~$0x2d then Register (decode_reg c2_enc) else
       if opc = ~$0x2e then CP (Const (Z.to_int c2_enc)) else
-        CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     SubSeg (r, c1, c2)
   end else
@@ -416,11 +465,11 @@ let decode_statement (i : Z.t) : statement =
     let (r_enc, payload') = decode_int payload in
     let (c1_enc, c2_enc) = decode_int payload' in
     let r = decode_reg r_enc in
-    let c1 = CP (Perm (decode_perm c1_enc)) in
+    let c1 = CP (dec_perm c1_enc) in
     let c2 = begin
       if opc = ~$0x30 then Register (decode_reg c2_enc) else
       if opc = ~$0x31 then CP (Const (Z.to_int c2_enc)) else
-      CP (Perm (decode_perm c2_enc))
+        CP (dec_perm c2_enc)
     end in
     SubSeg (r, c1, c2)
   end else
@@ -432,8 +481,16 @@ let decode_statement (i : Z.t) : statement =
     let r2 = decode_reg r2_enc in
     IsPtr (r1, r2)
   end else
-  (* GetP *)
+  (* GetL *)
   if opc = ~$0x34
+  then begin
+    let (r1_enc, r2_enc) = decode_int payload in
+    let r1 = decode_reg r1_enc in
+    let r2 = decode_reg r2_enc in
+    GetL (r1, r2)
+  end else
+  (* GetP *)
+  if opc = ~$0x35
   then begin
     let (r1_enc, r2_enc) = decode_int payload in
     let r1 = decode_reg r1_enc in
@@ -441,7 +498,7 @@ let decode_statement (i : Z.t) : statement =
     GetP (r1, r2)
   end else
   (* GetB *)
-  if opc = ~$0x35
+  if opc = ~$0x36
   then begin
     let (r1_enc, r2_enc) = decode_int payload in
     let r1 = decode_reg r1_enc in
@@ -449,7 +506,7 @@ let decode_statement (i : Z.t) : statement =
     GetB (r1, r2)
   end else
   (* GetE *)
-  if opc = ~$0x36
+  if opc = ~$0x37
   then begin
     let (r1_enc, r2_enc) = decode_int payload in
     let r1 = decode_reg r1_enc in
@@ -457,7 +514,7 @@ let decode_statement (i : Z.t) : statement =
     GetE (r1, r2)
   end else
   (* GetA *)
-  if opc = ~$0x37
+  if opc = ~$0x38
   then begin
     let (r1_enc, r2_enc) = decode_int payload in
     let r1 = decode_reg r1_enc in
@@ -465,10 +522,10 @@ let decode_statement (i : Z.t) : statement =
     GetA (r1, r2)
   end else
   (* Fail *)
-  if opc = ~$0x38
+  if opc = ~$0x39
   then Fail
   else
   (* Halt *)
-  if opc = ~$0x39
+  if opc = ~$0x3a
   then Halt
   else raise @@ DecodeException "Error decoding instruction: unrecognized opcode"

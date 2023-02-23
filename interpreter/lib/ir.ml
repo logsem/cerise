@@ -9,8 +9,9 @@ type expr
   | AddOp of expr * expr
   | SubOp of expr * expr
 
-type perm = O | E | RO | RX | RW | RWX
-type const_perm = Const of expr | Perm of perm
+type perm = O | E | RO | RX | RW | RWX | RWL | RWLX
+type locality = Global | Local
+type const_perm = Const of expr | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op
   = Jmp of regname
@@ -25,6 +26,7 @@ type machine_op
   | Restrict of regname * reg_or_const
   | SubSeg of regname * reg_or_const * reg_or_const
   | IsPtr of regname * regname
+  | GetL of regname * regname
   | GetP of regname * regname
   | GetB of regname * regname
   | GetE of regname * regname
@@ -62,6 +64,13 @@ let translate_perm (p : perm) : Ast.perm =
   | RX -> Ast.RX
   | RW -> Ast.RW
   | RWX -> Ast.RWX
+  | RWL -> Ast.RWL
+  | RWLX -> Ast.RWLX
+
+let translate_locality (g : locality) : Ast.locality =
+  match g with
+  | Local -> Ast.Local
+  | Global -> Ast.Global
 
 let translate_regname (r : regname) : Ast.regname =
   match r with
@@ -71,7 +80,7 @@ let translate_regname (r : regname) : Ast.regname =
 let translate_const_perm (envr : env) (cp : const_perm) : Ast.const_perm =
   match cp with
   | Const e -> Ast.Const (eval_expr envr e)
-  | Perm p -> Ast.Perm (translate_perm p)
+  | Perm (p,g) -> Ast.Perm (translate_perm p, translate_locality g)
 
 let translate_reg_or_const (envr : env) (roc : reg_or_const) : Ast.reg_or_const =
   match roc with
@@ -104,6 +113,7 @@ let translate_instr (envr : env) (instr : machine_op) : Ast.machine_op =
                                       translate_reg_or_const envr c1,
                                       translate_reg_or_const envr c2)
   | IsPtr (r1, r2) -> Ast.IsPtr (translate_regname r1, translate_regname r2)
+  | GetL (r1, r2) -> Ast.GetL (translate_regname r1, translate_regname r2)
   | GetP (r1, r2) -> Ast.GetP (translate_regname r1, translate_regname r2)
   | GetB (r1, r2) -> Ast.GetB (translate_regname r1, translate_regname r2)
   | GetE (r1, r2) -> Ast.GetE (translate_regname r1, translate_regname r2)

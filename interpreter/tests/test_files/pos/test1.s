@@ -7,7 +7,7 @@
 	store r1 r2           	; mem[data] <- (RWX, init, end, data+1) 5
 	lea r1 (-9) 		; r1 = (RWX, init, end, code) 6
 	subseg r1 11 21 	; r1 = (RWX, code, end, code) 7
-	restrict r1 E 		; r1 = (E, code, end, code) 8
+	restrict r1 E LOCAL    ; r1 = (E, code, end, code) 8
 	mov r2 0 		; r2 = 0 9
 	jmp r1   		; jump to unknown code: we only give it access 10
 

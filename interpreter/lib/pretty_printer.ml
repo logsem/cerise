@@ -16,12 +16,19 @@ let string_of_perm (p: perm): string =
   | RX -> "RX"
   | RW -> "RW"
   | RWX -> "RWX"
+  | RWL -> "RWL"
+  | RWLX -> "RWLX"
+
+let string_of_locality (g: locality): string =
+  match g with
+  | Local -> "Local"
+  | Global -> "Global"
 
 let string_of_reg_or_const (c: reg_or_const) : string =
   match c with
   | Register r -> string_of_regname r
   | CP (Const c) -> string_of_int c
-  | CP (Perm p) -> string_of_perm p
+  | CP (Perm (p,g)) -> "(" ^- string_of_perm p ^- "," ^- string_of_locality g  ^- ")"
 
 let string_of_statement (s: statement): string =
   let string_of_rr r1 r2 =
@@ -43,6 +50,7 @@ let string_of_statement (s: statement): string =
   | Restrict (r, c) -> "restrict" ^- string_of_rc r c
   | SubSeg (r, c1, c2) -> "subseg" ^- string_of_rcc r c1 c2
   | IsPtr (r1, r2) -> "isptr" ^- string_of_rr r1 r2
+  | GetL (r1, r2) -> "getl" ^- string_of_rr r1 r2
   | GetP (r1, r2) -> "getp" ^- string_of_rr r1 r2
   | GetB (r1, r2) -> "getb" ^- string_of_rr r1 r2
   | GetE (r1, r2) -> "gete" ^- string_of_rr r1 r2
@@ -52,7 +60,8 @@ let string_of_statement (s: statement): string =
 
 let string_of_word (w : word) : string =
   match w with
-  | Cap (p, b, e, a) -> Printf.sprintf "Cap (%s, %d, %d, %d)" (string_of_perm p) b e a
+  | Cap (p, g, b, e, a) ->
+    Printf.sprintf "Cap (%s, %s, %d, %d, %d)" (string_of_perm p) (string_of_locality g) b e a
   | I z -> Z.to_string z
 
 let string_of_reg_word (r : regname) (w : word) : string =

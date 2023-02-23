@@ -10,11 +10,18 @@ module type MachineConfig = sig val addr_max : int end
 module MkUi (Cfg: MachineConfig) = struct
 
   module Perm = struct
-    let width = 3
+    let width = 4
     let ui ?(attr = A.empty) (p: Ast.perm) =
       I.hsnap ~align:`Left width
         (I.string attr (Pretty_printer.string_of_perm p))
   end
+
+  module Locality = struct
+    let width = 6
+    let ui ?(attr = A.empty) (g: Ast.locality) =
+      I.hsnap ~align:`Left width
+        (I.string attr (Pretty_printer.string_of_locality g))
+    end
 
   module Addr = struct
     (* width of an address as a number of hex digits *)
@@ -84,15 +91,20 @@ module MkUi (Cfg: MachineConfig) = struct
     *)
     let width =
       Perm.width + 1 (* space *) +
+      Locality.width + 1 (* space *) +
       Addr_range.width + 1 (* space *) +
       Addr.width
 
     let ui ?(attr = A.empty) (w: Machine.word) =
       match w with
       | I z -> I.hsnap ~align:`Right width (I.string attr (Int.ui width z))
-      | Cap (p, b, e, a) ->
+      | Cap (p, g, b, e, a) ->
         I.hsnap ~align:`Left width
-          (Perm.ui ~attr p <|> I.string A.empty " " <|> Addr_range.ui ~attr (b, e))
+          (Perm.ui ~attr p
+           <|> I.string A.empty " "
+           <|> Locality.ui ~attr g
+           <|> I.string A.empty " "
+           <|> Addr_range.ui ~attr (b, e))
         </>
         I.hsnap ~align:`Right width (Addr.ui a)
   end
@@ -146,7 +158,7 @@ module MkUi (Cfg: MachineConfig) = struct
       let start =
         match pc with
         | I _ -> start
-        | Cap (_, _, _, pc) ->
+        | Cap (_, _, _, _, pc) ->
           if pc <= start && start > 0 then
             (* switch to previous page *)
             start - height + 2
@@ -156,11 +168,11 @@ module MkUi (Cfg: MachineConfig) = struct
           else
             start
       in
-      let at_pc a = match pc with I _ -> false | Cap (_, _, _, pc) -> a = pc in
+      let at_pc a = match pc with I _ -> false | Cap (_, _, _, _, pc) -> a = pc in
       let is_in_pc_range a =
         match pc with
         | I _ -> `No
-        | Cap (_, b, e, _) ->
+        | Cap (_, _, b, e, _) ->
           if a >= b && a < e then (
             if a = b then `AtStart
             else if a = e-1 then `AtLast

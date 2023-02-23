@@ -6,8 +6,9 @@
 %token <string> LABEL
 %token LPAREN RPAREN
 %token PLUS MINUS
-%token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETP GETB GETE GETA FAIL HALT
-%token O E RO RX RW RWX
+%token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETL GETP GETB GETE GETA FAIL HALT
+%token O E RO RX RW RWX RWL RWLX
+%token LOCAL GLOBAL
 
 %left PLUS MINUS EXPR
 %left UMINUS
@@ -31,6 +32,7 @@ main:
   | RESTRICT; r = reg; c = reg_const; p = main; { Restrict (r, c) :: p }
   | SUBSEG; r = reg; c1 = reg_const; c2 = reg_const; p = main; { SubSeg (r, c1, c2) :: p }
   | ISPTR; r1 = reg; r2 = reg; p = main; { IsPtr (r1, r2) :: p }
+  | GETL; r1 = reg; r2 = reg; p = main; { GetL (r1, r2) :: p }
   | GETP; r1 = reg; r2 = reg; p = main; { GetP (r1, r2) :: p }
   | GETB; r1 = reg; r2 = reg; p = main; { GetB (r1, r2) :: p }
   | GETE; r1 = reg; r2 = reg; p = main; { GetE (r1, r2) :: p }
@@ -46,7 +48,11 @@ reg:
 reg_const:
   | r = reg; { Register r }
   | c = expr %prec EXPR { CP (Const (c)) }
-  | p = perm; { CP (Perm p) }
+  | p = perm ; g = locality ; { CP (Perm (p,g)) }
+
+locality:
+  | LOCAL; { Local }
+  | GLOBAL; { Global }
 
 perm:
   | O; { O }
@@ -55,6 +61,8 @@ perm:
   | RX; { RX }
   | RW; { RW }
   | RWX; { RWX }
+  | RWL; { RWL }
+  | RWLX; { RWLX }
 
 expr:
   | LPAREN; e = expr; RPAREN { e }

@@ -46,7 +46,7 @@ let get_reg_int_word (r : Ast.regname) (m : mchn) (d : Z.t) =
 
 let get_reg_cap_perm (r : regname) (m : mchn) (d : perm) =
   match r @! snd m with
-  | Cap (p, _, _, _) -> p
+  | Cap (p, _, _, _, _) -> p
   | _ -> d
 
 let test_negatives =
@@ -64,7 +64,7 @@ let test_mov_test =
   let m = run_prog "../../../tests/test_files/pos/mov_test.s" in
   let pc_a = begin
     match get_reg PC @@ snd m with
-    | Cap (_, _, _, a) -> a
+    | Cap (_, _, _, _, a) -> a
     | _ -> -1
   end in
   let r2_res = begin

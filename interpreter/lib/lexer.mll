@@ -13,6 +13,7 @@ let digit = ['0'-'9']
 let hex = (digit | ['a'-'f'] | ['A'-'F'])
 let reg_num = ((digit) | ('1' digit) | ('2' digit) | "30" | "31")
 let perm = ('O' | 'E' | "RO" | "RW" | "RWX")
+let locality = ("LOCAL" | "GLOBAL")
 let letter = ['a'-'z' 'A'-'Z']
 let label = ('_' | letter) (letter | '_' | digit)*
 
@@ -42,6 +43,7 @@ rule token = parse
 | "restrict" { RESTRICT }
 | "subseg" { SUBSEG }
 | "isptr" { ISPTR }
+| "getl" { GETL }
 | "getp" { GETP }
 | "getb" { GETB }
 | "gete" { GETE }
@@ -55,6 +57,10 @@ rule token = parse
 | '+' { PLUS }
 | '-' { MINUS }
 
+(* locality *)
+| "LOCAL" { LOCAL }
+| "GLOBAL" { GLOBAL }
+
 (* permissions *)
 | 'O' { O }
 | 'E' { E }
@@ -62,6 +68,8 @@ rule token = parse
 | "RW" { RW }
 | "RX" { RX }
 | "RWX" { RWX }
+| "RWL" { RWL }
+| "RWLX" { RWLX }
 
 (* labels *)
 | label as lbl ':' { LABELDEF (lbl) }
