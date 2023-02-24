@@ -17,11 +17,13 @@ type exec_conf = { reg : reg_state; mem : mem_state } (* using a record to have 
 type mchn = exec_state * exec_conf
 
 let init_reg_state (addr_max : int) : reg_state =
+  let max_heap_addr = addr_max/2 in
   let l = List.init 32 (fun i -> Reg i, I Z.zero) in
-  (* The PC register starts with full permission over the entire memory *)
-  let pc_init = (PC, Cap (RWLX, Global, 0, addr_max, 0)) in
-  (* TODO Global or Local ? RWX or RWLX ? *)
-  let seq = List.to_seq (pc_init :: l) in
+  (* The PC register starts with full permission over the entire "heap" segment *)
+  let pc_init = (PC, Cap (RWX, Global, 0, max_heap_addr, 0)) in
+  (* The stk register starts with full permission over the entire "stack" segment *)
+  let stk_init = (STK, Cap (RWLX, Local, max_heap_addr, addr_max, addr_max-1)) in
+  let seq = List.to_seq (pc_init :: stk_init :: l) in
   RegMap.of_seq seq
 
 let get_reg (r : regname) ({reg ; _} : exec_conf) : word = RegMap.find r reg
@@ -38,6 +40,7 @@ let init_mem_state (addr_max : int) (prog : t) : mem_state =
       if i >= addr_max then m else loop (i+1) (MemMap.add i (I Z.zero) m) in
     loop 0 MemMap.empty
   in
+  (* TODO here, add the boot program that initialize the stack *)
   let enc_prog =
     List.to_seq @@ List.mapi (fun i x -> i, I (Encode.encode_statement x)) prog in
   MemMap.add_seq enc_prog zeroed_mem

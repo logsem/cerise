@@ -6,6 +6,7 @@ let (^-) s1 s2 = s1 ^ " " ^ s2
 let string_of_regname (r: regname) : string =
   match r with
   | PC -> "pc"
+  | STK -> "rstk"
   | Reg i -> "r" ^ (string_of_int i)
 
 let string_of_perm (p: perm): string =

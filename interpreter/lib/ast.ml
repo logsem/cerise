@@ -1,5 +1,5 @@
 (* Type definitions for the syntax AST *)
-type regname = PC | Reg of int
+type regname = PC | STK | Reg of int
 type perm = O | E | RO | RX | RW | RWX | RWL | RWLX
 type locality = Global | Local
 type const_perm = Const of int | Perm of perm * locality
@@ -26,11 +26,17 @@ type machine_op
   | Halt
 type statement = machine_op (* TODO: PseudoOp and LabelDefs *)
 
+
 type t = statement list
 
 let compare_regname (r1 : regname) (r2: regname) : int =
   match r1, r2 with
   | PC, PC -> 0
+  | STK, STK -> 0
+  | PC, STK -> -1
+  | STK, PC -> 1
+  | STK, Reg _ -> -1
   | PC, Reg _ -> -1
+  | Reg _, STK -> 1
   | Reg _, PC -> 1
   | Reg i, Reg j -> Int.compare i j

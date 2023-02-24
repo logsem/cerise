@@ -27,6 +27,7 @@ rule token = parse
 
 (* registers *)
 | ['p' 'P'] ['c' 'C'] { PC }
+| ['s' 'S'] ['t' 'T'] ['k' 'K'] { STK }
 | ['r' 'R'] (reg_num as n) { try REG (int_of_string n) 
                              with Failure _ -> error lexbuf ("Invalid register id '" ^ n ^ "'.")}
 

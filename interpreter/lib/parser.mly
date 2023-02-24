@@ -1,5 +1,5 @@
 %token EOF
-%token PC
+%token PC STK
 %token <int> REG
 %token <int> INT
 %token <string> LABELDEF
@@ -43,6 +43,7 @@ main:
 
 reg:
   | PC; { PC }
+  | STK; { STK }
   | i = REG; { Reg i }
 
 reg_const:

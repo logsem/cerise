@@ -2,7 +2,7 @@
 
 exception UnknownLabelException of string
 
-type regname = PC | Reg of int
+type regname = PC | STK | Reg of int
 type expr
   = IntLit of int
   | Label of string
@@ -75,6 +75,7 @@ let translate_locality (g : locality) : Ast.locality =
 let translate_regname (r : regname) : Ast.regname =
   match r with
   | PC -> Ast.PC
+  | STK -> Ast.STK
   | Reg i -> Ast.Reg i
 
 let translate_const_perm (envr : env) (cp : const_perm) : Ast.const_perm =

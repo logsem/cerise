@@ -77,12 +77,17 @@ let decode_perm_pair (i : Z.t) : (perm * locality) =
 let encode_reg (r : regname) : Z.t =
   match r with
   | PC -> Z.zero
-  | Reg i -> Z.succ @@ Z.of_int i
+  | STK -> Z.succ @@ Z.zero
+  | Reg i -> Z.succ @@ Z.succ @@ Z.of_int i
 
 let decode_reg (i : Z.t) : regname =
   if i = Z.zero
   then PC
-  else Reg (Z.to_int @@ Z.pred i)
+  else
+  if i = Z.succ @@ Z.zero
+  then STK else
+    Reg (Z.to_int @@ Z.pred i)
+
 
 (* Interleave two integers bitwise. 
  * Example: x = 0b101 and y = 0b110
