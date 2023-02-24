@@ -86,7 +86,7 @@ let decode_reg (i : Z.t) : regname =
   else
   if i = Z.succ @@ Z.zero
   then STK else
-    Reg (Z.to_int @@ Z.pred i)
+    Reg (Z.to_int @@ Z.pred @@ Z.pred i)
 
 
 (* Interleave two integers bitwise. 

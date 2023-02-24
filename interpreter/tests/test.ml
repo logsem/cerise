@@ -29,6 +29,7 @@ let instr_tests = [
   ("jmp r21", Jmp (Reg 21));
   ("jnz r11 r9", Jnz (Reg 11, Reg 9));
   ("mov pc -25", Move (PC, CP (Const (-25))));
+  ("mov r30 stk", Move (Reg 30, Register STK));
   ("load r0 r1", Load (Reg 0, Reg 1));
   ("store r2 r3", Store (Reg 2, Register (Reg 3)));
   ("add r4 (10-15) (-37)", Add (Reg 4, CP (Const (-5)), CP (Const (-37))));
@@ -131,6 +132,7 @@ let test_enc_dec_stm_list = [
   (Move (PC, Register (Reg 7)), "encode-decode Move PC R7");
   (Move (PC, CP (Const (-35))), "encode-decode Move PC (-35)");
   (Move (PC, CP (Perm (E, Global))), "encode-decode Move PC E");
+  (Move (Reg 0, Register STK), "encode-decode Move R0 STK");
   (Load (Reg 9, PC), "encode-decode Load R9 PC");
   (Store (PC, Register (Reg 7)), "encode-decode Store PC R7");
   (Store (PC, CP (Const (-35))), "encode-decode Store PC (-35)");
