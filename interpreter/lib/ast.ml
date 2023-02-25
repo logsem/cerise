@@ -1,6 +1,6 @@
 (* Type definitions for the syntax AST *)
 type regname = PC | STK | Reg of int
-type perm = O | E | RO | RX | RW | RWX | RWL | RWLX
+type perm = O | E | RO | RX | RW | RWX | RWL | RWLX | URW | URWL | URWX | URWLX
 type locality = Global | Local
 type const_perm = Const of int | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
@@ -22,10 +22,12 @@ type machine_op
   | GetB of regname * regname
   | GetE of regname * regname
   | GetA of regname * regname
+  | LoadU of regname * regname * reg_or_const
+  | StoreU of regname * reg_or_const * reg_or_const
+  | PromoteU of regname
   | Fail
   | Halt
 type statement = machine_op (* TODO: PseudoOp and LabelDefs *)
-
 
 type t = statement list
 

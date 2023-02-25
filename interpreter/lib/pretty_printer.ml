@@ -19,6 +19,10 @@ let string_of_perm (p: perm): string =
   | RWX -> "RWX"
   | RWL -> "RWL"
   | RWLX -> "RWLX"
+  | URW -> "URW"
+  | URWX -> "URWX"
+  | URWL -> "URWL"
+  | URWLX -> "URWLX"
 
 let string_of_locality (g: locality): string =
   match g with
@@ -38,6 +42,8 @@ let string_of_statement (s: statement): string =
     string_of_regname r ^- string_of_reg_or_const c
   and string_of_rcc r c1 c2  =
     string_of_regname r ^- string_of_reg_or_const c1 ^- string_of_reg_or_const c2
+  and string_of_rrc r1 r2 c  =
+    string_of_regname r1 ^- string_of_regname r2 ^- string_of_reg_or_const c
   in match s with
   | Jmp r -> "jmp" ^- string_of_regname r
   | Jnz (r1, r2) -> "jnz" ^- string_of_rr r1 r2
@@ -56,6 +62,9 @@ let string_of_statement (s: statement): string =
   | GetB (r1, r2) -> "getb" ^- string_of_rr r1 r2
   | GetE (r1, r2) -> "gete" ^- string_of_rr r1 r2
   | GetA (r1, r2) -> "geta" ^- string_of_rr r1 r2
+  | LoadU (r1, r2, c) -> "loadU" ^- string_of_rrc r1 r2 c
+  | StoreU (r, c1, c2) -> "storeU" ^- string_of_rcc r c1 c2
+  | PromoteU r -> "promoteU" ^- string_of_regname r
   | Fail -> "fail"
   | Halt -> "halt"
 

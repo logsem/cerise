@@ -9,7 +9,7 @@ type expr
   | AddOp of expr * expr
   | SubOp of expr * expr
 
-type perm = O | E | RO | RX | RW | RWX | RWL | RWLX
+type perm = O | E | RO | RX | RW | RWX | RWL | RWLX | URW | URWL | URWX | URWLX
 type locality = Global | Local
 type const_perm = Const of expr | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
@@ -31,6 +31,9 @@ type machine_op
   | GetB of regname * regname
   | GetE of regname * regname
   | GetA of regname * regname
+  | LoadU of regname * regname * reg_or_const
+  | StoreU of regname * reg_or_const * reg_or_const
+  | PromoteU of regname
   | Fail
   | Halt
   | Lbl of string
@@ -66,6 +69,10 @@ let translate_perm (p : perm) : Ast.perm =
   | RWX -> Ast.RWX
   | RWL -> Ast.RWL
   | RWLX -> Ast.RWLX
+  | URW -> Ast.URW
+  | URWL -> Ast.URWL
+  | URWX -> Ast.URWX
+  | URWLX -> Ast.URWLX
 
 let translate_locality (g : locality) : Ast.locality =
   match g with
@@ -119,6 +126,13 @@ let translate_instr (envr : env) (instr : machine_op) : Ast.machine_op =
   | GetB (r1, r2) -> Ast.GetB (translate_regname r1, translate_regname r2)
   | GetE (r1, r2) -> Ast.GetE (translate_regname r1, translate_regname r2)
   | GetA (r1, r2) -> Ast.GetA (translate_regname r1, translate_regname r2)
+  | LoadU (r1, r2, c) -> Ast.LoadU (translate_regname r1,
+                                    translate_regname r2,
+                                    translate_reg_or_const envr c)
+  | StoreU (r, c1, c2) -> Ast.StoreU (translate_regname r,
+                                      translate_reg_or_const envr c1,
+                                      translate_reg_or_const envr c2)
+  | PromoteU r -> Ast.PromoteU (translate_regname r)
   | Fail -> Ast.Fail
   | Halt -> Ast.Halt
   | Lbl s -> raise (UnknownLabelException s)

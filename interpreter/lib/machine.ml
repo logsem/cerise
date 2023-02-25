@@ -22,7 +22,7 @@ let init_reg_state (addr_max : int) : reg_state =
   (* The PC register starts with full permission over the entire "heap" segment *)
   let pc_init = (PC, Cap (RWX, Global, 0, max_heap_addr, 0)) in
   (* The stk register starts with full permission over the entire "stack" segment *)
-  let stk_init = (STK, Cap (RWLX, Local, max_heap_addr, addr_max, addr_max-1)) in
+  let stk_init = (STK, Cap (URWLX, Local, max_heap_addr, addr_max, addr_max-1)) in
   let seq = List.to_seq (pc_init :: stk_init :: l) in
   RegMap.of_seq seq
 
@@ -113,7 +113,7 @@ let perm_flowsto (p1 : perm) (p2 : perm) : bool =
     | _ -> false)
   | RO ->
     (match p2 with
-    | E | O -> false
+    | E | O | URW | URWL | URWX | URWLX -> false
     | _ -> true)
   | RW ->
     (match p2 with
@@ -121,8 +121,25 @@ let perm_flowsto (p1 : perm) (p2 : perm) : bool =
     | _ -> false)
   | RWL ->
     (match p2 with
-    | RWL | RWLX -> true
-    | _ -> false)
+     | RWL | RWLX -> true
+     | _ -> false)
+  | URW ->
+    (match p2 with
+     | URW | URWL | URWX | URWLX | RW | RWX | RWL | RWLX -> true
+     | _ -> false)
+  | URWL ->
+    (match p2 with
+     | URWL | RWL | RWLX | URWLX -> true
+     | _ -> false)
+  | URWX ->
+    (match p2 with
+     | URWX | RWX | RWLX | URWLX -> true
+     | _ -> false)
+  | URWLX ->
+    (match p2 with
+     | URWLX | RWLX -> true
+     | _ -> false)
+
 
 let locality_flowsto (g1 : locality) (g2 : locality) : bool =
   match g1 with
@@ -131,6 +148,14 @@ let locality_flowsto (g1 : locality) (g2 : locality) : bool =
     match g2 with
     | Global -> true
     | _ -> false
+
+let promote_uperm (p : perm) : perm =
+  match p with
+  | URW -> RW
+  | URWL -> RWL
+  | URWX -> RWX
+  | URWLX -> RWLX
+  | _ -> p
 
 let exec_single (conf : exec_conf) : mchn =
   let fail_state = (Failed, conf) in
@@ -276,6 +301,33 @@ let exec_single (conf : exec_conf) : mchn =
             | Cap (_, _, _, _, _) -> !> (upd_reg r1 (I Z.one) conf)
             | _ -> !> (upd_reg r1 (I Z.zero) conf)
           end    
+        | LoadU (r1, r2, c) -> begin
+            match r2 @! conf with
+            | Cap ((URW|URWL|URWX|URWLX), _, b, e, a) ->
+              (match (get_word conf c) with
+               | I off when
+                   let off = Z.to_int off in
+                   (0 < off) &&
+                   (b <= a + off) &&
+                   (a <= e)
+                 -> (match a @? conf with
+                     | Some w -> !> (upd_reg r1 w conf)
+                     | _ -> fail_state)
+               | _ -> fail_state)
+            | _ -> fail_state
+          end
+        | StoreU (_, _, _) ->
+          fail_state
+        | PromoteU r ->
+          match r @! conf with
+          | Cap (p,g,b,e,a) ->
+            (match p with
+              | URW | URWL | URWX | URWLX ->
+                let p' = promote_uperm p in
+                let e' = min e a in
+                !> (upd_reg r (Cap (p',g,b,e',a)) conf)
+                | _ -> fail_state)
+          | _ -> fail_state
       end
   else fail_state
 

@@ -13,7 +13,7 @@ module type MachineConfig = sig val addr_max : int end
 module MkUi (Cfg: MachineConfig) = struct
 
   module Perm = struct
-    let width = 4
+    let width = 5
     let ui ?(attr = A.empty) (p: Ast.perm) =
       I.hsnap ~align:`Left width
         (I.string attr (Pretty_printer.string_of_perm p))

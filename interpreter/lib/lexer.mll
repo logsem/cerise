@@ -49,6 +49,9 @@ rule token = parse
 | "getb" { GETB }
 | "gete" { GETE }
 | "geta" { GETA }
+| "load" ['u' 'U'] { LOADU }
+| "store" ['u' 'U'] { STOREU }
+| "promote" ['u' 'U'] { PROMOTEU }
 | "fail" { FAIL }
 | "halt" { HALT }
 
@@ -66,11 +69,15 @@ rule token = parse
 | 'O' { O }
 | 'E' { E }
 | "RO" { RO }
-| "RW" { RW }
 | "RX" { RX }
+| "RW" { RW }
 | "RWX" { RWX }
 | "RWL" { RWL }
 | "RWLX" { RWLX }
+| "URW" { URW }
+| "URWX" { URWX }
+| "URWL" { URWL }
+| "URWLX" { URWLX }
 
 (* labels *)
 | label as lbl ':' { LABELDEF (lbl) }

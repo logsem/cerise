@@ -106,9 +106,29 @@ let test_jmper =
       `Quick (test_perm E (get_reg_cap_perm (Reg 1) m O));
   ]
 
+let test_promote =
+  let open Alcotest in
+  let m = run_prog "../../../tests/test_files/pos/ucap_promote.s" in [
+    test_case
+      "ucap_promote.s should end in halted state"
+      `Quick (test_state Halted (fst m));
+    test_case
+      "ucap_promote.s should contain RWLX permission in r0"
+      `Quick (test_perm RWLX (get_reg_cap_perm (Reg 0) m O));
+    test_case
+      "ucap_promote.s should contain RWL permission in r1"
+      `Quick (test_perm RWL (get_reg_cap_perm (Reg 1) m O));
+    test_case
+      "ucap_promote.s should contain RWX permission in r2"
+      `Quick (test_perm RWX (get_reg_cap_perm (Reg 2) m O));
+    test_case
+      "ucap_promote.s should contain RW permission in r3"
+      `Quick (test_perm RW (get_reg_cap_perm (Reg 3) m O));
+  ]
+
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper;
+    "Pos", test_mov_test @ test_jmper @ test_promote;
     "Neg", test_negatives;
   ]

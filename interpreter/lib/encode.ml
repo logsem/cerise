@@ -24,15 +24,19 @@ let decode_locality (i : Z.t) : locality =
 let encode_perm (p : perm) : Z.t =
   Z.of_int @@
   match p with
-  (*          LRWX *)
-  | O    -> 0b0000
-  | E    -> 0b0001
-  | RO   -> 0b0100
-  | RX   -> 0b0101
-  | RW   -> 0b0110
-  | RWX  -> 0b0111
-  | RWL  -> 0b1110
-  | RWLX -> 0b1111
+  (*           ULRWX *)
+  | O     -> 0b00000
+  | E     -> 0b00001
+  | RO    -> 0b00100
+  | RX    -> 0b00101
+  | RW    -> 0b00110
+  | RWX   -> 0b00111
+  | RWL   -> 0b01110
+  | RWLX  -> 0b01111
+  | URW   -> 0b10110
+  | URWX  -> 0b10111
+  | URWL  -> 0b11110
+  | URWLX -> 0b11111
 
 let decode_perm (i : Z.t) : perm =
   let dec_perm_exception =
@@ -41,23 +45,28 @@ let decode_perm (i : Z.t) : perm =
   let b1 = Z.testbit i 1 in
   let b2 = Z.testbit i 2 in
   let b3 = Z.testbit i 3 in
-  if Z.(i > (of_int 0b1111))
+  let b4 = Z.testbit i 4 in
+  if Z.(i > (of_int 0b11111))
   then dec_perm_exception ()
   else
-  match (b3,b2,b1,b0) with
-  | (false, false, false, false) -> O
-  | (false, false, false, true)  -> E
-  | (false, true, false, false)  -> RO
-  | (false, true, false, true)   -> RX
-  | (false, true, true, false)   -> RW
-  | (false, true, true, true)    -> RWX
-  | (true, true, true, false)    -> RWL
-  | (true, true, true, true)     -> RWLX
+  match (b4,b3,b2,b1,b0) with
+  | (false, false, false, false, false) -> O
+  | (false, false, false, false, true)  -> E
+  | (false, false, true, false, false)  -> RO
+  | (false, false, true, false, true)   -> RX
+  | (false, false, true, true, false)   -> RW
+  | (false, false, true, true, true)    -> RWX
+  | (false, true, true, true, false)    -> RWL
+  | (false, true, true, true, true)     -> RWLX
+  | (true, false, true, true, false)    -> URW
+  | (true, false, true, true, true)     -> URWX
+  | (true, true, true, true, false)     -> URWL
+  | (true, true, true, true, true)      -> URWLX
   | _ -> dec_perm_exception ()
 
 let encode_perm_pair (p : perm) (g : locality) : Z.t =
   let open Z in
-  let encoded_g = (encode_locality g) lsl 4 in (* size of perm *)
+  let encoded_g = (encode_locality g) lsl 5 in (* size of perm *)
   let encoded_p = (encode_perm p) in
   encoded_g lor encoded_p
 
@@ -66,11 +75,11 @@ let decode_perm_pair (i : Z.t) : (perm * locality) =
   let dec_perm_exception =
     fun _ -> raise @@ DecodeException "Error decoding permission pair: unexpected encoding" in
   let open Z in
-  if (i > (of_int 0b11111))
+  if (i > (of_int 0b111111))
   then dec_perm_exception ()
   else
-    let decode_g = (i land (of_int 0b10000)) asr 4 in
-    let decode_p = (i land (of_int 0b01111)) in
+    let decode_g = (i land (of_int 0b100000)) asr 5 in
+    let decode_p = (i land (of_int 0b011111)) in
     (decode_perm decode_p,
      decode_locality decode_g)
 
@@ -201,8 +210,17 @@ let encode_statement (s : statement): Z.t =
   | GetB (r1, r2) -> ~$0x36 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
   | GetE (r1, r2) -> ~$0x37 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
   | GetA (r1, r2) -> ~$0x38 ^! (encode_int_int (encode_reg r1) (encode_reg r2))
-  | Fail -> ~$0x39
-  | Halt -> ~$0x3a
+  | LoadU (r1, r2, c) -> begin (* 0x39, 0x3a, 0x3b *)
+      let (opc, c_enc) = const_convert ~$0x39 c in
+      opc ^! (encode_int_int (encode_int_int (encode_reg r1) (encode_reg r2)) c_enc)
+    end
+  | StoreU (r, c1, c2) -> begin (* 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43, 0x44 *)
+      let (opc, c_enc) = two_const_convert ~$0x3c c1 c2 in
+      opc ^! (encode_int_int (encode_reg r) c_enc)
+    end
+  | PromoteU r -> ~$0x45 ^! (encode_reg r)
+  | Fail -> ~$0x46
+  | Halt -> ~$0x47
 
 let decode_statement (i : Z.t) : statement =
   let dec_perm =
@@ -526,11 +544,87 @@ let decode_statement (i : Z.t) : statement =
     let r2 = decode_reg r2_enc in
     GetA (r1, r2)
   end else
+
+
+  (* LoadU *)
+  if opc = ~$0x39 (* register register register *)
+  then begin
+    let (payload', c_enc) = decode_int payload in
+    let (r1_enc, r2_enc) = decode_int payload' in
+    let r1 = decode_reg r1_enc in
+    let r2 = decode_reg r2_enc in
+    let c = Register (decode_reg c_enc) in
+    LoadU (r1, r2, c)
+  end else
+  if opc = ~$0x3a (* register register const *)
+  then begin
+    let (payload', c_enc) = decode_int payload in
+    let (r1_enc, r2_enc) = decode_int payload' in
+    let r1 = decode_reg r1_enc in
+    let r2 = decode_reg r2_enc in
+    let c = Const (Z.to_int c_enc) in
+    LoadU (r1, r2, CP c)
+  end else
+  if opc = ~$0x3b (* register register perm *)
+  then begin
+    let (payload', c_enc) = decode_int payload in
+    let (r1_enc, r2_enc) = decode_int payload' in
+    let r1 = decode_reg r1_enc in
+    let r2 = decode_reg r2_enc in
+    let c = dec_perm c_enc in
+    LoadU (r1, r2, CP c)
+  end else
+
+  (* StoreU *)
+  if ~$0x3b < opc && opc < ~$0x3f
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc in
+    let c1 = Register (decode_reg c1_enc) in
+    let c2 = begin
+      if opc = ~$0x3c then Register (decode_reg c2_enc) else
+      if opc = ~$0x3d then CP (Const (Z.to_int c2_enc)) else
+        CP (dec_perm c2_enc)
+    end in
+    StoreU (r, c1, c2)
+  end else
+  if ~$0x3e < opc && opc < ~$0x42
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc in
+    let c1 = CP (Const (Z.to_int c1_enc)) in
+    let c2 = begin
+      if opc = ~$0x3f then Register (decode_reg c2_enc) else
+      if opc = ~$0x40 then CP (Const (Z.to_int c2_enc)) else
+      CP (dec_perm c2_enc)
+    end in
+    StoreU (r, c1, c2)
+  end else
+  if ~$0x41 < opc && opc < ~$0x45
+  then begin
+    let (r_enc, payload') = decode_int payload in
+    let (c1_enc, c2_enc) = decode_int payload' in
+    let r = decode_reg r_enc in
+    let c1 = CP (dec_perm c1_enc) in
+    let c2 = begin
+      if opc = ~$0x42 then Register (decode_reg c2_enc) else
+      if opc = ~$0x43 then CP (Const (Z.to_int c2_enc)) else
+        CP (dec_perm c2_enc)
+    end in
+    StoreU (r, c1, c2)
+  end else
+
+  (* PromoteU *)
+  if opc = ~$0x45
+  then PromoteU (decode_reg payload)
+  else
   (* Fail *)
-  if opc = ~$0x39
+  if opc = ~$0x46
   then Fail
   else
   (* Halt *)
-  if opc = ~$0x3a
+  if opc = ~$0x47
   then Halt
   else raise @@ DecodeException "Error decoding instruction: unrecognized opcode"

@@ -45,6 +45,9 @@ let instr_tests = [
   ("gete r18 r19", GetE (Reg 18, Reg 19));
   ("geta r20 r21", GetA (Reg 20, Reg 21));
   ("getl r22 r23", GetL (Reg 22, Reg 23));
+  ("loadU r24 r25 3", LoadU (Reg 24, Reg 25, CP (Const 3)));
+  ("storeu r26 r27 r28", StoreU (Reg 26, Register (Reg 27), Register (Reg 28)));
+  ("promoteu r29", PromoteU (Reg 29));
   ("fail", Fail);
   ("halt", Halt);
 ]
@@ -172,6 +175,7 @@ let test_enc_dec_stm_list = [
   (Restrict (PC, CP (Perm (E, Global))), "encode-decode Restrict PC E Global");
   (Restrict (Reg 30, CP (Perm (RWL, Global))), "encode-decode Restrict R30 RWL Global");
   (Restrict (Reg 30, CP (Perm (RWL, Local))), "encode-decode Restrict R30 RWL Local");
+  (Restrict (Reg 1, CP (Perm (URWL, Local))), "encode-decode Restrict R1 URWL Local");
   (SubSeg (Reg 5, Register (Reg 6), Register PC), "encode-decode SubSeg R5 R6 PC");
   (SubSeg (Reg 5, Register (Reg 6), CP (Const 8128)), "encode-decode SubSeg R5 R6 8128");
   (SubSeg (Reg 5, Register (Reg 6), CP (Perm (RO, Global))),
@@ -188,6 +192,19 @@ let test_enc_dec_stm_list = [
   (GetE (Reg 6, Reg 28), "encode-decode GetE R6 R28");
   (GetA (Reg 6, Reg 28), "encode-decode GetA R6 R28");
   (GetL (Reg 6, Reg 28), "encode-decode GetL R6 R28");
+  (StoreU (Reg 5, Register (Reg 6), CP (Const 8128)), "encode-decode StoreU R5 R6 8128");
+  (StoreU (Reg 5, Register (Reg 6), CP (Perm (RO, Global))), "encode-decode StoreU R5 R6 RO");
+  (StoreU (Reg 5, Register (Reg 6), Register STK), "encode-decode StoreU R5 R6 STK");
+  (StoreU (Reg 5, CP (Const (-549)), Register STK), "encode-decode StoreU R5 (-549) STK");
+  (StoreU (Reg 5, CP (Const (102)), CP (Const 8128)), "encode-decode StoreU R5 102 8128");
+  (StoreU (Reg 5, CP (Const (83)), CP (Perm (RO, Global))), "encode-decode StoreU R5 83 RO");
+  (StoreU (Reg 5, CP (Perm (E, Global)), Register STK), "encode-decode StoreU R5 E STK");
+  (StoreU (Reg 5, CP (Perm (O, Global)), CP (Const 8128)), "encode-decode StoreU R5 O 8128");
+  (StoreU (Reg 5, CP (Perm (RWX, Global)), CP (Perm (RO, Global))), "encode-decode StoreU R5 RWX RO");
+  (LoadU (Reg 30, STK, Register (Reg 31)), "encore-decode LoadU R30 STK R31");
+  (LoadU (Reg 30, STK, CP (Const 8129)), "encore-decode LoadU R30 STK 8129");
+  (LoadU (Reg 30, STK, CP (Perm (URWL, Local))), "encore-decode LoadU R30 STK URWL Local");
+  (PromoteU STK, "encore-decode PromoteU STK");
   (Fail, "encode-decode Fail");
   (Halt, "encode-decode Halt");
 ]
