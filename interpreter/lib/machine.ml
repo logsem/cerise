@@ -307,17 +307,43 @@ let exec_single (conf : exec_conf) : mchn =
               (match (get_word conf c) with
                | I off when
                    let off = Z.to_int off in
-                   (0 < off) &&
                    (b <= a + off) &&
+                   (a + off < a) &&
                    (a <= e)
-                 -> (match a @? conf with
+                 -> (match (a+Z.to_int off) @? conf with
                      | Some w -> !> (upd_reg r1 w conf)
                      | _ -> fail_state)
                | _ -> fail_state)
             | _ -> fail_state
           end
-        | StoreU (_, _, _) ->
-          fail_state
+
+        | StoreU (r, c1, c2) -> begin
+            let woff = get_word conf c1 in
+            let w = get_word conf c2 in
+            match woff with
+            | I off ->
+              (match r @! conf with
+               | Cap (p, g, b, e, a) when
+                   let off = Z.to_int off in
+                   (0 <= off) &&
+                   (b <= a + off) &&
+                   (a <= e) ->
+                 (match w, p with
+                  | Cap (_, Local,_,_,_), (O|E|RO|RX|RW|RWX|RWL|URW|URWX) -> fail_state
+                  | _, (URWLX|URWL|URW|URWX) ->
+                    begin
+                      let conf' =
+                      if off = Z.zero
+                      then (upd_reg r (Cap (p, g, b, e, a+1)) conf)
+                      else conf (* if non zero, no increment *)
+                      in
+                      !> (upd_mem a w conf')
+                    end
+                  | _,_ -> fail_state)
+               | _ -> fail_state)
+            | _ -> fail_state
+          end
+
         | PromoteU r ->
           match r @! conf with
           | Cap (p,g,b,e,a) ->
