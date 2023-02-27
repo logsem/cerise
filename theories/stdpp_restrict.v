@@ -1,41 +1,52 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import fin_maps fin_map_dom.
 
+(** [restrict P m] is the sub-map of [m] that only contains keys that verify [P] *)
 Definition restrict {K M} `{FinMap K M}
-  {D} (P: K → D → Prop) s `{∀ k, Decision (P k s)}
+  (P : K → Prop) `{∀ k, Decision (P k)}
   {A} (m: M A) :=
-  filter (λ '(k,_), P k s) m.
+  filter (λ '(k,_), P k) m.
+
+(** [restrict_set s m] is the sub-map of [m] that only contains keys in set [s] *)
+Definition restrict_set {K M D} `{FinMap K M, ElemOf K D, !RelDecision (∈@{D})}
+  (s : D) {A} (m : M A) := restrict (.∈ s) m.
+
+(** [restrict_map s m] is the sub-map of [m] that only contains keys
+    that are also in map [s] *)
+Definition restrict_map {K M} `{FinMap K M}
+  {A B} (s : M A) (m : M B) :=
+  restrict (λ k, is_Some(s!!k)) m.
 
 Section restrict.
   Context {K M} `{FinMap K M}.
 
   Section simple_facts.
-    Context {D} (P : K → D → Prop) s `{∀ k, Decision (P k s)}.
+    Context (P : K → Prop) `{∀ k, Decision (P k)}.
     Context {A : Type}.
-    Implicit Types (m : M A) (v : A).
+    Implicit Types (m : M A) (v : A) (k : K).
 
     (* In case we feel another definition would be better *)
-    Lemma restrict_filter m : restrict P s m = filter (λ '(k,_), P k s) m.
+    Lemma restrict_filter m : restrict P m = filter (λ '(k,_), P k) m.
     Proof. reflexivity. Qed.
 
     Lemma restrict_lookup_Some m k v :
-      restrict P s m !! k = Some v ↔ m !! k = Some v ∧ P k s.
+      restrict P m !! k = Some v ↔ m !! k = Some v ∧ P k.
     Proof. apply map_filter_lookup_Some. Qed.
 
     Lemma restrict_lookup_Some_2 m k v :
-      m !! k = Some v → P k s → restrict P s m !! k = Some v.
+      m !! k = Some v → P k → restrict P m !! k = Some v.
     Proof. intros. rewrite restrict_lookup_Some. done. Qed.
 
     Lemma restrict_lookup_None m k :
-      restrict P s m !! k = None ↔ m !! k = None ∨ ¬ P k s.
+      restrict P m !! k = None ↔ m !! k = None ∨ ¬ P k.
     Proof.
       split. intros Hr.
       destruct (m!!k) eqn:Hm.
-        destruct (decide (k ∈ s)) as [Heq|Heq].
+        destruct (decide (P k)) as [Heq|Heq].
           rewrite (restrict_lookup_Some_2 m k _ Hm Heq) in Hr. discriminate.
           right. done.
         left. done.
-      destruct (restrict P s m !! k) eqn:Hm; [ | reflexivity ].
+      destruct (restrict P m !! k) eqn:Hm; [ | reflexivity ].
       apply restrict_lookup_Some in Hm as [Hmk Hp].
       intros [Hmk' | Hp'].
         rewrite -Hmk. exact Hmk'.
@@ -43,71 +54,71 @@ Section restrict.
     Qed.
 
     Lemma restrict_lookup_None_2l m k :
-      m !! k = None → restrict P s m !! k = None.
+      m !! k = None → restrict P m !! k = None.
     Proof. intros. rewrite restrict_lookup_None. left. done. Qed.
 
     Lemma restrict_lookup_None_2r m k :
-      ¬ P k s → restrict P s m !! k = None.
+      ¬ P k → restrict P m !! k = None.
     Proof. intros. rewrite restrict_lookup_None. right. done. Qed.
 
-    Lemma restrict_subseteq m: restrict P s m ⊆ m.
+    Lemma restrict_subseteq m : restrict P m ⊆ m.
     Proof. apply map_filter_subseteq. Qed.
 
     Lemma dom_restrict_subseteq m
       `{∀ A : Type, Dom (M A) D, ElemOf K D, Empty D, Singleton K D,
       Union D, Intersection D, Difference D, !FinMapDom K M D} :
-      dom (restrict P s m) ⊆ dom m.
+      dom (restrict P m) ⊆ dom m.
     Proof. apply subseteq_dom, restrict_subseteq. Qed.
 
     Lemma restrict_lookup m k :
-      restrict P s m !! k = (m !! k) ≫= λ v,
-      match decide (P k s) with
+      restrict P m !! k = (m !! k) ≫= λ v,
+      match decide (P k) with
         |left _ => Some v
         |right _ => None
       end.
     Proof.
       destruct (m!!k) eqn:Hm.
-      destruct (decide (P k s)) as [Hk|Hk].
+      destruct (decide (P k)) as [Hk|Hk].
       simpl. rewrite restrict_lookup_Some. done.
       simpl. apply restrict_lookup_None_2r. done.
       simpl. apply restrict_lookup_None_2l. done.
     Qed.
 
-    Lemma restrict_empty: restrict P s (∅:M A) = ∅.
+    Lemma restrict_empty: restrict P (∅ : M A) = ∅.
     Proof.
       apply map_eq. intros i. rewrite lookup_empty.
       apply restrict_lookup_None_2l, lookup_empty.
     Qed.
 
     Lemma restrict_singleton k v :
-      restrict P s {[ k:=v ]} = match decide (P k s) with
+      restrict P {[ k:=v ]} = match decide (P k) with
       |left _ => {[ k:=v ]}
       |right _ => ∅
       end.
     Proof. apply map_filter_singleton. Qed.
 
     Lemma restrict_union_complement m :
-      restrict P s m ∪ restrict (λ k s, ¬ P k s) s m = m.
+      restrict P m ∪ restrict (λ k, ¬ P k) m = m.
     Proof. apply map_filter_union_complement. Qed.
 
     Lemma restrict_empty_not_lookup m k :
-      restrict P s m = ∅ → P k s → m!!k = None.
+      restrict P m = ∅ → P k → m!!k = None.
     Proof.
       rewrite map_empty. setoid_rewrite restrict_lookup_None.
       intros Hi HP. destruct (Hi k) as [Hi'|Hi']. exact Hi'.
       contradiction (Hi' HP).
     Qed.
 
-    Lemma restrict_delete m i : restrict P s (delete i m) = delete i (restrict P s m).
+    Lemma restrict_delete m i : restrict P (delete i m) = delete i (restrict P m).
     Proof. apply map_filter_delete. Qed.
 
     Lemma restrict_fmap {B} (f : B → A) (m : M B) :
-      restrict P s (f <$> m) = f <$> restrict P s m.
+      restrict P (f <$> m) = f <$> restrict P m.
     Proof. apply map_filter_fmap. Qed.
 
     Lemma dom_restrict_filter_dom
       `{∀ A : Type, Dom (M A) D, FinSet K D, !FinMapDom K M D} m :
-      dom (restrict P s m) ≡@{D} filter (λ k, P k s) (dom m).
+      dom (restrict P m) ≡@{D} filter P (dom m).
     Proof.
       apply set_equiv. intros k.
       split; rewrite elem_of_filter !elem_of_dom.
@@ -118,36 +129,31 @@ Section restrict.
     Qed.
     Lemma dom_restrict_filter_dom_L
       `{∀ A : Type, Dom (M A) D, FinSet K D, !FinMapDom K M D, !LeibnizEquiv D} m :
-      dom (restrict P s m) = filter (λ k, P k s) (dom m).
+      dom (restrict P m) = filter P (dom m).
     Proof. unfold_leibniz. apply dom_restrict_filter_dom. Qed.
   End simple_facts.
 
   Lemma restrict_restrict
-    {D1 D2} (P1 : K → D1 → Prop) (P2 : K → D2 → Prop) s1 s2
-    `{∀ s1 k, Decision (P1 k s1)} `{∀ s2 k, Decision (P2 k s2)}
+    (P Q : K → Prop) `{∀ k, Decision (P k)} `{∀ k, Decision (Q k)}
     {A} (m : M A) :
-    restrict P1 s1 (restrict P2 s2 m) = restrict (λ k s, P1 k s1 ∧ P2 k s2) (s1,s2) m.
+    restrict P (restrict Q m) = restrict (λ k, P k ∧ Q k) m.
   Proof. apply map_filter_filter. Qed.
 
   Lemma restrict_restrict_comm
-    {D1 D2} (P1 : K → D1 → Prop) (P2 : K → D2 → Prop) s1 s2
-    `{∀ s1 k, Decision (P1 k s1)} `{∀ s2 k, Decision (P2 k s2)}
+    (P Q : K → Prop) `{∀ k, Decision (P k)} `{∀ k, Decision (Q k)}
     {A} (m : M A) :
-    restrict P1 s1 (restrict P2 s2 m) = restrict P2 s2 (restrict P1 s1 m).
-  Proof.
-    rewrite !restrict_restrict.
-    apply map_filter_ext. intros. split; intros []; done.
-  Qed.
+    restrict P (restrict Q m) = restrict Q (restrict P m).
+  Proof. apply map_filter_comm. Qed.
 
   Lemma restrict_merge
-    {D} (P: K → D → Prop) s `{∀ k, Decision (P k s)}
-    {A B C} ml mr (f: option A → option B → option C) :
-    restrict P s (merge f ml mr) =
-    merge f (restrict P s ml) (restrict P s mr).
+    (P : K → Prop) `{∀ k, Decision (P k)}
+    {A B C} ml mr (f : option A → option B → option C) :
+    restrict P (merge f ml mr) =
+    merge f (restrict P ml) (restrict P mr).
   Proof.
     apply map_eq. intros k.
     rewrite restrict_lookup !lookup_merge !restrict_lookup.
-    destruct (ml!!k); destruct (mr!!k); destruct (decide (P k s)); simpl.
+    destruct (ml!!k); destruct (mr!!k); destruct (decide (P k)); simpl.
     all: match goal with
     | |- ?x ≫= _ = _ => destruct x; try reflexivity
     | |- _ => reflexivity
@@ -155,14 +161,14 @@ Section restrict.
   Qed.
 
   Lemma restrict_map_zip_with
-    {D} (P: K → D → Prop) s `{∀ k, Decision (P k s)}
-    {A B C} ml mr (f: A → B → C) :
-    restrict P s (map_zip_with f ml mr) =
-    map_zip_with f (restrict P s ml) (restrict P s mr).
+    (P : K → Prop) `{∀ k, Decision (P k)}
+    {A B C} ml mr (f : A → B → C) :
+    restrict P (map_zip_with f ml mr) =
+    map_zip_with f (restrict P ml) (restrict P mr).
   Proof. apply restrict_merge. Qed.
 
-  Lemma restrict_difference {A} (s:M A) (m:M A) :
-    restrict (λ k s, s!!k = None) s m = m ∖ s.
+  Lemma restrict_difference {A} (s : M A) (m : M A) :
+    restrict (λ k, s!!k = None) m = m ∖ s.
   Proof.
     apply map_eq. intros k.
     rewrite restrict_lookup.
@@ -175,8 +181,6 @@ Section restrict.
   (** Common case: restrict keys to elements of a set *)
   Section restrict_set.
     Context `{ElemOf K D, !RelDecision (∈@{D})}.
-
-    Definition restrict_set (s : D) {A} (m : M A) := restrict (∈) s m.
 
     Lemma dom_restrict_set_subseteq
       `{∀ A : Type, Dom (M A) D, Empty D, Singleton K D,
@@ -211,20 +215,17 @@ Section restrict.
 
     Lemma restrict_set_restrict_set `{Empty D, Singleton K D,
       Union D, Intersection D, Difference D, !Set_ K D}
-      {A} s1 s2 (m : M A) :
+      {A} (s1 s2 : D) (m : M A) :
       restrict_set s1 (restrict_set s2 m) = restrict_set (s1 ∩ s2) m.
     Proof.
       unfold restrict_set.
-      specialize (restrict_restrict (∈) (∈) s1 s2 m) as Hx. rewrite Hx. clear Hx.
+      specialize (restrict_restrict (.∈ s1) (.∈ s2) m) as Hx. rewrite Hx.
       rewrite -map_filter_ext. intros. rewrite elem_of_intersection. done.
     Qed.
   End restrict_set.
 
   (** Another common case: restrict to keys present in another map *)
   Section restrict_map.
-    Definition restrict_map {A B} (s : M A) (m : M B) :=
-      restrict (λ k s, is_Some(s!!k)) s m.
-
     Global Instance restrict_idemp {A} : IdemP (=@{M A}) restrict_map.
     Proof. intros m. apply map_filter_id. intros k v. done. Qed.
 
