@@ -19,7 +19,7 @@ Lemma reserved_context_size_to_z :
   finz.to_z reserved_context_size = reserved_context_size_z.
 Proof. simpl. lia. Qed.
 
-  (** Example addr_restriction, address greater than a given end_stack parameter *)
+(** Example addr_restriction, address greater than a given end_stack parameter *)
 Definition addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
   forall a, a ∈ dom -> (e_stk < a)%a.
 Lemma addr_gt_than_union_stable (e_stk: Addr) :
