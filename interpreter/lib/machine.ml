@@ -22,7 +22,7 @@ let init_reg_state (addr_max : int) : reg_state =
   (* The PC register starts with full permission over the entire "heap" segment *)
   let pc_init = (PC, Cap (RWX, Global, 0, max_heap_addr, 0)) in
   (* The stk register starts with full permission over the entire "stack" segment *)
-  let stk_init = (STK, Cap (URWLX, Local, max_heap_addr, addr_max, addr_max-1)) in
+  let stk_init = (STK, Cap (URWLX, Local, max_heap_addr, addr_max, max_heap_addr)) in
   let seq = List.to_seq (pc_init :: stk_init :: l) in
   RegMap.of_seq seq
 

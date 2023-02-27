@@ -7,3 +7,8 @@
  (name      interactive)
  (modules   interactive)
  (libraries libinterp notty notty.unix containers))
+
+(executable
+ (name      awkward)
+ (modules   awkward)
+ (libraries libinterp))

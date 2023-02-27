@@ -298,3 +298,4 @@ Makefile.coq.conf
 /interpreter/interactive
 /interpreter/interpreter
 /_opam/
+/interpreter/awkward
