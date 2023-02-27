@@ -517,7 +517,7 @@ Lemma big_sepM_sep_zip_affine {PROP:bi} {K A B} `{EqDecision K, Countable K}
     (⌜ m2 !! a = Some w.2 ⌝ ∗ Ψ a w.2).
 Proof.
   iIntros "[Hm1 Hm2]".
-  rewrite map_zip_minimal.
+  rewrite map_zip_with_minimal.
   rewrite (big_sepM_sep_zip (fun a v => ⌜m1!!a = Some v⌝ ∗ Φ a v)%I (fun a v => ⌜m2!!a = Some v⌝ ∗ Ψ a v)%I).
   rewrite !big_sepM_sep.
   iSplitL "Hm1"; iSplitR.

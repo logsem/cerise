@@ -104,6 +104,22 @@ Section restrict.
     Lemma restrict_fmap {B} (f : B → A) (m : M B) :
       restrict P s (f <$> m) = f <$> restrict P s m.
     Proof. apply map_filter_fmap. Qed.
+
+    Lemma dom_restrict_filter_dom
+      `{∀ A : Type, Dom (M A) D, FinSet K D, !FinMapDom K M D} m :
+      dom (restrict P s m) ≡@{D} filter (λ k, P k s) (dom m).
+    Proof.
+      apply set_equiv. intros k.
+      split; rewrite elem_of_filter !elem_of_dom.
+      - intros [v Hv]. apply restrict_lookup_Some in Hv as [Hm Hp].
+        split; done.
+      - intros [Hv1 [v Hv2]]. exists v.
+        rewrite restrict_lookup_Some. done.
+    Qed.
+    Lemma dom_restrict_filter_dom_L
+      `{∀ A : Type, Dom (M A) D, FinSet K D, !FinMapDom K M D, !LeibnizEquiv D} m :
+      dom (restrict P s m) = filter (λ k, P k s) (dom m).
+    Proof. unfold_leibniz. apply dom_restrict_filter_dom. Qed.
   End simple_facts.
 
   Lemma restrict_restrict
@@ -238,9 +254,9 @@ End restrict.
 
 
 (** map_zip ignores keys that aren't shared by both maps *)
-Lemma map_zip_minimal {K M A B} `{FinMapDom K M D, !RelDecision (∈@{D})} (m1: M A) (m2: M B) :
-  map_zip m1 m2 =
-  map_zip (restrict_map m2 m1) (restrict_map m1 m2).
+Lemma map_zip_with_minimal {K M A B C} `{FinMapDom K M D, !RelDecision (∈@{D})} (m1: M A) (m2: M B) (f: A → B → C):
+  map_zip_with f m1 m2 =
+  map_zip_with f (restrict_map m2 m1) (restrict_map m1 m2).
 Proof.
   apply map_eq. intros k.
   rewrite !map_lookup_zip_with !restrict_lookup.
