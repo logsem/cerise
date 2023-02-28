@@ -10,12 +10,14 @@ module type MachineConfig = sig val addr_max : int end
 
 module type Ui =
 sig
-    val render_loop :
-        int ref ->
-        int ref ->
-        Machine.mchn ->
-        unit
+  val render_loop :
+    ?show_stack:bool ->
+    int ref ->
+    int ref ->
+    Machine.mchn ->
+    unit
 end
+
 module MkUi (Cfg: MachineConfig) : Ui = struct
   module Perm = struct
     let width = 5
@@ -218,6 +220,7 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
 
         |> I.hsnap ~align:`Left width
       in
+      I.string A.empty "HEAP" <->
       (List.fold_left (fun img (a, w) -> img <-> img_of_prog a w)
          I.empty data_range)
 
@@ -241,6 +244,9 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
          | `AtLast -> I.string A.(fg color_indicator) "┛")
         |> I.hsnap ~align:`Right width
       in
+      (I.string A.empty "STACK"
+        |> I.hsnap ~align:`Right width)
+      <->
       (List.fold_left (fun img (a, w) -> img <-> img_of_stack a w)
          I.empty data_range)
 
@@ -254,14 +260,12 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
           r - off
         else
           start_addr
-
     let next_page n (_ : Machine.word) height start_addr off =
       let new_addr = start_addr + (n * height) - off in
       if new_addr > Cfg.addr_max then start_addr else new_addr
     let previous_page n (_ : Machine.word) height start_addr off =
       let new_addr = start_addr - (n * height) + off in
       if new_addr < 0 then 0 else new_addr
-
     let next_addr (_ : Machine.word) (_:int) start_addr (_:int) =
       let new_addr = start_addr + 1 in
       if new_addr > Cfg.addr_max
@@ -269,10 +273,13 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
     let previous_addr (_ : Machine.word) (_:int) start_addr (_:int) =
       let new_addr = start_addr - 1 in
       if new_addr < 0 then 0 else new_addr
+    let id (_ : Machine.word) (_:int) start_addr (_:int) = start_addr
+
 
     let ui
         ?(upd_prog = follow_addr)
         ?(upd_stk = follow_addr)
+        ?(show_stack = true)
         height width
         (mem: Machine.mem_state)
         (pc: Machine.word)
@@ -290,7 +297,11 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
       let start_stk = upd_stk stk height start_stk 2 in
 
       let img_of_dataline = render_prog width pc (addr_show start_prog) in
-      let img_of_stack = render_stack width stk (addr_show start_stk) in
+      let img_of_stack =
+        if show_stack
+        then render_stack width stk (addr_show start_stk)
+        else I.empty
+      in
 
       (img_of_dataline </> img_of_stack),
       start_prog,
@@ -308,10 +319,15 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
   end
 
   module Render = struct
-    let main prog_panel_start stk_panel_start m_init =
+    let main
+        ?(show_stack = true)
+        prog_panel_start
+        stk_panel_start
+        m_init =
       let term = Term.create () in
       let rec loop
           ?(update_function = Program_panel.follow_addr)
+          show_stack
           m
           history
         =
@@ -322,6 +338,7 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         let mem_img, panel_start, panel_stk =
           Program_panel.ui
             ~upd_prog:update_function
+            ~show_stack:show_stack
             (term_height - 1 - I.height regs_img) term_width mem
             (Machine.RegMap.find Ast.PC reg)
             (Machine.RegMap.find Ast.STK reg)
@@ -340,37 +357,47 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
           <-> mem_img
         in
         Term.image term img;
+        let toggle_show_stack show_stack = if show_stack then false else true in
         (* watch for a relevant event *)
         let rec process_events () =
           match Term.event term with
           | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
           | `Key (`ASCII 'k', _) ->
-            loop ~update_function:(Program_panel.previous_addr) m history
+            loop ~update_function:(Program_panel.previous_addr)
+              show_stack m history
           | `Key (`ASCII 'j', _) ->
-            loop ~update_function:(Program_panel.next_addr) m history
+            loop ~update_function:(Program_panel.next_addr)
+              show_stack m history
           | `Key (`ASCII 'h', _) ->
-            loop ~update_function:(Program_panel.previous_page 1) m history
+            loop ~update_function:(Program_panel.previous_page 1)
+              show_stack m history
           | `Key (`ASCII 'H', _) ->
-            loop ~update_function:(Program_panel.previous_page 10) m history
+            loop ~update_function:(Program_panel.previous_page 10)
+              show_stack m history
           | `Key (`ASCII 'l', _) ->
-            loop ~update_function:(Program_panel.next_page 1) m history
+            loop ~update_function:(Program_panel.next_page 1)
+              show_stack m history
           | `Key (`ASCII 'L', _) ->
-            loop ~update_function:(Program_panel.next_page 10) m history
+            loop ~update_function:(Program_panel.next_page 10)
+              show_stack m history
+          | `Key (`ASCII 's', _) ->
+            loop ~update_function:Program_panel.id
+              (toggle_show_stack show_stack) m history
           | `Key (`ASCII ' ', _) ->
             begin match Machine.step m with
-              | Some m' -> loop m' (m::history)
-              | None -> (* XX *) loop m history
+              | Some m' -> loop show_stack m' (m::history)
+              | None -> (* XX *) loop show_stack m history
             end
           | `Key (`Backspace, _) ->
             (match history with
-            | [] -> loop m history
-            | m'::h' -> loop m' h')
-          | `Resize (_, _) -> loop m history
+            | [] -> loop show_stack m history
+            | m'::h' -> loop show_stack m' h')
+          | `Resize (_, _) -> loop show_stack m history
           | _ -> process_events ()
         in
         process_events ()
       in
-      loop m_init []
+      loop show_stack m_init []
   end
 
   let render_loop = Render.main

@@ -9,7 +9,7 @@ let () =
   (* let addr_max = (Int32.to_int Int32.max_int)/4096 in *)
   let addr_max = (Int32.to_int Int32.max_int)/32768 in
   let module Cfg = struct let addr_max = addr_max end in
-  let module Ui = Interactive.MkUi (Cfg) in
+  let module Ui = Interactive_ui.MkUi (Cfg) in
 
   let m_init_state, m_init_conf = Program.init_machine prog (Some Cfg.addr_max) in
   let adv_upd radv conf =

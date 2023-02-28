@@ -23,7 +23,7 @@ let () =
 
 
   let module Cfg = struct let addr_max = addr_max end in
-  let module Ui = Interactive.MkUi (Cfg) in
+  let module Ui = Interactive_ui.MkUi (Cfg) in
 
   let m_init = Program.init_machine prog (Some Cfg.addr_max) in
 
