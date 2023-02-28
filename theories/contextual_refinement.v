@@ -56,7 +56,7 @@ Section contextual_refinement.
     intros Hxy Hx Hy.
     unfold has_free_space.
     rewrite -(link_segment_dom can_address_only_no_seals).
-    apply addr_gt_than_union_stable; assumption.
+    by apply addr_gt_than_union_stable.
     all: solve_can_link.
   Qed.
 
@@ -184,7 +184,7 @@ Section contextual_refinement.
       unfold link. simpl. clear Hexp. set_solver.
       apply has_free_space_link; assumption.
       intros ctxt regs c ctxt_impl mr_impl.
-      apply (is_context_move_in _) in ctxt_impl as Hctxt; try solve_can_link.
+      apply (is_context_move_in _) in ctxt_impl as Hctxt; [|solve_can_link].
       rewrite (link_assoc can_address_only_no_seals) in mr_impl; try solve_can_link.
       destruct (Hrefines (ctxt ⋈ extra) regs c Hctxt mr_impl) as [Hc Hmr].
       split.
@@ -204,10 +204,6 @@ Section contextual_refinement.
         f_equal. apply (link_comm can_address_only_no_seals).
         all: solve_can_link.
        }
-      rewrite (link_segment_union can_address_only_no_seals).
-      rewrite (link_segment_union can_address_only_no_seals).
-      rewrite <- (link_segment_union can_address_only_no_seals).
-      2,3,4: solve_can_link.
       transitivity (resolve_imports (imports (ctxt ⋈ spec)) (exports extra) (segment (ctxt ⋈ spec))).
       rewrite Hexp.
       rewrite resolve_imports_exports_empty. reflexivity.
@@ -225,36 +221,30 @@ Section contextual_refinement.
       assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
-      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
-      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment spec)) _ Hdom_spec).
-      inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply elem_of_img_2 in Hw'. assumption.
+      apply (can_address_only_no_seals_subseteq_stable _ (dom (segment ctxt)) _ Hdom_ctxt).
+      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_exp. apply (elem_of_img_2 _ _ _ Hw').
+      apply (can_address_only_no_seals_subseteq_stable _ (dom (segment spec)) _ Hdom_spec).
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_exp. apply (elem_of_img_2 _ _ _ Hw').
 
       assert (Hse: ∀ a' w, (segment ctxt ∪ segment spec) !! a' = Some w -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros a w Hw'.
       apply lookup_union_Some_raw in Hw' as [Hw' | [_ Hw'] ].
-      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
-      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
-      apply (can_address_only_no_seals_subseteq_stable _ _ eq_refl (dom (segment spec)) _ Hdom_spec).
-      inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply elem_of_img_2 in Hw'. assumption.
+      apply (can_address_only_no_seals_subseteq_stable _ (dom (segment ctxt)) _ Hdom_ctxt).
+      inversion ctxt_impl as [ [ [] ] ]. apply Hwr_ms. apply (elem_of_img_2 _ _ _ Hw').
+      apply (can_address_only_no_seals_subseteq_stable _ (dom (segment spec)) _ Hdom_spec).
+      inversion Hcan_link. inversion Hwf_r. apply Hwr_ms. apply (elem_of_img_2 _ _ _ Hw').
 
       intros w Hw.
-      apply elem_of_img in Hw as [a Hw].
-      unfold link in Hw. simpl in Hw.
-      apply can_address_only_no_seals_weaken.
-      rewrite resolve_imports_spec in Hw.
-      destruct (imports spec !! a).
-      destruct ((exports ctxt ∪ exports spec) !! s) eqn:He.
-      apply Some_inj in Hw. rewrite <-Hw.
-      apply elem_of_img_2 in He. apply (Hex _ He).
-      1,2: rewrite resolve_imports_spec in Hw;
-           destruct (imports ctxt !! a) as [s'|]; apply (Hse _ _ Hw) ||
-           destruct ((exports ctxt ∪ exports spec) !! s') eqn:He';
-           apply (Hse _ _ Hw) || apply Some_inj in Hw; rewrite <-Hw;
-           apply elem_of_img_2 in He'; apply (Hex _ He').
+      apply (link_img can_address_only_no_seals) in Hw. apply can_address_only_no_seals_weaken.
+      inversion Hwf_spec as [_ _ Hwr_es Hwr_ss]. inversion ctxt_impl as [ [ [_ _ Hwr_ec Hwr_sc] _ _ _ ] _ _ _ _ ].
+      repeat apply elem_of_union in Hw as [Hw | Hw].
+      apply (can_address_only_no_seals_subseteq_stable w _ _ Hdom_ctxt (Hwr_sc w Hw)).
+      apply (can_address_only_no_seals_subseteq_stable w _ _ Hdom_spec (Hwr_ss w Hw)).
+      apply (can_address_only_no_seals_subseteq_stable w _ _ Hdom_ctxt (Hwr_ec w Hw)).
+      apply (can_address_only_no_seals_subseteq_stable w _ _ Hdom_spec (Hwr_es w Hw)).
 
       inversion ctxt_impl as [ [ [] ] ]. intros w Hw.
-      apply (can_address_only_subseteq_stable _ _ eq_refl (dom (segment ctxt)) _ Hdom_ctxt).
+      apply (can_address_only_subseteq_stable _ (dom (segment ctxt)) _ Hdom_ctxt).
       apply can_address_only_no_seals_weaken.
       apply (Hwr_regs w Hw).
       Unshelve. solve_can_link.
@@ -479,12 +469,9 @@ Section contextual_refinement.
       rewrite lookup_insert.
       unfold isCorrectPCb.
       assert (H: (0 <=? 0)%a && (0 <? 0 ^+ 1)%a && (isPerm RWX RX || isPerm RWX RWX) = true).
-      auto. rewrite H. simpl. rewrite resolve_imports_spec.
-      destruct (imports comp !! 0%a) as [w|] eqn:Hita.
-      inversion Hwf. apply mk_is_Some, elem_of_dom in Hita.
-      contradiction (Hi (Himp 0%a Hita)).
-      rewrite resolve_imports_spec lookup_empty.
-      replace (({[0%a := halt]} ∪ segment comp) !! 0%a) with (Some halt).
+      auto. rewrite H. simpl.
+      rewrite resolve_imports_imports_empty.
+      replace (({[0%a := halt]} ∪ _) !! 0%a) with (Some halt).
       unfold exec, exec_opt, halt; rewrite (decode_encode_instrW_inv Halt); simpl.
       reflexivity.
       symmetry. apply lookup_union_Some_l. apply lookup_singleton.
@@ -566,7 +553,7 @@ Section contextual_refinement.
       rewrite map_subseteq_spec. intros addr s Haddr.
       apply map_filter_lookup_Some. split. apply Haddr.
       inversion Hwf.
-      apply elem_of_img_2 in Haddr. rewrite -not_elem_of_dom.
+      apply (elem_of_img_2 (D:=gset _)) in Haddr. rewrite -not_elem_of_dom.
       set_solver.
       apply map_filter_subseteq; apply map_subseteq_spec.
     Qed.

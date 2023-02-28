@@ -497,7 +497,7 @@ Section machine_run.
       intros Hr Hw' w Hw. apply elem_of_img in Hw as [r' Hrw].
       apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
       rewrite -Hw'w. destruct src. apply Some_inj in Hw'. rewrite -Hw'. exact I.
-      apply Hr. unfold word_of_argument in Hw'. apply elem_of_img_2 in Hw'. exact Hw'.
+      apply Hr. unfold word_of_argument in Hw'. apply (elem_of_img_2 _ _ _ Hw').
       apply Hr. apply (elem_of_img_2 _ _ _ Hrw).
     Qed.
 
@@ -538,15 +538,15 @@ Section machine_run.
       | H: _ !! _ = Some ?w'
       |- ∀ w, w ∈ img (<[_:=updatePcPerm ?w']> _) -> can_address_only w _
         => apply updatePcPerm_regs_preserve_can_addr_only;
-           [ solve_can_addr_only | (apply elem_of_img_2 in H; apply H) ]
+           [ solve_can_addr_only | apply (elem_of_img_2 _ _ _ H) ]
       | H: _ !! _ = Some (WCap _ ?b ?e _)
       |- ∀ w, w ∈ img (<[_:=WCap _ ?b ?e _]> _) -> can_address_only w _
         => eapply updatePC_preserve_can_addr_only;
-           [ solve_can_addr_only | (apply elem_of_img_2 in H; apply H) ]
+           [ solve_can_addr_only | apply (elem_of_img_2 _ _ _ H) ]
       | H: _ !! _ = Some (WCap _ ?b ?e _), H1 : isWithin ?b' ?e' ?b ?e = true
       |- ∀ w, w ∈ img (<[_:=WCap _ ?b' ?e' _]> _) -> can_address_only w _
         => eapply restrict_preserve_can_addr_only;
-           [ solve_can_addr_only | apply H1 | (apply elem_of_img_2 in H; apply H) ]
+           [ solve_can_addr_only | apply H1 | apply (elem_of_img_2 _ _ _ H) ]
       | H: word_of_argument _ ?src = Some ?w'
       |- ∀ w, w ∈ img (<[_:=?w']> _) -> can_address_only w _
         => eapply word_of_argument_preserve_can_addr_only;
@@ -557,7 +557,7 @@ Section machine_run.
         => eapply insert_wsealrange_preserve_can_addr_only; solve_can_addr_only
       | H: _ !! _ = Some (WSealable ?s) |- ∀ w, w ∈ img (<[_:=WSealed _ ?s]> _) -> can_address_only w _
         => eapply insert_wsealed_preserve_can_addr_only;
-           [ solve_can_addr_only | (apply elem_of_img_2 in H; apply H) ]
+           [ solve_can_addr_only | apply (elem_of_img_2 _ _ _ H) ]
       | _ => auto
       end.
 
@@ -604,11 +604,12 @@ Section machine_run.
       all: destruct_exec Heq.
       intros w' Hw'. apply elem_of_img in Hw' as [r' Hrw].
       apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
-      rewrite -Hw'w. apply Hwr_seg. simplify_eq. apply elem_of_img_2 in Heq_d3. apply Heq_d3.
-      apply Hwr_regs. apply elem_of_img_2 in Hrw. apply Hrw.
+      rewrite -Hw'w. apply Hwr_seg. simplify_eq.
+      apply (elem_of_img_2 _ _ _ Heq_d3).
+      apply Hwr_regs. apply (elem_of_img_2 _ _ _ Hrw).
 
       symmetry. apply dom_insert_lookup_L.
-      apply elem_of_img_2, Hwr_regs in Heq_d0.
+      apply (elem_of_img_2 (D:=gset _)), Hwr_regs in Heq_d0.
       specialize (Heq_d0 f1).
       rewrite -elem_of_dom. apply Heq_d0.
       apply andb_true_iff in Heq_d3 as [_ Hwithinbounds].
@@ -619,13 +620,13 @@ Section machine_run.
       rewrite -Hw'w.
       destruct src; simpl in Heq_d.
       apply Some_inj in Heq_d. rewrite -Heq_d. exact I.
-      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)).
-      set_solver. apply Hwr_regs. apply elem_of_img_2 in Heq_d. apply Heq_d.
-      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)). set_solver.
-      apply Hwr_seg. apply elem_of_img_2 in Hrw. exact Hrw.
+      apply (can_address_only_subseteq_stable _ (dom seg)). set_solver.
+      apply Hwr_regs. apply (elem_of_img_2 _ _ _ Heq_d).
+      apply (can_address_only_subseteq_stable _ (dom seg)). set_solver.
+      apply Hwr_seg. apply (elem_of_img_2 _ _ _ Hrw).
 
       intros w' Hw'.
-      apply (can_address_only_subseteq_stable _ _ eq_refl (dom seg)). set_solver.
+      apply (can_address_only_subseteq_stable _ (dom seg)). set_solver.
       apply (Hwr_regs w' Hw').
 
       destruct (decide (dst=PC)) as [Heq|Hneq]. rewrite Heq lookup_insert in Heq_d5.
@@ -633,14 +634,14 @@ Section machine_run.
       rewrite H0 in Heq_d0.
       intros w' Hw'. apply elem_of_img in Hw' as [r' Hrw].
       apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
-      apply elem_of_img_2 in Heq_d0.
+      apply (elem_of_img_2 (D:=gset _)) in Heq_d0.
       rewrite -Hw'w. unfold can_address_only. apply (Hwr_regs _ Heq_d0).
       apply Hwr_regs. apply (elem_of_img_2 _ _ _ Hrw).
 
       destruct s0.
       intros w' Hw'. apply elem_of_img in Hw' as [r' Hrw].
       apply lookup_insert_Some in Hrw as [[HPCr Hw'w] | [HPCr Hrw]].
-      apply elem_of_img_2 in Heq_d0.
+      apply (elem_of_img_2 (D:=gset _)) in Heq_d0.
       rewrite -Hw'w. unfold can_address_only. apply (Hwr_regs _ Heq_d0).
       apply Hwr_regs. apply (elem_of_img_2 _ _ _ Hrw).
       apply insert_wsealrange_preserve_can_addr_only; assumption.

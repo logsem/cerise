@@ -17,6 +17,7 @@ theories/iris_extra.v
 theories/stdpp_extra.v
 theories/stdpp_img.v
 theories/stdpp_restrict.v
+theories/stdpp_comp.v
 theories/map_simpl.v
 theories/addr_reg.v
 theories/linking.v
