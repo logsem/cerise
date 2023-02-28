@@ -171,10 +171,11 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
   module Program_panel = struct
     (* TODO: associate a color to each permission and make the color of the
        range (+pointer?) match the permission of PC *)
-    (*    <addr>  <word>  <decoded instr>
-      ┏   <addr>  <word>  <decoded instr>
-      ┃ ▶ <addr>  <word>  <decoded instr>
-      ┗   <addr>  <word>  <decoded instr>
+    (*            HEAP                              STACK                   *)
+    (*    <addr>  <word>  <decoded instr>  <decoded instr> <word> <addr>
+      ┏   <addr>  <word>  <decoded instr>  <decoded instr> <word> <addr>   ┓
+      ┃ ▶ <addr>  <word>  <decoded instr>  <decoded instr> <word> <addr> ◀ ┃
+      ┗   <addr>  <word>  <decoded instr>  <decoded instr> <word> <addr>   ┛
     *)
 
     let is_in_r_range r a =
@@ -207,7 +208,8 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
          | `AtStart -> I.string A.(fg red) "┏"
          | `InRange -> I.string A.(fg red) "┃"
          | `AtLast -> I.string A.(fg red) "┗")
-        <|> (if at_pc a then I.string A.(fg red) "▶ " else I.string A.empty "  ")
+        <|> (if at_pc a then I.string A.(fg red) " ▶ "
+             else I.string A.empty "   ")
         <|> Addr.ui ~attr:A.(fg yellow) a
         <|> I.string A.empty "  "
         <|> Word.ui w Right
@@ -229,7 +231,8 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         <|> Word.ui w Left
         <|> I.string A.empty "  "
         <|> Addr.ui ~attr:A.(fg yellow) a
-        <|> (if at_stk a then I.string A.(fg color_indicator) " ◀" else I.string A.empty "  ")
+        <|> (if at_stk a then I.string A.(fg color_indicator) " ◀ "
+             else I.string A.empty "   ")
         <|>
         (match is_in_stk_range a with
          | `No -> I.string A.empty " "
@@ -308,13 +311,15 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
     let main prog_panel_start stk_panel_start m_init =
       let term = Term.create () in
       let rec loop
-          ?(update_function = Program_panel.follow_addr) m =
+          ?(update_function = Program_panel.follow_addr)
+          m
+          history
+        =
         let term_width, term_height = Term.size term in
         let reg = (snd m).Machine.reg in
         let mem = (snd m).Machine.mem in
-        let regs_img =
-          Regs_panel.ui term_width (snd m).Machine.reg in
-        let prog_img, panel_start, panel_stk =
+        let regs_img = Regs_panel.ui term_width reg in
+        let mem_img, panel_start, panel_stk =
           Program_panel.ui
             ~upd_prog:update_function
             (term_height - 1 - I.height regs_img) term_width mem
@@ -332,7 +337,7 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         let img =
           regs_img
           <-> mach_state_img
-          <-> prog_img
+          <-> mem_img
         in
         Term.image term img;
         (* watch for a relevant event *)
@@ -340,28 +345,32 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
           match Term.event term with
           | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
           | `Key (`ASCII 'k', _) ->
-            loop ~update_function:(Program_panel.previous_addr) m
+            loop ~update_function:(Program_panel.previous_addr) m history
           | `Key (`ASCII 'j', _) ->
-            loop ~update_function:(Program_panel.next_addr) m
+            loop ~update_function:(Program_panel.next_addr) m history
           | `Key (`ASCII 'h', _) ->
-            loop ~update_function:(Program_panel.previous_page 1) m
+            loop ~update_function:(Program_panel.previous_page 1) m history
           | `Key (`ASCII 'H', _) ->
-            loop ~update_function:(Program_panel.previous_page 10) m
+            loop ~update_function:(Program_panel.previous_page 10) m history
           | `Key (`ASCII 'l', _) ->
-            loop ~update_function:(Program_panel.next_page 1) m
+            loop ~update_function:(Program_panel.next_page 1) m history
           | `Key (`ASCII 'L', _) ->
-            loop ~update_function:(Program_panel.next_page 10) m
+            loop ~update_function:(Program_panel.next_page 10) m history
           | `Key (`ASCII ' ', _) ->
             begin match Machine.step m with
-              | Some m' -> loop m'
-              | None -> (* XX *) loop m
+              | Some m' -> loop m' (m::history)
+              | None -> (* XX *) loop m history
             end
-          | `Resize (_, _) -> loop m
+          | `Key (`Backspace, _) ->
+            (match history with
+            | [] -> loop m history
+            | m'::h' -> loop m' h')
+          | `Resize (_, _) -> loop m history
           | _ -> process_events ()
         in
         process_events ()
       in
-      loop m_init
+      loop m_init []
   end
 
   let render_loop = Render.main
