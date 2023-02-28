@@ -10,7 +10,8 @@ let () =
   let prog = Call.awkward_example radv @ Call.adv_instr @ Call.ret_instr in
 
   (* let addr_max = List.length prog in *)
-  let addr_max = (Int32.to_int Int32.max_int)/4096 in
+  (* let addr_max = (Int32.to_int Int32.max_int)/4096 in *)
+  let addr_max = (Int32.to_int Int32.max_int)/32768 in
   let module Cfg = struct let addr_max = addr_max end in
   let module Ui = MkUi (Cfg) in
 
@@ -42,14 +43,17 @@ let () =
   let prog_panel_start = ref 0 in
   let stk_panel_start = ref ((Cfg.addr_max)/2) in
 
-  let rec loop m =
+  let rec loop
+      ?(update_function = Ui.Program_panel.follow_addr) m =
     let term_width, term_height = Term.size term in
     let reg = (snd m).Machine.reg in
     let mem = (snd m).Machine.mem in
     let regs_img =
       Ui.Regs_panel.ui term_width (snd m).Machine.reg in
     let prog_img, panel_start, panel_stk =
-      Ui.Program_panel.ui (term_height - 1 - I.height regs_img) term_width mem
+      Ui.Program_panel.ui
+        ~upd_prog:update_function
+        (term_height - 1 - I.height regs_img) term_width mem
         (Machine.RegMap.find Ast.PC reg)
         (Machine.RegMap.find Ast.STK reg)
         !prog_panel_start
@@ -71,6 +75,14 @@ let () =
     let rec process_events () =
       match Term.event term with
       | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
+      | `Key (`ASCII 'k', _) ->
+        loop ~update_function:(Ui.Program_panel.previous_page 1) m
+      | `Key (`ASCII 'K', _) ->
+        loop ~update_function:(Ui.Program_panel.previous_page 10) m
+      | `Key (`ASCII 'j', _) ->
+        loop ~update_function:(Ui.Program_panel.next_page 1) m
+      | `Key (`ASCII 'J', _) ->
+        loop ~update_function:(Ui.Program_panel.next_page 10) m
       | `Key (`ASCII ' ', _) ->
         begin match Machine.step m with
         | Some m' -> loop m'
