@@ -1,13 +1,22 @@
 open Notty
 open Notty.Infix
+open Notty_unix
+
 
 type side = Left | Right
 (* ui components *)
 
 module type MachineConfig = sig val addr_max : int end
 
-module MkUi (Cfg: MachineConfig) = struct
-
+module type Ui =
+sig
+    val render_loop :
+        int ref ->
+        int ref ->
+        Machine.mchn ->
+        unit
+end
+module MkUi (Cfg: MachineConfig) : Ui = struct
   module Perm = struct
     let width = 5
     let ui ?(attr = A.empty) (p: Ast.perm) =
@@ -244,9 +253,19 @@ module MkUi (Cfg: MachineConfig) = struct
           start_addr
 
     let next_page n (_ : Machine.word) height start_addr off =
-      start_addr + (n * height) - off
+      let new_addr = start_addr + (n * height) - off in
+      if new_addr > Cfg.addr_max then start_addr else new_addr
     let previous_page n (_ : Machine.word) height start_addr off =
-      start_addr - (n * height) + off
+      let new_addr = start_addr - (n * height) + off in
+      if new_addr < 0 then 0 else new_addr
+
+    let next_addr (_ : Machine.word) (_:int) start_addr (_:int) =
+      let new_addr = start_addr + 1 in
+      if new_addr > Cfg.addr_max
+      then start_addr else new_addr
+    let previous_addr (_ : Machine.word) (_:int) start_addr (_:int) =
+      let new_addr = start_addr - 1 in
+      if new_addr < 0 then 0 else new_addr
 
     let ui
         ?(upd_prog = follow_addr)
@@ -284,4 +303,66 @@ module MkUi (Cfg: MachineConfig) = struct
       | Halted -> I.string A.(st bold) "Halted"
       | Failed -> I.string A.(st bold ++ fg red) "Failed"
   end
+
+  module Render = struct
+    let main prog_panel_start stk_panel_start m_init =
+      let term = Term.create () in
+      let rec loop
+          ?(update_function = Program_panel.follow_addr) m =
+        let term_width, term_height = Term.size term in
+        let reg = (snd m).Machine.reg in
+        let mem = (snd m).Machine.mem in
+        let regs_img =
+          Regs_panel.ui term_width (snd m).Machine.reg in
+        let prog_img, panel_start, panel_stk =
+          Program_panel.ui
+            ~upd_prog:update_function
+            (term_height - 1 - I.height regs_img) term_width mem
+            (Machine.RegMap.find Ast.PC reg)
+            (Machine.RegMap.find Ast.STK reg)
+            !prog_panel_start
+            !stk_panel_start
+        in
+        prog_panel_start := panel_start;
+        stk_panel_start := panel_stk;
+        let mach_state_img =
+          I.hsnap ~align:`Right term_width
+            (I.string A.empty "machine state: " <|> Exec_state.ui (fst m))
+        in
+        let img =
+          regs_img
+          <-> mach_state_img
+          <-> prog_img
+        in
+        Term.image term img;
+        (* watch for a relevant event *)
+        let rec process_events () =
+          match Term.event term with
+          | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
+          | `Key (`ASCII 'k', _) ->
+            loop ~update_function:(Program_panel.previous_addr) m
+          | `Key (`ASCII 'j', _) ->
+            loop ~update_function:(Program_panel.next_addr) m
+          | `Key (`ASCII 'h', _) ->
+            loop ~update_function:(Program_panel.previous_page 1) m
+          | `Key (`ASCII 'H', _) ->
+            loop ~update_function:(Program_panel.previous_page 10) m
+          | `Key (`ASCII 'l', _) ->
+            loop ~update_function:(Program_panel.next_page 1) m
+          | `Key (`ASCII 'L', _) ->
+            loop ~update_function:(Program_panel.next_page 10) m
+          | `Key (`ASCII ' ', _) ->
+            begin match Machine.step m with
+              | Some m' -> loop m'
+              | None -> (* XX *) loop m
+            end
+          | `Resize (_, _) -> loop m
+          | _ -> process_events ()
+        in
+        process_events ()
+      in
+      loop m_init
+  end
+
+  let render_loop = Render.main
 end

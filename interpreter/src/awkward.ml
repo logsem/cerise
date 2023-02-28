@@ -1,8 +1,4 @@
 open Libinterp
-open Notty
-open Notty.Infix
-open Notty_unix
-open Interactive
 
 let () =
   let radv = (Ast.Reg 28) in
@@ -13,9 +9,8 @@ let () =
   (* let addr_max = (Int32.to_int Int32.max_int)/4096 in *)
   let addr_max = (Int32.to_int Int32.max_int)/32768 in
   let module Cfg = struct let addr_max = addr_max end in
-  let module Ui = MkUi (Cfg) in
+  let module Ui = Interactive.MkUi (Cfg) in
 
-  let term = Term.create () in
   let m_init_state, m_init_conf = Program.init_machine prog (Some Cfg.addr_max) in
   let adv_upd radv conf =
     let addr_adv= (List.length (Call.awkward_example radv)) in
@@ -43,54 +38,4 @@ let () =
   let prog_panel_start = ref 0 in
   let stk_panel_start = ref ((Cfg.addr_max)/2) in
 
-  let rec loop
-      ?(update_function = Ui.Program_panel.follow_addr) m =
-    let term_width, term_height = Term.size term in
-    let reg = (snd m).Machine.reg in
-    let mem = (snd m).Machine.mem in
-    let regs_img =
-      Ui.Regs_panel.ui term_width (snd m).Machine.reg in
-    let prog_img, panel_start, panel_stk =
-      Ui.Program_panel.ui
-        ~upd_prog:update_function
-        (term_height - 1 - I.height regs_img) term_width mem
-        (Machine.RegMap.find Ast.PC reg)
-        (Machine.RegMap.find Ast.STK reg)
-        !prog_panel_start
-        !stk_panel_start
-    in
-    prog_panel_start := panel_start;
-    stk_panel_start := panel_stk;
-    let mach_state_img =
-      I.hsnap ~align:`Right term_width
-        (I.string A.empty "machine state: " <|> Ui.Exec_state.ui (fst m))
-    in
-    let img =
-      regs_img
-      <-> mach_state_img
-      <-> prog_img
-    in
-    Term.image term img;
-    (* watch for a relevant event *)
-    let rec process_events () =
-      match Term.event term with
-      | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
-      | `Key (`ASCII 'k', _) ->
-        loop ~update_function:(Ui.Program_panel.previous_page 1) m
-      | `Key (`ASCII 'K', _) ->
-        loop ~update_function:(Ui.Program_panel.previous_page 10) m
-      | `Key (`ASCII 'j', _) ->
-        loop ~update_function:(Ui.Program_panel.next_page 1) m
-      | `Key (`ASCII 'J', _) ->
-        loop ~update_function:(Ui.Program_panel.next_page 10) m
-      | `Key (`ASCII ' ', _) ->
-        begin match Machine.step m with
-        | Some m' -> loop m'
-        | None -> (* XX *) loop m
-        end
-      | `Resize (_, _) -> loop m
-      | _ -> process_events ()
-    in
-    process_events ()
-  in
-  loop m_init
+  Ui.render_loop prog_panel_start stk_panel_start m_init
