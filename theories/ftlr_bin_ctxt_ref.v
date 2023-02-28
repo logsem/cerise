@@ -80,7 +80,7 @@ Section logrel.
     contradiction (Hey (Hexp _ Hex)).
     (* else we know they are only words, and thus valid *)
     1,2: rewrite Hxca in Hyca; apply Some_inj in Hyca; rewrite -Hyca.
-    1,2: apply elem_of_img_2 in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
+    1,2: apply (elem_of_img_2 (D:=gset _)) in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
     1,2: destruct w as [z | sb | z sb];
          [ (rewrite fixpoint_interp1_eq; done) | | ];
          destruct sb; simpl in Hxca; discriminate Hxca.
