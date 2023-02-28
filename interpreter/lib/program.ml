@@ -6,9 +6,9 @@ let parse (filename: string): (Ast.t, string) Result.t =
     close_in input; Result.Ok parse_res
   with Failure _ -> close_in input; Result.Error "Parsing Failed"
     
-let init_machine (prog : Ast.t) (addr_max : int option) : Machine.mchn =
+let init_machine (prog : Ast.t)  (addr_max : int option) (stack_opt : bool) : Machine.mchn =
   let addr_max =
     match addr_max with
     | Some a_max -> a_max
     | None -> List.length prog in
-  Machine.init addr_max prog
+  Machine.init addr_max prog stack_opt

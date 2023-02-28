@@ -325,6 +325,11 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         stk_panel_start
         m_init =
       let term = Term.create () in
+      let toggle_show_stack showing =
+        if show_stack
+        then (if showing then false else true)
+        else false
+      in
       let rec loop
           ?(update_function = Program_panel.follow_addr)
           show_stack
@@ -357,7 +362,6 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
           <-> mem_img
         in
         Term.image term img;
-        let toggle_show_stack show_stack = if show_stack then false else true in
         (* watch for a relevant event *)
         let rec process_events () =
           match Term.event term with
