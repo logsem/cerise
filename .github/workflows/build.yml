@@ -43,6 +43,7 @@ jobs:
         run: opam exec -- make interpreter
 
       - name: Test
-        run: cd _build/default/tests
+        run: |
+             cd _build/default/tests
              ./test.exe
              ./tester.exe
