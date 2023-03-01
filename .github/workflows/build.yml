@@ -44,6 +44,6 @@ jobs:
 
       - name: Test
         run: |
-             cd _build/default/tests
+             cd ./interpreter/_build/default/tests
              ./test.exe
              ./tester.exe
