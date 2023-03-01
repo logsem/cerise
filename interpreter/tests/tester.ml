@@ -143,10 +143,17 @@ let test_ucaps =
       `Quick (test_perm RWLX (get_reg_cap_perm (Reg 2) m O));
   ]
 
+let test_locality =
+  let open Alcotest in
+  let m = run_prog "../../../tests/test_files/pos/test_locality.s" in [
+    test_case
+      "test_locality.s should end in halted state"
+      `Quick (test_state Halted (fst m));
+  ]
 
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps;
+    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps @ test_locality;
     "Neg", test_negatives;
   ]
