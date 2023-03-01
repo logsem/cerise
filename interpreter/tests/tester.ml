@@ -126,9 +126,27 @@ let test_promote =
       `Quick (test_perm RW (get_reg_cap_perm (Reg 3) m O));
   ]
 
+let test_ucaps =
+  let open Alcotest in
+  let m = run_prog "../../../tests/test_files/pos/test_ucaps.s" in [
+    test_case
+      "test_ucaps.s should end in halted state"
+      `Quick (test_state Halted (fst m));
+    test_case
+      "test_ucaps.s should contain 42 in r0"
+      `Quick (test_const_word (Z.of_int 42) (get_reg_int_word (Reg 0) m Z.one));
+    test_case
+      "test_ucaps.s should contain 43 in r1"
+      `Quick (test_const_word (Z.of_int 43) (get_reg_int_word (Reg 1) m Z.one));
+    test_case
+      "test_ucaps.s should contain RWLX permission in r2"
+      `Quick (test_perm RWLX (get_reg_cap_perm (Reg 2) m O));
+  ]
+
+
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper @ test_promote;
+    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps;
     "Neg", test_negatives;
   ]

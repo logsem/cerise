@@ -325,22 +325,22 @@ let exec_single (conf : exec_conf) : mchn =
             let w = get_word conf c2 in
             match woff with
             | I off ->
+              let off = Z.to_int off in
               (match r @! conf with
                | Cap (p, g, b, e, a) when
-                   let off = Z.to_int off in
-                   (0 <= off) &&
                    (b <= a + off) &&
+                   (a + off <= a) &&
                    (a <= e) ->
                  (match w, p with
                   | Cap (_, Local,_,_,_), (O|E|RO|RX|RW|RWX|RWL|URW|URWX) -> fail_state
                   | _, (URWLX|URWL|URW|URWX) ->
                     begin
                       let conf' =
-                      if off = Z.zero
+                      if off = 0
                       then (upd_reg r (Cap (p, g, b, e, a+1)) conf)
                       else conf (* if non zero, no increment *)
                       in
-                      !> (upd_mem a w conf')
+                      !> (upd_mem (a+off) w conf')
                     end
                   | _,_ -> fail_state)
                | _ -> fail_state)
