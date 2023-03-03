@@ -36,7 +36,7 @@ let instr_tests = [
   ("sub r5 6 28", Sub (Reg 5, CP (Const 6), CP (Const 28)));
   ("lt r6 496 8128 ; perfect numbers are cool!", Lt (Reg 6, CP (Const 496), CP (Const 8128)));
   ("lea r7 r8", Lea (Reg 7, Register (Reg 8)));
-  ("restrict r9 RX GLOBAL", Restrict (Reg 9, CP (Perm (RX, Global))));
+  ("restrict r9 RX Global", Restrict (Reg 9, CP (Perm (RX, Global))));
   ("restrict r25 RWL LOCAL", Restrict (Reg 25, CP (Perm (RWL, Local))));
   ("restrict r26 RWL DIRECTED", Restrict (Reg 26, CP (Perm (RWL, Directed))));
   ("subseg r10 pc r11", SubSeg (Reg 10, Register PC, Register (Reg 11)));
@@ -177,6 +177,7 @@ let test_enc_dec_stm_list = [
   (Restrict (Reg 30, CP (Perm (RWL, Global))), "encode-decode Restrict R30 RWL Global");
   (Restrict (Reg 30, CP (Perm (RWL, Local))), "encode-decode Restrict R30 RWL Local");
   (Restrict (Reg 1, CP (Perm (URWL, Local))), "encode-decode Restrict R1 URWL Local");
+  (Restrict (Reg 1, CP (Perm (URWL, Directed))), "encode-decode Restrict R1 URWL Directed");
   (SubSeg (Reg 5, Register (Reg 6), Register PC), "encode-decode SubSeg R5 R6 PC");
   (SubSeg (Reg 5, Register (Reg 6), CP (Const 8128)), "encode-decode SubSeg R5 R6 8128");
   (SubSeg (Reg 5, Register (Reg 6), CP (Perm (RO, Global))),
@@ -205,6 +206,7 @@ let test_enc_dec_stm_list = [
   (LoadU (Reg 30, STK, Register (Reg 31)), "encore-decode LoadU R30 STK R31");
   (LoadU (Reg 30, STK, CP (Const 8129)), "encore-decode LoadU R30 STK 8129");
   (LoadU (Reg 30, STK, CP (Perm (URWL, Local))), "encore-decode LoadU R30 STK URWL Local");
+  (LoadU (Reg 31, STK, CP (Perm (URWLX, Directed))), "encore-decode LoadU R31 STK URWLX Directed");
   (PromoteU STK, "encore-decode PromoteU STK");
   (Fail, "encode-decode Fail");
   (Halt, "encode-decode Halt");

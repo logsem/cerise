@@ -152,9 +152,19 @@ let test_locality_flow =
       `Quick (test_state Halted (fst m));
   ]
 
+let test_directed_store =
+  let open Alcotest in
+  let m = run_prog "../../../tests/test_files/pos/test_directed_store.s" in [
+    test_case
+      "test_directed_store.s should end in halted state"
+      `Quick (test_state Halted (fst m));
+  ]
+
+
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps @ test_locality_flow;
+    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps
+           @ test_locality_flow @ test_directed_store;
     "Neg", test_negatives;
   ]
