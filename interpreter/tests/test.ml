@@ -38,6 +38,7 @@ let instr_tests = [
   ("lea r7 r8", Lea (Reg 7, Register (Reg 8)));
   ("restrict r9 RX GLOBAL", Restrict (Reg 9, CP (Perm (RX, Global))));
   ("restrict r25 RWL LOCAL", Restrict (Reg 25, CP (Perm (RWL, Local))));
+  ("restrict r26 RWL DIRECTED", Restrict (Reg 26, CP (Perm (RWL, Directed))));
   ("subseg r10 pc r11", SubSeg (Reg 10, Register PC, Register (Reg 11)));
   ("isptr r12 r13", IsPtr (Reg 12, Reg 13));
   ("getp r14 r15", GetP (Reg 14, Reg 15));

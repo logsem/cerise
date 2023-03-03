@@ -10,7 +10,7 @@ type expr
   | SubOp of expr * expr
 
 type perm = O | E | RO | RX | RW | RWX | RWL | RWLX | URW | URWL | URWX | URWLX
-type locality = Global | Local
+type locality = Global | Local | Directed
 type const_perm = Const of expr | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op
@@ -78,6 +78,7 @@ let translate_locality (g : locality) : Ast.locality =
   match g with
   | Local -> Ast.Local
   | Global -> Ast.Global
+  | Directed -> Ast.Directed
 
 let translate_regname (r : regname) : Ast.regname =
   match r with

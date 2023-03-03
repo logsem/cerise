@@ -5,21 +5,25 @@ exception DecodeException of string
 let encode_locality (g : locality) : Z.t =
   Z.of_int @@
   match g with
-  | Local    -> 0b0
-  | Global   -> 0b1
+  | Directed   -> 0b00
+  | Local    -> 0b01
+  | Global   -> 0b10
 
 let decode_locality (i : Z.t) : locality =
-  let dec_perm_exception =
+  let dec_loc_exception =
     fun _ -> raise @@ DecodeException
         "Error decoding locality: unexpected encoding"
   in
   let b0 = Z.testbit i 0 in
-  if Z.(i > (of_int 0b1))
-  then dec_perm_exception ()
+  let b1 = Z.testbit i 1 in
+  if Z.(i > (of_int 0b11))
+  then dec_loc_exception ()
   else
-  match b0 with
-    | false -> Local
-    | true -> Global
+  match (b1,b0) with
+    | (false, false) -> Directed
+    | (false, true) -> Local
+    | (true, false) -> Global
+    | _ -> dec_loc_exception ()
 
 let encode_perm (p : perm) : Z.t =
   Z.of_int @@
@@ -75,11 +79,11 @@ let decode_perm_pair (i : Z.t) : (perm * locality) =
   let dec_perm_exception =
     fun _ -> raise @@ DecodeException "Error decoding permission pair: unexpected encoding" in
   let open Z in
-  if (i > (of_int 0b111111))
+  if (i > (of_int 0b1111111))
   then dec_perm_exception ()
   else
-    let decode_g = (i land (of_int 0b100000)) asr 5 in
-    let decode_p = (i land (of_int 0b011111)) in
+    let decode_g = (i land (of_int 0b1100000)) asr 5 in
+    let decode_p = (i land (of_int 0b0011111)) in
     (decode_perm decode_p,
      decode_locality decode_g)
 

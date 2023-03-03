@@ -27,7 +27,8 @@ let run_prog (filename : string) : mchn  =
   let filebuf = Lexing.from_channel input in
   let parse_res = Ir.translate_prog @@ Parser.main Lexer.token filebuf in
   let _ = close_in input in
-  let m = Machine.init 10000 parse_res true in
+  let stk_locality = Ast.Directed in
+  let m = Machine.init 10000 parse_res true stk_locality in
   run m
 
 let test_const_word expected actual = fun _ ->
@@ -143,9 +144,9 @@ let test_ucaps =
       `Quick (test_perm RWLX (get_reg_cap_perm (Reg 2) m O));
   ]
 
-let test_locality =
+let test_locality_flow =
   let open Alcotest in
-  let m = run_prog "../../../tests/test_files/pos/test_locality.s" in [
+  let m = run_prog "../../../tests/test_files/pos/test_locality_flow.s" in [
     test_case
       "test_locality.s should end in halted state"
       `Quick (test_state Halted (fst m));
@@ -154,6 +155,6 @@ let test_locality =
 let () =
   let open Alcotest in
   run "Run" [
-    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps @ test_locality;
+    "Pos", test_mov_test @ test_jmper @ test_promote @ test_ucaps @ test_locality_flow;
     "Neg", test_negatives;
   ]

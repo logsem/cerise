@@ -16,7 +16,7 @@ type mem_state = word MemMap.t
 type exec_conf = { reg : reg_state; mem : mem_state } (* using a record to have notation similar to the paper *)
 type mchn = exec_state * exec_conf
 
-let init_reg_state (addr_max : int) (stack_opt : bool) : reg_state =
+let init_reg_state (addr_max : int) (stack_opt : bool) (stk_locality : locality) : reg_state =
   let max_heap_addr = addr_max/2 in
   let l = List.init 32 (fun i -> Reg i, I Z.zero) in
   (* The PC register starts with full permission over the entire "heap" segment *)
@@ -24,7 +24,7 @@ let init_reg_state (addr_max : int) (stack_opt : bool) : reg_state =
   (* The stk register starts with full permission over the entire "stack" segment *)
   let stk_init =
     if stack_opt
-    then (STK, Cap (URWLX, Local, max_heap_addr, addr_max, max_heap_addr))
+    then (STK, Cap (URWLX, stk_locality, max_heap_addr, addr_max, max_heap_addr))
     else (STK, I Z.zero)
   in
   let seq = List.to_seq (pc_init :: stk_init :: l) in
@@ -53,8 +53,8 @@ let (@?) x y = get_mem x y
 
 let upd_mem (addr : int) (w : word) ({reg ; mem} : exec_conf) : exec_conf = {reg ; mem = MemMap.add addr w mem}
 
-let init (addr_max : int) (prog : t) (stack_opt : bool) : mchn =
-  let regs = init_reg_state addr_max stack_opt in
+let init (addr_max : int) (prog : t) (stack_opt : bool) (stk_locality: locality) : mchn =
+  let regs = init_reg_state addr_max stack_opt stk_locality in
   let mems = init_mem_state addr_max prog in
   (Running, {reg = regs; mem = mems})
 
@@ -146,11 +146,15 @@ let perm_flowsto (p1 : perm) (p2 : perm) : bool =
 
 let locality_flowsto (g1 : locality) (g2 : locality) : bool =
   match g1 with
-  | Local -> true
+  | Directed -> true
+  | Local ->
+    (match g2 with
+     | Directed -> false
+     | _ -> true)
   | Global ->
-    match g2 with
-    | Global -> true
-    | _ -> false
+    (match g2 with
+     | Global -> true
+     | _ -> false)
 
 let promote_uperm (p : perm) : perm =
   match p with
@@ -159,6 +163,32 @@ let promote_uperm (p : perm) : perm =
   | URWX -> RWX
   | URWLX -> RWLX
   | _ -> p
+
+let is_uperm (p : perm) : bool =
+  match p with
+  | URW | URWL | URWX | URWLX -> true
+  | _ -> false
+
+let is_WLperm (p : perm) : bool =
+  match p with
+  | RWL | RWLX | URWL | URWLX -> true
+  | _ -> false
+
+let can_write (p : perm) : bool =
+  match p with
+  | RW | RWX | RWL | RWLX -> true
+  | _ -> false
+
+let can_read (p : perm) : bool =
+  match p with
+  | RO|RX|RW|RWX|RWL|RWLX-> true
+  | _ -> false
+
+let can_read_upto (w : word) =
+  match w with
+  | I _ -> failwith "TO IMPLEMENT BOTTOM ADDR (I guess max_addr ?)"
+  | Cap (p,_,_,e,a) ->
+    if is_uperm p then min a e else e
 
 let exec_single (conf : exec_conf) : mchn =
   let fail_state = (Failed, conf) in
@@ -175,27 +205,30 @@ let exec_single (conf : exec_conf) : mchn =
           end
         | Load (r1, r2) -> begin
             match r2 @! conf with
-            | Cap ((RO|RX|RW|RWX|RWL|RWLX), _, b, e, a) -> begin
+            | Cap (p, _, b, e, a) ->
+              if can_read p then
                 match a @? conf with
                 | Some w when (b <= a && a < e) -> !> (upd_reg r1 w conf)
                 | _ -> fail_state
-              end
+              else fail_state
             | _ -> fail_state
           end
         | Store (r, c) -> begin
+            let w = get_word conf c in
             match r @! conf with
-            | Cap ((RWL|RWLX), _, b, e, a) when (b <= a && a < e) ->
-              begin
-                let w = get_word conf c in
-                !> (upd_mem a w conf)
-              end
-            | Cap ((RW|RWX), _, b, e, a) when (b <= a && a < e) ->
-              begin
-                let w = get_word conf c in
-                match w with
-                | Cap (_, Local,_,_,_) -> fail_state
-                | _ -> !> (upd_mem a w conf)
-              end
+            | Cap (p, _, b, e, a) when (b <= a && a < e) ->
+              if can_write p then
+              (match w with
+               | Cap (_, Local,_,_,_) ->
+                 if is_WLperm p
+                 then !> (upd_mem a w conf)
+                 else fail_state
+               | Cap (_, Directed,_,_,_) ->
+                 if (is_WLperm p && (can_read_upto w <= a))
+                 then !> (upd_mem a w conf)
+                 else fail_state
+               | _ -> !> (upd_mem a w conf))
+              else fail_state
             | _ -> fail_state
           end
         | Jmp r -> begin
@@ -306,7 +339,8 @@ let exec_single (conf : exec_conf) : mchn =
           end    
         | LoadU (r1, r2, c) -> begin
             match r2 @! conf with
-            | Cap ((URW|URWL|URWX|URWLX), _, b, e, a) ->
+            | Cap (p, _, b, e, a) ->
+              if is_uperm p then
               (match (get_word conf c) with
                | I off when
                    let off = Z.to_int off in
@@ -317,6 +351,7 @@ let exec_single (conf : exec_conf) : mchn =
                      | Some w -> !> (upd_reg r1 w conf)
                      | _ -> fail_state)
                | _ -> fail_state)
+              else fail_state
             | _ -> fail_state
           end
 
@@ -331,18 +366,19 @@ let exec_single (conf : exec_conf) : mchn =
                    (b <= a + off) &&
                    (a + off <= a) &&
                    (a <= e) ->
-                 (match w, p with
-                  | Cap (_, Local,_,_,_), (O|E|RO|RX|RW|RWX|RWL|URW|URWX) -> fail_state
-                  | _, (URWLX|URWL|URW|URWX) ->
-                    begin
-                      let conf' =
-                      if off = 0
-                      then (upd_reg r (Cap (p, g, b, e, a+1)) conf)
-                      else conf (* if non zero, no increment *)
-                      in
-                      !> (upd_mem (a+off) w conf')
-                    end
-                  | _,_ -> fail_state)
+                 if is_uperm p then
+                   (match w with
+                    | Cap (_, g,_,_,_) when g != Global && (not (is_WLperm p)) ->
+                      fail_state
+                    | Cap (_, Directed,_,_,_) when (not (can_read_upto w <= a + off)) ->
+                      fail_state
+                    | _ ->
+                        let conf' =
+                          if off = 0
+                          then (upd_reg r (Cap (p, g, b, e, a+1)) conf)
+                          else conf (* if non zero, no increment *)
+                        in !> (upd_mem (a+off) w conf'))
+                 else fail_state
                | _ -> fail_state)
             | _ -> fail_state
           end

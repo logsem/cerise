@@ -13,7 +13,7 @@ let digit = ['0'-'9']
 let hex = (digit | ['a'-'f'] | ['A'-'F'])
 let reg_num = ((digit) | ('1' digit) | ('2' digit) | "30" | "31")
 let perm = ('O' | 'E' | "RO" | "RW" | "RWX")
-let locality = ("LOCAL" | "GLOBAL")
+let locality = ("LOCAL" | "GLOBAL" | "DIRECTED" | "Local" | "Global" | "Directed")
 let letter = ['a'-'z' 'A'-'Z']
 let label = ('_' | letter) (letter | '_' | digit)*
 
@@ -62,8 +62,9 @@ rule token = parse
 | '-' { MINUS }
 
 (* locality *)
-| "LOCAL" { LOCAL }
-| "GLOBAL" { GLOBAL }
+| "LOCAL"    | "Local" { LOCAL }
+| "GLOBAL"   | "Global"  { GLOBAL }
+| "DIRECTED" | "Directed"  { DIRECTED }
 
 (* permissions *)
 | 'O' { O }

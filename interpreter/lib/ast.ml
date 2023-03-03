@@ -1,7 +1,7 @@
 (* Type definitions for the syntax AST *)
 type regname = PC | STK | Reg of int
 type perm = O | E | RO | RX | RW | RWX | RWL | RWLX | URW | URWL | URWX | URWLX
-type locality = Global | Local
+type locality = Global | Local | Directed
 type const_perm = Const of int | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op

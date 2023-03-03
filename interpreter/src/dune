@@ -9,6 +9,6 @@
  (libraries libinterp notty notty.unix containers))
 
 (executable
- (name      awkward)
- (modules   awkward)
+ (name      awkward_ucaps)
+ (modules   awkward_ucaps)
  (libraries libinterp))

@@ -1,9 +1,10 @@
 open Libinterp
+open Scall_ucap
 
 let () =
   let radv = (Ast.Reg 28) in
   let renv = (Ast.Reg 30) in
-  let prog = Call.awkward_example radv @ Call.adv_instr @ Call.ret_instr in
+  let prog = awkward_example radv @ adv_instr @ ret_instr in
 
   (* let addr_max = List.length prog in *)
   (* let addr_max = (Int32.to_int Int32.max_int)/4096 in *)
@@ -12,17 +13,17 @@ let () =
   let module Ui = Interactive_ui.MkUi (Cfg) in
 
   let m_init_state, m_init_conf =
-    Program.init_machine prog (Some Cfg.addr_max) true in
+    Program.init_machine prog (Some Cfg.addr_max) true Ast.Local in
   let adv_upd radv conf =
-    let addr_adv= (List.length (Call.awkward_example radv)) in
+    let addr_adv= (List.length (awkward_example radv)) in
       Machine.upd_reg radv
-        (Machine.Cap (E, Global, addr_adv, addr_adv + (List.length Call.adv_instr), addr_adv))
+        (Machine.Cap (E, Global, addr_adv, addr_adv + (List.length adv_instr), addr_adv))
         conf
   in
   let ret_upd rret conf =
-    let addr_ret= (List.length (Call.awkward_example radv @ Call.adv_instr)) in
+    let addr_ret= (List.length (awkward_example radv @ adv_instr)) in
       Machine.upd_reg rret
-        (Machine.Cap (E, Global, addr_ret, addr_ret + (List.length Call.ret_instr), addr_ret))
+        (Machine.Cap (E, Global, addr_ret, addr_ret + (List.length ret_instr), addr_ret))
         conf
   in
   let env_upd renv conf =

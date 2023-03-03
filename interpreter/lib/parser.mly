@@ -9,7 +9,7 @@
 %token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETL GETP
 %token GETB GETE GETA FAIL HALT LOADU STOREU PROMOTEU
 %token O E RO RX RW RWX RWL RWLX URW URWX URWL URWLX
-%token LOCAL GLOBAL
+%token LOCAL GLOBAL DIRECTED
 
 %left PLUS MINUS EXPR
 %left UMINUS
@@ -58,6 +58,7 @@ reg_const:
 locality:
   | LOCAL; { Local }
   | GLOBAL; { Global }
+  | DIRECTED; { Directed }
 
 perm:
   | O; { O }

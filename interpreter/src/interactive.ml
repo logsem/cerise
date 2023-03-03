@@ -43,8 +43,11 @@ let () =
   let module Ui = Interactive_ui.MkUi (Cfg) in
 
   let stack_opt = not !no_stack_option in
+  let stk_locality = Ast.Directed in
+  (* TODO add an option in the CLI to choose the stack locality *)
 
-  let m_init = Program.init_machine prog (Some Cfg.addr_max) stack_opt in
+  let m_init =
+    Program.init_machine prog (Some Cfg.addr_max) stack_opt stk_locality in
 
   (* let term = Term.create () in *)
 

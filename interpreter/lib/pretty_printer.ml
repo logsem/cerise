@@ -28,6 +28,7 @@ let string_of_locality (g: locality): string =
   match g with
   | Local -> "Local"
   | Global -> "Global"
+  | Directed -> "Directed"
 
 let string_of_reg_or_const (c: reg_or_const) : string =
   match c with
