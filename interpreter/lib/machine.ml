@@ -186,7 +186,7 @@ let can_read (p : perm) : bool =
 
 let can_read_upto (w : word) =
   match w with
-  | I _ -> failwith "TO IMPLEMENT BOTTOM ADDR (I guess max_addr ?)"
+  | I _ -> (Z.to_int Z.zero)
   | Cap (p,_,_,e,a) ->
     if is_uperm p then min a e else e
 
