@@ -822,7 +822,7 @@ Section Linking.
 
   (** Linking a list of segments*)
   Section LinkList.
-    Instance empty_comp: Empty component := {|
+    Global Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
     |}.
 
@@ -1004,24 +1004,17 @@ Section Linking.
       | l::ls => l ⋈ (link_list ls)
       end.
 
-    Lemma can_link_link_list {c l} :
+    Lemma can_link_link_list_1 {c l} :
       can_link_list (c :: l) -> c ##ₗ link_list l.
     Proof.
-      generalize c. clear c.
-      induction l.
-      simpl. intros c H.
-      inversion H. apply (can_link_empty_r H2).
-      intros c H. simpl.
-      symmetry.
-      inversion H. inversion H4.
-      apply can_link_assoc.
-      apply IHl.
-      apply can_link_cons; assumption.
-      rewrite Forall_forall in H3.
-      symmetry. apply H3. apply elem_of_cons. left. reflexivity.
-      symmetry. apply IHl. apply can_link_cons; try assumption.
-      destruct (Forall_cons_1 _ _ _ H3) as [_ H'].
-      exact H'.
+      revert c. induction l; simpl; intros c H.
+      - inversion H. apply (can_link_empty_r H2).
+      - symmetry. inversion H. inversion H4.
+        apply can_link_assoc. apply IHl.
+        by apply can_link_cons.
+        by destruct (Forall_cons_1 _ _ _ H3) as [H3' _].
+        symmetry. apply IHl. apply can_link_cons; try assumption.
+        by destruct (Forall_cons_1 _ _ _ H3) as [_ H'].
     Qed.
 
     Lemma link_list_well_formed {l}:
@@ -1032,7 +1025,7 @@ Section Linking.
       induction l; simpl.
       exact empty_comp_wf.
       apply link_well_formed.
-      apply (can_link_link_list H).
+      apply (can_link_link_list_1 H).
     Qed.
 
     Lemma link_list_Permutation {l l'}:
@@ -1046,10 +1039,10 @@ Section Linking.
       - assert (Hxy : x ##ₗ y).
         { apply (can_link_list_pairwise_1 Hcl 1 0); auto. }
         assert (Hxl : x ##ₗ link_list l).
-        { inversion Hcl. apply (can_link_link_list H3). }
+        { inversion Hcl. apply (can_link_link_list_1 H3). }
         assert (Hyl : y ##ₗ link_list l).
         { apply (@can_link_list_Permutation _ (x::y::l)) in Hcl.
-          inversion Hcl. apply (can_link_link_list H3).
+          inversion Hcl. apply (can_link_link_list_1 H3).
           apply perm_swap. }
         simpl.
         rewrite link_assoc; try auto using symmetry.
@@ -1060,7 +1053,101 @@ Section Linking.
         apply IHHperm2.
         apply (can_link_list_Permutation Hcl Hperm1).
     Qed.
+
+    Lemma can_link_link_list_2 {c l} :
+      can_link_list l -> c ##ₗ link_list l -> can_link_list (c :: l).
+    Proof.
+      destruct l as [| a l ]; simpl; intros Hl Hc; inversion Hc.
+      - by apply can_link_cons.
+      - apply can_link_cons; [done| |done].
+        apply Forall_cons_2.
+        symmetry. symmetry in Hc. apply can_link_weaken_l in Hc. done.
+        apply (can_link_link_list_1 Hl).
+        rewrite Forall_forall. intros x Hx.
+        apply elem_of_Permutation in Hx as [l' Hl'].
+        inversion Hl.
+        rewrite (link_list_Permutation H3 Hl') in Hc.
+        simpl in Hc. symmetry in Hc.
+        apply can_link_weaken_r in Hc.
+        apply can_link_weaken_l in Hc. by symmetry.
+        apply (can_link_list_Permutation H3) in Hl'.
+        apply (can_link_link_list_1 Hl').
+        replace (x ⋈ link_list l') with (link_list (x :: l')).
+        apply can_link_link_list_1.
+        apply (can_link_list_Permutation Hl).
+        by apply Permutation_cons. done.
+    Qed.
   End LinkList.
+
+  Section ComponentSize.
+    Global Instance component_size : Size component :=
+      fun c => size (segment c) + size (exports c).
+
+    Lemma link_size a b : a ##ₗ b -> size (a ⋈ b) = size a + size b.
+    Proof.
+      intros Hsep.
+      unfold link, size, component_size. simpl.
+      rewrite -!size_dom -link_segment_dom.
+      rewrite !dom_union_L !size_union. lia.
+      1,2: rewrite -map_disjoint_dom.
+      all: by inversion Hsep as [[] []].
+    Qed.
+
+    Lemma component_size_empty : size (∅ : component) = 0.
+    Proof. unfold size, component_size. rewrite !map_size_empty. lia. Qed.
+
+    Lemma component_size_empty_iff (c:component) :
+      dom (imports c) ⊆ dom (segment c) -> size c = 0 <-> c = ∅.
+    Proof.
+      intros Hd. unfold size, component_size. simpl.
+      rewrite Nat.eq_add_0 !map_size_empty_iff. destruct c as [s i e]; simpl.
+      split; unfold empty, empty_comp.
+      - intros [Hs He]. f_equal; try done.
+        simpl in Hd. rewrite Hs in Hd. apply (equiv_empty_L (H3:=gset_semi_set)) in Hd.
+        by rewrite dom_empty_iff_L in Hd.
+      - intros Hs. by inversion Hs.
+    Qed.
+
+    Lemma component_ind (P: component -> Prop) :
+      (∀ n, (∀ c, size c < n -> P c) -> ∀ c, size c = n -> P c) ->
+      ∀ c, P c.
+    Proof.
+      intros HI c.
+      specialize (Nat.le_refl (size c)).
+      apply (nat_ind (λ n, ∀ c, size c <= n -> P c)).
+      intros c' Hc'. apply (HI 0). intros c'' Hc''. lia. lia.
+      intros n Hn c' Hc'.
+      destruct (decide (size c'=S n)).
+      apply (HI (S n)). intros c'' Hc''. apply Hn. lia. done.
+      apply Hn. lia.
+    Qed.
+
+    (** For any property [P],
+        if any component [c] either verifies [P] or can be split into
+        smaller components [c1 ⋈ c2] where [c1] verifies [P], then it can
+        be split in a list where all components verify [P] *)
+    Lemma component_decomposition (P : component -> Prop) :
+      (∀ c,
+        well_formed_comp c ->
+        (P c \/ ∃ c1 c2, c1 ##ₗ c2 /\ P c1 /\ size c1 > 0 /\ c = c1 ⋈ c2)) ->
+      ∀ c, well_formed_comp c ->
+        ∃ l, can_link_list l /\ Forall P l /\ c = link_list l.
+    Proof.
+      intros HPrec.
+      induction c using component_ind. intros Hwfc.
+      specialize (HPrec c Hwfc) as [Hr | (c1 & c2 & Hc12 & Hc1 & Hdecr & Hlink)].
+      - exists [c]. split.
+        apply can_link_cons. done. done. apply can_link_nil.
+        split. by apply Forall_cons_2. simpl.
+        symmetry. by apply empty_right_id.
+      - edestruct (H c2) as (l & Hcl & Hfl & Hc2).
+        specialize (link_size c1 c2 Hc12) as Hsize.
+        rewrite <-Hlink in Hsize. lia. by inversion Hc12.
+        exists (c1::l). repeat split.
+        apply can_link_link_list_2. done. by rewrite <- Hc2.
+        by apply Forall_cons_2. simpl. by rewrite <- Hc2.
+    Qed.
+  End ComponentSize.
 
   (** An induction on a component's exports map *)
   Lemma exports_ind (P: component -> Prop) c :
