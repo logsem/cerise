@@ -53,10 +53,10 @@ let (@?) x y = get_mem x y
 
 let upd_mem (addr : int) (w : word) ({reg ; mem} : exec_conf) : exec_conf = {reg ; mem = MemMap.add addr w mem}
 
-let init (addr_max : int) (prog : t) (stack_opt : bool) (stk_locality: locality) : mchn =
-  let regs = init_reg_state addr_max stack_opt stk_locality in
-  let mems = init_mem_state addr_max prog in
-  (Running, {reg = regs; mem = mems})
+let init
+    (initial_regs : word RegMap.t)
+    (initial_mems : word MemMap.t) =
+  (Running, {reg = initial_regs; mem = initial_mems})
 
 let get_word (conf : exec_conf) (roc : reg_or_const) : word =
   match roc with

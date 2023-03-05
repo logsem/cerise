@@ -2,5 +2,5 @@
  (name        libinterp)
  (libraries zarith notty notty.unix containers))
 
-(ocamllex lexer)
-(menhir (modules parser))
+(ocamllex lexer lexer_regfile)
+(menhir (modules parser parser_regfile) )

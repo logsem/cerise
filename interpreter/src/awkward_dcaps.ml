@@ -12,8 +12,10 @@ let () =
   let module Cfg = struct let addr_max = addr_max end in
   let module Ui = Interactive_ui.MkUi (Cfg) in
 
+  let init_regfile = Machine.init_reg_state Cfg.addr_max true Ast.Directed in
+
   let m_init_state, m_init_conf =
-    Program.init_machine prog (Some Cfg.addr_max) true Ast.Directed in
+    Program.init_machine prog (Some Cfg.addr_max) init_regfile in
   let adv_upd radv conf =
     let addr_adv= (List.length (awkward_example radv)) in
       Machine.upd_reg radv

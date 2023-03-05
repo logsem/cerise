@@ -27,8 +27,13 @@ let run_prog (filename : string) : mchn  =
   let filebuf = Lexing.from_channel input in
   let parse_res = Ir.translate_prog @@ Parser.main Lexer.token filebuf in
   let _ = close_in input in
+
   let stk_locality = Ast.Directed in
-  let m = Machine.init 10000 parse_res true stk_locality in
+  let addr_max = 10000 in
+  let init_regs = Machine.init_reg_state addr_max true stk_locality in
+  let init_mems = Machine.init_mem_state addr_max parse_res in
+  let m = Machine.init init_regs init_mems in
+
   run m
 
 let test_const_word expected actual = fun _ ->

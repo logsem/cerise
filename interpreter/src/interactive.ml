@@ -7,6 +7,7 @@ let () =
   let usage_msg = "interactive [--no-stack] [--mem-size size] <file>" in
   let no_stack_option = ref false in
   let mem_size_option = ref addr_max in
+  let regfile_name_option = ref "" in
   let input_files = ref [] in
 
   let anon_fun filename = input_files := filename :: !input_files in
@@ -14,10 +15,11 @@ let () =
     [
       ("--no-stack", Arg.Set no_stack_option, "Disable the stack");
       ("--mem-size", Arg.Set_int mem_size_option, "Size of the memory, as an integer");
+      ("--regfile", Arg.Set_string regfile_name_option, "Initial state of the registers");
     ] in
   Arg.parse speclist anon_fun usage_msg;
 
-  let filename =
+  let filename_prog =
     match !input_files with
     | [filename] -> filename
     | _ ->
@@ -26,12 +28,21 @@ let () =
   in
 
   let prog =
-    match Program.parse filename with
+    match Program.parse_prog filename_prog with
     | Ok prog -> prog
     | Error msg ->
-      Printf.eprintf "Parse error: %s\n" msg;
+      Printf.eprintf "Program parse error: %s\n" msg;
       exit 1
   in
+
+  let regfile =
+    match Program.parse_regfile !regfile_name_option with
+    | Ok regs -> regs
+    | Error msg ->
+      Printf.eprintf "Regfile parse error: %s\n" msg;
+      exit 1
+  in
+
   let size_mem =
     let s = !mem_size_option in
     if s < 0
@@ -43,11 +54,11 @@ let () =
   let module Ui = Interactive_ui.MkUi (Cfg) in
 
   let stack_opt = not !no_stack_option in
-  let stk_locality = Ast.Directed in
+  (* let stk_locality = Ast.Directed in *)
   (* TODO add an option in the CLI to choose the stack locality *)
 
   let m_init =
-    Program.init_machine prog (Some Cfg.addr_max) stack_opt stk_locality in
+    Program.init_machine prog (Some Cfg.addr_max) regfile in
 
   (* let term = Term.create () in *)
 

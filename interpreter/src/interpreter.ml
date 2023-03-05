@@ -21,7 +21,7 @@ let () =
       exit 1
   in
   let prog =
-    match Program.parse filename with
+    match Program.parse_prog filename with
     | Ok prog -> prog
     | Error msg ->
       Printf.eprintf "Parse error: %s\n" msg;
@@ -32,7 +32,10 @@ let () =
   let stk_opt = true in
   let stk_locality = Ast.Local in
 
-  let m_init = Program.init_machine prog (Some addr_max) stk_opt stk_locality in
+
+  let init_regfile = Machine.init_reg_state addr_max stk_opt stk_locality in
+
+  let m_init = Program.init_machine prog (Some addr_max) init_regfile in
   let m_final = Machine.run m_init in
   print_reg_state m_final;
   Printf.printf "Final execution state: %s\n"
