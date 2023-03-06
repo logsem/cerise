@@ -95,18 +95,16 @@ Section contextual_refinement.
       wf_comp comp -> comp ≼ᵣ comp.
     Proof.
       intros Haddr Hwf_comp.
-      apply ctxt_ref_intro. 1,2,4: assumption.
+      apply ctxt_ref_intro. 1,2,4: done.
       reflexivity.
-      intros ctxt regs c ctxt_impl mr_ctxt_impl.
-      split; assumption.
+      intros ctxt regs c ctxt_impl mr_ctxt_impl. by split.
     Qed.
 
     Instance ctxt_ref_transitive: Transitive contextual_refinement.
     Proof.
-      intros a b c a_b b_c.
-      inversion a_b. inversion b_c.
-      apply ctxt_ref_intro; try assumption.
-      transitivity (dom (exports b)); assumption.
+      intros a b c [] [].
+      apply ctxt_ref_intro. 1,2,4: done.
+      by transitivity (dom (exports b)).
       intros ctxt regs conf ctxt_a mr_ctxt_a.
       destruct (Hrefines ctxt regs conf ctxt_a mr_ctxt_a) as [ctxt_b mr_ctxt_b].
       apply (Hrefines0 ctxt regs conf ctxt_b mr_ctxt_b).
