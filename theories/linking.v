@@ -118,29 +118,39 @@ Section Linking.
     (** Segment exports, a map symbols -> word (often capabilities) *)
   }.
 
-  Record component_alt := {
-    segment_alt : gmap Addr (Word + Symbols);
-    exports_alt : exports_type;
-  }.
+  Section alt_def.
+    Record component_alt := {
+      segment_alt : gmap Addr (Word + Symbols);
+      exports_alt : exports_type;
+    }.
 
-  Definition alt2comp alt := {|
-    segment := map_fold (fun addr v seg =>
-      match v with
-      | inl w => <[addr := w]> seg
-      | _ => seg
-      end) ∅ (segment_alt alt);
-    imports := map_fold (fun addr v seg =>
-      match v with
-      | inr s => <[addr := s]> seg
-      | _ => seg
-      end) ∅ (segment_alt alt);
-    exports := exports_alt alt;
-  |}.
+    Definition alt2comp alt := {|
+      segment := omap (fun v => match v with
+        | inl w => Some w
+        | _ => None
+        end) (segment_alt alt);
+      imports := omap (fun v => match v with
+        | inr s => Some s
+        | _ => None
+        end) (segment_alt alt);
+      exports := exports_alt alt;
+    |}.
 
-  Definition comp2alt comp := {|
-    segment_alt := fmap inr (imports comp) ∪ fmap inl (segment comp);
-    exports_alt := exports comp
-  |}.
+    Definition comp2alt comp := {|
+      segment_alt := fmap inr (imports comp) ∪ fmap inl (segment comp);
+      exports_alt := exports comp
+    |}.
+
+    Lemma comp2alt2comp {c} : comp2alt (alt2comp c) = c.
+    Proof.
+      destruct c as [s e]. unfold comp2alt, alt2comp. simpl. f_equal.
+      rewrite !map_fmap_omap. apply map_eq. intros a.
+      destruct (s!!a) as [[w|symb] |] eqn:Ha.
+      by rewrite lookup_union_r lookup_omap Ha /=.
+      by rewrite lookup_union_l lookup_omap Ha /=.
+      by rewrite lookup_union_None !lookup_omap !Ha /=.
+    Qed.
+  End alt_def.
 
   #[global] Instance component_eq_dec : EqDecision component.
   Proof.
@@ -778,9 +788,8 @@ Section Linking.
       is_context (ctxt ⋈ extra) comp regs ->
       is_context ctxt comp regs.
     Proof.
-      intros Hsep Hex_null H [ ].
-      apply is_context_intro. solve_can_link.
-      assumption. assumption.
+      intros Hsep Hex_null Himg [ ].
+      apply is_context_intro; [solve_can_link|done|done|..].
       unfold link in Hno_imps_l. simpl in Hno_imps_l.
       rewrite Hex_null map_union_empty in Hno_imps_l.
       apply Hno_imps_l.
@@ -802,8 +811,7 @@ Section Linking.
       is_context ctxt comp regs.
     Proof.
       intros Hsep Hex_null [ ].
-      apply is_context_intro. solve_can_link.
-      assumption. assumption.
+      apply is_context_intro; [solve_can_link|done|done|..].
       intros s Hs. apply elem_of_img in Hs as [a Has].
       apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
       apply elem_of_img. exists a. rewrite map_filter_lookup_Some.
@@ -817,6 +825,33 @@ Section Linking.
       replace (exports comp) with (exports (comp ⋈ extra)).
       apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
       apply map_union_empty.
+    Qed.
+
+    Lemma is_context_add_importless_l {ctxt comp extra regs} :
+      ctxt ##ₗ extra -> comp ##ₗ extra -> imports extra = ∅ ->
+      is_context ctxt comp regs ->
+      is_context (ctxt ⋈ extra) comp regs.
+    Proof.
+      intros Hsep1 Hsep2 Him_null [ ].
+      apply is_context_intro; [solve_can_link| |done|..].
+      intros w Hw. apply (WR_stable w _ _ (link_segment_dom_subseteq_l _ _) (Hwr_regs w Hw)).
+      rewrite dom_union_L. set_solver.
+      transitivity (img (imports ctxt ∪ imports extra)).
+      unfold link. simpl. apply img_filter_subseteq.
+      by rewrite Him_null map_union_empty.
+    Qed.
+
+    Lemma is_context_add_importless_r {ctxt comp extra regs} :
+      ctxt ##ₗ extra -> comp ##ₗ extra -> imports extra = ∅ ->
+      is_context ctxt comp regs ->
+      is_context ctxt (comp ⋈ extra) regs.
+    Proof.
+      intros Hsep1 Hsep2 Him_null [ ].
+      apply is_context_intro; [solve_can_link|done|done|..].
+      transitivity (img (imports comp ∪ imports extra)).
+      unfold link. simpl. apply img_filter_subseteq.
+      by rewrite Him_null map_union_empty.
+      rewrite dom_union_L. set_solver.
     Qed.
   End LinkAssociative.
 
