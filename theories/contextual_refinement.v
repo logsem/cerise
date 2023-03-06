@@ -3,35 +3,36 @@ From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import machine_parameters cap_lang.
 From cap_machine Require Import stdpp_img linking machine_run addr_reg_sample.
 
-(** Minimal free memory in which to write our contexts *)
-Definition reserved_context_size_z: Z := 100000.
-Definition reserved_context_size: Addr := (za ^+ reserved_context_size_z)%a.
+Section reserved_context_size.
+  Local Transparent MemNum.
+  (** Minimal free memory in which to write our contexts *)
+  Definition reserved_context_size_z: Z := 100000.
+  Definition reserved_context_size: Addr := (za ^+ reserved_context_size_z)%a.
 
-Lemma reserved_context_size_le_mem :
-  (reserved_context_size_z < MemNum)%Z.
-Proof.
-  Transparent MemNum.
-  unfold MemNum, reserved_context_size_z.
-  lia.
-Qed.
+  Lemma reserved_context_size_le_mem :
+    (reserved_context_size_z < MemNum)%Z.
+  Proof. unfold MemNum, reserved_context_size_z. lia. Qed.
 
-Lemma reserved_context_size_to_z :
-  finz.to_z reserved_context_size = reserved_context_size_z.
-Proof. simpl. lia. Qed.
+  Lemma reserved_context_size_to_z :
+    finz.to_z reserved_context_size = reserved_context_size_z.
+  Proof. simpl. lia. Qed.
 
-(** Example addr_restriction, address greater than a given end_stack parameter *)
-Definition addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
-  forall a, a ∈ dom -> (e_stk < a)%a.
-Lemma addr_gt_than_union_stable (e_stk: Addr) :
-  forall s1 s2, addr_gt_than e_stk s1 -> addr_gt_than e_stk s2 ->
-    addr_gt_than e_stk (s1 ∪ s2).
-Proof.
-  intros dom1 dom2 gt_dom1 gt_dom2 a a_in_1or2.
-  apply elem_of_union in a_in_1or2.
-  destruct a_in_1or2 as [ a_in_1 | a_in_2 ].
-  apply (gt_dom1 a a_in_1).
-  apply (gt_dom2 a a_in_2).
-Qed.
+  Opaque MemNum.
+
+  (** Example addr_restriction, address greater than a given end_stack parameter *)
+  Definition addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
+    forall a, a ∈ dom -> (e_stk < a)%a.
+  Lemma addr_gt_than_union_stable (e_stk: Addr) :
+    forall s1 s2, addr_gt_than e_stk s1 -> addr_gt_than e_stk s2 ->
+      addr_gt_than e_stk (s1 ∪ s2).
+  Proof.
+    intros dom1 dom2 gt_dom1 gt_dom2 a a_in_1or2.
+    apply elem_of_union in a_in_1or2.
+    destruct a_in_1or2 as [ a_in_1 | a_in_2 ].
+    apply (gt_dom1 a a_in_1).
+    apply (gt_dom2 a a_in_2).
+  Qed.
+End reserved_context_size.
 
 Section contextual_refinement.
   Context {MP: MachineParameters}.
