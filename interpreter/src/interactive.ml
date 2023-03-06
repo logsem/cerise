@@ -35,14 +35,6 @@ let () =
       exit 1
   in
 
-  let regfile =
-    match Program.parse_regfile !regfile_name_option with
-    | Ok regs -> regs
-    | Error msg ->
-      Printf.eprintf "Regfile parse error: %s\n" msg;
-      exit 1
-  in
-
   let size_mem =
     let s = !mem_size_option in
     if s < 0
@@ -57,12 +49,31 @@ let () =
   (* let stk_locality = Ast.Directed in *)
   (* TODO add an option in the CLI to choose the stack locality *)
 
+  let prog_panel_start = ref 0 in
+  let stk_panel_start = ref (if stack_opt then ((Cfg.addr_max)/2) else 0) in
+
+  let regfile =
+    let stk_locality = Ast.Local in
+    let init_regfile =
+      (Machine.init_reg_state Cfg.addr_max stack_opt stk_locality) in
+    if !regfile_name_option = ""
+    then
+      init_regfile
+    else
+      (match Program.parse_regfile !regfile_name_option Cfg.addr_max !stk_panel_start with
+       | Ok regs ->
+         (Machine.RegMap.fold
+            (fun r w rf -> Machine.RegMap.add r w rf) regs) init_regfile
+       | Error msg ->
+         Printf.eprintf "Regfile parse error: %s\n" msg;
+         exit 1)
+  in
+
+
   let m_init =
     Program.init_machine prog (Some Cfg.addr_max) regfile in
 
   (* let term = Term.create () in *)
 
-  let prog_panel_start = ref 0 in
-  let stk_panel_start = ref (if stack_opt then ((Cfg.addr_max)/2) else 0) in
 
   Ui.render_loop ~show_stack:stack_opt prog_panel_start stk_panel_start m_init

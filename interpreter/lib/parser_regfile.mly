@@ -2,6 +2,7 @@
 %token PC STK
 %token <int> REG
 %token <int> INT
+%token MAX_ADDR STK_ADDR
 %token LPAREN RPAREN
 %token PLUS MINUS AFFECT COMMA
 %token O E RO RX RW RWX RWL RWLX URW URWX URWL URWLX
@@ -37,7 +38,6 @@ word:
 addr:
   | e = expr %prec EXPR { Addr (e) }
 (* TODO support hexa addresses *)
-(* TODO special addresses: min_addr, max_addr, stk_addr ... *)
 
 
 locality:
@@ -61,6 +61,8 @@ perm:
 
 expr:
   | LPAREN; e = expr; RPAREN { e }
+  | MAX_ADDR { MaxAddr }
+  | STK_ADDR { StkAddr }
   | e1 = expr; PLUS; e2 = expr { AddOp (e1,e2) }
   | e1 = expr; MINUS; e2 = expr { SubOp (e1,e2) }
   | MINUS; e = expr %prec UMINUS { SubOp ((IntLit 0),e) }

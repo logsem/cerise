@@ -13,6 +13,7 @@ let digit = ['0'-'9']
 let hex = (digit | ['a'-'f'] | ['A'-'F'])
 let reg_num = ((digit) | ('1' digit) | ('2' digit) | "30" | "31")
 let perm = ('O' | 'E' | "RO" | "RW" | "RWX")
+let addr = ("MAX_ADDR" | "STK_ADDR")
 let locality = ("LOCAL" | "GLOBAL" | "DIRECTED" | "Local" | "Global" | "Directed")
 let letter = ['a'-'z' 'A'-'Z']
 
@@ -29,6 +30,9 @@ rule token = parse
 | ['s' 'S'] ['t' 'T'] ['k' 'K'] { STK }
 | ['r' 'R'] (reg_num as n) { try REG (int_of_string n)
                              with Failure _ -> error lexbuf ("Invalid register id '" ^ n ^ "'.")}
+(* addresses *)
+| "MAX_ADDR" { MAX_ADDR }
+| "STK_ADDR" { STK_ADDR }
 
 (* single-character tokens *)
 | '(' { LPAREN }
