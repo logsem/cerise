@@ -172,28 +172,30 @@ Section contextual_refinement.
       rewrite refines_alt. done.
     Qed.
 
-    Lemma ctxt_ref_grow_impl {impl spec extra}:
+    Lemma ctxt_ref_add_exportless {impl spec extra}:
       has_free_space extra ->
       extra ##ₗ impl -> exports extra = ∅ -> impl ≼ᵣ spec ->
       extra ⋈ impl ≼ᵣ spec.
     Proof.
       intros Haddr Hsep_ei Hexp [ ].
       apply ctxt_ref_intro.
-      apply (link_well_formed _). solve_can_link. assumption.
-      unfold link. simpl. clear Hexp. set_solver.
-      apply has_free_space_link; assumption.
+      apply (link_well_formed _). solve_can_link. solve_can_link.
+      by rewrite /= Hexp map_empty_union.
+      by apply has_free_space_link.
       intros ctxt regs c ctxt_impl mr_impl.
       apply (is_context_move_in _) in ctxt_impl as Hctxt; [|solve_can_link].
       rewrite (link_assoc can_address_only_no_seals) in mr_impl; try solve_can_link.
       destruct (Hrefines (ctxt ⋈ extra) regs c Hctxt mr_impl) as [Hc Hmr].
       split.
-      eapply (is_context_remove_exportless_r _ _ Hexp).
-      rewrite <- (link_comm can_address_only_no_seals).
-      apply (is_context_move_out can_address_only_no_seals).
-      all: try solve_can_link. inversion ctxt_impl.
-      exact Hwr_regs. exact Hc.
+      assert (Hspec_extra: spec ##ₗ extra). solve_can_link.
+      apply (is_context_remove_exportless_r _ Hspec_extra Hexp).
+      rewrite <- (link_comm can_address_only_no_seals); [|solve_can_link].
+      apply (is_context_move_out can_address_only_no_seals). solve_can_link.
+      inversion ctxt_impl. exact Hwr_regs. exact Hc.
 
       destruct Hmr as [n Hmr]. exists n.
+      specialize (link_segment_dom_subseteq_l can_address_only_no_seals ctxt spec) as Hdom_ctxt.
+      specialize (link_segment_dom_subseteq_r can_address_only_no_seals ctxt spec) as Hdom_spec.
       rewrite (@machine_run_segment_subseteq _ _ _ _ (segment (ctxt ⋈ spec)) (segment ((ctxt ⋈ extra) ⋈ spec))).
       exact Hmr.
       replace ((ctxt ⋈ extra) ⋈ spec) with ((ctxt ⋈ spec) ⋈ extra).
@@ -204,18 +206,9 @@ Section contextual_refinement.
         all: solve_can_link.
        }
       transitivity (resolve_imports (imports (ctxt ⋈ spec)) (exports extra) (segment (ctxt ⋈ spec))).
-      rewrite Hexp.
-      rewrite resolve_imports_exports_empty. reflexivity.
+      rewrite Hexp. by rewrite resolve_imports_exports_empty.
       apply map_union_subseteq_l.
       inversion Hc.
-
-      1,2: assert (Hdom_ctxt: dom (segment ctxt) ⊆ dom (segment (ctxt ⋈ spec))).
-      1,3: apply (link_segment_dom_subseteq_l can_address_only_no_seals);
-           inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; try assumption.
-
-      assert (Hdom_spec: dom (segment spec) ⊆ dom (segment (ctxt ⋈ spec))).
-      apply (link_segment_dom_subseteq_r can_address_only_no_seals);
-      inversion ctxt_impl; try inversion Hcan_link0; inversion Hcan_link; assumption.
 
       assert (Hex: ∀ w, w ∈ img (exports ctxt ∪ exports spec) -> can_address_only_no_seals w (dom (segment (ctxt ⋈ spec)))).
       intros w Hw'. apply elem_of_img in Hw' as [s Hw'].
@@ -246,7 +239,6 @@ Section contextual_refinement.
       apply (can_address_only_subseteq_stable _ (dom (segment ctxt)) _ Hdom_ctxt).
       apply can_address_only_no_seals_weaken.
       apply (Hwr_regs w Hw).
-      Unshelve. solve_can_link.
     Qed.
 
     (** This can be weakened, since
@@ -517,22 +509,25 @@ Section contextual_refinement.
       apply Hno_imps_l.
     Qed.
 
-    Local Example addr_ctxt a := {|
+    (** Context with a single defined address, optionally an import *)
+    Local Example addr_ctxt a s := {|
       segment := {[ a := WInt 0 ]};
-      imports := ∅ : imports_type Symbols;
+      imports := match s with
+        | None => ∅ : imports_type Symbols
+        | Some s => {[ a := s ]} end;
       exports := ∅ |}.
 
-    Local Lemma addr_ctxt_wf a : wf_comp (addr_ctxt a).
+    Local Lemma addr_ctxt_wf a s : wf_comp (addr_ctxt a s).
     Proof.
-      apply wf_comp_intro; simpl. set_solver. set_solver.
+      apply wf_comp_intro; simpl. set_solver. destruct s; set_solver.
       - intros w Hw. apply elem_of_img in Hw. set_solver.
       - intros w Hw. apply elem_of_img in Hw as [k Hw].
         apply lookup_singleton_Some in Hw as [_ Hw].
         rewrite -Hw. exact I.
     Qed.
 
-    Local Lemma addr_ctxt_sep {target a}:
-      wf_comp target -> a ∉ dom (segment target) -> addr_ctxt a ##ₗ target.
+    Local Lemma addr_ctxt_sep {target a s}:
+      wf_comp target -> a ∉ dom (segment target) -> addr_ctxt a s ##ₗ target.
     Proof.
       intros Himpl Ha. apply can_link_intro.
       apply addr_ctxt_wf. apply Himpl.
@@ -540,34 +535,47 @@ Section contextual_refinement.
       rewrite dom_singleton. all: set_solver.
     Qed.
 
-    Local Lemma addr_ctxt_halt_ctxt {target a}:
-      wf_comp target ->
-      halt_context target = halt_context (addr_ctxt a ⋈ target).
+    Local Lemma addr_ctxt_halt_ctxt {target a s}:
+      wf_comp target -> a ∉ dom (segment target) ->
+      (match s with None => True | Some s => s ∈ dom (exports target) end) ->
+      halt_context target = halt_context (addr_ctxt a s ⋈ target).
     Proof.
-      intros Hwf.
+      intros Hwf Ha Hs.
       unfold halt_context. f_equal; try reflexivity.
       unfold dummy_exports. f_equal. unfold link. simpl.
-      rewrite !map_empty_union.
-      apply (anti_symm (⊆)).
-      rewrite map_subseteq_spec. intros addr s Haddr.
-      apply map_filter_lookup_Some. split. apply Haddr.
-      inversion Hwf.
-      apply (elem_of_img_2 (D:=gset _)) in Haddr. rewrite -not_elem_of_dom.
-      set_solver.
-      apply map_filter_subseteq; apply map_subseteq_spec.
+      rewrite !map_empty_union. apply (anti_symm (⊆));
+      rewrite map_subseteq_spec; intros addr s' Haddr.
+      - destruct (decide (a=addr)) as [Ha'|Ha'].
+        { apply mk_is_Some, elem_of_dom in Haddr. rewrite Ha' in Ha.
+          inversion Hwf as [_ Hi _ _]. contradiction (Ha (Hi _ Haddr)). }
+        apply map_filter_lookup_Some. split.
+        + destruct s. rewrite lookup_union_r. apply Haddr. by apply lookup_singleton_None.
+          by rewrite map_empty_union.
+        + inversion Hwf as [He _ _ _]. destruct (exports target !! s') eqn:He'.
+          apply mk_is_Some, elem_of_dom in He'. contradiction (He _ He' (elem_of_img_2 _ _ _ Haddr)).
+          done.
+      - apply map_filter_lookup_Some in Haddr as [Haddr Hs'].
+        destruct (decide (a=addr)) as [Ha'|Ha'].
+        { destruct s. rewrite -insert_union_singleton_l Ha' lookup_insert in Haddr.
+          apply Some_inj in Haddr. rewrite Haddr in Hs. apply not_elem_of_dom in Hs'.
+          contradiction.
+          by rewrite map_empty_union in Haddr. }
+        destruct s. by rewrite -insert_union_singleton_l lookup_insert_ne in Haddr.
+        by rewrite map_empty_union in Haddr.
     Qed.
 
-    Local Lemma addr_ctxt_is_ctxt {target a}:
+    Local Lemma addr_ctxt_is_ctxt {target a s}:
       has_free_space target ->
       wf_comp target -> a ∉ dom (segment target) -> a ≠ 0%a ->
-      is_ctxt (halt_context target ⋈ addr_ctxt a) target
+      (match s with None => True | Some s => s ∈ dom (exports target) end) ->
+      is_ctxt (halt_context target ⋈ addr_ctxt a s) target
              (<[PC:=WCap RWX 0%a (0 ^+ 1)%a 0%a]> dummy_registers).
     Proof.
-      intros Hfree Hwf Ha1 Ha2.
-      specialize (addr_ctxt_sep Hwf Ha1) as Hsep1.
+      intros Hfree Hwf Ha1 Ha2 Hs.
+      specialize (@addr_ctxt_sep target a s Hwf Ha1) as Hsep1.
       assert (Ha3: a ∉ dom (segment (halt_context target))).
       unfold halt_context. simpl. set_solver.
-      specialize (addr_ctxt_sep (halt_context_wf) Ha3) as Hsep2.
+      specialize (@addr_ctxt_sep _ _ s (halt_context_wf) Ha3) as Hsep2.
       specialize (halt_context_can_link Hfree Hwf) as Hsep3.
       apply is_context_intro.
       - solve_can_link.
@@ -583,31 +591,35 @@ Section contextual_refinement.
       - transitivity (dom (exports (halt_context target))).
         rewrite dummy_exports_from_imports. reflexivity.
         rewrite dom_union. set_solver.
-      - simpl. rewrite img_empty_L. apply empty_subseteq.
+      - simpl. destruct s. transitivity (img ({[a:=s]}:gmap _ _)).
+        apply subseteq_img. rewrite map_empty_union. apply map_filter_subseteq.
+        rewrite img_singleton -elem_of_subseteq_singleton. done.
+        set_solver.
     Qed.
 
-    Local Lemma addr_ctxt_machine_run {target a} :
+    Local Lemma addr_ctxt_machine_run {target a s} :
       has_free_space target ->
       wf_comp target -> a ∉ dom (segment target) -> a ≠ 0%a ->
+      (match s with None => True | Some s => s ∈ dom (exports target) end) ->
       machine_run 2
       (Executable,
       (<[PC:=WCap RWX 0%a (0 ^+ 1)%a 0%a]> dummy_registers,
-        segment ((halt_context target ⋈ addr_ctxt a) ⋈ target))) = Some Halted.
+        segment ((halt_context target ⋈ addr_ctxt a s) ⋈ target))) = Some Halted.
     Proof.
-      intros Hfree Hwf Ha1 Ha2.
-      specialize (addr_ctxt_sep Hwf Ha1) as Hsep1.
+      intros Hfree Hwf Ha1 Ha2 Hs.
+      specialize (@addr_ctxt_sep _ _ s Hwf Ha1) as Hsep1.
       assert (Ha3: a ∉ dom (segment (halt_context target))).
       unfold halt_context. simpl. set_solver.
-      specialize (addr_ctxt_sep (halt_context_wf) Ha3) as Hsep2.
+      specialize (@addr_ctxt_sep _ _ s (halt_context_wf) Ha3) as Hsep2.
       specialize (halt_context_can_link Hfree Hwf) as Hsep3.
       rewrite - (link_assoc _); try solve_can_link.
-      rewrite (@addr_ctxt_halt_ctxt target a Hwf).
+      rewrite (@addr_ctxt_halt_ctxt target a s Hwf).
       apply halt_context_machine_run.
       rewrite -(link_segment_dom can_address_only_no_seals); try solve_can_link.
       rewrite elem_of_union. intros [Ha | Ha].
       simpl in Ha. rewrite dom_singleton elem_of_singleton in Ha. auto.
       specialize (Hfree 0%a Ha). solve_addr.
-      solve_can_link.
+      solve_can_link. done. done.
     Qed.
 
     Lemma ctxt_ref_segment_subseteq {impl spec}:
@@ -633,19 +645,46 @@ Section contextual_refinement.
         unfold halt_context. simpl.
         rewrite dom_singleton. set_solver. assumption.
       - specialize (Hrefines
-          (halt_context impl ⋈ addr_ctxt a)
+          (halt_context impl ⋈ addr_ctxt a None)
           (<[ PC := WCap RWX 0%a (0^+1)%a 0%a ]> dummy_registers)
           Halted
-          (addr_ctxt_is_ctxt Hfree Hwf_impl HeqA Ha0)
-          (ex_intro _ 2 (addr_ctxt_machine_run Hfree Hwf_impl HeqA Ha0))).
+          (@addr_ctxt_is_ctxt _ _ None Hfree Hwf_impl HeqA Ha0 I)
+          (ex_intro _ 2 (@addr_ctxt_machine_run _ _ None Hfree Hwf_impl HeqA Ha0 I))).
         destruct Hrefines as [Hctxt_spec _].
         inversion Hctxt_spec. inversion Hcan_link.
         rewrite map_disjoint_dom in Hms_disj.
         exfalso. apply (Hms_disj a).
         unfold halt_context. simpl.
         rewrite !resolve_imports_imports_empty dom_union elem_of_union !dom_singleton.
-        set_solver.
-        assumption.
+        set_solver. done.
+    Qed.
+
+    Lemma ctxt_ref_dom_exports {impl spec}:
+      impl ≼ᵣ spec ->
+      dom impl.(exports) = dom spec.(exports).
+    Proof.
+      intros [ ]. apply (anti_symm (⊆)); [intros s Hs|done].
+      destruct (exports spec !! s) as [w|] eqn:HeqS.
+      apply elem_of_dom. by exists w.
+      assert (Ha: (0^+1)%a ≠ 0%a). discriminate.
+      assert (Ha': (0^+1)%a ∉ dom (segment impl)).
+      intros Ha'. specialize (Hfree _ Ha'). discriminate.
+      specialize (Hrefines
+          (halt_context impl ⋈ addr_ctxt (0^+1)%a (Some s))
+          (<[ PC := WCap RWX 0%a (0^+1)%a 0%a ]> dummy_registers)
+          Halted
+          (@addr_ctxt_is_ctxt _ _ (Some s) Hfree Hwf_impl Ha' Ha Hs)
+          (ex_intro _ 2 (@addr_ctxt_machine_run _ _ (Some s) Hfree Hwf_impl Ha' Ha Hs))) as [Hctxt_spec _].
+      inversion Hctxt_spec as [_ _ _ _ Himps]. apply Himps.
+      rewrite elem_of_img. exists (0 ^+ 1)%a.
+      simpl. rewrite map_empty_union.
+      apply map_filter_lookup_Some. split.
+      apply lookup_singleton.
+      rewrite map_union_empty.
+      specialize (dummy_exports_spec impl s) as Hspec.
+      destruct (dummy_exports impl !! s). destruct Hspec as [_ Hspec].
+      inversion Hwf_impl as [Hwf _ _ _]. contradiction (Hwf s Hs Hspec).
+      done.
     Qed.
   End component_part_subseteq.
 
