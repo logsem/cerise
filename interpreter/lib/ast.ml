@@ -5,7 +5,9 @@ type locality = Global | Local | Directed
 type const_perm = Const of int | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op
-  = Jmp of regname
+  =
+  | Nop
+  | Jmp of regname
   | Jnz of regname * regname
   | Move of regname * reg_or_const
   | Load of regname * regname

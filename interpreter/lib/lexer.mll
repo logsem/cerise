@@ -32,6 +32,7 @@ rule token = parse
                              with Failure _ -> error lexbuf ("Invalid register id '" ^ n ^ "'.")}
 
 (* machine_op *)
+| "nop" { NOP }
 | "jmp" { JMP }
 | "jnz" { JNZ }
 | "mov" { MOVE }

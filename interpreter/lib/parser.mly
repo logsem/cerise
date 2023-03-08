@@ -6,8 +6,8 @@
 %token <string> LABEL
 %token LPAREN RPAREN
 %token PLUS MINUS
-%token JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR GETL GETP
-%token GETB GETE GETA FAIL HALT LOADU STOREU PROMOTEU
+%token NOP JMP JNZ MOVE LOAD STORE ADD SUB LT LEA RESTRICT SUBSEG ISPTR
+%token GETL GETP GETB GETE GETA FAIL HALT LOADU STOREU PROMOTEU
 %token O E RO RX RW RWX RWL RWLX URW URWX URWL URWLX
 %token LOCAL GLOBAL DIRECTED
 
@@ -21,6 +21,7 @@
 
 main:
   | EOF; { ([]: Ir.t) }
+  | NOP; p = main; { Nop :: p }
   | JMP; r = reg; p = main; { Jmp r :: p }
   | JNZ; r1 = reg; r2 = reg; p = main; { Jnz (r1, r2) :: p }
   | MOVE; r = reg; c = reg_const; p = main; { Move (r, c) :: p }

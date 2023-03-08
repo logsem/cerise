@@ -68,6 +68,7 @@ let string_of_statement (s: statement): string =
   | PromoteU r -> "promoteU" ^- string_of_regname r
   | Fail -> "fail"
   | Halt -> "halt"
+  | Nop -> "nop"
 
 let string_of_word (w : word) : string =
   match w with

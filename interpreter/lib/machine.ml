@@ -199,6 +199,7 @@ let exec_single (conf : exec_conf) : mchn =
         match instr with
         | Fail -> (Failed, conf)
         | Halt -> (Halted, conf)
+        | Nop -> begin !> conf end
         | Move (r, c) -> begin
             let w = get_word conf c in
             !> (upd_reg r w conf)

@@ -51,6 +51,7 @@ let instr_tests = [
   ("promoteu r29", PromoteU (Reg 29));
   ("fail", Fail);
   ("halt", Halt);
+  ("nop", Nop);
 ]
 
 let z_tst =
@@ -210,6 +211,7 @@ let test_enc_dec_stm_list = [
   (PromoteU STK, "encore-decode PromoteU STK");
   (Fail, "encode-decode Fail");
   (Halt, "encode-decode Halt");
+  (Nop, "encode-decode Nop");
 ]
 
 let () =

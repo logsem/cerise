@@ -225,6 +225,8 @@ let encode_statement (s : statement): Z.t =
   | PromoteU r -> ~$0x45 ^! (encode_reg r)
   | Fail -> ~$0x46
   | Halt -> ~$0x47
+  (* TODO I would prefer to have Nop encoded as 0 *)
+  | Nop -> ~$0x48
 
 let decode_statement (i : Z.t) : statement =
   let dec_perm =
@@ -631,4 +633,9 @@ let decode_statement (i : Z.t) : statement =
   (* Halt *)
   if opc = ~$0x47
   then Halt
+  else
+  (* TODO I would prefer to have Nop encoded as 0 *)
+  (* Nop *)
+  if opc = ~$0x48
+  then Nop
   else raise @@ DecodeException "Error decoding instruction: unrecognized opcode"

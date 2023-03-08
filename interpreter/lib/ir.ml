@@ -14,7 +14,9 @@ type locality = Global | Local | Directed
 type const_perm = Const of expr | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op
-  = Jmp of regname
+  =
+  | Nop
+  | Jmp of regname
   | Jnz of regname * regname
   | Move of regname * reg_or_const
   | Load of regname * regname
@@ -136,6 +138,7 @@ let translate_instr (envr : env) (instr : machine_op) : Ast.machine_op =
   | PromoteU r -> Ast.PromoteU (translate_regname r)
   | Fail -> Ast.Fail
   | Halt -> Ast.Halt
+  | Nop -> Ast.Nop
   | Lbl s -> raise (UnknownLabelException s)
 
 let rec translate_prog_aux (envr : env) (prog : t) : Ast.t =
