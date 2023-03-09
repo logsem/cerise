@@ -50,16 +50,16 @@ let rec compute_env (i : int) (prog : t) (envr : env) : env =
   | (Lbl s) :: p -> compute_env (i+1) p ((s, i - (List.length envr)) :: envr)
   | _ :: p -> compute_env (i+1) p envr
 
-let rec eval_expr (envr : env) (e : expr) : int =
+let rec eval_expr (envr : env) (e : expr) : Z.t =
   match e with
-  | IntLit i -> i
+  | IntLit i -> (Z.of_int i)
   | Label s -> begin
       match List.find_opt (fun p -> (fst p) = s) envr with
-      | Some (_,i) -> i
+      | Some (_,i) -> (Z.of_int i)
       | None -> raise (UnknownLabelException s)
     end
-  | AddOp (e1, e2) -> (eval_expr envr e1) + (eval_expr envr e2)
-  | SubOp (e1, e2) -> (eval_expr envr e1) - (eval_expr envr e2)
+  | AddOp (e1, e2) -> Z.((eval_expr envr e1) + (eval_expr envr e2))
+  | SubOp (e1, e2) -> Z.((eval_expr envr e1) - (eval_expr envr e2))
 
 let translate_perm (p : perm) : Ast.perm =
   match p with

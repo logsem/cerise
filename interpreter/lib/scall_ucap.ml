@@ -11,7 +11,7 @@ let all_registers : regname list =
 let rec rclear (regs : regname list) : (statement list) =
   match regs with
   | [] -> []
-  | r::regs' -> (Move (r,(CP (Const 0))))::(rclear regs')
+  | r::regs' -> (Move (r,const 0))::(rclear regs')
 
 let rclear_inv (regs : regname list) : statement list =
   (rclear (List.filter (fun r -> not (in_list r regs)) all_registers))
@@ -26,54 +26,54 @@ let mclearU : statement list =
     Sub (Reg 2, Register (Reg 1), Register (Reg 2));
     Lea (Reg 4, Register (Reg 2));
     GetE (Reg 5, Reg 4);
-    Sub (Reg 5, Register (Reg 5), CP (Const 1));
+    Sub (Reg 5, Register (Reg 5), const 1);
     Move (Reg 2, Register PC);
-    Lea (Reg 2, CP (Const mclear_off_end));
+    Lea (Reg 2, const mclear_off_end);
     Move (Reg 3, Register PC);
-    Lea (Reg 3, CP (Const mclear_off_iter));
+    Lea (Reg 3, const mclear_off_iter);
     (* iter *)
     Lt (Reg 6, Register (Reg 5), Register (Reg 1));
     Jnz (Reg 2, Reg 6);
-    StoreU (Reg 4, CP (Const 0), CP (Const 0));
-    Add (Reg 1, Register (Reg 1), CP (Const 1));
+    StoreU (Reg 4, const 0, const 0);
+    Add (Reg 1, Register (Reg 1), const 1);
     Jmp (Reg 3);
     (* end *)
   ] @ rclear [Reg 1; Reg 2; Reg 3; Reg 4; Reg 5; Reg 6]
 
-let pushU r = StoreU (STK, CP (Const 0), r)
+let pushU r = StoreU (STK, const 0, r)
 let popU r =
-  [ LoadU (r, STK, (CP (Const (-1))));
-    Sub (Reg 1, CP (Const 0), CP (Const 1));
+  [ LoadU (r, STK, (const (-1)));
+    Sub (Reg 1, const 0, const 1);
     Lea (STK, (Register (Reg 1)))
   ]
 
 let reqglob_instrs r =
   [ GetL (Reg 1, r);
     Sub (Reg 1, Register (Reg 1),
-         CP (Const (Z.to_int (Encode.encode_locality Global))));
+         CP (Const (Encode.encode_locality Global)));
     Move (Reg 2, Register PC);
     Lea (Reg 2, Register (Reg 1));
     Jnz (Reg 2, Reg 1);
     Move (Reg 2, Register PC);
-    Lea (Reg 2, CP (Const 4));
+    Lea (Reg 2, const 4);
     Jmp (Reg 2);
     Fail;
-    Move (Reg 1, CP (Const 0));
-    Move (Reg 2, CP (Const 0));
+    Move (Reg 1, const 0);
+    Move (Reg 2, const 0);
   ]
 
 let reqperm r (p : Z.t) =
   [ GetP (Reg 1, r);
-    Sub (Reg 1, Register (Reg 1), CP (Const (Z.to_int p)));
+    Sub (Reg 1, Register (Reg 1), CP (Const p));
     Move (Reg 2, Register PC);
-    Lea (Reg 2, CP (Const 6));
+    Lea (Reg 2, const 6);
     Jnz (Reg 2, Reg 1);
     Move (Reg 2, Register PC);
-    Lea (Reg 2, CP (Const 4));
+    Lea (Reg 2, const 4);
     Jmp (Reg 2);
     Fail;
-    Move (Reg 1, CP (Const 0));
-    Move (Reg 1, CP (Const 0))
+    Move (Reg 1, const 0);
+    Move (Reg 1, const 0)
   ]
 
 let reqsize r s =
@@ -82,7 +82,7 @@ let reqsize r s =
     Sub (Reg 1, Register (Reg 2), Register (Reg 1));
     Lt (Reg 1, CP (Const s), Register (Reg 1));
     Move (Reg 2, Register PC);
-    Lea (Reg 2, CP (Const 4));
+    Lea (Reg 2, const 4);
     Jnz (Reg 2, Reg 1);
     Fail
   ]
@@ -95,25 +95,25 @@ let prepstack r minsize =
     GetA (Reg 2, r);
     Sub (Reg 1, Register (Reg 1), Register (Reg 2));
     Lea (r, Register (Reg 1));
-    Move (Reg 1, CP (Const 0));
-    Move (Reg 2, CP (Const 0));
+    Move (Reg 1, const 0);
+    Move (Reg 2, const 0);
   ]
 
 
 let epilogue_scall radv : (statement list) =
   let w1 = Encode.encode_statement (Move (Reg 1, Register PC)) in
-  let w2 = Encode.encode_statement (Lea (Reg 1, CP (Const 6))) in
+  let w2 = Encode.encode_statement (Lea (Reg 1, const 6)) in
   let w3 = Encode.encode_statement (Load (STK, Reg 1)) in
-  let w4a = Encode.encode_statement (Sub (Reg 1, CP (Const 0), CP (Const 1))) in
+  let w4a = Encode.encode_statement (Sub (Reg 1, const 0, const 1)) in
   let w4b = Encode.encode_statement (LoadU (PC, STK, Register (Reg 1))) in
   let epilogue_b =
   [
     (* Push activation record *)
-    pushU (CP (Const (Z.to_int w1)));
-    pushU (CP (Const (Z.to_int w2)));
-    pushU (CP (Const (Z.to_int w3)));
-    pushU (CP (Const (Z.to_int w4a)));
-    pushU (CP (Const (Z.to_int w4b)));
+    pushU (CP (Const w1));
+    pushU (CP (Const w2));
+    pushU (CP (Const w3));
+    pushU (CP (Const w4a));
+    pushU (CP (Const w4b));
   ] in
 
   let epilogue_e epilogue_off =
@@ -131,7 +131,7 @@ let epilogue_scall radv : (statement list) =
       (* since a URWLX capability cannot be made into an E, we have to promote r_t0 first *)
       Move (Reg 0, Register STK);
       PromoteU (Reg 0);
-      Lea (Reg 0, CP (Const (-7)));
+      Lea (Reg 0, const (-7));
       Restrict (Reg 0, CP (Perm  (E, Local)));
       (* restrict stack capability *)
       GetA (Reg 1, STK);
@@ -139,8 +139,8 @@ let epilogue_scall radv : (statement list) =
       SubSeg (STK, Register (Reg 1), Register (Reg 2))
     ] @ rclear_inv [PC;STK;Reg 0;radv]
   in
-  let off = List.length (epilogue_e 0) in
-  epilogue_b @ epilogue_e off
+  let off = List.length (epilogue_e (Z.of_int 0)) in
+  epilogue_b @ epilogue_e (Z.of_int off)
 
 let awkward_example radv =
 
@@ -148,8 +148,8 @@ let awkward_example radv =
   (* let awkward_epilogue_off = 40 in *)
 
   reqglob_instrs radv @
-  prepstack STK 10  @
-  [ Store (renv, CP (Const 0));
+  prepstack STK (Z.of_int 10)  @
+  [ Store (renv, const 0);
     (* Local encapsulation *)
     pushU (Register renv);
     pushU (Register (Reg 0));
@@ -158,21 +158,21 @@ let awkward_example radv =
   @ epilogue_scall radv
   @ [
     Jmp radv;
-    StoreU (STK, CP (Const 0), CP (Const 0));
-    Sub (Reg 1, CP (Const 0), CP (Const 7));
+    StoreU (STK, const 0, const 0);
+    Sub (Reg 1, const 0, const 7);
     Lea (STK, Register (Reg 1))
   ]
   @ popU radv
   @ popU (Reg 0)
   @ popU renv
-  @ [Store (renv, CP (Const 1));
+  @ [Store (renv, const 1);
      pushU (Register renv);
      pushU (Register (Reg 0));
     ]
   @ epilogue_scall radv
   @ [
     Jmp radv;
-    Sub (Reg 1, CP (Const 0), CP (Const 6));
+    Sub (Reg 1, const 0, const 6);
     Lea (STK, Register (Reg 1))
   ]
   @ popU (Reg 0)

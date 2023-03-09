@@ -61,7 +61,7 @@ let init
 let get_word (conf : exec_conf) (roc : reg_or_const) : word =
   match roc with
   | Register r -> get_reg r conf
-  | CP (Const i) -> I Z.(of_int i)
+  | CP (Const i) -> I i
   | CP (Perm (p,g)) -> I (Encode.encode_perm_pair p g)
   (* A pair permission-locality is just an integer in the model *)
 

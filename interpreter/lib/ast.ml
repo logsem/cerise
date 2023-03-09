@@ -2,7 +2,7 @@
 type regname = PC | STK | Reg of int
 type perm = O | E | RO | RX | RW | RWX | RWL | RWLX | URW | URWL | URWX | URWLX
 type locality = Global | Local | Directed
-type const_perm = Const of int | Perm of perm * locality
+type const_perm = Const of Z.t | Perm of perm * locality
 type reg_or_const = Register of regname | CP of const_perm (* TODO: separate into two types *)
 type machine_op
   =
@@ -44,3 +44,5 @@ let compare_regname (r1 : regname) (r2: regname) : int =
   | Reg _, STK -> 1
   | Reg _, PC -> 1
   | Reg i, Reg j -> Int.compare i j
+
+let const n = CP (Const (Z.of_int n))

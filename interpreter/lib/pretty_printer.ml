@@ -33,7 +33,7 @@ let string_of_locality (g: locality): string =
 let string_of_reg_or_const (c: reg_or_const) : string =
   match c with
   | Register r -> string_of_regname r
-  | CP (Const c) -> string_of_int c
+  | CP (Const c) -> (Z.to_string c)
   | CP (Perm (p,g)) -> "(" ^- string_of_perm p ^- "," ^- string_of_locality g  ^- ")"
 
 let string_of_statement (s: statement): string =
