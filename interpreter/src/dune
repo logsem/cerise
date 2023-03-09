@@ -4,6 +4,11 @@
  (libraries   libinterp))
 
 (executable
+ (name        compile)
+ (modules     compile)
+ (libraries   libinterp))
+
+(executable
  (name      interactive)
  (modules   interactive)
  (libraries libinterp notty notty.unix containers))
