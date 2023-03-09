@@ -83,9 +83,7 @@ def insert_linking_table(components, slt, elt):
     prog_lt.append(elt+":\n\t")
     return "\n\t".join(prog_lt)
 
-def link_program(components, code, renv, rlt, slt, elt, init):
-    rcls="r1"
-    rcls_code="r0"
+def link_program(components, code, renv, rlt, slt, elt, rcls, rcls_code, init):
     prog=""
     prog += init_linking_table(renv, rlt, slt, elt, init)
     i=0
@@ -109,7 +107,7 @@ def link_program(components, code, renv, rlt, slt, elt, init):
     prog+= create_closure_code(rcls_code, renv, rlt, "data", "end", "code", init )
     # clear registers
     prog+= clear_registers()
-    prog+= "\n\tjmp r0\n\t"
+    prog+= f"\n\tjmp {rcls_code}\n\t"
     prog+="\n; code prog \n\t"
     prog+=code
 
@@ -139,7 +137,9 @@ if __name__ == '__main__':
 
     renv="r31"
     rlt="r30"
+    rcls="r3"
+    rcls_code="r4"
     slt="_start_lt"
     elt="_end_lt"
     init="init"
-    print(link_program(components, code, renv, rlt, slt, elt, init))
+    print(link_program(components, code, renv, rlt, slt, elt, rcls, rcls_code, init))
