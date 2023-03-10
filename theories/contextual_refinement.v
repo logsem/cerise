@@ -6,7 +6,7 @@ From cap_machine Require Import stdpp_img linking machine_run addr_reg_sample.
 Section reserved_context_size.
   Local Transparent MemNum.
   (** Minimal free memory in which to write our contexts *)
-  Definition reserved_context_size_z: Z := 100000.
+  Definition reserved_context_size_z: Z := 10000.
   Definition reserved_context_size: Addr := (za ^+ reserved_context_size_z)%a.
 
   Lemma reserved_context_size_le_mem :
@@ -19,7 +19,7 @@ Section reserved_context_size.
 
   Opaque MemNum.
 
-  (** Example addr_restriction, address greater than a given end_stack parameter *)
+  (** Address greater than a given end_stack parameter *)
   Definition addr_gt_than (e_stk: Addr) (dom: gset Addr) :=
     forall a, a ∈ dom -> (e_stk < a)%a.
   Lemma addr_gt_than_union_stable (e_stk: Addr) :
@@ -76,7 +76,7 @@ Section contextual_refinement.
     (Hwf_impl : wf_comp impl)
     (Hwf_spec : wf_comp spec)
     (Hexp_incl : dom (exports spec) ⊆ dom (exports impl))
-    (** We need some free addresses to place our contexts *)
+    (* We need some free addresses to place our contexts *)
     (Hfree : has_free_space impl)
     (Hrefines :
       forall (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
@@ -100,7 +100,7 @@ Section contextual_refinement.
       intros ctxt regs c ctxt_impl mr_ctxt_impl. by split.
     Qed.
 
-    Instance ctxt_ref_transitive: Transitive contextual_refinement.
+    Global Instance ctxt_ref_transitive: Transitive contextual_refinement.
     Proof.
       intros a b c [] [].
       apply ctxt_ref_intro. 1,2,4: done.
@@ -256,10 +256,10 @@ Section contextual_refinement.
     Qed.
 
     (** This can be weakened, since
-        (common ##ₗ impl) and (impl ≼ᵣ spec) implies
-        (common ##ₗ spec).
+        [common ##ₗ impl] and [impl ≼ᵣ spec] implies
+        [common ##ₗ spec] by [ctxt_ref_can_link].
 
-        See ctxt_ref_link_l for the stronger version *)
+        See [ctxt_ref_link_l] for the stronger version *)
     Lemma ctxt_ref_link_l_1 {common impl spec} :
       has_free_space common ->
       common ##ₗ impl -> common ##ₗ spec ->
@@ -292,7 +292,7 @@ Section contextual_refinement.
     Qed.
 
     (** Same as above, one hypothesis is redundant,
-        see ctxt_ref_link_r for the stronger_version *)
+        see [ctxt_ref_link_r] for the stronger_version *)
     Lemma ctxt_ref_link_r_1 {common impl spec} :
       has_free_space common ->
       common ##ₗ impl -> common ##ₗ spec ->
@@ -306,7 +306,7 @@ Section contextual_refinement.
     Qed.
 
     (** Same as above, some hypotheses are redundant,
-        see ctxt_ref_link for the stronger_version *)
+        see [ctxt_ref_link] for the stronger_version *)
     Lemma ctxt_ref_link_1 {impl impl' spec spec'} :
       has_free_space spec ->
       impl ##ₗ impl' -> spec ##ₗ spec' ->
@@ -317,10 +317,9 @@ Section contextual_refinement.
       intros Hf Hii' Hss' His' His Hi's'.
       inversion His. inversion Hi's'.
       transitivity (spec ⋈ impl').
-      apply ctxt_ref_link_r_1; solve_can_link || assumption.
-      apply ctxt_ref_link_l_1; solve_can_link || assumption.
+      apply ctxt_ref_link_r_1; [done|..|done]; solve_can_link.
+      apply ctxt_ref_link_l_1; [done|..|done]; solve_can_link.
     Qed.
-
   End facts.
 
   (** A simple function generating dummy export (all 0) and dummy registers
@@ -415,10 +414,10 @@ Section contextual_refinement.
     Qed.
   End dummy_exports.
 
-  (* When a ≼ᵣ b then
-      - img (imports b) ⊆ img (imports a)
-      - dom (segment b) ⊆ dom (segment a)
-      - dom (exports b) = dom (exports a) *)
+  (* When [a ≼ᵣ b] then
+      - [img (imports b) ⊆ img (imports a)]
+      - [dom (segment b) ⊆ dom (segment a)]
+      - [dom (exports b) = dom (exports a)] *)
   Section component_part_subseteq.
     (** Basic context to prove the forall is non-empty
         Halt immediatly *)
@@ -752,8 +751,6 @@ Section contextual_refinement.
       exact H2.
     Qed.
 
-    (** Same as above, some hypotheses are redundant,
-        see ctxt_ref_link for the stronger_version *)
     Lemma ctxt_ref_link {impl impl' spec spec'} :
       impl ##ₗ impl' -> impl ≼ᵣ spec -> impl' ≼ᵣ spec' ->
       impl ⋈ impl' ≼ᵣ spec ⋈ spec'.
