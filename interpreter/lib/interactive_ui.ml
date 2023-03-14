@@ -331,7 +331,8 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         else false
       in
       let rec loop
-          ?(update_function = Program_panel.follow_addr)
+          ?(update_prog = Program_panel.follow_addr)
+          ?(update_stk = Program_panel.follow_addr)
           show_stack
           m
           history
@@ -342,7 +343,8 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         let regs_img = Regs_panel.ui term_width reg in
         let mem_img, panel_start, panel_stk =
           Program_panel.ui
-            ~upd_prog:update_function
+            ~upd_prog:update_prog
+            ~upd_stk:update_stk
             ~show_stack:show_stack
             (term_height - 1 - I.height regs_img) term_width mem
             (Machine.RegMap.find Ast.PC reg)
@@ -366,27 +368,44 @@ module MkUi (Cfg: MachineConfig) : Ui = struct
         let rec process_events () =
           match Term.event term with
           | `End | `Key (`Escape, _) | `Key (`ASCII 'q', _) -> Term.release term
+          (* Heap *)
           | `Key (`ASCII 'k', _) ->
-            loop ~update_function:(Program_panel.previous_addr)
+            loop ~update_prog:(Program_panel.previous_addr)
               show_stack m history
           | `Key (`ASCII 'j', _) ->
-            loop ~update_function:(Program_panel.next_addr)
+            loop ~update_prog:(Program_panel.next_addr)
               show_stack m history
           | `Key (`ASCII 'h', _) ->
-            loop ~update_function:(Program_panel.previous_page 1)
+            loop ~update_prog:(Program_panel.previous_page 1)
               show_stack m history
           | `Key (`ASCII 'H', _) ->
-            loop ~update_function:(Program_panel.previous_page 10)
+            loop ~update_prog:(Program_panel.previous_page 10)
               show_stack m history
           | `Key (`ASCII 'l', _) ->
-            loop ~update_function:(Program_panel.next_page 1)
+            loop ~update_prog:(Program_panel.next_page 1)
               show_stack m history
           | `Key (`ASCII 'L', _) ->
-            loop ~update_function:(Program_panel.next_page 10)
+            loop ~update_prog:(Program_panel.next_page 10)
               show_stack m history
+
+          (* Stack *)
+          | `Key (`Arrow `Up, _) ->
+            loop ~update_stk:(Program_panel.previous_addr)
+              show_stack m history
+          | `Key (`Arrow `Down, _) ->
+            loop ~update_stk:(Program_panel.next_addr)
+              show_stack m history
+          | `Key (`Arrow `Left, _) ->
+            loop ~update_stk:(Program_panel.previous_page 1)
+              show_stack m history
+          | `Key (`Arrow `Right, _) ->
+            loop ~update_stk:(Program_panel.next_page 1)
+              show_stack m history
+
           | `Key (`ASCII 's', _) ->
-            loop ~update_function:Program_panel.id
+            loop ~update_prog:Program_panel.id
               (toggle_show_stack show_stack) m history
+
           | `Key (`ASCII ' ', _) ->
             begin match Machine.step m with
               | Some m' -> loop show_stack m' (m::history)
