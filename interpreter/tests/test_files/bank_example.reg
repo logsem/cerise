@@ -1,0 +1,4 @@
+PC := (RWX, Global, 0, STK_ADDR, 0)
+STK := (URWLX, Local, STK_ADDR, MAX_ADDR, STK_ADDR)
+R0 := (RWX, Global, STK_ADDR-8, STK_ADDR, STK_ADDR-8)
+R29 := (RWX, Global, STK_ADDR-8, STK_ADDR, STK_ADDR-8)
