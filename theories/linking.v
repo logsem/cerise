@@ -2,10 +2,7 @@ From Coq Require Import Eqdep_dec.
 From iris Require Import base.
 From iris.program_logic Require Import language ectx_language ectxi_language.
 From stdpp Require Import gmap fin_maps fin_sets.
-From cap_machine Require Import stdpp_img stdpp_comp addr_reg machine_base.
-
-Global Instance g_img `{FinMap K M, Countable A} : Img (M A) (gset A) :=
-fin_map_img K A (M A) (gset A).
+From cap_machine Require Import stdpp_extra stdpp_comp addr_reg machine_base.
 
 
 (** Definition of components, condition for well_formedness and linking,
@@ -165,8 +162,6 @@ Section Linking.
     apply (f_equal segment) in eq. contradiction (Hs eq).
   Qed.
 
-  (* Notation img x := (img x : gset _). *)
-
   Inductive well_formed_comp (comp : component) : Prop :=
   | wf_comp_intro: forall
       (* the exported symbols and the imported symbols are disjoint *)
@@ -292,8 +287,8 @@ Section Linking.
       specialize (map_compose_img_subseteq (D:=gset _) (exports x) (imports y)) as Hm2.
       transitivity (img (map_compose (exports y) (imports x)) ∪ img (segment x) ∪
                     img (map_compose (exports x) (imports y)) ∪ img (segment y)).
-      intros w Hw. apply (img_union_subseteq _ _ w) in Hw.
-      apply elem_of_union in Hw as [Hw|Hw]; apply (img_union_subseteq _ _ w) in Hw.
+      intros w Hw. apply (map_img_union_subseteq _ _ w) in Hw.
+      apply elem_of_union in Hw as [Hw|Hw]; apply (map_img_union_subseteq _ _ w) in Hw.
       all: set_solver.
     Qed.
 
@@ -324,7 +319,7 @@ Section Linking.
       apply wf_comp_intro.
       + intros s s_in_exp s_in_imps. (* exports are disjoint from import *)
         apply elem_of_dom in s_in_exp.
-        apply elem_of_img in s_in_imps.
+        apply elem_of_map_img in s_in_imps.
         destruct s_in_imps as [a s_in_imps].
         apply map_filter_lookup_Some in s_in_imps.
         destruct s_in_imps as [_ is_none_s].
@@ -336,10 +331,10 @@ Section Linking.
         by transitivity (dom (segment x)).
         by transitivity (dom (segment y)).
       + intros w exp_w. (* exported word respect word restrictions *)
-        apply elem_of_img in exp_w. destruct exp_w as [s exp_s_w].
+        apply elem_of_map_img in exp_w. destruct exp_w as [s exp_s_w].
         apply lookup_union_Some in exp_s_w. 2: assumption.
         destruct exp_s_w as [exp_s | exp_s];
-        apply (elem_of_img_2 (D:=gset _)) in exp_s.
+        apply (elem_of_map_img_2 (SA:=gset _)) in exp_s.
         exact (WR_stable _ _ _ Hseg1 (Hwr_exp1 w exp_s)).
         exact (WR_stable _ _ _ Hseg2 (Hwr_exp2 w exp_s)).
       + intros w ms_w.
@@ -366,12 +361,12 @@ Section Linking.
         apply lookup_union_None in none.
         destruct none as [n_l n_r].
         destruct a_imps as [a_l | a_r].
-        apply (elem_of_img_2 (D:=gset _)) in a_l.
+        apply (elem_of_map_img_2 (SA:=gset _)) in a_l.
         specialize (Hno_imps_r s a_l).
         apply elem_of_dom in Hno_imps_r.
         rewrite n_r in Hno_imps_r.
         contradiction (is_Some_None Hno_imps_r).
-        apply (elem_of_img_2 (D:=gset _)) in a_r.
+        apply (elem_of_map_img_2 (SA:=gset _)) in a_r.
         specialize (Hno_imps_l s a_r).
         apply elem_of_dom in Hno_imps_l.
         rewrite n_l in Hno_imps_l.
@@ -428,7 +423,7 @@ Section Linking.
       rewrite resolve_imports_spec in Haddr.
       destruct (imports x !! a) as [s|].
       destruct (exports y !! s) as [wexp|] eqn:Hb.
-      left. apply elem_of_img. exists s. by rewrite Hb.
+      left. apply elem_of_map_img. exists s. by rewrite Hb.
       all: by right.
     Qed.
 
@@ -700,10 +695,10 @@ Section Linking.
       apply (Hdisj s Hexp_w' ic_addr).
       assumption.
       left.
-      apply elem_of_img in ic_addr. destruct ic_addr as [addr ic_addr].
+      apply elem_of_map_img in ic_addr. destruct ic_addr as [addr ic_addr].
       apply or_intror with (A := (imports b !! addr = Some s)) in ic_addr.
       apply (link_imports_rev_no_exports bc addr s ebc_s) in ic_addr.
-      apply (elem_of_img_2 (D:=gset _)) in ic_addr.
+      apply (elem_of_map_img_2 (SA:=gset _)) in ic_addr.
       apply (Hno_imps s ic_addr).
     Qed.
 
@@ -714,15 +709,15 @@ Section Linking.
       img (imports (a ⋈ b)) ⊆ dom (exports c).
     Proof.
       intros ab bc Hno_imps_l Hno_imps_r s iab_addr.
-      apply elem_of_img in iab_addr. destruct iab_addr as [addr iab_addr].
+      apply elem_of_map_img in iab_addr. destruct iab_addr as [addr iab_addr].
       apply link_imports_rev in iab_addr. 2: exact ab.
       destruct iab_addr as [[ia_addr | ib_addr] eab_s];
       apply lookup_union_None in eab_s; destruct eab_s as [ea_s eb_s].
       apply elem_of_dom. rewrite -(lookup_union_r (exports b)).
-      apply elem_of_dom. apply (elem_of_img_2 (D:=gset _)) in ia_addr. exact (Hno_imps_r _ ia_addr).
+      apply elem_of_dom. apply (elem_of_map_img_2 (SA:=gset _)) in ia_addr. exact (Hno_imps_r _ ia_addr).
       exact eb_s.
       destruct (imports (b ⋈ c) !! addr) as [s'|] eqn:ibc_addr.
-      replace s' with s in ibc_addr. apply (elem_of_img_2 (D:=gset _)) in ibc_addr.
+      replace s' with s in ibc_addr. apply (elem_of_map_img_2 (SA:=gset _)) in ibc_addr.
       specialize (Hno_imps_l s ibc_addr).
       apply elem_of_dom in Hno_imps_l. rewrite ea_s in Hno_imps_l.
       contradiction (is_Some_None Hno_imps_l).
@@ -793,14 +788,14 @@ Section Linking.
       unfold link in Hno_imps_l. simpl in Hno_imps_l.
       rewrite Hex_null map_union_empty in Hno_imps_l.
       apply Hno_imps_l.
-      intros s Hs. apply elem_of_img in Hs as [a Has].
+      intros s Hs. apply elem_of_map_img in Hs as [a Has].
       apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
-      apply elem_of_img. exists a. rewrite map_filter_lookup_Some.
+      apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
       split. apply (lookup_union_Some_l _ _ _ _ Has).
       rewrite map_union_empty.
       destruct (exports ctxt !! s) eqn:Hexp.
       inversion Hsep. inversion Hwf_l.
-      apply (elem_of_img_2 (D:=gset _)) in Has.
+      apply (elem_of_map_img_2 (SA:=gset _)) in Has.
       apply mk_is_Some, elem_of_dom in Hexp.
       contradiction (Hdisj s Hexp Has). reflexivity.
     Qed.
@@ -812,14 +807,14 @@ Section Linking.
     Proof.
       intros Hsep Hex_null [ ].
       apply is_context_intro; [solve_can_link|done|done|..].
-      intros s Hs. apply elem_of_img in Hs as [a Has].
+      intros s Hs. apply elem_of_map_img in Hs as [a Has].
       apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
-      apply elem_of_img. exists a. rewrite map_filter_lookup_Some.
+      apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
       split. apply (lookup_union_Some_l _ _ _ _ Has).
       rewrite map_union_empty.
       destruct (exports comp !! s) eqn:Hexp.
       inversion Hsep. inversion Hwf_l.
-      apply (elem_of_img_2 (D:=gset _)) in Has.
+      apply (elem_of_map_img_2 (SA:=gset _)) in Has.
       apply mk_is_Some, elem_of_dom in Hexp.
       contradiction (Hdisj s Hexp Has). reflexivity.
       replace (exports comp) with (exports (comp ⋈ extra)).
@@ -837,7 +832,7 @@ Section Linking.
       intros w Hw. apply (WR_stable w _ _ (link_segment_dom_subseteq_l _ _) (Hwr_regs w Hw)).
       rewrite dom_union_L. set_solver.
       transitivity (img (imports ctxt ∪ imports extra)).
-      unfold link. simpl. apply img_filter_subseteq.
+      unfold link. simpl. apply map_img_filter_subseteq.
       by rewrite Him_null map_union_empty.
     Qed.
 
@@ -849,7 +844,7 @@ Section Linking.
       intros Hsep1 Hsep2 Him_null [ ].
       apply is_context_intro; [solve_can_link|done|done|..].
       transitivity (img (imports comp ∪ imports extra)).
-      unfold link. simpl. apply img_filter_subseteq.
+      unfold link. simpl. apply map_img_filter_subseteq.
       by rewrite Him_null map_union_empty.
       rewrite dom_union_L. set_solver.
     Qed.
@@ -895,7 +890,7 @@ Section Linking.
       destruct (imp !! a) as [s|] eqn:His; simpl.
       apply option_guard_True.
       destruct (exp !! s) as [w|] eqn:Hes;
-      apply (elem_of_img_2 (D:=gset _)) in His. apply mk_is_Some, elem_of_dom in Hes.
+      apply (elem_of_map_img_2 (SA:=gset _)) in His. apply mk_is_Some, elem_of_dom in Hes.
       contradiction (Hdisj s Hes His).
       all: reflexivity.
     Qed.
@@ -1221,7 +1216,7 @@ Section Linking.
   Proof.
     intros Himpl []. apply wf_comp_intro; simpl; [..|done|done].
     simpl in Hdisj.
-    intros s Hes His. apply (subseteq_img (D:=gset _)) in Himpl.
+    intros s Hes His. apply (map_subseteq_img (SA:=gset _)) in Himpl.
     apply (Hdisj s Hes (Himpl s His)).
     transitivity (dom imp). by apply subseteq_dom. done.
   Qed.

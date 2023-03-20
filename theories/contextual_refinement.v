@@ -1,7 +1,7 @@
 From stdpp Require Import gmap fin_maps fin_sets.
 
 From cap_machine Require Import machine_parameters cap_lang.
-From cap_machine Require Import stdpp_img linking machine_run addr_reg_sample.
+From cap_machine Require Import linking machine_run addr_reg_sample.
 
 Section reserved_context_size.
   Local Transparent MemNum.
@@ -349,19 +349,19 @@ Section contextual_refinement.
           | Some w => w = WInt 0 /\ k ∈ img imp
         end)
         (fun (_:Addr) (s:Symbols) exp => <[s:=WInt 0]> exp)).
-      intros s. rewrite lookup_empty. rewrite img_empty_L. set_solver.
+      intros s. rewrite lookup_empty. rewrite map_img_empty_L. set_solver.
       intros a s exp exp' imp IH k.
       destruct (Symbols_eq_dec s k) as [sk | sk].
       rewrite sk. rewrite lookup_insert.
-      split. reflexivity. rewrite elem_of_img. exists a. apply lookup_insert.
+      split. reflexivity. rewrite elem_of_map_img. exists a. apply lookup_insert.
       rewrite lookup_insert_ne. 2: exact sk.
       specialize (IH k). destruct (exp' !! k).
       destruct IH as [IHw Hexp].
       split. exact IHw.
-      rewrite elem_of_img. rewrite elem_of_img in Hexp. destruct Hexp as [a' Hexp].
+      rewrite elem_of_map_img. rewrite elem_of_map_img in Hexp. destruct Hexp as [a' Hexp].
       exists a'. rewrite lookup_insert_ne. exact Hexp.
       intros aa'. rewrite aa' in imp. rewrite imp in Hexp. discriminate.
-      rewrite elem_of_img. rewrite elem_of_img in IH.
+      rewrite elem_of_map_img. rewrite elem_of_map_img in IH.
       intros [a' Hexp].
       apply lookup_insert_Some in Hexp.
       destruct Hexp as [ [aa' ss'] | [aa' Hexpa'] ].
@@ -371,7 +371,7 @@ Section contextual_refinement.
     Lemma dummy_exports_lookup {target} :
       ∀ w, w ∈ img (dummy_exports target) -> w = WInt 0.
     Proof.
-      intros w Hsw. apply elem_of_img in Hsw. destruct Hsw as [s Hsw].
+      intros w Hsw. apply elem_of_map_img in Hsw. destruct Hsw as [s Hsw].
       specialize (dummy_exports_spec target s). intros H.
       rewrite Hsw in H. destruct H. exact H.
     Qed.
@@ -411,11 +411,11 @@ Section contextual_refinement.
     Lemma dummy_registers_img : img dummy_registers = {[WInt 0]}.
     Proof.
       apply (anti_symm (⊆)).
-      - intros w Hw. apply elem_of_img in Hw as [r Hw].
+      - intros w Hw. apply elem_of_map_img in Hw as [r Hw].
         rewrite dummy_registers_spec in Hw. apply Some_inj in Hw.
         apply elem_of_singleton. symmetry. apply Hw.
       - intros w Hw. apply elem_of_singleton in Hw. rewrite Hw.
-        apply elem_of_img. exists PC. apply dummy_registers_spec.
+        apply elem_of_map_img. exists PC. apply dummy_registers_spec.
     Qed.
   End dummy_exports.
 
@@ -437,12 +437,12 @@ Section contextual_refinement.
     Proof.
       unfold halt_context.
       apply wf_comp_intro; simpl.
-      - rewrite img_empty_L. apply disjoint_empty_r.
+      - rewrite map_img_empty_L. apply disjoint_empty_r.
       - rewrite dom_empty. apply empty_subseteq.
       - intros w exp_s.
         apply dummy_exports_lookup in exp_s.
         rewrite exp_s. unfold can_address_only_no_seals. exact I.
-      - intros w H. apply img_singleton, elem_of_singleton in H.
+      - intros w H. apply map_img_singleton, elem_of_singleton in H.
         rewrite H. exact I.
     Qed.
 
@@ -494,7 +494,7 @@ Section contextual_refinement.
       intros Hf Hwf.
       apply is_context_intro.
       - apply (halt_context_can_link Hf Hwf).
-      - intros w Hw. apply img_insert in Hw.
+      - intros w Hw. apply map_img_insert_subseteq in Hw.
         rewrite dummy_registers_img in Hw.
         apply elem_of_union in Hw as [Hw | Hw];
         apply elem_of_singleton in Hw; rewrite Hw.
@@ -502,7 +502,7 @@ Section contextual_refinement.
         solve_finz. exact I.
       - apply dummy_registers_insert.
       - rewrite dummy_exports_from_imports. reflexivity.
-      - simpl. rewrite img_empty_L. apply empty_subseteq.
+      - simpl. rewrite map_img_empty_L. apply empty_subseteq.
     Qed.
 
     (** Contextual refinement implies that the
@@ -538,8 +538,8 @@ Section contextual_refinement.
     Local Lemma addr_ctxt_wf a s : wf_comp (addr_ctxt a s).
     Proof.
       apply wf_comp_intro; simpl. set_solver. destruct s; set_solver.
-      - intros w Hw. apply elem_of_img in Hw. set_solver.
-      - intros w Hw. apply elem_of_img in Hw as [k Hw].
+      - intros w Hw. apply elem_of_map_img in Hw. set_solver.
+      - intros w Hw. apply elem_of_map_img in Hw as [k Hw].
         apply lookup_singleton_Some in Hw as [_ Hw].
         rewrite -Hw. exact I.
     Qed.
@@ -570,7 +570,7 @@ Section contextual_refinement.
         + destruct s. rewrite lookup_union_r. apply Haddr. by apply lookup_singleton_None.
           by rewrite map_empty_union.
         + inversion Hwf as [He _ _ _]. destruct (exports target !! s') eqn:He'.
-          apply mk_is_Some, elem_of_dom in He'. contradiction (He _ He' (elem_of_img_2 _ _ _ Haddr)).
+          apply mk_is_Some, elem_of_dom in He'. contradiction (He _ He' (elem_of_map_img_2 _ _ _ Haddr)).
           done.
       - apply map_filter_lookup_Some in Haddr as [Haddr Hs'].
         destruct (decide (a=addr)) as [Ha'|Ha'].
@@ -597,7 +597,7 @@ Section contextual_refinement.
       specialize (halt_context_can_link Hfree Hwf) as Hsep3.
       apply is_context_intro.
       - solve_can_link.
-      - intros w Hw. apply img_insert in Hw.
+      - intros w Hw. apply map_img_insert_subseteq in Hw.
         rewrite dummy_registers_img in Hw.
         apply elem_of_union in Hw as [Hw | Hw];
         apply elem_of_singleton in Hw; rewrite Hw.
@@ -610,8 +610,8 @@ Section contextual_refinement.
         rewrite dummy_exports_from_imports. reflexivity.
         rewrite dom_union. set_solver.
       - simpl. destruct s. transitivity (img ({[a:=s]}:gmap _ _)).
-        apply subseteq_img. rewrite map_empty_union. apply map_filter_subseteq.
-        rewrite img_singleton -elem_of_subseteq_singleton. done.
+        apply map_subseteq_img. rewrite map_empty_union. apply map_filter_subseteq.
+        rewrite map_img_singleton -elem_of_subseteq_singleton. done.
         set_solver.
     Qed.
 
@@ -694,7 +694,7 @@ Section contextual_refinement.
           (@addr_ctxt_is_ctxt _ _ (Some s) Hfree Hwf_impl Ha' Ha Hs)
           (ex_intro _ 2 (@addr_ctxt_machine_run _ _ (Some s) Hfree Hwf_impl Ha' Ha Hs))) as [Hctxt_spec _].
       inversion Hctxt_spec as [_ _ _ _ Himps]. apply Himps.
-      rewrite elem_of_img. exists (0 ^+ 1)%a.
+      rewrite elem_of_map_img. exists (0 ^+ 1)%a.
       simpl. rewrite map_empty_union.
       apply map_filter_lookup_Some. split.
       apply lookup_singleton.

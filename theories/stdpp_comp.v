@@ -73,9 +73,9 @@ Section compose.
 
   Lemma map_compose_img_subseteq
     `{FinSet C D} m n :
-    img (map_compose m n) ⊆@{D} img m.
+    map_img (map_compose m n) ⊆@{D} map_img m.
   Proof.
-    intros c. rewrite !elem_of_img. intros [a Ha].
+    intros c. rewrite !elem_of_map_img. intros [a Ha].
     apply map_compose_lookup_Some in Ha as [b [_ Hb]]. by exists b.
   Qed.
 
@@ -132,12 +132,12 @@ Section compose.
   Proof. apply omap_filter_subseteq. Qed.
 
   Lemma map_compose_min_l `{FinSet B D, !RelDecision (∈@{D})} m n :
-    map_compose m n = map_compose (filter (λ '(b,_), b ∈ img (D:=D) n) m) n.
+    map_compose m n = map_compose (filter (λ '(b,_), b ∈ map_img (SA:=D) n) m) n.
   Proof.
     apply map_eq. intro a. rewrite !map_compose_lookup.
     destruct (n!!a) eqn:Hn; simpl.
     - destruct (m!!b) eqn:Hm; symmetry. apply map_filter_lookup_Some.
-      split. done. rewrite elem_of_img. by exists a.
+      split. done. rewrite elem_of_map_img. by exists a.
       apply map_filter_lookup_None. by left.
     - done.
   Qed.

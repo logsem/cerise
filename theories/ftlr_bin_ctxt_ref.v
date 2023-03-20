@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode environments.
 From iris.program_logic Require Export weakestpre.
 From iris Require Import adequacy.
 From cap_machine Require Import linking logrel_binary.
-From cap_machine Require Import stdpp_restrict stdpp_img iris_extra.
+From cap_machine Require Import stdpp_restrict iris_extra.
 From cap_machine Require Import fundamental_binary contextual_refinement.
 From cap_machine Require Import machine_run.
 
@@ -80,7 +80,7 @@ Section logrel.
     contradiction (Hey (Hexp _ Hex)).
     (* else we know they are only words, and thus valid *)
     1,2: rewrite Hxca in Hyca; apply Some_inj in Hyca; rewrite -Hyca.
-    1,2: apply (elem_of_img_2 (D:=gset _)) in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
+    1,2: apply (elem_of_map_img_2 (SA:=gset _)) in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
     1,2: destruct w as [z | sb | z sb];
          [ (rewrite fixpoint_interp1_eq; done) | | ];
          destruct sb; simpl in Hxca; discriminate Hxca.
@@ -139,7 +139,7 @@ Section logrel.
         rewrite fixpoint_interp1_eq.
         destruct w. done.
         destruct sb.
-        2,3: specialize (Hwr_exp _ (elem_of_img_2 _ _ _ Hec));
+        2,3: specialize (Hwr_exp _ (elem_of_map_img_2 _ _ _ Hec));
              destruct s0; contradiction Hwr_exp.
         destruct p. done.
         all: iSplitR; [done|].
@@ -149,7 +149,7 @@ Section logrel.
         (* add the hypothese a ∈ dom (segment c) which we need to access our invariants *)
         all: iApply (big_sepL_mono (fun _ a => ⌜a ∈ dom (segment c)⌝ -∗ _)%I);
              [ (iIntros (k y' Hk) "Hl"; iApply "Hl"; iPureIntro;
-                apply (Hwr_exp _ (elem_of_img_2 _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
+                apply (Hwr_exp _ (elem_of_map_img_2 _ _ _ Hec)), elem_of_finz_seq_between, elem_of_list_lookup;
                 exists k; apply Hk) | ].
         all: induction (finz.seq_between f f0);
              [ (iApply big_sepL_nil; done) |].

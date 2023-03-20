@@ -1,6 +1,8 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import countable gmap list.
+From cap_machine Require Export stdpp_img.
 
+Notation img m := (map_img m : gset _).
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
   is_Some ((list_to_map l : gmap A B) !! a) ↔ a ∈ l.*1.
