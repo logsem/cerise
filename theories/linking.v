@@ -1213,6 +1213,18 @@ Section Linking.
     apply Hexp. apply Hs.
     apply (Hi Hs). reflexivity.
   Qed.
+
+  Lemma decr_imports_wf ms exp imp imp' :
+    imp' ⊆ imp ->
+    well_formed_comp {| segment := ms; exports := exp; imports := imp |} ->
+    well_formed_comp {| segment := ms; exports := exp; imports := imp' |}.
+  Proof.
+    intros Himpl []. apply wf_comp_intro; simpl; [..|done|done].
+    simpl in Hdisj.
+    intros s Hes His. apply (subseteq_img (D:=gset _)) in Himpl.
+    apply (Hdisj s Hes (Himpl s His)).
+    transitivity (dom imp). by apply subseteq_dom. done.
+  Qed.
 End Linking.
 
 Arguments component _ {_ _}.

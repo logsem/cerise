@@ -47,6 +47,9 @@ Section contextual_refinement.
 
   Notation is_ctxt := (is_context can_address_only_no_seals).
 
+  (** We need our [component]s to leave some space for contexts
+      The simplest way is just to require them to not define
+      any addresses in between [0] and [reserved_context_size] *)
   Definition has_free_space (x: component Symbols) :=
     addr_gt_than reserved_context_size (dom (segment x)).
 
@@ -112,65 +115,67 @@ Section contextual_refinement.
 
     (** Alternative Hrefines hypothesis,
         using [rtc erased_step] instead of [machine_run] *)
-    Lemma refines_alt {a b: component Symbols} :
-      (∀ c r cf,
-      is_ctxt c a r ->
-      (∃ n, machine_run n (Executable, (r, segment (c ⋈ a))) = Some cf) ->
-      is_ctxt c b r /\
-        ∃ n, machine_run n (Executable, (r, segment (c ⋈ b))) = Some cf)
-      <->
-      (∀ c r cf,
-      is_ctxt c a r ->
-      (∃ φ', rtc erased_step
-        ([Seq (Instr Executable)], (r, segment (c ⋈ a)))
-        ([Instr cf], φ')) ->
-      is_ctxt c b r /\
+    Section alt_refines.
+      Lemma refines_alt {a b: component Symbols} :
+        (∀ c r cf,
+        is_ctxt c a r ->
+        (∃ n, machine_run n (Executable, (r, segment (c ⋈ a))) = Some cf) ->
+        is_ctxt c b r /\
+          ∃ n, machine_run n (Executable, (r, segment (c ⋈ b))) = Some cf)
+        <->
+        (∀ c r cf,
+        is_ctxt c a r ->
+        (∃ φ', rtc erased_step
+          ([Seq (Instr Executable)], (r, segment (c ⋈ a)))
+          ([Instr cf], φ')) ->
+        is_ctxt c b r /\
+          ∃ φ', rtc erased_step
+            ([Seq (Instr Executable)], (r, segment (c ⋈ b)))
+            ([Instr cf], φ')).
+      Proof.
+        split; intros Href c r cf Hc [p Hmr].
+        apply machine_run_complete in Hmr.
+        2: apply machine_run_correct in Hmr.
+        all: specialize (Href c r cf Hc Hmr) as [Hc' Hmr'];
+            split; [exact Hc'|destruct Hmr' as [p' Hmr'] ].
+        apply (machine_run_correct p' Executable _ cf Hmr').
+        apply (machine_run_complete Executable _ _ cf Hmr').
+      Qed.
+
+      Lemma contextual_refinement_rtc_erased_step {impl spec} :
+        impl ≼ᵣ spec ->
+        ∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
+        is_ctxt ctxt impl regs ->
+        (∃ φ', rtc erased_step
+          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
+          ([Instr c], φ')) ->
+        is_ctxt ctxt spec regs /\
         ∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (r, segment (c ⋈ b)))
-          ([Instr cf], φ')).
-    Proof.
-      split; intros Href c r cf Hc [p Hmr].
-      apply machine_run_complete in Hmr.
-      2: apply machine_run_correct in Hmr.
-      all: specialize (Href c r cf Hc Hmr) as [Hc' Hmr'];
-           split; [exact Hc'|destruct Hmr' as [p' Hmr'] ].
-      apply (machine_run_correct p' Executable _ cf Hmr').
-      apply (machine_run_complete Executable _ _ cf Hmr').
-    Qed.
+          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
+          ([Instr c], φ').
+      Proof. intros []. rewrite <- refines_alt. done. Qed.
 
-    Lemma contextual_refinement_rtc_erased_step {impl spec} :
-      impl ≼ᵣ spec ->
-      ∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
-      is_ctxt ctxt impl regs ->
-      (∃ φ', rtc erased_step
-        ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
-        ([Instr c], φ')) ->
-      is_ctxt ctxt spec regs /\
-      ∃ φ', rtc erased_step
-        ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
-        ([Instr c], φ').
-    Proof. intros []. rewrite <- refines_alt. done. Qed.
-
-    Lemma contextual_refinement_alt {impl spec} :
-      wf_comp impl ->
-      wf_comp spec ->
-      dom (exports spec) ⊆ dom (exports impl) ->
-      has_free_space impl ->
-      (∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
-      is_ctxt ctxt impl regs ->
-      (∃ φ', rtc erased_step
-        ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
-        ([Instr c], φ')) ->
-      is_ctxt ctxt spec regs /\
-      ∃ φ', rtc erased_step
-        ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
-        ([Instr c], φ')) ->
-      impl ≼ᵣ spec.
-    Proof.
-      intros Hi Hs Hsi Hfree Href'.
-      apply ctxt_ref_intro; try done.
-      rewrite refines_alt. done.
-    Qed.
+      Lemma contextual_refinement_alt {impl spec} :
+        wf_comp impl ->
+        wf_comp spec ->
+        dom (exports spec) ⊆ dom (exports impl) ->
+        has_free_space impl ->
+        (∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
+        is_ctxt ctxt impl regs ->
+        (∃ φ', rtc erased_step
+          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
+          ([Instr c], φ')) ->
+        is_ctxt ctxt spec regs /\
+        ∃ φ', rtc erased_step
+          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
+          ([Instr c], φ')) ->
+        impl ≼ᵣ spec.
+      Proof.
+        intros Hi Hs Hsi Hfree Href'.
+        apply ctxt_ref_intro; try done.
+        rewrite refines_alt. done.
+      Qed.
+    End alt_refines.
 
     Lemma ctxt_ref_add_exportless {impl spec extra}:
       has_free_space extra ->

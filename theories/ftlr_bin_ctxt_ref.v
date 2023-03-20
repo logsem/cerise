@@ -17,7 +17,7 @@ Section logrel.
 
   Local Coercion segment : component >-> segment_type.
 
-  Notation "b |ᵣ a" := (restrict_map (a : gmap _ _) (b: gmap _ _)) (at level 80).
+  Notation "b |ᵣ a" := (restrict_map (a : gmap _ _) (b : gmap _ _)) (at level 80).
   Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
   (** Lifting the interp binary value relation from words to components
