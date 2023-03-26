@@ -134,8 +134,13 @@ theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v
 theories/examples/malloc_binary.v
 theories/examples/macros_binary.v
+theories/linking.v
 theories/examples/counter_binary.v
+theories/examples/counter_binary_preamble_def.v
 theories/examples/counter_binary_preamble.v
+theories/examples/counter_binary_preamble_left.v
+theories/examples/counter_binary_adequacy.v
+theories/examples/counter_binary_adequacy_theorem.v
 theories/exercises/subseg_buffer.v
 theories/exercises/restrict_buffer.v
 theories/exercises/subseg_buffer_closure.v

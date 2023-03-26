@@ -4,11 +4,14 @@ From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
 From cap_machine Require Import stdpp_extra iris_extra cap_lang
-     region rules_base rules.
+     region rules_base rules rules_binary rules_binary_base.
 From cap_machine.examples Require Import disjoint_regions_tactics.
 
 Definition mkregion (r_start r_end: Addr) (contents: list Word): gmap Addr Word :=
   list_to_map (zip (finz.seq_between r_start r_end) contents).
+
+Definition mbkregion (r_start r_end: Addr) (contents: list Word) (contents_spec: list Word): gmap Addr (Word * Word) :=
+  list_to_map (zip (finz.seq_between r_start r_end) (zip contents contents_spec)).
 
 Lemma zip_seq_between_lookup {A} (b e a : Addr) (l : list A) x :
   (b + length l = Some e)%a →
@@ -153,4 +156,55 @@ Lemma mkregion_prepare `{memG Σ} (a e: Addr) l :
   ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (finz.seq_between a e); l, k ↦ₐ v).
 Proof.
   iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
+Qed.
+
+Lemma mkregion_prepare_spec `{cfgSG Σ} (a e: Addr) l :
+  (a + length l)%a = Some e →
+  ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↣ₐ v) ==∗ ([∗ list] k;v ∈ (finz.seq_between a e); l, k ↣ₐ v).
+Proof.
+  iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
+Qed.
+
+
+Lemma mkregion_sepM_to_sepL2_zip `{Σ: gFunctors} (a e: Addr) l l' (φ φ': Addr → Word → iProp Σ) :
+  (a + length l)%a = Some e →
+  (a + length l')%a = Some e →
+  ([∗ map] k↦v ∈ mkregion a e l, φ k v) -∗
+    ([∗ map] k↦v ∈ mkregion a e l', φ' k v) -∗
+    ([∗ map] k↦v ∈ mbkregion a e l l', φ k v.1 ∗ φ' k v.2).
+Proof.
+  rewrite /mkregion. revert a e l'. induction l as [| x l].
+  { cbn. intros. rewrite zip_with_nil_r /=. assert (a = e) as -> by solve_addr.
+    rewrite /finz.seq_between /finz.dist /=. assert ((Z.to_nat (e - e)) = 0) as ->. lia. simpl. 
+    rewrite /mbkregion. rewrite finz_seq_between_empty;[|solve_addr]. eauto. }
+  { cbn. intros a e l' Hlen Hlen'.
+    assert (length l' = S (length l)) as Hleneq.
+    { solve_addr. }
+    destruct l';[inversion Hleneq|]. simpl in *.
+    rewrite finz_seq_between_cons. 2: solve_addr.
+    rewrite /mbkregion /=.
+    cbn. iIntros "H H'". iDestruct (big_sepM_insert with "H") as "[? H]".
+    { rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    iDestruct (big_sepM_insert with "H'") as "[? H']".
+    { rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    rewrite (finz_seq_between_cons a). 2: solve_addr. simpl.
+    iApply big_sepM_insert.
+    { rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    iFrame. iApply (IHl with "H H'"). solve_addr. solve_addr. }
+Qed.
+
+Lemma mbkregion_prepare `{memG Σ, cfgSG Σ} (a e : Addr) l l' :
+  (a + length l)%a = Some e →
+  (a + length l')%a = Some e →
+  ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) -∗
+  ([∗ map] k↦v ∈ mkregion a e l', k ↣ₐ v) ==∗
+  ([∗ map] k↦v ∈ mbkregion a e l l', k ↦ₐ v.1 ∗ k ↣ₐ v.2).
+Proof.
+  iIntros (? ?) "H H'". iDestruct (mkregion_sepM_to_sepL2_zip with "H H'") as "H"; auto.
 Qed.
