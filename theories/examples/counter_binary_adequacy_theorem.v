@@ -6,7 +6,7 @@ Require Import Eqdep_dec.
 
 From cap_machine Require Import
      stdpp_extra iris_extra
-     logrel_binary fundamental_binary linking
+     logrel_binary fundamental_binary linking_old
      counter_binary_adequacy.
 
 Definition is_initial_configuration_left `{memory_layout} c_adv prog :=
