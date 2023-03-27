@@ -177,4 +177,15 @@ Section compose.
       destruct (m!!b). reflexivity.
       apply delete_notin. by apply map_compose_lookup_None_2l.
   Qed.
+
+  Lemma map_compose_singletons a b c :
+    map_compose {[b := c]} {[a := b]} = {[a := c]}.
+  Proof.
+    apply map_eq. intros i.
+    destruct (decide (a=i)) as [Heq|Hneq].
+    - rewrite Heq lookup_singleton map_compose_lookup_Some. exists b.
+      split; apply lookup_singleton.
+    - rewrite (lookup_singleton_ne _ _ _ Hneq).
+      apply map_compose_lookup_None_2l, (lookup_singleton_ne _ _ _ Hneq).
+  Qed.
 End compose.

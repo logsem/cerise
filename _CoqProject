@@ -140,7 +140,6 @@ theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v
 theories/examples/malloc_binary.v
 theories/examples/macros_binary.v
-theories/linking_old.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble_def.v
 theories/examples/counter_binary_preamble.v
