@@ -11,10 +11,9 @@ Section counter_example_preamble.
           {nainv: logrel_na_invs Σ} {cfg : cfgSG Σ}
           `{MP: MachineParameters}.
 
-
   (* The following two lemmas show that the created closures are valid *)
 
-  Lemma incr_decr_closure_valid incr_prog decr_prog
+  Lemma decr_incr_closure_valid incr_prog decr_prog
         restc srestc count_incrdecrN countN count_clsN
         b_cls e_cls (* incr/decr closure *)
         b_cls' e_cls' (* read/read_neg closure *)
@@ -25,8 +24,8 @@ Section counter_example_preamble.
 
     pc_p ≠ E → pcs_p ≠ E →
 
-    contiguous_between incr_prog counter_first linkc →
-    contiguous_between decr_prog scounter_first slinkc →
+    contiguous_between decr_prog counter_first linkc →
+    contiguous_between incr_prog scounter_first slinkc →
     isCorrectPC_range pc_p pc_b pc_e counter_first counter_end →
     isCorrectPC_range pcs_p pcs_b pcs_e scounter_first scounter_end →
 
@@ -37,7 +36,7 @@ Section counter_example_preamble.
     nclose specN ## ↑countN →
 
     ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
-     na_inv logrel_nais count_incrdecrN (incr_left incr_prog ∗ decr_right decr_prog) -∗
+     na_inv logrel_nais count_incrdecrN (decr_left decr_prog ∗ incr_right incr_prog) -∗
      na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap pc_p pc_b pc_e counter_first)
                                             (WCap pc_p pc_b pc_e linkc) (WCap RWX b_cell e_cell b_cell)
 
@@ -106,8 +105,8 @@ Section counter_example_preamble.
    iDestruct (big_sepM_delete _ _ r_t0 with "Hsegs'") as "[Hs0 Hsegs']".
       by rewrite !lookup_delete_ne // lookup_delete_ne //.
 
-    iApply (incr_spec with "[$Hspec $Hj $HPC $HsPC $Hr0 $Hs0 $Hrenv $Hsenv $Hregs' $Hsegs' $Hna $Hincr Hr1 Hs1 $Hcounter_inv]");
-      [| |apply Hcont_incr|apply Hcont_decr|auto|auto| | |apply Hnclose|..].
+    iApply (incr_spec_opp with "[$Hspec $Hj $HPC $HsPC $Hr0 $Hs0 $Hrenv $Hsenv $Hregs' $Hsegs' $Hna $Hincr Hr1 Hs1 $Hcounter_inv]");
+      [| |apply Hcont_decr|apply Hcont_incr|auto|auto| | |apply Hnclose|..].
     { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|]. split;[clear;solve_addr|].
       apply contiguous_between_bounds in Hcont_restc. apply Hcont_restc. }
     { eapply isCorrectPC_range_restrict; [apply Hvspc_counter|]. split;[clear;solve_addr|].
@@ -126,7 +125,7 @@ Section counter_example_preamble.
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed.
 
-  Lemma read_read_neg_closure_valid read_prog read_neg_prog restc srestc
+  Lemma read_neg_read_closure_valid read_prog read_neg_prog restc srestc
         read_readnegN countN count_clsN
         b_cls e_cls (* incr/decr closure *)
         b_cls' e_cls' (* read/read_neg closure *)
@@ -137,8 +136,8 @@ Section counter_example_preamble.
 
     pc_p ≠ E → pcs_p ≠ E →
 
-    contiguous_between read_prog linkc counter_end →
-    contiguous_between read_neg_prog slinkc scounter_end →
+    contiguous_between read_neg_prog linkc counter_end →
+    contiguous_between read_prog slinkc scounter_end →
     isCorrectPC_range pc_p pc_b pc_e counter_first counter_end →
     isCorrectPC_range pcs_p pcs_b pcs_e scounter_first scounter_end →
 
@@ -150,7 +149,7 @@ Section counter_example_preamble.
     nclose specN ## ↑countN →
 
     ⊢ (spec_ctx -∗ inv countN (counter_inv b_cell bs_cell) -∗
-     na_inv logrel_nais read_readnegN (read_left read_prog ∗ read_neg_right read_neg_prog) -∗
+     na_inv logrel_nais read_readnegN (read_neg_left read_neg_prog ∗ read_right read_prog) -∗
      na_inv logrel_nais count_clsN (cls_inv b_cls e_cls b_cls' e_cls' (WCap pc_p pc_b pc_e counter_first)
                                             (WCap pc_p pc_b pc_e linkc) (WCap RWX b_cell e_cell b_cell)
 
@@ -219,7 +218,7 @@ Section counter_example_preamble.
    iDestruct (big_sepM_delete _ _ r_t0 with "Hsegs'") as "[Hs0 Hsegs']".
      by rewrite !lookup_delete_ne // lookup_delete_ne //.
 
-   iApply (read_spec with "[$Hspec $Hj $HPC $HsPC $Hr0 $Hs0 $Hrenv $Hsenv $Hregs' $Hsegs' $Hna $Hincr Hr1 Hs1 $Hcounter_inv]");
+   iApply (read_spec_opp with "[$Hspec $Hj $HPC $HsPC $Hr0 $Hs0 $Hrenv $Hsenv $Hregs' $Hsegs' $Hna $Hincr Hr1 Hs1 $Hcounter_inv]");
       [| |apply Hcont_incr|apply Hcont_decr|auto|auto| | |apply Hnclose|..].
     { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|]. split;[|clear;solve_addr].
       apply contiguous_between_bounds in Hcont_restc. apply Hcont_restc. }
@@ -239,9 +238,7 @@ Section counter_example_preamble.
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
   Qed.
 
-
-
-
+  
   Definition countN : namespace := nroot .@ "awkN".
   Definition count_invN : namespace := countN .@ "inv".
   Definition count_incrN : namespace := countN .@ "incr".
@@ -288,12 +285,12 @@ Section counter_example_preamble.
 
     spec_ctx
     (* Code of the preambles *)
-    ∗ counter_left_preamble f_m offset_to_counter ai
-    ∗ counter_right_preamble f_m offset_to_counter ais
+    ∗ counter_left_preamble' f_m offset_to_counter ai
+    ∗ counter_right_preamble' f_m offset_to_counter ais
 
     (* Code of the counter examples themselves *)
-    ∗ counter_left ai_counter
-    ∗ counter_right ais_counter
+    ∗ counter_left' ai_counter
+    ∗ counter_right' ais_counter
 
     (** Resources for malloc and assert **)
     (* assume that a pointer to the linking table (where the malloc capa is) is at offset 0 of PC *)
@@ -818,11 +815,11 @@ Section counter_example_preamble.
 
     (* the current state of registers is valid *)
     iAssert (interp (WCap E b_cls e_cls b_cls,WCap E b_cls e_cls b_cls))%I as "#Hvalid_cls".
-    { iApply (incr_decr_closure_valid with "Hspec Hcounter_inv Hincr Hcls_inv");auto.
+    { iApply (decr_incr_closure_valid with "Hspec Hcounter_inv Hincr Hcls_inv");auto.
       apply Hvpc_counter. apply Hvpc_counter'. apply Hcont_restc. apply Hcont_restc'. solve_ndisj. }
 
     iAssert (interp (WCap E b_cls' e_cls' b_cls',WCap E b_cls' e_cls' b_cls'))%I as "#Hvalid_cls'".
-    { iApply (read_read_neg_closure_valid with "Hspec Hcounter_inv Hread Hcls_inv");auto.
+    { iApply (read_neg_read_closure_valid with "Hspec Hcounter_inv Hread Hcls_inv");auto.
       apply Hcont_restc. apply Hcont_restc'. apply Hvpc_counter. apply Hvpc_counter'.
       apply Hcont_incr. apply Hcont_decr. solve_ndisj. }
 
