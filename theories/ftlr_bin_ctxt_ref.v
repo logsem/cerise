@@ -35,7 +35,7 @@ Section logrel.
   (** Allocates invariants for segment c in links (x ⋈ c) and (y ⋈ c)
       assuming the exports of x and y are valid. *)
   Lemma interp_exports_inv_alloc E {x y c: component Symbols} :
-    (∀ w, w ∈ img (segment c) -> is_word w) ->
+    (∀ w, w ∈ img (segment c) -> is_int w) ->
     x ##ₗ c -> y ##ₗ c ->
     dom (exports x) ⊆ dom (exports y) ->
     ([∗ map] a ↦ w ∈ x ⋈ c |ᵣ c, a ↦ₐ w) ∗
@@ -80,7 +80,7 @@ Section logrel.
     contradiction (Hey (Hexp _ Hex)).
     (* else we know they are only words, and thus valid *)
     1,2: rewrite Hxca in Hyca; apply Some_inj in Hyca; rewrite -Hyca.
-    1,2: apply (elem_of_map_img_2 (SA:=gset _)) in Hxca; apply Hno_caps in Hxca; unfold is_word in Hxca.
+    1,2: apply (elem_of_map_img_2 (SA:=gset _)) in Hxca; apply Hno_caps in Hxca; unfold is_int in Hxca.
     1,2: destruct w as [z | sb | z sb];
          [ (rewrite fixpoint_interp1_eq; done) | | ];
          destruct sb; simpl in Hxca; discriminate Hxca.
@@ -195,7 +195,7 @@ Section logrel.
   Qed.
 
   Lemma interp_link E {x y c: component Symbols} :
-    (∀ w, w ∈ img (segment c) -> is_word w) ->
+    (∀ w, w ∈ img (segment c) -> is_int w) ->
     x ##ₗ c -> y ##ₗ c ->
     dom (exports x) ⊆ dom (exports y) ->
     spec_ctx ∗ interp_exports x y ∗

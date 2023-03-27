@@ -80,7 +80,7 @@ Section Linking.
       end.
 
     (** Another possible WR, only allow words/intructions *)
-    Example is_word word := is_z word = true.
+    Example is_int word := is_z word = true.
 
     (** Another example, no constraints on words at all *)
     Example unconstrained_word: Word -> gset Addr -> Prop := fun _ _ => True.
