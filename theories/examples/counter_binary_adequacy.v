@@ -6,23 +6,12 @@ From stdpp Require Import gmap fin_maps fin_sets.
 Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra stdpp_comp iris_extra mkregion_helpers
-     logrel_binary fundamental_binary linking malloc macros malloc_binary.
+     logrel_binary fundamental_binary linking malloc macros malloc_binary
+     ftlr_bin_ctxt_ref.
 From cap_machine.examples Require Import
   disjoint_regions_tactics counter_binary_preamble_def counter_binary_preamble counter_binary_preamble_left.
 
 Definition machine_component: Type := component nat.
-
-Definition initial_state `{MachineParameters} (c: machine_component) (r:Reg): cfg cap_lang :=
-  ([Seq (Instr Executable)], (r, segment c)).
-
-
-(* Definition can_address_only (w: Word) (addrs: gset Addr): Prop :=
-  match w with
-  | WInt _ => True
-  | WSealable (SCap p b e _) =>
-      forall a, (b <= a < e)%a -> a ∈ addrs
-  | _ => False
-  end. *)
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
@@ -91,12 +80,6 @@ Class memory_layout `{MachineParameters} := {
        ];
   }.
 
-
-(* Definition initial_state_stk `{MachineParameters} (c: machine_component): cfg cap_lang :=
-  match c with
-  | Lib _ _ _ _ pre_comp => ([Seq (Instr Executable)], (∅, ∅)) (* dummy value *)
-  | Main _ _ _ _ (ms, _, _) c_main => ([Seq (Instr Executable)], (<[PC := c_main]> (gset_to_gmap (WInt 0%Z) (list_to_set all_registers)), (ms : Mem)))
-  end. *)
 
 Definition offset_to_awkward `{memory_layout} : Z :=
   (* in this setup, the body of the counter comes just after the code
@@ -195,54 +178,11 @@ Definition is_machine_context `{memory_layout} (c comp : machine_component) (r :
   is_context can_address_only_no_seals c comp r /\
   ∀ w, r !! PC = Some w -> isCorrectPC w.
 
-(*Lemma initial_registers_full_map `{MachineParameters, memory_layout} (c : machine_component) reg :
-  is_machine_program c →
-  (initial_state c).2.1 = reg →
-  (∀ r, is_Some (reg !! r)).
-Proof.
-  intros Hprog Hini.
-  inv Hprog.
-  intros r.
-  destruct (decide (r = PC)) as [->|]. by eauto.
-  rewrite lookup_insert_ne//.
-  pose proof (all_registers_s_correct r) as Hin. clear -Hin.
-  apply elem_of_dom. eauto.
-Qed.
-
-Definition ms_of (c : machine_component) : Mem :=
-  match c with
-  | Lib _ _ _ _ (ms,_,_) => ms
-  | Main _ _ _ _ (ms, _, _) _ => ms
-  end.
-
-Definition main_of (c : machine_component) : Word :=
-  match c with
-  | Lib _ _ _ _ (_,_,_) => WInt 0%Z
-  | Main _ _ _ _ (_,_,_) c_main => c_main
-  end.*)
-
-(* Instance merge_diagnone : DiagNone (λ o1 o2 : option Word, match o1 with *)
-(*                                   | Some _ => o1 *)
-(*                                   | None => o2 *)
-(*                                                            end). *)
-(* Proof. *)
-(*   rewrite /DiagNone //. *)
-(* Qed. *)
-
-(* Instance merge_LeftId : LeftId eq None (λ o1 o2 : option Word, match o1 with *)
-(*                                         | Some _ => o1 *)
-(*                                         | None => o2 *)
-(*                                                                end). *)
-(* Proof. rewrite /LeftId //. Qed. *)
-(* Instance addr_semiset : SemiSet Addr (list Addr). *)
-(* Proof. apply listset_simple_set. *)
-
 Lemma regions_disjoint_eq `{MachineParameters, memory_layout} (c_adv : machine_component) main (r : Reg) :
   is_machine_context c_adv comp1 r →
   is_machine_context c_adv comp2 r →
   is_initial_context c_adv r →
   r !! PC = Some main →
-
   ∃ (resolved_ms : gmap Addr Word),
       segment (c_adv ⋈ comp1) = mk_initial_memory_left ∪ resolved_ms ∧
       segment (c_adv ⋈ comp2) = mk_initial_memory_right ∪ resolved_ms ∧
@@ -305,60 +245,7 @@ Section Adequacy.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
-  Lemma regspec_mapsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) r (w : Word) :
-    σ.1 !! r = None →
-    spec_res e σ ==∗ spec_res e (<[r:=w]> σ.1,σ.2) ∗ r ↣ᵣ w.
-  Proof.
-    iIntros (Hnone) "Hσ".
-    rewrite /spec_res /regspec_mapsto.
-    iMod (own_update with "Hσ") as "[Hσ Hr]".
-    { eapply auth_update_alloc,prod_local_update_2,prod_local_update_1.
-      eapply (alloc_singleton_local_update (to_spec_map σ.1) r (1%Qp, to_agree w)).
-      by rewrite lookup_fmap Hnone. done. }
-    iModIntro. iFrame "Hr". rewrite -fmap_insert. iFrame.
-  Qed.
-  Lemma memspec_mapsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) a (w : Word) :
-    σ.2 !! a = None →
-    spec_res e σ ==∗ spec_res e (σ.1,<[a:=w]> σ.2) ∗ a ↣ₐ w.
-  Proof.
-    iIntros (Hnone) "Hσ".
-    rewrite /spec_res /memspec_mapsto.
-    iMod (own_update with "Hσ") as "[Hσ Hr]".
-    { eapply auth_update_alloc,prod_local_update_2,prod_local_update_2.
-      eapply (alloc_singleton_local_update (to_spec_map σ.2) a (1%Qp, to_agree w)).
-      by rewrite lookup_fmap Hnone. done. }
-    iModIntro. iFrame "Hr". rewrite -fmap_insert. iFrame.
-  Qed.
-  Lemma regspec_alloc_big {cfg: cfgSG Σ} e σ σ' σs :
-    σ' ##ₘ σ →
-    spec_res e (σ,σs) ==∗
-    spec_res e (σ' ∪ σ,σs) ∗ ([∗ map] l ↦ v ∈ σ', l ↣ᵣ v).
-  Proof.
-    revert σ; induction σ' as [| l v σ' Hl IH] using map_ind; iIntros (σ Hdisj) "Hσ".
-    { rewrite left_id_L. auto. }
-    iMod (IH with "Hσ") as "[Hσ'σ Hσ']"; first by eapply map_disjoint_insert_l.
-    decompose_map_disjoint.
-    rewrite !big_opM_insert // -insert_union_l //.
-    iMod (regspec_mapsto_alloc with "Hσ'σ") as "($ & $)".
-      by apply lookup_union_None. done.
-  Qed.
-  Lemma memspec_alloc_big {cfg: cfgSG Σ} e σ σ' σr :
-    σ' ##ₘ σ →
-    spec_res e (σr, σ) ==∗
-    spec_res e (σr, map_union σ' σ) ∗ ([∗ map] l ↦ v ∈ σ', l ↣ₐ v).
-  Proof.
-    revert σ; induction σ' as [| l v σ' Hl IH] using map_ind; iIntros (σ Hdisj) "Hσ".
-    { rewrite left_id_L. auto. }
-    iMod (IH with "Hσ") as "[Hσ'σ Hσ']"; first by eapply map_disjoint_insert_l.
-    decompose_map_disjoint.
-    rewrite !big_opM_insert //.
-    assert (map_union (<[l:=v]> σ') σ = <[l:=v]> (map_union σ' σ)) as ->.
-    { rewrite insert_union_l. auto. }
-    iMod (memspec_mapsto_alloc with "Hσ'σ") as "($ & $)".
-    simpl. rewrite lookup_union_None//. done.
-  Qed.
-
-  Instance list_addr_semiset : SemiSet Addr (list Addr).
+  (* Instance list_addr_semiset : SemiSet Addr (list Addr).
   Proof.
     apply Build_SemiSet.
     - intros. intros Hcontr. inversion Hcontr.
@@ -370,7 +257,7 @@ Section Adequacy.
       apply elem_of_app in H. auto.
       rewrite /union /Union_list.
       apply elem_of_app. auto.
-  Qed.
+  Qed. *)
 
   Lemma establish_interp `{memG Σ,regG Σ,cfgSG Σ,logrel_na_invs Σ} ms v :
     (∀ w, w ∈ img ms → (is_int w ∨ w = v)) ->
@@ -399,8 +286,6 @@ Section Adequacy.
     }
   Qed.
 
-
-
   Context {cfgg : inG Σ (authR cfgUR)}.
 
   Definition codeN : namespace := nroot .@ "conf" .@ "code".
@@ -413,40 +298,12 @@ Section Adequacy.
     rtc erased_step (initial_state (c_adv ⋈ comp1) r) (of_val HaltedV :: es, (reg', m')) →
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp2) r) (of_val HaltedV :: es', conf')).
   Proof.
-    intros Hm1 Hm2 Hc Hstep.
+    intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
+    apply interp_adequacy_from_WP.
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
-    (* set (reg1 := (initial_state_stk p1).2.1). *)
-    set (m1 := (initial_state (c_adv ⋈ comp1) r).2.2).
-    (* set (reg2 := (initial_state_stk p2).2.1). *)
-    set (m2 := (initial_state (c_adv ⋈ comp2) r).2.2).
-    cut (@adequate cap_lang NotStuck (Seq (Instr Executable)) (r,m1)
-                   (λ v _, v = HaltedV → ∃ thp' conf', rtc erased_step (initial_state (c_adv ⋈ comp2) r)
-                                             (of_val HaltedV :: thp', conf'))).
-    { destruct 1. destruct Hm1 as [ [] ].
-      apply adequate_result in Hstep. auto. auto. }
-    eapply (wp_adequacy Σ _); iIntros (Hinv ?).
 
-    iMod (gen_heap_init (m1:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
-    iMod (gen_heap_init (r:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)".
-    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
-    iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
-
-    iMod (own_alloc (● (Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅))
-                       ⋅ ◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)))
-      as (γc) "[Hcfg1 Hcfg2]".
-    { apply auth_both_valid_discrete. split=>//. }
-
-    pose memg := MemG Σ Hinv mem_heapg.
-    pose regg := RegG Σ Hinv reg_heapg.
-    pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-    set (Hcfg := CFGSG _ _ γc).
-
-    iMod (regspec_alloc_big _ ∅ r ∅ with "[Hcfg1]") as "(Hcfg1 & Hregspec)".
-      by apply map_disjoint_empty_r. rewrite /spec_res /= !/to_spec_map !fmap_empty //.
-    rewrite right_id_L.
-    iMod (memspec_alloc_big _ ∅ m2 r with "[Hcfg1]") as "(Hcfg1 & Hmemspec)".
-      by apply map_disjoint_empty_r. rewrite /spec_res /= !/to_spec_map !fmap_empty //.
-    rewrite right_id_L.
+    iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
+    iIntros "(#Hspec & Hmem & Hmemspec & Hreg & Hregspec & Hna & Hcfg2)".
 
     pose proof (
       @counter_binary_preamble.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
@@ -455,7 +312,7 @@ Section Adequacy.
     pose proof (regions_disjoint_eq c_adv (WCap p b e a) r Hm1 Hm2 Hc Hrpbea)
       as (resolved_ms & Hm1eq & Hm2eq & Hcanaddress & Hresolved_ms_spec & Hreg & Hdisj & Hdisj').
 
-    unfold m1, m2, initial_state. rewrite {2}Hm1eq {2}Hm2eq.
+    rewrite Hm1eq Hm2eq.
 
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]";[auto|].
     iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hadvspec]";[auto|].
@@ -536,12 +393,6 @@ Section Adequacy.
 
     rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
     rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
-
-    (* Allocate the spec invariant *)
-    iMod (inv_alloc specN _ (spec_inv ([Seq (Instr Executable)],(r,m2)) ) with "[Hcfg1]") as "#Hspec_∅".
-    { iNext. iExists _,_. iFrame. iPureIntro. rewrite /m2 /=. left. }
-    iAssert (spec_ctx)%I as "#Hspec".
-    { iExists _. iFrame "#". }
 
     (* Split the link table *)
     rewrite (finz_seq_between_cons link_table_start link_table_end).
@@ -657,25 +508,7 @@ Section Adequacy.
       - rewrite insert_id. iFrame. done. }
 
     unfold interp_conf.
-    iModIntro.
-    iExists (fun σ κs => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
-    iExists (fun _ => True)%I. iFrame. iApply wp_fupd. iApply wp_wand_r. iFrame.
-
-    iIntros (v) "Hcond".
-    destruct v;[|iModIntro;iIntros (Hcontr);done..].
-    iDestruct ("Hcond" $! eq_refl) as (r') "(Hj & Hcond)".
-    iInv specN as ">Hres" "Hcls". iDestruct "Hres" as (e' σ') "[Hown Hsteps]".
-    iDestruct "Hsteps" as %Hsteps.
-    iDestruct (own_valid_2 with "Hown Hj") as %Hvalid.
-    iMod ("Hcls" with "[Hown]") as "_".
-    { iNext. iExists _,_. eauto. }
-    iModIntro.
-    apply auth_both_valid_discrete in Hvalid as [Hincl Hvalid].
-    iIntros (_).
-    apply prod_included in Hincl as [Hincl Hincl']. simpl in *.
-    revert Hincl; rewrite Excl_included =>Hincl.
-    apply leibniz_equiv in Hincl as <-.
-    iExists [],σ'. iPureIntro. apply Hsteps.
+    iModIntro. iFrame.
   Qed.
 
 
@@ -687,40 +520,12 @@ Section Adequacy.
     rtc erased_step (initial_state (c_adv ⋈ comp2) r) (of_val HaltedV :: es, (reg', m')) →
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp1) r) (of_val HaltedV :: es', conf')).
   Proof.
-    intros Hm1 Hm2 Hc Hstep.
+    intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
+    apply interp_adequacy_from_WP.
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
-    (* set (reg1 := (initial_state_stk p1).2.1). *)
-    set (m1 := (initial_state (c_adv ⋈ comp1) r).2.2).
-    (* set (reg2 := (initial_state_stk p2).2.1). *)
-    set (m2 := (initial_state (c_adv ⋈ comp2) r).2.2).
-    cut (@adequate cap_lang NotStuck (Seq (Instr Executable)) (r,m2)
-                   (λ v _, v = HaltedV → ∃ thp' conf', rtc erased_step (initial_state (c_adv ⋈ comp1) r)
-                                             (of_val HaltedV :: thp', conf'))).
-    { destruct 1. destruct Hm2 as [ [] ].
-      apply adequate_result in Hstep. auto. auto. }
-    eapply (wp_adequacy Σ _); iIntros (Hinv ?).
 
-    iMod (gen_heap_init (m2:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
-    iMod (gen_heap_init (r:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)".
-    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
-    iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
-
-    iMod (own_alloc (● (Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅))
-                       ⋅ ◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)))
-      as (γc) "[Hcfg1 Hcfg2]".
-    { apply auth_both_valid_discrete. split=>//. }
-
-    pose memg := MemG Σ Hinv mem_heapg.
-    pose regg := RegG Σ Hinv reg_heapg.
-    pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-    set (Hcfg := CFGSG _ _ γc).
-
-    iMod (regspec_alloc_big _ ∅ r ∅ with "[Hcfg1]") as "(Hcfg1 & Hregspec)".
-      by apply map_disjoint_empty_r. rewrite /spec_res /= !/to_spec_map !fmap_empty //.
-    rewrite right_id_L.
-    iMod (memspec_alloc_big _ ∅ m1 r with "[Hcfg1]") as "(Hcfg1 & Hmemspec)".
-      by apply map_disjoint_empty_r. rewrite /spec_res /= !/to_spec_map !fmap_empty //.
-    rewrite right_id_L.
+    iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
+    iIntros "(#Hspec & Hmem & Hmemspec & Hreg & Hregspec & Hna & Hcfg2)".
 
     pose proof (
       @counter_binary_preamble_left.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
@@ -729,7 +534,7 @@ Section Adequacy.
     pose proof (regions_disjoint_eq c_adv (WCap p b e a) r Hm1 Hm2 Hc Hrpbea)
       as (resolved_ms & Hm1eq & Hm2eq & Hcanaddress & Hresolved_ms_spec & Hreg & Hdisj & Hdisj').
 
-    unfold m1, m2, initial_state. rewrite {2}Hm1eq {2}Hm2eq.
+    rewrite Hm1eq Hm2eq.
 
     iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]";[auto|].
     iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hadvspec]";[auto|].
@@ -810,12 +615,6 @@ Section Adequacy.
 
     rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
     rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
-
-    (* Allocate the spec invariant *)
-    iMod (inv_alloc specN _ (spec_inv ([Seq (Instr Executable)],(r,m1)) ) with "[Hcfg1]") as "#Hspec_∅".
-    { iNext. iExists _,_. iFrame. iPureIntro. rewrite /m1 /=. left. }
-    iAssert (spec_ctx)%I as "#Hspec".
-    { iExists _. iFrame "#". }
 
     (* Split the link table *)
     rewrite (finz_seq_between_cons link_table_start link_table_end).
@@ -931,25 +730,7 @@ Section Adequacy.
       - rewrite insert_id. iFrame. done. }
 
     unfold interp_conf.
-    iModIntro.
-    iExists (fun σ κs => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
-    iExists (fun _ => True)%I. iFrame. iApply wp_fupd. iApply wp_wand_r. iFrame.
-
-    iIntros (v) "Hcond".
-    destruct v;[|iModIntro;iIntros (Hcontr);done..].
-    iDestruct ("Hcond" $! eq_refl) as (r') "(Hj & Hcond)".
-    iInv specN as ">Hres" "Hcls". iDestruct "Hres" as (e' σ') "[Hown Hsteps]".
-    iDestruct "Hsteps" as %Hsteps.
-    iDestruct (own_valid_2 with "Hown Hj") as %Hvalid.
-    iMod ("Hcls" with "[Hown]") as "_".
-    { iNext. iExists _,_. eauto. }
-    iModIntro.
-    apply auth_both_valid_discrete in Hvalid as [Hincl Hvalid].
-    iIntros (_).
-    apply prod_included in Hincl as [Hincl Hincl']. simpl in *.
-    revert Hincl; rewrite Excl_included =>Hincl.
-    apply leibniz_equiv in Hincl as <-.
-    iExists [],σ'. iPureIntro. apply Hsteps.
+    iModIntro. iFrame.
   Qed.
 
 End Adequacy.

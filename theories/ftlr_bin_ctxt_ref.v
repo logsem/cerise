@@ -218,13 +218,13 @@ Section logrel.
     Qed.
 
     Definition ctx_points_to γc (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
+      spec_ctx ∗
       ([∗ map] a↦w ∈ l_comp, a ↦ₐ w) ∗
       ([∗ map] a↦w ∈ r_comp, a ↣ₐ w) ∗
       ([∗ map] r↦w ∈ reg, r ↦ᵣ w) ∗
       ([∗ map] r↦w ∈ reg, r ↣ᵣ w) ∗
       na_own logrel_nais ⊤ ∗
-      own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)) ∗
-      spec_res (Seq (Instr Executable)) (reg, segment r_comp).
+      own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)).
   End interp_exports.
 
   Definition initial_state (c: component Symbols) (r:Reg): cfg cap_lang :=
@@ -308,14 +308,13 @@ Section logrel.
              full_map r0
              ∧ registers_mapsto r0.1 ∗
              spec_registers_mapsto r0.2 ∗
-             na_own logrel.logrel_nais ⊤ }} ∗
-      inv specN (spec_inv ([Seq (Instr Executable)], (r, segment r_comp))).
+             na_own logrel.logrel_nais ⊤ }}.
 
       (* @interp_exports memg regg logrel_na_invs Hcfg l_comp r_comp. *)
 
-    Lemma interp_refinement (comp_l comp_r : component Symbols) r conf  :
+    Lemma interp_adequacy_from_WP (comp_l comp_r : component Symbols) r conf  (es: list cap_lang.expr) :
       fat_hypothesis comp_l comp_r r ->
-      rtc erased_step (initial_state comp_l r) ([of_val HaltedV], conf) ->
+      rtc erased_step (initial_state comp_l r) (of_val HaltedV :: es, conf) ->
       (∃ conf', rtc erased_step (initial_state comp_r r) ([of_val HaltedV], conf')).
     Proof.
       intros Hfat Hstep.
@@ -345,6 +344,7 @@ Section logrel.
       pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
       pose Hcfg := CFGSG _ _ γc.
 
+      (* Allocate the memory points tos *)
       iMod (regspec_alloc_big _ ∅ r ∅ with "[Hcfg1]") as "(Hcfg1 & Hregspec)".
         by apply map_disjoint_empty_r.
         rewrite /spec_res /= !/to_spec_map !fmap_empty //.
@@ -355,8 +355,15 @@ Section logrel.
 
       specialize (Hfat Hinv mem_heapg reg_heapg γc logrel_nais).
       simpl in Hfat.
-      iPoseProof (Hfat with "[Hmem Hmemspec Hreg Hregspec Hna Hcfg2 Hcfg1]") as ">[Hfat #Hspec]".
-      { iFrame. }
+
+      (* Allocate the spec invariant *)
+      iMod (inv_alloc specN _ (spec_inv ([Seq (Instr Executable)],(r,segment comp_r)) ) with "[Hcfg1]") as "#Hspec_∅".
+      { iNext. iExists _,_. iFrame. iPureIntro. left. }
+      iAssert (spec_ctx)%I as "#Hspec".
+      { iExists _. iFrame "#". }
+
+      iPoseProof (Hfat with "[Hmem Hmemspec Hreg Hregspec Hna Hcfg2]") as ">Hfat".
+      { iFrame. iApply "Hspec". }
 
       iModIntro.
       iExists (fun σ κs => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
