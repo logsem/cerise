@@ -1253,6 +1253,11 @@ Notation segment_type := (gmap Addr Word).
 
 Infix "⋈" := link (at level 50).
 
+(** Notations for accessing the left/right section of a link,
+    by definition [segment (a ⋈ b) = (a ⋈ₗ b) ∪ (a ⋈ᵣ b)] *)
+Notation "a ⋈ₗ b" := (resolve_imports (imports a) (exports b) (segment a)) (at level 50).
+Notation "a ⋈ᵣ b" := (resolve_imports (imports b) (exports a) (segment b)) (at level 50).
+
 (** Simple lemmas used to weaken WR
     and address_restrictions in well_formed_comp, can_link, is_program... *)
 Section LinkWeakenRestrictions.

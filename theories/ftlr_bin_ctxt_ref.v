@@ -3,10 +3,8 @@ From iris.proofmode Require Import proofmode environments.
 From iris.program_logic Require Export weakestpre.
 From iris Require Import adequacy.
 
-From cap_machine Require Import linking logrel_binary.
-From cap_machine Require Import stdpp_restrict iris_extra.
+From cap_machine Require Import iris_extra linking machine_run logrel_binary.
 From cap_machine Require Import fundamental_binary contextual_refinement.
-From cap_machine Require Import machine_run.
 
 Section logrel.
   Context {Symbols:Type}.
@@ -16,9 +14,12 @@ Section logrel.
   Context {Σ: gFunctors}.
   Context {MP: MachineParameters}.
 
+  (** Asserts a segment only contains integers *)
+  Definition code_all_ints (c : component Symbols) :=
+    ∀ w, w ∈ img (segment c) -> is_int w.
+
   Local Coercion segment : component >-> segment_type.
 
-  Notation "b |ᵣ a" := (restrict_map (a : gmap _ _) (b : gmap _ _)) (at level 80).
   Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
   Section interp_exports.
@@ -42,11 +43,11 @@ Section logrel.
     (** Allocates invariants for segment c in links (x ⋈ c) and (y ⋈ c)
         assuming the exports of x and y are valid. *)
     Lemma interp_exports_inv_alloc E {x y c: component Symbols} :
-      (∀ w, w ∈ img (segment c) -> is_int w) ->
+      code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
       dom (exports x) ⊆ dom (exports y) ->
-      ([∗ map] a ↦ w ∈ x ⋈ c |ᵣ c, a ↦ₐ w) ∗
-      ([∗ map] a ↦ w ∈ y ⋈ c |ᵣ c, a ↣ₐ w) ∗
+      ([∗ map] a ↦ w ∈ x ⋈ᵣ c, a ↦ₐ w) ∗
+      ([∗ map] a ↦ w ∈ y ⋈ᵣ c, a ↣ₐ w) ∗
       interp_exports x y ={E}=∗
         ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)).
     Proof.
@@ -54,9 +55,9 @@ Section logrel.
       rewrite big_sepM_dom.
       assert (Hdc:
         dom (segment c) =
-        dom (map_zip (x ⋈ c : segment_type) (y ⋈ c: segment_type) |ᵣ c)).
-      { rewrite dom_restrict_map_L dom_map_zip_with_L -!(link_segment_dom can_address_only_no_seals).
-        set_solver. all: solve_can_link. }
+        dom (map_zip (x ⋈ᵣ c) (y ⋈ᵣ c))).
+      { rewrite dom_map_zip_with_L !resolve_imports_dom. set_solver.
+        all: solve_can_link. }
       rewrite Hdc -big_sepM_dom.
       (* rewrite -(big_sepM_filter (fun '(a,_) => a ∈ _)). *)
       rewrite (big_sepM_big_sepL2_map_to_list (fun a _ => inv _ _)).
@@ -64,15 +65,14 @@ Section logrel.
       rewrite -(big_sepM_big_sepL2_map_to_list (fun a v => (a ↦ₐ v.1 ∗ a ↣ₐ v.2 ∗ interp v)%I)).
       iApply (big_sepM_mono (fun a w =>
         interp_exports x y ∗
-        (⌜ (x ⋈ c |ᵣ c) !! a = Some w.1 ⌝ ∗ a ↦ₐ w.1) ∗
-        (⌜ (y ⋈ c |ᵣ c) !! a = Some w.2 ⌝ ∗ a ↣ₐ w.2))%I).
+        (⌜ (x ⋈ᵣ c) !! a = Some w.1 ⌝ ∗ a ↦ₐ w.1) ∗
+        (⌜ (y ⋈ᵣ c) !! a = Some w.2 ⌝ ∗ a ↣ₐ w.2))%I).
       iIntros (a [w w'] Hzip) "[#Hexp [[%Hxca Hw] [%Hyca Hw']]]".
       simpl. iFrame.
       (* assert validity of w,w' by case disjunction *)
-      apply map_filter_lookup_Some in Hxca as [Hxca Ha].
-      apply map_filter_lookup_Some in Hyca as [Hyca _]. apply elem_of_dom in Ha.
-      rewrite (link_segment_lookup_r _ Hsep1 Ha) in Hxca.
-      rewrite (link_segment_lookup_r _ Hsep2 Ha) in Hyca.
+      simpl in Hxca, Hyca.
+      apply mk_is_Some in Hxca as Ha. apply elem_of_dom in Ha.
+      rewrite resolve_imports_dom in Ha; [|solve_can_link].
       rewrite !resolve_imports_spec /= in Hxca, Hyca.
       destruct (imports c !! a) as [s|] eqn:Hic.
       destruct (exports y !! s) as [wy|] eqn:Hey;
@@ -95,8 +95,7 @@ Section logrel.
       rewrite (big_sepM_sep (fun _ _ => interp_exports x y)).
       iSplitR.
       iApply big_sepM_dup. iModIntro. iIntros "H".
-      iFrame. done. done. unfold restrict_map.
-      rewrite restrict_map_zip_with.
+      iFrame. done. done.
       iApply (big_sepM_sep_zip_affine
         (fun a v => a ↦ₐ v)%I
         (fun a v => a ↣ₐ v)%I).
@@ -202,12 +201,12 @@ Section logrel.
     Qed.
 
     Lemma interp_link E {x y c: component Symbols} :
-      (∀ w, w ∈ img (segment c) -> is_int w) ->
+      code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
       dom (exports x) ⊆ dom (exports y) ->
       spec_ctx ∗ interp_exports x y ∗
-      ([∗ map] a ↦ w ∈ x ⋈ c |ᵣ c, a ↦ₐ w) ∗
-      ([∗ map] a ↦ w ∈ y ⋈ c |ᵣ c, a ↣ₐ w) ={E}=∗
+      ([∗ map] a ↦ w ∈ x ⋈ᵣ c, a ↦ₐ w) ∗
+      ([∗ map] a ↦ w ∈ y ⋈ᵣ c, a ↣ₐ w) ={E}=∗
       interp_exports (x ⋈ c) (y ⋈ c).
     Proof.
       iIntros (Hno_caps Hsep1 Hsep2 Hdom_incl) "(#Hspec & #Hxy & Hx & Hy)".
@@ -217,14 +216,41 @@ Section logrel.
       iFrame. done.
     Qed.
 
-    Definition ctx_points_to γc (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
+    Definition stuff_to_prove γc (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
       spec_ctx ∗
       ([∗ map] a↦w ∈ l_comp, a ↦ₐ w) ∗
       ([∗ map] a↦w ∈ r_comp, a ↣ₐ w) ∗
       ([∗ map] r↦w ∈ reg, r ↦ᵣ w) ∗
       ([∗ map] r↦w ∈ reg, r ↣ᵣ w) ∗
       na_own logrel_nais ⊤ ∗
-      own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)).
+      own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)) ={⊤}=∗
+      WP Seq (Instr Executable)
+      {{ v,
+         ⌜v = HaltedV⌝
+         → ∃ r0 : Reg * Reg, ⤇
+             of_val HaltedV ∗
+             full_map r0
+             ∧ registers_mapsto r0.1 ∗
+             spec_registers_mapsto r0.2 ∗
+             na_own logrel.logrel_nais ⊤ }}.
+
+    (* Lemma interp_link_adequacy γc (l_comp r_comp ctxt : component Symbols) reg :
+      (∀ w, w ∈ img reg -> is_int w ∨ w ∈ img (exports ctxt)) ->
+      code_all_ints ctxt ->
+      l_comp ##ₗ ctxt -> r_comp ##ₗ ctxt ->
+      dom (exports l_comp) ⊆ dom (exports r_comp) -> (
+        spec_ctx ∗
+        na_own logrel_nais ⊤ ∗
+        ([∗ map] a↦w ∈ l_comp ⋈ₗ ctxt, a ↦ₐ w) ∗
+        ([∗ map] a↦w ∈ r_comp ⋈ₗ ctxt, a ↣ₐ w) ={⊤}=∗
+        interp_exports l_comp r_comp)
+      -∗ stuff_to_prove γc (l_comp ⋈ ctxt) (r_comp ⋈ ctxt) reg.
+    Proof.
+      iIntros (Hreg Hints Hsep_l Hsep_r Hdom) "Hinterp (#Hspec & Hmem_l & Hmem_r & Hreg_l & Hreg_r & Hna & Hcfg)".
+      iPoseProof (interp_link _ Hints Hsep_l Hsep_r Hdom) as "Hlink_exp".
+      iSpecialize ("Hinterp" with "[Hspec Hna]").
+      iModIntro. *)
+
   End interp_exports.
 
   Section refinement.
@@ -296,20 +322,11 @@ Section logrel.
       let regg := RegG Σ Hinv reg_heapg in
       let logrel_na_invs := Build_logrel_na_invs Σ na_invg logrel_nais  in
       let Hcfg := CFGSG Σ cfgg γc in
-      @ctx_points_to memg regg logrel_na_invs Hcfg γc l_comp r_comp r ={⊤}=∗
-      WP Seq (Instr Executable)
-      {{ v,
-         ⌜v = HaltedV⌝
-         → ∃ r0 : Reg * Reg, ⤇
-             of_val HaltedV ∗
-             full_map r0
-             ∧ registers_mapsto r0.1 ∗
-             spec_registers_mapsto r0.2 ∗
-             na_own logrel.logrel_nais ⊤ }}.
+      ⊢ @stuff_to_prove memg regg logrel_na_invs Hcfg γc l_comp r_comp r.
 
       (* @interp_exports memg regg logrel_na_invs Hcfg l_comp r_comp. *)
 
-    Lemma interp_adequacy_from_WP (comp_l comp_r : component Symbols) r conf  (es: list cap_lang.expr) :
+    Lemma interp_adequacy_from_WP (comp_l comp_r : component Symbols) r conf (es: list cap_lang.expr) :
       fat_hypothesis comp_l comp_r r ->
       rtc erased_step (initial_state comp_l r) (of_val HaltedV :: es, conf) ->
       (∃ conf', rtc erased_step (initial_state comp_r r) ([of_val HaltedV], conf')).

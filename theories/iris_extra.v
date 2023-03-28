@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
-From cap_machine Require Import stdpp_extra stdpp_restrict.
+From cap_machine Require Import stdpp_extra.
 
 Lemma big_sepM_to_big_sepL {Σ : gFunctors} {A B : Type} `{EqDecision A} `{Countable A}
       (r : gmap A B) (lr : list A) (φ : A → B → iProp Σ) :
@@ -517,7 +517,17 @@ Lemma big_sepM_sep_zip_affine {PROP:bi} {K A B} `{EqDecision K, Countable K}
     (⌜ m2 !! a = Some w.2 ⌝ ∗ Ψ a w.2).
 Proof.
   iIntros "[Hm1 Hm2]".
-  rewrite map_zip_with_minimal.
+  assert (Hzip: map_zip m1 m2 = map_zip (filter (λ '(k,_), k ∈ dom m2) m1) (filter (λ '(k,_), k ∈ dom m1) m2)).
+  {
+    apply map_eq. intros k.
+    rewrite !map_lookup_zip_with !map_filter_lookup.
+    destruct (m1 !! k) as [v1|] eqn:Hm1;
+    destruct (m2 !! k) as [v2|] eqn:Hm2; simpl; try reflexivity.
+    rewrite !option_guard_True. reflexivity.
+    1,2: by rewrite elem_of_dom.
+    rewrite option_guard_False. done. by rewrite not_elem_of_dom.
+  }
+  rewrite Hzip.
   rewrite (big_sepM_sep_zip (fun a v => ⌜m1!!a = Some v⌝ ∗ Φ a v)%I (fun a v => ⌜m2!!a = Some v⌝ ∗ Ψ a v)%I).
   rewrite !big_sepM_sep.
   iSplitL "Hm1"; iSplitR.
@@ -526,7 +536,7 @@ Proof.
   iApply (big_sepM_subseteq _ m1). apply map_filter_subseteq. done.
   iApply (big_sepM_subseteq _ m2). apply map_filter_subseteq. done.
   intros k. split;
-  intros [x Hx]; rewrite restrict_lookup_Some in Hx;
-  destruct Hx as [Hx [y Hy] ]; exists y;
-  rewrite restrict_lookup_Some; split; exact Hy || exists x; exact Hx.
+  intros [x Hx]; rewrite map_filter_lookup_Some in Hx;
+  destruct Hx as [Hx Hk]; apply elem_of_dom in Hk as [y Hk]; exists y;
+  rewrite map_filter_lookup_Some; split; done || by rewrite elem_of_dom.
 Qed.
