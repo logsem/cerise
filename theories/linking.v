@@ -1220,6 +1220,29 @@ Section Linking.
     apply (Hdisj s Hes (Himpl s His)).
     transitivity (dom imp). by apply subseteq_dom. done.
   Qed.
+
+  (** Sufficient condition on [a] and [b] for a context [ctxt]
+      of [a] to be a context of [b] *)
+  Lemma is_context_impl a b ctxt regs :
+    well_formed_comp b ->
+    dom (segment b) ⊆ dom (segment a) ->
+    img (imports b) ⊆ img (imports a) ->
+    dom (exports b) = dom (exports a) ->
+    is_context ctxt a regs ->
+    is_context ctxt b regs.
+  Proof.
+    intros Hwfb Hms Himp Hexp []. apply is_context_intro.
+    - inversion Hcan_link. apply can_link_intro.
+      + by inversion Hcan_link.
+      + done.
+      + rewrite map_disjoint_dom. rewrite map_disjoint_dom in Hms_disj.
+        intros addr Hac Hab. apply (Hms_disj addr Hac (Hms addr Hab)).
+      + by rewrite map_disjoint_dom Hexp -map_disjoint_dom.
+    - done.
+    - done.
+    - by transitivity (img (imports a)).
+    - by rewrite Hexp.
+  Qed.
 End Linking.
 
 Arguments component _ {_ _}.

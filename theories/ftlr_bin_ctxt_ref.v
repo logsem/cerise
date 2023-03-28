@@ -227,9 +227,6 @@ Section logrel.
       own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)).
   End interp_exports.
 
-  Definition initial_state (c: component Symbols) (r:Reg): cfg cap_lang :=
-    ([Seq (Instr Executable)], (r, segment c)).
-
   Section refinement.
     Context {inv_preg: invGpreS Σ}.
     Context {mem_preg: gen_heapGpreS Addr Word Σ}.
@@ -237,7 +234,7 @@ Section logrel.
     Context {seal_store_preg: sealStorePreG Σ}.
     Context {na_invg: na_invG Σ}.
 
-    (** Lemma to allocate memory and register map *)
+    (** Lemmas to allocate memory and register map *)
     Lemma regspec_mapsto_alloc `{cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) r (w : Word) :
       σ.1 !! r = None →
       spec_res e σ ==∗ spec_res e (<[r:=w]> σ.1,σ.2) ∗ r ↣ᵣ w.

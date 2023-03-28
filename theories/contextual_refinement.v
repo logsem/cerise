@@ -47,6 +47,9 @@ Section contextual_refinement.
 
   Notation is_ctxt := (is_context can_address_only_no_seals).
 
+  Definition initial_state (c : component Symbols) (r : Reg) : cfg cap_lang :=
+    ([Seq (Instr Executable)], (r, segment c)).
+
   (** We need our [component]s to leave some space for contexts
       The simplest way is just to require them to not define
       any addresses in between [0] and [reserved_context_size] *)
@@ -126,11 +129,11 @@ Section contextual_refinement.
         (∀ c r cf,
         is_ctxt c a r ->
         (∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (r, segment (c ⋈ a)))
+          (initial_state (c ⋈ a) r)
           ([Instr cf], φ')) ->
         is_ctxt c b r /\
           ∃ φ', rtc erased_step
-            ([Seq (Instr Executable)], (r, segment (c ⋈ b)))
+            (initial_state (c ⋈ b) r)
             ([Instr cf], φ')).
       Proof.
         split; intros Href c r cf Hc [p Hmr].
@@ -147,13 +150,13 @@ Section contextual_refinement.
         ∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
         is_ctxt ctxt impl regs ->
         (∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
+          (initial_state (ctxt ⋈ impl) regs)
           ([Instr c], φ')) ->
         is_ctxt ctxt spec regs /\
         ∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
+          (initial_state (ctxt ⋈ spec) regs)
           ([Instr c], φ').
-      Proof. intros []. rewrite <- refines_alt. done. Qed.
+      Proof. intros []. by rewrite -refines_alt. Qed.
 
       Lemma contextual_refinement_alt {impl spec} :
         wf_comp impl ->
@@ -163,11 +166,11 @@ Section contextual_refinement.
         (∀ (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
         is_ctxt ctxt impl regs ->
         (∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ impl)))
+          (initial_state (ctxt ⋈ impl) regs)
           ([Instr c], φ')) ->
         is_ctxt ctxt spec regs /\
         ∃ φ', rtc erased_step
-          ([Seq (Instr Executable)], (regs, segment (ctxt ⋈ spec)))
+          (initial_state (ctxt ⋈ spec) regs)
           ([Instr c], φ')) ->
         impl ≼ᵣ spec.
       Proof.
