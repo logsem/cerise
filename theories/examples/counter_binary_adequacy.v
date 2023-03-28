@@ -7,7 +7,7 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra stdpp_comp iris_extra mkregion_helpers
      logrel_binary fundamental_binary linking malloc macros malloc_binary
-     ftlr_bin_ctxt_ref.
+     contextual_refinement ftlr_bin_ctxt_ref.
 From cap_machine.examples Require Import
   disjoint_regions_tactics counter_binary_preamble_def counter_binary_preamble counter_binary_preamble_left.
 
