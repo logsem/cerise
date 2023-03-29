@@ -98,7 +98,7 @@ theories/ftlr_binary/Store_binary.v
 theories/ftlr_binary/Seal_binary.v
 theories/ftlr_binary/UnSeal_binary.v
 theories/fundamental_binary.v
-theories/ftlr_bin_ctxt_ref.v
+theories/contextual_refinement_adequacy.v
 theories/examples/addr_reg_sample.v
 theories/contextual_refinement.v
 theories/examples/malloc.v

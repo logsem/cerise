@@ -7,7 +7,7 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra stdpp_comp iris_extra mkregion_helpers
      logrel_binary fundamental_binary linking malloc macros malloc_binary
-     contextual_refinement ftlr_bin_ctxt_ref.
+     contextual_refinement contextual_refinement_adequacy.
 From cap_machine.examples Require Import
   disjoint_regions_tactics counter_binary_preamble_def counter_binary_preamble counter_binary_preamble_left.
 
@@ -157,9 +157,6 @@ Definition comp2 `{memory_layout} : machine_component := {|
   imports := ∅;
   exports := {[ 0 := WCap E counter_region_start counter_region_end counter_preamble_start ]};
 |}.
-
-Definition code_all_ints (c : machine_component) :=
-  (∀ w, w ∈ img (segment c) -> is_int w).
 
 Definition is_initial_context (c : machine_component) (r : Reg) :=
   code_all_ints c ∧

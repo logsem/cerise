@@ -7,7 +7,7 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      logrel_binary fundamental_binary linking
-     contextual_refinement ftlr_bin_ctxt_ref
+     contextual_refinement contextual_refinement_adequacy
      counter_binary_adequacy.
 
 Definition is_initial_configuration_left `{memory_layout} c_adv r :=

@@ -193,7 +193,7 @@ Section Linking.
       can_link comp_l comp_r.
 
   Definition resolve_imports (imp: imports_type) (exp: exports_type) (ms: segment_type) :=
-    map_compose exp imp ∪ ms.
+    (exp ∘ₘ imp) ∪ ms.
 
   (** Creates link for two components
       the arguments should satisfy can_link *)
@@ -285,8 +285,8 @@ Section Linking.
       unfold link, resolve_imports. simpl.
       specialize (map_compose_img_subseteq (D:=gset _) (exports y) (imports x)) as Hm1.
       specialize (map_compose_img_subseteq (D:=gset _) (exports x) (imports y)) as Hm2.
-      transitivity (img (map_compose (exports y) (imports x)) ∪ img (segment x) ∪
-                    img (map_compose (exports x) (imports y)) ∪ img (segment y)).
+      transitivity (img ((exports y) ∘ₘ (imports x)) ∪ img (segment x) ∪
+                    img ((exports x) ∘ₘ (imports y)) ∪ img (segment y)).
       intros w Hw. apply (map_img_union_subseteq _ _ w) in Hw.
       apply elem_of_union in Hw as [Hw|Hw]; apply (map_img_union_subseteq _ _ w) in Hw.
       all: set_solver.
@@ -587,17 +587,16 @@ Section Linking.
       a ##ₗ b ->
       a ##ₗ c ->
       b ##ₗ c ->
-      map_compose (exports c)
+      (exports c) ∘ₘ
         (filter (λ '(_, s), (exports a ∪ exports b) !! s = None)
           (imports a ∪ imports b)) =
-      map_compose (exports c) (imports a) ∪ map_compose (exports c) (imports b).
+      ((exports c) ∘ₘ (imports a)) ∪ ((exports c) ∘ₘ (imports b)).
     Proof.
       intros Hab Hac Hbc.
       rewrite map_compose_min_r map_filter_filter_l.
       rewrite -map_compose_min_r. apply map_compose_union_r. solve_can_link.
-      intros _ s _ Hs.
-      rewrite lookup_union_None. apply elem_of_dom in Hs as [w Hs].
-      split.
+      intros _ s _ [? Hs].
+      rewrite lookup_union_None. split.
       destruct (exports a !! s) eqn:Ha.
       inversion Hac. rewrite map_disjoint_spec in Hexp_disj.
       contradiction (Hexp_disj _ _ _ Ha Hs). done.
