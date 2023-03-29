@@ -11,10 +11,10 @@ From cap_machine Require Import
      counter_binary_adequacy.
 
 Definition is_initial_configuration_left `{memory_layout} c_adv r :=
-  is_machine_context c_adv comp1 r.
+  is_ctxt c_adv comp1 r.
 
 Definition is_initial_configuration_right `{memory_layout} c_adv r :=
-  is_machine_context c_adv comp2 r.
+  is_ctxt c_adv comp2 r.
 
 Definition soundness_binaryΣ : gFunctors :=
   #[GFunctor (authR cfgUR); invΣ; gen_heapΣ Addr Word;

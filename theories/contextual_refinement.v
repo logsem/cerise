@@ -33,6 +33,11 @@ Section reserved_context_size.
   Qed.
 End reserved_context_size.
 
+Notation wf_comp := (well_formed_comp can_address_only_no_seals).
+Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
+
+Notation is_ctxt := (is_context can_address_only_no_seals).
+
 (** ** Contextual Refinement definition *)
 Section contextual_refinement.
   Context {MP: MachineParameters}.
@@ -41,11 +46,6 @@ Section contextual_refinement.
   Context {Symbols : Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
-
-  Notation wf_comp := (well_formed_comp can_address_only_no_seals).
-  Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
-
-  Notation is_ctxt := (is_context can_address_only_no_seals).
 
   Definition initial_state (c : component Symbols) (r : Reg) : cfg cap_lang :=
     ([Seq (Instr Executable)], (r, segment c)).
@@ -87,7 +87,7 @@ Section contextual_refinement.
       forall (ctxt: component Symbols) (regs:Reg) (c: ConfFlag),
         is_ctxt ctxt impl regs ->
         (∃ n, machine_run n (Executable, (regs, segment (ctxt ⋈ impl))) = Some c) ->
-        is_ctxt ctxt spec regs /\
+        is_ctxt ctxt spec regs ∧
           ∃ n, machine_run n (Executable, (regs, segment (ctxt ⋈ spec))) = Some c),
     contextual_refinement impl spec.
 

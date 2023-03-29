@@ -168,71 +168,6 @@ Definition is_initial_context (c : machine_component) (r : Reg) :=
   exports c = ∅.
   (* extra assumptions on adv imports and exports that make the proof easier to go through *)
 
-Definition is_machine_program `{memory_layout} (c : machine_component) (r : Reg) :=
-  is_program can_address_only_no_seals c r /\
-  ∀ w, r !! PC = Some w -> isCorrectPC w.
-Definition is_machine_context `{memory_layout} (c comp : machine_component) (r : Reg) :=
-  is_context can_address_only_no_seals c comp r /\
-  ∀ w, r !! PC = Some w -> isCorrectPC w.
-
-Lemma regions_disjoint_eq `{MachineParameters, memory_layout} (c_adv : machine_component) main (r : Reg) :
-  is_machine_context c_adv comp1 r →
-  is_machine_context c_adv comp2 r →
-  is_initial_context c_adv r →
-  r !! PC = Some main →
-  ∃ (resolved_ms : gmap Addr Word),
-      segment (c_adv ⋈ comp1) = mk_initial_memory_left ∪ resolved_ms ∧
-      segment (c_adv ⋈ comp2) = mk_initial_memory_right ∪ resolved_ms ∧
-      can_address_only_no_seals main (dom (resolved_ms)) ∧
-      (∀ w, w ∈ img resolved_ms →
-          (is_int w ∨
-           w = WCap E counter_region_start counter_region_end counter_preamble_start)) ∧
-      isCorrectPC main ∧
-      mk_initial_memory_left ##ₘ resolved_ms ∧
-      mk_initial_memory_right ##ₘ resolved_ms.
-Proof.
-  intros Hc1 Hc2 Hinit Hr.
-  inversion Hc1 as [ [] ]. inversion Hc2 as [ [] _ ].
-  inversion Hinit as (Hallints & _ & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
-  set (resolved_ms := <[addr:=WCap E counter_region_start counter_region_end counter_preamble_start]> (segment c_adv)).
-  exists resolved_ms.
-  assert (Hdisj1: segment comp1 ##ₘ segment c_adv) by solve_can_link.
-  assert (Hdisj2: segment comp2 ##ₘ segment c_adv) by solve_can_link.
-  assert (Haddr: addr ∈ dom (segment c_adv)). {
-    inversion Hcan_link as [ [_ Himp_cadv _ _] _ _ _].
-    apply Himp_cadv. by rewrite elem_of_dom Himp lookup_insert.
-  }
-  rewrite -singleton_subseteq_l in Haddr.
-  simpl in Hdisj1, Hdisj2.
-  assert (Hdisj3: mk_initial_memory_left ##ₘ resolved_ms). {
-    unfold resolved_ms.
-    by rewrite map_disjoint_dom dom_insert_L (subseteq_union_1_L _ _ Haddr) -map_disjoint_dom.
-  }
-  assert (Hdisj4: mk_initial_memory_right ##ₘ resolved_ms). {
-    unfold resolved_ms.
-    by rewrite map_disjoint_dom dom_insert_L (subseteq_union_1_L _ _ Haddr) -map_disjoint_dom.
-  }
-
-  repeat split_and.
-  - rewrite map_union_comm; [|done]. simpl.
-    rewrite Himp resolve_imports_imports_empty. f_equal.
-    unfold resolve_imports.
-    by rewrite map_compose_singletons -insert_union_singleton_l.
-  - rewrite map_union_comm; [|done]. simpl.
-    rewrite Himp resolve_imports_imports_empty. f_equal.
-    unfold resolve_imports.
-    by rewrite map_compose_singletons -insert_union_singleton_l.
-  - replace (dom resolved_ms) with (dom (segment c_adv)).
-    apply (Hwr_regs main (elem_of_map_img_2 _ _ _ Hr)).
-    unfold resolved_ms. by rewrite dom_insert_L (subseteq_union_1_L _ _ Haddr).
-  - intros w Hw. apply map_img_insert_subseteq, elem_of_union in Hw as [Hw | Hw].
-    + rewrite elem_of_singleton in Hw. by right.
-    + left. by apply Hallints.
-  - apply (H2 main Hr).
-  - done.
-  - done.
-Qed.
-
 Section Adequacy.
   Context (Σ: gFunctors).
   Context {inv_preg: invGpreS Σ}.
@@ -240,494 +175,351 @@ Section Adequacy.
   Context {reg_preg: gen_heapGpreS RegName Word Σ}.
   Context {seal_store_preg: sealStorePreG Σ}.
   Context {na_invg: na_invG Σ}.
-  Context `{MP: MachineParameters}.
-
-  (* Instance list_addr_semiset : SemiSet Addr (list Addr).
-  Proof.
-    apply Build_SemiSet.
-    - intros. intros Hcontr. inversion Hcontr.
-    - intros. split;intros.
-      inversion H;subst;auto. inversion H2.
-      rewrite /singleton /Singleton_list. apply elem_of_list_singleton. auto.
-    - intros. split;intros.
-      rewrite /union /Union_list in H.
-      apply elem_of_app in H. auto.
-      rewrite /union /Union_list.
-      apply elem_of_app. auto.
-  Qed. *)
-
-  Lemma establish_interp `{memG Σ,regG Σ,cfgSG Σ,logrel_na_invs Σ} ms v :
-    (∀ w, w ∈ img ms → (is_int w ∨ w = v)) ->
-    interp (v,v) -∗
-    ([∗ map] k↦x ∈ ms, k ↦ₐ x ∗ k ↣ₐ x) ={⊤}=∗ ([∗ map] k↦x ∈ ms, inv (logN .@ k) (∃ x1 x2, k ↦ₐ x1 ∗ k ↣ₐ x2 ∗ interp(x1,x2))).
-  Proof.
-    iIntros (Hcond) "#Hv".
-    iInduction (ms) as [] "IH" using map_ind.
-    { rewrite !big_sepM_empty. done. }
-    { rewrite !big_sepM_insert//.
-      iIntros "[[Hi Hsi] Hmap]".
-      iDestruct ("IH" with "[] Hmap") as ">Hmap".
-      { iPureIntro. intros w Hin. apply Hcond.
-        rewrite map_img_insert elem_of_union. right.
-        by rewrite delete_notin. }
-      iFrame.
-      specialize (Hcond x (elem_of_map_img_insert _ _ _)).
-      destruct Hcond as [Hint | Heq];auto.
-      - iApply inv_alloc. iNext. iExists x,x. iFrame.
-        iApply fixpoint_interp1_eq.
-        destruct x;[|destruct sb;inv Hint|inv Hint].
-        iSimpl. auto.
-      - subst x.
-        iApply inv_alloc.
-        iNext. iExists v,v. iFrame "∗ #".
-    }
-  Qed.
+  Context {MP: MachineParameters}.
 
   Context {cfgg : inG Σ (authR cfgUR)}.
 
-  Definition codeN : namespace := nroot .@ "conf" .@ "code".
-
-  Lemma confidentiality_adequacy_l' {ML:memory_layout} c_adv r (es: list cap_lang.expr)
-        reg' m' :
-    is_machine_context c_adv comp1 r →
-    is_machine_context c_adv comp2 r →
+  Lemma confidentiality_adequacy_l' {ML:memory_layout} c_adv r (es : list cap_lang.expr) reg' m' :
+    is_ctxt c_adv comp1 r →
+    is_ctxt c_adv comp2 r →
     is_initial_context c_adv r →
     rtc erased_step (initial_state (c_adv ⋈ comp1) r) (of_val HaltedV :: es, (reg', m')) →
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp2) r) (of_val HaltedV :: es', conf')).
   Proof.
-    intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
-    apply interp_adequacy.
+    intros Hm1 Hm2 Hc Hs. exists [].
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
+    specialize (contextual_refinement_adequacy comp1 comp2 c_adv r p b e a es) as Href.
+    destruct Href as [_ Href]; try done.
+    - inversion Hm2. solve_can_link.
+    - simpl. unfold mk_initial_memory_left, mk_initial_memory_right.
+      rewrite !dom_union_L !dom_mkregion_eq.
+      done.
+      apply counter_body_size.
+      apply link_table_size.
+      rewrite replicate_length. apply finz_dist_incr. apply malloc_mem_size.
+      apply malloc_code_size.
+      apply counter_body_size.
+      apply counter_preamble_size.
+    - iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
+      iIntros "(#Hspec & Hmem & Hmemspec)".
+      simpl. unfold interp_exports. simpl.
+      rewrite big_sepM_singleton lookup_singleton.
 
-    iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
-    iIntros "(#Hspec & Hmem & Hmemspec & Hreg & Hregspec & Hna & Hcfg2)".
+      pose proof regions_disjoint as Hdisjoint.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
+      rewrite /mk_initial_memory_left /mk_initial_memory_right.
 
-    pose proof (
-      @counter_binary_preamble.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
-      ) as Spec.
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
+      { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hlink_table_spec]".
+      { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
 
-    pose proof (regions_disjoint_eq c_adv (WCap p b e a) r Hm1 Hm2 Hc Hrpbea)
-      as (resolved_ms & Hm1eq & Hm2eq & Hcanaddress & Hresolved_ms_spec & Hreg & Hdisj & Hdisj').
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_mem_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
 
-    rewrite Hm1eq Hm2eq.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_memptr_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
 
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]";[auto|].
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hadvspec]";[auto|].
+      iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
+      by apply lookup_empty. cbn [fst snd].
+      iDestruct (big_sepM_insert with "Hmalloc_memptr_spec") as "[Hmalloc_memptr_spec _]".
+      by apply lookup_empty. cbn [fst snd].
 
-    pose proof regions_disjoint as Hdisjoint.
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
-    rewrite /mk_initial_memory_left /mk_initial_memory_right.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_code_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
 
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
-    { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hlink_table_spec]".
-    { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hcounter_body_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_mem_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
+      iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hcounter_link_spec Hcounter_preamble_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_memptr_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
+      iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
+      iDestruct (big_sepM_insert with "Hcounter_link_spec") as "[Hcounter_link_spec _]". by apply lookup_empty.
+      cbn [fst snd].
 
-    iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
-    by apply lookup_empty. cbn [fst snd].
-    iDestruct (big_sepM_insert with "Hmalloc_memptr_spec") as "[Hmalloc_memptr_spec _]".
-    by apply lookup_empty. cbn [fst snd].
+      clear Hdisj_link_table Hdisj_malloc_mem
+        Hdisj_malloc_memptr Hdisj_malloc_code Hdisj_counter_body Hdisj_counter_preamble.
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_code_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
+      (* Massage points-to into sepL2s with permission-pointsto *)
+      iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
+      iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
+      { rewrite replicate_length /finz.dist. clear.
+        generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
+      iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
+        by apply malloc_code_size.
+      iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
+        by apply counter_preamble_size.
+      iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
+      iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
+      iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
+      { rewrite replicate_length /finz.dist. clear.
+        generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
+      iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
+        by apply malloc_code_size.
+      iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
+        by apply counter_preamble_size.
+      iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hcounter_body_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
+      rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
+      rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
-    iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hcounter_link_spec Hcounter_preamble_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
+      (* Split the link table *)
+      rewrite (finz_seq_between_cons link_table_start link_table_end).
+      2: { generalize link_table_size; clear; solve_addr. }
+      rewrite (_: (link_table_start ^+ 1)%a = link_table_end).
+      2: { generalize link_table_size; clear.
+           generalize link_table_start link_table_end. solve_addr. }
+      iDestruct (big_sepL2_cons with "Hlink_table") as "[Hlink1 _]".
+      iDestruct (big_sepL2_cons with "Hlink_table_spec") as "[Hlink1' _]".
 
-    iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
-    iDestruct (big_sepM_insert with "Hcounter_link_spec") as "[Hcounter_link_spec _]". by apply lookup_empty.
-    cbn [fst snd].
+      (* Allocate malloc invariant *)
+      iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv_binary malloc_start malloc_end)
+              with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem Hmalloc_code_spec Hmalloc_memptr_spec Hmalloc_mem_spec]") as "#Hinv_malloc".
+      { iNext. unfold malloc_inv_binary. iExists _,_. iFrame.
+        iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
+        clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
 
-    clear Hdisj_link_table Hdisj_malloc_mem
-      Hdisj_malloc_memptr Hdisj_malloc_code Hdisj_counter_body Hdisj_counter_preamble.
+      (* Facts about layout *)
+      assert (isCorrectPC_range RX counter_region_start counter_region_end
+                counter_preamble_start counter_body_start).
+      { intros a' [Ha1 Ha2]. constructor; auto.
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
+        unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
+      set counter_preamble_move_addr := (counter_preamble_start ^+ counter_preamble_move_offset)%a.
+      assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
+      { clear. subst counter_preamble_move_addr.
+        generalize counter_preamble_size.
+        unfold counter_preamble_instrs_length, counter_preamble_move_offset.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (counter_preamble_move_addr + offset_to_awkward = Some counter_body_start)%a.
+      { generalize counter_preamble_size.
+        unfold counter_preamble_move_addr, offset_to_awkward, counter_preamble_instrs_length.
+        unfold counter_preamble_move_offset. clear.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (isCorrectPC_range RX counter_region_start counter_region_end
+                counter_body_start counter_region_end).
+      { intros a' [Ha1 Ha2]. constructor; auto.
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
+        unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
 
-
-
-    (* Massage points-to into sepL2s with permission-pointsto *)
-
-    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /finz.dist. clear.
-      generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
-      by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
-      by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
-    iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
-    { rewrite replicate_length /finz.dist. clear.
-      generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
-      by apply malloc_code_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
-      by apply counter_preamble_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
-
-    rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
-    rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
-
-    (* Split the link table *)
-    rewrite (finz_seq_between_cons link_table_start link_table_end).
-    2: { generalize link_table_size; clear; solve_addr. }
-    rewrite (_: (link_table_start ^+ 1)%a = link_table_end).
-    2: { generalize link_table_size; clear.
-         generalize link_table_start link_table_end. solve_addr. }
-    iDestruct (big_sepL2_cons with "Hlink_table") as "[Hlink1 _]".
-    iDestruct (big_sepL2_cons with "Hlink_table_spec") as "[Hlink1' _]".
-
-    (* Allocate malloc invariant *)
-    iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv_binary malloc_start malloc_end)
-            with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem Hmalloc_code_spec Hmalloc_memptr_spec Hmalloc_mem_spec]") as "#Hinv_malloc".
-    { iNext. unfold malloc_inv_binary. iExists _,_. iFrame.
-      iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
-      clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
-
-
-    (* Facts about layout *)
-    assert (isCorrectPC_range RX counter_region_start counter_region_end
-              counter_preamble_start counter_body_start).
-    { intros a' [Ha1 Ha2]. constructor; auto.
-      generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
-      unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
-    set counter_preamble_move_addr := (counter_preamble_start ^+ counter_preamble_move_offset)%a.
-    assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
-    { clear. subst counter_preamble_move_addr.
-      generalize counter_preamble_size.
-      unfold counter_preamble_instrs_length, counter_preamble_move_offset.
-      generalize counter_preamble_start counter_body_start. solve_addr. }
-    assert (counter_preamble_move_addr + offset_to_awkward = Some counter_body_start)%a.
-    { generalize counter_preamble_size.
-      unfold counter_preamble_move_addr, offset_to_awkward, counter_preamble_instrs_length.
-      unfold counter_preamble_move_offset. clear.
-      generalize counter_preamble_start counter_body_start. solve_addr. }
-    assert (isCorrectPC_range RX counter_region_start counter_region_end
-              counter_body_start counter_region_end).
-    { intros a' [Ha1 Ha2]. constructor; auto.
-      generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
-      unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
-
-
-    (* Extract validity of library *)
-    iMod (Spec with "[$Hspec $Hinv_malloc $Hcounter_preamble $Hcounter_body
-                    $Hcounter_preamble_spec $Hcounter_body_spec $Hcounter_link $Hcounter_link_spec $Hlink1 $Hlink1']") as "#Hlib".
-    apply H. apply H.
-    { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
-      unfold counter_preamble_instrs_length. solve_addr. }
-    { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
-      unfold counter_preamble_instrs_length. solve_addr. }
-    { apply le_addr_withinBounds. clear; solve_addr.
-      generalize link_table_size; clear; solve_addr. }
-    { generalize link_table_start; clear; solve_addr. }
-    { apply le_addr_withinBounds. solve_addr.
-      generalize link_table_start link_table_end link_table_size. clear; solve_addr. }
-    { generalize link_table_start; clear; solve_addr. }
-    { eassumption. }
-    { eassumption. }
-    { apply H2. }
-    { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
-      unfold counter_left_instrs_length. solve_addr. }
-    { eassumption. }
-    { eassumption. }
-    { apply H2. }
-    { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
-      unfold counter_left_instrs_length. solve_addr. }
-    { auto. }
-
-    (* Validity of the adv region *)
-    iDestruct (big_sepM_sep with "[$Hadv $Hadvspec]") as "Hadv".
-    iMod (establish_interp with "Hlib Hadv") as "#Hadvvalid"; [auto|].
-
-    (* Validity of Main *)
-    inversion Hreg as [? ? ? ? Hbounds _].
-    iAssert (interp (WCap p b e a,WCap p b e a)) as "#Hval".
-    { clear -Hbounds Hp Hcanaddress.
-      iApply fixpoint_interp1_eq.
-      destruct Hp as [-> | ->];simpl.
-      - iSplit;auto.
-        iApply big_sepL_forall.
-        iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
-        apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
-        apply elem_of_dom in Hin as [? ?].
-        iExists interp. iSplit;auto.
-        iDestruct (big_sepM_lookup with "Hadvvalid") as "$".
-        eauto.
-      - iSplit;auto.
-        iApply big_sepL_forall.
-        iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
-        apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
-        apply elem_of_dom in Hin as [? ?].
-        iExists interp. iSplit;auto.
-        iDestruct (big_sepM_lookup with "Hadvvalid") as "$".
-        eauto.
-    }
-
-    iDestruct (fundamental_binary (r,r) with "[Hspec] Hval") as "Hval_exec".
-    { iExact "Hspec". }
-
-    unfold interp_expression. iSimpl in "Hval_exec".
-    iDestruct ("Hval_exec" with "[Hreg Hregspec Hcfg2 $Hna]") as "[_ Hconf]".
-    { iSplitR;[|iSplitL "Hreg";[|iSplitL "Hregspec"] ];[..|iExact "Hcfg2"].
-      - iSplit.
-        + iPureIntro. intros x. simpl. clear -Hm1.
-          inversion Hm1 as [ [ _ _ Hall _ _ ] _ ]. by split.
-        + iIntros (r' v1 v2 Hne Hr Hr').
-          rewrite (Hregs r' Hne) in Hr, Hr'.
-          apply (inj Some) in Hr, Hr'. rewrite -Hr -Hr'.
-          iApply fixpoint_interp1_eq. auto.
-      - rewrite insert_id. iFrame. done.
-      - rewrite insert_id. iFrame. done. }
-
-    unfold interp_conf.
-    iModIntro. iFrame.
+      (* Extract validity of library *)
+      pose proof (
+        @counter_binary_preamble.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
+        ) as Spec.
+      iApply (Spec with "[$Hspec $Hinv_malloc $Hcounter_preamble $Hcounter_body
+                      $Hcounter_preamble_spec $Hcounter_body_spec $Hcounter_link $Hcounter_link_spec $Hlink1 $Hlink1']").
+      apply H. apply H.
+      { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
+        unfold counter_preamble_instrs_length. solve_addr. }
+      { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
+        unfold counter_preamble_instrs_length. solve_addr. }
+      { apply le_addr_withinBounds. clear; solve_addr.
+        generalize link_table_size; clear; solve_addr. }
+      { generalize link_table_start; clear; solve_addr. }
+      { apply le_addr_withinBounds. solve_addr.
+        generalize link_table_start link_table_end link_table_size. clear; solve_addr. }
+      { generalize link_table_start; clear; solve_addr. }
+      { eassumption. }
+      { eassumption. }
+      { apply H2. }
+      { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
+        unfold counter_left_instrs_length. solve_addr. }
+      { eassumption. }
+      { eassumption. }
+      { apply H2. }
+      { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
+        unfold counter_left_instrs_length. solve_addr. }
+      { auto. }
+    - exists (reg', m'). rewrite link_comm. done. inversion Hm1. solve_can_link.
+    - rewrite link_comm. done. inversion Hm2. solve_can_link.
   Qed.
 
 
-  Lemma confidentiality_adequacy_r' {ML:memory_layout} c_adv r (es: list cap_lang.expr)
-      reg' m' :
-    is_machine_context c_adv comp1 r →
-    is_machine_context c_adv comp2 r →
+  Lemma confidentiality_adequacy_r' {ML:memory_layout} c_adv r (es: list cap_lang.expr) reg' m' :
+    is_ctxt c_adv comp1 r →
+    is_ctxt c_adv comp2 r →
     is_initial_context c_adv r →
     rtc erased_step (initial_state (c_adv ⋈ comp2) r) (of_val HaltedV :: es, (reg', m')) →
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp1) r) (of_val HaltedV :: es', conf')).
   Proof.
-    intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
-    apply interp_adequacy.
+    intros Hm1 Hm2 Hc Hs. exists [].
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
+    specialize (contextual_refinement_adequacy comp2 comp1 c_adv r p b e a es) as Href.
+    destruct Href as [_ Href]; try done.
+    - inversion Hm2. solve_can_link.
+    - simpl. unfold mk_initial_memory_left, mk_initial_memory_right.
+      rewrite !dom_union_L !dom_mkregion_eq.
+      done.
+      apply counter_body_size.
+      apply link_table_size.
+      rewrite replicate_length. apply finz_dist_incr. apply malloc_mem_size.
+      apply malloc_code_size.
+      apply counter_body_size.
+      apply counter_preamble_size.
+    - iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
+      iIntros "(#Hspec & Hmem & Hmemspec)".
+      simpl. unfold interp_exports. simpl.
+      rewrite big_sepM_singleton lookup_singleton.
 
-    iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
-    iIntros "(#Hspec & Hmem & Hmemspec & Hreg & Hregspec & Hna & Hcfg2)".
+      pose proof regions_disjoint as Hdisjoint.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
+      rewrite /mk_initial_memory_left /mk_initial_memory_right.
 
-    pose proof (
-      @counter_binary_preamble_left.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
-      ) as Spec.
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
+      { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hlink_table_spec]".
+      { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
 
-    pose proof (regions_disjoint_eq c_adv (WCap p b e a) r Hm1 Hm2 Hc Hrpbea)
-      as (resolved_ms & Hm1eq & Hm2eq & Hcanaddress & Hresolved_ms_spec & Hreg & Hdisj & Hdisj').
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_mem_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
 
-    rewrite Hm1eq Hm2eq.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_memptr_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
 
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hadv]";[auto|].
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hadvspec]";[auto|].
+      iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
+      by apply lookup_empty. cbn [fst snd].
+      iDestruct (big_sepM_insert with "Hmalloc_memptr_spec") as "[Hmalloc_memptr_spec _]".
+      by apply lookup_empty. cbn [fst snd].
 
-    pose proof regions_disjoint as Hdisjoint.
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_link_table & Hdisjoint).
-    rewrite /mk_initial_memory_left /mk_initial_memory_right.
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_code_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
 
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hlink_table]".
-    { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hlink_table_spec]".
-    { disjoint_map_to_list. set_solver+ Hdisj_link_table. }
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
+      iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hcounter_body_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_mem & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_mem]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_mem_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_mem. }
+      rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
+      iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
+      iDestruct (big_sepM_union with "Hmemspec") as "[Hcounter_link_spec Hcounter_preamble_spec]".
+      { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_memptr & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_memptr]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_memptr_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_memptr. }
+      iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
+      iDestruct (big_sepM_insert with "Hcounter_link_spec") as "[Hcounter_link_spec _]". by apply lookup_empty.
+      cbn [fst snd].
 
-    iDestruct (big_sepM_insert with "Hmalloc_memptr") as "[Hmalloc_memptr _]".
-    by apply lookup_empty. cbn [fst snd].
-    iDestruct (big_sepM_insert with "Hmalloc_memptr_spec") as "[Hmalloc_memptr_spec _]".
-    by apply lookup_empty. cbn [fst snd].
+      clear Hdisj_link_table Hdisj_malloc_mem
+        Hdisj_malloc_memptr Hdisj_malloc_code Hdisj_counter_body Hdisj_counter_preamble.
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_malloc_code & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hmalloc_code]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hmalloc_code_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_malloc_code. }
+      (* Massage points-to into sepL2s with permission-pointsto *)
+      iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
+      iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
+      { rewrite replicate_length /finz.dist. clear.
+        generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
+      iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
+        by apply malloc_code_size.
+      iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
+        by apply counter_preamble_size.
+      iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
+      iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
+      iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
+      { rewrite replicate_length /finz.dist. clear.
+        generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
+      iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
+        by apply malloc_code_size.
+      iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
+        by apply counter_preamble_size.
+      iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_body & Hdisjoint).
-    iDestruct (big_sepM_union with "Hmem") as "[Hmem Hcounter_body]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hmemspec Hcounter_body_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_body. }
+      rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
+      rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
 
-    rewrite disjoint_list_cons in Hdisjoint |- *. destruct Hdisjoint as (Hdisj_counter_preamble & _).
-    iDestruct (big_sepM_union with "Hmem") as "[Hcounter_link Hcounter_preamble]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
-    iDestruct (big_sepM_union with "Hmemspec") as "[Hcounter_link_spec Hcounter_preamble_spec]".
-    { disjoint_map_to_list. set_solver +Hdisj_counter_preamble. }
+      (* Split the link table *)
+      rewrite (finz_seq_between_cons link_table_start link_table_end).
+      2: { generalize link_table_size; clear; solve_addr. }
+      rewrite (_: (link_table_start ^+ 1)%a = link_table_end).
+      2: { generalize link_table_size; clear.
+          generalize link_table_start link_table_end. solve_addr. }
+      iDestruct (big_sepL2_cons with "Hlink_table") as "[Hlink1 _]".
+      iDestruct (big_sepL2_cons with "Hlink_table_spec") as "[Hlink1' _]".
 
-    iDestruct (big_sepM_insert with "Hcounter_link") as "[Hcounter_link _]". by apply lookup_empty.
-    iDestruct (big_sepM_insert with "Hcounter_link_spec") as "[Hcounter_link_spec _]". by apply lookup_empty.
-    cbn [fst snd].
+      (* Allocate malloc invariant *)
+      iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv_binary malloc_start malloc_end)
+              with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem Hmalloc_code_spec Hmalloc_memptr_spec Hmalloc_mem_spec]") as "#Hinv_malloc".
+      { iNext. unfold malloc_inv_binary. iExists _,_. iFrame.
+        iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
+        clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
 
-    clear Hdisj_link_table Hdisj_malloc_mem
-      Hdisj_malloc_memptr Hdisj_malloc_code Hdisj_counter_body Hdisj_counter_preamble.
+      (* Facts about layout *)
+      assert (isCorrectPC_range RX counter_region_start counter_region_end
+                counter_preamble_start counter_body_start).
+      { intros a' [Ha1 Ha2]. constructor; auto.
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
+        unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
+      set counter_preamble_move_addr := (counter_preamble_start ^+ counter_preamble_move_offset)%a.
+      assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
+      { clear. subst counter_preamble_move_addr.
+        generalize counter_preamble_size.
+        unfold counter_preamble_instrs_length, counter_preamble_move_offset.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (counter_preamble_move_addr + offset_to_awkward = Some counter_body_start)%a.
+      { generalize counter_preamble_size.
+        unfold counter_preamble_move_addr, offset_to_awkward, counter_preamble_instrs_length.
+        unfold counter_preamble_move_offset. clear.
+        generalize counter_preamble_start counter_body_start. solve_addr. }
+      assert (isCorrectPC_range RX counter_region_start counter_region_end
+                counter_body_start counter_region_end).
+      { intros a' [Ha1 Ha2]. constructor; auto.
+        generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
+        unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
 
-
-
-    (* Massage points-to into sepL2s with permission-pointsto *)
-
-    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /finz.dist. clear.
-      generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
-      by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
-      by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
-    iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
-    { rewrite replicate_length /finz.dist. clear.
-      generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
-      by apply malloc_code_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
-      by apply counter_preamble_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
-
-    rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
-    rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
-
-    (* Split the link table *)
-    rewrite (finz_seq_between_cons link_table_start link_table_end).
-    2: { generalize link_table_size; clear; solve_addr. }
-    rewrite (_: (link_table_start ^+ 1)%a = link_table_end).
-    2: { generalize link_table_size; clear.
-         generalize link_table_start link_table_end. solve_addr. }
-    iDestruct (big_sepL2_cons with "Hlink_table") as "[Hlink1 _]".
-    iDestruct (big_sepL2_cons with "Hlink_table_spec") as "[Hlink1' _]".
-
-    (* Allocate malloc invariant *)
-    iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv_binary malloc_start malloc_end)
-            with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem Hmalloc_code_spec Hmalloc_memptr_spec Hmalloc_mem_spec]") as "#Hinv_malloc".
-    { iNext. unfold malloc_inv_binary. iExists _,_. iFrame.
-      iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
-      clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
-
-
-    (* Facts about layout *)
-    assert (isCorrectPC_range RX counter_region_start counter_region_end
-              counter_preamble_start counter_body_start).
-    { intros a' [Ha1 Ha2]. constructor; auto.
-      generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2. clear.
-      unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
-    set counter_preamble_move_addr := (counter_preamble_start ^+ counter_preamble_move_offset)%a.
-    assert ((counter_preamble_start + counter_preamble_move_offset)%a = Some counter_preamble_move_addr).
-    { clear. subst counter_preamble_move_addr.
-      generalize counter_preamble_size.
-      unfold counter_preamble_instrs_length, counter_preamble_move_offset.
-      generalize counter_preamble_start counter_body_start. solve_addr. }
-    assert (counter_preamble_move_addr + offset_to_awkward = Some counter_body_start)%a.
-    { generalize counter_preamble_size.
-      unfold counter_preamble_move_addr, offset_to_awkward, counter_preamble_instrs_length.
-      unfold counter_preamble_move_offset. clear.
-      generalize counter_preamble_start counter_body_start. solve_addr. }
-    assert (isCorrectPC_range RX counter_region_start counter_region_end
-              counter_body_start counter_region_end).
-    { intros a' [Ha1 Ha2]. constructor; auto.
-      generalize counter_linking_ptr_size counter_preamble_size counter_body_size. revert Ha1 Ha2; clear.
-      unfold counter_left_instrs_length, counter_preamble_instrs_length. solve_addr. }
-
-
-    (* Extract validity of library *)
-    iMod (Spec with "[$Hspec $Hinv_malloc $Hcounter_preamble $Hcounter_body
-                    $Hcounter_preamble_spec $Hcounter_body_spec $Hcounter_link $Hcounter_link_spec $Hlink1 $Hlink1']") as "#Hlib".
-    apply H. apply H.
-    { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
-      unfold counter_preamble_instrs_length. solve_addr. }
-    { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
-      unfold counter_preamble_instrs_length. solve_addr. }
-    { apply le_addr_withinBounds. clear; solve_addr.
-      generalize link_table_size; clear; solve_addr. }
-    { generalize link_table_start; clear; solve_addr. }
-    { apply le_addr_withinBounds. solve_addr.
-      generalize link_table_start link_table_end link_table_size. clear; solve_addr. }
-    { generalize link_table_start; clear; solve_addr. }
-    { eassumption. }
-    { eassumption. }
-    { apply H2. }
-    { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
-      unfold counter_left_instrs_length. solve_addr. }
-    { eassumption. }
-    { eassumption. }
-    { apply H2. }
-    { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
-      unfold counter_left_instrs_length. solve_addr. }
-    { auto. }
-
-    (* Validity of the adv region *)
-    iDestruct (big_sepM_sep with "[$Hadv $Hadvspec]") as "Hadv".
-    iMod (establish_interp with "Hlib Hadv") as "#Hadvvalid"; [auto|].
-
-    (* Validity of Main *)
-    inversion Hreg as [? ? ? ? Hbounds _].
-    iAssert (interp (WCap p b e a,WCap p b e a)) as "#Hval".
-    { clear -Hbounds Hp Hcanaddress.
-      iApply fixpoint_interp1_eq.
-      destruct Hp as [-> | ->];simpl.
-      - iSplit;auto.
-        iApply big_sepL_forall.
-        iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
-        apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
-        apply elem_of_dom in Hin as [? ?].
-        iExists interp. iSplit;auto.
-        iDestruct (big_sepM_lookup with "Hadvvalid") as "$".
-        eauto.
-      - iSplit;auto.
-        iApply big_sepL_forall.
-        iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
-        apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
-        apply elem_of_dom in Hin as [? ?].
-        iExists interp. iSplit;auto.
-        iDestruct (big_sepM_lookup with "Hadvvalid") as "$".
-        eauto.
-    }
-
-    iDestruct (fundamental_binary (r,r) with "[Hspec] Hval") as "Hval_exec".
-    { iExact "Hspec". }
-
-    unfold interp_expression. iSimpl in "Hval_exec".
-    iDestruct ("Hval_exec" with "[Hreg Hregspec Hcfg2 $Hna]") as "[_ Hconf]".
-    { iSplitR;[|iSplitL "Hreg";[|iSplitL "Hregspec"] ];[..|iExact "Hcfg2"].
-      - iSplit.
-        + iPureIntro. intros x. simpl. clear -Hm1.
-          inversion Hm1 as [ [ _ _ Hall _ _ ] _ ]. by split.
-        + iIntros (r' v1 v2 Hne Hr Hr').
-          rewrite (Hregs r' Hne) in Hr, Hr'.
-          apply (inj Some) in Hr, Hr'. rewrite -Hr -Hr'.
-          iApply fixpoint_interp1_eq. auto.
-      - rewrite insert_id. iFrame. done.
-      - rewrite insert_id. iFrame. done. }
-
-    unfold interp_conf.
-    iModIntro. iFrame.
+      (* Extract validity of library *)
+      pose proof (
+        @counter_binary_preamble_left.counter_preamble_spec Σ memg regg logrel_na_invs Hcfg
+        ) as Spec.
+      iApply (Spec with "[$Hspec $Hinv_malloc $Hcounter_preamble $Hcounter_body
+                      $Hcounter_preamble_spec $Hcounter_body_spec $Hcounter_link $Hcounter_link_spec $Hlink1 $Hlink1']").
+      apply H. apply H.
+      { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
+        unfold counter_preamble_instrs_length. solve_addr. }
+      { apply contiguous_between_region_addrs. generalize counter_preamble_size; clear.
+        unfold counter_preamble_instrs_length. solve_addr. }
+      { apply le_addr_withinBounds. clear; solve_addr.
+        generalize link_table_size; clear; solve_addr. }
+      { generalize link_table_start; clear; solve_addr. }
+      { apply le_addr_withinBounds. solve_addr.
+        generalize link_table_start link_table_end link_table_size. clear; solve_addr. }
+      { generalize link_table_start; clear; solve_addr. }
+      { eassumption. }
+      { eassumption. }
+      { apply H2. }
+      { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
+        unfold counter_left_instrs_length. solve_addr. }
+      { eassumption. }
+      { eassumption. }
+      { apply H2. }
+      { apply contiguous_between_region_addrs. generalize counter_body_size; clear.
+        unfold counter_left_instrs_length. solve_addr. }
+      { auto. }
+    - exists (reg', m'). rewrite link_comm. done. inversion Hm1. solve_can_link.
+    - rewrite link_comm. done. inversion Hm2. solve_can_link.
   Qed.
 
 End Adequacy.
