@@ -299,7 +299,7 @@ Section Adequacy.
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp2) r) (of_val HaltedV :: es', conf')).
   Proof.
     intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
-    apply interp_adequacy_from_WP.
+    apply interp_adequacy.
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
 
     iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
@@ -521,7 +521,7 @@ Section Adequacy.
     (∃ es' conf', rtc erased_step (initial_state (c_adv ⋈ comp1) r) (of_val HaltedV :: es', conf')).
   Proof.
     intros Hm1 Hm2 Hc Hs. exists []. revert Hs.
-    apply interp_adequacy_from_WP.
+    apply interp_adequacy.
     inversion Hc as (Hallints & Hregs & (p & b & e & a & Hrpbea & Hp) & (addr & Himp) & Hexp).
 
     iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).

@@ -200,6 +200,10 @@ Section logrel.
       Unshelve. all: typeclasses eauto.
     Qed.
 
+    (** If the [component] [c] is a disjoint from [x] and [y]
+        and doesn't contain capabilites, then we can deduce
+        [interp_exports (x ⋈ c) (y ⋈ c)] from [interp_exports x y]
+        and c's memory points tos *)
     Lemma interp_link E {x y c: component Symbols} :
       code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
@@ -216,14 +220,16 @@ Section logrel.
       iFrame. done.
     Qed.
 
-    Definition stuff_to_prove γc (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
+    (** This is the main hypothesis of our adequacy theorem,
+        a.k.a the thing we need to prove to use adequacy *)
+    Definition adequacy_hypothesis (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
       spec_ctx ∗
       ([∗ map] a↦w ∈ l_comp, a ↦ₐ w) ∗
       ([∗ map] a↦w ∈ r_comp, a ↣ₐ w) ∗
       ([∗ map] r↦w ∈ reg, r ↦ᵣ w) ∗
       ([∗ map] r↦w ∈ reg, r ↣ᵣ w) ∗
       na_own logrel_nais ⊤ ∗
-      own γc (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)) ={⊤}=∗
+      own cfg_name (◯ ((Excl' (Seq (Instr Executable)) : optionUR (exclR (leibnizO expr)), (∅,∅)) : cfgUR)) ={⊤}=∗
       WP Seq (Instr Executable)
       {{ v,
          ⌜v = HaltedV⌝
@@ -234,26 +240,60 @@ Section logrel.
              spec_registers_mapsto r0.2 ∗
              na_own logrel.logrel_nais ⊤ }}.
 
-    (* Lemma interp_link_adequacy γc (l_comp r_comp ctxt : component Symbols) reg :
+    Lemma interp_link_adequacy (l_comp r_comp ctxt : component Symbols) reg {p b e a} :
       (∀ w, w ∈ img reg -> is_int w ∨ w ∈ img (exports ctxt)) ->
+      (reg !! PC = Some (WCap p b e a)) ->
+      (∀ r, is_Some (reg !! r)) ->
       code_all_ints ctxt ->
       l_comp ##ₗ ctxt -> r_comp ##ₗ ctxt ->
       dom (exports l_comp) ⊆ dom (exports r_comp) -> (
         spec_ctx ∗
-        na_own logrel_nais ⊤ ∗
         ([∗ map] a↦w ∈ l_comp ⋈ₗ ctxt, a ↦ₐ w) ∗
         ([∗ map] a↦w ∈ r_comp ⋈ₗ ctxt, a ↣ₐ w) ={⊤}=∗
         interp_exports l_comp r_comp)
-      -∗ stuff_to_prove γc (l_comp ⋈ ctxt) (r_comp ⋈ ctxt) reg.
+      -∗ adequacy_hypothesis (l_comp ⋈ ctxt) (r_comp ⋈ ctxt) reg.
     Proof.
-      iIntros (Hreg Hints Hsep_l Hsep_r Hdom) "Hinterp (#Hspec & Hmem_l & Hmem_r & Hreg_l & Hreg_r & Hna & Hcfg)".
+      iIntros (Hreg Hpc Hallregs Hints Hsep_l Hsep_r Hdom) "Hinterp (#Hspec & Hmem_l & Hmem_r & Hreg_l & Hreg_r & Hna & Hcfg)".
+      unfold link; simpl segment.
+      (* Split memoru map into context and components *)
+      iDestruct (big_sepM_union with "Hmem_l") as "[Hmem_l_comp Hmem_l_ctxt]".
+      { rewrite map_disjoint_dom !resolve_imports_dom. rewrite -map_disjoint_dom. all: solve_can_link. }
+      iDestruct (big_sepM_union with "Hmem_r") as "[Hmem_r_comp Hmem_r_ctxt]".
+      { rewrite map_disjoint_dom !resolve_imports_dom. rewrite -map_disjoint_dom. all: solve_can_link. }
+      iDestruct ("Hinterp" with "[$Hspec $Hmem_l_comp $Hmem_r_comp]") as ">Hinterp".
       iPoseProof (interp_link _ Hints Hsep_l Hsep_r Hdom) as "Hlink_exp".
-      iSpecialize ("Hinterp" with "[Hspec Hna]").
-      iModIntro. *)
+      iSpecialize ("Hlink_exp" with "[$Hspec $Hinterp $Hmem_l_ctxt $Hmem_r_ctxt]").
+      iDestruct "Hlink_exp" as ">#Hlink_exp".
 
+      iAssert (∀ w, ⌜w ∈ img reg⌝ → interp (w,w))%I as "#Hregs".
+      { iIntros (w Hw).
+        destruct (Hreg w Hw) as [Hw1 | Hw1].
+        - destruct w; [by iApply fixpoint_interp1_eq | discriminate..].
+        - apply elem_of_map_img in Hw1 as [s Hw1].
+          assert (Hwr: (exports (r_comp ⋈ ctxt)) !! s = Some w).
+          { rewrite lookup_union_Some; [by right | solve_can_link]. }
+          iPoseProof (big_sepM_lookup _ _ _ _ Hwr with "Hlink_exp") as "Hw".
+          destruct (exports (l_comp ⋈ ctxt) !! s); [|done].
+          iPoseProof (interp_eq with "Hw") as "%Heq".
+          by rewrite Heq. }
+
+      iPoseProof ("Hregs" $! (WCap p b e a) (elem_of_map_img_2 _ _ _ Hpc)) as "Hval".
+      iDestruct (fundamental_binary (reg,reg) with "[$Hspec] Hval") as "Hval_exec".
+
+      unfold interp_expression. iSimpl in "Hval_exec". rewrite insert_id; [|done].
+      iDestruct ("Hval_exec" with "[$Hreg_l $Hreg_r Hcfg $Hna]") as "[_ Hconf]".
+      { iSplitR.
+        - iSplit.
+          + iPureIntro. intros x. simpl. split; by apply Hallregs.
+          + iIntros (r' v1 v2 Hne Hr Hr').
+            rewrite Hr in Hr'. apply (inj Some) in Hr'. rewrite -Hr'.
+            iApply ("Hregs" $! v1 (elem_of_map_img_2 _ _ _ Hr)).
+        - iExact "Hcfg". }
+      unfold interp_conf. done.
+    Qed.
   End interp_exports.
 
-  Section refinement.
+  Section Adequacy.
     Context {inv_preg: invGpreS Σ}.
     Context {mem_preg: gen_heapGpreS Addr Word Σ}.
     Context {reg_preg: gen_heapGpreS RegName Word Σ}.
@@ -316,18 +356,18 @@ Section logrel.
 
     Context {cfgg : inG Σ (authR cfgUR)}.
 
-    Definition fat_hypothesis (l_comp r_comp : component Symbols) r :=
+    Definition adequacy_hypothesis' (l_comp r_comp : component Symbols) r :=
       ∀ Hinv mem_heapg reg_heapg γc logrel_nais,
       let memg := MemG Σ Hinv mem_heapg in
       let regg := RegG Σ Hinv reg_heapg in
       let logrel_na_invs := Build_logrel_na_invs Σ na_invg logrel_nais  in
       let Hcfg := CFGSG Σ cfgg γc in
-      ⊢ @stuff_to_prove memg regg logrel_na_invs Hcfg γc l_comp r_comp r.
+      ⊢ @adequacy_hypothesis memg regg logrel_na_invs Hcfg l_comp r_comp r.
 
       (* @interp_exports memg regg logrel_na_invs Hcfg l_comp r_comp. *)
 
-    Lemma interp_adequacy_from_WP (comp_l comp_r : component Symbols) r conf (es: list cap_lang.expr) :
-      fat_hypothesis comp_l comp_r r ->
+    Lemma interp_adequacy (comp_l comp_r : component Symbols) r conf (es: list cap_lang.expr) :
+      adequacy_hypothesis' comp_l comp_r r ->
       rtc erased_step (initial_state comp_l r) (of_val HaltedV :: es, conf) ->
       (∃ conf', rtc erased_step (initial_state comp_r r) ([of_val HaltedV], conf')).
     Proof.
@@ -400,5 +440,5 @@ Section logrel.
       apply leibniz_equiv in Hincl as <-.
       iExists σ'. iPureIntro. apply Hsteps.
     Qed.
-  End refinement.
+  End Adequacy.
 End logrel.
