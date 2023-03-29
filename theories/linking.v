@@ -22,7 +22,7 @@ Section Linking.
   Variable WR: Word -> gset Addr -> Prop.
   Context {WR_stable: ∀ w, Proper ((⊆) ==> impl) (WR w)}.
 
-  (** Various examples of WR predicates *)
+  (** ** Various examples of WR predicates *)
   Section WR.
     (** Example of a WR, ensures all capabilites point
         into the given segment *)
@@ -90,6 +90,8 @@ Section Linking.
     Proof. intros. unfold unconstrained_word. auto. Qed.
   End WR.
 
+  (** ** Definitions *)
+
   Notation imports_type := (gmap Addr Symbols).
   Notation exports_type := (gmap Symbols Word).
   Notation segment_type := (gmap Addr Word).
@@ -116,6 +118,8 @@ Section Linking.
   }.
 
   Section alt_def.
+    (** Alternative definition of components, combining
+        imports and segment into a single field *)
     Record component_alt := {
       segment_alt : gmap Addr (Word + Symbols);
       exports_alt : exports_type;
@@ -138,6 +142,8 @@ Section Linking.
       exports_alt := exports comp
     |}.
 
+    (** The symmetric isn't true since the standard version
+        of components has dummy values in the place where imports will go *)
     Lemma comp2alt2comp {c} : comp2alt (alt2comp c) = c.
     Proof.
       destruct c as [s e]. unfold comp2alt, alt2comp. simpl. f_equal.
@@ -178,7 +184,8 @@ Section Linking.
   | is_program_intro: forall
       (Hwf_comp: well_formed_comp comp)
       (Hno_imports: comp.(imports) = ∅)
-      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom comp.(segment)))
+      (* Registers are either 0 or exported, this implies they verify WR (if they are not 0) *)
+      (Hregs: img regs ⊆ {[ WInt 0 ]} ∪ img (exports comp))
       (Hall_regs: ∀ r, is_Some (regs !! r)),
       is_program comp regs.
 
@@ -191,17 +198,18 @@ Section Linking.
       (Hms_disj: comp_l.(segment) ##ₘ comp_r.(segment))
       (Hexp_disj: comp_l.(exports) ##ₘ comp_r.(exports)),
       can_link comp_l comp_r.
+  Infix "##ₗ" := can_link (at level 70).
 
+  (** Updates [ms] by replacing the imports in [imp] that
+      are defined in the exports [exp] *)
   Definition resolve_imports (imp: imports_type) (exp: exports_type) (ms: segment_type) :=
     (exp ∘ₘ imp) ∪ ms.
 
   (** Creates link for two components
       the arguments should satisfy can_link *)
-  Definition link comp_l comp_r :=
-    (* exports is union of exports *)
-    let exp := comp_l.(exports) ∪ comp_r.(exports) in
-    {|
-      exports := exp;
+  Definition link comp_l comp_r := {|
+      (* exports is union of exports *)
+      exports := comp_l.(exports) ∪ comp_r.(exports) ;
       (* memory segment is union of segments, with resolved imports *)
       segment :=
         resolve_imports (imports comp_l) (exports comp_r) (segment comp_l) ∪
@@ -209,11 +217,9 @@ Section Linking.
       (* imports is union of imports minus symbols is export *)
       imports :=
         filter
-          (fun '(_,s) => exp !! s = None)
+          (fun '(_,s) => (comp_l.(exports) ∪ comp_r.(exports)) !! s = None)
           (comp_l.(imports) ∪ comp_r.(imports));
     |}.
-
-  Infix "##ₗ" := can_link (at level 70).
   Infix "⋈" := link (at level 50).
 
   (** Asserts that context is a valid context to run library lib.
@@ -221,7 +227,7 @@ Section Linking.
   Inductive is_context (context lib: component) (regs:Reg): Prop :=
   | is_context_intro: forall
       (Hcan_link: context ##ₗ lib)
-      (Hwr_regs: ∀ w, w ∈ img regs -> WR w (dom context.(segment)))
+      (Himg_regs: img regs ⊆ {[ WInt 0 ]} ∪ img (exports context) ∪ img (exports lib))
       (Hall_regs: ∀ r, is_Some (regs !! r))
       (Hno_imps_l: img lib.(imports) ⊆ dom context.(exports))
       (Hno_imps_r: img context.(imports) ⊆ dom lib.(exports)),
@@ -238,7 +244,7 @@ Section Linking.
     intros a Hal Har. apply (Hms_disj a (Himp a Hal) (Himp0 a Har)).
   Qed.
 
-  (** Lemmas about resolve_imports: specification and utilities *)
+  (** ** Lemmas about resolve_imports: specification and utilities *)
   Section resolve_imports.
     Lemma resolve_imports_spec imp exp ms a :
       resolve_imports imp exp ms !! a =
@@ -275,7 +281,7 @@ Section Linking.
     Proof. unfold resolve_imports. rewrite map_compose_empty_l. apply map_empty_union. Qed.
   End resolve_imports.
 
-  (** well_formedness of [link a b] and usefull lemmas *)
+  (** ** well_formedness of [a ⋈ b] and useful lemmas *)
   Section LinkWellFormed.
     Lemma link_img x y :
       img (segment (x ⋈ y)) ⊆
@@ -372,15 +378,13 @@ Section Linking.
         rewrite n_l in Hno_imps_l.
         contradiction (is_Some_None Hno_imps_l).
         apply can_link_disjoint_impls. assumption.
-      - intros w rw.
-        inversion Hcan_link.
-        apply (WR_stable _ _ _ (link_segment_dom_subseteq_l _ _)).
-        exact (Hwr_regs w rw).
+      - rewrite map_img_union_disjoint.
+        by rewrite union_assoc. by inversion Hcan_link.
       - apply Hall_regs.
     Qed.
   End LinkWellFormed.
 
-  (** Lemmas on the symmetry/commutativity of links *)
+  (** ** Lemmas on the symmetry/commutativity of links *)
   Section LinkSymmetric.
     #[global] Instance can_link_sym : Symmetric can_link.
     Proof.
@@ -446,7 +450,7 @@ Section Linking.
     Qed.
   End LinkSymmetric.
 
-  (** Lemmas on the associativity of links *)
+  (** ** Lemmas on the associativity of links *)
   Section LinkAssociative.
     Lemma can_link_weaken_l {a b c} :
       a ##ₗ b ->
@@ -747,9 +751,9 @@ Section Linking.
       intros bc [ ]. inversion bc.
       apply is_context_intro.
       - solve_can_link.
-      - intros w rr'. inversion Hcan_link.
-        apply (WR_stable w _ _ (link_segment_dom_subseteq_l _ _)).
-        apply (Hwr_regs w rr').
+      - rewrite map_img_union_disjoint; [|solve_can_link].
+        rewrite map_img_union_disjoint in Himg_regs; [|solve_can_link].
+        set_solver.
       - apply Hall_regs.
       - exact (no_imports_assoc_l bc Hno_imps_l).
       - apply no_imports_assoc_r; try assumption.
@@ -758,16 +762,17 @@ Section Linking.
 
     Lemma is_context_move_out {a b c regs} :
       a ##ₗ b ->
-      (∀ w, w ∈ img regs -> WR w (dom a.(segment))) ->
       is_context (a ⋈ b) c regs -> is_context a (b ⋈ c) regs.
     Proof.
-      intros ab Hregs [].
+      intros ab [].
       assert (ac: a ##ₗ c). solve_can_link.
       assert (bc: b ##ₗ c). solve_can_link.
       apply is_context_intro.
       - apply can_link_sym. apply can_link_assoc;
         auto using symmetry.
-      - exact Hregs.
+      - rewrite map_img_union_disjoint; [|solve_can_link].
+        rewrite map_img_union_disjoint in Himg_regs; [|solve_can_link].
+        set_solver.
       - exact Hall_regs.
       - apply no_imports_assoc_r; try auto using symmetry.
         apply no_imports_assoc_r; try auto using symmetry.
@@ -778,25 +783,29 @@ Section Linking.
 
     Lemma is_context_remove_exportless_l {ctxt comp extra regs} :
       ctxt ##ₗ extra -> exports extra = ∅ ->
-      (∀ w : Word, w ∈ img regs → WR w (dom (segment ctxt))) ->
       is_context (ctxt ⋈ extra) comp regs ->
       is_context ctxt comp regs.
     Proof.
-      intros Hsep Hex_null Himg [ ].
-      apply is_context_intro; [solve_can_link|done|done|..].
-      unfold link in Hno_imps_l. simpl in Hno_imps_l.
-      rewrite Hex_null map_union_empty in Hno_imps_l.
-      apply Hno_imps_l.
-      intros s Hs. apply elem_of_map_img in Hs as [a Has].
-      apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
-      apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
-      split. apply (lookup_union_Some_l _ _ _ _ Has).
-      rewrite map_union_empty.
-      destruct (exports ctxt !! s) eqn:Hexp.
-      inversion Hsep. inversion Hwf_l.
-      apply (elem_of_map_img_2 (SA:=gset _)) in Has.
-      apply mk_is_Some, elem_of_dom in Hexp.
-      contradiction (Hdisj s Hexp Has). reflexivity.
+      intros Hsep Hex_null [ ].
+      apply is_context_intro.
+      - solve_can_link.
+      - rewrite map_img_union_disjoint in Himg_regs.
+        rewrite Hex_null map_img_empty in Himg_regs.
+        set_solver. solve_can_link.
+      - done.
+      - unfold link in Hno_imps_l. simpl in Hno_imps_l.
+        rewrite Hex_null map_union_empty in Hno_imps_l.
+        apply Hno_imps_l.
+      - intros s Hs. apply elem_of_map_img in Hs as [a Has].
+        apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
+        apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
+        split. apply (lookup_union_Some_l _ _ _ _ Has).
+        rewrite map_union_empty.
+        destruct (exports ctxt !! s) eqn:Hexp.
+        inversion Hsep. inversion Hwf_l.
+        apply (elem_of_map_img_2 (SA:=gset _)) in Has.
+        apply mk_is_Some, elem_of_dom in Hexp.
+        contradiction (Hdisj s Hexp Has). reflexivity.
     Qed.
 
     Lemma is_context_remove_exportless_r {ctxt comp extra regs} :
@@ -805,20 +814,25 @@ Section Linking.
       is_context ctxt comp regs.
     Proof.
       intros Hsep Hex_null [ ].
-      apply is_context_intro; [solve_can_link|done|done|..].
-      intros s Hs. apply elem_of_map_img in Hs as [a Has].
-      apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
-      apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
-      split. apply (lookup_union_Some_l _ _ _ _ Has).
-      rewrite map_union_empty.
-      destruct (exports comp !! s) eqn:Hexp.
-      inversion Hsep. inversion Hwf_l.
-      apply (elem_of_map_img_2 (SA:=gset _)) in Has.
-      apply mk_is_Some, elem_of_dom in Hexp.
-      contradiction (Hdisj s Hexp Has). reflexivity.
-      replace (exports comp) with (exports (comp ⋈ extra)).
-      apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
-      apply map_union_empty.
+      apply is_context_intro.
+      - solve_can_link.
+      - rewrite map_img_union_disjoint in Himg_regs.
+        rewrite Hex_null map_img_empty in Himg_regs.
+        set_solver. solve_can_link.
+      - done.
+      - intros s Hs. apply elem_of_map_img in Hs as [a Has].
+        apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
+        apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
+        split. apply (lookup_union_Some_l _ _ _ _ Has).
+        rewrite map_union_empty.
+        destruct (exports comp !! s) eqn:Hexp.
+        inversion Hsep. inversion Hwf_l.
+        apply (elem_of_map_img_2 (SA:=gset _)) in Has.
+        apply mk_is_Some, elem_of_dom in Hexp.
+        contradiction (Hdisj s Hexp Has). reflexivity.
+      - replace (exports comp) with (exports (comp ⋈ extra)).
+        apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
+        apply map_union_empty.
     Qed.
 
     Lemma is_context_add_importless_l {ctxt comp extra regs} :
@@ -827,12 +841,14 @@ Section Linking.
       is_context (ctxt ⋈ extra) comp regs.
     Proof.
       intros Hsep1 Hsep2 Him_null [ ].
-      apply is_context_intro; [solve_can_link| |done|..].
-      intros w Hw. apply (WR_stable w _ _ (link_segment_dom_subseteq_l _ _) (Hwr_regs w Hw)).
-      rewrite dom_union_L. set_solver.
-      transitivity (img (imports ctxt ∪ imports extra)).
-      unfold link. simpl. apply map_img_filter_subseteq.
-      by rewrite Him_null map_union_empty.
+      apply is_context_intro.
+      - solve_can_link.
+      - rewrite map_img_union_disjoint. set_solver. solve_can_link.
+      - done.
+      - rewrite dom_union_L. set_solver.
+      - transitivity (img (imports ctxt ∪ imports extra)).
+        unfold link. simpl. apply map_img_filter_subseteq.
+        by rewrite Him_null map_union_empty.
     Qed.
 
     Lemma is_context_add_importless_r {ctxt comp extra regs} :
@@ -841,15 +857,18 @@ Section Linking.
       is_context ctxt (comp ⋈ extra) regs.
     Proof.
       intros Hsep1 Hsep2 Him_null [ ].
-      apply is_context_intro; [solve_can_link|done|done|..].
-      transitivity (img (imports comp ∪ imports extra)).
-      unfold link. simpl. apply map_img_filter_subseteq.
-      by rewrite Him_null map_union_empty.
-      rewrite dom_union_L. set_solver.
+      apply is_context_intro.
+      - solve_can_link.
+      - rewrite map_img_union_disjoint. set_solver. solve_can_link.
+      - done.
+      - transitivity (img (imports comp ∪ imports extra)).
+        unfold link. simpl. apply map_img_filter_subseteq.
+        by rewrite Him_null map_union_empty.
+      - rewrite dom_union_L. set_solver.
     Qed.
   End LinkAssociative.
 
-  (** Linking a list of segments*)
+  (** ** Linking a list of segments *)
   Section LinkList.
     Global Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
@@ -1108,6 +1127,7 @@ Section Linking.
     Qed.
   End LinkList.
 
+  (** ** Component size and induction schemes *)
   Section ComponentSize.
     Global Instance component_size : Size component :=
       fun c => size (segment c) + size (exports c).
@@ -1176,37 +1196,37 @@ Section Linking.
         apply can_link_link_list_2. done. by rewrite <- Hc2.
         by apply Forall_cons_2. simpl. by rewrite <- Hc2.
     Qed.
-  End ComponentSize.
 
-  (** An induction on a component's exports map *)
-  Lemma exports_ind (P: component -> Prop) c :
-    P {| segment := segment c; imports := imports c; exports := ∅ |} ->
-    (∀ s w exp,
-      exports c !! s = Some w ->
-      exp !! s = None ->
-      exp ⊆ exports c ->
-      P {| segment := segment c; imports := imports c; exports := exp |} ->
-      P {| segment := segment c; imports := imports c; exports := <[s := w]> exp |}
-    ) ->
-    P c.
-  Proof.
-    intros Hinit Hind.
-    destruct c as [s i e]. simpl in *.
-    apply (map_ind (fun exp =>
-      exp ⊆ e -> P {| segment := s; imports := i; exports := exp |}
-    )).
-    intros _. apply Hinit.
-    intros s' w exp Hexp Hi Hsubset.
-    assert (Hs: exp ⊆ e).
-    { apply map_subseteq_spec. intros j x Hj. rewrite map_subseteq_spec in Hsubset.
-      destruct (decide (s'=j)) as [Heq|Heq]. simplify_eq.
-      apply Hsubset. rewrite (lookup_insert_ne _ _ _ _ Heq).
-      apply Hj. }
-    apply Hind.
-    rewrite map_subseteq_spec in Hsubset. apply Hsubset. apply lookup_insert.
-    apply Hexp. apply Hs.
-    apply (Hi Hs). reflexivity.
-  Qed.
+    (** An induction on a component's exports map *)
+    Lemma exports_ind (P: component -> Prop) c :
+      P {| segment := segment c; imports := imports c; exports := ∅ |} ->
+      (∀ s w exp,
+        exports c !! s = Some w ->
+        exp !! s = None ->
+        exp ⊆ exports c ->
+        P {| segment := segment c; imports := imports c; exports := exp |} ->
+        P {| segment := segment c; imports := imports c; exports := <[s := w]> exp |}
+      ) ->
+      P c.
+    Proof.
+      intros Hinit Hind.
+      destruct c as [s i e]. simpl in *.
+      apply (map_ind (fun exp =>
+        exp ⊆ e -> P {| segment := s; imports := i; exports := exp |}
+      )).
+      intros _. apply Hinit.
+      intros s' w exp Hexp Hi Hsubset.
+      assert (Hs: exp ⊆ e).
+      { apply map_subseteq_spec. intros j x Hj. rewrite map_subseteq_spec in Hsubset.
+        destruct (decide (s'=j)) as [Heq|Heq]. simplify_eq.
+        apply Hsubset. rewrite (lookup_insert_ne _ _ _ _ Heq).
+        apply Hj. }
+      apply Hind.
+      rewrite map_subseteq_spec in Hsubset. apply Hsubset. apply lookup_insert.
+      apply Hexp. apply Hs.
+      apply (Hi Hs). reflexivity.
+    Qed.
+  End ComponentSize.
 
   Lemma decr_imports_wf ms exp imp imp' :
     imp' ⊆ imp ->
@@ -1226,7 +1246,7 @@ Section Linking.
     well_formed_comp b ->
     dom (segment b) ⊆ dom (segment a) ->
     img (imports b) ⊆ img (imports a) ->
-    dom (exports b) = dom (exports a) ->
+    exports b = exports a ->
     is_context ctxt a regs ->
     is_context ctxt b regs.
   Proof.
@@ -1236,8 +1256,9 @@ Section Linking.
       + done.
       + rewrite map_disjoint_dom. rewrite map_disjoint_dom in Hms_disj.
         intros addr Hac Hab. apply (Hms_disj addr Hac (Hms addr Hab)).
-      + by rewrite map_disjoint_dom Hexp -map_disjoint_dom.
-    - done.
+      + by rewrite Hexp.
+    - transitivity ({[WInt 0]} ∪ img (exports ctxt) ∪ img (exports a)).
+      done. apply union_mono_l. by rewrite Hexp.
     - done.
     - by transitivity (img (imports a)).
     - by rewrite Hexp.
@@ -1296,11 +1317,8 @@ Section LinkWeakenRestrictions.
   Proof.
     intros comp regs [].
     apply is_program_intro.
-    apply wf_comp_weaken_wr. assumption.
-    assumption.
-    intros w rr_w.
-    exact (WR_weaken w _ (Hwr_regs w rr_w)).
-    assumption.
+    by apply wf_comp_weaken_wr.
+    all: done.
   Qed.
 
   Lemma is_context_weaken_wr :
@@ -1310,10 +1328,8 @@ Section LinkWeakenRestrictions.
   Proof.
     intros context lib regs [].
     apply is_context_intro.
-    apply can_link_weaken_wr. assumption.
-    intros w rr_w.
-    apply (WR_weaken w _ (Hwr_regs w rr_w)).
-    all: assumption.
+    by apply can_link_weaken_wr.
+    all: done.
   Qed.
 End LinkWeakenRestrictions.
 
