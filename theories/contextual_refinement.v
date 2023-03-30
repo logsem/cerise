@@ -337,7 +337,7 @@ Section contextual_refinement.
     Qed.
   End facts.
 
-  (** * Dummy exports and registers *)
+  (** * [dummy_exports] and [dummy_registers] *)
   (** A simple function generating dummy export (all 0) and dummy registers
       for a given list of imports, usefull for building contexts *)
   Section dummy_exports.
@@ -430,7 +430,7 @@ Section contextual_refinement.
     Qed.
   End dummy_exports.
 
-  (* Further consequence of refinement *)
+  (** * Further consequences of refinement *)
   (* When [a ≼ᵣ b] then
       - [img (imports b) ⊆ img (imports a)]
       - [dom (segment b) ⊆ dom (segment a)]

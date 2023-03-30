@@ -282,7 +282,7 @@ Section Linking.
     Proof. unfold resolve_imports. rewrite map_compose_empty_l. apply map_empty_union. Qed.
   End resolve_imports.
 
-  (** * well_formedness of [a ⋈ b] and useful lemmas *)
+  (** * Well_formedness of links *)
   Section LinkWellFormed.
     Lemma link_img x y :
       img (segment (x ⋈ y)) ⊆
@@ -385,7 +385,7 @@ Section Linking.
     Qed.
   End LinkWellFormed.
 
-  (** * Lemmas on the symmetry/commutativity of links *)
+  (** * Symmetry/commutativity of links *)
   Section LinkSymmetric.
     #[global] Instance can_link_sym : Symmetric can_link.
     Proof.
@@ -458,7 +458,7 @@ Section Linking.
     Qed.
   End LinkSymmetric.
 
-  (** * Lemmas on the associativity of links *)
+  (** * Associativity of links *)
   Section LinkAssociative.
     Lemma can_link_weaken_l {a b c} :
       a ##ₗ b ->
@@ -853,7 +853,7 @@ Section Linking.
     Qed.
   End LinkAssociative.
 
-  (** **Linking a list of segments *)
+  (** * Linking a list of segments *)
   Section LinkList.
     Global Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
