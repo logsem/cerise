@@ -20,6 +20,7 @@ Section logrel.
 
   Local Coercion segment : component >-> segment_type.
 
+  (** * [interp_exports] relation *)
   Section interp_exports.
     Context {memg:memG Σ}.
     Context {regg:regG Σ}.
@@ -38,9 +39,9 @@ Section logrel.
               interp (wx, wy)
           end.
 
-    (** Allocates invariants for segment c in links (x ⋈ c) and (y ⋈ c)
-        assuming the exports of x and y are valid. *)
-    Lemma interp_exports_inv_alloc E {x y c: component Symbols} :
+    (** Allocates invariants for segment [c] in links [x ⋈ c] and [y ⋈ c]
+        assuming the exports of [x] and [y] are valid. *)
+    Lemma interp_exports_link_inv_alloc E {x y c : component Symbols} :
       code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
       dom (exports x) ⊆ dom (exports y) ->
@@ -102,7 +103,9 @@ Section logrel.
       Unshelve. typeclasses eauto.
     Qed.
 
-    Lemma interp_link_exports {x y c:component Symbols}:
+    (** If [interp_exports x y] and we have the validity invariant on [c]
+        then we have [interp_exports (x ⋈ c) (y ⋈ c)] *)
+    Lemma interp_exports_link_from_invs {x y c : component Symbols} :
       x ##ₗ c -> y ##ₗ c ->
       spec_ctx ∗ interp_exports x y ∗
       ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)) -∗
@@ -201,8 +204,11 @@ Section logrel.
     (** If the [component] [c] is a disjoint from [x] and [y]
         and doesn't contain capabilites, then we can deduce
         [interp_exports (x ⋈ c) (y ⋈ c)] from [interp_exports x y]
-        and c's memory points tos *)
-    Lemma interp_link E {x y c: component Symbols} :
+        and c's memory points-tos
+
+        This is effectively just a combinaison of
+        [interp_exports_link_inv_alloc] and [interp_exports_link_from_invs] *)
+    Lemma interp_exports_link E {x y c: component Symbols} :
       code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
       dom (exports x) ⊆ dom (exports y) ->
@@ -212,14 +218,19 @@ Section logrel.
       interp_exports (x ⋈ c) (y ⋈ c).
     Proof.
       iIntros (Hno_caps Hsep1 Hsep2 Hdom_incl) "(#Hspec & #Hxy & Hx & Hy)".
-      iApply (interp_link_exports Hsep1 Hsep2).
+      iApply (interp_exports_link_from_invs Hsep1 Hsep2).
       iSplitR. done. iSplitR. done.
-      iApply (interp_exports_inv_alloc E Hno_caps Hsep1 Hsep2 Hdom_incl).
+      iApply (interp_exports_link_inv_alloc E Hno_caps Hsep1 Hsep2 Hdom_incl).
       iFrame. done.
     Qed.
 
-    (** This is the main hypothesis of our adequacy theorem,
-        a.k.a the thing we need to prove to use adequacy *)
+    (** * [adequacy_hypothesis] and lemma *)
+
+    (** This is the main hypothesis of our adequacy theorem [interp_adequacy],
+        a.k.a the thing we need to prove to use adequacy
+
+        It essentially boils down to showing [WP _ {{v, ⌜v = HaltedV⌝ → ⤇ of_val HaltedV }}]
+        by using the memory and register points-tos *)
     Definition adequacy_hypothesis (l_comp r_comp : component Symbols) (reg : Reg) : iProp Σ :=
       spec_ctx ∗
       ([∗ map] a↦w ∈ l_comp, a ↦ₐ w) ∗
@@ -231,6 +242,12 @@ Section logrel.
       ={⊤}=∗
         WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ⤇ of_val HaltedV }}.
 
+    (** We can show [adequacy_hypothesis (l_comp ⋈ ctxt) (r_comp ⋈ ctxt) reg]
+        by only reasoning about code in [l_comp] and [r_comp],
+        provided some reasonable hypotheses on [ctxt]
+
+        This lemma uses a lot of verbose hypotheses to be minimal,
+        most can be deduced from [is_ctxt ctxt l_comp reg] *)
     Lemma interp_link_adequacy (l_comp r_comp ctxt : component Symbols) reg {p b e a} :
       (∀ w, w ∈ img reg -> is_int w ∨ w ∈ img (exports ctxt) ∨ w ∈ img (exports r_comp)) ->
       (reg !! PC = Some (WCap p b e a)) ->
@@ -253,7 +270,7 @@ Section logrel.
       iDestruct (big_sepM_union with "Hmem_r") as "[Hmem_r_comp Hmem_r_ctxt]".
       { rewrite map_disjoint_dom !resolve_imports_dom. rewrite -map_disjoint_dom. all: solve_can_link. }
       iDestruct ("Hinterp" with "[$Hspec $Hmem_l_comp $Hmem_r_comp]") as ">Hinterp".
-      iPoseProof (interp_link _ Hints Hsep_l Hsep_r Hdom) as "Hlink_exp".
+      iPoseProof (interp_exports_link _ Hints Hsep_l Hsep_r Hdom) as "Hlink_exp".
       iSpecialize ("Hlink_exp" with "[$Hspec $Hinterp $Hmem_l_ctxt $Hmem_r_ctxt]").
       iDestruct "Hlink_exp" as ">#Hlink_exp".
 
@@ -303,7 +320,7 @@ Section logrel.
     Context {seal_store_preg: sealStorePreG Σ}.
     Context {na_invg: na_invG Σ}.
 
-    (** Lemmas to allocate memory and register map *)
+    (** * Memory and register map allocation *)
     Lemma regspec_mapsto_alloc `{cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) r (w : Word) :
       σ.1 !! r = None →
       spec_res e σ ==∗ spec_res e (<[r:=w]> σ.1,σ.2) ∗ r ↣ᵣ w.
@@ -359,17 +376,15 @@ Section logrel.
 
     Context {cfgg : inG Σ (authR cfgUR)}.
 
-    Definition adequacy_hypothesis' (l_comp r_comp : component Symbols) r :=
-      ∀ Hinv mem_heapg reg_heapg γc logrel_nais,
-      let memg := MemG Σ Hinv mem_heapg in
-      let regg := RegG Σ Hinv reg_heapg in
-      let logrel_na_invs := Build_logrel_na_invs Σ na_invg logrel_nais in
-      let Hcfg := CFGSG Σ cfgg γc in
-      ⊢ @adequacy_hypothesis memg regg logrel_na_invs Hcfg l_comp r_comp r.
+    (** * Adequacy theorems *)
 
     (** Fairly general adequacy theorem, performs allocation and calls Iris' adequacy *)
     Lemma interp_adequacy (l_comp r_comp : component Symbols) r conf (es: list cap_lang.expr) :
-      adequacy_hypothesis' l_comp r_comp r ->
+      (∀ (memg : memG Σ)
+         (regg : regG Σ)
+         (logrel_na_invs : logrel_na_invs Σ)
+         (Hcfg : cfgSG Σ),
+         ⊢ adequacy_hypothesis l_comp r_comp r) ->
       rtc erased_step (initial_state l_comp r) (of_val HaltedV :: es, conf) ->
       (∃ conf', rtc erased_step (initial_state r_comp r) ([of_val HaltedV], conf')).
     Proof.
@@ -398,7 +413,7 @@ Section logrel.
       pose memg := MemG Σ Hinv mem_heapg.
       pose regg := RegG Σ Hinv reg_heapg.
       pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-      pose Hcfg := CFGSG _ _ γc.
+      pose Hcfg := CFGSG Σ cfgg γc.
 
       (* Allocate the memory points tos *)
       iMod (regspec_alloc_big _ ∅ r ∅ with "[Hcfg1]") as "(Hcfg1 & Hregspec)".
@@ -409,7 +424,7 @@ Section logrel.
         by apply map_disjoint_empty_r. rewrite /spec_res /= !/to_spec_map !fmap_empty //.
       rewrite right_id_L.
 
-      specialize (Hadequacy Hinv mem_heapg reg_heapg γc logrel_nais).
+      specialize (Hadequacy memg regg logrel_na_invs Hcfg).
       simpl in Hadequacy.
 
       (* Allocate the spec invariant *)
@@ -444,22 +459,24 @@ Section logrel.
     Qed.
 
     (** More specific adequacy theorem, but using a simpler hypothesis to yield a
-        result concerning links to any unknown contexts *)
+        result concerning links to any unknown contexts,
+
+        Moving the quantification on [context], [regs] and [p b e a] lower,
+        we notice this looks a lot like the definition of [contextual_refinement] *)
     Lemma contextual_refinement_adequacy (l_comp r_comp context : component Symbols) regs p b e a es :
       wf_comp r_comp ->
       imports l_comp = ∅ ->
       imports r_comp = ∅ ->
       exports l_comp = exports r_comp ->
       dom (segment r_comp) ⊆ dom (segment l_comp) ->
-      (∀ Hinv mem_heapg reg_heapg γc logrel_nais,
-          let memg := MemG Σ Hinv mem_heapg in
-          let regg := RegG Σ Hinv reg_heapg in
-          let logrel_na_invs := Build_logrel_na_invs Σ na_invg logrel_nais in
-          let Hcfg := CFGSG Σ cfgg γc in
-          spec_ctx
-            ∗ ([∗ map] a↦w ∈ l_comp, a ↦ₐ w)
-            ∗ ([∗ map] a↦w ∈ r_comp, a ↣ₐ w)
-          ={⊤}=∗ interp_exports l_comp r_comp) ->
+      (∀ (memg : memG Σ)
+         (regg : regG Σ)
+         (logrel_na_invs : logrel_na_invs Σ)
+         (Hcfg : cfgSG Σ),
+           spec_ctx
+             ∗ ([∗ map] a↦w ∈ l_comp, a ↦ₐ w)
+             ∗ ([∗ map] a↦w ∈ r_comp, a ↣ₐ w)
+           ={⊤}=∗ interp_exports l_comp r_comp) ->
       (* ∀ context regs p b e a, // MOVED TO TOP *)
         code_all_ints context ->
         regs !! PC = Some (WCap p b e a) ->
@@ -475,7 +492,7 @@ Section logrel.
         by rewrite Himp_l Himp_r. }
       split. done.
       apply (interp_adequacy (l_comp ⋈ context) (r_comp ⋈ context) regs conf es).
-      iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
+      iIntros (memg regg logrel_na_invs Hcfg).
       iApply interp_link_adequacy.
       - intros w Hw. inversion Hctxt_r.
         apply Himg_regs in Hw. rewrite !elem_of_union in Hw.

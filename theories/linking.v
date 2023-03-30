@@ -22,9 +22,9 @@ Section Linking.
   Variable WR: Word -> gset Addr -> Prop.
   Context {WR_stable: ∀ w, Proper ((⊆) ==> impl) (WR w)}.
 
-  (** ** Various examples of WR predicates *)
+  (** * Various examples of [WR] predicates *)
   Section WR.
-    (** Example of a WR, ensures all capabilites point
+    (** Example of a [WR], ensures all capabilites point
         into the given segment *)
     Example can_address_only word (addr_set: gset Addr) :=
       match word with
@@ -43,8 +43,8 @@ Section Linking.
       apply dom1_dom2; apply (ca_dom1 addr addr_in_be).
     Qed.
 
-    (** Example of a WR, ensures all capabilites point
-        into the given segment *)
+    (** Example of a [WR], ensures all capabilites point
+        into the given segment, and no seals are present *)
     Example can_address_only_no_seals word (addr_set: gset Addr) :=
         match word with
         | WSealable (SCap _ b e _) => ∀ a, (b <= a < e)%a -> a ∈ addr_set
@@ -69,7 +69,7 @@ Section Linking.
       intros H. contradiction H.
     Qed.
 
-    (** Another WR, not a seal *)
+    (** Another [WR], not a seal *)
     Example is_not_seal word :=
       match word with
       | WInt _
@@ -79,7 +79,7 @@ Section Linking.
       | WSealed _ (SSealRange _ _ _ _) => False
       end.
 
-    (** Another possible WR, only allow words/intructions *)
+    (** Another possible [WR], only allow words/intructions *)
     Example is_int word := is_z word = true.
 
     (** Another example, no constraints on words at all *)
@@ -90,7 +90,7 @@ Section Linking.
     Proof. intros. unfold unconstrained_word. auto. Qed.
   End WR.
 
-  (** ** Definitions *)
+  (** * Main definitions *)
 
   Notation imports_type := (gmap Addr Symbols).
   Notation exports_type := (gmap Symbols Word).
@@ -98,13 +98,14 @@ Section Linking.
 
   #[global] Instance exports_subseteq : SubsetEq exports_type := map_subseteq.
 
-  (** Components are memory segments "with holes" for imported values
-      (mostly capabilities) from other segments.
+  (** A [component] is memory segments "with holes" for imported values
+      (mostly capabilities) from other components.
 
-      These holes are identified by symbols.
-      - imports shows where the imported values should be place in memory
+      These holes are identified by [Symbols] :
+      - [segment] is the main segment, with dummy values where exports should go
+      - [imports] shows where the imported values should be place in memory
         it is a map to ensure we don't import two symbols in the same address
-      - exports is word to place in segments linked with this one.
+      - [exports] contains the [Word]s to place in segments linked with this one.
       *)
   Record component := {
     segment : segment_type;
@@ -118,8 +119,8 @@ Section Linking.
   }.
 
   Section alt_def.
-    (** Alternative definition of components, combining
-        imports and segment into a single field *)
+    (** Alternative definition of [component]s, combining
+        [imports] and [segment] into a single field *)
     Record component_alt := {
       segment_alt : gmap Addr (Word + Symbols);
       exports_alt : exports_type;
@@ -143,7 +144,7 @@ Section Linking.
     |}.
 
     (** The symmetric isn't true since the standard version
-        of components has dummy values in the place where imports will go *)
+        of [component]s has dummy values in the place where [imports] will go *)
     Lemma comp2alt2comp {c} : comp2alt (alt2comp c) = c.
     Proof.
       destruct c as [s e]. unfold comp2alt, alt2comp. simpl. f_equal.
@@ -205,8 +206,8 @@ Section Linking.
   Definition resolve_imports (imp: imports_type) (exp: exports_type) (ms: segment_type) :=
     (exp ∘ₘ imp) ∪ ms.
 
-  (** Creates link for two components
-      the arguments should satisfy can_link *)
+  (** Creates link for two [component]s
+      the arguments should satisfy [can_link] *)
   Definition link comp_l comp_r := {|
       (* exports is union of exports *)
       exports := comp_l.(exports) ∪ comp_r.(exports) ;
@@ -244,7 +245,7 @@ Section Linking.
     intros a Hal Har. apply (Hms_disj a (Himp a Hal) (Himp0 a Har)).
   Qed.
 
-  (** ** Lemmas about resolve_imports: specification and utilities *)
+  (** * Lemmas about [resolve_imports]: specification and utilities *)
   Section resolve_imports.
     Lemma resolve_imports_spec imp exp ms a :
       resolve_imports imp exp ms !! a =
@@ -281,7 +282,7 @@ Section Linking.
     Proof. unfold resolve_imports. rewrite map_compose_empty_l. apply map_empty_union. Qed.
   End resolve_imports.
 
-  (** ** well_formedness of [a ⋈ b] and useful lemmas *)
+  (** * well_formedness of [a ⋈ b] and useful lemmas *)
   Section LinkWellFormed.
     Lemma link_img x y :
       img (segment (x ⋈ y)) ⊆
@@ -384,7 +385,7 @@ Section Linking.
     Qed.
   End LinkWellFormed.
 
-  (** ** Lemmas on the symmetry/commutativity of links *)
+  (** * Lemmas on the symmetry/commutativity of links *)
   Section LinkSymmetric.
     #[global] Instance can_link_sym : Symmetric can_link.
     Proof.
@@ -404,6 +405,13 @@ Section Linking.
         f_equal. apply map_union_comm.
         all: assumption.
       - apply map_union_comm; assumption.
+    Qed.
+
+    Lemma is_context_sym r : Symmetric (λ a b, is_context a b r).
+    Proof.
+      intros a b [ ].
+      apply is_context_intro; try done.
+      by rewrite -union_assoc (union_comm (img _) (img _)) union_assoc.
     Qed.
 
     Lemma link_segment_lookup_l {x y a} :
@@ -450,7 +458,7 @@ Section Linking.
     Qed.
   End LinkSymmetric.
 
-  (** ** Lemmas on the associativity of links *)
+  (** * Lemmas on the associativity of links *)
   Section LinkAssociative.
     Lemma can_link_weaken_l {a b c} :
       a ##ₗ b ->
@@ -813,26 +821,9 @@ Section Linking.
       is_context ctxt (comp ⋈ extra) regs ->
       is_context ctxt comp regs.
     Proof.
-      intros Hsep Hex_null [ ].
-      apply is_context_intro.
-      - solve_can_link.
-      - rewrite map_img_union_disjoint in Himg_regs.
-        rewrite Hex_null map_img_empty in Himg_regs.
-        set_solver. solve_can_link.
-      - done.
-      - intros s Hs. apply elem_of_map_img in Hs as [a Has].
-        apply Hno_imps_l. unfold link. simpl. rewrite Hex_null.
-        apply elem_of_map_img. exists a. rewrite map_filter_lookup_Some.
-        split. apply (lookup_union_Some_l _ _ _ _ Has).
-        rewrite map_union_empty.
-        destruct (exports comp !! s) eqn:Hexp.
-        inversion Hsep. inversion Hwf_l.
-        apply (elem_of_map_img_2 (SA:=gset _)) in Has.
-        apply mk_is_Some, elem_of_dom in Hexp.
-        contradiction (Hdisj s Hexp Has). reflexivity.
-      - replace (exports comp) with (exports (comp ⋈ extra)).
-        apply Hno_imps_r. unfold link. simpl. rewrite Hex_null.
-        apply map_union_empty.
+      intros Hsep Hex_null Hc.
+      apply is_context_sym in Hc. apply is_context_sym.
+      by apply is_context_remove_exportless_l in Hc.
     Qed.
 
     Lemma is_context_add_importless_l {ctxt comp extra regs} :
@@ -856,23 +847,33 @@ Section Linking.
       is_context ctxt comp regs ->
       is_context ctxt (comp ⋈ extra) regs.
     Proof.
-      intros Hsep1 Hsep2 Him_null [ ].
-      apply is_context_intro.
-      - solve_can_link.
-      - rewrite map_img_union_disjoint. set_solver. solve_can_link.
-      - done.
-      - transitivity (img (imports comp ∪ imports extra)).
-        unfold link. simpl. apply map_img_filter_subseteq.
-        by rewrite Him_null map_union_empty.
-      - rewrite dom_union_L. set_solver.
+      intros Hsep1 Hsep2 Him_null Hc.
+      apply is_context_sym in Hc. apply is_context_sym.
+      by apply is_context_add_importless_l.
     Qed.
   End LinkAssociative.
 
-  (** ** Linking a list of segments *)
+  (** **Linking a list of segments *)
   Section LinkList.
     Global Instance empty_comp: Empty component := {|
       segment := ∅; exports := ∅; imports := ∅
     |}.
+
+    (** Required property for linking a list of component
+    They must verify can_link pairwise *)
+    Inductive can_link_list: list component -> Prop :=
+    | can_link_nil : can_link_list []
+    | can_link_cons : ∀ seg seg_list,
+        well_formed_comp seg ->
+        Forall (fun c => can_link seg c) seg_list ->
+        can_link_list seg_list ->
+        can_link_list (seg :: seg_list).
+
+    Fixpoint link_list l :=
+      match l with
+      | [] => ∅
+      | l::ls => l ⋈ (link_list ls)
+      end.
 
     Lemma empty_comp_wf : well_formed_comp ∅.
     Proof. apply wf_comp_intro; try set_solver. Qed.
@@ -920,16 +921,6 @@ Section Linking.
       exact (empty_left_id Hwf_c).
       exact (can_link_empty_r Hwf_c).
     Qed.
-
-    (** Required property for linking a list of component
-        They must verify can_link pairwise *)
-    Inductive can_link_list: list component -> Prop :=
-      | can_link_nil : can_link_list []
-      | can_link_cons : ∀ seg seg_list,
-          well_formed_comp seg ->
-          Forall (fun c => can_link seg c) seg_list ->
-          can_link_list seg_list ->
-          can_link_list (seg :: seg_list).
 
     Lemma can_link_list_pairwise_1 {l}:
       can_link_list l ->
@@ -1046,12 +1037,6 @@ Section Linking.
       all: rewrite -Hf; assumption.
     Qed.
 
-    Fixpoint link_list l :=
-      match l with
-      | [] => ∅
-      | l::ls => l ⋈ (link_list ls)
-      end.
-
     Lemma can_link_link_list_1 {c l} :
       can_link_list (c :: l) -> c ##ₗ link_list l.
     Proof.
@@ -1127,7 +1112,7 @@ Section Linking.
     Qed.
   End LinkList.
 
-  (** ** Component size and induction schemes *)
+  (** * Component size and induction schemes *)
   Section ComponentSize.
     Global Instance component_size : Size component :=
       fun c => size (segment c) + size (exports c).
@@ -1278,6 +1263,7 @@ Infix "⋈" := link (at level 50).
 Notation "a ⋈ₗ b" := (resolve_imports (imports a) (exports b) (segment a)) (at level 50).
 Notation "a ⋈ᵣ b" := (resolve_imports (imports b) (exports a) (segment b)) (at level 50).
 
+(** * Weakening of [WR] *)
 (** Simple lemmas used to weaken WR
     and address_restrictions in well_formed_comp, can_link, is_program... *)
 Section LinkWeakenRestrictions.
@@ -1332,6 +1318,8 @@ Section LinkWeakenRestrictions.
     all: done.
   Qed.
 End LinkWeakenRestrictions.
+
+(** * [solve_can_link] tactic *)
 
 (** Can solve simpl can_link and well_formed_comp goals using
     symmetry, compatibility with link and weakening *)

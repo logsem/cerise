@@ -3,7 +3,8 @@ From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import machine_parameters cap_lang.
 From cap_machine Require Import linking machine_run addr_reg_sample.
 
-(** ** Reserve a minimal free memory in which to write our contexts *)
+(** * Reserved context size *)
+(** Reserve a minimal free memory in which to write our contexts *)
 Section reserved_context_size.
   Local Transparent MemNum.
   Definition reserved_context_size_z: Z := 10000.
@@ -38,7 +39,7 @@ Infix "##ₗ" := (can_link can_address_only_no_seals) (at level 70).
 
 Notation is_ctxt := (is_context can_address_only_no_seals).
 
-(** ** Contextual Refinement definition *)
+(** * Contextual Refinement definition *)
 Section contextual_refinement.
   Context {MP: MachineParameters}.
 
@@ -93,7 +94,7 @@ Section contextual_refinement.
 
   Infix "≼ᵣ" := contextual_refinement (at level 80).
 
-  (** ** Easy results about contextual refinement *)
+  (** * Easy results about contextual refinement *)
   Section facts.
     Lemma ctxt_ref_reflexive {comp}:
       has_free_space comp ->
@@ -336,7 +337,7 @@ Section contextual_refinement.
     Qed.
   End facts.
 
-  (** ** Dummy exports and registers *)
+  (** * Dummy exports and registers *)
   (** A simple function generating dummy export (all 0) and dummy registers
       for a given list of imports, usefull for building contexts *)
   Section dummy_exports.
@@ -429,7 +430,7 @@ Section contextual_refinement.
     Qed.
   End dummy_exports.
 
-  (** Further consequence of refinement *)
+  (* Further consequence of refinement *)
   (* When [a ≼ᵣ b] then
       - [img (imports b) ⊆ img (imports a)]
       - [dom (segment b) ⊆ dom (segment a)]
@@ -768,7 +769,7 @@ Section contextual_refinement.
     Qed.
   End component_part_subseteq.
 
-  (** ** Results with infinite symbols *)
+  (** * Simplified results when [Symbols] is [Infinite] *)
   (** We can simplify a few lemmas by just requiring [Symbols]
       to be infinite *)
   Section infinite_symbols.

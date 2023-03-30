@@ -200,8 +200,8 @@ Section Adequacy.
       apply malloc_code_size.
       apply counter_body_size.
       apply counter_preamble_size.
-    - iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
-      iIntros "(#Hspec & Hmem & Hmemspec)".
+    - iIntros (memg regg logrel_na_invs Hcfg) "(#Hspec & Hmem & Hmemspec)".
+      clear na_invg. (* Duplicate instances -> Coq stupidity *)
       simpl. unfold interp_exports. simpl.
       rewrite big_sepM_singleton lookup_singleton.
 
@@ -372,8 +372,8 @@ Section Adequacy.
       apply malloc_code_size.
       apply counter_body_size.
       apply counter_preamble_size.
-    - iIntros (Hinv mem_heapg reg_heapg γc logrel_nais memg regg logrel_na_invs Hcfg).
-      iIntros "(#Hspec & Hmem & Hmemspec)".
+    - iIntros (memg regg logrel_na_invs Hcfg) "(#Hspec & Hmem & Hmemspec)".
+      clear na_invg. (* Duplicate instances -> Coq stupidity *)
       simpl. unfold interp_exports. simpl.
       rewrite big_sepM_singleton lookup_singleton.
 
