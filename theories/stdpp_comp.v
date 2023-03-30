@@ -12,7 +12,7 @@ Notation "(∘ₘ)" := map_compose (only parsing) : stdpp_scope.
 Notation "( m ∘ₘ.)" := (map_compose m) (only parsing) : stdpp_scope.
 Notation "(.∘ₘ m )" := (λ n, map_compose n m) (only parsing) : stdpp_scope.
 
-(** ** The [map_compose] operation *)
+(** * The [map_compose] operation *)
 Section map_compose.
   Context {A MA B MB} `{FA:FinMap A MA} `{FB:FinMap B MB}.
   Context {C : Type}.

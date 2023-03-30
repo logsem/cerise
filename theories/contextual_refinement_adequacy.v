@@ -7,7 +7,7 @@ From cap_machine Require Import iris_extra linking machine_run logrel_binary.
 From cap_machine Require Import fundamental_binary contextual_refinement.
 
 Section logrel.
-  Context {Symbols:Type}.
+  Context {Symbols: Type}.
   Context {Symbols_eq_dec: EqDecision Symbols}.
   Context {Symbols_countable: Countable Symbols}.
 
@@ -33,10 +33,7 @@ Section logrel.
       [∗ map] s ↦ wy ∈ exports y,
           match exports x !! s with
           | None => False (* values exported by y must also be exported by x *)
-          | Some wx =>
-            (* ([∗ map] a ↦ w ∈ segment x, a ↦ₐ w) ∗
-            ([∗ map] a ↦ w ∈ segment y, a ↣ₐ w) -∗ *)
-              interp (wx, wy)
+          | Some wx => interp (wx, wy)
           end.
 
     (** Allocates invariants for segment [c] in links [x ⋈ c] and [y ⋈ c]
@@ -47,8 +44,8 @@ Section logrel.
       dom (exports x) ⊆ dom (exports y) ->
       ([∗ map] a ↦ w ∈ x ⋈ᵣ c, a ↦ₐ w) ∗
       ([∗ map] a ↦ w ∈ y ⋈ᵣ c, a ↣ₐ w) ∗
-      interp_exports x y ={E}=∗
-        ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)).
+      interp_exports x y
+      ={E}=∗ ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)).
     Proof.
       iIntros (Hno_caps Hsep1 Hsep2 Hexp) "[Hpx [Hpy #Hexp]]".
       rewrite big_sepM_dom.
@@ -107,7 +104,8 @@ Section logrel.
         then we have [interp_exports (x ⋈ c) (y ⋈ c)] *)
     Lemma interp_exports_link_from_invs {x y c : component Symbols} :
       x ##ₗ c -> y ##ₗ c ->
-      spec_ctx ∗ interp_exports x y ∗
+      spec_ctx ∗
+      interp_exports x y ∗
       ([∗ map] a ↦ _ ∈ c, inv (logN.@a) (interp_ref_inv a interp)) -∗
       interp_exports (x ⋈ c) (y ⋈ c).
     Proof.
@@ -212,10 +210,12 @@ Section logrel.
       code_all_ints c ->
       x ##ₗ c -> y ##ₗ c ->
       dom (exports x) ⊆ dom (exports y) ->
-      spec_ctx ∗ interp_exports x y ∗
+      spec_ctx ∗
+      interp_exports x y ∗
       ([∗ map] a ↦ w ∈ x ⋈ᵣ c, a ↦ₐ w) ∗
-      ([∗ map] a ↦ w ∈ y ⋈ᵣ c, a ↣ₐ w) ={E}=∗
-      interp_exports (x ⋈ c) (y ⋈ c).
+      ([∗ map] a ↦ w ∈ y ⋈ᵣ c, a ↣ₐ w)
+      ={E}=∗
+        interp_exports (x ⋈ c) (y ⋈ c).
     Proof.
       iIntros (Hno_caps Hsep1 Hsep2 Hdom_incl) "(#Hspec & #Hxy & Hx & Hy)".
       iApply (interp_exports_link_from_invs Hsep1 Hsep2).
@@ -258,8 +258,8 @@ Section logrel.
         spec_ctx ∗
         (* When l_comp (resp. r_comp) have no imports, this map is just l_comp's points-tos *)
         ([∗ map] a↦w ∈ l_comp ⋈ₗ ctxt, a ↦ₐ w) ∗
-        ([∗ map] a↦w ∈ r_comp ⋈ₗ ctxt, a ↣ₐ w) ={⊤}=∗
-        interp_exports l_comp r_comp)
+        ([∗ map] a↦w ∈ r_comp ⋈ₗ ctxt, a ↣ₐ w)
+        ={⊤}=∗ interp_exports l_comp r_comp)
       -∗ adequacy_hypothesis (l_comp ⋈ ctxt) (r_comp ⋈ ctxt) reg.
     Proof.
       iIntros (Hreg Hpc Hallregs Hints Hsep_l Hsep_r Hdom) "Hinterp (#Hspec & Hmem_l & Hmem_r & Hreg_l & Hreg_r & Hna & Hcfg)".

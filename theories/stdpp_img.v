@@ -13,7 +13,7 @@ Definition map_img `{FinMapToList K A M,
   Singleton A SA, Empty SA, Union SA} : M → SA := map_to_set (λ _ x, x).
 Global Typeclasses Opaque map_img.
 
-(** ** The [map_img] (image/codomain) operation *)
+(** * The [map_img] (image/codomain) operation *)
 Section img.
   Context `{FinMap K M, FinSet A SA}.
   Implicit Types m : M A.
@@ -215,7 +215,7 @@ Section img.
     Proof. unfold_leibniz. apply map_img_union_inv. Qed.
   End leibniz.
 
-  (** * Set solver instances *)
+  (** Set solver instances *)
   Global Instance set_unfold_map_img_empty x :
     SetUnfoldElemOf x (map_img (∅:M A)) False.
   Proof. constructor. by rewrite map_img_empty, elem_of_empty. Qed.
