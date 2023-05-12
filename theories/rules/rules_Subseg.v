@@ -355,6 +355,35 @@ Section cap_lang_rules.
       all: simplify_map_eq; eauto; congruence. }
   Qed.
 
+  Lemma wp_subseg_fail_lr E pc_p pc_b pc_e pc_a w dst p b e a n1 n2 a1 a2 :
+    decodeInstrW w = Subseg dst (inl n1) (inl n2) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
+    ¬ (p ≠ machine_base.E ∧ isWithin a1 a2 b e = true) →
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+        ∗ ▷ pc_a ↦ₐ w
+        ∗ ▷ dst ↦ᵣ WCap p b e a }}}
+      Instr Executable @ E
+    {{{ RET FailedV;
+        ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+        ∗ ▷ pc_a ↦ₐ w
+        ∗ ▷ dst ↦ᵣ WCap p b e a }}}.
+  Proof.
+    iIntros (? ? ? ? Hncond ?) "(>HPC & >Hpc_a & >Hdst) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
+    iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [| * Hfail].
+    { (* Success (contradiction) *)
+      exfalso. apply Hncond. simplify_map_eq. split; first done.
+      repeat match goal with H : _ |- _ =>
+        apply addr_of_argument_Some_inv in H as (?&?&[?|(?&?&?)]) end; by simplify_eq. }
+    { (* Failure *)
+      destruct Hfail; cbn in *; simplify_map_eq.
+      all: iApply "Hφ"; iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
+  Qed.
+
   Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a w r1 r2 n1 n2 a1 a2 pc_a' :
     decodeInstrW w = Subseg PC (inr r1) (inr r2) →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
