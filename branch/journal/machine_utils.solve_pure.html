@@ -122,7 +122,7 @@
 <span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.classes.html#AsWeakFinZIncr"><span class="id" title="class">AsWeakFinZIncr</span></a>, <a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a>, <a class="idref" href="machine_utils.classes.html#CbvTC"><span class="id" title="class">CbvTC</span></a>, <a class="idref" href="machine_utils.classes.html#FinZOffsetLe"><span class="id" title="class">FinZOffsetLe</span></a>, <a class="idref" href="machine_utils.classes.html#IncrFinZ"><span class="id" title="class">IncrFinZ</span></a>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">intros</span> -&gt; [? ?] &lt;- ? ?. <span class="id" title="var">solve_finz</span>.<br/>
-<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 <span class="comment">(*&nbsp;SubBounds&nbsp;*)</span><br/>
@@ -227,7 +227,7 @@
 &nbsp;&nbsp;(<a class="idref" href="machine_utils.solve_pure.html#a:62"><span class="id" title="variable">a</span></a> <a class="idref" href="machine_utils.finz_base.html#cc983644965af769aaa4e5f024c77619"><span class="id" title="notation">+</span></a> <a class="idref" href="machine_utils.solve_pure.html#z:63"><span class="id" title="variable">z</span></a>)%<span class="id" title="var">f</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> <a class="idref" href="machine_utils.solve_pure.html#a':64"><span class="id" title="variable">a'</span></a>.<br/>
 <span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">intros</span> -&gt;. <span class="id" title="tactic">reflexivity</span>.<br/>
-<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
 #[<span class="id" title="var">export</span>] <span class="id" title="keyword">Hint</span> <span class="id" title="keyword">Resolve</span> <span class="id" title="var">IncrFinZ_prove</span> : <span class="id" title="var">solve_pure</span>.<br/>
 
 <br/>

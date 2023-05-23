@@ -63,7 +63,7 @@
 <span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.solve_pure.html#InCtx"><span class="id" title="class">InCtx</span></a>, <a class="idref" href="machine_utils.finz_base.html#InBounds"><span class="id" title="definition">InBounds</span></a>. <span class="id" title="var">cbn</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">intros</span> [?%<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.ZArith.BinInt.html#Z.leb_le"><span class="id" title="lemma">Z.leb_le</span></a> ?%<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.ZArith.BinInt.html#Z.ltb_lt"><span class="id" title="lemma">Z.ltb_lt</span></a>]%<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Bool.Bool.html#andb_true_iff"><span class="id" title="lemma">andb_true_iff</span></a>. <span class="id" title="var">solve_addr</span>.<br/>
-<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
 #[<span class="id" title="var">export</span>] <span class="id" title="keyword">Hint</span> <span class="id" title="keyword">Resolve</span> <span class="id" title="var">withinBounds_InCtx</span> : <span class="id" title="var">solve_pure</span>.<br/>
 
 <br/>
@@ -84,7 +84,7 @@
 &nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#decodeInstrW"><span class="id" title="definition">decodeInstrW</span></a> <a class="idref" href="cap_machine.solve_pure.html#w:5"><span class="id" title="variable">w</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.solve_pure.html#i:6"><span class="id" title="variable">i</span></a>.<br/>
 <span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="tactic">intros</span> -&gt;. <span class="id" title="tactic">reflexivity</span>.<br/>
-<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
 #[<span class="id" title="var">export</span>] <span class="id" title="keyword">Hint</span> <span class="id" title="keyword">Resolve</span> <span class="id" title="var">DecodeInstr_prove</span> : <span class="id" title="var">solve_pure</span>.<br/>
 
 <br/>
@@ -114,7 +114,7 @@
 #[<span class="id" title="var">export</span>] <span class="id" title="keyword">Hint</span> <span class="id" title="keyword">Extern</span> 1 (<a class="idref" href="cap_machine.machine_base.html#PermFlowsTo"><span class="id" title="definition">PermFlowsTo</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a>) =&gt; <span class="id" title="tactic">reflexivity</span> : <span class="id" title="var">solve_pure</span>.<br/>
 <span class="comment">(*&nbsp;Follows&nbsp;the&nbsp;same&nbsp;behavior&nbsp;as&nbsp;the&nbsp;Hint&nbsp;Mode&nbsp;for&nbsp;PermFlows&nbsp;*)</span><br/>
 #[<span class="id" title="var">export</span>] <span class="id" title="keyword">Hint</span> <span class="id" title="keyword">Extern</span> 1 (<a class="idref" href="cap_machine.machine_base.html#PermFlowsTo"><span class="id" title="definition">PermFlowsTo</span></a> ?<span class="id" title="var">p</span> ?<span class="id" title="var">p'</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a>) =&gt;<br/>
-&nbsp;&nbsp;(<span class="id" title="var">without_evars</span> <span class="id" title="var">p'</span>; <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#PermFlowsToReflexive"><span class="id" title="axiom">PermFlowsToReflexive</span></a>): <span class="id" title="var">solve_pure</span>.<br/>
+&nbsp;&nbsp;(<span class="id" title="var">without_evars</span> <span class="id" title="var">p'</span>; <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#PermFlowsToReflexive"><span class="id" title="lemma">PermFlowsToReflexive</span></a>): <span class="id" title="var">solve_pure</span>.<br/>
 
 <br/>
 <span class="comment">(*&nbsp;withinBounds&nbsp;*)</span><br/>
