@@ -31,9 +31,9 @@ jobs:
           key: opam-${{ hashFiles('opam') }}
 
       - name: Install OCaml
-        uses: avsm/setup-ocaml@v1
+        uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-version: 4.12.0
+          ocaml-compiler: 4.12.0
 
       - name: Install Coq and Iris
         run: |
