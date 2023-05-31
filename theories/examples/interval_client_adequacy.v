@@ -360,7 +360,7 @@ Section int_client_adequacy.
           `{memlayout: memory_layout}.
 
   Lemma int_client_correct :
-    Forall (λ w, is_z w = true) adv_instrs →
+    Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom flag_inv) m in
   (∀ rmap,
       dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
@@ -461,27 +461,24 @@ Section int_client_adequacy.
     pose proof adv_region_start_offset as Hadv_region_offset.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
     rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-    iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (finz_seq_between_cons adv_region_start);
+
+    iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hadv]" as ">#Hadv".
+    { iApply (region_valid_in_region _ _ _ _ adv_instrs);auto.
+      apply Forall_forall. intros. set_solver+. }
+    iAssert (|={⊤}=> interp (WCap RWX adv_region_start adv_end adv_start))%I with "[Hadv_link]" as ">#Hadv_valid".
+    { iApply fixpoint_interp1_eq. iSimpl.
+      rewrite (finz_seq_between_cons adv_region_start);
         [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
-      iFrame. iSplit.
-      { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
-        rewrite finz_seq_between_singleton// /=. iSplit;[|done].
-        iExists interp. iFrame "Hadv_table_valid". auto. }
-      iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
-      rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-      iApply big_sepL_forall. iIntros (k n Hin).
-      revert Hints; rewrite Forall_forall =>Hints.
-      assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
-      iApply fixpoint_interp1_eq;eauto. }
-
-    iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
-    { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
-      iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
-      iApply (big_sepL_mono with "Hadv'").
-      iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
-
+      iSplitL.
+      - iExists interp. iSplitL;[|iModIntro;auto].
+        iApply inv_alloc. iNext. iExists _. iFrame.
+        iApply fixpoint_interp1_eq;simpl.
+        rewrite finz_seq_between_singleton// /=.
+        iSplit;auto. iExists interp. iFrame "#".
+        iNext. iModIntro. auto.
+      - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
+    }
+    
     (* extract interval library from priv *)
     rewrite /Hfilter /=.
     assert (assert_library_content ##ₘ interval_library_content) as Hdisj.
@@ -680,7 +677,7 @@ Theorem template_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory int_client_prog adv_prog library interval_client_table adv_table m →
   is_initial_registers int_client_prog adv_prog library interval_client_table adv_table reg r_t0 →
-  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
+  Forall (adv_condition adv_prog) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).

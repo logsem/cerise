@@ -419,8 +419,204 @@ Section logrel.
     all: iExists (fixpoint interp1); iFrame.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
+    
+  (* Get the validity of a region containing only valid words *)
+  Lemma region_valid_alloc E (b e a: Addr) l p  :
+    PermFlowsTo RO p →
+    ([∗ list] w ∈ l, interp w) -∗
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hp) "#Hl H".
+    iMod (region_inv_alloc with "[H]") as "H".
+    { iDestruct (big_sepL2_length with "H") as %Hlen.
+      iDestruct (big_sepL2_to_big_sepL_r with "Hl") as "Hl'";[apply Hlen|].
+      iDestruct (big_sepL2_sep with "[H]") as "H";[iSplitL;[iFrame "H"|iFrame "Hl'"]|].
+      iApply (big_sepL2_mono with "H").
+      intros k v1 v2 ? Hlk. cbn. iIntros. iFrame. }
+    iDestruct (big_sepL2_length with "H") as %?.
+    iDestruct (big_sepL2_to_big_sepL_l with "H") as "H"; auto.
 
-  Lemma region_seal_pred_interp E (b e a: OType) b1 b2:
+    iModIntro. rewrite fixpoint_interp1_eq //.
+    destruct p; cbn; eauto; try by inversion Hp.
+    all: iApply (big_sepL_mono with "H").
+    all: iIntros (k a' Hk) "H"; cbn.
+    all: iExists (fixpoint interp1); iFrame.
+    all: try iSplit; iNext; iModIntro; eauto.
+  Qed.
+
+  Definition compute_mask (E : coPset) (ls : gset Addr) :=
+    set_fold (λ l E, E ∖ ↑logN .@ l) E ls.
+
+  Lemma compute_mask_mono E ls :
+    compute_mask E ls ⊆ E.
+  Proof.
+    rewrite /compute_mask. revert E.
+    induction ls using set_ind_L; intros E.
+    { by rewrite set_fold_empty. }    
+    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_singleton.
+    etransitivity; [apply IHls|].
+    set_solver.
+  Qed.
+  
+  Lemma compute_mask_subseteq E (ls1 ls2 : gset Addr) :
+    ls2 ⊆ ls1 → compute_mask E ls1 ⊆ compute_mask E ls2.
+  Proof.    
+    rewrite /compute_mask.
+    revert E ls1.
+    induction ls2 using set_ind_L.
+    { intros E ls1 Hle. rewrite set_fold_empty. apply compute_mask_mono. }
+    intros E ls1 Hle.
+    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_singleton.
+    assert (∃ Y, ls1 = {[x]} ∪ Y ∧ {[x]} ## Y) as [Y [-> Hdisj] ].
+    { apply subseteq_disjoint_union_L. set_solver. }
+    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_singleton. 
+    apply IHls2. set_solver.
+  Qed.
+
+  Lemma compute_mask_elem_of E l ls :
+    ↑(logN .@ l) ⊆ E → l ∉ ls → ↑logN.@l ⊆ compute_mask E ls.
+  Proof.
+    rewrite /compute_mask.
+    revert E.
+    induction ls using set_ind_L.
+    { set_solver. }
+    intros E HE Hnin.
+    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_singleton.
+    rewrite not_elem_of_union in Hnin. destruct Hnin as [Hnin1 Hnin2].
+    apply IHls; [|done].
+    assert (logN.@l ## logN.@x).
+    { apply ndot_ne_disjoint. set_solver. }
+    set_solver.
+  Qed.
+
+  Lemma compute_mask_id E :
+    compute_mask E ∅ = E.
+  Proof. auto. Qed.
+
+  Definition in_region (w : Word) (b e : Addr) :=
+    match w with
+    | WCap p b' e' a => PermFlows RO p /\ (b <= b')%a /\ (e' <= e)%a
+    | _ => False
+    end.
+
+  Definition in_region_list (w : Word) (ls: list Addr) :=
+    match w with
+    | WCap p b' e' a => PermFlows RO p /\ (forall x, b' <= x < e' -> x ∈ ls)%a
+    | _ => False
+    end.
+  
+  Lemma region_valid_in_region_ind E (l1 l2 : list Addr) :
+    Forall (λ a, ↑logN.@a ⊆ E) (l1 ++ l2) ->
+    NoDup l1 -> NoDup l2 ->
+    l2 ## l1 ->
+    ([∗ list] a ∈ l1, inv (logN .@ a) (interp_ref_inv a interp)) -∗
+    ([∗ list] a ∈ l2, ∃ w, a ↦ₐ w ∗ ⌜is_z w = true \/ in_region_list w (l1 ++ l2)⌝) -∗
+    |={compute_mask E (list_to_set l1)}=> ([∗ list] a ∈ l1 ++ l2, inv (logN .@ a) (interp_ref_inv a interp)).
+  Proof.
+    iIntros (Hforall Hdup1 Hdup2 Hdisj) "Hval Hl2".
+    iInduction l2 as [|] "IH"
+  forall (l1 Hdup2 Hforall Hdup1 Hdisj);iDestruct "Hval" as "#Hval".
+    { simpl. rewrite app_nil_r. iFrame "#". iModIntro. done. }
+    iDestruct "Hl2" as "[Hl Hl2]".
+    iDestruct "Hl" as (w) "[Hl %Hcond]".
+    apply NoDup_cons in Hdup2 as [Hni Hdup2].
+    apply disjoint_cons in Hdisj as Hni'.
+    apply disjoint_swap in Hdisj;auto.
+    destruct Hcond as [Hint | Hin].
+    - destruct w;try done.
+      iMod (inv_alloc (logN .@ a) _ (interp_ref_inv a interp) with "[Hl]") as "#Hlval".
+      { iNext. iExists _. iFrame. iApply fixpoint_interp1_eq. eauto. }
+      iMod (fupd_mask_subseteq (compute_mask E (list_to_set (a :: l1)))) as "Hclose";
+        [apply compute_mask_subseteq; set_solver|].
+      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [Hl2]") as "HH";auto.
+      { iPureIntro. simpl. rewrite Permutation_middle. auto. }
+      { iPureIntro. apply NoDup_cons;auto. }
+      { iSimpl. iFrame "#". }
+      { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
+        iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
+        iRight. iPureIntro. destruct w;try done. destruct sb;try done.
+        destruct Hw as [Hro Hb]. split;auto.
+        intros y Hy. simpl. rewrite Permutation_middle. apply Hb;auto. }
+      iDestruct (big_sepL_app with "HH") as "[#Hl1 #Hl2]".
+      iFrame "∗ #". iMod ("Hclose"). auto.
+    - destruct w;try done. destruct sb;try done. destruct Hin as [Hro Hin].
+      iApply big_sepL_app. iFrame "#".
+      iMod (inv_alloc_open (logN .@ a) _ (interp_ref_inv a interp)) as "[#Ha Hcls]".
+      { apply compute_mask_elem_of.
+        { revert Hforall; rewrite Forall_forall =>Hforall. apply Hforall.
+          apply elem_of_app;right;apply elem_of_cons;auto. }
+        apply not_elem_of_list_to_set. auto. }
+      iFrame "#".
+      iMod (fupd_mask_subseteq (compute_mask E (list_to_set (a :: l1)))) as "Hclose".
+      { rewrite /compute_mask.
+        rewrite list_to_set_cons union_comm_L.
+        rewrite (set_fold_disj_union_strong _ _ _ (list_to_set l1) {[a]}).
+        - rewrite set_fold_singleton. done.
+        - set_solver.
+        - set_solver. }
+      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [Hl2]") as "HH";auto.
+      { iPureIntro. simpl. rewrite Permutation_middle. auto. }
+      { iPureIntro. apply NoDup_cons;auto. }
+      { iSimpl. iFrame "#". }
+      { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
+        iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
+        iRight. iPureIntro. destruct w;try done. destruct sb;try done.
+        destruct Hw as [Hro' Hb]. split;auto.
+        intros y Hy. simpl. rewrite Permutation_middle. apply Hb;auto. }
+      iMod "Hclose".
+      iSimpl in "HH";iDestruct "HH" as "[#Hav HH]".
+      iDestruct (big_sepL_app with "HH") as "[#Hl1v #Hl2v]".
+      iMod ("Hcls" with "[Hl]");[|by iFrame "#"].
+      iNext. iExists _. iFrame.
+      iApply fixpoint_interp1_eq. destruct p;try done.
+      all: iApply big_sepL_forall; iIntros (k x Hlook); iExists interp.
+      all: iSplit;[|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
+      all: apply elem_of_list_lookup_2,elem_of_finz_seq_between,Hin,elem_of_app in Hlook.
+      all: destruct Hlook as [Hl1 | [->|Hl2]%elem_of_cons];
+          [iDestruct (big_sepL_elem_of with "Hl1v") as "$";auto|iFrame "#"|
+            iDestruct (big_sepL_elem_of with "Hl2v") as "$";auto].
+      Unshelve. all: apply _.
+  Qed.
+
+  Lemma region_valid_in_region E (b e a: Addr) l p  :
+    Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
+    PermFlowsTo RO p →
+    Forall (λ w, is_z w = true \/ in_region w b e) l ->
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hsub Hperm Hl) "Hl".
+    iDestruct (region_valid_in_region_ind E [] (finz.seq_between b e) with "[] [Hl]") as "HH".
+    { rewrite app_nil_l. auto. }
+    { apply NoDup_nil. auto. }
+    { apply finz_seq_between_NoDup. }
+    { apply disjoint_nil_r. exact 0%a. }
+    { auto. }
+    { rewrite app_nil_l.
+      iDestruct (big_sepL2_length with "Hl") as %Hlen.
+      iApply big_sepL2_to_big_sepL_l;[apply Hlen|].
+      iApply (big_sepL2_mono with "Hl").
+      iIntros (k y1 y2 Hy1 Hy2) "Hl".
+      iExists _; iFrame. iPureIntro.
+      rewrite Forall_lookup in Hl.
+      apply Hl in Hy2 as [Hy2|Hy2];auto.
+      right. destruct y2;try done. destruct sb;try done.
+      destruct Hy2 as [Hro Hin].
+      split;auto. intros x Hx. apply elem_of_finz_seq_between.
+      solve_addr. }
+    { rewrite list_to_set_nil compute_mask_id app_nil_l. iMod "HH".
+      iModIntro.
+      iApply fixpoint_interp1_eq. destruct p;try done.
+      all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
+        try iExists _;iFrame;try iSplit;iIntros (?);auto. }
+  Qed.
+    
+  Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
     ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
     interp (WSealRange (b1,b2) b e a).
   Proof.

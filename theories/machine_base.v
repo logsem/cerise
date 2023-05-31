@@ -216,6 +216,12 @@ Definition PermFlowsTo (p1 p2: Perm): bool :=
          end
   end.
 
+Definition PermFlowsToCap (p: Perm) (w: Word) : bool :=
+  match w with
+  | WCap p' _ _ _ => PermFlowsTo p p'
+  | _ => false
+  end.
+
 (* Sanity check *)
 Lemma PermFlowsToTransitive:
   transitive _ PermFlowsTo.
@@ -393,6 +399,12 @@ Qed.
 
 Definition isWithin {z} (n1 n2 b e: finz z) : bool :=
   ((b <=? n1) && (n2 <=? e))%f.
+
+Definition isWithinCap (c: Word) (b e: finz MemNum) : bool :=
+  match c with
+  | WCap _ n1 n2 _ => isWithin n1 n2 b e
+  | _ => false
+  end.
 
 Lemma isWithin_implies {z} (a0 a1 b e : finz z):
   isWithin a0 a1 b e = true →

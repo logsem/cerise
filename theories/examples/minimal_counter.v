@@ -170,7 +170,7 @@ Section counter.
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
-    Forall (λ w, is_z w = true) adv →
+    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
   ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
@@ -190,7 +190,8 @@ Section counter.
 
     (* The capability to the adversary is safe and we can also jmp to it *)
     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
-    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto.
+    { apply Forall_forall. intros. set_solver. }
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
     iApply (counter_init_spec a_init with "[-]"). solve_addr'. iFrame.
@@ -301,7 +302,7 @@ Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es
     counter_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_z w = true) (prog_instrs Adv) →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   ∃ n, m' !! (prog_start P ^+ (code_off + data_off + 1))%a = Some (WInt n) ∧ 0 ≤ n.
