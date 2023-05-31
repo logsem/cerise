@@ -55,7 +55,7 @@ Section buffer.
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
-    Forall (λ w, is_cap w = false) adv →
+    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
    ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
@@ -72,7 +72,8 @@ Section buffer.
 
     (* The capability to the adversary is safe and we can also jmp to it *)
     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
-    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto.
+    { apply Forall_forall. intros. set_solver. }
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
     iApply (buffer_spec a_first with "[-]"). solve_addr. iFrame.
@@ -119,7 +120,7 @@ Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es
   prog_instrs P = buffer_code (prog_start P) ++ buffer_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_cap w = false) (prog_instrs Adv) →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   m' !! (prog_start P ^+ 7)%a = Some (WInt 42).

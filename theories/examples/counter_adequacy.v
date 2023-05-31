@@ -134,14 +134,14 @@ Definition mk_initial_memory `{memory_layout} (adv_val: list Word) : gmap Addr W
 .
 
 Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
-  ∃ (adv_val: list Word),
+  ∃ (adv_val: list Word) (adv_end': Addr),
   m = mk_initial_memory adv_val
   ∧
   (* the adversarial region in memory must only contain instructions, no
      capabilities (it can thus only access capabilities the awkward preamble
      passes it through the registers) *)
-  Forall (λ w, is_cap w = false) adv_val
-  ∧
+  Forall (λ w, is_z w = true \/ in_region w adv_start adv_end') adv_val ∧
+  (adv_end' + 1)%a = Some adv_end /\
   (adv_start + (length adv_val + 1)%nat)%a = Some adv_end.
 
 Definition is_initial_registers `{memory_layout} (reg: gmap RegName Word) :=
@@ -184,7 +184,7 @@ Section Adequacy.
     specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
-    destruct Hm as (adv_val & Hm & Hadv_val & adv_size).
+    destruct Hm as (adv_val & adv_end' & Hm & Hadv_val & adv_incr & adv_size).
     iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
@@ -298,26 +298,27 @@ Section Adequacy.
     (* Show validity of the adversary capability *)
     assert (contiguous_between (finz.seq_between adv_start adv_end) adv_start adv_end) as Hcont.
     { apply contiguous_between_region_addrs. clear -adv_size. solve_addr. }
-    iDestruct (contiguous_between_program_split with "Hadv") as (adv_words malloc_word adv_end') "(Hadv & Hmalloc & #Hcont)";[eauto|]. 
+    iDestruct (contiguous_between_program_split with "Hadv") as (adv_words malloc_word adv_end'') "(Hadv & Hmalloc & #Hcont)";[eauto|].
     iDestruct "Hcont" as %(Hcontadv & Hcontmalloc & Heqapp & Hlink).
     iDestruct (big_sepL2_length with "Hmalloc") as %Hlen1. simpl in Hlen1.
     iDestruct (big_sepL2_length with "Hadv") as %Hlen2. simpl in Hlen2.
-      
-    iMod (region_inv_alloc _ (adv_words ++ malloc_word)
-                           (adv_val ++ [WCap E malloc_start malloc_end malloc_start])
-            with "[Hadv Hmalloc]") as "Hadv".
-    { iApply (big_sepL2_app');[auto|]. 
-      iSplitL "Hadv". 
-      - iApply (big_sepL2_mono with "Hadv").
-        intros k v1 v2 Hv1 Hv2. cbn. iIntros. iFrame.
-        pose proof (Forall_lookup_1 _ _ _ _ Hadv_val Hv2) as Hncap.
-        destruct v2; [| by inversion Hncap].
-        rewrite fixpoint_interp1_eq /=. done.
-      - destruct malloc_word;[inversion Hlen1|]. destruct malloc_word;[|inversion Hlen1].
-        iDestruct "Hmalloc" as "[Hmalloc _]". iFrame "∗ #". done. 
-    }
-    iDestruct "Hadv" as "#Hadv".
+    assert (adv_end' = adv_end'') as <-. solve_addr.
+    apply region_addrs_of_contiguous_between in Hcontadv as Heq'.
+
+    iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end' adv_start))%I with "[Hadv]" as ">#Hadv".
+    { rewrite Heq'. iApply (region_valid_in_region _ _ _ _ adv_val); eauto.
+      apply Forall_forall. intros. set_solver+. }
     
+    iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hmalloc]" as ">#Hadv'".
+    { iApply fixpoint_interp1_eq.
+      iSimpl. rewrite Heqapp Heq'.
+      iDestruct (fixpoint_interp1_eq with "Hadv") as "Hadv'". iSimpl in "Hadv'".
+      iApply big_sepL_app. iFrame "Hadv'".
+      destruct malloc_word;[inversion Hlen1|]. destruct malloc_word;[|inversion Hlen1].
+      iDestruct "Hmalloc" as "[Hmalloc _]". iSimpl. iSplitL;auto.
+      iExists interp. iSplitL;[|iModIntro;iSplit;auto].
+      iApply inv_alloc. iNext. iExists _. iFrame "∗ #". }
+     
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
     iAssert ((interp_expr interp reg) (WCap RX counter_region_start counter_region_end counter_preamble_start))
@@ -380,13 +381,7 @@ Section Adequacy.
            fundamental theorem. *)
         destruct (decide (r = r_t0)) as [ -> |].
         { rewrite Hsv in Hstk. inversion Hstk; subst v.
-          rewrite !fixpoint_interp1_eq /=.
-          iDestruct (big_sepL2_length with "Hadv") as %Hadvlength. 
-          iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'";auto. rewrite -Heqapp. 
-          iApply (big_sepL_mono with "Hadv'"). iIntros (k v Hkv). cbn.
-          iIntros "H". iExists (interp). iFrame.
-          iSplit;auto. 
-        }
+          iFrame "#". }
 
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.

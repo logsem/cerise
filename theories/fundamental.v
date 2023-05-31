@@ -241,4 +241,33 @@ Section fundamental.
     all: iApply region_integers_alloc; eauto.
   Qed.
 
+  Lemma region_valid_alloc' E (b e a: Addr) l p :
+    ([∗ list] w ∈ l, interp w) -∗
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros "#Hl H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply (region_valid_alloc with "Hl"); eauto.
+  Qed.
+
+  Lemma region_in_region_alloc' E (b e a: Addr) l p :
+    Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
+    Forall (λ w, is_z w = true \/ in_region w b e) l →
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hmasks Hl) "H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply (region_valid_in_region with "H"); eauto.
+  Qed.
+
 End fundamental.
