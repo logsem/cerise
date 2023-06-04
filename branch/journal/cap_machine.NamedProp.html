@@ -18,7 +18,7 @@
     <span class="button" id="toggle-proofs"></span>
 
     <span class="right">
-      <a href="./">Project Page</a>
+      <a href="./index.html">Project Page</a>
       <a href="./indexpage.html"> Index </a>
       <a href="./toc.html"> Table of Contents </a>
     </span>
@@ -119,31 +119,31 @@ introduces&nbsp;an&nbsp;extra&nbsp;coercion&nbsp;to&nbsp;the&nbsp;carrier)&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">Γ</span>; <span class="id" title="tactic">simpl</span>; <span class="id" title="tactic">auto</span>; <span class="id" title="tactic">intros</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">IHΓ</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">i</span>; <span class="id" title="tactic">simpl</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Theorem</span> <a id="env_to_named_prop_unname" class="idref" href="#env_to_named_prop_unname"><span class="id" title="lemma">env_to_named_prop_unname</span></a> (<a id="de99c0e007bd311d76da1801ff347713" class="idref" href="#de99c0e007bd311d76da1801ff347713"><span class="id" title="binder">Γ</span></a>: <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env"><span class="id" title="inductive">env</span></a> <a class="idref" href="cap_machine.NamedProp.html#named.PROP"><span class="id" title="variable">PROP</span></a>) :<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop"><span class="id" title="definition">env_to_named_prop</span></a> <a class="idref" href="cap_machine.NamedProp.html#de99c0e007bd311d76da1801ff347713"><span class="id" title="variable">Γ</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env_to_prop"><span class="id" title="definition">env_to_prop</span></a> <a class="idref" href="cap_machine.NamedProp.html#de99c0e007bd311d76da1801ff347713"><span class="id" title="variable">Γ</span></a>.<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">Γ</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">i</span>; <span class="id" title="tactic">simpl</span>; <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_go_unname"><span class="id" title="axiom">env_to_named_prop_go_unname</span></a> //.<br/>
-&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">i</span>; <span class="id" title="tactic">simpl</span>; <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_go_unname"><span class="id" title="lemma">env_to_named_prop_go_unname</span></a> //.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Theorem</span> <a id="env_to_named_prop_sound" class="idref" href="#env_to_named_prop_sound"><span class="id" title="lemma">env_to_named_prop_sound</span></a> (<a id="f0fc26962fbc1476a5f5245f565ffb72" class="idref" href="#f0fc26962fbc1476a5f5245f565ffb72"><span class="id" title="binder">Γ</span></a>: <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env"><span class="id" title="inductive">env</span></a> <a class="idref" href="cap_machine.NamedProp.html#named.PROP"><span class="id" title="variable">PROP</span></a>) :<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop"><span class="id" title="definition">env_to_named_prop</span></a> <a class="idref" href="cap_machine.NamedProp.html#f0fc26962fbc1476a5f5245f565ffb72"><span class="id" title="variable">Γ</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/stdpp//stdpp.base.html#84ed560d885c4affec56d11a371728c0"><span class="id" title="notation">≡</span></a> (<a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#1859b5662eed98e4f5050c0ba3bbcb6b"><span class="id" title="notation">[∗]</span></a> <a class="idref" href="cap_machine.NamedProp.html#f0fc26962fbc1476a5f5245f565ffb72"><span class="id" title="variable">Γ</span></a>)%<span class="id" title="var">I</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_unname"><span class="id" title="axiom">env_to_named_prop_unname</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env_to_prop_sound"><span class="id" title="lemma">env_to_prop_sound</span></a> //.<br/>
-&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_unname"><span class="id" title="lemma">env_to_named_prop_unname</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env_to_prop_sound"><span class="id" title="lemma">env_to_prop_sound</span></a> //.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="tac_named_accu" class="idref" href="#tac_named_accu"><span class="id" title="lemma">tac_named_accu</span></a> <a id="d64880f3ffaeeca885046d3f9bc5cd33" class="idref" href="#d64880f3ffaeeca885046d3f9bc5cd33"><span class="id" title="binder">Δ</span></a> (<a id="P:20" class="idref" href="#P:20"><span class="id" title="binder">P</span></a>: <a class="idref" href="cap_machine.NamedProp.html#named.PROP"><span class="id" title="variable">PROP</span></a>) :<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop"><span class="id" title="definition">env_to_named_prop</span></a> (<a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#env_spatial"><span class="id" title="projection">env_spatial</span></a> <a class="idref" href="cap_machine.NamedProp.html#d64880f3ffaeeca885046d3f9bc5cd33"><span class="id" title="variable">Δ</span></a>) <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.NamedProp.html#P:20"><span class="id" title="variable">P</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#envs_entails"><span class="id" title="definition">envs_entails</span></a> <a class="idref" href="cap_machine.NamedProp.html#d64880f3ffaeeca885046d3f9bc5cd33"><span class="id" title="variable">Δ</span></a> <a class="idref" href="cap_machine.NamedProp.html#P:20"><span class="id" title="variable">P</span></a>.<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_unname"><span class="id" title="axiom">env_to_named_prop_unname</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_unname"><span class="id" title="lemma">env_to_named_prop_unname</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.coq_tactics.html#tac_accu"><span class="id" title="lemma">coq_tactics.tac_accu</span></a>.<br/>
-&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 <span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.NamedProp.html#named"><span class="id" title="section">named</span></a>.<br/>
@@ -272,11 +272,11 @@ of&nbsp;the&nbsp;binder&nbsp;and&nbsp;repeats&nbsp;while&nbsp;the&nbsp;goal&nbsp
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "HP".<br/>
 &nbsp;&nbsp;- <span class="id" title="var">iIntros</span> "[#HP HQ]".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "HQ"; <span class="id" title="var">iFrame</span> "#".<br/>
-<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 <span class="id" title="keyword">Local Ltac</span> <span class="id" title="var">iNameIntuitionistic</span> <span class="id" title="var">i</span> <span class="id" title="var">i'</span> :=<br/>
-&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> (<a class="idref" href="cap_machine.NamedProp.html#tac_name_intuitionistic"><span class="id" title="axiom">tac_name_intuitionistic</span></a> <span class="id" title="var">_</span> <span class="id" title="var">i</span> <span class="id" title="var">i'</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span>);<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> (<a class="idref" href="cap_machine.NamedProp.html#tac_name_intuitionistic"><span class="id" title="lemma">tac_name_intuitionistic</span></a> <span class="id" title="var">_</span> <span class="id" title="var">i</span> <span class="id" title="var">i'</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span>);<br/>
 &nbsp;&nbsp;[ <span class="id" title="var">reduction.pm_reflexivity</span><br/>
 &nbsp;&nbsp;| <span class="id" title="var">iSolveTC</span><br/>
 &nbsp;&nbsp;| <span class="id" title="tactic">simpl</span>; <span class="id" title="var">iSolveTC</span><br/>
@@ -397,7 +397,7 @@ useful&nbsp;on&nbsp;its&nbsp;own)&nbsp;*)</span><br/>
 
 <br/>
 <span class="id" title="keyword">Tactic Notation</span> "iNamedAccu" :=<br/>
-&nbsp;&nbsp;<span class="id" title="var">iStartProof</span>; <span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.NamedProp.html#tac_named_accu"><span class="id" title="axiom">tac_named_accu</span></a>; [ <span class="comment">(*&nbsp;only&nbsp;one&nbsp;goal&nbsp;should&nbsp;spawn&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" title="var">iStartProof</span>; <span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.NamedProp.html#tac_named_accu"><span class="id" title="lemma">tac_named_accu</span></a>; [ <span class="comment">(*&nbsp;only&nbsp;one&nbsp;goal&nbsp;should&nbsp;spawn&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">first</span> [<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">cbv</span> [ <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop"><span class="id" title="definition">env_to_named_prop</span></a> <a class="idref" href="cap_machine.NamedProp.html#env_to_named_prop_go"><span class="id" title="definition">env_to_named_prop_go</span></a> ];<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">reduction.pm_reflexivity</span><br/>
@@ -471,7 +471,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "? ?".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitL</span> "H1"; [ <span class="id" title="var">iExact</span> "H1" | <span class="id" title="var">iExact</span> "H2" ].<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_name_named_2" class="idref" href="#tests.test_name_named_2"><span class="id" title="definition">test_name_named_2</span></a> <a id="P:55" class="idref" href="#P:55"><span class="id" title="binder">P</span></a> <a id="Q:56" class="idref" href="#Q:56"><span class="id" title="binder">Q</span></a> :<br/>
@@ -483,7 +483,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNameHyp</span> "H₁".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNameHyp</span> "H₂".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitL</span> "H1"; [ <span class="id" title="var">iExact</span> "H1" | <span class="id" title="var">iExact</span> "H2" ].<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_pure_pattern_freshen" class="idref" href="#tests.test_pure_pattern_freshen"><span class="id" title="definition">test_pure_pattern_freshen</span></a> <a id="446d542474945d9a4049ff0cab088f3f" class="idref" href="#446d542474945d9a4049ff0cab088f3f"><span class="id" title="binder">φ</span></a> <a id="4f61487d0058cceb75d9257330a37361" class="idref" href="#4f61487d0058cceb75d9257330a37361"><span class="id" title="binder">φ'</span></a> <a id="P:59" class="idref" href="#P:59"><span class="id" title="binder">P</span></a> :<br/>
@@ -496,7 +496,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNameHyp</span> "H1".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNameHyp</span> "H2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">exact</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Logic.html#conj"><span class="id" title="constructor">conj</span></a> <span class="id" title="var">H</span> <span class="id" title="var">H0</span>).<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_destruct_named" class="idref" href="#tests.test_destruct_named"><span class="id" title="definition">test_destruct_named</span></a> <a id="P:60" class="idref" href="#P:60"><span class="id" title="binder">P</span></a> <a id="Q:61" class="idref" href="#Q:61"><span class="id" title="binder">Q</span></a> :<br/>
@@ -510,7 +510,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamedDestruct</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_destruct_pat" class="idref" href="#tests.test_destruct_pat"><span class="id" title="definition">test_destruct_pat</span></a> (<a id="foo:62" class="idref" href="#foo:62"><span class="id" title="binder">foo</span></a>: <span class="id" title="keyword">Prop</span>) <a id="P:63" class="idref" href="#P:63"><span class="id" title="binder">P</span></a> <a id="Q:64" class="idref" href="#Q:64"><span class="id" title="binder">Q</span></a> :<br/>
@@ -524,7 +524,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamedDestruct</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span> "HP HQ HP2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">exact</span> <span class="id" title="var">Hfoo</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_frame_named" class="idref" href="#tests.test_frame_named"><span class="id" title="definition">test_frame_named</span></a> <a id="P:65" class="idref" href="#P:65"><span class="id" title="binder">P</span></a> <a id="Q:66" class="idref" href="#Q:66"><span class="id" title="binder">Q</span></a> :<br/>
@@ -532,7 +532,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "HP HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span> "HQ HP".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_frame_named_sep" class="idref" href="#tests.test_frame_named_sep"><span class="id" title="definition">test_frame_named_sep</span></a> <a id="P:67" class="idref" href="#P:67"><span class="id" title="binder">P</span></a> <a id="Q:68" class="idref" href="#Q:68"><span class="id" title="binder">Q</span></a> :<br/>
@@ -540,7 +540,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "HP HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_remove_named_in_goal" class="idref" href="#tests.test_remove_named_in_goal"><span class="id" title="definition">test_remove_named_in_goal</span></a> <a id="P:69" class="idref" href="#P:69"><span class="id" title="binder">P</span></a> <a id="Q:70" class="idref" href="#Q:70"><span class="id" title="binder">Q</span></a> :<br/>
@@ -549,7 +549,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "HP HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">prove_named</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_exist_destruct" class="idref" href="#tests.test_exist_destruct"><span class="id" title="definition">test_exist_destruct</span></a> <a id="002c85c7260c5ca4f9f74fb7f2897e14" class="idref" href="#002c85c7260c5ca4f9f74fb7f2897e14"><span class="id" title="binder">Ψ</span></a> <a id="Q:72" class="idref" href="#Q:72"><span class="id" title="binder">Q</span></a> :<br/>
@@ -558,7 +558,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitL</span> "HP"; [ <span class="id" title="var">iExists</span> <span class="id" title="var">x</span> | ]; <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="tests.rep_invariant" class="idref" href="#tests.rep_invariant"><span class="id" title="definition">rep_invariant</span></a> <a id="079462249c791f398e0e3ace2029ce20" class="idref" href="#079462249c791f398e0e3ace2029ce20"><span class="id" title="binder">Ψ</span></a> <a id="Q:76" class="idref" href="#Q:76"><span class="id" title="binder">Q</span></a> : <a class="idref" href="cap_machine.NamedProp.html#tests.tests.PROP"><span class="id" title="variable">PROP</span></a> :=<br/>
@@ -571,7 +571,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitL</span> "HP"; [ <span class="id" title="var">iExists</span> <span class="id" title="var">x</span> | ]; <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_exist_destruct_no_naming" class="idref" href="#tests.test_exist_destruct_no_naming"><span class="id" title="definition">test_exist_destruct_no_naming</span></a> <a id="f8475ea26e8d7496570fc3069bb8a03d" class="idref" href="#f8475ea26e8d7496570fc3069bb8a03d"><span class="id" title="binder">Ψ</span></a> <a id="Q:82" class="idref" href="#Q:82"><span class="id" title="binder">Q</span></a> :<br/>
@@ -580,7 +580,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">x</span>; <span class="id" title="var">iFrame</span> "H".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_multiple_exist_destruct" class="idref" href="#tests.test_multiple_exist_destruct"><span class="id" title="definition">test_multiple_exist_destruct</span></a> <a id="55c5f259ec8620f8950a823ac94763fd" class="idref" href="#55c5f259ec8620f8950a823ac94763fd"><span class="id" title="binder">Ψ</span></a> <a id="Q:86" class="idref" href="#Q:86"><span class="id" title="binder">Q</span></a> :<br/>
@@ -589,7 +589,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> (<span class="id" title="var">x</span><a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Peano.html#0dacc1786c5ba797d47dd85006231633"><span class="id" title="notation">+</span></a><span class="id" title="var">y</span><a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Peano.html#0dacc1786c5ba797d47dd85006231633"><span class="id" title="notation">+</span></a><span class="id" title="var">z</span>); <span class="id" title="var">iFrame</span> "H".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_iNamed_destruct_pat" class="idref" href="#tests.test_iNamed_destruct_pat"><span class="id" title="definition">test_iNamed_destruct_pat</span></a> <a id="4b232bbfab81806905812416467e9f5f" class="idref" href="#4b232bbfab81806905812416467e9f5f"><span class="id" title="binder">φ</span></a> <a id="P:92" class="idref" href="#P:92"><span class="id" title="binder">P</span></a> <a id="Q:93" class="idref" href="#Q:93"><span class="id" title="binder">Q</span></a> :<br/>
@@ -603,7 +603,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span> "HP HQ HP2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">exact</span> <span class="id" title="var">Hfoo</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_into_pure" class="idref" href="#tests.test_named_into_pure"><span class="id" title="definition">test_named_into_pure</span></a> <a id="d5b93cc29a7c58afda78c3e94af09715" class="idref" href="#d5b93cc29a7c58afda78c3e94af09715"><span class="id" title="binder">φ</span></a> <a id="Q:95" class="idref" href="#Q:95"><span class="id" title="binder">Q</span></a> :<br/>
@@ -611,7 +611,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "[%HP HQ]".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_persistent" class="idref" href="#tests.test_named_persistent"><span class="id" title="definition">test_named_persistent</span></a> <a id="P:96" class="idref" href="#P:96"><span class="id" title="binder">P</span></a> :<br/>
@@ -621,7 +621,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "HP".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExact</span> "H".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_persistent_same_name" class="idref" href="#tests.test_named_persistent_same_name"><span class="id" title="definition">test_named_persistent_same_name</span></a> <a id="P:97" class="idref" href="#P:97"><span class="id" title="binder">P</span></a> :<br/>
@@ -631,7 +631,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExact</span> "H".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_persistent_conjuncts" class="idref" href="#tests.test_named_persistent_conjuncts"><span class="id" title="definition">test_named_persistent_conjuncts</span></a> <a id="P:98" class="idref" href="#P:98"><span class="id" title="binder">P</span></a> <a id="Q:99" class="idref" href="#Q:99"><span class="id" title="binder">Q</span></a> :<br/>
@@ -641,7 +641,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "H" <span class="id" title="keyword">as</span> "[Htmp1 H]".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_persistent_context" class="idref" href="#tests.test_named_persistent_context"><span class="id" title="definition">test_named_persistent_context</span></a> <a id="P:100" class="idref" href="#P:100"><span class="id" title="binder">P</span></a> <a id="Q:101" class="idref" href="#Q:101"><span class="id" title="binder">Q</span></a> :<br/>
@@ -650,7 +650,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "#HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_already_persistent" class="idref" href="#tests.test_named_already_persistent"><span class="id" title="definition">test_named_already_persistent</span></a> `{<a id="Persistent0:103" class="idref" href="#Persistent0:103"><span class="id" title="binder">!</span></a><a id="Persistent0:103" class="idref" href="#Persistent0:103"><span class="id" title="binder">Persistent</span></a> <a id="Persistent0:103" class="idref" href="#Persistent0:103"><span class="id" title="binder">P</span></a>} <a id="Q:104" class="idref" href="#Q:104"><span class="id" title="binder">Q</span></a> :<br/>
@@ -659,7 +659,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_last_not_named" class="idref" href="#tests.test_named_last_not_named"><span class="id" title="definition">test_named_last_not_named</span></a> <a id="P:105" class="idref" href="#P:105"><span class="id" title="binder">P</span></a> <a id="Q:106" class="idref" href="#Q:106"><span class="id" title="binder">Q</span></a> :<br/>
@@ -668,7 +668,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "HQ".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitR</span> "HQ"; <span class="id" title="var">iAssumption</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_from_pure" class="idref" href="#tests.test_named_from_pure"><span class="id" title="definition">test_named_from_pure</span></a> <a id="ed678cdb7c1d8e54466c4dd1f3ef04b3" class="idref" href="#ed678cdb7c1d8e54466c4dd1f3ef04b3"><span class="id" title="binder">φ</span></a> <a id="Q:108" class="idref" href="#Q:108"><span class="id" title="binder">Q</span></a> :<br/>
@@ -679,7 +679,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">done</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_named_not_found" class="idref" href="#tests.test_named_not_found"><span class="id" title="definition">test_named_not_found</span></a> <a id="P:109" class="idref" href="#P:109"><span class="id" title="binder">P</span></a> :<br/>
@@ -689,7 +689,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Fail</span> <span class="id" title="var">iNamed</span> "foo". <span class="comment">(*&nbsp;hypothesis&nbsp;"foo"&nbsp;not&nbsp;found&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "HP".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExact</span> "HP".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_exists" class="idref" href="#tests.test_exists"><span class="id" title="definition">test_exists</span></a> <a id="0d00dc1b62649a5f8e78ff705c7ad42d" class="idref" href="#0d00dc1b62649a5f8e78ff705c7ad42d"><span class="id" title="binder">Ψ</span></a> :<br/>
@@ -699,7 +699,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "?"; <span class="id" title="var">iNamed</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDeexHyp</span> "HP2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">my_name</span>; <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_exists_freshen" class="idref" href="#tests.test_exists_freshen"><span class="id" title="definition">test_exists_freshen</span></a> <a id="x:113" class="idref" href="#x:113"><span class="id" title="binder">x</span></a> <a id="c8d147ad32ba7792603b4f22c23265db" class="idref" href="#c8d147ad32ba7792603b4f22c23265db"><span class="id" title="binder">Ψ</span></a> :<br/>
@@ -709,7 +709,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "? ?"; <span class="id" title="var">iNamed</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDeexHyp</span> "HP2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">x0</span>; <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="tests.simple_rep" class="idref" href="#tests.simple_rep"><span class="id" title="definition">simple_rep</span></a> <a id="P:117" class="idref" href="#P:117"><span class="id" title="binder">P</span></a> := "HP" <a class="idref" href="cap_machine.NamedProp.html#1350428996423bbb1e504ad829ea6ae0"><span class="id" title="notation">∷</span></a> <a class="idref" href="cap_machine.NamedProp.html#P:117"><span class="id" title="variable">P</span></a>.<br/>
@@ -732,7 +732,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> 1.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">y</span>; <span class="id" title="var">iExact</span> "psi".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_nested_destruct_conjuncts" class="idref" href="#tests.test_nested_destruct_conjuncts"><span class="id" title="definition">test_nested_destruct_conjuncts</span></a> <a id="48994674ee8a17f292cd57fc8962bd6d" class="idref" href="#48994674ee8a17f292cd57fc8962bd6d"><span class="id" title="binder">Ψ</span></a> :<br/>
@@ -742,7 +742,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> 1.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> (2<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Peano.html#0dacc1786c5ba797d47dd85006231633"><span class="id" title="notation">+</span></a><span class="id" title="var">y</span>); <span class="id" title="var">iExact</span> "psi2".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_nested_destruct_middle" class="idref" href="#tests.test_nested_destruct_middle"><span class="id" title="definition">test_nested_destruct_middle</span></a> <a id="P:125" class="idref" href="#P:125"><span class="id" title="binder">P</span></a> <a id="e9b55f8f4df0ac0fcdfb44ff92838b7a" class="idref" href="#e9b55f8f4df0ac0fcdfb44ff92838b7a"><span class="id" title="binder">Ψ</span></a> :<br/>
@@ -753,7 +753,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> 1.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> (2<a class="idref" href="http://coq.inria.fr/distrib/V8.13.0/stdlib//Coq.Init.Peano.html#0dacc1786c5ba797d47dd85006231633"><span class="id" title="notation">+</span></a><span class="id" title="var">y</span>); <span class="id" title="var">iFrame</span> "psi2 HP2".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_frame_named_spatial" class="idref" href="#tests.test_frame_named_spatial"><span class="id" title="definition">test_frame_named_spatial</span></a> <a id="P1:129" class="idref" href="#P1:129"><span class="id" title="binder">P1</span></a> <a id="P2:130" class="idref" href="#P2:130"><span class="id" title="binder">P2</span></a> :<br/>
@@ -762,7 +762,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "I". <span class="id" title="var">iNamed</span> "I".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrameNamed</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_frame_named_persistent" class="idref" href="#tests.test_frame_named_persistent"><span class="id" title="definition">test_frame_named_persistent</span></a> <a id="P1:131" class="idref" href="#P1:131"><span class="id" title="binder">P1</span></a> <a id="P2:132" class="idref" href="#P2:132"><span class="id" title="binder">P2</span></a> :<br/>
@@ -772,7 +772,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "I".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNamed</span> "I".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrameNamed</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Example</span> <a id="tests.test_frame_named_pure" class="idref" href="#tests.test_frame_named_pure"><span class="id" title="definition">test_frame_named_pure</span></a> <a id="P1:133" class="idref" href="#P1:133"><span class="id" title="binder">P1</span></a> <a id="P2:134" class="idref" href="#P2:134"><span class="id" title="binder">P2</span></a> :<br/>
@@ -781,7 +781,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "I". <span class="id" title="var">iNamed</span> "I".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrameNamed</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="tests.env_modus_ponens" class="idref" href="#tests.env_modus_ponens"><span class="id" title="lemma">env_modus_ponens</span></a> (<a id="95a2dff135c0b1fef773df5f3c6e831b" class="idref" href="#95a2dff135c0b1fef773df5f3c6e831b"><span class="id" title="binder">Γ</span></a>: <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.proofmode.environments.html#envs"><span class="id" title="record">envs</span></a> <a class="idref" href="cap_machine.NamedProp.html#tests.tests.PROP"><span class="id" title="variable">PROP</span></a>) (<a id="Q:136" class="idref" href="#Q:136"><span class="id" title="binder">Q</span></a> <a id="Q':137" class="idref" href="#Q':137"><span class="id" title="binder">Q'</span></a>: <a class="idref" href="cap_machine.NamedProp.html#tests.tests.PROP"><span class="id" title="variable">PROP</span></a>) :<br/>
@@ -805,7 +805,7 @@ attach&nbsp;the&nbsp;names&nbsp;correctly&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;should&nbsp;recover&nbsp;the&nbsp;same&nbsp;context&nbsp;(modulo&nbsp;renaming&nbsp;of&nbsp;anonymous<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hypotheses)&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
 
 <br/>
 &nbsp;&nbsp;<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.NamedProp.html#tests.tests"><span class="id" title="section">tests</span></a>.<br/>
