@@ -6,7 +6,9 @@ From iris.algebra Require Import gmap agree auth.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 From cap_machine.rules Require Import rules_base.
 From Coq Require Import Eqdep_dec.
+
 Import uPred.
+
 
 Ltac auto_equiv :=
   (* Deal with "pointwise_relation" *)
@@ -409,16 +411,42 @@ Section logrel.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
-  Definition compute_mask (E : coPset) (ls : gset Addr) :=
-    set_fold (λ l E, E ∖ ↑logN .@ l) E ls.
+  Instance fin_set : FinSet Addr (gset Addr) := (@gset_fin_set Addr (@finz_eq_dec MemNum) (@finz_countable MemNum)).
 
+  (* Lemma from newer version of stdpp applied to types used in compute_mask *)
+  (* Lemma set_fold_disj_union_compute_mask (E : coPset) (x : Addr) (X : gset Addr) : *)
+  (*   {[x]} ## X -> *)
+  (*   @set_fold Addr (gset Addr) (@gset_elements Addr (@finz_eq_dec MemNum) (@finz_countable MemNum)) coPset (λ (l : Addr) (E0 : coPset), E0 ∖ (↑logN.@l)) E ({[x]} ∪ X) *)
+  (*   = @set_fold _ (gset Addr) _ _ (λ (l : Addr) (E0 : coPset), E0 ∖ (↑logN.@l)) (@set_fold _ (gset Addr) _ _ (λ (l : Addr) (E0 : coPset), E0 ∖ ↑logN.@l) E {[x]}) X. *)
+  (* Proof. *)
+  (*   intros Hdisj. unfold set_fold. simpl. *)
+  (*   rewrite <-foldr_app. apply foldr_permutation;try apply _. *)
+  (*   - intros j1 x1 j2 x2 b' Hj Hj1 Hj2. set_solver. *)
+  (*   - rewrite elements_disj_union //. apply Permutation_app_comm. *)
+  (* Qed. *)
+  Lemma set_fold_disj_union_compute_mask (E : coPset) (Y X : gset Addr) :
+    Y ## X ->
+    @set_fold Addr (gset Addr) (@gset_elements Addr (@finz_eq_dec MemNum) (@finz_countable MemNum)) coPset (λ (l : Addr) (E0 : coPset), E0 ∖ (↑logN.@l)) E (Y ∪ X)
+    = @set_fold _ (gset Addr) _ _ (λ (l : Addr) (E0 : coPset), E0 ∖ (↑logN.@l)) (@set_fold _ (gset Addr) _ _ (λ (l : Addr) (E0 : coPset), E0 ∖ ↑logN.@l) E Y) X.
+  Proof.
+    intros Hdisj. unfold set_fold. simpl.
+    rewrite <-foldr_app. apply foldr_permutation;try apply _.
+    - intros j1 x1 j2 x2 b' Hj Hj1 Hj2. set_solver.
+    - rewrite elements_disj_union //. apply Permutation_app_comm.
+  Qed.
+
+  Definition compute_mask (E : coPset) (ls : gset Addr) :=
+    @set_fold _ (gset Addr) (@gset_elements Addr (@finz_eq_dec MemNum) (@finz_countable MemNum))
+      coPset (λ (l : Addr) (E : coPset), E ∖ (↑logN .@ l)) E ls.
+    
+  
   Lemma compute_mask_mono E ls :
     compute_mask E ls ⊆ E.
   Proof.
     rewrite /compute_mask. revert E.
     induction ls using set_ind_L; intros E.
-    { by rewrite set_fold_empty. }    
-    rewrite set_fold_disj_union_strong; [|set_solver..].
+    { by rewrite set_fold_empty. }
+    rewrite (set_fold_disj_union_compute_mask E {[x]} X);[|set_solver].
     rewrite set_fold_singleton.
     etransitivity; [apply IHls|].
     set_solver.
@@ -432,11 +460,11 @@ Section logrel.
     induction ls2 using set_ind_L.
     { intros E ls1 Hle. rewrite set_fold_empty. apply compute_mask_mono. }
     intros E ls1 Hle.
-    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_disj_union_compute_mask ; [|set_solver..].
     rewrite set_fold_singleton.
     assert (∃ Y, ls1 = {[x]} ∪ Y ∧ {[x]} ## Y) as [Y [-> Hdisj] ].
     { apply subseteq_disjoint_union_L. set_solver. }
-    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_disj_union_compute_mask; [|set_solver..].
     rewrite set_fold_singleton. 
     apply IHls2. set_solver.
   Qed.
@@ -449,9 +477,9 @@ Section logrel.
     induction ls using set_ind_L.
     { set_solver. }
     intros E HE Hnin.
-    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_disj_union_compute_mask; [|set_solver..].
     rewrite set_fold_singleton.
-    rewrite not_elem_of_union in Hnin. destruct Hnin as [Hnin1 Hnin2].
+    revert Hnin; rewrite not_elem_of_union => Hnin. destruct Hnin as [Hnin1 Hnin2].
     apply IHls; [|done].
     assert (logN.@l ## logN.@x).
     { apply ndot_ne_disjoint. set_solver. }
@@ -479,7 +507,7 @@ Section logrel.
     NoDup l1 -> NoDup l2 ->
     l2 ## l1 ->
     ([∗ list] a ∈ l1, inv (logN .@ a) (interp_ref_inv a interp)) -∗
-    ([∗ list] a ∈ l2, ∃ w, a ↦ₐ w ∗ ⌜is_z w = true \/ in_region_list w (l1 ++ l2)⌝) -∗
+    ([∗ list] a ∈ l2, ∃ w, a ↦ₐ w ∗ ⌜is_cap w = false \/ in_region_list w (l1 ++ l2)⌝) -∗
     |={compute_mask E (list_to_set l1)}=> ([∗ list] a ∈ l1 ++ l2, inv (logN .@ a) (interp_ref_inv a interp)).
   Proof.
     iIntros (Hforall Hdup1 Hdup2 Hdisj) "Hval Hl2".
@@ -487,7 +515,8 @@ Section logrel.
   forall (l1 Hdup2 Hforall Hdup1 Hdisj);iDestruct "Hval" as "#Hval".
     { simpl. rewrite app_nil_r. iFrame "#". iModIntro. done. }
     iDestruct "Hl2" as "[Hl Hl2]".
-    iDestruct "Hl" as (w) "[Hl %Hcond]".
+    iDestruct "Hl" as (w) "[Hl %]".
+    rename H0 into Hcond.
     apply NoDup_cons in Hdup2 as [Hni Hdup2].
     apply disjoint_cons in Hdisj as Hni'.
     apply disjoint_swap in Hdisj;auto.
@@ -502,13 +531,13 @@ Section logrel.
       { iPureIntro. apply NoDup_cons;auto. }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
-        iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
-        iRight. iPureIntro. destruct w;try done. destruct sb;try done.
-        destruct Hw as [Hro Hb]. split;auto.
+        iDestruct "Hc" as (w) "[Hx [Hw|%]]";iExists _;iFrame;[iLeft;auto|].
+        iRight. iPureIntro. destruct w;try done.
+        destruct H0 as [Hro Hb]. split;auto.
         intros y Hy. simpl. rewrite Permutation_middle. apply Hb;auto. }
       iDestruct (big_sepL_app with "HH") as "[#Hl1 #Hl2]".
       iFrame "∗ #". iMod ("Hclose"). auto.
-    - destruct w;try done. destruct sb;try done. destruct Hin as [Hro Hin].
+    - destruct w;try done. destruct Hin as [Hro Hin].
       iApply big_sepL_app. iFrame "#".
       iMod (inv_alloc_open (logN .@ a) _ (interp_ref_inv a interp)) as "[#Ha Hcls]".
       { apply compute_mask_elem_of.
@@ -519,18 +548,17 @@ Section logrel.
       iMod (fupd_mask_subseteq (compute_mask E (list_to_set (a :: l1)))) as "Hclose".
       { rewrite /compute_mask.
         rewrite list_to_set_cons union_comm_L.
-        rewrite (set_fold_disj_union_strong _ _ _ (list_to_set l1) {[a]}).
+        rewrite (set_fold_disj_union_compute_mask _ (list_to_set l1) {[a]}).
         - rewrite set_fold_singleton. done.
-        - set_solver.
         - set_solver. }
       iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
-        iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
-        iRight. iPureIntro. destruct w;try done. destruct sb;try done.
-        destruct Hw as [Hro' Hb]. split;auto.
+        iDestruct "Hc" as (w) "[Hx [Hw|%]]";iExists _;iFrame;[iLeft;auto|].
+        iRight. iPureIntro. destruct w;try done.
+        destruct H0 as [Hro' Hb]. split;auto.
         intros y Hy. simpl. rewrite Permutation_middle. apply Hb;auto. }
       iMod "Hclose".
       iSimpl in "HH";iDestruct "HH" as "[#Hav HH]".
@@ -550,7 +578,7 @@ Section logrel.
   Lemma region_valid_in_region E (b e a: Addr) l p  :
     Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
     PermFlowsTo RO p →
-    Forall (λ w, is_z w = true \/ in_region w b e) l ->
+    Forall (λ w, is_cap w = false \/ in_region w b e) l ->
     ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
     interp (WCap p b e a).
   Proof.
@@ -567,9 +595,9 @@ Section logrel.
       iApply (big_sepL2_mono with "Hl").
       iIntros (k y1 y2 Hy1 Hy2) "Hl".
       iExists _; iFrame. iPureIntro.
-      rewrite Forall_lookup in Hl.
+      revert Hl. rewrite Forall_lookup => Hl.
       apply Hl in Hy2 as [Hy2|Hy2];auto.
-      right. destruct y2;try done. destruct sb;try done.
+      right. destruct y2;try done.
       destruct Hy2 as [Hro Hin].
       split;auto. intros x Hx. apply elem_of_finz_seq_between.
       solve_addr. }

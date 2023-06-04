@@ -360,7 +360,7 @@ Section int_client_adequacy.
           `{memlayout: memory_layout}.
 
   Lemma int_client_correct :
-    Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
+    Forall (λ w, is_cap w = false \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom flag_inv) m in
   (∀ rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0 ]} →

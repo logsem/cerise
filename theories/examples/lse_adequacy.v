@@ -168,7 +168,7 @@ Section roe_adequacy.
           `{memlayout: memory_layout}.
 
   Lemma roe_correct :
-    Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
+    Forall (λ w, is_cap w = false \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_adv ]} →
@@ -277,7 +277,7 @@ Theorem roe_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory roe_prog adv_prog OCPLLibrary roe_table adv_table m →
   is_initial_registers roe_prog adv_prog OCPLLibrary roe_table adv_table reg r_adv →
-  Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
+  Forall (λ w, is_cap w = false \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).

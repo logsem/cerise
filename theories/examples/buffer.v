@@ -55,7 +55,7 @@ Section buffer.
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
-    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
+    Forall (λ w, is_cap w = false \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
    ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first

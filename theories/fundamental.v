@@ -257,7 +257,7 @@ Section fundamental.
 
   Lemma region_in_region_alloc' E (b e a: Addr) l p :
     Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
-    Forall (λ w, is_z w = true \/ in_region w b e) l →
+    Forall (λ w, is_cap w = false \/ in_region w b e) l →
     ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
     interp (WCap p b e a).
   Proof.

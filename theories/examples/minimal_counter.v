@@ -170,7 +170,7 @@ Section counter.
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
     dom (gset RegName) rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
-    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
+    Forall (λ w, is_cap w = false \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
   ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)

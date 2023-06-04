@@ -140,7 +140,7 @@ Definition is_initial_memory `{memory_layout} (m: gmap Addr Word) :=
   (* the adversarial region in memory must only contain instructions, no
      capabilities (it can thus only access capabilities the awkward preamble
      passes it through the registers) *)
-  Forall (λ w, is_z w = true \/ in_region w adv_start adv_end') adv_val ∧
+  Forall (λ w, is_cap w = false \/ in_region w adv_start adv_end') adv_val ∧
   (adv_end' + 1)%a = Some adv_end /\
   (adv_start + (length adv_val + 1)%nat)%a = Some adv_end.
 
