@@ -2,38 +2,37 @@ name: Test compilation
 
 on: [push, pull_request]
 
+# Prevent parallel CI: Stop every workflow of a branch
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.ref }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        target: [ build ]
-
     steps:
-
       - name: Get branch name
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: get_branch
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 1
           submodules: true
 
       - name: Try to restore opam cache
         id: opam-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "~/.opam"
           key: opam-${{ hashFiles('opam') }}
 
       - name: Install OCaml
-        uses: avsm/setup-ocaml@v1
+        uses: avsm/setup-ocaml@v2
         with:
-          ocaml-version: 4.14.0
+          ocaml-compiler: 4.14
 
       - name: Install Coq and Iris
         run: |
