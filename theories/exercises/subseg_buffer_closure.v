@@ -294,7 +294,6 @@ Section closure_program.
     dom rmap = all_registers_s ∖ {[ PC ; r_t30 ]} →
 
     ⊢ ( code_closure_inv s_closure secret_off secret_val
-        ∗ start_mem_inv b_mem secret_off
         ∗ end_mem_inv b_mem e_mem secret_off
         ∗ secret_inv b_mem secret_off secret_val
         ∗ cap_mem_inv p_mem b_mem e_mem pc_b
@@ -312,7 +311,7 @@ Section closure_program.
   Proof.
     intros secret e_closure ; subst secret e_closure.
     iIntros (Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom)
-            "(#Hinv_prog & #Hinv_mem & #Hinv_mem' & #Hinv_secret & #Hinv_cap & HPC & Hr30 & Hrmap & Hna & #Hvadv)".
+            "(#Hinv_prog & #Hinv_mem' & #Hinv_secret & #Hinv_cap & HPC & Hr30 & Hrmap & Hna & #Hvadv)".
 
     (* FTLR on V(w_adv) *)
     iDestruct (jmp_to_unknown with "Hvadv") as "Cont".
@@ -389,7 +388,6 @@ Section closure_program.
     writeAllowed p_mem = true ->
 
     ⊢ (code_closure_inv a_prog secret_off secret_val
-       ∗ start_mem_inv b_mem secret_off
        ∗ end_mem_inv b_mem e_mem secret_off
        ∗ secret_inv b_mem secret_off secret_val
        ∗ cap_mem_inv p_mem b_mem e_mem b_pc
@@ -398,7 +396,7 @@ Section closure_program.
    -∗ interp (WCap E b_pc e_pc a_prog).
  Proof.
    iIntros (Hbounds Hb_mem Hp_mem)
-     "(#Hnainv_code & #Hnainv_mem & #Hinv_mem' & #Hinv_secret & #Hinv_cap)".
+     "(#Hnainv_code & #Hinv_mem' & #Hinv_secret & #Hinv_cap)".
    (* 1 - unfold the definitions *)
    rewrite !fixpoint_interp1_eq /=.
    iIntros (regs).

@@ -14,22 +14,22 @@ Section base_program.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{MP: MachineParameters}.
 
-  (** r_mem is the register that contains the capability pointing to
-      the allocated buffer
-      secret_off is the offset of the secret in the buffer
-      secret is the value stored in the buffer
+  (** `r_mem` is the register that contains the capability pointing to
+      the allocated buffer:
+      - `secret_off` is the offset of the secret in the buffer
+      - `secret` is the value stored in the buffer
    *)
   Definition prog_base_instrs r_mem (secret_off secret : Z) : list Word :=
     encodeInstrsW [
-      Lea r_mem secret_off ;
-      Store r_mem secret ;
-      GetB r_t2 r_mem ;
-      GetE r_t3 r_mem ;
-      Add r_t2 r_t2 (secret_off + 1) ;
+      Lea r_mem secret_off;
+      Store r_mem secret;
+      GetB r_t2 r_mem;
+      GetE r_t3 r_mem;
+      Add r_t2 r_t2 (secret_off + 1);
       Subseg r_mem r_t2 r_t3
-      ].
+    ].
 
-  (** Jump to the adversary in register r30 at the end of the program *)
+  (** Jump to the adversary in register `r30` at the end of the program *)
   Definition prog_code secret_off secret_val: list Word :=
     prog_base_instrs r_t1 secret_off secret_val ++ encodeInstrsW [Jmp r_t30].
 
@@ -42,101 +42,118 @@ Section base_program.
       - jump to the adversary
       - halts
    *)
-  Lemma prog_spec (a_adv: Addr)
+  Lemma prog_spec (a_adv : Addr)
         p_pc b_pc e_pc a_prog (* pc *)
-        p_mem b_mem e_mem (* mem *)
+        p_mem (b_mem e_mem: Addr) (* mem *)
         secret_off secret_val
         w2 w3 :
-    let secret := (b_mem^+secret_off)%a in
+    let secret := (b_mem ^+ secret_off)%a in
     let len_p := (a_prog ^+ length (prog_code secret_off secret_val))%a in
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog len_p ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog len_p →
 
-    (b_mem <= secret < e_mem)%a ->
-    writeAllowed p_mem = true ->
+    (b_mem ≤ secret < e_mem)%a →
+    writeAllowed p_mem = true →
 
-    ⊢ ( (* PC points to prog_code*)
+    ⊢ ( (* PC points to `prog_code` *)
         PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
         ∗ codefrag a_prog (prog_code secret_off secret_val)
-        (* r1 points to the allocated memory*)
+
+        (* r1 points to the allocated memory *)
         ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem
         (* which is filled by zeroes *)
         ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
+
         (* r30 point to the adversary code *)
         ∗ r_t30 ↦ᵣ WCap E a_adv (a_adv ^+ (length adv_code))%a a_adv
         ∗ codefrag a_adv adv_code
+
         ∗ r_t2 ↦ᵣ w2
         ∗ r_t3 ↦ᵣ w3
+
         -∗ WP Seq (Instr Executable) {{
                 λ v, ⌜v = HaltedV⌝ -∗ (* The machine is halted after the adversary *)
-                     r_t1 ↦ᵣ WCap p_mem (b_mem^+(secret_off+1))%a e_mem secret%a
-                     ∗ r_t2 ↦ᵣ WInt (b_mem+(secret_off +1))
+                     r_t1 ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
+                     ∗ r_t2 ↦ᵣ WInt (b_mem + (secret_off + 1))
                      ∗ r_t3 ↦ᵣ WInt e_mem
                      ∗ codefrag a_prog (prog_code secret_off secret_val)
                      ∗ codefrag a_adv adv_code
                      ∗ secret ↦ₐ WInt secret_val
                      ∗ [[b_mem, secret]] ↦ₐ [[ region_addrs_zeroes b_mem secret]]
-                     ∗ [[(secret ^+1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (secret^+1)%a e_mem ]]
+                     ∗ [[(secret ^+ 1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (secret ^+ 1)%a e_mem ]]
       }})%I.
 
   Proof.
     intros * Hpc_perm Hpc_bounds Hlen_mem Hp_mem.
-    iIntros "(HPC& Hprog& Hr1& Hmem& Hr30& Hadv& Hr2& Hr3)".
+    iIntros "(HPC & Hprog & Hr1 & Hmem & Hr30 & Hadv & Hr2 & Hr3)".
 
     (* 1 - prepare the assertions for the proof *)
     subst secret len_p.
+
     (* Derives the facts from the codefrag *)
     codefrag_facts "Hprog".
     codefrag_facts "Hadv".
     simpl in *.
     rewrite /prog_code.
+
     (* This assertion will be helpful seeral times during the proof *)
-    assert (Hp_mem': ~ p_mem = E)
-           by (intros -> ; simpl in Hp_mem ; discriminate).
+    assert (Hp_mem': p_mem ≠ E). {
+      intros ->.
+      simpl in Hp_mem.
+      discriminate.
+    }
 
     (* 2 - Use the WP rules for each instructions *)
     (* Lea r_t1 3 *)
     iInstr "Hprog".
-    { transitivity (Some (b_mem ^+secret_off)%a) ; auto. solve_addr. }
-    (* Store r_t1 42 , where r_t1 = (RWX, b, e, secret) *)
+    { transitivity (Some (b_mem ^+ secret_off)%a); solve_addr +Hlen_mem. }
+
+    (* Store r_t1 42, where r_t1 = (RWX, b, e, secret) *)
     (* The store requires the resource `secret ↦ₐ w` for some w,
        we thus extract the resource from the memory buffer *)
-    rewrite (region_addrs_zeroes_split b_mem (b_mem ^+secret_off)%a e_mem)
-    ; [| solve_addr].
+    rewrite (region_addrs_zeroes_split b_mem (b_mem ^+ secret_off)%a e_mem);
+      [| solve_addr +Hlen_mem ].
+
     iDestruct (region_mapsto_split
-                 b_mem e_mem
-                 (b_mem ^+secret_off)%a
-                 (region_addrs_zeroes b_mem (b_mem ^+secret_off)%a)
-                 (region_addrs_zeroes (b_mem ^+secret_off)%a e_mem)
+                 b_mem e_mem (b_mem ^+ secret_off)%a
+                 (region_addrs_zeroes b_mem (b_mem ^+ secret_off)%a)
+                 (region_addrs_zeroes (b_mem ^+ secret_off)%a e_mem)
                 with "Hmem") as "[Hmem Hmem']".
-    { solve_addr. }
+    { solve_addr +Hlen_mem. }
     { unfold region_addrs_zeroes. by rewrite replicate_length. }
+
     unfold region_addrs_zeroes at 2.
-    rewrite finz_dist_S ; [|solve_addr].
+    rewrite finz_dist_S; [| solve_addr +Hlen_mem ].
     rewrite replicate_S.
-    iDestruct (region_mapsto_cons (b_mem ^+secret_off)%a _ e_mem (WInt 0)
-                                   (region_addrs_zeroes _ e_mem)
+    iDestruct (region_mapsto_cons
+                 (b_mem ^+ secret_off)%a _ e_mem (WInt 0)
+                 (region_addrs_zeroes _ e_mem)
                 with "Hmem'") as "[Hsecret Hmem']".
-    { transitivity (Some (b_mem ^+(secret_off +1))%a) ; auto. solve_addr. }
-    { solve_addr. }
+    { transitivity (Some (b_mem ^+ (secret_off + 1))%a); solve_addr +Hlen_mem. }
+    { solve_addr +Hlen_mem. }
+
     (* Now that we have the secret address, we can continue *)
     iInstr "Hprog".
-    { solve_addr. }
+    { solve_addr +Hlen_mem. }
+
     (* getB, getE, add, subseg *)
     iGo "Hprog".
-    { transitivity (Some (b_mem ^+(secret_off+1))%a) ; auto. solve_addr. }
-    { solve_addr. }
+    { transitivity (Some (b_mem ^+ (secret_off + 1))%a); solve_addr +Hlen_mem. }
+    { solve_addr +Hlen_mem. }
+
     (* jmp *)
     iInstr "Hprog".
+
     (* halts in the adversary code *)
     rewrite /adv_code.
     iInstr "Hadv".
 
     (* 3 - The machine is halted, prove that the post condition holds *)
     wp_end.
+
     iIntros "_".
-    replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off+1))%a by solve_addr.
+    replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off + 1))%a by solve_addr.
     iFrame.
   Qed.
 
@@ -144,25 +161,19 @@ End base_program.
 
 (** We use a CPS specification. We don't know the adversary code,
     thus we stop the specification after the jump. We give only the necessary
-    ressources. *)
+    resources. *)
 Section base_program_CPS.
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
           `{MP: MachineParameters}.
 
-  Local Ltac solve_addr' :=
-    repeat match goal with x := _ |- _ => subst x end
-    ; solve_addr.
+  (* For a clearer context, we will use these following notations *)
+  (* Note that the invocation of `solve_addr` will be done with the full Coq context *)
+  (* Therefore, these tactics will require more computation. *)
+  Local Tactic Notation "solve_addr'" :=
+    repeat (lazymatch goal with x := _ |- _ => subst x end); solve_addr.
 
-  Local Ltac iGo' hprog :=
-    repeat
-    (iGo hprog ;
-    try (
-    match goal with
-    | h: _ |- isCorrectPC _ =>
-        apply isCorrectPC_ExecPCPerm_InBounds ; auto; solve_addr'
-    end)
-    ; try solve_addr').
+  Local Tactic Notation "iGo'" constr(H) := repeat (iGo H; try solve_addr').
 
   (** Specification of the program before the jump to the adversary.
       The specification and the proof are essentially the same as the
@@ -170,7 +181,7 @@ Section base_program_CPS.
   Lemma prog_base_spec
         r_mem secret_off secret (* instantiation prog_base *)
         p_pc b_pc e_pc s_prog (* pc *)
-        p_mem b_mem e_mem (* mem *)
+        p_mem (b_mem e_mem : Addr) (* mem *)
         w2 w3
         φ :
 
@@ -178,12 +189,12 @@ Section base_program_CPS.
     let a_secret := (b_mem ^+ secret_off)%a in
 
     (* Validity pc *)
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc s_prog e_prog ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc s_prog e_prog →
 
     (* Validity buffer *)
-    ( b_mem <= a_secret < e_mem)%a ->
-    writeAllowed p_mem = true ->
+    ( b_mem ≤ a_secret < e_mem)%a →
+    writeAllowed p_mem = true →
 
     (* Specification *)
     ⊢ (( PC ↦ᵣ WCap p_pc b_pc e_pc s_prog
@@ -193,47 +204,53 @@ Section base_program_CPS.
          ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
          ∗ codefrag s_prog (prog_base_instrs r_mem secret_off secret)
          ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
-               ∗ r_mem ↦ᵣ WCap p_mem (a_secret^+1)%a e_mem a_secret
-               ∗ r_t2 ↦ᵣ WInt (b_mem+secret_off+1)
+               ∗ r_mem ↦ᵣ WCap p_mem (a_secret ^+ 1)%a e_mem a_secret
+               ∗ r_t2 ↦ᵣ WInt (b_mem + secret_off + 1)
                ∗ r_t3 ↦ᵣ WInt e_mem
                ∗ [[b_mem, a_secret]] ↦ₐ [[ region_addrs_zeroes b_mem a_secret ]]
                ∗ a_secret ↦ₐ WInt secret
-               ∗ [[(a_secret ^+1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (a_secret^+1)%a e_mem ]]
+               ∗ [[(a_secret ^+ 1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (a_secret ^+ 1)%a e_mem ]]
                ∗ codefrag s_prog (prog_base_instrs r_mem secret_off secret)
                -∗ WP Seq (Instr Executable) {{ φ }}))
        -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof with (try solve_addr').
-    intros e_prog a_secret.
-    iIntros (Hpc_perm Hpc_bounds Hsecret_bounds Hp_mem)
-            "(HPC & Hr_mem & Hr2 & Hr3 & Hmem & Hprog & Post)".
+    (* `Proof with` will replace each `...` by `try solve_addr'` *)
+    intros e_prog a_secret Hpc_perm Hpc_bounds Hsecret_bounds Hp_mem.
+    iIntros "(HPC & Hr_mem & Hr2 & Hr3 & Hmem & Hprog & Post)".
+
     rewrite /region_mapsto.
     codefrag_facts "Hprog".
+
     iGo' "Hprog".
-    { transitivity (Some (b_mem ^+ secret_off)%a) ; auto ; solve_addr'. }
-    { intros -> ; simpl in Hp_mem ; discriminate. }
+    { transitivity (Some (b_mem ^+ secret_off)%a)... }
+    { intros ->; simpl in Hp_mem; discriminate. }
 
     rewrite (region_addrs_zeroes_split b_mem a_secret e_mem)...
     iDestruct (region_mapsto_split
-                 b_mem e_mem
-                 a_secret
+                 b_mem e_mem a_secret
                  (region_addrs_zeroes b_mem a_secret)
                  (region_addrs_zeroes a_secret e_mem)
                 with "Hmem") as "[Hmem Hmem']"...
     { unfold region_addrs_zeroes. by rewrite replicate_length. }
+
     unfold region_addrs_zeroes at 4.
     rewrite finz_dist_S...
     rewrite replicate_S.
-    iDestruct (region_mapsto_cons a_secret (a_secret ^+1)%a e_mem (WInt 0)
-                                   (region_addrs_zeroes _ e_mem)
+
+    iDestruct (region_mapsto_cons
+                 a_secret (a_secret ^+ 1)%a e_mem (WInt 0)
+                 (region_addrs_zeroes _ e_mem)
                 with "Hmem'") as "[Hsecret Hmem']"...
-    iGo' "Hprog".
+
     (* getB getE add subseg *)
-    { transitivity (Some (b_mem ^+ (secret_off + 1))%a) ; auto... }
-    { intros -> ; simpl in Hp_mem ; discriminate. }
+    iGo' "Hprog".
+    { transitivity (Some (b_mem ^+ (secret_off + 1))%a)... }
+    { intros ->; simpl in Hp_mem; discriminate. }
     { solve_addr'. }
 
     (* Post condition *)
     iApply "Post".
+
     subst e_prog; simpl in *.
     replace (b_mem ^+ (secret_off + 1))%a with (a_secret ^+ 1)%a by solve_addr'.
     replace (b_mem + secret_off + 1) with (b_mem + (secret_off + 1)) by lia.
@@ -245,18 +262,18 @@ Section base_program_CPS.
   Lemma prog_spec_CPS
         wadv
         p_pc b_pc e_pc a_prog (* pc *)
-        p_mem b_mem e_mem (* mem *)
+        p_mem (b_mem e_mem : Addr) (* mem *)
         w2 w3
         secret_off secret_val
         φ :
-    let secret := (b_mem^+secret_off)%a in
+    let secret := (b_mem ^+ secret_off)%a in
     let len_p := (a_prog ^+ length (prog_code secret_off secret_val))%a in
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog len_p ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog len_p →
 
-    (b_mem <= secret < e_mem)%a ->
-    writeAllowed p_mem = true ->
+    (b_mem ≤ secret < e_mem)%a →
+    writeAllowed p_mem = true →
 
     ⊢ ( (* PC points to prog_code*)
         ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
@@ -270,35 +287,41 @@ Section base_program_CPS.
           ∗ r_t2 ↦ᵣ w2
           ∗ r_t3 ↦ᵣ w3
           ∗ ▷ ( PC ↦ᵣ updatePcPerm wadv (* The specification stops after the jump *)
-                ∗ r_t1 ↦ᵣ WCap p_mem (b_mem^+(secret_off+1))%a e_mem secret%a
-                ∗ r_t2 ↦ᵣ WInt (b_mem+(secret_off +1))
+                ∗ r_t1 ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
+                ∗ r_t2 ↦ᵣ WInt (b_mem + (secret_off + 1))
                 ∗ r_t3 ↦ᵣ WInt e_mem
                 ∗ r_t30 ↦ᵣ wadv
                 ∗ codefrag a_prog (prog_code secret_off secret_val)
-                ∗ [[(secret ^+1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (secret^+1)%a e_mem ]]
+                ∗ [[(secret ^+ 1)%a, e_mem]] ↦ₐ [[ region_addrs_zeroes (secret ^+ 1)%a e_mem ]]
                 -∗ WP Seq (Instr Executable) {{ φ }}))
         -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros * Hpc_perm Hpc_bounds Hlen_mem Hp_mem.
-    iIntros "(HPC& Hprog& Hr1& Hmem& Hr30& Hr2& Hr3& Post)".
+    iIntros "(HPC & Hprog & Hr1 & Hmem & Hr30 & Hr2 & Hr3 & Post)".
+
     rewrite /prog_code.
     codefrag_facts "Hprog".
+
     focus_block_0 "Hprog" as "Hprog" "Hcont".
+
     (* 1 - Specification from Lea to Subsug *)
-    iApply (prog_base_spec with "[-]")
-    ; try (iFrame ; iFrame "#")
-    ; eauto
-    ; try solve_addr'.
-    iNext ; iIntros "(HPC & Hr1 & Hr2 & Hr3 & Hmem & Hsecret & Hmem' & Hprog)".
+    iApply (prog_base_spec with "[-]");
+      last iFrame; eauto;
+      first solve_addr'.
+
+    iIntros "!> (HPC & Hr1 & Hr2 & Hr3 & Hmem & Hsecret & Hmem' & Hprog)".
+
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     (* 2 - Jump to the adversary *)
     (* jmp *)
     iInstr "Hprog".
+
     (* 3 - Post condition *)
     iApply "Post".
+
     subst secret.
-    replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off+1))%a by solve_addr.
+    replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off + 1))%a by solve_addr.
     replace  (b_mem + secret_off + 1)%Z with (b_mem + (secret_off + 1))%Z by lia.
     iFrame.
   Qed.
@@ -311,21 +334,21 @@ Section base_program_CPS.
      no capabilities. *)
   Lemma prog_spec_CPS_full
         p_pc b_pc e_pc a_prog (* pc *)
-        p_mem b_mem e_mem (* mem *)
+        p_mem (b_mem e_mem : Addr) (* mem *)
         w_adv
         secret_off secret_val
         rmap :
 
-    let secret := (b_mem^+secret_off)%a in
+    let secret := (b_mem ^+ secret_off)%a in
     let len_p := (a_prog ^+ length (prog_code secret_off secret_val))%a in
 
       (* Validity PC*)
-      ExecPCPerm p_pc ->
-      SubBounds b_pc e_pc a_prog len_p ->
+      ExecPCPerm p_pc →
+      SubBounds b_pc e_pc a_prog len_p →
 
       (* Validity buffer *)
-      (b_mem <= secret < e_mem)%a ->
-      writeAllowed p_mem = true ->
+      (b_mem ≤ secret < e_mem)%a →
+      writeAllowed p_mem = true →
 
       (* Register map for the big_sep of registers *)
       dom rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
@@ -353,7 +376,6 @@ Section base_program_CPS.
     intros * Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom.
     iIntros "(HPC & Hr1 & Hr30 & Hprog & Hregion & Hrmap & Hna & #Hadv)".
 
-
     (* Using the FLTR corollary, w_adv is safe to execute and we can specify
        what happens after the jump: safe and complete execution *)
     (* It is required to do it _before_ the specification, because it introduces a
@@ -362,38 +384,40 @@ Section base_program_CPS.
 
     (* 1 - Specification of the known program *)
     (* Extract the register r_t2 and r_t3, required for `prog_spec_CPS` *)
+    iExtractList "Hrmap" [r_t2; r_t3] as ["[Hr2 _]"; "[Hr3 _]"].
 
-    iExtractList "Hrmap" [r_t2;r_t3] as ["[Hr2 _]";"[Hr3 _]"].
-    (* extract_register r_t2 with "Hrmap" as (w2 Hw2) "[[Hr2 _] Hrmap]". *)
-    (* extract_register r_t3 with "Hrmap" as (w3 Hw3) "[[Hr3 _] Hrmap]". *)
-
-    iApply (prog_spec_CPS with "[-]") ; try eassumption.
+    iApply (prog_spec_CPS with "[-]"); [ eassumption .. |].
     iFrame "HPC Hr1 Hr30 Hregion Hr2 Hr3 Hprog".
-    iNext ; iIntros "(HPC& Hr1& Hr2& Hr3 & Hr30 & Hprog & Hmem)".
+    iIntros "!> (HPC & Hr1 & Hr2 & Hr3 & Hr30 & Hprog & Hmem)".
 
     (* 2 - The continuation requires all the registers to be safe to share *)
     (* Show that the contents of r1 are safe *)
     replace ((b_mem ^+ secret_off) ^+ 1)%a
-      with (b_mem ^+ (secret_off+1))%a by (subst secret ; by solve_addr).
+      with (b_mem ^+ (secret_off + 1))%a by (subst secret; by solve_addr).
+
     rewrite /region_mapsto.
     iDestruct (region_integers_alloc' _ _ _ (b_mem ^+ secret_off)%a _ p_mem with "Hmem")
       as ">#Hmem_safe".
     { rewrite /region_addrs_zeroes. apply Forall_replicate. auto. }
 
     (* put the other registers back into the register map *)
-
-    iAssert ( ⌜is_z (WInt (b_mem + (secret_off + 1))) = true ⌝)%I as "Hvr2". auto.
+    iAssert ( ⌜is_z (WInt (b_mem + (secret_off + 1))) = true ⌝)%I as "Hvr2"; first auto.
     iCombine "Hr2 Hvr2" as "Hr2".
-    iAssert ( ⌜is_z (WInt e_mem) = true ⌝)%I as "Hvr3". auto.
+
+    iAssert ( ⌜is_z (WInt e_mem) = true ⌝)%I as "Hvr3"; first auto.
     iCombine "Hr3 Hvr3" as "Hr3".
-    iInsertList "Hrmap" [r_t3;r_t2]. iClear "Hvr2 Hvr3".
+
+    iInsertList "Hrmap" [r_t3; r_t2]. iClear "Hvr2 Hvr3".
 
     (* Show that the contents of unused registers is safe *)
-    set (rmap' :=  <[r_t2:=WInt _]> (<[r_t3:= _]> rmap)).
+    set (rmap' := <[r_t2 := WInt _]> (<[r_t3 := _]> rmap)).
+
     iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { subst rmap'.
-      iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn. iIntros "[? %Hw]". iFrame.
-      destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //. }
+      iApply (big_sepM_mono with "Hrmap").
+      iIntros (r w Hr') "[$ %Hw]".
+      destruct_word w; [| by inversion Hw .. ].
+      rewrite fixpoint_interp1_eq //. }
 
     (* put the registers with capability back into the register map *)
     iCombine "Hr1 Hmem_safe" as "Hr1".
@@ -401,27 +425,12 @@ Section base_program_CPS.
     subst rmap'; iInsertList "Hrmap" [r_t1;r_t30].
 
     (* 3 - Use the continuation *)
-
     (* Prepare the resources *)
-    iApply "Cont" ; eauto. 2 : iFrame.
-    iPureIntro. subst.
-    { do 2 (rewrite dom_insert_L).
-      assert (all_registers_s ∖ {[PC]} =
-                ({[r_t1; r_t30]} ∪ all_registers_s ∖ {[PC; r_t1; r_t30]})) as ->.
-      { rewrite - !difference_difference_L.
-        assert ( all_registers_s ∖ {[PC]} ∖ {[r_t1]} ∖ {[r_t30]} =
-                   all_registers_s ∖ {[PC]} ∖ {[r_t1; r_t30]})
-          as -> by (rewrite - !difference_difference_L ; set_solver).
-        rewrite -union_difference_L; auto.
-        apply subseteq_difference_r;[set_solver|].
-        apply all_registers_subseteq. }
-      set_solver. }
-
-    (* Alternative for (3) *)
-    (* iApply (wp_wand with "[-]"). *)
-    (* { iApply "Cont"; cycle 1. iFrame. iPureIntro. rewrite !dom_insert_L Hrmap_dom. *)
-    (*   rewrite !singleton_union_difference_L. set_solver+. } *)
-    (* iIntros (?) "?" ; done. *)
+    iApply "Cont"; [| iFrame ].
+    iPureIntro.
+    rewrite !dom_insert_L Hrmap_dom.
+    rewrite !singleton_union_difference_L.
+    set_solver+.
   Qed.
 
 (** The encapsulation of the program is safe-to-share
@@ -453,7 +462,7 @@ Section base_program_CPS.
     na_inv logrel_nais codeN (codefrag a_prog (prog_code secret_off secret)).
 
   Definition end_mem_inv b_mem e_mem secret_off :=
-    let n_secret_addr := (b_mem ^+ (secret_off +1))%a in
+    let n_secret_addr := (b_mem ^+ (secret_off + 1))%a in
     na_inv logrel_nais end_memN
            ([∗ list] a ∈ finz.seq_between n_secret_addr e_mem,
             ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
@@ -476,12 +485,12 @@ Section base_program_CPS.
         buffer each time our program is called
 
    *)
-  Lemma prog_CPS_safe_to_share b_pc e_pc a_prog b_mem e_mem secret_off secret :
+  Lemma prog_CPS_safe_to_share b_pc e_pc a_prog (b_mem e_mem: Addr) secret_off secret :
 
     (* The instructions of the code are in the memory closure of the PCC *)
-    SubBounds b_pc e_pc a_prog (a_prog ^+ length (prog_code secret_off secret))% a ->
+    SubBounds b_pc e_pc a_prog (a_prog ^+ length (prog_code secret_off secret))% a →
     (* The secret offset fits in the memory buffer *)
-    (b_mem <= b_mem ^+ secret_off < e_mem)%a ->
+    (b_mem ≤ b_mem ^+ secret_off < e_mem)%a →
 
     ⊢ ( code_inv a_prog secret_off secret
        ∗ start_mem_inv b_mem e_mem secret_off
