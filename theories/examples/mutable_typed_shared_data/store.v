@@ -6,16 +6,26 @@ Section store_int.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
+  (* Instructions to store a word `r_t3` in the seal `r_t2`, sealed by the `WSealRange` in `r_t1`. *)
+
+  (* This function will succeed only if the word in `r_t3` is an integer. *)
+  (* > Otherwise, the machine will enter in a `Failed` state. *)
+
+  (* This will override the registers r_t4` and `r_t5`. *)
+  (* > Beware: The registers are NOT cleared. *)
   Definition store_global_macro_int_instrs :=
     dyn_typecheck_int_instrs r_t3 r_t4 r_t5 ++ encodeInstrsW [
       UnSeal r_t4 r_t1 r_t2;
       Store r_t4 r_t3
     ].
 
-  (* Instructions to store a word `r_t2` in the seal `r_t1`, sealed by the hidden `WSealRange` *)
+  (* Instructions to store a word `r_t2` in the seal `r_t1`, sealed by the hidden `WSealRange`. *)
+
   (* This function will succeed only if the word in `r_t2` is an integer. *)
   (* > Otherwise, the machine will enter in a `Failed` state. *)
+
   (* This will return a new sealed value in `r_t1` and override the registers r_t2`, `r_t3`, `r_t4` and `r_t5`. *)
+  (* > Note: The new sealed value is the same as the old one, both keeping the new value. *)
   Definition store_global_macro_int_closure_instrs (τ : OType) :=
     [ WSealRange (true, true) τ (τ ^+ 1)%ot τ ] ++ encodeInstrsW [
       Mov r_t3 r_t2;
@@ -34,7 +44,7 @@ Section store_int.
 
   Lemma store_global_macro_int_spec
     p_pc b_pc e_pc a_pc       (* PC *)
-    a_cap                     (* Value capability *)
+    a_cap                     (* Address *)
     p_seal b_seal e_seal τ Φ  (* Seal capability *)
     v w4 w5                   (* Values in registers *)
     φ:
@@ -120,7 +130,7 @@ Section store_int.
 
   Lemma store_global_macro_int_closure_spec
     p_pc b_pc       (* PC *)
-    a_cap           (* Value capability *)
+    a_cap           (* Address *)
     p_seal τ Φ      (* Seal capability *)
     adv v w3 w4 w5  (* Values in registers *)
     φ:
@@ -233,7 +243,7 @@ Section store_int.
 
   Lemma store_global_macro_int_closure_spec_full
     p_pc b_pc  (* PC *)
-    a_cap      (* Value capability *)
+    a_cap      (* Address *)
     p_seal τ   (* Seal capability *)
     adv v w3   (* Values in registers *)
     rmap:
