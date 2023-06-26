@@ -152,4 +152,5 @@ theories/exercises/cerise_tutorial.v
 theories/exercises/cerise_tutorial_solutions.v
 theories/examples/mutable_typed_shared_data/dynamic_checks.v
 theories/examples/mutable_typed_shared_data/invariants.v
+theories/examples/mutable_typed_shared_data/load.v
 theories/examples/mutable_typed_shared_data/store.v
