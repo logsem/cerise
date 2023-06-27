@@ -69,7 +69,7 @@ Section store_int.
       ∗ r_t5 ↦ᵣ w5
 
       ∗ ▷ (valid_sealed (WSealed τ scap) τ Φ)
-      ∗ seal_state_int sealN a_cap τ
+      ∗ seal_pred_int τ
       ∗ na_own logrel_nais ⊤
 
       ∗ ▷ (PC ↦ᵣ WCap p_pc b_pc e_pc (a_pc ^+ (length instrs))%a
@@ -88,7 +88,7 @@ Section store_int.
     -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
     iIntros (? ? Hexec ? ? ? ?)
-      "(HPC & Hprog & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & #Hseal_valid & #[Hseal_inv Hseal_pred] & Hna & Hφ)".
+      "(HPC & Hprog & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & #Hseal_valid & Hseal_pred & Hna & Hφ)".
     subst instrs; simpl in *.
 
     focus_block_0 "Hprog" as "Hblock" "Hcont".
@@ -102,30 +102,33 @@ Section store_int.
 
     focus_block 1%nat "Hprog" as a_block Ha_block "Hblock" "Hcont".
 
+    iDestruct (seal_pred_valid_sealed_eq with "[$Hseal_pred] Hseal_valid") as "Heqv".
+
+    iInstr "Hblock".
+
+    iAssert (int_sealed (WSealable scap)) as "#Hint_seal".
+    { iDestruct "Hseal_valid" as (x) "(%Heq & _ & _ & HΦ)".
+      inversion Heq; subst.
+      iSpecialize ("Heqv" $! (WSealable scap)).
+      iRewrite "Heqv".
+      iFrame "HΦ". }
+
+    iPoseProof "Hint_seal" as (a_cap') "(%Heq & Hseal_inv)".
+    case: Heq => _ _ <-.
+
     iMod (na_inv_acc with "Hseal_inv Hna") as "(>Haddr & Hna & Hclose)"; [ solve_ndisj .. |].
-    iDestruct "Haddr" as (v') "(Haddr & _)".
+    iDestruct "Haddr" as (w) "(Haddr & %)".
 
-    iDestruct (seal_state_int_valid_sealed_pred_eq with "[$Hseal_inv $Hseal_pred] Hseal_valid") as "Heqv".
+    iInstr "Hblock".
 
-    iGo "Hblock".
-
-    iMod ("Hclose" with "[Haddr $Hna]") as "Hna".
-    { by iExists _; iFrame. }
+    iMod ("Hclose" with "[Haddr $Hna]") as "Hna"; [ by iExists _; iFrame |].
 
     unfocus_block "Hblock" "Hcont" as "Hprog".
 
     iApply "Hφ".
     replace (a_block ^+ 2)%a with (a_pc ^+ 8)%a by solve_addr.
     iFrame.
-    iSplitL "Hr_t4"; [ eauto |].
-    iSplitL "Hr_t5"; [ eauto |].
-
-    rewrite -/scap.
-    iDestruct "Hseal_valid" as (x) "(%Heq & _ & _ & HΦ)".
-    inversion Heq; subst.
-    iSpecialize ("Heqv" $! (WSealable scap)).
-    iRewrite "Heqv".
-    iFrame "HΦ".
+    iSplitL "Hr_t4"; eauto.
   Qed.
 
   Lemma store_global_macro_int_closure_spec
@@ -158,7 +161,7 @@ Section store_int.
       ∗ r_t5 ↦ᵣ w5
 
       ∗ ▷ (valid_sealed (WSealed τ scap) τ Φ)
-      ∗ seal_state_int sealN a_cap τ
+      ∗ seal_pred_int τ
       ∗ na_own logrel_nais ⊤
 
       ∗ ▷ (PC ↦ᵣ updatePcPerm adv
@@ -178,7 +181,7 @@ Section store_int.
     -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
     iIntros (? ? ? ? Hbounds ? ? ? ?)
-      "(HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_valid & Hseal_inv & Hna & Hφ)".
+      "(HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_valid & Hseal_pred & Hna & Hφ)".
     subst scap.
 
     iDestruct (region_mapsto_split b_pc e_pc (b_pc ^+ 1)%a _ _ with "Hprog") as "(Hseal & Hprog)"
@@ -209,9 +212,9 @@ Section store_int.
 
     focus_block 1%nat "Hprog" as addr_block1 Haddr_block1 "Hblock" "Hcont".
 
-    iApply store_global_macro_int_spec; last iFrame; eauto.
+    iApply store_global_macro_int_spec; last iFrame "Hseal_valid ∗"; eauto.
 
-    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hsealed & Hna)".
+    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hint_seal & Hna)".
     iDestruct "Hr_t4" as (w4') "Hr_t4".
     iDestruct "Hr_t5" as (w5') "Hr_t5".
 
@@ -270,7 +273,7 @@ Section store_int.
       ∗ r_t2 ↦ᵣ v
       ∗ r_t3 ↦ᵣ w3
 
-      ∗ seal_state_int sealN a_cap τ
+      ∗ seal_pred_int τ
       ∗ na_own logrel_nais ⊤
 
       ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i ∗ ⌜is_z w_i⌝)
@@ -281,7 +284,7 @@ Section store_int.
                   ∨ ⌜ v = FailedV ⌝ }})%I.
   Proof.
     iIntros (? ? ? ? Hbounds ? ? ? ? Hdom)
-      "(HPC & Hprog & Hr_t0 & #Hadv_interp & Hr_t1 & #Hseal_interp & Hr_t2 & Hr_t3 & Hseal_inv & Hna & Hrmap)".
+      "(HPC & Hprog & Hr_t0 & #Hadv_interp & Hr_t1 & #Hseal_interp & Hr_t2 & Hr_t3 & Hseal_state & Hna & Hrmap)".
 
     iDestruct (jmp_to_unknown with "Hadv_interp") as "Cont".
 
@@ -293,7 +296,7 @@ Section store_int.
 
     iApply store_global_macro_int_closure_spec; last iFrame; eauto; [ solve_addr + |].
 
-    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal & Hna)".
+    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hint_seal & Hna)".
 
     iApply (wp_wand with "[-]"); [| iIntros (?) "?"; by iLeft ].
 
