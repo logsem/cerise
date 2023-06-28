@@ -60,7 +60,7 @@ Section load_int.
              ∗ r_t1 ↦ᵣ WSealRange p_seal b_seal e_seal τ
              ∗ (∃ w, r_t2 ↦ᵣ w ∗ ⌜is_z w⌝)
 
-             ∗ int_sealed (WSealable scap)
+             ∗ sealed_int (WSealable scap)
              ∗ na_own logrel_nais ⊤
 
              -∗ WP Seq (Instr Executable) {{ λ v, φ v }})
@@ -76,23 +76,22 @@ Section load_int.
 
     iInstr "Hprog".
 
-    iAssert (int_sealed (WSealable scap)) as "#Hint_seal".
-    { rewrite -/scap.
-      iDestruct "Hseal_valid" as (x) "(%Heq & _ & _ & HΦ)".
+    iAssert (sealed_int (WSealable scap)) as "#Hseal_int".
+    { iDestruct "Hseal_valid" as (x) "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (WSealable scap)).
       iRewrite "Heqv".
       iFrame "HΦ". }
 
-    iPoseProof "Hint_seal" as (a_cap') "(%Heq & Hseal_inv)".
+    iMod (na_inv_acc with "Hseal_int Hna") as "(>Hseal & Hna & Hclose)"; [ solve_ndisj .. |].
+    iDestruct "Hseal" as (w) "(%Heq & (% & Haddr & %))".
     case: Heq => _ _ <-.
-
-    iMod (na_inv_acc with "Hseal_inv Hna") as "(>Haddr & Hna & Hclose)"; [ solve_ndisj .. |].
-    iDestruct "Haddr" as (w) "(Haddr & %)".
 
     iGo "Hprog".
 
-    iMod ("Hclose" with "[Haddr $Hna]") as "Hna"; [ by iExists _; iFrame |].
+    iMod ("Hclose" with "[Haddr $Hna]") as "Hna".
+    { iExists _; iSplitR; [ done |].
+      by iExists _; iFrame. }
 
     iApply "Hφ".
     iFrame.
@@ -136,7 +135,7 @@ Section load_int.
              ∗ (∃ w, r_t1 ↦ᵣ w ∗ ⌜is_z w⌝)
              ∗ r_t2 ↦ᵣ WInt 0
 
-             ∗ int_sealed (WSealable scap)
+             ∗ sealed_int (WSealable scap)
              ∗ na_own logrel_nais ⊤
 
              -∗ WP Seq (Instr Executable) {{ λ v, φ v }})
@@ -144,7 +143,6 @@ Section load_int.
   Proof.
     iIntros (? ? ? ? Hbounds ? ? ? ?)
       "(HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hseal_valid & Hseal_pred & Hna & Hφ)".
-    subst scap.
 
     iDestruct (region_mapsto_split b_pc e_pc (b_pc ^+ 1)%a _ _ with "Hprog") as "(Hseal & Hprog)"
       ; [ subst e_pc; solve_addr + | rewrite /finz.dist; solve_finz +Hbounds |].
@@ -176,7 +174,7 @@ Section load_int.
 
     iApply load_global_macro_int_spec; last iFrame "Hseal_valid ∗"; eauto.
 
-    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hint_seal & Hna)".
+    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hseal_int & Hna)".
     iDestruct "Hr_t2" as (v) "(Hr_t2 & %)".
 
     unfocus_block "Hblock" "Hcont" as "Hprog".
@@ -256,7 +254,7 @@ Section load_int.
 
     iApply load_global_macro_int_closure_spec; last iFrame; eauto; [ solve_addr + |].
 
-    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hint_seal & Hna)".
+    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hseal_int & Hna)".
     iDestruct "Hr_t1" as (v) "Hr_t1".
 
     iApply "Cont"; eauto; iFrame; revgoals.
