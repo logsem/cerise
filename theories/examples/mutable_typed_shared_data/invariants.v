@@ -13,7 +13,7 @@ Section invariants.
 
   (* Note: `arch_sealing.seal_state` is the combination of `seal_pred` and a invariant. *)
   (* > This invariant pins `WSealRange` in memory to retrieve an access to it. *)
-  (* For simplicity, we will explicitly split `seal_pred` and the invariant on `WSealRange`. *)
+  (* For simplicity, `WSealRange` will be easily accessible (hidden in front of our instructions). *)
 
   (* Fact that the value `w`, if `interp w`, has been validly sealed satisfying a `Φ` predicate. *)
   Definition valid_sealed w τ Φ := arch_sealing.valid_sealed w τ Φ.
