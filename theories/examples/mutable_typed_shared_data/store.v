@@ -2,38 +2,38 @@ From iris.proofmode Require Import proofmode.
 From cap_machine Require Import fundamental logrel macros macros_helpers proofmode rules register_tactics.
 From cap_machine.examples.mutable_typed_shared_data Require Import dynamic_checks invariants.
 
-Section store_int.
+Section store_cap.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
   (* Instructions to store a word `r_t3` in the seal `r_t2`, sealed by the `WSealRange` in `r_t1`. *)
 
-  (* This function will succeed only if the word in `r_t3` is an integer. *)
+  (* This function will succeed only if the word in `r_t3` is a capability. *)
   (* > Otherwise, the machine will enter in a `Failed` state. *)
 
   (* This will override the registers r_t4` and `r_t5`. *)
   (* > Beware: The registers are NOT cleared. *)
-  Definition store_global_macro_int_instrs :=
-    dyn_typecheck_int_instrs r_t3 r_t4 r_t5 ++ encodeInstrsW [
+  Definition store_global_macro_cap_instrs :=
+    dyn_typecheck_cap_instrs r_t3 r_t4 r_t5 ++ encodeInstrsW [
       UnSeal r_t4 r_t1 r_t2;
       Store r_t4 r_t3
     ].
 
   (* Instructions to store a word `r_t2` in the seal `r_t1`, sealed by the hidden `WSealRange` placed at `off_seal`. *)
 
-  (* This function will succeed only if the word in `r_t2` is an integer. *)
+  (* This function will succeed only if the word in `r_t2` is a capability. *)
   (* > Otherwise, the machine will enter in a `Failed` state. *)
 
   (* This will return a new sealed value in `r_t1` and override the registers r_t2`, `r_t3`, `r_t4` and `r_t5`. *)
   (* > Note: The new sealed value is the same as the old one, both keeping the new value. *)
-  Definition store_global_macro_int_closure_instrs (off_seal : Z) :=
+  Definition store_global_macro_cap_closure_instrs (off_seal : Z) :=
     encodeInstrsW [
       Mov r_t3 r_t2;
       Mov r_t2 r_t1;
       Mov r_t1 PC;
       Lea r_t1 (off_seal - 2)%Z;
       Load r_t1 r_t1
-    ] ++ store_global_macro_int_instrs ++ encodeInstrsW [
+    ] ++ store_global_macro_cap_instrs ++ encodeInstrsW [
       Mov r_t1 r_t2;
       Mov r_t2 0;
       Mov r_t3 0;
@@ -42,14 +42,14 @@ Section store_int.
       Jmp r_t0
     ].
 
-  Lemma store_global_macro_int_spec
+  Lemma store_global_macro_cap_spec
     p_pc b_pc e_pc a_pc       (* PC *)
     a_cap                     (* Address *)
     p_seal b_seal e_seal τ Φ  (* Seal capability *)
     v w4 w5                   (* Values in registers *)
     φ:
 
-    let instrs := store_global_macro_int_instrs in
+    let instrs := store_global_macro_cap_instrs in
     let scap := SCap RW a_cap (a_cap ^+ 1)%a a_cap in
 
     ExecPCPerm p_pc →
@@ -64,12 +64,12 @@ Section store_int.
 
       ∗ r_t1 ↦ᵣ WSealRange p_seal b_seal e_seal τ
       ∗ r_t2 ↦ᵣ WSealed τ scap
-      ∗ r_t3 ↦ᵣ v
+      ∗ r_t3 ↦ᵣ v ∗ interp v
       ∗ r_t4 ↦ᵣ w4
       ∗ r_t5 ↦ᵣ w5
 
       ∗ ▷ (valid_sealed (WSealed τ scap) τ Φ)
-      ∗ seal_pred_int τ
+      ∗ seal_pred_cap τ
       ∗ na_own logrel_nais ⊤
 
       ∗ ▷ (PC ↦ᵣ WCap p_pc b_pc e_pc (a_pc ^+ (length instrs))%a
@@ -81,19 +81,19 @@ Section store_int.
              ∗ (∃ w, r_t4 ↦ᵣ w)
              ∗ (∃ w, r_t5 ↦ᵣ w)
 
-             ∗ sealed_int (WSealable scap)
+             ∗ sealed_cap (WSealable scap)
              ∗ na_own logrel_nais ⊤
 
              -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})
     -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
     iIntros (? ? Hexec ? ? ? ?)
-      "(HPC & Hprog & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & #Hseal_valid & Hseal_pred & Hna & Hφ)".
+      "(HPC & Hprog & Hr_t1 & Hr_t2 & Hr_t3 & #Hinterp & Hr_t4 & Hr_t5 & #Hseal_valid & Hseal_pred & Hna & Hφ)".
     subst instrs; simpl in *.
 
     focus_block_0 "Hprog" as "Hblock" "Hcont".
 
-    iApply dyn_typecheck_int_spec; iFrameAutoSolve.
+    iApply dyn_typecheck_cap_spec; iFrameAutoSolve.
     iIntros "!> (HPC & Hblock & Hr_t3 & %Hvalue & Hr_t4 & Hr_t5)".
     iDestruct "Hr_t4" as (w4') "Hr_t4".
     iDestruct "Hr_t5" as (w5') "Hr_t5".
@@ -106,39 +106,40 @@ Section store_int.
 
     iInstr "Hblock".
 
-    iAssert (sealed_int (WSealable scap)) as "#Hseal_int".
+    iAssert (sealed_cap (WSealable scap)) as "#Hseal_cap".
     { iDestruct "Hseal_valid" as (x) "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (WSealable scap)).
       iRewrite "Heqv".
       iFrame "HΦ". }
 
-    iMod (na_inv_acc with "Hseal_int Hna") as "(>Hseal & Hna & Hclose)"; [ solve_ndisj .. |].
-    iDestruct "Hseal" as (w) "(%Heq & (% & Haddr & %))".
+    iMod (na_inv_acc with "Hseal_cap Hna") as "(Hseal & Hna & Hclose)"; [ solve_ndisj .. |].
+    iDestruct "Hseal" as (w) "(>%Heq & Hseal)".
+    iDestruct "Hseal" as (?) "(>Haddr & >% & _)".
     case: Heq => _ _ <-.
 
     iGo "Hblock".
 
     iMod ("Hclose" with "[Haddr $Hna]") as "Hna".
     { iExists _; iSplitR; [ done |].
-      by iExists _; iFrame. }
+      by iExists _; iFrame "∗ #". }
 
     unfocus_block "Hblock" "Hcont" as "Hprog".
 
     iApply "Hφ".
-    replace (a_block ^+ 2)%a with (a_pc ^+ 8)%a by solve_addr.
-    iFrame.
+    replace (a_block ^+ 2)%a with (a_pc ^+ 7)%a by solve_addr.
+    iFrame "∗ #".
     iSplitL "Hr_t4"; eauto.
   Qed.
 
-  Lemma store_global_macro_int_closure_spec (off_seal : Z)
+  Lemma store_global_macro_cap_closure_spec (off_seal : Z)
     p_pc b_pc e_pc a_pc  (* PC *)
-    a_seal a_cap         (* Address *)
+    a_seal a_cap         (* Addresses *)
     p_seal τ Φ           (* Seal capability *)
     adv v w3 w4 w5       (* Values in registers *)
     φ:
 
-    let instrs := store_global_macro_int_closure_instrs off_seal in
+    let instrs := store_global_macro_cap_closure_instrs off_seal in
     let scap := SCap RW a_cap (a_cap ^+ 1)%a a_cap in
 
     ExecPCPerm p_pc →
@@ -158,13 +159,13 @@ Section store_int.
       ∗ a_seal ↦ₐ WSealRange p_seal τ (τ ^+ 1)%ot τ
       ∗ r_t0 ↦ᵣ adv
       ∗ r_t1 ↦ᵣ WSealed τ scap
-      ∗ r_t2 ↦ᵣ v
+      ∗ r_t2 ↦ᵣ v ∗ interp v
       ∗ r_t3 ↦ᵣ w3
       ∗ r_t4 ↦ᵣ w4
       ∗ r_t5 ↦ᵣ w5
 
       ∗ ▷ (valid_sealed (WSealed τ scap) τ Φ)
-      ∗ seal_pred_int τ
+      ∗ seal_pred_cap τ
       ∗ na_own logrel_nais ⊤
 
       ∗ ▷ (PC ↦ᵣ updatePcPerm adv
@@ -177,14 +178,14 @@ Section store_int.
              ∗ r_t4 ↦ᵣ WInt 0
              ∗ r_t5 ↦ᵣ WInt 0
 
-             ∗ sealed_int (WSealable scap)
+             ∗ sealed_cap (WSealable scap)
              ∗ na_own logrel_nais ⊤
 
              -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})
     -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
   Proof.
     iIntros (? ? ? Hbounds ? ? ? ? ? ?)
-      "(HPC & Hprog & Hseal & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_valid & Hseal_pred & Hna & Hφ)".
+      "(HPC & Hprog & Hseal & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hinterp & Hr_t4 & Hr_t5 & Hseal_valid & Hseal_pred & Hna & Hφ)".
 
     iAssert (codefrag a_pc instrs) with "[Hprog]" as "Hprog"; [ iFrame |].
 
@@ -200,9 +201,9 @@ Section store_int.
 
     focus_block 1%nat "Hprog" as addr_block1 Haddr_block1 "Hblock" "Hcont".
 
-    iApply store_global_macro_int_spec; last iFrame "Hseal_valid ∗"; eauto.
+    iApply store_global_macro_cap_spec; last iFrame "Hseal_valid ∗"; eauto.
 
-    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_int & Hna)".
+    iIntros "!> (HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_cap & Hna)".
     iDestruct "Hr_t4" as (w4') "Hr_t4".
     iDestruct "Hr_t5" as (w5') "Hr_t5".
 
@@ -217,14 +218,14 @@ Section store_int.
     iApply "Hφ"; iFrame.
   Qed.
 
-  Lemma store_global_macro_int_closure_spec_full (off_seal : Z)
+  Lemma store_global_macro_cap_closure_spec_full (off_seal : Z)
     p_pc b_pc e_pc a_pc  (* PC *)
-    a_seal a_cap         (* Address *)
+    a_seal a_cap         (* Addresses *)
     p_seal τ             (* Seal capability *)
     adv v w3             (* Values in registers *)
     rmap:
 
-    let instrs := store_global_macro_int_closure_instrs off_seal in
+    let instrs := store_global_macro_cap_closure_instrs off_seal in
     let scap := SCap RW a_cap (a_cap ^+ 1)%a a_cap in
 
     ExecPCPerm p_pc →
@@ -246,13 +247,13 @@ Section store_int.
       ∗ a_seal ↦ₐ WSealRange p_seal τ (τ ^+ 1)%ot τ
       ∗ r_t0 ↦ᵣ adv ∗ interp adv
       ∗ r_t1 ↦ᵣ WSealed τ scap ∗ interp (WSealed τ scap)
-      ∗ r_t2 ↦ᵣ v
+      ∗ r_t2 ↦ᵣ v ∗ interp v
       ∗ r_t3 ↦ᵣ w3
 
-      ∗ seal_pred_int τ
+      ∗ seal_pred_cap τ
       ∗ na_own logrel_nais ⊤
 
-      ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i ∗ ⌜is_z w_i⌝)
+      ∗ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i ∗ interp w_i)
 
       -∗ WP Seq (Instr Executable)
             {{ v,
@@ -260,7 +261,7 @@ Section store_int.
                   ∨ ⌜ v = FailedV ⌝ }})%I.
   Proof.
     iIntros (? ? ? Hbounds ? ? ? ? ? ? Hdom)
-      "(HPC & Hprog & Hseal & Hr_t0 & #Hadv_interp & Hr_t1 & #Hseal_interp & Hr_t2 & Hr_t3 & Hseal_state & Hna & Hrmap)".
+      "(HPC & Hprog & Hseal & Hr_t0 & #Hadv_interp & Hr_t1 & #Hseal_interp & Hr_t2 & Hinterp & Hr_t3 & Hseal_state & Hna & Hrmap)".
 
     iDestruct (jmp_to_unknown with "Hadv_interp") as "Cont".
 
@@ -270,29 +271,23 @@ Section store_int.
     { iDestruct (interp_valid_sealed with "Hseal_interp") as (Φ) "Hseal_valid".
       by iExists Φ. }
 
-    iApply store_global_macro_int_closure_spec; last iFrame; eauto.
+    iApply store_global_macro_cap_closure_spec; last iFrame; eauto.
 
-    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_int & Hna)".
+    iIntros "!> (HPC & Hprog & Hr_t0 & Hr_t1 & Hr_t2 & Hr_t3 & Hr_t4 & Hr_t5 & Hseal_cap & Hna)".
 
     iApply (wp_wand with "[-]"); [| iIntros (?) "?"; by iLeft ].
 
-    iApply "Cont"; eauto; iFrame; revgoals.
-    { iAssert (⌜is_z (WInt 0)⌝)%I as "H"; [ done |].
-      iCombine "Hr_t2 H" as "Hr_t2".
-      iCombine "Hr_t3 H" as "Hr_t3".
-      iCombine "Hr_t4 H" as "Hr_t4".
-      iCombine "Hr_t5 H" as "Hr_t5".
-      iInsertList "Hrmap" [r_t5; r_t4; r_t3; r_t2].
+    iApply "Cont"; [| iFrame "HPC Hna" ]; revgoals.
+    { iAssert (interp (WInt 0)) as "Hinterp_int".
+      { by rewrite !fixpoint_interp1_eq. }
 
-      iDestruct (big_sepM_mono _ (λ r w, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]") as "Hrmap"; [| iFrame |].
-      { iIntros (r w Hrmap) "(Hr & %Hr_int)".
-        iFrame.
-        destruct w; [| by simpl in Hr_int.. ].
-        by rewrite fixpoint_interp1_eq. }
-
+      iCombine "Hr_t5 Hinterp_int" as "Hr_t5".
+      iCombine "Hr_t4 Hinterp_int" as "Hr_t4".
+      iCombine "Hr_t3 Hinterp_int" as "Hr_t3".
+      iCombine "Hr_t2 Hinterp_int" as "Hr_t2".
       iCombine "Hr_t1 Hseal_interp" as "Hr_t1".
       iCombine "Hr_t0 Hadv_interp" as "Hr_t0".
-      iInsertList "Hrmap" [r_t1; r_t0].
+      iInsertList "Hrmap" [r_t5; r_t4; r_t3; r_t2; r_t1; r_t0].
 
       iFrame. }
 
@@ -302,4 +297,4 @@ Section store_int.
     set_solver +.
   Qed.
 
-End store_int.
+End store_cap.

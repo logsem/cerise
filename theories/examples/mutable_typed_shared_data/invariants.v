@@ -36,34 +36,36 @@ End invariants.
 (* The proof guideline for accessing the sealed predicate is as follows: *)
 
 (* We assume: *)
-(*  - `seal_pred τ φ`, for some known `φ` (e.g: `sealed_int`) *)
+(*  - `seal_pred τ φ`, for some known `φ` (e.g: `sealed_cap`) *)
 (*  - `interp w`, where `w = WSealed τ scap` for any given `scap` *)
 
 (* 1. Using `interp_valid_sealed`, we can get `▷ valid_sealed (WSealed τ scap) τ Φ`. *)
 (* 2. `Φ` is currently unknown, we have to use `seal_pred_valid_sealed_eq` to retrieve `φ`. *)
 
-Section invariants_int.
+Section invariants_cap.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
-  Definition seal_intN : namespace := nroot .@ "seal".
+  Definition seal_capN : namespace := nroot .@ "seal_cap".
 
-  (* `sealed_int` is the sealed predicate of a sealed buffer containing an integer. *)
-  Definition sealed_int : Word → iProp Σ :=
-    λ w, na_inv logrel_nais seal_intN
-           (∃ a_cap, ⌜w = WCap RW a_cap (a_cap ^+ 1)%a a_cap⌝ ∗ (∃ w, a_cap ↦ₐ w ∗ ⌜is_z w⌝))%I.
+  (* `sealed_cap` is the sealed predicate of a sealed buffer containing a capability. *)
+  (* The capability must be `interp`. *)
+  Definition sealed_cap : Word → iProp Σ :=
+    λ w, na_inv logrel_nais seal_capN
+           (∃ a_cap, ⌜w = WCap RW a_cap (a_cap ^+ 1)%a a_cap⌝ ∗
+             (∃ w, a_cap ↦ₐ w ∗ ⌜is_cap w⌝ ∗ interp w))%I.
 
-  (* Note: `sealed_int` is not `Timeless` because of the use of the non-atomic invariant. *)
+  (* Note: `sealed_cap` is not `Timeless` because of the use of the non-atomic invariant. *)
   (* > In our case, any later can be stripped at time. *)
   (* One could use `a_cap ↦ₐ{DFracDiscarded} w` to avoid using the non-atomic invariant. *)
   (* > However, this denies the right to write to `a_cap` making it read-only. *)
 
-  (* Required by `seal_pred`: `sealed_int` is `Persistent`. *)
-  Instance sealed_int_persistent w : Persistent (sealed_int w).
+  (* Required by `seal_pred`: `sealed_cap` is `Persistent`. *)
+  Instance sealed_cap_persistent w : Persistent (sealed_cap w).
   Proof. apply _. Qed.
 
-  (* Integer-specific redefinitions *)
-  Definition seal_pred_int τ := seal_pred τ sealed_int.
-  Definition valid_sealed_int w τ := valid_sealed w τ sealed_int.
+  (* Capability-specific redefinitions *)
+  Definition seal_pred_cap τ := seal_pred τ sealed_cap.
+  Definition valid_sealed_cap w τ := valid_sealed w τ sealed_cap.
 
-End invariants_int.
+End invariants_cap.
