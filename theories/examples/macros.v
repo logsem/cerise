@@ -1204,7 +1204,7 @@ Section macros.
 
   Definition reqperm_instrs r z :=
     [
-    is_ptr r_t1 r;
+    get_tag r_t1 r;
     sub_r_z r_t1 r_t1 1;
     move_r r_t2 PC;
     lea_z r_t2 11;
@@ -1251,7 +1251,7 @@ Section macros.
     iPrologue "Hprog".
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     destruct a as [|a l];[done|].
-    iApply (wp_IsPtr_success with "[$HPC $Hi $Hr $Hr_t1]");
+    iApply (wp_GetTag_success with "[$HPC $Hi $Hr $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
 

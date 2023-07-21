@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_binary_base rules_IsPtr.
+From cap_machine Require Export rules_binary_base rules_GetTag.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import proofmode.
@@ -14,16 +14,16 @@ Section cap_lang_spec_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Lemma step_IsPtr Ep K pc_p pc_b pc_e pc_a w dst src regs :
-    decodeInstrW w = IsPtr dst src ->
+  Lemma step_GetTag Ep K pc_p pc_b pc_e pc_a w dst src regs :
+    decodeInstrW w = GetTag dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (IsPtr dst src) ⊆ dom regs →
+    regs_of (GetTag dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs, k ↣ᵣ y)
-    ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ IsPtr_spec regs dst src regs' retv ⌝ ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
+    ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ GetTag_spec regs dst src regs' retv ⌝ ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hcls) "(#Hinv & Hj & Hpc_a & Hmap)".
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
@@ -42,7 +42,7 @@ Section cap_lang_spec_rules.
 
     destruct (Hri src) as [wsrc [Hwsrc Hwsrc']]; [set_solver+|]. simpl in Hwsrc'.
 
-    assert (exec_opt (IsPtr dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    assert (exec_opt (GetTag dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
     {  rewrite /= Hwsrc'. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 

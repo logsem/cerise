@@ -47,7 +47,7 @@ Section instr_encodings.
   Definition lt_z_r r1 z r2 := encodeInstrW (Lt r1 (inl z) (inr r2)).
   Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
   Definition jmp r := encodeInstrW (Jmp r).
-  Definition is_ptr r1 r2 := encodeInstrW (IsPtr r1 r2).
+  Definition get_tag r1 r2 := encodeInstrW (GetTag r1 r2).
   Definition halt := encodeInstrW Halt.
   Definition fail_end := encodeInstrW Fail.
 

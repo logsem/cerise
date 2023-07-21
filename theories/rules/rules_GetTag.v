@@ -17,27 +17,27 @@ Section cap_lang_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Inductive IsPtr_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
-  | IsPtr_spec_success (w: Word):
+  Inductive GetTag_spec (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
+  | GetTag_spec_success (w: Word):
       regs !! src = Some w →
       incrementPC (<[ dst := WInt (if is_cap w then 1%Z else 0%Z) ]> regs) = Some regs' ->
-      IsPtr_spec regs dst src regs' NextIV
-  | IsPtr_spec_failure (w: Word):
+      GetTag_spec regs dst src regs' NextIV
+  | GetTag_spec_failure (w: Word):
       regs !! src = Some w →
       incrementPC (<[ dst := WInt (if is_cap w then 1%Z else 0%Z) ]> regs) = None ->
-      IsPtr_spec regs dst src regs' FailedV.
+      GetTag_spec regs dst src regs' FailedV.
 
-  Lemma wp_IsPtr Ep pc_p pc_b pc_e pc_a w dst src regs :
-    decodeInstrW w = IsPtr dst src ->
+  Lemma wp_GetTag Ep pc_p pc_b pc_e pc_a w dst src regs :
+    decodeInstrW w = GetTag dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (IsPtr dst src) ⊆ dom regs →
+    regs_of (GetTag dst src) ⊆ dom regs →
     
     {{{ ▷ pc_a ↦ₐ w ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
-        ⌜ IsPtr_spec regs dst src regs' retv ⌝ ∗
+        ⌜ GetTag_spec regs dst src regs' retv ⌝ ∗
           pc_a ↦ₐ w ∗
           [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
@@ -59,7 +59,7 @@ Section cap_lang_rules.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
 
-    assert (exec_opt (IsPtr dst src) (r, m) = updatePC (update_reg (r, m) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    assert (exec_opt (GetTag dst src) (r, m) = updatePC (update_reg (r, m) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
     {  rewrite /= Hsrc. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
@@ -85,8 +85,8 @@ Section cap_lang_rules.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
   Qed.
 
-  Lemma wp_IsPtr_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :
-    decodeInstrW w = IsPtr dst PC →
+  Lemma wp_GetTag_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :
+    decodeInstrW w = GetTag dst PC →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     (pc_a + 1)%a = Some pc_a' →
 
@@ -102,7 +102,7 @@ Section cap_lang_rules.
    Proof.
      iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
-     iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+     iApply (wp_GetTag with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
@@ -113,8 +113,8 @@ Section cap_lang_rules.
      { incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
-   Lemma wp_IsPtr_success E pc_p pc_b pc_e pc_a pc_a' w dst r wr w' :
-     decodeInstrW w = IsPtr dst r →
+   Lemma wp_GetTag_success E pc_p pc_b pc_e pc_a pc_a' w dst r wr w' :
+     decodeInstrW w = GetTag dst r →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
 
@@ -132,7 +132,7 @@ Section cap_lang_rules.
    Proof.
     iIntros (Hinstr Hvpc Hpc_a ϕ) "(>HPC & >Hpc_a & >Hr & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr Hdst") as "[Hmap (%&%&%)]".
-    iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    iApply (wp_GetTag with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
@@ -146,8 +146,8 @@ Section cap_lang_rules.
       incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
-   Lemma wp_IsPtr_success_dst E pc_p pc_b pc_e pc_a pc_a' w dst w' :
-     decodeInstrW w = IsPtr dst dst →
+   Lemma wp_GetTag_success_dst E pc_p pc_b pc_e pc_a pc_a' w dst w' :
+     decodeInstrW w = GetTag dst dst →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
      
@@ -163,7 +163,7 @@ Section cap_lang_rules.
    Proof.
      iIntros (Hinstr Hvpc Hpca' ϕ) "(>HPC & >Hpc_a & >Hdst) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
-     iApply (wp_IsPtr with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+     iApply (wp_GetTag with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
