@@ -1204,11 +1204,11 @@ Section macros.
 
   Definition reqperm_instrs r z :=
     [
-    get_tag r_t1 r;
+    iscap r_t1 r;
     sub_r_z r_t1 r_t1 1;
     move_r r_t2 PC;
     lea_z r_t2 11;
-    jnz r_t2 r_t1;
+    jnz r_t2 r_t1; (* if is_z(r) then jmp LABEL*)
     getp r_t1 r;
     sub_r_z r_t1 r_t1 z;
     move_r r_t2 PC;
@@ -1251,7 +1251,7 @@ Section macros.
     iPrologue "Hprog".
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     destruct a as [|a l];[done|].
-    iApply (wp_GetTag_success with "[$HPC $Hi $Hr $Hr_t1]");
+    iApply (wp_IsCap_success with "[$HPC $Hi $Hr $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
 
@@ -1280,7 +1280,7 @@ Section macros.
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3| exact |simpl;auto..].
     iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
-    destruct (is_cap w) eqn:Hcap; cycle 1.
+    destruct (is_cap w) eqn:Hcap ; cycle 1.
     {
       assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }
 

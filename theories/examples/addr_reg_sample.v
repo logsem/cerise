@@ -48,9 +48,10 @@ Section instr_encodings.
   Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
   Definition jmp r := encodeInstrW (Jmp r).
   Definition get_tag r1 r2 := encodeInstrW (GetTag r1 r2).
+  Definition get_sealed r1 r2 := encodeInstrW (GetSealed r1 r2).
+  Definition iscap r1 r2 := encodeInstrW (IsCap r1 r2).
   Definition halt := encodeInstrW Halt.
   Definition fail_end := encodeInstrW Fail.
-
 
   (* encodings of return pointer permission pair *)
   Definition e := encodePerm E.

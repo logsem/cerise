@@ -53,9 +53,11 @@ Inductive instr: Type :=
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
 | GetP (dst r: RegName) (* corresponds to CGetPerm in CHERI MIPS *)
-| GetTag (dst r: RegName) (* previously IsPtr, corresponds to CGetTag in CHERI MIPS *)
-(* | GetSealed (dst r: RegName) (* corresponds to CGetSealed in CHERI MIPS *) *)
-(* | GetOType (dst r: RegName) (* corresponds to CGetType in CHERI MIPS *) *)
+| IsCap (dst r: RegName) (* previously IsPtr *)
+| GetTag (dst r: RegName) (* corresponds to CGetTag in CHERI MIPS *)
+| GetSealed (dst r: RegName) (* corresponds to CGetSealed in CHERI MIPS *)
+(* GetType could replace GetSealed, but we need a way to convert otype -> Z *)
+(* | GetType (dst r: RegName) *)
 | Seal (dst : RegName) (r1 r2: RegName)
 | UnSeal (dst : RegName) (r1 r2: RegName)
 | Fail
@@ -721,15 +723,20 @@ Proof.
       | Lea dst r => GenNode 8 [GenLeaf (inl dst); GenLeaf (inr r)]
       | Restrict dst r => GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)]
       | Subseg dst r1 r2 => GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
-      | GetTag dst r => GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetP dst r => GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetB dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetE dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | Fail => GenNode 19 []
-      | Halt => GenNode 20 []
+      | GetB dst r => GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetE dst r => GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetA dst r => GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetP dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
+
+      | GetTag dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetSealed dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
+      (* | GetType dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] *)
+      | IsCap dst r => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r)]
+
+      | Seal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | UnSeal dst r1 r2 => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | Fail => GenNode 20 []
+      | Halt => GenNode 21 []
       end).
   set (dec := fun e =>
       match e with
@@ -744,15 +751,20 @@ Proof.
       | GenNode 8 [GenLeaf (inl dst); GenLeaf (inr r)] => Lea dst r
       | GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)] => Restrict dst r
       | GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => Subseg dst r1 r2
-      | GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)] => GetTag dst r
-      | GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)] => GetP dst r
-      | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
-      | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
-      | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
-      | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
-      | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [] => Fail
-      |  GenNode 20 [] => Halt
+      | GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
+      | GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
+      | GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
+      | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetP dst r
+
+      | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetTag dst r
+      | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetSealed dst r
+      | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r)] => IsCap dst r
+      (* | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetType dst r *)
+
+      | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
+      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
+      | GenNode 20 [] => Fail
+      |  GenNode 21 [] => Halt
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

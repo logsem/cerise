@@ -532,7 +532,7 @@ Section macros.
 
   Definition reqperm_instrs r z :=
     encodeInstrsW [
-        GetTag r_t1 r;
+        IsCap r_t1 r;
         Sub r_t1 r_t1 1;
         Mov r_t2 PC;
         Lea r_t2 11;

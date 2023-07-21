@@ -338,12 +338,28 @@ Section opsem.
     | WSealRange p _ _ _ => updatePC (update_reg φ dst (WInt (encodeSealPerms p)))
     | _ => None
     end
+
   | GetTag dst r =>
     wr ← (reg φ) !! r;
     match wr with
-    | WCap _ _ _ _ => updatePC (update_reg φ dst (WInt 1%Z))
+    | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
+    | _ => updatePC (update_reg φ dst (WInt 1%Z))
+    end
+
+  | GetSealed dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WSealed _ _ => updatePC (update_reg φ dst (WInt 1%Z))
     | _ => updatePC (update_reg φ dst (WInt 0%Z))
     end
+
+  | IsCap dst r =>
+    wr ← (reg φ) !! r;
+    match wr with
+    | WCap _ _ _ _ =>  updatePC (update_reg φ dst (WInt 1%Z))
+    | _ => updatePC (update_reg φ dst (WInt 0%Z))
+    end
+
   | Seal dst r1 r2 =>
     wr1 ← (reg φ) !! r1;
     wr2 ← (reg φ) !! r2;
