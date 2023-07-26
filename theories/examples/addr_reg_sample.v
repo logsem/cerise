@@ -47,15 +47,21 @@ Section instr_encodings.
   Definition lt_z_r r1 z r2 := encodeInstrW (Lt r1 (inl z) (inr r2)).
   Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
   Definition jmp r := encodeInstrW (Jmp r).
-  Definition get_tag r1 r2 := encodeInstrW (GetTag r1 r2).
-  Definition get_sealed r1 r2 := encodeInstrW (GetSealed r1 r2).
-  Definition iscap r1 r2 := encodeInstrW (IsCap r1 r2).
+  Definition get_otype r1 r2 := encodeInstrW (GetOType r1 r2).
+  Definition get_wtype r1 r2 := encodeInstrW (GetWType r1 r2).
   Definition halt := encodeInstrW Halt.
   Definition fail_end := encodeInstrW Fail.
 
   (* encodings of return pointer permission pair *)
   Definition e := encodePerm E.
 End instr_encodings.
+
+Section word_type_encoding.
+  Definition wt_cap := WCap O 0%a 0%a 0%a.
+  Definition wt_sealrange := WSealRange (false, false) 0%ot 0%ot 0%ot.
+  Definition wt_sealed := WSealed 0%ot (SCap O 0%a 0%a 0%a).
+  Definition wt_int := WInt 0.
+End word_type_encoding.
 
 (* Some additional helper lemmas about region_addrs *)
 

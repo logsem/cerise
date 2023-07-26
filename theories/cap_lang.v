@@ -339,26 +339,16 @@ Section opsem.
     | _ => None
     end
 
-  | GetTag dst r =>
+  | GetOType dst r =>
     wr ← (reg φ) !! r;
     match wr with
-    | WInt _ => updatePC (update_reg φ dst (WInt 0%Z))
-    | _ => updatePC (update_reg φ dst (WInt 1%Z))
+    | WSealed o _ => updatePC (update_reg φ dst (WInt o))
+    (* TODO if not a sealed, return -1 in any other case ? What if not a sealable ? *)
+    | _ => updatePC (update_reg φ dst (WInt (-1)))
     end
 
-  | GetSealed dst r =>
-    wr ← (reg φ) !! r;
-    match wr with
-    | WSealed _ _ => updatePC (update_reg φ dst (WInt 1%Z))
-    | _ => updatePC (update_reg φ dst (WInt 0%Z))
-    end
-
-  | IsCap dst r =>
-    wr ← (reg φ) !! r;
-    match wr with
-    | WCap _ _ _ _ =>  updatePC (update_reg φ dst (WInt 1%Z))
-    | _ => updatePC (update_reg φ dst (WInt 0%Z))
-    end
+  | GetWType dst r =>
+    wr ← (reg φ) !! r; updatePC (update_reg φ dst (WInt (encodeWordType wr)))
 
   | Seal dst r1 r2 =>
     wr1 ← (reg φ) !! r1;

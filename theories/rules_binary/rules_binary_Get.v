@@ -9,6 +9,7 @@ Section cap_lang_spec_rules.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
   Implicit Types a b : Addr.
+  Implicit Types o : OType.
   Implicit Types r : RegName.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.

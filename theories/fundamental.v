@@ -1,5 +1,5 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg GetTag GetSealed IsCap Get Lea Seal UnSeal.
+  Subseg Get Lea Seal UnSeal.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -105,14 +105,11 @@ Section fundamental.
       + (* GetP *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-      + (* IsCap *)
-        iApply (iscap_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+      + (* GetWType *)
+        iApply (get_case _ _ _ _ _ _ _ _ (GetWType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-      + (* GetTag *)
-        iApply (get_tag_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto.
-      + (* GetSealed *)
-        iApply (get_sealed_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+      + (* GetOType *)
+        iApply (get_case _ _ _ _ _ _ _ _ (GetOType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Seal *)
         iApply (seal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");

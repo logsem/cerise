@@ -399,7 +399,8 @@ Section list.
   Definition iterate_to_last_instr (r temp1 temp2: RegName) :=
     encodeInstrsW [ Lea r 1
                     ; Load temp1 r
-                    ; IsCap temp1 temp1
+                    ; GetWType temp1 temp1
+                    ; Sub r_t1 r_t1 (encodeWordType wt_int)
                     ; Mov temp2 PC
                     ; Lea temp2 7
                     ; Jnz temp2 temp1
@@ -425,7 +426,8 @@ Section list.
     encodeInstrsW [ Lea r_t1 1 (* move the pointer up one to leave place for the key *)
                     ; Store r_t1 r_t6 (* store the input value into the first cell of the allocated region *)
                     ; Load r_t4 r_env
-                    ; IsCap r_t2 r_t4 (* r_t2 = 1 if r_t2 is cap, = 0 otherwise *)
+                    ; GetWType r_t2 r_t4
+                    ; Sub r_t2 r_t2 (encodeWordType wt_int) (* r_t2 = 1 if r_t2 is cap, = 0 otherwise *)
                     ; Mov r_t3 PC
                     ; Lea r_t3 7
                     ; Jnz r_t3 r_t2
@@ -552,24 +554,26 @@ Section list.
     iDestruct (isList_extract_fst with "[$HisList]") as (a' hd' w (Hincr1&Hhd')) "[Ha [Ha' Hcls'] ]";
       [eauto..|]. rewrite Hincr1 in Hd2;inv Hd2.
     iInstr "Hprog". split; [solve_pure|]. solve_addr.
-    iInstr "Hprog". iInstr "Hprog". iInstr "Hprog".
-    destruct Hhd' as [Hhd' | Hhd'].
-    { destruct Hhd' as [-> Hhd'].
-      simpl is_cap. iInstr "Hprog".
-      iGo "Hprog". instantiate (1 := d'). solve_addr.
-      iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 14)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
-      iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
-      iApply "Hφ". iExists _, _,_. iFrame. iSplitR; [iPureIntro; auto|].
-      iSplitL "Htemp1"; iExists _; eauto. }
-    { destruct Hhd' as [p [p' [p'' [Hp'' [Hp' [-> Hp] ] ] ] ] ].
-      simpl is_cap. iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 10)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
-      iGo "Hprog". solve_addr.
-      iGo "Hprog". instantiate (1:= a_first). solve_addr.
-      iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
-      iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
-      iApply ("IH" with "[] [] [] [] [] [$HPC $Hr_env $HisList $Hφ Htemp1 Htemp2 Hprog]");auto.
-      iFrame. iSplitL "Htemp1"; eauto. }
-  Qed.
+    (* FIXME need to fix iInstr for GetWType *)
+    Admitted.
+  (*   iInstr "Hprog". iInstr "Hprog". iInstr "Hprog". *)
+  (*   destruct Hhd' as [Hhd' | Hhd']. *)
+  (*   { destruct Hhd' as [-> Hhd']. *)
+  (*     simpl is_cap. iInstr "Hprog". *)
+  (*     iGo "Hprog". instantiate (1 := d'). solve_addr. *)
+  (*     iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 14)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX. *)
+  (*     iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList". *)
+  (*     iApply "Hφ". iExists _, _,_. iFrame. iSplitR; [iPureIntro; auto|]. *)
+  (*     iSplitL "Htemp1"; iExists _; eauto. } *)
+  (*   { destruct Hhd' as [p [p' [p'' [Hp'' [Hp' [-> Hp] ] ] ] ] ]. *)
+  (*     simpl is_cap. iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 10)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX. *)
+  (*     iGo "Hprog". solve_addr. *)
+  (*     iGo "Hprog". instantiate (1:= a_first). solve_addr. *)
+  (*     iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX. *)
+  (*     iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList". *)
+  (*     iApply ("IH" with "[] [] [] [] [] [$HPC $Hr_env $HisList $Hφ Htemp1 Htemp2 Hprog]");auto. *)
+  (*     iFrame. iSplitL "Htemp1"; eauto. } *)
+  (* Qed. *)
 
   Lemma iterate_to_last_spec pc_p pc_b pc_e (* PC *)
         r temp1 temp2 (* temporary registers *)
@@ -719,86 +723,89 @@ Section list.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0); eauto.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0) (j:=1) in H1;eauto. solve_addr.
     iInstr "Hprog". split; [auto|solve_addr].
-    do 3 iInstr "Hprog". (* Not using iGo so it stops before Jnz *)
-    case_eq (is_cap hd); intro His_cap.
-    { iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_middle' ^+ 11)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
-      unfocus_block "Hprog" "Hcont" as "Hprog".
+    (* FIXME need to fix iInstr for GetWType *)
+  Admitted.
+  (*   do 3 iInstr "Hprog". (* Not using iGo so it stops before Jnz *) *)
+  (*   case_eq (is_cap hd); intro His_cap. *)
+  (*   { iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_middle' ^+ 11)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX. *)
+  (*     unfocus_block "Hprog" "Hcont" as "Hprog". *)
 
-      focus_block 3 "Hprog" as a_middle'' Ha_middle'' "Hprog" "Hcont".
-      iApply iterate_to_last_spec; iFrameAutoSolve. destruct hd; simpl in His_cap; try congruence.
-      iSplitL "Hr_t2"; [eauto|]. iSplitL "Hr_t3"; [eauto|]. iFrame.
-      iNext. iIntros "Hiter".
-      iDestruct "Hiter" as (dlast dlast' dlast'') "(HPC & HisList & (%&%&%) & Hr_t4 & Hr_t2 & Hr_t3 & Hprog)".
-      unfocus_block "Hprog" "Hcont" as "Hprog".
+  (*     focus_block 3 "Hprog" as a_middle'' Ha_middle'' "Hprog" "Hcont". *)
+  (*     iApply iterate_to_last_spec; iFrameAutoSolve. destruct hd; simpl in His_cap; try congruence. *)
+  (*     iSplitL "Hr_t2"; [eauto|]. iSplitL "Hr_t3"; [eauto|]. iFrame. *)
+  (*     iNext. iIntros "Hiter". *)
+  (*     iDestruct "Hiter" as (dlast dlast' dlast'') "(HPC & HisList & (%&%&%) & Hr_t4 & Hr_t2 & Hr_t3 & Hprog)". *)
+  (*     unfocus_block "Hprog" "Hcont" as "Hprog". *)
 
-      focus_block 4 "Hprog" as a_middle''' Ha_middle''' "Hprog" "Hcont".
-      rewrite fmap_last in H2. apply fmap_Some in H2 as [ [plast wlast] [H2 Heq] ]. simpl in Heq; subst plast.
-      iDestruct (isList_extract_and_append_last with "HisList") as (a' Hincr) "[Hdlast [Ha0 Hcls''] ]";[eauto|].
-      iGo "Hprog". solve_addr.
-      iDestruct "Hr_t2" as (w2) "Hr_t2".
-      iDestruct "Hr_t3" as (w3) "Hr_t3".
-      iGo "Hprog".
-      iDestruct ("Hcls''" with "[$Hdlast $Ha0 $Ha $Ha']") as "HisList"; [repeat iSplit;iPureIntro|].
-      iContiguous_next H1 0. eapply contiguous_between_middle_to_end with (ai := f) (i:=1) (k:=2) in H1; eauto.
-      iContiguous_next H1 1.
-      iDestruct (isList_NoDup with "HisList") as %Hdup.
-      assert (f ∉ pbvals'.*1) as Hnin.
-      { rewrite fmap_app in Hdup. apply NoDup_app in Hdup as (_ & Hdisj & _).
-        intros Hin. apply Hdisj in Hin. clear -Hin. apply Hin. constructor. }
+  (*     focus_block 4 "Hprog" as a_middle''' Ha_middle''' "Hprog" "Hcont". *)
+  (*     rewrite fmap_last in H2. apply fmap_Some in H2 as [ [plast wlast] [H2 Heq] ]. simpl in Heq; subst plast. *)
+  (*     iDestruct (isList_extract_and_append_last with "HisList") as (a' Hincr) "[Hdlast [Ha0 Hcls''] ]";[eauto|]. *)
+  (*     iGo "Hprog". solve_addr. *)
+  (*     iDestruct "Hr_t2" as (w2) "Hr_t2". *)
+  (*     iDestruct "Hr_t3" as (w3) "Hr_t3". *)
+  (*     iGo "Hprog". *)
+  (*     iDestruct ("Hcls''" with "[$Hdlast $Ha0 $Ha $Ha']") as "HisList"; [repeat iSplit;iPureIntro|]. *)
+  (*     iContiguous_next H1 0. eapply contiguous_between_middle_to_end with (ai := f) (i:=1) (k:=2) in H1; eauto. *)
+  (*     iContiguous_next H1 1. *)
+  (*     iDestruct (isList_NoDup with "HisList") as %Hdup. *)
+  (*     assert (f ∉ pbvals'.*1) as Hnin. *)
+  (*     { rewrite fmap_app in Hdup. apply NoDup_app in Hdup as (_ & Hdisj & _). *)
+  (*       intros Hin. apply Hdisj in Hin. clear -Hin. apply Hin. constructor. } *)
 
-      iDestruct (know_pref with "Hexact Hpref") as %Hpref.
-      iMod (update_ll _ _ (pbvals' ++ [(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|].
+  (*     iDestruct (know_pref with "Hexact Hpref") as %Hpref. *)
+  (*     iMod (update_ll _ _ (pbvals' ++ [(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|]. *)
 
-      iMod ("Hcls'" with "[HisList Hll Hexact HΦw HΦ $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists _. iFrame "Hexact HisList HΦw". auto. }
-      unfocus_block "Hprog" "Hcont" as "Hprog".
-      iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
-      iSplitR "Hr_t1 Hprog Hbnew".
-      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        repeat (rewrite -delete_insert_ne//).
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        do 3 (rewrite (delete_insert_ne) ; auto).
-        rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
-        iFrameMapSolve+ Hdom "Hregs". }
-      destruct Hpref. iFrame "∗".
-      iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew".
-      iPureIntro. split. iContiguous_next H1 0. eapply contiguous_between_length in H1. auto.
-    }
-    { iInstr "Hprog". iGo "Hprog". solve_addr.
-      iGo "Hprog".
-      unfocus_block "Hprog" "Hcont" as "Hprog".
-      iDestruct (isList_hd_pure with "HisList") as %[ [-> ->] | (?&?&?&?&?&?&->&?)];[|done].
-      iDestruct (isList_NoDup with "HisList") as %Hdup.
-      iDestruct (know_pref with "Hexact Hpref") as %Hpre. destruct pbvals;[|by inversion Hpre].
-      iMod (update_ll _ _ ([(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|].
-      (* iMod ("HΦw" $! _ bnew with "[] HΦ") as "[HΦw HΨ]". iPureIntro. apply not_elem_of_nil. *)
-      iMod ("Hcls'" with "[Ha Ha' Hll Hexact HΦw $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists [(f,w)]. iSimpl. iFrame "∗ #". iExists _,bnew,f0,enew.
-        repeat iSplit;eauto. iContiguous_next H1 0. iPureIntro.
-        eapply contiguous_between_incr_addr_middle with (ai:=bnew) (i:=0) (j:=2) in H1; eauto. }
-      iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
-      iFrame "∗". iSplitR "Hr_t1 Hbnew".
-      { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        repeat (rewrite -delete_insert_ne//).
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)].
-        iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-        do 3 (rewrite (delete_insert_ne) ; auto).
-        rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
-        iFrameMapSolve+ Hdom "Hregs". }
-      { iExists _,_,_,[]. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } }
-  Qed.
+  (*     iMod ("Hcls'" with "[HisList Hll Hexact HΦw HΦ $Hown]") as "Hown". *)
+  (*     { iNext. iExists _; iFrame. iExists _. iFrame "Hexact HisList HΦw". auto. } *)
+  (*     unfocus_block "Hprog" "Hcont" as "Hprog". *)
+  (*     iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]"). *)
+  (*     iSplitR "Hr_t1 Hprog Hbnew". *)
+  (*     { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert]. *)
+  (*       repeat (rewrite -delete_insert_ne//). *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//]. *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)]. *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert]. *)
+  (*       do 3 (rewrite (delete_insert_ne) ; auto). *)
+  (*       rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver]. *)
+  (*       iFrameMapSolve+ Hdom "Hregs". } *)
+  (*     destruct Hpref. iFrame "∗". *)
+  (*     iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew". *)
+  (*     iPureIntro. split. iContiguous_next H1 0. eapply contiguous_between_length in H1. auto. *)
+  (*   } *)
+  (*   { iInstr "Hprog". iGo "Hprog". solve_addr. *)
+  (*     iGo "Hprog". *)
+  (*     unfocus_block "Hprog" "Hcont" as "Hprog". *)
+  (*     iDestruct (isList_hd_pure with "HisList") as %[ [-> ->] | (?&?&?&?&?&?&->&?)];[|done]. *)
+  (*     iDestruct (isList_NoDup with "HisList") as %Hdup. *)
+  (*     iDestruct (know_pref with "Hexact Hpref") as %Hpre. destruct pbvals;[|by inversion Hpre]. *)
+  (*     iMod (update_ll _ _ ([(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|]. *)
+  (*     (* iMod ("HΦw" $! _ bnew with "[] HΦ") as "[HΦw HΨ]". iPureIntro. apply not_elem_of_nil. *) *)
+  (*     iMod ("Hcls'" with "[Ha Ha' Hll Hexact HΦw $Hown]") as "Hown". *)
+  (*     { iNext. iExists _; iFrame. iExists [(f,w)]. iSimpl. iFrame "∗ #". iExists _,bnew,f0,enew. *)
+  (*       repeat iSplit;eauto. iContiguous_next H1 0. iPureIntro. *)
+  (*       eapply contiguous_between_incr_addr_middle with (ai:=bnew) (i:=0) (j:=2) in H1; eauto. } *)
+  (*     iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]"). *)
+  (*     iFrame "∗". iSplitR "Hr_t1 Hbnew". *)
+  (*     { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert]. *)
+  (*       repeat (rewrite -delete_insert_ne//). *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//]. *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t4]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne//)]. *)
+  (*       iDestruct (big_sepM_insert with "[$Hregs $Hr_t6]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert]. *)
+  (*       do 3 (rewrite (delete_insert_ne) ; auto). *)
+  (*       rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver]. *)
+  (*       iFrameMapSolve+ Hdom "Hregs". } *)
+  (*     { iExists _,_,_,[]. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } } *)
+  (* Qed. *)
 
   (* ------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------- FINDB ---------------------------------------------- *)
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
-     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
+  (* (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
+  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *) *)
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
+    (forall dst' src', get_i <> GetWType dst' src' /\ get_i <> GetOType dst' src') ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -808,13 +815,16 @@ Section list.
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iIntros (Hdecode Hinstr Hgeti Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *)
+      destruct (decodeInstrW w); simplify_map_eq; specialize (Hgeti dst0 r)
+      ; destruct Hgeti ; contradiction.
+    }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
 
@@ -878,7 +888,7 @@ Section list.
       codefrag_facts "Hprog".
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
-      iApplyCapAuto @wp_Get_fail.
+      iApplyCapAuto @wp_Get_fail. intros ; split ; auto.
       wp_pure. iApply wp_value. iFrame. }
 
     (* the successful case lets us load the b bound *)

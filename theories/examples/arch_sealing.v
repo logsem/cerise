@@ -145,26 +145,26 @@ Section sealing.
     | _ => false end.
 
 
-  Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc :
-    decodeInstrW w = get_i →
-    is_Get get_i dst dst →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+  (* Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc : *)
+  (*   decodeInstrW w = get_i → *)
+  (*   is_Get get_i dst dst → *)
+  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
 
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-      ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ WInt zsrc }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc) Hφ".
-    iDestruct (map_of_regs_2 with "HPC Hsrc") as "[Hmap %]".
-    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
+  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
+  (*     ∗ ▷ pc_a ↦ₐ w *)
+  (*     ∗ ▷ dst ↦ᵣ WInt zsrc }}} *)
+  (*     Instr Executable @ E *)
+  (*     {{{ RET FailedV; True }}}. *)
+  (* Proof. *)
+  (*   iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc) Hφ". *)
+  (*   iDestruct (map_of_regs_2 with "HPC Hsrc") as "[Hmap %]". *)
+  (*   iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+  (*     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+. *)
+  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+  (*   destruct Hspec as [* Hsucc |]. *)
+  (*   { (* Success (contradiction) *) simplify_map_eq. } *)
+  (*   { (* Failure, done *) by iApply "Hφ". } *)
+  (* Qed. *)
 
  (* TODO: move this to unseal rules file *)
  Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a w r1 r2 p b e a wsealed pc_a' :

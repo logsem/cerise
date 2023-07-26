@@ -34,9 +34,6 @@ theories/rules/rules_AddSubLt.v
 theories/rules/rules_Lea.v
 theories/rules/rules_Mov.v
 theories/rules/rules_Restrict.v
-theories/rules/rules_GetTag.v
-theories/rules/rules_GetSealed.v
-theories/rules/rules_IsCap.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
@@ -54,9 +51,6 @@ theories/rules_binary/rules_binary_Restrict.v
 theories/rules_binary/rules_binary_Jmp.v
 theories/rules_binary/rules_binary_Jnz.v
 theories/rules_binary/rules_binary_Subseg.v
-theories/rules_binary/rules_binary_GetTag.v
-theories/rules_binary/rules_binary_GetSealed.v
-theories/rules_binary/rules_binary_IsCap.v
 theories/rules_binary.v
 theories/solve_pure.v
 theories/NamedProp.v
@@ -75,9 +69,6 @@ theories/ftlr/AddSubLt.v
 theories/ftlr/Lea.v
 theories/ftlr/Mov.v
 theories/ftlr/Restrict.v
-theories/ftlr/GetTag.v
-theories/ftlr/GetSealed.v
-theories/ftlr/IsCap.v
 theories/ftlr/Jmp.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
@@ -91,9 +82,6 @@ theories/ftlr_binary/Load_binary.v
 theories/ftlr_binary/Mov_binary.v
 theories/ftlr_binary/AddSubLt_binary.v
 theories/ftlr_binary/Get_binary.v
-theories/ftlr_binary/GetTag_binary.v
-theories/ftlr_binary/GetSealed_binary.v
-theories/ftlr_binary/IsCap_binary.v
 theories/ftlr_binary/Jmp_binary.v
 theories/ftlr_binary/Jnz_binary.v
 theories/ftlr_binary/Lea_binary.v
