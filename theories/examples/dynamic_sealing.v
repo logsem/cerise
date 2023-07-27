@@ -296,7 +296,7 @@ Section sealing.
     iFrame. iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hpc_b & Ha_r' & Hregs & HisList & Hprog & Hown)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 57)%a ltac:(destruct Hvpc; congruence)).
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 58)%a ltac:(destruct Hvpc; congruence)).
     focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
@@ -305,9 +305,8 @@ Section sealing.
     iDestruct "HisList" as (a a' a'' pbvals') "(%HA & #Hpref' & Hr_t1 & Ha)".
     destruct HA as (HA & HB).
     iGo "Hprog". instantiate (1:=a'). solve_addr. solve_addr.
-    iGo "Hprog". (* rewrite decode_encode_perm_inv. reflexivity. *)
-    (* iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr. *)
-    (* iGo "Hprog". *)
+    iGo "Hprog".
+
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hr_t1 Ha ".
