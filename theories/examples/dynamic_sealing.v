@@ -296,30 +296,30 @@ Section sealing.
     iFrame. iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hpc_b & Ha_r' & Hregs & HisList & Hprog & Hown)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    (* rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 54)%a ltac:(destruct Hvpc; congruence)). *)
-    (* focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont". *)
-    (* iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|]. *)
-    (* iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|]. *)
-    (* iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[simplify_map_eq; auto|]. *)
-    (* map_simpl "Hregs". *)
-    (* iDestruct "HisList" as (a a' a'' pbvals') "(%HA & #Hpref' & Hr_t1 & Ha)". *)
-    (* destruct HA as (HA & HB). *)
-    (* iGo "Hprog". instantiate (1:=a'). solve_addr. solve_addr. *)
-    (* iGo "Hprog". (* rewrite decode_encode_perm_inv. reflexivity. *) *)
-    (* (* iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr. *) *)
-    (* (* iGo "Hprog". *) *)
-    (* unfocus_block "Hprog" "Hcont" as "Hprog". *)
-    (* iApply "Hφ"; iFrame "∗ #". *)
-    (* iSplitR "Hr_t1 Ha ". *)
-    (* - iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|]. *)
-    (*   map_simpl "Hregs". *)
-    (*   iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|]. *)
-    (*   map_simpl "Hregs". *)
-    (*   iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|]. *)
-    (*   map_simpl "Hregs". *)
-    (*   repeat rewrite -(insert_commute _ _ r_t7)//. *)
-    (* - iExists _, _, _. iFrame. iSplit;eauto. *)
-  Admitted.
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 57)%a ltac:(destruct Hvpc; congruence)).
+    focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[simplify_map_eq; auto|].
+    map_simpl "Hregs".
+    iDestruct "HisList" as (a a' a'' pbvals') "(%HA & #Hpref' & Hr_t1 & Ha)".
+    destruct HA as (HA & HB).
+    iGo "Hprog". instantiate (1:=a'). solve_addr. solve_addr.
+    iGo "Hprog". (* rewrite decode_encode_perm_inv. reflexivity. *)
+    (* iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr. *)
+    (* iGo "Hprog". *)
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    iApply "Hφ"; iFrame "∗ #".
+    iSplitR "Hr_t1 Ha ".
+    - iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|].
+      map_simpl "Hregs".
+      iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|].
+      map_simpl "Hregs".
+      iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|].
+      map_simpl "Hregs".
+      repeat rewrite -(insert_commute _ _ r_t7)//.
+    - iExists _, _, _. iFrame. iSplit;eauto.
+  Qed.
 
   Lemma sealLL_alloc ι ll Ep Φ {Hpers : ∀ w, Persistent (Φ w)} :
     ll ↦ₐ WInt 0%Z -∗

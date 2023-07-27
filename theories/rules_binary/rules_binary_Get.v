@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Get rules_binary_base.
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -24,7 +24,7 @@ Section cap_lang_spec_rules.
     regs_of get_i ⊆ dom regs →
 
     nclose specN ⊆ Ep →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ ▷ pc_a ↣ₐ w ∗ ▷ ([∗ map] k↦y ∈ regs, k ↣ᵣ y)
     ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ Get_spec (decodeInstrW w) regs dst src regs' retv ⌝ ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
@@ -33,7 +33,7 @@ Section cap_lang_spec_rules.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
+    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a.
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
@@ -78,7 +78,7 @@ Section cap_lang_spec_rules.
 
     simplify_pair_eq. iFrame.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto. 
+    iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
@@ -94,7 +94,7 @@ Section cap_lang_spec_rules.
     (pc_a + 1)%a = Some pc_a' ->
     denote get_i wsrc = Some z →
     nclose specN ⊆ E →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable)
              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
@@ -120,4 +120,4 @@ Section cap_lang_spec_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.

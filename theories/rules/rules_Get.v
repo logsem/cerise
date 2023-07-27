@@ -28,7 +28,6 @@ Section cap_lang_rules.
         | GetE _ _ => Some (e:Z)
         | GetA _ _ => Some (a:Z)
         | GetOType _ _ => Some (-1)%Z
-        | GetWType _ _ => Some (encodeWordType w)
         | _ => None
         end
     | WSealRange p b e a =>
@@ -38,19 +37,16 @@ Section cap_lang_rules.
         | GetE _ _ => Some (e:Z)
         | GetA _ _ => Some (a:Z)
         | GetOType _ _ => Some (-1)%Z
-        | GetWType _ _ => Some (encodeWordType w)
         | _ => None
         end
     | WSealed o _ =>
         match i with
         | GetOType _ _ => Some (o:Z)
-        | GetWType _ _ => Some (encodeWordType w)
         | _ => None
         end
     | WInt _ =>
         match i with
         | GetOType _ _ => Some (-1)%Z
-        | GetWType _ _ => Some (encodeWordType w)
         | _ => None
         end
     end.
@@ -62,8 +58,7 @@ Section cap_lang_rules.
     i = GetB dst src ∨
     i = GetE dst src ∨
     i = GetA dst src \/
-    i = GetOType dst src \/
-    i = GetWType dst src
+    i = GetOType dst src
   .
 
   Lemma regs_of_is_Get i dst src :
@@ -81,11 +76,10 @@ Section cap_lang_rules.
       | GetE _ _ => e
       | GetA _ _ => a
       | GetOType _ _ => (-1)%Z
-      | GetWType _ _ => (encodeWordType (WCap p b e a))
       | _ => 0%Z
       end.
   Lemma denote_cap_denote i p b e a z src dst: is_Get i src dst → denote_cap i p b e a = z → denote i (WCap p b e a) = Some z.
-  Proof. unfold denote_cap, denote, is_Get. intros [-> | [-> | [-> | [-> | [-> | ->]]]]] ->; done. Qed.
+  Proof. unfold denote_cap, denote, is_Get. intros [-> | [-> | [-> | [-> |  ->]]]] ->; done. Qed.
 
   Definition denote_seal (i: instr) (p : SealPerms) (b e a : OType): Z :=
       match i with
@@ -94,32 +88,11 @@ Section cap_lang_rules.
       | GetE _ _ => e
       | GetA _ _ => a
       | GetOType _ _ => (-1)%Z
-      | GetWType _ _ => (encodeWordType (WSealRange p b e a))
       | _ => 0%Z
       end.
   Lemma denote_seal_denote i (p : SealPerms) (b e a : OType) z src dst: is_Get i src dst → denote_seal i p b e a = z → denote i (WSealRange p b e a) = Some z.
-  Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | [-> | [-> | ->]]]]] ->; done. Qed.
+  Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | [-> |  ->]]]] ->; done. Qed.
 
-  Lemma denote_wtype w dst src : denote (GetWType dst src) w
-                                 = Some (encodeWordType w).
-  Proof.
-    unfold denote ; destruct w ; cycle 1 ; [destruct sb|..]; auto.
-  Qed.
-  (* Definition denote_sealed (i: instr) (o : OType) (s : Sealable) : Z := *)
-  (*     match i with *)
-  (*     | GetOType _ _ => o *)
-  (*     | GetWType _ _ => (encodeWordType (WSealed o s)) *)
-  (*     | _ => 0%Z *)
-  (*     end. *)
-  (* Lemma denote_sealed_denote i (o : OType) (s : Sealable) z src dst : is_Get i src dst → denote_sealed i o s = z → denote i (WSealed o s) = Some z. *)
-  (* Proof. unfold denote_sealed, denote, is_Get. *)
-  (*        intros. *)
-  (*        destruct H2 as [-> |]. *)
-  (*        intros [-> | [-> | [-> | [-> | [-> | ->]]]]]. ->; done. Qed. *)
-  (* Proof. unfold denote_sealed, denote, is_Get. *)
-  (*        intros [ -> | -> ]. *)
-  (*        intros *)
-  (*          [-> | [-> | [-> | [-> | [-> | ->]]]]] ->; done. Qed. *)
 
   Inductive Get_failure (i: instr) (regs: Reg) (dst src: RegName) :=
     | Get_fail_src_denote w:
@@ -325,11 +298,8 @@ Proof. intros; unfold is_Get; eauto. Qed.
 
 Lemma is_Get_GetOType dst src : is_Get (GetOType dst src) dst src.
 Proof. intros; unfold is_Get; eauto; firstorder. Qed.
-Lemma is_Get_GetWType dst src : is_Get (GetWType dst src) dst src.
-Proof. intros; unfold is_Get; eauto; firstorder. Qed.
 Global Hint Resolve is_Get_GetP : core.
 Global Hint Resolve is_Get_GetB : core.
 Global Hint Resolve is_Get_GetE : core.
 Global Hint Resolve is_Get_GetA : core.
 Global Hint Resolve is_Get_GetOType : core.
-Global Hint Resolve is_Get_GetWType : core.

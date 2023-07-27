@@ -56,13 +56,6 @@ Section instr_encodings.
   Definition e := encodePerm E.
 End instr_encodings.
 
-Section word_type_encoding.
-  Definition wt_cap := WCap O 0%a 0%a 0%a.
-  Definition wt_sealrange := WSealRange (false, false) 0%ot 0%ot 0%ot.
-  Definition wt_sealed := WSealed 0%ot (SCap O 0%a 0%a 0%a).
-  Definition wt_int := WInt 0.
-End word_type_encoding.
-
 (* Some additional helper lemmas about region_addrs *)
 
 Definition region_addrs_zeroes (b e : Addr) : list Word :=

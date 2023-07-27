@@ -1251,10 +1251,8 @@ Section macros.
     iPrologue "Hprog".
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     destruct a as [|a l];[done|].
-    iApply (wp_Get_success _ _ _ _ _ _ _ _ _ _ _ _ (encodeWordType w) with "[$HPC $Hi $Hr $Hr_t1]");
-      [apply decode_encode_instrW_inv| eauto |iCorrectPC a_first a_last
-      |iContiguous_next Hcont 0| apply denote_wtype | eauto..].
-
+    iApply (wp_GetWType_success with "[$HPC $Hi $Hr $Hr_t1]");
+      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
     iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
 
     iPrologue "Hprog".

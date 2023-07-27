@@ -1,6 +1,7 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base.
 From cap_machine Require Export machine_base.
+From iris.proofmode Require Import proofmode.
 
 Class MachineParameters := {
     decodeInstr : Z → instr;
@@ -31,12 +32,10 @@ Class MachineParameters := {
             | WSealRange _ _ _ _, WSealRange _ _ _ _ => encodeWordType w = encodeWordType w'
             | WSealed _ _, WSealed _ _ => encodeWordType w = encodeWordType w'
             | WInt _, WInt _ => encodeWordType w = encodeWordType w'
-            | _, _ =>encodeWordType w <> encodeWordType w'
+            | _, _ => encodeWordType w <> encodeWordType w'
             end;
     decode_encode_word_type_inv :
     forall w, decodeWordType (encodeWordType w) = w;
-    (* TODO I think that we need more hypetheses about the encoding/decoding of
-     word type: we do need some sort injectivity, modulo word type *)
   }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify
@@ -59,40 +58,63 @@ Proof. apply decode_encode_instr_inv. Qed.
 Definition encodeInstrsW `{MachineParameters} : list instr → list Word :=
   map encodeInstrW.
 
-(* TODO solve_encodeWordType tactic ?*)
+Section word_type_encoding.
+  Definition wt_cap := WCap O 0%a 0%a 0%a.
+  Definition wt_sealrange := WSealRange (false, false) 0%ot 0%ot 0%ot.
+  Definition wt_sealed := WSealed 0%ot (SCap O 0%a 0%a 0%a).
+  Definition wt_int := WInt 0.
+End word_type_encoding.
+
+Ltac solve_encodeWordType :=
+  match goal with
+  | H: _ |- encodeWordType ?x = encodeWordType ?y =>
+      try reflexivity
+      ; pose proof (encodeWordType_correct x y) as Heq
+      ; unfold wt_cap, wt_int, wt_sealrange, wt_cap; simpl in Heq
+      ; auto
+  end.
+
+Ltac simpl_encodeWordType :=
+  match goal with
+  | H: _ |- context G [encodeWordType (WCap ?p ?b ?e ?a)] =>
+      rewrite (_: encodeWordType (WCap p b e a) = encodeWordType wt_cap) ; last solve_encodeWordType
+  (* | H: context G [encodeWordType (WCap ?p ?b ?e ?a)] |- _ => *)
+  (*     rewrite (_: encodeWordType (WCap p b e a) = encodeWordType wt_cap) in H *)
+  (*     ; last solve_encodeWordType *)
+
+  | H: _ |- context G [encodeWordType (WSealRange ?p ?b ?e ?a)] =>
+      rewrite (_: encodeWordType (WSealRange p b e a) = encodeWordType wt_sealrange) ; last solve_encodeWordType
+  (* | H: context G [encodeWordType (WSealRange ?p ?b ?e ?a)] |- _ => *)
+  (*     rewrite (_: encodeWordType (WSealRange p b e a) = encodeWordType wt_sealrange) in H ; last solve_encodeWordType *)
+
+  | H: _ |- context G [encodeWordType (WInt ?n)] =>
+      rewrite (_: encodeWordType (WInt n) = encodeWordType wt_int) ; last solve_encodeWordType
+  (* | H: context G [encodeWordType (WInt ?n)] |- _ => *)
+  (*     rewrite (_: encodeWordType (WInt n) = encodeWordType wt_int) in H ; last solve_encodeWordType *)
+
+  | H: _ |- context G [encodeWordType (WSealed ?o ?s)] =>
+      rewrite (_: encodeWordType (WSealed o s) = encodeWordType wt_sealed) ; last solve_encodeWordType
+  (* | H: context G [encodeWordType (WSealed ?o ?s)] |- _ => *)
+  (*     rewrite (_: encodeWordType (WSealed o s) = encodeWordType wt_sealed) in H ; last solve_encodeWordType *)
+  end.
+
 Lemma encodeWordType_correct_cap `{MachineParameters} : forall p b e a p' b' e' a',
   encodeWordType (WCap p b e a) = encodeWordType (WCap p' b' e' a').
-  intros
-  ; match goal with
-    | H: _ |- encodeWordType ?x = encodeWordType ?y =>
-        pose proof (encodeWordType_correct x y) as Heq ; simpl in Heq ; auto
-    end.
+  intros; solve_encodeWordType.
 Qed.
 
 Lemma encodeWordType_correct_int `{MachineParameters} : forall z z',
   encodeWordType (WInt z) = encodeWordType (WInt z').
-  intros
-  ; match goal with
-    | H: _ |- encodeWordType ?x = encodeWordType ?y =>
-        pose proof (encodeWordType_correct x y) as Heq ; simpl in Heq ; auto
-    end.
+  intros; solve_encodeWordType.
 Qed.
 
 Lemma encodeWordType_correct_sealrange `{MachineParameters} : forall p b e a p' b' e' a',
   encodeWordType (WSealRange p b e a) = encodeWordType (WSealRange p' b' e' a').
 Proof.
-  intros
-  ; match goal with
-    | H: _ |- encodeWordType ?x = encodeWordType ?y =>
-        pose proof (encodeWordType_correct x y) as Heq ; simpl in Heq ; auto
-    end.
+  intros; solve_encodeWordType.
 Qed.
 
 Lemma encodeWordType_correct_sealed `{MachineParameters} : forall o s o' s',
   encodeWordType (WSealed o s) = encodeWordType (WSealed o' s').
-  intros
-  ; match goal with
-    | H: _ |- encodeWordType ?x = encodeWordType ?y =>
-        pose proof (encodeWordType_correct x y) as Heq ; simpl in Heq ; auto
-    end.
+  intros; solve_encodeWordType.
 Qed.

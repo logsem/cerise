@@ -28,6 +28,7 @@ theories/cap_lang.v
 theories/region.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
+theories/rules/rules_GetWType.v
 theories/rules/rules_Load.v
 theories/rules/rules_Store.v
 theories/rules/rules_AddSubLt.v
@@ -42,6 +43,7 @@ theories/rules/rules_UnSeal.v
 theories/rules.v
 theories/rules_binary/rules_binary_base.v
 theories/rules_binary/rules_binary_Get.v
+theories/rules_binary/rules_binary_GetWType.v
 theories/rules_binary/rules_binary_Load.v
 theories/rules_binary/rules_binary_Store.v
 theories/rules_binary/rules_binary_AddSubLt.v
@@ -63,6 +65,7 @@ theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
+theories/ftlr/GetWType.v
 theories/ftlr/Load.v
 theories/ftlr/Store.v
 theories/ftlr/AddSubLt.v
@@ -82,6 +85,7 @@ theories/ftlr_binary/Load_binary.v
 theories/ftlr_binary/Mov_binary.v
 theories/ftlr_binary/AddSubLt_binary.v
 theories/ftlr_binary/Get_binary.v
+theories/ftlr_binary/GetWType_binary.v
 theories/ftlr_binary/Jmp_binary.v
 theories/ftlr_binary/Jnz_binary.v
 theories/ftlr_binary/Lea_binary.v
