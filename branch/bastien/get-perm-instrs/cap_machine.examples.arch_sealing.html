@@ -181,37 +181,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;(<a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">[∗</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">list</span></a><a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">]</span></a> <a id="a_i:49" class="idref" href="#a_i:49"><span class="id" title="binder">a_i</span></a><a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">;</span></a><a id="w_i:50" class="idref" href="#w_i:50"><span class="id" title="binder">w_i</span></a> <a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">∈</span></a> <a class="idref" href="cap_machine.examples.arch_sealing.html#ai:48"><span class="id" title="variable">ai</span></a><a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">;(</span></a><a class="idref" href="cap_machine.examples.arch_sealing.html#make_seal_preamble_instrs"><span class="id" title="definition">make_seal_preamble_instrs</span></a> <a class="idref" href="cap_machine.examples.arch_sealing.html#f_m:46"><span class="id" title="variable">f_m</span></a> <a class="idref" href="cap_machine.examples.arch_sealing.html#f_m':47"><span class="id" title="variable">f_m'</span></a><a class="idref" href="https://plv.mpi-sws.org/coqdoc/iris//iris.bi.big_op.html#6be5f9c6601d6c7f57ad52228a87ebe3"><span class="id" title="notation">),</span></a> <a class="idref" href="cap_machine.examples.arch_sealing.html#a_i:49"><span class="id" title="variable">a_i</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.examples.arch_sealing.html#w_i:50"><span class="id" title="variable">w_i</span></a>)%<span class="id" title="var">I</span>.<br/>
 
 <br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO:&nbsp;move&nbsp;this&nbsp;to&nbsp;the&nbsp;rules_Get.v&nbsp;file.&nbsp;small&nbsp;issue&nbsp;with&nbsp;the&nbsp;spec&nbsp;of&nbsp;failure:&nbsp;it&nbsp;does&nbsp;not&nbsp;actually<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;require/leave&nbsp;a&nbsp;trace&nbsp;on&nbsp;dst!&nbsp;It&nbsp;would&nbsp;be&nbsp;good&nbsp;if&nbsp;req_regs&nbsp;of&nbsp;a&nbsp;failing&nbsp;get&nbsp;does&nbsp;not&nbsp;include&nbsp;dst&nbsp;(if&nbsp;possible)&nbsp;*)</span><br/>
-
-<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="is_sealed_with_o" class="idref" href="#is_sealed_with_o"><span class="id" title="definition">is_sealed_with_o</span></a> <a id="w:51" class="idref" href="#w:51"><span class="id" title="binder">w</span></a> <a id="o:52" class="idref" href="#o:52"><span class="id" title="binder">o</span></a> :=<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">match</span> <a class="idref" href="cap_machine.examples.arch_sealing.html#w:51"><span class="id" title="variable">w</span></a> <span class="id" title="keyword">with</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#WSealed"><span class="id" title="constructor">WSealed</span></a> <span class="id" title="var">o'</span> <span class="id" title="var">sb</span> =&gt; (<a class="idref" href="cap_machine.examples.arch_sealing.html#o:52"><span class="id" title="variable">o</span></a> <a class="idref" href="cap_machine.addr_reg.html#fc98ca1de87871caf368dfbeb46e594a"><span class="id" title="notation">=?</span></a> <span class="id" title="var">o'</span>)%<span class="id" title="var">ot</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">_</span> =&gt; <a class="idref" href="http://coq.inria.fr/distrib/V8.16.1/stdlib//Coq.Init.Datatypes.html#false"><span class="id" title="constructor">false</span></a> <span class="id" title="keyword">end</span>.<br/>
-
-<br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;Lemma&nbsp;wp_Get_fail_same&nbsp;E&nbsp;get_i&nbsp;dst&nbsp;pc_p&nbsp;pc_b&nbsp;pc_e&nbsp;pc_a&nbsp;w&nbsp;zsrc&nbsp;:&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;decodeInstrW&nbsp;w&nbsp;=&nbsp;get_i&nbsp;→&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;is_Get&nbsp;get_i&nbsp;dst&nbsp;dst&nbsp;→&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;isCorrectPC&nbsp;(WCap&nbsp;pc_p&nbsp;pc_b&nbsp;pc_e&nbsp;pc_a)&nbsp;→&nbsp;*)</span><br/>
-
-<br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{{{&nbsp;▷&nbsp;PC&nbsp;↦ᵣ&nbsp;WCap&nbsp;pc_p&nbsp;pc_b&nbsp;pc_e&nbsp;pc_a&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∗&nbsp;▷&nbsp;pc_a&nbsp;↦ₐ&nbsp;w&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∗&nbsp;▷&nbsp;dst&nbsp;↦ᵣ&nbsp;WInt&nbsp;zsrc&nbsp;}}}&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Instr&nbsp;Executable&nbsp;@&nbsp;E&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{{&nbsp;RET&nbsp;FailedV;&nbsp;True&nbsp;}}}.&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;Proof.&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iIntros&nbsp;(Hdecode&nbsp;Hinstr&nbsp;Hvpc&nbsp;φ)&nbsp;"(&gt;HPC&nbsp;&amp;&nbsp;&gt;Hpc_a&nbsp;&amp;&nbsp;&gt;Hsrc)&nbsp;Hφ".&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(map_of_regs_2&nbsp;with&nbsp;"HPC&nbsp;Hsrc")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmap</span></span> <span class="inlinecode">%</span>".&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_Get&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode"><span class="id" title="var">Hpc_a</span></span>");&nbsp;eauto;&nbsp;simplify_map_eq;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;erewrite&nbsp;regs_of_is_Get;&nbsp;eauto;&nbsp;rewrite&nbsp;!dom_insert;&nbsp;set_solver+.&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iNext.&nbsp;iIntros&nbsp;(regs'&nbsp;retv)&nbsp;"(Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;Hspec&nbsp;as&nbsp;<span class="inlinecode">*</span> <span class="inlinecode"><span class="id" title="var">Hsucc</span></span> <span class="inlinecode">|</span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Success&nbsp;(contradiction)&nbsp;*)</span>&nbsp;simplify_map_eq.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Failure,&nbsp;done&nbsp;*)</span>&nbsp;by&nbsp;iApply&nbsp;"Hφ".&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;<span class="comment">(*&nbsp;Qed.&nbsp;*)</span><br/>
 
 <br/>
 &nbsp;<span class="comment">(*&nbsp;TODO:&nbsp;move&nbsp;this&nbsp;to&nbsp;unseal&nbsp;rules&nbsp;file&nbsp;*)</span><br/>
