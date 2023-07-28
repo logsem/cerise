@@ -343,7 +343,7 @@ Section opsem.
     wr ← (reg φ) !! r;
     match wr with
     | WSealed o _ => updatePC (update_reg φ dst (WInt o))
-    (* TODO if not a sealed, return -1 in any other case ? What if not a sealable ? *)
+    (* NOTE if not a sealed, return -1 in any other case ? What if not a sealable ? *)
     | _ => updatePC (update_reg φ dst (WInt (-1)))
     end
 

@@ -830,12 +830,12 @@ Section list.
   (* ------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------- FINDB ---------------------------------------------- *)
 
-  (* (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
-  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *) *)
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
+  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
-    (forall dst' src', get_i <> GetWType dst' src' /\ get_i <> GetOType dst' src') ->
+    (forall dst' src', get_i <> GetOType dst' src') ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -852,8 +852,7 @@ Section list.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
     { (* Success (contradiction) *)
-      destruct (decodeInstrW w); simplify_map_eq; specialize (Hgeti dst0 r)
-      ; destruct Hgeti ; contradiction.
+      destruct (decodeInstrW w); simplify_map_eq; specialize (Hgeti dst0 r); contradiction.
     }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
@@ -918,7 +917,7 @@ Section list.
       codefrag_facts "Hprog".
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
-      iApplyCapAuto @wp_Get_fail. intros ; split ; auto.
+      iApplyCapAuto @wp_Get_fail. intros ; auto.
       wp_pure. iApply wp_value. iFrame. }
 
     (* the successful case lets us load the b bound *)

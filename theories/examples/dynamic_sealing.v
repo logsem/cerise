@@ -101,29 +101,6 @@ Section sealing.
   Definition make_seal_preamble f_m ai :=
     ([∗ list] a_i;w_i ∈ ai;(make_seal_preamble_instrs f_m), a_i ↦ₐ w_i)%I.
 
-  (* (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
-  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *) *)
-  (* Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc : *)
-  (*   decodeInstrW w = get_i → *)
-  (*   is_Get get_i dst dst → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*     ∗ ▷ pc_a ↦ₐ w *)
-  (*     ∗ ▷ dst ↦ᵣ WInt zsrc }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET FailedV; True }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hsrc") as "[Hmap %]". *)
-  (*   iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*     by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
-  (*   destruct Hspec as [* Hsucc |]. *)
-  (*   { (* Success (contradiction) *) simplify_map_eq. } *)
-  (*   { (* Failure, done *) by iApply "Hφ". } *)
-  (* Qed. *)
-
   Lemma unseal_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         wsealed (* p b e a *) (* input cap *)
