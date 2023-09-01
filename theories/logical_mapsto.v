@@ -36,7 +36,7 @@ Definition is_cur_addr (la : LAddr) (cur_map : gmap Addr Version) : Prop :=
   cur_map !! la.1 = Some la.2.
 Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   match lw with
-  | LWCap w _ _ _ a _ v => cur_map !! a = Some v
+  | LWCap w _ _ _ a _ v => cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*)
   | LWNoCap _ _ => True end.
 
 Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) :=
