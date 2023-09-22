@@ -102,28 +102,29 @@ Section cap_lang_rules.
     (* Failure: arg1 is not an integer *)
     { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
       { rewrite Hr'0 in Hn1.
         destruct_word r0v; try congruence.
         all: destruct_or! Hinstr; rewrite Hinstr /= in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst1. }
-    apply (z_of_arg_mono _ r) in Hn1; auto.
+    apply (z_of_arg_mono _ reg) in Hn1; auto.
 
     destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2;
       pose proof Hn2 as Hn2'; cycle 1.
     (* Failure: arg2 is not an integer *)
     { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |].
       destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+.
-      assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
       {
         rewrite Hr'0 in Hn2. destruct_word r0v; try congruence.
         all: destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep.
         all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. }
       iFail "Hφ" AddSubLt_fail_nonconst2. }
-    apply (z_of_arg_mono _ r) in Hn2; auto.
+    apply (z_of_arg_mono _ reg) in Hn2; auto.
 
-    assert (exec_opt i (r, m) = updatePC (update_reg (r, m) dst (WInt (denote i n1 n2)))) as HH.
+    assert (exec_opt i {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |} =
+              updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |} dst (WInt (denote i n1 n2)))) as HH.
     { all: destruct_or! Hinstr; rewrite Hinstr /= /update_reg /= in Hstep |- *; auto.
       all: by rewrite Hn1 Hn2; cbn. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
@@ -131,8 +132,8 @@ Section cap_lang_rules.
     destruct (incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     (* Failure: Cannot increment PC *)
-    { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
-      eapply updatePC_fail_incl with (m':=m) in Hregs'.
+    { eapply incrementPC_fail_updatePC with (m:=mem) in Hregs'.
+      eapply updatePC_fail_incl with (m':=mem) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       simplify_pair_eq.
@@ -142,13 +143,14 @@ Section cap_lang_rules.
 
     (* Success *)
 
-    eapply (incrementPC_success_updatePC _ m) in Hregs'
+    eapply (incrementPC_success_updatePC _ mem) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+    eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
+    Unshelve. all: auto.
   Qed.
 
   (* Derived specifications *)

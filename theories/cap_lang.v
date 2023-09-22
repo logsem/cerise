@@ -366,6 +366,7 @@ Section opsem.
         else None
     | _,_ => None
     end
+  | _ => None (* TODO EInit, EDeInit, EStoreId *)
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
@@ -426,13 +427,13 @@ Section opsem.
     intros * H1 H2; split; inv H1; inv H2; auto; try congruence.
   Qed.
 
-  Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) :
+  Lemma step_exec_inv (r: Reg) p b e a m w instr (c: ConfFlag) (σ: ExecConf) etbl ecur :
     r !! PC = Some (WCap p b e a) →
     isCorrectPC (WCap p b e a) →
     m !! a = Some w →
     decodeInstrW w = instr →
-    step (Executable, (r, m)) (c, σ) →
-    exec instr (r, m) = (c, σ).
+    step (Executable, {| reg := r; mem := m; etable := etbl ; enumcur := ecur |}) (c, σ) →
+    exec instr {| reg := r; mem := m; etable := etbl ; enumcur := ecur |} = (c, σ).
   Proof.
     intros HPC Hpc Hm Hinstr. inversion 1; cbn in *.
     1,2,3: congruence.

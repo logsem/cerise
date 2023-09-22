@@ -110,15 +110,19 @@ Section cap_lang_rules.
        feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
        rewrite Hr0 Hr'0 in Harg Hstep.
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧
+                 σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |})
+         as (-> & ->).
        { destruct_word r0v; cbn in Hstep; try congruence; by simplify_pair_eq. }
        iFailWP "Hφ" Lea_fail_rv_nonconst. }
-     apply (z_of_arg_mono _ r) in Harg; auto. rewrite Harg in Hstep; cbn in Hstep.
+     apply (z_of_arg_mono _ reg) in Harg; auto. rewrite Harg in Hstep; cbn in Hstep.
 
      destruct (is_mutable_range r1v) eqn:Hr1v.
      2: { (* Failure: r1v is not of the right type *)
        unfold is_mutable_range in Hr1v.
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧
+                 σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |})
+         as (-> & ->).
        { destruct r1v as [ | [p b e a | ] | ]; try by inversion Hr1v.
          all: try by simplify_pair_eq.
          destruct p; try congruence.
@@ -135,7 +139,9 @@ Section cap_lang_rules.
 
        destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
        { (* Failure: offset is too large *)
-         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         assert (c = Failed ∧
+                   σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |})
+           as (-> & ->)
              by (destruct p; inversion Hstep; auto).
          iFailWP "Hφ" Lea_fail_overflow_cap. }
 
@@ -143,17 +149,17 @@ Section cap_lang_rules.
        destruct (incrementPC (<[ r1 := WCap p b e a' ]> regs)) as [ regs' |] eqn:Hregs';
          pose proof Hregs' as Hregs'2; cycle 1.
        { (* Failure: incrementing PC overflows *)
-         assert (incrementPC (<[ r1 := WCap p b e a' ]> r) = None) as HH.
+         assert (incrementPC (<[ r1 := WCap p b e a' ]> reg) = None) as HH.
          { eapply incrementPC_overflow_mono; first eapply Hregs'.
              by rewrite lookup_insert_is_Some'; eauto.
                by apply insert_mono; eauto. }
-         apply (incrementPC_fail_updatePC _ m) in HH. rewrite HH in Hstep.
-         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         apply (incrementPC_fail_updatePC _ mem etable enumcur) in HH. rewrite HH in Hstep.
+         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->)
              by (destruct p; inversion Hstep; auto).
          iFailWP "Hφ" Lea_fail_overflow_PC_cap. }
 
        (* Success *)
-       eapply (incrementPC_success_updatePC _ m) in Hregs'
+       eapply (incrementPC_success_updatePC _ mem) in Hregs'
          as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
        eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto.
        rewrite HuPC in Hstep; clear HuPC.
@@ -169,7 +175,7 @@ Section cap_lang_rules.
     (* Now, the case where r1v is a sealrange *)
      + destruct (a + argz)%ot as [ a' |] eqn:Hoffset; cycle 1.
        { (* Failure: offset is too large *)
-         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->)
              by (destruct p; inversion Hstep; auto).
          iFailWP "Hφ" Lea_fail_overflow_sr. }
 
@@ -177,17 +183,17 @@ Section cap_lang_rules.
        destruct (incrementPC (<[ r1 := WSealRange p b e a' ]> regs)) as [ regs' |] eqn:Hregs';
          pose proof Hregs' as Hregs'2; cycle 1.
        { (* Failure: incrementing PC overflows *)
-         assert (incrementPC (<[ r1 := WSealRange p b e a' ]> r) = None) as HH.
+         assert (incrementPC (<[ r1 := WSealRange p b e a' ]> reg) = None) as HH.
          { eapply incrementPC_overflow_mono; first eapply Hregs'.
              by rewrite lookup_insert_is_Some'; eauto.
                by apply insert_mono; eauto. }
-         apply (incrementPC_fail_updatePC _ m) in HH. rewrite HH in Hstep.
-         assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->)
+         eapply (incrementPC_fail_updatePC _ mem) in HH. rewrite HH in Hstep.
+         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->)
              by (destruct p; inversion Hstep; auto).
          iFailWP "Hφ" Lea_fail_overflow_PC_sr. }
 
        (* Success *)
-       eapply (incrementPC_success_updatePC _ m) in Hregs'
+       eapply (incrementPC_success_updatePC _ mem) in Hregs'
          as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
        eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto.
        rewrite HuPC in Hstep; clear HuPC.

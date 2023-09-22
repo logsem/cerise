@@ -133,14 +133,18 @@ Section cap_lang_rules.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
     2 : { (* Failure: src is not of the right word type *)
-      assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+      assert
+        (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |})
+      as (-> & ->).
       { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
         all: rewrite Hsrc /= in Hstep.
         all : destruct wsrc as [ | [  |  ] | ]; try (inversion Hstep; auto);
           rewrite /denote /= in Hwsrc; rewrite Hinstr in Hwsrc; congruence. }
       rewrite Hdecode. iFailWP "Hφ" Get_fail_src_denote. }
 
-    assert (exec_opt get_i (r, m) = updatePC (update_reg (r, m) dst (WInt z))) as HH.
+    assert (exec_opt get_i {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
+            = updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
+                          dst (WInt z))) as HH.
     { destruct_or! Hinstr; clear Hdecode; subst get_i; cbn in Hstep |- *.
       all: rewrite /update_reg Hsrc /= in Hstep |-*; auto.
       all : destruct wsrc as [ | [  |  ] | ]; inversion Hwsrc; auto.
@@ -150,8 +154,8 @@ Section cap_lang_rules.
     destruct (incrementPC (<[ dst := WInt z ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
-      apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
-      eapply updatePC_fail_incl with (m':=m) in Hregs'.
+      apply incrementPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
+      eapply updatePC_fail_incl with (m':=mem) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       simplify_pair_eq.
@@ -160,13 +164,14 @@ Section cap_lang_rules.
 
     (* Success *)
 
-    eapply (incrementPC_success_updatePC _ m) in Hregs'
+    eapply (incrementPC_success_updatePC _ mem) in Hregs'
         as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+    eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
+    Unshelve. all: eassumption.
   Qed.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)

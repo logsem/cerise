@@ -150,7 +150,7 @@ Section cap_lang_rules.
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
      feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
-     iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
+     iDestruct (gen_mem_valid_inSepM mem mem0 with "Hm Hmem") as %Hma; eauto.
 
      iModIntro.
      iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -170,11 +170,11 @@ Section cap_lang_rules.
        - destruct (Hri r2) as [r0v [Hr0 _] ]. by set_solver+.
          cbn in HSV. rewrite Hr0 in HSV. inversion HSV.
      }
-     apply (word_of_arg_mono _ r) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep.
+     apply (word_of_arg_mono _ reg) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep.
 
      destruct (is_cap r1v) eqn:Hr1v.
      2: { (* Failure: r1 is not a capability *)
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem0 ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
        {
          unfold is_cap in Hr1v.
          destruct_word r1v; by simplify_pair_eq.
@@ -195,11 +195,11 @@ Section cap_lang_rules.
      pose proof (allow_store_implies_storev r1 r2 mem regs p b e a storev) as (oldv & Hmema); auto.
 
      (* Given this, prove that a is also present in the memory itself *)
-     iDestruct (gen_mem_valid_inSepM mem m a oldv with "Hm Hmem" ) as %Hma' ; auto.
+     iDestruct (gen_mem_valid_inSepM mem mem0 a oldv with "Hm Hmem" ) as %Hma' ; auto.
 
       destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'.
       2: { (* Failure: the PC could not be incremented correctly *)
-        assert (incrementPC r = None).
+        assert (incrementPC reg = None).
         { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
         rewrite incrementPC_fail_updatePC /= in Hstep; auto.
         inversion Hstep.
@@ -211,9 +211,9 @@ Section cap_lang_rules.
 
      (* Success *)
       rewrite /update_mem /= in Hstep.
-      eapply (incrementPC_success_updatePC _ (<[a:=storev]> m)) in Hregs'
+      eapply (incrementPC_success_updatePC _ (<[a:=storev]> mem0)) in Hregs'
         as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->).
-      eapply (updatePC_success_incl _ (<[a:=storev]> m)) in HuPC. 2: by eauto.
+      eapply (updatePC_success_incl _ (<[a:=storev]> mem0)) in HuPC. 2: by eauto.
       rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
 
       iFrame.

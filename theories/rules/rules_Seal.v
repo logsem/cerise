@@ -86,7 +86,7 @@ Section cap_lang_rules.
     (* Now we start splitting on the different cases in the Seal spec, and prove them one at a time *)
      destruct (is_sealr r1v) eqn:Hr1v.
      2:{ (* Failure: r2 is not a sealrange *)
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
        {
          unfold is_sealr in Hr1v.
          destruct_word r1v; by simplify_pair_eq.
@@ -97,7 +97,7 @@ Section cap_lang_rules.
 
      destruct (is_sealb r2v) eqn:Hr2v.
      2:{ (* Failure: r2 is not a sealrange *)
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
        {
          unfold is_sealed in Hr2v.
          destruct_word r2v; by simplify_pair_eq.
@@ -116,7 +116,7 @@ Section cap_lang_rules.
 
      destruct (incrementPC (<[ dst := (WSealed a sb) ]> regs)) as  [ regs' |] eqn:Hregs'.
      2: { (* Failure: the PC could not be incremented correctly *)
-       assert (incrementPC (<[ dst := (WSealed a sb) ]> r) = None).
+       assert (incrementPC (<[ dst := (WSealed a sb) ]> reg) = None).
        { eapply incrementPC_overflow_mono; first eapply Hregs'.
          by rewrite lookup_insert_is_Some'; eauto.
          by apply insert_mono; eauto. }
@@ -129,7 +129,7 @@ Section cap_lang_rules.
 
      (* Success *)
      rewrite /update_reg /= in Hstep.
-     eapply (incrementPC_success_updatePC _ m) in Hregs'
+     eapply (incrementPC_success_updatePC _ mem) in Hregs'
        as (p1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
      eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono.
      rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.

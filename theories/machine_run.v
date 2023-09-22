@@ -13,7 +13,7 @@ Fixpoint machine_run `{MachineParameters} (fuel: nat) (c: Conf): option ConfFlag
     | (Failed, _) => Some Failed
     | (Halted, _) => Some Halted
     | (NextI, φ) => machine_run fuel (Executable, φ)
-    | (Executable, (r, m)) =>
+    | (Executable, {| reg := r; mem := m; etable := etbl ; enumcur := ecur |}) =>
       match r !! PC with
       | None => Some Failed
       | Some pc =>
@@ -26,7 +26,7 @@ Fixpoint machine_run `{MachineParameters} (fuel: nat) (c: Conf): option ConfFlag
           | None => Some Failed
           | Some wa =>
               let i := decodeInstrW wa in
-              let c' := exec i (r, m) in
+              let c' := exec i {| reg := r; mem := m; etable := etbl ; enumcur := ecur |} in
               machine_run fuel (c'.1, c'.2)
           end
         ) else (

@@ -59,14 +59,17 @@ Section cap_lang_rules.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
     destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
 
-    assert (exec_opt (IsPtr dst src) (r, m) = updatePC (update_reg (r, m) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    assert (exec_opt (IsPtr dst src)
+                     {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |} =
+              updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
+                          dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
     {  rewrite /= Hsrc. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
     destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs))
       as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
-    { apply incrementPC_fail_updatePC with (m:=m) in Hregs'.
-      eapply updatePC_fail_incl with (m':=m) in Hregs'.
+    { eapply incrementPC_fail_updatePC with (m:=mem) in Hregs'.
+      eapply updatePC_fail_incl with (m':=mem) in Hregs'.
       2: by apply lookup_insert_is_Some'; eauto.
       2: by apply insert_mono; eauto.
       simplify_pair_eq.
@@ -75,14 +78,16 @@ Section cap_lang_rules.
 
     (* Success *)
 
-    eapply (incrementPC_success_updatePC _ m) in Hregs'
+    eapply (incrementPC_success_updatePC _ mem) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+    eapply updatePC_success_incl with (m':=mem) in HuPC.
+    2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
 
     simplify_pair_eq. iFrame.
     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
+    Unshelve. all: auto.
   Qed.
 
   Lemma wp_IsPtr_successPC E pc_p pc_b pc_e pc_a pc_a' w dst w' :

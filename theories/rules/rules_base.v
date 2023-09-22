@@ -18,7 +18,7 @@ Class regG Σ := RegG {
 (* invariants for memory, and a state interpretation for (mem,reg) *)
 Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
   iris_invGS := mem_invG;
-  state_interp σ _ κs _ := ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2))%I;
+  state_interp σ _ κs _ := ((gen_heap_interp σ.(reg)) ∗ (gen_heap_interp σ.(mem)))%I;
   fork_post _ := True%I;
   num_laters_per_step _ := 0;
   state_interp_mono _ _ _ _ := fupd_intro _ _
@@ -687,9 +687,9 @@ Proof.
 Qed.
 
 (* todo: instead, define updatePC on top of incrementPC *)
-Lemma incrementPC_fail_updatePC regs m :
+Lemma incrementPC_fail_updatePC regs m etbl ecur:
    incrementPC regs = None ->
-   updatePC (regs, m) = None.
+   updatePC {| reg := regs; mem := m; etable := etbl ; enumcur := ecur |} = None.
 Proof.
    rewrite /incrementPC /updatePC /=.
    destruct (regs !! PC) as [X|]; auto.
@@ -697,12 +697,14 @@ Proof.
    destruct (a' + 1)%a; auto. congruence.
 Qed.
 
-Lemma incrementPC_success_updatePC regs m regs' :
+Lemma incrementPC_success_updatePC regs m etbl ecur regs' :
   incrementPC regs = Some regs' ->
   ∃ p b e a a',
     regs !! PC = Some (WCap p b e a) ∧
     (a + 1)%a = Some a' ∧
-    updatePC (regs, m) = Some (NextI, (<[ PC := WCap p b e a' ]> regs, m)) ∧
+    updatePC {| reg := regs; mem := m; etable := etbl ; enumcur := ecur |} =
+      Some (NextI,
+          {| reg := <[ PC := WCap p b e a' ]> regs; mem := m; etable := etbl ; enumcur := ecur |}) ∧
     regs' = <[ PC := WCap p b e a' ]> regs.
 Proof.
   rewrite /incrementPC /updatePC /update_reg /=.
@@ -712,10 +714,12 @@ Proof.
   do 5 eexists. repeat split; auto.
 Qed.
 
-Lemma updatePC_success_incl m m' regs regs' w :
+Lemma updatePC_success_incl m m' regs regs' etbl etbl' ecur ecur' w :
   regs ⊆ regs' →
-  updatePC (regs, m) = Some (NextI, (<[ PC := w ]> regs, m)) →
-  updatePC (regs', m') = Some (NextI, (<[ PC := w ]> regs', m')).
+  updatePC {| reg := regs; mem := m; etable := etbl ; enumcur := ecur |}
+    = Some (NextI, {| reg := <[ PC := w ]> regs; mem := m; etable := etbl ; enumcur := ecur |}) →
+  updatePC {| reg := regs'; mem := m'; etable := etbl' ; enumcur := ecur' |}
+  = Some (NextI, {| reg := <[ PC := w ]> regs'; mem := m'; etable := etbl' ; enumcur := ecur' |}).
 Proof.
   intros * Hincl Hu. rewrite /updatePC /= in Hu |- *.
   destruct (regs !! PC) as [ w1 |] eqn:Hrr.
@@ -725,15 +729,17 @@ Proof.
     f_equal. f_equal.
     assert (HH: forall (reg1 reg2:Reg), reg1 = reg2 -> reg1 !! PC = reg2 !! PC)
       by (intros * ->; auto).
-    apply HH in Hu. rewrite !lookup_insert in Hu. by simplify_eq. }
+    unfold update_reg in Hu; cbn in Hu.
+    injection Hu; intros.
+    apply HH in H. rewrite !lookup_insert in H. by simplify_eq. }
   {  inversion Hu. }
 Qed.
 
-Lemma updatePC_fail_incl m m' regs regs' :
+Lemma updatePC_fail_incl m m' regs regs' etbl etbl' ecur ecur'  :
   is_Some (regs !! PC) →
   regs ⊆ regs' →
-  updatePC (regs, m) = None →
-  updatePC (regs', m') = None.
+  updatePC {| reg := regs; mem := m; etable := etbl ; enumcur := ecur |} = None →
+  updatePC {| reg := regs'; mem := m'; etable := etbl' ; enumcur := ecur' |} = None.
 Proof.
   intros [w HPC] Hincl Hfail. rewrite /updatePC /= in Hfail |- *.
   rewrite !HPC in Hfail. have -> := lookup_weaken _ _ _ _ HPC Hincl.

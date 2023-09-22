@@ -74,17 +74,18 @@ Section cap_lang_rules.
       iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 3; eauto. }
 
     destruct (incrementPC regs) eqn:HX; pose proof HX as H'X; cycle 1.
-    { apply incrementPC_fail_updatePC with (m:=m) in HX.
-      eapply updatePC_fail_incl with (m':=m) in HX; eauto.
+    { eapply incrementPC_fail_updatePC with (m:=mem) in HX.
+      eapply updatePC_fail_incl with (m':=mem) in HX; eauto.
       rewrite HX in Hstep. inv Hstep.
       iFrame. iApply "Hφ". iFrame. iPureIntro; econstructor; eauto. }
 
-    destruct (incrementPC_success_updatePC _ m _ HX)
+    destruct (incrementPC_success_updatePC _ mem etable enumcur _ HX)
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=m) in HuPC; eauto. rewrite HuPC in Hstep.
+    eapply updatePC_success_incl with (m':=mem) in HuPC; eauto. rewrite HuPC in Hstep.
     simplify_pair_eq.
     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 2; eauto.
+    Unshelve. all: eassumption.
   Qed.
 
   Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_b pc_e pc_a w w1 w2 :

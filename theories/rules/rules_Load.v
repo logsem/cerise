@@ -197,7 +197,7 @@ Section cap_lang_rules.
     { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
     assert (prod_merge dfracs mem !! pc_a = Some (dq,w)) as Hmem_dpc.
     { rewrite lookup_merge Hmem_pc Hdq //. }
-    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m with "Hm Hmem") as %Hma; eauto.
+    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) mem0 with "Hm Hmem") as %Hma; eauto.
 
     iModIntro.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -211,10 +211,10 @@ Section cap_lang_rules.
      (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
      destruct (is_cap r2v) eqn:Hr2v.
      2:{ (* Failure: r2 is not a capability *)
-       assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
+       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem0 ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
        {
          unfold is_cap in Hr2v.
-         destruct_word r2v; by simplify_pair_eq.
+         destruct_word r2v ; by simplify_pair_eq.
        }
         iFailWP "Hφ" Load_fail_const.
      }
@@ -235,12 +235,12 @@ Section cap_lang_rules.
     { apply elem_of_gmap_dom. rewrite -Hdomeq. apply elem_of_gmap_dom;eauto. }
     assert (prod_merge dfracs mem !! a = Some (dq',loadv)) as Hmemadq.
     { rewrite lookup_merge Hmema Hdq' //. }
-    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) m a loadv with "Hm Hmem" ) as %Hma' ; eauto.
+    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs mem) mem0 a loadv with "Hm Hmem" ) as %Hma' ; eauto.
 
     rewrite Hma' /= in Hstep.
     destruct (incrementPC (<[ r1 := loadv ]> regs)) as  [ regs' |] eqn:Hregs'.
     2: { (* Failure: the PC could not be incremented correctly *)
-      assert (incrementPC (<[ r1 := loadv]> r) = None).
+      assert (incrementPC (<[ r1 := loadv]> reg) = None).
       { eapply incrementPC_overflow_mono; first eapply Hregs'.
           by rewrite lookup_insert_is_Some'; eauto.
             by apply insert_mono; eauto. }
@@ -253,7 +253,7 @@ Section cap_lang_rules.
 
     (* Success *)
     rewrite /update_reg /= in Hstep.
-    eapply (incrementPC_success_updatePC _ m) in Hregs'
+    eapply (incrementPC_success_updatePC _ mem0) in Hregs'
       as (p1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
     eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono.
     rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
