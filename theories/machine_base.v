@@ -700,10 +700,12 @@ Proof.
   intros i. destruct i; simpl; done.
 Qed.
 
-Instance word_inhabited: Inhabited Word := populate (WInt 0).
-Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
-Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
-
+Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
+Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl).
+Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl).
+Global Instance etable_inhabited: Inhabited ETable. Proof. solve [typeclasses eauto]. Defined.
 
 Instance instr_countable : Countable instr.
 Proof.

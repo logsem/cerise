@@ -126,7 +126,9 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  Lemma template_adequacy' (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
     is_initial_memory P m →
     is_initial_registers P reg →
     minv I m →
@@ -141,13 +143,20 @@ Section Adequacy.
        ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-    rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
     intros Hm Hreg HI HIdom prog_map Hspec Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c:ExecConf) => minv I c.2) as state_is_good.
-    specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
+    pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
+    specialize (WPI
+                  (Seq (Instr Executable))
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  es
+                  {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
+                  (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
     eapply WPI. 2: assumption. intros Hinv κs. clear WPI.
 
     unfold is_initial_memory in Hm.
@@ -201,7 +210,7 @@ Section Adequacy.
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(mem))))%I.
     iExists (fun _ => True)%I. cbn. iFrame.
     iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
     iInv invN as ">Hx" "_".
@@ -217,7 +226,9 @@ End Adequacy.
 
 Theorem template_adequacy `{MachineParameters}
     (P: prog) (I: memory_inv)
-    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
   is_initial_memory P m →
   is_initial_registers P reg →
   minv I m →
@@ -232,7 +243,9 @@ Theorem template_adequacy `{MachineParameters}
      ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
      -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
@@ -281,7 +294,9 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  Lemma template_adequacy' (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
     is_initial_memory P Adv m →
     is_initial_registers P Adv reg r_adv →
     Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -300,13 +315,20 @@ Section Adequacy.
        ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-    rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
     intros Hm Hreg Hadv HI HIdom prog_map Hspec Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c:ExecConf) => minv I c.2) as state_is_good.
-    specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
+    pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
+    specialize (WPI
+                  (Seq (Instr Executable))
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  es
+                  {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
+                  (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
     eapply WPI. intros Hinv κs. clear WPI.
 
     unfold is_initial_memory in Hm.
@@ -373,7 +395,7 @@ Section Adequacy.
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(mem))))%I.
     iExists (fun _ => True)%I. cbn. iFrame.
     iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
     iInv invN as ">Hx" "_".
@@ -389,7 +411,9 @@ End Adequacy.
 
 Theorem template_adequacy `{MachineParameters}
     (P Adv: prog) (I: memory_inv) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
   is_initial_memory P Adv m →
   is_initial_registers P Adv reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -408,7 +432,9 @@ Theorem template_adequacy `{MachineParameters}
      ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
      -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
@@ -539,7 +565,10 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  Lemma template_adequacy' `{subG Σ' Σ} (m m': Mem) (reg reg': Reg) (o_b o_e : OType) (es: list cap_lang.expr):
+  Lemma template_adequacy' `{subG Σ' Σ} (m m': Mem) (reg reg': Reg)
+    (o_b o_e : OType)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
     is_initial_memory P Adv Lib P_tbl Adv_tbl m →
     is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
     Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -571,13 +600,20 @@ Section Adequacy.
 
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-    rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
     intros Hm Hreg Hadv HI HIdom Hobe prog_map Hspec Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
-    pose (fun (c:ExecConf) => minv I c.2) as state_is_good.
-    specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
+    pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
+    specialize (WPI
+                  (Seq (Instr Executable))
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  es
+                  {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
+                  (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
     eapply WPI. intros Hinv κs. clear WPI.
 
     unfold is_initial_memory in Hm.
@@ -679,7 +715,7 @@ Section Adequacy.
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(mem))))%I.
     iExists (fun _ => True)%I. cbn. iFrame.
     iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
     iInv invN as ">Hx" "_".
@@ -698,7 +734,9 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg) (o_b o_e : OType) (es: list cap_lang.expr):
+    (m m': Mem) (reg reg': Reg) (o_b o_e : OType)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
   is_initial_memory P Adv Lib P_tbl Adv_tbl m →
   is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -730,7 +768,9 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-                                                     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
@@ -745,7 +785,9 @@ Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
   is_initial_memory P Adv Lib P_tbl Adv_tbl m →
   is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -774,7 +816,9 @@ Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-                                                     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   intros ?????? Hwp ?.

@@ -3,6 +3,7 @@ From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
+From cap_machine.rules Require Import rules_EInit rules_EDeInit rules_EStoreId. (* temporarily *)
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -114,8 +115,35 @@ Section fundamental.
         iApply (unseal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
 
+      + (* EInit *)
+        iApply (wp_einit with "[HPC Ha]"); eauto. iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
+
+      + (* EDeInit *)
+        iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
+
+      + (* EStoreId *)
+        iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
+
       + (* Fail *)
-        iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
+        iApply (wp_fail with "[HPC Ha]"); eauto. iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
         iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].

@@ -1,7 +1,8 @@
 From cap_machine.rules Require Export
      rules_Get rules_Load rules_Store rules_AddSubLt
      rules_Lea rules_Mov rules_Restrict rules_IsPtr
-     rules_Jmp rules_Jnz rules_Subseg rules_Seal rules_UnSeal.
+     rules_Jmp rules_Jnz rules_Subseg rules_Seal rules_UnSeal
+     rules_EInit rules_EDeInit rules_EStoreId.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From cap_machine.rules Require Export rules_base.

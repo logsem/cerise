@@ -669,3 +669,13 @@ Proof.
   generalize (normal_always_step σ); intros (?&?&?).
   eapply head_reducible_from_step. eauto.
 Qed.
+
+Global Instance ExecConf_inhabited : Inhabited ExecConf.
+Proof.
+  refine (populate
+            {| reg := gmap_empty ;
+              mem := gmap_empty ;
+              etable := gmap_empty ;
+              enumcur := _ |}).
+  eexists. Unshelve. 3: exact 0%Z. all: solve_finz.
+Defined.

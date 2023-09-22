@@ -150,7 +150,9 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
     (P Adv: prog)
     (P_tbl : @tbl_priv P (library layout))
     (Adv_tbl : @tbl_pub Adv (library layout)) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
   is_initial_memory P Adv (library layout) P_tbl Adv_tbl m →
   is_initial_registers P Adv (library layout) P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -176,7 +178,9 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv (flag_inv layout) m'.
 Proof.
   intros ? ? ? ? Hspec.

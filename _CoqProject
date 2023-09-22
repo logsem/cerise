@@ -40,6 +40,9 @@ theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
 theories/rules/rules_Seal.v
 theories/rules/rules_UnSeal.v
+theories/rules/rules_EInit.v
+theories/rules/rules_EDeInit.v
+theories/rules/rules_EStoreId.v
 theories/rules.v
 # theories/rules_binary/rules_binary_base.v
 # theories/rules_binary/rules_binary_Get.v
@@ -132,10 +135,10 @@ theories/examples/interval_client_adequacy.v
 theories/examples/buffer.v
 theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v
-theories/examples/malloc_binary.v
-theories/examples/macros_binary.v
-theories/examples/counter_binary.v
-theories/examples/counter_binary_preamble.v
+# theories/examples/malloc_binary.v
+# theories/examples/macros_binary.v
+# theories/examples/counter_binary.v
+# theories/examples/counter_binary_preamble.v
 theories/exercises/subseg_buffer.v
 theories/exercises/restrict_buffer.v
 theories/exercises/subseg_buffer_closure.v
