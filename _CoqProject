@@ -26,6 +26,7 @@ theories/class_instances.v
 theories/solve_addr_extra.v
 theories/cap_lang.v
 theories/region.v
+theories/logical_mapsto.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v

@@ -3,36 +3,7 @@ From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.algebra Require Import frac auth.
 From cap_machine Require Export cap_lang iris_extra.
-
-(* CMRΑ for memory *)
-Class memG Σ := MemG {
-  mem_invG : invGS Σ;
-  mem_gen_memG :> gen_heapGS Addr Word Σ}.
-
-(* CMRA for registers *)
-Class regG Σ := RegG {
-  reg_invG : invGS Σ;
-  reg_gen_regG :> gen_heapGS RegName Word Σ; }.
-
-
-(* invariants for memory, and a state interpretation for (mem,reg) *)
-Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
-  iris_invGS := mem_invG;
-  state_interp σ _ κs _ := ((gen_heap_interp σ.(reg)) ∗ (gen_heap_interp σ.(mem)))%I;
-  fork_post _ := True%I;
-  num_laters_per_step _ := 0;
-  state_interp_mono _ _ _ _ := fupd_intro _ _
-}.
-
-(* Points to predicates for registers *)
-Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
-  (at level 20, q at level 50, format "r  ↦ᵣ{ q }  w") : bi_scope.
-Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
-
-(* Points to predicates for memory *)
-Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
-  (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
-Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
+From cap_machine Require Export logical_mapsto.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -55,20 +26,20 @@ Section cap_lang_rules.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
-  Implicit Types a b : Addr.
+  Implicit Types a b : LAddr.
   Implicit Types r : RegName.
   Implicit Types v : cap_lang.val.
-  Implicit Types w : Word.
-  Implicit Types reg : gmap RegName Word.
-  Implicit Types ms : gmap Addr Word.
+  Implicit Types lw : LWord.
+  Implicit Types reg : gmap RegName LWord.
+  Implicit Types ms : gmap LAddr LWord.
 
 
   (* Conditionally unify on the read register value *)
-  Definition read_reg_inr  (regs : Reg) (r : RegName) p b e a :=
-    match regs !! r with
-      | Some (WCap p' b' e' a') => WCap p' b' e' a' = WCap p b e a
-      | Some _ => True
-      | None => False end.
+  (* Definition read_reg_inr  (regs : LReg) (r : RegName) p b e a := *)
+  (*   match regs !! r with *)
+  (*     | Some (WCap p' b' e' a') => WCap p' b' e' a' = WCap p b e a *)
+  (*     | Some _ => True *)
+  (*     | None => False end. *)
 
   (* ------------------------- registers points-to --------------------------------- *)
 
@@ -86,17 +57,17 @@ Section cap_lang_rules.
     iIntros "H1 H2" (?). subst r1. iApply (regname_dupl_false with "H1 H2").
   Qed.
 
-  Lemma map_of_regs_1 (r1: RegName) (w1: Word) :
+  Lemma map_of_regs_1 (r1: RegName) (w1: LWord) :
     r1 ↦ᵣ w1 -∗
     ([∗ map] k↦y ∈ {[r1 := w1]}, k ↦ᵣ y).
   Proof. by rewrite big_sepM_singleton. Qed.
 
-  Lemma regs_of_map_1 (r1: RegName) (w1: Word) :
+  Lemma regs_of_map_1 (r1: RegName) (w1: LWord) :
     ([∗ map] k↦y ∈ {[r1 := w1]}, k ↦ᵣ y) -∗
     r1 ↦ᵣ w1.
   Proof. by rewrite big_sepM_singleton. Qed.
 
-  Lemma map_of_regs_2 (r1 r2: RegName) (w1 w2: Word) :
+  Lemma map_of_regs_2 (r1 r2: RegName) (w1 w2: LWord) :
     r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> ∅)), k ↦ᵣ y) ∗ ⌜ r1 ≠ r2 ⌝.
   Proof.
@@ -106,7 +77,7 @@ Section cap_lang_rules.
     iFrame. eauto.
   Qed.
 
-  Lemma regs_of_map_2 (r1 r2: RegName) (w1 w2: Word) :
+  Lemma regs_of_map_2 (r1 r2: RegName) (w1 w2: LWord) :
     r1 ≠ r2 →
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> ∅)), k ↦ᵣ y) -∗
     r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2.
@@ -116,7 +87,7 @@ Section cap_lang_rules.
     apply lookup_insert_None; split; eauto.
   Qed.
 
-  Lemma map_of_regs_3 (r1 r2 r3: RegName) (w1 w2 w3: Word) :
+  Lemma map_of_regs_3 (r1 r2 r3: RegName) (w1 w2 w3: LWord) :
     r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗ r3 ↦ᵣ w3 -∗
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> ∅))), k ↦ᵣ y) ∗
      ⌜ r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ⌝.
@@ -129,7 +100,7 @@ Section cap_lang_rules.
     iFrame. eauto.
   Qed.
 
-  Lemma regs_of_map_3 (r1 r2 r3: RegName) (w1 w2 w3: Word) :
+  Lemma regs_of_map_3 (r1 r2 r3: RegName) (w1 w2 w3: LWord) :
     r1 ≠ r2 → r1 ≠ r3 → r2 ≠ r3 →
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> ∅))), k ↦ᵣ y) -∗
     r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 ∗ r3 ↦ᵣ w3.
@@ -138,7 +109,7 @@ Section cap_lang_rules.
     iDestruct "Hmap" as "(? & ? & ? & _)"; iFrame.
   Qed.
 
-  Lemma map_of_regs_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: Word) :
+  Lemma map_of_regs_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: LWord) :
     r1 ↦ᵣ w1 -∗ r2 ↦ᵣ w2 -∗ r3 ↦ᵣ w3 -∗ r4 ↦ᵣ w4 -∗
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> (<[r4:=w4]> ∅)))), k ↦ᵣ y) ∗
      ⌜ r1 ≠ r2 ∧ r1 ≠ r3 ∧ r1 ≠ r4 ∧ r2 ≠ r3 ∧ r2 ≠ r4 ∧ r3 ≠ r4 ⌝.
@@ -154,7 +125,7 @@ Section cap_lang_rules.
     iFrame. eauto.
   Qed.
 
-  Lemma regs_of_map_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: Word) :
+  Lemma regs_of_map_4 (r1 r2 r3 r4: RegName) (w1 w2 w3 w4: LWord) :
     r1 ≠ r2 → r1 ≠ r3 → r1 ≠ r4 → r2 ≠ r3 → r2 ≠ r4 → r3 ≠ r4 →
     ([∗ map] k↦y ∈ (<[r1:=w1]> (<[r2:=w2]> (<[r3:=w3]> (<[r4:=w4]> ∅)))), k ↦ᵣ y) -∗
     r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 ∗ r3 ↦ᵣ w3 ∗ r4 ↦ᵣ w4.
@@ -286,12 +257,12 @@ Section cap_lang_rules.
 
   (* -------------- predicates on memory maps -------------------------- *)
 
-  Lemma extract_sep_if_split a pc_a P Q R:
-     (if (a =? pc_a)%a then P else Q ∗ R)%I ≡
-     ((if (a =? pc_a)%a then P else Q) ∗
-     if (a =? pc_a)%a then emp else R)%I.
+  Lemma extract_sep_if_split (a pc_a : LAddr) P Q R:
+     (if (a =? pc_a)%la then P else Q ∗ R)%I ≡
+     ((if (a =? pc_a)%la then P else Q) ∗
+     if (a =? pc_a)%la then emp else R)%I.
   Proof.
-    destruct (a =? pc_a)%a; auto.
+    destruct (a =? pc_a)%la; auto.
     iSplit; auto. iIntros "[H1 H2]"; auto.
   Qed.
 
@@ -302,7 +273,7 @@ Section cap_lang_rules.
   Qed.
 
 
-  Lemma memMap_resource_1 (a : Addr) (w : Word)  :
+  Lemma memMap_resource_1 (a : LAddr) (w : LWord)  :
         a ↦ₐ w  ⊣⊢ ([∗ map] a↦w ∈ <[a:=w]> ∅, a ↦ₐ w)%I.
   Proof.
     rewrite big_sepM_delete; last by apply lookup_insert.
@@ -312,7 +283,7 @@ Section cap_lang_rules.
     - by iDestruct "HH" as "[HH _]".
   Qed.
 
-  Lemma memMap_resource_2ne (a1 a2 : Addr) (w1 w2 : Word)  :
+  Lemma memMap_resource_2ne (a1 a2 : LAddr) (w1 w2 : LWord)  :
     a1 ≠ a2 → ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↦ₐ w)%I ⊣⊢ a1 ↦ₐ w1 ∗ a2 ↦ₐ w2.
   Proof.
     intros.
@@ -329,11 +300,17 @@ Section cap_lang_rules.
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Ha1 Ha2".
-    destruct (finz_eq_dec a1 a2); auto. subst.
-    iExFalso. iApply (addr_dupl_false with "[$Ha1] [$Ha2]").
+    destruct (finz_eq_dec a1.1 a2.1); auto; subst;
+    destruct (Nat.eq_dec a1.2 a2.2); auto; subst;
+      try (iPureIntro; congruence).
+    iExFalso.
+    replace a1 with a2.
+    iApply (addr_dupl_false with "[$Ha1] [$Ha2]").
+    auto.
+    by apply injective_projections.
   Qed.
 
-  Lemma memMap_resource_2ne_apply (a1 a2 : Addr) (w1 w2 : Word)  :
+  Lemma memMap_resource_2ne_apply (a1 a2 : LAddr) (w1 w2 : LWord)  :
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↦ₐ w) ∗ ⌜a1 ≠ a2⌝.
   Proof.
     iIntros "Hi Hr2a".
@@ -342,64 +319,78 @@ Section cap_lang_rules.
     iApply memMap_resource_2ne; auto. iSplitL "Hi"; auto.
   Qed.
 
-  Lemma memMap_resource_2gen (a1 a2 : Addr) (w1 w2 : Word)  :
+  Lemma memMap_resource_2gen (a1 a2 : LAddr) (w1 w2 : LWord)  :
     ( ∃ mem, ([∗ map] a↦w ∈ mem, a ↦ₐ w) ∧
-       ⌜ if  (a2 =? a1)%a
+       ⌜ if  (a2 =? a1)%la
        then mem =  (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)⌝
-    )%I ⊣⊢ (a1 ↦ₐ w1 ∗ if (a2 =? a1)%a then emp else a2 ↦ₐ w2) .
+    )%I ⊣⊢ (a1 ↦ₐ w1 ∗ if (a2 =? a1)%la then emp else a2 ↦ₐ w2) .
   Proof.
-    destruct (a2 =? a1)%a eqn:Heq.
-    - apply Z.eqb_eq, finz_to_z_eq in Heq. rewrite memMap_resource_1.
+    destruct (a2 =? a1)%la eqn:Heq.
+    - apply andb_true_iff in Heq ; destruct Heq as [HeqZ HeqV].
+      apply Z.eqb_eq, finz_to_z_eq in HeqZ. apply Nat.eqb_eq in HeqV.
+      assert (a2 = a1) by (by apply injective_projections).
+      rewrite memMap_resource_1.
       iSplit.
       * iDestruct 1 as (mem) "[HH ->]".  by iSplit.
       * iDestruct 1 as "[Hmap _]". iExists (<[a1:=w1]> ∅); iSplitL; auto.
-    - apply Z.eqb_neq in Heq.
-      rewrite -memMap_resource_2ne; auto. 2 : congruence.
-      iSplit.
-      * iDestruct 1 as (mem) "[HH ->]". done.
-      * iDestruct 1 as "Hmap". iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto.
+    - apply andb_false_iff in Heq
+      ; destruct Heq as [Heq | Heq]
+      ; [ apply Z.eqb_neq in Heq | apply Nat.eqb_neq in Heq ]
+      ; rewrite -memMap_resource_2ne; auto ; try congruence
+      ; (iSplit
+         ; [iDestruct 1 as (mem) "[HH ->]" ; done
+           | iDestruct 1 as "Hmap"; iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto]).
   Qed.
 
-  Lemma memMap_resource_2gen_d (Φ : Addr → Word → iProp Σ) (a1 a2 : Addr) (w1 w2 : Word)  :
+  Lemma memMap_resource_2gen_d (Φ : LAddr → LWord → iProp Σ) (a1 a2 : LAddr) (w1 w2 : LWord)  :
     ( ∃ mem, ([∗ map] a↦w ∈ mem, Φ a w) ∧
-       ⌜ if  (a2 =? a1)%a
+       ⌜ if  (a2 =? a1)%la
        then mem =  (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)⌝
-    ) -∗ (Φ a1 w1 ∗ if (a2 =? a1)%a then emp else Φ a2 w2) .
+    ) -∗ (Φ a1 w1 ∗ if (a2 =? a1)%la then emp else Φ a2 w2) .
   Proof.
     iIntros "Hmem". iDestruct "Hmem" as (mem) "[Hmem Hif]".
-    destruct ((a2 =? a1)%a) eqn:Heq.
+    destruct ((a2 =? a1)%la) eqn:Heq.
     - iDestruct "Hif" as %->.
       iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
     - iDestruct "Hif" as %->. iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
-      { rewrite lookup_insert_ne;auto. apply Z.eqb_neq in Heq. solve_addr. }
+      { rewrite lookup_insert_ne;auto.
+        apply andb_false_iff in Heq
+        ; destruct Heq as [Heq | Heq]
+        ; [ apply Z.eqb_neq in Heq | apply Nat.eqb_neq in Heq ]
+        ; congruence.
+      }
       iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
   Qed.
 
   (* Not the world's most beautiful lemma, but it does avoid us having to fiddle around with a later under an if in proofs *)
-  Lemma memMap_resource_2gen_clater (a1 a2 : Addr) (w1 w2 : Word) (Φ : Addr -> Word -> iProp Σ)  :
+  Lemma memMap_resource_2gen_clater (a1 a2 : LAddr) (w1 w2 : LWord) (Φ : LAddr -> LWord -> iProp Σ)  :
     (▷ Φ a1 w1) -∗
-    (if (a2 =? a1)%a then emp else ▷ Φ a2 w2) -∗
+    (if (a2 =? a1)%la then emp else ▷ Φ a2 w2) -∗
     (∃ mem, ▷ ([∗ map] a↦w ∈ mem, Φ a w) ∗
-       ⌜if  (a2 =? a1)%a
+       ⌜if  (a2 =? a1)%la
        then mem =  (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)⌝
     )%I.
   Proof.
     iIntros "Hc1 Hc2".
-    destruct (a2 =? a1)%a eqn:Heq.
+    destruct (a2 =? a1)%la eqn:Heq.
     - iExists (<[a1:= w1]> ∅); iSplitL; auto. iNext. iApply big_sepM_insert;[|by iFrame].
       auto.
     - iExists (<[a1:=w1]> (<[a2:=w2]> ∅)); iSplitL; auto.
       iNext.
       iApply big_sepM_insert;[|iFrame].
-      { apply Z.eqb_neq in Heq. rewrite lookup_insert_ne//. congruence. }
+      { rewrite lookup_insert_ne//.
+        apply andb_false_iff in Heq
+        ; destruct Heq as [Heq | Heq]
+        ; [ apply Z.eqb_neq in Heq | apply Nat.eqb_neq in Heq ]
+        ;congruence. }
       iApply big_sepM_insert;[|by iFrame]. auto.
   Qed.
 
   Lemma memMap_delete:
-    ∀(a : Addr) (w : Word) mem0,
+    ∀(a : LAddr) (w : LWord) mem0,
       mem0 !! a = Some w →
       ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
       ⊣⊢ (a ↦ₐ w
@@ -411,7 +402,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_mem_valid_inSepM:
-    ∀ mem0 (m : Mem) (a : Addr) (w : Word),
+    ∀ mem0 (m : LMem) (a : LAddr) (w : LWord),
       mem0 !! a = Some w →
       gen_heap_interp m
                    -∗ ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
@@ -424,7 +415,7 @@ Section cap_lang_rules.
 
   Lemma gen_mem_update_inSepM :
     ∀ {Σ : gFunctors} {gen_heapG0 : gen_heapGS Addr Word Σ}
-      (σ : gmap Addr Word) mem0 (l : Addr) (v' v : Word),
+      (σ : gmap LAddr LWord) mem0 (l : LAddr) (v' v : LWord),
       mem0 !! l = Some v' →
       gen_heap_interp σ
       -∗ ([∗ map] a↦w ∈ mem0, a ↦ₐ w)
@@ -446,103 +437,146 @@ Section cap_lang_rules.
   (* Bind Scope expr_scope with language.expr cap_lang. *)
 
   Lemma wp_notCorrectPC:
-    forall E w,
+    forall E (w : Word) (lw : LWord),
+      lword_get_word lw = w ->
       ~ isCorrectPC w ->
-      {{{ PC ↦ᵣ w }}}
+      {{{ PC ↦ᵣ lw }}}
          Instr Executable @ E
-        {{{ RET FailedV; PC ↦ᵣ w }}}.
+        {{{ RET FailedV; PC ↦ᵣ lw }}}.
   Proof.
-    intros *. intros Hnpc.
+    intros *. intros Hlword Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl;
-    iDestruct "Hσ1" as "[Hr Hm]".
+    iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl.
+    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
     iSplit. by iPureIntro; apply normal_always_head_reducible.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
+    2: eapply state_phys_corresponds_reg; eauto.
     iNext. iIntros "_".
-    iModIntro. iSplitR; auto. iFrame. cbn. by iApply "Hϕ".
+    iModIntro. iSplitR; auto. iFrame. cbn.
+    iSplitR "Hϕ HPC"; last by iApply "Hϕ".
+    iExists lr, lm, cur_map.
+    iFrame; auto.
   Qed.
+
 
   (* Subcases for respecitvely permissions and bounds *)
 
-  Lemma wp_notCorrectPC_perm E pc_p pc_b pc_e pc_a :
+  Lemma wp_notCorrectPC_perm E lpc pc_p pc_b pc_e pc_a :
+      lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
       pc_p ≠ RX ∧ pc_p ≠ RWX →
-      {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a}}}
+      {{{ PC ↦ᵣ lpc}}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hperm φ) "HPC Hwp".
+    iIntros (Hperm φ Hlpc) "HPC Hwp".
     iApply (wp_notCorrectPC with "[HPC]");
-      [apply not_isCorrectPC_perm;eauto|iFrame|].
+      [eassumption |apply not_isCorrectPC_perm;eauto|iFrame|].
     iNext. iIntros "HPC /=".
     by iApply "Hwp".
   Qed.
 
-  Lemma wp_notCorrectPC_range E pc_p pc_b pc_e pc_a :
+  Lemma wp_notCorrectPC_range E lpc pc_p pc_b pc_e pc_a :
+      lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
        ¬ (pc_b <= pc_a < pc_e)%a →
-      {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a}}}
+      {{{ PC ↦ᵣ lpc}}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hperm φ) "HPC Hwp".
+    iIntros (Hperm φ Hlpc) "HPC Hwp".
     iApply (wp_notCorrectPC with "[HPC]");
-      [apply not_isCorrectPC_bounds;eauto|iFrame|].
+      [eassumption |apply not_isCorrectPC_bounds;eauto|iFrame|].
     iNext. iIntros "HPC /=".
     by iApply "Hwp".
   Qed.
 
   (* ----------------------------------- ATOMIC RULES -------------------------------- *)
 
-  Lemma wp_halt E pc_p pc_b pc_e pc_a w :
+  (* TODO there are a lot of side condition about the logical part, is there any way
+     to simplify ? Is it still usable in proofs ? *)
+  Lemma wp_halt E lpc pc_p pc_b pc_e pc_a lpc_a lw w :
+    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
+    lword_get_word lw = w ->
+    laddr_get_addr lpc_a = pc_a ->
+    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
+
     decodeInstrW w = Halt →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}
+    {{{ PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET HaltedV; PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}.
+    {{{ RET HaltedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
   Proof.
-    intros Hinstr Hvpc.
+    intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
-    eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iIntros "_". iModIntro.
-    iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    eapply step_exec_inv in Hstep; eauto.
+    2: eapply state_phys_corresponds_reg; eauto.
+    2: {
+      eapply state_phys_corresponds_mem; eauto.
+      destruct HLinv as [HregInv _]; simpl in *.
+      apply isCorrectPC_withinBounds in Hvpc.
+      eapply reg_corresponds_cap_cur_addr; eauto.
+    }
+    cbn in Hstep. simplify_eq.
+    iNext. iIntros "_".
+    iModIntro. iSplitR; auto. iFrame. cbn.
+    iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
+    iExists lr, lm, cur_map.
+    iFrame; auto.
   Qed.
 
-  Lemma wp_fail E pc_p pc_b pc_e pc_a w :
+  Lemma wp_fail E lpc pc_p pc_b pc_e pc_a lpc_a lw w :
+
+    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
+    lword_get_word lw = w ->
+    laddr_get_addr lpc_a = pc_a ->
+    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
+
     decodeInstrW w = Fail →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}
+    {{{ PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET FailedV; PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w }}}.
+    {{{ RET FailedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
   Proof.
-    intros Hinstr Hvpc.
+    intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
-    eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
-    iNext. iIntros "_". iModIntro.
-    iSplitR; eauto. iFrame. iApply "Hφ". by iFrame.
+    eapply step_exec_inv in Hstep; eauto.
+    2: eapply state_phys_corresponds_reg; eauto.
+    2: {
+      eapply state_phys_corresponds_mem; eauto.
+      destruct HLinv as [HregInv _]; simpl in *.
+      apply isCorrectPC_withinBounds in Hvpc.
+      eapply reg_corresponds_cap_cur_addr; eauto.
+    }
+    cbn in Hstep. simplify_eq.
+    iNext. iIntros "_".
+    iModIntro. iSplitR; auto. iFrame. cbn.
+    iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
+    iExists lr, lm, cur_map.
+    iFrame; auto.
    Qed.
 
   (* ----------------------------------- PURE RULES ---------------------------------- *)

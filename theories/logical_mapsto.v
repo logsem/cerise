@@ -25,6 +25,11 @@ Inductive LWord :=
 | LWNoCap w : (get_scap w = None) → LWord.
 Definition lword_get_word (lw : LWord) :=
   match lw with | LWCap w _ _ _ _ _ _ => w | LWNoCap w _ => w end.
+Definition laddr_get_addr (la : LAddr) := la.1.
+
+Definition lword_get_version (lw : LWord) : option Version :=
+  match lw with | LWCap _ _ _ _ _ _ v => Some v | LWNoCap _ _ => None end.
+Definition laddr_get_version (la : LAddr) := la.2.
 
 Definition VMap : Type := gmap Addr Version.
 Definition LReg := gmap RegName LWord.
@@ -33,7 +38,7 @@ Definition LMem := gmap LAddr LWord.
 Definition lreg_strip (lr : LReg) : Reg :=
  (fun lw : LWord => lword_get_word lw) <$> lr.
 Definition is_cur_addr (la : LAddr) (cur_map : gmap Addr Version) : Prop :=
-  cur_map !! la.1 = Some la.2.
+  cur_map !! la.1 = Some la.2. (* check whether the version of `la` matches in cur_map *)
 Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   match lw with
   | LWCap w _ _ _ a _ v => cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*)
@@ -65,8 +70,69 @@ Lemma lmem_read_iscur (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la 
 Admitted.
 
 Lemma cur_word_cur_addr (w : Word) p b e a ne (v : Version) (cur_map : gmap Addr Version):
-  is_cur_word (LWCap w p b e a ne v) cur_map → withinBounds a b e = true → is_cur_addr (a,v) cur_map.
+  is_cur_word (LWCap w p b e a ne v) cur_map → withinBounds b e a = true → is_cur_addr (a,v) cur_map.
 Admitted.
+
+Lemma state_phys_corresponds_reg lw (w : Word) r pr pm lr lm cur_map :
+  lword_get_word lw = w ->
+  state_phys_log_corresponds pr pm lr lm cur_map ->
+  lr !! r = Some lw ->
+  pr !! r = Some w.
+Proof.
+  intros * Hlword HLinv Hlr.
+  destruct HLinv as [HregInv _]; simpl in *.
+  destruct HregInv as [Hstrip _]; simpl in *.
+  unfold lreg_strip in Hstrip.
+  rewrite <- Hstrip.
+  apply lookup_fmap_Some; eexists ; split ; eauto.
+Qed.
+
+Lemma state_phys_corresponds_mem lw (w : Word) la (a : Addr) pr pm lr lm cur_map :
+  lword_get_word lw = w ->
+  laddr_get_addr la = a ->
+  state_phys_log_corresponds pr pm lr lm cur_map ->
+  lm !! la = Some lw ->
+  is_cur_addr la cur_map ->
+  pm !! a = Some w.
+Proof.
+  intros * Hlword Hladdr HLinv Hlr Hcur.
+  destruct HLinv as [_ HmemInv]; simpl in *.
+  destruct HmemInv as [Hdom Hroot]; simpl in *.
+  eapply map_Forall_lookup_1 in Hdom ; last eapply Hlr.
+  destruct Hdom as [v' Hcurmap] ; simpl in Hcur.
+  eapply map_Forall_lookup_1 in Hroot ; last eapply Hcur.
+  destruct Hroot as (lw' & Hlm & Hpm & Hcurword).
+  unfold is_cur_addr in Hcur; simpl in *.
+  rewrite Hcurmap in Hcur ; clear Hcurmap; inv Hcur.
+  rewrite (_ : la = (la.1, la.2)) in Hlr.
+  2: { apply injective_projections; auto. }
+  rewrite Hlr in Hlm ; clear Hlr; inv Hlm.
+  exact Hpm.
+Qed.
+
+Lemma reg_corresponds_cap_cur_addr lcap p (b e a : Addr) la r (reg : Reg) lr cur_map :
+  withinBounds b e a = true ->
+  lword_get_word lcap = WCap p b e a ->
+  laddr_get_addr la = a ->
+  lword_get_version lcap = Some (laddr_get_version la) ->
+  reg_phys_log_corresponds reg lr cur_map ->
+  lr !! r = Some lcap ->
+  is_cur_addr la cur_map.
+Proof.
+  intros Hbounds Hlcap Hla Hv HregInv Hr.
+  destruct HregInv as [_ Hcur]; simpl in *.
+  destruct lcap; cycle 1.
+  + simpl in Hlcap; subst.
+    cbn in e ; discriminate.
+  + simpl in Hlcap; subst; cbn in *.
+    injection Hv ; clear Hv ; intros ->.
+    injection e1; intros Ha <- <- <- ; cbn in *.
+    eapply map_Forall_lookup_1 in Hcur ; last eauto; clear Hr.
+    destruct la; simpl in Ha; subst f
+    ; eapply (cur_word_cur_addr _ p b e); eauto.
+Qed.
+
+
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
@@ -78,7 +144,9 @@ Class regG Σ := RegG {
   reg_invG : invGS Σ;
   reg_gen_regG :> gen_heapGS RegName LWord Σ; }.
 
-Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ} : iProp Σ := ∃ lr lm cur_map , gen_heap_interp lr ∗ gen_heap_interp lm ∗ ⌜state_phys_log_corresponds σ.1 σ.2 lr lm cur_map⌝.
+Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ} : iProp Σ :=
+  ∃ lr lm cur_map , gen_heap_interp lr ∗ gen_heap_interp lm ∗
+                      ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm cur_map⌝.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
 Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
@@ -98,3 +166,9 @@ Notation "r ↦ᵣ lw" := (mapsto (L:=RegName) (V:=LWord) r (DfracOwn 1) lw) (at
 Notation "la ↦ₐ{ q } lw" := (mapsto (L:=LAddr) (V:=LWord) la q lw)
   (at level 20, q at level 50, format "la  ↦ₐ{ q }  lw") : bi_scope.
 Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at level 20) : bi_scope.
+
+Declare Scope LAddr_scope.
+Delimit Scope LAddr_scope with la.
+
+Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
+Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
