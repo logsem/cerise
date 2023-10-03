@@ -211,12 +211,39 @@ Section opsem.
     | Halt => Some (Halted, φ)
     | Jmp r =>
       wr ← (reg φ) !! r;
-      let φ' := (update_reg φ PC (updatePcPerm wr)) in Some (NextI, φ') (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
+      match wr with
+      | WCap IE b e a =>
+        if withinBounds b e a && withinBounds b e (a^+1)%a
+        then
+          wpc ← (mem φ) !! a;
+          wddc ← (mem φ) !! (a^+1)%a;
+          let φ' := (update_reg (update_reg φ PC wpc) ddc wddc) in
+          Some (NextI, φ')
+        else None
+      | _ =>
+          (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
+          let φ' := (update_reg φ PC (updatePcPerm wr)) in
+          Some (NextI, φ')
+      end
     | Jnz r1 r2 =>
       wr2 ← (reg φ) !! r2;
       wr1 ← (reg φ) !! r1;
-      if nonZero wr2 then
-        let φ' := (update_reg φ PC (updatePcPerm wr1)) in Some (NextI, φ')
+      if nonZero wr2
+      then
+        match wr1 with
+        | WCap IE b e a =>
+            if withinBounds b e a && withinBounds b e (a^+1)%a
+            then
+              wpc ← (mem φ) !! a;
+              wddc ← (mem φ) !! (a^+1)%a;
+              let φ' := (update_reg (update_reg φ PC wpc) ddc wddc) in
+              Some (NextI, φ')
+            else None
+        | _ =>
+            (* Note: allow jumping to integers, sealing ranges etc; machine will crash later *)
+            let φ' := (update_reg φ PC (updatePcPerm wr1)) in
+            Some (NextI, φ')
+        end
       else updatePC φ
     | Load dst src =>
       wsrc ← (reg φ) !! src;

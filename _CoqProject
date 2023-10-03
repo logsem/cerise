@@ -26,6 +26,7 @@ theories/class_instances.v
 theories/solve_addr_extra.v
 theories/cap_lang.v
 theories/region.v
+theories/register_tactics.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v
@@ -78,7 +79,6 @@ theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
 theories/fundamental.v
-theories/register_tactics.v
 theories/ftlr_binary/ftlr_base_binary.v
 theories/ftlr_binary/interp_weakening.v
 theories/ftlr_binary/Load_binary.v

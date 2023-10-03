@@ -16,6 +16,7 @@ Inductive Perm: Type :=
 | RW
 | RX
 | E
+| IE
 | RWX.
 
 Definition SealPerms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
@@ -135,7 +136,7 @@ Definition is_mutable_range (w : Word) : bool:=
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
   match p with
-  | RWX | RX | E => true
+  | RWX | RX => true
   | _ => false
   end.
 
@@ -194,6 +195,10 @@ Proof. right; auto. Qed.
 Definition PermFlowsTo (p1 p2: Perm): bool :=
   match p1 with
   | O => true
+  | IE => match p2 with
+        | IE | RO | RX | RW | RWX => true
+        | _ => false
+        end
   | E => match p2 with
         | E | RX | RWX => true
         | _ => false
@@ -288,6 +293,14 @@ Lemma ExecPCPerm_not_E p :
 Proof.
   intros [H|H] ->; inversion H.
 Qed.
+
+Lemma ExecPCPerm_not_IE p :
+  ExecPCPerm p →
+  p ≠ E.
+Proof.
+  intros [H|H] ->; inversion H.
+Qed.
+
 
 Lemma ExecPCPerm_readAllowed p :
   ExecPCPerm p →
@@ -649,6 +662,7 @@ Proof.
     | RX => 4
     | E => 5
     | RWX => 6
+    | IE => 7
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
@@ -657,6 +671,7 @@ Proof.
     | 4 => Some RX
     | 5 => Some E
     | 6 => Some RWX
+    | 7 => Some IE
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).

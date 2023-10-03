@@ -70,6 +70,32 @@ Section cap_lang_rules.
       | Some _ => True
       | None => False end.
 
+
+  (* a more general version of load to work also with any fraction and persistent points tos *)
+  Lemma gen_mem_valid_inSepM_general:
+    ∀ mem0 (m : Mem) (a : Addr) (w : Word) dq,
+      mem0 !! a = Some (dq,w) →
+      gen_heap_interp m
+                   -∗ ([∗ map] a↦dqw ∈ mem0, mapsto a dqw.1 dqw.2)
+                   -∗ ⌜m !! a = Some w⌝.
+  Proof.
+    iIntros (mem0 m a w dq Hmem_pc) "Hm Hmem".
+    iDestruct (big_sepM_delete _ _ a with "Hmem") as "[Hpc_a Hmem]"; eauto.
+    iDestruct (gen_heap_valid with "Hm Hpc_a") as %?; auto.
+  Qed.
+
+  Definition prod_op {A B : Type} :=
+    λ (o1 : option A) (o2 : option B), match o1 with
+             | Some b => match o2 with
+                        | Some c => Some (b,c)
+                        | None => None
+                        end
+             | None => None
+             end.
+
+  Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
+    λ m1 m2, merge prod_op m1 m2.
+
   (* ------------------------- registers points-to --------------------------------- *)
 
   Lemma regname_dupl_false r w1 w2 :
@@ -619,6 +645,7 @@ Definition regs_of (i: instr): gset RegName :=
   | Load r1 r2 => {[ r1; r2 ]}
   | Store r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | Jnz r1 r2 => {[ r1; r2 ]}
+  | Jmp r => {[ r ]}
   | Seal dst r1 r2 => {[dst; r1; r2]}
   | UnSeal dst r1 r2 => {[dst; r1; r2]}
   | _ => ∅
