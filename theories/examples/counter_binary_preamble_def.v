@@ -43,7 +43,7 @@ Section counter_example_preamble.
   Definition read_neg_instrs_length : Z :=
     Eval cbv in (length (read_neg_instrs)).
 
-  Compute (counter_left_instrs_length = counter_right_instrs_length).
+  (* Compute (counter_left_instrs_length = counter_right_instrs_length). *)
 
   (* [f_m] is the offset of the malloc capability *)
   (* [offset_to_counter] is the offset between the [move_r r_t1 PC] instruction
@@ -155,5 +155,5 @@ Section counter_example_preamble.
      ∗ [[b_cls,e_cls]]↣ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; pcs1; c2] ]]
      ∗ [[b_cls',e_cls']]↣ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; pcs2; c2] ]])%I.
 
-  
+
 End counter_example_preamble.

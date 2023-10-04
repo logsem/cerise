@@ -213,6 +213,10 @@ Notation Addr := (finz MemNum).
 Declare Scope Addr_scope.
 Delimit Scope Addr_scope with a.
 
+Global Instance addr_eq_dec: EqDecision Addr.
+Proof. apply finz_eq_dec. Defined.
+
+
 Notation "a1 <= a2 < a3" := (@finz.le_lt MemNum a1 a2 a3) : Addr_scope.
 Notation "a1 <= a2" := (@finz.le MemNum a1 a2) : Addr_scope.
 Notation "a1 <=? a2" := (@finz.leb MemNum a1 a2) : Addr_scope.

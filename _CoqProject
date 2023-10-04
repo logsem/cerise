@@ -15,8 +15,11 @@ machine_utils/theories/solve_pure.v
 machine_utils/theories/tactics.v
 theories/iris_extra.v
 theories/stdpp_extra.v
+theories/stdpp_img.v
+theories/stdpp_comp.v
 theories/map_simpl.v
 theories/addr_reg.v
+theories/linking.v
 theories/solve_addr.v
 theories/machine_base.v
 theories/machine_parameters.v
@@ -95,7 +98,9 @@ theories/ftlr_binary/Store_binary.v
 theories/ftlr_binary/Seal_binary.v
 theories/ftlr_binary/UnSeal_binary.v
 theories/fundamental_binary.v
+theories/contextual_refinement_adequacy.v
 theories/examples/addr_reg_sample.v
+theories/contextual_refinement.v
 theories/examples/malloc.v
 theories/examples/salloc.v
 theories/examples/assert.v
@@ -134,7 +139,6 @@ theories/examples/minimal_counter.v
 theories/examples/ocpl_lowval_like.v
 theories/examples/malloc_binary.v
 theories/examples/macros_binary.v
-theories/linking.v
 theories/examples/counter_binary.v
 theories/examples/counter_binary_preamble_def.v
 theories/examples/counter_binary_preamble.v
