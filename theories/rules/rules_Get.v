@@ -76,61 +76,110 @@ Section cap_lang_rules.
   Lemma denote_seal_denote i (p : SealPerms) (b e a : OType) z src dst: is_Get i src dst → denote_seal i p b e a = z → denote i (WSealRange p b e a) = Some z.
   Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
 
-  Inductive Get_failure (i: instr) (regs: Reg) (dst src: RegName) :=
-    | Get_fail_src_denote w:
+  (* TODO move in logical_mapsto *)
+  Definition lz z : LWord := LWNoCap (WInt z) eq_refl.
+
+  Inductive Get_failure (i: instr) (regs: LReg) (dst src: RegName) :=
+    | Get_fail_src_denote (w : LWord):
         regs !! src = Some w →
-        denote i w = None →
+        denote i (lword_get_word w) = None →
         Get_failure i regs dst src
-    | Get_fail_overflow_PC w z:
+    | Get_fail_overflow_PC (w : LWord) z:
         regs !! src = Some w →
-        denote i w = Some z →
-        incrementPC (<[ dst := WInt z ]> regs) = None →
+        denote i (lword_get_word w) = Some z →
+        incrementPC (lreg_strip (<[ dst := lz z ]> regs)) = None →
         Get_failure i regs dst src.
 
-  Inductive Get_spec (i: instr) (regs: Reg) (dst src: RegName) (regs': Reg): cap_lang.val -> Prop :=
-    | Get_spec_success w z:
+  Inductive Get_spec (i: instr) (regs: LReg) (dst src: RegName) (regs': LReg): cap_lang.val -> Prop :=
+    | Get_spec_success (w : LWord) z:
         regs !! src = Some w →
-        denote i w = Some z →
-        incrementPC (<[ dst := WInt z ]> regs) = Some regs' →
+        denote i (lword_get_word w) = Some z →
+        incrementPC (lreg_strip (<[ dst := lz z ]> regs)) =
+          Some (lreg_strip regs') →
         Get_spec i regs dst src regs' NextIV
     | Get_spec_failure:
         Get_failure i regs dst src →
         Get_spec i regs dst src regs' FailedV.
 
-  Lemma wp_Get Ep pc_p pc_b pc_e pc_a w get_i dst src regs :
+  (* TODO move in logical_mapsto or rules_bases *)
+  Lemma indom_lregs_incl D (lregs lregs': LReg) :
+    D ⊆ dom lregs →
+    lregs ⊆ lregs' →
+    ∀ r, r ∈ D →
+         ∃ (w:LWord), (lregs !! r = Some w) ∧ (lregs' !! r = Some w).
+  Proof.
+    intros * HD Hincl rr Hr.
+    assert (is_Some (lregs !! rr)) as [w Hw].
+    { eapply @elem_of_dom with (D := gset RegName). typeclasses eauto.
+      eapply elem_of_subseteq; eauto. }
+    exists w. split; auto. eapply lookup_weaken; eauto.
+  Qed.
+
+  Lemma wp_Get Ep lpc pc_p pc_b pc_e pc_a lpc_a lw w get_i dst src regs :
+    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
+    lword_get_word lw = w ->
+    laddr_get_addr lpc_a = pc_a ->
+    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
+
     decodeInstrW w = get_i →
     is_Get get_i dst src →
 
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
+    regs !! PC = Some lpc →
     regs_of get_i ⊆ dom regs →
-    {{{ ▷ pc_a ↦ₐ w ∗
+
+    {{{ ▷ lpc_a ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
         ⌜ Get_spec (decodeInstrW w) regs dst src regs' retv ⌝ ∗
-        pc_a ↦ₐ w ∗
+        lpc_a ↦ₐ lw ∗
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    iIntros (Hlpc Hlw Hpc_a Hversions Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as "[Hr Hm]".
+    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
+    iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hlpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    2: eapply state_phys_corresponds_reg; eauto.
+    2: {
+      eapply state_phys_corresponds_mem; eauto.
+      destruct HLinv as [HregInv _]; simpl in *.
+      apply isCorrectPC_withinBounds in Hvpc.
+      eapply reg_corresponds_cap_cur_addr; eauto.
+    }
     unfold exec in Hstep.
 
-    specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
+    specialize (indom_lregs_incl _ regs lr Dregs Hregs) as Hri.
     erewrite regs_of_is_Get in Hri; eauto.
-    destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+.
-    destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+.
+    destruct (Hri src) as [lwsrc [H'lsrc Hlsrc]]; first by set_solver+.
+    destruct (Hri dst) as [lwdst [H'ldst Hldst]]; first by set_solver+.
+
+    (* Extract information about physical words in src and dst *)
+    set (wsrc := lword_get_word lwsrc).
+    set (wdst := lword_get_word lwdst).
+    (* TODO could be a lemma *)
+    assert ( reg !! src = Some wsrc ) as Hsrc.
+    { destruct HLinv as [[Hstrips Hcurreg] _].
+      rewrite <- Hstrips.
+      unfold lreg_strip.
+      apply lookup_fmap_Some. eexists; eauto.
+    }
+    assert ( reg !! dst = Some wdst ) as Hdst.
+    { destruct HLinv as [[Hstrips Hcurreg] _].
+      rewrite <- Hstrips.
+      unfold lreg_strip.
+      apply lookup_fmap_Some. eexists; eauto.
+    }
+
     destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
     2 : { (* Failure: src is not of the right word type *)
       assert
@@ -140,7 +189,14 @@ Section cap_lang_rules.
         all: rewrite Hsrc /= in Hstep.
         all : destruct wsrc as [ | [  |  ] | ]; try (inversion Hstep; auto);
           rewrite /denote /= in Hwsrc; rewrite Hinstr in Hwsrc; congruence. }
-      rewrite Hdecode. iFailWP "Hφ" Get_fail_src_denote. }
+      rewrite Hdecode.
+
+    (* TODO replace the iFail tactic -> modify the tactic to fit the new pattern *)
+    iSplitR "Hφ Hmap Hpc_a"
+    ; [ iExists lr, lm, cur_map; iFrame; auto
+      | iApply "Hφ" ; iFrame ; iFailCore Get_fail_src_denote
+      ].
+    }
 
     assert (exec_opt get_i {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
             = updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
@@ -151,28 +207,69 @@ Section cap_lang_rules.
     }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
-    destruct (incrementPC (<[ dst := WInt z ]> regs))
-      as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1.
+    destruct (incrementPC (lreg_strip (<[ dst := lz z ]> regs)))
+      as [regs'|] eqn:Hregs'
+    ; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
       apply incrementPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
-      eapply updatePC_fail_incl with (m':=mem) in Hregs'.
-      2: by apply lookup_insert_is_Some'; eauto.
-      2: by apply insert_mono; eauto.
+      eapply updatePC_fail_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in Hregs'.
+      2: { admit.
+        (* apply lookup_insert_is_Some'. ; eauto. *)
+        }
+      2: by apply map_fmap_mono; apply insert_mono ; eauto.
       simplify_pair_eq.
+      rewrite ( _ :
+         (λ lw : LWord, lword_get_word lw) <$> <[dst:=lz z]> lr = <[dst:=WInt z]> reg
+        ) in Hregs'; cycle 1.
+      { destruct HLinv as [[Hstrips Hcurreg] _].
+        rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto.
+      }
+
       rewrite Hregs' in Hstep. inversion Hstep.
-      iFailWP "Hφ" Get_fail_overflow_PC. }
+      iSplitR "Hφ Hmap Hpc_a"
+      ; [ iExists lr, lm, cur_map; iFrame; auto
+        | iApply "Hφ" ; iFrame ; iFailCore Get_fail_overflow_PC
+        ].
+    }
+
 
     (* Success *)
 
-    eapply (incrementPC_success_updatePC _ mem) in Hregs'
-        as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
-    eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
+    eapply (incrementPC_success_updatePC _ mem etable enumcur) in Hregs'
+        as (p' & b' & e' & a'' & a_pc' & HPC'' & Hpc_a' & HuPC & ->).
+    eapply updatePC_success_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC.
+    2: by apply map_fmap_mono; apply insert_mono ; eauto.
+    rewrite ( _ :
+              (λ lw : LWord, lword_get_word lw) <$> <[dst:=lz z]> lr = <[dst:=WInt z]> reg
+            ) in HuPC; cycle 1.
+    { destruct HLinv as [[Hstrips Hcurreg] _].
+      rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto. }
+
+    rewrite HuPC in Hstep.
     simplify_pair_eq. iFrame.
-    iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto.
-    Unshelve. all: eassumption.
-  Qed.
+
+    assert (exists (v : Version), lword_get_version lpc = Some v) as [v_lpc Hv_lpc].
+    { admit. }
+    set (lpc' := (LWCap (WCap p' b' e' a_pc') p' b' e' a_pc' eq_refl v_lpc)).
+    iMod ((gen_heap_update_inSepM _ _ dst (lz z)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC lpc') with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    { admit. }
+    iFrame. iModIntro.
+    iSplitR "Hφ Hmap Hpc_a"; cycle 1.
+    - iApply "Hφ" ; iFrame ; iPureIntro; econstructor; eauto.
+      rewrite /incrementPC HPC'' Hpc_a' /lreg_strip fmap_insert; eauto.
+
+    - iExists _, lm, cur_map; iFrame; auto.
+      destruct HLinv as [[Hstrips Hcur_reg] HmemInv]; cbn in *.
+      iPureIntro; econstructor; eauto.
+      split.
+      by rewrite -Hstrips /lreg_strip 2!fmap_insert /= .
+      clear HuPC HH Hri Hwsrc Hsrc Hlsrc.
+      apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; auto].
+      subst lpc'; cbn.
+      (* TODO Tt misses an information here: in cur_map, I don't know
+         whether a_pc'' = a'' + 1 is valid, so i'm stuck *)
+  Abort.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
   Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a w wdst pc_a' z :

@@ -502,6 +502,11 @@ Section cap_lang_rules.
     lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
     lword_get_word lw = w ->
     laddr_get_addr lpc_a = pc_a ->
+
+    (* TODO I believe that this hyp is a consequence of the state interp invariant because:
+     - inv states that all words in the reg has the current view
+     - in particular, it means that lpc has the current view
+     *)
     lword_get_version lpc = Some (laddr_get_version lpc_a) ->
 
     decodeInstrW w = Halt →
@@ -512,6 +517,7 @@ Section cap_lang_rules.
     {{{ RET HaltedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
   Proof.
     intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc.
+    (* clear Hversions. *)
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
@@ -529,6 +535,14 @@ Section cap_lang_rules.
       destruct HLinv as [HregInv _]; simpl in *.
       apply isCorrectPC_withinBounds in Hvpc.
       eapply reg_corresponds_cap_cur_addr; eauto.
+
+      (* TODO separate lemma *)
+      (* destruct HregInv as [Hstrips Hcur]. *)
+      (* eapply map_Forall_lookup_1 in Hcur ; [| apply H2]. *)
+      (* unfold is_cur_word in Hcur. *)
+      (* destruct lpc eqn:Heq; cbn in * ; subst ;  cbn in *; last discriminate. *)
+      (* injection e0; intros ; subst. *)
+      (* destruct lpc_a as [pc_a vpc_a]; cbn in *. *)
     }
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".

@@ -44,33 +44,93 @@ Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   | LWCap w _ _ _ a _ v => cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*)
   | LWNoCap _ _ => True end.
 
+(** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds to the
+    the logical register file `lr`, according to the view map `cur_map` if:
+    - the content of the register `phr` is the same as the words in `lr` w/o the version
+    - the version of the capabilities in `lr` are the same as the version of its addresses
+      in the view map `cur_map`
+ *)
 Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) :=
-    lreg_strip lr = phr ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
+    lreg_strip lr = phr
+    ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
+
+(** The `mem_phys_log_corresponds` states that,
+    - for all logical addresses of the logical memory `lm`, it exists a version in the view map `cur_map`
+      ( i.e. dom(lm) ⊆ dom(cur_map) ) // (have to be the same ??)
+    - for all entries in the view map,
+      + it exists is a logical word `lw` in the logical memory `lm` ( i.e. dom(cur_map) ⊆ dom(lm) )
+      + the logical word `lw` corresponds to the actual word in the physical memory `phm`
+        for the same address
+      + the logical word `lw` is the current view of the word
+ *)
 Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) :=
     map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v ) lm (* domain of `lm` is subset of `cur_map`*)
-     ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw ∧ phm !! a = Some (lword_get_word lw) ∧ is_cur_word lw cur_map) cur_map (* subset in other direction, and every current address is gc root *).
+    ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw
+                               ∧ phm !! a = Some (lword_get_word lw)
+                               ∧ is_cur_word lw cur_map)
+        cur_map (* subset in other direction, and every current address is gc root *).
 
 Definition state_phys_log_corresponds (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (cur_map : gmap Addr Version):=
     reg_phys_log_corresponds phr lr cur_map ∧ mem_phys_log_corresponds phm lm cur_map.
 
 Lemma lreg_insert_respects_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) (r : RegName) (lw : LWord):
-  reg_phys_log_corresponds phr lr cur_map → is_cur_word lw cur_map → reg_phys_log_corresponds (<[r := lword_get_word lw]> phr) (<[r := lw]> lr) cur_map.
-Admitted.
+  reg_phys_log_corresponds phr lr cur_map →
+  is_cur_word lw cur_map →
+  reg_phys_log_corresponds (<[r := lword_get_word lw]> phr) (<[r := lw]> lr) cur_map.
+Proof.
+  intros HregInv Hlw.
+  destruct HregInv as [Hstrip Hcur_regs].
+  split.
+  - rewrite <- Hstrip.
+    unfold lreg_strip.
+    by rewrite fmap_insert.
+  - apply map_Forall_insert_2; auto.
+Qed.
 
 Lemma lmem_insert_respects_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la : LAddr) (lw : LWord):
-  mem_phys_log_corresponds phm lm cur_map → is_cur_addr la cur_map → is_cur_word lw cur_map → mem_phys_log_corresponds (<[la.1 := lword_get_word lw]> phm) (<[la := lw]> lm) cur_map.
+  mem_phys_log_corresponds phm lm cur_map →
+  is_cur_addr la cur_map →
+  is_cur_word lw cur_map →
+  mem_phys_log_corresponds (<[la.1 := lword_get_word lw]> phm) (<[la := lw]> lm) cur_map.
+Proof.
+  intros HmemInv Hla Hlw.
+  destruct HmemInv as [Hdom Hroot]; simpl in *.
+  split.
+  - apply map_Forall_insert_2; auto.
+    unfold is_cur_addr in Hla; eexists; eauto.
+  - eapply map_Forall_impl; eauto.
+    intros a v Hp; cbn in *.
+    destruct (decide (la = (a,v))) as [Heq | Hneq]; subst.
+    + exists lw ; split ; [ by simplify_map_eq|].
+      split; auto. cbn ;by simplify_map_eq.
+    + destruct Hp as (lw' & Hlw' & Hph_lw' & Hcur_lw').
+      exists lw'. split; [rewrite lookup_insert_ne; auto|].
+      split; auto.
+      (* destruct la; cbn. *)
+      (* ; intro Hcontra ; rewrite Hcontra in Hneq. apply Hneq. *)
+      (* rewrite lookup_insert_ne; auto. *)
+      (* destruct la; cbn; intro Hcontra ; rewrite Hcontra in Hneq. apply Hneq. *)
+      (* unfold is_cur_word in Hcur_lw'. *)
+      (* apply Hneq. ; intros ; auto. *)
 Admitted.
 
 Lemma lreg_read_iscur (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) (r : RegName) (lw : LWord):
-  reg_phys_log_corresponds phr lr cur_map → lr !! r = Some lw → is_cur_word lw cur_map.
+  reg_phys_log_corresponds phr lr cur_map →
+  lr !! r = Some lw →
+  is_cur_word lw cur_map.
 Admitted.
 
 Lemma lmem_read_iscur (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la : LAddr) (lw : LWord):
-  mem_phys_log_corresponds phm lm cur_map → is_cur_addr la cur_map → lm !! la = Some lw → is_cur_word lw cur_map.
+  mem_phys_log_corresponds phm lm cur_map →
+  is_cur_addr la cur_map →
+  lm !! la = Some lw →
+  is_cur_word lw cur_map.
 Admitted.
 
 Lemma cur_word_cur_addr (w : Word) p b e a ne (v : Version) (cur_map : gmap Addr Version):
-  is_cur_word (LWCap w p b e a ne v) cur_map → withinBounds b e a = true → is_cur_addr (a,v) cur_map.
+  is_cur_word (LWCap w p b e a ne v) cur_map →
+  withinBounds b e a = true →
+  is_cur_addr (a,v) cur_map.
 Admitted.
 
 Lemma state_phys_corresponds_reg lw (w : Word) r pr pm lr lm cur_map :
