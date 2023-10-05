@@ -261,6 +261,7 @@ Section cap_lang_rules.
        - r = idc
        - pc_a = a
        - pc_a = a+1
+       - fail ?
    *)
   Lemma wp_jmp_success_IE E pc_p pc_b pc_e pc_a w r b e a w' wpc widc :
     decodeInstrW w = Jmp r →

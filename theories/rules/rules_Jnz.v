@@ -432,7 +432,6 @@ Section cap_lang_rules.
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
   Qed.
 
-  (* TODO version with IE *)
   Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a w w1 :
     decodeInstrW w = Jnz r1 PC →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -464,6 +463,64 @@ Section cap_lang_rules.
     iApply "Hφ".
     iExtractList "Hreg" [PC; r1] as ["HPC";"Hr1"]; iFrame.
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
+  Qed.
+
+  Lemma wp_jnz_success_jmpPC2_IE E r1 pc_p pc_b pc_e pc_a w w' b e a wpc widc :
+    decodeInstrW w = Jnz r1 PC →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    withinBounds b e a = true ->
+    withinBounds b e (a^+1)%a = true ->
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ idc ↦ᵣ w'
+          ∗ ▷ r1 ↦ᵣ WCap IE b e a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ a ↦ₐ wpc
+          ∗ ▷ (a^+1)%a ↦ₐ widc
+    }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ wpc
+          ∗ ▷ idc ↦ᵣ widc
+          ∗ ▷ r1 ↦ᵣ WCap IE b e a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ a ↦ₐ wpc
+          ∗ ▷ (a^+1)%a ↦ₐ widc
+      }}}.
+  Proof.
+
+    iIntros (Hinstr Hvpc Hbound_a Hbound_a' ϕ)
+      "(>HPC & >HIDC & >Hr1 & >Hpc_a & >Ha & >Ha') Hφ".
+    iDestruct (map_of_regs_3 with "HPC HIDC Hr1") as "[Hmap (%&%&%)]".
+
+    iDestruct (address_neq with "Ha' Hpc_a") as "%Ha'".
+    iDestruct (address_neq with "Ha Ha'") as "%Hneqa".
+    iDestruct (memMap_resource_2ne_apply with "Hpc_a Ha") as "[Hmem %Ha]".
+    iDestruct (big_sepM_insert with "[Ha' Hmem]") as "Hmem" ; [| iFrame |].
+    by simplify_map_eq.
+
+    iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { intros * Hdst Hdst_IE Hsrc Hsrc_nz ; simplify_eq.
+      split ; auto.
+      unfold allow_load_map_or_true. exists IE, b, e, a.
+      split.
+      unfold read_reg_inr; by simplify_map_eq.
+      case_decide as H' ; auto ; clear H'.
+      split ; eexists ; by simplify_map_eq. }
+    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence)
+    ; simplify_map_eq.
+    { by destruct o as [o | o] ; [rewrite o in Hbound_a | rewrite o in Hbound_a']. }
+    iApply "Hφ".
+    iExtractList "Hreg" [PC; idc ; r1] as ["HPC"; "HIDC" ;"Hr1"]; iFrame.
+    iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
+    iFrame.
   Qed.
 
   Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_a' w w1 :

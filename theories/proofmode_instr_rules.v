@@ -78,17 +78,18 @@ Ltac dispatch_instr_rule instr cont :=
      cont (@wp_store_success_reg))
   (* Jnz *)
   | Jnz PC PC => cont (@wp_jnz_success_jmpPC)
-  | Jnz ?r PC => cont (@wp_jnz_success_jmpPC2)
+  | Jnz ?r PC =>
+      (cont (@wp_jnz_success_jmpPC2) || cont (@wp_jnz_success_jmpPC2_IE))
   | Jnz _ _ =>
     (cont (@wp_jnz_success_next) ||
     (lazymatch instr with
      | Jnz PC _ => cont (@wp_jnz_success_jmpPC1)
-     | Jnz ?r ?r => cont (@wp_jnz_success_jmp2)
+     | Jnz ?r ?r => cont (@wp_jnz_success_jmp_same)
      | Jnz _ _ => cont (@wp_jnz_success_jmp)
      end))
   (* Jmp *)
   | Jmp PC => cont (@wp_jmp_successPC)
-  | Jmp _ => cont (@wp_jmp_success)
+  | Jmp _ => (cont (@wp_jmp_success) || cont (@wp_jmp_success_IE))
   (* Subseg *)
   | Subseg PC (inr ?r) (inr ?r) => cont (@wp_subseg_success_pc_same)
   | Subseg PC (inr _) (inr _) => cont (@wp_subseg_success_pc)
