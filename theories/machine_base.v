@@ -112,6 +112,12 @@ Definition is_cap (w : Word) : bool :=
   |  _ => false
   end.
 
+Definition is_ie_cap (w : Word) : bool :=
+  match w with
+  | WCap IE _ _ _ => true
+  | _ => false
+  end.
+
 (* SealRange <-> Word *)
 Definition is_sealr (w : Word) : bool :=
   match w with
@@ -623,6 +629,19 @@ Lemma correctPC_nonO p p' b e a :
   PermFlows p p' → isCorrectPC (WCap p b e a) → p' ≠ O.
 Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
+Qed.
+
+Lemma isCorrectPC_nonIE p b e a :
+  isCorrectPC (WCap p b e a) → p ≠ IE.
+Proof.
+  intros HcPC ->. inversion HcPC as [ ? ? ? ? ? [|]] ; congruence.
+Qed.
+
+Lemma isCorrectPC_not_ie_cap p b e a:
+  isCorrectPC (WCap p b e a) -> is_ie_cap (WCap p b e a) = false.
+Proof.
+  intros; apply isCorrectPC_nonIE in H.
+  destruct p ; cbn in *; congruence.
 Qed.
 
 Lemma in_range_is_correctPC p b e a b' e' :

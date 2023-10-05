@@ -216,8 +216,8 @@ Section opsem.
         if withinBounds b e a && withinBounds b e (a^+1)%a
         then
           wpc ← (mem φ) !! a;
-          wddc ← (mem φ) !! (a^+1)%a;
-          let φ' := (update_reg (update_reg φ PC wpc) ddc wddc) in
+          widc ← (mem φ) !! (a^+1)%a;
+          let φ' := (update_reg (update_reg φ PC wpc) idc widc) in
           Some (NextI, φ')
         else None
       | _ =>
@@ -235,8 +235,8 @@ Section opsem.
             if withinBounds b e a && withinBounds b e (a^+1)%a
             then
               wpc ← (mem φ) !! a;
-              wddc ← (mem φ) !! (a^+1)%a;
-              let φ' := (update_reg (update_reg φ PC wpc) ddc wddc) in
+              widc ← (mem φ) !! (a^+1)%a;
+              let φ' := (update_reg (update_reg φ PC wpc) idc widc) in
               Some (NextI, φ')
             else None
         | _ =>

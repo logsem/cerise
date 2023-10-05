@@ -121,7 +121,7 @@ Definition r_t29 : RegName := R 29 eq_refl.
 Definition r_t30 : RegName := R 30 eq_refl.
 Definition r_t31 : RegName := R 31 eq_refl.
 
-Definition ddc : RegName := r_t0.
+Definition idc : RegName := r_t0.
 
 (* A list of all general purpuse registers (if regnum=31) *)
 Definition all_registers : list RegName :=
