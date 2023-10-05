@@ -37,6 +37,7 @@ Section logrel.
           `{MachineParameters}.
 
   Notation D := ((leibnizO Word) -n> iPropO Σ).
+  Notation Dg := ((leibnizO Word) -n> (leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
@@ -55,9 +56,15 @@ Section logrel.
   Definition interp_conf : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
 
-  Program Definition interp_expr (interp : D) r : D :=
-    (λne w, (interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r) ∗ na_own logrel_nais ⊤ -∗
+  Program Definition interp_expr_gen (interp : D) r : Dg :=
+    (λne w1 w2, (interp_reg interp r
+                   ∗ registers_mapsto (<[idc:=w2]> (<[PC:=w1]> r))
+                   ∗ na_own logrel_nais ⊤ -∗
              interp_conf))%I.
+  Solve All Obligations with solve_proper.
+
+  Program Definition interp_expr (interp : D) r : D :=
+    (λne w, (∀ (w' : Word), interp w' -∗ (interp_expr_gen interp r w w'))%I).
   Solve All Obligations with solve_proper.
 
   (* condition definitions *)
@@ -80,6 +87,13 @@ Section logrel.
   Solve Obligations with solve_proper.
   Global Instance enter_cond_ne n :
     Proper ((=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond.
+  Proof. solve_proper. Qed.
+
+  Program Definition ienter_cond w1 w2 : D -n> iPropO Σ :=
+    λne interp, (∀ r, ▷ □ (interp_expr_gen interp r w1 w2))%I.
+  Solve Obligations with solve_proper.
+  Global Instance ienter_cond_ne n :
+    Proper ((=) ==> (=) ==> dist n ==> dist n) ienter_cond.
   Proof. solve_proper. Qed.
 
   (* interp definitions *)
@@ -122,6 +136,23 @@ Section logrel.
               end)%I.
   Solve All Obligations with solve_proper.
 
+  Program Definition interp_cap_IE (interp : D) : D :=
+    λne w, (match w with
+              | WCap IE b e a =>
+                (* [∗ list] a ∈ (finz.seq_between b e), *)
+                  inv
+                    (logN .@ a)
+                    ( ⌜ withinBounds b e a
+                      /\ withinBounds b e (a^+1)%a ⌝
+                        -∗ ( ∃ w1 w2,
+                               a ↦ₐ w1
+                                 ∗ (a^+1)%a ↦ₐ w2
+                                 ∗ ienter_cond w1 w2 interp)
+                    )
+            | _ => False
+            end)%I.
+  Solve All Obligations with solve_proper.
+
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne w, (match w with WCap RWX b e a =>
                            [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
@@ -155,6 +186,7 @@ Section logrel.
     | WCap RW b e a => interp_cap_RW interp w
     | WCap RX b e a => interp_cap_RX interp w
     | WCap E b e a => interp_cap_E interp w
+    | WCap IE b e a => interp_cap_IE interp w
     | WCap RWX b e a => interp_cap_RWX interp w
     | WSealRange p b e a => interp_sr interp w
     | WSealed o sb => interp_sb o (WSealable sb)
@@ -180,6 +212,11 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
+  Global Instance ienter_cond_contractive w1 w2 :
+    Contractive (λ interp, ienter_cond w1 w2 interp).
+  Proof.
+    solve_contractive.
+  Qed.
   Global Instance enter_cond_contractive b e a :
     Contractive (λ interp, enter_cond b e a interp).
   Proof.
@@ -199,6 +236,15 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
+  (* TODO understand why it doesn't work *)
+  Global Instance interp_cap_IE_contractive :
+    Contractive (interp_cap_IE).
+  Proof.
+    solve_proper_prepare.
+    destruct_word x0; auto. destruct c; auto.
+  Admitted.
+  (*   solve_contractive. *)
+  (* Qed. *)
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
@@ -227,6 +273,7 @@ Section logrel.
       - by apply interp_cap_RW_contractive.
       - by apply interp_cap_RX_contractive.
       - by apply interp_cap_E_contractive.
+      - by apply interp_cap_IE_contractive.
       - by apply interp_cap_RWX_contractive.
    + by apply interp_sr_contractive.
    + rewrite /interp_sb. solve_contractive.
