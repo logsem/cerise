@@ -1,8 +1,8 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea Seal UnSeal.
+(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea Seal UnSeal. *)
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel register_tactics.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -41,6 +41,7 @@ Section fundamental.
       interp_expression r (WCap p b e a).
   Proof.
     iIntros "#Hinv /=".
+    iIntros (widc) "#Hinterp_widc".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (r p b e a).
@@ -56,8 +57,8 @@ Section fundamental.
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
       iInv (logN.@a) as (w) "[>Ha HP]" "Hcls".
-      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-        first apply (lookup_insert _ _ (WCap p b e a)).
+      rewrite {2}/registers_mapsto.
+      iExtractList "Hmreg" [PC;idc] as ["HPC";"Hidc"]; iFrame.
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
