@@ -201,7 +201,7 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_2 with "HPC Hr") as "[Hreg %Hr]".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * Hcontra HIE; simplify_eq. by rewrite Hw' in HIE.}
+    { intros * Hcontra HIE; simplify_eq. by rewrite Hw' in HIE. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -237,8 +237,7 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_1 with "HPC") as "Hreg".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
     { intros * Hcontra HIE ; simplify_eq.
-      apply isCorrectPC_not_ie_cap in Hvpc ; by rewrite Hvpc in HIE.
-    }
+      apply isCorrectPC_not_ie_cap in Hvpc ; by rewrite Hvpc in HIE. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
