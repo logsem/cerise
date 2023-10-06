@@ -29,6 +29,7 @@ Section fundamental.
           -∗ na_own logrel_nais ⊤
              -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
     -∗ (fixpoint interp1) (WCap p b e a)
+    -∗ (fixpoint interp1) widc
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
     -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)

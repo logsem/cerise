@@ -42,7 +42,7 @@ theories/rules/rules_Subseg.v
 theories/rules/rules_Seal.v
 theories/rules/rules_UnSeal.v
 theories/rules.v
-# theories/rules_binary/rules_binary_base.v
+theories/rules_binary/rules_binary_base.v
 # theories/rules_binary/rules_binary_Get.v
 # theories/rules_binary/rules_binary_Load.v
 # theories/rules_binary/rules_binary_Store.v

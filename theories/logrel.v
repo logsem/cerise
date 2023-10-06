@@ -51,7 +51,8 @@ Section logrel.
   Definition full_map (reg : Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! r)⌝)%I.
   Program Definition interp_reg (interp : D) : R :=
    λne (reg : leibnizO Reg), (full_map reg ∧
-                              ∀ (r : RegName) (v : Word), (⌜r ≠ PC⌝ → ⌜reg !! r = Some v⌝ → interp v))%I.
+                              ∀ (r : RegName) (v : Word),
+                                (⌜r ≠ PC⌝ → ⌜r ≠ idc⌝ → ⌜reg !! r = Some v⌝ → interp v))%I.
 
   Definition interp_conf : iProp Σ :=
     (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
@@ -394,14 +395,20 @@ Section logrel.
   Global Instance writeAllowed_in_r_a_Persistent P r a: Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
   Proof. intros. case_decide; apply _. Qed.
 
-  Lemma read_allowed_inv_regs (a' a b e: Addr) p r :
+  Lemma read_allowed_inv_regs (a' a b e: Addr) widc p r :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
     ⊢ (interp_registers r -∗
       interp (WCap p b e a) -∗
-      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a') then write_cond P interp else emp))%I.
+      interp widc -∗
+      (∃ P, inv (logN .@ a')
+              (interp_ref_inv a' P)
+              ∗ read_cond P interp
+              ∗ if decide (writeAllowed_in_r_a (<[idc:=widc]> (<[PC:=WCap p b e a]> r)) a')
+                then write_cond P interp
+                else emp))%I.
   Proof.
-    iIntros (Hin Ra) "#Hregs #Hinterp".
+    iIntros (Hin Ra) "#Hregs #Hinterp_PC #Hinterp_IDC".
     rewrite /interp_registers /interp_reg /=.
     iDestruct "Hregs" as "[Hfull Hregvalid]".
     case_decide as Hinra.
@@ -410,18 +417,19 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+          try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv Hiff]";
+               [eauto|iExists P;iSplit;eauto]).
       + simplify_map_eq.
         destruct (r !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct_word w; try by inversion Ha. destruct Ha as [Hwba ->].
-        iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
+        iSpecialize ("Hregvalid" $! _ _ n _ Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct c; try contradiction; inversion Hwa;
         try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
   (* Lemma for allocating invariants in a region *)
