@@ -150,12 +150,8 @@ Section cap_lang_rules.
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg; eauto.
-    2: {
-      eapply state_phys_corresponds_mem; eauto.
-      destruct HLinv as [HregInv _]; simpl in *.
-      apply isCorrectPC_withinBounds in Hvpc.
-      eapply reg_corresponds_cap_cur_addr; eauto.
-    }
+    2: eapply state_phys_corresponds_mem; eauto.
+
     unfold exec in Hstep.
 
     specialize (indom_lregs_incl _ regs lr Dregs Hregs) as Hri.
@@ -213,8 +209,11 @@ Section cap_lang_rules.
     { (* Failure: incrementing PC overflows *)
       apply incrementPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
       eapply updatePC_fail_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in Hregs'.
-      2: { admit.
+      2: {
+        rewrite lookup_fmap.
+        (* eapply <- fmap_is_Some . *)
         (* apply lookup_insert_is_Some'. ; eauto. *)
+        admit.
         }
       2: by apply map_fmap_mono; apply insert_mono ; eauto.
       simplify_pair_eq.
@@ -253,7 +252,7 @@ Section cap_lang_rules.
     set (lpc' := (LWCap (WCap p' b' e' a_pc') p' b' e' a_pc' eq_refl v_lpc)).
     iMod ((gen_heap_update_inSepM _ _ dst (lz z)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
     iMod ((gen_heap_update_inSepM _ _ PC lpc') with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    { admit. }
+    { destruct (decide (PC = dst)); by simplify_map_eq. }
     iFrame. iModIntro.
     iSplitR "Hφ Hmap Hpc_a"; cycle 1.
     - iApply "Hφ" ; iFrame ; iPureIntro; econstructor; eauto.
@@ -265,11 +264,22 @@ Section cap_lang_rules.
       split.
       by rewrite -Hstrips /lreg_strip 2!fmap_insert /= .
       clear HuPC HH Hri Hwsrc Hsrc Hlsrc.
-      apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; auto].
-      subst lpc'; cbn.
-      (* TODO Tt misses an information here: in cur_map, I don't know
-         whether a_pc'' = a'' + 1 is valid, so i'm stuck *)
-  Abort.
+      apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; cbn ; auto].
+
+      set (pc_a := (laddr_get_addr lpc_a)).
+      rewrite (_ :lpc'
+              = LWCap
+                  (WCap pc_p pc_b pc_e (pc_a ^+1)%a)
+                  pc_p pc_b pc_e (pc_a ^+1)%a eq_refl v_lpc).
+      2: admit.
+      cbn.
+      eapply map_Forall_lookup_1 with (i := PC) in Hcur_reg; eauto.
+      rewrite /is_cur_word in Hcur_reg.
+      destruct lpc; simplify_eq ; cbn in Hcur_reg; simplify_eq; cbn in *.
+      simplify_eq.
+      cbn in e0; injection e0 ; intros; subst.
+      by intros ; eapply Hcur_reg.
+  Admitted.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
   Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a w wdst pc_a' z :

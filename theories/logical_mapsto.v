@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 (* From iris.algebra Require Import frac auth. *)
-From cap_machine Require Export cap_lang iris_extra.
+From cap_machine Require Export cap_lang iris_extra machine_parameters.
 
 Definition Version := nat.
 
@@ -41,7 +41,9 @@ Definition is_cur_addr (la : LAddr) (cur_map : gmap Addr Version) : Prop :=
   cur_map !! la.1 = Some la.2. (* check whether the version of `la` matches in cur_map *)
 Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   match lw with
-  | LWCap w _ _ _ a _ v => cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*)
+  | LWCap w _ b e _ _ v =>
+      forall a, a ∈ finz.seq_between b e -> (cur_map !! a = Some v)
+      (* cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*) *)
   | LWNoCap _ _ => True end.
 
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds to the
@@ -64,7 +66,9 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr
       + the logical word `lw` is the current view of the word
  *)
 Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) :=
-    map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v ) lm (* domain of `lm` is subset of `cur_map`*)
+  (* map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v ) lm (* domain of `lm` is subset of `cur_map`*) *)
+  (* TODO bastien : should the logical addresses of lm always be the latest view ?? *)
+    map_Forall (λ la _ , is_cur_addr la cur_map) lm
     ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw
                                ∧ phm !! a = Some (lword_get_word lw)
                                ∧ is_cur_word lw cur_map)
@@ -97,7 +101,7 @@ Proof.
   destruct HmemInv as [Hdom Hroot]; simpl in *.
   split.
   - apply map_Forall_insert_2; auto.
-    unfold is_cur_addr in Hla; eexists; eauto.
+    (* unfold is_cur_addr in Hla; eexists; eauto. *)
   - eapply map_Forall_impl; eauto.
     intros a v Hp; cbn in *.
     destruct (decide (la = (a,v))) as [Heq | Hneq]; subst.
@@ -106,6 +110,9 @@ Proof.
     + destruct Hp as (lw' & Hlw' & Hph_lw' & Hcur_lw').
       exists lw'. split; [rewrite lookup_insert_ne; auto|].
       split; auto.
+      (* eapply map_Forall_lookup_1 in Hroot; eauto. *)
+      (* unfold is_cur_addr in Hla. *)
+      (* destruct Hroot . *)
       (* destruct la; cbn. *)
       (* ; intro Hcontra ; rewrite Hcontra in Hneq. apply Hneq. *)
       (* rewrite lookup_insert_ne; auto. *)
@@ -131,7 +138,13 @@ Lemma cur_word_cur_addr (w : Word) p b e a ne (v : Version) (cur_map : gmap Addr
   is_cur_word (LWCap w p b e a ne v) cur_map →
   withinBounds b e a = true →
   is_cur_addr (a,v) cur_map.
-Admitted.
+Proof.
+  intros Hcur_lw Hbounds.
+  unfold is_cur_addr ; simpl.
+  rewrite /is_cur_word /= in Hcur_lw.
+  apply withinBounds_true_iff, elem_of_finz_seq_between in Hbounds.
+  by apply Hcur_lw.
+Qed.
 
 Lemma state_phys_corresponds_reg lw (w : Word) r pr pm lr lm cur_map :
   lword_get_word lw = w ->
@@ -152,18 +165,17 @@ Lemma state_phys_corresponds_mem lw (w : Word) la (a : Addr) pr pm lr lm cur_map
   laddr_get_addr la = a ->
   state_phys_log_corresponds pr pm lr lm cur_map ->
   lm !! la = Some lw ->
-  is_cur_addr la cur_map ->
   pm !! a = Some w.
 Proof.
-  intros * Hlword Hladdr HLinv Hlr Hcur.
+  intros * Hlword Hladdr HLinv Hlr.
   destruct HLinv as [_ HmemInv]; simpl in *.
   destruct HmemInv as [Hdom Hroot]; simpl in *.
-  eapply map_Forall_lookup_1 in Hdom ; last eapply Hlr.
-  destruct Hdom as [v' Hcurmap] ; simpl in Hcur.
-  eapply map_Forall_lookup_1 in Hroot ; last eapply Hcur.
+  eapply (map_Forall_lookup_1 (λ (la : LAddr) (_ : LWord), is_cur_addr la cur_map)) in Hdom;
+    last eapply Hlr.
+  eapply map_Forall_lookup_1 in Hroot ; last eapply Hdom.
   destruct Hroot as (lw' & Hlm & Hpm & Hcurword).
-  unfold is_cur_addr in Hcur; simpl in *.
-  rewrite Hcurmap in Hcur ; clear Hcurmap; inv Hcur.
+  unfold is_cur_addr in Hdom; simpl in *.
+  inv Hdom.
   rewrite (_ : la = (la.1, la.2)) in Hlr.
   2: { apply injective_projections; auto. }
   rewrite Hlr in Hlm ; clear Hlr; inv Hlm.
@@ -171,16 +183,15 @@ Proof.
 Qed.
 
 Lemma reg_corresponds_cap_cur_addr lcap p (b e a : Addr) la r (reg : Reg) lr cur_map :
-  withinBounds b e a = true ->
+  reg_phys_log_corresponds reg lr cur_map ->
   lword_get_word lcap = WCap p b e a ->
   laddr_get_addr la = a ->
-  lword_get_version lcap = Some (laddr_get_version la) ->
-  reg_phys_log_corresponds reg lr cur_map ->
+  withinBounds b e a = true ->
   lr !! r = Some lcap ->
+  lword_get_version lcap = Some (laddr_get_version la) ->
   is_cur_addr la cur_map.
 Proof.
-  intros Hbounds Hlcap Hla Hv HregInv Hr.
-  destruct HregInv as [_ Hcur]; simpl in *.
+  intros[_ Hcur] Hlcap Hla Hbounds Hr Hv; cbn in *.
   destruct lcap; cycle 1.
   + simpl in Hlcap; subst.
     cbn in e ; discriminate.
@@ -192,7 +203,26 @@ Proof.
     ; eapply (cur_word_cur_addr _ p b e); eauto.
 Qed.
 
-
+Lemma version_addr_reg reg lr cur_map wr r p b e a la:
+  reg_phys_log_corresponds reg lr cur_map ->
+  lword_get_word wr = WCap p b e a ->
+  laddr_get_addr la = a ->
+  withinBounds b e a = true ->
+  lr !! r = Some wr →
+  is_cur_addr la cur_map ->
+  lword_get_version wr = Some (laddr_get_version la).
+Proof.
+  intros [Hstrip Hcur_reg] Hlr Hla Hinbounds Hr Hcur_la.
+  eapply map_Forall_lookup_1 in Hcur_reg; eauto.
+  unfold is_cur_word in Hcur_reg.
+  destruct wr as [ w p' b' e' a' Heq v| w Heq];
+    simplify_eq ; cbn in Hlr; simplify_eq; cbn in *.
+  apply withinBounds_true_iff, elem_of_finz_seq_between in Hinbounds.
+  cbn in Heq; injection Heq ; intros; subst.
+  apply Hcur_reg in Hinbounds.
+  unfold is_cur_addr in Hcur_la.
+  destruct la ; cbn in *; congruence.
+Qed.
 
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
@@ -232,3 +262,30 @@ Delimit Scope LAddr_scope with la.
 
 Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
 Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
+
+
+Definition log_z z : LWord := LWNoCap (WInt z) eq_refl.
+
+Section machine_param.
+  Context `{MachineParameters}.
+
+  Definition decodeInstrWL (lw : LWord) :=
+    decodeInstrW (lword_get_word lw).
+
+  Definition encodeInstrWL (i : instr) : LWord := log_z (encodeInstr i).
+
+  Lemma decode_encode_instrLW_inv (i: instr):
+    decodeInstrWL (encodeInstrWL i) = i.
+  Proof. apply decode_encode_instr_inv. Qed.
+
+  Definition encodeInstrsLW : list instr → list LWord :=
+    map encodeInstrWL.
+
+End machine_param.
+
+Inductive isCorrectLPC: LWord → Prop :=
+| isCorrectLPC_intro:
+  forall lpc p (b e a : Addr),
+  lword_get_word lpc = (WCap p b e a) ->
+  isCorrectPC (WCap p b e a) ->
+  isCorrectLPC lpc.

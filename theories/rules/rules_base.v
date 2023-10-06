@@ -438,8 +438,7 @@ Section cap_lang_rules.
 
   Lemma wp_notCorrectPC:
     forall E (w : Word) (lw : LWord),
-      lword_get_word lw = w ->
-      ~ isCorrectPC w ->
+      ~ isCorrectLPC lw ->
       {{{ PC ↦ᵣ lw }}}
          Instr Executable @ E
         {{{ RET FailedV; PC ↦ᵣ lw }}}.
@@ -462,6 +461,8 @@ Section cap_lang_rules.
     iExists lr, lm, cur_map.
     iFrame; auto.
   Qed.
+
+  (* TODO see with Lars ->*)
 
 
   (* Subcases for respecitvely permissions and bounds *)
@@ -499,24 +500,29 @@ Section cap_lang_rules.
   (* TODO there are a lot of side condition about the logical part, is there any way
      to simplify ? Is it still usable in proofs ? *)
   Lemma wp_halt E lpc pc_p pc_b pc_e pc_a lpc_a lw w :
-    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
-    lword_get_word lw = w ->
-    laddr_get_addr lpc_a = pc_a ->
+
+    (* lword_get_word lpc = WCap pc_p pc_b pc_e pc_a -> *)
+    (* lword_get_word lw = w -> *)
+    (* laddr_get_addr lpc_a = pc_a -> *)
 
     (* TODO I believe that this hyp is a consequence of the state interp invariant because:
      - inv states that all words in the reg has the current view
      - in particular, it means that lpc has the current view
      *)
-    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
+    (* lword_get_version lpc = Some (laddr_get_version lpc_a) -> *)
 
     decodeInstrW w = Halt →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    isCorrectPC lpc ->
+      (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}
       Instr Executable @ E
     {{{ RET HaltedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
+
+
   Proof.
-    intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc.
+    intros Hlpc Hlw Hpc_a Hinstr Hvpc.
+    (* intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc. *)
     (* clear Hversions. *)
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
@@ -530,20 +536,7 @@ Section cap_lang_rules.
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg; eauto.
-    2: {
-      eapply state_phys_corresponds_mem; eauto.
-      destruct HLinv as [HregInv _]; simpl in *.
-      apply isCorrectPC_withinBounds in Hvpc.
-      eapply reg_corresponds_cap_cur_addr; eauto.
-
-      (* TODO separate lemma *)
-      (* destruct HregInv as [Hstrips Hcur]. *)
-      (* eapply map_Forall_lookup_1 in Hcur ; [| apply H2]. *)
-      (* unfold is_cur_word in Hcur. *)
-      (* destruct lpc eqn:Heq; cbn in * ; subst ;  cbn in *; last discriminate. *)
-      (* injection e0; intros ; subst. *)
-      (* destruct lpc_a as [pc_a vpc_a]; cbn in *. *)
-    }
+    2: eapply state_phys_corresponds_mem; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
@@ -579,12 +572,7 @@ Section cap_lang_rules.
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg; eauto.
-    2: {
-      eapply state_phys_corresponds_mem; eauto.
-      destruct HLinv as [HregInv _]; simpl in *.
-      apply isCorrectPC_withinBounds in Hvpc.
-      eapply reg_corresponds_cap_cur_addr; eauto.
-    }
+    2: eapply state_phys_corresponds_mem; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
@@ -684,6 +672,20 @@ Proof.
     eapply elem_of_subseteq; eauto. }
   exists w. split; auto. eapply lookup_weaken; eauto.
 Qed.
+
+Lemma indom_lregs_incl D (lregs lregs': LReg) :
+  D ⊆ dom lregs →
+  lregs ⊆ lregs' →
+  ∀ r, r ∈ D →
+       ∃ (w:LWord), (lregs !! r = Some w) ∧ (lregs' !! r = Some w).
+Proof.
+  intros * HD Hincl rr Hr.
+  assert (is_Some (lregs !! rr)) as [w Hw].
+  { eapply @elem_of_dom with (D := gset RegName). typeclasses eauto.
+    eapply elem_of_subseteq; eauto. }
+  exists w. split; auto. eapply lookup_weaken; eauto.
+  Qed.
+
 
 (*--- incrementPC ---*)
 
@@ -822,6 +824,33 @@ Tactic Notation "simplify_pair_eq" :=
       assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) (eq_sym H2))); clear H2
     | |- _ => progress simplify_eq
     end.
+
+
+(*--- incrementLPC ---*)
+
+Program Definition incrementLPC (regs: LReg) : option LReg :=
+  match regs !! PC with
+  | Some lw =>
+      match lw with
+      | LWCap (WCap p b e a) p' b' e' a' ne v =>
+          match (a + 1)%a with
+          | Some a'' =>
+              let npc := (LWCap (WCap p b e a'') p' b' e' (a'^+1)%a _ v) in
+              Some (<[ PC := npc ]> regs)
+              (* None *)
+          | None => None
+          end
+      | _ => None
+      end
+  | _ => None
+  end.
+Next Obligation.
+  intros; cbn in * ; simplify_eq.
+  injection ne; intros ; subst.
+  rewrite (_: (a' ^+ 1)%a = a''); solve_addr.
+Qed.
+Solve All Obligations with (intros; cbn in * ; simplify_eq ; try(subst wildcard'; intro; discriminate)).
+
 
 (*----------------------- FIXME TEMPORARY ------------------------------------*)
 (* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using
