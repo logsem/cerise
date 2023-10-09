@@ -140,16 +140,13 @@ Section logrel.
   Program Definition interp_cap_IE (interp : D) : D :=
     λne w, (match w with
               | WCap IE b e a =>
-                (* [∗ list] a ∈ (finz.seq_between b e), *)
-                  inv
-                    (logN .@ a)
-                    ( ⌜ withinBounds b e a
-                      /\ withinBounds b e (a^+1)%a ⌝
-                        -∗ ( ∃ w1 w2,
-                               a ↦ₐ w1
-                                 ∗ (a^+1)%a ↦ₐ w2
-                                 ∗ ienter_cond w1 w2 interp)
-                    )
+                  ⌜ withinBounds b e a /\ withinBounds b e (a^+1)%a ⌝
+                   -∗
+                   ( ∃ w1 w2,
+                       inv (logN .@ a) (a ↦ₐ w1)
+                         ∗ inv (logN .@ (a^+1)%a) ((a^+1)%a ↦ₐ w2)
+                         ∗ ienter_cond w1 w2 interp
+                   )
             | _ => False
             end)%I.
   Solve All Obligations with solve_proper.
@@ -213,13 +210,13 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
-  Global Instance ienter_cond_contractive w1 w2 :
-    Contractive (λ interp, ienter_cond w1 w2 interp).
+  Global Instance enter_cond_contractive b e a :
+    Contractive (λ interp, enter_cond b e a interp).
   Proof.
     solve_contractive.
   Qed.
-  Global Instance enter_cond_contractive b e a :
-    Contractive (λ interp, enter_cond b e a interp).
+  Global Instance ienter_cond_contractive w1 w2 :
+    Contractive (λ interp, ienter_cond w1 w2 interp).
   Proof.
     solve_contractive.
   Qed.
@@ -237,15 +234,13 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
-  (* TODO understand why it doesn't work *)
   Global Instance interp_cap_IE_contractive :
     Contractive (interp_cap_IE).
   Proof.
     solve_proper_prepare.
     destruct_word x0; auto. destruct c; auto.
-  Admitted.
-  (*   solve_contractive. *)
-  (* Qed. *)
+    solve_contractive.
+  Qed.
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
@@ -395,6 +390,7 @@ Section logrel.
   Global Instance writeAllowed_in_r_a_Persistent P r a: Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
   Proof. intros. case_decide; apply _. Qed.
 
+  (* TODO: not sure is even true *)
   Lemma read_allowed_inv_regs (a' a b e: Addr) widc p r :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
@@ -417,19 +413,30 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv Hiff]";
+          try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv Hiff]";
                [eauto|iExists P;iSplit;eauto]).
-      + simplify_map_eq.
-        destruct (r !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
-        destruct_word w; try by inversion Ha. destruct Ha as [Hwba ->].
-        iSpecialize ("Hregvalid" $! _ _ n _ Hsome). simplify_eq. iClear "Hinterp".
-        rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
-        destruct c; try contradiction; inversion Hwa;
-        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+      + destruct (decide (reg = idc)); cycle 1.
+        * simplify_map_eq.
+          destruct (r !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
+          destruct_word w; try by inversion Ha. destruct Ha as [Hwba ->].
+          iSpecialize ("Hregvalid" $! _ _ n n0 Hsome). simplify_eq.
+          iClear "Hinterp_PC"; iClear  "Hinterp_IDC".
+          rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
+          destruct c; try contradiction ; inversion Hwa;
+            try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]";
+                 [eauto|iExists P;iSplit;eauto]).
+        * simplify_map_eq. destruct w ; cbn in *; try contradiction ; destruct sb ; try contradiction.
+          destruct Ha as [Ha <-].
+          rewrite /interp; cbn. iClear "Hinterp_PC".
+          rewrite fixpoint_interp1_eq /=; cbn.
+          destruct p0; try contradiction ; inversion Hwa;
+          try (iDestruct (extract_from_region_inv with "Hinterp_IDC") as (P) "[Hinv Hiff]";
+               [eauto|iExists P;iSplit;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
-        try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
-        try (iDestruct (extract_from_region_inv with "HinterpPC") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv Hiff]";
+             [eauto|iExists P;iSplit;eauto]).
   Qed.
 
   (* Lemma for allocating invariants in a region *)
@@ -474,7 +481,7 @@ Section logrel.
     all: iExists (fixpoint interp1); iFrame.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
-    
+
   (* Get the validity of a region containing only valid words *)
   Lemma region_valid_alloc E (b e a: Addr) l p  :
     PermFlowsTo RO p →
@@ -508,16 +515,16 @@ Section logrel.
   Proof.
     rewrite /compute_mask. revert E.
     induction ls using set_ind_L; intros E.
-    { by rewrite set_fold_empty. }    
+    { by rewrite set_fold_empty. }
     rewrite set_fold_disj_union_strong; [|set_solver..].
     rewrite set_fold_singleton.
     etransitivity; [apply IHls|].
     set_solver.
   Qed.
-  
+
   Lemma compute_mask_subseteq E (ls1 ls2 : gset Addr) :
     ls2 ⊆ ls1 → compute_mask E ls1 ⊆ compute_mask E ls2.
-  Proof.    
+  Proof.
     rewrite /compute_mask.
     revert E ls1.
     induction ls2 using set_ind_L.
@@ -528,7 +535,7 @@ Section logrel.
     assert (∃ Y, ls1 = {[x]} ∪ Y ∧ {[x]} ## Y) as [Y [-> Hdisj] ].
     { apply subseteq_disjoint_union_L. set_solver. }
     rewrite set_fold_disj_union_strong; [|set_solver..].
-    rewrite set_fold_singleton. 
+    rewrite set_fold_singleton.
     apply IHls2. set_solver.
   Qed.
 
@@ -564,7 +571,7 @@ Section logrel.
     | WCap p b' e' a => PermFlows RO p /\ (forall x, b' <= x < e' -> x ∈ ls)%a
     | _ => False
     end.
-  
+
   Lemma region_valid_in_region_ind E (l1 l2 : list Addr) :
     Forall (λ a, ↑logN.@a ⊆ E) (l1 ++ l2) ->
     NoDup l1 -> NoDup l2 ->
@@ -670,7 +677,7 @@ Section logrel.
       all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
         try iExists _;iFrame;try iSplit;iIntros (?);auto. }
   Qed.
-    
+
   Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
     ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
     interp (WSealRange (b1,b2) b e a).

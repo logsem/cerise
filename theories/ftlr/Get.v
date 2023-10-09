@@ -21,7 +21,7 @@ Section fundamental.
   Proof.
     intros Hinstr Hp Hsome i Hbae Hi.
     iIntros
-      "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
     iInsertList "Hmap" [idc;PC].
     rewrite <- Hi in Hinstr. clear Hi.
     iApply (wp_Get with "[$Ha $Hmap]"); eauto.
@@ -40,17 +40,55 @@ Section fundamental.
     { incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
-      (* TODO need to destruct (dst = idc at some point) ? *)
       iIntros "_".
       simplify_map_eq.
-      iApply ("IH" $! (<[dst := _]> (<[idc := widc]> (<[PC := _]> r))) with "[%] [] [Hmap] [$Hown]");
-        try iClear "IH"; eauto.
-      { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-      iIntros (ri v Hri Hsv).
-      destruct (decide (ri = dst)); simplify_map_eq.
-      { repeat rewrite fixpoint_interp1_eq; auto. }
-      { by iApply "Hreg". } rewrite !fixpoint_interp1_eq /=. destruct Hp as
-        [-> | ->]. ;iFrame "Hinv". }
+      destruct (decide (dst = idc)) ; subst.
+      + (* dst = idc *)
+        simplify_map_eq.
+        (* TODO better/cleaner way to do this ? *)
+
+        rewrite (_:
+                  <[PC:=WCap x x0 x1 x3]>
+                    (<[idc:=WInt z]> (<[PC:=WCap x x0 x1 x2]> (<[idc:=widc]> r))) =
+                    (<[idc:=WInt z]> (<[PC:=WCap x x0 x1 x3]>
+                                        (<[idc:=WInt z]> (<[idc:=widc]> (<[PC:=WCap x x0 x1 x2]> r)))))
+                ).
+        2: {
+          repeat (try
+                    rewrite insert_insert ||
+                    (rewrite (insert_commute _ idc PC); auto));
+          reflexivity.
+        }
+
+        iApply ("IH" $! (<[idc := _]> (<[idc := _]> (<[PC := _]> r))) with "[%] [] [Hmap] [$Hown]");
+          try iClear "IH" ; eauto.
+        { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
+        iIntros (ri v Hri Hri' Hsv).
+        destruct (decide (ri = idc)); simplify_map_eq.
+        { by iApply "Hreg". }
+        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
+
+      + (* dst <> idc *)
+        rewrite (_:
+                  <[PC:=WCap x x0 x1 x3]>
+                    (<[dst:=WInt z]> (<[PC:=WCap x x0 x1 x2]> (<[idc:=widc]> r))) =
+                    (<[idc:=widc]> (<[PC:=WCap x x0 x1 x3]>
+                                      (<[dst:=WInt z]> (<[idc:=widc]> (<[PC:=WCap x x0 x1 x2]> r)))))
+                ).
+        2: { rewrite (insert_commute _ idc PC); auto.
+             rewrite (insert_commute _ idc dst); auto.
+             rewrite (insert_insert).
+             rewrite (insert_commute _ idc PC); auto.
+        }
+
+        iApply ("IH" $! (<[dst := _]> (<[idc := _]> (<[PC := _]> r))) with "[%] [] [Hmap] [$Hown]");
+          try iClear "IH" ; eauto.
+        { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
+        iIntros (ri v Hri Hri' Hsv).
+        destruct (decide (ri = dst)); simplify_map_eq.
+        { repeat rewrite fixpoint_interp1_eq; auto. }
+        { by iApply "Hreg". }
+        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc". }
   Qed.
 
 End fundamental.

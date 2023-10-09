@@ -18,12 +18,14 @@ Section fundamental.
   Definition IH: iProp Σ :=
     (□ ▷ (∀ a0 a1 a2 a3 a4 w',
              full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[idc:=w']>(<[PC:=WCap a1 a2 a3 a4]> a0))
+          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
+          -∗ registers_mapsto (<[idc:=w']> (<[PC:=WCap a1 a2 a3 a4]> a0))
           -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf))%I.
+          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4)
+          -∗ □ (fixpoint interp1) w'
+          -∗ interp_conf))%I.
 
- 
+
   (* TODO: Move somewhere ?*)
   Lemma PermFlowsToPermFlows p p':
     PermFlowsTo p p' <-> PermFlows p p'.
@@ -40,6 +42,7 @@ Section fundamental.
 
   Lemma interp_weakening p p' b b' e e' a a':
       p <> E ->
+      p <> IE ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
@@ -47,7 +50,7 @@ Section fundamental.
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros HpnotE Hb He Hp. iIntros "#IH #HA".
+    intros HpnotE HpnotIE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
@@ -58,9 +61,10 @@ Section fundamental.
            iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
          + (* IE-cap *)
-           (* TODO I need to show the invariant.
-              Because I have at least R-perm on `p`, I have the resources for a' and a'+1
-            *) admit.
+           iIntros "[%Hbounds1 _]"; exfalso.
+           apply Is_true_eq_true, andb_true_iff in Hbounds1.
+           destruct Hbounds1.
+           solve_addr.
     }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
@@ -90,10 +94,20 @@ Section fundamental.
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
-        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]". 
+        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame. 
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq. (* IE-cap *)
+      iIntros "[%Hbounds1 %Hbounds2]".
+      destruct p; inversion Hp; try contradiction;
+        (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]).
+        rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
+        (* TODO split A1, A2, A3 to get a' and (a'+1),  *)
+
+      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
+        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
+
+
       (* TODO same argument as before *)
       admit.
     - rewrite !fixpoint_interp1_eq.
