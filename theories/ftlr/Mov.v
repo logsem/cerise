@@ -4,6 +4,7 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_base rules_Mov.
+From cap_machine Require Export logrel register_tactics.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -16,18 +17,20 @@ Section fundamental.
   Implicit Types interp : (D).
 
   Lemma mov_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst : RegName) (src : Z + RegName) (P : D):
-    ftlr_instr r p b e a w (Mov dst src) P.
+        (b e a : Addr) (widc w : Word) (dst : RegName) (src : Z + RegName) (P : D):
+    ftlr_instr r p b e a widc w (Mov dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
-    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
     iApply (wp_Mov with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto.
+      right.
+      destruct (decide (rr = idc)); subst; simplify_map_eq; auto.
+    }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
@@ -37,21 +40,23 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate. }
     { (* TODO: it might be possible to refactor the proof below by using more simplify_map_eq *)
       (* TODO: use incrementPC_inv *)
-      match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
+      incrementPC_inv; simplify_map_eq.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]"); [iExists w; iFrame|iModIntro].
       iNext.
       destruct (reg_eq_dec dst PC).
-      { subst dst. rewrite lookup_insert in HPC. inv HPC.
+      { subst dst.
+        rewrite lookup_insert in H1.
+        inv H1.
         repeat rewrite insert_insert.
         destruct src; simpl in *; try discriminate.
         destruct (reg_eq_dec PC r0).
-        { subst r0. simplify_map_eq.
-          iIntros "_".
-          iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
-          iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv". }
+        { subst r0.
+        rewrite lookup_insert in H0 ; inv H0.
+        rewrite (insert_commute _ PC idc); auto.
+        iIntros "_".
+        iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
+        iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; iFrame "Hinv_pc". }
         { simplify_map_eq.
           iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0".
           destruct (PermFlowsTo RX p'') eqn:Hpft; iIntros "_".

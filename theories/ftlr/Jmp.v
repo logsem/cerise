@@ -1,7 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel register_tactics.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Jmp.
 
@@ -16,12 +16,14 @@ Section fundamental.
   Implicit Types interp : (D).
 
   Lemma jmp_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (r0 : RegName) (P : D):
-    ftlr_instr r p b e a w (Jmp r0) P.
+        (b e a : Addr) (widc w : Word) (r0 : RegName) (P : D):
+    ftlr_instr r p b e a widc w (Jmp r0) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #Hread Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
+
     destruct (reg_eq_dec PC r0).
     * subst r0.
       iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame. 

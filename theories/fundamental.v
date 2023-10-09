@@ -40,12 +40,12 @@ Section fundamental.
     ⊢ interp (WCap p b e a) →
       interp_expression r (WCap p b e a).
   Proof.
-    iIntros "#Hinv /=".
-    iIntros (widc) "#Hinterp_widc".
+    iIntros "#Hinv_pc /=".
+    iIntros (widc) "#Hinv_idc".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
-    iRevert "Hinv".
+    iRevert "Hinv_idc"; iRevert "Hinv_pc".
     iLöb as "IH" forall (r p b e a).
-    iIntros "#Hinv".
+    iIntros "#Hinv_pc #Hinv_idc".
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (WCap p b e a))).
@@ -54,7 +54,7 @@ Section fundamental.
       { eapply in_range_is_correctPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
       { inversion i. subst. auto. }
-      iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
+      iDestruct (read_allowed_inv_regs with "[] Hinv_pc Hinv_idc") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
       iInv (logN.@a) as (w) "[>Ha HP]" "Hcls".
       rewrite {2}/registers_mapsto.

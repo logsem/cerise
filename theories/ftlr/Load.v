@@ -1,7 +1,7 @@
 From stdpp Require Import base.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel register_tactics.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Load.
 Import uPred.
@@ -50,12 +50,12 @@ Section fundamental.
   Lemma create_load_res:
     ∀ (r : leibnizO Reg) (p : Perm)
       (b e a : Addr) (src : RegName) (p0 : Perm)
-      (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0
-      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ ∃ P, allow_load_res src (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0 P.
+      (b0 e0 a0 : Addr) (widc : Word),
+      read_reg_inr (<[PC:=WCap p b e a]> (<[idc:=widc]> r)) src p0 b0 e0 a0
+      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ →⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
+          -∗ ∃ P, allow_load_res src (<[PC:=WCap p b e a]> (<[idc:=widc]> r)) a a0 p0 b0 e0 P.
   Proof.
-    intros r p b e a src p0 b0 e0 a0 HVsrc.
+    intros r p b e a src p0 b0 e0 a0 widc HVsrc.
     iIntros "#Hreg". rewrite /allow_load_res.
     (* do 5 (iApply sep_exist_r; iExists _). *) (* do 3 (iExists _). *) iFrame "%".
     case_decide as Hdec. 1: destruct Hdec as [Hallows Haeq].
@@ -66,7 +66,7 @@ Section fundamental.
          assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
          rewrite lookup_insert_ne in Hrinr; last by congruence.
-         iDestruct ("Hreg" $! src _ n Hrinr) as "Hvsrc".
+         iDestruct ("Hreg" $! src _ n _ Hrinr) as "Hvsrc".
          iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
@@ -190,25 +190,28 @@ Section fundamental.
 
 
   Lemma load_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst src : RegName) (P : D):
-    ftlr_instr r p b e a w (Load dst src) P.
+        (b e a : Addr) (widc w : Word) (dst src : RegName) (P : D):
+    ftlr_instr r p b e a widc w (Load dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
-    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> (<[idc:=widc]> r) !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
-      by rewrite lookup_insert_ne.
+      destruct (decide (x = idc)).
+      rewrite lookup_insert_ne; auto.
+      rewrite e0 lookup_insert; unfold is_Some. by eexists.
+      by rewrite! lookup_insert_ne.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=WCap p b e a]> r) src p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
+    assert (∃ p0 b0 e0 a0, read_reg_inr (<[PC:=WCap p b e a]> (<[idc:=widc]> r)) src p0 b0 e0 a0)
+      as [p0 [b0 [e0 [a0 HVsrc] ] ] ].
     {
       specialize Hsome' with src as Hsrc.
       destruct Hsrc as [wsrc Hsomesrc].

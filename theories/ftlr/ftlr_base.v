@@ -31,9 +31,11 @@ Section fundamental.
     -∗ (fixpoint interp1) (WCap p b e a)
     -∗ (fixpoint interp1) widc
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
-    -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
+    -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
-            ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a) then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w) else emp)
+            ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a)
+               then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w)
+               else emp)
     -∗ na_own logrel_nais ⊤
     -∗ a ↦ₐ w
     -∗ ▷ P w

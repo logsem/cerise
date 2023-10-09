@@ -99,16 +99,25 @@ Section fundamental.
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq. (* IE-cap *)
       iIntros "[%Hbounds1 %Hbounds2]".
-      destruct p; inversion Hp; try contradiction;
-        (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]).
-        rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
-        (* TODO split A1, A2, A3 to get a' and (a'+1),  *)
-
-      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
-        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
-
-
-      (* TODO same argument as before *)
+      apply Is_true_eq_true, andb_true_iff in Hbounds1.
+      apply Is_true_eq_true, andb_true_iff in Hbounds2.
+      destruct Hbounds1 as [Hb1 Hb2] , Hbounds2 as [Hb1' Hb2'].
+      destruct p; inversion Hp; try contradiction
+      ; (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr])
+      ; rewrite !big_sepL_app; iDestruct "HA" as "[_ [HA _]]"; iFrame "#"
+      ; (rewrite (isWithin_finz_seq_between_decomposition  a' (a'^+1)%a b' e') ; [|solve_addr])
+      ; rewrite !big_sepL_app ; iDestruct "HA" as "[_ [Ha' HA]]"; iFrame "#"
+      ; (rewrite (isWithin_finz_seq_between_decomposition  (a'^+1)%a (a'^+2)%a (a'^+1)%a e') ; [|solve_addr])
+      ; rewrite !big_sepL_app ; iDestruct "HA" as "[_ [Ha'' _]]"; iFrame "#"
+      ; (rewrite (finz_seq_between_singleton a' _); [|solve_addr])
+      ; (rewrite (finz_seq_between_singleton (a'^+1)%a _); [|solve_addr])
+      ; cbn
+      ; iDestruct "Ha'" as "[Ha' _]"; iDestruct "Ha''" as "[Ha'' _]"
+      ; iDestruct "Ha'" as (Pa') "(Hinva' & HPa')"
+      ; iDestruct "Ha''" as (Pa'') "(Hinva'' & HPa'')".
+      admit.
+      admit.
+      admit.
       admit.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
