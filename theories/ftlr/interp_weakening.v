@@ -115,6 +115,8 @@ Section fundamental.
       ; iDestruct "Ha'" as "[Ha' _]"; iDestruct "Ha''" as "[Ha'' _]"
       ; iDestruct "Ha'" as (Pa') "(Hinva' & HPa')"
       ; iDestruct "Ha''" as (Pa'') "(Hinva'' & HPa'')".
+      (* TODO I need to open the invariant, but I don't have a mask *)
+
       admit.
       admit.
       admit.
