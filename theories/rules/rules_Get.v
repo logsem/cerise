@@ -76,9 +76,6 @@ Section cap_lang_rules.
   Lemma denote_seal_denote i (p : SealPerms) (b e a : OType) z src dst: is_Get i src dst → denote_seal i p b e a = z → denote i (WSealRange p b e a) = Some z.
   Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
 
-  (* TODO move in logical_mapsto *)
-  Definition lz z : LWord := LWNoCap (WInt z) eq_refl.
-
   Inductive Get_failure (i: instr) (regs: LReg) (dst src: RegName) :=
     | Get_fail_src_denote (w : LWord):
         regs !! src = Some w →
@@ -87,70 +84,51 @@ Section cap_lang_rules.
     | Get_fail_overflow_PC (w : LWord) z:
         regs !! src = Some w →
         denote i (lword_get_word w) = Some z →
-        incrementPC (lreg_strip (<[ dst := lz z ]> regs)) = None →
+        incrementLPC (<[ dst := LInt z ]> regs) = None →
         Get_failure i regs dst src.
 
   Inductive Get_spec (i: instr) (regs: LReg) (dst src: RegName) (regs': LReg): cap_lang.val -> Prop :=
     | Get_spec_success (w : LWord) z:
         regs !! src = Some w →
         denote i (lword_get_word w) = Some z →
-        incrementPC (lreg_strip (<[ dst := lz z ]> regs)) =
-          Some (lreg_strip regs') →
+        incrementLPC (<[ dst := LInt z ]> regs) = Some regs' →
         Get_spec i regs dst src regs' NextIV
     | Get_spec_failure:
         Get_failure i regs dst src →
         Get_spec i regs dst src regs' FailedV.
 
-  (* TODO move in logical_mapsto or rules_bases *)
-  Lemma indom_lregs_incl D (lregs lregs': LReg) :
-    D ⊆ dom lregs →
-    lregs ⊆ lregs' →
-    ∀ r, r ∈ D →
-         ∃ (w:LWord), (lregs !! r = Some w) ∧ (lregs' !! r = Some w).
-  Proof.
-    intros * HD Hincl rr Hr.
-    assert (is_Some (lregs !! rr)) as [w Hw].
-    { eapply @elem_of_dom with (D := gset RegName). typeclasses eauto.
-      eapply elem_of_subseteq; eauto. }
-    exists w. split; auto. eapply lookup_weaken; eauto.
-  Qed.
-
-  Lemma wp_Get Ep lpc pc_p pc_b pc_e pc_a lpc_a lw w get_i dst src regs :
-    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
-    lword_get_word lw = w ->
-    laddr_get_addr lpc_a = pc_a ->
-    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
-
-    decodeInstrW w = get_i →
+  Lemma wp_Get Ep pc_p pc_b pc_e pc_a pc_v pca_v lw get_i dst src regs :
+    decodeInstrWL lw = get_i →
     is_Get get_i dst src →
 
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    regs !! PC = Some lpc →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    regs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of get_i ⊆ dom regs →
 
-    {{{ ▷ lpc_a ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
-        ⌜ Get_spec (decodeInstrW w) regs dst src regs' retv ⌝ ∗
-        lpc_a ↦ₐ lw ∗
+        ⌜ Get_spec (decodeInstrWL lw) regs dst src regs' retv ⌝ ∗
+        (pc_a, pca_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hlpc Hlw Hpc_a Hversions Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
-    have ? := lookup_weaken _ _ _ _ HPC Hregs.
+    have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hlpc_a; auto.
     iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg; eauto.
-    2: eapply state_phys_corresponds_mem; eauto.
+    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
 
     unfold exec in Hstep.
 
@@ -203,22 +181,23 @@ Section cap_lang_rules.
     }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
-    destruct (incrementPC (lreg_strip (<[ dst := lz z ]> regs)))
-      as [regs'|] eqn:Hregs'
+    (* TODO is there a way to use incrementPC instead of incrementLPC ? *)
+    destruct (incrementLPC (<[ dst := LInt z ]> regs)) as [regs'|] eqn:Hregs'
     ; pose proof Hregs' as H'regs'; cycle 1.
     { (* Failure: incrementing PC overflows *)
-      apply incrementPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
+      cbn in Hregs'.
+
+      apply incrementLPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
       eapply updatePC_fail_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in Hregs'.
       2: {
-        rewrite lookup_fmap.
-        (* eapply <- fmap_is_Some . *)
-        (* apply lookup_insert_is_Some'. ; eauto. *)
-        admit.
-        }
+        rewrite /lreg_strip lookup_fmap.
+        apply fmap_is_Some.
+        destruct (decide (dst = PC)) ; simplify_map_eq; auto.
+      }
       2: by apply map_fmap_mono; apply insert_mono ; eauto.
       simplify_pair_eq.
       rewrite ( _ :
-         (λ lw : LWord, lword_get_word lw) <$> <[dst:=lz z]> lr = <[dst:=WInt z]> reg
+         (λ lw : LWord, lword_get_word lw) <$> <[dst:=LInt z]> lr = <[dst:=WInt z]> reg
         ) in Hregs'; cycle 1.
       { destruct HLinv as [[Hstrips Hcurreg] _].
         rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto.
@@ -232,32 +211,33 @@ Section cap_lang_rules.
     }
 
 
-    (* Success *)
 
-    eapply (incrementPC_success_updatePC _ mem etable enumcur) in Hregs'
-        as (p' & b' & e' & a'' & a_pc' & HPC'' & Hpc_a' & HuPC & ->).
+    (* Success *)
+    eapply (incrementLPC_success_updatePC _ mem etable enumcur) in Hregs'
+        as (p' & b' & e' & a'' & a_pc' & v' & HPC'' & Hpc_a' & HuPC & ->).
+
+    assert ( dst <> PC ) as Hneq by (intro ; simplify_map_eq).
+    rewrite lookup_insert_ne in HPC''; auto.
+    rewrite HPC'' in HPC.
+    injection HPC ; intros ; subst. clear H7 H8 H9 H10.
+
     eapply updatePC_success_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC.
     2: by apply map_fmap_mono; apply insert_mono ; eauto.
     rewrite ( _ :
-              (λ lw : LWord, lword_get_word lw) <$> <[dst:=lz z]> lr = <[dst:=WInt z]> reg
+              (λ lw : LWord, lword_get_word lw) <$> <[dst:=LInt z]> lr = <[dst:=WInt z]> reg
             ) in HuPC; cycle 1.
     { destruct HLinv as [[Hstrips Hcurreg] _].
       rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto. }
 
-    rewrite HuPC in Hstep.
-    simplify_pair_eq. iFrame.
+    rewrite HuPC in Hstep; simplify_pair_eq.
 
-    assert (exists (v : Version), lword_get_version lpc = Some v) as [v_lpc Hv_lpc].
-    { admit. }
-    set (lpc' := (LWCap (WCap p' b' e' a_pc') p' b' e' a_pc' eq_refl v_lpc)).
-    iMod ((gen_heap_update_inSepM _ _ dst (lz z)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iMod ((gen_heap_update_inSepM _ _ PC lpc') with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    { destruct (decide (PC = dst)); by simplify_map_eq. }
+    iMod ((gen_heap_update_inSepM _ _ dst (LInt z)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC (LCap pc_p pc_b pc_e a_pc' pc_v)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    { destruct (decide (dst = PC)) ; simplify_map_eq; auto. }
     iFrame. iModIntro.
+
     iSplitR "Hφ Hmap Hpc_a"; cycle 1.
     - iApply "Hφ" ; iFrame ; iPureIntro; econstructor; eauto.
-      rewrite /incrementPC HPC'' Hpc_a' /lreg_strip fmap_insert; eauto.
-
     - iExists _, lm, cur_map; iFrame; auto.
       destruct HLinv as [[Hstrips Hcur_reg] HmemInv]; cbn in *.
       iPureIntro; econstructor; eauto.
@@ -266,20 +246,11 @@ Section cap_lang_rules.
       clear HuPC HH Hri Hwsrc Hsrc Hlsrc.
       apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; cbn ; auto].
 
-      set (pc_a := (laddr_get_addr lpc_a)).
-      rewrite (_ :lpc'
-              = LWCap
-                  (WCap pc_p pc_b pc_e (pc_a ^+1)%a)
-                  pc_p pc_b pc_e (pc_a ^+1)%a eq_refl v_lpc).
-      2: admit.
       cbn.
       eapply map_Forall_lookup_1 with (i := PC) in Hcur_reg; eauto.
       rewrite /is_cur_word in Hcur_reg.
-      destruct lpc; simplify_eq ; cbn in Hcur_reg; simplify_eq; cbn in *.
-      simplify_eq.
-      cbn in e0; injection e0 ; intros; subst.
-      by intros ; eapply Hcur_reg.
-  Admitted.
+      eapply Hcur_reg.
+  Qed.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
   Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a w wdst pc_a' z :

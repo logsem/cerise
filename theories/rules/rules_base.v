@@ -437,13 +437,13 @@ Section cap_lang_rules.
   (* Bind Scope expr_scope with language.expr cap_lang. *)
 
   Lemma wp_notCorrectPC:
-    forall E (w : Word) (lw : LWord),
+    forall E (lw : LWord),
       ~ isCorrectLPC lw ->
       {{{ PC ↦ᵣ lw }}}
          Instr Executable @ E
         {{{ RET FailedV; PC ↦ᵣ lw }}}.
   Proof.
-    intros *. intros Hlword Hnpc.
+    intros * Hnpc.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl.
@@ -453,8 +453,10 @@ Section cap_lang_rules.
     iSplit. by iPureIntro; apply normal_always_head_reducible.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
+    (* TODO is there a way to get a logical version of step_fail_inv, if needed ? *)
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
     2: eapply state_phys_corresponds_reg; eauto.
+    2: intro contra; apply isCorrectLPC_isCorrectPC_iff in contra; auto.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hϕ HPC"; last by iApply "Hϕ".
@@ -462,68 +464,45 @@ Section cap_lang_rules.
     iFrame; auto.
   Qed.
 
-  (* TODO see with Lars ->*)
-
-
   (* Subcases for respecitvely permissions and bounds *)
 
-  Lemma wp_notCorrectPC_perm E lpc pc_p pc_b pc_e pc_a :
-      lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
+  Lemma wp_notCorrectPC_perm E pc_p pc_b pc_e pc_a pc_v :
       pc_p ≠ RX ∧ pc_p ≠ RWX →
-      {{{ PC ↦ᵣ lpc}}}
+      {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v }}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hperm φ Hlpc) "HPC Hwp".
-    iApply (wp_notCorrectPC with "[HPC]");
-      [eassumption |apply not_isCorrectPC_perm;eauto|iFrame|].
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]") ; [eapply not_isCorrectLPC_perm; eauto|iFrame|].
     iNext. iIntros "HPC /=".
     by iApply "Hwp".
   Qed.
 
-  Lemma wp_notCorrectPC_range E lpc pc_p pc_b pc_e pc_a :
-      lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
-       ¬ (pc_b <= pc_a < pc_e)%a →
-      {{{ PC ↦ᵣ lpc}}}
+  Lemma wp_notCorrectPC_range E pc_p pc_b pc_e pc_a pc_v :
+    ¬ (pc_b <= pc_a < pc_e)%a →
+    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v }}}
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hperm φ Hlpc) "HPC Hwp".
-    iApply (wp_notCorrectPC with "[HPC]");
-      [eassumption |apply not_isCorrectPC_bounds;eauto|iFrame|].
+    iIntros (Hperm φ) "HPC Hwp".
+    iApply (wp_notCorrectPC with "[HPC]") ; [eapply not_isCorrectLPC_bounds; eauto|iFrame|].
     iNext. iIntros "HPC /=".
     by iApply "Hwp".
   Qed.
 
   (* ----------------------------------- ATOMIC RULES -------------------------------- *)
 
-  (* TODO there are a lot of side condition about the logical part, is there any way
-     to simplify ? Is it still usable in proofs ? *)
-  Lemma wp_halt E lpc pc_p pc_b pc_e pc_a lpc_a lw w :
+  Lemma wp_halt E pc_p pc_b pc_e pc_a pc_v pca_v lw :
 
-    (* lword_get_word lpc = WCap pc_p pc_b pc_e pc_a -> *)
-    (* lword_get_word lw = w -> *)
-    (* laddr_get_addr lpc_a = pc_a -> *)
+    decodeInstrWL lw = Halt →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) ->
 
-    (* TODO I believe that this hyp is a consequence of the state interp invariant because:
-     - inv states that all words in the reg has the current view
-     - in particular, it means that lpc has the current view
-     *)
-    (* lword_get_version lpc = Some (laddr_get_version lpc_a) -> *)
-
-    decodeInstrW w = Halt →
-    isCorrectPC lpc ->
-      (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}
+    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET HaltedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
-
+    {{{ RET HaltedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}.
 
   Proof.
-    intros Hlpc Hlw Hpc_a Hinstr Hvpc.
-    (* intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc. *)
-    (* clear Hversions. *)
+    intros Hinstr Hvpc. apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
@@ -535,8 +514,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg; eauto.
-    2: eapply state_phys_corresponds_mem; eauto.
+    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
@@ -545,21 +524,16 @@ Section cap_lang_rules.
     iFrame; auto.
   Qed.
 
-  Lemma wp_fail E lpc pc_p pc_b pc_e pc_a lpc_a lw w :
+  Lemma wp_fail E pc_p pc_b pc_e pc_a pc_v pca_v lw :
 
-    lword_get_word lpc = WCap pc_p pc_b pc_e pc_a ->
-    lword_get_word lw = w ->
-    laddr_get_addr lpc_a = pc_a ->
-    lword_get_version lpc = Some (laddr_get_version lpc_a) ->
+    decodeInstrWL lw = Fail →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
-    decodeInstrW w = Fail →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}
+    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET FailedV; PC ↦ᵣ lpc ∗ lpc_a ↦ₐ lw }}}.
+    {{{ RET FailedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}.
   Proof.
-    intros Hlpc Hlw Hpc_a Hversions Hinstr Hvpc.
+    intros Hinstr Hvpc. apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
@@ -571,8 +545,8 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg; eauto.
-    2: eapply state_phys_corresponds_mem; eauto.
+    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
@@ -685,7 +659,6 @@ Proof.
     eapply elem_of_subseteq; eauto. }
   exists w. split; auto. eapply lookup_weaken; eauto.
   Qed.
-
 
 (*--- incrementPC ---*)
 
@@ -828,6 +801,7 @@ Tactic Notation "simplify_pair_eq" :=
 
 (*--- incrementLPC ---*)
 
+(* TODO this definition is very tedious to use. Is there a better workaround ? *)
 Program Definition incrementLPC (regs: LReg) : option LReg :=
   match regs !! PC with
   | Some lw =>
@@ -851,6 +825,59 @@ Next Obligation.
 Qed.
 Solve All Obligations with (intros; cbn in * ; simplify_eq ; try(subst wildcard'; intro; discriminate)).
 
+
+(* TODO proofs *)
+Lemma incrementLPC_incrementPC_some regs regs' :
+  incrementLPC regs = Some regs' ->
+  incrementPC (lreg_strip regs) = Some (lreg_strip regs').
+Proof.
+Admitted.
+
+Lemma incrementLPC_incrementPC_none regs :
+  incrementLPC regs = None <->
+    incrementPC (lreg_strip regs) = None.
+Proof.
+  (* intros. *)
+  (* rewrite /incrementPC. *)
+  (* rewrite /lreg_strip lookup_fmap; cbn. *)
+  (* destruct (regs !! PC) as [LX|] eqn:Heq; auto ; rewrite Heq; cbn ; auto. *)
+  (* destruct LX; cycle 1; cbn; destruct w; cbn in e; eauto *)
+  (* ; destruct sb as [? ? ? a' | ] ; cbn in e; eauto; try discriminate. *)
+  (* cbn in e0; injection e0 ; intros ; subst. *)
+  (* destruct (a + 1)%a eqn:Heq'; auto. *)
+  (* exfalso. *)
+  (* rewrite /incrementLPC in H2. *)
+Admitted.
+
+Lemma incrementLPC_fail_updatePC regs m etbl ecur:
+  incrementLPC regs = None ->
+  updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} = None.
+Proof.
+  intro Hincr. apply incrementLPC_incrementPC_none in Hincr.
+  by apply incrementPC_fail_updatePC.
+Qed.
+
+Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
+  incrementLPC regs = Some regs' ->
+  ∃ p b e a a' (v : Version),
+    regs !! PC = Some (LCap p b e a v) ∧
+      (a + 1)%a = Some a' ∧
+      updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} =
+        Some (NextI,
+            {| reg := (<[PC:=WCap p b e a']> (lreg_strip regs));
+              mem := m;
+              etable := etbl ;
+              enumcur := ecur |})
+    ∧ regs' = <[ PC := (LCap p b e a' v) ]> regs.
+Proof.
+  intro Hincr.
+  (* TODO this approach doesn't work, because we lose v *)
+  apply incrementLPC_incrementPC_some in Hincr.
+  eapply (incrementPC_success_updatePC) in Hincr.
+  Unshelve. all: eauto.
+  destruct Hincr as (p & b & e & a & a'& Hregs & Ha' & Hupd & Hregs').
+  exists p, b, e, a, a'. eexists.
+Admitted.
 
 (*----------------------- FIXME TEMPORARY ------------------------------------*)
 (* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using

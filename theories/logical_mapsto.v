@@ -260,11 +260,14 @@ Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at
 Declare Scope LAddr_scope.
 Delimit Scope LAddr_scope with la.
 
+Notation LCap p b e a v := (LWCap (WSealable (SCap p b e a)) p b e a eq_refl v).
+Notation LInt z := (LWNoCap (WInt z) eq_refl).
+Notation LSealRange p b e a := (LWNoCap (WSealable (SSealRange p b e a)) eq_refl).
+Notation LSealedCap o p b e a v := (LWCap (WSealed o (SCap p b e a)) p b e a eq_refl v).
+Notation LSealedSealRange o p b e a := (LWNoCap (WSealable (SSealRange p b e a)) eq_refl).
+
 Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
 Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
-
-
-Definition log_z z : LWord := LWNoCap (WInt z) eq_refl.
 
 Section machine_param.
   Context `{MachineParameters}.
@@ -272,7 +275,7 @@ Section machine_param.
   Definition decodeInstrWL (lw : LWord) :=
     decodeInstrW (lword_get_word lw).
 
-  Definition encodeInstrWL (i : instr) : LWord := log_z (encodeInstr i).
+  Definition encodeInstrWL (i : instr) : LWord := LInt (encodeInstr i).
 
   Lemma decode_encode_instrLW_inv (i: instr):
     decodeInstrWL (encodeInstrWL i) = i.
@@ -289,3 +292,41 @@ Inductive isCorrectLPC: LWord → Prop :=
   lword_get_word lpc = (WCap p b e a) ->
   isCorrectPC (WCap p b e a) ->
   isCorrectLPC lpc.
+
+  Lemma isCorrectLPC_isCorrectPC :
+    forall lw, isCorrectLPC lw -> isCorrectPC (lword_get_word lw).
+  Proof.
+    intros lw Hcorrect.
+    destruct lw; inv Hcorrect; cbn in *; subst; auto.
+  Qed.
+
+  Lemma isCorrectPC_isCorrectLPC :
+    forall lw, isCorrectPC (lword_get_word lw) -> isCorrectLPC lw.
+  Proof.
+    intros lw Hcorrect.
+    destruct lw; inv Hcorrect; cbn in *; subst; auto.
+    econstructor; cbn; eauto; constructor; auto.
+    cbn in e; discriminate.
+  Qed.
+
+  Lemma isCorrectLPC_isCorrectPC_iff :
+    forall lw, isCorrectLPC lw <-> isCorrectPC (lword_get_word lw).
+  Proof.
+    intros; split ; [apply isCorrectLPC_isCorrectPC | apply isCorrectPC_isCorrectLPC].
+  Qed.
+
+  Lemma not_isCorrectLPC_perm p b e a v :
+    p ≠ RX ∧ p ≠ RWX → ¬ isCorrectLPC (LCap p b e a v).
+  Proof.
+    intros.
+    intro contra ; apply isCorrectLPC_isCorrectPC_iff in contra ; simpl in contra.
+    apply not_isCorrectPC_perm in contra;auto.
+  Qed.
+
+  Lemma not_isCorrectLPC_bounds p b e a v :
+    ¬ (b <= a < e)%a → ¬ isCorrectLPC (LCap p b e a v).
+  Proof.
+    intros.
+    intro contra ; apply isCorrectLPC_isCorrectPC_iff in contra ; simpl in contra.
+    apply not_isCorrectPC_bounds in contra;auto.
+  Qed.
