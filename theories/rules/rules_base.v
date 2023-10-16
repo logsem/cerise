@@ -823,8 +823,7 @@ Next Obligation.
   injection ne; intros ; subst.
   rewrite (_: (a' ^+ 1)%a = a''); solve_addr.
 Qed.
-Solve All Obligations with (intros; cbn in * ; simplify_eq ; try(subst wildcard'; intro; discriminate)).
-
+Solve All Obligations with (intros; cbn in * ; simplify_eq ; try(subst wildcard'; intro ; discriminate)).
 
 (* TODO proofs *)
 Lemma incrementLPC_incrementPC_some regs regs' :
@@ -856,6 +855,40 @@ Proof.
   intro Hincr. apply incrementLPC_incrementPC_none in Hincr.
   by apply incrementPC_fail_updatePC.
 Qed.
+
+(* TODO *)
+Lemma incrementLPC_Some_inv regs regs' :
+  incrementLPC regs = Some regs' ->
+  exists p b e a a' v,
+    regs !! PC = Some (LCap p b e a v) ∧
+      (a + 1)%a = Some a' ∧
+      regs' = <[ PC := (LCap p b e a' v) ]> regs.
+Proof.
+  (* unfold incrementPC. *)
+  (* destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] | ]; *)
+  (*   try congruence. *)
+  (* case_eq (u+1)%a; try congruence. intros ? ?. inversion 1. *)
+  (* do 5 eexists. split; eauto. *)
+Admitted.
+
+Lemma incrementLPC_None_inv regs pg b e a v :
+  incrementLPC regs = None ->
+  regs !! PC = Some (LCap pg b e a v) ->
+  (a + 1)%a = None.
+Proof.
+  (* unfold incrementPC. *)
+  (* destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] |]; *)
+  (*   try congruence. *)
+  (* case_eq (u+1)%a; congruence. *)
+Admitted.
+
+Ltac incrementLPC_inv :=
+  match goal with
+  | H : incrementLPC _ = Some _ |- _ =>
+    apply incrementLPC_Some_inv in H as (?&?&?&?&?&?&?&?&?)
+  | H : incrementLPC _ = None |- _ =>
+    eapply incrementLPC_None_inv in H
+  end; simplify_eq.
 
 Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
   incrementLPC regs = Some regs' ->

@@ -203,6 +203,24 @@ Proof.
     ; eapply (cur_word_cur_addr _ p b e); eauto.
 Qed.
 
+Lemma reg_phys_log_get_word phr lr cur_map r lw:
+  reg_phys_log_corresponds phr lr cur_map  ->
+  lr !! r = Some lw ->
+  phr !! r = Some (lword_get_word lw).
+Proof.
+  intros [<- Hcurreg] Hlr.
+  unfold lreg_strip.
+  apply lookup_fmap_Some. eexists; eauto.
+Qed.
+
+Lemma state_phys_log_get_word phr mem lr lm cur_map r lw:
+  state_phys_log_corresponds phr mem lr lm cur_map  ->
+  lr !! r = Some lw ->
+  phr !! r = Some (lword_get_word lw).
+Proof.
+  intros [Hreg _] ? ; eapply reg_phys_log_get_word ; eauto.
+Qed.
+
 Lemma version_addr_reg reg lr cur_map wr r p b e a la:
   reg_phys_log_corresponds reg lr cur_map ->
   lword_get_word wr = WCap p b e a ->
@@ -329,4 +347,11 @@ Inductive isCorrectLPC: LWord → Prop :=
     intros.
     intro contra ; apply isCorrectLPC_isCorrectPC_iff in contra ; simpl in contra.
     apply not_isCorrectPC_bounds in contra;auto.
+  Qed.
+
+  Lemma lreg_lookup regs (r : RegName) (lw : LWord) :
+    regs !! r = Some lw -> (lreg_strip regs !! r) = Some (lword_get_word lw).
+  Proof.
+    rewrite /lreg_strip lookup_fmap ; intros.
+    by rewrite H; cbn.
   Qed.
