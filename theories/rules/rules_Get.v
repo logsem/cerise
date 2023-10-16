@@ -140,8 +140,8 @@ Section cap_lang_rules.
     (* Extract information about physical words in src and dst *)
     set (wsrc := lword_get_word lwsrc).
     set (wdst := lword_get_word lwdst).
-    assert ( reg !! src = Some wsrc ) as Hsrc by (eapply state_phys_log_get_word ; eauto).
-    assert ( reg !! dst = Some wdst ) as Hdst by (eapply state_phys_log_get_word ; eauto).
+    assert ( reg !! src = Some wsrc ) as Hsrc by (eapply state_phys_log_reg_get_word ; eauto).
+    assert ( reg !! dst = Some wdst ) as Hdst by (eapply state_phys_log_reg_get_word ; eauto).
 
     destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
     2 : { (* Failure: src is not of the right word type *)

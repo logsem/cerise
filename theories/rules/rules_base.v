@@ -801,6 +801,21 @@ Tactic Notation "simplify_pair_eq" :=
 
 (*--- incrementLPC ---*)
 
+(* Inductive isIncrementLPC : LReg -> option LReg -> Prop := *)
+(* | incrementLPC_Some : forall lregs opt_lregs' lregs' regs' lpc lpc', *)
+(*     opt_lregs' = Some lregs' -> *)
+(*     incrementPC (lreg_strip lregs) = Some regs' -> *)
+(*     (lreg_strip lregs') = regs' -> *)
+(*     lregs !! PC = Some lpc -> *)
+(*     lregs' !! PC = Some lpc' -> *)
+(*     lword_get_version lpc = lword_get_version lpc' -> *)
+(*     isIncrementLPC lregs opt_lregs' *)
+(* | incrementLPC_None : forall lregs opt_lregs', *)
+(*     opt_lregs' = None -> *)
+(*     incrementPC (lreg_strip lregs) = None -> *)
+(*     isIncrementLPC lregs opt_lregs'. *)
+
+
 (* TODO this definition is very tedious to use. Is there a better workaround ? *)
 Program Definition incrementLPC (regs: LReg) : option LReg :=
   match regs !! PC with

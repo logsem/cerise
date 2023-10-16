@@ -46,6 +46,28 @@ Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
       (* cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*) *)
   | LWNoCap _ _ => True end.
 
+Definition is_lcap (lw : LWord) : bool :=
+  match lw with
+  | LWCap (WSealable _) _ _ _ _ _ _ => true
+  | _ => false
+  end.
+
+Lemma is_lcap_is_cap_true_iff lw : is_lcap lw = true <-> is_cap (lword_get_word lw) = true.
+Proof.
+  split; intros
+  ; destruct lw; cbn in *; try congruence
+  ; destruct w; cbn in *; try congruence
+  ; destruct sb; cbn in *; try congruence.
+Qed.
+
+Lemma is_lcap_is_cap_false_iff lw : is_lcap lw = false <-> is_cap (lword_get_word lw) = false.
+Proof.
+  split; intros
+  ; destruct lw; cbn in *; try congruence
+  ; destruct w; cbn in *; try congruence
+  ; destruct sb; cbn in *; try congruence.
+Qed.
+
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds to the
     the logical register file `lr`, according to the view map `cur_map` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
@@ -213,12 +235,45 @@ Proof.
   apply lookup_fmap_Some. eexists; eauto.
 Qed.
 
-Lemma state_phys_log_get_word phr mem lr lm cur_map r lw:
+Lemma mem_phys_log_get_word phm lm cur_map a v lw:
+  mem_phys_log_corresponds phm lm cur_map  ->
+  lm !! (a, v) = Some lw ->
+  phm !! a = Some (lword_get_word lw).
+Proof.
+  intros [Hdom Hroot] Hlm.
+  eapply map_Forall_lookup_1 in Hdom; eauto. cbn in Hdom.
+  destruct Hdom as (lw' & Hlw' & Hphm & _).
+  rewrite Hlm in Hlw'. rewrite Hphm.
+  injection Hlw'; intros -> ; auto.
+Qed.
+
+Lemma mem_phys_log_current_word phm lm cur_map a v lw:
+  mem_phys_log_corresponds phm lm cur_map  ->
+  lm !! (a, v) = Some lw ->
+  is_cur_word lw cur_map.
+Proof.
+  intros [Hdom Hroot] Hlm.
+  eapply map_Forall_lookup_1 in Hdom; eauto. cbn in Hdom.
+  destruct Hdom as (lw' & Hlw' & _ & Hcur).
+  rewrite Hlm in Hlw'.
+  injection Hlw'; intros -> ; auto.
+Qed.
+
+
+Lemma state_phys_log_reg_get_word phr mem lr lm cur_map r lw:
   state_phys_log_corresponds phr mem lr lm cur_map  ->
   lr !! r = Some lw ->
   phr !! r = Some (lword_get_word lw).
 Proof.
   intros [Hreg _] ? ; eapply reg_phys_log_get_word ; eauto.
+Qed.
+
+Lemma state_phys_log_mem_get_word phr phm lr lm cur_map a v lw:
+  state_phys_log_corresponds phr phm lr lm cur_map  ->
+  lm !! (a, v) = Some lw ->
+  phm !! a = Some (lword_get_word lw).
+Proof.
+  intros [_ Hmem] ? ; eapply mem_phys_log_get_word ; eauto.
 Qed.
 
 Lemma version_addr_reg reg lr cur_map wr r p b e a la:
