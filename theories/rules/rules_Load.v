@@ -13,10 +13,11 @@ Section cap_lang_rules.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
   Implicit Types v : Version.
-  Implicit Types w : Word.
-  Implicit Types lw : LWord.
-  Implicit Types reg : gmap RegName Word.
-  Implicit Types ms : gmap Addr Word.
+  Implicit Types lw: LWord.
+  Implicit Types reg : Reg.
+  Implicit Types lregs : LReg.
+  Implicit Types mem : Mem.
+  Implicit Types lmem : LMem.
 
   Definition reg_allows_load (lregs : LReg) (r : RegName) p b e a v :=
     lregs !! r = Some (LCap p b e a v) ∧
@@ -52,12 +53,6 @@ Section cap_lang_rules.
   | Load_spec_failure :
     Load_failure lregs r1 r2 lmem ->
     Load_spec lregs r1 r2 lregs' lmem FailedV.
-
-  Definition read_reg_inr (lregs : LReg) (r : RegName) p b e a v :=
-    match lregs !! r with
-      | Some (LCap p' b' e' a' v') => (LCap p' b' e' a' v') = LCap p b e a v
-      | Some _ => True
-      | None => False end.
 
   Definition allow_load_map_or_true r (lregs : LReg) (lmem : LMem):=
     ∃ p b e a v, read_reg_inr lregs r p b e a v ∧
@@ -96,9 +91,8 @@ Section cap_lang_rules.
       exists lw. simplify_map_eq. auto.
   Qed.
 
-  (* TODO do we need v and pca_v to be different ? *)
   Lemma mem_neq_implies_allow_load_map:
-    ∀ (lregs : LReg)(lmem : LMem)(r2 : RegName) (pc_a : Addr) (pca_v : Version)
+    ∀ (lregs : LReg) (lmem : LMem) (r2 : RegName) (pc_a : Addr) (pca_v : Version)
       (lw lw' : LWord) p b e a v,
       (a ≠ pc_a \/ v <> pca_v)
       → lmem = <[(pc_a, pca_v):= lw]> (<[(a, v) := lw']> ∅)
@@ -123,7 +117,7 @@ Section cap_lang_rules.
       → allow_load_map_or_true r2 lregs lmem.
   Proof.
     intros lregs lmem r2 pc_a pca_v lw lw' p b e a v H4 Hrr2.
-    destruct ((a,v ) =? (pc_a, pca_v))%la eqn:Heq; cbn in Heq.
+    destruct ((a,v) =? (pc_a, pca_v))%la eqn:Heq; cbn in Heq.
       + apply andb_true_iff in Heq. destruct Heq as [Heq1 Heq2].
         apply Z.eqb_eq, finz_to_z_eq in Heq1. subst a.
         apply Nat.eqb_eq in Heq2. subst v.
@@ -132,10 +126,6 @@ Section cap_lang_rules.
       ; [ apply Z.eqb_neq in Heq |  apply Nat.eqb_neq in Heq ]
       ; eapply (mem_neq_implies_allow_load_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto.
         left ; solve_addr.
-        * apply Z.eqb_neq in Heq.
-          eapply (mem_neq_implies_allow_load_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto.
-        * apply Nat.eqb_neq in Heq.
-          eapply (mem_neq_implies_allow_load_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto.
   Qed.
 
   Lemma mem_implies_loadv:
@@ -158,9 +148,36 @@ Section cap_lang_rules.
       ; rewrite lookup_insert_ne in H6; try congruence; try by simplify_map_eq.
   Qed.
 
-  Lemma wp_load Ep
-     pc_p pc_b pc_e pc_a pc_v pca_v
-     r1 r2 lw lmem lregs :
+  (* Lemma gen_heap_valid_inclSepM_dq: *)
+  (*   ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L) *)
+  (*     (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ) *)
+  (*     (σ σ' : gmap L V) (q : Qp), *)
+  (*     gen_heap_interp σ -∗ *)
+  (*     ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗ *)
+  (*     ⌜σ' ⊆ σ⌝. *)
+  (* Proof. *)
+  (*   intros *. iIntros "Hσ Hmap". *)
+  (*   iDestruct (gen_heap_valid_inSepM' with "Hσ Hmap") as "#H". *)
+  (*   iDestruct "H" as %Hincl. iPureIntro. intro l. *)
+  (*   unfold option_relation. *)
+  (*   destruct (σ' !! l) eqn:HH'; destruct (σ !! l) eqn:HH; naive_solver. *)
+  (* Qed. *)
+
+  (* TODO generalize *)
+ Lemma prod_merge_snd_inv
+   (dfracs : LDFrac) (lmem : LMem) :
+   fmap snd (prod_merge dfracs lmem) = lmem.
+ Admitted.
+
+ Lemma lookup_prod_merge_snd
+   (dfracs : LDFrac) (lmem : LMem) a v dq lw :
+   prod_merge dfracs lmem !! (a, v) = Some (dq, lw) ->
+   lmem !! (a, v) = Some lw.
+ Admitted.
+
+  Lemma wp_load_general Ep
+    pc_p pc_b pc_e pc_a pc_v pca_v
+    r1 r2 lw (lmem : LMem) (dfracs : LDFrac) lregs :
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -168,22 +185,24 @@ Section cap_lang_rules.
 
     lmem !! (pc_a, pca_v) = Some lw →
     allow_load_map_or_true r2 lregs lmem →
+    dom lmem = dom dfracs →
 
-    {{{ (▷ [∗ map] a↦lw ∈ lmem, a ↦ₐ lw) ∗
+    {{{ (▷ [∗ map] la↦dw ∈ prod_merge dfracs lmem, la ↦ₐ{dw.1} dw.2) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
       {{{ lregs' retv, RET retv;
           ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
-            ([∗ map] a↦lw ∈ lmem, a ↦ₐ lw) ∗
-         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
+            ([∗ map] la↦dw ∈ prod_merge dfracs lmem, la ↦ₐ{dw.1} dw.2) ∗
+            [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad φ) "(>Hmem & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad Hdomeq φ) "(>Hmem & >Hmap) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    iDestruct (gen_heap_valid_inclSepM with "Hm Hmem") as %Hmem.
+    iDestruct (gen_heap_valid_inclSepM_general with "Hm Hmem") as %Hmem.
+    rewrite prod_merge_snd_inv in Hmem.
 
     (* Derive necessary register values in r *)
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
@@ -191,7 +210,11 @@ Section cap_lang_rules.
     feed destruct (Hri r2) as [lr2v [Hlr'2 Hlr2]]. by set_solver+.
     feed destruct (Hri r1) as [lr1v [Hlr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
-    iDestruct (@gen_heap_valid_inSepM with "Hm Hmem") as %Hlpc_a ; eauto.
+    assert (is_Some (dfracs !! (pc_a, pca_v))) as [dq Hdq].
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
+    assert (prod_merge dfracs lmem !! (pc_a, pca_v) = Some (dq,lw)) as Hmem_dpc.
+    { rewrite lookup_merge Hmem_pc Hdq //. }
+    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs lmem) lm with "Hm Hmem") as %Hma; eauto.
 
     iModIntro.
     iSplitR. by iPureIntro; apply normal_always_head_reducible.
@@ -211,8 +234,7 @@ Section cap_lang_rules.
     2:{ (* Failure: r2 is not a capability *)
       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
       {
-        (* apply is_log_cap_is_cap_false_iff in Hlr2v. *)
-        apply is_is_log_cap_is_cap_false_iff in Hlr2v.
+        apply is_log_cap_is_cap_false_iff in Hlr2v.
         subst lrw2; cbn in *.
         destruct_lword lr2v; cbn in * ; try by simplify_pair_eq.
       }
@@ -238,11 +260,16 @@ Section cap_lang_rules.
 
     (* Prove that a is in the memory map now, otherwise we cannot continue *)
     pose proof (allow_load_implies_loadv r2 lmem lregs p b e a v) as (loadv & Hmema); auto.
-    iDestruct (@gen_heap_valid_inSepM with "Hm Hmem") as %Hma' ; eauto.
-    assert ( mem !! a = Some (lword_get_word loadv) ) as Hma
+
+    assert (is_Some (dfracs !! (a, v))) as [dq' Hdq'].
+    { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
+    assert (prod_merge dfracs lmem !! (a, v) = Some (dq',loadv)) as Hmemadq.
+    { rewrite lookup_merge Hmema Hdq' //. }
+    iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs lmem) lm (a, v) loadv with "Hm Hmem" ) as %Hma' ; eauto.
+    assert ( mem !! a = Some (lword_get_word loadv) ) as Hma2
         by (eapply state_phys_log_mem_get_word ; eauto).
 
-    rewrite Hma /= in Hstep.
+    rewrite Hma2 /= in Hstep.
     rewrite /update_reg /= in Hstep.
     destruct (incrementLPC (<[ r1 := loadv ]> lregs)) as  [ lregs' |] eqn:Hlregs'
     ; pose proof Hlregs' as H'lregs'.
@@ -294,7 +321,8 @@ Section cap_lang_rules.
     ; try (by destruct (decide (r1 = PC)) ; simplify_map_eq; auto).
     all: iFrame; iModIntro
     ; iSplitR "Hφ Hmap Hmem"
-    ; [|iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto; rewrite /reg_allows_load; eauto].
+    ; [|iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto
+        ; rewrite /reg_allows_load; eauto ; eapply lookup_prod_merge_snd ; eauto].
     all: iExists _, lm, cur_map; iFrame; auto
     ; iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
@@ -304,11 +332,11 @@ Section cap_lang_rules.
     - apply map_Forall_insert_2; auto.
       destruct HmemInv as [Hdom Hroot].
       eapply map_Forall_lookup_1 with (i := (a,v)) in Hdom ; eauto.
-      2: eapply lookup_weaken; eauto.
       eapply map_Forall_lookup_1 with (i := a) in Hroot ; eauto.
-      destruct Hroot as (lw' & ? & Hma' & Hcur').
-      rewrite Hma in Hma' ; simplify_eq.
+      destruct Hroot as (lw' & ? & Hma'' & Hcur').
+      rewrite Hma2 in Hma'' ; simplify_eq.
       destruct_lword lw'; cbn in * ; simplify_eq.
+      eapply lookup_prod_merge_snd in Hmemadq.
       eapply lookup_weaken_inv in Hmem; eauto; simplify_eq.
       auto.
     - clear Hlr'1 Hlr'2.
@@ -321,65 +349,67 @@ Section cap_lang_rules.
       eapply mem_phys_log_current_word; eauto ; eapply lookup_weaken; eauto.
   Qed.
 
-  (* TODO: move to stdpp_extra *)
-  Lemma create_gmap_default_lookup_None {K V : Type} `{Countable K}
-      (l : list K) (d : V) (k : K) :
-    k ∉ l →
-    (create_gmap_default l d) !! k = None.
+  Lemma wp_load Ep
+    pc_p pc_b pc_e pc_a pc_v pca_v
+    r1 r2 lw lmem lregs dq :
+    decodeInstrWL lw = Load r1 r2 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
+    regs_of (Load r1 r2) ⊆ dom lregs →
+    lmem !! (pc_a, pca_v) = Some lw →
+    allow_load_map_or_true r2 lregs lmem →
+    {{{ (▷ [∗ map] a↦w ∈ lmem, a ↦ₐ{dq} w) ∗
+          ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+      {{{ lregs' retv, RET retv;
+          ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
+            ([∗ map] a↦w ∈ lmem, a ↦ₐ{dq} w) ∗
+            [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-    intros Hk.
-    induction l;auto.
-    simpl. apply not_elem_of_cons in Hk as [Hne Hk].
-    rewrite lookup_insert_ne//. apply IHl. auto.
-  Qed.
-  Lemma create_gmap_default_permutation {K V : Type} `{Countable K}
-      (l l' : list K) (d : V) :
-    l ≡ₚl' →
-    (create_gmap_default l d) = (create_gmap_default l' d).
-  Proof.
-    intros Hperm.
-    apply map_eq. intros k.
-    destruct (decide (k ∈ l)).
-    - assert (k ∈ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup _ d) in e as ->.
-      apply (create_gmap_default_lookup _ d) in e' as ->. auto.
-    - assert (k ∉ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup_None _ d) in n as ->.
-      apply (create_gmap_default_lookup_None _ d) in e' as ->. auto.
+    intros. iIntros "[Hmem Hreg] Hφ".
+    iDestruct (mem_remove_dq with "Hmem") as "Hmem".
+    iApply (wp_load_general with "[$Hmem $Hreg]");eauto.
+    { rewrite create_gmap_default_dom list_to_set_elements_L. auto. }
+    iNext. iIntros (? ?) "(?&Hmem&?)". iApply "Hφ". iFrame.
+    iDestruct (mem_remove_dq with "Hmem") as "Hmem". iFrame.
   Qed.
 
   Lemma wp_load_success
     E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v
-    lw lw' lw'' p b e a v pc_a' :
+    lw lw' lw'' p b e a v pc_a' dq dq' :
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
           ∗ ▷ r1 ↦ᵣ lw''
           ∗ ▷ r2 ↦ᵣ LCap p b e a v
-          ∗ (if ((a, v) =? (pc_a, pca_v))%la then emp else ▷ (a, v) ↦ₐ lw') }}}
+          ∗ (if ((a, v) =? (pc_a, pca_v))%la then emp else ▷ (a, v) ↦ₐ{dq'} lw') }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
              ∗ r1 ↦ᵣ (if ((a, v) =? (pc_a, pca_v))%la then lw else lw')
-             ∗ (pc_a, pca_v) ↦ₐ lw
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw
              ∗ r2 ↦ᵣ LCap p b e a v
-             ∗ (if ((a, v) =? (pc_a, pca_v))%la then emp else (a, v) ↦ₐ lw') }}}.
+             ∗ (if ((a, v) =? (pc_a, pca_v))%la then emp else (a, v) ↦ₐ{dq'} lw') }}}.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ)
             "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
-    iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ la lw, la ↦ₐ lw)%I with "Hi Hr2a") as (mem) "[>Hmem Hmem']".
-    iDestruct "Hmem'" as %Hmem; cbn in *.
 
-    iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr2a") as (lmem dfracs) "[>Hmem Hmem']".
+    (* iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ la lw, la ↦ₐ lw)%I with "Hi Hr2a") as (mem) "[>Hmem Hmem']". *)
+    iDestruct "Hmem'" as %[Hmem Hdfracs] ; cbn in *.
+
+    iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { destruct ((a =? pc_a)%Z && (v =? pca_v)); by simplify_map_eq. }
     { eapply mem_implies_allow_load_map; eauto.
-      destruct ((a =? pc_a)%Z && (v =? pca_v)) eqn:Heq; by simplify_map_eq. }
+      destruct ((a =? pc_a)%Z && (v =? pca_v)) eqn:Heq ; simplify_map_eq; eauto. }
+    { destruct ((a =? pc_a)%Z && (v =? pca_v)); simplify_eq
+     ; subst ; rewrite !dom_insert_L;set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
@@ -387,10 +417,10 @@ Section cap_lang_rules.
      { (* Success *)
        (* FIXME: fragile *)
        destruct H5 as [Hrr2 _]. simplify_map_eq.
-       iDestruct (memMap_resource_2gen_d with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
-       { iExists mem; iSplitL; eauto.
+       iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
+       { iExists lmem,dfracs; iSplitL; eauto.
          iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pca_v).
-         eapply Hmem.
+         split ; eauto.
        }
        incrementLPC_inv.
        pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem H6) as Hloadv; eauto.
@@ -403,24 +433,25 @@ Section cap_lang_rules.
        destruct o. all: congruence. }
   Qed.
 
-  Lemma wp_load_success_notinstr E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw' lw'' p b e a v pc_a':
+  Lemma wp_load_success_notinstr E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw'
+    lw'' p b e a v pc_a' dq dq':
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     readAllowed p = true ∧ withinBounds b e a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
           ∗ ▷ r1 ↦ᵣ lw''
           ∗ ▷ r2 ↦ᵣ LCap p b e a v
-          ∗ ▷ (a,v) ↦ₐ lw' }}}
+          ∗ ▷ (a,v) ↦ₐ{dq'} lw' }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
              ∗ r1 ↦ᵣ lw'
-             ∗ (pc_a, pca_v) ↦ₐ lw
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw
              ∗ r2 ↦ᵣ LCap p b e a v
-             ∗ (a,v) ↦ₐ lw' }}}.
+             ∗ (a,v) ↦ₐ{dq'} lw' }}}.
   Proof.
     intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Hr2 & >Ha)".
     destruct ((a =? pc_a)%Z && (v =? pca_v)) eqn:Ha.
@@ -440,24 +471,25 @@ Section cap_lang_rules.
     }
     iIntros "Hφ". iApply (wp_load_success with "[$HPC $Hpc_a $Hr1 $Hr2 Ha]"); eauto.
     rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ? & ?)". rewrite Ha.
-    iApply "Hφ". iFrame. Unshelve. apply (LInt 0).
+    iApply "Hφ". iFrame. Unshelve. apply (LInt 0). apply DfracDiscarded.
   Qed.
 
-  Lemma wp_load_success_frominstr E r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw'' p b e v pc_a':
+  Lemma wp_load_success_frominstr E r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw'' p b e
+    v pc_a' dq:
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     readAllowed p = true ∧ withinBounds b e pc_a = true →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pc_v) ↦ₐ{dq} lw
           ∗ ▷ r1 ↦ᵣ lw''
           ∗ ▷ r2 ↦ᵣ LCap p b e pc_a pc_v }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
              ∗ r1 ↦ᵣ lw
-             ∗ (pc_a, pc_v) ↦ₐ lw
+             ∗ (pc_a, pc_v) ↦ₐ{dq} lw
              ∗ r2 ↦ᵣ LCap p b e pc_a pc_v }}}.
   Proof.
     intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Hr2)".
@@ -467,56 +499,63 @@ Section cap_lang_rules.
     iApply "Hφ". iFrame. Unshelve. all: eauto.
   Qed.
 
+  Lemma wp_load_success_same E r1 pc_p pc_b pc_e pc_a pc_v pca_v lw lw' lw'' p b e a v pc_a' dq dq' :
+    decodeInstrWL lw = Load r1 r1 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true →
+    withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
+          ∗ ▷ r1 ↦ᵣ LCap p b e a v
+          ∗ (if ((a =? pc_a)%Z && (v =? pca_v)) then emp else ▷ (a, v) ↦ₐ{dq'} lw') }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+             ∗ r1 ↦ᵣ (if ((a =? pc_a)%Z && (v =? pca_v)) then lw else lw')
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw
+             ∗ (if ((a =? pc_a)%Z && (v =? pca_v)) then emp else ▷ (a, v) ↦ₐ{dq'} lw') }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hra Hwb Hpca' φ)
+            "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
+    iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr1a") as
+        (lmem dfracs) "[>Hmem Hmem']".
+    iDestruct "Hmem'" as %[Hmem Hfracs].
+
+    iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { destruct ((a =? pc_a)%Z && (v =? pca_v)); by simplify_map_eq. }
+    { eapply mem_implies_allow_load_map; eauto.
+      destruct ((a =? pc_a)%Z && (v =? pca_v)) eqn:Heq ; simplify_map_eq; eauto. }
+    { destruct ((a =? pc_a)%Z && (v =? pca_v)); simplify_eq
+     ; subst ; rewrite !dom_insert_L;set_solver+. }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec as [ | * Hfail ].
+     { (* Success *)
+       iApply "Hφ".
+       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
+       { iExists lmem,dfracs; iSplitL; eauto.
+         iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pca_v).
+         split ; eauto.
+       }
+       incrementLPC_inv.
+       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem H4) as Hloadv; eauto.
+       simplify_map_eq.
+       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame.
+       destruct ((a0 =? x2)%Z && (v0 =? pca_v)); iFrame.
+     }
+     { (* Failure (contradiction) *)
+       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+       destruct o. all: congruence. }
+    Qed.
+
   (* TODO not useful without automation *)
-
-  (* Lemma wp_load_success_same E r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' dq dq' : *)
-  (*   decodeInstrW w = Load r1 r1 → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-  (*   readAllowed p = true → *)
-  (*   withinBounds b e a = true → *)
-  (*   (pc_a + 1)%a = Some pc_a' → *)
-
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*         ∗ ▷ pc_a ↦ₐ{dq} w *)
-  (*         ∗ ▷ r1 ↦ᵣ WCap p b e a *)
-  (*         ∗ (if (a =? pc_a)%a then emp else ▷ a ↦ₐ{dq'} w') }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET NextIV; *)
-  (*         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a' *)
-  (*            ∗ r1 ↦ᵣ (if (a =? pc_a)%a then w else w') *)
-  (*            ∗ pc_a ↦ₐ{dq} w *)
-  (*            ∗ (if (a =? pc_a)%a then emp else a ↦ₐ{dq'} w') }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hinstr Hvpc Hra Hwb Hpca' φ) *)
-  (*           "(>HPC & >Hi & >Hr1 & Hr1a) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]". *)
-  (*   iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ a dq w, a ↦ₐ{dq} w)%I with "Hi Hr1a") as *)
-  (*       (mem dfracs) "[>Hmem Hmem']". *)
-  (*   iDestruct "Hmem'" as %[Hmem Hfracs]. *)
-
-  (*   iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto. *)
-  (*   { by rewrite !dom_insert; set_solver+. } *)
-  (*   { destruct (a =? pc_a)%a; by simplify_map_eq. } *)
-  (*   { eapply mem_implies_allow_load_map; eauto. by simplify_map_eq. } *)
-  (*   { destruct (a =? pc_a)%a; by set_solver. } *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)". *)
-  (*   iDestruct "Hspec" as %Hspec. *)
-
-  (*   destruct Hspec as [ | * Hfail ]. *)
-  (*    { (* Success *) *)
-  (*      iApply "Hφ". *)
-  (*      destruct H3 as [Hrr2 _]. simplify_map_eq. *)
-  (*      iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]". *)
-  (*      {iExists mem,dfracs; iSplitL; auto. } *)
-  (*      incrementPC_inv. *)
-  (*      pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H4) as Hloadv; eauto. *)
-  (*      simplify_map_eq. *)
-  (*      rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert. *)
-  (*      iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. } *)
-  (*    { (* Failure (contradiction) *) *)
-  (*      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*      destruct o. all: congruence. } *)
-  (*   Qed. *)
 
   (* Lemma wp_load_success_same_notinstr E r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' dq dq' : *)
   (*   decodeInstrW w = Load r1 r1 → *)

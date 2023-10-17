@@ -78,6 +78,7 @@ Proof. solve_decision. Qed.
 Definition VMap : Type := gmap Addr Version.
 Definition LReg := gmap RegName LWord.
 Definition LMem := gmap LAddr LWord.
+Definition LDFrac := gmap LAddr iris.algebra.dfrac.dfrac.
 
 Definition lreg_strip (lr : LReg) : Reg :=
  (fun lw : LWord => lword_get_word lw) <$> lr.
@@ -329,6 +330,11 @@ Proof.
   intros [_ Hmem] ? ; eapply mem_phys_log_get_word ; eauto.
 Qed.
 
+Definition lword_of_argument (lregs: LReg) (a: Z + RegName): option LWord :=
+  match a with
+  | inl n => Some (LInt n)
+  | inr r => lregs !! r
+  end.
 
 Ltac destruct_lword lw :=
   let z := fresh "z" in
@@ -466,4 +472,27 @@ Inductive isCorrectLPC: LWord → Prop :=
   Proof.
     rewrite /lreg_strip lookup_fmap ; intros.
     by rewrite H; cbn.
+  Qed.
+
+
+  Lemma laddr_neq (la1 la2 : LAddr) :
+    (la2.1 =? la1.1)%Z && (la2.2 =? la1.2) = false ->
+    la1 <> la2.
+  Proof.
+    intros Hneq.
+    apply andb_false_iff in Hneq
+    ; destruct Hneq as [Hneq | Hneq]
+    ; [ apply Z.eqb_neq in Hneq | apply Nat.eqb_neq in Hneq ]
+    ; congruence.
+  Qed.
+
+  Lemma laddr_neq' (a1 : Addr) (v1 : Version) (a2 : Addr) (v2 : Version) :
+    (a1 =? a2)%Z && (v1 =? v2) = false ->
+    (a1, v1) <> (a2, v2).
+  Proof.
+    intros Hneq.
+    apply andb_false_iff in Hneq
+    ; destruct Hneq as [Hneq | Hneq]
+    ; [ apply Z.eqb_neq in Hneq | apply Nat.eqb_neq in Hneq ]
+    ; congruence.
   Qed.
