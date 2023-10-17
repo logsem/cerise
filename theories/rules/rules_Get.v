@@ -207,8 +207,7 @@ Section cap_lang_rules.
 
     assert ( dst <> PC ) as Hneq by (intro ; simplify_map_eq).
     rewrite lookup_insert_ne in HPC''; auto.
-    rewrite HPC'' in HPC.
-    injection HPC ; intros ; subst. clear H7 H8 H9 H10.
+    rewrite HPC'' in HPC; simplify_eq.
 
     eapply updatePC_success_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC.
     2: by apply map_fmap_mono; apply insert_mono ; eauto.
@@ -269,7 +268,6 @@ Section cap_lang_rules.
     { (* Success *)
       iApply "Hφ". iFrame.
       incrementLPC_inv; simplify_map_eq.
-      injection H5; intros ; simplify_eq.
       rewrite insert_commute // insert_insert insert_commute // insert_insert.
       iDestruct (regs_of_map_2 with "Hmap") as "[? ?]"; eauto; iFrame.
     }
@@ -302,7 +300,6 @@ Section cap_lang_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
-      injection H5; intros ; simplify_eq.
       rewrite insert_commute // insert_insert insert_commute // insert_insert.
       iDestruct (regs_of_map_2 with "Hmap") as "[? ?]"; eauto; iFrame. }
     { (* Failure (contradiction) *)
@@ -336,7 +333,6 @@ Section cap_lang_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
-      injection H7; intros ; simplify_eq.
       rewrite insert_commute // insert_insert (insert_commute _ PC dst) // insert_insert.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
     { (* Failure (contradiction) *)

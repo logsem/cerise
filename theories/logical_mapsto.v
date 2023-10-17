@@ -20,16 +20,60 @@ Lemma get_is_scap w sb : get_scap w = Some sb → is_scap w = true.
 Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfalso. Qed.
 
 Definition LAddr : Type := Addr * Version.
-Inductive LWord :=
-| LWCap w p b e a: (get_scap w = Some (SCap p b e a)) → Version → LWord (* Note: add in VMap here if multiple versions are desired *)
-| LWNoCap w : (get_scap w = None) → LWord.
-Definition lword_get_word (lw : LWord) :=
-  match lw with | LWCap w _ _ _ _ _ _ => w | LWNoCap w _ => w end.
-Definition laddr_get_addr (la : LAddr) := la.1.
+Inductive LSealable: Type :=
+| LSCap: Perm -> Addr -> Addr -> Addr -> Version -> LSealable
+| LSSealRange: SealPerms -> OType -> OType -> OType -> LSealable.
+
+Inductive LWord: Type :=
+| LWInt (z : Z)
+| LWSealable (sb : LSealable)
+| LWSealed: OType → LSealable → LWord.
+
+Definition lsealable_get_sealable (lsb : LSealable) : Sealable :=
+  match lsb with
+  | LSCap p b e a v => SCap p b e a
+  | LSSealRange p ob oe oa => SSealRange p ob oe oa
+  end.
+
+Definition lword_get_word (lw : LWord) : Word :=
+  match lw with
+  | LWInt z => WInt z
+  | LWSealable lsb => WSealable (lsealable_get_sealable lsb)
+  | LWSealed o lsb => WSealed o (lsealable_get_sealable lsb)
+  end.
+
+Notation LCap p b e a v := (LWSealable (LSCap p b e a v)).
+Notation LSealRange p b e a := (LWSealable (LSSealRange p b e a)).
+Notation LSealedCap o p b e a v := (LWSealed o (LSCap p b e a v)).
+Notation LInt z := (LWInt z).
 
 Definition lword_get_version (lw : LWord) : option Version :=
-  match lw with | LWCap _ _ _ _ _ _ v => Some v | LWNoCap _ _ => None end.
+  match lw with
+  | LCap _ _ _ _ v | (LSealedCap _ _ _ _ _ v) => Some v
+  | _ => None
+  end.
+Definition laddr_get_addr (la : LAddr) := la.1.
 Definition laddr_get_version (la : LAddr) := la.2.
+
+Definition is_lcap (w : LWord) :=
+  match w with
+    | LCap p b e a v | LSealedCap _ p b e a v => true
+    | _ => false end.
+
+Definition get_lcap (w : LWord) : option LSealable :=
+  match w with
+    | LCap p b e a v | LSealedCap _ p b e a v => Some (LSCap p b e a v)
+    | _ => None
+  end.
+Lemma get_is_lcap lw lsb : get_lcap lw = Some lsb → is_lcap lw = true.
+Proof. unfold get_lcap, is_lcap. repeat (case_match); auto. all: intro; by exfalso. Qed.
+
+Instance version_eq_dec : EqDecision Version.
+Proof. solve_decision. Qed.
+Instance lsealb_eq_dec : EqDecision LSealable.
+Proof. solve_decision. Qed.
+Instance lword_eq_dec : EqDecision LWord.
+Proof. solve_decision. Qed.
 
 Definition VMap : Type := gmap Addr Version.
 Definition LReg := gmap RegName LWord.
@@ -41,30 +85,28 @@ Definition is_cur_addr (la : LAddr) (cur_map : gmap Addr Version) : Prop :=
   cur_map !! la.1 = Some la.2. (* check whether the version of `la` matches in cur_map *)
 Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   match lw with
-  | LWCap w _ b e _ _ v =>
+  | LCap _ b e _ v | LSealedCap _ _ b e _ v =>
       forall a, a ∈ finz.seq_between b e -> (cur_map !! a = Some v)
-      (* cur_map !! a = Some v (* TODO: constrain all of [b,e), not just `a`?*) *)
-  | LWNoCap _ _ => True end.
+  | _ => True
+  end.
 
-Definition is_lcap (lw : LWord) : bool :=
+Definition is_log_cap (lw : LWord) : bool :=
   match lw with
-  | LWCap (WSealable _) _ _ _ _ _ _ => true
+  | LCap _ _ _ _ _ => true
   | _ => false
   end.
 
-Lemma is_lcap_is_cap_true_iff lw : is_lcap lw = true <-> is_cap (lword_get_word lw) = true.
+Lemma is_log_cap_is_cap_true_iff lw : is_log_cap lw = true <-> is_cap (lword_get_word lw) = true.
 Proof.
   split; intros
   ; destruct lw; cbn in *; try congruence
-  ; destruct w; cbn in *; try congruence
   ; destruct sb; cbn in *; try congruence.
 Qed.
 
-Lemma is_lcap_is_cap_false_iff lw : is_lcap lw = false <-> is_cap (lword_get_word lw) = false.
+Lemma is_log_cap_is_cap_false_iff lw : is_log_cap lw = false <-> is_cap (lword_get_word lw) = false.
 Proof.
   split; intros
   ; destruct lw; cbn in *; try congruence
-  ; destruct w; cbn in *; try congruence
   ; destruct sb; cbn in *; try congruence.
 Qed.
 
@@ -156,16 +198,28 @@ Lemma lmem_read_iscur (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la 
   is_cur_word lw cur_map.
 Admitted.
 
-Lemma cur_word_cur_addr (w : Word) p b e a ne (v : Version) (cur_map : gmap Addr Version):
-  is_cur_word (LWCap w p b e a ne v) cur_map →
+Definition is_lword_version (lw : LWord) p b e a v : Prop :=
+  (get_lcap lw) = Some (LSCap p b e a v).
+
+Lemma is_lword_inv (lw : LWord) p b e a v :
+  is_lword_version lw p b e a v ->
+  (exists o, lw = LSealedCap o p b e a v)  \/ lw = LCap p b e a v.
+Proof.
+Admitted.
+
+Lemma cur_lword_cur_addr lw p b e a (v : Version) (cur_map : gmap Addr Version):
+  is_lword_version lw p b e a v ->
+  is_cur_word lw cur_map →
   withinBounds b e a = true →
   is_cur_addr (a,v) cur_map.
 Proof.
-  intros Hcur_lw Hbounds.
+  intros Hlword Hcur_lw Hbounds.
   unfold is_cur_addr ; simpl.
   rewrite /is_cur_word /= in Hcur_lw.
-  apply withinBounds_true_iff, elem_of_finz_seq_between in Hbounds.
-  by apply Hcur_lw.
+  apply is_lword_inv in Hlword.
+  destruct Hlword as [[o ?]| ?] ; subst
+  ; apply withinBounds_true_iff, elem_of_finz_seq_between in Hbounds
+  ; by apply Hcur_lw.
 Qed.
 
 Lemma state_phys_corresponds_reg lw (w : Word) r pr pm lr lm cur_map :
@@ -214,15 +268,14 @@ Lemma reg_corresponds_cap_cur_addr lcap p (b e a : Addr) la r (reg : Reg) lr cur
   is_cur_addr la cur_map.
 Proof.
   intros[_ Hcur] Hlcap Hla Hbounds Hr Hv; cbn in *.
-  destruct lcap; cycle 1.
-  + simpl in Hlcap; subst.
-    cbn in e ; discriminate.
-  + simpl in Hlcap; subst; cbn in *.
-    injection Hv ; clear Hv ; intros ->.
-    injection e1; intros Ha <- <- <- ; cbn in *.
-    eapply map_Forall_lookup_1 in Hcur ; last eauto; clear Hr.
-    destruct la; simpl in Ha; subst f
-    ; eapply (cur_word_cur_addr _ p b e); eauto.
+  destruct lcap; cbn in *; try congruence.
+  destruct sb; cbn in *; try congruence.
+  simplify_eq.
+  eapply map_Forall_lookup_1 in Hcur ; last eauto; clear Hr.
+  cbn in *.
+  destruct la as [a v]; cbn in *.
+  apply Hcur; cbn.
+  by apply withinBounds_in_seq.
 Qed.
 
 Lemma reg_phys_log_get_word phr lr cur_map r lw:
@@ -276,6 +329,19 @@ Proof.
   intros [_ Hmem] ? ; eapply mem_phys_log_get_word ; eauto.
 Qed.
 
+
+Ltac destruct_lword lw :=
+  let z := fresh "z" in
+  let p := fresh "p" in
+  let b := fresh "b" in
+  let e := fresh "e" in
+  let a := fresh "a" in
+  let v := fresh "v" in
+  let o := fresh "o" in
+  let sr := fresh "sr" in
+  let sd := fresh "sd" in
+  destruct lw as [ z | [p b e a v | p b e a] | o [p b e a v | p b e a]].
+
 Lemma version_addr_reg reg lr cur_map wr r p b e a la:
   reg_phys_log_corresponds reg lr cur_map ->
   lword_get_word wr = WCap p b e a ->
@@ -288,10 +354,8 @@ Proof.
   intros [Hstrip Hcur_reg] Hlr Hla Hinbounds Hr Hcur_la.
   eapply map_Forall_lookup_1 in Hcur_reg; eauto.
   unfold is_cur_word in Hcur_reg.
-  destruct wr as [ w p' b' e' a' Heq v| w Heq];
-    simplify_eq ; cbn in Hlr; simplify_eq; cbn in *.
-  apply withinBounds_true_iff, elem_of_finz_seq_between in Hinbounds.
-  cbn in Heq; injection Heq ; intros; subst.
+  destruct_lword wr; simplify_eq ; cbn in Hlr; simplify_eq; cbn in *.
+  apply withinBounds_in_seq in Hinbounds.
   apply Hcur_reg in Hinbounds.
   unfold is_cur_addr in Hcur_la.
   destruct la ; cbn in *; congruence.
@@ -333,12 +397,6 @@ Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at
 Declare Scope LAddr_scope.
 Delimit Scope LAddr_scope with la.
 
-Notation LCap p b e a v := (LWCap (WSealable (SCap p b e a)) p b e a eq_refl v).
-Notation LInt z := (LWNoCap (WInt z) eq_refl).
-Notation LSealRange p b e a := (LWNoCap (WSealable (SSealRange p b e a)) eq_refl).
-Notation LSealedCap o p b e a v := (LWCap (WSealed o (SCap p b e a)) p b e a eq_refl v).
-Notation LSealedSealRange o p b e a := (LWNoCap (WSealable (SSealRange p b e a)) eq_refl).
-
 Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
 Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
 
@@ -370,16 +428,15 @@ Inductive isCorrectLPC: LWord → Prop :=
     forall lw, isCorrectLPC lw -> isCorrectPC (lword_get_word lw).
   Proof.
     intros lw Hcorrect.
-    destruct lw; inv Hcorrect; cbn in *; subst; auto.
+    destruct_word lw; inv Hcorrect; cbn in *; subst; auto; try congruence.
   Qed.
 
   Lemma isCorrectPC_isCorrectLPC :
     forall lw, isCorrectPC (lword_get_word lw) -> isCorrectLPC lw.
   Proof.
     intros lw Hcorrect.
-    destruct lw; inv Hcorrect; cbn in *; subst; auto.
+    destruct_word lw; inv Hcorrect; cbn in *; subst; auto.
     econstructor; cbn; eauto; constructor; auto.
-    cbn in e; discriminate.
   Qed.
 
   Lemma isCorrectLPC_isCorrectPC_iff :

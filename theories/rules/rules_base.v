@@ -817,51 +817,34 @@ Tactic Notation "simplify_pair_eq" :=
 
 
 (* TODO this definition is very tedious to use. Is there a better workaround ? *)
-Program Definition incrementLPC (regs: LReg) : option LReg :=
+Definition incrementLPC (regs: LReg) : option LReg :=
   match regs !! PC with
-  | Some lw =>
-      match lw with
-      | LWCap (WCap p b e a) p' b' e' a' ne v =>
-          match (a + 1)%a with
-          | Some a'' =>
-              let npc := (LWCap (WCap p b e a'') p' b' e' (a'^+1)%a _ v) in
-              Some (<[ PC := npc ]> regs)
-              (* None *)
-          | None => None
-          end
-      | _ => None
-      end
+  | Some (LCap p b e a v) =>
+    match (a + 1)%a with
+    | Some a' => Some (<[ PC := LCap p b e a' v ]> regs)
+    | None => None
+    end
   | _ => None
   end.
-Next Obligation.
-  intros; cbn in * ; simplify_eq.
-  injection ne; intros ; subst.
-  rewrite (_: (a' ^+ 1)%a = a''); solve_addr.
-Qed.
-Solve All Obligations with (intros; cbn in * ; simplify_eq ; try(subst wildcard'; intro ; discriminate)).
 
-(* TODO proofs *)
 Lemma incrementLPC_incrementPC_some regs regs' :
   incrementLPC regs = Some regs' ->
   incrementPC (lreg_strip regs) = Some (lreg_strip regs').
 Proof.
+  intros.
 Admitted.
 
 Lemma incrementLPC_incrementPC_none regs :
-  incrementLPC regs = None <->
-    incrementPC (lreg_strip regs) = None.
+  incrementLPC regs = None <-> incrementPC (lreg_strip regs) = None.
 Proof.
-  (* intros. *)
-  (* rewrite /incrementPC. *)
-  (* rewrite /lreg_strip lookup_fmap; cbn. *)
-  (* destruct (regs !! PC) as [LX|] eqn:Heq; auto ; rewrite Heq; cbn ; auto. *)
-  (* destruct LX; cycle 1; cbn; destruct w; cbn in e; eauto *)
-  (* ; destruct sb as [? ? ? a' | ] ; cbn in e; eauto; try discriminate. *)
-  (* cbn in e0; injection e0 ; intros ; subst. *)
-  (* destruct (a + 1)%a eqn:Heq'; auto. *)
-  (* exfalso. *)
-  (* rewrite /incrementLPC in H2. *)
-Admitted.
+  intros.
+  rewrite /incrementPC /incrementLPC.
+  rewrite /lreg_strip lookup_fmap; cbn.
+  destruct (regs !! PC) as [LX|] eqn:Heq ; rewrite Heq; cbn; last (clear; firstorder).
+  destruct LX ; cbn ; [(clear; firstorder) | | (clear; firstorder)].
+  destruct sb as [? ? ? a' | ] ; eauto; cbn; last (clear; firstorder).
+  destruct (a' + 1)%a eqn:Heq'; auto ; cbn ; clear; firstorder; try discriminate.
+Qed.
 
 Lemma incrementLPC_fail_updatePC regs m etbl ecur:
   incrementLPC regs = None ->

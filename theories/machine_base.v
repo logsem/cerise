@@ -372,6 +372,13 @@ Lemma withinBounds_le_addr {z} (b e a : finz z):
   (b <= a)%f ∧ (a < e)%f.
 Proof. rewrite withinBounds_true_iff //. Qed.
 
+Lemma withinBounds_in_seq {z} (b e a : finz z) :
+  withinBounds b e a = true -> a ∈ finz.seq_between b e.
+  Proof.
+    intros Hbounds.
+    by apply withinBounds_true_iff, elem_of_finz_seq_between in Hbounds.
+Qed.
+
 Lemma isWithinBounds_bounds_alt {z} b e (a0 a1 a2 : finz z) :
   withinBounds  b e a0 = true →
   withinBounds b e a2 = true →
