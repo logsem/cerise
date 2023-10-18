@@ -1,4 +1,4 @@
-From cap_machine Require Export rules_binary_base rules_IsPtr.
+From cap_machine Require Export rules_binary_base rules_GetWType.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import proofmode.
@@ -14,16 +14,16 @@ Section cap_lang_spec_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  Lemma step_IsPtr Ep K pc_p pc_b pc_e pc_a w dst src regs :
-    decodeInstrW w = IsPtr dst src ->
+  Lemma step_GetWType Ep K pc_p pc_b pc_e pc_a w dst src regs :
+    decodeInstrW w = GetWType dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    regs_of (IsPtr dst src) ⊆ dom regs →
+    regs_of (GetWType dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
 
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs, k ↣ᵣ y)
-    ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ IsPtr_spec regs dst src regs' retv ⌝ ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
+    ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ GetWType_spec regs dst src regs' retv ⌝ ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hcls) "(#Hinv & Hj & Hpc_a & Hmap)".
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
@@ -42,11 +42,11 @@ Section cap_lang_spec_rules.
 
     destruct (Hri src) as [wsrc [Hwsrc Hwsrc']]; [set_solver+|]. simpl in Hwsrc'.
 
-    assert (exec_opt (IsPtr dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (if is_cap wsrc then 1%Z else 0%Z)))) as HH.
+    assert (exec_opt (GetWType dst src) (σr, σm) = updatePC (update_reg (σr, σm) dst (WInt (encodeWordType wsrc)))) as HH.
     {  rewrite /= Hwsrc'. unfold is_cap; destruct_word wsrc; auto. }
     rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
 
-    destruct (incrementPC (<[ dst := WInt (if is_cap wsrc then 1%Z else 0%Z) ]> regs)) as [regs''|] eqn:Hregs';
+    destruct (incrementPC (<[ dst := WInt (encodeWordType wsrc) ]> regs)) as [regs''|] eqn:Hregs';
       pose proof Hregs' as H'regs'; cycle 1.
     { apply incrementPC_fail_updatePC with (m:=σm) in Hregs'.
       eapply updatePC_fail_incl with (m':=σm) in Hregs'.
@@ -68,7 +68,7 @@ Section cap_lang_spec_rules.
     eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
 
     simplify_pair_eq.
-    iMod ((regspec_heap_update_inSepM _ _ _ dst (WInt (if is_cap wsrc then 1%Z else 0%Z))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
+    iMod ((regspec_heap_update_inSepM _ _ _ dst (WInt (encodeWordType wsrc))) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.

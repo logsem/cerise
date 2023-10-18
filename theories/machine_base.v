@@ -49,11 +49,12 @@ Inductive instr: Type :=
 | Lea (dst: RegName) (r: Z + RegName)
 | Restrict (dst: RegName) (r: Z + RegName)
 | Subseg (dst: RegName) (r1 r2: Z + RegName)
-| IsPtr (dst r: RegName)
-| GetP (dst r: RegName)
 | GetB (dst r: RegName)
 | GetE (dst r: RegName)
 | GetA (dst r: RegName)
+| GetP (dst r: RegName)
+| GetWType (dst r : RegName) (* combine IsCap, GetTage and GetSealed all together into a unique encoding *)
+| GetOType (dst r: RegName)
 | Seal (dst : RegName) (r1 r2: RegName)
 | UnSeal (dst : RegName) (r1 r2: RegName)
 | Fail
@@ -719,11 +720,14 @@ Proof.
       | Lea dst r => GenNode 8 [GenLeaf (inl dst); GenLeaf (inr r)]
       | Restrict dst r => GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)]
       | Subseg dst r1 r2 => GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
-      | IsPtr dst r => GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetP dst r => GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetB dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetE dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | GetA dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetB dst r => GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetE dst r => GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetA dst r => GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetP dst r => GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)]
+
+      | GetOType dst r => GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)]
+      | GetWType dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
+
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | Fail => GenNode 19 []
@@ -742,11 +746,14 @@ Proof.
       | GenNode 8 [GenLeaf (inl dst); GenLeaf (inr r)] => Lea dst r
       | GenNode 9 [GenLeaf (inl dst); GenLeaf (inr r)] => Restrict dst r
       | GenNode 10 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => Subseg dst r1 r2
-      | GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)] => IsPtr dst r
-      | GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)] => GetP dst r
-      | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
-      | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
-      | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
+      | GenNode 11 [GenLeaf (inl dst); GenLeaf (inl r)] => GetB dst r
+      | GenNode 12 [GenLeaf (inl dst); GenLeaf (inl r)] => GetE dst r
+      | GenNode 13 [GenLeaf (inl dst); GenLeaf (inl r)] => GetA dst r
+      | GenNode 14 [GenLeaf (inl dst); GenLeaf (inl r)] => GetP dst r
+
+      | GenNode 15 [GenLeaf (inl dst); GenLeaf (inl r)] => GetOType dst r
+      | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetWType dst r
+
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
       | GenNode 19 [] => Fail

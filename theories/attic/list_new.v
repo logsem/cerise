@@ -395,7 +395,7 @@ Section list.
   Definition iterate_to_last_instr (r temp1 temp2: RegName) :=
     encodeInstrsW [ Lea r 1
                     ; Load temp1 r
-                    ; IsPtr temp1 temp1
+                    ; IsCap temp1 temp1
                     ; Mov temp2 PC
                     ; Lea temp2 7
                     ; Jnz temp2 temp1
@@ -420,7 +420,7 @@ Section list.
                   ++ malloc_instrs f_m 2%nat ++
     encodeInstrsW [ Store r_t1 r_t6 (* store the input value into the first cell of the allocated region *)
                     ; Load r_t4 r_env
-                    ; IsPtr r_t2 r_t4 (* r_t2 = 1 if r_t2 is cap, = 0 otherwise *)
+                    ; IsCap r_t2 r_t4 (* r_t2 = 1 if r_t2 is cap, = 0 otherwise *)
                     ; Mov r_t3 PC
                     ; Lea r_t3 7
                     ; Jnz r_t3 r_t2

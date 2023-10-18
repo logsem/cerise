@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel macros_helpers map_simpl.
+From cap_machine Require Import rules logrel macros_helpers map_simpl solve_pure.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
 
 Section macros.
@@ -980,7 +980,7 @@ Section macros.
     (* geta r_t2 r_t4 *)
     iPrologue "Hprog".
     iApply (wp_Get_success _ _ r_t2 r_t4 _ _ _ a1 with "[HPC Hi Hr_t2 Hr_t4]");
-      first eapply decode_encode_instrW_inv; first eauto; first iCorrectPC a_first a'; auto.
+      first eapply decode_encode_instrW_inv; first eapply is_Get_GetA ; first iCorrectPC a_first a'; auto.
     { iContiguous_next Hnext 2. }
     2: iFrame. auto. iEpilogue "(HPC & Ha1 & Hr_t4 & Hr_t2)".
     destruct (reg_eq_dec PC r_t4) as [Hcontr | _]; [inversion Hcontr|].
@@ -1150,30 +1150,6 @@ Section macros.
      given (encoded) permission. If this is not the case, the macro goes to fail,
      otherwise it continues *)
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
-     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
-  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
-    decodeInstrW w = get_i →
-    is_Get get_i dst src →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-      ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ wdst
-      ∗ ▷ src ↦ᵣ WInt zsrc }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
-    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
-    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-
   (* TODO: move this to the rules_Lea.v file. *)
   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
     decodeInstrW w = Lea r1 (inr rv) →
@@ -1204,11 +1180,11 @@ Section macros.
 
   Definition reqperm_instrs r z :=
     [
-    is_ptr r_t1 r;
-    sub_r_z r_t1 r_t1 1;
+    get_wtype r_t1 r;
+    sub_r_z r_t1 r_t1 (encodeWordType wt_cap);
     move_r r_t2 PC;
     lea_z r_t2 11;
-    jnz r_t2 r_t1;
+    jnz r_t2 r_t1; (* if is_int(r) then jmp LABEL*)
     getp r_t1 r;
     sub_r_z r_t1 r_t1 z;
     move_r r_t2 PC;
@@ -1251,8 +1227,9 @@ Section macros.
     iPrologue "Hprog".
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
     destruct a as [|a l];[done|].
-    iApply (wp_IsPtr_success with "[$HPC $Hi $Hr $Hr_t1]");
-      [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|auto..].
+    iApply (wp_Get_success with "[$HPC $Hi $Hr $Hr_t1]")
+    ; [apply decode_encode_instrW_inv|solve_pure|iCorrectPC a_first a_last |iContiguous_next Hcont 0|auto..].
+
     iEpilogue "(HPC & Hi & Hr & Hr_t1)". iRename "Hi" into "Hprog_done".
 
     iPrologue "Hprog".
@@ -1280,7 +1257,7 @@ Section macros.
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 3| exact |simpl;auto..].
     iEpilogue "(HPC & Hi & Hr_t2)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
-    destruct (is_cap w) eqn:Hcap; cycle 1.
+    destruct (is_cap w) eqn:Hcap ; cycle 1.
     {
       assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }
 
@@ -1288,7 +1265,18 @@ Section macros.
       iPrologue "Hprog".
       iApply (wp_jnz_success_jmp with "[$HPC $Hi $Hr_t2 $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|..].
-      { intros Hcontr. inversion Hcontr. }
+      { intros Hcontr; clear -Hcap Hcontr.
+        destruct w; [| (destruct sb; [by simpl in Hcap|]) |]
+        ; unfold wt_cap in Hcontr
+        ; injection Hcontr
+        ; clear Hcontr; intro Hcontr
+        ; apply Zminus_eq in Hcontr
+        ; match goal with
+          | H: encodeWordType ?x = encodeWordType ?y |- _ =>
+              pose proof (encodeWordType_correct x y) as Hcontr2 ; cbn in Hcontr2
+          end
+        ; auto.
+      }
       iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
       do 8 (iDestruct "Hprog" as "[Hi Hprog]"; iCombine "Hi" "Hprog_done" as "Hprog_done").
       (* fail *)
@@ -1302,6 +1290,10 @@ Section macros.
 
     (* now we know that w is a capability *)
     assert (∃ p b e a, w = WCap p b e a)  as (pc & bc & ec & ac & ->). {destruct_word w; inversion Hcap. eauto. }
+    rewrite (_: (encodeWordType (WCap pc bc ec ac) - encodeWordType wt_cap)%Z = 0%Z); cycle 1.
+    { rewrite (_ : (encodeWordType (WCap pc bc ec ac))%Z = (encodeWordType wt_cap)%Z)
+      ; first lia. apply encodeWordType_correct_cap.
+    }
     iPrologue "Hprog".
     iApply (wp_jnz_success_next with "[$HPC $Hi $Hr_t2 $Hr_t1]");
       [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 4|..].

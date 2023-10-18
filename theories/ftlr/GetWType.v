@@ -3,7 +3,7 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
 From cap_machine.ftlr Require Import ftlr_base.
-From cap_machine.rules Require Import rules_IsPtr.
+From cap_machine.rules Require Import rules_GetWType.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -15,16 +15,16 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma isptr_case (r : leibnizO Reg) (p : Perm)
+  Lemma getwtype_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (dst r0 : RegName) (P:D) :
-    ftlr_instr r p b e a w (IsPtr dst r0) P.
+    ftlr_instr r p b e a w (GetWType dst r0) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-    iApply (wp_IsPtr with "[$Ha $Hmap]"); eauto.
+    iApply (wp_GetWType with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }

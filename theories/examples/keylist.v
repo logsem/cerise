@@ -399,19 +399,20 @@ Section list.
   Definition iterate_to_last_instr (r temp1 temp2: RegName) :=
     encodeInstrsW [ Lea r 1
                     ; Load temp1 r
-                    ; IsPtr temp1 temp1
+                    ; GetWType temp1 temp1
+                    ; Sub temp1 temp1 (encodeWordType wt_cap)
                     ; Mov temp2 PC
                     ; Lea temp2 7
                     ; Jnz temp2 temp1
-                    (* if r_env+1 points to a Z, r_env contains the last node of the list *)
-                    ; Lea r (-1)%Z
-                    ; Mov temp2 PC
-                    ; Lea temp2 7
-                    ; Jmp temp2
                     (* if r_env+1 points to a cap *)
                     ; Load r r
                     ; Mov temp2 PC
-                    ; Lea temp2 (-11)%Z
+                    ; Lea temp2 (-8)%Z
+                    ; Jmp temp2
+                    (* if r_env+1 points to a Z/Sealed/Sealrange, r_env contains the last node of the list *)
+                    ; Lea r (-1)%Z
+                    ; Mov temp2 PC
+                    ; Lea temp2 3
                     ; Jmp temp2
                   ].
 
@@ -425,12 +426,15 @@ Section list.
     encodeInstrsW [ Lea r_t1 1 (* move the pointer up one to leave place for the key *)
                     ; Store r_t1 r_t6 (* store the input value into the first cell of the allocated region *)
                     ; Load r_t4 r_env
-                    ; IsPtr r_t2 r_t4 (* r_t2 = 1 if r_t2 is cap, = 0 otherwise *)
+                    ; GetWType r_t2 r_t4
+                    ; Sub r_t2 r_t2 (encodeWordType wt_cap) (* r_t2 = 0 if r_t2 is cap, = 1 otherwise *)
                     ; Mov r_t3 PC
-                    ; Lea r_t3 7
+                    ; Lea r_t3 4
                     ; Jnz r_t3 r_t2
+                    ; Lea PC 5
                     (* r_env contains 0, we are done: the newly allocated capability is the head of the LL *)
                     ; Store r_env r_t1
+                    ; Mov r_t2 0 (* FIXME it is supposed to be 0, to simulate IsPtr *)
                     ; Mov r_t3 0
                     ; Mov r_t6 0
                     ; Jmp r_t0
@@ -552,17 +556,30 @@ Section list.
     iDestruct (isList_extract_fst with "[$HisList]") as (a' hd' w (Hincr1&Hhd')) "[Ha [Ha' Hcls'] ]";
       [eauto..|]. rewrite Hincr1 in Hd2;inv Hd2.
     iInstr "Hprog". split; [solve_pure|]. solve_addr.
-    iInstr "Hprog". iInstr "Hprog". iInstr "Hprog".
+    iInstr "Hprog"; [eapply getwtype_denote ; reflexivity |].
+    iInstr "Hprog". iInstr "Hprog".
     destruct Hhd' as [Hhd' | Hhd'].
     { destruct Hhd' as [-> Hhd'].
       simpl is_cap. iInstr "Hprog".
+      iGo "Hprog".
+      { simpl_encodeWordType. injection ; intro Hcontr.
+        apply Zminus_eq in Hcontr.
+        pose proof (encodeWordType_correct wt_int wt_cap) as Hneq ; simpl in Hneq.
+        auto.
+      }
+      iAssert (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ 11)%a)%I with "[HPC]" as "HPC".
+      { destruct pc_p; auto. apply ExecPCPerm_not_E in Hvpc. contradiction. }
       iGo "Hprog". instantiate (1 := d'). solve_addr.
-      iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 14)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+      iGo "Hprog".
+      generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 15)%a ltac
+                   :(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX ; rewrite HX; clear HX.
       iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
-      iApply "Hφ". iExists _, _,_. iFrame. iSplitR; [iPureIntro; auto|].
+      iApply "Hφ". simpl. iExists _, _,_. iFrame. iSplitR ; [iPureIntro; auto|].
       iSplitL "Htemp1"; iExists _; eauto. }
     { destruct Hhd' as [p [p' [p'' [Hp'' [Hp' [-> Hp] ] ] ] ] ].
-      simpl is_cap. iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 10)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+      simpl is_cap.
+      iInstr "Hprog".
+      simpl_encodeWordType. rewrite Z.sub_diag.
       iGo "Hprog". solve_addr.
       iGo "Hprog". instantiate (1:= a_first). solve_addr.
       iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
@@ -719,13 +736,19 @@ Section list.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0); eauto.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0) (j:=1) in H1;eauto. solve_addr.
     iInstr "Hprog". split; [auto|solve_addr].
-    do 3 iInstr "Hprog". (* Not using iGo so it stops before Jnz *)
+    iInstr "Hprog"; [eapply getwtype_denote ; reflexivity |].
+    do 2 iInstr "Hprog". (* Not using iGo so it stops before Jnz *)
     case_eq (is_cap hd); intro His_cap.
-    { iGo "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_middle' ^+ 11)%a ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
+    { iInstr "Hprog".
+      destruct hd ; try (simpl in His_cap; congruence).
+      destruct sb ; try (simpl in His_cap; congruence).
+      simpl_encodeWordType; rewrite Z.sub_diag.
+      iGo "Hprog".
       unfocus_block "Hprog" "Hcont" as "Hprog".
 
       focus_block 3 "Hprog" as a_middle'' Ha_middle'' "Hprog" "Hcont".
-      iApply iterate_to_last_spec; iFrameAutoSolve. destruct hd; simpl in His_cap; try congruence.
+      iApply iterate_to_last_spec; iFrameAutoSolve.
+      (* destruct hd; simpl in His_cap; try congruence. *)
       iSplitL "Hr_t2"; [eauto|]. iSplitL "Hr_t3"; [eauto|]. iFrame.
       iNext. iIntros "Hiter".
       iDestruct "Hiter" as (dlast dlast' dlast'') "(HPC & HisList & (%&%&%) & Hr_t4 & Hr_t2 & Hr_t3 & Hprog)".
@@ -766,8 +789,22 @@ Section list.
       iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew".
       iPureIntro. split. iContiguous_next H1 0. eapply contiguous_between_length in H1. auto.
     }
-    { iInstr "Hprog". iGo "Hprog". solve_addr.
+    { iInstr "Hprog".
       iGo "Hprog".
+     { destruct hd ; [ | destruct sb | ]; unfold is_cap in His_cap; auto; simpl_encodeWordType;
+       injection ; intro Hcontr; apply Zminus_eq in Hcontr;
+        [ pose proof (encodeWordType_correct wt_int wt_cap) as Hneq
+        | pose proof (encodeWordType_correct wt_sealrange wt_cap) as Hneq
+        | pose proof (encodeWordType_correct wt_sealed wt_cap) as Hneq ]
+        ; simpl in Hneq;
+        auto.
+      }
+      generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_middle' ^+ 9)%a ltac
+                                :(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX;
+        rewrite HX; clear HX.
+      iGo "Hprog". solve_addr.
+      iGo "Hprog".
+
       unfocus_block "Hprog" "Hcont" as "Hprog".
       iDestruct (isList_hd_pure with "HisList") as %[ [-> ->] | (?&?&?&?&?&?&->&?)];[|done].
       iDestruct (isList_NoDup with "HisList") as %Hdup.
@@ -794,11 +831,13 @@ Section list.
   (* ------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------- FINDB ---------------------------------------------- *)
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
-     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
+  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
+  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
   Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
     decodeInstrW w = get_i →
     is_Get get_i dst src →
+    (forall dst' src', get_i <> GetOType dst' src') ->
+    (forall dst' src', get_i <> GetWType dst' src') ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -808,13 +847,18 @@ Section list.
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iIntros (Hdecode Hinstr Hnot_otype Hnot_wtype Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *)
+      destruct (decodeInstrW w); simplify_map_eq
+        ; specialize (Hnot_otype dst0 r)
+        ; specialize (Hnot_wtype dst0 r)
+      ; try contradiction.
+    }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
 
@@ -878,7 +922,7 @@ Section list.
       codefrag_facts "Hprog".
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
-      iApplyCapAuto @wp_Get_fail.
+      iApplyCapAuto @wp_Get_fail. intros ; auto.
       wp_pure. iApply wp_value. iFrame. }
 
     (* the successful case lets us load the b bound *)

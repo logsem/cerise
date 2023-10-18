@@ -90,6 +90,8 @@ Proof. auto. Qed.
 #[export] Hint Resolve is_Get_GetB : solve_pure.
 #[export] Hint Resolve is_Get_GetE : solve_pure.
 #[export] Hint Resolve is_Get_GetA : solve_pure.
+#[export] Hint Resolve is_Get_GetOType : solve_pure.
+#[export] Hint Resolve is_Get_GetWType : solve_pure.
 
 (* is_AddSubLt *)
 #[export] Hint Mode is_AddSubLt ! - - - : solve_pure.
@@ -102,6 +104,8 @@ Proof. auto. Qed.
 #[export] Hint Extern 1 (is_z _ = true) => reflexivity : solve_pure.
 
 (* denote - required for Get *)
+#[export] Hint Extern 1 (denote (GetWType _ _) ?w = Some _) =>
+  (eapply getwtype_denote ; reflexivity) : solve_pure.
 #[export] Hint Extern 1 (rules_Get.denote _ _ = Some _) => reflexivity : solve_pure. (* unification fails if lhs has evars *)
 
 (* Tests *)

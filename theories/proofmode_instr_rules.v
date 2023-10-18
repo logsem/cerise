@@ -42,6 +42,8 @@ Ltac dispatch_instr_rule instr cont :=
   | GetB ?r1 ?r2 => dispatch_Get r1 r2 cont
   | GetE ?r1 ?r2 => dispatch_Get r1 r2 cont
   | GetA ?r1 ?r2 => dispatch_Get r1 r2 cont
+  | GetOType ?r1 ?r2 => dispatch_Get r1 r2 cont
+  | GetWType ?r1 ?r2 => dispatch_Get r1 r2 cont
   (* AddSubLt *)
   | Add ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Sub ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
@@ -100,10 +102,6 @@ Ltac dispatch_instr_rule instr cont :=
   | Subseg _ (inl _) (inr _) => (cont (@wp_subseg_success_l) || cont (@wp_subseg_success_l_sr))
   | Subseg _ (inr _) (inl _) => (cont (@wp_subseg_success_r) || cont (@wp_subseg_success_r_sr))
   | Subseg _ (inl _) (inl _) => (cont (@wp_subseg_success_lr) || cont (@wp_subseg_success_lr_sr))
-  (* IsPtr *)
-  | IsPtr _ PC => cont (@wp_IsPtr_successPC)
-  | IsPtr ?r ?r => cont (@wp_IsPtr_success_dst)
-  | IsPtr _ _ => cont (@wp_IsPtr_success)
   (* Restrict *)
   | Restrict PC (inr _) => cont (@wp_restrict_success_reg_PC)
   | Restrict _ (inr _) => cont (@wp_restrict_success_reg)
