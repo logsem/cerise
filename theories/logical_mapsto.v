@@ -496,3 +496,30 @@ Inductive isCorrectLPC: LWord → Prop :=
     ; [ apply Z.eqb_neq in Hneq | apply Nat.eqb_neq in Hneq ]
     ; congruence.
   Qed.
+
+Definition updatePcPermL (lw: LWord): LWord :=
+  match lw with
+  | LCap E b e a v => LCap RX b e a v
+  | _ => lw
+  end.
+
+Lemma updatePcPermL_spec (lw : LWord):
+  lword_get_word (updatePcPermL lw) = updatePcPerm (lword_get_word lw).
+Proof.
+  destruct_lword lw; auto; destruct p ; auto.
+Qed.
+
+Lemma is_cur_updatePcPermL (lw : LWord) cur_map:
+  is_cur_word lw cur_map -> is_cur_word (updatePcPermL lw) cur_map.
+Proof.
+  destruct_lword lw ; cbn; auto.
+  intros Hbounds.
+  destruct p; auto.
+Qed.
+
+Lemma is_cur_word_cap_change cur_map p p' b e a a' v :
+  is_cur_word (LCap p b e a v) cur_map ->
+  is_cur_word (LCap p' b e a' v) cur_map.
+Proof.
+  rewrite /is_cur_word; intros Hcur; auto.
+Qed.
