@@ -618,6 +618,18 @@ Definition prod_op {A B : Type} :=
 Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
   λ m1 m2, merge prod_op m1 m2.
 
+ Lemma prod_merge_snd_inv {K A B} `{Countable K}
+   (m1 : gmap K A) (m2 : gmap K B) :
+   fmap snd (prod_merge m1 m2) = m2.
+ Proof.
+ Admitted.
+
+ Lemma lookup_prod_merge_snd {K A B} `{Countable K}
+   (m1 : gmap K A) (m2 : gmap K B) va vb:
+   prod_merge m1 m2 !! va = Some vb ->
+   m2 !! va = Some (snd vb).
+ Admitted.
+
 (* creates a gmap with domain from the list, all pointing to a default value *)
 Fixpoint create_gmap_default {K V : Type} `{Countable K}
          (l : list K) (d : V) : gmap K V :=

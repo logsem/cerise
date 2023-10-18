@@ -152,15 +152,15 @@ Section cap_lang_rules.
   Lemma gen_heap_valid_inSepM_general:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
-      (σ : gmap L (dfrac * V)) (σ' : gmap L V)
+      (dσ : gmap L (dfrac * V)) (σ : gmap L V)
       (l : L) (dq : dfrac) (v : V),
-      σ !! l = Some (dq, v) →
-      gen_heap_interp σ'
-      -∗ ([∗ map] k↦dqw ∈ σ, mapsto k dqw.1 dqw.2)
-      -∗ ⌜σ' !! l = Some v⌝.
+      dσ !! l = Some (dq, v) →
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦dqw ∈ dσ, mapsto k dqw.1 dqw.2)
+      -∗ ⌜σ !! l = Some v⌝.
   Proof.
     intros * Hσ'.
-    rewrite (big_sepM_delete _ σ l) //. iIntros "? [? ?]".
+    rewrite (big_sepM_delete _ dσ l) //. iIntros "? [? ?]".
     iApply (gen_heap_valid with "[$]"). eauto.
   Qed.
 
@@ -194,32 +194,35 @@ Section cap_lang_rules.
   Lemma gen_heap_valid_inSepM'_general:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
-      (σ : gmap L (dfrac * V)) (σ' : gmap L V) ,
-      gen_heap_interp σ'
-      -∗ ([∗ map] k↦dqw ∈ σ, mapsto k dqw.1 dqw.2)
-      -∗ ⌜forall (l: L) (v: V), σ' !! l = Some v → exists d, σ !! l = Some (d, v)⌝.
+      (dσ : gmap L (dfrac * V)) (σ : gmap L V) ,
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦dqw ∈ dσ, mapsto k dqw.1 dqw.2)
+      -∗ ⌜forall (l: L) (d : dfrac) (v: V), dσ !! l = Some (d, v) → σ !! l = Some v⌝.
   Proof.
-    intros. iIntros "? Hmap" (l v Hσ).
-    (* rewrite (big_sepM_delete _ σ l) //. iDestruct "Hmap" as "[? ?]". cbn. *)
-    (* iApply (gen_heap_valid with "[]"). eauto. *)
-  Admitted.
-
+    intros. iIntros "? Hmap" (l d v Hσ).
+    rewrite (big_sepM_delete _ dσ l) //.
+    iDestruct "Hmap" as "[? ?]". cbn.
+    iApply (gen_heap_valid with "[$]"). eauto.
+  Qed.
 
   Lemma gen_heap_valid_inclSepM_general:
     ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L)
       (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
-      (σ : gmap L (dfrac * V)) (σ' : gmap L V),
-      gen_heap_interp σ'
-      -∗ ([∗ map] k↦dqw ∈ σ, mapsto k dqw.1 dqw.2)
-      -∗ ⌜σ' ⊆ (fmap snd σ)⌝.
+      (dσ : gmap L (dfrac * V)) (σ : gmap L V),
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦dqw ∈ dσ, mapsto k dqw.1 dqw.2)
+      -∗ ⌜(fmap snd dσ) ⊆ σ⌝.
   Proof.
     intros. iIntros "Hσ Hmap".
     iDestruct (gen_heap_valid_inSepM'_general with "Hσ Hmap") as "#H". eauto.
     iDestruct "H" as %Hincl. iPureIntro. intro l.
     unfold option_relation.
-    destruct (σ' !! l) eqn:HH'; destruct (σ !! l) eqn:HH
-    ; rewrite lookup_fmap HH
+    destruct (dσ !! l) eqn:HH'; destruct (σ !! l) eqn:HH
+    ; rewrite lookup_fmap HH'
     ; try naive_solver.
+    + destruct p; cbn in * ; apply Hincl in HH'; simplify_eq; reflexivity.
+    + destruct p; cbn in * ; apply Hincl in HH'; simplify_eq; reflexivity.
+    (* + cbn. *)
   Qed.
 
   Lemma gen_heap_valid_inclSepM:

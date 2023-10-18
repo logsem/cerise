@@ -148,33 +148,6 @@ Section cap_lang_rules.
       ; rewrite lookup_insert_ne in H6; try congruence; try by simplify_map_eq.
   Qed.
 
-  (* Lemma gen_heap_valid_inclSepM_dq: *)
-  (*   ∀ (L V : Type) (EqDecision0 : EqDecision L) (H : Countable L) *)
-  (*     (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ) *)
-  (*     (σ σ' : gmap L V) (q : Qp), *)
-  (*     gen_heap_interp σ -∗ *)
-  (*     ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗ *)
-  (*     ⌜σ' ⊆ σ⌝. *)
-  (* Proof. *)
-  (*   intros *. iIntros "Hσ Hmap". *)
-  (*   iDestruct (gen_heap_valid_inSepM' with "Hσ Hmap") as "#H". *)
-  (*   iDestruct "H" as %Hincl. iPureIntro. intro l. *)
-  (*   unfold option_relation. *)
-  (*   destruct (σ' !! l) eqn:HH'; destruct (σ !! l) eqn:HH; naive_solver. *)
-  (* Qed. *)
-
-  (* TODO generalize *)
- Lemma prod_merge_snd_inv
-   (dfracs : LDFrac) (lmem : LMem) :
-   fmap snd (prod_merge dfracs lmem) = lmem.
- Admitted.
-
- Lemma lookup_prod_merge_snd
-   (dfracs : LDFrac) (lmem : LMem) a v dq lw :
-   prod_merge dfracs lmem !! (a, v) = Some (dq, lw) ->
-   lmem !! (a, v) = Some lw.
- Admitted.
-
   Lemma wp_load_general Ep
     pc_p pc_b pc_e pc_a pc_v pca_v
     r1 r2 lw (lmem : LMem) (dfracs : LDFrac) lregs :
@@ -332,12 +305,13 @@ Section cap_lang_rules.
     - apply map_Forall_insert_2; auto.
       destruct HmemInv as [Hdom Hroot].
       eapply map_Forall_lookup_1 with (i := (a,v)) in Hdom ; eauto.
+      2: eapply lookup_weaken; eauto.
       eapply map_Forall_lookup_1 with (i := a) in Hroot ; eauto.
       destruct Hroot as (lw' & ? & Hma'' & Hcur').
       rewrite Hma2 in Hma'' ; simplify_eq.
       destruct_lword lw'; cbn in * ; simplify_eq.
       eapply lookup_prod_merge_snd in Hmemadq.
-      eapply lookup_weaken_inv in Hmem; eauto; simplify_eq.
+      eapply lookup_weaken_inv in Hmem; eauto; cbn in * ; simplify_eq.
       auto.
     - clear Hlr'1 Hlr'2.
       apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; cbn ; auto].
