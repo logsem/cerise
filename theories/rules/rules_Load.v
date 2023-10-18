@@ -531,24 +531,24 @@ Section cap_lang_rules.
 
   (* TODO not useful without automation *)
 
-  (* Lemma wp_load_success_same_notinstr E r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' dq dq' : *)
-  (*   decodeInstrW w = Load r1 r1 → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-  (*   readAllowed p = true → *)
-  (*   withinBounds b e a = true → *)
-  (*   (pc_a + 1)%a = Some pc_a' → *)
+  Lemma wp_load_success_same_notinstr E r1 pc_p pc_b pc_e pc_a pc_v pca_v lw lw' lw'' p b e a v pc_a' dq dq' :
+    decodeInstrWL lw = Load r1 r1 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true →
+    withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
 
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*         ∗ ▷ pc_a ↦ₐ{dq} w *)
-  (*         ∗ ▷ r1 ↦ᵣ WCap p b e a *)
-  (*         ∗ ▷ a ↦ₐ{dq'} w' }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET NextIV; *)
-  (*         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a' *)
-  (*            ∗ r1 ↦ᵣ w' *)
-  (*            ∗ pc_a ↦ₐ{dq} w *)
-  (*            ∗ a ↦ₐ{dq'} w' }}}. *)
-  (* Proof. *)
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
+          ∗ ▷ r1 ↦ᵣ LCap p b e a v
+          ∗ ▷ (a, pc_v) ↦ₐ{dq'} lw' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+             ∗ r1 ↦ᵣ lw'
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw
+             ∗ (a, pc_v) ↦ₐ{dq'} lw' }}}.
+  Proof.
   (*   intros. iIntros "(>HPC & >Hpc_a & >Hr1 & >Ha)". *)
   (*   destruct (a =? pc_a)%a eqn:Ha. *)
   (*   { assert (a = pc_a) as Heqa. *)
@@ -564,49 +564,51 @@ Section cap_lang_rules.
   (*   rewrite Ha. iFrame. iNext. iIntros "(? & ? & ? & ?)". rewrite Ha. *)
   (*   iApply "Hφ". iFrame. Unshelve. apply (WInt 0). apply DfracDiscarded. *)
   (* Qed. *)
+  Admitted.
 
-  (* Lemma wp_load_success_same_frominstr E r1 pc_p pc_b pc_e pc_a w p b e pc_a' dq : *)
-  (*   decodeInstrW w = Load r1 r1 → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-  (*   readAllowed p = true → *)
-  (*   withinBounds b e pc_a = true → *)
-  (*   (pc_a + 1)%a = Some pc_a' → *)
+  Lemma wp_load_success_same_frominstr E r1 pc_p pc_b pc_e pc_a pc_v pca_v lw p b e v pc_a' dq :
+    decodeInstrWL lw = Load r1 r1 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true →
+    withinBounds b e pc_a = true →
+    (pc_a + 1)%a = Some pc_a' →
 
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*         ∗ ▷ pc_a ↦ₐ{dq} w *)
-  (*         ∗ ▷ r1 ↦ᵣ WCap p b e pc_a }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET NextIV; *)
-  (*         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a' *)
-  (*            ∗ r1 ↦ᵣ w *)
-  (*            ∗ pc_a ↦ₐ{dq} w }}}. *)
-  (* Proof. *)
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
+          ∗ ▷ r1 ↦ᵣ LCap p b e pc_a v}}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+             ∗ r1 ↦ᵣ lw
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw }}}.
+  Proof.
   (*   intros. iIntros "(>HPC & >Hpc_a & >Hr1)". *)
   (*   iIntros "Hφ". iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1]"); eauto. *)
   (*   { rewrite Z.eqb_refl. eauto. } *)
   (*   iNext. iIntros "(? & ? & ? & ?)". rewrite Z.eqb_refl. *)
   (*   iApply "Hφ". iFrame. Unshelve. all: eauto. *)
   (* Qed. *)
+  Admitted.
 
   (* (* If a points to a capability, the load into PC success if its address can be incr *) *)
-  (* Lemma wp_load_success_PC E r2 pc_p pc_b pc_e pc_a w *)
-  (*       p b e a p' b' e' a' a'' : *)
-  (*   decodeInstrW w = Load PC r2 → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-  (*   readAllowed p = true ∧ withinBounds b e a = true → *)
-  (*   (a' + 1)%a = Some a'' → *)
+  Lemma wp_load_success_PC E r2 pc_p pc_b pc_e pc_a pc_v pca_v lw
+        p b e a v p' b' e' a' v' a'' :
+    decodeInstrWL lw = Load PC r2 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true ∧ withinBounds b e a = true →
+    (a' + 1)%a = Some a'' →
 
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*         ∗ ▷ pc_a ↦ₐ w *)
-  (*         ∗ ▷ r2 ↦ᵣ WCap p b e a *)
-  (*         ∗ ▷ a ↦ₐ WCap p' b' e' a' }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET NextIV; *)
-  (*         PC ↦ᵣ WCap p' b' e' a'' *)
-  (*            ∗ pc_a ↦ₐ w *)
-  (*            ∗ r2 ↦ᵣ WCap p b e a *)
-  (*            ∗ a ↦ₐ WCap p' b' e' a' }}}. *)
-  (* Proof. *)
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ r2 ↦ᵣ LCap p b e a v
+          ∗ ▷ (a, v) ↦ₐ LCap p' b' e' a' v' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap p' b' e' a'' v'
+             ∗ (pc_a, pca_v) ↦ₐ lw
+             ∗ r2 ↦ᵣ LCap p b e a v
+             ∗ (a, v) ↦ₐ LCap p' b' e' a' v' }}}.
+  Proof.
   (*   iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) *)
   (*           "(>HPC & >Hi & >Hr2 & >Hr2a) Hφ". *)
   (*   iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]". *)
@@ -631,21 +633,22 @@ Section cap_lang_rules.
   (*      destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
   (*      destruct o. all: congruence. } *)
   (* Qed. *)
+  Admitted.
 
-  (* Lemma wp_load_success_fromPC E r1 pc_p pc_b pc_e pc_a pc_a' w w'' dq : *)
-  (*   decodeInstrW w = Load r1 PC → *)
-  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
-  (*   (pc_a + 1)%a = Some pc_a' → *)
+  Lemma wp_load_success_fromPC E r1 pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw lw'' dq :
+    decodeInstrWL lw = Load r1 PC →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
 
-  (*   {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
-  (*         ∗ ▷ pc_a ↦ₐ{dq} w *)
-  (*         ∗ ▷ r1 ↦ᵣ w'' }}} *)
-  (*     Instr Executable @ E *)
-  (*     {{{ RET NextIV; *)
-  (*         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a' *)
-  (*            ∗ pc_a ↦ₐ{dq} w *)
-  (*            ∗ r1 ↦ᵣ w }}}. *)
-  (* Proof. *)
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ{dq} lw
+          ∗ ▷ r1 ↦ᵣ lw'' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+             ∗ (pc_a, pca_v) ↦ₐ{dq} lw
+             ∗ r1 ↦ᵣ lw }}}.
+  Proof.
   (*   iIntros (Hinstr Hvpc Hpca' φ) *)
   (*           "(>HPC & >Hi & >Hr1) Hφ". *)
   (*   iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]". *)
@@ -672,5 +675,6 @@ Section cap_lang_rules.
   (*      destruct o; apply Is_true_false in H3. all: try congruence. done. *)
   (*    } *)
   (* Qed. *)
+  Admitted.
 
 End cap_lang_rules.

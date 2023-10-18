@@ -523,3 +523,68 @@ Lemma is_cur_word_cap_change cur_map p p' b e a a' v :
 Proof.
   rewrite /is_cur_word; intros Hcur; auto.
 Qed.
+
+Definition z_of_argumentL (lregs: LReg) (a: Z + RegName) : option Z :=
+  match a with
+  | inl z => Some z
+  | inr r =>
+    match lregs !! r with
+    | Some (LInt z) => Some z
+    | _ => None
+    end
+  end.
+
+Definition word_of_argumentL (lregs: LReg) (a: Z + RegName): option LWord :=
+  match a with
+  | inl n => Some (LInt n)
+  | inr r => lregs !! r
+  end.
+
+Definition addr_of_argumentL lregs src :=
+  match z_of_argumentL lregs src with
+  | Some n => z_to_addr n
+  | None => None
+  end.
+
+Definition otype_of_argumentL lregs src : option OType :=
+  match z_of_argumentL lregs src with
+  | Some n => (z_to_otype n) : option OType
+  | None => None : option OType
+  end.
+
+
+Definition is_mutable_rangeL (lw : LWord) : bool:=
+  match lw with
+  | LCap p _ _ _ _ => match p with | E  => false | _ => true end
+  | LSealRange _ _ _ _ => true
+  | _ => false end.
+
+Definition nonZeroL (lw: LWord): bool :=
+  match lw with
+  | LInt n => Zneq_bool n 0
+  | _ => true
+  end.
+
+Definition is_sealbL (lw : LWord) : bool :=
+  match lw with
+  | LWSealable sb => true
+  |  _ => false
+  end.
+
+Definition is_sealrL (lw : LWord) : bool :=
+  match lw with
+  | LSealRange p b e a => true
+  |  _ => false
+  end.
+
+Definition is_sealedL (lw : LWord) : bool :=
+  match lw with
+  | LWSealed a sb => true
+  |  _ => false
+  end.
+
+Definition is_zL (lw : LWord) : bool :=
+  match lw with
+  | LInt z => true
+  |  _ => false
+  end.
