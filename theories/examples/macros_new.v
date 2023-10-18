@@ -525,7 +525,6 @@ Section macros.
         ; Mov r_t1 0
         ; Mov r_t2 0].
 
-
   Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a →
@@ -547,7 +546,9 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
     codefrag_facts "Hprog".
-    do 4 iInstr "Hprog".
+    iGo "Hprog".
+    eapply getwtype_denote ; reflexivity .
+    do 3 iInstr "Hprog".
     destruct (is_cap w) eqn:Hcap; cycle 1.
     {
       assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }

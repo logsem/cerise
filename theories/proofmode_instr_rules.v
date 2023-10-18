@@ -43,10 +43,7 @@ Ltac dispatch_instr_rule instr cont :=
   | GetE ?r1 ?r2 => dispatch_Get r1 r2 cont
   | GetA ?r1 ?r2 => dispatch_Get r1 r2 cont
   | GetOType ?r1 ?r2 => dispatch_Get r1 r2 cont
-  (* GetWType *)
-  | GetWType _ PC => cont (@wp_GetWType_successPC)
-  | GetWType ?r ?r => cont (@wp_GetWType_success_dst)
-  | GetWType _ _ => cont (@wp_GetWType_success)
+  | GetWType ?r1 ?r2 => dispatch_Get r1 r2 cont
   (* AddSubLt *)
   | Add ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Sub ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont

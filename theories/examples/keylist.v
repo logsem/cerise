@@ -556,7 +556,7 @@ Section list.
     iDestruct (isList_extract_fst with "[$HisList]") as (a' hd' w (Hincr1&Hhd')) "[Ha [Ha' Hcls'] ]";
       [eauto..|]. rewrite Hincr1 in Hd2;inv Hd2.
     iInstr "Hprog". split; [solve_pure|]. solve_addr.
-    iInstr "Hprog".
+    iInstr "Hprog"; [eapply getwtype_denote ; reflexivity |].
     iInstr "Hprog". iInstr "Hprog".
     destruct Hhd' as [Hhd' | Hhd'].
     { destruct Hhd' as [-> Hhd'].
@@ -736,7 +736,8 @@ Section list.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0); eauto.
     iInstr "Hprog". eapply contiguous_between_incr_addr_middle with (i:=0) (j:=1) in H1;eauto. solve_addr.
     iInstr "Hprog". split; [auto|solve_addr].
-    do 3 iInstr "Hprog". (* Not using iGo so it stops before Jnz *)
+    iInstr "Hprog"; [eapply getwtype_denote ; reflexivity |].
+    do 2 iInstr "Hprog". (* Not using iGo so it stops before Jnz *)
     case_eq (is_cap hd); intro His_cap.
     { iInstr "Hprog".
       destruct hd ; try (simpl in His_cap; congruence).
@@ -836,6 +837,7 @@ Section list.
     decodeInstrW w = get_i →
     is_Get get_i dst src →
     (forall dst' src', get_i <> GetOType dst' src') ->
+    (forall dst' src', get_i <> GetWType dst' src') ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -845,14 +847,17 @@ Section list.
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-    iIntros (Hdecode Hinstr Hgeti Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iIntros (Hdecode Hinstr Hnot_otype Hnot_wtype Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
     iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [* Hsucc |].
     { (* Success (contradiction) *)
-      destruct (decodeInstrW w); simplify_map_eq; specialize (Hgeti dst0 r); contradiction.
+      destruct (decodeInstrW w); simplify_map_eq
+        ; specialize (Hnot_otype dst0 r)
+        ; specialize (Hnot_wtype dst0 r)
+      ; try contradiction.
     }
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
