@@ -77,8 +77,8 @@ Section cap_lang_rules.
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
 
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri.
-    feed destruct (Hri src2) as [r2v [Hr'2 Hr2]]. by set_solver+.
-    feed destruct (Hri src1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+    odestruct (Hri src2) as [r2v [Hr'2 Hr2]]. by set_solver+.
+    odestruct (Hri src1) as [r1v [Hr'1 Hr1]]. by set_solver+.
     destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. clear Hri.
 
     rewrite /exec /= Hr2 Hr1 /= in Hstep.

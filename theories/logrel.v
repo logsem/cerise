@@ -26,7 +26,7 @@ Ltac solve_proper ::= (repeat intros ?; simpl; auto_equiv).
 
 Class logrel_na_invs Σ :=
   {
-    logrel_na_invG :> na_invG Σ;
+    logrel_na_invG :: na_invG Σ;
     logrel_nais : na_inv_pool_name;
   }.
 

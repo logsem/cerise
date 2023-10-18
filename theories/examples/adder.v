@@ -83,7 +83,7 @@ Section adder.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     destruct ag as [| a0 ag]; [inversion Hlength|].
     destruct ag as [| ? ag]; [inversion Hlength|].
-    feed pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
+    opose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
     assert (isCorrectPC_range RX g_start f_end g_start f_start).
     { intros mid [? ?]. constructor; auto. solve_addr. }
     (* move r_t2 PC *)
@@ -174,7 +174,7 @@ Section adder.
     remember af as af'.
     destruct af' as [| a0 af'];[inversion Hlength|].
     destruct af' as [| ? af'];[inversion Hlength|].
-    feed pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
+    opose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
     assert (isCorrectPC_range RX f_start f_end f_start f_end).
     { intros ? [? ?]. constructor; auto. solve_addr. }
     (* move r_t1 PC *)

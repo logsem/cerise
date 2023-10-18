@@ -190,8 +190,8 @@ Section cap_lang_rules.
     (* Derive necessary register values in r *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
-    feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
+    odestruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
+    odestruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
     assert (is_Some (dfracs !! pc_a)) as [dq Hdq].
     { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
@@ -268,33 +268,6 @@ Section cap_lang_rules.
       Unshelve. all: auto.
   Qed.
 
-  (* TODO: move to stdpp_extra *)
-  Lemma create_gmap_default_lookup_None {K V : Type} `{Countable K}
-      (l : list K) (d : V) (k : K) :
-    k ∉ l →
-    (create_gmap_default l d) !! k = None.
-  Proof.
-    intros Hk.
-    induction l;auto.
-    simpl. apply not_elem_of_cons in Hk as [Hne Hk].
-    rewrite lookup_insert_ne//. apply IHl. auto.
-  Qed.
-  Lemma create_gmap_default_permutation {K V : Type} `{Countable K}
-      (l l' : list K) (d : V) :
-    l ≡ₚl' →
-    (create_gmap_default l d) = (create_gmap_default l' d).
-  Proof.
-    intros Hperm.
-    apply map_eq. intros k.
-    destruct (decide (k ∈ l)).
-    - assert (k ∈ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup _ d) in e as ->.
-      apply (create_gmap_default_lookup _ d) in e' as ->. auto.
-    - assert (k ∉ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup_None _ d) in n as ->.
-      apply (create_gmap_default_lookup_None _ d) in e' as ->. auto.
-  Qed.
-
   Lemma mem_remove_dq mem dq :
     ([∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ⊣⊢
     ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
@@ -348,7 +321,7 @@ Section cap_lang_rules.
   Lemma memMap_resource_2gen_clater_dq (a1 a2 : Addr) (dq1 dq2 : dfrac) (w1 w2 : Word) (Φ : Addr -> dfrac → Word -> iProp Σ)  :
     (▷ Φ a1 dq1 w1) -∗
     (if (a2 =? a1)%a then emp else ▷ Φ a2 dq2 w2) -∗
-    (∃ mem dfracs, ▷ ([∗ map] a↦w ∈ prod_merge dfracs mem, Φ a w.1 w.2) ∗
+    (∃ mem dfracs, ▷ ([∗ map] a↦wq ∈ prod_merge dfracs mem, Φ a wq.1 wq.2) ∗
        ⌜(if  (a2 =? a1)%a
        then mem = (<[a1:=w1]> ∅)
        else mem = <[a1:=w1]> (<[a2:=w2]> ∅)) ∧
@@ -374,7 +347,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma memMap_resource_2gen_d_dq (Φ : Addr → dfrac → Word → iProp Σ) (a1 a2 : Addr) (dq1 dq2 : dfrac) (w1 w2 : Word)  :
-    ( ∃ mem dfracs, ([∗ map] a↦w ∈ prod_merge dfracs mem, Φ a w.1 w.2) ∧
+    ( ∃ mem dfracs, ([∗ map] a↦wq ∈ prod_merge dfracs mem, Φ a wq.1 wq.2) ∧
        ⌜ (if  (a2 =? a1)%a
        then mem =  (<[a1:=w1]> ∅)
           else mem = <[a1:=w1]> (<[a2:=w2]> ∅)) ∧

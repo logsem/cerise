@@ -24,7 +24,7 @@ Definition to_spec_map {L V : Type} `{Countable L} : gmap L V -> gmapUR L (prodR
 
 (* the CMRA for the specification side *)
 Class cfgSG Σ := CFGSG {
-  cfg_invG :> inG Σ (authR cfgUR);
+  cfg_invG :: inG Σ (authR cfgUR);
   cfg_name : gname
 }.
 
@@ -230,12 +230,12 @@ Section cap_lang_spec_resources.
   Lemma map_of_regs_1 (r1: RegName) (w1: Word) :
     r1 ↣ᵣ w1 -∗
     ([∗ map] k↦y ∈ {[r1 := w1]}, k ↣ᵣ y).
-  Proof. by rewrite big_sepM_singleton. Qed.
+  Proof. rewrite big_sepM_singleton ; auto. Qed.
 
   Lemma regs_of_map_1 (r1: RegName) (w1: Word) :
     ([∗ map] k↦y ∈ {[r1 := w1]}, k ↣ᵣ y) -∗
     r1 ↣ᵣ w1.
-  Proof. by rewrite big_sepM_singleton. Qed.
+  Proof. rewrite big_sepM_singleton ; auto. Qed.
 
   Lemma map_of_regs_2 (r1 r2: RegName) (w1 w2: Word) :
     r1 ↣ᵣ w1 -∗ r2 ↣ᵣ w2 -∗
@@ -398,7 +398,7 @@ Section cap_lang_spec_resources.
       iApply (Hσ' with "[$]"). eauto. }
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
-    Unshelve.
+    Unshelve. typeclasses eauto. apply option_leibniz.
   Qed.
   Lemma regspec_heap_valid_allSepM e σ σ' q :
       (forall l, is_Some (σ' !! l)) →
@@ -415,7 +415,7 @@ Section cap_lang_spec_resources.
       iApply (Hσ' with "[$]"). eauto. }
     iPureIntro. eapply map_leibniz. intro.
     eapply leibniz_equiv_iff. auto.
-    Unshelve.
+    Unshelve. typeclasses eauto. apply option_leibniz.
   Qed.
 
   Lemma memspec_v_implies_m_v:

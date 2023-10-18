@@ -226,7 +226,7 @@ Ltac focus_block_0 h hi hcont :=
   match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
     iPoseProof (codefrag_block0_acc with h) as x;
     eapply tac_and_destruct with x _ hi hcont _ _ _;
-    [pm_reflexivity|pm_reduce;iSolveTC|
+    [pm_reflexivity|pm_reduce;tc_solve|
      pm_reduce;
      lazymatch goal with
      | |- False =>
@@ -275,10 +275,10 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
     let xbase := iFresh in
     let y := iFresh in
     eapply tac_and_destruct with x _ xbase y _ _ _;
-      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+      [pm_reflexivity|pm_reduce;tc_solve|pm_reduce];
     iPure xbase as Ha_base;
     eapply tac_and_destruct with y _ hi hcont _ _ _;
-      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+      [pm_reflexivity|pm_reduce;tc_solve|pm_reduce];
     focus_block_codefrag_facts hi a0 Ha_base;
     changePC_next_block a_base
   end.
@@ -404,7 +404,7 @@ Ltac2 record_framed
 (* Helpers *)
 
 Ltac solve_to_wand tt :=
-    iSolveTC ||
+    tc_solve ||
     let P := match goal with |- IntoWand _ _ ?P _ _ => P end in
     fail "iSpecialize:" P "not an implication/wand".
 
@@ -450,7 +450,7 @@ Ltac2 iSpecializeDelay (h: constr) :=
 Ltac iApplyHypLast H :=
   eapply tac_apply with H _ _ _;
   [pm_reflexivity
-  |iSolveTC
+  |tc_solve
   |pm_reduce; pm_prettify].
 
 Ltac2 iApplyCapAutoT_init0 lemma :=
@@ -575,7 +575,7 @@ Ltac iInstr_lookup0 hprog hi hcont :=
       iPoseProofCore (codefrag_lookup_acc _ _ off with hprog) as false (fun H =>
         eapply tac_and_destruct with H _ hi hcont _ _ _;
         [pm_reflexivity
-        |pm_reduce; iSolveTC
+        |pm_reduce; tc_solve
         |pm_reduce];
         rewrite ?addr_incr_zero ?addr_incr_zero_nat
       )
@@ -608,7 +608,7 @@ Ltac iInstr_close hprog :=
     notypeclasses refine (tac_specialize false _ hi _ hcont _ _ _ _ _ _ _ _ _);
     [pm_reflexivity
     |pm_reflexivity
-    |iSolveTC
+    |tc_solve
     |pm_reduce];
     iRename hcont into hprog
   end end.

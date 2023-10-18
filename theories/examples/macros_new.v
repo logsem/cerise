@@ -815,7 +815,7 @@ Section macros.
     (* TODO: This part is needed to have a concrete list, but could be automated as in codefrag_lookup_acc
        to avoid this *)
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
-    feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    opose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
     unfold region_mapsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).

@@ -402,8 +402,8 @@ Section counter_example_preamble.
     iApply (wp_wand with "[-]").
     iApply (malloc_s_spec with "[- $Hspec $Hj $HPC $HsPC $Hmalloc $Hsmalloc $Hpc_b $Hpcs_b $Ha_entry $Hs_entry $Hr0 $Hs0 $Hregs $Hsegs $Hinv_malloc $HnaI]");
       [apply Hvpc1|apply Hvpc1'|eapply Hcont_malloc|eapply Hcont_smalloc|eapply Hwb_malloc|eapply Ha_entry|eapply Hwb_malloc'|eapply Hs_entry|auto..].
-    { rewrite !dom_delete_L Hdom_r' difference_difference_L //. }
-    { rewrite !dom_delete_L Hdom_s' difference_difference_L //. }
+    { rewrite !dom_delete_L Hdom_r' difference_difference_l_L //. }
+    { rewrite !dom_delete_L Hdom_s' difference_difference_l_L //. }
     { solve_ndisj. }
     { solve_ndisj. }
     iNext. iIntros "(Hj & HPC & HsPC & Hmalloc & Hsmalloc & Hpc_b & Hpcs_b & Ha_entry & Hs_entry & HH & Hr0 & Hs0 & HnaI & Hregs & Hsegs)".

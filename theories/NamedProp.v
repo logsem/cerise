@@ -142,7 +142,7 @@ Proof. Qed.
 (** tc_is_inhabited succeeds if P is an inhabited typeclass and fails otherwise.
 *)
 Ltac tc_is_inhabited P :=
-  first [ let _ := constr:(ltac:(iSolveTC) : P) in idtac
+  first [ let _ := constr:(ltac:(tc_solve) : P) in idtac
         | fail 1 "could not satisfy" P ].
 
 Ltac iDeex_one H :=
@@ -207,15 +207,14 @@ Qed.
 Local Ltac iNameIntuitionistic i i' :=
   eapply (tac_name_intuitionistic _ i i' _ _ _ _ _);
   [ reduction.pm_reflexivity
-  | iSolveTC
-  | simpl; iSolveTC
+  | tc_solve
+  | simpl; tc_solve
   | reduction.pm_reduce
   ].
 
 Local Ltac iNamePure i name :=
-  let id := string_to_ident name in
-  let id := fresh id in
-  iPure i as id.
+  string_to_ident_cps name
+  ltac:(fun x => let id := fresh x in iPure i as id).
 
 (* iNameHyp implements naming a hypothesis of the form [H: name ∷ P].
 
@@ -350,8 +349,7 @@ Ltac iFrameNamed :=
              | IIdent ?name => iFrame name
              | IIntuitionistic (IIdent ?name) => iFrame name
              | IPure (IGallinaNamed ?name) =>
-               let name := string_to_ident name in
-               iFrame (name)
+               string_to_ident_cps name ltac:(fun x => iFrame (x))
              end
            end
   end.

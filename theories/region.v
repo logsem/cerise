@@ -131,7 +131,7 @@ Section region.
     iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
     iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
     iPureIntro.
-    rewrite take_app_alt //.
+    rewrite take_app_length' //.
     assert (drop n ws = w :: l2) as Heql2.
     { apply app_inj_1 in Hws2 as [_ Heq]; auto.
         by rewrite -Hlnws. }

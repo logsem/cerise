@@ -205,7 +205,7 @@ Section Adequacy.
                with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r) as HH. set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -386,7 +386,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r) as HH. set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -564,7 +564,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r) as HH. set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -979,7 +979,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r) as HH. set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -1288,7 +1288,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r) as HH. set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.

@@ -89,6 +89,7 @@ Proof.
     + simpl in HH. eapply IHl; eauto.
 Qed.
 
+(* TODO drop with upgrade stdpp ? *)
 Lemma disjoint_nil_l {A : Type} `{EqDecision A} (a : A) (l2 : list A) :
   [] ## l2.
 Proof.
@@ -220,14 +221,14 @@ Lemma difference_het_lookup_Some
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C) (k: A) (v: B):
   (m1 ∖∖ m2) !! k = Some v ↔ m1 !! k = Some v ∧ m2 !! k = None.
-Proof. by rewrite /map_difference_het map_filter_lookup_Some. Qed.
+Proof. by rewrite /map_difference_het map_lookup_filter_Some. Qed.
 
 Lemma difference_het_lookup_None
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C) (k: A) (v: B):
   (m1 ∖∖ m2) !! k = None ↔ m1 !! k = None ∨ is_Some (m2 !! k).
 Proof.
-  rewrite /map_difference_het map_filter_lookup_None.
+  rewrite /map_difference_het map_lookup_filter_None.
   split; intros [HH1|HH2]; eauto.
   { destruct (m1 !! k) eqn:?; eauto; right.
     destruct (m2 !! k) eqn:?; eauto. exfalso. eapply HH2; eauto. }
@@ -241,7 +242,7 @@ Lemma difference_het_empty
   m ∖∖ (∅ : gmap A C) = m.
 Proof.
   rewrite /map_difference_het map_eq'. intros k v.
-  rewrite map_filter_lookup_Some. rewrite lookup_empty. set_solver.
+  rewrite map_lookup_filter_Some. rewrite lookup_empty. set_solver.
 Qed.
 
  Lemma difference_het_eq_empty
@@ -250,7 +251,7 @@ Qed.
   m ∖∖ m = (∅ : gmap A B).
 Proof.
   rewrite /map_difference_het map_eq'. intros k v.
-  rewrite map_filter_lookup_Some. rewrite lookup_empty. set_solver.
+  rewrite map_lookup_filter_Some. rewrite lookup_empty. set_solver.
 Qed.
 
 Lemma difference_het_insert_r
@@ -260,8 +261,8 @@ Lemma difference_het_insert_r
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some lookup_delete_Some.
-  rewrite map_filter_lookup_Some lookup_insert_None. set_solver.
+  rewrite map_lookup_filter_Some lookup_delete_Some.
+  rewrite map_lookup_filter_Some lookup_insert_None. set_solver.
 Qed.
 
 Lemma difference_het_insert_l
@@ -272,9 +273,9 @@ Lemma difference_het_insert_l
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some lookup_insert_Some.
+  rewrite map_lookup_filter_Some lookup_insert_Some.
   rewrite -map_filter_insert_True;auto.
-    by rewrite map_filter_lookup_Some lookup_insert_Some.
+    by rewrite map_lookup_filter_Some lookup_insert_Some.
 Qed.
 
 Lemma difference_het_delete_assoc
@@ -284,9 +285,9 @@ Lemma difference_het_delete_assoc
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some.
+  rewrite map_lookup_filter_Some.
   rewrite -map_filter_delete;auto.
-  rewrite map_filter_lookup_Some. set_solver.
+  rewrite map_lookup_filter_Some. set_solver.
 Qed.
 
 Lemma dom_difference_het
@@ -607,6 +608,33 @@ Proof.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
 Qed.
 
+Lemma create_gmap_default_lookup_None {K V : Type} `{Countable K}
+  (l : list K) (d : V) (k : K) :
+  k ∉ l →
+  (create_gmap_default l d) !! k = None.
+Proof.
+  intros Hk.
+  induction l;auto.
+  simpl. apply not_elem_of_cons in Hk as [Hne Hk].
+  rewrite lookup_insert_ne//. apply IHl. auto.
+Qed.
+
+Lemma create_gmap_default_permutation {K V : Type} `{Countable K}
+  (l l' : list K) (d : V) :
+  l ≡ₚ l' →
+  (create_gmap_default l d) = (create_gmap_default l' d).
+Proof.
+  intros Hperm.
+  apply map_eq. intros k.
+  destruct (decide (k ∈ l)).
+  - assert (k ∈ l') as e';[rewrite -Hperm;auto|].
+    apply (create_gmap_default_lookup _ d) in e as ->.
+    apply (create_gmap_default_lookup _ d) in e' as ->. auto.
+  - assert (k ∉ l') as e';[rewrite -Hperm;auto|].
+    apply (create_gmap_default_lookup_None _ d) in n as ->.
+    apply (create_gmap_default_lookup_None _ d) in e' as ->. auto.
+Qed.
+
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :
   (zip l k).*1 `prefix_of` l.
 Proof.
@@ -681,9 +709,9 @@ Proof.
 Qed.
 
 Lemma map_to_list_delete {A B} `{Countable A} `{EqDecision A} (m : gmap A B) (i : A) (x : B) :
-  ∀ l, (i,x) :: l ≡ₚmap_to_list m ->
+  ∀ l, (i,x) :: l ≡ₚ map_to_list m ->
        NoDup (i :: l.*1) →
-       (map_to_list (delete i m)) ≡ₚl.
+       (map_to_list (delete i m)) ≡ₚ l.
 Proof.
   intros l Hl Hdup.
   assert ((i,x) ∈ map_to_list m) as Hin.
@@ -731,9 +759,9 @@ Proof.
 Qed.
 
 Lemma map_to_list_delete_fst {A B} `{Countable A} (m : gmap A B) (i : A) (x : B) :
-  ∀ l, i :: l ≡ₚ(map_to_list m).*1 ->
+  ∀ l, i :: l ≡ₚ (map_to_list m).*1 ->
        NoDup (i :: l) →
-       (map_to_list (delete i m)).*1 ≡ₚl.
+       (map_to_list (delete i m)).*1 ≡ₚ l.
 Proof.
   intros l Hl Hdup.
   assert (i ∈ (map_to_list m).*1) as Hin.

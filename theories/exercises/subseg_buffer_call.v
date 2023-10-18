@@ -399,7 +399,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     { subst rmap'.
       rewrite dom_insert_L.
       rewrite Hdom.
-      rewrite - difference_difference_L.
+      rewrite - difference_difference_l_L.
       rewrite -union_difference_L; auto.
       set_solver.
     }

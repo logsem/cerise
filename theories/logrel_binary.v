@@ -38,7 +38,7 @@ Section logrel.
 
   (* interp expression definitions *)
   Definition spec_registers_mapsto (r : Reg) : iProp Σ :=
-    ([∗ map] r↦w ∈ r, r ↣ᵣ w)%I.
+    ([∗ map] r↦x ∈ r, r ↣ᵣ x)%I.
 
   Definition full_map (regpair : Reg * Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (regpair.1 !! r) ∧ is_Some (regpair.2 !! r)⌝)%I.
   Program Definition interp_reg (interp : D) : R :=

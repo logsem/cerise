@@ -289,7 +289,7 @@ Program Definition counter_inv (a_init: Addr) : memory_inv :=
     _.
 Next Obligation.
   intros a_init m m' H. cbn in *.
-  specialize (H (a_init ^+ (code_off + data_off + 1))%a). feed specialize H. by set_solver.
+  specialize (H (a_init ^+ (code_off + data_off + 1))%a). ospecialize H. by set_solver.
   destruct H as [w [? ?] ]. by simplify_map_eq.
 Qed.
 
@@ -349,7 +349,7 @@ Proof.
     { apply map_subseteq_spec. intros a w. intros [Ha| [Ha|Ha]%lookup_union_Some]%lookup_union_Some.
       4,5: assumption.
       all: apply mkregion_lookup in Ha as [i [? HH] ]; [| solve_addr'].
-      all: apply map_filter_lookup_Some_2;
+      all: apply map_lookup_filter_Some_2;
         [| cbn; apply not_elem_of_singleton; apply lookup_lt_Some in HH; solve_addr'].
       all: subst; rewrite mkregion_lookup; [| rewrite HP; solve_addr'].
       { eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. }
