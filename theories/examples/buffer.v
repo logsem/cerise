@@ -1,46 +1,91 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel fundamental.
+From cap_machine Require Import rules seal_store.
+(* From cap_machine Require Import rules logrel fundamental. *)
 From cap_machine Require Import proofmode.
-From cap_machine.examples Require Import template_adequacy.
+(* From cap_machine.examples Require Import template_adequacy. *)
 Open Scope Z_scope.
 
 Section buffer.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           `{MP: MachineParameters}.
 
-  Definition buffer_code (off: Z) : list Word :=
+  Definition buffer_code (off: Z) : list LWord :=
     (* code: *)
-    encodeInstrsW [
+    encodeInstrsLW [
       Mov r_t1 PC;
       Lea r_t1 4 (* [data-code] *);
       Subseg r_t1 (off + 4)%Z (* [data] *) (off + 7)%Z (* [data+3] *);
       Jmp r_t0
     ].
-  Definition buffer_data : list Word :=
+  Definition buffer_data : list LWord :=
     (* data: *)
-    map WInt [72 (* 'H' *); 105 (* 'i' *); 0; 42 (* secret value *)]
+    map LWInt [72 (* 'H' *); 105 (* 'i' *); 0; 42 (* secret value *)]
     (* end: *).
 
-  Lemma buffer_spec (a_first: Addr) wadv w1 φ :
-    let len_region := length (buffer_code a_first) + length buffer_data in
-    ContiguousRegion a_first len_region →
 
-   ⊢ (( PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
+
+Ltac codefrag_facts h :=
+  let h := constr:(h:ident) in
+  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?v ?code) ] =>
+    (match goal with H : ContiguousRegion a_base _ |- _ => idtac end ||
+     let HH := fresh in
+     iDestruct (codefrag_contiguous_region with h) as %HH;
+     cbn [length map encodeInstrsLW] in HH
+    );
+    (match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => idtac end ||
+     (try match goal with H : SubBounds ?b ?e _ _ |- _ =>
+            let HH := fresh in
+            assert (HH: SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr;
+            cbn [length map encodeInstrsLW] in HH
+          end))
+  end.
+
+
+  Lemma buffer_spec (a_first: Addr) (v: Version) (wadv w1 : LWord) φ :
+    let len_region := length (buffer_code a_first) + length buffer_data in
+
+   ⊢ (( PC ↦ᵣ LCap RWX a_first (a_first ^+ len_region)%a a_first v
       ∗ r_t0 ↦ᵣ wadv
       ∗ r_t1 ↦ᵣ w1
-      ∗ codefrag a_first (buffer_code a_first)
+      ∗ codefrag a_first v (buffer_code a_first)
       ∗ ▷ (let a_data := (a_first ^+ 4)%a in
-             PC ↦ᵣ updatePcPerm wadv
+             PC ↦ᵣ updatePcPermL wadv
            ∗ r_t0 ↦ᵣ wadv
-           ∗ r_t1 ↦ᵣ WCap RWX a_data (a_data ^+ 3)%a a_data
-           ∗ codefrag a_first (buffer_code a_first)
+           ∗ r_t1 ↦ᵣ LCap RWX a_data (a_data ^+ 3)%a a_data v
+           ∗ codefrag a_first v (buffer_code a_first)
            -∗ WP Seq (Instr Executable) {{ φ }}))
       -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros len_region.
-    iIntros (Hcont) "(HPC & Hr0 & Hr1 & Hprog & Hφ)".
+    iIntros "(HPC & Hr0 & Hr1 & Hprog & Hφ)".
+    codefrag_facts "Hprog".
+
+    let hi := iFresh in
+    let hcont := iFresh in
+    iInstr_lookup "Hprog" as hi hcont;
+    try wp_instr;
+    (* TODO as far as I could debug the proofmode,
+       - in `iApplyCapAuto` does not destructs the ressources entirely: iInstr_close get stucks.
+       I don't know where it come from though
+       - also, it doesn't rename correctly ?
+       - solve_pure should be able to derive isCorrectLPC automatically,
+       but it seems that it requires SubBounds in the context, and codefrag_facts does not
+       generate it
+     *)
+    iInstr_get_rule hi ltac:(fun rule =>
+                               iApplyCapAuto rule;
+                                       [ .. | idtac]).
+    1: { subst len_region. cbn in *.
+         assert (SubBounds a_first (a_first ^+ 8%nat)%a a_first (a_first ^+ 4%nat)%a).
+         admit. solve_pure.
+    }
+    lazymatch goal with |- context [(Esnoc _ ?hi _)] => iDestruct hi as "[? ?]" end.
+    iInstr_close "Hprog"; try wp_pure.
+
+    iInstr "Hprog".
     iGo "Hprog".
     { transitivity (Some (a_first ^+ 4)%a); auto. solve_addr. }
     { transitivity (Some (a_first ^+ 7)%a); auto. solve_addr. }

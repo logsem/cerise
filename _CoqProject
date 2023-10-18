@@ -25,7 +25,7 @@ theories/classes.v
 theories/class_instances.v
 theories/solve_addr_extra.v
 theories/cap_lang.v
-# theories/region.v
+theories/region.v
 theories/logical_mapsto.v
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
@@ -61,6 +61,9 @@ theories/rules.v
 theories/solve_pure.v
 theories/NamedProp.v
 theories/proofmode_instr_rules.v
+theories/examples/addr_reg_sample.v
+theories/examples/contiguous.v
+theories/examples/macros_helpers.v
 theories/proofmode.v
 theories/seal_store.v
 theories/logrel.v
@@ -99,12 +102,9 @@ theories/register_tactics.v
 # theories/ftlr_binary/Seal_binary.v
 # theories/ftlr_binary/UnSeal_binary.v
 # theories/fundamental_binary.v
-theories/examples/addr_reg_sample.v
 theories/examples/malloc.v
 theories/examples/salloc.v
 theories/examples/assert.v
-theories/examples/contiguous.v
-theories/examples/macros_helpers.v
 theories/examples/macros.v
 theories/examples/macros_new.v
 theories/examples/disjoint_regions_tactics.v

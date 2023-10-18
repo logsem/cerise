@@ -467,6 +467,15 @@ Inductive isCorrectLPC: LWord → Prop :=
     apply not_isCorrectPC_bounds in contra;auto.
   Qed.
 
+  Lemma isCorrectLPC_ExecPCPerm_InBounds p b e a v :
+    ExecPCPerm p →
+    InBounds b e a →
+    isCorrectLPC (LCap p b e a v).
+  Proof.
+    unfold ExecPCPerm, InBounds. intros.
+    econstructor; eauto. apply isCorrectPC_ExecPCPerm_InBounds; auto.
+  Qed.
+
   Lemma lreg_lookup regs (r : RegName) (lw : LWord) :
     regs !! r = Some lw -> (lreg_strip regs !! r) = Some (lword_get_word lw).
   Proof.
