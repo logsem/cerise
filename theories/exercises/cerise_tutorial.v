@@ -8,7 +8,7 @@
     at this URL: https://iris-project.org/ *)
 
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules proofmode macros_helpers.
+From cap_machine Require Import rules macros_helpers proofmode.
 From cap_machine Require Import contiguous.
 Open Scope Z_scope.
 

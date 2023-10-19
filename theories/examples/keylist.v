@@ -8,7 +8,7 @@ From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Definition addrwordLO := listO (prodO (leibnizO Addr) (leibnizO Word)).
 Definition prefR (al al' : addrwordLO) := al `prefix_of` al'.
-Class sealLLG Σ := CCounterG { ccounter_inG :> inG Σ (authUR (monotoneUR prefR)) }.
+Class sealLLG Σ := CCounterG { ccounter_inG :: inG Σ (authUR (monotoneUR prefR)) }.
 
 Section list.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}

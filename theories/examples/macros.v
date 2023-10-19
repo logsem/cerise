@@ -424,7 +424,7 @@ Section macros.
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
       rewrite !difference_difference_l_L !singleton_union_difference_L !all_registers_union_l.
-      f_equal. set_solver-. }
+      f_equal. }
     (* { lia. } *)
     iNext.
     rewrite updatePcPerm_cap_non_E.
@@ -596,7 +596,7 @@ Section macros.
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { rewrite !dom_insert_L dom_delete_L Hrmap_dom.
       rewrite !difference_difference_l_L !singleton_union_difference_L !all_registers_union_l.
-      f_equal. set_solver-. }
+      f_equal. }
     (* { lia. } *)
     iNext.
     rewrite updatePcPerm_cap_non_E.
@@ -1586,7 +1586,7 @@ Section macros.
     iIntros (Hvpc Hcont Hact) "(>Hprog & >HPC & >Hr_t1 & >Hrcode & >Hrdata & >Hact & Hφ)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
-    opose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
     unfold region_mapsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
@@ -1599,12 +1599,13 @@ Section macros.
     assert (∀ i a', acta !! i = Some a' → withinBounds act_b act_e a' = true) as Hwbact.
     { intros i a' Hsome. apply andb_true_intro. subst acta.
       apply contiguous_between_incr_addr with (i:=i) (ai:=a') in Hcont_act. 2: done.
-      apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr. }
+      apply lookup_lt_Some in Hsome. split;[apply Z.leb_le|apply Z.ltb_lt]; solve_addr.
+    }
     (* store_z r_t1 v1 *)
     destruct l; [inversion Hlength|].
     destruct acta as [| a0 acta]; [inversion Hact_len_a|].
     assert (a0 = act_b) as ->.
-    { opose proof (finz_seq_between_first act_b act_e) as HH. solve_addr.
+    { opose proof (finz_seq_between_first act_b act_e _) as HH; first solve_addr.
       rewrite -Heqacta /= in HH. by inversion HH. }
     iDestruct "Hact" as "[Ha0 Hact]".
     iPrologue "Hprog".
@@ -1857,7 +1858,7 @@ Section macros.
       revert Hcont Hcont_rest Hmid; clear. solve_addr. }
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
-      f_equal. clear; set_solver. }
+      f_equal. }
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hna & Hregs)".
     iDestruct "Hbe" as (b e Hbe) "(Hr_t1 & Hbe)".
     rewrite delete_insert_delete.

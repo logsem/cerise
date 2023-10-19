@@ -427,8 +427,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         with ( ( all_registers_s ∖ {[PC]} ∖ {[r_t30]} ) ) by set_solver+.
       replace ( {[r_t30]} ∪ all_registers_s ∖ {[PC]} ∖ {[r_t30]})
       with (all_registers_s ∖ {[PC]}) ; auto.
-      rewrite <- union_difference_L ; auto.
-      set_solver+. }
+    }
     iNext.
     iIntros "(HPC & Hmalloc_prog & Hlink & Hentry_malloc & Hreg & Hr0 & Hna & Hrmap)"
     ; iDestruct "Hreg" as (b_mem e_mem Hmem_size) "(Hr1 & Hmem)".

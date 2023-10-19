@@ -254,7 +254,7 @@ Section counter.
 
       (* jmp to continuation *)
       iApply "Hcont_prog". 2: iFrame. iPureIntro.
-      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. set_solver+. }
+      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. }
 
     (* put the registers back together *)
     iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap".
@@ -290,7 +290,6 @@ Program Definition counter_inv (a_init: Addr) : memory_inv :=
 Next Obligation.
   intros a_init m m' H. cbn in *.
   specialize (H (a_init ^+ (code_off + data_off + 1))%a). ospecialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
 Qed.
 
 Definition counterN : namespace := nroot .@ "counter".

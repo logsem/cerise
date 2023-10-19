@@ -205,7 +205,7 @@ Section Adequacy.
                with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
-      opose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -386,7 +386,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      opose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -564,7 +564,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      opose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -688,7 +688,6 @@ Section Adequacy.
     - destruct Hm as (HM & HA & Hdisj).
       repeat constructor;auto. all:rewrite empty_prog_region /=.
       apply map_empty_subseteq. all: apply map_disjoint_empty_r.
-    - by apply Forall_nil.
     - eapply Forall_impl;[apply Hadv|].
       intros x Hx. left. auto.
     - intros. iIntros "(?&?&?&?&?&?&?&?)".
@@ -823,11 +822,11 @@ Definition is_initial_memory (P Adv AdvData: prog) (Lib : lib) (P_tbl : tbl_priv
   prog_tbl_region P P_tbl ⊆ m
   ∧ prog_tbl_data_region Adv AdvData Adv_tbl ⊆ m
   ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
-  ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_data_region Adv AdvData Adv_tbl
-  ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ prog_tbl_data_region Adv AdvData Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib)
-  /\ prog_region AdvData ##ₘprog_tbl_region Adv Adv_tbl.
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_data_region Adv AdvData Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_data_region Adv AdvData Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib)
+  /\ prog_region AdvData ##ₘ prog_tbl_region Adv Adv_tbl.
 
 Definition initial_memory_domain (P Adv AdvData: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
   dom (prog_tbl_region P P_tbl)
@@ -979,7 +978,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      opose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -1138,10 +1137,10 @@ Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) 
   prog_tbl_region P P_tbl ⊆ m
   ∧ prog_tbl_region Adv Adv_tbl ⊆ m
   ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
-  ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_region Adv Adv_tbl
-  ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ prog_tbl_region Adv Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_region Adv Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_region Adv Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib).
 
 Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
   dom (prog_tbl_region P P_tbl)
@@ -1288,7 +1287,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      opose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -1442,10 +1441,10 @@ Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) 
   prog_tbl_region P P_tbl ⊆ m
   ∧ prog_tbl_region Adv Adv_tbl ⊆ m
   ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
-  ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_region Adv Adv_tbl
-  ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ prog_tbl_region Adv Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_region Adv Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_region Adv Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib).
 
 Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
   dom (prog_tbl_region P P_tbl)
@@ -1511,7 +1510,6 @@ Section Adequacy.
     - destruct Hm as (HM & HA & HL & Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4).
       repeat constructor;auto. unfold prog_tbl_data_region. all:rewrite /prog_tbl_data_region; try rewrite !empty_prog_region /= //.
       all: try rewrite map_union_empty //. apply map_disjoint_empty_l.
-    - by apply Forall_nil.
     - eapply Forall_impl;[apply Hadv|].
       intros x Hx. left. auto.
     - intros. iIntros "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?)".

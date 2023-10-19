@@ -246,8 +246,8 @@ Lemma regions_disjoint_eq `{MachineParameters, memory_layout} c_adv p1 p2 (mem m
                                          ∨ w = WSealable (SCap E counter_region_start counter_region_end counter_preamble_start)))
   ∧ reg = reg'
   ∧ (∃ c_main, reg = <[PC := c_main]> (gset_to_gmap (WInt 0%Z) (list_to_set all_registers)) ∧ can_address_only c_main (dom resolved_ms) ∧ isCorrectPC c_main)
-  ∧ mk_initial_memory_left ##ₘresolved_ms
-  ∧ mk_initial_memory_right ##ₘresolved_ms
+  ∧ mk_initial_memory_left ##ₘ resolved_ms
+  ∧ mk_initial_memory_right ##ₘ resolved_ms
 .
 Proof.
   intros Hp1 Hp2 Hinit Hmem Hmem'.

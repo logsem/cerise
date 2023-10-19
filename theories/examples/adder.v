@@ -426,7 +426,7 @@ Section adder.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
           by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
         { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.
-          rewrite regmap_full_dom //. set_solver+. } }
+          rewrite regmap_full_dom //. } }
       { cbn beta. iIntros (?) "H". iIntros (->). iDestruct "H" as "[H|%]". 2: congruence.
         iApply "H". done. } }
 

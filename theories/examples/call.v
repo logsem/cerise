@@ -311,17 +311,17 @@ Section call.
             "(>Hprog & >HPC & #Hnainv & Hown & >Hb & >Ha_entry & >Hgen & >Hparams & >Hr_t0 & >Hr1 & >Hlocals & Hcont)".
     (* prepare the registers *)
     iDestruct "Hr_t0" as (w) "Hr_t0".
-    iAssert (⌜mparams ##ₘmlocals⌝)%I as %Hdisj1.
+    iAssert (⌜mparams ##ₘ mlocals⌝)%I as %Hdisj1.
     { rewrite map_disjoint_spec. iIntros (i x y Hx Hy).
       iDestruct (big_sepM_delete _ _ i with "Hparams") as "[Hi1 Hparams]";[eauto|].
       iDestruct (big_sepM_delete _ _ i with "Hlocals") as "[Hi2 Hlocals]";[eauto|].
       iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
-    iAssert (⌜mparams ##ₘrmap⌝)%I as %Hdisj2.
+    iAssert (⌜mparams ##ₘ rmap⌝)%I as %Hdisj2.
     { rewrite map_disjoint_spec. iIntros (i x y Hx Hy).
       iDestruct (big_sepM_delete _ _ i with "Hparams") as "[Hi1 Hparams]";[eauto|].
       iDestruct (big_sepM_delete _ _ i with "Hgen") as "[Hi2 Hgen]";[eauto|].
       iDestruct (regname_dupl_false with "Hi1 Hi2") as "Hfalse". done. }
-    iAssert (⌜mlocals ##ₘrmap⌝)%I as %Hdisj3.
+    iAssert (⌜mlocals ##ₘ rmap⌝)%I as %Hdisj3.
     { rewrite map_disjoint_spec. iIntros (i x y Hx Hy).
       iDestruct (big_sepM_delete _ _ i with "Hgen") as "[Hi1 Hgen]";[eauto|].
       iDestruct (big_sepM_delete _ _ i with "Hlocals") as "[Hi2 Hlocals]";[eauto|].

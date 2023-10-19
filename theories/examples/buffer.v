@@ -113,7 +113,6 @@ Program Definition buffer_inv (pstart: Addr) : memory_inv :=
 Next Obligation.
   intros pstart m m' H. cbn in *.
   specialize (H (pstart ^+ 7)%a). ospecialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
 Qed.
 
 Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es:

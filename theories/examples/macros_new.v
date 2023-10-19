@@ -815,7 +815,7 @@ Section macros.
     (* TODO: This part is needed to have a concrete list, but could be automated as in codefrag_lookup_acc
        to avoid this *)
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
-    opose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
     unfold region_mapsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
@@ -938,7 +938,7 @@ Section macros.
     iApply malloc_spec_alt; iFrameAutoSolve; eauto; try iFrame "∗ #".
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
-      f_equal. clear; set_solver. }
+      f_equal. }
     { lia. }
     iNext. iIntros "(HPC & Hmallocprog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hna & Hregs)".
     unfocus_block "Hmallocprog" "Hcont" as "Hprog".

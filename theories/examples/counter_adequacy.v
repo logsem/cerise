@@ -387,7 +387,7 @@ Section Adequacy.
 
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
-        destruct rw; [| by inversion Hncap..]. simplify_map_eq.
+        destruct rw; [| by inversion Hncap..]. simplify_map_eq. rewrite Hsv in Hrw ; simplify_eq.
         by rewrite !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)

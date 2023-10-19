@@ -237,7 +237,7 @@ Section SimpleMalloc.
 
     iApply ("Hcont" $! regs).
     { iPureIntro. subst regs. rewrite !dom_insert_L dom_delete_L.
-      rewrite regmap_full_dom; eauto. set_solver. }
+      rewrite regmap_full_dom; eauto. }
     iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
     destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. }
