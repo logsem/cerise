@@ -2,7 +2,8 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros register_tactics.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
+From cap_machine Require Import fundamental logrel rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
@@ -294,7 +295,6 @@ Section closure_program.
     dom rmap = all_registers_s ∖ {[ PC ; r_t30 ]} →
 
     ⊢ ( code_closure_inv s_closure secret_off secret_val
-        ∗ start_mem_inv b_mem secret_off
         ∗ end_mem_inv b_mem e_mem secret_off
         ∗ secret_inv b_mem secret_off secret_val
         ∗ cap_mem_inv p_mem b_mem e_mem pc_b
@@ -312,7 +312,7 @@ Section closure_program.
   Proof.
     intros secret e_closure ; subst secret e_closure.
     iIntros (Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom)
-            "(#Hinv_prog & #Hinv_mem & #Hinv_mem' & #Hinv_secret & #Hinv_cap & HPC & Hr30 & Hrmap & Hna & #Hvadv)".
+            "(#Hinv_prog & #Hinv_mem' & #Hinv_secret & #Hinv_cap & HPC & Hr30 & Hrmap & Hna & #Hvadv)".
 
     (* FTLR on V(w_adv) *)
     iDestruct (jmp_to_unknown with "Hvadv") as "Cont".
@@ -389,7 +389,6 @@ Section closure_program.
     writeAllowed p_mem = true ->
 
     ⊢ (code_closure_inv a_prog secret_off secret_val
-       ∗ start_mem_inv b_mem secret_off
        ∗ end_mem_inv b_mem e_mem secret_off
        ∗ secret_inv b_mem secret_off secret_val
        ∗ cap_mem_inv p_mem b_mem e_mem b_pc
@@ -398,7 +397,7 @@ Section closure_program.
    -∗ interp (WCap E b_pc e_pc a_prog).
  Proof.
    iIntros (Hbounds Hb_mem Hp_mem)
-     "(#Hnainv_code & #Hnainv_mem & #Hinv_mem' & #Hinv_secret & #Hinv_cap)".
+     "(#Hnainv_code & #Hinv_mem' & #Hinv_secret & #Hinv_cap)".
    (* 1 - unfold the definitions *)
    rewrite !fixpoint_interp1_eq /=.
    iIntros (regs).
@@ -410,7 +409,7 @@ Section closure_program.
 
    (* 2 - prepare the registers for closure_full_run_spec *)
    apply regmap_full_dom in Hrfull.
-    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[rewrite elem_of_gmap_dom Hrfull; set_solver|].
+    assert (is_Some (regs !! r_t30)) as [w30 Hw30];[rewrite -elem_of_dom Hrfull; set_solver|].
    iExtractList "Hregs" [PC;r_t30] as  ["HPC"; "Hw30"].
    iAssert (interp w30) as "Hw30i".
    { iApply ("Hrsafe" $! r_t30 w30) ; eauto.  }

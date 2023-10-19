@@ -11,6 +11,7 @@ Section cap_lang_rules.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
+  Implicit Types o : OType.
   Implicit Types r : RegName.
   Implicit Types v : Version.
   Implicit Types lw: LWord.
@@ -23,22 +24,38 @@ Section cap_lang_rules.
   Definition denote (i: instr) (w : Word): option Z :=
     match w with
     | WCap p b e a =>
-      match i with
-      | GetP _ _ => Some (encodePerm p)
-      | GetB _ _ => Some (b:Z)
-      | GetE _ _ => Some (e:Z)
-      | GetA _ _ => Some (a:Z)
-      | _ => None
-      end
+        match i with
+        | GetP _ _ => Some (encodePerm p)
+        | GetB _ _ => Some (b:Z)
+        | GetE _ _ => Some (e:Z)
+        | GetA _ _ => Some (a:Z)
+        | GetOType _ _ => Some (-1)%Z
+        | GetWType _ _ => Some (encodeWordType w)
+        | _ => None
+        end
     | WSealRange p b e a =>
-      match i with
-      | GetP _ _ => Some (encodeSealPerms p)
-      | GetB _ _ => Some (b:Z)
-      | GetE _ _ => Some (e:Z)
-      | GetA _ _ => Some (a:Z)
-      | _ => None
-      end
-    | _ => None end.
+        match i with
+        | GetP _ _ => Some (encodeSealPerms p)
+        | GetB _ _ => Some (b:Z)
+        | GetE _ _ => Some (e:Z)
+        | GetA _ _ => Some (a:Z)
+        | GetOType _ _ => Some (-1)%Z
+        | GetWType _ _ => Some (encodeWordType w)
+        | _ => None
+        end
+    | WSealed o _ =>
+        match i with
+        | GetOType _ _ => Some (o:Z)
+        | GetWType _ _ => Some (encodeWordType w)
+        | _ => None
+        end
+    | WInt _ =>
+        match i with
+        | GetOType _ _ => Some (-1)%Z
+        | GetWType _ _ => Some (encodeWordType w)
+        | _ => None
+        end
+    end.
 
   Global Arguments denote : simpl nomatch.
 
@@ -46,7 +63,10 @@ Section cap_lang_rules.
     i = GetP dst src ∨
     i = GetB dst src ∨
     i = GetE dst src ∨
-    i = GetA dst src.
+    i = GetA dst src \/
+    i = GetOType dst src \/
+    i = GetWType dst src
+  .
 
   Lemma regs_of_is_Get i dst src :
     is_Get i dst src →
@@ -62,10 +82,12 @@ Section cap_lang_rules.
       | GetB _ _ => b
       | GetE _ _ => e
       | GetA _ _ => a
+      | GetOType _ _ => (-1)%Z
+      | GetWType _ _ => (encodeWordType (WCap p b e a))
       | _ => 0%Z
       end.
   Lemma denote_cap_denote i p b e a z src dst: is_Get i src dst → denote_cap i p b e a = z → denote i (WCap p b e a) = Some z.
-  Proof. unfold denote_cap, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
+  Proof. unfold denote_cap, denote, is_Get. intros [-> | [-> | [-> | [-> | [-> |  ->]]]]] ->; done. Qed.
 
   Definition denote_seal (i: instr) (p : SealPerms) (b e a : OType): Z :=
       match i with
@@ -73,10 +95,13 @@ Section cap_lang_rules.
       | GetB _ _ => b
       | GetE _ _ => e
       | GetA _ _ => a
+      | GetOType _ _ => (-1)%Z
+      | GetWType _ _ => (encodeWordType (WSealRange p b e a))
       | _ => 0%Z
       end.
   Lemma denote_seal_denote i (p : SealPerms) (b e a : OType) z src dst: is_Get i src dst → denote_seal i p b e a = z → denote i (WSealRange p b e a) = Some z.
-  Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | ->]]] ->; done. Qed.
+  Proof. unfold denote_seal, denote, is_Get. intros [-> | [-> | [-> | [-> | [-> |  ->]]]]] ->; done. Qed.
+
 
   Inductive Get_failure (i: instr) (regs: LReg) (dst src: RegName) :=
     | Get_fail_src_denote (w : LWord):
@@ -341,6 +366,35 @@ Section cap_lang_rules.
       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
+  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a pc_v pca_v lw zsrc lwdst :
+    decodeInstrWL lw = get_i →
+    is_Get get_i dst src →
+    (forall dst' src', get_i <> GetOType dst' src') ->
+    (forall dst' src', get_i <> GetWType dst' src') ->
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+      ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+      ∗ ▷ dst ↦ᵣ lwdst
+      ∗ ▷ src ↦ᵣ LInt zsrc }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hnot_otype Hnot_wtype Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *)
+      destruct (decodeInstrWL lw); simplify_map_eq
+        ; specialize (Hnot_otype dst0 r)
+        ; specialize (Hnot_wtype dst0 r)
+      ; try contradiction.
+    }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
 End cap_lang_rules.
 
 (* Hints to automate proofs of is_Get *)
@@ -353,8 +407,17 @@ Lemma is_Get_GetE dst src : is_Get (GetE dst src) dst src.
 Proof. intros; unfold is_Get; eauto. Qed.
 Lemma is_Get_GetA dst src : is_Get (GetA dst src) dst src.
 Proof. intros; unfold is_Get; eauto. Qed.
+Lemma is_Get_GetOType dst src : is_Get (GetOType dst src) dst src.
+Proof. intros; unfold is_Get; eauto; firstorder. Qed.
+Lemma is_Get_GetWType dst src : is_Get (GetWType dst src) dst src.
+Proof. intros; unfold is_Get; eauto; firstorder. Qed.
+Lemma getwtype_denote `{MachineParameters} r1 r2 w : denote (GetWType r1 r2) w = Some (encodeWordType w).
+Proof. by destruct_word w ; cbn. Qed.
 
 Global Hint Resolve is_Get_GetP : core.
 Global Hint Resolve is_Get_GetB : core.
 Global Hint Resolve is_Get_GetE : core.
 Global Hint Resolve is_Get_GetA : core.
+Global Hint Resolve is_Get_GetOType : core.
+Global Hint Resolve is_Get_GetWType : core.
+Global Hint Resolve getwtype_denote : core.

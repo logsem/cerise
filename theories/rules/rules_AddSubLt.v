@@ -529,6 +529,50 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
+  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 lw lwdst lw1 lw2 pc_p pc_b pc_e
+    pc_a pc_v pca_v:
+    decodeInstrWL lw = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pca_v) →
+    is_zL lw1 = false →
+    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pca_v) ↦ₐ lw ∗ dst ↦ᵣ lwdst ∗ r1 ↦ᵣ lw1 ∗ r2 ↦ᵣ lw2 }}}
+      Instr Executable
+      @ E
+    {{{ RET FailedV; (pc_a, pca_v) ↦ₐ lw }}}.
+  (* Proof. *)
+  (*   iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ". *)
+  (*   iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]". *)
+  (*   iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+  (*   by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. *)
+  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+  (*   destruct Hspec as [* Hsucc |]. *)
+  (*   { (* Success (contradiction) *) simplify_map_eq. destruct w1; by exfalso. } *)
+  (*   { (* Failure, done *) by iApply "Hφ". } *)
+  (* Qed. *)
+  Admitted.
+
+  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 lw lwdst lw2 lw3 pc_p pc_b pc_e
+    pc_a pc_v pca_v:
+    decodeInstrWL lw = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pca_v) →
+    is_zL lw3 = false →
+    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pca_v) ↦ₐ lw ∗ dst ↦ᵣ lwdst ∗ r1 ↦ᵣ lw2 ∗ r2 ↦ᵣ lw3 }}}
+      Instr Executable
+      @ E
+    {{{ RET FailedV; (pc_a, pca_v) ↦ₐ lw }}}.
+  (* Proof. *)
+  (*   iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ". *)
+  (*   iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]". *)
+  (*   iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+  (*   by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+. *)
+  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+  (*   destruct Hspec as [* Hsucc |]. *)
+  (*   { (* Success (contradiction) *) simplify_map_eq. destruct w3; by exfalso. } *)
+  (*   { (* Failure, done *) by iApply "Hφ". } *)
+  (* Qed. *)
+  Admitted.
+
 End cap_lang_rules.
 
 (* Hints to automate proofs of is_AddSubLt *)

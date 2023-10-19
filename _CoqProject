@@ -4,6 +4,8 @@
 -arg -w -arg -several-object-files
 -arg -w -arg -ssr-search-moved
 -arg -w -arg -deprecated-instance-without-locality
+
+# Machine utils
 machine_utils/theories/finz.v
 machine_utils/theories/finz_base.v
 machine_utils/theories/finz_interval.v
@@ -13,20 +15,29 @@ machine_utils/theories/classes.v
 machine_utils/theories/class_instances.v
 machine_utils/theories/solve_pure.v
 machine_utils/theories/tactics.v
+
+# Extras
 theories/iris_extra.v
 theories/stdpp_extra.v
-theories/map_simpl.v
+theories/proofmode/map_simpl.v
 theories/addr_reg.v
-theories/solve_addr.v
+theories/proofmode/solve_addr.v
+
+# Capability Machine Model
 theories/machine_base.v
 theories/machine_parameters.v
 theories/machine_run.v
-theories/classes.v
-theories/class_instances.v
-theories/solve_addr_extra.v
 theories/cap_lang.v
-theories/region.v
+theories/linking.v
+
 theories/logical_mapsto.v
+
+# Misc for automation
+theories/proofmode/classes.v
+theories/proofmode/class_instances.v
+theories/proofmode/solve_addr_extra.v
+
+# Program logic: Unary WP rules
 theories/rules/rules_base.v
 theories/rules/rules_Get.v
 theories/rules/rules_Load.v
@@ -35,7 +46,6 @@ theories/rules/rules_AddSubLt.v
 theories/rules/rules_Lea.v
 theories/rules/rules_Mov.v
 theories/rules/rules_Restrict.v
-theories/rules/rules_IsPtr.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_Subseg.v
@@ -45,6 +55,8 @@ theories/rules/rules_EInit.v
 theories/rules/rules_EDeInit.v
 theories/rules/rules_EStoreId.v
 theories/rules.v
+
+# Program logic: Binary WP rules
 # theories/rules_binary/rules_binary_base.v
 # theories/rules_binary/rules_binary_Get.v
 # theories/rules_binary/rules_binary_Load.v
@@ -56,19 +68,21 @@ theories/rules.v
 # theories/rules_binary/rules_binary_Jmp.v
 # theories/rules_binary/rules_binary_Jnz.v
 # theories/rules_binary/rules_binary_Subseg.v
-# theories/rules_binary/rules_binary_IsPtr.v
 # theories/rules_binary.v
-theories/solve_pure.v
-theories/NamedProp.v
-theories/proofmode_instr_rules.v
-theories/examples/addr_reg_sample.v
-theories/examples/contiguous.v
-theories/examples/macros_helpers.v
-theories/proofmode.v
+
+# Cerise Proofmode
+theories/proofmode/region.v
+theories/proofmode/contiguous.v
+theories/proofmode/tactics_helpers.v
+theories/proofmode/solve_pure.v
+theories/proofmode/NamedProp.v
+theories/proofmode/proofmode_instr_rules.v
+theories/proofmode/proofmode.v
+theories/proofmode/register_tactics.v
+
+# Unary Logical Relation
 theories/seal_store.v
 theories/logrel.v
-# theories/logrel_binary.v
-theories/monotone.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
@@ -78,21 +92,21 @@ theories/ftlr/AddSubLt.v
 theories/ftlr/Lea.v
 theories/ftlr/Mov.v
 theories/ftlr/Restrict.v
-theories/ftlr/IsPtr.v
 theories/ftlr/Jmp.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
 theories/fundamental.v
-theories/register_tactics.v
+
+# Binary Logical Relation
+# theories/logrel_binary.v
 # theories/ftlr_binary/ftlr_base_binary.v
 # theories/ftlr_binary/interp_weakening.v
 # theories/ftlr_binary/Load_binary.v
 # theories/ftlr_binary/Mov_binary.v
 # theories/ftlr_binary/AddSubLt_binary.v
 # theories/ftlr_binary/Get_binary.v
-# theories/ftlr_binary/IsPtr_binary.v
 # theories/ftlr_binary/Jmp_binary.v
 # theories/ftlr_binary/Jnz_binary.v
 # theories/ftlr_binary/Lea_binary.v
@@ -102,50 +116,83 @@ theories/register_tactics.v
 # theories/ftlr_binary/Seal_binary.v
 # theories/ftlr_binary/UnSeal_binary.v
 # theories/fundamental_binary.v
+
+# Misc for examples
+theories/monotone.v
+theories/examples/addr_reg_sample.v
+theories/proofmode/disjoint_regions_tactics.v
+theories/proofmode/mkregion_helpers.v
+
+# Common Cerise (assembly) macros
 theories/examples/malloc.v
 theories/examples/salloc.v
 theories/examples/assert.v
 theories/examples/macros.v
 theories/examples/macros_new.v
-theories/examples/disjoint_regions_tactics.v
-theories/examples/mkregion_helpers.v
+
+# Template Adequacy
 theories/examples/template_adequacy.v
 theories/examples/template_adequacy_ocpl.v
-theories/examples/call.v
-theories/examples/counter.v
-theories/examples/counter_preamble.v
-theories/examples/counter_adequacy.v
-theories/examples/adder.v
-theories/examples/adder_adequacy.v
-theories/examples/callback.v
-theories/examples/lse.v
-theories/examples/lse_adequacy.v
-theories/examples/arch_sealing.v
-theories/examples/interval_arch.v
-theories/examples/interval_closure_arch.v
-theories/examples/interval_client_arch.v
-theories/examples/interval_client_closure_arch.v
-theories/examples/interval_client_adequacy_arch.v
-theories/examples/keylist.v
-theories/examples/dynamic_sealing.v
-theories/examples/interval.v
-theories/examples/interval_closure.v
-theories/examples/interval_client.v
-theories/examples/interval_client_closure.v
-theories/examples/interval_client_adequacy.v
-theories/examples/buffer.v
-theories/examples/minimal_counter.v
-theories/examples/ocpl_lowval_like.v
-# theories/examples/malloc_binary.v
-# theories/examples/macros_binary.v
-# theories/examples/counter_binary.v
-# theories/examples/counter_binary_preamble.v
+
+# Tutorial and Exercises for learning Cerise in Coq
+theories/exercises/cerise_tutorial.v
+theories/exercises/cerise_tutorial_solutions.v
+theories/exercises/cerise_modularity.v
+theories/exercises/cerise_modularity_solutions.v
+
 theories/exercises/subseg_buffer.v
 theories/exercises/restrict_buffer.v
 theories/exercises/subseg_buffer_closure.v
 theories/exercises/subseg_buffer_malloc.v
 theories/exercises/subseg_buffer_call.v
-theories/exercises/cerise_modularity.v
-theories/exercises/cerise_modularity_solutions.v
-theories/exercises/cerise_tutorial.v
-theories/exercises/cerise_tutorial_solutions.v
+
+# Classic buffer example
+theories/examples/buffer.v
+
+# Counter
+theories/examples/minimal_counter.v
+theories/examples/counter.v
+theories/examples/counter_preamble.v
+theories/examples/counter_adequacy.v
+
+# Hape-based Calling Convention
+theories/examples/call.v
+theories/examples/callback.v
+
+# Example
+theories/examples/lse.v
+theories/examples/lse_adequacy.v
+
+# Interval using Sofware Sealing
+theories/examples/keylist.v
+theories/examples/dynamic_sealing.v
+theories/examples/interval/interval.v
+theories/examples/interval/interval_closure.v
+theories/examples/interval/interval_client.v
+theories/examples/interval/interval_client_closure.v
+theories/examples/interval/interval_client_adequacy.v
+
+# Interval using Hardware Sealing
+theories/examples/arch_sealing.v
+theories/examples/interval_arch/interval_arch.v
+theories/examples/interval_arch/interval_closure_arch.v
+theories/examples/interval_arch/interval_client_arch.v
+theories/examples/interval_arch/interval_client_closure_arch.v
+theories/examples/interval_arch/interval_client_adequacy_arch.v
+
+# Common macros (binary)
+# theories/examples/malloc_binary.v
+# theories/examples/macros_binary.v
+
+# Counter example (binary)
+# theories/examples/counter_binary/counter_binary.v
+# theories/examples/counter_binary/counter_binary_preamble_def.v
+# theories/examples/counter_binary/counter_binary_preamble.v
+# theories/examples/counter_binary/counter_binary_preamble_left.v
+# theories/examples/counter_binary/counter_binary_adequacy.v
+# theories/examples/counter_binary/counter_binary_adequacy_theorem.v
+
+# Other examples
+theories/examples/adder.v
+theories/examples/adder_adequacy.v
+theories/examples/ocpl_lowval_like.v

@@ -170,7 +170,7 @@ Section counter.
     let a_end := (a_code ^+ (data_off + end_off))%a in
     ContiguousRegion a_init (code_off + data_off + end_off) →
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
-    Forall (λ w, is_z w = true) adv →
+    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
   ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
@@ -190,7 +190,8 @@ Section counter.
 
     (* The capability to the adversary is safe and we can also jmp to it *)
     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
-    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto.
+    { apply Forall_forall. intros. set_solver. }
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
     iApply (counter_init_spec a_init with "[-]"). solve_addr'. iFrame.
@@ -253,20 +254,20 @@ Section counter.
 
       (* jmp to continuation *)
       iApply "Hcont_prog". 2: iFrame. iPureIntro.
-      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. set_solver+. }
+      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. }
 
     (* put the registers back together *)
     iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap".
     { intros ? w ?. cbn. iIntros "[? %Hw]". iFrame. destruct w; try inversion Hw.
       iApply interp_int. }
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
-      by rewrite elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite -not_elem_of_dom Hrdom; set_solver+.
       by iApply interp_int.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
-      by rewrite lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+.
       by iApply "Hcode_safe".
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
-      by rewrite !lookup_insert_ne // elem_of_gmap_dom_none Hrdom; set_solver+.
+      by rewrite !lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+.
       by iApply "Hadv".
 
     iApply (wp_wand with "[-]").
@@ -288,8 +289,7 @@ Program Definition counter_inv (a_init: Addr) : memory_inv :=
     _.
 Next Obligation.
   intros a_init m m' H. cbn in *.
-  specialize (H (a_init ^+ (code_off + data_off + 1))%a). feed specialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
+  specialize (H (a_init ^+ (code_off + data_off + 1))%a). ospecialize H. by set_solver.
 Qed.
 
 Definition counterN : namespace := nroot .@ "counter".
@@ -301,7 +301,7 @@ Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es
     counter_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_z w = true) (prog_instrs Adv) →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   ∃ n, m' !! (prog_start P ^+ (code_off + data_off + 1))%a = Some (WInt n) ∧ 0 ≤ n.
@@ -348,7 +348,7 @@ Proof.
     { apply map_subseteq_spec. intros a w. intros [Ha| [Ha|Ha]%lookup_union_Some]%lookup_union_Some.
       4,5: assumption.
       all: apply mkregion_lookup in Ha as [i [? HH] ]; [| solve_addr'].
-      all: apply map_filter_lookup_Some_2;
+      all: apply map_lookup_filter_Some_2;
         [| cbn; apply not_elem_of_singleton; apply lookup_lt_Some in HH; solve_addr'].
       all: subst; rewrite mkregion_lookup; [| rewrite HP; solve_addr'].
       { eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. }
@@ -370,9 +370,9 @@ Proof.
   iDestruct "Hdat" as (wdat) "Hdat".
 
   assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
-  { rewrite elem_of_gmap_dom Hrdom. set_solver+. }
+  { rewrite -elem_of_dom Hrdom. set_solver+. }
   assert (is_Some (rmap !! r_t2)) as [w2 Hr2].
-  { rewrite elem_of_gmap_dom Hrdom. set_solver+. }
+  { rewrite -elem_of_dom Hrdom. set_solver+. }
   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
   iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[[Hr2 _] Hrmap]".
     by rewrite lookup_delete_ne //.

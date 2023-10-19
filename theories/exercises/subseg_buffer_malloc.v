@@ -2,9 +2,9 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
+From cap_machine Require Import fundamental logrel rules.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine Require Import register_tactics.
+From cap_machine.proofmode Require Import tactics_helpers  proofmode register_tactics.
 From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
 
@@ -121,7 +121,7 @@ Section malloc_program.
               all_registers_s ∖ {[PC; r_t0]}) as Hdomeq.
     { rewrite dom_insert_L.
       rewrite Hdom.
-      rewrite - difference_difference_L.
+      rewrite - difference_difference_l_L.
       rewrite -union_difference_L; auto.
       set_solver.
     }
@@ -280,8 +280,8 @@ Section malloc_program.
               with
               ({[r_t0; r_t30]} ∪ all_registers_s ∖ {[PC; r_t0; r_t30]})
       ; [set_solver|].
-      rewrite - !difference_difference_L.
-      rewrite (difference_difference_L _ {[r_t0]}).
+      rewrite - !difference_difference_l_L.
+      rewrite (difference_difference_l_L _ {[r_t0]}).
       rewrite -union_difference_L; auto.
       set_solver.
     }
@@ -373,8 +373,8 @@ Qed.
     ; try apply ExecPCPerm_RX
     ; eauto.
     - rewrite !dom_delete_L.
-      rewrite (difference_difference_L _ {[PC]}).
-      rewrite (difference_difference_L _ _ {[r_t30]}).
+      rewrite (difference_difference_l_L _ {[PC]}).
+      rewrite (difference_difference_l_L _ _ {[r_t30]}).
       apply regmap_full_dom in Hrfull.
       rewrite Hrfull.
       set_solver.

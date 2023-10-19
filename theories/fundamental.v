@@ -1,4 +1,5 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict Subseg IsPtr Get Lea Seal UnSeal.
+From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
+  Subseg Get Lea Seal UnSeal.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -20,8 +21,8 @@ Section fundamental.
     ⊢ (([∗ map] r0↦w ∈ r, r0 ↦ᵣ w) → ∃ w, reg ↦ᵣ w)%I.
   Proof.
     intros [w Hw].
-    iIntros "Hmap". iExists w. 
-    iApply (big_sepM_lookup (λ reg' i, reg' ↦ᵣ i)%I r reg w); eauto. 
+    iIntros "Hmap". iExists w.
+    iApply (big_sepM_lookup (λ reg' i, reg' ↦ᵣ i)%I r reg w); eauto.
   Qed.
 
   Lemma extract_r reg (r : RegName) w :
@@ -29,14 +30,14 @@ Section fundamental.
     ⊢ (([∗ map] r0↦w ∈ reg, r0 ↦ᵣ w) →
      (r ↦ᵣ w ∗ (∀ x', r ↦ᵣ x' -∗ [∗ map] k↦y ∈ <[r := x']> reg, k ↦ᵣ y)))%I.
   Proof.
-    iIntros (Hw) "Hmap". 
+    iIntros (Hw) "Hmap".
     iDestruct (big_sepM_lookup_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hr"; eauto.
     iSpecialize ("Hr" with "[Hmap]"); eauto. iDestruct "Hr" as "[Hw Hmap]".
     iDestruct (big_sepM_insert_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hupdate"; eauto.
-    iSpecialize ("Hmap" with "[Hw]"); eauto. 
+    iSpecialize ("Hmap" with "[Hw]"); eauto.
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
-  
+
   Lemma fundamental_cap r p b e a :
     ⊢ interp (WCap p b e a) →
       interp_expression r (WCap p b e a).
@@ -45,8 +46,8 @@ Section fundamental.
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (r p b e a).
-    iIntros "#Hinv". 
-    iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg". 
+    iIntros "#Hinv".
+    iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
     iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (WCap p b e a))).
     - (* Correct PC *)
@@ -55,14 +56,14 @@ Section fundamental.
       assert (p = RX ∨ p = RWX) as Hp.
       { inversion i. subst. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
-      rewrite /interp_ref_inv /=. 
-      iInv (logN.@a) as (w) "[>Ha HP]" "Hcls". 
-      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]"; 
+      rewrite /interp_ref_inv /=.
+      iInv (logN.@a) as (w) "[>Ha HP]" "Hcls".
+      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
         first apply (lookup_insert _ _ (WCap p b e a)).
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto. 
+          try iAssumption; eauto.
       + (* Jnz *)
         iApply (jnz_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -93,12 +94,6 @@ Section fundamental.
       + (* Subseg *)
         iApply (subseg_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-      + (* IsPtr *)
-        iApply (isptr_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto.
-      + (* GetP *)
-        iApply (get_case _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
-          try iAssumption; eauto.
       + (* GetB *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetB _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
@@ -107,6 +102,15 @@ Section fundamental.
           try iAssumption; eauto.
       + (* GetA *)
         iApply (get_case _ _ _ _ _ _ _ _ (GetA _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+      + (* GetP *)
+        iApply (get_case _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+      + (* GetWType *)
+        iApply (get_case _ _ _ _ _ _ _ _ (GetWType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+      + (* GetOType *)
+        iApply (get_case _ _ _ _ _ _ _ _ (GetOType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Seal *)
         iApply (seal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
@@ -201,24 +205,24 @@ Section fundamental.
     p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
   Proof.
     iIntros (Hnp) "#Hw".
-    iIntros (a0 r Hin). iNext. iModIntro. 
-    iApply fundamental. 
+    iIntros (a0 r Hin). iNext. iModIntro.
+    iApply fundamental.
     rewrite !fixpoint_interp1_eq /=. destruct p; try done.
   Qed.
 
   (* We can use the above fact to create a special "jump or fail pattern" when jumping to an unknown adversary *)
-  
+
   Lemma exec_wp p b e a :
     isCorrectPC (WCap p b e a) ->
     exec_cond b e p -∗
     ∀ r, ▷ □ (interp_expr interp r) (WCap p b e a).
-  Proof. 
-    iIntros (Hvpc) "#Hexec". 
+  Proof.
+    iIntros (Hvpc) "#Hexec".
     rewrite /exec_cond.
-    iIntros (r). 
-    assert (a ∈ₐ[[b,e]])%I as Hin. 
+    iIntros (r).
+    assert (a ∈ₐ[[b,e]])%I as Hin.
     { rewrite /in_range. inversion Hvpc; subst. auto. }
-    iSpecialize ("Hexec" $! a r Hin). iFrame "#". 
+    iSpecialize ("Hexec" $! a r Hin). iFrame "#".
   Qed.
 
   (* updatePcPerm adds a later because of the case of E-capabilities, which
@@ -256,12 +260,12 @@ Section fundamental.
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).
       destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. }
-      rewrite lookup_insert_ne //. iPureIntro. rewrite elem_of_gmap_dom Hrmap. set_solver. }
+      rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
     { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne // in Hvs.
       iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
     rewrite insert_insert. iApply big_sepM_insert.
-    { apply elem_of_gmap_dom_none. rewrite Hrmap. set_solver. }
+    { apply not_elem_of_dom. rewrite Hrmap. set_solver. }
     iFrame.
   Qed.
 
@@ -277,6 +281,35 @@ Section fundamental.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
     all: iApply region_integers_alloc; eauto.
+  Qed.
+
+  Lemma region_valid_alloc' E (b e a: Addr) l p :
+    ([∗ list] w ∈ l, interp w) -∗
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros "#Hl H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply (region_valid_alloc with "Hl"); eauto.
+  Qed.
+
+  Lemma region_in_region_alloc' E (b e a: Addr) l p :
+    Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
+    Forall (λ w, is_z w = true \/ in_region w b e) l →
+    ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗
+    interp (WCap p b e a).
+  Proof.
+    iIntros (Hmasks Hl) "H". destruct p.
+    { (* O *) rewrite fixpoint_interp1_eq //=. }
+    4: { (* E *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro. iIntros (r).
+         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+    all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 
 End fundamental.

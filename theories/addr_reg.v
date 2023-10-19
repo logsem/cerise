@@ -204,7 +204,7 @@ Lemma regmap_full_dom {A} (r: gmap RegName A):
 Proof.
   intros Hfull. apply (anti_symm subseteq); rewrite elem_of_subseteq.
   - intros rr _. apply all_registers_s_correct.
-  - intros rr _. rewrite -elem_of_gmap_dom. apply Hfull.
+  - intros rr _. rewrite elem_of_dom. apply Hfull.
 Qed.
 
 (* -------------------------------- Memory addresses -----------------------------------*)

@@ -50,7 +50,7 @@ Section fundamental.
                                                        → ∃ r0 : Reg * Reg, ⤇ Instr Halted
                                                                            ∗ full_map r0 ∧ registers_mapsto r0.1
                                                                            ∗ spec_registers_mapsto r0.2
-                                                                           ∗ na_own logrel_nais ⊤ }} }}. 
-  
-    
+                                                                           ∗ na_own logrel_nais ⊤ }} }}.
+
+
 End fundamental.

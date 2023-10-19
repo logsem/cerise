@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel macros_helpers macros fundamental.
+From cap_machine Require Import rules logrel macros fundamental.
+From cap_machine.proofmode Require Import tactics_helpers.
 
 Section adder.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -83,7 +84,7 @@ Section adder.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     destruct ag as [| a0 ag]; [inversion Hlength|].
     destruct ag as [| ? ag]; [inversion Hlength|].
-    feed pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
+    opose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
     assert (isCorrectPC_range RX g_start f_end g_start f_start).
     { intros mid [? ?]. constructor; auto. solve_addr. }
     (* move r_t2 PC *)
@@ -174,7 +175,7 @@ Section adder.
     remember af as af'.
     destruct af' as [| a0 af'];[inversion Hlength|].
     destruct af' as [| ? af'];[inversion Hlength|].
-    feed pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
+    opose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont). subst a0.
     assert (isCorrectPC_range RX f_start f_end f_start f_end).
     { intros ? [? ?]. constructor; auto. solve_addr. }
     (* move r_t1 PC *)
@@ -426,23 +427,23 @@ Section adder.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
           by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }
         { iPureIntro. rewrite !dom_insert_L dom_delete_L dom_insert_L.
-          rewrite regmap_full_dom //. set_solver+. } }
+          rewrite regmap_full_dom //. } }
       { cbn beta. iIntros (?) "H". iIntros (->). iDestruct "H" as "[H|%]". 2: congruence.
         iApply "H". done. } }
 
     (* Step 4: use the fact that the continuation is in the expression relation *)
     (* put the registers back in the map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "Hregs".
-    { apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { rewrite /interp /= !fixpoint_interp1_eq //. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
-    { rewrite lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { rewrite /interp /= !fixpoint_interp1_eq //. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr1 Hclosure]") as "Hregs".
-    { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite !lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { eauto. }
     iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
-    { rewrite !lookup_insert_ne //. apply elem_of_gmap_dom_none. set_solver+ Hrmap_dom. }
+    { rewrite !lookup_insert_ne //. apply not_elem_of_dom. set_solver+ Hrmap_dom. }
     { eauto. }
 
     iApply "Hcont_g"; cycle 1. by iFrame.

@@ -370,12 +370,12 @@ Qed.
 (* CMRΑ for memory *)
 Class memG Σ := MemG {
   mem_invG : invGS Σ;
-  mem_gen_memG :> gen_heapGS LAddr LWord Σ}.
+  mem_gen_memG :: gen_heapGS LAddr LWord Σ}.
 
 (* CMRA for registers *)
 Class regG Σ := RegG {
   reg_invG : invGS Σ;
-  reg_gen_regG :> gen_heapGS RegName LWord Σ; }.
+  reg_gen_regG :: gen_heapGS RegName LWord Σ; }.
 
 Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ} : iProp Σ :=
   ∃ lr lm cur_map , gen_heap_interp lr ∗ gen_heap_interp lm ∗
@@ -597,3 +597,8 @@ Definition is_zL (lw : LWord) : bool :=
   | LInt z => true
   |  _ => false
   end.
+
+Definition is_sealed_with_oL (lw : LWord) (o : OType) : bool :=
+  match lw with
+  | LWSealed o' sb => (o =? o')%ot
+  | _ => false end.

@@ -8,8 +8,8 @@
     at this URL: https://iris-project.org/ *)
 
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules proofmode macros_helpers.
-From cap_machine Require Import contiguous.
+From cap_machine Require Import rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode contiguous.
 Open Scope Z_scope.
 
 (** The imports correspond to the following:
@@ -43,7 +43,7 @@ Section base_program.
 
   Definition prog_instrs : list Word :=
     encodeInstrsW [
-      Lea r_t1 1 ;    (* load effective address 1 into `r1` *)
+      Lea r_t1 1;     (* load effective address 1 into `r1` *)
       Store r_t1 r_t2 (* store value from `r2` at address specified by `r1` *)
     ].
 
@@ -136,12 +136,12 @@ Section base_program.
     b_mem (* mem *)
     φ :
 
-    let e_mem := (b_mem ^+ 2)%a in (* end of memory buffer at b_mem+2 *)
+    let e_mem := (b_mem ^+ 2)%a in (* end of memory buffer at b_mem + 2 *)
     let e_prog := (a_prog ^+ length prog_instrs)%a in (* end of program at a_prog + length of instructions *)
 
-    ExecPCPerm p_pc -> (* p_pc has at least the executable permission*)
-    SubBounds b_pc e_pc a_prog e_prog -> (* [b_pc : e_pc) contains [a_prog : e_prog) *)
-    ContiguousRegion b_mem 2 → (* addresses in [b_mem : b_mem+2) are valid *)
+    ExecPCPerm p_pc → (* p_pc has at least the executable permission*)
+    SubBounds b_pc e_pc a_prog e_prog → (* [b_pc : e_pc) contains [a_prog : e_prog) *)
+    ContiguousRegion b_mem 2 → (* addresses in [b_mem : b_mem + 2) are valid *)
 
     ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog *)
         ∗ codefrag a_prog prog_instrs (* the prog instruction start at a_prog *)
@@ -150,7 +150,7 @@ Section base_program.
         ∗ r_t2 ↦ᵣ WInt 42 (* new value 42 *)
          ∗ ▷ ( (* everything under the later `▷` and before the wand `-*` is our postcondition *)
                 PC ↦ᵣ WCap p_pc b_pc e_pc e_prog (* PC has reached the end of the program *)
-                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a (* r1 points to b_mem + 1*)
+                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+ 1)%a (* r1 points to b_mem + 1*)
                 ∗ r_t2 ↦ᵣ WInt 42 (* unchanged *)
                 ∗ codefrag a_prog prog_instrs (* unchanged *)
                 ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]] (* our memory buffer now contains 42 *)
@@ -159,48 +159,59 @@ Section base_program.
   Proof.
     intros * Hpc_perm Hpc_bounds Hmem_bounds.
     unfold ContiguousRegion in Hmem_bounds.
-    iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
+
+    iIntros "(HPC & Hprog & Hr1 & Hmem & Hr2 & Hcont)".
 
     (* 1 - prepare the assertions for the proof *)
-    subst e_mem e_prog; simpl. (* replace e_mem and e_prog with their known values *)
-    (* Derives the facts from the codefrag *)
-    codefrag_facts "Hprog".
+    subst e_mem e_prog. (* replace e_mem and e_prog with their known values *)
+    codefrag_facts "Hprog". (* Derives the facts from the codefrag *)
     simpl in *.
 
     (* 2 - wp rules for each instructions *)
     (* Lea *)
     iInstr "Hprog".
 
-    (* Store requires the resource (b_mem ^+ 1), we need to
-       destruct the region_mapsto.
-       This essentially the same as destructing a list into (first element)::(rest of list).
-       We do it twice since we need the second element (b_mem ^+ 1). *)
-    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
-    { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
-    { by solve_addr. }
-    iDestruct (region_mapsto_single with "Hmem1") as "Hmem1".
-    { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr. }
-    iDestruct "Hmem1" as (v) "(Hmem1& %Hr)".
-    injection Hr ; intro Hr' ; subst ; clear Hr.
+    (* Store requires the resource (b_mem ^+ 1), we need to destruct the region_mapsto.
+       This essentially the same as destructing a list into (first element)::(rest of list). *)
+    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
+    { (* We simplify the subgoal first *)
+      transitivity (Some (b_mem ^+ 1)%a).
+      2: reflexivity.
+
+      (* This inequality holds if the address (b_mem + 1) is in memory *)
+      (* The hypothesis `Hmem_bounds` ensures that (b_mem + 2) is in memory, so (b_mem + 1) too *)
+      solve_addr +Hmem_bounds. (* `solve_addr` is invoked with the "required" environment + `Hmem_bounds` *)
+    }
+    { solve_addr +. (* `solve_addr` is invoked with only the "required" environment *) }
+
+    (* We do it twice since we need the second element (b_mem ^+ 1). *)
+    iDestruct (region_mapsto_cons with "Hmem1") as "(Hmem1 & _)".
+    { transitivity (Some (b_mem ^+ (1 + 1))%a); [ solve_addr +Hmem_bounds | reflexivity ]. }
+    { solve_addr +. }
 
     (* Store *)
     iInstr "Hprog".
 
     (* 3 - Continuation *)
     iApply "Hcont".
+
     iFrame.
     iApply region_mapsto_cons.
-    { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
-    { by solve_addr. }
+    { transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
+    { solve_addr +. }
+
     iFrame.
     iApply region_mapsto_cons.
-    { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr.  }
-    { by solve_addr. }
+    { transitivity (Some (b_mem ^+ (1 + 1))%a); solve_addr +Hmem_bounds. }
+    { solve_addr +. }
+
     iFrame.
-    replace (b_mem ^+ (1 + 1))%a with (b_mem ^+ 2)%a by solve_addr.
+    replace (b_mem ^+ (1 + 1))%a with (b_mem ^+ 2)%a by solve_addr +.
+
     unfold region_mapsto.
-    rewrite finz_seq_between_empty ; last solve_addr.
-    done.
+    rewrite finz_seq_between_empty.
+    { simpl; iPureIntro. exact I. }
+    { solve_addr +. }
   Qed.
 
 
@@ -230,8 +241,8 @@ Section base_program.
     let e_mem := (b_mem ^+ 2)%a in
     let e_prog := (a_prog ^+ length prog_instrs)%a in
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog e_prog →
     ContiguousRegion b_mem 2 →
 
     ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
@@ -240,7 +251,7 @@ Section base_program.
         ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 0] ]]
         ∗ r_t2 ↦ᵣ WInt 42
          ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
-                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a
+                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+ 1)%a
                 ∗ r_t2 ↦ᵣ WInt 42
                 ∗ codefrag a_prog prog_instrs
                 ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]]
@@ -249,21 +260,28 @@ Section base_program.
   Proof.
     intros * Hpc_perm Hpc_bounds Hmem_bounds.
     unfold ContiguousRegion in Hmem_bounds.
-    iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
-    subst e_mem e_prog; simpl.
 
-    (* Derive the facts from the codefrag *)
-    (* FILL IN HERE *)
+    iIntros "(HPC & Hprog & Hr1 & Hmem & Hr2 & Hcont)".
+    subst e_mem e_prog.
+    codefrag_facts "Hprog"; simpl in *.
 
     (* Prepare the memory resource for the Store *)
-    (* FILL IN HERE *)
+    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
+    { transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
+    { solve_addr +. }
+
+    iDestruct (region_mapsto_single with "Hmem1") as "Hmem1".
+    { transitivity (Some (b_mem ^+ (1 + 1))%a); solve_addr +Hmem_bounds. }
+
+    iDestruct "Hmem1" as (v) "(Hmem1 & %Hr)".
+    injection Hr as <-. (* `Hmem1` is now pointing to `WInt 0` *)
 
     (* 2 - step through multiple instructions *)
     (* FILL IN HERE *)
 
     (* 3 - Continuation *)
     (* FILL IN HERE *)
-    Admitted.
+  Admitted.
 
 
   (** The tactics `iInstr` and `iGo` automatically lookup the PC, find the
@@ -295,8 +313,8 @@ Section base_program.
     let e_mem := (b_mem ^+ 2)%a in
     let e_prog := (a_prog ^+ length prog_instrs)%a in
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog e_prog →
     contiguous_between a a_prog (e_prog) →
     ContiguousRegion b_mem 2 →
 
@@ -306,7 +324,7 @@ Section base_program.
         ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 0] ]]
         ∗ r_t2 ↦ᵣ WInt 42
          ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
-                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+1)%a
+                ∗ r_t1 ↦ᵣ WCap RW b_mem e_mem (b_mem ^+ 1)%a
                 ∗ r_t2 ↦ᵣ WInt 42
                ∗ ([∗ list] a_i;w ∈ a;prog_instrs, a_i ↦ₐ w)%I
                 ∗ [[b_mem, e_mem]] ↦ₐ [[ [WInt 0; WInt 42] ]]
@@ -314,38 +332,46 @@ Section base_program.
        -∗ WP Seq (Instr Executable) {{ φ }}%I.
   Proof.
     intros * Hpc_perm Hpc_bounds Hprog_addr Hmem_bounds.
-    iIntros "(HPC& Hprog& Hr1& Hmem& Hr2& Hcont)".
+    iIntros "(HPC & Hprog & Hr1 & Hmem & Hr2 & Hcont)".
     subst e_mem e_prog; simpl in *.
+
     (* In order to use the tactic `iCorrectPC` that solves the side-condition
        about the PC, we need this assertion, equivalent to
        `Hpc_perm /\ Hpc_bounds` *)
     assert (Hpc_correct : isCorrectPC_range p_pc b_pc e_pc a_prog (a_prog ^+ 2)%a).
-    { unfold isCorrectPC_range. intros.
-      apply isCorrectPC_ExecPCPerm_InBounds ; auto ; solve_addr.
+    { unfold isCorrectPC_range.
+      intros.
+      apply isCorrectPC_ExecPCPerm_InBounds.
+      - assumption.
+      - solve_addr +H Hpc_bounds.
     }
 
-
     (* 2 - step through instructions *)
+
     (* 2.1 - Lea *)
-    (* Prepare the resources
-       Destruct the list of addresses of the code fragment *)
+    (* Prepare the resources: Destruct the list of addresses of the code fragment *)
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog.
     destruct_list a.
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hprog_addr) as ->.
+
     (* Focus to the atomic expression (regarding the operational semantic) *)
     iDestruct "Hprog" as "[Hi Hprog]".
-    iApply (wp_bind (fill [SeqCtx])).
+
     (* Apply the WP rule corresponding to the instruction
        and prove the preconditions of the rule *)
+    iApply (wp_bind (fill [SeqCtx])); iSimpl.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]").
     { apply decode_encode_instrW_inv. }
     { iCorrectPC a_prog (a_prog ^+ 2)%a. }
     { iContiguous_next Hprog_addr 0%nat. }
-    { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
+    { unfold ContiguousRegion in Hmem_bounds.
+      transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
     { auto. }
+
     (* Introduce the postconditions of the rule and re-focus the expression. *)
-    iNext; iIntros "(HPC& Hdone& Hr1)"; iSimpl.
-    iApply wp_pure_step_later;auto;iNext.
+    iNext; iIntros "(HPC & Hdone & Hr1)"; iSimpl.
+    iApply wp_pure_step_later; [ exact I |].
+    iIntros "!> _".
 
     (* 2.2 - Store *)
     (* Destruct the list of addresses of the code fragment *)
@@ -366,8 +392,7 @@ Section base_program.
 
     (* 3 - Continuation *)
     (* FILL IN HERE *)
-
-    Admitted.
+  Admitted.
 
 
   (** The next step to learn how to use the Cerise Proofmode is to leverage

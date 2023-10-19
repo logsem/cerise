@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Lea rules_binary_base.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -40,7 +40,7 @@ Section cap_lang_spec_rules.
 
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
-     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      cbn in Hstep.
      rewrite Hr1 /= in Hstep.
 
@@ -48,7 +48,7 @@ Section cap_lang_spec_rules.
        pose proof Harg as Harg'; cycle 1.
      { (* Failure: argument is not a constant (z_of_argument regs arg = None) *)
        unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |].
-       feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
+       odestruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
        rewrite Hr0 Hr'0 in Harg Hstep.
        assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
@@ -171,13 +171,13 @@ Section cap_lang_spec_rules.
           ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↣ₐ w
           ∗ r1 ↣ᵣ WCap p b e a'.
-   Proof. 
+   Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
      iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
-     
+
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
        iFrame. incrementPC_inv; simplify_map_eq.
@@ -218,7 +218,7 @@ Section cap_lang_spec_rules.
      iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
-     
+
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
         iFrame. incrementPC_inv; simplify_map_eq.
@@ -236,4 +236,4 @@ Section cap_lang_spec_rules.
     Unshelve. all: auto.
    Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.

@@ -1,16 +1,17 @@
 From iris.algebra Require Import frac auth list.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel.
 From cap_machine Require Import monotone keylist.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine.proofmode Require Import tactics_helpers solve_pure proofmode contiguous map_simpl.
 
 Section sealing.
 
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}
+          {seals:sealStoreG Σ}
           {mono : sealLLG Σ}.
 
   (* Assume r_t1 contains a capability representing a sealed value.
@@ -99,29 +100,6 @@ Section sealing.
 
   Definition make_seal_preamble f_m ai :=
     ([∗ list] a_i;w_i ∈ ai;(make_seal_preamble_instrs f_m), a_i ↦ₐ w_i)%I.
-
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
-     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
-  Lemma wp_Get_fail_same E get_i dst pc_p pc_b pc_e pc_a w zsrc :
-    decodeInstrW w = get_i →
-    is_Get get_i dst dst →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-      ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ WInt zsrc }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc) Hφ".
-    iDestruct (map_of_regs_2 with "HPC Hsrc") as "[Hmap %]".
-    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
 
   Lemma unseal_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
@@ -283,7 +261,7 @@ Section sealing.
 
     codefrag_facts "Hprog".
     focus_block_0 "Hprog" as "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t7)) as [w7 Hw7];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[apply Hw7|].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
@@ -295,7 +273,7 @@ Section sealing.
     iFrame. iNext. iIntros "(HPC & Hr_env & Hr_t0 & Hpc_b & Ha_r' & Hregs & HisList & Hprog & Hown)".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 54)%a ltac:(destruct Hvpc; congruence)).
+    rewrite (updatePcPerm_cap_non_E pc_p pc_b pc_e (a_first ^+ 58)%a ltac:(destruct Hvpc; congruence)).
     focus_block 2 "Hprog" as a_middle' Ha_middle' "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
@@ -304,9 +282,8 @@ Section sealing.
     iDestruct "HisList" as (a a' a'' pbvals') "(%HA & #Hpref' & Hr_t1 & Ha)".
     destruct HA as (HA & HB).
     iGo "Hprog". instantiate (1:=a'). solve_addr. solve_addr.
-    iGo "Hprog". (* rewrite decode_encode_perm_inv. reflexivity. *)
-    (* iGo "Hprog". rewrite decode_encode_perm_inv. auto. solve_addr. *)
-    (* iGo "Hprog". *)
+    iGo "Hprog".
+
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hr_t1 Ha ".
@@ -392,7 +369,7 @@ Section sealing.
     iIntros (Hvpc Hcont Hdom Hbounds Hf_m Hnclose') "(HPC & Hr_t0 & Hregs & Hown & Hprog & #Hmalloc & Hpc_b & Ha_r' & Hφ)".
 
     focus_block 2 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
-    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t8)) as [w8 Hw8];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply Hw8|].
     iGo "Hprog".
     { rewrite /seal_instrs_length. instantiate (1 := (a_first ^+ length (unseal_instrs))%a).
@@ -415,7 +392,7 @@ Section sealing.
     focus_block 4 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t9)) as [w9 Hw9];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog".
@@ -438,7 +415,7 @@ Section sealing.
     focus_block 6 "Hprog" as a_middle4 Ha_middle4 "Hprog" "Hcont".
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[simplify_map_eq; auto|].
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t9 Hregs]";[simplify_map_eq; auto|].
-    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite elem_of_gmap_dom Hdom; set_solver|].
+    assert (is_Some (rmap !! r_t10)) as [w10 Hw10];[rewrite -elem_of_dom Hdom; set_solver|].
     iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[simplify_map_eq; auto|].
     map_simpl "Hregs".
     iGo "Hprog". instantiate (1 := a_first). rewrite /unseal_instrs_length. solve_addr.

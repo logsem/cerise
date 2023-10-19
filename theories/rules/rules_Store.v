@@ -156,7 +156,7 @@ Section cap_lang_rules.
     (*  (* Derive necessary register values in r *) *)
     (*  pose proof (lookup_weaken _ _ _ _ HPC Hregs). *)
     (*  specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri. *)
-    (*  feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
+    (*  odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
     (*  iDestruct (gen_mem_valid_inSepM mem mem0 with "Hm Hmem") as %Hma; eauto. *)
 
     (*  iModIntro. *)

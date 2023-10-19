@@ -103,14 +103,14 @@ Section cap_lang_rules.
 
    (*   specialize (indom_lregs_incl _ _ _ Dlregs Hlregs) as Hri. unfold lregs_of in Hri. *)
 
-   (*   feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
+   (*   odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
    (*   rewrite Hr1 /= in Hstep. *)
 
    (*   destruct (z_of_argument lregs arg) as [ argz |] eqn:Harg; *)
    (*     pose proof Harg as Harg'; cycle 1. *)
    (*   { (* Failure: argument is not a constant (z_of_argument lregs arg = None) *) *)
    (*     unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |]. *)
-   (*     feed destruct (Hri r0) as [r0v [Hr'0 Hr0]]. *)
+   (*     odestruct (Hri r0) as [r0v [Hr'0 Hr0]]. *)
    (*     { unfold lregs_of_argument. set_solver+. } *)
    (*     rewrite Hr0 Hr'0 in Harg Hstep. *)
    (*     assert (c = Failed ∧ *)
@@ -258,7 +258,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
-     
+
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
            ∗ ▷ (pc_a, pca_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LCap p b e a v
@@ -312,7 +312,6 @@ Section cap_lang_rules.
      (* iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a) Hφ". *)
      (* iDestruct (map_of_lregs_1 with "HPC") as "Hmap". *)
      (* iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-     (* by rewrite !dom_insert; set_solver+. *)
      (* iNext. iIntros (lregs' retv) "(#Hspec & Hpc_a & Hmap)". *)
      (* iDestruct "Hspec" as %Hspec. *)
 
@@ -449,6 +448,31 @@ Section cap_lang_rules.
    (*     congruence. *)
    (*   } *)
    (*   Unshelve. all:auto. *)
+   (* Qed. *)
+   Admitted.
+
+   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a pc_v pca_v lw r1 rv p b e a v z :
+     decodeInstrWL lw = Lea r1 (inr rv) →
+     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+     (a + z)%a = None ->
+
+     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ r1 ↦ᵣ LCap p b e a v
+           ∗ ▷ rv ↦ᵣ LInt z }}}
+       Instr Executable @ Ep
+       {{{ RET FailedV; True }}}.
+   Proof.
+   (*   iIntros (Hdecode Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ". *)
+   (*   iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]". *)
+   (*   iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+   (*   by rewrite !dom_insert; set_solver+. *)
+   (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". *)
+   (*   iDestruct "Hspec" as %Hspec. *)
+   (*   destruct Hspec as [* Hsucc | * Hsucc |]. *)
+   (*   { (* Success (contradiction) *) simplify_map_eq. } *)
+   (*   { (* Success (contradiction) *) simplify_map_eq. } *)
+   (*   { (* Failure, done *) by iApply "Hφ". } *)
    (* Qed. *)
    Admitted.
 

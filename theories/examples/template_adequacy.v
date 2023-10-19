@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 
 Record prog := MkProg {
   prog_start: Addr;
@@ -19,6 +19,22 @@ Record prog := MkProg {
 
 Definition prog_region (P: prog): gmap Addr Word :=
   mkregion (prog_start P) (prog_end P) (prog_instrs P).
+
+Definition adv_condition adv w :=
+  is_z w = true \/ in_region w (prog_start adv) (prog_end adv).
+
+Program Definition empty_prog a : prog := MkProg a a [] _.
+Next Obligation.
+  intros. simpl. solve_addr.
+Defined.
+
+Lemma empty_prog_region a :
+  prog_region (empty_prog a) = ∅.
+Proof.
+  rewrite /prog_region /empty_prog /mkregion /=.
+  rewrite finz_seq_between_empty;[|solve_addr].
+  auto.
+Qed.
 
 Lemma prog_region_dom (P: prog):
   dom (prog_region P) =
@@ -49,7 +65,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -67,7 +83,7 @@ Proof.
   eapply minv_dom_correct. 2: eassumption.
   intros a Ha.
   assert (is_Some (m !! a)) as [? ?].
-  { eapply elem_of_gmap_dom.
+  { eapply elem_of_dom.
     rewrite elem_of_subseteq in Hdom.
     eapply Hdom. auto. }
   eexists. split; eauto.
@@ -83,7 +99,7 @@ Proof.
   rewrite (dom_filter_L _ _ d); auto.
   intros. split; intros H.
   { rewrite elem_of_subseteq in Hd. specialize (Hd _ H).
-    eapply elem_of_gmap_dom in Hd as [? ?]. eexists. split; eauto. }
+    eapply elem_of_dom in Hd as [? ?]. eexists. split; eauto. }
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
@@ -187,7 +203,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hrothers).
@@ -198,7 +214,7 @@ Section Adequacy.
                with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -255,6 +271,208 @@ Qed.
 
 End basic.
 
+Module with_adv_and_data.
+
+Definition is_initial_registers (P Adv: prog) (reg: gmap RegName Word) (r_adv: RegName) :=
+  reg !! PC = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P)) ∧
+  reg !! r_adv = Some (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; r_adv ]} : gset RegName) →
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
+
+Lemma initial_registers_full_map (P Adv: prog) reg r_adv :
+  is_initial_registers P Adv reg r_adv →
+  (∀ r, is_Some (reg !! r)).
+Proof.
+  intros (HPC & Hr0 & Hne & Hothers) r.
+  destruct (decide (r = PC)) as [->|]. by eauto.
+  destruct (decide (r = r_adv)) as [->|]. by eauto.
+  destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
+Qed.
+
+Definition is_initial_memory (P Adv AdvData: prog) (m: gmap Addr Word) :=
+  prog_region P ⊆ m
+  ∧ prog_region Adv ⊆ m
+  ∧ prog_region AdvData ⊆ m
+  ∧ prog_region P ##ₘ prog_region Adv
+  ∧ prog_region P ##ₘ prog_region AdvData
+  ∧ prog_region Adv ##ₘ prog_region AdvData.
+
+Section Adequacy.
+  Context (Σ: gFunctors).
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
+  Context {na_invg: na_invG Σ}.
+  Context `{MP: MachineParameters}.
+
+  Context (P Adv AdvData: prog).
+  Context (I : memory_inv).
+  Context (r_adv : RegName).
+
+  Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
+
+  Lemma template_adequacy'
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
+    is_initial_memory P Adv AdvData m →
+    is_initial_registers P Adv reg r_adv →
+    Forall (λ w, is_z w = true) (prog_instrs AdvData) →
+    Forall (adv_condition AdvData) (prog_instrs Adv) ->
+    minv I m →
+    minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
+
+    let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+    (∀ `{memG Σ, regG Σ, sealStoreG Σ, NA: logrel_na_invs Σ} rmap,
+     dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
+       ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region AdvData), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+       -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+    minv I m'.
+  Proof.
+    intros Hm Hreg Hadvdata Hadv HI HIdom prog_map Hspec Hstep.
+    pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
+    pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
+    specialize (WPI
+                  (Seq (Instr Executable))
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  es
+                  {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
+                  (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
+    eapply WPI. intros Hinv κs. clear WPI.
+
+    unfold is_initial_memory in Hm.
+
+    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
+    iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
+
+    pose memg := MemG Σ Hinv mem_heapg.
+    pose regg := RegG Σ Hinv reg_heapg.
+    pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
+
+    specialize (Hspec memg regg seal_storeg logrel_na_invs).
+    destruct Hm as (HM & HA & HAD & [Hdisj1 [Hdisj2 Hdisj3] ]).
+
+    iDestruct (big_sepM_subseteq with "Hmem") as "Hprogadv".
+    { transitivity (prog_region P ∪ prog_region Adv ∪ prog_region AdvData); eauto.
+      rewrite map_subseteq_spec. intros * HH.
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      eapply map_subseteq_spec in HM; eauto.
+      eapply map_subseteq_spec in HA; eauto.
+      eapply map_subseteq_spec in HAD; eauto.
+      apply map_disjoint_union_l;auto. }
+    iDestruct (big_sepM_union with "Hprogadv") as "[Hprog Hadvdata]";
+      [apply map_disjoint_union_l;auto|].
+    iDestruct (big_sepM_union with "Hprog") as "[Hprog Hadv]";
+      [assumption|].
+
+    set prog_in_inv :=
+      filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
+    rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
+    2: { symmetry. apply map_filter_union_complement. }
+    iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
+    by apply map_disjoint_filter_complement.
+
+    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
+    { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
+      assert (minv_dom I ⊆ dom (prog_region P)).
+      { etransitivity. eapply HIdom. rewrite prog_region_dom//. }
+      rewrite filter_dom_is_dom; auto. split; auto.
+      eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
+      transitivity (prog_region P); auto. rewrite /prog_in_inv.
+      eapply map_filter_subseteq; typeclasses eauto. }
+
+    unfold is_initial_registers in Hreg.
+    destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
+    iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
+    iDestruct (big_sepM_delete _ _ r_adv with "Hreg") as "[Hr0 Hreg]".
+      by rewrite lookup_delete_ne //.
+
+    set rmap := delete r_adv (delete PC reg).
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)%I
+               with "[Hreg]" as "Hreg".
+    { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
+      subst rmap. apply lookup_delete_Some in Hr as [? Hr].
+      apply lookup_delete_Some in Hr as [? Hr].
+      opose proof (Hrothers r _) as HH; first set_solver.
+      destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
+
+    assert (∀ r, is_Some (reg !! r)) as Hreg_full.
+    { intros r.
+      destruct (decide (r = PC)); subst; [by eauto|].
+      destruct (decide (r = r_adv)); subst; [by eauto|].
+      destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
+
+    iPoseProof (Hspec rmap with "[$HPC $Hr0 $Hreg $Hprog $Hadv $Hinv $Hna $Hadvdata]") as "Spec".
+    { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
+
+    iModIntro.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(mem))))%I.
+    iExists (fun _ => True)%I. cbn. iFrame.
+    iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
+    iInv invN as ">Hx" "_".
+    unfold minv_sep. iDestruct "Hx" as (mi) "(Hmi & Hmi_dom & %)".
+    iDestruct "Hmi_dom" as %Hmi_dom.
+    iDestruct (gen_heap_valid_inclSepM with "Hmem' Hmi") as %Hmi_incl.
+    iModIntro. iPureIntro. rewrite /state_is_good //=.
+    eapply minv_sub_extend; [| |eassumption].
+    rewrite Hmi_dom //. auto. auto.
+  Qed.
+
+End Adequacy.
+
+Theorem template_adequacy `{MachineParameters}
+  (P Adv AdvData: prog) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg)
+  (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (es: list cap_lang.expr):
+  is_initial_memory P Adv AdvData m →
+  is_initial_registers P Adv reg r_adv →
+  Forall (λ w, is_z w = true) (prog_instrs AdvData) →
+  Forall (adv_condition AdvData) (prog_instrs Adv) ->
+  minv I m →
+  minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
+
+  let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+  (∀ `{memG Σ, regG Σ, sealStoreG Σ, logrel_na_invs Σ} rmap,
+   dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+   ⊢ inv invN (minv_sep I)
+     ∗ na_own logrel_nais ⊤
+     ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
+     ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+     ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ (prog_region AdvData), a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+     -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; sealStorePreΣ]).
+  intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
+Qed.
+
+End with_adv_and_data.
+
 Module with_adv.
 
 Definition is_initial_registers (P Adv: prog) (reg: gmap RegName Word) (r_adv: RegName) :=
@@ -299,7 +517,7 @@ Section Adequacy.
     (es: list cap_lang.expr):
     is_initial_memory P Adv m →
     is_initial_registers P Adv reg r_adv →
-    Forall (λ w, is_z w = true) (prog_instrs Adv) →
+    Forall (adv_condition Adv) (prog_instrs Adv) →
     minv I m →
     minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
@@ -368,7 +586,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (prog_region P); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto. }
+      eapply map_filter_subseteq; typeclasses eauto. }
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
@@ -382,7 +600,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -416,6 +634,120 @@ Theorem template_adequacy `{MachineParameters}
     (es: list cap_lang.expr):
   is_initial_memory P Adv m →
   is_initial_registers P Adv reg r_adv →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
+  minv I m →
+  minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
+
+  let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+  (∀ `{memG Σ, regG Σ, sealStoreG Σ, logrel_na_invs Σ} rmap,
+   dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+   ⊢ inv invN (minv_sep I)
+     ∗ na_own logrel_nais ⊤
+     ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
+     ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+     ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+     -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; sealStorePreΣ]).
+  intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
+Qed.
+
+End with_adv.
+
+Module with_adv_ints.
+
+Definition is_initial_registers (P Adv: prog) (reg: gmap RegName Word) (r_adv: RegName) :=
+  reg !! PC = Some (WCap RWX (prog_start P) (prog_end P) (prog_start P)) ∧
+  reg !! r_adv = Some (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; r_adv ]} : gset RegName) →
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
+
+Lemma initial_registers_full_map (P Adv: prog) reg r_adv :
+  is_initial_registers P Adv reg r_adv →
+  (∀ r, is_Some (reg !! r)).
+Proof.
+  intros (HPC & Hr0 & Hne & Hothers) r.
+  destruct (decide (r = PC)) as [->|]. by eauto.
+  destruct (decide (r = r_adv)) as [->|]. by eauto.
+  destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
+Qed.
+
+Definition is_initial_memory (P Adv: prog) (m: gmap Addr Word) :=
+  prog_region P ⊆ m
+  ∧ prog_region Adv ⊆ m
+  ∧ prog_region P ##ₘ prog_region Adv.
+
+Section Adequacy.
+  Context (Σ: gFunctors).
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
+  Context {na_invg: na_invG Σ}.
+  Context `{MP: MachineParameters}.
+
+  Context (P Adv: prog).
+  Context (I : memory_inv).
+  Context (r_adv : RegName).
+
+  Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
+
+  Lemma template_adequacy'
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (es: list cap_lang.expr):
+    is_initial_memory P Adv m →
+    is_initial_registers P Adv reg r_adv →
+    Forall (λ w, is_z w = true) (prog_instrs Adv) →
+    minv I m →
+    minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
+
+    let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
+    (∀ `{memG Σ, regG Σ, sealStoreG Σ, NA: logrel_na_invs Σ} rmap,
+     dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
+       ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+       -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+    minv I m'.
+  Proof.
+    intros Hm Hreg Hadv HI HIdom prog_map Hspec Hstep.
+    eapply with_adv_and_data.template_adequacy' with (AdvData:=empty_prog (prog_end Adv));[eauto..| |eauto].
+    - destruct Hm as (HM & HA & Hdisj).
+      repeat constructor;auto. all:rewrite empty_prog_region /=.
+      apply map_empty_subseteq. all: apply map_disjoint_empty_r.
+    - eapply Forall_impl;[apply Hadv|].
+      intros x Hx. left. auto.
+    - intros. iIntros "(?&?&?&?&?&?&?&?)".
+      iApply Hspec;eauto. iFrame.
+  Qed.
+
+End Adequacy.
+
+Theorem template_adequacy `{MachineParameters}
+  (P Adv: prog) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg)
+  (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (es: list cap_lang.expr):
+  is_initial_memory P Adv m →
+  is_initial_registers P Adv reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
   minv I m →
   minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
@@ -442,9 +774,7 @@ Proof.
   intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
 Qed.
 
-End with_adv.
-
-Module with_adv_and_link.
+End with_adv_ints.
 
 Record lib_entry := MkLibEntry {
   lib_start : Addr;
@@ -478,6 +808,8 @@ Definition prog_lower_bound_region {l} (p : prog) (t : @tbl p l) : gmap Addr Wor
   mkregion (prog_lower_bound t) (prog_end p) ((WCap RO (tbl_start t) (tbl_end t) (tbl_start t)) :: (prog_instrs p)).
 Definition prog_tbl_region {l} (p : prog) (t : @tbl p l) : gmap Addr Word :=
   prog_lower_bound_region p t ∪ tbl_region t.
+Definition prog_tbl_data_region {l} (p data: prog) (t : @tbl p l) : gmap Addr Word :=
+  prog_lower_bound_region p t ∪ tbl_region t ∪ prog_region data.
 
 Lemma prog_lower_bound_region_cons {l} (p : prog) (t : @tbl p l) :
   prog_lower_bound_region p t = <[(prog_lower_bound t):=WCap RO (tbl_start t) (tbl_end t) (tbl_start t)]> (prog_region p)
@@ -515,6 +847,339 @@ Qed.
 Definition tbl_pub (p : prog) (l : lib) := @tbl p (pub_libs l).
 Definition tbl_priv (p : prog) (l : lib) := @tbl p ((pub_libs l) ++ (priv_libs l)).
 
+
+Module with_adv_and_data_and_link.
+
+Definition is_initial_registers (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (reg: gmap RegName Word) (r_adv: RegName) :=
+  reg !! PC = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)) ∧
+  reg !! r_adv = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; r_adv ]} : gset RegName) →
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
+
+Lemma initial_registers_full_map (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) reg r_adv :
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  (∀ r, is_Some (reg !! r)).
+Proof.
+  intros (HPC & Hr0 & Hne & Hothers) r.
+  destruct (decide (r = PC)) as [->|]. by eauto.
+  destruct (decide (r = r_adv)) as [->|]. by eauto.
+  destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
+Qed.
+
+Definition is_initial_memory (P Adv AdvData: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (m: gmap Addr Word) :=
+  prog_tbl_region P P_tbl ⊆ m
+  ∧ prog_tbl_data_region Adv AdvData Adv_tbl ⊆ m
+  ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_data_region Adv AdvData Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_data_region Adv AdvData Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib)
+  /\ prog_region AdvData ##ₘ prog_tbl_region Adv Adv_tbl.
+
+Definition initial_memory_domain (P Adv AdvData: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
+  dom (prog_tbl_region P P_tbl)
+      ∪ dom (prog_tbl_data_region Adv AdvData Adv_tbl)
+      ∪ dom (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
+
+(* NOTE: solely this version of adequacy has been updated to work with seals, by having allocated seals in the precondition *)
+Section Adequacy.
+  Context (Σ: gFunctors).
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
+  Context {na_invg: na_invG Σ}.
+  Context `{MP: MachineParameters}.
+
+  Context (P Adv AdvData: prog).
+  Context (Lib : lib).
+  Context (P_tbl : @tbl_priv P Lib).
+  Context (Adv_tbl : @tbl_pub Adv Lib).
+  Context (I : memory_inv).
+  Context (r_adv : RegName).
+
+  Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
+
+  Lemma template_adequacy' `{subG Σ' Σ}
+    (m m': Mem) (reg reg': Reg)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (o_b o_e : OType) (es: list cap_lang.expr):
+    is_initial_memory P Adv AdvData Lib P_tbl Adv_tbl m →
+    is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+    Forall (λ w, is_z w = true) (prog_instrs AdvData) →
+    Forall (adv_condition AdvData) (prog_instrs Adv) ->
+    minv I m →
+    minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+    (o_b <= o_e)%ot →
+
+    let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+    (∀ `{memG Σ, regG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, subG Σ' Σ} rmap,
+        dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
+       ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+       (* P program and table *)
+       ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+       (* Adv program and table *)
+       ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region AdvData), a ↦ₐ w)
+       (* Right to allocate sealed predicates *)
+       ∗ ([∗ list] o ∈ finz.seq_between o_b o_e, can_alloc_pred o)
+       (* filtered entries *)
+       ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+       -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+    minv I m'.
+  Proof.
+    intros Hm Hreg Hadvdata Hadv HI HIdom Hobe prog_map Hspec Hstep.
+    pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
+    pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
+    specialize (WPI
+                  (Seq (Instr Executable))
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  es
+                  {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
+                  (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
+    eapply WPI. intros Hinv κs. clear WPI.
+
+    unfold is_initial_memory in Hm.
+
+    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    iMod (seal_store_init (list_to_set (finz.seq_between o_b o_e))) as (seal_storeg) "Hseal_store".
+    iDestruct (big_sepS_list_to_set with "Hseal_store") as "Hseal_store"; [apply finz_seq_between_NoDup|].
+    iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
+
+    pose memg := MemG Σ Hinv mem_heapg.
+    pose regg := RegG Σ Hinv reg_heapg.
+    pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
+
+    specialize (Hspec memg regg seal_storeg logrel_na_invs).
+    destruct Hm as (HM & HA & HL & (Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4 & Hdisj5)).
+
+    iDestruct (big_sepM_subseteq with "Hmem") as "Hprogadv".
+    { transitivity (prog_tbl_region P P_tbl ∪
+                    prog_tbl_data_region Adv AdvData Adv_tbl ∪
+                    lib_region ((pub_libs Lib) ++ (priv_libs Lib))); eauto.
+      rewrite map_subseteq_spec. intros * HH.
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      apply lookup_union_Some in HH; auto. destruct HH as [HH|HH].
+      eapply map_subseteq_spec in HM; eauto.
+      eapply map_subseteq_spec in HA; eauto.
+      eapply map_subseteq_spec in HL; eauto.
+      apply map_disjoint_union_l;auto.
+    }
+    iDestruct (big_sepM_union with "Hprogadv") as "[Hprog Hlib]";
+      [apply map_disjoint_union_l;auto|].
+    iDestruct (big_sepM_union with "Hprog") as "[Hp Hadv]";
+      [auto|].
+
+    pose proof (tbl_disj P_tbl) as Hdisjtbl1.
+    pose proof (tbl_disj Adv_tbl) as Hdisjtbl2.
+    pose proof (tbl_prog_link P_tbl) as Hlink1.
+    pose proof (tbl_prog_link Adv_tbl) as Hlink2.
+
+    iDestruct (big_sepM_union with "Hp") as "[Hp Hp_tbl]";
+      [auto|].
+    iDestruct (big_sepM_union with "Hadv") as "[Hadv Hadv_tbl]";
+      [auto|].
+    iDestruct (big_sepM_union with "Hadv") as "[Hadv Hadv_data]";
+      [auto|].
+
+    rewrite lib_region_app.
+    iDestruct (big_sepM_union with "Hlib") as "[Hlib_pub Hlib_priv]";
+      [auto|].
+
+    set prog_in_inv :=
+      filter (fun '(a, _) => a ∈ minv_dom I) (lib_region (priv_libs Lib)).
+    set prog_nin_inv :=
+      filter (fun '(a, _) => a ∉ minv_dom I) (lib_region (priv_libs Lib)).
+    rewrite (_: lib_region (priv_libs Lib) = prog_in_inv ∪ prog_nin_inv).
+    2: { symmetry. apply map_filter_union_complement. }
+    iDestruct (big_sepM_union with "Hlib_priv") as "[Hlib_inv Hlib_priv]".
+    by apply map_disjoint_filter_complement.
+
+    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hlib_inv]") as "#Hinv".
+    { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
+      assert (minv_dom I ⊆ dom (lib_region (priv_libs Lib))).
+      { etransitivity. eapply HIdom. auto. }
+      rewrite filter_dom_is_dom; auto. split; auto.
+      eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
+      transitivity (lib_region (priv_libs Lib)); auto. rewrite /prog_in_inv.
+      eapply map_filter_subseteq; typeclasses eauto.
+      transitivity (lib_region (pub_libs Lib ++ priv_libs Lib)); auto.
+      rewrite lib_region_app. apply map_union_subseteq_r. auto.
+    }
+
+    unfold is_initial_registers in Hreg.
+    destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
+    iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
+    iDestruct (big_sepM_delete _ _ r_adv with "Hreg") as "[Hr0 Hreg]".
+      by rewrite lookup_delete_ne //.
+
+    set rmap := delete r_adv (delete PC reg).
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)%I
+               with "[Hreg]" as "Hreg".
+    { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
+      subst rmap. apply lookup_delete_Some in Hr as [? Hr].
+      apply lookup_delete_Some in Hr as [? Hr].
+      opose proof (Hrothers r _) as HH; first set_solver.
+      destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
+
+    assert (∀ r, is_Some (reg !! r)) as Hreg_full.
+    { intros r.
+      destruct (decide (r = PC)); subst; [by eauto|].
+      destruct (decide (r = r_adv)); subst; [by eauto|].
+      destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
+
+    pose proof (prog_lower_bound_region_cons P P_tbl) as [HeqP HNoneP].
+    pose proof (prog_lower_bound_region_cons Adv Adv_tbl) as [HeqAdv HNoneAdv].
+    rewrite HeqP HeqAdv.
+    iDestruct (big_sepM_insert with "Hp") as "[Hlinkp Hp]";[auto|].
+    iDestruct (big_sepM_insert with "Hadv") as "[Hlinkadv Hadv]";[auto|].
+
+    iPoseProof (Hspec _ rmap with "[$HPC $Hr0 $Hreg $Hseal_store $Hlinkp $Hp $Hlinkadv $Hadv $Hp_tbl $Hadv_tbl $Hlib_pub $Hlib_priv $Hinv $Hna $Hadv_data]") as "Spec".
+    { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
+
+    iModIntro.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(cap_lang.mem))))%I.
+    iExists (fun _ => True)%I. cbn. iFrame.
+    iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
+    iInv invN as ">Hx" "_".
+    unfold minv_sep. iDestruct "Hx" as (mi) "(Hmi & Hmi_dom & %)".
+    iDestruct "Hmi_dom" as %Hmi_dom.
+    iDestruct (gen_heap_valid_inclSepM with "Hmem' Hmi") as %Hmi_incl.
+    iModIntro. iPureIntro. rewrite /state_is_good //=.
+    eapply minv_sub_extend; [| |eassumption].
+    rewrite Hmi_dom //. auto. auto.
+  Qed.
+
+End Adequacy.
+
+
+Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
+  (P Adv AdvData: prog) (Lib : lib)
+  (P_tbl : @tbl_priv P Lib)
+  (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (o_b o_e : OType) (es: list cap_lang.expr):
+  is_initial_memory P Adv AdvData Lib P_tbl Adv_tbl m →
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  Forall (λ w, is_z w = true) (prog_instrs AdvData) →
+  Forall (adv_condition AdvData) (prog_instrs Adv) ->
+  minv I m →
+  minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+  (o_b <= o_e)%ot →
+
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+  (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      ⊢ inv invN (minv_sep I)
+        ∗ na_own logrel_nais ⊤
+        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+        ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+        (* P program and table *)
+        ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+        (* Adv program and table *)
+        ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region AdvData), a ↦ₐ w)
+        (* Right to allocate sealed predicates *)
+        ∗ ([∗ list] o ∈ finz.seq_between o_b o_e, can_alloc_pred o)
+        (* filtered entries *)
+        ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; sealStorePreΣ; Σ]).
+  intros.
+eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
+            typeclasses eauto.
+Qed.
+
+(* Original formulation of adequacy, which does not mention seals *)
+Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
+  (P Adv AdvData: prog) (Lib : lib)
+  (P_tbl : @tbl_priv P Lib)
+  (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg)
+  (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (es: list cap_lang.expr):
+  is_initial_memory P Adv AdvData Lib P_tbl Adv_tbl m →
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  Forall (λ w, is_z w = true) (prog_instrs AdvData) →
+  Forall (adv_condition AdvData) (prog_instrs Adv) ->
+  minv I m →
+  minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+  (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      ⊢ inv invN (minv_sep I)
+        ∗ na_own logrel_nais ⊤
+        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+        ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+        (* P program and table *)
+        ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+        (* Adv program and table *)
+        ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region AdvData), a ↦ₐ w)
+        (* filtered entries *)
+        ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  intros ??????? Hwp ?.
+  eapply (@template_adequacy _ Σ); [eauto..| | | exact].
+  by assert (0 <= 0)%ot by solve_addr.
+  intros.
+  iStartProof. iIntros "Hyp".
+  iApply Hwp; try typeclasses eauto ; eauto.
+  repeat iDestruct "Hyp" as "[$ Hyp]".
+  iDestruct "Hyp" as "[_ Hyp]".
+  repeat iDestruct "Hyp" as "[$ Hyp]".
+  iFrame "∗".
+Qed.
+
+End with_adv_and_data_and_link.
+
+
+Module with_adv_and_link.
+
 Definition is_initial_registers (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (reg: gmap RegName Word) (r_adv: RegName) :=
   reg !! PC = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)) ∧
   reg !! r_adv = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)) ∧
@@ -536,10 +1201,10 @@ Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) 
   prog_tbl_region P P_tbl ⊆ m
   ∧ prog_tbl_region Adv Adv_tbl ⊆ m
   ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
-  ∧ prog_tbl_region P P_tbl ##ₘprog_tbl_region Adv Adv_tbl
-  ∧ prog_tbl_region P P_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ prog_tbl_region Adv Adv_tbl ##ₘlib_region ((pub_libs Lib) ++ (priv_libs Lib))
-  ∧ lib_region (pub_libs Lib) ##ₘlib_region (priv_libs Lib).
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_region Adv Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_region Adv Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib).
 
 Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
   dom (prog_tbl_region P P_tbl)
@@ -566,12 +1231,12 @@ Section Adequacy.
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
   Lemma template_adequacy' `{subG Σ' Σ} (m m': Mem) (reg reg': Reg)
-    (o_b o_e : OType)
     (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (o_b o_e : OType)
     (es: list cap_lang.expr):
     is_initial_memory P Adv Lib P_tbl Adv_tbl m →
     is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
-    Forall (λ w, is_z w = true) (prog_instrs Adv) →
+    Forall (adv_condition Adv) (prog_instrs Adv) →
     minv I m →
     minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
     (o_b <= o_e)%ot →
@@ -679,7 +1344,7 @@ Section Adequacy.
       rewrite filter_dom_is_dom; auto. split; auto.
       eapply minv_sub_restrict; [ | | eapply HI]. rewrite filter_dom_is_dom//.
       transitivity (lib_region (priv_libs Lib)); auto. rewrite /prog_in_inv.
-      eapply map_filter_sub; typeclasses eauto.
+      eapply map_filter_subseteq; typeclasses eauto.
       transitivity (lib_region (pub_libs Lib ++ priv_libs Lib)); auto.
       rewrite lib_region_app. apply map_union_subseteq_r. auto.
     }
@@ -696,7 +1361,7 @@ Section Adequacy.
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
       subst rmap. apply lookup_delete_Some in Hr as [? Hr].
       apply lookup_delete_Some in Hr as [? Hr].
-      feed pose proof (Hrothers r) as HH. set_solver.
+      opose proof (Hrothers r _) as HH; first set_solver.
       destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
@@ -731,12 +1396,219 @@ End Adequacy.
 
 
 Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
+  (P Adv: prog) (Lib : lib)
+  (P_tbl : @tbl_priv P Lib)
+  (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (o_b o_e : OType) (es: list cap_lang.expr):
+  is_initial_memory P Adv Lib P_tbl Adv_tbl m →
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
+  minv I m →
+  minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+  (o_b <= o_e)%ot →
+
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+  (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      ⊢ inv invN (minv_sep I)
+        ∗ na_own logrel_nais ⊤
+        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+        ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+        (* P program and table *)
+        ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+        (* Adv program and table *)
+        ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+        (* Right to allocate sealed predicates *)
+        ∗ ([∗ list] o ∈ finz.seq_between o_b o_e, can_alloc_pred o)
+        (* filtered entries *)
+        ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; sealStorePreΣ; Σ]).
+  intros.
+eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
+            typeclasses eauto.
+Qed.
+
+(* Original formulation of adequacy, which does not mention seals *)
+Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg) (o_b o_e : OType)
-    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
     (es: list cap_lang.expr):
+  is_initial_memory P Adv Lib P_tbl Adv_tbl m →
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
+  minv I m →
+  minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+  (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+      ⊢ inv invN (minv_sep I)
+        ∗ na_own logrel_nais ⊤
+        ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+        ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+        (* P program and table *)
+        ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+        (* Adv program and table *)
+        ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+        ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+        (* filtered entries *)
+        ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+        ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv I m'.
+Proof.
+  intros ?????? Hwp ?.
+  eapply (@template_adequacy _ Σ); [eauto..| | | exact].
+  by assert (0 <= 0)%ot by solve_addr.
+  intros.
+  iStartProof. iIntros "Hyp".
+  iApply Hwp; try typeclasses eauto ; eauto.
+  repeat iDestruct "Hyp" as "[$ Hyp]".
+  iDestruct "Hyp" as "[_ Hyp]".
+  repeat iDestruct "Hyp" as "[$ Hyp]".
+  iFrame "∗".
+Qed.
+
+End with_adv_and_link.
+
+Module with_adv_and_link_ints.
+
+Definition is_initial_registers (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (reg: gmap RegName Word) (r_adv: RegName) :=
+  reg !! PC = Some (WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)) ∧
+  reg !! r_adv = Some (WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; r_adv ]} : gset RegName) →
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
+
+Lemma initial_registers_full_map (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) reg r_adv :
+  is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+  (∀ r, is_Some (reg !! r)).
+Proof.
+  intros (HPC & Hr0 & Hne & Hothers) r.
+  destruct (decide (r = PC)) as [->|]. by eauto.
+  destruct (decide (r = r_adv)) as [->|]. by eauto.
+  destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
+Qed.
+
+Definition is_initial_memory (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) (m: gmap Addr Word) :=
+  prog_tbl_region P P_tbl ⊆ m
+  ∧ prog_tbl_region Adv Adv_tbl ⊆ m
+  ∧ lib_region ((pub_libs Lib) ++ (priv_libs Lib)) ⊆ m
+  ∧ prog_tbl_region P P_tbl ##ₘ prog_tbl_region Adv Adv_tbl
+  ∧ prog_tbl_region P P_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ prog_tbl_region Adv Adv_tbl ##ₘ lib_region ((pub_libs Lib) ++ (priv_libs Lib))
+  ∧ lib_region (pub_libs Lib) ##ₘ lib_region (priv_libs Lib).
+
+Definition initial_memory_domain (P Adv: prog) (Lib : lib) (P_tbl : tbl_priv P Lib) (Adv_tbl : tbl_pub Adv Lib) : gset Addr :=
+  dom (prog_tbl_region P P_tbl)
+      ∪ dom (prog_tbl_region Adv Adv_tbl)
+      ∪ dom (lib_region ((pub_libs Lib) ++ (priv_libs Lib))).
+
+(* NOTE: solely this version of adequacy has been updated to work with seals, by having allocated seals in the precondition *)
+Section Adequacy.
+  Context (Σ: gFunctors).
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
+  Context {na_invg: na_invG Σ}.
+  Context `{MP: MachineParameters}.
+
+  Context (P Adv: prog).
+  Context (Lib : lib).
+  Context (P_tbl : @tbl_priv P Lib).
+  Context (Adv_tbl : @tbl_pub Adv Lib).
+  Context (I : memory_inv).
+  Context (r_adv : RegName).
+
+  Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
+
+  Lemma template_adequacy' `{subG Σ' Σ}
+    (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (o_b o_e : OType) (es: list cap_lang.expr):
+    is_initial_memory P Adv Lib P_tbl Adv_tbl m →
+    is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
+    Forall (λ w, is_z w = true) (prog_instrs Adv) →
+    minv I m →
+    minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
+    (o_b <= o_e)%ot →
+
+    let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
+    (∀ `{memG Σ, regG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, subG Σ' Σ} rmap,
+        dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
+     ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
+       ∗ PC ↦ᵣ WCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+       (* P program and table *)
+       ∗ (prog_lower_bound P_tbl) ↦ₐ (WCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region P_tbl), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region P), a ↦ₐ w)
+       (* Adv program and table *)
+       ∗ (prog_lower_bound Adv_tbl) ↦ₐ (WCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl))
+       ∗ ([∗ map] a↦w ∈ (tbl_region Adv_tbl), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+       (* Right to allocate sealed predicates *)
+       ∗ ([∗ list] o ∈ finz.seq_between o_b o_e, can_alloc_pred o)
+       (* filtered entries *)
+       ∗ ([∗ map] a↦w ∈ (lib_region (pub_libs Lib)), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ filtered_map (lib_region (priv_libs Lib)), a ↦ₐ w)
+
+       -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+    minv I m'.
+  Proof.
+    intros Hm Hreg Hadv HI HIdom Hobe prog_map Hspec Hstep.
+    eapply with_adv_and_data_and_link.template_adequacy' with (AdvData:=empty_prog (prog_end Adv));[eauto..| |eauto].
+    - destruct Hm as (HM & HA & HL & Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4).
+      repeat constructor;auto. unfold prog_tbl_data_region. all:rewrite /prog_tbl_data_region; try rewrite !empty_prog_region /= //.
+      all: try rewrite map_union_empty //. apply map_disjoint_empty_l.
+    - eapply Forall_impl;[apply Hadv|].
+      intros x Hx. left. auto.
+    - intros. iIntros "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?)".
+      iApply Hspec;eauto. iFrame.
+  Qed.
+
+End Adequacy.
+
+
+Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
+  (P Adv: prog) (Lib : lib)
+  (P_tbl : @tbl_priv P Lib)
+  (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (o_b o_e : OType) (es: list cap_lang.expr):
   is_initial_memory P Adv Lib P_tbl Adv_tbl m →
   is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -768,26 +1640,26 @@ Theorem template_adequacy `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-    rtc erased_step
-      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
-      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
-              na_invΣ; sealStorePreΣ; Σ]).
-  intros. 
-eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
-            typeclasses eauto.
+               na_invΣ; sealStorePreΣ; Σ]).
+  intros.
+  eapply (@template_adequacy' Σ'); eauto; (* rewrite /invGpreS. solve_inG. *)
+    typeclasses eauto.
 Qed.
 
 (* Original formulation of adequacy, which does not mention seals *)
 Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
-    (P Adv: prog) (Lib : lib)
-    (P_tbl : @tbl_priv P Lib)
-    (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
-    (m m': Mem) (reg reg': Reg)
-    (etbl etbl' : ETable) (ecur ecur' : ENum)
-    (es: list cap_lang.expr):
+  (P Adv: prog) (Lib : lib)
+  (P_tbl : @tbl_priv P Lib)
+  (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg)
+  (etbl etbl' : ETable) (ecur ecur' : ENum)
+  (es: list cap_lang.expr):
   is_initial_memory P Adv Lib P_tbl Adv_tbl m →
   is_initial_registers P Adv Lib P_tbl Adv_tbl reg r_adv →
   Forall (λ w, is_z w = true) (prog_instrs Adv) →
@@ -816,9 +1688,9 @@ Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-    rtc erased_step
-      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
-      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  rtc erased_step
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+    (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   intros ?????? Hwp ?.
@@ -833,4 +1705,4 @@ Proof.
   iFrame "∗".
 Qed.
 
-End with_adv_and_link.
+End with_adv_and_link_ints.

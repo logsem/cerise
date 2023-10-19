@@ -2,9 +2,9 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
+From cap_machine Require Import fundamental logrel rules.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine Require Import register_tactics.
+From cap_machine Require Import tactics_helpers proofmode register_tactics.
 Open Scope Z_scope.
 
 (** Variant of the `subseg_buffer` where we don't restrict the range
@@ -556,7 +556,7 @@ Section program_closure_ro.
     ; try apply ExecPCPerm_RX
     ; try (iFrame ; iFrame "#").
    - rewrite !dom_delete_L.
-     rewrite difference_difference_L.
+     rewrite difference_difference_l_L.
      apply regmap_full_dom in Hrfull; rewrite Hrfull.
      set_solver.
    - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".

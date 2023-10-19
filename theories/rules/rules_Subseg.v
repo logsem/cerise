@@ -278,7 +278,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
@@ -323,7 +323,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a1 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
@@ -366,7 +366,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
@@ -409,7 +409,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
@@ -452,7 +452,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v }}}
@@ -485,6 +485,38 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
+  Lemma wp_subseg_fail_lr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst p b e a v n1 n2 a1 a2 :
+    decodeInstrWL lw = Subseg dst (inl n1) (inl n2) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
+    ¬ (p ≠ machine_base.E ∧ isWithin a1 a2 b e = true) →
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ dst ↦ᵣ LCap p b e a v }}}
+      Instr Executable @ E
+      {{{ RET FailedV;
+          ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+            ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+            ∗ ▷ dst ↦ᵣ LCap p b e a v }}}.
+  Proof.
+  (*   iIntros (? ? ? ? Hncond ?) "(>HPC & >Hpc_a & >Hdst) Hφ". *)
+  (*   iDestruct (map_of_regs_2 with "HPC Hdst") as "[Hmap %]". *)
+  (*   iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
+  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+  (*   destruct Hspec as [| | * Hfail]. *)
+  (*   { (* Success (contradiction) *) *)
+  (*     exfalso. apply Hncond. simplify_map_eq. split; first done. *)
+  (*     repeat match goal with H : _ |- _ => *)
+  (*                              apply addr_of_argument_Some_inv in H as (?&?&[?|(?&?&?)]) end; by simplify_eq. } *)
+  (*   { (* Success with WSealRange (contradiction) *) *)
+  (*     simplify_map_eq. } *)
+  (*   { (* Failure *) *)
+  (*     destruct Hfail; cbn in *; simplify_map_eq. *)
+  (*     all: iApply "Hφ"; iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. } *)
+  (* Qed. *)
+  Admitted.
+
   Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg PC (inr r1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -492,7 +524,7 @@ Section cap_lang_rules.
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LInt n1
@@ -654,7 +686,7 @@ Section cap_lang_rules.
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
       Instr Executable @ E
@@ -666,7 +698,6 @@ Section cap_lang_rules.
   (*   iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a) Hφ". *)
   (*   iDestruct (map_of_regs_1 with "HPC") as "Hmap". *)
   (*   iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
   (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
 
   (*   destruct Hspec as [| | * Hfail]. *)

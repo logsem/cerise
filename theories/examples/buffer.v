@@ -57,7 +57,7 @@ Section buffer.
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
-    Forall (λ w, is_z w = true) adv →
+    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
     (b_adv + length adv)%a = Some e_adv →
 
    ⊢ (  PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
@@ -73,7 +73,8 @@ Section buffer.
     iIntros (? ? Hrmap_dom ? ?) "(HPC & Hr0 & Hr1 & Hrmap & Hcode & Hdata & Hadv & Hna)".
     (* The capability to the adversary is safe and we can also jmp to it *)
     iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
-    iDestruct (region_integers_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv". done.
+    iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto.
+    { apply Forall_forall. intros. set_solver. }
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
     iApply (buffer_spec a_first with "[-]"). solve_addr. iFrame.
@@ -113,15 +114,14 @@ Program Definition buffer_inv (pstart: Addr) : memory_inv :=
     _.
 Next Obligation.
   intros pstart m m' H. cbn in *.
-  specialize (H (pstart ^+ 7)%a). feed specialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
+  specialize (H (pstart ^+ 7)%a). ospecialize H. by set_solver.
 Qed.
 
 Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es:
   prog_instrs P = buffer_code (prog_start P) ++ buffer_data →
   with_adv.is_initial_memory P Adv m →
   with_adv.is_initial_registers P Adv reg r_t0 →
-  Forall (λ w, is_z w = true) (prog_instrs Adv) →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   m' !! (prog_start P ^+ 7)%a = Some (WInt 42).
@@ -157,12 +157,12 @@ Proof.
     assert (Mcode ∪ Mdata ⊆ M) as HM.
     { apply map_subseteq_spec. intros a w. intros [Ha|Ha]%lookup_union_Some; auto.
       { apply mkregion_lookup in Ha as [? [? HH] ]. 2: solve_addr.
-        apply map_filter_lookup_Some_2.
+        apply map_lookup_filter_Some_2.
         2: { cbn; apply not_elem_of_singleton. apply lookup_lt_Some in HH. solve_addr. }
         subst. rewrite mkregion_lookup. 2: rewrite HP; solve_addr.
         eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. }
       { apply mkregion_lookup in Ha as [i [? HH] ]. 2: solve_addr.
-        apply map_filter_lookup_Some_2.
+        apply map_lookup_filter_Some_2.
          2: { cbn; apply not_elem_of_singleton. apply lookup_lt_Some in HH. solve_addr. }
         subst. rewrite mkregion_lookup. 2: rewrite HP; solve_addr.
         exists (i+4)%nat. split. solve_addr+. rewrite HP.
@@ -175,7 +175,7 @@ Proof.
     iFrame. }
 
   assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
-  { rewrite elem_of_gmap_dom Hrmap_dom. set_solver+. }
+  { rewrite -elem_of_dom Hrmap_dom. set_solver+. }
   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
 
   iApply (buffer_full_run_spec with "[$Hadv HPC $Hr0 $Hr1 $Hcode $Hrmap $Hna $Hdata]"); auto.

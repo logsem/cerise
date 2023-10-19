@@ -80,8 +80,8 @@ Section cap_lang_rules.
   (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
 
   (*   specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. *)
-  (*   feed destruct (Hri src2) as [r2v [Hr'2 Hr2]]. by set_solver+. *)
-  (*   feed destruct (Hri src1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
+  (*   odestruct (Hri src2) as [r2v [Hr'2 Hr2]]. by set_solver+. *)
+  (*   odestruct (Hri src1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
   (*   destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. clear Hri. *)
 
   (*   rewrite /exec /= Hr2 Hr1 /= in Hstep. *)
@@ -308,5 +308,32 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
+  Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 p b e a lwsealed pc_a' :
+    decodeInstrWL lw = UnSeal r2 r1 r2 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
+    is_sealed_with_oL lwsealed a = false →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ r1 ↦ᵣ LSealRange p b e a
+          ∗ ▷ r2 ↦ᵣ lwsealed }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+  (*   iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
+
+  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
+  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
+  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
+  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+
+  (*   destruct Hspec as [ | ]; last by iApply "Hφ". *)
+  (*   { destruct wsealed as [| | o' sb']; try by simplify_map_eq. *)
+  (*     exfalso. *)
+  (*     rewrite /is_sealed_with_o //= in Hfalse. *)
+  (*     destruct (decide (o' = a)) as [->| Hne]; [solve_addr | simplify_map_eq]. } *)
+  (* Qed. *)
+  Admitted.
 
 End cap_lang_rules.

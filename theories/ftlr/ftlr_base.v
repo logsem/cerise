@@ -12,12 +12,12 @@ Section fundamental.
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
-  
+
 
   (* NOTE: I think having PC:= wsrc in the IH in below definition, rather than restricting induction to capabilities only, would allow us to more generally apply the induction hypothesis in multiple cases. Now we do the `wp_notCorrectPC`-related reasoning in multiple places, not just in the top-level ftlr. *)
 
   Definition ftlr_instr (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (i: instr) (P : D) := 
+        (b e a : Addr) (w : Word) (i: instr) (P : D) :=
       p = RX ∨ p = RWX
     → (∀ x : RegName, is_Some (r !! x))
     → isCorrectPC (WCap p b e a)

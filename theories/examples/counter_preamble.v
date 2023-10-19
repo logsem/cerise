@@ -3,7 +3,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules logrel fundamental.
-From cap_machine.examples Require Import macros macros_helpers malloc counter.
+From cap_machine.examples Require Import macros malloc counter.
+From cap_machine.proofmode Require Import tactics_helpers.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
@@ -12,10 +13,10 @@ Section counter_example_preamble.
           `{MP: MachineParameters}.
 
   Definition counter_instrs f_a :=
-    incr_instrs ++ (read_instrs f_a) ++ reset_instrs. 
+    incr_instrs ++ (read_instrs f_a) ++ reset_instrs.
 
   Definition counter f_a a :=
-    ([∗ list] a_i;w ∈ a;(counter_instrs f_a), a_i ↦ₐ w )%I. 
+    ([∗ list] a_i;w ∈ a;(counter_instrs f_a), a_i ↦ₐ w )%I.
 
   Definition counter_instrs_length : Z :=
     Eval cbv in (length (incr_instrs ++ (read_instrs 0) ++ reset_instrs)).
@@ -25,7 +26,7 @@ Section counter_example_preamble.
     Eval cbv in (length (read_instrs 0)).
   Definition reset_instrs_length : Z :=
     Eval cbv in (length (reset_instrs)).
-  
+
   (* [f_m] is the offset of the malloc capability *)
   (* [offset_to_counter] is the offset between the [move_r r_t1 PC] instruction
   and the code of the counter, which will be the concatenation of: incr;read;reset *)
@@ -59,7 +60,7 @@ Section counter_example_preamble.
     move_z r_t8 0;
     move_z r_t9 0;
     jmp r_t0].
-  
+
   Definition counter_preamble f_m offset_to_counter ai :=
     ([∗ list] a_i;w_i ∈ ai;(counter_preamble_instrs f_m offset_to_counter), a_i ↦ₐ w_i)%I.
 
@@ -99,7 +100,7 @@ Section counter_example_preamble.
 
   Definition counter_preamble_instrs_length : Z :=
     Eval cbv in (length (counter_preamble_instrs 0 0)).
-  
+
   Ltac iPrologue prog :=
     iDestruct prog as "[Hi Hprog]";
     iApply (wp_bind (fill [SeqCtx])).
@@ -112,7 +113,7 @@ Section counter_example_preamble.
     isCorrectPC_range pc_p pc_b pc_e counter_first counter_end →
     contiguous_between restc linkc counter_end →
     (b_cell + 1)%a = Some e_cell →
-    
+
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_incrN ([∗ list] a_i;w_i ∈ incr_prog;incr_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
@@ -122,19 +123,19 @@ Section counter_example_preamble.
      na_own logrel_nais ⊤ -∗
     interp (WCap E b_cls e_cls b_cls))%I.
   Proof.
-    iIntros (Hnp Hcont_incr Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
+    iIntros (Hnp Hcont_incr Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI".
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     rewrite /interp_conf.
-    
+
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
-    
+
     rewrite /registers_mapsto.
     rewrite -insert_delete_insert.
-    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
+    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs'") as "[Hr1 Hregs']".
       by rewrite lookup_delete_ne //.
@@ -150,25 +151,25 @@ Section counter_example_preamble.
     (* close the invariant for the closure *)
     iDestruct ("Hcls_close" with "[Hcls Hcls' Hcls'' $Hna]") as ">Hna".
     { iNext. iFrame. }
-    
+
     destruct (Hr'_full r_t0) as [r0v Hr0v].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs'") as "[Hr0 Hregs']".
       by rewrite !lookup_delete_ne // lookup_delete_ne //.
-      
+
     iApply (incr_spec with "[$HPC $Hr0 $Hrenv $Hregs' $Hna $Hincr Hr1]");
       [|apply Hcont_incr|auto|..].
     { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|]. split;[clear;solve_addr|].
       apply contiguous_between_bounds in Hcont_restc. apply Hcont_restc. }
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
-    { iSplitL;[eauto|]. iSplit. 
+    { iSplitL;[eauto|]. iSplit.
       - iExists _. iFrame "#".
       - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
         iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
-        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
+        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
         iSpecialize ("Hr'_valid" $! reg _ H4 Hlook).  iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
@@ -188,7 +189,7 @@ Section counter_example_preamble.
     (up_close (B:=coPset) count_env ## ↑count_readN) →
     up_close (B:=coPset) assertN ## ↑count_readN →
     up_close (B:=coPset) assertN ## ↑count_env →
-    
+
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_readN ([∗ list] a_i;w_i ∈ read_prog;read_instrs f_a, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
@@ -207,13 +208,13 @@ Section counter_example_preamble.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     rewrite /interp_conf.
-    
+
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
-    
+
     rewrite /registers_mapsto.
     rewrite -insert_delete_insert.
-    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
+    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs'") as "[Hr1 Hregs']".
       by rewrite lookup_delete_ne //.
@@ -229,11 +230,11 @@ Section counter_example_preamble.
     (* close the invariant for the closure *)
     iDestruct ("Hcls_close" with "[Hcls Hcls' Hcls'' $Hna]") as ">Hna".
     { iNext. iFrame. }
-    
+
     destruct (Hr'_full r_t0) as [r0v Hr0v].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs'") as "[Hr0 Hregs']".
       by rewrite !lookup_delete_ne // lookup_delete_ne //.
-      
+
     iApply (read_spec with "[$HPC $Hr0 $Hrenv $Hregs' $Hna $Hincr Hr1 $Hlink $Hassert]");
       [|apply Hcont_read|auto..].
     { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|].  apply contiguous_between_bounds in Hcont_incr.
@@ -244,14 +245,14 @@ Section counter_example_preamble.
       - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
         iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
-        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
+        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
         unshelve iSpecialize ("Hr'_valid" $! reg _ _ Hlook). auto. iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
-  Qed. 
+  Qed.
 
   Lemma reset_closure_valid read_prog reset_prog incr_prog count_resetN countN count_clsN b_cls e_cls b_cls' e_cls' b_cls'' e_cls''
         pc_p pc_b pc_e counter_first counter_end linkc linkc' b_cell e_cell :
@@ -261,7 +262,7 @@ Section counter_example_preamble.
     isCorrectPC_range pc_p pc_b pc_e counter_first counter_end →
     contiguous_between reset_prog linkc' counter_end →
     (b_cell + 1)%a = Some e_cell →
-    
+
     ⊢ (inv countN (counter_inv b_cell) -∗
      na_inv logrel_nais count_resetN ([∗ list] a_i;w_i ∈ reset_prog;reset_instrs, a_i ↦ₐ w_i) -∗
      na_inv logrel_nais count_clsN
@@ -271,19 +272,19 @@ Section counter_example_preamble.
      na_own logrel_nais ⊤ -∗
     interp (WCap E b_cls'' e_cls'' b_cls''))%I.
   Proof.
-    iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI". 
+    iIntros (Hnp Hcont_incr Hcont_read Hvpc_counter Hcont_restc Hbe_cell) "#Hcounter_inv #Hincr #Hcls_inv HnaI".
     rewrite /interp fixpoint_interp1_eq. rewrite /enter_cond.
     iIntros (r') "". iNext. iModIntro. rewrite /interp_expr /=.
     iIntros "([Hr'_full #Hr'_valid] & Hregs' & HnaI)". iDestruct "Hr'_full" as %Hr'_full.
     pose proof (regmap_full_dom _ Hr'_full) as Hdom_r'.
     rewrite /interp_conf.
-    
+
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
-    
+
     rewrite /registers_mapsto.
     rewrite -insert_delete_insert.
-    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete. 
+    iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs'") as "[Hr1 Hregs']".
       by rewrite lookup_delete_ne //.
@@ -299,29 +300,29 @@ Section counter_example_preamble.
     (* close the invariant for the closure *)
     iDestruct ("Hcls_close" with "[Hcls Hcls' Hcls'' $Hna]") as ">Hna".
     { iNext. iFrame. }
-    
+
     destruct (Hr'_full r_t0) as [r0v Hr0v].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs'") as "[Hr0 Hregs']".
       by rewrite !lookup_delete_ne // lookup_delete_ne //.
-      
+
     iApply (reset_spec with "[$HPC $Hr0 $Hrenv $Hregs' $Hna $Hincr Hr1]");
       [|apply Hcont_restc|auto..].
-    { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|]. split;[|solve_addr]. 
+    { eapply isCorrectPC_range_restrict; [apply Hvpc_counter|]. split;[|solve_addr].
       apply contiguous_between_bounds in Hcont_incr. apply contiguous_between_bounds in Hcont_read. solve_addr. }
     { rewrite !dom_delete_L Hdom_r'. clear. set_solver. }
-    { iSplitL;[eauto|]. iSplit. 
+    { iSplitL;[eauto|]. iSplit.
       - iExists _. iFrame "#".
       - iSplit; [unshelve iSpecialize ("Hr'_valid" $! r_t0 _ _ Hr0v); [done|]|].
         iFrame "Hr'_valid".
         iApply big_sepM_forall. iIntros (reg w Hlook).
-        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
-        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto]. 
+        assert (reg ≠ r_t0);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_env);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ r_t1);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
+        assert (reg ≠ PC);[intro Hcontr;subst;rewrite lookup_delete in Hlook;inversion Hlook|rewrite lookup_delete_ne in Hlook;auto].
         iSpecialize ("Hr'_valid" $! reg _ H4 Hlook). iApply "Hr'_valid";auto.
     }
     { iNext. iIntros (?) "HH". iIntros (->). iApply "HH". eauto. }
-  Qed. 
+  Qed.
 
 
   Definition countN : namespace := nroot .@ "awkN".
@@ -330,7 +331,7 @@ Section counter_example_preamble.
   Definition count_readN : namespace := countN .@ "read".
   Definition count_resetN : namespace := countN .@ "reset".
   Definition count_clsN : namespace := countN .@ "cls".
-  Definition count_env : namespace := countN .@ "env". 
+  Definition count_env : namespace := countN .@ "env".
 
   Lemma counter_preamble_spec (f_m f_a offset_to_counter: Z) (r: Reg) pc_p pc_b pc_e
         ai a_first a_end b_link e_link a_link a_entry a_entry'
@@ -372,7 +373,7 @@ Section counter_example_preamble.
              ([#Hr_full #Hr_valid] & Hregs & HnaI)".
     iDestruct "Hr_full" as %Hr_full.
     rewrite /full_map /interp_conf.
-    
+
     (* put the code for the counter example in an invariant *)
     (* we separate the invariants into its tree functions *)
     iDestruct (contiguous_between_program_split with "Hcounter") as (incr_prog restc linkc)
@@ -384,11 +385,11 @@ Section counter_example_preamble.
     iDestruct (big_sepL2_length with "Hincr") as %incr_length.
     iDestruct (big_sepL2_length with "Hread") as %read_length.
     iDestruct (big_sepL2_length with "Hreset") as %reset_length.
-    
+
     iDestruct (na_inv_alloc logrel_nais _ count_incrN with "Hincr") as ">#Hincr".
     iDestruct (na_inv_alloc logrel_nais _ count_readN with "Hread") as ">#Hread".
     iDestruct (na_inv_alloc logrel_nais _ count_resetN with "Hreset") as ">#Hreset".
-    
+
     rewrite /registers_mapsto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
       by rewrite lookup_insert //. rewrite delete_insert_delete //.
@@ -396,12 +397,12 @@ Section counter_example_preamble.
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr0 Hregs]". by rewrite !lookup_delete_ne//.
     pose proof (regmap_full_dom _ Hr_full) as Hdom_r.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    
+
     assert (pc_p ≠ E).
     { eapply isCorrectPC_range_perm_non_E. eapply Hvpc.
       pose proof (contiguous_between_length _ _ _ Hcont) as HH. rewrite Hlength /= in HH.
       revert HH; clear; solve_addr. }
-    
+
     (* malloc 1 *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (ai_malloc ai_rest a_malloc_end) "(Hmalloc & Hprog & #Hcont)"; [apply Hcont|].
@@ -417,13 +418,13 @@ Section counter_example_preamble.
     iApply (wp_wand with "[-]").
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hinv_malloc $HnaI]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry| |auto|lia|..].
-    { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
+    { rewrite !dom_delete_L Hdom_r difference_difference_l_L //. }
     iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
     iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
     2: { iIntros (?) "[HH | ->]". iApply "HH". iIntros (Hv). inversion Hv. }
-    
+
     destruct ai_rest as [| a l]; [by inversion Hlength|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest) as ->.
     (* store_z r_t1 0 *)
@@ -450,7 +451,7 @@ Section counter_example_preamble.
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* move_r r_t8 r_t2 *)
     assert (is_Some (r !! r_t8)) as [w8 Hrt8].
-    { apply elem_of_gmap_dom. rewrite Hdom_r. apply all_registers_s_correct. }
+    { apply elem_of_dom. rewrite Hdom_r. apply all_registers_s_correct. }
     iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]".
     { rewrite lookup_delete_ne;[|by auto]. rewrite !lookup_insert_ne;auto; rewrite !lookup_delete_ne;auto. eauto. }
     destruct l as [| ? l]; [by inversion Hlength_rest|].
@@ -461,7 +462,7 @@ Section counter_example_preamble.
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     (* move_r r_t9 r_t1 *)
     assert (is_Some (r !! r_t9)) as [w9 Hrt9].
-    { apply elem_of_gmap_dom. rewrite Hdom_r. apply all_registers_s_correct. }
+    { apply elem_of_dom. rewrite Hdom_r. apply all_registers_s_correct. }
     iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t8 Hregs]".
     { rewrite lookup_insert_ne;[|by auto]. rewrite lookup_delete_ne;auto. rewrite !lookup_insert_ne;auto; rewrite !lookup_delete_ne;auto. eauto. }
     destruct l as [| ? l]; [by inversion Hlength_rest|].
@@ -483,8 +484,6 @@ Section counter_example_preamble.
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ counter_first with "[$HPC $Hi $Hr1]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 5
        |assumption|done|..].
-    (* { destruct (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc) as [-> | [-> | ->] ]; auto. *)
-    (*   generalize (contiguous_between_middle_bounds _ (length ai_malloc) a_malloc_end _ _ Hcont ltac:(subst ai; rewrite list_lookup_middle; auto)). clear. solve_addr. } *)
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* crtcls *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -507,17 +506,17 @@ Section counter_example_preamble.
     iDestruct "HH" as (b_cls e_cls Hbe_cls) "(Hr1 & Hbe_cls & Hr0 & Hr2 & HnaI & Hregs)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest'.
     (* register map cleanup *)
-    rewrite delete_insert_ne;auto. repeat (rewrite (insert_commute _ r_t3);[|by auto]). rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ r_t5);[|by auto]). rewrite -delete_insert_ne;auto. rewrite (insert_commute _ r_t5);auto. rewrite insert_insert. 
+    rewrite delete_insert_ne;auto. repeat (rewrite (insert_commute _ r_t3);[|by auto]). rewrite insert_insert.
+    repeat (rewrite (insert_commute _ r_t5);[|by auto]). rewrite -delete_insert_ne;auto. rewrite (insert_commute _ r_t5);auto. rewrite insert_insert.
     repeat (rewrite -(insert_commute _ r_t9);auto).  repeat (rewrite -(insert_commute _ r_t8);auto).
 
-    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end a_end) as Hvpc3. 
+    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end a_end) as Hvpc3.
     { eapply isCorrectPC_range_restrict. apply Hvpc2.
       generalize (contiguous_between_bounds _ _ _ Hcont_rest').
       revert Ha1_after_malloc Hlink'. clear; solve_addr. }
     (* move r_t10 r_t1 *)
     assert (is_Some (r !! r_t10)) as [w10 Hrt10].
-    { apply elem_of_gmap_dom. rewrite Hdom_r. apply all_registers_s_correct. }
+    { apply elem_of_dom. rewrite Hdom_r. apply all_registers_s_correct. }
     iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]".
     { rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne;[|by auto]. rewrite !lookup_insert_ne;auto; rewrite !lookup_delete_ne;auto. eauto. }
     destruct ai_rest as [| ? ai_rest]; [by inversion Hlength_rest'|].
@@ -546,7 +545,7 @@ Section counter_example_preamble.
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end a_end|iContiguous_next Hcont_rest' 2|..].
     iEpilogue "(HPC & Hi & Hr1 & Hr_t9)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert !(insert_commute _ _ r_t9);auto].
-    rewrite insert_insert. 
+    rewrite insert_insert.
     (* lea r_t1 offset_to_counter + length incr_instrs *)
     assert ((a_move + (offset_to_counter + (length incr_instrs)))%a = Some linkc) as H_counter_offset'.
     { revert Hlinkrestc H_counter_offset incr_length. clear. intros. solve_addr. }
@@ -576,20 +575,20 @@ Section counter_example_preamble.
     iDestruct "HH" as (b_cls' e_cls' Hbe_cls') "(Hr1 & Hbe_cls' & Hr0 & Hr2 & HnaI & Hregs)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest''.
     (* register map cleanup *)
-    repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite insert_insert. 
-    do 2 (rewrite delete_insert_ne;auto). repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert. 
+    repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite insert_insert.
+    do 2 (rewrite delete_insert_ne;auto). repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert.
 
-    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end' a_end) as Hvpc4. 
+    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end' a_end) as Hvpc4.
     { eapply isCorrectPC_range_restrict. apply Hvpc3.
       generalize (contiguous_between_bounds _ _ _ Hcont_rest'').
       revert Ha1_after_malloc Ha1_after_crtcls Hlink'' Hlink'. clear; solve_addr. }
     (* move r_t11 r_t1 *)
     assert (is_Some (r !! r_t11)) as [w11 Hrt11].
-    { apply elem_of_gmap_dom. rewrite Hdom_r. apply all_registers_s_correct. }
+    { apply elem_of_dom. rewrite Hdom_r. apply all_registers_s_correct. }
     iDestruct (big_sepM_delete _ _ r_t11 with "Hregs") as "[Hr_t11 Hregs]".
     { rewrite !lookup_insert_ne;auto.  rewrite !lookup_delete_ne;auto. eauto. }
     destruct ai_rest' as [| ? ai_rest']; [by inversion Hlength_rest''|].
@@ -647,22 +646,22 @@ Section counter_example_preamble.
     iDestruct "HH" as (b_cls'' e_cls'' Hbe_cls'') "(Hr1 & Hbe_cls'' & Hr0 & Hr2 & HnaI & Hregs)".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest'''.
     (* register map cleanup *)
-    repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite insert_insert. 
-    repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite insert_insert. 
-    
+    repeat (rewrite (insert_commute _ _ r_t3);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t4);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t6);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t7);[|by auto]);rewrite insert_insert.
+    repeat (rewrite (insert_commute _ _ r_t5);[|by auto]);rewrite insert_insert.
+
     (* FINAL CLEANUP BEFORE RETURN *)
-    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end'' a_end) as Hvpc5. 
+    assert (isCorrectPC_range pc_p pc_b pc_e a_crtcls_end'' a_end) as Hvpc5.
     { eapply isCorrectPC_range_restrict. apply Hvpc4.
       generalize (contiguous_between_bounds _ _ _ Hcont_rest''').
       revert Ha1_after_malloc Ha1_after_crtcls Ha1_after_crtcls' Hlink''' Hlink'' Hlink'. clear; solve_addr. }
     destruct ai_rest'' as [| ? ai_rest'']; [by inversion Hlength_rest'''|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont_rest''') as ->.
     (* move r_t2 r_t10 *)
-    rewrite !(insert_commute _ _ r_t10);auto. 
-    iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[apply lookup_insert|]. 
+    rewrite !(insert_commute _ _ r_t10);auto.
+    iDestruct (big_sepM_delete _ _ r_t10 with "Hregs") as "[Hr_t10 Hregs]";[apply lookup_insert|].
     destruct ai_rest'' as [| ? ai_rest'']; [by inversion Hlength_rest'''|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr2 $Hr_t10]");
@@ -674,12 +673,12 @@ Section counter_example_preamble.
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t10]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end'' a_end|iContiguous_next Hcont_rest''' 1|..].
     iEpilogue "(HPC & Hi & Hr_t10)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert]. 
+    iDestruct (big_sepM_insert _ _ r_t10 with "[$Hregs $Hr_t10]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     (* move r_t3 r_t11 *)
-    rewrite !(insert_commute _ _ r_t11);auto. 
+    rewrite !(insert_commute _ _ r_t11);auto.
     iDestruct (big_sepM_delete _ _ r_t11 with "Hregs") as "[Hr_t11 Hregs]";[apply lookup_insert|].
-    rewrite !(insert_commute _ _ r_t3);auto. rewrite delete_insert_ne;auto. 
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[apply lookup_insert|]. 
+    rewrite !(insert_commute _ _ r_t3);auto. rewrite delete_insert_ne;auto.
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[apply lookup_insert|].
     destruct ai_rest'' as [| ? ai_rest'']; [by inversion Hlength_rest'''|].
     iPrologue "Hprog".
     iApply (wp_move_success_reg with "[$HPC $Hi $Hr_t3 $Hr_t11]");
@@ -692,28 +691,28 @@ Section counter_example_preamble.
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end'' a_end|iContiguous_next Hcont_rest''' 3|..].
     iEpilogue "(HPC & Hi & Hr_t11)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
-    rewrite -delete_insert_ne;auto. 
-    iDestruct (big_sepM_insert _ _ r_t11 with "[$Hregs $Hr_t11]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert]. 
+    rewrite -delete_insert_ne;auto.
+    iDestruct (big_sepM_insert _ _ r_t11 with "[$Hregs $Hr_t11]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite insert_commute;auto. rewrite insert_insert.
     (* move r_t8 0 *)
     destruct ai_rest'' as [| ? ai_rest'']; [by inversion Hlength_rest'''|].
     iPrologue "Hprog".
     rewrite !(insert_commute _ _ r_t8);auto.
-    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply lookup_insert|]. 
+    iDestruct (big_sepM_delete _ _ r_t8 with "Hregs") as "[Hr_t8 Hregs]";[apply lookup_insert|].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t8]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end'' a_end|iContiguous_next Hcont_rest''' 4|..].
     iEpilogue "(HPC & Hi & Hr_t8)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert]. 
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
     (* move r_t9 0 *)
     destruct ai_rest'' as [| ? ai_rest'']; [by inversion Hlength_rest'''|].
     iPrologue "Hprog".
     rewrite !(insert_commute _ _ r_t9);auto.
-    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t8 Hregs]";[apply lookup_insert|]. 
+    iDestruct (big_sepM_delete _ _ r_t9 with "Hregs") as "[Hr_t8 Hregs]";[apply lookup_insert|].
     iApply (wp_move_success_z with "[$HPC $Hi $Hr_t8]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_crtcls_end'' a_end|iContiguous_next Hcont_rest''' 5|..].
     iEpilogue "(HPC & Hi & Hr_t9)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert]. 
-    
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
+
 
     (* WE WILL NOW PREPARE THΕ JUMP *)
     iCombine "Hbe_cls'" "Hbe_cls''" as "Hbe_cls'".
@@ -738,7 +737,7 @@ Section counter_example_preamble.
     iAssert (interp (WCap E b_cls e_cls b_cls))%I as "#Hvalid_cls".
     { iApply (incr_closure_valid with "Hcounter_inv Hincr Hcls_inv");auto.
       apply Hvpc_counter. apply Hcont_restc. }
-    
+
     iAssert (interp (WCap E b_cls' e_cls' b_cls'))%I as "#Hvalid_cls'".
     { iApply (read_closure_valid with "Hcounter_inv Hread Hcls_inv Henv Hinv_assert");auto.
       apply Hcont_incr. apply Hvpc_counter. apply Hcont_reset. solve_ndisj. }
@@ -746,7 +745,7 @@ Section counter_example_preamble.
     iAssert (interp (WCap E b_cls'' e_cls'' b_cls''))%I as "#Hvalid_cls''".
     { iApply (reset_closure_valid with "Hcounter_inv Hreset Hcls_inv");auto.
       apply Hcont_incr. apply Hcont_read. apply Hvpc_counter. apply Hcont_reset. }
-    
+
     unshelve iPoseProof ("Hr_valid" $! r_t0 _ _ Hr0) as "#Hr0_valid". done.
 
     (* use the continuation in rt0 *)
@@ -754,7 +753,7 @@ Section counter_example_preamble.
 
     (* prepare the continuation *)
     iEpilogue "(HPC & Hi & Hr0)". iCombine "Hi" "Hprog_done" as "Hprog_done".
-    
+
     (* Put the registers back in the map *)
     iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
     { repeat (rewrite lookup_insert_ne //;[]). rewrite lookup_delete //. }

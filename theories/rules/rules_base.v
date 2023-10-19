@@ -26,7 +26,6 @@ Section cap_lang_rules.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
-  Implicit Types a b : Addr.
   Implicit Types r : RegName.
   Implicit Types v : Version.
   Implicit Types la: LAddr.
@@ -59,15 +58,10 @@ Section cap_lang_rules.
     iIntros "H1 H2" (?). subst r1. iApply (regname_dupl_false with "H1 H2").
   Qed.
 
-  Lemma map_of_regs_1 (r1: RegName) (lw1: LWord) :
-    r1 ↦ᵣ lw1 -∗
-    ([∗ map] k↦y ∈ {[r1 := lw1]}, k ↦ᵣ y).
-  Proof. by rewrite big_sepM_singleton. Qed.
-
   Lemma regs_of_map_1 (r1: RegName) (lw1: LWord) :
     ([∗ map] k↦y ∈ {[r1 := lw1]}, k ↦ᵣ y) -∗
     r1 ↦ᵣ lw1.
-  Proof. by rewrite big_sepM_singleton. Qed.
+  Proof. rewrite big_sepM_singleton; auto. Qed.
 
   Lemma map_of_regs_2 (r1 r2: RegName) (lw1 lw2: LWord) :
     r1 ↦ᵣ lw1 -∗ r2 ↦ᵣ lw2 -∗
@@ -318,17 +312,26 @@ Section cap_lang_rules.
   Qed.
 
   Lemma memMap_resource_0  :
-        True ⊣⊢ ([∗ map] a↦w ∈ ∅, a ↦ₐ w).
+        True ⊣⊢ ([∗ map] la↦w ∈ ∅, la ↦ₐ w).
   Proof.
     by rewrite big_sepM_empty.
   Qed.
 
-
   Lemma memMap_resource_1 (a : LAddr) (w : LWord)  :
-        a ↦ₐ w  ⊣⊢ ([∗ map] a↦w ∈ <[a:=w]> ∅, a ↦ₐ w)%I.
+        a ↦ₐ w  ⊣⊢ ([∗ map] la↦w ∈ <[a:=w]> ∅, la ↦ₐ w)%I.
   Proof.
     rewrite big_sepM_delete; last by apply lookup_insert.
     rewrite delete_insert; last by auto. rewrite -memMap_resource_0.
+    iSplit; iIntros "HH".
+    - iFrame.
+    - by iDestruct "HH" as "[HH _]".
+  Qed.
+
+  Lemma memMap_resource_1_dq (a : LAddr) (w : LWord) dq :
+        a ↦ₐ{dq} w  ⊣⊢ ([∗ map] la↦w ∈ <[a:=w]> ∅, la ↦ₐ{dq} w)%I.
+  Proof.
+    rewrite big_sepM_delete; last by apply lookup_insert.
+    rewrite delete_insert; last by auto. rewrite big_sepM_empty.
     iSplit; iIntros "HH".
     - iFrame.
     - by iDestruct "HH" as "[HH _]".
@@ -412,6 +415,31 @@ Section cap_lang_rules.
       iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
   Qed.
 
+  Lemma memMap_resource_2gen_d_dq (Φ : LAddr → dfrac → LWord → iProp Σ)
+    (la1 la2 : LAddr) (dq1 dq2 : dfrac) (lw1 lw2 : LWord)  :
+    ( ∃ lmem dfracs, ([∗ map] la↦dlw ∈ prod_merge dfracs lmem, Φ la dlw.1 dlw.2) ∧
+       ⌜ (if  (la2 =? la1)%la
+          then lmem = <[la1:=lw1]> ∅
+          else lmem = <[la1:=lw1]> (<[la2:=lw2]> ∅)) ∧
+       (if  (la2 =? la1)%la
+       then dfracs = <[la1:=dq1]> ∅
+       else dfracs = <[la1:=dq1]> (<[la2:=dq2]> ∅))⌝
+    ) -∗ (Φ la1 dq1 lw1 ∗ if (la2 =? la1)%la then emp else Φ la2 dq2 lw2) .
+  Proof.
+    iIntros "Hmem". iDestruct "Hmem" as (mem dfracs) "[Hmem [Hif Hif'] ]".
+    destruct ((la2 =? la1)%la) eqn:Heq.
+    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
+      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,lw1));auto. rewrite merge_empty.
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
+    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
+      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,lw1));auto.
+      rewrite /prod_merge -(insert_merge _ _ _ _ (dq2,lw2));auto.
+      rewrite merge_empty.
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
+      { rewrite lookup_insert_ne;auto. apply laddr_neq in Heq; congruence. }
+      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
+  Qed.
+
   (* Not the world's most beautiful lemma, but it does avoid us having to fiddle around with a later under an if in proofs *)
   Lemma memMap_resource_2gen_clater (la1 la2 : LAddr) (lw1 lw2 : LWord) (Φ : LAddr -> LWord -> iProp Σ) :
     (▷ Φ la1 lw1)
@@ -437,7 +465,7 @@ Section cap_lang_rules.
    Lemma memMap_resource_2gen_clater_dq (la1 la2 : LAddr) (dq1 dq2 : dfrac) (lw1 lw2 : LWord) (Φ : LAddr -> dfrac → LWord -> iProp Σ)  :
     (▷ Φ la1 dq1 lw1) -∗
     (if (la2 =? la1)%la then emp else ▷ Φ la2 dq2 lw2) -∗
-    (∃ lmem dfracs, ▷ ([∗ map] la↦lw ∈ prod_merge dfracs lmem, Φ la lw.1 lw.2) ∗
+    (∃ lmem dfracs, ▷ ([∗ map] la↦dlw ∈ prod_merge dfracs lmem, Φ la dlw.1 dlw.2) ∗
        ⌜(if  (la2 =? la1)%la
        then lmem = <[la1:=lw1]> ∅
        else lmem = <[la1:=lw1]> (<[la2:=lw2]> ∅)) ∧
@@ -460,31 +488,6 @@ Section cap_lang_rules.
       iApply big_sepM_insert;[|iFrame].
       { rewrite lookup_insert_ne;auto. apply laddr_neq in Heq; congruence. }
       iApply big_sepM_insert;[|by iFrame]. auto.
-  Qed.
-
-  Lemma memMap_resource_2gen_d_dq (Φ : LAddr → dfrac → LWord → iProp Σ)
-    (la1 la2 : LAddr) (dq1 dq2 : dfrac) (lw1 lw2 : LWord)  :
-    ( ∃ lmem dfracs, ([∗ map] la↦lw ∈ prod_merge dfracs lmem, Φ la lw.1 lw.2) ∧
-       ⌜ (if  (la2 =? la1)%la
-          then lmem = <[la1:=lw1]> ∅
-          else lmem = <[la1:=lw1]> (<[la2:=lw2]> ∅)) ∧
-       (if  (la2 =? la1)%la
-       then dfracs = <[la1:=dq1]> ∅
-       else dfracs = <[la1:=dq1]> (<[la2:=dq2]> ∅))⌝
-    ) -∗ (Φ la1 dq1 lw1 ∗ if (la2 =? la1)%la then emp else Φ la2 dq2 lw2) .
-  Proof.
-    iIntros "Hmem". iDestruct "Hmem" as (mem dfracs) "[Hmem [Hif Hif'] ]".
-    destruct ((la2 =? la1)%la) eqn:Heq.
-    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,lw1));auto. rewrite merge_empty.
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
-    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,lw1));auto.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq2,lw2));auto.
-      rewrite merge_empty.
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
-      { rewrite lookup_insert_ne;auto. apply laddr_neq in Heq; congruence. }
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
   Qed.
 
   Lemma memMap_delete:
@@ -753,10 +756,11 @@ Definition regs_of (i: instr): gset RegName :=
   | GetB r1 r2 => {[ r1; r2 ]}
   | GetE r1 r2 => {[ r1; r2 ]}
   | GetA r1 r2 => {[ r1; r2 ]}
+  | GetOType dst src => {[ dst; src ]}
+  | GetWType dst src => {[ dst; src ]}
   | Add r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Sub r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
   | Lt r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
-  | IsPtr dst src => {[ dst; src ]}
   | Mov r arg => {[ r ]} ∪ regs_of_argument arg
   | Restrict r1 arg => {[ r1 ]} ∪ regs_of_argument arg
   | Subseg r arg1 arg2 => {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2
@@ -914,21 +918,6 @@ Ltac incrementPC_inv :=
 
 (*--- incrementLPC ---*)
 
-(* Inductive isIncrementLPC : LReg -> option LReg -> Prop := *)
-(* | incrementLPC_Some : forall lregs opt_lregs' lregs' regs' lpc lpc', *)
-(*     opt_lregs' = Some lregs' -> *)
-(*     incrementPC (lreg_strip lregs) = Some regs' -> *)
-(*     (lreg_strip lregs') = regs' -> *)
-(*     lregs !! PC = Some lpc -> *)
-(*     lregs' !! PC = Some lpc' -> *)
-(*     lword_get_version lpc = lword_get_version lpc' -> *)
-(*     isIncrementLPC lregs opt_lregs' *)
-(* | incrementLPC_None : forall lregs opt_lregs', *)
-(*     opt_lregs' = None -> *)
-(*     incrementPC (lreg_strip lregs) = None -> *)
-(*     isIncrementLPC lregs opt_lregs'. *)
-
-
 (* TODO this definition is very tedious to use. Is there a better workaround ? *)
 Definition incrementLPC (regs: LReg) : option LReg :=
   match regs !! PC with
@@ -993,14 +982,6 @@ Proof.
   (* case_eq (u+1)%a; congruence. *)
 Admitted.
 
-Ltac incrementLPC_inv :=
-  match goal with
-  | H : incrementLPC _ = Some _ |- _ =>
-    apply incrementLPC_Some_inv in H as (?&?&?&?&?&?&?&?&?)
-  | H : incrementLPC _ = None |- _ =>
-    eapply incrementLPC_None_inv in H
-  end; simplify_eq.
-
 Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
   incrementLPC regs = Some regs' ->
   ∃ p b e a a' (v : Version),
@@ -1022,3 +1003,19 @@ Proof.
   destruct Hincr as (p & b & e & a & a'& Hregs & Ha' & Hupd & Hregs').
   exists p, b, e, a, a'. eexists.
 Admitted.
+
+Ltac incrementLPC_inv :=
+  match goal with
+  | H : incrementLPC _ = Some _ |- _ =>
+    apply incrementLPC_Some_inv in H as (?&?&?&?&?&?&?&?&?)
+  | H : incrementLPC _ = None |- _ =>
+    eapply incrementLPC_None_inv in H
+  end; simplify_eq.
+
+Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):=
+  match goal with
+  | H : incrementLPC _ = Some _ |- _ =>
+    apply incrementLPC_Some_inv in H as pat
+  | H : incrementLPC _ = None |- _ =>
+    eapply incrementLPC_None_inv in H
+  end; simplify_eq.

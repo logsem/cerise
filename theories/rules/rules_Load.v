@@ -180,8 +180,8 @@ Section cap_lang_rules.
     (* Derive necessary register values in r *)
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
     specialize (indom_lregs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri r2) as [lr2v [Hlr'2 Hlr2]]. by set_solver+.
-    feed destruct (Hri r1) as [lr1v [Hlr'1 _]]. by set_solver+. clear Hri.
+    odestruct (Hri r2) as [lr2v [Hlr'2 Hlr2]]. by set_solver+.
+    odestruct (Hri r1) as [lr1v [Hlr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
     assert (is_Some (dfracs !! (pc_a, pca_v))) as [dq Hdq].
     { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
@@ -305,7 +305,6 @@ Section cap_lang_rules.
     - apply map_Forall_insert_2; auto.
       destruct HmemInv as [Hdom Hroot].
       eapply map_Forall_lookup_1 with (i := (a,v)) in Hdom ; eauto.
-      2: eapply lookup_weaken; eauto.
       eapply map_Forall_lookup_1 with (i := a) in Hroot ; eauto.
       destruct Hroot as (lw' & ? & Hma'' & Hcur').
       rewrite Hma2 in Hma'' ; simplify_eq.
@@ -319,6 +318,7 @@ Section cap_lang_rules.
       assert (lr !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v)) by (eapply lookup_weaken; eauto).
       eapply map_Forall_lookup_1 with (i := PC) in Hcur_reg ; eauto.
       rewrite /is_cur_word in Hcur_reg.
+      eapply lookup_weaken_inv in Hregs; eauto; cbn in * ; simplify_eq.
       eapply Hcur_reg.
       eapply mem_phys_log_current_word; eauto ; eapply lookup_weaken; eauto.
   Qed.
@@ -332,12 +332,12 @@ Section cap_lang_rules.
     regs_of (Load r1 r2) ⊆ dom lregs →
     lmem !! (pc_a, pca_v) = Some lw →
     allow_load_map_or_true r2 lregs lmem →
-    {{{ (▷ [∗ map] a↦w ∈ lmem, a ↦ₐ{dq} w) ∗
+    {{{ (▷ [∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
       {{{ lregs' retv, RET retv;
           ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
-            ([∗ map] a↦w ∈ lmem, a ↦ₐ{dq} w) ∗
+            ([∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
     intros. iIntros "[Hmem Hreg] Hφ".
@@ -374,7 +374,6 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
 
     iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr2a") as (lmem dfracs) "[>Hmem Hmem']".
-    (* iDestruct (memMap_resource_2gen_clater _ _ _ _ (λ la lw, la ↦ₐ lw)%I with "Hi Hr2a") as (mem) "[>Hmem Hmem']". *)
     iDestruct "Hmem'" as %[Hmem Hdfracs] ; cbn in *.
 
     iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
@@ -676,5 +675,58 @@ Section cap_lang_rules.
   (*    } *)
   (* Qed. *)
   Admitted.
+
+  Lemma wp_load_success_alt E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw' lw'' p
+    b e a v pc_a' :
+    decodeInstrWL lw = Load r1 r2 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true ∧ withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ r1 ↦ᵣ lw''
+          ∗ ▷ r2 ↦ᵣ LCap p b e a v
+          ∗ ▷ (a, v) ↦ₐ lw' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+             ∗ r1 ↦ᵣ lw'
+             ∗ (pc_a, pca_v) ↦ₐ lw
+             ∗ r2 ↦ᵣ LCap p b e a v
+             ∗ (a, v) ↦ₐ lw' }}}.
+  Proof.
+  (*   iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hi & >Hr1 & >Hr2 & >Hr2a) Hφ". *)
+  (*   iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse. *)
+  (*   { rewrite Z.eqb_neq. iDestruct (address_neq with "Hr2a Hi") as %Hneq. iIntros (->%finz_to_z_eq). done. } *)
+  (*   iApply (wp_load_success with "[$HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;iFrame. *)
+  (* Qed. *)
+  Admitted.
+
+  Lemma wp_load_success_same_alt E r1 pc_p pc_b pc_e pc_a pc_v pca_v lw lw' p b e a v pc_a' :
+    decodeInstrWL lw = Load r1 r1 →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true ∧ withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ r1 ↦ᵣ LCap p b e a v
+          ∗ ▷ (a, v) ↦ₐ lw'}}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+             ∗ r1 ↦ᵣ lw'
+             ∗ (pc_a, pca_v) ↦ₐ lw
+             ∗ (a, v) ↦ₐ lw' }}}.
+  Proof.
+  (*   iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hpc_a & >Hr1 & >Ha) Hφ". *)
+  (*   iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse. *)
+  (*   { rewrite Z.eqb_neq. iDestruct (address_neq with "Ha Hpc_a") as %Hneq. iIntros (->%finz_to_z_eq). done. } *)
+  (*   iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]");eauto;rewrite Hfalse;iFrame. *)
+  (* Qed. *)
+  Admitted.
+
+
 
 End cap_lang_rules.
