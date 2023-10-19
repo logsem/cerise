@@ -8,7 +8,9 @@
     with known code using the Cerise Proof Mode. *)
 
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules proofmode macros_new macros_helpers.
+From cap_machine Require Import rules macros_new.
+From cap_machine.proofmode Require Import
+  proofmode tactics_helpers register_tactics.
 Open Scope Z_scope.
 
 Section increment_macro.
@@ -23,10 +25,11 @@ Section increment_macro.
    *)
   Definition incr_instrs r r_env : list Word :=
     encodeInstrsW [
-      Load r_env r ;
+      Load r_env r;
       Add r_env r_env 1;
       Store r r_env;
-      Mov r_env 0 ].
+      Mov r_env 0
+    ].
 
   (** Specification of the macro. The proof is an optional exercise. *)
   Lemma incr_macro_spec
@@ -37,13 +40,13 @@ Section increment_macro.
     φ :
 
     let e_prog := (a_prog ^+ length (incr_instrs r r_env))%a in
-    r <> r_env ->
+    r <> r_env →
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog e_prog →
 
-    b <= a < e -> (* a is in the bounds of the capability *)
-    writeAllowed p = true -> (* p can Read/Write *)
+    b ≤ a < e → (* a is in the bounds of the capability *)
+    writeAllowed p = true → (* p can Read/Write *)
 
     ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog*)
         ∗ codefrag a_prog (incr_instrs r r_env) (* the prog instruction start at a_prog *)
@@ -53,12 +56,12 @@ Section increment_macro.
          ∗ ▷ ( PC ↦ᵣ WCap p_pc b_pc e_pc e_prog
                ∗ r ↦ᵣ WCap p b e a
                ∗ r_env ↦ᵣ WInt 0 (* cleared register *)
-               ∗ a ↦ₐ WInt (n+1) (* incremented value *)
+               ∗ a ↦ₐ WInt (n + 1) (* incremented value *)
                 ∗ codefrag a_prog (incr_instrs r r_env)
                -∗ WP Seq (Instr Executable) {{ φ }}))
        -∗ WP Seq (Instr Executable) {{ φ }}%I.
   Proof.
-  (* FILL IN HERE *)
+    (* FILL IN HERE *)
   Admitted.
 
   (** The increment macro is just a list of instructions. In particular,
@@ -73,7 +76,7 @@ Section increment_macro.
       with larger and complex macros (e.g. involving a loop), this modularity
       is necessary. *)
 
-  (** The following is a very simple example of program that uses the macro. The
+  (** The following is a very simple example of program that uses the macro. The
       program assumes that R0 contains a writing capability pointing to the
       memory. It initializes the value of this memory address at 0, calls the
       increment macro to increment the value, and finally loads the
@@ -86,9 +89,9 @@ Section increment_macro.
       locally, and then continue the proof of the global program.
       *)
   Definition prog_instrs: list Word :=
-    encodeInstrsW [Store r_t0 0 ] ++
+    encodeInstrsW [ Store r_t0 0 ] ++
             incr_instrs r_t0 r_t1 ++
-            encodeInstrsW [Load r_t1 r_t0 ].
+            encodeInstrsW [ Load r_t1 r_t0 ].
 
 
   Lemma prog_spec
@@ -99,11 +102,11 @@ Section increment_macro.
 
     let e_prog := (a_prog ^+ length prog_instrs)%a in
 
-    ExecPCPerm p_pc ->
-    SubBounds b_pc e_pc a_prog e_prog ->
+    ExecPCPerm p_pc →
+    SubBounds b_pc e_pc a_prog e_prog →
 
-    b <= a < e -> (* a is in the bounds of the capability *)
-    writeAllowed p = true -> (* p can Read/Write *)
+    b ≤ a < e → (* a is in the bounds of the capability *)
+    writeAllowed p = true → (* p can Read/Write *)
 
     ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog (* PC points to the prog *)
         ∗ codefrag a_prog prog_instrs (* the prog instruction start at a_prog *)
@@ -118,36 +121,40 @@ Section increment_macro.
                -∗ WP Seq (Instr Executable) {{ φ }}))
        -∗ WP Seq (Instr Executable) {{ φ }}%I.
   Proof.
-  intros * Hpc_perm Hpc_bounds Ha_bounds Hperm.
-  iIntros "(HPC& Hprog& Hr& Hrenv& Ha& Hcont)".
+    intros * Hpc_perm Hpc_bounds Ha_bounds Hperm.
+    iIntros "(HPC & Hprog & Hr & Hrenv & Ha & Hcont)".
 
-  (* 1 - prepare the assertions for the proof *)
-  subst e_prog; simpl.
-  (* Derives the facts from the codefrag *)
-  simpl in *.
-  (* We use the new tactic to focus on the first block. *)
-  (* Initialisation block *)
-  focus_block_0 "Hprog" as "Hintro" "Hnext".
-  iInstr "Hintro";[by rewrite withinBounds_true_iff|].
-  unfocus_block "Hintro" "Hnext" as "Hprog".
+    (* 1 - prepare the assertions for the proof *)
+    subst e_prog; simpl.
+    simpl in *.
 
-  (* Increment macro *)
-  focus_block 1%nat "Hprog" as a_incr Ha_incr "Hincr" "Hnext".
-  (* We use the specification of the macro. *)
-  iApply (incr_macro_spec with "[- $HPC $Hincr $Hr $Hrenv $Ha]");eauto.
-  iNext; iIntros "(HPC &Hr &Hrenv &Ha &Hincr)".
-  unfocus_block "Hincr" "Hnext" as "Hprog".
+    (* We use the new tactic to focus on the first block. *)
+    (* Initialisation block *)
+    focus_block_0 "Hprog" as "Hintro" "Hnext".
+    iInstr "Hintro"; [ by rewrite withinBounds_true_iff |].
+    unfocus_block "Hintro" "Hnext" as "Hprog".
 
-  focus_block 2%nat "Hprog" as a_end Ha_end "Hend" "Hnext".
-  iGo "Hend".
-  { split. apply writeA_implies_readA; done. by rewrite withinBounds_true_iff.  }
-  unfocus_block "Hend" "Hnext" as "Hprog".
+    (* Increment macro *)
+    focus_block 1%nat "Hprog" as a_incr Ha_incr "Hincr" "Hnext".
 
-  (* 3 - continuation *)
-  iApply "Hcont".
-  simpl in *.
-  replace (a_end ^+1)%a with (a_prog ^+ 6%nat)%a by solve_addr.
-  iFrame.
+    (* We use the specification of the macro. *)
+    iApply (incr_macro_spec with "[- $HPC $Hincr $Hr $Hrenv $Ha]"); eauto.
+    iIntros "!> (HPC & Hr & Hrenv & Ha & Hincr)".
+
+    unfocus_block "Hincr" "Hnext" as "Hprog".
+
+    focus_block 2%nat "Hprog" as a_end Ha_end "Hend" "Hnext".
+    iGo "Hend".
+    { split.
+      - by apply writeA_implies_readA.
+      - by rewrite withinBounds_true_iff. }
+    unfocus_block "Hend" "Hnext" as "Hprog".
+
+    (* 3 - continuation *)
+    iApply "Hcont".
+    simpl in *.
+    replace (a_end ^+ 1)%a with (a_prog ^+ 6%nat)%a by solve_addr.
+    iFrame.
   Qed.
 End increment_macro.
 
@@ -166,15 +173,13 @@ Section rclear_macro.
       Then, it clears all the used registers (to remove every trace of
       the computations) and halts the machine. *)
   Definition secret_add_instrs: list Word :=
-    encodeInstrsW
-            [Load r_t1 r_t0;
-             Lea r_t0 1;
-             Load r_t2 r_t0;
-             Add r_t1 r_t1 r_t2;
-             Store r_t0 r_t1
-            ] ++
-            rclear_instrs [r_t0;r_t1;r_t2] ++
-            encodeInstrsW [Halt].
+    encodeInstrsW [
+      Load r_t1 r_t0;
+      Lea r_t0 1;
+      Load r_t2 r_t0;
+      Add r_t1 r_t1 r_t2;
+      Store r_t0 r_t1
+    ] ++ rclear_instrs [r_t0; r_t1; r_t2] ++ encodeInstrsW [Halt].
 
   (** **** Exercise 3 --- Secret addition
         Define the lemma `secret_add_spec` that specifies the program
@@ -186,7 +191,7 @@ Section rclear_macro.
 
         Hint (specification): TODO ???
         Hint (proof): The specification of `rclear` requires the use of
-        the `big_sepM` resource. The `big_sepM` resource [...] use a map.
+        the `big_sepM` resource. The `big_sepM` resource [...] use a map.
         We urge the reader to search lemmas about `big_sepM` and
         `gmap`.
 

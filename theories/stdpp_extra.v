@@ -1,16 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import countable gmap list.
 
-Lemma elements_list_to_set {A} `{Countable A} (l: list A) :
-  NoDup l →
-  elements (list_to_set l : gset A) ≡ₚ l.
-Proof.
-  induction l.
-  - intros. rewrite list_to_set_nil elements_empty //.
-  - intros ND. rewrite list_to_set_cons elements_union_singleton.
-    + rewrite not_elem_of_list_to_set. by apply NoDup_cons_1_1.
-    + rewrite IHl //. eauto using NoDup_cons_1_2.
-Qed.
 
 Lemma list_to_map_lookup_is_Some {A B} `{Countable A, EqDecision A} (l: list (A * B)) (a: A) :
   is_Some ((list_to_map l : gmap A B) !! a) ↔ a ∈ l.*1.
@@ -39,56 +29,12 @@ Proof.
   cbn. rewrite IHl1; auto. lia.
 Qed.
 
-Lemma list_filter_app { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l1 l2:
-  @list_filter _ P _ (l1 ++ l2) = @list_filter _ P _ l1 ++ @list_filter _ P _ l2.
-Proof.
-  induction l1; simpl; auto.
-  destruct (decide (P a)); auto.
-  unfold filter. rewrite IHl1. auto.
-Qed.
-
 Lemma list_filter_forall { A: Type } (P: A -> Prop) `{ forall x, Decision (P x) } l:
   Forall P l ->
   @list_filter _ P _ l = l.
 Proof.
   induction 1; auto.
   simpl. destruct (decide (P x)); rewrite /filter; try congruence.
-Qed.
-
-Lemma elem_of_gmap_dom {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  is_Some (m !! i) ↔ i ∈ dom m.
-Proof.
-  split.
-  - intros [x Hsome].
-    apply elem_of_dom. eauto.
-  - intros Hin. by apply elem_of_dom in Hin.
-Qed.
-
-Lemma elem_of_gmap_dom_none {K V : Type} `{EqDecision K} `{Countable K}
-      (m : gmap K V) (i : K) :
-  m !! i = None ↔ i ∉ dom m.
-Proof.
-  split.
-  - intros Hnone. intros Hcontr%elem_of_gmap_dom.
-    rewrite Hnone in Hcontr. inversion Hcontr. congruence.
-  - intros Hdom. destruct (m !! i) eqn:Hnone;auto.
-    assert (is_Some (m !! i)) as HisSome;eauto.
-    apply elem_of_gmap_dom in HisSome. contradiction.
-Qed.
-
-Lemma dom_map_imap_full {K A B}
-      `{Countable A, EqDecision A, Countable B, EqDecision B, Countable K, EqDecision K}
-      (f: K -> A -> option B) (m: gmap K A):
-  (∀ k a, m !! k = Some a → is_Some (f k a)) →
-  dom (map_imap f m) = dom m.
-Proof.
-  intros Hf.
-  apply set_eq. intros k.
-  rewrite -!elem_of_gmap_dom map_lookup_imap.
-  destruct (m !! k) eqn:Hmk.
-  - destruct (Hf k a Hmk) as [? Hfk]. cbn. rewrite Hfk. split; eauto.
-  - cbn. split; inversion 1; congruence.
 Qed.
 
 Lemma dom_list_to_map_singleton {K V: Type} `{EqDecision K, Countable K} (x:K) (y:V):
@@ -260,14 +206,14 @@ Lemma difference_het_lookup_Some
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C) (k: A) (v: B):
   (m1 ∖∖ m2) !! k = Some v ↔ m1 !! k = Some v ∧ m2 !! k = None.
-Proof. by rewrite /map_difference_het map_filter_lookup_Some. Qed.
+Proof. by rewrite /map_difference_het map_lookup_filter_Some. Qed.
 
 Lemma difference_het_lookup_None
     {A B C} `{Countable A, EqDecision A, Countable B, EqDecision B}
     (m1: gmap A B) (m2: gmap A C) (k: A) (v: B):
   (m1 ∖∖ m2) !! k = None ↔ m1 !! k = None ∨ is_Some (m2 !! k).
 Proof.
-  rewrite /map_difference_het map_filter_lookup_None.
+  rewrite /map_difference_het map_lookup_filter_None.
   split; intros [HH1|HH2]; eauto.
   { destruct (m1 !! k) eqn:?; eauto; right.
     destruct (m2 !! k) eqn:?; eauto. exfalso. eapply HH2; eauto. }
@@ -281,7 +227,7 @@ Lemma difference_het_empty
   m ∖∖ (∅ : gmap A C) = m.
 Proof.
   rewrite /map_difference_het map_eq'. intros k v.
-  rewrite map_filter_lookup_Some. rewrite lookup_empty. set_solver.
+  rewrite map_lookup_filter_Some. rewrite lookup_empty. set_solver.
 Qed.
 
  Lemma difference_het_eq_empty
@@ -290,7 +236,7 @@ Qed.
   m ∖∖ m = (∅ : gmap A B).
 Proof.
   rewrite /map_difference_het map_eq'. intros k v.
-  rewrite map_filter_lookup_Some. rewrite lookup_empty. set_solver.
+  rewrite map_lookup_filter_Some. rewrite lookup_empty. set_solver.
 Qed.
 
 Lemma difference_het_insert_r
@@ -300,8 +246,8 @@ Lemma difference_het_insert_r
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some lookup_delete_Some.
-  rewrite map_filter_lookup_Some lookup_insert_None. set_solver.
+  rewrite map_lookup_filter_Some lookup_delete_Some.
+  rewrite map_lookup_filter_Some lookup_insert_None. set_solver.
 Qed.
 
 Lemma difference_het_insert_l
@@ -312,9 +258,9 @@ Lemma difference_het_insert_l
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some lookup_insert_Some.
+  rewrite map_lookup_filter_Some lookup_insert_Some.
   rewrite -map_filter_insert_True;auto.
-    by rewrite map_filter_lookup_Some lookup_insert_Some.
+    by rewrite map_lookup_filter_Some lookup_insert_Some.
 Qed.
 
 Lemma difference_het_delete_assoc
@@ -324,9 +270,9 @@ Lemma difference_het_delete_assoc
 Proof.
   intros.
   rewrite /map_difference_het map_eq'. intros k' v'.
-  rewrite map_filter_lookup_Some.
+  rewrite map_lookup_filter_Some.
   rewrite -map_filter_delete;auto.
-  rewrite map_filter_lookup_Some. set_solver.
+  rewrite map_lookup_filter_Some. set_solver.
 Qed.
 
 Lemma dom_difference_het
@@ -337,13 +283,13 @@ Proof.
   apply (@anti_symm _ _ subseteq).
   typeclasses eauto.
   { rewrite elem_of_subseteq. intro k.
-    rewrite -elem_of_gmap_dom. intros [v Hv].
+    rewrite elem_of_dom. intros [v Hv].
     rewrite difference_het_lookup_Some in Hv *.
     destruct Hv as [? ?].
-    rewrite elem_of_difference -!elem_of_gmap_dom. split; eauto.
+    rewrite elem_of_difference !elem_of_dom. split; eauto.
     intros [? ?]. congruence. }
   { rewrite elem_of_subseteq. intro k.
-    rewrite elem_of_difference -!elem_of_gmap_dom. intros [[v ?] Hcontra].
+    rewrite elem_of_difference !elem_of_dom. intros [[v ?] Hcontra].
     exists v. rewrite difference_het_lookup_Some. split; eauto.
     destruct (m2 !! k) eqn:?; eauto. exfalso. apply Hcontra. eauto. }
 Qed.
@@ -363,7 +309,7 @@ Proof.
     rewrite difference_het_insert_r.
     rewrite dom_insert in Hm1l *.
     move: Hm1l. rewrite elements_union_singleton.
-    rewrite -elem_of_gmap_dom; intros [? ?]; congruence.
+    rewrite elem_of_dom; intros [? ?]; congruence.
     intros Hm1l.
     transitivity (delete k (delete_list (elements (dom m2)) m1)).
     { erewrite delete_list_permutation. 2: eauto. reflexivity. }
@@ -647,33 +593,31 @@ Proof.
   - cbn [create_gmap_default list_to_set]. rewrite dom_insert_L // IHl //.
 Qed.
 
-Lemma map_filter_sub :
-∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 :
-                                             ∀ A : Type,
-                                               Lookup K A (M A))
-  (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-  (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A))
-  (EqDecision0 : EqDecision K),
-  FinMap K M →
-  ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x))
-    (m : M A),
-    filter P m ⊆ m.
+Lemma create_gmap_default_lookup_None {K V : Type} `{Countable K}
+  (l : list K) (d : V) (k : K) :
+  k ∉ l →
+  (create_gmap_default l d) !! k = None.
 Proof.
-  intros. eapply map_subseteq_spec. intros ? ? ?.
-  eapply map_filter_lookup_Some_1_1; eauto.
+  intros Hk.
+  induction l;auto.
+  simpl. apply not_elem_of_cons in Hk as [Hne Hk].
+  rewrite lookup_insert_ne//. apply IHl. auto.
 Qed.
 
-Lemma map_filter_id :
-  ∀ (K : Type) (M : Type → Type) (H : FMap M) (H0 : ∀ A : Type, Lookup K A (M A)) (H1 : ∀ A : Type, Empty (M A)) (H2 : ∀ A : Type, PartialAlter K A (M A))
-    (H3 : OMap M) (H4 : Merge M) (H5 : ∀ A : Type, FinMapToList K A (M A)) (EqDecision0 : EqDecision K),
-    FinMap K M
-    → ∀ (A : Type) (P : K * A → Prop) (H7 : ∀ x : K * A, Decision (P x)) (m : M A),
-      (∀ i x, m !! i = Some x → P (i, x)) → filter P m = m.
+Lemma create_gmap_default_permutation {K V : Type} `{Countable K}
+  (l l' : list K) (d : V) :
+  l ≡ₚ l' →
+  (create_gmap_default l d) = (create_gmap_default l' d).
 Proof.
-  intros. apply map_eq.
-  intros i. destruct (m !! i) eqn:Hsome.
-  - apply map_filter_lookup_Some_2;auto.
-  - apply map_filter_lookup_None_2;auto.
+  intros Hperm.
+  apply map_eq. intros k.
+  destruct (decide (k ∈ l)).
+  - assert (k ∈ l') as e';[rewrite -Hperm;auto|].
+    apply (create_gmap_default_lookup _ d) in e as ->.
+    apply (create_gmap_default_lookup _ d) in e' as ->. auto.
+  - assert (k ∉ l') as e';[rewrite -Hperm;auto|].
+    apply (create_gmap_default_lookup_None _ d) in n as ->.
+    apply (create_gmap_default_lookup_None _ d) in e' as ->. auto.
 Qed.
 
 Lemma fst_zip_prefix A B (l : list A) (k : list B) :
@@ -750,9 +694,9 @@ Proof.
 Qed.
 
 Lemma map_to_list_delete {A B} `{Countable A} `{EqDecision A} (m : gmap A B) (i : A) (x : B) :
-  ∀ l, (i,x) :: l ≡ₚmap_to_list m ->
+  ∀ l, (i,x) :: l ≡ₚ map_to_list m ->
        NoDup (i :: l.*1) →
-       (map_to_list (delete i m)) ≡ₚl.
+       (map_to_list (delete i m)) ≡ₚ l.
 Proof.
   intros l Hl Hdup.
   assert ((i,x) ∈ map_to_list m) as Hin.
@@ -800,9 +744,9 @@ Proof.
 Qed.
 
 Lemma map_to_list_delete_fst {A B} `{Countable A} (m : gmap A B) (i : A) (x : B) :
-  ∀ l, i :: l ≡ₚ(map_to_list m).*1 ->
+  ∀ l, i :: l ≡ₚ (map_to_list m).*1 ->
        NoDup (i :: l) →
-       (map_to_list (delete i m)).*1 ≡ₚl.
+       (map_to_list (delete i m)).*1 ≡ₚ l.
 Proof.
   intros l Hl Hdup.
   assert (i ∈ (map_to_list m).*1) as Hin.
@@ -977,3 +921,118 @@ Proof.
     simpl. rewrite rev_unit. rewrite rev_involutive. rewrite -Hsome /=.
     f_equiv. rewrite firstn_all. auto.
 Qed.
+
+
+
+Definition prod_op {A B : Type} :=
+  λ (o1 : option A) (o2 : option B),
+    match o1 with
+    | Some b =>
+        match o2 with
+        | Some c => Some (b,c)
+        | None => None
+        end
+    | None => None
+    end.
+
+Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
+  λ m1 m2, merge prod_op m1 m2.
+
+(* TODO: integrate into stdpp? *)
+Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
+    x = (y, z) -> x = (u, t) ->
+    y = u ∧ z = t.
+Proof. intros ->. inversion 1. auto. Qed.
+
+Tactic Notation "simplify_pair_eq" :=
+  repeat
+    lazymatch goal with
+    | H1 : ?x = (?y, ?z), H2 : ?x = (?u, ?t) |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 H2)); clear H2
+    | H1 : (?y, ?z) = ?x, H2 : ?x = (?u, ?t) |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) H2)); clear H2
+    | H1 : ?x = (?y, ?z), H2 : (?u, ?t) = ?x |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv H1 (eq_sym H2))); clear H2
+    | H1 : (?y, ?z) = ?x, H2 : (?u, ?t) = ?x |- _ =>
+      assert (y = u ∧ z = t) as [? ?] by (exact (pair_eq_inv (eq_sym H1) (eq_sym H2))); clear H2
+    | |- _ => progress simplify_eq
+    end.
+
+(*----------------------- FIXME TEMPORARY ------------------------------------*)
+(* This is a copy-paste from stdpp (fin_maps.v), plus a fix to avoid using
+   "rewrite .. by .." that is not available when using ssreflect's rewrite. *)
+(* TODO: upstream the fix into stdpp, and remove the code below whenever we
+   upgrade to a version of stdpp that includes it *)
+
+Tactic Notation "simpl_map" "by" tactic3(tac) := repeat
+  match goal with
+  | H : context[ ∅ !! _ ] |- _ => rewrite lookup_empty in H
+  | H : context[ (<[_:=_]>_) !! _ ] |- _ =>
+    rewrite lookup_insert in H || (rewrite lookup_insert_ne in H; [| by tac])
+  | H : context[ (alter _ _ _) !! _] |- _ =>
+    rewrite lookup_alter in H || (rewrite lookup_alter_ne in H; [| by tac])
+  | H : context[ (delete _ _) !! _] |- _ =>
+    rewrite lookup_delete in H || (rewrite lookup_delete_ne in H; [| by tac])
+  | H : context[ {[ _ := _ ]} !! _ ] |- _ =>
+    rewrite lookup_singleton in H || (rewrite lookup_singleton_ne in H; [| by tac])
+  | H : context[ (_ <$> _) !! _ ] |- _ => rewrite lookup_fmap in H
+  | H : context[ (omap _ _) !! _ ] |- _ => rewrite lookup_omap in H
+  | H : context[ lookup (A:=?A) ?i (?m1 ∪ ?m2) ] |- _ =>
+    let x := fresh in evar (x:A);
+    let x' := eval unfold x in x in clear x;
+    let E := fresh in
+    assert ((m1 ∪ m2) !! i = Some x') as E by (clear H; by tac);
+    rewrite E in H; clear E
+  | |- context[ ∅ !! _ ] => rewrite lookup_empty
+  | |- context[ (<[_:=_]>_) !! _ ] =>
+    rewrite lookup_insert || (rewrite lookup_insert_ne; [| by tac])
+  | |- context[ (alter _ _ _) !! _ ] =>
+    rewrite lookup_alter || (rewrite lookup_alter_ne; [| by tac])
+  | |- context[ (delete _ _) !! _ ] =>
+    rewrite lookup_delete || (rewrite lookup_delete_ne; [| by tac])
+  | |- context[ {[ _ := _ ]} !! _ ] =>
+    rewrite lookup_singleton || (rewrite lookup_singleton_ne; [| by tac])
+  | |- context[ (_ <$> _) !! _ ] => rewrite lookup_fmap
+  | |- context[ (omap _ _) !! _ ] => rewrite lookup_omap
+  | |- context [ lookup (A:=?A) ?i ?m ] =>
+    let x := fresh in evar (x:A);
+    let x' := eval unfold x in x in clear x;
+    let E := fresh in
+    assert (m !! i = Some x') as E by tac;
+    rewrite E; clear E
+  end.
+
+Tactic Notation "simpl_map" := simpl_map by eauto with simpl_map map_disjoint.
+
+Tactic Notation "simplify_map_eq" "by" tactic3(tac) :=
+  decompose_map_disjoint;
+  repeat match goal with
+  | _ => progress simpl_map by tac
+  | _ => progress simplify_eq/=
+  | _ => progress simpl_option by tac
+  | H : {[ _ := _ ]} !! _ = None |- _ => rewrite lookup_singleton_None in H
+  | H : {[ _ := _ ]} !! _ = Some _ |- _ =>
+    rewrite lookup_singleton_Some in H; destruct H
+  | H1 : ?m1 !! ?i = Some ?x, H2 : ?m2 !! ?i = Some ?y |- _ =>
+    let H3 := fresh in
+    opose proof (lookup_weaken_inv m1 m2 i x y) as H3; [done|by tac|done|];
+    clear H2; symmetry in H3
+  | H1 : ?m1 !! ?i = Some ?x, H2 : ?m2 !! ?i = None |- _ =>
+    let H3 := fresh in
+    apply (lookup_weaken _ m2) in H1; [congruence|by tac]
+  | H : ?m ∪ _ = ?m ∪ _ |- _ =>
+    apply map_union_cancel_l in H; [|by tac|by tac]
+  | H : _ ∪ ?m = _ ∪ ?m |- _ =>
+    apply map_union_cancel_r in H; [|by tac|by tac]
+  | H : {[?i := ?x]} = ∅ |- _ => by destruct (map_non_empty_singleton i x)
+  | H : ∅ = {[?i := ?x]} |- _ => by destruct (map_non_empty_singleton i x)
+  | H : ?m !! ?i = Some _, H2 : ?m !! ?j = None |- _ =>
+     unless (i ≠ j) by done;
+     assert (i ≠ j) by (by intros ?; simplify_eq)
+  end.
+Tactic Notation "simplify_map_eq" "/=" "by" tactic3(tac) :=
+  repeat (progress csimpl in * || simplify_map_eq by tac).
+Tactic Notation "simplify_map_eq" :=
+  simplify_map_eq by eauto with simpl_map map_disjoint.
+Tactic Notation "simplify_map_eq" "/=" :=
+  simplify_map_eq/= by eauto with simpl_map map_disjoint.

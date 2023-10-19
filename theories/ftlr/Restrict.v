@@ -9,7 +9,7 @@ Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
-  
+
   Notation D := ((leibnizO Word) -n> iPropO Σ).
   Notation R := ((leibnizO Reg) -n> iPropO Σ).
   Implicit Types w : (leibnizO Word).
@@ -31,7 +31,7 @@ Section fundamental.
     intros HpnotE Hp. iIntros "#IH HA".
     iApply (interp_weakening with "IH HA"); eauto; try solve_addr.
   Qed.
-  
+
   Lemma match_perm_with_E_rewrite:
     forall (A: Type) p (a1 a2: A),
       match p with
@@ -54,7 +54,7 @@ Section fundamental.
     iApply (wp_Restrict with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * Hdst ? Hz Hfl HincrPC | * Hdst Hz Hfl HincrPC | ].

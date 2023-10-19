@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample malloc macros_new lse.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
@@ -168,7 +168,7 @@ Section roe_adequacy.
           `{memlayout: memory_layout}.
 
   Lemma roe_correct :
-    Forall (λ w, is_z w = true) adv_instrs →
+    Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
@@ -230,26 +230,23 @@ Section roe_adequacy.
     pose proof adv_region_start_offset as Hadv_region_offset.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
     rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-    iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (finz_seq_between_cons adv_region_start);
-        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
-      iFrame. iSplit.
-      { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
-        rewrite finz_seq_between_singleton// /=. iSplit;[|done].
-        iExists interp. iFrame "Hadv_table_valid". do 2 iModIntro. auto. }
-      iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
-      rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-      iApply big_sepL_forall. iIntros (k n Hin).
-      revert Hints; rewrite Forall_forall =>Hints.
-      assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
-      iApply fixpoint_interp1_eq;eauto. }
 
-    iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
-    { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
-      iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
-      iApply (big_sepL_mono with "Hadv'").
-      iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
+    iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hadv]" as ">#Hadv".
+    { iApply (region_valid_in_region _ _ _ _ adv_instrs);auto.
+      apply Forall_forall. intros. set_solver+. }
+    iAssert (|={⊤}=> interp (WCap RWX adv_region_start adv_end adv_start))%I with "[Hadv_link]" as ">#Hadv_valid".
+    { iApply fixpoint_interp1_eq. iSimpl.
+      rewrite (finz_seq_between_cons adv_region_start);
+        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
+      iSplitL.
+      - iExists interp. iSplitL;[|iModIntro;auto].
+        iApply inv_alloc. iNext. iExists _. iFrame.
+        iApply fixpoint_interp1_eq;simpl.
+        rewrite finz_seq_between_singleton// /=.
+        iSplit;auto. iExists interp. iFrame "#".
+        iNext. iModIntro. auto.
+      - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
+    }
 
     iApply (roe_spec with "[- $HPC $Hown $Hr_adv $Hroe_link $Hrmap $Hroe $Hmalloc $Hassert
                               $Hlink_table_start $Hlink_table_mid $Hadv_valid]");auto.
@@ -265,7 +262,7 @@ Section roe_adequacy.
     iSplit.
     - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)".
       assert (is_Some (m !! l_assert_flag)) as [? Hlook].
-      { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. }
+      { apply elem_of_dom. rewrite Heq. apply elem_of_singleton. auto. }
       iDestruct (big_sepM_lookup _ _ l_assert_flag with "Hm") as "Hflag";eauto.
       apply HOK in Hlook as ->. iFrame.
     - iIntros "HH". iExists {[ l_assert_flag := WInt 0%Z ]}.
@@ -280,7 +277,7 @@ Theorem roe_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory roe_prog adv_prog OCPLLibrary roe_table adv_table m →
   is_initial_registers roe_prog adv_prog OCPLLibrary roe_table adv_table reg r_adv →
-  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
+  Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).

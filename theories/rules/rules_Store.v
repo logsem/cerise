@@ -9,10 +9,10 @@ Section cap_lang_rules.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
-  Implicit Types c : cap_lang.expr. 
+  Implicit Types c : cap_lang.expr.
   Implicit Types a b : Addr.
   Implicit Types r : RegName.
-  Implicit Types v : cap_lang.val. 
+  Implicit Types v : cap_lang.val.
   Implicit Types w : Word.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
@@ -56,7 +56,7 @@ Section cap_lang_rules.
 
   Definition allow_store_map_or_true (r1 : RegName) (regs : Reg) (mem : gmap Addr Word):=
     ∃ p b e a,
-      read_reg_inr regs r1 p b e a ∧ 
+      read_reg_inr regs r1 p b e a ∧
       if decide (reg_allows_store regs r1 p b e a) then
         ∃ w, mem !! a = Some w
       else True.
@@ -149,7 +149,7 @@ Section cap_lang_rules.
      (* Derive necessary register values in r *)
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      iDestruct (gen_mem_valid_inSepM mem mem0 with "Hm Hmem") as %Hma; eauto.
 
      iModIntro.
@@ -221,7 +221,7 @@ Section cap_lang_rules.
       iFrame. iModIntro. iApply "Hφ". iFrame.
       iPureIntro. eapply Store_spec_success; eauto.
         * split; auto. exact Hr'1. all: auto.
-        * unfold incrementPC. rewrite a_pc1 HPC''. 
+        * unfold incrementPC. rewrite a_pc1 HPC''.
       Unshelve. all: auto.
    Qed.
 
@@ -244,12 +244,11 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hi") as "Hmem".
 
     iApply (wp_store with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by rewrite !dom_insert; set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H3 as [Hrr2 _]. simplify_map_eq.
@@ -292,7 +291,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -327,13 +326,12 @@ Section cap_lang_rules.
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
 
     iApply (wp_store with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by rewrite !dom_insert; set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all: by simplify_map_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H3 as [Hrr2 _]. simplify_map_eq.
@@ -377,7 +375,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -429,7 +427,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
@@ -535,7 +533,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H4 as [Hrr2 _]. simplify_map_eq.
@@ -580,7 +578,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H6 as [Hrr2 _]. simplify_map_eq.
@@ -627,7 +625,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H7 as [Hrr2 _]. simplify_map_eq.
@@ -673,7 +671,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
@@ -719,7 +717,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.

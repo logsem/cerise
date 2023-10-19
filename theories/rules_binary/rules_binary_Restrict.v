@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Restrict rules_binary_base.
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -21,16 +21,16 @@ Section cap_lang_spec_rules.
     regs_of (Restrict dst src) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs, k ↣ᵣ y)
     ={Ep}=∗ ∃ retv regs', ⌜ Restrict_spec regs dst src regs' retv ⌝ ∗ ⤇ fill K (of_val retv) ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hcls) "(#Hinv & Hj & Hpc_a & Hmap)". 
+    iIntros (Hinstr Hvpc HPC Dregs Hcls) "(#Hinv & Hj & Hpc_a & Hmap)".
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
     have Hx := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
+    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a.
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
 
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
@@ -65,8 +65,7 @@ Section cap_lang_spec_rules.
     destruct wdst as [ | [p b e a | p b e a] | ].
     1,4: inversion Hwdst.
     (* First, the case where r1v is a capability *)
-    +
-destruct (perm_eq_dec p E); [ subst p |].
+    + destruct (perm_eq_dec p E); [ subst p |].
        { rewrite /is_mutable_range in Hwdst; congruence. }
 
        destruct (PermFlowsTo (decodePerm wsrc) p) eqn:Hflows; cycle 1.
@@ -99,7 +98,7 @@ destruct (perm_eq_dec p E); [ subst p |].
       iExists NextIV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
-        prim_step_from_exec. 
+        prim_step_from_exec.
       }
       iModIntro. iPureIntro. econstructor; eauto.
    (* Now, the case where wsrc is a sealrange *)
@@ -132,9 +131,9 @@ destruct (perm_eq_dec p E); [ subst p |].
       iExists NextIV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
-        prim_step_from_exec. 
+        prim_step_from_exec.
       }
-      iModIntro. iPureIntro. econstructor 2; eauto. Unshelve. all: try done. 
+      iModIntro. iPureIntro. econstructor 2; eauto. Unshelve. all: try done.
   Qed.
 
   Lemma step_restrict_success_z Ep K pc_p pc_b pc_e pc_a pc_a' w r1 p b e a z :
@@ -144,7 +143,7 @@ destruct (perm_eq_dec p E); [ subst p |].
      PermFlowsTo (decodePerm z) p = true →
      p ≠ E →
      nclose specN ⊆ Ep →
-    
+
      spec_ctx ∗ ⤇ fill K (Instr Executable)
               ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
               ∗ ▷ pc_a ↣ₐ w
@@ -177,4 +176,4 @@ destruct (perm_eq_dec p E); [ subst p |].
        incrementPC_inv; simplify_map_eq; eauto. congruence. }
  Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.

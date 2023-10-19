@@ -18,8 +18,8 @@ Qed.
 (* resources *)
 
 Class sealStoreG Σ := SealStoreG { (* Create record constructor for typeclass *)
-    SG_sealStore :>  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPreds :>  savedPredG Σ Word;
+    SG_sealStore ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
+    SG_storedPreds ::  savedPredG Σ Word;
     SG_sealN : gname;
 }.
 
@@ -27,8 +27,8 @@ Definition sealStorePreΣ :=
   #[ GFunctor (gmapUR OType (csumR (exclR unitO) (agreeR gnameO))); savedPredΣ Word].
 
 Class sealStorePreG Σ := {
-    SG_sealStorePre :>  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPredsPre :>  savedPredG Σ Word;
+    SG_sealStorePre ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
+    SG_storedPredsPre ::  savedPredG Σ Word;
 }.
 
 Instance sealStoreG_preG `{sealStoreG Σ} : sealStorePreG Σ.
@@ -44,18 +44,18 @@ Lemma gmap_none_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K 
     g1 !! i = None → g2 !! i = None.
 Proof.
   intros Hdom Hnon.
-  apply elem_of_gmap_dom_none in Hnon.
+  apply not_elem_of_dom in Hnon.
   rewrite Hdom in Hnon.
-  by apply elem_of_gmap_dom_none.
+  by apply not_elem_of_dom.
 Qed.
 
 Lemma gmap_isSome_convert `{Countable K} {A B: Type} (g1 : gmap K A) (g2 : gmap K B) (i : K): dom g1 = dom g2 →
     is_Some (g1 !! i) → is_Some (g2 !! i).
 Proof.
   intros Hdom Hnon.
-  apply elem_of_gmap_dom in Hnon.
+  apply elem_of_dom in Hnon.
   rewrite Hdom in Hnon.
-  by apply elem_of_gmap_dom.
+  by apply elem_of_dom.
 Qed.
 
 Section Store.

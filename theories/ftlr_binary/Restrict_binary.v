@@ -49,7 +49,7 @@ Section fundamental.
     iApply (wp_Restrict with "[$Ha $Hmap]"); eauto.
     { eapply lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
     (* we assert that w = w' *)
@@ -61,7 +61,7 @@ Section fundamental.
     iMod (step_Restrict _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs'" as %HSpec'.
@@ -126,4 +126,3 @@ Section fundamental.
   Qed.
 
 End fundamental.
-

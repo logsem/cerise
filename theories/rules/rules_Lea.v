@@ -100,14 +100,14 @@ Section cap_lang_rules.
 
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
-     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      rewrite Hr1 /= in Hstep.
 
      destruct (z_of_argument regs arg) as [ argz |] eqn:Harg;
        pose proof Harg as Harg'; cycle 1.
      { (* Failure: argument is not a constant (z_of_argument regs arg = None) *)
        unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |].
-       feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
+       odestruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
        rewrite Hr0 Hr'0 in Harg Hstep.
        assert (c = Failed ∧
@@ -253,7 +253,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
-     
+
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
            ∗ ▷ r1 ↦ᵣ WCap p b e a
@@ -306,7 +306,6 @@ Section cap_lang_rules.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a) Hφ".
      iDestruct (map_of_regs_1 with "HPC") as "Hmap".
      iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-     by rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
 
@@ -440,6 +439,30 @@ Section cap_lang_rules.
        congruence.
      }
      Unshelve. all:auto.
+   Qed.
+
+   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
+     decodeInstrW w = Lea r1 (inr rv) →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+     (a + z)%a = None ->
+
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+           ∗ ▷ pc_a ↦ₐ w
+           ∗ ▷ r1 ↦ᵣ WCap p b e a
+           ∗ ▷ rv ↦ᵣ WInt z }}}
+       Instr Executable @ Ep
+       {{{ RET FailedV; True }}}.
+   Proof.
+     iIntros (Hdecode Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+     iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+     by rewrite !dom_insert; set_solver+.
+     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+     iDestruct "Hspec" as %Hspec.
+     destruct Hspec as [* Hsucc | * Hsucc |].
+     { (* Success (contradiction) *) simplify_map_eq. }
+     { (* Success (contradiction) *) simplify_map_eq. }
+     { (* Failure, done *) by iApply "Hφ". }
    Qed.
 
 End cap_lang_rules.

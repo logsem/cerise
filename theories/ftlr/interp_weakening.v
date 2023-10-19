@@ -23,15 +23,6 @@ Section fundamental.
           -∗ na_own logrel_nais ⊤
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf))%I.
 
- 
-  (* TODO: Move somewhere ?*)
-  Lemma PermFlowsToPermFlows p p':
-    PermFlowsTo p p' <-> PermFlows p p'.
-  Proof.
-    rewrite /PermFlows; split; intros; auto.
-    destruct (Is_true_reflect (PermFlowsTo p p')); auto.
-  Qed.
-
   Instance if_persistent (PROP: bi) (b: bool) (φ1 φ2: PROP) (H1: Persistent φ1) (H2: Persistent φ2):
     Persistent (if b then φ1 else φ2).
   Proof.
@@ -53,7 +44,7 @@ Section fundamental.
          iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
          iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
          iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
-    }  
+    }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
     - rewrite !fixpoint_interp1_eq.
@@ -61,7 +52,7 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame. 
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
       + iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
@@ -80,9 +71,9 @@ Section fundamental.
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
-        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]". 
+        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame. 
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);

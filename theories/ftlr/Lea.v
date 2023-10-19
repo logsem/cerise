@@ -26,7 +26,7 @@ Section fundamental.
     iApply (wp_lea with "[$Ha $Hmap]"); eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * Hdst ? Hz Hoffset HincrPC | * Hdst Hz Hoffset HincrPC | ].
@@ -36,7 +36,7 @@ Section fundamental.
       { destruct (decide (PC = dst)); simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext.
       iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
@@ -87,7 +87,7 @@ Section fundamental.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. } }
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. 
+      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.

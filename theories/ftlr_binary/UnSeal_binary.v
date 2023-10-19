@@ -30,7 +30,7 @@ Section fundamental.
     iApply (wp_UnSeal with "[$Ha $Hmap]"); eauto.
     { eapply lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
 
     (* we assert that w = w' *)

@@ -260,7 +260,7 @@ Section fundamental.
     iApply (wp_load with "[Hmap HLoadRest]");eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. rewrite lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
+      apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
@@ -271,7 +271,7 @@ Section fundamental.
     iMod (step_Load _ [SeqCtx] with "[$HLoadRest' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs & #Hmovspec & Ha' & Hsmap) /=";eauto.
     { rewrite lookup_insert. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_gmap_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { destruct (decide (reg_allows_load (<[PC:=WCap p b e a]> r1) src p0 b0 e0 a0 ∧ a0 ≠ a)); solve_ndisj. }
     iDestruct "Hmovspec" as %HSpec'.

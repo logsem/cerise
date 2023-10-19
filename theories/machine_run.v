@@ -73,7 +73,7 @@ Proof.
       eapply rtc_l. unfold erased_step. exists [].
       eapply step_atomic with (t1:=[]). 1,2: reflexivity. cbn.
       eapply ectx_language.Ectx_step with (K:=[SeqCtx]). 1,2: reflexivity.
-      constructor. eapply step_exec_instr; eauto. rewrite Hr //.
+      constructor. eapply step_exec_instr; eauto. eapply Hc.
     }
     { simplify_eq. apply isCorrectPCb_nisCorrectPC in HPC.
       eexists. eapply rtc_l. unfold erased_step. exists [].

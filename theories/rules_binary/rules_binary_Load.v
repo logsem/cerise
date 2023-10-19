@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Load rules_binary_base.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -24,7 +24,7 @@ Section cap_lang_spec_rules.
     allow_load_map_or_true r2 regs mem →
 
     nclose specN ⊆ Ep →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ (▷ [∗ map] a↦w ∈ mem, a ↣ₐ w) ∗ (▷ [∗ map] k↦y ∈ regs, k ↣ᵣ y)
     ={Ep}=∗ ∃ retv regs', ⤇ fill K (of_val retv) ∗ ⌜ Load_spec regs r1 r2 regs' mem retv ⌝ ∗ ([∗ map] a↦w ∈ mem, a ↣ₐ w)∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
@@ -37,8 +37,8 @@ Section cap_lang_spec_rules.
     (* Derive necessary register values in r *)
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-     feed destruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
-     feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
+     odestruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
      (* Derive the PC in memory *)
      iDestruct (memspec_heap_valid_inSepM _ _ _ _ pc_a with "Hown Hmem") as %Hma; eauto.
 
@@ -71,7 +71,7 @@ Section cap_lang_spec_rules.
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
-       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_bounds. 
+       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_bounds.
      }
      apply andb_true_iff in HRA; destruct HRA as (Hra & Hwb).
 
@@ -97,7 +97,7 @@ Section cap_lang_spec_rules.
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. clear Hmema.
          prim_step_from_exec. }
-       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_invalid_PC. 
+       iExists (FailedV),_; iFrame. iModIntro. iFailCore Load_fail_invalid_PC.
      }
 
      (* Success *)
@@ -121,7 +121,7 @@ Section cap_lang_spec_rules.
     * exact Hmema.
     * unfold incrementPC. by rewrite HPC'' Ha_pc'.
       Unshelve. all: auto.
-  Qed. 
+  Qed.
 
   Lemma step_load_success_same E K r1 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
     decodeInstrW w = Load r1 r1 →
@@ -139,8 +139,8 @@ Section cap_lang_spec_rules.
         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ (if (a =? pc_a)%a then w else w')
         ∗ pc_a ↣ₐ w
-        ∗ (if (a =? pc_a)%a then emp else a ↣ₐ w'). 
-  Proof. 
+        ∗ (if (a =? pc_a)%a then emp else a ↣ₐ w').
+  Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hr1 & Hr1a)".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
@@ -184,12 +184,12 @@ Section cap_lang_spec_rules.
         ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
         ∗ r1 ↣ᵣ w'
         ∗ pc_a ↣ₐ w
-        ∗ a ↣ₐ w'. 
-  Proof. 
+        ∗ a ↣ₐ w'.
+  Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Ha)".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
     { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Ha Hpc_a") as %Hneq. done. }
-    iMod (step_load_success_same with "[$HPC $Hpc_a $Hr1 $Hown $Hj Ha]") as "(?&?&?&?&?)";eauto;try rewrite Hfalse;by iFrame. 
+    iMod (step_load_success_same with "[$HPC $Hpc_a $Hr1 $Hown $Hj Ha]") as "(?&?&?&?&?)";eauto;try rewrite Hfalse;by iFrame.
   Qed.
 
   Lemma step_load_success E K r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
@@ -202,7 +202,7 @@ Section cap_lang_spec_rules.
     spec_ctx ∗ ⤇ fill K (Instr Executable)
              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ r1 ↣ᵣ w''  
+             ∗ ▷ r1 ↣ᵣ w''
              ∗ ▷ r2 ↣ᵣ WCap p b e a
              ∗ (if (eqb_addr a pc_a) then emp else ▷ a ↣ₐ w')
     ={E}=∗ ⤇ fill K (Instr NextI)
@@ -210,7 +210,7 @@ Section cap_lang_spec_rules.
         ∗ r1 ↣ᵣ (if (eqb_addr a pc_a) then w else w')
         ∗ pc_a ↣ₐ w
         ∗ r2 ↣ᵣ WCap p b e a
-        ∗ (if (eqb_addr a pc_a) then emp else a ↣ₐ w'). 
+        ∗ (if (eqb_addr a pc_a) then emp else a ↣ₐ w').
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hr1 & >Hr2 & Hr2a)".
@@ -239,7 +239,7 @@ Section cap_lang_spec_rules.
        by iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq_alt.
-       destruct o;congruence. 
+       destruct o;congruence.
        incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert;eauto]. congruence. }
   Qed.
 
@@ -253,7 +253,7 @@ Section cap_lang_spec_rules.
     spec_ctx ∗ ⤇ fill K (Instr Executable)
              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
-             ∗ ▷ r1 ↣ᵣ w''  
+             ∗ ▷ r1 ↣ᵣ w''
              ∗ ▷ r2 ↣ᵣ WCap p b e a
              ∗ ▷ a ↣ₐ w'
     ={E}=∗ ⤇ fill K (Instr NextI)
@@ -261,7 +261,7 @@ Section cap_lang_spec_rules.
         ∗ r1 ↣ᵣ w'
         ∗ pc_a ↣ₐ w
         ∗ r2 ↣ᵣ WCap p b e a
-        ∗ a ↣ₐ w'. 
+        ∗ a ↣ₐ w'.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hr1 & >Hr2 & >Hr2a)".
@@ -269,5 +269,5 @@ Section cap_lang_spec_rules.
     { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Hr2a Hi") as %Hneq. done. }
     iMod (step_load_success with "[$Hown $Hj $HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;by iFrame. 
   Qed.
-  
+
 End cap_lang_spec_rules.

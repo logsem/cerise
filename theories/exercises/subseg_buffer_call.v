@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode register_tactics.
+From cap_machine Require Import fundamental logrel rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode register_tactics.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import subseg_buffer.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
@@ -91,7 +92,6 @@ Section program_call.
   Definition prog_call_inv a f_m f_a size secret_off secret_val :=
     na_inv logrel_nais call_codeN (prog_call_code a f_m f_a size secret_off secret_val ).
 
-  (* Definition malloc_callN := (call_versionN.@"malloc"). *)
   Definition malloc_call_inv b_m e_m :=
     na_inv logrel_nais ocpl.mallocN (malloc_inv b_m e_m).
 
@@ -102,23 +102,8 @@ Section program_call.
   Definition flag_call_inv a_flag flagN :=
     inv flagN (a_flag ↦ₐ WInt 0%Z) .
 
-  (* Linking table invariant *)
-  (* Definition link_table_callN := (call_versionN.@"link_table"). *)
-  (* Definition link_table_call_inv *)
-  (*   table_addr b_link e_link a_link *)
-  (*   malloc_entry b_m e_m *)
-  (*   assert_entry b_a e_a *)
-  (*   := *)
-  (*   na_inv logrel_nais link_table_callN *)
-  (*     (table_addr ↦ₐ WCap RO b_link e_link a_link *)
-  (*      ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m *)
-  (*      ∗ assert_entry ↦ₐ WCap E b_a e_a b_a *)
-  (*     )%I. *)
-
-
   Definition call_actN : namespace := call_versionN .@ "act".
   Definition call_localsN : namespace := call_versionN .@ "locals".
-
 
   (** Specifications *)
   (* Specification P1 *)
@@ -298,21 +283,21 @@ Section program_call.
         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
         ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
-                       
+
         ∗ na_own logrel_nais ⊤
         ∗ interp w0 ∗ interp wadv
 
        -∗ WP Seq (Instr Executable) {{λ v,
                (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                ∨ ⌜v = FailedV⌝ }})%I.
-  
+
   Proof with (try solve_addr').
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
       "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& HPC& Hr30& Hrmap&
 Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
-    
+
     (* FTLR on wadv - we do it now because of the later modality *)
     iDestruct (jmp_to_unknown with "Hadv") as "Cont".
     iHide "Cont" as cont.
@@ -399,7 +384,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     { subst rmap'.
       rewrite dom_insert_L.
       rewrite Hdom.
-      rewrite - difference_difference_L.
+      rewrite - difference_difference_l_L.
       rewrite -union_difference_L; auto.
       set_solver.
     }
@@ -427,8 +412,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         with ( ( all_registers_s ∖ {[PC]} ∖ {[r_t30]} ) ) by set_solver+.
       replace ( {[r_t30]} ∪ all_registers_s ∖ {[PC]} ∖ {[r_t30]})
       with (all_registers_s ∖ {[PC]}) ; auto.
-      rewrite <- union_difference_L ; auto.
-      set_solver+. }
+    }
     iNext.
     iIntros "(HPC & Hmalloc_prog & Hlink & Hentry_malloc & Hreg & Hr0 & Hna & Hrmap)"
     ; iDestruct "Hreg" as (b_mem e_mem Hmem_size) "(Hr1 & Hmem)".
@@ -503,7 +487,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       replace (a_prog ^+ 11%nat)%a with a_call. done.
       rewrite Hlength_progi in Ha_call... }
     do 4 (rewrite delete_insert_ne ; eauto).
-    
+
     (* 2 - extract r2 and r3 *)
     iExtractList "Hrmap" [r_t2;r_t3] as ["Hr2";"Hr3"].
 
@@ -620,7 +604,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* r0 *)
     iDestruct (big_sepM_to_create_gmap_default _ _ (λ k i, k ↦ᵣ i)%I (WInt 0%Z) with "Hrmap")  as "Hrmap";[apply Permutation_refl|reflexivity|].
     iDestruct (big_sepM_insert with "[$Hrmap $Hr0]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -630,7 +614,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     }
     (* r30 *)
     iDestruct (big_sepM_insert with "[$Hrmap $Hr30]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -640,7 +624,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* r7 *)
     iDestruct (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t7 _ with "Hr7") as "Hr7".
     iDestruct (big_sepM_insert with "[$Hrmap $Hr7]") as "Hrmap".
-    { apply elem_of_gmap_dom_none.
+    { apply not_elem_of_dom.
       rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L
       ; rewrite !dom_insert_L
@@ -1056,7 +1040,7 @@ Section prog_call_correct.
           `{memlayout: memory_layout}.
 
   Lemma prog_call_correct :
-    Forall (λ w, is_z w = true) adv_instrs →
+    Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ rmap,
       dom rmap = all_registers_s ∖ {[ PC; r_t30 ]} →
@@ -1119,26 +1103,23 @@ Section prog_call_correct.
     pose proof adv_region_start_offset as Hadv_region_offset.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
     rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-    iMod (region_inv_alloc _ (finz.seq_between adv_region_start adv_end) (_::adv_instrs) with "[Hadv Hadv_link]") as "#Hadv".
-    { rewrite (finz_seq_between_cons adv_region_start);
-        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
-      iFrame. iSplit.
-      { iApply fixpoint_interp1_eq. iSimpl. iClear "∗".
-        rewrite finz_seq_between_singleton// /=. iSplit;[|done].
-        iExists interp. iFrame "Hadv_table_valid". auto. }
-      iApply big_sepL2_sep. iFrame. iApply big_sepL2_to_big_sepL_r.
-      rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-      iApply big_sepL_forall. iIntros (k n Hin).
-      revert Hints; rewrite Forall_forall =>Hints.
-      assert (n ∈ adv_instrs) as HH%Hints;[apply elem_of_list_lookup;eauto|]. destruct n;inversion HH.
-      iApply fixpoint_interp1_eq;eauto. }
 
-    iAssert (interp (WCap RWX adv_region_start adv_end adv_start)) as "#Hadv_valid".
-    { iClear "∗". iApply fixpoint_interp1_eq. iSimpl.
-      iDestruct (big_sepL2_to_big_sepL_l with "Hadv") as "Hadv'".
-      { rewrite finz_seq_between_length /finz.dist. solve_addr+Hadv_region_offset Hadv_size'. }
-      iApply (big_sepL_mono with "Hadv'").
-      iIntros (k y Hin) "Hint". iExists interp. iFrame. auto. }
+    iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hadv]" as ">#Hadv".
+    { iApply (region_valid_in_region _ _ _ _ adv_instrs);auto. apply Forall_forall. intros. set_solver+. }
+
+    iAssert (|={⊤}=> interp (WCap RWX adv_region_start adv_end adv_start))%I with "[Hadv_link]" as ">#Hadv_valid".
+    { iApply fixpoint_interp1_eq. iSimpl.
+      rewrite (finz_seq_between_cons adv_region_start);
+        [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
+      iSplitL.
+      - iExists interp. iSplitL;[|iModIntro;auto].
+        iApply inv_alloc. iNext. iExists _. iFrame.
+        iApply fixpoint_interp1_eq;simpl.
+        rewrite finz_seq_between_singleton// /=.
+        iSplit;auto. iExists interp. iFrame "#".
+        iNext. iModIntro. auto.
+      - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
+    }
 
     iApply (prog_call_full_run_spec
              with "[- $HPC $Hown $Hr_adv $Hrmap $Hprog
@@ -1152,7 +1133,7 @@ Section prog_call_correct.
       iSplit.
       - rewrite /minv_sep /=. iIntros "HH". iDestruct "HH" as (m) "(Hm & %Heq & %HOK)".
         assert (is_Some (m !! l_assert_flag)) as [? Hlook].
-        { apply elem_of_gmap_dom. rewrite Heq. apply elem_of_singleton. auto. }
+        { apply elem_of_dom. rewrite Heq. apply elem_of_singleton. auto. }
         iDestruct (big_sepM_lookup _ _ l_assert_flag with "Hm") as "Hflag";eauto.
         apply HOK in Hlook as ->. iFrame.
       - iIntros "HH". iExists {[ l_assert_flag := WInt 0%Z ]}.
@@ -1176,7 +1157,7 @@ Theorem prog_call_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
   is_initial_memory call_prog adv_prog OCPLLibrary call_table adv_table m →
   is_initial_registers call_prog adv_prog OCPLLibrary call_table adv_table reg r_t30 →
-  Forall (λ w, is_z w = true) (prog_instrs adv_prog) →
+  Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
 
   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).

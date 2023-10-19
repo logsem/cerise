@@ -310,6 +310,6 @@ how this works.
 The only lemma that requires extra conditions on R is the injectivity
 of principal which requires antisymmetry. *)
 Class ProperPreOrder {A : Type} `{Dist A} (R : relation A) := {
-  ProperPreOrder_preorder :> PreOrder R;
-  ProperPreOrder_ne :> ∀ n, Proper ((dist n) ==> (dist n) ==> iff) R
+  ProperPreOrder_preorder :: PreOrder R;
+  ProperPreOrder_ne :: ∀ n, Proper ((dist n) ==> (dist n) ==> iff) R
 }.

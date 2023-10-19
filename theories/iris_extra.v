@@ -444,7 +444,7 @@ Proof.
     + done.
     + iDestruct (big_sepM2_dom with "Hmap") as %Hdom.
       assert (is_Some (m' !! a)) as [ρ Hρ].
-      { apply elem_of_gmap_dom. rewrite Hdom dom_insert_L.
+      { apply elem_of_dom. rewrite Hdom dom_insert_L.
         apply elem_of_union_l, elem_of_singleton; auto. }
       rewrite -(insert_id m' a ρ); auto.
       rewrite -insert_delete_insert.
@@ -478,7 +478,7 @@ Proof.
     assert (a ∈ (map_to_list m).*1) as Hin'.
     { rewrite -Hl. constructor. }
     assert (is_Some(m !! a)) as [b' Hsome].
-    { apply elem_of_gmap_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
+    { apply elem_of_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
     iDestruct (big_sepM_delete _ _ a with "Hm") as "[Ha Hm]";eauto.
     iApply big_sepM_delete;[|iFrame].
     { rewrite Hm.  apply lookup_insert. }

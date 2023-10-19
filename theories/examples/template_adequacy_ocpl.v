@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample malloc assert macros_new.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
 
 Module ocpl.
@@ -155,7 +155,7 @@ Theorem ocpl_template_adequacy `{MachineParameters} (Σ : gFunctors)
     (es: list cap_lang.expr):
   is_initial_memory P Adv (library layout) P_tbl Adv_tbl m →
   is_initial_registers P Adv (library layout) P_tbl Adv_tbl reg r_adv →
-  Forall (λ w, is_z w = true) (prog_instrs Adv) →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
   let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
   (∀ `{memG Σ', regG Σ', sealStoreG Σ', logrel_na_invs Σ', subG Σ Σ'} rmap,
