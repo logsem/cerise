@@ -1,9 +1,10 @@
-From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
 From cap_machine Require Import classes rules macros_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample.
 From cap_machine Require Export class_instances solve_pure solve_addr_extra.
-From cap_machine Require Import NamedProp proofmode_instr_rules.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
+From cap_machine Require Import proofmode_instr_rules.
+From cap_machine Require Export NamedProp.
 From machine_utils Require Export tactics.
 From iris.bi Require Import bi.
 Import bi.
@@ -14,46 +15,30 @@ Set Default Proof Mode "Classic".
 
 Section codefrag.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          `{MP: MachineParameters}.
+    `{MP: MachineParameters}.
 
-(* TODO: move elsewhere: to region.v? *)
-Definition codefrag (a0: Addr) (cs: list Word) :=
-  ([[ a0, (a0 ^+ length cs)%a ]] ↦ₐ [[ cs ]])%I.
-
-Lemma codefrag_contiguous_region a0 cs :
-  codefrag a0 cs -∗
-  ⌜ContiguousRegion a0 (length cs)⌝.
-Proof using.
-  iIntros "Hcs". unfold codefrag.
-  iDestruct (big_sepL2_length with "Hcs") as %Hl.
-  set an := (a0 + length cs)%a in Hl |- *.
-  unfold ContiguousRegion.
-  destruct an eqn:Han; subst an; [ by eauto |]. cbn.
-  exfalso. rewrite finz_seq_between_length /finz.dist in Hl.
-  solve_addr.
-Qed.
-
-Lemma codefrag_lookup_acc a0 (cs: list Word) (i: nat) w:
-  SimplTC (cs !! i) (Some w) →
-  codefrag a0 cs -∗
-  (a0 ^+ i)%a ↦ₐ w ∗ ((a0 ^+ i)%a ↦ₐ w -∗ codefrag a0 cs).
-Proof.
-  iIntros (Hi) "Hcs".
-  iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
-  rewrite /codefrag.
-  destruct Hub as [? Hub].
-  iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
-  eapply finz_seq_between_lookup with (n:=length cs).
-  { apply lookup_lt_is_Some_1; eauto. }
-  { solve_addr. }
-  iFrame.
-Qed.
+  Lemma codefrag_lookup_acc a0 (cs: list Word) (i: nat) w:
+    SimplTC (cs !! i) (Some w) →
+    codefrag a0 cs -∗
+      (a0 ^+ i)%a ↦ₐ w ∗ ((a0 ^+ i)%a ↦ₐ w -∗ codefrag a0 cs).
+  Proof.
+    iIntros (Hi) "Hcs".
+    iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
+    rewrite /codefrag.
+    destruct Hub as [? Hub].
+    iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
+    eapply finz_seq_between_lookup with (n:=length cs).
+    { apply lookup_lt_is_Some_1; eauto. }
+    { solve_addr. }
+    iFrame.
+  Qed.
 
 End codefrag.
 
 (* Administrative reduction steps *)
 Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ; iIntros "_" ].
-(* TODO iIntros "_" fixes the lc 1 introduces in Iris 4.0.0, but I'm not sure that is the right place *)
+(* NOTE the last `iIntros "_"` fixes the later 1 introduceed in Iris 4.0.0.
+   Remove it from the tactic if necessary. *)
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]));
@@ -226,7 +211,7 @@ Ltac focus_block_0 h hi hcont :=
   match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
     iPoseProof (codefrag_block0_acc with h) as x;
     eapply tac_and_destruct with x _ hi hcont _ _ _;
-    [pm_reflexivity|pm_reduce;iSolveTC|
+    [pm_reflexivity|pm_reduce;tc_solve|
      pm_reduce;
      lazymatch goal with
      | |- False =>
@@ -275,10 +260,10 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
     let xbase := iFresh in
     let y := iFresh in
     eapply tac_and_destruct with x _ xbase y _ _ _;
-      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+      [pm_reflexivity|pm_reduce;tc_solve|pm_reduce];
     iPure xbase as Ha_base;
     eapply tac_and_destruct with y _ hi hcont _ _ _;
-      [pm_reflexivity|pm_reduce;iSolveTC|pm_reduce];
+      [pm_reflexivity|pm_reduce;tc_solve|pm_reduce];
     focus_block_codefrag_facts hi a0 Ha_base;
     changePC_next_block a_base
   end.
@@ -404,7 +389,7 @@ Ltac2 record_framed
 (* Helpers *)
 
 Ltac solve_to_wand tt :=
-    iSolveTC ||
+    tc_solve ||
     let P := match goal with |- IntoWand _ _ ?P _ _ => P end in
     fail "iSpecialize:" P "not an implication/wand".
 
@@ -450,7 +435,7 @@ Ltac2 iSpecializeDelay (h: constr) :=
 Ltac iApplyHypLast H :=
   eapply tac_apply with H _ _ _;
   [pm_reflexivity
-  |iSolveTC
+  |tc_solve
   |pm_reduce; pm_prettify].
 
 Ltac2 iApplyCapAutoT_init0 lemma :=
@@ -575,7 +560,7 @@ Ltac iInstr_lookup0 hprog hi hcont :=
       iPoseProofCore (codefrag_lookup_acc _ _ off with hprog) as false (fun H =>
         eapply tac_and_destruct with H _ hi hcont _ _ _;
         [pm_reflexivity
-        |pm_reduce; iSolveTC
+        |pm_reduce; tc_solve
         |pm_reduce];
         rewrite ?addr_incr_zero ?addr_incr_zero_nat
       )
@@ -608,7 +593,7 @@ Ltac iInstr_close hprog :=
     notypeclasses refine (tac_specialize false _ hi _ hcont _ _ _ _ _ _ _ _ _);
     [pm_reflexivity
     |pm_reflexivity
-    |iSolveTC
+    |tc_solve
     |pm_reduce];
     iRename hcont into hprog
   end end.

@@ -40,7 +40,7 @@ Section cap_lang_spec_rules.
 
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
 
-     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      cbn in Hstep.
      rewrite Hr1 /= in Hstep.
 
@@ -48,7 +48,7 @@ Section cap_lang_spec_rules.
        pose proof Harg as Harg'; cycle 1.
      { (* Failure: argument is not a constant (z_of_argument regs arg = None) *)
        unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |].
-       feed destruct (Hri r0) as [r0v [Hr'0 Hr0]].
+       odestruct (Hri r0) as [r0v [Hr'0 Hr0]].
        { unfold regs_of_argument. set_solver+. }
        rewrite Hr0 Hr'0 in Harg Hstep.
        assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).

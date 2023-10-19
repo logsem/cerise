@@ -254,7 +254,7 @@ Section counter.
 
       (* jmp to continuation *)
       iApply "Hcont_prog". 2: iFrame. iPureIntro.
-      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. set_solver+. }
+      rewrite !dom_insert_L dom_delete_L regmap_full_dom //. }
 
     (* put the registers back together *)
     iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap".
@@ -289,8 +289,7 @@ Program Definition counter_inv (a_init: Addr) : memory_inv :=
     _.
 Next Obligation.
   intros a_init m m' H. cbn in *.
-  specialize (H (a_init ^+ (code_off + data_off + 1))%a). feed specialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
+  specialize (H (a_init ^+ (code_off + data_off + 1))%a). ospecialize H. by set_solver.
 Qed.
 
 Definition counterN : namespace := nroot .@ "counter".
@@ -349,7 +348,7 @@ Proof.
     { apply map_subseteq_spec. intros a w. intros [Ha| [Ha|Ha]%lookup_union_Some]%lookup_union_Some.
       4,5: assumption.
       all: apply mkregion_lookup in Ha as [i [? HH] ]; [| solve_addr'].
-      all: apply map_filter_lookup_Some_2;
+      all: apply map_lookup_filter_Some_2;
         [| cbn; apply not_elem_of_singleton; apply lookup_lt_Some in HH; solve_addr'].
       all: subst; rewrite mkregion_lookup; [| rewrite HP; solve_addr'].
       { eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. }

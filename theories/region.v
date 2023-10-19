@@ -131,7 +131,7 @@ Section region.
     iDestruct (big_sepL2_length with "Hl1") as %Hlenl1.
     iDestruct (big_sepL2_length with "Hl2") as %Hlenl2.
     iPureIntro.
-    rewrite take_app_alt //.
+    rewrite take_app_length' //.
     assert (drop n ws = w :: l2) as Heql2.
     { apply app_inj_1 in Hws2 as [_ Heq]; auto.
         by rewrite -Hlnws. }
@@ -334,3 +334,25 @@ Global Notation "a ∈ₐ [[ b , e ]]" := (in_range a b e)
 
 Global Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws)
             (at level 50, format "[[ b , e ]] ↣ₐ [[ ws ]]") : bi_scope.
+
+Section codefrag.
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+    `{MP: MachineParameters}.
+
+  Definition codefrag (a0: Addr) (cs: list Word) :=
+    ([[ a0, (a0 ^+ length cs)%a ]] ↦ₐ [[ cs ]])%I.
+
+  Lemma codefrag_contiguous_region a0 cs :
+    codefrag a0 cs -∗
+      ⌜ContiguousRegion a0 (length cs)⌝.
+  Proof using.
+    iIntros "Hcs". unfold codefrag.
+    iDestruct (big_sepL2_length with "Hcs") as %Hl.
+    set an := (a0 + length cs)%a in Hl |- *.
+    unfold ContiguousRegion.
+    destruct an eqn:Han; subst an; [ by eauto |]. cbn.
+    exfalso. rewrite finz_seq_between_length /finz.dist in Hl.
+    solve_addr.
+  Qed.
+
+End codefrag.

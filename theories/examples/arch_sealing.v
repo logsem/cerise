@@ -43,6 +43,19 @@ Section sealing.
     iExists P, sb; repeat iSplit; [auto | auto | iFrame.. ].
   Qed.
 
+  (* Conversion from interp to valid_sealed *)
+  Lemma interp_valid_sealed_if w:
+    interp w -∗ ∀ o, ∃ Φ,  ▷ (if is_sealed_with_o w o then valid_sealed w o Φ else True).
+  Proof.
+    iIntros "Hinterp". iIntros (og).
+    destruct w as [ | | o sb]; try (iExists (fun _ => True%I) ; done).
+    iDestruct (interp_valid_sealed with "Hinterp") as (Φ) "Hinterp".
+    iExists Φ.
+    destruct (decide (og = o)) as [-> | Hne].
+    all : destruct (is_sealed_with_o (WSealed _ _) _) eqn:Hsw; try done.
+    exfalso. cbn in Hsw. solve_addr.
+  Qed.
+
   (* Knowing something is validly sealed is enough for it to be valid *)
   Lemma valid_sealed_interp sb o Φ:
     valid_sealed (WSealed o sb) o Φ -∗ interp (WSealed o sb).
@@ -136,39 +149,6 @@ Section sealing.
   Definition make_seal_preamble f_m f_m' ai :=
     ([∗ list] a_i;w_i ∈ ai;(make_seal_preamble_instrs f_m f_m'), a_i ↦ₐ w_i)%I.
 
-  Definition is_sealed_with_o w o :=
-    match w with
-    | WSealed o' sb => (o =? o')%ot
-    | _ => false end.
-
- (* TODO: move this to unseal rules file *)
- Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a w r1 r2 p b e a wsealed pc_a' :
-    decodeInstrW w = UnSeal r2 r1 r2 →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    (pc_a + 1)%a = Some pc_a' →
-    is_sealed_with_o wsealed a = false →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-        ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ r1 ↦ᵣ WSealRange p b e a
-        ∗ ▷ r2 ↦ᵣ wsealed }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
-
-    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
-    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-    by unfold regs_of; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-
-    destruct Hspec as [ | ]; last by iApply "Hφ".
-    { destruct wsealed as [| | o' sb']; try by simplify_map_eq.
-      exfalso.
-      rewrite /is_sealed_with_o //= in Hfalse.
-      destruct (decide (o' = a)) as [->| Hne]; [solve_addr | simplify_map_eq]. }
-  Qed.
-
   Local Existing Instance interp_weakening.if_persistent.
 
   Lemma unseal_spec pc_p pc_b pc_e (* PC *)
@@ -251,31 +231,6 @@ Section sealing.
     iApply "Hφ". iFrame "∗".
     iExists _. iFrame "∗ #".
     eauto.
-  Qed.
-
- (* TODO: move this to unseal rules file *)
- Lemma wp_seal_nosb_r2 E pc_p pc_b pc_e pc_a w r1 r2 p b e a w2 pc_a' :
-    decodeInstrW w = Seal r2 r1 r2 →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    (pc_a + 1)%a = Some pc_a' →
-    is_sealb w2 = false →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-        ∗ ▷ pc_a ↦ₐ w
-        ∗ ▷ r1 ↦ᵣ WSealRange p b e a
-        ∗ ▷ r2 ↦ᵣ w2 }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
-
-    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
-    iApply (wp_Seal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-    by unfold regs_of; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-
-    destruct Hspec as [ | ]; last by iApply "Hφ".
-    { by simplify_map_eq. }
   Qed.
 
   Lemma seal_spec

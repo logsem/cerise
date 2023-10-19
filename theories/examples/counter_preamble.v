@@ -417,7 +417,7 @@ Section counter_example_preamble.
     iApply (wp_wand with "[-]").
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hinv_malloc $HnaI]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry| |auto|lia|..].
-    { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
+    { rewrite !dom_delete_L Hdom_r difference_difference_l_L //. }
     iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
     iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.

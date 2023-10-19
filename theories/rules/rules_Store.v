@@ -149,7 +149,7 @@ Section cap_lang_rules.
      (* Derive necessary register values in r *)
      pose proof (lookup_weaken _ _ _ _ HPC Hregs).
      specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-     feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
      iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
 
      iModIntro.
@@ -244,12 +244,11 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hi") as "Hmem".
 
     iApply (wp_store with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by rewrite !dom_insert; set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        iApply "Hφ".
        destruct H3 as [Hrr2 _]. simplify_map_eq.
@@ -327,7 +326,6 @@ Section cap_lang_rules.
      iDestruct (memMap_resource_1 with "Hi") as "Hmem".
 
     iApply (wp_store with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by rewrite !dom_insert; set_solver+. }
     { eapply mem_eq_implies_allow_store_map; eauto.
       all: by simplify_map_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".

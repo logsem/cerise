@@ -149,46 +149,6 @@ Section interval.
     auto.
   Qed.
 
-  (* TODO move to add sub lt rules file *)
-  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst w1 w2 pc_p pc_b pc_e pc_a :
-    decodeInstrW w = ins →
-    is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    is_z w1 = false →
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 }}}
-      Instr Executable
-            @ E
-    {{{ RET FailedV; pc_a ↦ₐ w }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
-    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
-    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. destruct w1; by exfalso. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst w2 w3 pc_p pc_b pc_e pc_a :
-    decodeInstrW w = ins →
-    is_AddSubLt ins dst (inr r1) (inr r2) →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    is_z w3 = false →
-    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ w3}}}
-      Instr Executable
-            @ E
-    {{{ RET FailedV; pc_a ↦ₐ w }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
-    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
-    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. destruct w3; by exfalso. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-
   Lemma makeint_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
         w1 w2 (* input words. If they are not ints, the program crashes *)
@@ -296,7 +256,7 @@ Section interval.
       clear -Hin1 Hin2 Hin3 Hin4 Hin5. rewrite !union_assoc_L.
       assert ({[PC; r_t0; r_env; r_t1; r_t2]} = {[PC; r_t0]} ∪ {[r_env; r_t1; r_t2]}) as ->;[set_solver|].
       assert ({[r_env; r_t1; r_t2; r_t6; r_t7]} = {[r_env; r_t1; r_t2]} ∪ {[r_t6; r_t7]}) as ->;[set_solver|].
-      rewrite -(difference_difference_L _ {[PC; r_t0]}). rewrite union_comm_L union_assoc_L difference_union_L. set_solver. }
+      rewrite -(difference_difference_l_L _ {[PC; r_t0]}). rewrite union_comm_L union_assoc_L difference_union_L. set_solver. }
 
     (* malloc cleanup *)
     iNext. iIntros "(HPC & Hblock & Hpc_b & Ha_r' & Hres & Hr_t0 & Hown & Hregs)".
@@ -393,7 +353,7 @@ Section interval.
       codefrag_facts "Hblock'".
       iApply (seal_spec);
         [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
-      { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
+      { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_l_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
         rewrite union_comm_L union_assoc_L (difference_union_L).
         assert (∀ r, r ∈ all_registers_s);[apply all_registers_s_correct|]. set_solver. }
@@ -462,7 +422,7 @@ Section interval.
       codefrag_facts "Hblock'".
       iApply (seal_spec );
         [..|iFrame "Hregs Hpref Hown HsealLL Hmalloc Hb Hb_t Hblock' Hr_env Hr_t1 HPC Hr_t0"];[auto..|].
-      { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_L.
+      { rewrite !dom_insert_L Hdom. clear. rewrite !union_assoc_L. rewrite -difference_difference_l_L.
         assert ({[r_t2; r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]} = {[r_t2]} ∪ {[r_t6; r_t7; r_t3; r_t8; r_t20; r_t4; r_t5]}) as ->;[set_solver|].
         rewrite union_comm_L union_assoc_L (difference_union_L).
         assert (∀ r, r ∈ all_registers_s);[apply all_registers_s_correct|]. set_solver. }

@@ -1,4 +1,4 @@
 [submodule "machine_utils"]
 	path = machine_utils
 	url = https://github.com/logsem/machine_utils
-	branch = stdpp-1.8
+	branch = cerise

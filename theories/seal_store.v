@@ -18,8 +18,8 @@ Qed.
 (* resources *)
 
 Class sealStoreG Σ := SealStoreG { (* Create record constructor for typeclass *)
-    SG_sealStore :>  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPreds :>  savedPredG Σ Word;
+    SG_sealStore ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
+    SG_storedPreds ::  savedPredG Σ Word;
     SG_sealN : gname;
 }.
 
@@ -27,8 +27,8 @@ Definition sealStorePreΣ :=
   #[ GFunctor (gmapUR OType (csumR (exclR unitO) (agreeR gnameO))); savedPredΣ Word].
 
 Class sealStorePreG Σ := {
-    SG_sealStorePre :>  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPredsPre :>  savedPredG Σ Word;
+    SG_sealStorePre ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
+    SG_storedPredsPre ::  savedPredG Σ Word;
 }.
 
 Instance sealStoreG_preG `{sealStoreG Σ} : sealStorePreG Σ.

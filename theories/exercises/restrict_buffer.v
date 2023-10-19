@@ -556,7 +556,7 @@ Section program_closure_ro.
     ; try apply ExecPCPerm_RX
     ; try (iFrame ; iFrame "#").
    - rewrite !dom_delete_L.
-     rewrite difference_difference_L.
+     rewrite difference_difference_l_L.
      apply regmap_full_dom in Hrfull; rewrite Hrfull.
      set_solver.
    - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".

@@ -323,11 +323,11 @@ Section program_call.
     {
       subst rmap_call'.
       rewrite dom_singleton_L.
-      rewrite <- !difference_difference_L.
+      rewrite <- !difference_difference_l_L.
       rewrite !dom_insert_L Hdom.
       replace (all_registers_s ∖ {[PC; r_t0; r_t30; r_t7; r_t8; r_t9]})
         with (all_registers_s ∖ {[PC]} ∖ {[r_t0]} ∖ {[r_t30]}  ∖ {[r_t9]} ∖ {[r_t8]} ∖ {[r_t7]})
-             by (rewrite <- !difference_difference_L ; set_solver+).
+             by (rewrite <- !difference_difference_l_L ; set_solver+).
       replace
         ( {[r_t7]}
             ∪ ({[r_t8]}

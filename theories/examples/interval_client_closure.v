@@ -549,7 +549,8 @@ Section interval_client.
       repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
       iApply big_sepM_forall. iIntros (k x Hin). iApply ("Hrmap_valid" $! k).
       all: destruct (decide (k = PC));simplify_map_eq;auto. }
-    { iPureIntro. rewrite !dom_insert_L !dom_delete_L. apply regmap_full_dom in Hfull as ->. set_solver+. }
+    { iPureIntro. rewrite !dom_insert_L !dom_delete_L.
+      apply regmap_full_dom in Hfull. rewrite Hfull. set_solver. }
   Qed.
 
 End interval_client.

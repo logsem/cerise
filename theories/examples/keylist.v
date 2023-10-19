@@ -8,7 +8,7 @@ From cap_machine Require Import solve_pure proofmode map_simpl.
 
 Definition addrwordLO := listO (prodO (leibnizO Addr) (leibnizO Word)).
 Definition prefR (al al' : addrwordLO) := al `prefix_of` al'.
-Class sealLLG Σ := CCounterG { ccounter_inG :> inG Σ (authUR (monotoneUR prefR)) }.
+Class sealLLG Σ := CCounterG { ccounter_inG :: inG Σ (authUR (monotoneUR prefR)) }.
 
 Section list.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
@@ -458,56 +458,6 @@ Section list.
 
   (* ------------------------------------------------------------------------------------------------- *)
   (* ------------------------------------------- APPEND ---------------------------------------------- *)
-
-  (* TODO: move to rules/rules_Load.v *)
-  Lemma wp_load_success_alt E r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
-    decodeInstrW w = Load r1 r2 →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    readAllowed p = true ∧ withinBounds b e a = true →
-    (pc_a + 1)%a = Some pc_a' →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ pc_a ↦ₐ w
-          ∗ ▷ r1 ↦ᵣ w''
-          ∗ ▷ r2 ↦ᵣ WCap p b e a
-          ∗ ▷ a ↦ₐ w' }}}
-      Instr Executable @ E
-      {{{ RET NextIV;
-          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
-             ∗ r1 ↦ᵣ w'
-             ∗ pc_a ↦ₐ w
-             ∗ r2 ↦ᵣ WCap p b e a
-             ∗ a ↦ₐ w' }}}.
-  Proof.
-    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hi & >Hr1 & >Hr2 & >Hr2a) Hφ".
-    iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iDestruct (address_neq with "Hr2a Hi") as %Hneq. iIntros (->%finz_to_z_eq). done. }
-    iApply (wp_load_success with "[$HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;iFrame.
-  Qed.
-
-  (* TODO: move to rules/rules_Load.v *)
-  Lemma wp_load_success_same_alt E r1 pc_p pc_b pc_e pc_a w w' p b e a pc_a' :
-    decodeInstrW w = Load r1 r1 →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    readAllowed p = true ∧ withinBounds b e a = true →
-    (pc_a + 1)%a = Some pc_a' →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ pc_a ↦ₐ w
-          ∗ ▷ r1 ↦ᵣ WCap p b e a
-          ∗ ▷ a ↦ₐ w'}}}
-      Instr Executable @ E
-      {{{ RET NextIV;
-          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
-             ∗ r1 ↦ᵣ w'
-             ∗ pc_a ↦ₐ w
-             ∗ a ↦ₐ w' }}}.
-  Proof.
-    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hpc_a & >Hr1 & >Ha) Hφ".
-    iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iDestruct (address_neq with "Ha Hpc_a") as %Hneq. iIntros (->%finz_to_z_eq). done. }
-    iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]");eauto;rewrite Hfalse;iFrame.
-  Qed.
 
   Lemma iterate_to_last_spec_middle pc_p pc_b pc_e (* PC *)
         r temp1 temp2 (* temporary registers *)

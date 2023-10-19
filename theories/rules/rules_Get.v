@@ -290,6 +290,35 @@ Section cap_lang_rules.
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
+  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
+    decodeInstrW w = get_i →
+    is_Get get_i dst src →
+    (forall dst' src', get_i <> GetOType dst' src') ->
+    (forall dst' src', get_i <> GetWType dst' src') ->
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+      ∗ ▷ pc_a ↦ₐ w
+      ∗ ▷ dst ↦ᵣ wdst
+      ∗ ▷ src ↦ᵣ WInt zsrc }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hnot_otype Hnot_wtype Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
+    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *)
+      destruct (decodeInstrW w); simplify_map_eq
+        ; specialize (Hnot_otype dst0 r)
+        ; specialize (Hnot_wtype dst0 r)
+      ; try contradiction.
+    }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
 End cap_lang_rules.
 
 (* Hints to automate proofs of is_Get *)

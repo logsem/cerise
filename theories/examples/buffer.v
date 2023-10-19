@@ -112,8 +112,7 @@ Program Definition buffer_inv (pstart: Addr) : memory_inv :=
     _.
 Next Obligation.
   intros pstart m m' H. cbn in *.
-  specialize (H (pstart ^+ 7)%a). feed specialize H. by set_solver.
-  destruct H as [w [? ?] ]. by simplify_map_eq.
+  specialize (H (pstart ^+ 7)%a). ospecialize H. by set_solver.
 Qed.
 
 Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es:
@@ -156,12 +155,12 @@ Proof.
     assert (Mcode ∪ Mdata ⊆ M) as HM.
     { apply map_subseteq_spec. intros a w. intros [Ha|Ha]%lookup_union_Some; auto.
       { apply mkregion_lookup in Ha as [? [? HH] ]. 2: solve_addr.
-        apply map_filter_lookup_Some_2.
+        apply map_lookup_filter_Some_2.
         2: { cbn; apply not_elem_of_singleton. apply lookup_lt_Some in HH. solve_addr. }
         subst. rewrite mkregion_lookup. 2: rewrite HP; solve_addr.
         eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. }
       { apply mkregion_lookup in Ha as [i [? HH] ]. 2: solve_addr.
-        apply map_filter_lookup_Some_2.
+        apply map_lookup_filter_Some_2.
          2: { cbn; apply not_elem_of_singleton. apply lookup_lt_Some in HH. solve_addr. }
         subst. rewrite mkregion_lookup. 2: rewrite HP; solve_addr.
         exists (i+4)%nat. split. solve_addr+. rewrite HP.

@@ -44,7 +44,7 @@ Section cap_lang_spec_rules.
     (* Derive necessary register values in r *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
+    odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
     iDestruct (memspec_heap_valid_inSepM _ _ _ _ pc_a with "Hown Hmem") as %Hma; eauto.
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.    
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].

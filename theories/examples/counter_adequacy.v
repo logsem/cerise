@@ -283,14 +283,14 @@ Section Adequacy.
     iMod (inv_alloc flagN ⊤ (assert_flag ↦ₐ WInt 0%Z) with "Hassert_flag")%I as "#Hinv_assert_flag".
     iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
             with "[Hassert Hassert_cap]") as "#Hinv_assert".
-    { iNext. rewrite /assert_inv. iExists assert_cap. iFrame. rewrite /proofmode.codefrag.
+    { iNext. rewrite /assert_inv. iExists assert_cap. iFrame. rewrite /codefrag.
       rewrite (_: (assert_start ^+ length assert_subroutine_instrs)%a = assert_cap).
        2: { generalize assert_code_size. solve_addr. } iFrame.
        iPureIntro. generalize assert_code_size, assert_cap_size, assert_flag_size. cbn. done. }
     iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
             with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
-      iFrame. rewrite /proofmode.codefrag.
+      iFrame. rewrite /codefrag.
       rewrite (_: (malloc_start ^+ length malloc_subroutine_instrs)%a = malloc_memptr).
       2: { generalize malloc_code_size. solve_addr. } iFrame.
       iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
@@ -387,7 +387,7 @@ Section Adequacy.
 
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
-        destruct rw; [| by inversion Hncap..]. simplify_map_eq.
+        destruct rw; [| by inversion Hncap..]. simplify_map_eq. rewrite Hsv in Hrw ; simplify_eq.
         by rewrite !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)
