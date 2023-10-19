@@ -14,3 +14,7 @@ Class DecodeInstr `{MachineParameters} (w: Word) (i: instr) :=
 Class DecodeInstrL `{MachineParameters} (lw: LWord) (i: instr) :=
   MkDecodeInstrL: decodeInstrWL lw = i.
 #[global] Hint Mode DecodeInstrL - + - : typeclass_instances.
+
+Class VersionEq (v v' : Version) (res : bool) :=
+  MkVersionEq: res = true → v = v'.
+#[global] Hint Mode VersionEq + + - : typeclass_instances.

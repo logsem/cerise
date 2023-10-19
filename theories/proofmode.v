@@ -373,19 +373,19 @@ Qed.
 
 Ltac2 Type hyp_table_kind := [ LReg | LMem | Codefrag ].
 
-(* TODO need version for logical addresses ? *)
 Ltac2 record_framed
-      (table: (constr * constr * hyp_table_kind) list ref)
+      (table: (constr * constr * constr * hyp_table_kind) list ref)
       (framed: constr * constr)
   :=
   let (hname, hh) := framed in
-  let (lhs, kind) :=
+  let (lhs, lhsv, kind) :=
     lazy_match! hh with
-    | (?r ↦ᵣ _)%I => (r, LReg)
-    | (?a ↦ₐ{_} _)%I => (a, LMem)
-    | (codefrag ?a _) => (a, Codefrag)
+    | (?r ↦ᵣ _)%I => (r, r, LReg)
+    | ((?a, ?v) ↦ₐ{_} _)%I => (a, v, LMem)
+    (* TODO | (?la ↦ₐ{_} _)%I => (la, la, LMem2) ? *)
+    | (codefrag ?a ?v _) => (a, v, Codefrag)
     end in
-  table.(contents) := (hname, lhs, kind) :: table.(contents).
+  table.(contents) := (hname, lhs, lhsv, kind) :: table.(contents).
 
 (* iApplyCapAuto *)
 
@@ -470,8 +470,9 @@ Ltac iApplyCapAuto_init lemma :=
 (* Name resources in the goal according to the table *)
 
 Definition check_addr_eq (a b: Addr) `{FinZEq _ a b res} := res.
+Definition check_version_eq (v v': Version) `{VersionEq v v' res} := res.
 
-Ltac2 name_cap_resource (name, lhs, kind) :=
+Ltac2 name_cap_resource (name, lhs, lhsv, kind) :=
   match kind with
   | LReg =>
     match! goal with [ |- context [ (?r ↦ᵣ ?x)%I ] ] =>
@@ -480,16 +481,20 @@ Ltac2 name_cap_resource (name, lhs, kind) :=
         (Ltac1.of_constr x) (Ltac1.of_constr r) (Ltac1.of_constr name)
     end
   | LMem =>
-    match! goal with [ |- context [ (?a ↦ₐ{?dq} ?x)%I ] ] =>
+    match! goal with [ |- context [ ((?a, ?v) ↦ₐ{?dq} ?x)%I ] ] =>
       let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
       assert_constr_eq is_lhs 'true;
-      ltac1:(x dq a name |- change (a ↦ₐ{dq} x)%I with (name ∷ (a ↦ₐ{dq} x))%I)
-        (Ltac1.of_constr x) (Ltac1.of_constr dq) (Ltac1.of_constr a) (Ltac1.of_constr name)
+      let is_lhsv := eval unfold check_version_eq in (@check_version_eq $v $lhsv _ _) in
+      assert_constr_eq is_lhsv 'true;
+      ltac1:(x dq a v name |- change ((a, v) ↦ₐ{dq} x)%I with (name ∷ ((a, v) ↦ₐ{dq} x))%I)
+        (Ltac1.of_constr x) (Ltac1.of_constr dq) (Ltac1.of_constr a) (Ltac1.of_constr v) (Ltac1.of_constr name)
     end
   | Codefrag =>
     match! goal with [ |- context [ codefrag ?a ?v ?l ] ] =>
       let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
       assert_constr_eq is_lhs 'true;
+      let is_lhsv := eval unfold check_version_eq in (@check_version_eq $v $lhsv _ _) in
+      assert_constr_eq is_lhsv 'true;
       ltac1:(l v a name |- change (codefrag a v l) with (name ∷ (codefrag a v l)))
         (Ltac1.of_constr l) (Ltac1.of_constr a) (Ltac1.of_constr v) (Ltac1.of_constr name)
     end

@@ -25,67 +25,24 @@ Section buffer.
     (* end: *).
 
 
-From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
-
-Ltac codefrag_facts h :=
-  let h := constr:(h:ident) in
-  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?v ?code) ] =>
-    (match goal with H : ContiguousRegion a_base _ |- _ => idtac end ||
-     let HH := fresh in
-     iDestruct (codefrag_contiguous_region with h) as %HH;
-     cbn [length map encodeInstrsLW] in HH
-    );
-    (match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => idtac end ||
-     (try match goal with H : SubBounds ?b ?e _ _ |- _ =>
-            let HH := fresh in
-            assert (HH: SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr;
-            cbn [length map encodeInstrsLW] in HH
-          end))
-  end.
-
-
   Lemma buffer_spec (a_first: Addr) (v: Version) (wadv w1 : LWord) φ :
     let len_region := length (buffer_code a_first) + length buffer_data in
+    ContiguousRegion a_first len_region →
 
-   ⊢ (( PC ↦ᵣ LCap RWX a_first (a_first ^+ len_region)%a a_first v
-      ∗ r_t0 ↦ᵣ wadv
-      ∗ r_t1 ↦ᵣ w1
-      ∗ codefrag a_first v (buffer_code a_first)
-      ∗ ▷ (let a_data := (a_first ^+ 4)%a in
-             PC ↦ᵣ updatePcPermL wadv
+    ⊢ (( PC ↦ᵣ LCap RWX a_first (a_first ^+ len_region)%a a_first v
            ∗ r_t0 ↦ᵣ wadv
-           ∗ r_t1 ↦ᵣ LCap RWX a_data (a_data ^+ 3)%a a_data v
+           ∗ r_t1 ↦ᵣ w1
            ∗ codefrag a_first v (buffer_code a_first)
-           -∗ WP Seq (Instr Executable) {{ φ }}))
-      -∗ WP Seq (Instr Executable) {{ φ }})%I.
+           ∗ ▷ (let a_data := (a_first ^+ 4)%a in
+                PC ↦ᵣ updatePcPermL wadv
+                  ∗ r_t0 ↦ᵣ wadv
+                  ∗ r_t1 ↦ᵣ LCap RWX a_data (a_data ^+ 3)%a a_data v
+                  ∗ codefrag a_first v (buffer_code a_first)
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+         -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros len_region.
-    iIntros "(HPC & Hr0 & Hr1 & Hprog & Hφ)".
-    codefrag_facts "Hprog".
-
-    let hi := iFresh in
-    let hcont := iFresh in
-    iInstr_lookup "Hprog" as hi hcont;
-    try wp_instr;
-    (* TODO as far as I could debug the proofmode,
-       - in `iApplyCapAuto` does not destructs the ressources entirely: iInstr_close get stucks.
-       I don't know where it come from though
-       - also, it doesn't rename correctly ?
-       - solve_pure should be able to derive isCorrectLPC automatically,
-       but it seems that it requires SubBounds in the context, and codefrag_facts does not
-       generate it
-     *)
-    iInstr_get_rule hi ltac:(fun rule =>
-                               iApplyCapAuto rule;
-                                       [ .. | idtac]).
-    1: { subst len_region. cbn in *.
-         assert (SubBounds a_first (a_first ^+ 8%nat)%a a_first (a_first ^+ 4%nat)%a).
-         admit. solve_pure.
-    }
-    lazymatch goal with |- context [(Esnoc _ ?hi _)] => iDestruct hi as "[? ?]" end.
-    iInstr_close "Hprog"; try wp_pure.
-
-    iInstr "Hprog".
+    iIntros (Hcont) "(HPC & Hr0 & Hr1 & Hprog & Hφ)".
     iGo "Hprog".
     { transitivity (Some (a_first ^+ 4)%a); auto. solve_addr. }
     { transitivity (Some (a_first ^+ 7)%a); auto. solve_addr. }
