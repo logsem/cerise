@@ -419,7 +419,7 @@ Section logrel.
     all: iExists (fixpoint interp1); iFrame.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
-    
+
   (* Get the validity of a region containing only valid words *)
   Lemma region_valid_alloc E (b e a: Addr) l p  :
     PermFlowsTo RO p →
@@ -453,16 +453,16 @@ Section logrel.
   Proof.
     rewrite /compute_mask. revert E.
     induction ls using set_ind_L; intros E.
-    { by rewrite set_fold_empty. }    
+    { by rewrite set_fold_empty. }
     rewrite set_fold_disj_union_strong; [|set_solver..].
     rewrite set_fold_singleton.
     etransitivity; [apply IHls|].
     set_solver.
   Qed.
-  
+
   Lemma compute_mask_subseteq E (ls1 ls2 : gset Addr) :
     ls2 ⊆ ls1 → compute_mask E ls1 ⊆ compute_mask E ls2.
-  Proof.    
+  Proof.
     rewrite /compute_mask.
     revert E ls1.
     induction ls2 using set_ind_L.
@@ -473,7 +473,7 @@ Section logrel.
     assert (∃ Y, ls1 = {[x]} ∪ Y ∧ {[x]} ## Y) as [Y [-> Hdisj] ].
     { apply subseteq_disjoint_union_L. set_solver. }
     rewrite set_fold_disj_union_strong; [|set_solver..].
-    rewrite set_fold_singleton. 
+    rewrite set_fold_singleton.
     apply IHls2. set_solver.
   Qed.
 
@@ -509,7 +509,7 @@ Section logrel.
     | WCap p b' e' a => PermFlows RO p /\ (forall x, b' <= x < e' -> x ∈ ls)%a
     | _ => False
     end.
-  
+
   Lemma region_valid_in_region_ind E (l1 l2 : list Addr) :
     Forall (λ a, ↑logN.@a ⊆ E) (l1 ++ l2) ->
     NoDup l1 -> NoDup l2 ->
@@ -595,7 +595,7 @@ Section logrel.
     { rewrite app_nil_l. auto. }
     { apply NoDup_nil. auto. }
     { apply finz_seq_between_NoDup. }
-    { apply disjoint_nil_r. exact 0%a. }
+    { eapply disjoint_nil_r. exact 0%a. }
     { auto. }
     { rewrite app_nil_l.
       iDestruct (big_sepL2_length with "Hl") as %Hlen.
@@ -615,7 +615,7 @@ Section logrel.
       all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
         try iExists _;iFrame;try iSplit;iIntros (?);auto. }
   Qed.
-    
+
   Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
     ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
     interp (WSealRange (b1,b2) b e a).

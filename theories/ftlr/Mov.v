@@ -35,16 +35,13 @@ Section fundamental.
       iMod ("Hcls" with "[Ha HP]"); [iExists w; iFrame|iModIntro]. iNext.
       iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
-    { (* TODO: it might be possible to refactor the proof below by using more simplify_map_eq *)
-      (* TODO: use incrementPC_inv *)
-      match goal with
-      | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq.
+    { incrementPC_inv as (p''&b''&e''&a''& ? & HPC & Z & Hregs'); simplify_map_eq.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]"); [iExists w; iFrame|iModIntro].
       iNext.
       destruct (reg_eq_dec dst PC).
-      { subst dst. rewrite lookup_insert in HPC. inv HPC.
+      { subst dst.
+        simplify_map_eq.
         repeat rewrite insert_insert.
         destruct src; simpl in *; try discriminate.
         destruct (reg_eq_dec PC r0).
@@ -66,8 +63,7 @@ Section fundamental.
             iNext; iIntros "_".
             iApply wp_value.
             iIntros. discriminate. } }
-      { rewrite lookup_insert_ne in HPC; auto.
-        rewrite lookup_insert in HPC. inv HPC.
+      { simplify_map_eq.
         iIntros "_".
         iApply ("IH" $! (<[dst:=w0]> _) with "[%] [] [Hmap] [$Hown]"); eauto.
         - intros; simpl.
@@ -75,7 +71,7 @@ Section fundamental.
           destruct (reg_eq_dec dst x0); auto; right; split; auto.
           rewrite lookup_insert_is_Some.
           destruct (reg_eq_dec PC x0); auto; right; split; auto.
-       - iIntros (ri v Hri Hvs).
+        - iIntros (ri v Hri Hvs).
           destruct (reg_eq_dec ri dst).
           + subst ri. rewrite lookup_insert in Hvs.
             destruct src; simplify_map_eq.
@@ -84,8 +80,8 @@ Section fundamental.
               { subst r0.
                 - simplify_map_eq.
                   rewrite !fixpoint_interp1_eq /=.
-                destruct Hp as [Hp | Hp]; subst p''; try subst g'';
-                  (iFrame "Hinv Hexec"). }
+                  destruct Hp as [Hp | Hp]; subst p''; try subst g'';
+                    (iFrame "Hinv Hexec"). }
               simplify_map_eq.
               iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0". auto.
           + repeat rewrite lookup_insert_ne in Hvs; auto.

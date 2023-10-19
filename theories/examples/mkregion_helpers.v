@@ -120,19 +120,27 @@ Proof.
   intros. rewrite dom_mkregion_eq // elem_of_list_to_set //.
 Qed.
 
+
+(* Note that this tactic can only be applied on the left of the disjointness condition *)
+Ltac union_resolve_mkregion :=
+  repeat (
+      try lazymatch goal with
+        | |- _ ∪ _ ⊆ _ =>
+            etransitivity; [ eapply union_mono_l | eapply union_mono_r ]
+        end;
+      [ first [ apply dom_mkregion_incl | reflexivity ] |..]
+    ).
+
+(* overwrite `disjoint_map_to_list` ltac to also simplify list_to_map occurrences *)
 Ltac disjoint_map_to_list :=
   rewrite (@map_disjoint_dom _ _ (gset Addr)) ?dom_union_L;
   eapply disjoint_mono_l;
   rewrite ?dom_list_to_map_singleton;
-  repeat (
-    try lazymatch goal with
-        | |- _ ∪ _ ⊆ _ =>
-          etransitivity; [ eapply union_mono_l | eapply union_mono_r ]
-        end;
-    [ first [ apply dom_mkregion_incl | reflexivity ] |..]
-  );
+  union_resolve_mkregion;
   try match goal with |- _ ## dom (mkregion _ _ _) =>
-    eapply disjoint_mono_r; [ apply dom_mkregion_incl |] end;
+                        eapply disjoint_mono_r; [ apply dom_mkregion_incl | ] end;
+  try match goal with |- _ ## dom (list_to_map _ ) =>
+                        rewrite dom_list_to_map_L end;
   rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
   apply stdpp_extra.list_to_set_disj.
 

@@ -126,6 +126,12 @@ Definition is_sealed (w : Word) : bool :=
   |  _ => false
   end.
 
+Definition is_sealed_with_o (w : Word) (o : OType) : bool :=
+  match w with
+  | WSealed o' sb => (o =? o')%ot
+  | _ => false end.
+
+
 (* non-E capability or range of seals *)
 Definition is_mutable_range (w : Word) : bool:=
   match w with
@@ -252,6 +258,13 @@ Lemma PermFlows_trans P1 P2 P3 :
 Proof.
   intros Hp1 Hp2. rewrite /PermFlows /PermFlowsTo.
   destruct P1,P3,P2; simpl; auto; contradiction.
+Qed.
+
+Lemma PermFlowsToPermFlows p p':
+  PermFlowsTo p p' <-> PermFlows p p'.
+Proof.
+  rewrite /PermFlows; split; intros; auto.
+  destruct (Is_true_reflect (PermFlowsTo p p')); auto.
 Qed.
 
 Lemma readAllowed_nonO p p' :

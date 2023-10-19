@@ -300,5 +300,31 @@ Section cap_lang_rules.
     Unshelve. all: auto.
   Qed.
 
+  Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a w r1 r2 p b e a wsealed pc_a' :
+    decodeInstrW w = UnSeal r2 r1 r2 →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    (pc_a + 1)%a = Some pc_a' →
+    is_sealed_with_o wsealed a = false →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ WSealRange p b e a
+          ∗ ▷ r2 ↦ᵣ wsealed }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec as [ | ]; last by iApply "Hφ".
+    { destruct wsealed as [| | o' sb']; try by simplify_map_eq.
+      exfalso.
+      rewrite /is_sealed_with_o //= in Hfalse.
+      destruct (decide (o' = a)) as [->| Hne]; [solve_addr | simplify_map_eq]. }
+  Qed.
 
 End cap_lang_rules.

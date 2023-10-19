@@ -15,46 +15,30 @@ Set Default Proof Mode "Classic".
 
 Section codefrag.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          `{MP: MachineParameters}.
+    `{MP: MachineParameters}.
 
-(* TODO: move elsewhere: to region.v? *)
-Definition codefrag (a0: Addr) (cs: list Word) :=
-  ([[ a0, (a0 ^+ length cs)%a ]] ↦ₐ [[ cs ]])%I.
-
-Lemma codefrag_contiguous_region a0 cs :
-  codefrag a0 cs -∗
-  ⌜ContiguousRegion a0 (length cs)⌝.
-Proof using.
-  iIntros "Hcs". unfold codefrag.
-  iDestruct (big_sepL2_length with "Hcs") as %Hl.
-  set an := (a0 + length cs)%a in Hl |- *.
-  unfold ContiguousRegion.
-  destruct an eqn:Han; subst an; [ by eauto |]. cbn.
-  exfalso. rewrite finz_seq_between_length /finz.dist in Hl.
-  solve_addr.
-Qed.
-
-Lemma codefrag_lookup_acc a0 (cs: list Word) (i: nat) w:
-  SimplTC (cs !! i) (Some w) →
-  codefrag a0 cs -∗
-  (a0 ^+ i)%a ↦ₐ w ∗ ((a0 ^+ i)%a ↦ₐ w -∗ codefrag a0 cs).
-Proof.
-  iIntros (Hi) "Hcs".
-  iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
-  rewrite /codefrag.
-  destruct Hub as [? Hub].
-  iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
-  eapply finz_seq_between_lookup with (n:=length cs).
-  { apply lookup_lt_is_Some_1; eauto. }
-  { solve_addr. }
-  iFrame.
-Qed.
+  Lemma codefrag_lookup_acc a0 (cs: list Word) (i: nat) w:
+    SimplTC (cs !! i) (Some w) →
+    codefrag a0 cs -∗
+      (a0 ^+ i)%a ↦ₐ w ∗ ((a0 ^+ i)%a ↦ₐ w -∗ codefrag a0 cs).
+  Proof.
+    iIntros (Hi) "Hcs".
+    iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
+    rewrite /codefrag.
+    destruct Hub as [? Hub].
+    iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
+    eapply finz_seq_between_lookup with (n:=length cs).
+    { apply lookup_lt_is_Some_1; eauto. }
+    { solve_addr. }
+    iFrame.
+  Qed.
 
 End codefrag.
 
 (* Administrative reduction steps *)
 Ltac wp_pure := iApply wp_pure_step_later; [ by auto | iNext ; iIntros "_" ].
-(* TODO iIntros "_" fixes the lc 1 introduces in Iris 4.0.0, but I'm not sure that is the right place *)
+(* NOTE the last `iIntros "_"` fixes the later 1 introduceed in Iris 4.0.0.
+   Remove it from the tactic if necessary. *)
 Ltac wp_end := iApply wp_value.
 Ltac wp_instr :=
   iApply (wp_bind (fill [SeqCtx]));

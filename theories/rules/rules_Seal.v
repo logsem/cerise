@@ -332,4 +332,28 @@ Section cap_lang_rules.
     Unshelve. all: auto.
   Qed.
 
+  Lemma wp_seal_nosb_r2 E pc_p pc_b pc_e pc_a w r1 r2 p b e a w2 pc_a' :
+    decodeInstrW w = Seal r2 r1 r2 →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    (pc_a + 1)%a = Some pc_a' →
+    is_sealb w2 = false →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ WSealRange p b e a
+          ∗ ▷ r2 ↦ᵣ w2 }}}
+      Instr Executable @ E
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_Seal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec as [ | ]; last by iApply "Hφ".
+    { by simplify_map_eq. }
+  Qed.
+
 End cap_lang_rules.
