@@ -1,8 +1,10 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules macros_helpers macros.
+From cap_machine Require Import rules macros.
 From cap_machine Require Import rules_binary logrel_binary fundamental_binary.
+From cap_machine.proofmode Require Import tactics_helpers.
+
 
 Section counter.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}

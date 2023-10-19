@@ -1,14 +1,16 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine.examples Require Import dynamic_sealing interval keylist malloc.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel fundamental.
+From cap_machine.proofmode Require Import
+  contiguous tactics_helpers solve_pure proofmode map_simpl register_tactics.
+From cap_machine.examples Require Import arch_sealing malloc.
+From cap_machine.examples.interval_arch Require Import interval_arch.
 
 Section interval_closure.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-          {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+          {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
   Definition interval f_m :=
@@ -116,14 +118,13 @@ Section interval_closure.
       (<[r_t6:=WInt 0]> (<[r_t7:=WInt 0]> (<[r_t8:=WInt 0]>
        (<[r_t9:=WInt 0]> (<[r_t10:=WInt 0]> rmap)))))))))))))).
 
-
   Lemma interval_closure_functional_spec f_m f_s offset_to_interval
         a_first i_first s_first a_move
         pc_p pc_b pc_e
         s_p s_b s_e
         b_r e_r a_r malloc_r makeseal_r
-        b_rs e_rs
-        b_m e_m mallocN
+        b_rs b_rs' e_rs
+        b_m e_m mallocN b_s e_s sallocN
         wret rmap Φ :
 
     (* PC assumptions *)
@@ -134,15 +135,19 @@ Section interval_closure.
     SubBounds pc_b pc_e a_first (a_first ^+ length (interval_closure f_m f_s offset_to_interval))%a →
     SubBounds pc_b pc_e i_first (i_first ^+ length (interval f_m))%a →
     SubBounds s_b s_e s_first (s_first ^+ (length unseal_instrs
-                                           + length (seal_instrs 0)
-                                           + length (make_seal_preamble_instrs 0)))%a →
+                                           + length (seal_instrs)
+                                           + length (make_seal_preamble_instrs 0 1)))%a →
 
     (* environment table: contains the makeseal entry, and malloc *)
     withinBounds b_r e_r malloc_r = true →
     withinBounds b_r e_r makeseal_r = true →
     (a_r + f_m)%a = Some malloc_r →
     (a_r + f_s)%a = Some makeseal_r →
-    (b_rs + 1)%a = Some e_rs →
+    (b_rs + 1)%a = Some b_rs' →
+    (b_rs' + 1)%a = Some e_rs →
+
+    (* malloc and salloc different *)
+    (up_close (B:=coPset) mallocN ## ↑sallocN) →
 
     (* offset between preamble and interval library *)
     (a_first + interval_closure_move_offset)%a = Some a_move →
@@ -158,15 +163,18 @@ Section interval_closure.
     ∗ codefrag i_first (interval f_m)
 
     (* Code and environment table of the seal library *)
-    ∗ codefrag s_first (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0)
-    ∗ s_b ↦ₐ WCap RO b_rs e_rs b_rs ∗ b_rs ↦ₐ WCap E b_m e_m b_m
+    ∗ codefrag s_first (unseal_instrs ++ seal_instrs ++ make_seal_preamble_instrs 0 1)
+    ∗ s_b ↦ₐ WCap RO b_rs e_rs b_rs
+    ∗ b_rs ↦ₐ WCap E b_m e_m b_m ∗ b_rs' ↦ₐ WCap E b_s e_s b_s (* Restricted assumption: both closures at the start *)
 
-    (* Environment table for interval library *)
+    (* Environment table for interval library - no need for salloc here *)
     ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
     ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
-    ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
+    ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs)))%a
     (* Malloc invariant *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    (* Salloc invariant *)
+    ∗ na_inv logrel_nais sallocN (salloc_inv b_s e_s)
 
     (* registers *)
     ∗ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
@@ -182,16 +190,16 @@ Section interval_closure.
          ∗ codefrag i_first (interval f_m)
          ∗ pc_b ↦ₐ WCap RO b_r e_r a_r
          ∗ malloc_r ↦ₐ WCap E b_m e_m b_m
-         ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
+         ∗ makeseal_r ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs)))%a
          ∗ r_t0 ↦ᵣ wret
-         ∗ (∃ b e b0 e0 b3 e3 benv0 eenv γ ll ll' a_imin a_imax,
+         ∗ (∃ b e b0 e0 b3 e3 benv0 eenv o ll ll' a_imin a_imax,
                ⌜(b + 8)%a = Some e
                ∧ (b0 + 8)%a = Some e0
                ∧ (b3 + 8)%a = Some e3
                ∧ (i_first + length (makeint f_m))%a = Some a_imin
                ∧ (i_first + length (makeint f_m ++ imin))%a = Some a_imax⌝
-         ∗ sealLL sealLLN ll γ isInterval
-         ∗ na_inv logrel_nais sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
+         ∗ seal_state sealLLN ll o isInterval
+         ∗ na_inv logrel_nais sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first)
          ∗ r_t1 ↦ᵣ WCap E b e b
          ∗ r_t2 ↦ᵣ WCap E b0 e0 b0
          ∗ r_t3 ↦ᵣ WCap E b3 e3 b3
@@ -208,8 +216,8 @@ Section interval_closure.
       WP Seq (Instr Executable) {{ Φ }}.
   Proof.
     iIntros (Hpc_p Hs_p Hbounds_preamble Hbounds_interval Hbounds_seal Hwb_mallocr Hwb_makesealr
-                   Hlink_mallocr Hlink_makesealr Hsealtable Ha_move Hi_first Hdom).
-    iIntros "(Hcode & Hinterval & Hseal & Hs_b & Hb_rs & Hpc_b & Hmalloc_r & Hmakeseal_r & #Hmalloc
+                   Hlink_mallocr Hlink_makesealr Hsealtablem Hsealtables Hmsdisj Ha_move Hi_first Hdom).
+    iIntros "(Hcode & Hinterval & Hseal & Hs_b & Hb_rs & Hb_rs' & Hpc_b & Hmalloc_r & Hmakeseal_r & #Hmalloc & #Hsalloc
               & HPC & Hr_t0 & Hregs & Hown & Hfailed & HΦ)".
 
     rewrite /interval_closure.
@@ -236,11 +244,7 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     (* get some general purpose registers *)
-    assert (is_Some (rmap !! r_temp1)) as [w Hr_temp1];[apply elem_of_dom;rewrite Hdom;set_solver+|].
-    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]".
-    { rewrite !lookup_insert_ne// lookup_delete_ne//. }
-    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
+    iExtractList "Hregs" [r_temp1;r_t2;r_t3] as [ "Hr_temp1" ; "Hr_t2" ; "Hr_t3"].
 
     (* Mov r_temp1 r_t1 *)
     focus_block 1 "Hcode" as a_mid0 Ha_mid0 "Hblock" "Hcont".
@@ -254,54 +258,28 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     (* prepare to jump to makeseal *)
-    assert (is_Some (rmap !! r_temp6)) as [w0 Hr_temp6];[apply elem_of_dom;rewrite Hdom;set_solver+|].
-    iDestruct (big_sepM_delete _ _ r_temp6 with "Hregs") as "[Hr_temp6 Hregs]".
-    { rewrite !lookup_delete_ne// !lookup_insert_ne// lookup_delete_ne//. }
+    iExtract "Hregs" r_temp6 as "Hr_temp6".
     focus_block 3 "Hcode" as a_mid2 Ha_mid2 "Hblock" "Hcont".
     iGo "Hblock".
 
     (* reconstruct registers *)
-    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp6 with "[$Hregs $Hr_temp6]") as "Hregs"; [by simplify_map_eq|].
+    iInsertList "Hregs" [r_temp1; r_t2; r_t3; r_t1; r_temp6].
 
-    repeat (rewrite -(delete_insert_ne _ r_t1)//); rewrite !(delete_commute _ _ r_t1)//;
-    rewrite -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)//.
-    rewrite insert_delete_insert.
-
-    repeat (rewrite -(delete_insert_ne _ r_t2)//); rewrite !(delete_commute _ _ r_t2)//.
-    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete_insert.
-
-    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete_insert.
-
-    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete_insert.
-
-    rewrite (insert_commute _ r_t2 r_t3)//. rewrite delete_insert_delete.
-    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete_insert.
-
-    rewrite (insert_commute _ r_temp1 r_t2)//. rewrite insert_insert.
-
-    iApply make_seal_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hb_rs Hown Hregs"].
+    iApply make_seal_spec; [..|iFrame "Hmalloc Hsalloc Hb_rs Hb_rs' Hown Hregs"]; iFrameAutoSolve.
     { rewrite !dom_insert_L. rewrite Hdom. set_solver+. }
-    { solve_addr+Hsealtable. }
-    { solve_addr+Hsealtable. }
+    { solve_addr+Hsealtablem Hsealtables. }
+    { solve_addr+. }
+    { solve_addr+Hsealtablem Hsealtables. }
     { solve_ndisj. }
-    iNext. iIntros "(HPC & Hr_t0 & Hs_b & Hb_rs & Hseal_res & Hregs & Hseal & Hown)".
+    { solve_ndisj. }
+    { solve_ndisj. }
+    iNext. iIntros "(HPC & Hr_t0 & Hs_b & Hb_rs & Hb_rs' & Hseal_res & Hregs & Hseal & Hown)".
     iDestruct "Hseal_res" as (b1 e1 b2 e2 ll ll')
                                "(Hr_t1 & Hr_t2 & %He1 & %He2 & Hact1 & Hact2 & %Hll & HsealLL)".
-    iDestruct "HsealLL" as (γ) "#HsealLL".
+    iDestruct "HsealLL" as (o) "#HsealLL".
 
     (* get some registers *)
-    rewrite !(insert_commute _ _ r_temp1)// !(delete_insert_ne _ _ r_temp1)//
-            !(insert_commute _ _ r_temp1)//.
-    assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_dom;rewrite Hdom;set_solver+|].
-    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]".
-    { rewrite !lookup_insert_ne// !lookup_delete_ne// !lookup_insert_ne//. }
-    rewrite delete_insert_ne//.
-    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    rewrite delete_insert_delete.
+    iExtractList "Hregs" [r_temp2;r_temp1] as ["Hr_temp2";"Hr_temp1"].
 
     rewrite updatePcPerm_cap_non_E;[|inv Hpc_p;auto].
     iGo "Hblock". solve_addr+Henvsize Henvincr.
@@ -315,7 +293,7 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     (* We can now allocate the seal environment invariant *)
-    iMod (na_inv_alloc logrel_nais _ sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
+    iMod (na_inv_alloc logrel_nais _ sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first )
             with "[Hact1 Hact2 Hb_rs Hs_b Hbenv0 Hbenv1 Hseal]") as "#Hseal_env".
     { iNext. iFrame. iExists _,_,_,_,_. iFrame. repeat iSplit;eauto.
       all: iPureIntro. by constructor. inversion Hbounds_seal;auto. solve_addr+.
@@ -323,10 +301,7 @@ Section interval_closure.
     instantiate (3 := sealLLN). instantiate (2 := isInterval). Unshelve. 2: apply _.
 
     focus_block 4 "Hcode" as a_mid3 Ha_mid3 "Hblock" "Hcont".
-
-    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs";[by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs";[by simplify_map_eq|].
-    map_simpl "Hregs".
+    iInsertList "Hregs" [r_temp1;r_temp2].
 
     iApply crtcls_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
     { rewrite !dom_insert_L !dom_delete_L !dom_insert_L Hdom. set_solver+. }
@@ -337,10 +312,7 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     focus_block 5 "Hcode" as a_mid4 Ha_mid4 "Hblock" "Hcont".
-    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    assert (is_Some (rmap !! r_temp3)) as [w3 Hr_temp3];[apply elem_of_dom;rewrite Hdom;set_solver+|].
-    iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
+    iExtractList "Hregs" [r_temp1;r_temp3;r_temp2] as ["Hr_temp1";"Hr_temp3"; "Hr_temp2"].
 
     rewrite /interval.
     iDestruct (codefrag_contiguous_region with "Hinterval") as %Hint_cont.
@@ -348,10 +320,7 @@ Section interval_closure.
     iGo "Hblock".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp3 with "[$Hregs $Hr_temp3]") as "Hregs"; [by simplify_map_eq|].
-    map_simpl "Hregs".
+    iInsertList "Hregs" [r_temp1;r_temp3;r_temp2].
     focus_block 6 "Hcode" as a_mid5 Ha_mid5 "Hblock" "Hcont".
 
     iApply crtcls_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
@@ -364,19 +333,13 @@ Section interval_closure.
     clear dependent a_mid0 a_mid3 a_mid4.
 
     focus_block 7 "Hcode" as a_mid6 Ha_mid6 "Hblock" "Hcont".
-    assert (is_Some (rmap !! r_temp4)) as [w4 Hr_temp4];[apply elem_of_dom;rewrite Hdom;set_solver+|].
-    iDestruct (big_sepM_delete _ _ r_temp4 with "Hregs") as "[Hr_temp4 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
+    iExtractList "Hregs" [r_temp4;r_temp1;r_temp2] as ["Hr_temp4";"Hr_temp1"; "Hr_temp2"].
     assert (ContiguousRegion i_first (length (makeint f_m ++ imin))) as [a_imax Ha_imax];
       [solve_addr+Hint_cont|].
     iGo "Hblock". instantiate (1:=a_imax). solve_addr+Ha_imax Ha_imin.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp4 with "[$Hregs $Hr_temp4]") as "Hregs"; [by simplify_map_eq|].
-    map_simpl "Hregs".
+    iInsertList "Hregs" [r_temp4;r_temp1;r_temp2].
 
     focus_block 8 "Hcode" as a_mid7 Ha_mid7 "Hblock" "Hcont".
 
@@ -389,27 +352,17 @@ Section interval_closure.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     focus_block 9 "Hcode" as a_mid8 Ha_mid8 "Hblock" "Hcont".
-    iDestruct (big_sepM_delete _ _ r_temp6 with "Hregs") as "[Hr_temp6 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp3 with "Hregs") as "[Hr_temp3 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_temp4 with "Hregs") as "[Hr_temp4 Hregs]";[by simplify_map_eq|].
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
-    map_simpl "Hregs".
+    iExtractList "Hregs" [r_temp6;r_temp1;r_temp2;r_temp3;r_temp4;r_t3] as ["Hr_temp6";"Hr_temp1";"Hr_temp2";"Hr_temp3";"Hr_temp4";"Hr_t3"].
     iGo "Hblock".
-    iDestruct (big_sepM_insert _ _ r_temp6 with "[$Hregs $Hr_temp6]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp4 with "[$Hregs $Hr_temp4]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp3 with "[$Hregs $Hr_temp3]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp2 with "[$Hregs $Hr_temp2]") as "Hregs"; [by simplify_map_eq|].
-    iDestruct (big_sepM_insert _ _ r_temp1 with "[$Hregs $Hr_temp1]") as "Hregs"; [by simplify_map_eq|].
-    map_simpl "Hregs". unfocus_block "Hblock" "Hcont" as "Hcode".
+    iInsertList "Hregs" [r_temp6;r_temp4;r_temp3;r_temp2;r_temp1].
+    unfocus_block "Hblock" "Hcont" as "Hcode".
     repeat rewrite -(delete_insert_ne _ r_t3)//.
     repeat rewrite -(delete_insert_ne _ r_t1)//.
     repeat rewrite -(delete_insert_ne _ r_t2)//.
 
     (* continuation *)
     iApply "HΦ". unfold rmapfinal. iFrame. iExists _,_,_,_,_,_,_,_.
-    iExists _,_,_,_,_. iFrame. iFrame "#". auto.
+    iExists _,_,_,_,_. iFrame "∗ #". auto.
   Qed.
 
 

@@ -1,6 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-From cap_machine Require Import logrel macros_helpers macros rules proofmode.
+From cap_machine Require Import logrel macros rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode.
 
 Section call.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}

@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules rules_binary logrel macros_helpers.
+From cap_machine Require Import rules rules_binary logrel.
+From cap_machine.proofmode Require Import tactics_helpers.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc_binary.
 From cap_machine Require Import macros.
 

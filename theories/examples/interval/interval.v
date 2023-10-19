@@ -1,10 +1,11 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous fundamental.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import keylist dynamic_sealing.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine.proofmode Require Import
+  contiguous tactics_helpers solve_pure proofmode map_simpl.
 
 Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
 

@@ -86,7 +86,6 @@ Ltac iExtract_core m' Hmap rnames Hregs Hrdom :=
       | nil => idtac
       | ?Hname :: ?Htail =>
           extract_pointsto_map m' Hmap rname Hrdom Hname;
-          (* rewrite hrdom with the deleted register `rname` in mind *)
           apply (f_equal (fun x => x ∖ {[rname]})) in Hrdom;
           rewrite -dom_delete_L in Hrdom;
           iExtract_core (delete rname m') Hmap rtail Htail Hrdom
@@ -128,7 +127,6 @@ Ltac iInsert_core m' Hmap rnames Hrdom :=
       match goal with |- context [ Esnoc _ (INamed ?Hname) ?mtch ] =>
           lazymatch mtch with | context [(rname ↦ᵣ ?rval)%I] =>
             insert_pointsto_map m' Hmap rname Hrdom Hname;
-            (* rewrite hrdom with the inserted register `rname` in mind *)
             apply (f_equal (fun x => ({[rname]} ∪ x))) in Hrdom;
             rewrite -(dom_insert_L _ _ rval) in Hrdom;
             iInsert_core (<[rname:=rval]> m') Hmap rtail Hrdom
@@ -157,33 +155,3 @@ Tactic Notation "iInsert" constr(Hmap) constr(rname):=
 
 Tactic Notation "iInsertList" constr(Hmap) constr(rnames):=
     iInsert0 Hmap rnames.
-
-(* From cap_machine Require Import stdpp_extra rules_base. *)
-(* Section test. *)
-(*   Context `{memG Σ, regG Σ}. *)
-
-(*   Lemma foo (w1 w2 w3: Word) rmap: *)
-(*     dom (gset RegName) rmap = all_registers_s ∖ {[r_t1]}  → *)
-(*     ([∗ map] k↦y ∈ (<[r_t3:=w1]> (<[r_t2:=w2]> (<[r_t1:=w3]> rmap))), k ↦ᵣ y) -∗ *)
-(*     r_t1 ↦ᵣ w1 ∗ r_t2 ↦ᵣ w2. *)
-(*   Proof. *)
-(*     iIntros (Hdomm) "Hregm". *)
-(*     iExtractList "Hregm" [r_t1;r_t2] as ["Hr_t1";"Hr_t2"]. *)
-(*   Abort. *)
-
-(*   Lemma extract_opaque rmap : *)
-(*     dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_t0]} → *)
-(*     ([∗ map] r↦w ∈ rmap, r ↦ᵣ w) -∗ True. *)
-(*   Proof. *)
-(*     iIntros (Hdomm) "Hregm". *)
-(*     iExtract "Hregm" r_t8 as "Hr_t8" . *)
-(*   Abort. *)
-
-(*   Definition r_env : RegName := r_t30. *)
-(*   Lemma  foo (w1 w2 : Word) b2 e2 rmap: *)
-(*     dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_t0; r_env; r_t1; r_t2]} → *)
-(*       ([∗ map] r_i↦w_i ∈ <[r_t2:=WInt 0]> (<[r_t3:=WInt 0]> (<[r_t4:=WInt 0]> (<[r_t5:=WInt 0]> (delete r_t1 (<[r_env:=WCap E b2 e2 b2]> (<[r_t1:=w1]> (<[r_t2:=w2]> (<[r_t6:=w1]> (<[r_t7:=w2]> rmap))))))))), r_i ↦ᵣ w_i) -∗ r_t1 ↦ᵣ w1. *)
-(*   Proof. iIntros (Hdom) "Hregs". *)
-(*      iExtractList "Hregs" [r_env;r_t2;r_t6;r_t7] as ["Hr_env";"Hr_t2";"Hr_t6";"Hr_t7"]. *)
-(*   Abort. *)
-(* End test. *)

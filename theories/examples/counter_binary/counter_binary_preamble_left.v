@@ -3,7 +3,9 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules_binary logrel_binary fundamental_binary.
-From cap_machine.examples Require Import macros macros_binary macros_helpers malloc_binary counter_binary counter_binary_preamble_def.
+From cap_machine.examples Require Import macros macros_binary malloc_binary.
+From cap_machine.proofmode Require Import tactics_helpers.
+From cap_machine.examples.counter_binary Require Import counter_binary counter_binary_preamble_def.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.

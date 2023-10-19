@@ -1,14 +1,16 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import arch_sealing interval_arch malloc interval_closure_arch interval_client_arch.
-From cap_machine Require Import solve_pure proofmode map_simpl register_tactics.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel fundamental.
+From cap_machine.examples Require Import dynamic_sealing keylist malloc.
+From cap_machine.examples.interval Require Import interval interval_closure interval_client.
+From cap_machine.proofmode Require Import
+  contiguous tactics_helpers solve_pure proofmode map_simpl.
 
 Section interval_client.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg : sealStoreG Σ}
-          {nainv: logrel_na_invs Σ}
+          {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
           `{MP: MachineParameters}.
 
   Definition r_temp7 := r_t27.
@@ -36,7 +38,7 @@ Section interval_client.
                   Mov r_t1 PC;
                   Lea r_t1 offset_to_checki ] ++
     crtcls_instrs f_m ++
-    (* cleanup: note that we are exposing the interval library *)
+    (* cleanup: note that we exposing the interval library *)
     encodeInstrsW [ Load r_t2 r_temp8;
                   Lea r_temp8 1;
                   Load r_t3 r_temp8;
@@ -95,27 +97,26 @@ Section interval_client.
   Definition actN : namespace := clientN .@ "actN".
 
   Definition mallocN : namespace := nroot .@ "mallocN".
-  Definition sallocN : namespace := nroot .@ "sallocN".
   Definition assertN : namespace := nroot .@ "assertN".
 
   Definition int_bounds i_b i_e i_a_first f_m_i f_s_i i_first s_b s_e s_first offset_to_interval :=
     SubBounds i_b i_e i_a_first (i_a_first ^+ length (interval_closure f_m_i f_s_i offset_to_interval))%a ∧
     SubBounds i_b i_e i_first (i_first ^+ length (interval f_m_i))%a ∧
     SubBounds s_b s_e s_first (s_first ^+ (length unseal_instrs
-                                           + length (seal_instrs)
-                                           + length (make_seal_preamble_instrs 0 1)))%a.
+                                           + length (seal_instrs 0)
+                                           + length (make_seal_preamble_instrs 0)))%a.
 
-  Definition int_table b_r_i e_r_i malloc_r_i makeseal_r_i a_r_i f_m_i f_s_i b_rs b_rs' e_rs :=
+  Definition int_table b_r_i e_r_i malloc_r_i makeseal_r_i a_r_i f_m_i f_s_i b_rs e_rs :=
     withinBounds b_r_i e_r_i malloc_r_i = true ∧
     withinBounds b_r_i e_r_i makeseal_r_i = true ∧
     (a_r_i + f_m_i)%a = Some malloc_r_i ∧
     (a_r_i + f_s_i)%a = Some makeseal_r_i ∧
-    (b_rs + 1)%a = Some b_rs' ∧
-    (b_rs' + 1)%a = Some e_rs.
+    (b_rs + 1)%a = Some e_rs.
 
   Definition int_offsets i_a_first i_a_move offset_to_interval i_first :=
     (i_a_first + interval_closure_move_offset)%a = Some i_a_move ∧
     (i_a_move + offset_to_interval)%a = Some i_first.
+
 
   Lemma interval_client_closure_functional_spec
         a_first c_first a_move (* client level addresses *)
@@ -127,10 +128,10 @@ Section interval_client.
         s_p s_b s_e (* seal PC *)
         i_a_first i_first s_first i_a_move (* interval and seal addresses *)
         b_r_i e_r_i a_r_i malloc_r_i makeseal_r_i (* interval table *)
-        b_rs b_rs' e_rs (* seal table *)
-        b_m e_m b_s e_s (* malloc & salloc *)
+        b_rs e_rs (* seal table *)
+        b_m e_m (* malloc *)
         b_a a_flag e_a (* assert *)
-        (rmap : gmap _ _) (* for very large maps, Coq does not simplify rmap's inferred `leibnizO Reg` type properly in `type of` ltac statements *):
+        rmap :
 
     (* PC assumptions *)
     ExecPCPerm pc_p →
@@ -162,10 +163,7 @@ Section interval_client.
     (* (a_r_i + f_m_i)%a = Some malloc_r_i → *)
     (* (a_r_i + f_s_i)%a = Some makeseal_r_i → *)
     (* (b_rs + 1)%a = Some e_rs → *)
-    int_table b_r_i e_r_i malloc_r_i makeseal_r_i a_r_i f_m_i f_s_i b_rs b_rs' e_rs →
-
-    (* malloc and salloc different *)
-    (up_close (B:=coPset) mallocN ## ↑sallocN) →
+    int_table b_r_i e_r_i malloc_r_i makeseal_r_i a_r_i f_m_i f_s_i b_rs e_rs →
 
     (* offset between client preamble and check_interval subroutine *)
     (a_first + interval_client_closure_move_offset)%a = Some a_move →
@@ -195,17 +193,14 @@ Section interval_client.
     (* Environment table for interval library *)
     ∗ i_b ↦ₐ WCap RO b_r_i e_r_i a_r_i
     ∗ malloc_r_i ↦ₐ WCap E b_m e_m b_m
-    ∗ makeseal_r_i ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs)))%a
+    ∗ makeseal_r_i ↦ₐ WCap E s_b s_e (s_first ^+ (length unseal_instrs + length (seal_instrs 0)))%a
 
     (* Code and environment table of the seal library *)
-    ∗ codefrag s_first (unseal_instrs ++ seal_instrs ++ make_seal_preamble_instrs 0 1)
-    ∗ s_b ↦ₐ WCap RO b_rs e_rs b_rs
-    ∗ b_rs ↦ₐ WCap E b_m e_m b_m ∗ b_rs' ↦ₐ WCap E b_s e_s b_s (* Restricted assumption: both closures at the start *)
+    ∗ codefrag s_first (unseal_instrs ++ seal_instrs 0 ++ make_seal_preamble_instrs 0)
+    ∗ s_b ↦ₐ WCap RO b_rs e_rs b_rs ∗ b_rs ↦ₐ WCap E b_m e_m b_m
 
     (* Malloc invariant *)
     ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
-    (* Salloc invariant *)
-    ∗ na_inv logrel_nais sallocN (salloc_inv b_s e_s)
 
     (* assert invariant *)
     ∗ na_inv logrel_nais assertN (assert_inv b_a a_flag e_a)
@@ -214,24 +209,22 @@ Section interval_client.
   Proof.
     iIntros (Hvpc Hspc Hbounds_cls Hbounds Hint_bounds).
     iIntros (Hwb_r Hwb_i Hwb_m Hassert_r Hint_cls_r Hmalloc_r Hint_table).
-    iIntros (Hmsdisj Ha_move Hc_first Hint_offsets).
+    iIntros (Ha_move Hc_first Hint_offsets).
     iIntros "(Hclient_cls & Hckecki & Hpc_b & Hassert_r & Hint_cls_r & Hmalloc_r & Hint_cls & Hint & Hi_b &
-              Hmalloc_r_i & Hmakeseal_r_i & Hseal & Hs_b & Hb_rs & Hb_rs' & #Hmalloc & #Hsalloc & #Hassert)".
+              Hmalloc_r_i & Hmakeseal_r_i & Hseal & Hs_b & Hb_rs & #Hmalloc & #Hassert)".
 
     iIntros "((%Hfull&#Hrmap_valid) & Hrmap & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hrmap") as "[HPC Hregs]";
       [by simplify_map_eq|rewrite delete_insert_delete].
-
     destruct Hfull with r_t0 as [w0 Hr_t0].
-    apply regmap_full_dom in Hfull.
-    iExtract "Hregs" r_t0 as "Hr_t0".
+    iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
 
     rewrite /interval_client_closure.
     (* trick to speed up tacticts that use solve_addr *)
     Local Opaque int_bounds int_table int_offsets.
     focus_block_0 "Hclient_cls" as "Hblock" "Hcont".
     iApply malloc_spec_alt;iFrameAutoSolve;[..|iFrame "Hown Hmalloc Hregs"].
-    { rewrite !dom_delete_L. set_solver+ Hfull. }
+    { rewrite !dom_delete_L. apply regmap_full_dom in Hfull as ->. set_solver+. }
     { auto. }
     { lia. }
     iSplitR. iNext. iIntros (v) "H". iExact "H".
@@ -248,8 +241,15 @@ Section interval_client.
     iDestruct (region_mapsto_cons with "Hbe") as "[Hb2 _]";[eauto|solve_addr +He Hb1 Hb2 Hb3|..].
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iExtractList "Hregs" [r_t2;r_t3;r_temp7;r_temp8] as ["Hr_t2";"Hr_t3";"Hr_temp7";"Hr_temp8"].
+    destruct Hfull with r_t1 as [w1 Hr_t1].
+    destruct Hfull with r_t2 as [w2 Hr_t2].
+    destruct Hfull with r_t3 as [w3 Hr_t3].
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hregs") as "[Hr_t2 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
+
     focus_block 1 "Hcode" as mid Hmid "Hblock" "Hcont".
+    destruct Hfull with r_temp8 as [wtemp8 Hr_temp8].
+    iDestruct (big_sepM_delete _ _ r_temp8 with "Hregs") as "[Hr_temp8 Hregs]";[by simplify_map_eq|].
     iGo "Hblock".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
@@ -258,16 +258,25 @@ Section interval_client.
     iNext. iIntros "(HPC & Hblock & Hr_t1 & Hr_t2 & Hr_t3 & Hpc_b & Hint_cls_r)".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
+    destruct Hfull with r_temp7 as [wtemp7 Hr_temp7].
+    iDestruct (big_sepM_delete _ _ r_temp7 with "Hregs") as "[Hr_temp7 Hregs]";[by simplify_map_eq|].
+
     focus_block 3 "Hcode" as a_mid3 Ha_mid3 "Hblock" "Hcont".
     iGo "Hblock".
-    iInsertList "Hregs" [r_t1;r_t2;r_t3;r_temp7;r_temp8].
+
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp7 with "[$Hregs $Hr_temp7]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp8 with "[$Hregs $Hr_temp8]") as "Hregs";[by simplify_map_eq|].
+    map_simpl "Hregs".
 
     Local Transparent int_bounds int_table int_offsets.
     iApply interval_closure_functional_spec;iFrameAutoSolve;
-      [..|iFrame "Hint Hseal Hs_b Hb_rs Hb_rs' Hmalloc_r_i Hmakeseal_r_i Hmalloc Hsalloc Hregs Hown"];
-      [destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?&?);
+      [..|iFrame "Hint Hseal Hs_b Hb_rs Hmalloc_r_i Hmakeseal_r_i Hmalloc Hregs Hown"];
+      [destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?);
        destruct Hint_offsets as (?&?);eauto..|].
-    { rewrite !dom_insert_L !dom_delete_L. set_solver+Hfull. }
+    { rewrite !dom_insert_L !dom_delete_L. apply regmap_full_dom in Hfull as ->. set_solver+. }
     iSplitR. iIntros (Hcontr). inversion Hcontr.
     iNext.
     iIntros "(HPC & Hint & Hi_b & Hmalloc_r_i & Hmakeseal_r_i & Hr_t0 & Hres & Hint_cls & Hown & Hregs)".
@@ -276,9 +285,10 @@ Section interval_client.
                           "(#HsealLL & #HsealN & Hr_t1 & Hr_t2 & Hr_t3 & Hbe & Hbe0 & Hbe3)".
     Local Opaque int_bounds int_table int_offsets.
 
-    rewrite updatePcPerm_cap_non_E;[|by inv Hvpc]. rewrite /rmapfinal.
-    (* Set Ltac Debug. *)
-    iExtractList "Hregs" [r_t4;r_temp7;r_temp8] as ["Hr_t4";"Hr_temp7";"Hr_temp8"].
+    rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[rewrite /rmapfinal; by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp7 with "Hregs") as "[Hr_temp7 Hregs]";[rewrite /rmapfinal; by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp8 with "Hregs") as "[Hr_temp8 Hregs]";[rewrite /rmapfinal; by simplify_map_eq|].
     assert ((a_mid3 ^+ 12 + offset_to_checki)%a = Some c_first) as Hlea.
     { rewrite /interval_client_closure_move_offset in Ha_move. simpl in Ha_mid3,Hmid,Hmid2.
       solve_addr+ Ha_mid3 Ha_move Hc_first. }
@@ -290,10 +300,15 @@ Section interval_client.
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
     focus_block 4 "Hcode" as a_mid4 Ha_mid4 "Hblock" "Hcont".
-    rewrite /rmapfinal.
-    iInsertList "Hregs" [r_t4;r_t3;r_temp7;r_temp8].
+    rewrite /rmapfinal. map_simpl "Hregs".
+    iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp7 with "[$Hregs $Hr_temp7]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp8 with "[$Hregs $Hr_temp8]") as "Hregs";[by simplify_map_eq|].
+    map_simpl "Hregs".
     iApply crtcls_spec_alt;iFrameAutoSolve;[..|iFrame "Hmalloc Hregs Hown"].
-    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L !dom_delete_L. set_solver+Hfull. }
+    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L !dom_delete_L.
+      apply regmap_full_dom in Hfull as ->. set_solver+. }
     auto. iSplitR. iNext. iIntros (v) "H". iExact "H".
     iSplitR. iNext. iIntros (Hcontr). inv Hcontr.
     iNext. iIntros "(HPC & Hblock & Hpc_b & Hmalloc_r & Hres)".
@@ -301,8 +316,12 @@ Section interval_client.
     map_simpl "Hregs".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iExtractList "Hregs" [r_temp8;r_temp7;r_t3;r_t4] as ["Hr_temp8";"Hr_temp7";"Hr_t3";"Hr_t4"].
+    iDestruct (big_sepM_delete _ _ r_temp8 with "Hregs") as "[Hr_temp8 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_temp7 with "Hregs") as "[Hr_temp7 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|].
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hregs") as "[Hr_t4 Hregs]";[by simplify_map_eq|].
     focus_block 5 "Hcode" as a_mid5 Ha_mid5 "Hblock" "Hcont".
+    map_simpl "Hregs".
     iDestruct ("Hrmap_valid" $! r_t0 w0 _ Hr_t0) as "Hw0_valid". Unshelve. 2:auto.
     iDestruct (jmp_to_unknown _ with "Hw0_valid") as "Hcallback_now".
     iGo "Hblock". split;auto. solve_addr+He.
@@ -311,17 +330,24 @@ Section interval_client.
     iGo "Hblock".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
-    iInsertList "Hregs" [r_temp7;r_temp8;r_t1;r_t2;r_t3;r_t4].
+    iDestruct (big_sepM_insert _ _ r_temp7 with "[$Hregs $Hr_temp7]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_temp8 with "[$Hregs $Hr_temp8]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs";[by simplify_map_eq|].
+    iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs";[by simplify_map_eq|].
+    map_simpl "Hregs".
 
     (* we will now allocate the invariants needed by all specs *)
-    iMod (na_inv_alloc logrel_nais _ envIN (interval_env b e benv0 eenv RX i_b i_e i_first f_m_i b0 e0 b3 e1 b4 e3)
+    iMod (na_inv_alloc logrel_nais _ envIN (interval_env b e benv0 eenv RX i_b i_e i_first f_m_i b0 e0
+                                                         b3 e1 b4 e3)
             with "[Hb Hb1 Hb2 Hbe Hbe0 Hbe3]") as "#Hint_env".
     { iNext. iExists _,_. iFrame "Hbe". rewrite (addr_incr_eq Ha_imin) /=.
       iFrame "Hbe0". iSimpl.
       assert (a_imin ^+ 12%nat = a_imax)%a as ->. solve_addr+Ha_imin Ha_imax.
       iFrame "Hbe3". iFrame. repeat iSplit;auto. iPureIntro. by constructor.
       all: iPureIntro. Local Transparent int_bounds int_table int_offsets.
-      all: destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?&?);
+      all: destruct Hint_bounds as (?&?&?);destruct Hint_table as (?&?&?&?&?);
         destruct Hint_offsets as (?&?). solve_addr +H0. 1,2:solve_addr +H0 Ha_imax Ha_imin. }
 
     iMod (na_inv_alloc logrel_nais _ envCN (pc_b ↦ₐ WCap RO b_r e_r a_r  ∗ assert_r ↦ₐ WCap E b_a e_a b_a)%I
@@ -378,19 +404,11 @@ Section interval_client.
       iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[Hr_t1 Hregs]";[by simplify_map_eq|].
       destruct Hfullr with r_t0 as [w0' Hr_t0'].
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
-
-      (* r_t1 is valid, so it is also validly sealed *)
-      iDestruct ("Hr_valid" $! r_t1 w1' _ Hr_t1') as "Hw1'_valid". Unshelve. 2: auto.
-      iDestruct (interp_valid_sealed_if with "Hw1'_valid") as "Hw1'_vs".
-      iSpecialize ("Hw1'_vs" $! γ).
-      iDestruct "Hw1'_vs" as (Φ') "Hw1'_vs".
-
       iApply (check_interval_spec with "[- $Hint_env $HsealN $HsealLL $Hown $Hclient_env $Hassert]");iFrameAutoSolve.
       all: cycle -2.
       { rewrite (addr_incr_eq Ha_imin) /=.
         assert ((a_imin ^+ 12%nat)%a = a_imax) as ->;[solve_addr +Ha_imax Ha_imin|].
-        iFrame "Hchecki Himin Himax Hw1'_vs".
-        iSplitL "Hr_t20". by eauto.
+        iFrame "Hchecki Himin Himax". iSplitL "Hr_t20". by eauto.
         iFrame "Hregs". iSplit. iApply ("Hr_valid" $! r_t0);auto.
         iApply big_sepM_forall. iIntros (reg w Hin).
         iApply ("Hr_valid" $! reg). iPureIntro. destruct (decide (reg = PC));auto;simplify_map_eq.
@@ -524,7 +542,8 @@ Section interval_client.
       iNext. iIntros (v) "H". iFrame.
     }
 
-    iInsert "Hregs" r_t0.
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hregs $Hr_t0]") as "Hregs";[by simplify_map_eq|].
+    map_simpl "Hregs".
 
     iApply ("Hcallback_now" with "[] [$HPC $Hown Hregs]"); cycle 1.
     { iApply big_sepM_sep. iFrame.
@@ -532,7 +551,8 @@ Section interval_client.
       repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
       iApply big_sepM_forall. iIntros (k x Hin). iApply ("Hrmap_valid" $! k).
       all: destruct (decide (k = PC));simplify_map_eq;auto. }
-    { iPureIntro. rewrite !dom_insert_L !dom_delete_L. set_solver+ Hfull. }
+    { iPureIntro. rewrite !dom_insert_L !dom_delete_L.
+      apply regmap_full_dom in Hfull. rewrite Hfull. set_solver. }
   Qed.
 
 End interval_client.

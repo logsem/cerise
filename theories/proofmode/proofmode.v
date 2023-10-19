@@ -1,10 +1,10 @@
 Require Import Eqdep_dec List.
-From cap_machine Require Import classes rules macros_helpers.
+From cap_machine Require Import rules.
 From cap_machine Require Export iris_extra addr_reg_sample.
-From cap_machine Require Export class_instances solve_pure solve_addr_extra.
+From cap_machine.proofmode Require Import classes tactics_helpers proofmode_instr_rules.
+From cap_machine.proofmode Require Export class_instances solve_pure solve_addr_extra.
 From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
-From cap_machine Require Import proofmode_instr_rules.
-From cap_machine Require Export NamedProp.
+From cap_machine.proofmode Require Export NamedProp.
 From machine_utils Require Export tactics.
 From iris.bi Require Import bi.
 Import bi.

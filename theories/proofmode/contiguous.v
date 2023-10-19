@@ -184,8 +184,8 @@ Section Contiguous.
     length a > 0 ->
     (ai + 1)%a = Some a_last -> list.last a = Some ai.
   Proof.
-    revert a_first. induction a; intros a_first Ha Hlen Hlink. 
-    - inversion Hlen. 
+    revert a_first. induction a; intros a_first Ha Hlen Hlink.
+    - inversion Hlen.
     - destruct a0.
       + inversion Ha. subst. inversion H4. subst. cbn. solve_addr.
       + simpl in *. apply IHa with f;[|lia|auto].

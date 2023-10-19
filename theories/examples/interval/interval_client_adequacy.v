@@ -5,9 +5,9 @@ From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental proofmode.
-From cap_machine.examples Require Import addr_reg_sample malloc macros_new
-     interval_client_closure interval_client interval_closure dynamic_sealing.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.examples Require Import addr_reg_sample malloc macros_new dynamic_sealing.
+From cap_machine.examples.interval Require Import interval_client_closure interval_client interval_closure.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine Require Import monotone.
 

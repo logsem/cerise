@@ -1,10 +1,12 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous fundamental.
-From cap_machine Require Import arch_sealing interval_arch malloc interval_closure_arch.
-From cap_machine Require Import solve_pure proofmode map_simpl register_tactics.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel fundamental.
+From cap_machine.proofmode Require Import
+  contiguous tactics_helpers solve_pure proofmode map_simpl register_tactics.
+From cap_machine.examples Require Import arch_sealing malloc.
+From cap_machine.examples.interval_arch Require Import interval_arch interval_closure_arch.
 
 Section interval_client.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg: sealStoreG Σ}

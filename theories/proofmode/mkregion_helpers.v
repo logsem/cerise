@@ -5,7 +5,7 @@ From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
 From cap_machine Require Import stdpp_extra iris_extra cap_lang
      region rules_base rules rules_binary rules_binary_base.
-From cap_machine.examples Require Import disjoint_regions_tactics.
+From cap_machine.proofmode Require Import disjoint_regions_tactics.
 
 Definition mkregion (r_start r_end: Addr) (contents: list Word): gmap Addr Word :=
   list_to_map (zip (finz.seq_between r_start r_end) contents).

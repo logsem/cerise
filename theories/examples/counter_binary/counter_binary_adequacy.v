@@ -5,10 +5,12 @@ From iris.program_logic Require Import adequacy.
 From stdpp Require Import gmap fin_maps fin_sets.
 Require Import Eqdep_dec.
 From cap_machine Require Import
-     stdpp_extra iris_extra mkregion_helpers
-     logrel_binary fundamental_binary linking malloc macros malloc_binary.
-From cap_machine.examples Require Import
-  disjoint_regions_tactics counter_binary_preamble_def counter_binary_preamble counter_binary_preamble_left.
+     stdpp_extra iris_extra
+     logrel_binary fundamental_binary linking
+     malloc macros malloc_binary.
+From cap_machine.proofmode Require Import mkregion_helpers disjoint_regions_tactics.
+From cap_machine.examples.counter_binary Require Import
+  counter_binary_preamble_def counter_binary_preamble counter_binary_preamble_left.
 
 Definition machine_component: Type := component nat _ _ Word.
 

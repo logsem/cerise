@@ -1,10 +1,11 @@
 From iris.algebra Require Import frac auth list.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous.
 From cap_machine Require Import monotone.
-From cap_machine Require Import solve_pure proofmode map_simpl register_tactics.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel fundamental.
+From cap_machine.proofmode Require Import contiguous tactics_helpers solve_pure proofmode map_simpl register_tactics.
+
 Import uPred. (* exist_persistent *)
 
 (* Architectural variant of the sealing/unsealing functionality in the dynamic_sealing file. *)

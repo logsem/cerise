@@ -1,9 +1,9 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
-From cap_machine Require Import classes rules logrel macros_helpers.
+From cap_machine Require Import rules logrel.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc salloc assert.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine.proofmode Require Import classes tactics_helpers solve_pure proofmode map_simpl.
 
 Section macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}

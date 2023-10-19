@@ -1,10 +1,10 @@
 From iris.algebra Require Import frac auth list.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import macros_helpers addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel contiguous.
+From cap_machine Require Import addr_reg_sample macros_new.
+From cap_machine Require Import rules logrel.
 From cap_machine Require Import monotone keylist.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine.proofmode Require Import tactics_helpers solve_pure proofmode contiguous map_simpl.
 
 Section sealing.
 

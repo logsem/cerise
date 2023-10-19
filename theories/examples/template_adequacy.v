@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 
 Record prog := MkProg {
   prog_start: Addr;
@@ -35,7 +35,7 @@ Proof.
   rewrite finz_seq_between_empty;[|solve_addr].
   auto.
 Qed.
-  
+
 Lemma prog_region_dom (P: prog):
   dom (prog_region P) =
   list_to_set (finz.seq_between (prog_start P) (prog_end P)).
