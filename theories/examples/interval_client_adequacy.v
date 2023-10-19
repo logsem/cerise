@@ -478,7 +478,7 @@ Section int_client_adequacy.
         iNext. iModIntro. auto.
       - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
     }
-    
+
     (* extract interval library from priv *)
     rewrite /Hfilter /=.
     assert (assert_library_content ##ₘ interval_library_content) as Hdisj.

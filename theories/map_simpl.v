@@ -203,17 +203,6 @@ Ltac2 rec reify_helper kk aa term fm :=
 Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
   ltac1:(lhs rhs |- replace lhs with rhs) (Ltac1.of_constr lhs) (Ltac1.of_constr rhs).
 
-(* Debug test *)
-(* Goal <[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)))))))) = <[5 := 2]> (<[6 := 3]> (∅: gmap nat nat)). *)
-(*   lazy_match! goal with *)
-(*   | [|- ?x = _] => let (x', m, fm) := reify_helper 'nat 'nat x [] in *)
-(*                  let env := make_list fm in *)
-(*                  replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity]; *)
-(*                  erewrite (@simpl_rmap_correct nat _ _ nat (fun n => @list_lookup _ n $env)) > [() | vm_compute; reflexivity] *)
-(*   end. time (cbn [denote list_lookup lookup]). *)
-(*   reflexivity. *)
-(* Qed. *)
-
 Ltac2 rec make_list_from_unions h x :=
   match! x with
   | union ?a (singleton ?b) =>
@@ -328,30 +317,3 @@ Ltac iFrameMapSolve name :=
   map_simpl name; iFrameMapSolve' name.
 
 Tactic Notation "iFrameMapSolve" "+" hyp_list(Hs) constr(name) := clear -Hs; iFrameMapSolve name.
-
-(* From cap_machine Require Import rules logrel addr_reg_sample. *)
-
-(* Section test. *)
-(*   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} *)
-(*           {nainv: logrel_na_invs Σ} *)
-(*           `{MP: MachineParameters}. *)
-
-(*   Lemma test pc_p pc_b pc_e a_first: *)
-(*     forall (rmap: gmap RegName Word), *)
-(*       dom (gset RegName) rmap = all_registers_s ∖ {[PC; r_env; r_t0; r_t1]} -> *)
-(*       a_first = 0%a → *)
-(*       (([∗ map] k↦y ∈ <[r_t6:=WInt 0%Z]> *)
-(*         (delete r_t1 *)
-(*                 (<[r_t4:=WInt 0%Z]> *)
-(*                  (<[r_t2:=WInt 0%Z]> *)
-(*                   (<[r_t3:=WCap pc_p pc_b pc_e (a_first ^+ 0)%a]> (<[r_env:=WInt 42%Z]> (<[r_t5:=WInt 0%Z]> rmap)))))), *)
-(*         k ↦ᵣ y)) -∗ *)
-(*            ([∗ map] r↦w0 ∈ <[r_t3:=WInt 0%Z]> *)
-(*             (<[r_t2:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> (<[r_t6:=WInt 0%Z]> (<[r_t5:=WInt 0%Z]> rmap)))), *)
-(*             r ↦ᵣ w0). *)
-(*   Proof. *)
-(*     iIntros (rmap Hdom Heq) "Hregs". *)
-(*     map_simpl_debug "Hregs". *)
-(*  Abort. *)
-
-(* End test. *)

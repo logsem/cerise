@@ -194,7 +194,7 @@ Section Adequacy.
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ Hinv reg_heapg.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-    
+
     pose proof (
       @counter_preamble_spec Σ memg regg seal_storeg logrel_na_invs
     ) as Spec.
@@ -310,7 +310,7 @@ Section Adequacy.
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end' adv_start))%I with "[Hadv]" as ">#Hadv".
     { rewrite Heq'. iApply (region_valid_in_region _ _ _ _ adv_val); eauto.
       apply Forall_forall. intros. set_solver+. }
-    
+
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hmalloc]" as ">#Hadv'".
     { iApply fixpoint_interp1_eq.
       iSimpl. rewrite Heqapp Heq'.
@@ -320,7 +320,7 @@ Section Adequacy.
       iDestruct "Hmalloc" as "[Hmalloc _]". iSimpl. iSplitL;auto.
       iExists interp. iSplitL;[|iModIntro;iSplit;auto].
       iApply inv_alloc. iNext. iExists _. iFrame "∗ #". }
-     
+
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
     iAssert ((interp_expr interp reg) (WCap RX counter_region_start counter_region_end counter_preamble_start))

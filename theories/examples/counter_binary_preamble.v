@@ -343,7 +343,6 @@ Section counter_example_preamble.
     iSplit;auto.
     iDestruct "Hr_full" as %Hr_full.
     rewrite /full_map. rewrite /interp_conf.
-    
 
     rewrite /registers_mapsto /spec_registers_mapsto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
@@ -362,17 +361,6 @@ Section counter_example_preamble.
 
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     iDestruct (big_sepL2_length with "Hsprog") as %Hslength.
-
-    
-    (* assert (pc_p ≠ E). *)
-    (* { eapply isCorrectPC_range_perm_non_E. eapply Hvpc. *)
-    (*   pose proof (contiguous_between_length _ _ _ Hcont) as HH. rewrite Hlength /= in HH. *)
-    (*   revert HH; clear; solve_addr. } *)
-
-    (* assert (pcs_p ≠ E). *)
-    (* { eapply isCorrectPC_range_perm_non_E. eapply Hvpc'. *)
-    (*   pose proof (contiguous_between_length _ _ _ Hcont') as HH. rewrite Hslength /= in HH. *)
-    (*   revert HH; clear; solve_addr. } *)
 
     (* malloc 1 *)
     iDestruct (contiguous_between_program_split with "Hprog") as
@@ -515,11 +503,9 @@ Section counter_example_preamble.
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ counter_first with "[$HPC $Hi $Hr1]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 5
        |assumption|done|..].
-    (* { destruct (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc) as [-> | [-> | ->] ]; auto. *)
-    (*   generalize (contiguous_between_middle_bounds _ (length ai_malloc) a_malloc_end _ _ Hcont ltac:(subst ai; rewrite list_lookup_middle; auto)). clear. solve_addr. } *)
     iEpilogue_both "(HPC & Hi & Hr1)". iCombinePtrn.
-    (* crtcls *)
 
+    (* crtcls *)
     iDestruct (contiguous_between_program_split with "Hprog") as
         (ai_crtcls ai_rest a_crtcls_end) "(Hcrtcls & Hprog & #Hcont)".
     { epose proof (contiguous_between_incr_addr _ 6%nat _ _ _ Hcont_rest eq_refl).
@@ -775,10 +761,6 @@ Section counter_example_preamble.
     (* in this closure creation, the two programs have the same address as the counter. This is not necessary however! *)
     iDestruct (inv_alloc countN _ (counter_inv b_cell b_cell) with "[Hb_cell Hb_scell]") as ">#Hcounter_inv".
     { iNext. rewrite /counter_inv. iExists 0. assert ((- 0%nat)%Z = 0)%Z as ->;[clear;lia|]. iFrame. }
-    (* we also allocate a non atomic invariant for the environment table *)
-    (* iMod (na_inv_alloc logrel_nais _ count_env *)
-    (*                    (pc_b ↦ₐ WCap (RO,b_link,e_link,a_link) ∗ a_entry' ↦ₐ fail_cap)%I *)
-    (*         with "[$Ha_entry' $Hpc_b]") as "#Henv". *)
 
     (* jmp *)
     destruct ai_rest' as [| ? ai_rest']; [|by inversion Hlength_rest2]. destruct ais_rest' as [| ? ais_rest']; [|by inversion Hlength_rest2'].
@@ -788,8 +770,6 @@ Section counter_example_preamble.
       [apply decode_encode_instrW_inv|iCorrectPC as_crtcls_end' s_end|auto..].
     iApply (wp_jmp_success with "[$HPC $Hi $Hr0]");
       [apply decode_encode_instrW_inv|iCorrectPC a_crtcls_end' a_end|..].
-
-    
 
     unshelve iPoseProof ("Hr_valid" $! r_t0 _ _ _ Hr0 Hs0) as "#Hr0_valid". done.
 
@@ -813,8 +793,6 @@ Section counter_example_preamble.
       - unfold malloc.
         iDestruct "Hsprog_done" as "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&Hmalloc)".
         iApply (big_sepL2_app with "Hmalloc"). iFrame. done. }
-
-    
 
     (* the current state of registers is valid *)
     iAssert (interp (WCap E b_cls e_cls b_cls,WCap E b_cls e_cls b_cls))%I as "#Hvalid_cls".
@@ -887,6 +865,5 @@ Section counter_example_preamble.
     iDestruct ("Hφ" $! Hne) as (r0) "(Hfull & Hregs & Hna)".
     iExists r0. iFrame.
   Qed.
-
 
 End counter_example_preamble.

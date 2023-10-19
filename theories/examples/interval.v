@@ -1041,8 +1041,6 @@ Section interval.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|].
 
     (* finally we now apply the ftlr to conclude that the rest of the program does not get stuck *)
-    (* iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[simplify_map_eq;apply not_elem_of_dom;rewrite Hdom;set_solver-|]. *)
-    (* rewrite -(insert_insert _  PC _ (WInt 0%Z)). *)
     set regs' := <[_:=_]> _.
     iApply ("Hcallback_now" $! regs' with "[] [$HPC Hregs $Hown]").
     { iPureIntro. simpl.

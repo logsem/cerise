@@ -78,24 +78,15 @@ Ltac simpl_encodeWordType :=
   match goal with
   | H: _ |- context G [encodeWordType (WCap ?p ?b ?e ?a)] =>
       rewrite (_: encodeWordType (WCap p b e a) = encodeWordType wt_cap) ; last solve_encodeWordType
-  (* | H: context G [encodeWordType (WCap ?p ?b ?e ?a)] |- _ => *)
-  (*     rewrite (_: encodeWordType (WCap p b e a) = encodeWordType wt_cap) in H *)
-  (*     ; last solve_encodeWordType *)
 
   | H: _ |- context G [encodeWordType (WSealRange ?p ?b ?e ?a)] =>
       rewrite (_: encodeWordType (WSealRange p b e a) = encodeWordType wt_sealrange) ; last solve_encodeWordType
-  (* | H: context G [encodeWordType (WSealRange ?p ?b ?e ?a)] |- _ => *)
-  (*     rewrite (_: encodeWordType (WSealRange p b e a) = encodeWordType wt_sealrange) in H ; last solve_encodeWordType *)
 
   | H: _ |- context G [encodeWordType (WInt ?n)] =>
       rewrite (_: encodeWordType (WInt n) = encodeWordType wt_int) ; last solve_encodeWordType
-  (* | H: context G [encodeWordType (WInt ?n)] |- _ => *)
-  (*     rewrite (_: encodeWordType (WInt n) = encodeWordType wt_int) in H ; last solve_encodeWordType *)
 
   | H: _ |- context G [encodeWordType (WSealed ?o ?s)] =>
       rewrite (_: encodeWordType (WSealed o s) = encodeWordType wt_sealed) ; last solve_encodeWordType
-  (* | H: context G [encodeWordType (WSealed ?o ?s)] |- _ => *)
-  (*     rewrite (_: encodeWordType (WSealed o s) = encodeWordType wt_sealed) in H ; last solve_encodeWordType *)
   end.
 
 Lemma encodeWordType_correct_cap `{MachineParameters} : forall p b e a p' b' e' a',

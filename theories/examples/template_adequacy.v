@@ -931,7 +931,6 @@ Section Adequacy.
     pose proof (tbl_disj Adv_tbl) as Hdisjtbl2.
     pose proof (tbl_prog_link P_tbl) as Hlink1.
     pose proof (tbl_prog_link Adv_tbl) as Hlink2.
-    
 
     iDestruct (big_sepM_union with "Hp") as "[Hp Hp_tbl]";
       [auto|].
@@ -943,7 +942,6 @@ Section Adequacy.
     rewrite lib_region_app.
     iDestruct (big_sepM_union with "Hlib") as "[Hlib_pub Hlib_priv]";
       [auto|].
-
 
     set prog_in_inv :=
       filter (fun '(a, _) => a ∈ minv_dom I) (lib_region (priv_libs Lib)).
@@ -1096,7 +1094,7 @@ Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-                                                     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   minv I m'.
 Proof.
   intros ??????? Hwp ?.
@@ -1317,7 +1315,7 @@ Section Adequacy.
     eapply minv_sub_extend; [| |eassumption].
     rewrite Hmi_dom //. auto. auto.
   Qed.
-    
+
 End Adequacy.
 
 
@@ -1515,7 +1513,7 @@ Section Adequacy.
     - intros. iIntros "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?)".
       iApply Hspec;eauto. iFrame.
   Qed.
-    
+
 End Adequacy.
 
 
@@ -1599,7 +1597,7 @@ Theorem template_adequacy_no_seals `{MachineParameters} (Σ : gFunctors)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
-                                                     rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
   minv I m'.
 Proof.
   intros ?????? Hwp ?.

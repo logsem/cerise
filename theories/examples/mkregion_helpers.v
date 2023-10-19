@@ -183,7 +183,7 @@ Lemma mkregion_sepM_to_sepL2_zip `{Σ: gFunctors} (a e: Addr) l l' (φ φ': Addr
 Proof.
   rewrite /mkregion. revert a e l'. induction l as [| x l].
   { cbn. intros. rewrite zip_with_nil_r /=. assert (a = e) as -> by solve_addr.
-    rewrite /finz.seq_between /finz.dist /=. assert ((Z.to_nat (e - e)) = 0) as ->. lia. simpl. 
+    rewrite /finz.seq_between /finz.dist /=. assert ((Z.to_nat (e - e)) = 0) as ->. lia. simpl.
     rewrite /mbkregion. rewrite finz_seq_between_empty;[|solve_addr]. eauto. }
   { cbn. intros a e l' Hlen Hlen'.
     assert (length l' = S (length l)) as Hleneq.

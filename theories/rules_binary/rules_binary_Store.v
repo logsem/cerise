@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_binary_base rules_Store.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -34,7 +34,7 @@ Section cap_lang_spec_rules.
 
    spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ (▷ [∗ map] a↦w ∈ mem, a ↣ₐ w) ∗ (▷ [∗ map] k↦y ∈ regs, k ↣ᵣ y)
    ={Ep}=∗ ∃ retv regs' mem', ⌜ Store_spec regs r1 r2 regs' mem mem' retv⌝ ∗
-                           ⤇ fill K (of_val retv) ∗ ([∗ map] a↦w ∈ mem', a ↣ₐ w) ∗ [∗ map] k↦y ∈ regs', k ↣ᵣ y. 
+                           ⤇ fill K (of_val retv) ∗ ([∗ map] a↦w ∈ mem', a ↣ₐ w) ∗ [∗ map] k↦y ∈ regs', k ↣ᵣ y.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore Hnclose) "(Hinv & Hj & >Hmem & >Hmap)".
     iDestruct "Hinv" as (ρ) "Hinv". rewrite /spec_inv.
@@ -46,7 +46,7 @@ Section cap_lang_spec_rules.
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
     odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+.
     iDestruct (memspec_heap_valid_inSepM _ _ _ _ pc_a with "Hown Hmem") as %Hma; eauto.
-    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.    
+    iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
     pose proof (Hstep' := Hstep). rewrite /exec /= in Hstep.
@@ -75,7 +75,7 @@ Section cap_lang_spec_rules.
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
        iExists (FailedV),_,_; iFrame. iModIntro.
-       iPureIntro. econstructor; eauto. econstructor; eauto. 
+       iPureIntro. econstructor; eauto. econstructor; eauto.
      }
      destruct r1v as [ | [p b e a | ] | ]; try inversion Hr1v. clear Hr1v.
 
@@ -108,7 +108,6 @@ Section cap_lang_spec_rules.
     }
 
     iMod ((memspec_heap_update_inSepM _ _ _ a storev) with "Hown Hmem") as "[Hown Hmem]"; eauto.
-      
 
      (* Success *)
     rewrite /update_mem /= in Hstep.
@@ -135,7 +134,7 @@ Section cap_lang_spec_rules.
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed p = true ∧ withinBounds b e a = true →
      nclose specN ⊆ E →
-     
+
      spec_ctx ∗ ⤇ fill K (Instr Executable)
               ∗  ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
               ∗ ▷ pc_a ↣ₐ w
@@ -147,20 +146,20 @@ Section cap_lang_spec_rules.
          ∗ pc_a ↣ₐ w
          ∗ src ↣ᵣ w''
          ∗ dst ↣ᵣ WCap p b e a
-         ∗ a ↣ₐ w''. 
+         ∗ a ↣ₐ w''.
   Proof.
     iIntros (Hinstr Hvpc Hpca' [Hwa Hwb] Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hsrc & >Hdst & >Hsrca)".
     iDestruct (rules_binary_base.map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
     iDestruct (spec_memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
-    
+
     iMod (step_store _ _ pc_p with "[$Hown $Hj $Hmap $Hmem]") as (retv regs' mem' Hspec) "(Hj & Hmem & Hregs)";
       eauto; simplify_map_eq_alt; try rewrite lookup_insert; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
       rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert;eauto. }
 
-    destruct Hspec. 
+    destruct Hspec.
      { (* Success *)
        destruct H6 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq.
        rewrite insert_commute // insert_insert.
@@ -198,20 +197,20 @@ Section cap_lang_spec_rules.
             "(Hown & Hj & >HPC & >Hi & >Hdst & >Hsrca)".
     iDestruct (rules_binary_base.map_of_regs_2 with "HPC Hdst") as "[Hmap %]".
     iDestruct (spec_memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
-    
+
     iMod (step_store _ _ pc_p with "[$Hown $Hj $Hmap $Hmem]") as (retv regs' mem' Hspec) "(Hj & Hmem & Hregs)";
       eauto; simplify_map_eq_alt; try rewrite lookup_insert; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
       rewrite lookup_insert_ne// lookup_insert. eauto. }
-    
-    destruct Hspec. 
+
+    destruct Hspec.
      { (* Success *)
-       iFrame. 
+       iFrame.
        destruct H4 as [Hrr2 _]. simplify_map_eq_alt.
        rewrite insert_commute // insert_insert.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
-       incrementPC_inv. simpl in *. 
+       incrementPC_inv. simpl in *.
        simplify_map_eq_alt.
        rewrite insert_insert.
        iDestruct (rules_binary_base.regs_of_map_2 with "[$Hregs]") as "[HPC Hdst]"; eauto. by iFrame. }
@@ -220,5 +219,5 @@ Section cap_lang_spec_rules.
        destruct o. all: try congruence.
      }
   Qed.
-  
+
 End cap_lang_spec_rules.

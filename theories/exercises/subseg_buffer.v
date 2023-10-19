@@ -256,7 +256,7 @@ Section base_program_CPS.
     replace (b_mem + secret_off + 1) with (b_mem + (secret_off + 1)) by lia.
     iFrame.
   Qed.
-    
+
 
   (** Specification of the program until the jump to the unknown adversary code *)
   Lemma prog_spec_CPS

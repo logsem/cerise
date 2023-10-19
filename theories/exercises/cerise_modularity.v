@@ -74,7 +74,7 @@ Section increment_macro.
       with larger and complex macros (e.g. involving a loop), this modularity
       is necessary. *)
 
-  (** The following is a very simple example of program that uses the macro. The
+  (** The following is a very simple example of program that uses the macro. The
       program assumes that R0 contains a writing capability pointing to the
       memory. It initializes the value of this memory address at 0, calls the
       increment macro to increment the value, and finally loads the
@@ -126,7 +126,7 @@ Section increment_macro.
     subst e_prog; simpl.
     simpl in *.
 
-    (* We use the new tactic to focus on the first block. *)
+    (* We use the new tactic to focus on the first block. *)
     (* Initialisation block *)
     focus_block_0 "Hprog" as "Hintro" "Hnext".
     iInstr "Hintro"; [ by rewrite withinBounds_true_iff |].
@@ -189,7 +189,7 @@ Section rclear_macro.
 
         Hint (specification): TODO ???
         Hint (proof): The specification of `rclear` requires the use of
-        the `big_sepM` resource. The `big_sepM` resource [...] use a map.
+        the `big_sepM` resource. The `big_sepM` resource [...] use a map.
         We urge the reader to search lemmas about `big_sepM` and
         `gmap`.
 

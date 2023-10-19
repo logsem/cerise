@@ -155,5 +155,4 @@ Section counter_example_preamble.
      ∗ [[b_cls,e_cls]]↣ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; pcs1; c2] ]]
      ∗ [[b_cls',e_cls']]↣ₐ[[ [WInt v1; WInt v2; WInt v3; WInt v4; WInt v5; WInt v6; pcs2; c2] ]])%I.
 
-  
 End counter_example_preamble.

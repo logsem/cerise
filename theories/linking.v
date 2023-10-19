@@ -4,7 +4,7 @@ From stdpp Require Import gmap fin_maps fin_sets.
 From cap_machine Require Import addr_reg.
 
 Section Linking.
-  
+
   Variable Symbols: Type.
   Variable Symbols_eq_dec: EqDecision Symbols.
   Variable Symbols_countable: Countable Symbols.
@@ -12,7 +12,7 @@ Section Linking.
   Variable Word: Type.
   Variable can_address_only: Word -> (gset Addr) -> Prop.
   Variable is_main: Word -> Prop.
-  
+
   Definition imports: Type := gset (Symbols * Addr).
   Definition exports: Type := gmap Symbols Word.
   Definition segment: Type := gmap Addr Word.

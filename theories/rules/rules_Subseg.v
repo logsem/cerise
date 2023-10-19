@@ -273,7 +273,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ WCap p b e a
@@ -317,7 +317,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a1 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ WCap p b e a
@@ -359,7 +359,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ WCap p b e a
@@ -401,7 +401,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ WCap p b e a
@@ -443,7 +443,7 @@ Section cap_lang_rules.
     p ≠ machine_base.E →
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ dst ↦ᵣ WCap p b e a }}}
@@ -494,11 +494,13 @@ Section cap_lang_rules.
     iApply (wp_Subseg with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [| * Hfail].
+    destruct Hspec as [| | * Hfail].
     { (* Success (contradiction) *)
       exfalso. apply Hncond. simplify_map_eq. split; first done.
       repeat match goal with H : _ |- _ =>
                                apply addr_of_argument_Some_inv in H as (?&?&[?|(?&?&?)]) end; by simplify_eq. }
+    { (* Success with WSealRange (contradiction) *)
+      simplify_map_eq. }
     { (* Failure *)
       destruct Hfail; cbn in *; simplify_map_eq.
       all: iApply "Hφ"; iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
@@ -511,7 +513,7 @@ Section cap_lang_rules.
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w
         ∗ ▷ r1 ↦ᵣ WInt n1
@@ -669,7 +671,7 @@ Section cap_lang_rules.
     pc_p ≠ machine_base.E →
     isWithin a1 a2 pc_b pc_e = true →
     (pc_a + 1)%a = Some pc_a' →
-    
+
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
         ∗ ▷ pc_a ↦ₐ w }}}
       Instr Executable @ E

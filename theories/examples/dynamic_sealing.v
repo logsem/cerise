@@ -174,7 +174,7 @@ Section sealing.
     codefrag_facts "Hprog". simpl in H, H0.
     focus_block 3 "Hprog" as mid1 Hmid1 "Hprog" "Hcont".
     iGo "Hprog". simpl in *. instantiate (1 := (mid1 ^+ 18)%a). solve_addr.
-    unfocus_block "Hprog" "Hcont" as "Hprog". 
+    unfocus_block "Hprog" "Hcont" as "Hprog".
 
     focus_block 4 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     iApply findb_spec; iFrameAutoSolve; eauto.

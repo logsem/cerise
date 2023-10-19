@@ -117,18 +117,6 @@ Section interval_client.
     (i_a_first + interval_closure_move_offset)%a = Some i_a_move ∧
     (i_a_move + offset_to_interval)%a = Some i_first.
 
-  (* TODO: move - conversion from interp to valid_sealed *)
-  Lemma interp_valid_sealed_if w:
-    interp w -∗ ∀ o, ∃ Φ,  ▷ (if is_sealed_with_o w o then valid_sealed w o Φ else True).
-  Proof. iIntros "Hinterp". iIntros (og).
-    destruct w as [ | | o sb]; try (iExists (fun _ => True%I) ; done).
-    iDestruct (interp_valid_sealed with "Hinterp") as (Φ) "Hinterp".
-    iExists Φ.
-    destruct (decide (og = o)) as [-> | Hne].
-    all : destruct (is_sealed_with_o (WSealed _ _) _) eqn:Hsw; try done.
-    exfalso. cbn in Hsw. solve_addr.
-  Qed.
-
   Lemma interval_client_closure_functional_spec
         a_first c_first a_move (* client level addresses *)
         pc_p pc_b pc_e (* client level PC *)

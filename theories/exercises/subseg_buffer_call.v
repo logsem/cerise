@@ -91,7 +91,6 @@ Section program_call.
   Definition prog_call_inv a f_m f_a size secret_off secret_val :=
     na_inv logrel_nais call_codeN (prog_call_code a f_m f_a size secret_off secret_val ).
 
-  (* Definition malloc_callN := (call_versionN.@"malloc"). *)
   Definition malloc_call_inv b_m e_m :=
     na_inv logrel_nais ocpl.mallocN (malloc_inv b_m e_m).
 
@@ -102,23 +101,8 @@ Section program_call.
   Definition flag_call_inv a_flag flagN :=
     inv flagN (a_flag ↦ₐ WInt 0%Z) .
 
-  (* Linking table invariant *)
-  (* Definition link_table_callN := (call_versionN.@"link_table"). *)
-  (* Definition link_table_call_inv *)
-  (*   table_addr b_link e_link a_link *)
-  (*   malloc_entry b_m e_m *)
-  (*   assert_entry b_a e_a *)
-  (*   := *)
-  (*   na_inv logrel_nais link_table_callN *)
-  (*     (table_addr ↦ₐ WCap RO b_link e_link a_link *)
-  (*      ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m *)
-  (*      ∗ assert_entry ↦ₐ WCap E b_a e_a b_a *)
-  (*     )%I. *)
-
-
   Definition call_actN : namespace := call_versionN .@ "act".
   Definition call_localsN : namespace := call_versionN .@ "locals".
-
 
   (** Specifications *)
   (* Specification P1 *)

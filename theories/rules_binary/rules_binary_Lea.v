@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Lea rules_binary_base.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -171,13 +171,13 @@ Section cap_lang_spec_rules.
           ∗ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a'
           ∗ pc_a ↣ₐ w
           ∗ r1 ↣ᵣ WCap p b e a'.
-   Proof. 
+   Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
      iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
-     
+
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
        iFrame. incrementPC_inv; simplify_map_eq.
@@ -218,7 +218,7 @@ Section cap_lang_spec_rules.
      iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
-     
+
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
         iFrame. incrementPC_inv; simplify_map_eq.
@@ -236,4 +236,4 @@ Section cap_lang_spec_rules.
     Unshelve. all: auto.
    Qed.
 
-End cap_lang_spec_rules. 
+End cap_lang_spec_rules.
