@@ -514,6 +514,46 @@ Section cap_lang_rules.
     { (* Failure, done *) by iApply "Hφ". }
   Qed.
 
+  Lemma wp_add_sub_lt_fail_r_r_1 E ins dst r1 r2 w wdst w1 w2 pc_p pc_b pc_e pc_a :
+    decodeInstrW w = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    is_z w1 = false →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w1 ∗ r2 ↦ᵣ w2 }}}
+      Instr Executable
+      @ E
+      {{{ RET FailedV; pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
+    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. destruct w1; by exfalso. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
+  Lemma wp_add_sub_lt_fail_r_r_2 E ins dst r1 r2 w wdst w2 w3 pc_p pc_b pc_e pc_a :
+    decodeInstrW w = ins →
+    is_AddSubLt ins dst (inr r1) (inr r2) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    is_z w3 = false →
+    {{{ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a ∗ pc_a ↦ₐ w ∗ dst ↦ᵣ wdst ∗ r1 ↦ᵣ w2 ∗ r2 ↦ᵣ w3}}}
+      Instr Executable
+      @ E
+      {{{ RET FailedV; pc_a ↦ₐ w }}}.
+  Proof.
+    iIntros (Hdecode Hinstr Hvpc Hzf φ) "(HPC & Hpc_a & Hdst & Hr1 & Hr2) Hφ".
+    iDestruct (map_of_regs_4 with "HPC Hdst Hr1 Hr2") as "[Hmap (%&%&%&%&%&%)]".
+    iApply (wp_AddSubLt with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. destruct w3; by exfalso. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
 End cap_lang_rules.
 
 (* Hints to automate proofs of is_AddSubLt *)

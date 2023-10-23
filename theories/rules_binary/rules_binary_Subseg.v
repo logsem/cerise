@@ -5,7 +5,7 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_Subseg rules_binary_base.
 
 
-Section cap_lang_spec_rules. 
+Section cap_lang_spec_rules.
   Context `{cfgSG Σ, MachineParameters, invGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : cap_lang.state.
@@ -15,7 +15,6 @@ Section cap_lang_spec_rules.
   Implicit Types reg : gmap RegName Word.
   Implicit Types ms : gmap Addr Word.
 
-  
   Lemma step_Subseg Ep K pc_p pc_b pc_e pc_a w dst src1 src2 regs :
     decodeInstrW w = Subseg dst src1 src2 ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -23,7 +22,7 @@ Section cap_lang_spec_rules.
     regs_of (Subseg dst src1 src2) ⊆ dom regs →
 
     nclose specN ⊆ Ep →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable) ∗ ▷ pc_a ↣ₐ w ∗ ▷ ([∗ map] k↦y ∈ regs, k ↣ᵣ y)
     ={Ep}=∗ ∃ retv regs', ⌜ Subseg_spec regs dst src1 src2 regs' retv ⌝ ∗ ⤇ fill K (of_val retv) ∗ pc_a ↣ₐ w ∗ ([∗ map] k↦y ∈ regs', k ↣ᵣ y).
   Proof.
@@ -32,7 +31,7 @@ Section cap_lang_spec_rules.
     iInv specN as ">Hinv'" "Hclose". iDestruct "Hinv'" as (e [σr σm]) "[Hown %] /=".
     iDestruct (regspec_heap_valid_inclSepM with "Hown Hmap") as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
-    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a. 
+    iDestruct (spec_heap_valid with "[$Hown $Hpc_a]") as %Hpc_a.
     iDestruct (spec_expr_valid with "[$Hown $Hj]") as %Heq; subst e.
     specialize (normal_always_step (σr,σm)) as [c [ σ2 Hstep]].
     eapply step_exec_inv in Hstep; eauto.
@@ -71,9 +70,9 @@ Section cap_lang_spec_rules.
 
         iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
           iMod ("Hclose" with "[Hown]") as "_";
-          [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|]. 
+          [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|].
         iExists (FailedV),_; iFrame;iModIntro;iFailCore Subseg_fail_src1_nonaddr.
-      } 
+      }
       subst src1. destruct (Hri r1) as [r1v [Hr'1 Hr1]].
         by unfold regs_of_argument; set_solver+.
       rewrite /addr_of_argument /= Hr'1 in Ha1.
@@ -84,7 +83,7 @@ Section cap_lang_spec_rules.
         all: inv Hstep; auto.
       }
       repeat case_match; try congruence; try rename c into c0.
-      all: iFailStep Subseg_fail_src1_nonaddr. 
+      all: iFailStep Subseg_fail_src1_nonaddr.
     }
     apply (addr_of_arg_mono _ σr) in Ha1; auto. rewrite Ha1 /= in Hstep.
 
@@ -98,7 +97,7 @@ Section cap_lang_spec_rules.
         { repeat case_match; inv Hstep; auto. }
         iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
           iMod ("Hclose" with "[Hown]") as "_";
-          [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|]. 
+          [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|].
         iExists (FailedV),_; iFrame;iModIntro;iFailCore Subseg_fail_src2_nonaddr. }
       subst src2. destruct (Hri r2) as [r2v [Hr'2 Hr2]].
         by unfold regs_of_argument; set_solver+.
@@ -224,7 +223,7 @@ Section cap_lang_spec_rules.
     isWithin a1 a2 b e = true →
     (pc_a + 1)%a = Some pc_a' →
     nclose specN ⊆ E →
-    
+
     spec_ctx ∗ ⤇ fill K (Instr Executable)
              ∗ ▷ PC ↣ᵣ WCap pc_p pc_b pc_e pc_a
              ∗ ▷ pc_a ↣ₐ w
@@ -237,10 +236,10 @@ Section cap_lang_spec_rules.
         ∗ r1 ↣ᵣ WInt n1
         ∗ r2 ↣ᵣ WInt n2
         ∗ dst ↣ᵣ WCap p a1 a2 a.
-  Proof. 
+  Proof.
     iIntros (Hinstr Hvpc [Hn1 Hn2] Hpne Hwb Hpc_a' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2)".
     iDestruct (map_of_regs_4 with "HPC Hr1 Hr2 Hdst") as "[Hmap (%&%&%&%&%&%)]".
-    iMod (step_Subseg with "[$Hown $Hj $Hpc_a $Hmap]") as (retv regs' Hspec) "(Hj & Hpc_a & Hmap)";simplify_map_eq;eauto. 
+    iMod (step_Subseg with "[$Hown $Hj $Hpc_a $Hmap]") as (retv regs' Hspec) "(Hj & Hpc_a & Hmap)";simplify_map_eq;eauto.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
 
     destruct Hspec as [| | * Hfail].

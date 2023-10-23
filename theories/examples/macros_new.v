@@ -1,9 +1,9 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
 Require Import Eqdep_dec List.
-From cap_machine Require Import classes rules logrel macros_helpers.
+From cap_machine Require Import rules logrel.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc salloc assert.
-From cap_machine Require Import solve_pure proofmode map_simpl.
+From cap_machine.proofmode Require Import classes tactics_helpers solve_pure proofmode map_simpl.
 
 Section macros.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
@@ -478,62 +478,12 @@ Section macros.
      given (encoded) permission. If this is not the case, the macro goes to fail,
      otherwise it continues *)
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually
-     require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
-  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
-    decodeInstrW w = get_i →
-    is_Get get_i dst src →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-      ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ wdst
-      ∗ ▷ src ↦ᵣ WInt zsrc }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
-    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
-    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-
-  (* TODO: move this to the rules_Lea.v file. *)
-  Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a w r1 rv p b e a z :
-    decodeInstrW w = Lea r1 (inr rv) →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    (a + z)%a = None ->
-
-     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-           ∗ ▷ pc_a ↦ₐ w
-           ∗ ▷ r1 ↦ᵣ WCap p b e a
-           ∗ ▷ rv ↦ᵣ WInt z }}}
-       Instr Executable @ Ep
-     {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hvpc Hz φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
-    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
-    iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
-    iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc | * Hsucc |].
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Success (contradiction) *) simplify_map_eq. }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-
   (* ------------------------------- *)
-
 
   Definition reqperm_instrs r z :=
     encodeInstrsW [
-        IsPtr r_t1 r;
-        Sub r_t1 r_t1 1;
+        GetWType r_t1 r;
+        Sub r_t1 r_t1 (encodeWordType wt_cap);
         Mov r_t2 PC;
         Lea r_t2 11;
         Jnz r_t2 r_t1;
@@ -548,7 +498,6 @@ Section macros.
         ; Fail
         ; Mov r_t1 0
         ; Mov r_t2 0].
-
 
   Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
     ExecPCPerm pc_p →
@@ -571,19 +520,35 @@ Section macros.
   Proof.
     iIntros (Hvpc Hcont) "(>Hprog & >HPC & >Hr & >Hr_t1 & >Hr_t2 & Hφ)".
     codefrag_facts "Hprog".
-    do 4 iInstr "Hprog".
+    iGo "Hprog".
+    eapply getwtype_denote ; reflexivity .
+    do 3 iInstr "Hprog".
     destruct (is_cap w) eqn:Hcap; cycle 1.
     {
       assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }
 
       (* if w is not a capability we jump to the failure case *)
-      iInstr "Hprog". rewrite -/(updatePcPerm (WCap _ _ _ _ )). rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      iInstr "Hprog".
+      (* TODO maybe I could generalize this next sub-proof ? *)
+     { intros Hcontr; clear -Hcap Hcontr.
+        destruct w; [| (destruct sb; [by simpl in Hcap|]) |]
+        ; unfold wt_cap in Hcontr
+        ; injection Hcontr
+        ; clear Hcontr; intro Hcontr
+        ; apply Zminus_eq in Hcontr
+        ; match goal with
+          | H: encodeWordType ?x = encodeWordType ?y |- _ =>
+              pose proof (encodeWordType_correct x y) as Hcontr2 ; cbn in Hcontr2
+          end
+        ; auto.
+      }
+      rewrite -/(updatePcPerm (WCap _ _ _ _ )). rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
       by wp_end. }
     {
     (* now we know that w is a capability *)
-    assert (∃ p b e a, w = WCap p b e a)  as (pc & bc & ec & ac & ->). {destruct_word w; inversion Hcap. eauto. }
-    assert (1-1%nat = 0)%Z as ->. lia.
+    assert (∃ p b e a, w = WCap p b e a)  as (pc & bc & ec & ac & ->). {destruct_word w ; inversion Hcap. eauto. }
+    simpl_encodeWordType; rewrite Z.sub_diag.
     do 5 iInstr "Hprog".
     destruct (isPermWord (WCap pc bc ec ac) perm) eqn:Hperm.
     {
@@ -824,7 +789,7 @@ Section macros.
     (* TODO: This part is needed to have a concrete list, but could be automated as in codefrag_lookup_acc
        to avoid this *)
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
-    feed pose proof (contiguous_between_region_addrs act_b act_e) as Hcont_act. solve_addr.
+    opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
     unfold region_mapsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
@@ -947,7 +912,7 @@ Section macros.
     iApply malloc_spec_alt; iFrameAutoSolve; eauto; try iFrame "∗ #".
     { rewrite !dom_insert_L. rewrite Hrmap_dom.
       repeat (rewrite singleton_union_difference_L all_registers_union_l).
-      f_equal. clear; set_solver. }
+      f_equal. }
     { lia. }
     iNext. iIntros "(HPC & Hmallocprog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hna & Hregs)".
     unfocus_block "Hmallocprog" "Hcont" as "Hprog".

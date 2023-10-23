@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules rules_binary addr_reg_sample.
-From cap_machine.examples Require Import contiguous malloc.
+From cap_machine.proofmode Require Import contiguous.
+From cap_machine.examples Require Import malloc.
 From cap_machine Require Import iris_extra logrel_binary fundamental_binary.
 From cap_machine.rules Require Import rules_base.
 

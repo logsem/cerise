@@ -135,34 +135,6 @@ Section cap_lang_rules.
     + apply Z.eqb_neq in Heq. rewrite lookup_insert_ne in H6; last congruence. by simplify_map_eq.
   Qed.
 
-  (* a more general version of load to work also with any fraction and persistent points tos *)
-  Lemma gen_mem_valid_inSepM_general:
-    ∀ mem0 (m : Mem) (a : Addr) (w : Word) dq,
-      mem0 !! a = Some (dq,w) →
-      gen_heap_interp m
-                   -∗ ([∗ map] a↦dqw ∈ mem0, mapsto a dqw.1 dqw.2)
-                   -∗ ⌜m !! a = Some w⌝.
-  Proof.
-    iIntros (mem0 m a w dq Hmem_pc) "Hm Hmem".
-    iDestruct (big_sepM_delete _ _ a with "Hmem") as "[Hpc_a Hmem]"; eauto.
-    iDestruct (gen_heap_valid with "Hm Hpc_a") as %?; auto.
-  Qed.
-
-  Definition prod_op {A B : Type} :=
-    λ (o1 : option A) (o2 : option B), match o1 with
-             | Some b => match o2 with
-                        | Some c => Some (b,c)
-                        | None => None
-                        end
-             | None => None
-             end.
-
-  Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → gmap A (B * C) :=
-    λ m1 m2, merge prod_op m1 m2.
-
-  (* Instance prod_op_DiagNone {A B : Type} : (DiagNone (@prod_op A B)). *)
-  (* Proof. cbv. auto. Qed. *)
-
   Lemma wp_load_general Ep
      pc_p pc_b pc_e pc_a
      r1 r2 w mem (dfracs : gmap Addr dfrac) regs :
@@ -190,8 +162,8 @@ Section cap_lang_rules.
     (* Derive necessary register values in r *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
-    feed destruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
+    odestruct (Hri r2) as [r2v [Hr'2 Hr2]]. by set_solver+.
+    odestruct (Hri r1) as [r1v [Hr'1 _]]. by set_solver+. clear Hri.
     (* Derive the PC in memory *)
     assert (is_Some (dfracs !! pc_a)) as [dq Hdq].
     { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. }
@@ -268,58 +240,6 @@ Section cap_lang_rules.
       Unshelve. all: auto.
   Qed.
 
-  (* TODO: move to stdpp_extra *)
-  Lemma create_gmap_default_lookup_None {K V : Type} `{Countable K}
-      (l : list K) (d : V) (k : K) :
-    k ∉ l →
-    (create_gmap_default l d) !! k = None.
-  Proof.
-    intros Hk.
-    induction l;auto.
-    simpl. apply not_elem_of_cons in Hk as [Hne Hk].
-    rewrite lookup_insert_ne//. apply IHl. auto.
-  Qed.
-  Lemma create_gmap_default_permutation {K V : Type} `{Countable K}
-      (l l' : list K) (d : V) :
-    l ≡ₚl' →
-    (create_gmap_default l d) = (create_gmap_default l' d).
-  Proof.
-    intros Hperm.
-    apply map_eq. intros k.
-    destruct (decide (k ∈ l)).
-    - assert (k ∈ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup _ d) in e as ->.
-      apply (create_gmap_default_lookup _ d) in e' as ->. auto.
-    - assert (k ∉ l') as e';[rewrite -Hperm;auto|].
-      apply (create_gmap_default_lookup_None _ d) in n as ->.
-      apply (create_gmap_default_lookup_None _ d) in e' as ->. auto.
-  Qed.
-
-  Lemma mem_remove_dq mem dq :
-    ([∗ map] a↦w ∈ mem, a ↦ₐ{dq} w) ⊣⊢
-    ([∗ map] a↦dw ∈ (prod_merge (create_gmap_default (elements (dom mem)) dq) mem), a ↦ₐ{dw.1} dw.2).
-  Proof.
-    iInduction (mem) as [|a k mem] "IH" using map_ind.
-    - rewrite big_sepM_empty dom_empty_L elements_empty
-              /= /prod_merge merge_empty big_sepM_empty. done.
-    - rewrite dom_insert_L.
-      assert (elements ({[a]} ∪ dom mem) ≡ₚ a :: elements (dom mem)) as Hperm.
-      { apply elements_union_singleton. apply not_elem_of_dom. auto. }
-      apply (create_gmap_default_permutation _ _ dq) in Hperm. rewrite Hperm /=.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq,k)) //.
-      iSplit.
-      + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
-        iApply big_sepM_insert.
-        { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
-        iFrame. iApply "IH". iFrame.
-      + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
-        { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom mem)) dq !! a);auto; rewrite H2;auto. }
-        iApply big_sepM_insert. auto.
-        iFrame. iApply "IH". iFrame.
-  Qed.
-
   Lemma wp_load Ep
      pc_p pc_b pc_e pc_a
      r1 r2 w mem regs dq :
@@ -343,58 +263,6 @@ Section cap_lang_rules.
     { rewrite create_gmap_default_dom list_to_set_elements_L. auto. }
     iNext. iIntros (? ?) "(?&Hmem&?)". iApply "Hφ". iFrame.
     iDestruct (mem_remove_dq with "Hmem") as "Hmem". iFrame.
-  Qed.
-
-  Lemma memMap_resource_2gen_clater_dq (a1 a2 : Addr) (dq1 dq2 : dfrac) (w1 w2 : Word) (Φ : Addr -> dfrac → Word -> iProp Σ)  :
-    (▷ Φ a1 dq1 w1) -∗
-    (if (a2 =? a1)%a then emp else ▷ Φ a2 dq2 w2) -∗
-    (∃ mem dfracs, ▷ ([∗ map] a↦w ∈ prod_merge dfracs mem, Φ a w.1 w.2) ∗
-       ⌜(if  (a2 =? a1)%a
-       then mem = (<[a1:=w1]> ∅)
-       else mem = <[a1:=w1]> (<[a2:=w2]> ∅)) ∧
-       (if  (a2 =? a1)%a
-       then dfracs = (<[a1:=dq1]> ∅)
-       else dfracs = <[a1:=dq1]> (<[a2:=dq2]> ∅))⌝
-    )%I.
-  Proof.
-    iIntros "Hc1 Hc2".
-    destruct (a2 =? a1)%a eqn:Heq.
-    - iExists (<[a1:= w1]> ∅),(<[a1:= dq1]> ∅); iSplitL; auto. iNext.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,w1));auto. rewrite merge_empty.
-      iApply big_sepM_insert;[|by iFrame].
-      auto.
-    - iExists (<[a1:=w1]> (<[a2:=w2]> ∅)),(<[a1:=dq1]> (<[a2:=dq2]> ∅)); iSplitL; auto.
-      iNext.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,w1));auto.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq2,w2));auto.
-      rewrite merge_empty.
-      iApply big_sepM_insert;[|iFrame].
-      { apply Z.eqb_neq in Heq. rewrite lookup_insert_ne//. congruence. }
-      iApply big_sepM_insert;[|by iFrame]. auto.
-  Qed.
-
-  Lemma memMap_resource_2gen_d_dq (Φ : Addr → dfrac → Word → iProp Σ) (a1 a2 : Addr) (dq1 dq2 : dfrac) (w1 w2 : Word)  :
-    ( ∃ mem dfracs, ([∗ map] a↦w ∈ prod_merge dfracs mem, Φ a w.1 w.2) ∧
-       ⌜ (if  (a2 =? a1)%a
-       then mem =  (<[a1:=w1]> ∅)
-          else mem = <[a1:=w1]> (<[a2:=w2]> ∅)) ∧
-       (if  (a2 =? a1)%a
-       then dfracs = (<[a1:=dq1]> ∅)
-       else dfracs = <[a1:=dq1]> (<[a2:=dq2]> ∅))⌝
-    ) -∗ (Φ a1 dq1 w1 ∗ if (a2 =? a1)%a then emp else Φ a2 dq2 w2) .
-  Proof.
-    iIntros "Hmem". iDestruct "Hmem" as (mem dfracs) "[Hmem [Hif Hif'] ]".
-    destruct ((a2 =? a1)%a) eqn:Heq.
-    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,w1));auto. rewrite merge_empty.
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
-    - iDestruct "Hif" as %->. iDestruct "Hif'" as %->.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq1,w1));auto.
-      rewrite /prod_merge -(insert_merge _ _ _ _ (dq2,w2));auto.
-      rewrite merge_empty.
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]".
-      { rewrite lookup_insert_ne;auto. apply Z.eqb_neq in Heq. solve_addr. }
-      iDestruct (big_sepM_insert with "Hmem") as "[$ Hmem]". auto.
   Qed.
 
   Lemma wp_load_success E r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' dq dq' :
@@ -655,16 +523,6 @@ Section cap_lang_rules.
        destruct o. all: congruence. }
   Qed.
 
-  Lemma memMap_resource_1_dq (a : Addr) (w : Word) dq :
-        a ↦ₐ{dq} w  ⊣⊢ ([∗ map] a↦w ∈ <[a:=w]> ∅, a ↦ₐ{dq} w)%I.
-  Proof.
-    rewrite big_sepM_delete; last by apply lookup_insert.
-    rewrite delete_insert; last by auto. rewrite big_sepM_empty.
-    iSplit; iIntros "HH".
-    - iFrame.
-    - by iDestruct "HH" as "[HH _]".
-  Qed.
-
   Lemma wp_load_success_fromPC E r1 pc_p pc_b pc_e pc_a pc_a' w w'' dq :
     decodeInstrW w = Load r1 PC →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -705,5 +563,55 @@ Section cap_lang_rules.
        destruct o; apply Is_true_false in H3. all: try congruence. done.
      }
   Qed.
+
+  Lemma wp_load_success_alt E r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :
+    decodeInstrW w = Load r1 r2 →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ w''
+          ∗ ▷ r2 ↦ᵣ WCap p b e a
+          ∗ ▷ a ↦ₐ w' }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
+             ∗ r1 ↦ᵣ w'
+             ∗ pc_a ↦ₐ w
+             ∗ r2 ↦ᵣ WCap p b e a
+             ∗ a ↦ₐ w' }}}.
+  Proof.
+    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hi & >Hr1 & >Hr2 & >Hr2a) Hφ".
+    iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
+    { rewrite Z.eqb_neq. iDestruct (address_neq with "Hr2a Hi") as %Hneq. iIntros (->%finz_to_z_eq). done. }
+    iApply (wp_load_success with "[$HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;iFrame.
+  Qed.
+
+  Lemma wp_load_success_same_alt E r1 pc_p pc_b pc_e pc_a w w' p b e a pc_a' :
+    decodeInstrW w = Load r1 r1 →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    readAllowed p = true ∧ withinBounds b e a = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ WCap p b e a
+          ∗ ▷ a ↦ₐ w'}}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
+             ∗ r1 ↦ᵣ w'
+             ∗ pc_a ↦ₐ w
+             ∗ a ↦ₐ w' }}}.
+  Proof.
+    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) "(>HPC & >Hpc_a & >Hr1 & >Ha) Hφ".
+    iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
+    { rewrite Z.eqb_neq. iDestruct (address_neq with "Ha Hpc_a") as %Hneq. iIntros (->%finz_to_z_eq). done. }
+    iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]");eauto;rewrite Hfalse;iFrame.
+  Qed.
+
+
 
 End cap_lang_rules.

@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel macros_helpers macros fundamental malloc.
+From cap_machine Require Import rules logrel macros fundamental malloc.
+From cap_machine.proofmode Require Import tactics_helpers.
 
 (* Show that we can have rules similar to the ones for OCPL's high and low
    locations.

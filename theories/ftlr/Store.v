@@ -231,7 +231,7 @@ Section fundamental.
         2 : { rewrite Hsomer0 in Hwoa. done. }
         destruct (decide (r0 = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".
-        - simplify_map_eq. iSpecialize ("Hreg" $! _ _ n Hwoa).
+        - simplify_map_eq. iSpecialize ("Hreg" $! _ _ n Hsomer0).
            iFrame "Hreg".
       }
 

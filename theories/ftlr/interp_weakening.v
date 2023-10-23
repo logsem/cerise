@@ -26,14 +26,6 @@ Section fundamental.
           -∗ interp_conf))%I.
 
 
-  (* TODO: Move somewhere ?*)
-  Lemma PermFlowsToPermFlows p p':
-    PermFlowsTo p p' <-> PermFlows p p'.
-  Proof.
-    rewrite /PermFlows; split; intros; auto.
-    destruct (Is_true_reflect (PermFlowsTo p p')); auto.
-  Qed.
-
   Instance if_persistent (PROP: bi) (b: bool) (φ1 φ2: PROP) (H1: Persistent φ1) (H2: Persistent φ2):
     Persistent (if b then φ1 else φ2).
   Proof.
@@ -73,7 +65,7 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame. 
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
       + iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.

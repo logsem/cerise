@@ -26,7 +26,7 @@ Ltac solve_proper ::= (repeat intros ?; simpl; auto_equiv).
 
 Class logrel_na_invs Σ :=
   {
-    logrel_na_invG :> na_invG Σ;
+    logrel_na_invG :: na_invG Σ;
     logrel_nais : na_inv_pool_name;
   }.
 
@@ -657,7 +657,7 @@ Section logrel.
     { rewrite app_nil_l. auto. }
     { apply NoDup_nil. auto. }
     { apply finz_seq_between_NoDup. }
-    { apply disjoint_nil_r. exact 0%a. }
+    { eapply disjoint_nil_r. exact 0%a. }
     { auto. }
     { rewrite app_nil_l.
       iDestruct (big_sepL2_length with "Hl") as %Hlen.

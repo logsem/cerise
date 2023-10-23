@@ -6,7 +6,7 @@ From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample malloc macros_new lse.
-From cap_machine.examples Require Export mkregion_helpers disjoint_regions_tactics.
+From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
@@ -230,7 +230,7 @@ Section roe_adequacy.
     pose proof adv_region_start_offset as Hadv_region_offset.
     iDestruct (big_sepM_to_big_sepL2 with "Hadv") as "Hadv /=". apply finz_seq_between_NoDup.
     rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
-    
+
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hadv]" as ">#Hadv".
     { iApply (region_valid_in_region _ _ _ _ adv_instrs);auto.
       apply Forall_forall. intros. set_solver+. }
@@ -247,7 +247,7 @@ Section roe_adequacy.
         iNext. iModIntro. auto.
       - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
     }
-    
+
     iApply (roe_spec with "[- $HPC $Hown $Hr_adv $Hroe_link $Hrmap $Hroe $Hmalloc $Hassert
                               $Hlink_table_start $Hlink_table_mid $Hadv_valid]");auto.
     instantiate (1:=f_end).

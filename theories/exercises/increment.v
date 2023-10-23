@@ -2,7 +2,8 @@ From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode.
+From cap_machine Require Import rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import subseg_buffer.
 Open Scope Z_scope.
@@ -323,11 +324,11 @@ Section program_call.
     {
       subst rmap_call'.
       rewrite dom_singleton_L.
-      rewrite <- !difference_difference_L.
+      rewrite <- !difference_difference_l_L.
       rewrite !dom_insert_L Hdom.
       replace (all_registers_s ∖ {[PC; r_t0; r_t30; r_t7; r_t8; r_t9]})
         with (all_registers_s ∖ {[PC]} ∖ {[r_t0]} ∖ {[r_t30]}  ∖ {[r_t9]} ∖ {[r_t8]} ∖ {[r_t7]})
-             by (rewrite <- !difference_difference_L ; set_solver+).
+             by (rewrite <- !difference_difference_l_L ; set_solver+).
       replace
         ( {[r_t7]}
             ∪ ({[r_t8]}

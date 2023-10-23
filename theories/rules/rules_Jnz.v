@@ -104,8 +104,8 @@ Section cap_lang_rules.
     (* Derive necessary register values in dst and src *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri src) as [wsrc [H'src Hsrc]]; first set_solver+.
-    feed destruct (Hri dst) as [wdst [H'dst Hdst]]; first set_solver+.
+    odestruct (Hri src) as [wsrc [H'src Hsrc]]; first set_solver+.
+    odestruct (Hri dst) as [wdst [H'dst Hdst]]; first set_solver+.
     clear Hri.
     (* Derive the PC in memory *)
     iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
@@ -379,7 +379,6 @@ Section cap_lang_rules.
     { intros * Hcontra; injection Hcontra ; intros ; subst.
       by apply isCorrectPC_not_ie_cap in Hvpc ; rewrite Hvpc in H3.
     }
-    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
    destruct Hspec as [ X | | | ]

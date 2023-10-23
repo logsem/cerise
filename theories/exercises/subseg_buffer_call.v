@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 From cap_machine Require Import malloc macros.
-From cap_machine Require Import fundamental logrel macros_helpers rules proofmode register_tactics.
+From cap_machine Require Import fundamental logrel rules.
+From cap_machine.proofmode Require Import tactics_helpers proofmode register_tactics.
 From cap_machine.examples Require Import template_adequacy.
 From cap_machine.exercises Require Import subseg_buffer.
 From cap_machine.examples Require Import template_adequacy template_adequacy_ocpl.
@@ -91,7 +92,6 @@ Section program_call.
   Definition prog_call_inv a f_m f_a size secret_off secret_val :=
     na_inv logrel_nais call_codeN (prog_call_code a f_m f_a size secret_off secret_val ).
 
-  (* Definition malloc_callN := (call_versionN.@"malloc"). *)
   Definition malloc_call_inv b_m e_m :=
     na_inv logrel_nais ocpl.mallocN (malloc_inv b_m e_m).
 
@@ -102,23 +102,8 @@ Section program_call.
   Definition flag_call_inv a_flag flagN :=
     inv flagN (a_flag ↦ₐ WInt 0%Z) .
 
-  (* Linking table invariant *)
-  (* Definition link_table_callN := (call_versionN.@"link_table"). *)
-  (* Definition link_table_call_inv *)
-  (*   table_addr b_link e_link a_link *)
-  (*   malloc_entry b_m e_m *)
-  (*   assert_entry b_a e_a *)
-  (*   := *)
-  (*   na_inv logrel_nais link_table_callN *)
-  (*     (table_addr ↦ₐ WCap RO b_link e_link a_link *)
-  (*      ∗ malloc_entry ↦ₐ WCap E b_m e_m b_m *)
-  (*      ∗ assert_entry ↦ₐ WCap E b_a e_a b_a *)
-  (*     )%I. *)
-
-
   Definition call_actN : namespace := call_versionN .@ "act".
   Definition call_localsN : namespace := call_versionN .@ "locals".
-
 
   (** Specifications *)
   (* Specification P1 *)
@@ -399,7 +384,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     { subst rmap'.
       rewrite dom_insert_L.
       rewrite Hdom.
-      rewrite - difference_difference_L.
+      rewrite - difference_difference_l_L.
       rewrite -union_difference_L; auto.
       set_solver.
     }
@@ -427,8 +412,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         with ( ( all_registers_s ∖ {[PC]} ∖ {[r_t30]} ) ) by set_solver+.
       replace ( {[r_t30]} ∪ all_registers_s ∖ {[PC]} ∖ {[r_t30]})
       with (all_registers_s ∖ {[PC]}) ; auto.
-      rewrite <- union_difference_L ; auto.
-      set_solver+. }
+    }
     iNext.
     iIntros "(HPC & Hmalloc_prog & Hlink & Hentry_malloc & Hreg & Hr0 & Hna & Hrmap)"
     ; iDestruct "Hreg" as (b_mem e_mem Hmem_size) "(Hr1 & Hmem)".

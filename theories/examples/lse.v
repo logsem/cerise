@@ -1,6 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-From cap_machine Require Import rules logrel macros_helpers macros fundamental call callback.
+From cap_machine Require Import rules logrel macros fundamental call callback.
+From cap_machine.proofmode Require Import tactics_helpers.
 
 Section roe.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -197,10 +198,9 @@ Section roe.
       [apply Hvpc3|apply Hcont_call|auto|apply Ha_entry|..|solve_ndisj|].
     { rewrite map_to_list_singleton. auto. }
     { rewrite !dom_singleton_L dom_insert_L !dom_delete_L !dom_insert_L !dom_delete_L Hdom. clear.
-      rewrite !union_assoc_L !difference_difference_L !union_assoc_L union_comm_L (union_comm_L {[r_t2; r_t3; r_t4; r_t5]}).
-      rewrite difference_union_distr_l_L. set_solver. }
+      set_solver. }
     { rewrite dom_singleton_L !dom_delete_L Hdom. clear. set_solver. }
-    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L dom_delete_L !union_assoc_L Hdom !difference_difference_L. clear.
+    { rewrite !dom_insert_L !dom_delete_L !dom_insert_L dom_delete_L !union_assoc_L Hdom !difference_difference_l_L. clear.
       rewrite - !(union_assoc_L {[r_t1]}). apply union_mono_l. apply subseteq_difference_r;[set_solver|].
       apply union_mono_l. apply subseteq_difference_r;[set_solver|]. apply all_registers_subseteq. }
     rewrite !map_to_list_singleton. iSimpl. rewrite /call. iFrame "Hcall_prog".

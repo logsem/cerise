@@ -3,7 +3,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules logrel fundamental.
-From cap_machine.examples Require Import macros macros_helpers malloc counter.
+From cap_machine.examples Require Import macros malloc counter.
+From cap_machine.proofmode Require Import tactics_helpers.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
@@ -417,7 +418,7 @@ Section counter_example_preamble.
     iApply (wp_wand with "[-]").
     iApply (malloc_spec with "[- $HPC $Hmalloc $Hpc_b $Ha_entry $Hr0 $Hregs $Hinv_malloc $HnaI]");
       [apply Hvpc1|eapply Hcont_malloc|eapply Hwb_malloc|eapply Ha_entry| |auto|lia|..].
-    { rewrite !dom_delete_L Hdom_r difference_difference_L //. }
+    { rewrite !dom_delete_L Hdom_r difference_difference_l_L //. }
     iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
     iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
@@ -483,8 +484,6 @@ Section counter_example_preamble.
     iApply (wp_lea_success_z _ _ _ _ _ _ _ _ _ _ _ _ _ counter_first with "[$HPC $Hi $Hr1]");
       [eapply decode_encode_instrW_inv|iCorrectPC a_malloc_end a_end|iContiguous_next Hcont_rest 5
        |assumption|done|..].
-    (* { destruct (isCorrectPC_range_perm _ _ _ _ _ _ Hvpc) as [-> | [-> | ->] ]; auto. *)
-    (*   generalize (contiguous_between_middle_bounds _ (length ai_malloc) a_malloc_end _ _ Hcont ltac:(subst ai; rewrite list_lookup_middle; auto)). clear. solve_addr. } *)
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* crtcls *)
     iDestruct (contiguous_between_program_split with "Hprog") as

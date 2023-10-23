@@ -6,8 +6,8 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
-From cap_machine.examples Require Import
-     macros malloc counter_preamble disjoint_regions_tactics mkregion_helpers.
+From cap_machine.examples Require Import macros malloc counter_preamble.
+From cap_machine.proofmode Require Import disjoint_regions_tactics mkregion_helpers.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
@@ -194,7 +194,7 @@ Section Adequacy.
     pose memg := MemG Σ Hinv mem_heapg.
     pose regg := RegG Σ Hinv reg_heapg.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-    
+
     pose proof (
       @counter_preamble_spec Σ memg regg seal_storeg logrel_na_invs
     ) as Spec.
@@ -283,14 +283,14 @@ Section Adequacy.
     iMod (inv_alloc flagN ⊤ (assert_flag ↦ₐ WInt 0%Z) with "Hassert_flag")%I as "#Hinv_assert_flag".
     iMod (na_inv_alloc logrel_nais ⊤ assertN (assert_inv assert_start assert_flag assert_end)
             with "[Hassert Hassert_cap]") as "#Hinv_assert".
-    { iNext. rewrite /assert_inv. iExists assert_cap. iFrame. rewrite /proofmode.codefrag.
+    { iNext. rewrite /assert_inv. iExists assert_cap. iFrame. rewrite /codefrag.
       rewrite (_: (assert_start ^+ length assert_subroutine_instrs)%a = assert_cap).
        2: { generalize assert_code_size. solve_addr. } iFrame.
        iPureIntro. generalize assert_code_size, assert_cap_size, assert_flag_size. cbn. done. }
     iMod (na_inv_alloc logrel_nais ⊤ mallocN (malloc_inv malloc_start malloc_end)
             with "[Hmalloc_code Hmalloc_memptr Hmalloc_mem]") as "#Hinv_malloc".
     { iNext. rewrite /malloc_inv. iExists malloc_memptr, malloc_mem_start.
-      iFrame. rewrite /proofmode.codefrag.
+      iFrame. rewrite /codefrag.
       rewrite (_: (malloc_start ^+ length malloc_subroutine_instrs)%a = malloc_memptr).
       2: { generalize malloc_code_size. solve_addr. } iFrame.
       iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
@@ -310,7 +310,7 @@ Section Adequacy.
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end' adv_start))%I with "[Hadv]" as ">#Hadv".
     { rewrite Heq'. iApply (region_valid_in_region _ _ _ _ adv_val); eauto.
       apply Forall_forall. intros. set_solver+. }
-    
+
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hmalloc]" as ">#Hadv'".
     { iApply fixpoint_interp1_eq.
       iSimpl. rewrite Heqapp Heq'.
@@ -320,7 +320,7 @@ Section Adequacy.
       iDestruct "Hmalloc" as "[Hmalloc _]". iSimpl. iSplitL;auto.
       iExists interp. iSplitL;[|iModIntro;iSplit;auto].
       iApply inv_alloc. iNext. iExists _. iFrame "∗ #". }
-     
+
     (* Apply the spec, obtain that the PC is in the expression relation *)
 
     iAssert ((interp_expr interp reg) (WCap RX counter_region_start counter_region_end counter_preamble_start))
@@ -387,7 +387,7 @@ Section Adequacy.
 
         (* Other registers *)
         destruct (Hrothers r) as [rw [Hrw Hncap] ]. set_solver.
-        destruct rw; [| by inversion Hncap..]. simplify_map_eq.
+        destruct rw; [| by inversion Hncap..]. simplify_map_eq. rewrite Hsv in Hrw ; simplify_eq.
         by rewrite !fixpoint_interp1_eq /=. } }
 
     (* We get a WP; conclude using the rest of the Iris adequacy theorem *)

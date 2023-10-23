@@ -88,7 +88,7 @@ Section cap_lang_rules.
     (* Derive necessary register values in r *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    feed destruct (Hri r) as [rv [Hr' _]]; first set_solver+. clear Hri.
+    odestruct (Hri r) as [rv [Hr' _]]; first set_solver+. clear Hri.
     (* Derive the PC in memory *)
     iDestruct (gen_mem_valid_inSepM mem m with "Hm Hmem") as %Hma; eauto.
 
@@ -238,7 +238,6 @@ Section cap_lang_rules.
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
     { intros * Hcontra HIE ; simplify_eq.
       apply isCorrectPC_not_ie_cap in Hvpc ; by rewrite Hvpc in HIE. }
-    { by rewrite !dom_insert; set_solver+. }
 
     iNext.
     iIntros (regs retv) "(%& Hmem & Hreg)".

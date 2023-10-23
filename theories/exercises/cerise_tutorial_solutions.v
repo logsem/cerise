@@ -5,7 +5,8 @@
  *)
 
 From iris.proofmode Require Import tactics.
-From cap_machine Require Import rules proofmode macros_helpers contiguous.
+From cap_machine Require Import rules.
+From cap_machine.proofmode Require Import proofmode tactics_helpers contiguous.
 Open Scope Z_scope.
 
 Section base_program.
