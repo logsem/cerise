@@ -1,4 +1,4 @@
-From Coq Require Import ssreflect.
+From Coq Require Import ssreflect Eqdep_dec.
 From stdpp Require Import gmap fin_maps list countable.
 From cap_machine Require Export addr_reg solve_addr.
 From iris.proofmode Require Import proofmode.
@@ -716,7 +716,6 @@ Instance word_inhabited: Inhabited Word := populate (WInt 0).
 Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
 
-
 Instance instr_countable : Countable instr.
 Proof.
 
@@ -775,4 +774,23 @@ Proof.
       end).
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
+Defined.
+
+Instance reg_finite : finite.Finite RegName.
+Proof. apply (finite.enc_finite (λ r : RegName, match r with
+                                                | PC => S RegNum
+                                                | addr_reg.R n fin => n
+                                                end)
+                (λ n : nat, match n_to_regname n with | Some r => r | None => PC end)
+                (S (S RegNum))).
+       - intros x. destruct x;auto.
+         unfold n_to_regname.
+         destruct (Nat.le_dec n RegNum).
+         + do 2 f_equal. apply eq_proofs_unicity. decide equality.
+         + exfalso. by apply (Nat.leb_le n RegNum) in fin.
+       - intros x.
+         + destruct x;[lia|]. apply Nat.leb_le in fin. lia.
+       - intros i Hlt. unfold n_to_regname.
+         destruct (Nat.le_dec i RegNum);auto.
+         lia.
 Defined.
