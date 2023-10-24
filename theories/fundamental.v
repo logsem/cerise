@@ -57,9 +57,7 @@ Section fundamental.
       { inversion i. inversion H1; cbn in *; simplify_eq. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
-      iInv (logN.@(a, v)) as "Ha" "Hcls".
-      (* FIXME that's weird that I have to use `bi.later_exist` *)
-      iDestruct (bi.later_exist with "Ha") as (lw) "[>Ha HP]".
+      iInv (logN.@(a, v)) as (lw) "[>Ha HP]" "Hcls".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
         first apply (lookup_insert _ _ (LCap p b e a v)).
       destruct (decodeInstrWL lw) eqn:Hi. (* proof by cases on each instruction *)

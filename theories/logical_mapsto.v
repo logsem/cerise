@@ -47,6 +47,8 @@ Notation LSealRange p b e a := (LWSealable (LSSealRange p b e a)).
 Notation LSealedCap o p b e a v := (LWSealed o (LSCap p b e a v)).
 Notation LInt z := (LWInt z).
 
+Global Instance lword_inhabited: Inhabited LWord := populate (LInt 0).
+
 Definition lword_get_version (lw : LWord) : option Version :=
   match lw with
   | LCap _ _ _ _ v | (LSealedCap _ _ _ _ _ v) => Some v
