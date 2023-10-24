@@ -9,15 +9,16 @@ Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  Lemma get_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst r0 : RegName) (ins: instr) (P:D) :
-    is_Get ins dst r0 →
-    ftlr_instr r p b e a w ins P.
+  Lemma get_case (lregs : leibnizO LReg)
+    (p : Perm) (b e a : Addr) (v : Version)
+    (lw : LWord) (dst r : RegName) (ins: instr) (P:D) :
+    is_Get ins dst r →
+    ftlr_instr lregs p b e a v lw ins P.
   Proof.
     intros Hinstr Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
@@ -32,15 +33,16 @@ Section fundamental.
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec; cycle 1.
-    { iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
+    { iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. iNext.
       iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
-    { incrementPC_inv; simplify_map_eq.
-      iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
-      assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
+    { incrementLPC_inv; simplify_map_eq.
+      iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. iNext.
       iIntros "_".
-      simplify_map_eq.
-      iApply ("IH" $! (<[dst := _]> (<[PC := _]> r)) with "[%] [] [Hmap] [$Hown]");
+      assert (dst <> PC) as HdstPC by (intros ->; by rewrite lookup_insert in H2).
+      (* FIXME why is `simplify_map_eq` not working ? *)
+      rewrite lookup_insert_ne // lookup_insert in H2; simplify_eq.
+      iApply ("IH" $! (<[dst := _]> (<[PC := _]> lregs)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
       iIntros (ri v Hri Hsv). rewrite insert_commute // lookup_insert_ne // in Hsv; [].

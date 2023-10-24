@@ -55,6 +55,9 @@ Definition lword_get_version (lw : LWord) : option Version :=
 Definition laddr_get_addr (la : LAddr) := la.1.
 Definition laddr_get_version (la : LAddr) := la.2.
 
+Lemma laddr_inv la : (laddr_get_addr la, laddr_get_version la) = la.
+Proof. destruct la ; auto. Qed.
+
 Definition is_lcap (w : LWord) :=
   match w with
     | LCap p b e a v | LSealedCap _ p b e a v => true
@@ -476,13 +479,48 @@ Inductive isCorrectLPC: LWord → Prop :=
     econstructor; eauto. apply isCorrectPC_ExecPCPerm_InBounds; auto.
   Qed.
 
+  Lemma isCorrectLPC_dec:
+    forall lw, { isCorrectLPC lw } + { not (isCorrectLPC lw) }.
+  Proof.
+    destruct lw.
+    - right. red; intros H. inversion H. by cbn in *.
+    - destruct sb as [p b e a | ].
+      -- case_eq (match p with RX | RWX => true | _ => false end); intros.
+      + destruct (finz_le_dec b a).
+        * destruct (finz_lt_dec a e).
+          { left. econstructor; simpl; eauto. econstructor; simpl; eauto.
+            by auto.
+            destruct p; naive_solver. }
+          { right. red; intro HH.
+            inversion HH; subst; cbn in *; simplify_eq; inversion H1; subst; solve_addr. }
+        * right. red; intros HH; inversion HH; subst.
+          inversion HH; subst; cbn in *; simplify_eq; inversion H1; subst; solve_addr.
+      + right. red; intros HH; inversion HH; subst.
+        inversion HH; subst; cbn in *; simplify_eq; inversion H1; subst; naive_solver.
+        -- right. red; intros H. inversion H. by cbn in *.
+    - right. red; intros H. inversion H. by cbn in *.
+  Qed.
+
+  Lemma in_range_is_correctLPC p b e a b' e' v :
+    isCorrectLPC (LCap p b e a v) →
+    (b' <= b)%a ∧ (e <= e')%a →
+    (b' <= a)%a ∧ (a < e')%a.
+  Proof.
+    intros Hvpc [Hb He].
+    inversion Hvpc; cbn in * ; simplify_eq.
+    inversion H0 ; simplify_eq.
+    solve_addr.
+  Qed.
+
+  Global Instance dec_lpc lc : Decision (isCorrectLPC lc).
+  Proof. apply isCorrectLPC_dec. Qed.
+
   Lemma lreg_lookup regs (r : RegName) (lw : LWord) :
     regs !! r = Some lw -> (lreg_strip regs !! r) = Some (lword_get_word lw).
   Proof.
     rewrite /lreg_strip lookup_fmap ; intros.
     by rewrite H; cbn.
   Qed.
-
 
   Lemma laddr_neq (la1 la2 : LAddr) :
     (la2.1 =? la1.1)%Z && (la2.2 =? la1.2) = false ->

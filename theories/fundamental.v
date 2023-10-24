@@ -1,5 +1,5 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg Get Lea Seal UnSeal.
+(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict *)
+(*   Subseg Get Lea Seal UnSeal. *)
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -11,56 +11,58 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  Lemma extract_r_ex r (reg : RegName) :
-    (∃ w, r !! reg = Some w) →
-    ⊢ (([∗ map] r0↦w ∈ r, r0 ↦ᵣ w) → ∃ w, reg ↦ᵣ w)%I.
+  Lemma extract_r_ex lregs (r : RegName) :
+    (∃ lw, lregs !! r = Some lw) →
+    ⊢ (([∗ map] reg↦lw ∈ lregs, reg ↦ᵣ lw) → ∃ lw, r ↦ᵣ lw)%I.
   Proof.
-    intros [w Hw].
-    iIntros "Hmap". iExists w.
-    iApply (big_sepM_lookup (λ reg' i, reg' ↦ᵣ i)%I r reg w); eauto.
+    intros [lw Hw].
+    iIntros "Hmap". iExists lw.
+    iApply (big_sepM_lookup (λ reg' i, reg' ↦ᵣ i)%I lregs r lw); eauto.
   Qed.
 
-  Lemma extract_r reg (r : RegName) w :
-    reg !! r = Some w →
-    ⊢ (([∗ map] r0↦w ∈ reg, r0 ↦ᵣ w) →
-     (r ↦ᵣ w ∗ (∀ x', r ↦ᵣ x' -∗ [∗ map] k↦y ∈ <[r := x']> reg, k ↦ᵣ y)))%I.
+  Lemma extract_r lregs (r : RegName) lw :
+    lregs !! r = Some lw →
+    ⊢ (([∗ map] reg↦lw ∈ lregs, reg ↦ᵣ lw) →
+     (r ↦ᵣ lw ∗ (∀ x', r ↦ᵣ x' -∗ [∗ map] k↦y ∈ <[r := x']> lregs, k ↦ᵣ y)))%I.
   Proof.
     iIntros (Hw) "Hmap".
-    iDestruct (big_sepM_lookup_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hr"; eauto.
+    iDestruct (big_sepM_lookup_acc (λ (r : RegName) i, r ↦ᵣ i)%I lregs r lw) as "Hr"; eauto.
     iSpecialize ("Hr" with "[Hmap]"); eauto. iDestruct "Hr" as "[Hw Hmap]".
-    iDestruct (big_sepM_insert_acc (λ (r : RegName) i, r ↦ᵣ i)%I reg r w) as "Hupdate"; eauto.
+    iDestruct (big_sepM_insert_acc (λ (r : RegName) i, r ↦ᵣ i)%I lregs r lw) as "Hupdate"; eauto.
     iSpecialize ("Hmap" with "[Hw]"); eauto.
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
 
-  Lemma fundamental_cap r p b e a :
-    ⊢ interp (WCap p b e a) →
-      interp_expression r (WCap p b e a).
+  Lemma fundamental_cap lregs p b e a v :
+    ⊢ interp (LCap p b e a v) →
+      interp_expression lregs (LCap p b e a v).
   Proof.
     iIntros "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
-    iLöb as "IH" forall (r p b e a).
+    iLöb as "IH" forall (lregs p b e a v).
     iIntros "#Hinv".
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
     iApply (wp_bind (fill [SeqCtx])).
-    destruct (decide (isCorrectPC (WCap p b e a))).
+    destruct (decide (isCorrectLPC (LCap p b e a v))).
     - (* Correct PC *)
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
-      { eapply in_range_is_correctPC; eauto. solve_addr. }
+      { eapply in_range_is_correctLPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
-      { inversion i. subst. auto. }
+      { inversion i. inversion H1; cbn in *; simplify_eq. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
-      iInv (logN.@a) as (w) "[>Ha HP]" "Hcls".
+      iInv (logN.@(a, v)) as "Ha" "Hcls".
+      (* FIXME that's weird that I have to use `bi.later_exist` *)
+      iDestruct (bi.later_exist with "Ha") as (lw) "[>Ha HP]".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-        first apply (lookup_insert _ _ (WCap p b e a)).
-      destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
+        first apply (lookup_insert _ _ (LCap p b e a v)).
+      destruct (decodeInstrWL lw) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
