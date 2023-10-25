@@ -73,13 +73,13 @@ Definition Mem := gmap Addr Word.
 
 (* EqDecision instances *)
 
-Instance perm_eq_dec : EqDecision Perm.
+Global Instance perm_eq_dec : EqDecision Perm.
 Proof. solve_decision. Defined.
-Instance sealb_eq_dec : EqDecision Sealable.
+Global Instance sealb_eq_dec : EqDecision Sealable.
 Proof. solve_decision. Qed.
-Instance word_eq_dec : EqDecision Word.
+Global Instance word_eq_dec : EqDecision Word.
 Proof. solve_decision. Qed.
-Instance instr_eq_dec : EqDecision instr.
+Global Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
 
 Ltac destruct_word w :=
@@ -654,7 +654,7 @@ Ltac destruct_pair_l c n :=
 
 (* Useful instances *)
 
-Instance perm_countable : Countable Perm.
+Global Instance perm_countable : Countable Perm.
 Proof.
   set encode := fun p => match p with
     | O => 1
@@ -677,7 +677,7 @@ Proof.
   intro p. destruct p; reflexivity.
 Defined.
 
-Instance sealable_countable : Countable Sealable.
+Global Instance sealable_countable : Countable Sealable.
 Proof.
   set (enc := fun sb =>
        match sb with
@@ -694,7 +694,7 @@ Proof.
 Defined.
 
 (* Same here *)
-Instance word_countable : Countable Word.
+Global Instance word_countable : Countable Word.
 Proof.
   set (enc := fun w =>
       match w with
@@ -712,11 +712,11 @@ Proof.
   intros i. destruct i; simpl; done.
 Qed.
 
-Instance word_inhabited: Inhabited Word := populate (WInt 0).
-Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
-Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
+Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
 
-Instance instr_countable : Countable instr.
+Global Instance instr_countable : Countable instr.
 Proof.
 
   set (enc := fun e =>
@@ -776,7 +776,7 @@ Proof.
   intros i. destruct i; simpl; done.
 Defined.
 
-Instance reg_finite : finite.Finite RegName.
+Global Instance reg_finite : finite.Finite RegName.
 Proof. apply (finite.enc_finite (λ r : RegName, match r with
                                                 | PC => S RegNum
                                                 | addr_reg.R n fin => n
