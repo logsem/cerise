@@ -45,8 +45,6 @@ Section counter_example_preamble.
   Definition read_neg_instrs_length : Z :=
     Eval cbv in (length (read_neg_instrs)).
 
-  Compute (counter_left_instrs_length = counter_right_instrs_length).
-
   (* [f_m] is the offset of the malloc capability *)
   (* [offset_to_counter] is the offset between the [move_r r_t1 PC] instruction
   and the code of the implementation counter, which will be the concatenation of: incr;read *)

@@ -152,11 +152,11 @@ theories/examples/buffer.v
 
 # Counter
 theories/examples/minimal_counter.v
-theories/examples/counter.v
-theories/examples/counter_preamble.v
-theories/examples/counter_adequacy.v
+theories/examples/counter/counter.v
+theories/examples/counter/counter_preamble.v
+theories/examples/counter/counter_adequacy.v
 
-# Hape-based Calling Convention
+# Heap-based Calling Convention
 theories/examples/call.v
 theories/examples/callback.v
 

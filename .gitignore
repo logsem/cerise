@@ -290,8 +290,13 @@ TSWLatexianTemp*
 *.lpz
 
 # Compilation artifacts
+/_opam
+html
 .coqdeps.d
 Makefile.coq
+Makefile.coq.d
 Makefile.coq.conf
+Makefile.coq.conf.d
 .Makefile.coq.d
-/_opam/
+CoqMakefile.conf
+result

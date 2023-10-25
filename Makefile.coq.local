@@ -1,0 +1,15 @@
+EXTRA_DIR = extra
+COQDOCFLAGS  := \
+  --external 'https://plv.mpi-sws.org/coqdoc/iris/' iris \
+  --external 'https://plv.mpi-sws.org/coqdoc/stdpp/' stdpp \
+  --toc --toc-depth 2 --html --interpolate \
+  --index indexpage --no-lib-name --parse-comments \
+  --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html
+
+INSTALLDEFAULTROOT = theories
+
+# The `html` dependency is in `Makefile.coq`
+coqdoc: html
+		cp $(EXTRA_DIR)/resources/* html
+
+.PHONY: coqdoc

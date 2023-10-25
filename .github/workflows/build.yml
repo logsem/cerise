@@ -34,10 +34,12 @@ jobs:
         run: opam install . --deps-only -y
 
       - name: Build
-        run: opam exec -- make ci
+        run: |
+            find ./theories -name "*.v" -exec ./disable-qed.sh {} +;
+            opam exec -- make pretty-timed -j2
 
       - name: Build docs
-        run: opam exec -- make html
+        run: opam exec -- make coqdoc
 
       - name: Deploy docs (if main branch)
         uses: peaceiris/actions-gh-pages@v3
@@ -47,9 +49,9 @@ jobs:
           publish_dir: ./html
           destination_dir: dev
 
-      - name: Deploy docs (if non-main branch)
+      - name: Deploy docs (if non-main branch and non-journal branch)
         uses: peaceiris/actions-gh-pages@v3
-        if: ${{ steps.get_branch.outputs.branch != 'main' }}
+        if: ${{ steps.get_branch.outputs.branch != 'main' && (steps.get_branch.outputs.branch != 'journal') }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./html
