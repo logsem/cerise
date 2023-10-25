@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">cap_machine.rules</h1>
+
+<div class="code">
+<span class="comment">(*&nbsp;Program&nbsp;logic&nbsp;rules&nbsp;for&nbsp;machine&nbsp;instructions&nbsp;are&nbsp;split&nbsp;into&nbsp;several&nbsp;files,<br/>
+&nbsp;&nbsp;&nbsp;with&nbsp;one&nbsp;file&nbsp;for&nbsp;each&nbsp;instruction,&nbsp;which&nbsp;we&nbsp;import&nbsp;below.&nbsp;*)</span><br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.rules</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Export</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.rules.rules_Get.html#"><span class="id" title="library">rules_Get</span></a> <a class="idref" href="cap_machine.rules.rules_Load.html#"><span class="id" title="library">rules_Load</span></a> <a class="idref" href="cap_machine.rules.rules_Store.html#"><span class="id" title="library">rules_Store</span></a> <a class="idref" href="cap_machine.rules.rules_AddSubLt.html#"><span class="id" title="library">rules_AddSubLt</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.rules.rules_Lea.html#"><span class="id" title="library">rules_Lea</span></a> <a class="idref" href="cap_machine.rules.rules_Mov.html#"><span class="id" title="library">rules_Mov</span></a> <a class="idref" href="cap_machine.rules.rules_Restrict.html#"><span class="id" title="library">rules_Restrict</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.rules.rules_Jmp.html#"><span class="id" title="library">rules_Jmp</span></a> <a class="idref" href="cap_machine.rules.rules_Jnz.html#"><span class="id" title="library">rules_Jnz</span></a> <a class="idref" href="cap_machine.rules.rules_Subseg.html#"><span class="id" title="library">rules_Subseg</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.rules.rules_Seal.html#"><span class="id" title="library">rules_Seal</span></a> <a class="idref" href="cap_machine.rules.rules_UnSeal.html#"><span class="id" title="library">rules_UnSeal</span></a>.<br/>
+
+<br/>
+<span class="comment">(*&nbsp;Program&nbsp;specifications<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;There&nbsp;is&nbsp;a&nbsp;small&nbsp;discrepancy&nbsp;between&nbsp;how&nbsp;program&nbsp;specifications&nbsp;are&nbsp;written<br/>
+&nbsp;&nbsp;&nbsp;in&nbsp;the&nbsp;paper&nbsp;and&nbsp;in&nbsp;the&nbsp;Coq&nbsp;development.<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;The&nbsp;paper&nbsp;presenting&nbsp;Cerise&nbsp;distinguishes&nbsp;between&nbsp;three&nbsp;kinds&nbsp;of&nbsp;program<br/>
+&nbsp;&nbsp;&nbsp;specifications:<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;⟨P⟩&nbsp;→&nbsp;⟨s.&nbsp;Q⟩&nbsp;&nbsp;&nbsp;single&nbsp;instruction<br/>
+&nbsp;&nbsp;&nbsp;{P}&nbsp;⇝&nbsp;{s.&nbsp;Q}&nbsp;&nbsp;&nbsp;code&nbsp;fragment<br/>
+&nbsp;&nbsp;&nbsp;{P}&nbsp;⇝&nbsp;∙&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;complete&nbsp;safe&nbsp;execution<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;In&nbsp;this&nbsp;Coq&nbsp;development,&nbsp;we&nbsp;express&nbsp;specifications&nbsp;using&nbsp;slightly&nbsp;more<br/>
+&nbsp;&nbsp;&nbsp;primitive&nbsp;constructs:&nbsp;Iris'&nbsp;standard&nbsp;notion&nbsp;of&nbsp;weakest-precondition&nbsp;(WP)&nbsp;and<br/>
+&nbsp;&nbsp;&nbsp;Hoare&nbsp;triples.&nbsp;Specifications&nbsp;from&nbsp;the&nbsp;paper&nbsp;can&nbsp;be&nbsp;seen&nbsp;as&nbsp;sugar&nbsp;for&nbsp;these<br/>
+&nbsp;&nbsp;&nbsp;constructs,&nbsp;as&nbsp;follows:<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;-&nbsp;single&nbsp;instruction:&nbsp;instead&nbsp;of&nbsp;⟨P⟩&nbsp;→&nbsp;⟨s.&nbsp;Q⟩,&nbsp;we&nbsp;write:<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{{&nbsp;P&nbsp;}}}&nbsp;Instr&nbsp;Executable&nbsp;{{{&nbsp;s.&nbsp;Q&nbsp;}}}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(see&nbsp;for&nbsp;instance&nbsp;<span class="inlinecode"><span class="id" title="var">rules_Subseg.wp_subseg_success_lr</span></span>)<br/>
+<br/>
+&nbsp;&nbsp;-&nbsp;code&nbsp;fragment:&nbsp;instead&nbsp;of&nbsp;{P}&nbsp;⇝&nbsp;{s.&nbsp;Q},&nbsp;we&nbsp;write:<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∀φ,&nbsp;P&nbsp;∗&nbsp;(Q&nbsp;-∗&nbsp;WP&nbsp;Seq&nbsp;(Instr&nbsp;Executable)&nbsp;{{&nbsp;φ&nbsp;}})&nbsp;⊢&nbsp;WP&nbsp;Seq&nbsp;(Instr&nbsp;Executable)&nbsp;{{&nbsp;φ&nbsp;}}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(see&nbsp;for&nbsp;instance&nbsp;<span class="inlinecode"><span class="id" title="var">examples.macros_new.rclear_spec</span></span>)<br/>
+<br/>
+&nbsp;&nbsp;-&nbsp;complete&nbsp;safe&nbsp;execution:&nbsp;instead&nbsp;of&nbsp;{P}&nbsp;⇝&nbsp;∙,&nbsp;we&nbsp;write:<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;P&nbsp;-∗&nbsp;WP&nbsp;Seq&nbsp;(Instr&nbsp;Executable)&nbsp;{{&nbsp;λ&nbsp;_,&nbsp;True&nbsp;}}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(see&nbsp;for&nbsp;instance&nbsp;<span class="inlinecode"><span class="id" title="var">examples.minimal_counter.counter_full_run_spec</span></span>)<br/>
+<br/>
+&nbsp;&nbsp;Rules&nbsp;for&nbsp;sequencing&nbsp;specifications&nbsp;then&nbsp;all&nbsp;become&nbsp;consequences&nbsp;of&nbsp;the<br/>
+&nbsp;&nbsp;general&nbsp;"bind&nbsp;rule"&nbsp;for&nbsp;weakest&nbsp;preconditions<br/>
+&nbsp;&nbsp;<span class="inlinecode"><span class="id" title="var">iris.program_logic.weakestpre.wp_bind</span></span>.&nbsp;(Thanks&nbsp;to&nbsp;our&nbsp;definition&nbsp;of<br/>
+&nbsp;&nbsp;"evaluation&nbsp;contexts"&nbsp;corresponding&nbsp;to&nbsp;instruction&nbsp;sequencing.)&nbsp;Similarly,&nbsp;the<br/>
+&nbsp;&nbsp;"frame&nbsp;rule"&nbsp;is&nbsp;simply&nbsp;a&nbsp;consequence&nbsp;of&nbsp;a&nbsp;generic&nbsp;property&nbsp;of&nbsp;weakest<br/>
+&nbsp;&nbsp;preconditions&nbsp;<span class="inlinecode"><span class="id" title="var">iris.program_logic.weakestpre.wp_strong_mono</span></span>.<br/>
+*)</span><br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.base_logic</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Export</span> <span class="id" title="library">invariants</span> <span class="id" title="library">gen_heap</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.program_logic</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Export</span> <span class="id" title="library">weakestpre</span> <span class="id" title="library">ectx_lifting</span>.<br/>
+
+<br/>
+<span class="comment">(*&nbsp;Reexport&nbsp;resources&nbsp;for&nbsp;registers&nbsp;and&nbsp;memory&nbsp;*)</span><br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.rules</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Export</span> <a class="idref" href="cap_machine.rules.rules_base.html#"><span class="id" title="library">rules_base</span></a>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>

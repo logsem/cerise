@@ -1,0 +1,540 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">cap_machine.exercises.cerise_modularity_solutions</h1>
+
+<div class="code">
+</div>
+
+<div class="doc">
+This file is a tutorial to learn how to use the Cerise Program Logic within Coq.
+    We will use the modularity of the program logic to use the specification of
+    a macro in a program, and show how the macro can be linked via a linking table.
+
+<div class="paragraph"> </div>
+
+    Prerequisites:
+    We assume the user has already followed the first part of the tutorial
+    "cerise_tutorial.v" and is able to prove the specification of a program
+    with known code using the Cerise Proof Mode. 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.proofmode</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">tactics</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.rules.html#"><span class="id" title="library">rules</span></a> <a class="idref" href="cap_machine.examples.macros_new.html#"><span class="id" title="library">macros_new</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.proofmode</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.proofmode.proofmode.html#"><span class="id" title="library">proofmode</span></a> <a class="idref" href="cap_machine.proofmode.tactics_helpers.html#"><span class="id" title="library">tactics_helpers</span></a> <a class="idref" href="cap_machine.proofmode.register_tactics.html#"><span class="id" title="library">register_tactics</span></a>.<br/>
+<span class="id" title="keyword">Open</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">Z_scope</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a id="increment_macro" class="idref" href="#increment_macro"><span class="id" title="section">increment_macro</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> {<a id="0101b9beac487b383a5ba2a8f6922788" class="idref" href="#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="binder">Σ</span></a>:<span class="id" title="record">gFunctors</span>} {<a id="memg:2" class="idref" href="#memg:2"><span class="id" title="binder">memg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#memG"><span class="id" title="class">memG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>} {<a id="regg:3" class="idref" href="#regg:3"><span class="id" title="binder">regg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#regG"><span class="id" title="class">regG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="MP:4" class="idref" href="#MP:4"><span class="id" title="binder">MP</span></a>: <a class="idref" href="cap_machine.machine_parameters.html#MachineParameters"><span class="id" title="class">MachineParameters</span></a>}.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The increment macro is a macro that takes a register r (r ≠ r_env), which
+      contains a capability C with a permission p ≤ RW, that points to
+      an integer n. The macro increments the value of the integer.
+      The macro uses the register r_env to perform the arithmetic, and clear
+      the result of the register.
+   
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="incr_instrs" class="idref" href="#incr_instrs"><span class="id" title="definition">incr_instrs</span></a> <a id="r:5" class="idref" href="#r:5"><span class="id" title="binder">r</span></a> <a id="r_env:6" class="idref" href="#r_env:6"><span class="id" title="binder">r_env</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="cap_machine.machine_base.html#Word"><span class="id" title="inductive">Word</span></a> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Load"><span class="id" title="constructor">Load</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:6"><span class="id" title="variable">r_env</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:5"><span class="id" title="variable">r</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Add"><span class="id" title="constructor">Add</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:6"><span class="id" title="variable">r_env</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:6"><span class="id" title="variable">r_env</span></a> 1<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Store"><span class="id" title="constructor">Store</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:5"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:6"><span class="id" title="variable">r_env</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Mov"><span class="id" title="constructor">Mov</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:6"><span class="id" title="variable">r_env</span></a> 0<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Specification of the macro. The proof is an optional exercise. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="incr_macro_spec" class="idref" href="#incr_macro_spec"><span class="id" title="lemma">incr_macro_spec</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:7" class="idref" href="#p_pc:7"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:8" class="idref" href="#b_pc:8"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:9" class="idref" href="#e_pc:9"><span class="id" title="binder">e_pc</span></a> <a id="a_prog:10" class="idref" href="#a_prog:10"><span class="id" title="binder">a_prog</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="r:11" class="idref" href="#r:11"><span class="id" title="binder">r</span></a> <a id="r_env:12" class="idref" href="#r_env:12"><span class="id" title="binder">r_env</span></a> <span class="comment">(*&nbsp;registers&nbsp;of&nbsp;the&nbsp;macro&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p:13" class="idref" href="#p:13"><span class="id" title="binder">p</span></a> (<a id="e:14" class="idref" href="#e:14"><span class="id" title="binder">e</span></a> <a id="b:15" class="idref" href="#b:15"><span class="id" title="binder">b</span></a> <a id="a:16" class="idref" href="#a:16"><span class="id" title="binder">a</span></a> : <a class="idref" href="cap_machine.addr_reg.html#Addr"><span class="id" title="abbreviation">Addr</span></a>) <a id="n:17" class="idref" href="#n:17"><span class="id" title="binder">n</span></a> <span class="comment">(*&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="w_env:18" class="idref" href="#w_env:18"><span class="id" title="binder">w_env</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="811db5421995400350703bd290e285cb" class="idref" href="#811db5421995400350703bd290e285cb"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:20" class="idref" href="#e_prog:20"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:10"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#incr_instrs"><span class="id" title="definition">incr_instrs</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a>))%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#::type_scope:x_'&lt;&gt;'_x"><span class="id" title="notation">&lt;&gt;</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:7"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:8"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:9"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:10"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_prog:20"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:15"><span class="id" title="variable">b</span></a> <span class="id" title="notation">≤</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:16"><span class="id" title="variable">a</span></a> <span class="id" title="notation">&lt;</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:14"><span class="id" title="variable">e</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;a&nbsp;is&nbsp;in&nbsp;the&nbsp;bounds&nbsp;of&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#writeAllowed"><span class="id" title="definition">writeAllowed</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:13"><span class="id" title="variable">p</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;p&nbsp;can&nbsp;Read/Write&nbsp;*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:7"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:8"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:9"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:10"><span class="id" title="variable">a_prog</span></a> <span class="comment">(*&nbsp;PC&nbsp;points&nbsp;to&nbsp;the&nbsp;prog*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:10"><span class="id" title="variable">a_prog</span></a> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#incr_instrs"><span class="id" title="definition">incr_instrs</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a>) <span class="comment">(*&nbsp;the&nbsp;prog&nbsp;instruction&nbsp;start&nbsp;at&nbsp;a_prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:13"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:15"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:14"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:16"><span class="id" title="variable">a</span></a> <span class="comment">(*&nbsp;r&nbsp;contains&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#w_env:18"><span class="id" title="variable">w_env</span></a> <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_env&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:16"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n:17"><span class="id" title="variable">n</span></a> <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a,&nbsp;which&nbsp;is&nbsp;an&nbsp;integer&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:7"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:8"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:9"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_prog:20"><span class="id" title="variable">e_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:13"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:15"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:14"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:16"><span class="id" title="variable">a</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0 <span class="comment">(*&nbsp;cleared&nbsp;register&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:16"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n:17"><span class="id" title="variable">n</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 1) <span class="comment">(*&nbsp;incremented&nbsp;value&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:10"><span class="id" title="variable">a_prog</span></a> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#incr_instrs"><span class="id" title="definition">incr_instrs</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r:11"><span class="id" title="variable">r</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#r_env:12"><span class="id" title="variable">r_env</span></a>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#811db5421995400350703bd290e285cb"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#811db5421995400350703bd290e285cb"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hregs</span> <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Ha_bounds</span> <span class="id" title="var">Hperm</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr &amp; Hrenv &amp; Ha &amp; Hcont)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;1&nbsp;-&nbsp;prepare&nbsp;the&nbsp;assertions&nbsp;for&nbsp;the&nbsp;proof&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_prog</span>; <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">codefrag_facts</span> "Hprog".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2&nbsp;-&nbsp;wp&nbsp;rules&nbsp;for&nbsp;each&nbsp;instructions&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Perform&nbsp;Load&nbsp;r_env&nbsp;r&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hprog".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">split</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#writeA_implies_readA"><span class="id" title="lemma">writeA_implies_readA</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Perform&nbsp;Add&nbsp;r_env&nbsp;r_env&nbsp;1&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Perform&nbsp;Store&nbsp;r&nbsp;r_env&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iGo</span> "Hprog".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Perform&nbsp;Mov&nbsp;r_env&nbsp;0&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;Verify&nbsp;post&nbsp;condition&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "Hcont"; <span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The increment macro is just a list of instructions. In particular,
+      it can be used as a part of a bigger list of instructions.
+      The specification assumes that the PCC points to the first address of the
+      macro, and the list of instructions is <i>included</i> into the bounds of the
+      PCC: thus, the specification can be used in the proof of the specification
+      of a bigger program.
+
+<div class="paragraph"> </div>
+
+      The macros are a way to define the program modularly.
+      For such short macro, the modularity is a bit "too much", but dealing
+      with larger and complex macros (e.g. involving a loop), this modularity
+      is necessary.
+   
+<div class="paragraph"> </div>
+
+ The following is a very simple example of program that uses the macro. The
+      program assumes that R0 contains a writing capability pointing to the
+      memory. It initializes the value of this memory address at 0, calls the
+      increment macro to increment the value, and finally loads the
+      incremented value in the register R1.
+
+<div class="paragraph"> </div>
+
+      The reader may notice 3 blocks of instructions, separated by the `++`
+      operator. The proof will leverage this block separation using new
+      `focus_block` tactics, detailled in `proofmode.md`, section `Focusing a
+      sub-block`. They allow us to focus on a block, prove its specification
+      locally, and then continue the proof of the global program.
+   
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="prog_instrs" class="idref" href="#prog_instrs"><span class="id" title="definition">prog_instrs</span></a>: <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="cap_machine.machine_base.html#Word"><span class="id" title="inductive">Word</span></a> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">[</span></a> <a class="idref" href="cap_machine.machine_base.html#Store"><span class="id" title="constructor">Store</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> 0 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">]</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#bc347c51eaf667706ae54503b26d52c6"><span class="id" title="notation">++</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#incr_instrs"><span class="id" title="definition">incr_instrs</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#bc347c51eaf667706ae54503b26d52c6"><span class="id" title="notation">++</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">[</span></a> <a class="idref" href="cap_machine.machine_base.html#Load"><span class="id" title="constructor">Load</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">]</span></a>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="prog_spec" class="idref" href="#prog_spec"><span class="id" title="lemma">prog_spec</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:21" class="idref" href="#p_pc:21"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:22" class="idref" href="#b_pc:22"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:23" class="idref" href="#e_pc:23"><span class="id" title="binder">e_pc</span></a> <a id="a_prog:24" class="idref" href="#a_prog:24"><span class="id" title="binder">a_prog</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p:25" class="idref" href="#p:25"><span class="id" title="binder">p</span></a> (<a id="e:26" class="idref" href="#e:26"><span class="id" title="binder">e</span></a> <a id="b:27" class="idref" href="#b:27"><span class="id" title="binder">b</span></a> <a id="a:28" class="idref" href="#a:28"><span class="id" title="binder">a</span></a> : <a class="idref" href="cap_machine.addr_reg.html#Addr"><span class="id" title="abbreviation">Addr</span></a>) <a id="w:29" class="idref" href="#w:29"><span class="id" title="binder">w</span></a> <span class="comment">(*&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="w_env:30" class="idref" href="#w_env:30"><span class="id" title="binder">w_env</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="f2658998386ba6ec5b1d05de441027d8" class="idref" href="#f2658998386ba6ec5b1d05de441027d8"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:32" class="idref" href="#e_prog:32"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a>)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_prog:32"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:27"><span class="id" title="variable">b</span></a> <span class="id" title="notation">≤</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:28"><span class="id" title="variable">a</span></a> <span class="id" title="notation">&lt;</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:26"><span class="id" title="variable">e</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;a&nbsp;is&nbsp;in&nbsp;the&nbsp;bounds&nbsp;of&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#writeAllowed"><span class="id" title="definition">writeAllowed</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:25"><span class="id" title="variable">p</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;p&nbsp;can&nbsp;Read/Write&nbsp;*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <span class="comment">(*&nbsp;PC&nbsp;points&nbsp;to&nbsp;the&nbsp;prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a> <span class="comment">(*&nbsp;the&nbsp;prog&nbsp;instruction&nbsp;start&nbsp;at&nbsp;a_prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:25"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:27"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:26"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:28"><span class="id" title="variable">a</span></a> <span class="comment">(*&nbsp;r_t0&nbsp;contains&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#w_env:30"><span class="id" title="variable">w_env</span></a> <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t1&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:28"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#w:29"><span class="id" title="variable">w</span></a> <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_prog:32"><span class="id" title="variable">e_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:25"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:27"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:26"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:28"><span class="id" title="variable">a</span></a> <span class="comment">(*&nbsp;r_t0&nbsp;contains&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 1 <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t1&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a:28"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 1 <span class="comment">(*&nbsp;incremented&nbsp;value&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#f2658998386ba6ec5b1d05de441027d8"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#f2658998386ba6ec5b1d05de441027d8"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Ha_bounds</span> <span class="id" title="var">Hperm</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr &amp; Hrenv &amp; Ha &amp; Hcont)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;1&nbsp;-&nbsp;prepare&nbsp;the&nbsp;assertions&nbsp;for&nbsp;the&nbsp;proof&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_prog</span>; <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;We&nbsp;use&nbsp;the&nbsp;new&nbsp;tactic&nbsp;to&nbsp;focus&nbsp;on&nbsp;the&nbsp;first&nbsp;block.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Initialisation&nbsp;block&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block_0</span> "Hprog" <span class="id" title="keyword">as</span> "Hintro" "Hnext".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro"; [ <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a> |].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hintro" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Increment&nbsp;macro&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block</span> 1%<span class="id" title="var">nat</span> "Hprog" <span class="id" title="keyword">as</span> <span class="id" title="var">a_incr</span> <span class="id" title="var">Ha_incr</span> "Hincr" "Hnext".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;We&nbsp;use&nbsp;the&nbsp;specification&nbsp;of&nbsp;the&nbsp;macro.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#incr_macro_spec"><span class="id" title="axiom">incr_macro_spec</span></a> <span class="id" title="notation">with</span> "[- $HPC $Hincr $Hr $Hrenv $Ha]"<span class="id" title="notation">)</span>; <span class="id" title="tactic">eauto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "!&gt; (HPC &amp; Hr &amp; Hrenv &amp; Ha &amp; Hincr)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hincr" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block</span> 2%<span class="id" title="var">nat</span> "Hprog" <span class="id" title="keyword">as</span> <span class="id" title="var">a_end</span> <span class="id" title="var">Ha_end</span> "Hend" "Hnext".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iGo</span> "Hend".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">split</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#writeA_implies_readA"><span class="id" title="lemma">writeA_implies_readA</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hend" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;continuation&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "Hcont".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">replace</span> (<span class="id" title="var">a_end</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span> <span class="id" title="keyword">with</span> (<span class="id" title="var">a_prog</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 6%<span class="id" title="var">nat</span>)%<span class="id" title="var">a</span> <span class="id" title="tactic">by</span> <span class="id" title="var">solve_addr</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#increment_macro"><span class="id" title="section">increment_macro</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a id="rclear_macro" class="idref" href="#rclear_macro"><span class="id" title="section">rclear_macro</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> {<a id="4a3db5069015eacb9ec70510dc094686" class="idref" href="#4a3db5069015eacb9ec70510dc094686"><span class="id" title="binder">Σ</span></a>:<span class="id" title="record">gFunctors</span>} {<a id="memg:34" class="idref" href="#memg:34"><span class="id" title="binder">memg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#memG"><span class="id" title="class">memG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#4a3db5069015eacb9ec70510dc094686"><span class="id" title="variable">Σ</span></a>} {<a id="regg:35" class="idref" href="#regg:35"><span class="id" title="binder">regg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#regG"><span class="id" title="class">regG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#4a3db5069015eacb9ec70510dc094686"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="MP:36" class="idref" href="#MP:36"><span class="id" title="binder">MP</span></a>: <a class="idref" href="cap_machine.machine_parameters.html#MachineParameters"><span class="id" title="class">MachineParameters</span></a>}.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+In this section, we will use a pre-defined macro in Cerise, `rclear`.
+      `rclear` is a macro that clears (puts 0) the list of registers given as
+      argument. 
+<div class="paragraph"> </div>
+
+ The following program assumes that the register r0 contains a capability
+      that points to a buffer with at least 2 integers.
+      It performs the addition of the 2 integers of the buffer and stores the
+      result at the address of the second integer.
+      Then, it clears all the used registers (to remove every trace of
+      the computations) and halts the machine. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="secret_add_instrs" class="idref" href="#secret_add_instrs"><span class="id" title="definition">secret_add_instrs</span></a>: <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="cap_machine.machine_base.html#Word"><span class="id" title="inductive">Word</span></a> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Load"><span class="id" title="constructor">Load</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Lea"><span class="id" title="constructor">Lea</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> 1<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Load"><span class="id" title="constructor">Load</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Add"><span class="id" title="constructor">Add</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Store"><span class="id" title="constructor">Store</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#bc347c51eaf667706ae54503b26d52c6"><span class="id" title="notation">++</span></a> <a class="idref" href="cap_machine.examples.macros_new.html#rclear_instrs"><span class="id" title="definition">rclear_instrs</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#bc347c51eaf667706ae54503b26d52c6"><span class="id" title="notation">++</span></a> <a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#Halt"><span class="id" title="constructor">Halt</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">]</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab6"></a><h4 class="section">Exercise 3 --- Secret addition</h4>
+
+        Define the lemma `secret_add_spec` that specifies the program
+        `secret_add_instrs` and prove it.
+
+<div class="paragraph"> </div>
+
+        Use the tactics to focus and unfocus the block.
+        The specification of the `rclear` macro is `rclear_spec`,
+        defined in the file `theories/examples/macros_new.v`.
+
+<div class="paragraph"> </div>
+
+        Hint (specification): TODO ???
+        Hint (proof): The specification of `rclear` requires the use of
+        the `big_sepM` resource. The `big_sepM` resource <span class="inlinecode">...</span> use a map.
+        We urge the reader to search lemmas about `big_sepM` and
+        `gmap`.
+
+<div class="paragraph"> </div>
+
+        Hint (proof): useful lemmas
+<ul class="doclist">
+<li> big_sepM_insert
+
+</li>
+<li> big_sepM_insert_delete
+
+</li>
+<li> delete_insert_ne
+
+</li>
+<li> delete_empty
+
+</li>
+</ul>
+   
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="secret_add_spec" class="idref" href="#secret_add_spec"><span class="id" title="lemma">secret_add_spec</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:37" class="idref" href="#p_pc:37"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:38" class="idref" href="#b_pc:38"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:39" class="idref" href="#e_pc:39"><span class="id" title="binder">e_pc</span></a> <a id="a_prog:40" class="idref" href="#a_prog:40"><span class="id" title="binder">a_prog</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p:41" class="idref" href="#p:41"><span class="id" title="binder">p</span></a> (<a id="e:42" class="idref" href="#e:42"><span class="id" title="binder">e</span></a> <a id="b:43" class="idref" href="#b:43"><span class="id" title="binder">b</span></a> <a id="a:44" class="idref" href="#a:44"><span class="id" title="binder">a</span></a> : <a class="idref" href="cap_machine.addr_reg.html#Addr"><span class="id" title="abbreviation">Addr</span></a>) <span class="comment">(*&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="w1:45" class="idref" href="#w1:45"><span class="id" title="binder">w1</span></a> <a id="w2:46" class="idref" href="#w2:46"><span class="id" title="binder">w2</span></a> <a id="n1:47" class="idref" href="#n1:47"><span class="id" title="binder">n1</span></a> <a id="n2:48" class="idref" href="#n2:48"><span class="id" title="binder">n2</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="c685ea60f5cec8742ff8cf92bbf5e236" class="idref" href="#c685ea60f5cec8742ff8cf92bbf5e236"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:50" class="idref" href="#e_prog:50"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#secret_add_instrs"><span class="id" title="definition">secret_add_instrs</span></a>)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:37"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:38"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:39"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_prog:50"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 2 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#::Z_scope:x_'&lt;'_x"><span class="id" title="notation">&lt;</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:42"><span class="id" title="variable">e</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;a&nbsp;is&nbsp;in&nbsp;the&nbsp;bounds&nbsp;of&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#writeAllowed"><span class="id" title="definition">writeAllowed</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:41"><span class="id" title="variable">p</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;p&nbsp;can&nbsp;Read/Write&nbsp;*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:37"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:38"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:39"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <span class="comment">(*&nbsp;PC&nbsp;points&nbsp;to&nbsp;the&nbsp;prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#secret_add_instrs"><span class="id" title="definition">secret_add_instrs</span></a> <span class="comment">(*&nbsp;the&nbsp;prog&nbsp;instruction&nbsp;start&nbsp;at&nbsp;a_prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p:41"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e:42"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <span class="comment">(*&nbsp;r_t0&nbsp;contains&nbsp;the&nbsp;capability&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#w1:45"><span class="id" title="variable">w1</span></a> <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t1&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#w2:46"><span class="id" title="variable">w2</span></a> <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t2&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n1:47"><span class="id" title="variable">n1</span></a> <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n2:48"><span class="id" title="variable">n2</span></a> <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#p_pc:37"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b_pc:38"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#e_pc:39"><span class="id" title="variable">e_pc</span></a> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a><span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#secret_add_instrs"><span class="id" title="definition">secret_add_instrs</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#::Z_scope:x_'-'_x"><span class="id" title="notation">-</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0  <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t0&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0 <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t1&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0 <span class="comment">(*&nbsp;ownership&nbsp;of&nbsp;r_t2&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n1:47"><span class="id" title="variable">n1</span></a> <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#b:43"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> (<a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n1:47"><span class="id" title="variable">n1</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#n2:48"><span class="id" title="variable">n2</span></a>) <span class="comment">(*&nbsp;content&nbsp;of&nbsp;a&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#a_prog:40"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#secret_add_instrs"><span class="id" title="definition">secret_add_instrs</span></a> <span class="comment">(*&nbsp;the&nbsp;prog&nbsp;instruction&nbsp;start&nbsp;at&nbsp;a_prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Halted"><span class="id" title="constructor">Halted</span></a> <span class="id" title="notation">{{</span> <a id="v:51" class="idref" href="#v:51"><span class="id" title="binder">v</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#c685ea60f5cec8742ff8cf92bbf5e236"><span class="id" title="variable">φ</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#v:51"><span class="id" title="variable">v</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#c685ea60f5cec8742ff8cf92bbf5e236"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Ha_bounds</span> <span class="id" title="var">Hperm</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr0 &amp; Hr1 &amp; Hr2 &amp; Hb0 &amp; Hb1 &amp; Hcont)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;1&nbsp;-&nbsp;prepare&nbsp;the&nbsp;assertions&nbsp;for&nbsp;the&nbsp;proof&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_prog</span>; <span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;We&nbsp;use&nbsp;the&nbsp;new&nbsp;tactic&nbsp;to&nbsp;focus&nbsp;on&nbsp;the&nbsp;first&nbsp;block.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Initialisation&nbsp;block&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block_0</span> "Hprog" <span class="id" title="keyword">as</span> "Hintro" "Hnext".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">split</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#writeA_implies_readA"><span class="id" title="lemma">writeA_implies_readA</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>; <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Ha_bounds</span> ]. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Ha_bounds</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">destruct</span> <span class="id" title="var">p</span>; <span class="id" title="tactic">auto</span>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">split</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#writeA_implies_readA"><span class="id" title="lemma">writeA_implies_readA</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>; <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Ha_bounds</span>]. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hintro".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_true_iff"><span class="id" title="axiom">withinBounds_true_iff</span></a>; <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Ha_bounds</span>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hintro" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;rclear&nbsp;macro&nbsp;block&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block</span> 1%<span class="id" title="var">nat</span> "Hprog" <span class="id" title="keyword">as</span> <span class="id" title="var">a_clear</span> <span class="id" title="var">Ha_clear</span> "Hclear" "Hnext".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;We&nbsp;use&nbsp;the&nbsp;specification&nbsp;of&nbsp;the&nbsp;macro.&nbsp;The&nbsp;macro&nbsp;requires&nbsp;a&nbsp;mapping&nbsp;of<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;register&nbsp;to&nbsp;their&nbsp;current&nbsp;value.&nbsp;We&nbsp;already&nbsp;instantiate&nbsp;the&nbsp;mapping.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">set</span> <span class="id" title="var">rmap</span>: <span class="id" title="record">gmap</span> <a class="idref" href="cap_machine.addr_reg.html#RegName"><span class="id" title="inductive">RegName</span></a> <a class="idref" href="cap_machine.machine_base.html#Word"><span class="id" title="inductive">Word</span></a> := <span class="id" title="notation">{[</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a> <span class="id" title="notation">:=</span> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> (<span class="id" title="var">b</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span><span class="id" title="notation">;</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <span class="id" title="notation">:=</span> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> (<span class="id" title="var">n1</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> <span class="id" title="var">n2</span>)<span class="id" title="notation">;</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <span class="id" title="notation">:=</span> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> <span class="id" title="var">n2</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">]}</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.examples.macros_new.html#rclear_spec"><span class="id" title="axiom">rclear_spec</span></a> <span class="id" title="var">_</span> <span class="id" title="var">rmap</span> <span class="id" title="notation">with</span> "[- $Hclear $HPC]"<span class="id" title="notation">)</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">eauto</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span class="id" title="var">set_solver</span> .. | ].<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitL</span> "Hr0 Hr1 Hr2"; <span class="id" title="var">iNext</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="comment">(*&nbsp;We&nbsp;need&nbsp;to&nbsp;transform&nbsp;the&nbsp;different&nbsp;resources&nbsp;of&nbsp;registers&nbsp;into&nbsp;a<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;single&nbsp;resource,&nbsp;the&nbsp;big_sepM&nbsp;resource.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="tactic">repeat</span> (<span class="id" title="var">iApply</span> <span class="id" title="lemma">big_sepM_insert</span>; [<span class="id" title="tactic">auto</span> | <span class="id" title="var">iFrame</span>]). }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hrmap &amp; Hclear)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hclear" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Final&nbsp;block,&nbsp;which&nbsp;is&nbsp;just&nbsp;the&nbsp;halting&nbsp;instruction.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">focus_block</span> 2%<span class="id" title="var">nat</span> "Hprog" <span class="id" title="keyword">as</span> <span class="id" title="var">a_end</span> <span class="id" title="var">Ha_end</span> "Hend" "Hnext".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iGo</span> "Hend".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">unfocus_block</span> "Hend" "Hnext" <span class="id" title="keyword">as</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;continuation&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "Hcont".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">replace</span> ((<span class="id" title="var">a_prog</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a>9%<span class="id" title="var">nat</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#::Z_scope:x_'-'_x"><span class="id" title="notation">-</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span>) <span class="id" title="keyword">with</span> <span class="id" title="var">a_end</span> <span class="id" title="tactic">by</span> <span class="id" title="var">solve_addr</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;It&nbsp;only&nbsp;remains&nbsp;to&nbsp;extract&nbsp;the&nbsp;registers&nbsp;from&nbsp;the&nbsp;mapping.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExtractList</span> "Hrmap" <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t0"><span class="id" title="definition">r_t0</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <span class="id" title="keyword">as</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a> "Hr0"<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> "Hr1"<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> "Hr2" <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#rclear_macro"><span class="id" title="section">rclear_macro</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a id="linking_table" class="idref" href="#linking_table"><span class="id" title="section">linking_table</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> {<a id="2419f67097a80bf54d8cab0e41eb773a" class="idref" href="#2419f67097a80bf54d8cab0e41eb773a"><span class="id" title="binder">Σ</span></a>:<span class="id" title="record">gFunctors</span>} {<a id="memg:53" class="idref" href="#memg:53"><span class="id" title="binder">memg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#memG"><span class="id" title="class">memG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#2419f67097a80bf54d8cab0e41eb773a"><span class="id" title="variable">Σ</span></a>} {<a id="regg:54" class="idref" href="#regg:54"><span class="id" title="binder">regg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#regG"><span class="id" title="class">regG</span></a> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#2419f67097a80bf54d8cab0e41eb773a"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="MP:55" class="idref" href="#MP:55"><span class="id" title="binder">MP</span></a>: <a class="idref" href="cap_machine.machine_parameters.html#MachineParameters"><span class="id" title="class">MachineParameters</span></a>}.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;Demo&nbsp;with&nbsp;incr_macro&nbsp;for&nbsp;the&nbsp;setup&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;Exercices&nbsp;using&nbsp;malloc&nbsp;and&nbsp;assert&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.exercises.cerise_modularity_solutions.html#linking_table"><span class="id" title="section">linking_table</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Outline
+    2 steps:
+    1. use the macro in the middle of the code (as a real macro)
+    2. capture the macro into a sentry-capability (as a function), and use a linking table
+
+<div class="paragraph"> </div>
+
+    1.1) Demo
+    Define a program that use this specification that do the following:
+<ul class="doclist">
+<li> takes a capability input
+
+</li>
+<li> store 0 into it
+
+</li>
+<li> use the increment macro
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+    1.2) Exercise
+    Exercise with the rclear macro: specify and prove
+
+<div class="paragraph"> </div>
+
+    2.1) Demo
+    Same program as 1.1, but the increment macro is reachable via
+    the linking table (instead of inlined).
+    It requires some boilerplate about the linking table and shows
+    how to set it up.
+
+<div class="paragraph"> </div>
+
+    2.2) Exercise
+    At last exercise, the reader should be able to use the Cerise macros,
+    so why not a program that does the following:
+<ul class="doclist">
+<li> dyn alloc a region of memory with malloc
+
+</li>
+<li> stores 42 in the last adresse
+
+</li>
+<li> assert it is 42
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+    Finally, list the macros available in Cerise 
+<div class="paragraph"> </div>
+
+ Now that you are familiar with the Cerise Proofmode,
+      we recommand to try defining a program by yourself, as
+      well as its specification.
+      We also recommand to continue the tutorial with
+      TODO (next file) to learn how to define the specification,
+      how to use the logical relation to reason with unknown code,
+      and how to deal with local encapsulation, using the call macro.
+   
+</div>
+<div class="code">
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
