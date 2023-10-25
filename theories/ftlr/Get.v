@@ -9,6 +9,7 @@ Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
+
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
   Implicit Types lw : (leibnizO LWord).
