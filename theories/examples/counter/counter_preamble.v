@@ -3,7 +3,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec.
 From cap_machine Require Import rules logrel fundamental.
-From cap_machine.examples Require Import macros malloc counter.
+From cap_machine.examples Require Import macros malloc.
+From cap_machine.examples.counter Require Import counter.
 From cap_machine.proofmode Require Import tactics_helpers.
 From stdpp Require Import countable.
 
