@@ -54,6 +54,7 @@ theories/rules/rules_UnSeal.v
 theories/rules/rules_EInit.v
 theories/rules/rules_EDeInit.v
 theories/rules/rules_EStoreId.v
+theories/rules/rules_IsUnique.v
 theories/rules.v
 
 # Program logic: Binary WP rules

@@ -116,8 +116,8 @@ Proof.
   ; destruct sb; cbn in *; try congruence.
 Qed.
 
-(** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds to the
-    the logical register file `lr`, according to the view map `cur_map` if:
+(** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds
+    to the the logical register file `lr`, according to the view map `cur_map` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
     - the version of the capabilities in `lr` are the same as the version of its addresses
       in the view map `cur_map`
@@ -127,10 +127,11 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr
     ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
 
 (** The `mem_phys_log_corresponds` states that,
-    - for all logical addresses of the logical memory `lm`, it exists a version in the view map `cur_map`
-      ( i.e. dom(lm) ⊆ dom(cur_map) ) // (have to be the same ??)
+    - for all logical addresses of the logical memory `lm`, it exists a version in the view
+    map `cur_map` ( i.e. dom(lm) ⊆ dom(cur_map) ) // (have to be the same ??)
     - for all entries in the view map,
-      + it exists is a logical word `lw` in the logical memory `lm` ( i.e. dom(cur_map) ⊆ dom(lm) )
+      + it exists is a logical word `lw` in the logical memory `lm`
+      ( i.e. dom(cur_map) ⊆ dom(lm) )
       + the logical word `lw` corresponds to the actual word in the physical memory `phm`
         for the same address
       + the logical word `lw` is the current view of the word

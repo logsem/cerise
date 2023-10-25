@@ -372,7 +372,10 @@ Section opsem.
         else None
     | _,_ => None
     end
-  | _ => None (* TODO EInit, EDeInit, EStoreId *)
+  | EInit _ _ => None      (* TODO @Denis *)
+  | EDeInit _ _ => None    (* TODO @Denis *)
+  | EStoreId _ _ _ => None (* TODO @Denis *)
+  | IsUnique _ _ => None   (* TODO @Bastien see https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2417 *)
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=

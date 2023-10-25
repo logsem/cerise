@@ -119,7 +119,7 @@ Section fundamental.
         iApply (unseal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
 
-      + (* EInit *)
+      + (* TODO @Denis EInit *)
         iApply (wp_einit with "[HPC Ha]"); eauto. iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
@@ -128,7 +128,7 @@ Section fundamental.
         iApply wp_value.
         iIntros (Hcontr); inversion Hcontr.
 
-      + (* EDeInit *)
+      + (* TODO @Denis EDeInit *)
         iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
@@ -137,7 +137,16 @@ Section fundamental.
         iApply wp_value.
         iIntros (Hcontr); inversion Hcontr.
 
-      + (* EStoreId *)
+      + (* TODO @Denis EStoreId *)
+        iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame.
+        iNext. iIntros "[HPC Ha] /=".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+        iNext ; iIntros "_".
+        iApply wp_value.
+        iIntros (Hcontr); inversion Hcontr.
+
+      + (* TODO @Bastien IsUnique *)
         iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
