@@ -291,6 +291,7 @@ TSWLatexianTemp*
 
 # Compilation artifacts
 /_opam
+html
 .coqdeps.d
 Makefile.coq
 Makefile.coq.d

@@ -6,7 +6,8 @@ Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
-From cap_machine.examples Require Import macros malloc counter_preamble.
+From cap_machine.examples Require Import macros malloc.
+From cap_machine.examples.counter Require Import counter_preamble.
 From cap_machine.proofmode Require Import disjoint_regions_tactics mkregion_helpers.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
