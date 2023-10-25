@@ -1,4 +1,4 @@
-From Coq Require Import ssreflect.
+From Coq Require Import ssreflect Eqdep_dec.
 From stdpp Require Import gmap fin_maps list countable.
 From cap_machine Require Export addr_reg solve_addr.
 From iris.proofmode Require Import proofmode.
@@ -74,13 +74,13 @@ Definition Mem := gmap Addr Word.
 
 (* EqDecision instances *)
 
-Instance perm_eq_dec : EqDecision Perm.
+Global Instance perm_eq_dec : EqDecision Perm.
 Proof. solve_decision. Defined.
-Instance sealb_eq_dec : EqDecision Sealable.
+Global Instance sealb_eq_dec : EqDecision Sealable.
 Proof. solve_decision. Qed.
-Instance word_eq_dec : EqDecision Word.
+Global Instance word_eq_dec : EqDecision Word.
 Proof. solve_decision. Qed.
-Instance instr_eq_dec : EqDecision instr.
+Global Instance instr_eq_dec : EqDecision instr.
 Proof. solve_decision. Defined.
 
 Ltac destruct_word w :=
@@ -686,7 +686,7 @@ Ltac destruct_pair_l c n :=
 
 (* Useful instances *)
 
-Instance perm_countable : Countable Perm.
+Global Instance perm_countable : Countable Perm.
 Proof.
   set encode := fun p => match p with
     | O => 1
@@ -711,7 +711,7 @@ Proof.
   intro p. destruct p; reflexivity.
 Defined.
 
-Instance sealable_countable : Countable Sealable.
+Global Instance sealable_countable : Countable Sealable.
 Proof.
   set (enc := fun sb =>
        match sb with
@@ -728,7 +728,7 @@ Proof.
 Defined.
 
 (* Same here *)
-Instance word_countable : Countable Word.
+Global Instance word_countable : Countable Word.
 Proof.
   set (enc := fun w =>
       match w with
@@ -746,12 +746,11 @@ Proof.
   intros i. destruct i; simpl; done.
 Qed.
 
-Instance word_inhabited: Inhabited Word := populate (WInt 0).
-Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
-Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
+Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
+Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
 
-
-Instance instr_countable : Countable instr.
+Global Instance instr_countable : Countable instr.
 Proof.
 
   set (enc := fun e =>
@@ -809,4 +808,23 @@ Proof.
       end).
   refine (inj_countable' enc dec _).
   intros i. destruct i; simpl; done.
+Defined.
+
+Global Instance reg_finite : finite.Finite RegName.
+Proof. apply (finite.enc_finite (λ r : RegName, match r with
+                                                | PC => S RegNum
+                                                | addr_reg.R n fin => n
+                                                end)
+                (λ n : nat, match n_to_regname n with | Some r => r | None => PC end)
+                (S (S RegNum))).
+       - intros x. destruct x;auto.
+         unfold n_to_regname.
+         destruct (Nat.le_dec n RegNum).
+         + do 2 f_equal. apply eq_proofs_unicity. decide equality.
+         + exfalso. by apply (Nat.leb_le n RegNum) in fin.
+       - intros x.
+         + destruct x;[lia|]. apply Nat.leb_le in fin. lia.
+       - intros i Hlt. unfold n_to_regname.
+         destruct (Nat.le_dec i RegNum);auto.
+         lia.
 Defined.

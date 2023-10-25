@@ -5,7 +5,6 @@ From cap_machine Require Export cap_lang region seal_store.
 From iris.algebra Require Import gmap agree auth.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 From cap_machine.rules Require Import rules_base.
-From Coq Require Import Eqdep_dec.
 Import uPred.
 
 Ltac auto_equiv :=
@@ -352,25 +351,6 @@ Section logrel.
 
   Definition writeAllowed_in_r_a (r : Reg) a :=
     ∃ reg (w : Word), r !! reg = Some w ∧ writeAllowedWord w ∧ hasValidAddress w a.
-
-  Global Instance reg_finite : finite.Finite RegName.
-  Proof. apply (finite.enc_finite (λ r : RegName, match r with
-                                                  | PC => S RegNum
-                                                  | addr_reg.R n fin => n
-                                                  end)
-                                   (λ n : nat, match n_to_regname n with | Some r => r | None => PC end)
-                                   (S (S RegNum))).
-         - intros x. destruct x;auto.
-           unfold n_to_regname.
-           destruct (Nat.le_dec n RegNum).
-           + do 2 f_equal. apply eq_proofs_unicity. decide equality.
-           + exfalso. by apply (Nat.leb_le n RegNum) in fin.
-         - intros x.
-           + destruct x;[lia|]. apply Nat.leb_le in fin. lia.
-         - intros i Hlt. unfold n_to_regname.
-           destruct (Nat.le_dec i RegNum);auto.
-           lia.
-  Qed.
 
   Global Instance writeAllowedWord_dec w: Decision (writeAllowedWord w).
   Proof. destruct_word w; try (right; solve [auto]). destruct c;simpl;apply _. Qed.

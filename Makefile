@@ -1,53 +1,31 @@
-EXTRA_DIR:=extra
-COQDOCFLAGS:= \
-  --external 'https://plv.mpi-sws.org/coqdoc/iris/' iris \
-  --external 'https://plv.mpi-sws.org/coqdoc/stdpp/' stdpp \
-  --toc --toc-depth 2 --html --interpolate \
-  --index indexpage --no-lib-name --parse-comments \
-  --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html
-export COQDOCFLAGS
+# Is CI_EXAMPLES used in any place ?
+CI_EXAMPLES    :=    theories/examples/buffer.v \
+					 theories/examples/minimal_counter.v \
+					 theories/examples/counter/counter_adequacy.v \
+					 theories/examples/adder_adequacy.v \
+					 theories/examples/counter_binary/counter_binary.v \
+					 theories/examples/counter_binary/counter_binary_preamble.v \
+					 theories/examples/lse.v \
+					 theories/examples/dynamic_sealing.v \
+					 theories/examples/ocpl_lowval_like.v
 
-CI_EXAMPLES:="\
-  theories/examples/buffer.vo \
-  theories/examples/minimal_counter.vo \
-  theories/examples/counter_adequacy.vo \
-  theories/examples/adder_adequacy.vo \
-  theories/examples/counter_binary.vo \
-  theories/examples/counter_binary_preamble.vo \
-  theories/examples/lse.vo \
-	theories/examples/dynamic_sealing.vo \
-	theories/examples/ocpl_lowval_like.vo"
+FUNDAMENTAL		:=	 theories/fundamental.v
+COQMAKEFILE 	?=   Makefile.coq
+COQ_PROJ 		?= _CoqProject
 
-.PHONY: all coq clean html skip-qed ci
-all: coq
+all: $(COQMAKEFILE)
+		+@$(MAKE) -f $^ $@
 
-fundamental: Makefile.coq
-	$(MAKE) -f Makefile.coq pretty-timed only TGTS="theories/fundamental.vo"
+# Forward `make` commands to `$(COQMAKEFILE)`
+%: $(COQMAKEFILE)
+		+@$(MAKE) -f $^ $@
 
-coq: Makefile.coq
-	$(MAKE) -f Makefile.coq pretty-timed
+fundamental: export TGTS=${FUNDAMENTAL:.v=.vo}
+fundamental: $(COQMAKEFILE) only
 
-html: Makefile.coq
-	rm -rf html
-	$(MAKE) -f Makefile.coq html
-	cp $(EXTRA_DIR)/resources/* html
+$(COQMAKEFILE): $(COQ_PROJ)
+		coq_makefile -f $^ -o $@
 
-Makefile.coq:
-	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
+.PHONY: all fundamental ci
 
-Makefile.coq.conf:
-	coq_makefile -f _CoqProject -o Makefile.coq INSTALLDEFAULTROOT = theories
-
-include Makefile.coq.conf
-
-skip-qed: Makefile.coq.conf
-	./disable-qed.sh $(COQMF_VFILES)
-
-ci: skip-qed
-#	$(MAKE) -f Makefile.coq pretty-timed TGTS=$(CI_EXAMPLES)
-	$(MAKE) -f Makefile.coq pretty-timed
-
-clean: Makefile.coq
-	$(MAKE) -f Makefile.coq clean
-	rm -f Makefile.coq
-	rm -rf html
+# Thanks to Vincent Lafeychine for the help to refactor the Makefile
