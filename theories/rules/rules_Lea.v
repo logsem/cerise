@@ -76,7 +76,7 @@ Section cap_lang_rules.
 
    Lemma wp_lea Ep pc_p pc_b pc_e pc_a pc_v pca_v r1 lw arg (lregs: LReg) :
      decodeInstrWL lw = Lea r1 arg →
-     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
      regs_of (Lea r1 arg) ⊆ dom lregs →
      {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗

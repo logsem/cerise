@@ -10,18 +10,19 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
   Definition IH: iProp Σ :=
-    (□ ▷ (∀ a0 a1 a2 a3 a4,
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
+    (□ ▷ (∀ lregs' p' b' e' a' v',
+             full_map lregs'
+          -∗ (∀ (r1 : RegName) (lv : LWord),
+              ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+          -∗ registers_mapsto (<[PC:=LCap p' b' e' a' v']> lregs')
           -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf))%I.
+             -∗ □ (fixpoint interp1) (LCap p' b' e' a' v') -∗ interp_conf))%I.
 
   Instance if_persistent (PROP: bi) (b: bool) (φ1 φ2: PROP) (H1: Persistent φ1) (H2: Persistent φ2):
     Persistent (if b then φ1 else φ2).
@@ -29,14 +30,14 @@ Section fundamental.
     destruct b; auto.
   Qed.
 
-  Lemma interp_weakening p p' b b' e e' a a':
+  Lemma interp_weakening p p' b b' e e' a a' v:
       p <> E ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
       IH -∗
-      (fixpoint interp1) (WCap p b e a) -∗
-      (fixpoint interp1) (WCap p' b' e' a').
+      (fixpoint interp1) (LCap p b e a v) -∗
+      (fixpoint interp1) (LCap p' b' e' a' v).
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
@@ -123,8 +124,8 @@ Section fundamental.
     (b <= b')%ot ->
     (e' <= e)%ot ->
     SealPermFlowsTo p' p = true ->
-    (fixpoint interp1) (WSealRange p b e a) -∗
-    (fixpoint interp1) (WSealRange p' b' e' a').
+    (fixpoint interp1) (LSealRange p b e a) -∗
+    (fixpoint interp1) (LSealRange p' b' e' a').
   Proof.
   intros Hb He Hp. iIntros "#HA".
   rewrite !fixpoint_interp1_eq. cbn.
