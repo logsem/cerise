@@ -11,43 +11,51 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  Lemma add_sub_lt_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst : RegName) (r1 r2: Z + RegName) (P : D):
+
+  Lemma add_sub_lt_case (lregs : leibnizO LReg)
+    (p : Perm) (b e a : Addr) (v : Version)
+    (lw : LWord) (dst : RegName) (r1 r2: Z + RegName) (P : D):
     p = RX ∨ p = RWX
-    → (∀ x : RegName, is_Some (r !! x))
-    → isCorrectPC (WCap p b e a)
+    → (∀ x : RegName, is_Some (lregs !! x))
+    → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
-    → (decodeInstrW w = Add dst r1 r2 \/
-       decodeInstrW w = Sub dst r1 r2 \/
-       decodeInstrW w = Lt dst r1 r2)
-    -> □ ▷ (∀ a0 a1 a2 a3 a4,
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
-          -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
-    -∗ (fixpoint interp1) (WCap p b e a)
-    -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
-    -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
-    -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
-            ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a) then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w) else emp)
+    → (decodeInstrWL lw = Add dst r1 r2 \/
+       decodeInstrWL lw = Sub dst r1 r2 \/
+       decodeInstrWL lw = Lt dst r1 r2)
+    -> (□ ▷ (∀ lregs' p' b' e' a' v',
+             full_map lregs'
+               -∗ (∀ (r1 : RegName) (lv : LWord),
+                   ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+               -∗ registers_mapsto (<[PC:=LCap p' b' e' a' v']> lregs')
+               -∗ na_own logrel_nais ⊤
+               -∗ □ (fixpoint interp1) (LCap p' b' e' a' v') -∗ interp_conf))
+    -∗ (fixpoint interp1) (LCap p b e a v)
+    -∗ inv (logN.@(a,v)) (∃ lw0 : leibnizO LWord, (a,v) ↦ₐ lw0 ∗ P lw0)
+    -∗ (∀ (r1 : RegName) lv, ⌜r1 ≠ PC⌝ → ⌜lregs !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+    -∗ ▷ □ (∀ lw : LWord, P lw -∗ (fixpoint interp1) lw)
+            ∗ (if decide (writeAllowed_in_r_av (<[PC:=LCap p b e a v]> lregs) a v)
+               then ▷ □ (∀ lw : LWord, (fixpoint interp1) lw -∗ P lw)
+               else emp)
     -∗ na_own logrel_nais ⊤
-    -∗ a ↦ₐ w
-    -∗ ▷ P w
-    -∗ (▷ (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0) ={⊤ ∖ ↑logN.@a,⊤}=∗ emp)
-    -∗ PC ↦ᵣ WCap p b e a
-    -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=WCap p b e a]> r), k ↦ᵣ y)
-    -∗
-        WP Instr Executable
-        @ ⊤ ∖ ↑logN.@a {{ v, |={⊤ ∖ ↑logN.@a,⊤}=> WP Seq (of_val v)
-                                                    {{ v0, ⌜v0 = HaltedV⌝
-                                                           → ∃ r1 : Reg, full_map r1 ∧ registers_mapsto r1
-                                                                                                        ∗ na_own logrel_nais ⊤ }} }}.
+    -∗ (a,v) ↦ₐ lw
+    -∗ ▷ P lw
+    -∗ (▷ (∃ lw0 : leibnizO LWord, (a,v) ↦ₐ lw0 ∗ P lw0) ={⊤ ∖ ↑logN.@(a,v),⊤}=∗ emp)
+    -∗ PC ↦ᵣ LCap p b e a v
+    -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=LCap p b e a v]> lregs), k ↦ᵣ y)
+    -∗ WP Instr Executable
+        @ ⊤ ∖ ↑logN.@(a,v)
+        {{ v0, |={⊤ ∖ ↑logN.@(a,v),⊤}=>
+             WP Seq (of_val v0)
+               {{ v1, ⌜v1 = HaltedV⌝ →
+                      ∃ lregs0 : LReg,
+                        full_map lregs0 ∧ registers_mapsto lregs0 ∗ na_own logrel_nais ⊤
+               }}
+        }}.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
@@ -55,22 +63,22 @@ Section fundamental.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_AddSubLt with "[$Ha $Hmap]"); eauto.
-    { simplify_map_eq; auto. }
+    { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec; cycle 1.
+    destruct HSpec as [ n1 n2 Harg1 Harg2 Hincr | Hfail  ]; cycle 1.
     { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
       iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
-    { incrementPC_inv; simplify_map_eq.
+    { incrementLPC_inv as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs'); simplify_map_eq.
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext;iIntros "_".
-      assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
-      simplify_map_eq.
-      iApply ("IH" $! (<[dst:=_]> (<[PC:=_]> r)) with "[%] [] [Hmap] [$Hown]");
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. iNext;iIntros "_".
+      assert (dst <> PC) as HdstPC by (intros ->; by rewrite lookup_insert in HPC).
+     rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
+      iApply ("IH" $! (<[dst:=_]> (<[PC:=_]> lregs)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
       iIntros (ri v Hri Hsv). rewrite insert_commute // lookup_insert_ne // in Hsv; [].
