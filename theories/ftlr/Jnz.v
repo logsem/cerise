@@ -4,7 +4,6 @@ From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_base rules_Jnz.
-From cap_machine Require Export stdpp_extra.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -27,7 +26,7 @@ Section fundamental.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Jnz with "[$Ha $Hmap]"); eauto.
-    { simplify_map_eq; auto. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
@@ -39,7 +38,7 @@ Section fundamental.
       iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
     {
-    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&?& v'' & HPC & Z & Hregs') .
+    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
       simplify_map_eq. rewrite insert_insert.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[Ha HP]");[iExists lw;iFrame|iModIntro]. iNext.
       iIntros "_".
@@ -57,9 +56,7 @@ Section fundamental.
       {
         rewrite /updatePcPerm.
         iAssert (fixpoint interp1 (LCap p' b' e' a' v')) as "HECap".
-        { destruct (decide (r1 = PC)) as [-> | Hne].
-          by simplify_map_eq.
-          simplify_map_eq.
+        { destruct (decide (r1 = PC)) as [-> | Hne]; simplify_map_eq; auto.
           unshelve iDestruct ("Hreg" $! r1 _ _ Hdst) as "HPCv"; auto.
         }
 
@@ -74,11 +71,10 @@ Section fundamental.
 
           iApply ("IH" $! (<[PC:=LCap p' b' e' a' v']> lregs) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
-          { iIntros (ri ? Hri Hvs).
-            simplify_map_eq.
+          { iIntros (ri ? Hri Hvs); simplify_map_eq.
               unshelve iSpecialize ("Hreg" $! ri _ _ Hvs); eauto. }
           { rewrite insert_insert. iApply "Hmap". }
-          auto.
+          done.
       }
      (* Non-capability cases *)
 

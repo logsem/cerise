@@ -4,7 +4,6 @@ From stdpp Require Import base.
 From cap_machine Require Export logrel.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Store.
-From cap_machine Require Export stdpp_extra.
 Import uPred.
 
 
@@ -70,15 +69,15 @@ Global Instance lword_inhabited: Inhabited LWord := populate (LInt 0).
     - destruct Hallows as ((Hrinr & Hra & Hwb) & Hlaeq).
       apply andb_prop in Hwb as [Hle Hge].
       revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
-      assert (r ≠ PC) as n. refine (laddr_ne_reg_ne Hrinr _ Hlaeq). by rewrite lookup_insert.
-      rewrite lookup_insert_ne in Hrinr; last by congruence.
+      assert (r ≠ PC) as n. refine (laddr_ne_reg_ne Hrinr _ Hlaeq); by simplify_map_eq.
+      simplify_map_eq.
       iDestruct ("Hreg" $! r _ n Hrinr) as "Hvsrc".
       iAssert (inv (logN.@(a0, v0)) ((interp_ref_inv a0 v0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #".
       iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
       iDestruct "Hinv" as (lw) "[>Ha0 #Hinv]".
-      iExists lw. iFrame. done.
+      iExists lw. by iFrame.
     - done.
   Qed.
 
@@ -132,12 +131,12 @@ Global Instance lword_inhabited: Inhabited LWord := populate (LInt 0).
     - pose(Hallows' := Hallows).
       destruct Hallows' as ((Hrinr & Hra & Hwb) & Hne).
       iDestruct "HStoreRes" as (lw0 ->) "HStoreRest".
-      iSplitR. rewrite lookup_insert_ne; auto. by rewrite lookup_insert.
+      iSplitR. by simplify_map_eq.
       iExists p,b,e,a0,v0. iSplit;auto.
       iPureIntro. case_decide;auto.
       exists lw0. by simplify_map_eq.
     - iDestruct "HStoreRes" as "->".
-      iSplitR. by rewrite lookup_insert.
+      iSplitR. by simplify_map_eq.
       iExists p,b,e,a0,v0. repeat iSplitR; auto.
       case_decide as Hdec1; last by done.
       apply not_and_l in Hallows as [Hallows | Hallows]; try contradiction.
@@ -234,21 +233,22 @@ Global Instance lword_inhabited: Inhabited LWord := populate (LInt 0).
     iDestruct (mem_map_implies_pure_conds with "HStoreMem") as %(HReadPC & HStoreAP); auto.
 
     iApply (wp_store with "[Hmap HMemRes]"); eauto.
-    { by rewrite lookup_insert. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' mem' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
     destruct HSpec as [* ? ? ? -> Hincr|* -> Hincr].
-    { apply incrementLPC_Some_inv in Hincr as (p''&b''&e''&a''&?& v'' & HPC & Z & Hregs') .
+    { apply incrementLPC_Some_inv in Hincr as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
       iApply wp_pure_step_later; auto.
       specialize (store_inr_eq H1 HVdst) as (-> & -> & -> & -> & ->).
 
       (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=LCap p'' b'' e'' a'' v'']> lregs !! r) eqn:Hsomer0;simplify_map_eq.
+        simplify_map_eq.
+        destruct (<[PC:=LCap p'' b'' e'' a'' v'']> lregs !! r) eqn:Hsomer0; simplify_map_eq.
         2 : { rewrite Hsomer0 in Hwoa. done. }
         destruct (decide (r = PC)).
         - subst. simplify_map_eq. iFrame "Hinv".

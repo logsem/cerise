@@ -352,11 +352,11 @@ Section logrel.
     case_decide as Hinra.
     - destruct Hinra as (reg & w & (Hw & Hwa & Ha) ).
       destruct (decide (reg = PC)).
-      + simplify_map_eq; rewrite lookup_insert in Hw; simplify_eq.
+      + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
           try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-      + simplify_map_eq; rewrite lookup_insert_ne in Hw; auto; simplify_eq.
+      + simplify_map_eq.
         destruct (lregs !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct_word w; try by inversion Ha. destruct Ha as (Hwba & -> & ->).
         iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".

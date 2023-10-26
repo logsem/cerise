@@ -26,7 +26,7 @@ Section fundamental.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_Mov with "[$Ha $Hmap]"); eauto.
-    { by rewrite lookup_insert. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
@@ -45,15 +45,12 @@ Section fundamental.
         rewrite lookup_insert in HPC; simplify_eq.
         repeat rewrite insert_insert.
         destruct src; simpl in *; simplify_eq; try discriminate.
-        destruct (reg_eq_dec PC r).
-        { subst r.
-          rewrite lookup_insert in Harg; simplify_eq.
-          iIntros "_".
+        destruct (reg_eq_dec PC r); simplify_map_eq.
+        { iIntros "_".
           iApply ("IH" $! lregs with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
           iModIntro. rewrite !fixpoint_interp1_eq /=; destruct Hp as [-> | ->]; iFrame "Hinv".
         }
-        { rewrite lookup_insert_ne in Harg; auto; simplify_eq.
-          iDestruct ("Hreg" $! r _ _ Harg) as "Hr".
+        { iDestruct ("Hreg" $! r _ _ Harg) as "Hr".
           destruct (PermFlowsTo RX p'') eqn:Hpft; iIntros "_".
           - iApply ("IH" $! lregs with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto.
             + iModIntro.
@@ -70,7 +67,7 @@ Section fundamental.
             iIntros. discriminate.
         }
       }
-      { rewrite lookup_insert_ne in HPC ; simplify_eq.
+      { simplify_map_eq.
         iIntros "_".
         iApply ("IH" $! (<[dst:=lw']> _) with "[%] [] [Hmap] [$Hown]"); eauto.
         - intros; simpl.
@@ -79,26 +76,17 @@ Section fundamental.
           rewrite lookup_insert_is_Some.
           destruct (reg_eq_dec PC x0); auto; right; split; auto.
         - iIntros (ri ? Hri Hvs).
-          destruct (reg_eq_dec ri dst).
-          + subst ri. rewrite lookup_insert in Hvs.
-            destruct src; simplify_map_eq.
+          destruct (reg_eq_dec ri dst); simplify_map_eq.
+          + destruct src; simplify_map_eq.
             * repeat rewrite fixpoint_interp1_eq; auto.
-            * destruct (reg_eq_dec PC r).
-              { subst r.
-                rewrite lookup_insert in Harg; simplify_eq.
-                rewrite !fixpoint_interp1_eq /=.
-                destruct Hp as [Hp | Hp]; subst p''; try subst g'';
-                  (iFrame "Hinv Hexec").
+            * destruct (reg_eq_dec PC r); simplify_map_eq.
+              { rewrite !fixpoint_interp1_eq /=.
+                destruct Hp as [Hp | Hp]; simplify_eq ; (iFrame "Hinv Hexec").
               }
-              { rewrite lookup_insert_ne in Harg; auto; simplify_eq.
-                iDestruct ("Hreg" $! r _ _ Harg) as "Hr". auto.
-              }
-          + repeat rewrite lookup_insert_ne in Hvs; auto.
-            iApply "Hreg"; auto.
+              { by iDestruct ("Hreg" $! r _ _ Harg) as "Hr". }
+          + by iApply "Hreg".
         - iModIntro.
-          rewrite lookup_insert in HPC; simplify_eq.
           rewrite !fixpoint_interp1_eq /=; destruct Hp as [-> | ->]; iFrame "Hinv"; auto.
-        - auto.
       }
     }
     Unshelve. all: done.

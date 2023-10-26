@@ -23,9 +23,8 @@ Section fundamental.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
-    destruct (reg_eq_dec PC r).
-    * subst r.
-      iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.
+    destruct (reg_eq_dec PC r); simplify_map_eq.
+    * iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.
       iNext. iIntros "[HPC Ha] /=".
       (* reconstruct invariant *)
       iMod ("Hcls" with "[Ha HP]") as "_";[iExists lw;iFrame|].
@@ -49,7 +48,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       (* reconstruct regions *)
       iDestruct ((big_sepM_delete _ _ r) with "[Hsrc Hmap]") as "Hmap /=";
-        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+        [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
       rewrite -delete_insert_ne // insert_id; auto.
 
       iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
@@ -78,12 +77,11 @@ Section fundamental.
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
           { iIntros (ri ? Hri Hvs).
             rewrite lookup_insert_ne in Hvs; auto.
-            destruct (decide (ri = r)).
-            { subst ri.
-              rewrite Hsomesrc in Hvs; inversion Hvs; subst; clear Hvs.
+            destruct (decide (ri = r)); simplify_map_eq.
+            { rewrite Hsomesrc in Hvs; inversion Hvs; subst; clear Hvs.
               unshelve iSpecialize ("Hreg" $! r _ _ Hsomesrc); eauto. }
-            { repeat (rewrite lookup_insert_ne in Hvs); auto.
-              iApply "Hreg"; auto. } }
+            { iApply "Hreg"; auto. }
+          }
           { rewrite insert_insert. iApply "Hmap". }
           iModIntro.
           unshelve iSpecialize ("Hreg" $! r _ _ Hsomesrc); eauto.

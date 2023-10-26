@@ -46,21 +46,19 @@ Section fundamental.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_UnSeal with "[$Ha $Hmap]"); eauto.
-    { by rewrite lookup_insert. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
-    iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
+    iIntros "!>" (lregs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * Hr1 Hr2 Hunseal Hwb HincrPC | ].
-    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&?& v'' & HPC & Z & Hregs') .
+    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&v''&? & HPC & Z & Hregs') .
 
       assert (r1 ≠ PC) as Hne1.
-      { destruct (decide (PC = r1)); last auto; subst.
-        rewrite lookup_insert in Hr1; simplify_eq; auto. }
-      rewrite lookup_insert_ne in Hr1; auto.
+      { destruct (decide (PC = r1)); by simplify_map_eq. }
       assert (r2 ≠ PC) as Hne2.
-      { destruct (decide (PC = r2)); last auto; subst.
-        rewrite lookup_insert in Hr2; simplify_eq; auto. }
+      { destruct (decide (PC = r2)); by simplify_map_eq. }
+      rewrite lookup_insert_ne in Hr1; auto.
       rewrite lookup_insert_ne in Hr2; auto.
 
       unshelve iDestruct ("Hreg" $! r1 _ _ Hr1) as "HVsr"; eauto.
@@ -76,9 +74,7 @@ Section fundamental.
       destruct (decide (PC = dst ∧ p'' = E)) as [ [Herr1 Herr2] | HNoError].
       { (* Error case *)
         simplify_map_eq.
-        rewrite lookup_insert in HPC ; simplify_eq.
-        iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
-        { subst. by rewrite lookup_insert. }
+        iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; simplify_map_eq; eauto.
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
         iIntros "!> _".
@@ -89,32 +85,19 @@ Section fundamental.
       }
       (* Otherwise, we will be able to derive validity of the PC below*)
 
-      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
-      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
+      iApply ("IH" $! lregs' with "[%] [] [Hmap] [$Hown]"); subst lregs'.
+      { cbn. intros. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri ? Hri Hvs).
-        subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert in Hvs; inversion Hvs. auto. }
-        { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto. } }
-        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+        destruct (decide (ri = dst)); simplify_map_eq; auto.
+        { iApply "Hreg"; auto. }
+      }
+      { rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
-      - rewrite lookup_insert in HPC; simplify_eq.
-        iApply (interp_weakening with "IH HVsb"); auto; try solve_addr.
+      - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr.
         { by rewrite PermFlowsToReflexive. }
-      - replace v'' with v; cycle -1.
-        {
-          destruct (decide (dst = PC)); subst.
-          + (* dst = PC *)
-            rewrite lookup_insert in HPC; simplify_eq.
-          + (* dst <> PC *)
-            by rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
-        }
-        rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
-        iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+      - iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
         { destruct Hp; by subst p''. }
         { by rewrite PermFlowsToReflexive. }
     }

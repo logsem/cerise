@@ -2,8 +2,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.algebra Require Import frac auth.
-From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 From cap_machine Require Export logical_mapsto.
+From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
@@ -959,7 +959,7 @@ Qed.
 (* TODO *)
 Lemma incrementLPC_Some_inv regs regs' :
   incrementLPC regs = Some regs' ->
-  exists p b e a a' v,
+  exists p b e a v a',
     regs !! PC = Some (LCap p b e a v) ∧
       (a + 1)%a = Some a' ∧
       regs' = <[ PC := (LCap p b e a' v) ]> regs.

@@ -26,8 +26,7 @@ Section fundamental.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_lea with "[$Ha $Hmap]"); eauto.
-    (* FIXME: why in Get.v, simplify_map_eq works, but not here ? *)
-    { by rewrite lookup_insert. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
@@ -35,12 +34,8 @@ Section fundamental.
     destruct HSpec as [ * Hdst ? Hz Hoffset HincrPC | * Hdst Hz Hoffset HincrPC | ].
     { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs').
 
-      assert (p'' = p ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
-      { destruct (decide (PC = dst)); subst.
-        rewrite lookup_insert in Hdst; rewrite lookup_insert in HPC; simplify_eq; auto.
-        rewrite lookup_insert_ne // in Hdst; auto.
-        rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq; auto.
-      }
+      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ v'' = v) as (-> & -> & -> & ->).
+      { destruct (decide (PC = dst)); subst; by simplify_map_eq. }
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
@@ -51,40 +46,22 @@ Section fundamental.
       { iIntros (ri ? Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
-          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+        destruct (decide (ri = dst)); simplify_map_eq.
+        { unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
           iApply interp_weakening; eauto; try solve_addr.
           destruct p0; simpl; auto. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
-      replace x with v; cycle -1.
-      {
-        destruct (decide (dst = PC)); subst.
-        + (* dst = PC *)
-          rewrite lookup_insert in HPC; simplify_eq.
-          rewrite lookup_insert in Hdst; simplify_eq.
-          done.
-        + (* dst <> PC *)
-          rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
-          done.
-      }
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
     { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs').
 
-      assert (p'' = p ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
-      { destruct (decide (PC = dst)); subst.
-        rewrite lookup_insert in Hdst; rewrite lookup_insert in HPC; simplify_eq; auto.
-        rewrite lookup_insert_ne // in Hdst; auto.
-        rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq; auto.
-      }
+      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ v'' = v) as (-> & -> & -> & ->).
+      { destruct (decide (PC = dst)); subst; by simplify_map_eq. }
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
@@ -95,26 +72,14 @@ Section fundamental.
       { iIntros (ri ? Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
-          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+        destruct (decide (ri = dst)); simplify_map_eq.
+        { unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
           iApply (interp_weakening_ot with "Hreg"); auto; try solve_addr.
           apply SealPermFlowsToReflexive. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
       { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
-      replace x with v; cycle -1.
-      {
-        destruct (decide (dst = PC)); subst.
-        + (* dst = PC *)
-          rewrite lookup_insert in HPC; simplify_eq.
-        + (* dst <> PC *)
-          rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
-          done.
-      }
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. } }
