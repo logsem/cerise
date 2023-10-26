@@ -175,7 +175,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     iDestruct (gen_heap_valid_inclSepM_general with "Hm Hmem") as %Hmem.
-    rewrite prod_merge_snd_inv in Hmem.
+    rewrite prod_merge_snd_inv in Hmem; last by rewrite Hdomeq.
 
     (* Derive necessary register values in r *)
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
