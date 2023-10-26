@@ -643,3 +643,13 @@ Definition is_sealed_with_oL (lw : LWord) (o : OType) : bool :=
   match lw with
   | LWSealed o' sb => (o =? o')%ot
   | _ => false end.
+
+Lemma laddr_ne_reg_ne {lregs : leibnizO LReg} {r1 r2 : RegName}
+  {p0 b0 e0 a0 v0 p b e a v}:
+  lregs !! r1 = Some (LCap p0 b0 e0 a0 v0)
+  → lregs !! r2 = Some (LCap p b e a v)
+  → (a0, v0) ≠ (a,v) → r1 ≠ r2.
+Proof.
+  intros Hr1 Hr2 Hne.
+  destruct (decide (r1 = r2)); simplify_eq; auto.
+Qed.
