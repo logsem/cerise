@@ -2,6 +2,7 @@ From cap_machine Require Export logrel.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
+From cap_machine Require Import stdpp_extra.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_base rules_Restrict.
 
@@ -10,23 +11,23 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  Lemma PermPairFlows_interp_preserved p p' b e a :
+  Lemma PermPairFlows_interp_preserved p p' b e a v :
     p <> E ->
     PermFlowsTo p' p = true →
-    (□ ▷ (∀ a0 a1 a2 a3 a4,
-             full_map a0
-
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
-          -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)) -∗
-    (fixpoint interp1) (WCap p b e a) -∗
-    (fixpoint interp1) (WCap p' b e a).
+    (□ ▷ (∀ lregs' p' b' e' a' v',
+           full_map lregs'
+             -∗ (∀ (r1 : RegName) (lv : LWord),
+                 ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+             -∗ registers_mapsto (<[PC:=LCap p' b' e' a' v']> lregs')
+             -∗ na_own logrel_nais ⊤
+             -∗ □ (fixpoint interp1) (LCap p' b' e' a' v') -∗ interp_conf)) -∗
+      (fixpoint interp1) (LCap p b e a v) -∗
+      (fixpoint interp1) (LCap p' b e a v).
   Proof.
     intros HpnotE Hp. iIntros "#IH HA".
     iApply (interp_weakening with "IH HA"); eauto; try solve_addr.
@@ -42,9 +43,10 @@ Section fundamental.
     intros. destruct (perm_eq_dec p E); destruct p; auto; congruence.
   Qed.
 
-  Lemma restrict_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst : RegName) (r0 : Z + RegName) (P:D):
-    ftlr_instr r p b e a w (Restrict dst r0) P.
+  Lemma restrict_case (lregs : leibnizO LReg)
+    (p : Perm) (b e a : Addr) (v : Version) (lw : LWord)
+    (dst : RegName) (r0 : Z + RegName) (P:D):
+    ftlr_instr lregs p b e a v lw (Restrict dst r0) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
@@ -58,17 +60,17 @@ Section fundamental.
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * Hdst ? Hz Hfl HincrPC | * Hdst Hz Hfl HincrPC | ].
-    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&?& v'' & HPC & Z & Hregs') .
 
-      assert (a'' = a ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
+      assert (a'' = a ∧ b'' = b ∧ e'' = e ∧ v'' = v) as (-> & -> & -> & ->).
       { destruct (decide (PC = dst)); simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
       iNext; iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
+      { iIntros (ri ? Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
@@ -81,25 +83,26 @@ Section fundamental.
           iApply "Hreg"; auto. } }
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
+      simplify_map_eq.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
       { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
         auto. by rewrite PermFlowsToReflexive. }
     }
-    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+    { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''& ?&v'' & HPC & Z & Hregs') .
 
       assert (dst ≠ PC) as Hne.
       { destruct (decide (PC = dst)); last auto. simplify_map_eq; auto. }
 
-      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ a'' = a) as (-> & -> & -> & ->).
+      assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ a'' = a ∧ v'' = v) as (-> & -> & -> & -> & ->).
       { simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
       iNext; iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
+      { iIntros (ri ? Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
@@ -117,7 +120,7 @@ Section fundamental.
       { by rewrite PermFlowsToReflexive. }
     }
      { iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
       iNext; iIntros "_".
       iApply wp_value; auto. iIntros; discriminate. }
   Qed.
