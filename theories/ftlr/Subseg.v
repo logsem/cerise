@@ -62,7 +62,7 @@ Section fundamental.
 
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst ? Hao1 Hao2 Hwi HincrPC | * Hdst Hoo1 Hoo2 Hwi HincrPC | ].
+    destruct HSpec as [ * Hdst ? Hao1 Hao2 Hwi HincrPC | * v' oo1 oo2 Hdst Hoo1 Hoo2 Hwi HincrPC | ].
     { apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs') .
 
       assert (a'' = a ∧ p'' = p) as (-> & ->).
@@ -118,21 +118,26 @@ Section fundamental.
       { by rewrite PermFlowsToReflexive. }
     }
     {
-      apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+      apply incrementLPC_Some_inv in HincrPC as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs') .
       assert (dst ≠ PC) as Hne.
       { destruct (decide (PC = dst)); last auto;
-        simplify_map_eq; auto. rewrite lookup_insert in Hwi ; simplify_eq.
+        simplify_map_eq; auto.
+        rewrite lookup_insert in HPC ; simplify_eq.
       }
 
       assert (p'' = p ∧ b'' = b ∧ e'' = e ∧ a'' = a) as (-> & -> & -> & ->).
-      { simplify_map_eq; auto. }
+      { destruct (decide (PC = dst)); subst.
+        rewrite lookup_insert in Hdst; rewrite lookup_insert in HPC; simplify_eq; auto.
+        rewrite lookup_insert_ne // in Hdst; auto.
+        rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq; auto.
+      }
 
       iApply wp_pure_step_later; auto.
-      iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
       iNext ; iIntros "_".
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
+      { iIntros (ri ? Hri Hvs).
         subst regs'.
         rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
@@ -147,12 +152,20 @@ Section fundamental.
           iApply "Hreg"; auto. } }
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
+      replace x with v; cycle -1.
+      {
+        destruct (decide (dst = PC)); subst.
+        + (* dst = PC *)
+          rewrite lookup_insert in HPC; simplify_eq.
+        + (* dst <> PC *)
+          by rewrite lookup_insert_ne // lookup_insert in HPC; simplify_eq.
+      }
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
     { iApply wp_pure_step_later; auto.
-    iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
+    iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
     iNext ; iIntros "_".
     iApply wp_value; auto. iIntros; discriminate. }
 Qed.
