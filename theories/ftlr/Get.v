@@ -4,6 +4,7 @@ From stdpp Require Import base.
 From cap_machine Require Export logrel.
 From cap_machine.ftlr Require Export ftlr_base.
 From cap_machine.rules Require Export rules_Get rules_base.
+From cap_machine Require Import stdpp_extra.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -41,8 +42,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. iNext.
       iIntros "_".
       assert (dst <> PC) as HdstPC by (intros ->; by rewrite lookup_insert in H2).
-      (* FIXME why is `simplify_map_eq` not working ? *)
-      rewrite lookup_insert_ne // lookup_insert in H2; simplify_eq.
+      simplify_map_eq.
       iApply ("IH" $! (<[dst := _]> (<[PC := _]> lregs)) with "[%] [] [Hmap] [$Hown]");
         try iClear "IH"; eauto.
       { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
