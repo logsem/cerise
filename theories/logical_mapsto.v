@@ -1,7 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
-From cap_machine Require Export cap_lang iris_extra machine_parameters.
+From cap_machine Require Export cap_lang iris_extra stdpp_extra machine_parameters.
 
 Definition Version := nat.
 
@@ -136,24 +136,39 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr
       + the logical word `lw` is the current view of the word
  *)
 Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) :=
-  (* map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v ) lm (* domain of `lm` is subset of `cur_map`*) *)
-  (* TODO bastien : should the logical addresses of lm always be the latest view ?? *)
+  (* map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v )
+     lm (* domain of `lm` is subset of `cur_map`*) *)
+  (* TODO bastien : should the logical addresses of lm always be the latest view ??
+     shouldn't it be the other way around ? *)
     map_Forall (λ la _ , is_cur_addr la cur_map) lm
     ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw
                                ∧ phm !! a = Some (lword_get_word lw)
                                ∧ is_cur_word lw cur_map)
         cur_map (* subset in other direction, and every current address is gc root *).
 
-Definition state_phys_log_corresponds (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (cur_map : gmap Addr Version):=
+Definition state_phys_log_corresponds (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (cur_map : VMap):=
     reg_phys_log_corresponds phr lr cur_map ∧ mem_phys_log_corresponds phm lm cur_map.
 
-Lemma lreg_insert_respects_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) (r : RegName) (lw : LWord):
+
+Ltac destruct_lword lw :=
+  let z := fresh "z" in
+  let p := fresh "p" in
+  let b := fresh "b" in
+  let e := fresh "e" in
+  let a := fresh "a" in
+  let v := fresh "v" in
+  let o := fresh "o" in
+  let sr := fresh "sr" in
+  let sd := fresh "sd" in
+  destruct lw as [ z | [p b e a v | p b e a] | o [p b e a v | p b e a]].
+
+
+Lemma lreg_insert_respects_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) (r : RegName) (lw : LWord):
   reg_phys_log_corresponds phr lr cur_map →
   is_cur_word lw cur_map →
   reg_phys_log_corresponds (<[r := lword_get_word lw]> phr) (<[r := lw]> lr) cur_map.
 Proof.
-  intros HregInv Hlw.
-  destruct HregInv as [Hstrip Hcur_regs].
+  intros [Hstrip Hcur_regs] Hlw.
   split.
   - rewrite <- Hstrip.
     unfold lreg_strip.
@@ -161,48 +176,55 @@ Proof.
   - apply map_Forall_insert_2; auto.
 Qed.
 
-Lemma lmem_insert_respects_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la : LAddr) (lw : LWord):
+Lemma lmem_insert_respects_corresponds (phm : Mem) (lm : LMem) (cur_map : VMap) (la : LAddr) (lw : LWord):
   mem_phys_log_corresponds phm lm cur_map →
   is_cur_addr la cur_map →
   is_cur_word lw cur_map →
-  mem_phys_log_corresponds (<[la.1 := lword_get_word lw]> phm) (<[la := lw]> lm) cur_map.
+  mem_phys_log_corresponds (<[laddr_get_addr la := lword_get_word lw]> phm) (<[la := lw]> lm) cur_map.
 Proof.
-  intros HmemInv Hla Hlw.
-  destruct HmemInv as [Hdom Hroot]; simpl in *.
+  intros [Hdom Hroot] Hla Hlw.
   split.
   - apply map_Forall_insert_2; auto.
-    (* unfold is_cur_addr in Hla; eexists; eauto. *)
   - eapply map_Forall_impl; eauto.
-    intros a v Hp; cbn in *.
-    destruct (decide (la = (a,v))) as [Heq | Hneq]; subst.
+    intros a' v' Hp; cbn in *.
+    destruct la as [a v].
+
+    destruct Hp as (lw' & Hla' & Hph_lw' & Hcur_lw').
+    pose proof (Hla'' := Hla').
+    eapply map_Forall_lookup_1 in Hla'; eauto ; cbn in Hla'.
+    rewrite /is_cur_addr /= in Hla.
+    rewrite /is_cur_addr /= in Hla'; cbn.
+
+    destruct (decide (a' = a)) as [Heq | Hneq]; simplify_eq.
     + exists lw ; split ; [ by simplify_map_eq|].
       split; auto. cbn ;by simplify_map_eq.
-    + destruct Hp as (lw' & Hlw' & Hph_lw' & Hcur_lw').
-      exists lw'. split; [rewrite lookup_insert_ne; auto|].
-      split; auto.
-      (* eapply map_Forall_lookup_1 in Hroot; eauto. *)
-      (* unfold is_cur_addr in Hla. *)
-      (* destruct Hroot . *)
-      (* destruct la; cbn. *)
-      (* ; intro Hcontra ; rewrite Hcontra in Hneq. apply Hneq. *)
-      (* rewrite lookup_insert_ne; auto. *)
-      (* destruct la; cbn; intro Hcontra ; rewrite Hcontra in Hneq. apply Hneq. *)
-      (* unfold is_cur_word in Hcur_lw'. *)
-      (* apply Hneq. ; intros ; auto. *)
-Admitted.
+    + exists lw'.
+      split; [rewrite lookup_insert_ne; auto ; intro; simplify_pair_eq|].
+      split; by simplify_map_eq.
+Qed.
 
-Lemma lreg_read_iscur (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) (r : RegName) (lw : LWord):
+Lemma lreg_read_iscur (phr : Reg) (lr : LReg) (cur_map : VMap) (r : RegName) (lw : LWord):
   reg_phys_log_corresponds phr lr cur_map →
   lr !! r = Some lw →
   is_cur_word lw cur_map.
-Admitted.
+Proof.
+  intros [_ Hcur_regs] Hr.
+  destruct_lword lw; try done; eapply map_Forall_lookup_1 in Hr; eauto; done.
+Qed.
 
-Lemma lmem_read_iscur (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) (la : LAddr) (lw : LWord):
+Lemma lmem_read_iscur (phm : Mem) (lm : LMem) (cur_map : VMap) (la : LAddr) (lw : LWord):
   mem_phys_log_corresponds phm lm cur_map →
   is_cur_addr la cur_map →
   lm !! la = Some lw →
   is_cur_word lw cur_map.
-Admitted.
+Proof.
+  intros [Hdom Hroot] Hla Hlw.
+  rewrite /is_cur_addr in Hla.
+  eapply map_Forall_lookup_1 in Hla; eauto; cbn in Hla.
+  destruct Hla as (lw' & Hlw' & Hphm & Hcur_lw').
+  destruct la as [a v]; cbn in *.
+  by rewrite Hlw in Hlw'; simplify_eq.
+Qed.
 
 Definition is_lword_version (lw : LWord) p b e a v : Prop :=
   (get_lcap lw) = Some (LSCap p b e a v).
@@ -211,9 +233,13 @@ Lemma is_lword_inv (lw : LWord) p b e a v :
   is_lword_version lw p b e a v ->
   (exists o, lw = LSealedCap o p b e a v)  \/ lw = LCap p b e a v.
 Proof.
-Admitted.
+  intros Hversion.
+  destruct_lword lw; cbn in Hversion ; try done
+  ; rewrite /is_lword_version /= in Hversion; simplify_eq
+  ; [right | left ; eexists]; done.
+Qed.
 
-Lemma cur_lword_cur_addr lw p b e a (v : Version) (cur_map : gmap Addr Version):
+Lemma cur_lword_cur_addr lw p b e a (v : Version) (cur_map : VMap):
   is_lword_version lw p b e a v ->
   is_cur_word lw cur_map →
   withinBounds b e a = true →
@@ -340,18 +366,6 @@ Definition lword_of_argument (lregs: LReg) (a: Z + RegName): option LWord :=
   | inl n => Some (LInt n)
   | inr r => lregs !! r
   end.
-
-Ltac destruct_lword lw :=
-  let z := fresh "z" in
-  let p := fresh "p" in
-  let b := fresh "b" in
-  let e := fresh "e" in
-  let a := fresh "a" in
-  let v := fresh "v" in
-  let o := fresh "o" in
-  let sr := fresh "sr" in
-  let sd := fresh "sd" in
-  destruct lw as [ z | [p b e a v | p b e a] | o [p b e a v | p b e a]].
 
 Lemma version_addr_reg reg lr cur_map wr r p b e a la:
   reg_phys_log_corresponds reg lr cur_map ->

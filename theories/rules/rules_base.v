@@ -918,7 +918,6 @@ Ltac incrementPC_inv :=
 
 (*--- incrementLPC ---*)
 
-(* TODO this definition is very tedious to use. Is there a better workaround ? *)
 Definition incrementLPC (regs: LReg) : option LReg :=
   match regs !! PC with
   | Some (LCap p b e a v) =>
@@ -933,8 +932,15 @@ Lemma incrementLPC_incrementPC_some regs regs' :
   incrementLPC regs = Some regs' ->
   incrementPC (lreg_strip regs) = Some (lreg_strip regs').
 Proof.
-  intros.
-Admitted.
+  rewrite /incrementPC /incrementLPC.
+  intros Hlpc.
+  rewrite /lreg_strip lookup_fmap; cbn.
+  destruct (regs !! PC) as [lw|] eqn:Heq ; rewrite Heq; cbn in *; last done.
+  destruct_lword lw; cbn in *; try done.
+  destruct (a + 1)%a; last done.
+  simplify_eq.
+  by rewrite fmap_insert.
+Qed.
 
 Lemma incrementLPC_incrementPC_none regs :
   incrementLPC regs = None <-> incrementPC (lreg_strip regs) = None.
@@ -942,10 +948,10 @@ Proof.
   intros.
   rewrite /incrementPC /incrementLPC.
   rewrite /lreg_strip lookup_fmap; cbn.
-  destruct (regs !! PC) as [LX|] eqn:Heq ; rewrite Heq; cbn; last (clear; firstorder).
+  destruct (regs !! PC) as [LX|] eqn:Heq ; rewrite Heq; cbn; last done.
   destruct LX ; cbn ; [(clear; firstorder) | | (clear; firstorder)].
-  destruct sb as [? ? ? a' | ] ; eauto; cbn; last (clear; firstorder).
-  destruct (a' + 1)%a eqn:Heq'; auto ; cbn ; clear; firstorder; try discriminate.
+  destruct sb as [? ? ? a' | ] ; eauto; cbn; last done.
+  destruct (a' + 1)%a eqn:Heq'; done.
 Qed.
 
 Lemma incrementLPC_fail_updatePC regs m etbl ecur:
@@ -956,31 +962,29 @@ Proof.
   by apply incrementPC_fail_updatePC.
 Qed.
 
-(* TODO *)
-Lemma incrementLPC_Some_inv regs regs' :
-  incrementLPC regs = Some regs' ->
+Lemma incrementLPC_Some_inv lregs lregs' :
+  incrementLPC lregs = Some lregs' ->
   exists p b e a v a',
-    regs !! PC = Some (LCap p b e a v) ∧
+    lregs !! PC = Some (LCap p b e a v) ∧
       (a + 1)%a = Some a' ∧
-      regs' = <[ PC := (LCap p b e a' v) ]> regs.
+      lregs' = <[ PC := (LCap p b e a' v) ]> lregs.
 Proof.
-  (* unfold incrementPC. *)
-  (* destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] | ]; *)
-  (*   try congruence. *)
-  (* case_eq (u+1)%a; try congruence. intros ? ?. inversion 1. *)
-  (* do 5 eexists. split; eauto. *)
-Admitted.
+  rewrite /incrementLPC.
+  destruct (lregs !! PC) as [ [ | [? ? ? u ? | ] | ] | ]; try congruence.
+  case_eq (u+1)%a; try congruence.
+  intros ? ?. inversion 1.
+  do 6 eexists. split; eauto.
+Qed.
 
-Lemma incrementLPC_None_inv regs pg b e a v :
-  incrementLPC regs = None ->
-  regs !! PC = Some (LCap pg b e a v) ->
+Lemma incrementLPC_None_inv lregs pg b e a v :
+  incrementLPC lregs = None ->
+  lregs !! PC = Some (LCap pg b e a v) ->
   (a + 1)%a = None.
 Proof.
-  (* unfold incrementPC. *)
-  (* destruct (regs !! PC) as [ [ | [? ? ? u | ] | ] |]; *)
-  (*   try congruence. *)
-  (* case_eq (u+1)%a; congruence. *)
-Admitted.
+  unfold incrementLPC.
+  destruct (lregs !! PC) as [ [ | [? ? ? u ? | ] | ] |]; try congruence.
+  case_eq (u+1)%a; congruence.
+Qed.
 
 Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
   incrementLPC regs = Some regs' ->
@@ -996,13 +1000,18 @@ Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
     ∧ regs' = <[ PC := (LCap p b e a' v) ]> regs.
 Proof.
   intro Hincr.
-  (* TODO this approach doesn't work, because we lose v *)
-  apply incrementLPC_incrementPC_some in Hincr.
-  eapply (incrementPC_success_updatePC) in Hincr.
-  Unshelve. all: eauto.
-  destruct Hincr as (p & b & e & a & a'& Hregs & Ha' & Hupd & Hregs').
-  exists p, b, e, a, a'. eexists.
-Admitted.
+  opose proof (incrementLPC_incrementPC_some _ _ Hincr) as HincrPC.
+  eapply (incrementPC_success_updatePC _ m etbl ecur) in HincrPC.
+  destruct HincrPC as (p'&b'&e'&a''&a'''&Hregs&Heq&Hupd&Hregseq).
+  rewrite /incrementLPC in Hincr.
+  destruct (regs !! PC) as [wpc |]; last done.
+  destruct_lword wpc; try done.
+  destruct (a + 1)%a as [a'|] eqn:Heq'; last done; simplify_eq.
+  rewrite /lreg_strip fmap_insert //= -/(lreg_strip regs)  in Hregseq.
+  exists p, b, e, a, a', v.
+  repeat (split; try done).
+  by rewrite Hupd Hregseq.
+Qed.
 
 Ltac incrementLPC_inv :=
   match goal with
