@@ -230,6 +230,39 @@ Definition overlap_word (w1 w2 : Word) : bool :=
   | _, _ => false
   end.
 
+Definition sweep_registers (src : RegName) (regs : Reg) : option bool :=
+  wsrc ← regs !! src;
+  foldl
+    (fun acc_opt r =>
+       if decide (r = src)
+       then acc_opt
+       else
+         acc ← acc_opt;
+         wr ← regs !! r;
+         Some ( (overlap_word wsrc wr) && acc )
+    )
+    (Some true)
+    all_registers
+.
+
+Definition sweep_memory (src : RegName) (regs : Reg) (mem : Mem) : option bool :=
+  wsrc ← regs !! src;
+  foldl
+    (fun acc_opt r =>
+       acc ← acc_opt;
+       wr ← mem !! r;
+       Some ( (overlap_word wsrc wr) && acc )
+    )
+    (Some true)
+    all_memory
+.
+
+Definition sweep (r : RegName) (regs : Reg) (mem : Mem) : option bool :=
+  unique_mem ← sweep_memory r regs mem;
+  unique_reg ← sweep_registers r regs;
+  Some (unique_mem && unique_reg)
+.
+
 Section opsem.
   Context `{MachineParameters}.
 
@@ -399,7 +432,16 @@ Section opsem.
   | EInit _ _ => None      (* TODO @Denis *)
   | EDeInit _ _ => None    (* TODO @Denis *)
   | EStoreId _ _ _ => None (* TODO @Denis *)
-  | IsUnique _ _ => None   (* TODO @Bastien see https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2417 *)
+  | IsUnique dst src =>
+      wsrc ← (reg φ) !! src;
+      match wsrc with
+      | WCap p b e a =>
+          (* FIXME the bind notation doesn't work because it cannot infer the type of `unique` *)
+          mbind
+            (fun (unique : bool) => (updatePC (update_reg φ dst (WInt (if unique then 1%Z else 0%Z)))))
+            (sweep src (reg φ) (mem φ))
+      | _ => None
+      end
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
@@ -629,6 +671,7 @@ Section opsem.
     ; repeat destruct (otype_of_argument (reg φ) _)
     ; repeat destruct (word_of_argument (reg φ) _)
     ; repeat destruct (z_of_argument (reg φ) _)
+    ; try destruct (sweep src (reg φ) (mem φ))
     ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
