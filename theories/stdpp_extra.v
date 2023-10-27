@@ -978,8 +978,6 @@ Proof.
 
 Admitted.
 
-prod_merge (<[i:=x]> m1) (<[i0:=x0]> m2) = <[i0:=x0]> m2
-
 Lemma lookup_prod_merge_snd {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) va vb:
   prod_merge m1 m2 !! va = Some vb ->

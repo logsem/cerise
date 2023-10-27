@@ -52,8 +52,6 @@ Section fundamental.
     else ⌜lmem = <[(pc_a, pca_v):=pc_lw]> ∅⌝)%I.
 
 
-  (* TODO remove *)
-Global Instance lword_inhabited: Inhabited LWord := populate (LInt 0).
   Lemma create_store_res:
     ∀ (lregs : leibnizO LReg) (p : Perm)
       (b e a : Addr) (v : Version) (r : RegName) (p0 : Perm)

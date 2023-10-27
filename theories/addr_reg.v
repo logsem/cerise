@@ -233,6 +233,8 @@ Notation "a1 =? a2" := (eqb_addr a1 a2) : Addr_scope.
 
 Notation addr_incr_eq := (finz_incr_eq).
 
+Definition all_memory : list Addr := finz.seq_between 0%a top%a.
+
 Global Open Scope general_if_scope.
 (* ---------------------------------- OTypes ----------------------------------------*)
 

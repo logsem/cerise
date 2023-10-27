@@ -5,19 +5,6 @@ From cap_machine Require Export cap_lang iris_extra stdpp_extra machine_paramete
 
 Definition Version := nat.
 
-Definition is_scap (w : Word) :=
-  match w with
-    | WCap p b e a => true
-    | WSealed _ (SCap p b e a) => true
-    | _ => false end.
-Definition get_scap (w : Word) : option Sealable :=
-  match w with
-    | WCap p b e a => Some (SCap p b e a)
-    | WSealed _ (SCap p b e a) => Some (SCap p b e a)
-    | _ => None end.
-Lemma get_is_scap w sb : get_scap w = Some sb → is_scap w = true.
-Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfalso. Qed.
-
 Definition LAddr : Type := Addr * Version.
 Inductive LSealable: Type :=
 | LSCap: Perm -> Addr -> Addr -> Addr -> Version -> LSealable

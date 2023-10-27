@@ -206,6 +206,30 @@ Proof.
 Qed.
 
 
+Definition is_scap (w : Word) :=
+  match w with
+    | WCap p b e a => true
+    | WSealed _ (SCap p b e a) => true
+    | _ => false end.
+Definition get_scap (w : Word) : option Sealable :=
+  match w with
+    | WCap p b e a => Some (SCap p b e a)
+    | WSealed _ (SCap p b e a) => Some (SCap p b e a)
+    | _ => None end.
+Lemma get_is_scap w sb : get_scap w = Some sb → is_scap w = true.
+Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfalso. Qed.
+
+
+
+Definition overlap_word (w1 w2 : Word) : bool :=
+  match get_scap w1, get_scap w2 with
+  | Some (SCap _ b1 e1 _), Some (SCap _ b2 e2 _) =>
+      if (b1 <? b2)%a
+      then (b2 <=? (e1 ^+ (-1)))%a
+      else (b1 <=? (e2 ^+ (-1)))%a
+  | _, _ => false
+  end.
+
 Section opsem.
   Context `{MachineParameters}.
 
