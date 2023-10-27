@@ -769,6 +769,8 @@ Definition regs_of (i: instr): gset RegName :=
   | Jnz r1 r2 => {[ r1; r2 ]}
   | Seal dst r1 r2 => {[dst; r1; r2]}
   | UnSeal dst r1 r2 => {[dst; r1; r2]}
+  | IsUnique dst src => {[dst; src]}
+  (* TODO @Denis add enclaves instructions here *)
   | _ => ∅
   end.
 
