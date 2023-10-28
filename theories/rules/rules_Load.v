@@ -203,23 +203,16 @@ Section cap_lang_rules.
     rewrite /exec /= Hr2 /= in Hstep.
 
     (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
-    destruct (is_log_cap lr2v) eqn:Hlr2v.
+    destruct (is_log_cap lr2v) eqn:Hlr2v ; subst lrw2; cbn in *.
     2:{ (* Failure: r2 is not a capability *)
-      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->).
-      {
-        apply is_log_cap_is_cap_false_iff in Hlr2v.
-        subst lrw2; cbn in *.
-        destruct_lword lr2v; cbn in * ; try by simplify_pair_eq.
-      }
-
-      iSplitR "Hφ Hmap Hmem"
+      destruct_lword lr2v; cbn in * ; try by simplify_pair_eq.
+      all: simplify_map_eq.
+      all: (iSplitR "Hφ Hmap Hmem"
       ; [ iExists lr, lm, cur_map; iFrame; auto
         | iApply "Hφ" ; iFrame ; iFailCore Load_fail_const
-        ].
+        ]).
     }
-    subst lrw2; cbn in *.
-    destruct_lword lr2v; cbn in * ; try congruence. clear Hlr2v.
-
+    destruct_lword lr2v; cbn in * ; try by simplify_pair_eq.
     destruct (readAllowed p && withinBounds b e a) eqn:HRA.
     2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
       symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
