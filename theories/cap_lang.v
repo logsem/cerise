@@ -221,7 +221,7 @@ Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfal
 
 
 
-Definition overlap_word (w1 w2 : Word) : bool :=
+Definition overlap_wordb (w1 w2 : Word) : bool :=
   match get_scap w1, get_scap w2 with
   | Some (SCap _ b1 e1 _), Some (SCap _ b2 e2 _) =>
       if (b1 <? b2)%a
@@ -230,8 +230,10 @@ Definition overlap_word (w1 w2 : Word) : bool :=
   | _, _ => false
   end.
 
+Definition overlap_word (w1 w2 :Word) : Prop := overlap_wordb w1 w2 = true.
+
 (* Returns [true] if [r] is unique. *)
-Definition sweep_registers (src : RegName) (regs : Reg) : bool :=
+Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => false (* if we don't find the register src, then it cannot overlap *)
   | Some wsrc =>
@@ -242,16 +244,36 @@ Definition sweep_registers (src : RegName) (regs : Reg) : bool :=
            else
              match regs !! r with
              | None => uniqueb (* if we don't find the register, then it cannot overlap *)
-             | Some wr => (negb (overlap_word wsrc wr)) && uniqueb
+             | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
              end
         )
         true
         all_registers
   end
-  .
+.
+
+Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+  Forall
+    (fun (r : RegName) =>
+       r <> src ->
+       match regs !! r with
+       | None => True
+       | Some w => not (overlap_word wsrc w)
+       end)
+    all_registers.
+
+Lemma sweep_registers_spec (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_registers regs src = true ->
+  regs !! src = Some wsrc ->
+  unique_in_registers regs src wsrc.
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /unique_in_registers.
+  apply Forall_fold_right.
+Admitted.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep_memory (src : RegName) (regs : Reg) (mem : Mem) : bool :=
+Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => false (* if we don't find the register src, then it cannot overlap *)
   | Some wsrc =>
@@ -259,19 +281,54 @@ Definition sweep_memory (src : RegName) (regs : Reg) (mem : Mem) : bool :=
         (fun (uniqueb : bool) (a : Addr) =>
            match mem !! a with
            | None => uniqueb (* if we don't find the addr, then it cannot overlap *)
-           | Some wr => (negb (overlap_word wsrc wr)) && uniqueb
+           | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
            end
         )
         true
         all_memory
   end
   .
+
+Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
+  Forall
+    (fun (a : Addr) =>
+       match mem !! a with
+       | None => True
+       | Some w => not (overlap_word wsrc w)
+       end)
+    all_memory.
+
+Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_memory mem regs src = true ->
+  regs !! src = Some wsrc ->
+  unique_in_memory mem wsrc.
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /unique_in_memory.
+  apply Forall_fold_right.
+Admitted.
+
 (* Returns [true] if [r] is unique. *)
-Definition sweep (r : RegName) (regs : Reg) (mem : Mem) : bool :=
-  let unique_mem := sweep_memory r regs mem in
-  let unique_reg := sweep_registers r regs in
+Definition sweep  (mem : Mem) (regs : Reg) (r : RegName)  : bool :=
+  let unique_mem := sweep_memory mem regs r in
+  let unique_reg := sweep_registers regs r in
   unique_mem && unique_reg
 .
+
+Definition unique_in_machine
+  (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+  regs !! src = Some wsrc ->
+  unique_in_memory mem wsrc /\ unique_in_registers regs src wsrc.
+
+Lemma sweep_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  regs !! src = Some wsrc ->
+  sweep mem regs src = true ->
+  unique_in_machine mem regs src wsrc.
+Proof.
+  intros Hsrc [Hsweep_mem Hsweep_reg]%andb_prop _.
+  eapply sweep_memory_spec in Hsweep_mem; eauto.
+  eapply sweep_registers_spec in Hsweep_reg; eauto.
+Qed.
 
 Section opsem.
   Context `{MachineParameters}.
@@ -446,7 +503,7 @@ Section opsem.
       wsrc ← (reg φ) !! src;
       match wsrc with
       | WCap p b e a =>
-          let uniqueb := sweep src (reg φ) (mem φ) in
+          let uniqueb := sweep (mem φ) (reg φ) src in
           updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
       | _ => None
       end

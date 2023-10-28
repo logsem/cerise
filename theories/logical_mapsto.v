@@ -102,13 +102,16 @@ Proof.
   ; destruct sb; cbn in *; try congruence.
 Qed.
 
+Definition logical_region ( region : list Addr ) (v : Version) : list (Addr * Version) :=
+  (fun a => (a,v)) <$> region.
+
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds
     to the the logical register file `lr`, according to the view map `cur_map` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
     - the version of the capabilities in `lr` are the same as the version of its addresses
       in the view map `cur_map`
  *)
-Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr Version) :=
+Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) :=
     lreg_strip lr = phr
     ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
 
@@ -122,7 +125,7 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : gmap Addr
         for the same address
       + the logical word `lw` is the current view of the word
  *)
-Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap Addr Version) :=
+Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : gmap VMap) :=
   (* map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v )
      lm (* domain of `lm` is subset of `cur_map`*) *)
   (* TODO bastien : should the logical addresses of lm always be the latest view ??
