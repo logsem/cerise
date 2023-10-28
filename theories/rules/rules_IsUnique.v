@@ -153,6 +153,138 @@ Section cap_lang_rules.
   Proof.
     intros Hsubset ; induction Hsubset. Admitted.
 
+
+  Lemma mem_eq_implies_allow_access_map:
+    ∀ (lregs : LReg) (lmem : LMem) (r : RegName) (lw : LWord) p b e a v,
+      (* lmem = <[(a, v):=lw]> ∅ *)
+      (* -> *)
+        Forall (λ a' : Addr, ∃ lw0, lmem !! (a', v) = Some lw0) (finz.seq_between b e)
+      → lregs !! r = Some (LCap p b e a v)
+      → allow_access_map_or_true r lregs lmem.
+  Proof.
+    intros lregs lmem r lw p b e a v Hmem Hr.
+    exists p,b,e,a,v; split.
+    - unfold read_reg_inr. by rewrite Hr.
+    - case_decide; done.
+      (* exists lw. simplify_map_eq. auto. *)
+  Qed.
+ Lemma mem_implies_allow_access_map:
+    ∀ (lregs : LReg) (lmem : LMem) (r : RegName)
+      (pc_a : Addr) pca_v
+      (lw lw' : LWord) p b e a v,
+      (* (if ((a,v) =? (pc_a, pca_v))%la *)
+      (*  then lmem = <[(pc_a, pca_v):=lw]> ∅ *)
+      (*  else lmem = <[(pc_a, pca_v):=lw]> (<[(a, v):=lw']> ∅)) *)
+      (* -> *)
+        Forall (λ a' : Addr, ∃ lw0, lmem !! (a', pca_v) = Some lw0) (finz.seq_between b e)
+      → lregs !! r = Some (LCap p b e a v)
+      → allow_access_map_or_true r lregs lmem.
+   Proof.
+    intros lregs lmem r pc_a pca_v lw lw' p b e a v Hcond Hr.
+    (* apply *)
+    (* destruct ((a,v) =? (pc_a, pca_v))%la eqn:Heq; cbn in Heq. *)
+    (*   + apply andb_true_iff in Heq. destruct Heq as [Heq1 Heq2]. *)
+    (*     apply Z.eqb_eq, finz_to_z_eq in Heq1. subst a. *)
+    (*     apply Nat.eqb_eq in Heq2. subst v. *)
+    (*     eapply mem_eq_implies_allow_access_map; eauto. *)
+    (*   + apply andb_false_iff in Heq. destruct Heq as [Heq | Heq] *)
+    (*   ; [ apply Z.eqb_neq in Heq |  apply Nat.eqb_neq in Heq ] *)
+    (*   ; eapply (mem_neq_implies_allow_access_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto. *)
+    (*     left ; solve_addr. *)
+
+   Admitted.
+
+  Lemma allow_access_implies_memmap:
+    ∀ (r : RegName) (lmem : LMem) (lregs : LReg) (p : Perm) (b e a : Addr) v,
+      allow_access_map_or_true r lregs lmem
+      → lregs !! r = Some (LCap p b e a v)
+      → Forall ( fun a => exists lw, lmem !! (a,v) = Some lw) (finz.seq_between b e).
+  Proof.
+    intros r lmem lregs p b e a v HaAccess Hrv.
+    unfold allow_access_map_or_true, read_reg_inr in HaAccess.
+    destruct HaAccess as (?&?&?&?&?& Hrinr & Hmem).
+    rewrite Hrv in Hrinr. inversion Hrinr; subst.
+    case_decide as Hrega.
+    - exact Hmem.
+    - contradiction Hrega.
+  Qed.
+
+    (* TODO @bastien Move *)
+    Definition map_insert_list
+      {L V : Type} {EqDecision0 : EqDecision L}
+      {H : Countable L}
+      (m : gmap L V)
+      (l : list (L*V)) : gmap L V :=
+      foldl (fun mres ins => <[ ins.1 := ins.2]> mres) m l.
+
+    (* TODO @bastien Move *)
+  Lemma gen_heap_update_list_inSepM :
+    ∀ {L V : Type} {EqDecision0 : EqDecision L}
+      {H : Countable L} {Σ : gFunctors}
+      {gen_heapG0 : gen_heapGS L V Σ}
+      (σ σ' : gmap L V) (ll : list L) (lv : list V),
+      Forall (fun l => is_Some (σ' !! l)) ll →
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn 1) y)
+      ==∗ gen_heap_interp (map_insert_list σ (zip ll lv))
+          ∗ [∗ map] k↦y ∈ (map_insert_list σ' (zip ll lv)), mapsto k (DfracOwn 1) y.
+  Proof.
+    induction ll; intros * Hσ'.
+    - iIntros "Hh H"; cbn.
+      iModIntro.
+      iSplitL "Hh"; eauto.
+    - admit.
+      (* rewrite (big_sepM_delete _ (<[l:=v]> σ') l). *)
+      (* { rewrite delete_insert_delete. iFrame. } *)
+      (* rewrite lookup_insert //. *)
+  Admitted.
+
+  Lemma insert_update_spec a pca_v v v' lw lregion:
+    forall b e, lregion = (λ a : Addr, (a, v')) <$> finz.seq_between b e ->
+    ∀ lmem,
+      lmem !! (a, pca_v) = Some lw
+      → Forall (λ a : Addr, ∃ lw0, lmem !! (a, v) = Some lw0) (finz.seq_between b e)
+      → Forall (λ la : LAddr, is_Some (lmem !! la)) lregion
+      → ∀ lv : list LWord,
+          Forall (λ kv : LAddr * LWord, lmem !! (kv.1.1, v) = Some kv.2)
+            (zip lregion lv)
+          → length lv = length lregion
+          → foldl
+              (λ (opt_lmem' : option LMem) (la : LAddr),
+                opt_lmem'
+                  ≫= (λ lmem',
+                       lmem' !! la ≫= (λ lw0, Some (<[(la.1, v'):=lw0]> lmem'))))
+              (Some lmem) lregion = Some (map_insert_list lmem (zip lregion lv))
+  .
+    Proof.
+      induction lregion as [|la lregion']; intros b e Hlregion lmem Hlapc HmemMap HmemMap_isSome lv Hlv Hlen_lv
+      ; cbn ; auto.
+      destruct lv as [| w lv'] ; [by cbn in Hlen_lv|].
+      cbn in *; simplify_eq.
+      eapply Forall_cons in HmemMap_isSome.
+      destruct HmemMap_isSome as [Hla HmemMap_isSome].
+      eapply Forall_cons in Hlv.
+      destruct Hlv as [Hlmem Hlv]; cbn in *.
+      eapply IHlregion' in HmemMap_isSome;eauto;clear IHlregion'.
+      (* destruct (lmem !! la) as [ a_lw|] eqn:Heq ; [cbn| destruct Hla ; done ]. *)
+      (* replace *)
+      (*   (foldl (λ (mres : gmap LAddr LWord) (ins : LAddr * LWord), <[ins.1:=ins.2]> mres) *)
+      (*      (<[la:=v]> lmem) (zip lregion' lv')) *)
+      (*   with *)
+      (*   (<[la:=v]> (foldl (λ (mres : gmap LAddr LWord) (ins : LAddr * LWord), <[ins.1:=ins.2]> mres) *)
+      (*                 (lmem) (zip lregion' lv'))). *)
+      (* 2: { admit. } *)
+      (* rewrite -/(map_insert_list lmem (zip lregion' lv')). *)
+    Admitted.
+
+  (* It misses hypothesis *)
+  Lemma update_version_spec b e v v' lregion lv lmem:
+    lregion = (λ a : Addr, (a, v')) <$> finz.seq_between b e ->
+    update_version lmem (finz.seq_between b e) v v' =
+      Some (map_insert_list lmem (zip lregion lv)).
+  Admitted.
+
+
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v pca_v
     (dst src : RegName) lw lmem lregs :
@@ -204,18 +336,24 @@ Section cap_lang_rules.
     rewrite /exec /= Hsrc /= in Hstep.
 
     (* Start the different cases now *)
-    destruct (is_log_cap lsrcv) eqn:Hlsrcv; cycle 1.
-    { (* Fail : not a capability *) admit.
-
+    destruct (is_log_cap lsrcv) eqn:Hlsrcv; cycle 1; subst srcv; cbn in *.
+    { (* Fail : not a capability *)
+      destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv.
+      all: simplify_map_eq.
+      all: (iSplitR "Hφ Hmap Hmem"
+      ; [ iExists lr, lm, cur_map; iFrame; auto
+        | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_cap
+        ]).
     }
-    subst srcv; cbn in *.
-    destruct_lword lsrcv; cbn in * ; try congruence. clear Hlsrcv.
-    destruct (sweep src reg mem) as [|] eqn:Hsweep ; cbn in Hstep.
+    destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv.
 
+    pose proof (allow_access_implies_memmap src lmem lregs p b e a v HaAccess Hlsrc') as HmemMap ; auto.
+
+    destruct (sweep src reg mem) as [|] eqn:Hsweep ; cbn in Hstep.
     - (* sweep is true *)
 
     (* Derive spec of sweep that returns true -> no overlap *)
-    eapply sweep_true_spec in Hsweep; eauto.
+    eapply sweep_true_spec with (v := v) in Hsweep; eauto.
     apply map_to_list_submseteq, submseteq_incl in Hmem.
     eapply incl_Forall with (l2 := (map_to_list lmem)) in Hsweep ; eauto.
 
@@ -268,8 +406,8 @@ Section cap_lang_rules.
          ; rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=
          ; erewrite insert_cap_lreg_strip ; eauto.
     }
-    rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep
-    ; simplify_map_eq.
+    rewrite HuPC in Hstep; clear HuPC.
+    inversion Hstep; clear Hstep ; simplify_map_eq.
 
     destruct (decide (src = PC)); simplify_map_eq.
     * (* src = PC *)
@@ -279,21 +417,44 @@ Section cap_lang_rules.
     iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
     ; first by simplify_map_eq.
     (* we update the version of the memory region *)
-    (* TODO *)
+    set (lregion := ((fun a => (a, pc_v+1)) <$> (finz.seq_between b1 e1))).
+
+    assert ( exists (lv : list LWord),
+               length lv = length lregion /\
+               Forall (λ (kv : LAddr * LWord),
+                   lmem !! (kv.1.1, pc_v) = Some kv.2)
+                 (zip lregion lv)
+      ) as  (lv & Hlen_lv & Hlv).
+    {  admit. }
+
+    assert (HmemMap_isSome: Forall (λ la : LAddr, is_Some (lmem !! la)) lregion).
+    {  admit. }
+
+    iMod ((gen_heap_update_list_inSepM lm _ _ lv HmemMap_isSome) with "Hm Hmem")
+      as "[Hm Hmem]".
 
     iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem".
     2: {
       iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto.
-      admit. (* TODO we need to have it in the hypothesis before *)
+      eapply update_version_spec ; eauto.
     }
 
-    iExists _, lm, cur_map; iFrame; auto
+    iExists _, (map_insert_list lm (zip lregion lv)), cur_map; iFrame; auto
     ; iPureIntro; econstructor; eauto
     ; destruct HLinv as [[Hstrips Hcur_reg] [Hdom Hroot]]
     ; cbn in *.
     split; first by rewrite -Hstrips /lreg_strip !fmap_insert /=.
-    admit. (* TODO we need to do the upgrade before, for b1 e1 *)
+    apply map_Forall_insert_2.
+    2: apply map_Forall_insert_2; cbn ; auto.
+    intros a Hbounds_a.
+    (* eapply map_Forall_lookup_1 ; eauto. *)
+    admit.
+    (* TODO need a lemma with map_insert_list for mem_phys_log *)
+    (* TODO I think that I also need a lemma that bumps the version of the
+       addresses in cur_map, but probably before *)
     split; eauto.
+    admit.
+    admit.
 
     * (* src <> PC *)
       (* TODO also need to destruct on (dst = src) *)
@@ -316,5 +477,14 @@ Section cap_lang_rules.
 
 
    Admitted.
+
+  (* TODO derive a valid version of the rule:
+     Because I don't know the whole content of the memory (only a local view),
+     any sucessful IsUnique wp-rule can have 2 outcomes:
+     either the sweep success or the sweep fails.
+
+    Importantly, we cannot derive any sweep success rule, because we would need
+    the entire footprint of the registers/memory.
+   *)
 
 End cap_lang_rules.
