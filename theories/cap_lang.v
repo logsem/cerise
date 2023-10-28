@@ -230,37 +230,47 @@ Definition overlap_word (w1 w2 : Word) : bool :=
   | _, _ => false
   end.
 
-Definition sweep_registers (src : RegName) (regs : Reg) : option bool :=
-  wsrc ← regs !! src;
-  foldl
-    (fun acc_opt r =>
-       if decide (r = src)
-       then acc_opt
-       else
-         acc ← acc_opt;
-         wr ← regs !! r;
-         Some ( (overlap_word wsrc wr) && acc )
-    )
-    (Some true)
-    all_registers
-.
+(* Returns [true] if [r] is unique. *)
+Definition sweep_registers (src : RegName) (regs : Reg) : bool :=
+  match regs !! src with
+  | None => false (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc =>
+      foldl
+        (fun (uniqueb : bool) (r : RegName) =>
+           if decide (r = src)
+           then uniqueb
+           else
+             match regs !! r with
+             | None => uniqueb (* if we don't find the register, then it cannot overlap *)
+             | Some wr => (negb (overlap_word wsrc wr)) && uniqueb
+             end
+        )
+        true
+        all_registers
+  end
+  .
 
-Definition sweep_memory (src : RegName) (regs : Reg) (mem : Mem) : option bool :=
-  wsrc ← regs !! src;
-  foldl
-    (fun acc_opt r =>
-       acc ← acc_opt;
-       wr ← mem !! r;
-       Some ( (overlap_word wsrc wr) && acc )
-    )
-    (Some true)
-    all_memory
-.
-
-Definition sweep (r : RegName) (regs : Reg) (mem : Mem) : option bool :=
-  unique_mem ← sweep_memory r regs mem;
-  unique_reg ← sweep_registers r regs;
-  Some (unique_mem && unique_reg)
+(* Returns [true] if [r] is unique. *)
+Definition sweep_memory (src : RegName) (regs : Reg) (mem : Mem) : bool :=
+  match regs !! src with
+  | None => false (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc =>
+      foldl
+        (fun (uniqueb : bool) (a : Addr) =>
+           match mem !! a with
+           | None => uniqueb (* if we don't find the addr, then it cannot overlap *)
+           | Some wr => (negb (overlap_word wsrc wr)) && uniqueb
+           end
+        )
+        true
+        all_memory
+  end
+  .
+(* Returns [true] if [r] is unique. *)
+Definition sweep (r : RegName) (regs : Reg) (mem : Mem) : bool :=
+  let unique_mem := sweep_memory r regs mem in
+  let unique_reg := sweep_registers r regs in
+  unique_mem && unique_reg
 .
 
 Section opsem.
@@ -436,10 +446,8 @@ Section opsem.
       wsrc ← (reg φ) !! src;
       match wsrc with
       | WCap p b e a =>
-          (* FIXME the bind notation doesn't work because it cannot infer the type of `unique` *)
-          mbind
-            (fun (unique : bool) => (updatePC (update_reg φ dst (WInt (if unique then 1%Z else 0%Z)))))
-            (sweep src (reg φ) (mem φ))
+          let uniqueb := sweep src (reg φ) (mem φ) in
+          updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
       | _ => None
       end
   end.
