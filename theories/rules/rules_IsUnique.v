@@ -65,8 +65,61 @@ Section cap_lang_rules.
 
   | IsUnique_fail_invalid_PC_false (lwsrc: LWord):
     lregs !! src = Some lwsrc ->
-    incrementLPC (<[ dst := LInt 1 ]> lregs) = None ->
+    incrementLPC (<[ dst := LInt 0 ]> lregs) = None ->
     IsUnique_fail lregs lmem dst src.
+
+
+  (* TODO move *)
+  Definition logical_region ( region : list Addr ) (v : Version) : list (Addr * Version) :=
+    (fun a => (a,v)) <$> region.
+
+  Definition unique_in_memory (lmem : LMem) (lwsrc : LWord) (v : Version) : Prop :=
+    Forall
+      (fun (la : LAddr) =>
+         match lmem !! la with
+         | None => True
+         | Some lw => not (overlap_lwords lwsrc lw)
+         end)
+      (logical_region all_memory v).
+
+  Definition unique_in_registers  (lregs : LReg) (lwsrc : LWord) (src : RegName) : Prop :=
+    Forall
+      (fun (r : RegName) =>
+         match lregs !! r with
+         | None => True
+         | Some lw => r <> src -> not (overlap_lwords lwsrc lw)
+         end)
+      all_registers.
+
+  Definition unique_in_machine (lregs : LReg) (lmem : LMem)
+    (lwsrc : LWord) (src : RegName) (v : Version) : Prop :=
+    ( forall (full_lregs : LReg) (full_lmem : LMem),
+        (* NOTE We need to consider any /compatible/ logical registers/memory
+           such that, the given logical state in included in. This way, although we
+           are working on a local view, the sweep is over any bigger
+           logical register/memory. *)
+        lregs ⊆ full_lregs ->
+        lmem ⊆ full_lmem ->
+        unique_in_memory full_lmem lwsrc v /\ unique_in_registers full_lregs lwsrc src).
+
+  Lemma unique_in_machine_weaken
+    (lregs lregs' : LReg) (lmem lmem' : LMem)
+    (lwsrc : LWord) (src : RegName) (v : Version) :
+    lregs' ⊆ lregs ->
+    lmem' ⊆ lmem ->
+    unique_in_machine lregs lmem lwsrc src v ->
+    unique_in_machine lregs' lmem' lwsrc src v.
+  Proof.
+  Admitted.
+
+  Lemma not_unique_in_machine_weaken (lregs lregs' : LReg) (lmem lmem': LMem)
+    p b e a v src:
+    lregs' ⊆ lregs ->
+    lmem' ⊆ lmem ->
+    ¬ unique_in_machine lregs lmem  (LCap p b e a v) src v ->
+    ¬ unique_in_machine lregs' lmem' (LCap p b e a v) src v.
+  Proof.
+  Admitted.
 
   Inductive IsUnique_spec
     (lregs: LReg) (lmem : LMem) (dst src : RegName)
@@ -76,9 +129,8 @@ Section cap_lang_rules.
     lregs !! src = Some lwsrc ->
     get_lcap lwsrc = Some (LSCap p b e a v) ->
     (* check if the words overlap only if the versions matches *)
-    Forall
-      (fun '(la, lw) => (laddr_get_version la) = v -> not (overlap_lwords lwsrc lw))
-      (map_to_list lmem) ->
+    unique_in_machine lregs lmem lwsrc src v ->
+
     (* we update the region of memory with the new version *)
     update_version lmem (finz.seq_between b e) v (v + 1) = Some lmem' ->
 
@@ -89,10 +141,8 @@ Section cap_lang_rules.
 
     lregs !! src = Some lwsrc ->
     get_lcap lwsrc = Some (LSCap p b e a v) ->
-    (* it exists a word in the memory that overlaps somewhere in the memory *)
-    Exists
-      (fun '(la, lw) => (laddr_get_version la) = v -> overlap_lwords lwsrc lw)
-      (map_to_list lmem) ->
+    (* it exists a word in the memory that overlaps somewhere in the machine *)
+    not (unique_in_machine lregs lmem lwsrc src v) ->
     incrementLPC (<[ dst := LInt 0 ]> lregs) = Some lregs' ->
     lmem' = lmem ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
@@ -105,7 +155,6 @@ Section cap_lang_rules.
   .
 
   (* TODO @Bastien *)
-
   Definition allow_access_map_or_true (r : RegName) (lregs : LReg) (lmem : LMem) : Prop :=
     exists p b e a v, read_reg_inr lregs r p b e a v
                  ∧ if decide (lregs !! r = Some (LCap p b e a v))
@@ -134,25 +183,23 @@ Section cap_lang_rules.
     state_phys_log_corresponds reg mem lr lm cur_map ->
     sweep r reg mem = true ->
     reg !! r = Some (WCap p b e a) ->
-    Forall
-      (λ '(la, lw), laddr_get_version la = v → ¬ overlap_lwords (LCap p b e a v) lw)
-      (map_to_list lm).
-    Admitted.
+    unique_in_machine lr lm (LCap p b e a v) r v.
+  Proof.
+  Admitted.
 
   Lemma sweep_false_spec reg mem lr lm cur_map r p b e a v:
     state_phys_log_corresponds reg mem lr lm cur_map ->
     sweep r reg mem = false ->
     reg !! r = Some (WCap p b e a) ->
-    Exists
-      (fun '(la, lw) => (laddr_get_version la) = v -> overlap_lwords (LCap p b e a v) lw)
-      (map_to_list lm).
+    not (unique_in_machine lr lm (LCap p b e a v) r v).
+  Proof.
   Admitted.
 
   Lemma submseteq_incl `{A : Type} (l1 l2 : list A) :
     l1 ⊆+ l2 -> incl l1 l2.
   Proof.
-    intros Hsubset ; induction Hsubset. Admitted.
-
+    intros Hsubset ; induction Hsubset.
+  Admitted.
 
   Lemma mem_eq_implies_allow_access_map:
     ∀ (lregs : LReg) (lmem : LMem) (r : RegName) (lw : LWord) p b e a v,
@@ -209,13 +256,13 @@ Section cap_lang_rules.
     - contradiction Hrega.
   Qed.
 
-    (* TODO @bastien Move *)
-    Definition map_insert_list
-      {L V : Type} {EqDecision0 : EqDecision L}
-      {H : Countable L}
-      (m : gmap L V)
-      (l : list (L*V)) : gmap L V :=
-      foldl (fun mres ins => <[ ins.1 := ins.2]> mres) m l.
+  (* TODO @bastien Move *)
+  Definition map_insert_list
+    {L V : Type} {EqDecision0 : EqDecision L}
+    {H : Countable L}
+    (m : gmap L V)
+    (l : list (L*V)) : gmap L V :=
+    foldl (fun mres ins => <[ ins.1 := ins.2]> mres) m l.
 
     (* TODO @bastien Move *)
   Lemma gen_heap_update_list_inSepM :
@@ -240,7 +287,7 @@ Section cap_lang_rules.
   Admitted.
 
   Lemma insert_update_spec a pca_v v v' lw lregion:
-    forall b e, lregion = (λ a : Addr, (a, v')) <$> finz.seq_between b e ->
+    forall b e, lregion = logical_region (finz.seq_between b e) v ->
     ∀ lmem,
       lmem !! (a, pca_v) = Some lw
       → Forall (λ a : Addr, ∃ lw0, lmem !! (a, v) = Some lw0) (finz.seq_between b e)
@@ -354,8 +401,7 @@ Section cap_lang_rules.
 
     (* Derive spec of sweep that returns true -> no overlap *)
     eapply sweep_true_spec with (v := v) in Hsweep; eauto.
-    apply map_to_list_submseteq, submseteq_incl in Hmem.
-    eapply incl_Forall with (l2 := (map_to_list lmem)) in Hsweep ; eauto.
+    eapply unique_in_machine_weaken in Hsweep; eauto.
 
     destruct (incrementLPC (<[ dst := LInt 1 ]>
                             (<[ src := LCap p b e a (v+1)]> lregs)))
@@ -417,7 +463,7 @@ Section cap_lang_rules.
     iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
     ; first by simplify_map_eq.
     (* we update the version of the memory region *)
-    set (lregion := ((fun a => (a, pc_v+1)) <$> (finz.seq_between b1 e1))).
+    set (lregion := (logical_region (finz.seq_between b1 e1) (pc_v+1))).
 
     assert ( exists (lv : list LWord),
                length lv = length lregion /\
@@ -470,12 +516,71 @@ Section cap_lang_rules.
 
     - (* sweep = false *)
 
-    (* TODO Derive spec of sweep that returns false -> there is an overlap *)
-    (* eapply sweep_false_spec in Hsweep; eauto. *)
-    (* apply map_to_list_submseteq, submseteq_incl in Hmem. *)
-    (* eapply incl_Exists with (l2 := (map_to_list lmem)) in Hsweep ; eauto. *)
+    eapply sweep_false_spec with (v := v) in Hsweep ; [|eauto|eauto].
+    eapply not_unique_in_machine_weaken in Hsweep ; eauto.
+
+    destruct (incrementLPC (<[ dst := LInt 0 ]> lregs))
+      as  [ lregs' |] eqn:Hlregs'
+    ; pose proof Hlregs' as H'lregs'
+    ; cycle 1.
+    + (* Failure: the PC could not be incremented correctly *)
+      apply incrementLPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hlregs'.
+      eapply updatePC_fail_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in Hlregs'.
+      2: {
+        rewrite /lreg_strip lookup_fmap.
+        apply fmap_is_Some.
+        destruct (decide (dst = PC)) ; simplify_map_eq; auto.
+      }
+      2: apply map_fmap_mono ; apply insert_mono ; eauto.
+      replace ((λ lw : LWord, lword_get_word lw) <$> (<[dst:=LInt 0]> lr))
+        with (<[dst:= WInt 0]> reg)
+        in Hlregs'
+      ; cycle 1.
+      { destruct HLinv as [[Hstrips Hcurreg] _].
+        rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=.
+      }
+
+      rewrite Hlregs' in Hstep. inversion Hstep.
+      iSplitR "Hφ Hmap Hmem"
+      ; [ iExists lr, lm, cur_map; iFrame; auto
+        | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_invalid_PC_false
+        ].
+    + (* PC has been incremented correctly *)
+
+    rewrite /update_reg /= in Hstep.
+    eapply (incrementLPC_success_updatePC _ mem etable enumcur) in Hlregs'
+          as (p1 & b1 & e1 & a1 & a_pc1 & v1 & HPC'' & Ha_pc' & HuPC & ->)
+    ; simplify_map_eq.
+    assert (dst <> PC) as Hdst by (intro ; simplify_map_eq).
+    eapply updatePC_success_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC.
+    2: apply map_fmap_mono ; apply insert_mono ; eauto.
+    replace ((λ lw, lword_get_word lw) <$> <[dst:=LInt 0]> lr)
+        with (<[dst:=WInt 0]> reg) in HuPC.
+    2: { destruct HLinv as [[Hstrips Hcurreg] _]
+         ; rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=.
+    }
+    rewrite HuPC in Hstep; clear HuPC.
+    inversion Hstep; clear Hstep ; simplify_map_eq.
 
 
+    iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
+    iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
+    ; first by simplify_map_eq.
+
+    iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem".
+    2: { iApply "Hφ" ; iFrame; iPureIntro; eapply IsUnique_success_false; eauto. }
+
+    iExists _, lm, cur_map; iFrame; auto
+    ; iPureIntro; econstructor; eauto
+    ; destruct HLinv as [[Hstrips Hcur_reg] [Hdom Hroot]]
+    ; cbn in *
+    ; [|split;eauto]
+    .
+    split; first by rewrite -Hstrips /lreg_strip !fmap_insert /=.
+    apply map_Forall_insert_2 ; [|by apply map_Forall_insert_2; cbn].
+    (* TODO lemma for proving this automatically *)
+    eapply lreg_read_iscur;eauto.
+    split ; eauto.
    Admitted.
 
   (* TODO derive a valid version of the rule:
