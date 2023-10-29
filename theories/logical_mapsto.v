@@ -116,8 +116,8 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) :=
     ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
 
 (** The `mem_phys_log_corresponds` states that,
-    - for all logical addresses of the logical memory `lm`, it exists a version in the view
-    map `cur_map` ( i.e. dom(lm) ⊆ dom(cur_map) ) // (have to be the same ??)
+    - the logical memory contains only the current version of the logical addresses
+      (i.e. dom(lm) ⊆ dom(cur_map))
     - for all entries in the view map,
       + it exists is a logical word `lw` in the logical memory `lm`
       ( i.e. dom(cur_map) ⊆ dom(lm) )

@@ -165,23 +165,51 @@ Section cap_lang_rules.
     rewrite -fmap_insert insert_id //=.
   Qed.
 
+  Definition word_access_addr (a : Addr) (w : Word) : Prop :=
+    match get_scap w with
+    | Some (SCap _ b e _) => (b <= a < e)%a
+    | _ => False
+    end.
+
+  Definition word_access_addrL (a : Addr) (lw : LWord) : Prop :=
+    word_access_addr a (lword_get_word lw).
+
+
+  (* TODO move + find better name for the lemma *)
+  Lemma is_cur_word_update (lw : LWord) (a : Addr) (v : Version)
+    (lm : LMem) (cur_map: VMap) :
+    ¬ word_access_addrL a lw ->
+    is_cur_word lw cur_map ->
+    is_cur_word lw ( <[a := v]> cur_map ).
+  Proof.
+    intros Hnaccess Hcur.
+    destruct_lword lw ; auto; cbn in *; intros * Ha1.
+    all: assert (a1 <> a) by (apply elem_of_finz_seq_between in Ha1; solve_addr).
+    all: apply Hcur in Ha1.
+    all: by simplify_map_eq.
+  Qed.
+
   (* TODO this is an attempt to show the kind of lemmas I will need, in order
    to update the current view map *)
   Lemma lmem_update_version_address
     (phm : Mem) (lm : LMem) (cur_map : VMap) (a : Addr) (v v' : Version) (lw : LWord):
     lm !! (a,v) = Some lw ->
+    not (word_access_addrL a lw) ->
     mem_phys_log_corresponds phm lm cur_map ->
-    mem_phys_log_corresponds phm (<[ (a, v') := lw ]> lm) (<[ a := v']> cur_map).
+    mem_phys_log_corresponds phm (<[ (a, v') := lw ]> (delete (a, v) lm)) (<[ a := v']> cur_map).
   Proof.
-    intros Hla [Hroot Hdom].
+    intros Hla Hnaccess [Hdom Hroot].
     split.
     - apply map_Forall_insert_2.
       rewrite /is_cur_addr //= ; by simplify_map_eq.
+      assert ( forall v0, (delete (a,v) lm) !! (a,v0) = None ). admit.
+      eapply map_Forall_delete; eauto.
       eapply map_Forall_impl; eauto.
       intros la' lw' Hroot' ; cbn in Hroot'.
 
       rewrite /is_cur_addr //= ; simplify_map_eq.
       rewrite /is_cur_addr //= in Hroot'; simplify_map_eq.
+      (* TODO I intuite that it's OK now *)
       admit.
     - apply map_Forall_insert_2.
       + pose proof (Hla' := Hla).
@@ -191,14 +219,36 @@ Section cap_lang_rules.
         rewrite Hla' in Hlw' ; simplify_eq.
         exists lw'. split. by simplify_map_eq.
         split; auto.
-        (* TODO lemma ?
-           is_cur_word lw cur_map -> is_cur_word lw ( <[ a := v ]> cur_map )
-           Is this even true ?? We need a way to update `lw` if `lw` can access a...
+        eapply is_cur_word_update; eauto.
 
-           Problem: if I update the version of `lw`, it means that I need to update
-           every addresses that `lw` can address, and so on...
-         *)
+      + eapply map_Forall_impl ; eauto.
+        intros a' v'' Hroot_a. cbn in Hroot_a.
+        destruct Hroot_a as (lw' & Hlm_lw' & Hphm_lw & Hcur_lw').
+        destruct (decide (a = a')); simplify_eq.
+        * (* a = a' *)
+          (* TODO lemma: Hroot -> Hla -> Hlm_lw -> *)
+          (* TODO lemma: is_cur_addr (a,v) -> is_cur_addr (a,v') -> v = v' *)
+          assert (lw = lw' /\ v = v'') as [-> ->] by admit.
+          (* eapply map_Forall_lookup_1 in Hla; eauto. *)
+          (* eapply map_Forall_lookup_1 in Hlm_lw'; eauto ; cbn in *. *)
+          exists lw'. split.
+          destruct (decide ((a', v') = (a',v''))) ; [ by simplify_map_eq|].
+          simplify_map_eq.
+          (* rewrite /is_cur_word in Hcur_lw'. *)
+          (* apply map_Forall_lookup_1 in Hcur_lw' ; eauto. *)
+          (*   Hroot in Hcur_lw'. *)
+          (* split; auto. *)
+          (* eapply is_cur_word_update ; eauto. *) admit. admit.
+        * (* a <> a' *)
+          exists lw'. assert ( (a, v') <> (a', v'') ) by (intro ; simplify_pair_eq).
+          simplify_map_eq. do 2 (try split ; auto).
+          assert ( (a,v) <> (a', v'') ) by (intro ; simplify_eq); by simplify_map_eq.
+          (* TODO it also misses the hypethesis stating that actually,
+             no words in the whole logical memory is overlapping with [a]
+           *)
   Abort.
+
+
 
 
   (* TODO should it also implies a modification in cur_map ? *)
