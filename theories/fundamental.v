@@ -45,7 +45,7 @@ Section fundamental.
     iIntros (widc) "#Hinv_idc".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv_idc"; iRevert "Hinv_pc".
-    iLöb as "IH" forall (r p b e a).
+    iLöb as "IH" forall (r p b e a widc).
     iIntros "#Hinv_pc #Hinv_idc".
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
     iApply (wp_bind (fill [SeqCtx])).

@@ -22,12 +22,12 @@ Section fundamental.
     → isCorrectPC (WCap p b e a)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrW w = i
-    -> □ ▷ (∀ a0 a1 a2 a3 a4 w,
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[idc:=w]>(<[PC:=WCap a1 a2 a3 a4]> a0))
+    -> □ ▷ (∀ regs' p' b' e' a' widc',
+             full_map regs'
+          -∗ (∀ (r : RegName) v, ⌜r ≠ PC⌝ → ⌜r ≠ idc⌝ → ⌜regs' !! r = Some v⌝ → (fixpoint interp1) v)
+          -∗ registers_mapsto (<[idc:=widc']> (<[PC:=WCap p' b' e' a']> regs'))
           -∗ na_own logrel_nais ⊤
-             -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
+             -∗ □ (fixpoint interp1) (WCap p' b' e' a') -∗ □ fixpoint interp1 widc' -∗ interp_conf)
     -∗ (fixpoint interp1) (WCap p b e a)
     -∗ (fixpoint interp1) widc
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)

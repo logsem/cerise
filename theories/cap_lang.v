@@ -274,7 +274,7 @@ Section opsem.
       match wdst with
       | WCap p b e a =>
         match p with
-        | E => None
+        | E | IE => None
         | _ => match (a + n)%a with
                | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
                | None => None
@@ -293,7 +293,7 @@ Section opsem.
       match wdst with
       | WCap permPair b e a =>
         match permPair with
-        | E => None
+        | E | IE => None
         | _ => if PermFlowsTo (decodePerm n) permPair then
                 updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else None
@@ -323,7 +323,7 @@ Section opsem.
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
       match p with
-      | E => None
+      | E | IE => None
       | _ =>
         if isWithin a1 a2 b e then
           updatePC (update_reg φ dst (WCap p a1 a2 a))

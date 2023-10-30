@@ -54,7 +54,7 @@ Section cap_lang_rules.
   :=
   | Lea_spec_success_cap: forall p b e a z a',
     regs !! r1 = Some (WCap p b e a) ->
-    p ≠ E ->
+    p ≠ E -> p ≠ IE ->
     z_of_argument regs rv = Some z ->
     (a + z)%a = Some a' ->
     incrementPC
@@ -122,7 +122,7 @@ Section cap_lang_rules.
        { destruct r1v as [ | [p b e a | ] | ]; try by inversion Hr1v.
          all: try by simplify_pair_eq.
          destruct p; try congruence.
-         simplify_pair_eq; auto. }
+         all: simplify_pair_eq; auto. }
        iFailWP "Hφ" Lea_fail_allowed. }
 
      (* Now the proof splits depending on the type of value in r1v *)
@@ -131,6 +131,8 @@ Section cap_lang_rules.
 
      (* First, the case where r1v is a capability *)
      + destruct (perm_eq_dec p E); [ subst p |].
+       { rewrite /is_mutable_range in Hr1v; congruence. }
+       destruct (perm_eq_dec p IE); [ subst p |].
        { rewrite /is_mutable_range in Hr1v; congruence. }
 
        destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
@@ -158,7 +160,7 @@ Section cap_lang_rules.
        eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto.
        rewrite HuPC in Hstep; clear HuPC.
        eassert ((c, σ2) = (NextI, _)) as HH.
-       { destruct p; cbn in Hstep; eauto. congruence. }
+       { destruct p; cbn in Hstep; eauto; congruence. }
        simplify_pair_eq.
 
        iFrame.
@@ -209,6 +211,7 @@ Section cap_lang_rules.
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
      pc_p ≠ E →
+     pc_p ≠ IE →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
@@ -219,7 +222,7 @@ Section cap_lang_rules.
               ∗ pc_a ↦ₐ w
               ∗ rv ↦ᵣ WInt z }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Ha' Hnep φ) "(>HPC & >Hpc_a & >Hrv) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hniep φ) "(>HPC & >Hpc_a & >Hrv) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hrv") as "[Hmap %]".
      iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.
@@ -247,6 +250,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
+     p ≠ IE →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
@@ -259,7 +263,7 @@ Section cap_lang_rules.
               ∗ rv ↦ᵣ WInt z
               ∗ r1 ↦ᵣ WCap p b e a' }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hniep ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hφ".
      iDestruct (map_of_regs_3 with "HPC Hrv Hr1") as "[Hmap (%&%&%)]".
      iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.
@@ -289,6 +293,7 @@ Section cap_lang_rules.
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
      pc_p ≠ E →
+     pc_p ≠ IE →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w }}}
@@ -297,7 +302,7 @@ Section cap_lang_rules.
          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a'
             ∗ pc_a ↦ₐ w }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hniep ϕ) "(>HPC & >Hpc_a) Hφ".
      iDestruct (map_of_regs_1 with "HPC") as "Hmap".
      iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
@@ -323,6 +328,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
+     p ≠ IE →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
@@ -333,7 +339,7 @@ Section cap_lang_rules.
             ∗ pc_a ↦ₐ w
             ∗ r1 ↦ᵣ WCap p b e a' }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hniep ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
      iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by rewrite !dom_insert; set_solver+.

@@ -139,10 +139,10 @@ Definition is_sealed_with_o (w : Word) (o : OType) : bool :=
   | _ => false end.
 
 
-(* non-E capability or range of seals *)
+(* non-E and non-IE capability or range of seals *)
 Definition is_mutable_range (w : Word) : bool:=
   match w with
-  | WCap p _ _ _ => match p with | E  => false | _ => true end
+  | WCap p _ _ _ => match p with | E | IE  => false | _ => true end
   | WSealRange _ _ _ _ => true
   | _ => false end.
 

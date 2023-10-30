@@ -15,14 +15,14 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Definition IH: iProp Σ :=
-    (□ ▷ (∀ a0 a1 a2 a3 a4 w',
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[idc:=w']> (<[PC:=WCap a1 a2 a3 a4]> a0))
+  Definition IH : iProp Σ :=
+    (□ ▷ (∀ regs' p' b' e' a' widc',
+             full_map regs'
+          -∗ (∀ (r : RegName) v, ⌜r ≠ PC⌝ → ⌜r ≠ idc⌝ → ⌜regs' !! r = Some v⌝ → (fixpoint interp1) v)
+          -∗ registers_mapsto (<[idc:=widc']> (<[PC:=WCap p' b' e' a']> regs'))
           -∗ na_own logrel_nais ⊤
-          -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4)
-          -∗ □ (fixpoint interp1) w'
+          -∗ □ (fixpoint interp1) (WCap p' b' e' a')
+          -∗ □ (fixpoint interp1) widc'
           -∗ interp_conf))%I.
 
 
@@ -32,17 +32,19 @@ Section fundamental.
     destruct b; auto.
   Qed.
 
-  Lemma interp_weakening p p' b b' e e' a a':
+  Lemma interp_weakening p p' b b' e e' a a' widc:
       p <> E ->
       p <> IE ->
+      p' <> IE ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
       IH -∗
+      (fixpoint interp1) widc -∗
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros HpnotE HpnotIE Hb He Hp. iIntros "#IH #HA".
+    intros HpnotE HpnotIE Hp'notIE Hb He Hp. iIntros "#IH #Hidc #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
@@ -52,11 +54,6 @@ Section fundamental.
            iIntros "([Hfull Hreg] & Hregs & Hna)".
            iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
-         + (* IE-cap *)
-           iIntros "[%Hbounds1 _]"; exfalso.
-           apply Is_true_eq_true, andb_true_iff in Hbounds1.
-           destruct Hbounds1.
-           solve_addr.
     }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
@@ -89,35 +86,12 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - rewrite !fixpoint_interp1_eq. (* IE-cap *)
-      iIntros "[%Hbounds1 %Hbounds2]".
-      apply Is_true_eq_true, andb_true_iff in Hbounds1.
-      apply Is_true_eq_true, andb_true_iff in Hbounds2.
-      destruct Hbounds1 as [Hb1 Hb2] , Hbounds2 as [Hb1' Hb2'].
-      destruct p; inversion Hp; try contradiction
-      ; (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr])
-      ; rewrite !big_sepL_app; iDestruct "HA" as "[_ [HA _]]"; iFrame "#"
-      ; (rewrite (isWithin_finz_seq_between_decomposition  a' (a'^+1)%a b' e') ; [|solve_addr])
-      ; rewrite !big_sepL_app ; iDestruct "HA" as "[_ [Ha' HA]]"; iFrame "#"
-      ; (rewrite (isWithin_finz_seq_between_decomposition  (a'^+1)%a (a'^+2)%a (a'^+1)%a e') ; [|solve_addr])
-      ; rewrite !big_sepL_app ; iDestruct "HA" as "[_ [Ha'' _]]"; iFrame "#"
-      ; (rewrite (finz_seq_between_singleton a' _); [|solve_addr])
-      ; (rewrite (finz_seq_between_singleton (a'^+1)%a _); [|solve_addr])
-      ; cbn
-      ; iDestruct "Ha'" as "[Ha' _]"; iDestruct "Ha''" as "[Ha'' _]"
-      ; iDestruct "Ha'" as (Pa') "(Hinva' & HPa')"
-      ; iDestruct "Ha''" as (Pa'') "(Hinva'' & HPa'')".
-      (* TODO I need to open the invariant, but I don't have a mask *)
-
-      admit.
-      admit.
-      admit.
-      admit.
+    - contradiction.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
-  Admitted.
+  Qed.
 
   Lemma safe_to_unseal_weakening b e b' e':
     (b <= b')%ot ->
