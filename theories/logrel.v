@@ -370,7 +370,6 @@ Section logrel.
   Global Instance writeAllowed_in_r_a_Persistent P r a: Persistent (if decide (writeAllowed_in_r_a r a) then write_cond P interp else emp)%I.
   Proof. intros. case_decide; apply _. Qed.
 
-  (* TODO: not sure is even true *)
   Lemma read_allowed_inv_regs (a' a b e: Addr) widc p r :
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
