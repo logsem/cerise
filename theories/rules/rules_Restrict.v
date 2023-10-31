@@ -51,6 +51,9 @@ Section cap_lang_rules.
       incrementPC (<[ dst := WSealRange (decodeSealPerms n) b e a ]> regs) = None →
       Restrict_failure regs dst src.
 
+  (* TODO it misses the cases if  (p = E \/ p = IE, and (decodePerm n) = O)...
+     Why do we actually have those conditions ?
+   *)
   Inductive Restrict_spec (regs: Reg) (dst: RegName) (src: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | Restrict_spec_success_cap p b e a n:
       regs !! dst = Some (WCap p b e a) →

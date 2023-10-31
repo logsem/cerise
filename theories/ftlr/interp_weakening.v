@@ -113,6 +113,18 @@ Section fundamental.
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
   Qed.
 
+  Lemma interp_weakening_lea p b e a a' widc:
+      p <> E ->
+      p <> IE ->
+      IH -∗
+      (fixpoint interp1) widc -∗
+      (fixpoint interp1) (WCap p b e a) -∗
+      (fixpoint interp1) (WCap p b e a').
+  Proof.
+    intros HpnotE HpnotIE. iIntros "#IH #Hidc #HA".
+    destruct p ; try (rewrite !fixpoint_interp1_eq; done).
+  Qed.
+
   Lemma safe_to_unseal_weakening b e b' e':
     (b <= b')%ot ->
     (e' <= e)%ot ->
