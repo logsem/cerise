@@ -32,19 +32,24 @@ Section fundamental.
     destruct b; auto.
   Qed.
 
-  Lemma interp_weakening p p' b b' e e' a a' widc:
+  Definition allows_read_IE p b e a :=
+    readAllowed p = true
+    ∧ withinBounds b e a = true
+    ∧ withinBounds b e (a^+1)%a = true.
+
+  Lemma interp_weakening_perm_bounds p p' b b' e e' a widc:
+    not (allows_read_IE p b e a) ->
       p <> E ->
       p <> IE ->
-      p' <> IE ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
       IH -∗
       (fixpoint interp1) widc -∗
       (fixpoint interp1) (WCap p b e a) -∗
-      (fixpoint interp1) (WCap p' b' e' a').
+      (fixpoint interp1) (WCap p' b' e' a).
   Proof.
-    intros HpnotE HpnotIE Hp'notIE Hb He Hp. iIntros "#IH #Hidc #HA".
+    intros Hp_IE HpnotE HpnotIE Hb He Hp. iIntros "#IH #Hidc #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
@@ -54,6 +59,14 @@ Section fundamental.
            iIntros "([Hfull Hreg] & Hregs & Hna)".
            iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
+         + (* IE-cap *)
+           iIntros "[%Hwb %Hwb']".
+           exfalso; apply Hp_IE.
+           split; [destruct p ; auto|].
+           apply Is_true_true_1 in Hwb, Hwb'.
+           rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.
+           destruct Hwb as [Hle Hge]; destruct Hwb' as [Hle' Hge'].
+           split; rewrite withinBounds_true_iff; split ; solve_addr.
     }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
@@ -86,7 +99,14 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - contradiction.
+    - rewrite (fixpoint_interp1_eq (WCap IE _ _ _)); cbn.
+      iIntros "[%Hwb %Hwb']".
+      exfalso; apply Hp_IE.
+      split; [destruct p ; auto|].
+      apply Is_true_true_1 in Hwb, Hwb'.
+      rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.
+      destruct Hwb as [Hle Hge]; destruct Hwb' as [Hle' Hge'].
+      split; rewrite withinBounds_true_iff; split ; solve_addr.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
