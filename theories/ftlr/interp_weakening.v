@@ -32,13 +32,7 @@ Section fundamental.
     destruct b; auto.
   Qed.
 
-  Definition allows_read_IE p b e a :=
-    readAllowed p = true
-    ∧ withinBounds b e a = true
-    ∧ withinBounds b e (a^+1)%a = true.
-
-  Lemma interp_weakening_perm_bounds p p' b b' e e' a widc:
-    not (allows_read_IE p b e a) ->
+  Lemma interp_weakening p p' b b' e e' a a' widc:
       p <> E ->
       p <> IE ->
       (b <= b')%a ->
@@ -47,9 +41,9 @@ Section fundamental.
       IH -∗
       (fixpoint interp1) widc -∗
       (fixpoint interp1) (WCap p b e a) -∗
-      (fixpoint interp1) (WCap p' b' e' a).
+      (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros Hp_IE HpnotE HpnotIE Hb He Hp. iIntros "#IH #Hidc #HA".
+    intros HpnotE HpnotIE Hb He Hp. iIntros "#IH #Hidc #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
@@ -60,16 +54,14 @@ Section fundamental.
            iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
          + (* IE-cap *)
-           iIntros "[%Hwb %Hwb']".
-           exfalso; apply Hp_IE.
-           split; [destruct p ; auto|].
-           apply Is_true_true_1 in Hwb, Hwb'.
-           rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.
-           destruct Hwb as [Hle Hge]; destruct Hwb' as [Hle' Hge'].
-           split; rewrite withinBounds_true_iff; split ; solve_addr.
+           iIntros "[%Hwb _]".
+           exfalso; apply n.
+           apply Is_true_true_1 in Hwb.
+           rewrite withinBounds_true_iff in Hwb.
+           solve_addr.
     }
     destruct p'.
-    - rewrite !fixpoint_interp1_eq. done.
+    - rewrite !fixpoint_interp1_eq; done.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
@@ -99,30 +91,40 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - rewrite (fixpoint_interp1_eq (WCap IE _ _ _)); cbn.
+    - rewrite !(fixpoint_interp1_eq (WCap IE _ _ _)).
       iIntros "[%Hwb %Hwb']".
-      exfalso; apply Hp_IE.
-      split; [destruct p ; auto|].
       apply Is_true_true_1 in Hwb, Hwb'.
       rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.
-      destruct Hwb as [Hle Hge]; destruct Hwb' as [Hle' Hge'].
-      split; rewrite withinBounds_true_iff; split ; solve_addr.
+      assert (readAllowed p).
+      { destruct p; inversion Hp; try contradiction; auto. }
+      iDestruct (read_allowed_inv a' with "HA") as (Pa) "[Hinv_a [Hconds_a _] ]"; auto
+      ; first solve_addr.
+      iDestruct (read_allowed_inv (a'^+1)%a with "HA") as (Pa') "[Hinv_a' [Hconds_a' _] ]"; auto
+      ; first solve_addr.
+      iExists Pa, Pa'; iFrame "#".
+      iIntros (w1 w2 regs). iNext; iModIntro.
+      iIntros "[HPw1 HPw2]".
+      iAssert (interp w1)%I as "#Hw1"; first (by iApply "Hconds_a").
+      iAssert (interp w2)%I as "#Hw2"; first (by iApply "Hconds_a'").
+      iIntros "([Hfull Hreg] & Hregs & Hna)".
+
+      (* Needed because IH disallows non-capability values *)
+      destruct w1 as [ | [p1 b1 e1 a1 | ] | ]; cycle 1.
+      iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
+
+      all: rewrite /registers_mapsto; iExtract "Hregs" PC as "HPC".
+      all: iApply (wp_bind (fill [SeqCtx]));
+        iApply (wp_notCorrectPC with "HPC")
+      ; [intros HFalse; inversion HFalse| ].
+      all: repeat iNext; iIntros "HPC /=".
+      all: iApply wp_pure_step_later; auto.
+      all: iNext; iIntros "_".
+      all: iApply wp_value.
+      all: iIntros; discriminate.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
-  Qed.
-
-  Lemma interp_weakening_lea p b e a a' widc:
-      p <> E ->
-      p <> IE ->
-      IH -∗
-      (fixpoint interp1) widc -∗
-      (fixpoint interp1) (WCap p b e a) -∗
-      (fixpoint interp1) (WCap p b e a').
-  Proof.
-    intros HpnotE HpnotIE. iIntros "#IH #Hidc #HA".
-    destruct p ; try (rewrite !fixpoint_interp1_eq; done).
   Qed.
 
   Lemma safe_to_unseal_weakening b e b' e':

@@ -141,11 +141,11 @@ Section logrel.
               | WCap IE b e a =>
                   ⌜ withinBounds b e a /\ withinBounds b e (a^+1)%a ⌝
                    -∗
-                   ( ∃ w1 w2,
-                       inv (logN .@ a) (a ↦ₐ w1)
-                         ∗ inv (logN .@ (a^+1)%a) ((a^+1)%a ↦ₐ w2)
-                         ∗ ienter_cond w1 w2 interp
-                   )
+                   ( ∃ (P1 P2 : D),
+                       inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
+                         ∗ inv (logN .@ (a^+1)%a) (∃ w2, (a^+1)%a ↦ₐ w2 ∗ P2 w2)
+                         ∗ ∀ w1 w2 regs,
+                           ▷ □ (P1 w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs w1 w2)))
             | _ => False
             end)%I.
   Solve All Obligations with solve_proper.
