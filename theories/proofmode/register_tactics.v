@@ -155,3 +155,6 @@ Tactic Notation "iInsert" constr(Hmap) constr(rname):=
 
 Tactic Notation "iInsertList" constr(Hmap) constr(rnames):=
     iInsert0 Hmap rnames.
+
+(* TODO it would be great to have a tactic that creates an empty map of registers *)
+(* TODO support the predicate [registers_mapsto] *)
