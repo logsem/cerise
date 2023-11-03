@@ -179,7 +179,7 @@ Section fundamental.
         iApply wp_pure_step_later; auto.
         iMod ("Hcls" with "[HP Hpc_a]");[iExists wpc;iFrame|iModIntro].
         iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate. }
+        iApply wp_value; auto. iIntros; discriminate.
   Qed.
 
 End fundamental.

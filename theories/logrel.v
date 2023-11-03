@@ -96,6 +96,9 @@ Section logrel.
     Proper ((=) ==> (=) ==> dist n ==> dist n) ienter_cond.
   Proof. solve_proper. Qed.
 
+  Program Definition persistent_cond (P : D) : iPropO Σ :=
+    (▷ □ (∀ w, P w -∗ ⌜Persistent (P w)⌝))%I.
+
   (* interp definitions *)
   Program Definition interp_ref_inv (a : Addr) : D -n> iPropO Σ := λne P, (∃ w, a ↦ₐ w ∗ P w)%I.
   Solve Obligations with solve_proper.
@@ -142,10 +145,12 @@ Section logrel.
                   ⌜ withinBounds b e a /\ withinBounds b e (a^+1)%a ⌝
                    -∗
                    ( ∃ (P1 P2 : D),
-                       inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
-                         ∗ inv (logN .@ (a^+1)%a) (∃ w2, (a^+1)%a ↦ₐ w2 ∗ P2 w2)
-                         ∗ ∀ w1 w2 regs,
-                           ▷ □ (P1 w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs w1 w2)))
+                      persistent_cond P1
+                      ∗ persistent_cond P2
+                      ∗ inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
+                      ∗ inv (logN .@ (a^+1)%a) (∃ w2, (a^+1)%a ↦ₐ w2 ∗ P2 w2)
+                      ∗ ∀ w1 w2 regs,
+                         ▷ □ (P1 w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs w1 w2)))
             | _ => False
             end)%I.
   Solve All Obligations with solve_proper.
@@ -295,6 +300,27 @@ Section logrel.
            iApply persistently_sep_2; iSplitR; auto.
            iApply persistently_sep_2; auto.
   Qed.
+
+  (* TODO How can I derive that P is persistent, from the fact that
+     P(w) -* V(w) ??
+     Knowing that V *is* Persistent...
+
+     Anyways, I need to derive P being Persistent from `read_cond`,
+     in a way or another....
+
+     cf: `interp_weakening` and `ftlr jmp case`
+   *)
+  Lemma read_cond_persistent (P : D) :
+    read_cond P interp -∗ persistent_cond P.
+  Proof.
+    iIntros "#Hread".
+    iNext ; iModIntro.
+    iDestruct "Hread" as "#Hread".
+    iIntros (w) "HP".
+    iDestruct ("Hread" with "HP") as "#Hv".
+    pose proof (interp_persistent w) as Hinterp.
+    rewrite -/(interp w).
+  Admitted.
 
   Lemma interp_int n : ⊢ interp (WInt n).
   Proof. iIntros. rewrite /interp fixpoint_interp1_eq //. Qed.

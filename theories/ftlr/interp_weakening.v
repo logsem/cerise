@@ -100,7 +100,9 @@ Section fundamental.
       ; first solve_addr.
       iDestruct (read_allowed_inv (a'^+1)%a with "HA") as (Pa') "[Hinv_a' [Hconds_a' _] ]"; auto
       ; first solve_addr.
+
       iExists Pa, Pa'; iFrame "#".
+      do 2 (iSplit; first by iApply read_cond_persistent).
       iIntros (w1 w2 regs). iNext; iModIntro.
       iIntros "[HPw1 HPw2]".
       iAssert (interp w1)%I as "#Hw1"; first (by iApply "Hconds_a").
