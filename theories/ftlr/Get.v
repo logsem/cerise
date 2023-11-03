@@ -66,7 +66,7 @@ Section fundamental.
         iIntros (ri v Hri Hri' Hsv).
         destruct (decide (ri = idc)); simplify_map_eq.
         { by iApply "Hreg". }
-        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
+        1,2: rewrite !fixpoint_interp1_eq //=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
 
       + (* dst <> idc *)
         rewrite (_:

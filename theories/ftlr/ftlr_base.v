@@ -33,7 +33,7 @@ Section fundamental.
     -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
     -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r1 ≠ idc⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
     -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
-            ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a)
+            ∗ (if decide (writeAllowed_in_r_a (<[idc:=widc]> (<[PC:=WCap p b e a]> r)) a)
                then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w)
                else emp)
     -∗ na_own logrel_nais ⊤
@@ -42,7 +42,7 @@ Section fundamental.
     -∗ (▷ (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0) ={⊤ ∖ ↑logN.@a,⊤}=∗ emp)
     -∗ PC ↦ᵣ WCap p b e a
     -∗ idc ↦ᵣ widc
-    -∗ ([∗ map] k↦y ∈ (delete idc (delete PC (<[idc:=widc]> (<[PC:=WCap p b e a]> r)))), k ↦ᵣ y)
+    -∗ ([∗ map] k↦y ∈ (delete idc (delete PC r)), k ↦ᵣ y)
     -∗
         WP Instr Executable
         @ ⊤ ∖ ↑logN.@a {{ v, |={⊤ ∖ ↑logN.@a,⊤}=> WP Seq (of_val v)

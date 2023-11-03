@@ -59,7 +59,8 @@ Section fundamental.
             rewrite lookup_insert in Hvs; inversion Hvs. simplify_map_eq. }
           { repeat (rewrite lookup_insert_ne in Hvs); auto.
             iApply "Hreg"; auto. } }
-        { rewrite insert_insert (insert_commute _ idc _) //= !insert_insert
+        { iClear "Hwrite".
+          rewrite insert_insert (insert_commute _ idc _) //= !insert_insert
             (insert_commute _ idc _) //= insert_insert.
           iFrame. }
         iModIntro.
@@ -88,7 +89,8 @@ Section fundamental.
             rewrite lookup_insert in Hvs; inversion Hvs. simplify_map_eq. }
           { repeat (rewrite lookup_insert_ne in Hvs); auto.
             iApply "Hreg"; auto. } }
-        { rewrite insert_insert (insert_commute _ idc _) //= !insert_insert
+        { iClear "Hwrite".
+          rewrite insert_insert (insert_commute _ idc _) //= !insert_insert
             (insert_commute _ idc _) //= insert_insert.
           iFrame. }
         iModIntro.
@@ -135,11 +137,13 @@ Section fundamental.
             iApply (interp_weakening with "IH Hreg"); auto; solve_addr. }
           { repeat (rewrite lookup_insert_ne in Hvs); auto.
             iApply "Hreg"; auto. } }
-        { rewrite insert_insert.
-          rewrite (insert_commute _ idc _) //=
+        { iClear "Hwrite".
+          rewrite insert_insert
+          (insert_commute _ idc _) //=
             (insert_commute _ idc _) //=
             (insert_commute _ idc _) //=
-            insert_insert. iFrame. }
+            insert_insert. iFrame.
+        }
         iModIntro.
         iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
         1,2: destruct Hp; by subst p_pc.
@@ -170,11 +174,13 @@ Section fundamental.
             iApply (interp_weakening_ot with "Hreg"); auto; solve_addr. }
           { repeat (rewrite lookup_insert_ne in Hvs); auto.
             iApply "Hreg"; auto. } }
-        { rewrite insert_insert.
-          rewrite (insert_commute _ idc _) //=
+        { iClear "Hwrite".
+          rewrite insert_insert
+          (insert_commute _ idc _) //=
             (insert_commute _ idc _) //=
             (insert_commute _ idc _) //=
-            insert_insert. iFrame. }
+            insert_insert. iFrame.
+        }
         iModIntro.
         iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
         1,2: destruct Hp; by subst p_pc.
