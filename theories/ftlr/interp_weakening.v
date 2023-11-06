@@ -66,9 +66,9 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
@@ -78,7 +78,7 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       iApply (big_sepL_mono with "A2").
-      iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
+      iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq. iIntros (r). iNext. iModIntro.
       iIntros (w') "#Hw'".
       iIntros "([Hfull Hreg] & Hregs & Hna)".
@@ -89,20 +89,19 @@ Section fundamental.
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
     - rewrite !(fixpoint_interp1_eq (WCap IE _ _ _)).
       iIntros "[%Hwb %Hwb']".
       apply Is_true_true_1 in Hwb, Hwb'.
       rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.
       assert (readAllowed p).
       { destruct p; inversion Hp; try contradiction; auto. }
-      iDestruct (read_allowed_inv a' with "HA") as (Pa) "[Hinv_a [Hconds_a _] ]"; auto
-      ; first solve_addr.
-      iDestruct (read_allowed_inv (a'^+1)%a with "HA") as (Pa') "[Hinv_a' [Hconds_a' _] ]"; auto
-      ; first solve_addr.
+      iDestruct (read_allowed_inv a' with "HA")
+        as (Pa) "[Hinv_a [Hpers_Pa [Hconds_a _]] ]"; auto ; first solve_addr.
+      iDestruct (read_allowed_inv (a'^+1)%a with "HA")
+        as (Pa') "[Hinv_a' [Hpers_Pa' [Hconds_a' _]] ]"; auto ; first solve_addr.
 
       iExists Pa, Pa'; iFrame "#".
-      do 2 (iSplit; first by iApply read_cond_persistent).
       iIntros (w1 w2 regs). iNext; iModIntro.
       iIntros "[HPw1 HPw2]".
       iAssert (interp w1)%I as "#Hw1"; first (by iApply "Hconds_a").

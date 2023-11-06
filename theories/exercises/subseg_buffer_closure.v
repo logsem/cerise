@@ -271,8 +271,11 @@ Section closure_program.
     let n_secret_addr := (b_mem ^+ (secret_off + 1))%a in
     na_inv logrel_nais end_memN
            ([∗ list] a ∈ finz.seq_between n_secret_addr e_mem,
-            ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
-                                                          ∗ write_cond P interp)%I.
+            (* TODO actually, I could replace P by interp *)
+            ∃ P, inv (logN .@ a) (interp_ref_inv a P)
+                   ∗ persistent_cond P
+                   ∗ read_cond P interp
+                   ∗ write_cond P interp)%I.
 
   (* Assuming that the word of the adversary is safe to share,
      the machine executes safely and completely. *)

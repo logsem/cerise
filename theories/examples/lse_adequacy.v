@@ -239,11 +239,13 @@ Section roe_adequacy.
       rewrite (finz_seq_between_cons adv_region_start);
         [rewrite (addr_incr_eq Hadv_region_offset) /=|solve_addr +Hadv_region_offset Hadv_size'].
       iSplitL.
-      - iExists interp. iSplitL;[|iModIntro;auto].
+      - iExists interp. iSplitL
+        ; [|iModIntro;iSplit;[(iPureIntro ; intros ; cbn ; apply interp_persistent)|auto] ].
         iApply inv_alloc. iNext. iExists _. iFrame.
         iApply fixpoint_interp1_eq;simpl.
         rewrite finz_seq_between_singleton// /=.
         iSplit;auto. iExists interp. iFrame "#".
+        iSplit ; first (iPureIntro ; intros ; cbn; apply interp_persistent).
         iNext. iModIntro. auto.
       - rewrite !fixpoint_interp1_eq /=. iFrame "#". done.
     }

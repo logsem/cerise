@@ -67,7 +67,7 @@ Section fundamental.
 
          rewrite lookup_insert_ne in Hrinr; last by congruence.
          iDestruct ("Hreg" $! src _ n _ Hrinr) as "Hvsrc".
-         iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hconds _] ]"; auto;
+         iDestruct (read_allowed_inv _ a0 with "Hvsrc") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].

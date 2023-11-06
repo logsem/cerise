@@ -558,7 +558,9 @@ Section interval.
     iApply big_sepM_insert_2. iSimpl. iApply fixpoint_interp1_eq. done. subst regs'.
     repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
     iApply big_sepM_insert_2. iApply fixpoint_interp1_eq. iSimpl. rewrite finz_seq_between_singleton// /=.
-    iSplit;auto. iExists interp. iFrame "Hb0". auto.
+    iSplit;auto. iExists interp. iFrame "Hb0".
+    iSplit ; first (iPureIntro ; intros ; cbn ; apply interp_persistent).
+    auto.
     repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
     iApply "Hregs_val".
   Qed.

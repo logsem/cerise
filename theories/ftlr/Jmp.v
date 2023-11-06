@@ -53,7 +53,7 @@ Section fundamental.
             [Hdec_wb|Hdec_wb].
           {
             iDestruct ("Hinv_src" $! Hdec_wb)
-              as (P1 P2) "(Hcond_Pa1 & Hcond_Pa2 & Hinv_a1 & Hinv_a2 & Hexec)";
+              as (P1 P2) "(%Hcond_Pa1 & %Hcond_Pa2 & Hinv_a1 & Hinv_a2 & Hexec)";
               iClear "Hinv_src".
             (* TODO we can probably encode the disjunction in a better way *)
             destruct Hdec_wb as [ Hwb%Is_true_true_1 Hwb'%Is_true_true_1].
@@ -64,17 +64,12 @@ Section fundamental.
             ** (* a' = a , a ≠ a ^+ 1*) admit.
             ** (* a' ≠ a , a = a ^+ 1*) admit.
             ** (* a' ≠ a , a ≠ a ^+ 1*)
-              iInv "Hinv_a1" as (w1) "[>Ha1 HPa1]" "Hcls_a1".
-              iInv "Hinv_a2" as (w2) "[>Ha2 HPa2]" "Hcls_a2".
+              iInv "Hinv_a1" as (w1) "[>Ha1 #HPa1]" "Hcls_a1".
+              iInv "Hinv_a2" as (w2) "[>Ha2 #HPa2]" "Hcls_a2".
 
               iApply (wp_jmp_success_IE with "[$HPC $Hsrc $Hidc $Ha $Ha1 $Ha2]"); eauto.
               iNext. iIntros "(HPC & Hsrc & Hidc & Ha & Ha1 & Ha2) /=".
               iApply wp_pure_step_later; auto.
-
-              iDestruct ("Hcond_Pa1" with "HPa1") as "%Hpers_Pa1".
-              iDestruct ("Hcond_Pa2" with "HPa2") as "%Hpers_Pa2".
-              iDestruct "HPa1" as "#HPa1".
-              iDestruct "HPa2" as "#HPa2".
 
               iMod ("Hcls_a2" with "[Ha2 HPa2]") as "_";[iExists w2; iFrame; iFrame "#"|iModIntro].
               iMod ("Hcls_a1" with "[Ha1 HPa1]") as "_";[iExists w1; iFrame; iFrame "#"|iModIntro].
@@ -83,7 +78,9 @@ Section fundamental.
 
               (* Needed because IH disallows non-capability values *)
               destruct w1 as [ | [p0 b0 e0 a0 | ] | ]; cycle 1.
-              { iApply "Hexec"; iFrame "#"; iFrame.
+              {
+                iApply "Hexec"; iFrame "#"; iFrame.
+              (* iApply ("IH" with "[] [] [Hmap] [Hown]"). *)
                 iInsertList "Hmap" [idc;PC].
                 iDestruct (big_sepM_insert _ _ src with "[$Hmap $Hsrc]") as "Hmap".
                 rewrite lookup_insert_ne //= lookup_insert_ne //=.

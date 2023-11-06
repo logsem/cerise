@@ -320,7 +320,9 @@ Section Adequacy.
       destruct malloc_word;[inversion Hlen1|]. destruct malloc_word;[|inversion Hlen1].
       iDestruct "Hmalloc" as "[Hmalloc _]". iSimpl. iSplitL;auto.
       iExists interp. iSplitL;[|iModIntro;iSplit;auto].
-      iApply inv_alloc. iNext. iExists _. iFrame "∗ #". }
+      iApply inv_alloc. iNext. iExists _. iFrame "∗ #".
+      iPureIntro; intros ; cbn ; apply interp_persistent.
+    }
 
     (* Apply the spec, obtain that the PC is in the expression relation *)
 

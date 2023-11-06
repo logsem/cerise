@@ -96,8 +96,7 @@ Section logrel.
     Proper ((=) ==> (=) ==> dist n ==> dist n) ienter_cond.
   Proof. solve_proper. Qed.
 
-  Program Definition persistent_cond (P : D) : iPropO Σ :=
-    (▷ □ (∀ w, P w -∗ ⌜Persistent (P w)⌝))%I.
+  Program Definition persistent_cond (P : D) : iPropO Σ := (⌜∀ w, Persistent (P w)⌝)%I.
 
   (* interp definitions *)
   Program Definition interp_ref_inv (a : Addr) : D -n> iPropO Σ := λne P, (∃ w, a ↦ₐ w ∗ P w)%I.
@@ -112,7 +111,10 @@ Section logrel.
   Program Definition interp_cap_RO (interp : D) : D :=
     λne w, (match w with
               | WCap RO b e a =>
-                [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                [∗ list] a ∈ (finz.seq_between b e), ∃ P: D,
+                    inv (logN .@ a) (interp_ref_inv a P)
+                    ∗ persistent_cond P
+                    ∗ read_cond P interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -120,15 +122,21 @@ Section logrel.
   Program Definition interp_cap_RW (interp : D) : D :=
     λne w, (match w with
               | WCap RW b e a =>
-                [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
-                                                          ∗ write_cond P interp
+                [∗ list] a ∈ (finz.seq_between b e), ∃ P : D,
+                    inv (logN .@ a) (interp_ref_inv a P)
+                      ∗ persistent_cond P
+                      ∗ read_cond P interp
+                      ∗ write_cond P interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
 
   Program Definition interp_cap_RX (interp : D) : D :=
     λne w, (match w with WCap RX b e a =>
-                         [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
+                         [∗ list] a ∈ (finz.seq_between b e), ∃ P : D,
+                             inv (logN .@ a) (interp_ref_inv a P)
+                               ∗ persistent_cond P
+                               ∗ read_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -157,8 +165,11 @@ Section logrel.
 
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne w, (match w with WCap RWX b e a =>
-                           [∗ list] a ∈ (finz.seq_between b e), ∃ P, inv (logN .@ a) (interp_ref_inv a P) ∗ read_cond P interp
-                                                          ∗ write_cond P interp
+                           [∗ list] a ∈ (finz.seq_between b e), ∃ P : D,
+                             inv (logN .@ a) (interp_ref_inv a P)
+                               ∗ persistent_cond P
+                               ∗ read_cond P interp
+                               ∗ write_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -172,7 +183,8 @@ Section logrel.
   Program Definition interp_sr (interp : D) : D :=
     λne w, (match w with
     | WSealRange p b e a =>
-    (if permit_seal p then safe_to_seal interp b e else True) ∗ (if permit_unseal p then safe_to_unseal interp b e else True)
+    (if permit_seal p then safe_to_seal interp b e else True)
+      ∗ (if permit_unseal p then safe_to_unseal interp b e else True)
     | _ => False end ) %I.
   Solve All Obligations with solve_proper.
 
@@ -301,27 +313,6 @@ Section logrel.
            iApply persistently_sep_2; auto.
   Qed.
 
-  (* TODO How can I derive that P is persistent, from the fact that
-     P(w) -* V(w) ??
-     Knowing that V *is* Persistent...
-
-     Anyways, I need to derive P being Persistent from `read_cond`,
-     in a way or another....
-
-     cf: `interp_weakening` and `ftlr jmp case`
-   *)
-  Lemma read_cond_persistent (P : D) :
-    read_cond P interp -∗ persistent_cond P.
-  Proof.
-    iIntros "#Hread".
-    iNext ; iModIntro.
-    iDestruct "Hread" as "#Hread".
-    iIntros (w) "HP".
-    iDestruct ("Hread" with "HP") as "#Hv".
-    pose proof (interp_persistent w) as Hinterp.
-    rewrite -/(interp w).
-  Admitted.
-
   Lemma interp_int n : ⊢ interp (WInt n).
   Proof. iIntros. rewrite /interp fixpoint_interp1_eq //. Qed.
 
@@ -329,13 +320,17 @@ Section logrel.
     (b ≤ a' ∧ a' < e)%Z →
     readAllowed p →
     ⊢ (interp (WCap p b e a) →
-      (∃ P, inv (logN .@ a') (interp_ref_inv a' P) ∗ read_cond P interp ∗ if writeAllowed p then write_cond P interp else emp))%I.
+      (∃ P : D,
+          inv (logN .@ a') (interp_ref_inv a' P)
+              ∗ persistent_cond P
+              ∗ read_cond P interp
+              ∗ if writeAllowed p then write_cond P interp else emp))%I.
   Proof.
     iIntros (Hin Ra) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction;
-    try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
-    try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+    try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv [Hpers Hiff]]"
+    ; [eauto |iExists P; iSplit; eauto]).
   Qed.
 
   Lemma write_allowed_inv (a' a b e: Addr) p :
@@ -347,14 +342,14 @@ Section logrel.
     iIntros (Hin Wa) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hpers [Hread Hwrite]]]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hwrite". iFrame.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hpers [Hread Hwrite]]]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
@@ -418,7 +413,7 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv Hiff]";
+          try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv [Hpers Hiff]]";
                [eauto|iExists P;iSplit;eauto]).
       + destruct (decide (reg = idc)); cycle 1.
         * simplify_map_eq.
@@ -428,20 +423,23 @@ Section logrel.
           iClear "Hinterp_PC"; iClear  "Hinterp_IDC".
           rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
           destruct c; try contradiction ; inversion Hwa;
-            try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]";
+            try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv [Hpers Hiff]]";
                  [eauto|iExists P;iSplit;eauto]).
         * simplify_map_eq. destruct w ; cbn in *; try contradiction ; destruct sb ; try contradiction.
           destruct Ha as [Ha <-].
           rewrite /interp; cbn. iClear "Hinterp_PC".
           rewrite fixpoint_interp1_eq /=; cbn.
           destruct p0; try contradiction ; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp_IDC") as (P) "[Hinv Hiff]";
+          try (iDestruct (extract_from_region_inv with "Hinterp_IDC") as (P) "[Hinv [Hpers Hiff]]";
                [eauto|iExists P;iSplit;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
-        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
-        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv Hiff]";
-             [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv [[Hpers Hiff] _]]"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "Hinterp_PC") as (P) "[Hinv [Hpers Hiff]]";
+             [eauto|iExists P;iSplit;eauto])
+      ; iSplit;eauto; iNext; iModIntro
+      ; iIntros (w) "HP"
+      ; iDestruct "Hiff" as "[#Hread #Hwrite]"; by iApply "Hread".
   Qed.
 
   (* Lemma for allocating invariants in a region *)
@@ -484,6 +482,7 @@ Section logrel.
     all: iApply (big_sepL_mono with "H").
     all: iIntros (k a' Hk) "H"; cbn.
     all: iExists (fixpoint interp1); iFrame.
+    all: iSplit; [iPureIntro; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
@@ -509,6 +508,7 @@ Section logrel.
     all: iApply (big_sepL_mono with "H").
     all: iIntros (k a' Hk) "H"; cbn.
     all: iExists (fixpoint interp1); iFrame.
+    all: iSplit; [iPureIntro; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
@@ -642,7 +642,9 @@ Section logrel.
       iNext. iExists _. iFrame.
       iApply fixpoint_interp1_eq. destruct p;try done.
       all: iApply big_sepL_forall; iIntros (k x Hlook); iExists interp.
-      all: iSplit;[|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
+      all: iSplit;
+        [|iSplit;[iPureIntro; apply interp_persistent|]
+          ;(try iSplitR);iIntros (?);iNext;iModIntro;auto].
       all: apply elem_of_list_lookup_2,elem_of_finz_seq_between,Hin,elem_of_app in Hlook.
       all: destruct Hlook as [Hl1 | [->|Hl2]%elem_of_cons];
           [iDestruct (big_sepL_elem_of with "Hl1v") as "$";auto|iFrame "#"|
@@ -680,7 +682,7 @@ Section logrel.
       iModIntro.
       iApply fixpoint_interp1_eq. destruct p;try done.
       all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
-        try iExists _;iFrame;try iSplit;iIntros (?);auto. }
+        try iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. }
   Qed.
 
   Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :

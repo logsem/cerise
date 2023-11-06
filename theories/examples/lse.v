@@ -397,7 +397,10 @@ Section roe.
     iApply big_sepM_insert_2.
     { cbn beta. rewrite decode_encode_perm_inv.
       rewrite !fixpoint_interp1_eq. iSimpl. apply finz_seq_between_singleton in Hincr. rewrite Hincr.
-      iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = WInt 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
+      iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = WInt 1%Z⌝)%I. rewrite
+        /roe_inv.
+      iFrame "Hb".
+      iSplit ; first (iPureIntro ; intros ; cbn; apply bi.pure_persistent).
       iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. }
     (* adversary *)
     iApply big_sepM_insert_2. done.

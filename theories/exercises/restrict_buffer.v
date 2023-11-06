@@ -209,6 +209,7 @@ Section program_ro.
      rewrite /inv_secret; subst secret.
      iExists (inv_secret_ne secret_val). rewrite /inv_secret_ne.
      iFrame "#".
+     iSplit; [iPureIntro ; intros; cbn; apply bi.or_persistent; apply bi.pure_persistent|].
      iNext ; iModIntro.
      iIntros (w) "[->|->]" ; iApply interp_int.
      }
@@ -222,6 +223,7 @@ Section program_ro.
        iExists inv_buffer_ne
      ; rewrite /inv_buffer /=
      ; iSplitL ; try iApply "Hinv_buffer".
+     all: iSplit; [ rewrite /inv_buffer_ne; iPureIntro ; intros ; cbn; apply bi.pure_persistent|].
      all: iNext ; iModIntro; iIntros (w) "->" ; iApply interp_int.
     }
 
@@ -482,6 +484,7 @@ Section program_closure_ro.
      rewrite /inv_secret; subst secret.
      iExists (inv_secret_ne secret_val). rewrite /inv_secret_ne.
      iFrame "#".
+     iSplit; [iPureIntro ; intros; cbn; apply bi.or_persistent; apply bi.pure_persistent|].
      iNext ; iModIntro.
      iIntros (w) "[->|->]" ; iApply interp_int.
      }
@@ -495,6 +498,7 @@ Section program_closure_ro.
        iExists inv_buffer_ne
      ; rewrite /inv_buffer /=
      ; iSplitL ; try iApply "Hinv_buffer".
+     all: iSplit; [iPureIntro ; intros; cbn; apply bi.pure_persistent|].
      all: iNext ; iModIntro; iIntros (w) "->" ; iApply interp_int.
     }
 
