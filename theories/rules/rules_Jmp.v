@@ -47,28 +47,30 @@ Section cap_lang_rules.
     Jmp_failure regs r mem ->
     Jmp_spec regs r regs' mem FailedV.
 
+
+  Definition allow_load_addr_or_true (b e a : Addr) (mem : Mem):=
+    if decide (withinBounds b e a = true)
+    then ∃ w, mem !! a = Some w
+    else True.
+
   (* TODO rename this definition to fit the purpose *)
-  Definition allow_load_map_or_true r (regs : Reg) (mem : gmap Addr Word):=
+  Definition allow_IE_map_or_true (r : RegName) (regs : Reg) (mem : Mem) :=
     ∃ p b e a,
       read_reg_inr regs r p b e a ∧
-        if decide
-             (regs !! r = Some (WCap p b e a)
-              /\ withinBounds b e a = true
-              /\ withinBounds b e (a^+1)%a = true)
-        then
-          (∃ w, mem !! a = Some w) /\ (∃ w, mem !! (a^+1)%a = Some w)
-        else True.
+        allow_load_addr_or_true b e a mem /\
+        allow_load_addr_or_true b e (a^+1)%a mem.
+
+  Definition allow_IE_cap (r : RegName) (regs : Reg) (mem : Mem) :=
+    forall wr, regs !! r = Some wr ->
+          is_ie_cap wr ->
+          is_Some (regs !! idc) /\ allow_IE_map_or_true r regs mem.
 
   Lemma wp_jmp Ep pc_p pc_b pc_e pc_a r w mem regs  :
     decodeInstrW w = Jmp r →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    (* TODO extract this hypothesis into a definition *)
-    ( forall wr, regs !! r = Some wr ->
-        is_ie_cap wr ->
-        is_Some (regs !! idc) /\ allow_load_map_or_true r regs mem)
-    ->
+    allow_IE_cap r regs mem ->
     regs_of (Jmp r) ⊆ dom regs →
     mem !! pc_a = Some w →
 
@@ -118,21 +120,30 @@ Section cap_lang_rules.
       + (* in bounds, success *)
         pose proof Hr' as Hr.
         apply HIE in Hr; auto ; clear HIE.
-        destruct Hr as [HIDC HaLoad].
-        unfold allow_load_map_or_true in HaLoad.
-        destruct HaLoad as (p' & b' & e' & a' & Hread_reg & HaLoad).
+        destruct Hr as [HIDC HaLoad]; auto.
+        unfold allow_IE_map_or_true in HaLoad.
+        destruct HaLoad as (p' & b' & e' & a' & Hread_reg & HaLoad & Ha'Load).
         unfold read_reg_inr in Hread_reg.
         rewrite Hr' in Hread_reg.
         injection Hread_reg ; intros ; subst ; clear Hread_reg.
+        rewrite /allow_load_addr_or_true in Ha'Load.
+        rewrite /allow_load_addr_or_true in HaLoad.
 
         case_decide.
         2: { (* contradiction *)
           exfalso.
           apply andb_true_iff in Hbounds.
-          apply H3; split ; auto.
+          destruct Hbounds; auto.
+        }
+        case_decide.
+        2: { (* contradiction *)
+          exfalso.
+          apply andb_true_iff in Hbounds.
+          destruct Hbounds; auto.
         }
 
-        destruct HaLoad as [[wpc Ha] [widc Ha']].
+        destruct HaLoad as [wpc Ha].
+        destruct Ha'Load as [widc Ha'].
         iDestruct (gen_mem_valid_inSepM mem m a' wpc with "Hm Hmem" ) as %Hma'
         ; eauto.
         iDestruct (gen_mem_valid_inSepM mem m (a'^+1)%a widc with "Hm Hmem" ) as %Hma''
@@ -201,7 +212,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_2 with "HPC Hr") as "[Hreg %Hr]".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * Hcontra HIE; simplify_eq. by rewrite Hw' in HIE. }
+    { intros * ? Hcontra HIE; simplify_map_eq.
+      by rewrite Hw' in HIE. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -236,8 +248,13 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_1 with "HPC") as "Hreg".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * Hcontra HIE ; simplify_eq.
-      apply isCorrectPC_not_ie_cap in Hvpc ; by rewrite Hvpc in HIE. }
+    { intros * ? Hcontra HIE.
+      apply isCorrectPC_not_ie_cap in Hvpc.
+      replace wr
+        with (WCap pc_p pc_b pc_e pc_a)
+        in HIE
+        by (by simplify_map_eq).
+      by rewrite Hvpc in HIE. }
 
     iNext.
     iIntros (regs retv) "(%& Hmem & Hreg)".
@@ -297,11 +314,12 @@ Section cap_lang_rules.
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
     { intros * Hreg_r; simplify_map_eq.
       split ; auto.
-      unfold allow_load_map_or_true. exists IE, b, e, a.
+      unfold allow_IE_map_or_true. exists IE, b, e, a.
       split.
       unfold read_reg_inr; by simplify_map_eq.
-      case_decide as H' ; auto ; clear H'.
-      split ; eexists ; by simplify_map_eq. }
+      unfold allow_load_addr_or_true.
+      all: split; case_decide as H' ; auto ; clear H'.
+      all: eexists ; by simplify_map_eq. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
