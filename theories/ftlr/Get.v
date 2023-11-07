@@ -14,10 +14,11 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma get_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (widc w : Word) (dst r0 : RegName) (ins: instr) (P:D) :
-    is_Get ins dst r0 →
-    ftlr_instr r p b e a widc w ins P.
+  Lemma get_case (regs : leibnizO Reg)
+    (p_pc : Perm) (b_pc e_pc a_pc : Addr)
+    (widc w : Word) (dst r : RegName) (ins: instr) (P:D) :
+    is_Get ins dst r →
+    ftlr_instr regs p_pc b_pc e_pc a_pc widc w ins P.
   Proof.
     intros Hinstr Hp Hsome i Hbae Hi.
     iIntros
@@ -33,62 +34,48 @@ Section fundamental.
     }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec; cycle 1.
-    { iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
+    destruct HSpec as [* Hsrc Hi HincrPC |]; cycle 1.
+    - (* Fail *)
+      iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
       iIntros "_".
-      iApply wp_value; auto. iIntros; discriminate. }
-    { incrementPC_inv; simplify_map_eq.
+      iApply wp_value; auto. iIntros; discriminate.
+    - (* Success *)
+      incrementPC_inv as (p''&b''&e''&a''& ? & HPC & Z & Hregs') ; simplify_map_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro]. iNext.
       assert (dst <> PC) as HdstPC by (intros ->; simplify_map_eq).
       iIntros "_".
-      simplify_map_eq.
-      destruct (decide (dst = idc)) ; subst.
-      + (* dst = idc *)
-        simplify_map_eq.
-        (* TODO better/cleaner way to do this ? *)
+      rewrite (insert_commute _ dst PC) //= insert_insert; auto
+      ; simplify_map_eq.
 
-        rewrite (_:
-                  <[PC:=WCap x x0 x1 x3]>
-                    (<[idc:=WInt z]> (<[PC:=WCap x x0 x1 x2]> (<[idc:=widc]> r))) =
-                    (<[idc:=WInt z]> (<[PC:=WCap x x0 x1 x3]>
-                                        (<[idc:=WInt z]> (<[idc:=widc]> (<[PC:=WCap x x0 x1 x2]> r)))))
-                ).
-        2: {
-          repeat (try
-                    rewrite insert_insert ||
-                    (rewrite (insert_commute _ idc PC); auto));
-          reflexivity.
-        }
+      set (widc' := if (decide (dst = idc))
+                    then WInt z
+                    else widc).
+      set (regs' :=
+             <[PC:=WCap p'' b'' e'' a'']> (<[dst:=WInt z]> (<[idc:=widc]> regs))).
 
-        iApply ("IH" $! (<[idc := _]> (<[idc := _]> (<[PC := _]> r))) with "[%] [] [Hmap] [$Hown]");
-          try iClear "IH" ; eauto.
-        { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-        iIntros (ri v Hri Hri' Hsv).
-        destruct (decide (ri = idc)); simplify_map_eq.
-        { by iApply "Hreg". }
-        1,2: rewrite !fixpoint_interp1_eq //=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
-
-      + (* dst <> idc *)
-        rewrite (_:
-                  <[PC:=WCap x x0 x1 x3]>
-                    (<[dst:=WInt z]> (<[PC:=WCap x x0 x1 x2]> (<[idc:=widc]> r))) =
-                    (<[idc:=widc]> (<[PC:=WCap x x0 x1 x3]>
-                                      (<[dst:=WInt z]> (<[idc:=widc]> (<[PC:=WCap x x0 x1 x2]> r)))))
-                ).
-        2: { rewrite (insert_commute _ idc PC); auto.
-             rewrite (insert_commute _ idc dst); auto.
-             rewrite (insert_insert).
-             rewrite (insert_commute _ idc PC); auto.
-        }
-
-        iApply ("IH" $! (<[dst := _]> (<[idc := _]> (<[PC := _]> r))) with "[%] [] [Hmap] [$Hown]");
-          try iClear "IH" ; eauto.
-        { intro. cbn. by repeat (rewrite lookup_insert_is_Some'; right). }
-        iIntros (ri v Hri Hri' Hsv).
+      iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
+      { intro; cbn; by repeat (rewrite lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hri' Hvs).
         destruct (decide (ri = dst)); simplify_map_eq.
-        { repeat rewrite fixpoint_interp1_eq; auto. }
-        { by iApply "Hreg". }
-        rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->] ;iFrame "Hinv_pc". }
+        * by rewrite !fixpoint_interp1_eq.
+        * iApply "Hreg"; auto.
+      }
+      { iClear "Hwrite".
+        subst widc'. case_decide as Heq; simplify_map_eq.
+        + rewrite
+            !insert_insert
+              (insert_commute _ idc _) //=
+              !insert_insert; iFrame.
+        + rewrite
+            !insert_insert
+              (insert_commute _ idc _) //=
+              (insert_commute _ idc _) //=
+              insert_insert ; iFrame.
+      }
+      rewrite !fixpoint_interp1_eq //=; destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
+      subst widc'.
+      destruct (decide (dst = idc)) ; simplify_map_eq; auto.
+      by rewrite !fixpoint_interp1_eq.
   Qed.
 
 End fundamental.
