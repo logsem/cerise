@@ -53,7 +53,7 @@ Section cap_lang_rules.
     Load_failure regs r1 r2 mem ->
     Load_spec regs r1 r2 regs' mem FailedV.
 
-  Definition allow_load_map_or_true r (regs : Reg) (mem : gmap Addr Word):=
+  Definition allow_load_map_or_true (r : RegName) (regs : Reg) (mem : Mem):=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
       if decide (reg_allows_load regs r p b e a) then
         ∃ w, mem !! a = Some w
