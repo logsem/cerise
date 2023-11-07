@@ -334,6 +334,23 @@ Section cap_lang_rules.
     - iDestruct "HH" as "[H1 H2]". iFrame.
   Qed.
 
+  Lemma memMap_resource_3ne (a1 a2 a3 : Addr) (w1 w2 w3 : Word)  :
+    a1 ≠ a2 →
+    a2 ≠ a3 →
+    a1 ≠ a3 →
+    ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> (<[a3:=w3]> ∅)), a ↦ₐ w)%I
+                ⊣⊢ a1 ↦ₐ w1 ∗ a2 ↦ₐ w2 ∗ a3 ↦ₐ w3.
+  Proof.
+    intros.
+    rewrite big_sepM_delete; last by apply lookup_insert.
+    rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert
+    ; try by rewrite !lookup_insert_ne.
+    2 : by rewrite !lookup_insert.
+    rewrite delete_insert; auto ; try by rewrite !lookup_insert_ne.
+    rewrite -memMap_resource_1.
+    iSplit; iIntros "HH"; done.
+  Qed.
+
   Lemma address_neq a1 a2 w1 w2 :
     a1 ↦ₐ w1 -∗ a2 ↦ₐ w2 -∗ ⌜a1 ≠ a2⌝.
   Proof.

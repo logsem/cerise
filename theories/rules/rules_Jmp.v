@@ -48,29 +48,33 @@ Section cap_lang_rules.
     Jmp_spec regs r regs' mem FailedV.
 
 
-  Definition allow_load_addr_or_true (b e a : Addr) (mem : Mem):=
-    if decide (withinBounds b e a = true)
-    then ∃ w, mem !! a = Some w
-    else True.
+  Definition reg_allows_IE_jmp (regs : Reg) (r : RegName) p b e a :=
+    regs !! r = Some (WCap p b e a)
+    /\ p = IE
+    ∧ withinBounds b e a = true
+    ∧ withinBounds b e (a^+1)%a = true.
 
-  (* TODO rename this definition to fit the purpose *)
-  Definition allow_IE_map_or_true (r : RegName) (regs : Reg) (mem : Mem) :=
-    ∃ p b e a,
-      read_reg_inr regs r p b e a ∧
-        allow_load_addr_or_true b e a mem /\
-        allow_load_addr_or_true b e (a^+1)%a mem.
+  Definition allow_jmp_mmap_or_true (r : RegName) (regs : Reg) (mem : Mem):=
+    ∃ p b e a, read_reg_inr regs r p b e a ∧
+                 if decide (reg_allows_IE_jmp regs r p b e a) then
+                   ∃ w1 w2,
+                     mem !! a = Some w1
+                     /\ mem !! (a^+1)%a = Some w2
+                 else True.
 
-  Definition allow_IE_cap (r : RegName) (regs : Reg) (mem : Mem) :=
-    forall wr, regs !! r = Some wr ->
-          is_ie_cap wr ->
-          is_Some (regs !! idc) /\ allow_IE_map_or_true r regs mem.
+  Definition allow_jmp_rmap_or_true (r : RegName) (regs : Reg) :=
+    ∃ p b e a, read_reg_inr regs r p b e a ∧
+                 if decide (reg_allows_IE_jmp regs r p b e a) then
+                   ∃ widc, regs !! idc = Some widc
+                 else True.
 
   Lemma wp_jmp Ep pc_p pc_b pc_e pc_a r w mem regs  :
     decodeInstrW w = Jmp r →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    allow_IE_cap r regs mem ->
+    allow_jmp_mmap_or_true r regs mem ->
+    allow_jmp_rmap_or_true r regs ->
     regs_of (Jmp r) ⊆ dom regs →
     mem !! pc_a = Some w →
 
@@ -82,7 +86,7 @@ Section cap_lang_rules.
             ([∗ map] a↦w ∈ mem, a ↦ₐ w) ∗
             [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC HIE Dregs Hmem_pc φ) "(>Hmem & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc HPC Hmmap Hrmap Dregs Hmem_pc φ) "(>Hmem & >Hmap) Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
@@ -119,40 +123,29 @@ Section cap_lang_rules.
 
       + (* in bounds, success *)
         pose proof Hr' as Hr.
-        apply HIE in Hr; auto ; clear HIE.
-        destruct Hr as [HIDC HaLoad]; auto.
-        unfold allow_IE_map_or_true in HaLoad.
-        destruct HaLoad as (p' & b' & e' & a' & Hread_reg & HaLoad & Ha'Load).
-        unfold read_reg_inr in Hread_reg.
-        rewrite Hr' in Hread_reg.
-        injection Hread_reg ; intros ; subst ; clear Hread_reg.
-        rewrite /allow_load_addr_or_true in Ha'Load.
-        rewrite /allow_load_addr_or_true in HaLoad.
+        destruct Hmmap as (p'&b'&e'&a'& Hrinr & HallowLoad).
+        destruct Hrmap as (p''&b''&e''&a''& Hrinr' & HallowLoad').
 
-        case_decide.
-        2: { (* contradiction *)
-          exfalso.
-          apply andb_true_iff in Hbounds.
-          destruct Hbounds; auto.
-        }
-        case_decide.
-        2: { (* contradiction *)
-          exfalso.
-          apply andb_true_iff in Hbounds.
-          destruct Hbounds; auto.
-        }
+        rewrite /read_reg_inr in Hrinr, Hrinr'.
+        rewrite Hr in Hrinr, Hrinr'; symmetry in Hrinr, Hrinr' ; simplify_eq.
 
-        destruct HaLoad as [wpc Ha].
-        destruct Ha'Load as [widc Ha'].
-        iDestruct (gen_mem_valid_inSepM mem m a' wpc with "Hm Hmem" ) as %Hma'
+        case_decide as Hdec ; last simplify_map_eq.
+        2: { exfalso; apply Hdec.
+             symmetry in Hbounds; apply andb_true_eq in Hbounds ; destruct Hbounds.
+             repeat (split ; auto). }
+        destruct Hdec as (Hreg & _ & _ & _).
+        destruct HallowLoad as (wpc & widc & HaLoad & Ha'Load).
+        destruct HallowLoad' as (w' & Hidc).
+
+        iDestruct (gen_mem_valid_inSepM mem m a wpc with "Hm Hmem" ) as %Hma'
         ; eauto.
-        iDestruct (gen_mem_valid_inSepM mem m (a'^+1)%a widc with "Hm Hmem" ) as %Hma''
+        iDestruct (gen_mem_valid_inSepM mem m (a^+1)%a widc with "Hm Hmem" ) as %Hma''
         ; eauto.
         rewrite Hma' Hma'' /= in Hstep; simplify_pair_eq ; simpl.
         iMod ((gen_heap_update_inSepM _ _ PC wpc) with "Hr Hmap") as "[Hr Hmap]"; eauto.
         iMod ((gen_heap_update_inSepM _ _ idc widc) with "Hr Hmap") as
           "[Hr Hmp]" ; eauto.
-        { apply lookup_insert_is_Some'; by right. }
+        { apply lookup_insert_is_Some'; right; auto. }
         iFrame; try iApply "Hφ"; iFrame.
         apply andb_true_iff in Hbounds ; destruct Hbounds as [Hbounds_a Hbounds_a'].
         iPureIntro; eapply Jmp_spec_success_IE; eauto.
@@ -212,8 +205,22 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_2 with "HPC Hr") as "[Hreg %Hr]".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * ? Hcontra HIE; simplify_map_eq.
-      by rewrite Hw' in HIE. }
+    {
+      destruct_word w'; eauto; eexists _,_,_,_; split
+      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+      all: case_decide as Heq ; simplify_eq ; auto.
+      all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+      all: try destruct Heq as (? & _) ; simplify_map_eq.
+    }
+    {
+      destruct_word w'; eauto; eexists _,_,_,_; split
+      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+      all: case_decide as Heq ; simplify_eq ; auto.
+      all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+      all: try destruct Heq as (? & _) ; simplify_map_eq.
+    }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -230,6 +237,7 @@ Section cap_lang_rules.
         in H4 ; [| by simplify_map_eq].
       injection H4 ; intros ->.
       simpl in Hw' ; congruence.
+      Unshelve. all: eauto.
   Qed.
 
   Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a w :
@@ -248,14 +256,23 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_1 with "HPC") as "Hreg".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * ? Hcontra HIE.
-      apply isCorrectPC_not_ie_cap in Hvpc.
-      replace wr
-        with (WCap pc_p pc_b pc_e pc_a)
-        in HIE
-        by (by simplify_map_eq).
-      by rewrite Hvpc in HIE. }
-
+    (* TODO better way to derive them *)
+    { apply isCorrectPC_not_ie_cap in Hvpc.
+      eexists _,_,_,_; split
+      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+      all: case_decide as Heq ; simplify_eq ; auto.
+      all: destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+      all: try destruct Heq as (? & _) ; simplify_map_eq.
+    }
+    { apply isCorrectPC_not_ie_cap in Hvpc.
+      eexists _,_,_,_; split
+      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+      all: case_decide as Heq ; simplify_eq ; auto.
+      all: destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+      all: try destruct Heq as (? & _) ; simplify_map_eq.
+    }
     iNext.
     iIntros (regs retv) "(%& Hmem & Hreg)".
     inversion H2; simplify_map_eq.
@@ -272,8 +289,7 @@ Section cap_lang_rules.
       inversion Hvpc ; destruct H10 ; congruence.
   Qed.
 
-
-  (* TODO we need to do more cases where:
+  (* TODO we need to do more cases (for _automation_), where:
        - r = idc
        - pc_a = a
        - pc_a = a+1
@@ -312,14 +328,21 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hr Hidc") as "[Hreg %Hr']".
     destruct Hr' as (?&?&?).
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    { intros * Hreg_r; simplify_map_eq.
+    {
+      eexists IE,b,e,a.
       split ; auto.
-      unfold allow_IE_map_or_true. exists IE, b, e, a.
-      split.
       unfold read_reg_inr; by simplify_map_eq.
-      unfold allow_load_addr_or_true.
-      all: split; case_decide as H' ; auto ; clear H'.
-      all: eexists ; by simplify_map_eq. }
+      case_decide; auto.
+      eexists _,_.
+      split ; by simplify_map_eq.
+    }
+    {
+      eexists IE,b,e,a.
+      split ; auto.
+      unfold read_reg_inr; by simplify_map_eq.
+      case_decide; auto.
+      eexists _; by simplify_map_eq.
+    }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.

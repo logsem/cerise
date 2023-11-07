@@ -16,17 +16,9 @@ Section fundamental.
   Implicit Types interp : (D).
 
 
-  (*--------------------- Attempts ---------------------*)
-
-  Definition reg_allow_IE (regs : Reg) (r : RegName) (p : Perm) (b e a : Addr) :=
-    regs !! r = Some (WCap p b e a) ∧
-    p = IE /\
-    withinBounds b e a = true ∧
-    withinBounds b e (a ^+1)%a = true.
-
   (* Mask after the jump, depending on the address of the pc and the address
    of a *)
-  Definition mask_jmp (pc_a a : Addr) : coPset
+  Definition allow_jmp_mask (pc_a a : Addr) : coPset
     :=
     if decide (pc_a = a)
     then (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@(a^+1)%a)
@@ -35,10 +27,10 @@ Section fundamental.
       then (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a)
       else (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a ∖ ↑logN.@(a^+1)%a).
 
-  Definition mask_jmp_reg (regs : Reg) (r : RegName) (pc_a : Addr) (p : Perm) (b e a : Addr)
+  Definition allow_jmp_mask_reg (regs : Reg) (r : RegName) (pc_a : Addr) (p : Perm) (b e a : Addr)
     : coPset :=
-    if decide (reg_allow_IE regs r p b e a)
-    then mask_jmp pc_a a
+    if decide (reg_allows_IE_jmp regs r p b e a)
+    then allow_jmp_mask pc_a a
     else (⊤ ∖ ↑logN.@pc_a).
 
   (* The necessary resources to close the region again,
@@ -50,7 +42,7 @@ Section fundamental.
     : iProp Σ :=
     (▷ P1 w1 ∗ ▷ P2 w2
        ∗ ((▷ ∃ w1 w2, a ↦ₐ w1 ∗ P1 w1 ∗ (a^+1)%a ↦ₐ w2 ∗ P2 w2)
-          ={mask_jmp pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
+          ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
   Definition region_open_resources
     (pc_a : Addr) (a : Addr) (w : Word)
@@ -58,7 +50,7 @@ Section fundamental.
     : iProp Σ :=
     (▷ P w ∗
        ((▷ ∃ w, a ↦ₐ w ∗ P w)
-        ={mask_jmp pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
+        ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
   Definition region_open_resources'
     (pc_a : Addr) (a : Addr) (w' : Word)
@@ -66,18 +58,18 @@ Section fundamental.
     : iProp Σ :=
     (▷ P w' ∗
        ((▷ ∃ w', (a^+1)%a ↦ₐ w' ∗ P w')
-        ={mask_jmp pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
+        ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
   (* Description of what the resources are supposed to look like after opening the
      region if we need to, but before closing the region up again*)
-  Definition allow_IE_res (regs : Reg) (r : RegName)
+  Definition allow_jmp_res (regs : Reg) (r : RegName)
     (pc_a : Addr) (p : Perm) (b e a : Addr)
     (P1 P2 : D) : iProp Σ :=
     (⌜read_reg_inr regs r p b e a⌝ ∗
 
-       if decide (reg_allow_IE regs r p b e a)
+       if decide (reg_allows_IE_jmp regs r p b e a)
        then
-         |={⊤ ∖ ↑logN.@pc_a, mask_jmp pc_a a}=>
+         |={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask pc_a a}=>
            (if decide (pc_a = a)
             then ∃ w2, (a^+1)%a ↦ₐ w2 ∗ region_open_resources' pc_a a w2 P2
             else
@@ -87,62 +79,78 @@ Section fundamental.
            )
        else True)%I.
 
-  Definition allow_IE_mem
-    (regs : Reg) (r : RegName)
-    (pc_a : Addr) (pc_w : Word) (mem : Mem) (p : Perm) (b e a : Addr) (P1 P2 : D) :=
-    (⌜read_reg_inr regs r IE b e a⌝ ∗
-       if decide (reg_allow_IE regs r p b e a)
-       then (if decide (pc_a = a)
-             then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources' pc_a a w2 P2
-             else
-               if decide (pc_a = (a^+1)%a)
-               then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a w1 P1
-               else ∃ w1 w2,
-                   ⌜mem = <[(a^+1)%a:=w2]> (<[a:=w1]> (<[pc_a:=pc_w]> ∅))⌝
-                                             ∗ region_open_resources2 pc_a a w1 w2 P1 P2)
-       else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
-
-  Lemma create_IE_res:
+  Lemma create_jmp_res:
     ∀ (regs : leibnizO Reg) (r : RegName)
       (pc_p : Perm) (pc_b pc_e pc_a : Addr)
       (widc : Word)
       (p : Perm) (b e a : Addr),
+      pc_p <> IE ->
       read_reg_inr (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:= widc]> regs)) r p b e a
       → (∀ (r' : RegName) (w : Word), ⌜r' ≠ PC⌝ → ⌜r' ≠ idc⌝ → ⌜regs !! r' = Some w⌝ → (fixpoint interp1) w)
         -∗ interp widc
         -∗ ∃ (P1 P2 : D),
-             allow_IE_res (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs)) r pc_a p b e a P1 P2.
+             allow_jmp_res (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs)) r pc_a p b e a P1 P2.
   Proof.
-    intros regs r pc_p pc_b pc_e pc_a widc p b e a HVr.
+    intros regs r pc_p pc_b pc_e pc_a widc p b e a Hpc_p HVr.
     iIntros "#Hreg #Hwidc".
     iFrame "%".
     case_decide as Hallows; cycle 1.
     - by iExists (λne _, True%I), (λne _, True%I).
-    - rewrite /mask_jmp.
+    - rewrite /allow_jmp_mask.
       destruct Hallows as (Hreg & -> & Hwb & Hwb').
       assert (a <> (a^+1)%a) by (apply andb_prop in Hwb as [_ Hge]; solve_addr).
       apply Is_true_true_2 in Hwb, Hwb'.
       assert ( withinBounds b e a /\ withinBounds b e (a^+1)%a) as Hwbs by auto.
+
+      assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
+      rewrite lookup_insert_ne //= in Hreg.
+
+      (* TODO there are plenty of similar case, find a way to factor out *)
+
       case_decide as Ha; simplify_eq.
       {
-      admit.
+        destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
+        + rewrite fixpoint_interp1_eq /=.
+          iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & _)".
+          iExists P1, P2.
+          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+          iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+          iExists w2.
+          iFrame "∗ #".
+          rewrite /allow_jmp_mask. do 2 (case_decide ; solve_addr).
+        + iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
+          rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
+          iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & _)".
+          iExists P1, P2.
+          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+          iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+          iExists w2.
+          iFrame "∗ #".
+          rewrite /allow_jmp_mask. do 2 (case_decide ; solve_addr).
       }
-      apply neq_Symmetric in Ha.
-      assert (r ≠ PC) as Hneq.
-      { refine (addr_ne_reg_ne Hreg _ Ha). by simplify_map_eq. }
 
       case_decide as Ha'; simplify_eq.
       {
-      admit.
+        destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
+        + rewrite fixpoint_interp1_eq /=.
+          iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & _)".
+          iExists P1, P2.
+          iMod (inv_acc (⊤ ∖ ↑logN.@(a ^+ 1)%a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+          iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
+          iExists w1.
+          iFrame "∗ #".
+          rewrite /allow_jmp_mask. do 2 (case_decide ; try solve_addr).
+        + iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
+          rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
+          iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & _)".
+          iExists P1, P2.
+          iMod (inv_acc (⊤ ∖ ↑logN.@(a ^+ 1)%a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+          iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
+          iExists w1.
+          iFrame "∗ #".
+          rewrite /allow_jmp_mask. do 2 (case_decide ; try solve_addr).
       }
 
-      (* apply andb_prop in Hwb as [Hle Hge]. *)
-      (* revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge. *)
-      (* apply andb_prop in Hwb' as [Hle' Hge']. *)
-      (* revert Hle' Hge'. rewrite !Z.leb_le Z.ltb_lt =>Hle' Hge'. *)
-
-
-      rewrite lookup_insert_ne //= in Hreg.
       destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
       + rewrite fixpoint_interp1_eq /=.
         iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & _)".
@@ -159,7 +167,7 @@ Section fundamental.
         iModIntro.
         iIntros "Ha".
         iDestruct "Ha" as (w1' w2') "(Hw1' & HP1' & Hw2' & HP2')".
-        rewrite /mask_jmp.
+        rewrite /allow_jmp_mask.
         case_decide; simplify_eq.
         case_decide; simplify_eq.
         iMod ("Hcls_a'" with "[Hw2' HP2']") as "_"; first (iExists _ ; iFrame).
@@ -181,45 +189,160 @@ Section fundamental.
         iModIntro.
         iIntros "Ha".
         iDestruct "Ha" as (w1' w2') "(Hw1' & HP1' & Hw2' & HP2')".
-        rewrite /mask_jmp.
+        rewrite /allow_jmp_mask.
         case_decide; simplify_eq.
         case_decide; simplify_eq.
         iMod ("Hcls_a'" with "[Hw2' HP2']") as "_"; first (iExists _ ; iFrame).
         iMod ("Hcls_a" with "[Hw1' HP1']") as "_"; first (iExists _ ; iFrame).
         done.
-  Admitted.
+  Qed.
 
-  (*--------------------- Defs from rules_jmp.v ---------------------*)
-  (* Definition allow_load_addr_or_true (b e a : Addr) (mem : Mem):= *)
-  (*   if decide (withinBounds b e a = true) *)
-  (*   then ∃ w, mem !! a = Some w *)
-  (*   else True. *)
+  Definition allow_jmp_mem
+    (regs : Reg) (mem : Mem) (r : RegName)
+    (pc_a : Addr) (pc_w : Word) (p : Perm) (b e a : Addr) (P1 P2 : D) :=
+    (⌜read_reg_inr regs r p b e a⌝ ∗
+       if decide (reg_allows_IE_jmp regs r p b e a)
+       then (if decide (pc_a = a)
+             then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources' pc_a a w2 P2
+             else
+               if decide (pc_a = (a^+1)%a)
+               then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a w1 P1
+               else ∃ w1 w2,
+                   ⌜mem = <[(a^+1)%a:=w2]> (<[a:=w1]> (<[pc_a:=pc_w]> ∅))⌝
+                                             ∗ region_open_resources2 pc_a a w1 w2 P1 P2)
+       else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
-  (* Definition allow_IE_map_or_true (r : RegName) (regs : Reg) (mem : Mem) := *)
-  (*   ∃ p b e a, *)
-  (*     read_reg_inr regs r p b e a ∧ (* unify the content of `r` with cap (p,b,e,a) *) *)
-  (*       allow_load_addr_or_true b e a mem /\ (* b ≤ a < e, and mem(a) = w *) *)
-  (*       allow_load_addr_or_true b e (a^+1)%a mem. *)
+  Lemma jmp_res_implies_mem_map:
+    ∀ (regs : leibnizO Reg) (r : RegName)
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a: Addr)
+      (P1 P2:D),
+      allow_jmp_res regs r pc_a p b e a P1 P2
+      -∗ pc_a ↦ₐ pc_w
+      ={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask_reg regs r pc_a p b e a}=∗
+      ∃ mem : Mem,
+          allow_jmp_mem regs mem r pc_a pc_w p b e a P1 P2
+            ∗ ▷ ([∗ map] a0↦w ∈ mem, a0 ↦ₐ w).
+  Proof.
+    intros regs r pc_a pc_w p b e a P1 P2.
+    iIntros "HJmpRes Hpc_a".
+    iDestruct "HJmpRes" as "[%Hrinr HJmpRes]".
+    rewrite /allow_jmp_mask /allow_jmp_mask_reg.
 
-  (* Definition allow_IE_cap (r : RegName) (regs : Reg) (mem : Mem) := *)
-  (*   forall wr, regs !! r = Some wr -> *)
-  (*         is_ie_cap wr -> *)
-  (*         is_Some (regs !! idc) /\ allow_IE_map_or_true r regs mem. *)
+    case_decide as Hdec ; cycle 1.
+    { rewrite /read_reg_inr in Hrinr.
+      iExists _.
+      iSplitL "HJmpRes".
+      + iModIntro. rewrite /allow_jmp_mem. iSplitR; auto.
+        case_decide; first by exfalso. auto.
+      + iModIntro. iNext. by iApply memMap_resource_1.
+    }
+    destruct Hdec as (Hreg & -> & Hwb & Hwb').
+    assert (a <> (a^+1)%a) as Haeq by (apply andb_prop in Hwb as [_ Hge]; solve_addr).
+    rewrite /allow_jmp_mask.
 
+    case_decide as Ha ; simplify_eq.
+    { (* pc_a = a *)
+      iMod "HJmpRes" as (w2) "[Ha' HJmpRest]".
+      iExists _.
+      iSplitL "HJmpRest".
+      + iSplitR; first auto.
 
-  (*--------------------- Defs from rules_jmp.v ---------------------*)
+        case_decide as Hdec1.
+        2: {
+          apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
+          exfalso; apply Hcontra ; repeat (split ; auto).
+        }
+        case_decide; simplify_eq; auto.
+      + iModIntro. iNext.
+        rewrite memMap_resource_2ne; auto; iFrame.
+    }
+    (* pc_a ≠ a *)
+    case_decide as Ha' ; simplify_eq.
+    { (* pc_a = a+1 *)
+      iMod "HJmpRes" as (w1) "[Ha HJmpRest]".
+      iExists _.
+      iSplitL "HJmpRest".
+      + iSplitR; first auto.
+        case_decide as Hdec1.
+        2: {
+          apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
+          exfalso; apply Hcontra ; repeat (split ; auto).
+        }
+        case_decide; simplify_eq; auto.
+        case_decide; simplify_eq; auto.
+      + iModIntro. iNext.
+        rewrite memMap_resource_2ne; auto; iFrame.
+    }
+    (* pc_a ≠ a+1 *)
 
-  (* Definition reg_allows_store (regs : Reg) (r : RegName) p b e a := *)
-  (*   regs !! r = Some (WCap p b e a) ∧ *)
-  (*   writeAllowed p = true ∧ withinBounds b e a = true. *)
+    iMod "HJmpRes" as (w1 w2) "(Ha & Ha' & HJmpRest)".
+    iExists _.
+    iSplitL "HJmpRest".
+    + iSplitR; first auto.
+      case_decide as Hdec1.
+      2: {
+        apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
+        exfalso; apply Hcontra ; repeat (split ; auto).
+      }
+      case_decide; simplify_eq; auto.
+      case_decide; simplify_eq; auto.
+    + iModIntro. iNext.
+      rewrite memMap_resource_3ne; auto; iFrame.
+  Qed.
 
-        (* if decide (reg_allows_store r r1 p1 b1 e1 a0 ∧ a0 ≠ a) *)
-        (* then ⊤ ∖ ↑logN.@a ∖ ↑logN.@a0 *)
-        (* else ⊤ ∖ ↑logN.@a}=∗ *)
-        (*                      ∃ mem0 : gmap Addr Word, *)
+  Lemma mem_map_implies_pure_conds:
+    ∀ (regs : leibnizO Reg) (mem : Mem) (r : RegName)
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a : Addr) (P1 P2 : D),
+      allow_jmp_mem regs mem r pc_a pc_w p b e a P1 P2
+        -∗ ⌜mem !! pc_a = Some pc_w⌝
+          ∗ ⌜allow_jmp_mmap_or_true r regs mem⌝.
+  Proof.
+    iIntros (regs mem r pc_a pc_w p b e a P1 P2) "HJmpMem".
+    iDestruct "HJmpMem" as "[%Hrinr HJmpRes]".
+    case_decide as Hdec ; cycle 1.
+    { iDestruct "HJmpRes" as "->".
+      iSplitR. by rewrite lookup_insert.
+      iExists p,b,e,a.
+      iSplitR; auto.
+      case_decide as Hdec1; auto.
+    }
+    assert (a <> (a^+1)%a)
+    by (inversion Hdec as (_ & _ & Hwb%withinBounds_true_iff & _); solve_addr).
+    case_decide as Ha; simplify_eq.
+    { iDestruct "HJmpRes" as (w2) "[%Hmem _]" ; subst.
+      iSplitL.
+      by iPureIntro; simplify_map_eq.
+      iExists p,b,e,a.
+      iSplitR; auto.
+      case_decide; auto.
+      inversion Hdec.
+      iExists pc_w, w2.
+      by iPureIntro ; split ; simplify_map_eq.
+    }
+    case_decide as Ha'; simplify_eq.
+    { iDestruct "HJmpRes" as (w1) "[%Hmem _]" ; subst.
+      iSplitL.
+      by iPureIntro; simplify_map_eq.
+      iExists p,b,e,a.
+      iSplitR; auto.
+      case_decide; auto.
+      inversion Hdec.
+      iExists w1, pc_w.
+      by iPureIntro ; split ; simplify_map_eq.
+    }
 
-
-  (*--------------------- Lemma ---------------------*)
+    iDestruct "HJmpRes" as (w1 w2) "[%Hmem _]" ; subst.
+    iSplitL.
+    by iPureIntro; simplify_map_eq.
+    iExists p,b,e,a.
+    iSplitR; auto.
+    case_decide; auto.
+    inversion Hdec.
+    iExists w1, w2.
+    by iPureIntro ; split ; simplify_map_eq.
+  Qed.
 
   Lemma jmp_case (regs : leibnizO Reg) (p : Perm)
         (b e a : Addr) (widc w : Word) (src : RegName) (P : D):
@@ -227,7 +350,7 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros
-      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #Hread Hown Ha HP Hcls HPC HIDC Hmap".
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
     iInsertList "Hmap" [idc;PC].
 
     (* To read out PC's name later, and needed when calling wp_load *)
@@ -254,103 +377,69 @@ Section fundamental.
 
     (* Step 1: open the region, if necessary, and store all the resources
        obtained from the region in allow_IE_res *)
-    iDestruct (create_IE_res with "Hreg Hinv_idc") as (P1 P2) "HJmpRes"; eauto.
+    iDestruct (create_jmp_res with "Hreg Hinv_idc") as (P1 P2) "HJmpRes"; eauto.
+    { destruct Hp ; destruct p ; auto. }
+
+    (* Step2: derive the concrete map of memory we need, and any spatial
+       predicates holding over it *)
+    iMod (jmp_res_implies_mem_map with "HJmpRes Ha") as (mem) "[HJmpMem HJmpRest]".
+
+    (* Step 3:  derive the non-spatial conditions over the memory map*)
+    iDestruct (mem_map_implies_pure_conds with "HJmpMem") as
+      %(HReadPC & HAJmpMem); auto.
+
+    (* Step 3.5:  derive the non-spatial conditions over the registers *)
+    iAssert (⌜allow_jmp_rmap_or_true src
+               (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))⌝)%I as "%HAJmpReg".
+    { rewrite /allow_jmp_rmap_or_true.
+      iExists p0, b0, e0, a0.
+      iSplit; auto.
+      iClear "Hwrite".
+      case_decide as Heq; auto.
+      by iExists widc; simplify_map_eq.
+    }
+
+    (* Step 4: move the later outside, so that we can remove it after applying wp_load *)
+    (* iDestruct (allow_load_mem_later with "HLoadMem") as "HLoadMem"; auto. *)
+
+    iApply (wp_jmp with "[Hmap HJmpRest]");eauto.
+    { by simplify_map_eq. }
+    { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
+      apply elem_of_dom. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
+    { iSplitR "Hmap"; auto. }
+    iNext. iIntros (regs' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
+    (* Infer that if P holds at w, then w must be valid (read condition) *)
+    iDestruct ("Hread" with "HP") as "#Hw".
+
+    destruct HSpec as [* Hregs Hwb Hwb' Ha Ha' HincrPC | * Hregs HnIE HincrPC | Hfail].
+    - (* succes jmp IE *) admit.
+    - (* sucess jmp not IE *) admit.
+    - (* fail *)
+      inversion Hfail as [? ? ? Hregs Hbounds ].
+      (* rewrite /allow_jmp_res /allow_jmp_mem /allow_jmp_mask. *)
+      (* destruct (decide (reg_allows_IE_jmp (<[PC:=WCap p b e a]> (<[idc:=widc]> regs)) src p0 b0 e0 a0)). *)
+      (* + iDestruct "HJmpMem" as "(_&H)". *)
+      (*   iDestruct "H" as (w') "(->&Hres&Hinterp)". rewrite /region_open_resources. *)
+      (*   destruct a1. rewrite memMap_resource_2ne; last auto. *)
+      (*   iDestruct "Hmem" as "[Ha0 Ha]". iDestruct "Hres" as "(HP' & Hread' & Hcls')". *)
+      (*   iMod ("Hcls'" with "[HP' Ha0]");[iExists w';iFrame|iModIntro]. *)
+      (*   iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. *)
+      (*   iApply wp_pure_step_later; auto. *)
+      (*   iNext; iIntros "_". *)
+      (*   iApply wp_value; auto. iIntros; discriminate. *)
+      (* - iModIntro. iDestruct "HLoadMem" as "(_&->)". rewrite -memMap_resource_1. *)
+      (*   iMod ("Hcls" with "[Hmem HP]");[iExists w;iFrame|iModIntro]. *)
+      (*   iApply wp_pure_step_later; auto. *)
+      (*   iNext; iIntros "_". *)
+      (*   iApply wp_value; auto. iIntros; discriminate. *)
+      admit.
+
+      (* inversion HAJmpMem as (p''&b''&e''&a''& Hrinr'' &H''). *)
+      (* destruct Hbounds. *)
+
 
     (* WIP.... *)
 
     Admitted.
-
-
-    destruct (decide (src = PC)); simplify_map_eq.
-    - iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.
-      iNext. iIntros "[HPC Ha] /=".
-      (* reconstruct invariant *)
-      iMod ("Hcls" with "[Ha HP]") as "_";[iExists w;iFrame|].
-      iModIntro.
-      iApply wp_pure_step_later; auto.
-      (* reconstruct registers *)
-      iNext. iIntros "_".
-      iInsert "Hmap" PC.
-      iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
-      { iPureIntro. apply Hsome. }
-      destruct Hp as [-> | ->]; iFrame; by rewrite insert_commute.
-
-    - destruct (decide (src = idc)); simplify_map_eq.
-      + admit. (* TODO need the wp_rule.... *)
-      + iInsertList "Hmap" [PC].
-        iAssert ([∗ map] k↦x ∈ (<[a := w]> ∅), k ↦ₐ x)%I with "[Ha]" as "Hmem".
-        { iApply (big_sepM_insert with "[Ha]"); auto ; iFrame. }
-
-
-        specialize Hsome with src as Hsrc.
-        destruct Hsrc as [wsrc Hsomesrc].
-        iExtractList "Hmap" [src;idc] as ["Hsrc";"Hidc"].
-        iAssert (fixpoint interp1 wsrc) as "#Hinv_src"; first (iApply "Hreg"; eauto).
-        destruct (decide (is_ie_cap wsrc = true)) as [Hie|Hie].
-        * (* EI cap *)
-          destruct wsrc as [ | [ [] b' e' a' | ] | ]; cbn in Hie ; try done; clear Hie.
-          (* open the invariants *)
-          rewrite (fixpoint_interp1_eq (WCap IE _ _ _)) //=.
-          destruct (decide (withinBounds b' e' a' ∧ withinBounds b' e' (a' ^+ 1)%a)) as
-            [Hdec_wb|Hdec_wb].
-          {
-            iDestruct ("Hinv_src" $! Hdec_wb)
-              as (P1 P2) "(%Hcond_Pa1 & %Hcond_Pa2 & Hinv_a1 & Hinv_a2 & Hexec)";
-              iClear "Hinv_src".
-            (* TODO we can probably encode the disjunction in a better way *)
-            destruct Hdec_wb as [ Hwb%Is_true_true_1 Hwb'%Is_true_true_1].
-            assert (a' ≠ (a' ^+1)%a) by (rewrite withinBounds_true_iff in Hwb'; solve_addr).
-
-
-            destruct (decide (a = a')) as [Haeq|Haeq];
-              destruct (decide (a = (a' ^+1)%a)) as [Haeq'|Haeq'].
-            ** (* a' = a , a = a ^+ 1*) solve_addr.
-            ** (* a' = a , a ≠ a ^+ 1*) admit.
-            ** (* a' ≠ a , a = a ^+ 1*) admit.
-            ** (* a' ≠ a , a ≠ a ^+ 1*)
-              iInv "Hinv_a1" as (w1) "[>Ha1 #HPa1]" "Hcls_a1".
-              iInv "Hinv_a2" as (w2) "[>Ha2 #HPa2]" "Hcls_a2".
-
-              iApply (wp_jmp_success_IE with "[$HPC $Hsrc $Hidc $Ha $Ha1 $Ha2]"); eauto.
-              iNext. iIntros "(HPC & Hsrc & Hidc & Ha & Ha1 & Ha2) /=".
-              iApply wp_pure_step_later; auto.
-
-              iMod ("Hcls_a2" with "[Ha2 HPa2]") as "_";[iExists w2; iFrame; iFrame "#"|iModIntro].
-              iMod ("Hcls_a1" with "[Ha1 HPa1]") as "_";[iExists w1; iFrame; iFrame "#"|iModIntro].
-              iMod ("Hcls" with "[Ha HP]") as "_";[iExists w; iFrame|iModIntro].
-              iNext ; iIntros "_".
-
-              (* Needed because IH disallows non-capability values *)
-              destruct w1 as [ | [p0 b0 e0 a0 | ] | ]; cycle 1.
-              {
-                iApply "Hexec"; iFrame "#"; iFrame.
-              (* iApply ("IH" with "[] [] [Hmap] [Hown]"). *)
-                iInsertList "Hmap" [idc;PC].
-                iDestruct (big_sepM_insert _ _ src with "[$Hmap $Hsrc]") as "Hmap".
-                rewrite lookup_insert_ne //= lookup_insert_ne //=.
-                apply lookup_delete; auto.
-                rewrite
-                  (insert_commute _ src) //=
-                    (insert_commute _ src) //=
-                    insert_delete //=
-                    insert_commute //=.
-                iFrame.
-                iIntros (r'). iPureIntro ; apply Hsome.
-              }
-
-              (* Non-capability cases *)
-              all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
-                iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
-              all: repeat iNext; iIntros "HPC /=".
-              all: iApply wp_pure_step_later; auto.
-              all: iNext; iIntros "_".
-              all: iApply wp_value.
-              all: iIntros; discriminate.
-          }
-          { (* fail case *)
-            admit.
-          }
-        * (* TODO not EI-cap, works as before *) admit.
-  Admitted.
 
 End fundamental.
