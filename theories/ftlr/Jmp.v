@@ -460,6 +460,10 @@ Section fundamental.
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
 
+        (* NOTE he next PC is an integer. Thus, it's always safe to execute an integer.
+           I can probably prove this case without further modification in the definition
+           of the LR *)
+
         admit.
         (* iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')". *)
         (* iDestruct "HP2" as "#HP2". *)
@@ -483,6 +487,23 @@ Section fundamental.
       (* a ≠ a0 *)
       case_decide as Ha0'; simplify_eq.
       { (* a = a0+1 *)
+
+        (* NOTE he next IDC is an integer.
+           I can't go further, because the closure will expect a specific context.
+           That said though, I could change the definition of the LR to say that,
+           the continuation can either be (P2 w2) \/ (is_int w2).
+
+           We would lose some completeness, because it means that every closure
+           has to hold with (IDC = WInt _).
+           I expect that to be OK, although it adds some more work for the user,
+           because it needs to prove that the closure is safe to execute with the
+           context (IDC = WInt _).
+
+           However,
+           1. I think it's a bit unsatisfying and the condition "IDC = WInt _" is
+              very artificial.
+           2. I'm wondering how it would scale to the calling convention LR.
+         *)
 
         admit.
         (* iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')". *)
