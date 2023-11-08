@@ -413,13 +413,73 @@ Section fundamental.
     rewrite /allow_jmp_res /allow_jmp_mem /allow_jmp_mask_reg /allow_jmp_mask.
 
     destruct HSpec as [* Hregs Hwb Hwb' Ha Ha' HincrPC | * Hregs HnIE HincrPC | Hfail].
-    - (* succes jmp IE *) admit.
+    - (* succes jmp IE *)
+      rewrite insert_insert insert_commute //= insert_insert in HincrPC; subst regs'.
+      destruct (decide (reg_allows_IE_jmp
+                          (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))
+                          src p0 b0 e0 a0)) as [HallowJmp|HallowJmp].
+      2: { (* contradiction *)
+        rewrite /reg_allows_IE_jmp in HallowJmp.
+        rewrite /read_reg_inr in HVsrc.
+        rewrite Hregs in HVsrc; simplify_eq.
+        repeat (apply not_and_r in HallowJmp as [HallowJmp|HallowJmp]; simplify_eq).
+      }
+
+      admit.
 
 
 
-    - (* sucess jmp not IE *) admit.
 
+    - (* success jmp not IE *)
+      rewrite insert_insert in HincrPC; subst regs'.
+      destruct (decide (reg_allows_IE_jmp
+                          (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))
+                          src p0 b0 e0 a0)) as [HallowJmp|_].
+      { (* contradiction *)
+        rewrite /reg_allows_IE_jmp in HallowJmp.
+        destruct HallowJmp as (Hregs0 & -> & Hwb & Hwb').
+        simplify_eq.
+      }
+      iModIntro.
+      iDestruct "HJmpMem" as "(_&->)". rewrite -memMap_resource_1.
+      iMod ("Hcls" with "[Hmem HP]") as "_";[iExists w;iFrame|iModIntro].
+      iApply wp_pure_step_later; auto.
+      iNext; iIntros "_".
 
+      set (regs' := <[PC:=updatePcPerm w0]> (<[idc:=widc]> regs)).
+      (* Needed because IH disallows non-capability values *)
+      destruct w0 as [ | [p' b' e' a' | ] | ]; cycle 1.
+      {
+        rewrite /updatePcPerm.
+        set (pc_p' := if decide (p' = E) then RX else p').
+
+        iApply ("IH" $! regs' pc_p' with "[%] [] [Hmap] [$Hown]"); subst regs'.
+        { intro; cbn; by repeat (rewrite lookup_insert_is_Some'; right). }
+        { iIntros (ri v Hri Hri' Hvs).
+          simplify_map_eq.
+          iApply "Hreg"; auto.
+        }
+        { rewrite
+            insert_insert
+              (insert_commute _ idc) //=
+              (insert_commute _ idc) //=
+              insert_insert.
+          iClear "Hwrite".
+          subst pc_p'; case_decide; simplify_eq.
+          iFrame "Hmap".
+          by destruct p'.
+        }
+        { admit. }
+        { iFrame "Hinv_idc". }
+      }
+
+      all: iExtract "Hmap" PC as "HPC".
+      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
+        iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
+      all: repeat iNext; iIntros "HPC /=".
+      all: iApply wp_pure_step_later; auto.
+      all: iNext; iIntros "_".
+      all: iApply wp_value;iIntros; discriminate.
 
     - (* fail *)
       inversion Hfail as [? ? ? Hregs Hbounds ].
