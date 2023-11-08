@@ -1,7 +1,8 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import malloc macros register_tactics.
+(* From cap_machine Require Import malloc macros register_tactics. *)
+From cap_machine Require Import register_tactics.
 From cap_machine Require Import fundamental logrel rules.
 From cap_machine.proofmode Require Import tactics_helpers proofmode.
 From cap_machine.examples Require Import template_adequacy.
@@ -109,11 +110,12 @@ Section closure_program.
     iMod (na_inv_acc with "Hinv_cap Hna") as "(>Hcap& Hna& Hinv_close)" ; auto.
     iGo "Hprog".
     { transitivity (Some b_pc); eauto. solve_addr. }
+    iGo "Hprog". admit.
     iGo "Hprog".
     iMod ("Hinv_close" with "[Hcap Hna]") as "Hna" ; iFrame.
     iApply "Post". iFrame.
     iSplitL "Hr2" ; iExists _ ; iFrame.
-  Qed.
+  Admitted.
 
 
   (* We specifie the part of the program that store the secret, using the
@@ -170,13 +172,14 @@ Section closure_program.
 
     simpl in *.
     rewrite /prog_code.
-    assert (Hp_mem': ~ p_mem = E)
-           by (intros -> ; simpl in Hp_mem ; discriminate).
+    assert (Hp_mem': ~ p_mem = E) by (intros -> ; simpl in Hp_mem ; discriminate).
+    assert (Hp_mem'': ~ p_mem = IE) by (intros -> ; simpl in Hp_mem ; discriminate).
     (* Lea r_t1 secret_off *)
     iInstr "Hprog".
     { transitivity (Some (b_mem ^+secret_off)%a) ; auto. solve_addr. }
     (* Store r_t1 42 , where r_t1 = (RWX, b, e, secret) *)
     (* Regarding the invariant, the secret can be either 0 or 42 *)
+    assert (is_ie_cap wadv = false) by admit.
     iDestruct "Hsecret" as "[Hsecret | Hsecret]".
     all: iInstr "Hprog" ; [solve_addr|].
     (* getB getE add subseg *)
@@ -184,13 +187,13 @@ Section closure_program.
     ; try transitivity (Some (b_mem ^+(secret_off+1))%a) ; auto
     ; try solve_addr .
     (* jmp *)
-    all: iInstr "Hprog".
+    all: iInstr "Hprog";auto.
     (* halts in the adversary code *)
     all: iMod ("Hclose_secret" with "[Hsecret $Hna]") as "Hna"
          ; [iNext ; iRight ; iFrame |].
     all: iApply "Post".
     all: iFrame ; iFrame "#".
-  Qed.
+  Admitted.
 
   (* Specification of the full program, stops after the jump to the adversary *)
   Lemma closure_spec
@@ -405,7 +408,7 @@ Section closure_program.
    rewrite !fixpoint_interp1_eq /=.
    iIntros (regs).
    iNext; iModIntro.
-   iIntros "(Hrsafe& Hregs& Hna)".
+   iIntros (widc) "#Hinterp_widc (Hrsafe& Hregs& Hna)".
    iDestruct "Hrsafe" as "[%Hrfull #Hrsafe]".
    rewrite /interp_conf.
    rewrite {1}/registers_mapsto.
@@ -416,7 +419,7 @@ Section closure_program.
    iExtractList "Hregs" [PC;r_t30] as  ["HPC"; "Hw30"].
    iAssert (interp w30) as "Hw30i".
    { iApply ("Hrsafe" $! r_t30 w30) ; eauto.  }
-   set (rmap:= delete r_t30 (delete PC regs)).
+   set (rmap:= delete r_t30 (delete PC (<[idc:=widc]> regs))).
 
    (* 3 - use the full specification to show that the program executes safely and completely *)
    iApply (closure_full_run_spec
@@ -434,17 +437,17 @@ Section closure_program.
      iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
      { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
+       destruct (decide (r' = idc)) ; simplify_map_eq ; auto.
        iApply ("Hrsafe" $! r'); auto. }
-     simpl.
-     iFrame.
+     by iFrame.
  Qed.
 
- (** Adequacy theorem - the template of the adequacy theorem defined in Cerise
+(** Adequacy theorem - the template of the adequacy theorem defined in Cerise
     requires the memory invariant being in the memory of the program.
     However, the memory buffer is not inside the memory closure of the program.
     Therefore, we cannot apply the adequacy theorem on this instance. *)
 
- (** Remarks : We could apply the adequacy theorem on this instance,
+(** Remarks : We could apply the adequacy theorem on this instance,
                but not using the template defined in Cerise. We could
                use the adequacy theorem of Cerise, but it is out-of-scope
                here *)

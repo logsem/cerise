@@ -141,6 +141,7 @@ Section base_program.
     { iContiguous_next Hprog_addr 0%nat. }
     { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
     { auto. }
+    { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
     iNext; iIntros "(HPC& Hdone& Hr1)"; iSimpl.
     iApply wp_pure_step_later;auto;iNext;iIntros "_".

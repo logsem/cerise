@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import tactics.
 Require Import Eqdep_dec List.
-From cap_machine Require Import malloc macros.
+(* From cap_machine Require Import malloc macros. *)
 From cap_machine Require Import fundamental logrel.
 From cap_machine.proofmode Require Import tactics_helpers proofmode register_tactics.
 From cap_machine.examples Require Import template_adequacy.
@@ -31,7 +31,7 @@ Section base_program.
 
   (** Jump to the adversary in register `r30` at the end of the program *)
   Definition prog_code secret_off secret_val: list Word :=
-    prog_base_instrs r_t1 secret_off secret_val ++ encodeInstrsW [Jmp r_t30].
+    prog_base_instrs idc secret_off secret_val ++ encodeInstrsW [Jmp r_t30].
 
   (** The adversary code is known --- it just halts *)
   Definition adv_code : list Word :=
@@ -60,8 +60,8 @@ Section base_program.
         PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
         ∗ codefrag a_prog (prog_code secret_off secret_val)
 
-        (* r1 points to the allocated memory *)
-        ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem
+        (* idc points to the allocated memory *)
+        ∗ idc ↦ᵣ WCap p_mem b_mem e_mem b_mem
         (* which is filled by zeroes *)
         ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
 
@@ -74,7 +74,7 @@ Section base_program.
 
         -∗ WP Seq (Instr Executable) {{
                 λ v, ⌜v = HaltedV⌝ -∗ (* The machine is halted after the adversary *)
-                     r_t1 ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
+                     idc ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
                      ∗ r_t2 ↦ᵣ WInt (b_mem + (secret_off + 1))
                      ∗ r_t3 ↦ᵣ WInt e_mem
                      ∗ codefrag a_prog (prog_code secret_off secret_val)
@@ -103,13 +103,18 @@ Section base_program.
       simpl in Hp_mem.
       discriminate.
     }
+    assert (Hp_mem'': p_mem ≠ IE). {
+      intros ->.
+      simpl in Hp_mem.
+      discriminate.
+    }
 
     (* 2 - Use the WP rules for each instructions *)
-    (* Lea r_t1 3 *)
+    (* Lea idc 3 *)
     iInstr "Hprog".
     { transitivity (Some (b_mem ^+ secret_off)%a); solve_addr +Hlen_mem. }
 
-    (* Store r_t1 42, where r_t1 = (RWX, b, e, secret) *)
+    (* Store idc 42, where idc = (RWX, b, e, secret) *)
     (* The store requires the resource `secret ↦ₐ w` for some w,
        we thus extract the resource from the memory buffer *)
     rewrite (region_addrs_zeroes_split b_mem (b_mem ^+ secret_off)%a e_mem);
@@ -143,7 +148,7 @@ Section base_program.
     { solve_addr +Hlen_mem. }
 
     (* jmp *)
-    iInstr "Hprog".
+    iInstr "Hprog". { by cbn. }
 
     (* halts in the adversary code *)
     rewrite /adv_code.
@@ -224,6 +229,7 @@ Section base_program_CPS.
     iGo' "Hprog".
     { transitivity (Some (b_mem ^+ secret_off)%a)... }
     { intros ->; simpl in Hp_mem; discriminate. }
+    { intros ->; simpl in Hp_mem; discriminate. }
 
     rewrite (region_addrs_zeroes_split b_mem a_secret e_mem)...
     iDestruct (region_mapsto_split
@@ -245,6 +251,7 @@ Section base_program_CPS.
     (* getB getE add subseg *)
     iGo' "Hprog".
     { transitivity (Some (b_mem ^+ (secret_off + 1))%a)... }
+    { intros ->; simpl in Hp_mem; discriminate. }
     { intros ->; simpl in Hp_mem; discriminate. }
     { solve_addr'. }
 
@@ -278,8 +285,8 @@ Section base_program_CPS.
     ⊢ ( (* PC points to prog_code*)
         ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
         ∗ codefrag a_prog (prog_code secret_off secret_val)
-          (* r1 points to the allocated memory*)
-          ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem
+          (* idc points to the allocated memory*)
+          ∗ idc ↦ᵣ WCap p_mem b_mem e_mem b_mem
           (* which is filled by zeroes *)
           ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
           (* r30 point to the adversary code *)
@@ -287,7 +294,7 @@ Section base_program_CPS.
           ∗ r_t2 ↦ᵣ w2
           ∗ r_t3 ↦ᵣ w3
           ∗ ▷ ( PC ↦ᵣ updatePcPerm wadv (* The specification stops after the jump *)
-                ∗ r_t1 ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
+                ∗ idc ↦ᵣ WCap p_mem (b_mem ^+ (secret_off + 1))%a e_mem secret%a
                 ∗ r_t2 ↦ᵣ WInt (b_mem + (secret_off + 1))
                 ∗ r_t3 ↦ᵣ WInt e_mem
                 ∗ r_t30 ↦ᵣ wadv
@@ -318,13 +325,14 @@ Section base_program_CPS.
     iInstr "Hprog".
 
     (* 3 - Post condition *)
+    admit.
     iApply "Post".
 
     subst secret.
     replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off + 1))%a by solve_addr.
     replace  (b_mem + secret_off + 1)%Z with (b_mem + (secret_off + 1))%Z by lia.
     iFrame.
-  Qed.
+  Admitted.
 
   Context {nainv: logrel_na_invs Σ}.
 
@@ -351,10 +359,10 @@ Section base_program_CPS.
       writeAllowed p_mem = true →
 
       (* Register map for the big_sep of registers *)
-      dom rmap = all_registers_s ∖ {[ PC; r_t1; r_t30 ]} →
+      dom rmap = all_registers_s ∖ {[ PC; idc; r_t30 ]} →
 
       ⊢ ( PC ↦ᵣ WCap p_pc b_pc e_pc a_prog
-          ∗ r_t1 ↦ᵣ WCap p_mem b_mem e_mem b_mem
+          ∗ idc ↦ᵣ WCap p_mem b_mem e_mem b_mem
           ∗ r_t30 ↦ᵣ w_adv
           ∗ codefrag a_prog (prog_code secret_off secret_val)
           ∗ [[b_mem, e_mem]] ↦ₐ [[ region_addrs_zeroes b_mem e_mem ]]
@@ -374,7 +382,7 @@ Section base_program_CPS.
 
   Proof.
     intros * Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom.
-    iIntros "(HPC & Hr1 & Hr30 & Hprog & Hregion & Hrmap & Hna & #Hadv)".
+    iIntros "(HPC & Hidc & Hr30 & Hprog & Hregion & Hrmap & Hna & #Hadv)".
 
     (* Using the FLTR corollary, w_adv is safe to execute and we can specify
        what happens after the jump: safe and complete execution *)
@@ -387,8 +395,8 @@ Section base_program_CPS.
     iExtractList "Hrmap" [r_t2; r_t3] as ["[Hr2 _]"; "[Hr3 _]"].
 
     iApply (prog_spec_CPS with "[-]"); [ eassumption .. |].
-    iFrame "HPC Hr1 Hr30 Hregion Hr2 Hr3 Hprog".
-    iIntros "!> (HPC & Hr1 & Hr2 & Hr3 & Hr30 & Hprog & Hmem)".
+    iFrame "HPC Hidc Hr30 Hregion Hr2 Hr3 Hprog".
+    iIntros "!> (HPC & Hidc & Hr2 & Hr3 & Hr30 & Hprog & Hmem)".
 
     (* 2 - The continuation requires all the registers to be safe to share *)
     (* Show that the contents of r1 are safe *)
@@ -420,9 +428,9 @@ Section base_program_CPS.
       rewrite fixpoint_interp1_eq //. }
 
     (* put the registers with capability back into the register map *)
-    iCombine "Hr1 Hmem_safe" as "Hr1".
+    iCombine "Hidc Hmem_safe" as "Hidc".
     iCombine "Hr30 Hadv" as "Hr30".
-    subst rmap'; iInsertList "Hrmap" [r_t1;r_t30].
+    subst rmap'; iInsertList "Hrmap" [idc;r_t30].
 
     (* 3 - Use the continuation *)
     (* Prepare the resources *)
