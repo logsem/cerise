@@ -72,18 +72,12 @@ Section fundamental.
 
        if decide (reg_allows_IE_jmp regs r p b e a)
        then
-         (* TODO does it have to be P1 and P2 common with all cases ?
-            Should it be, for instance, for the first case
-            (∀ w1 w2 regs', ▷ □ (interp w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs' w1 w2)))
-            ?
-            It can't, because we only have (P1 w1), not interp...
-          *)
-         (∀ w1 w2 regs', ▷ □ (P1 w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs' w1 w2)))
+         (∀ w1 w2 regs', ▷ □ (P1 w1 ∗ P2 w2
+                              -∗ (interp_expr_gen interp regs' w1 w2)))
            ∗
            |={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask pc_a a}=>
            (if decide (pc_a = a)
-            then ∃ w2, (a^+1)%a ↦ₐ w2
-                         ∗ region_open_resources' pc_a a w2 P2
+            then ∃ w2, (a^+1)%a ↦ₐ w2 ∗ region_open_resources' pc_a a w2 P2
             else
               if decide (pc_a = (a^+1)%a)
               then ∃ w1, a ↦ₐ w1 ∗ region_open_resources pc_a a w1 P1
@@ -454,47 +448,43 @@ Section fundamental.
       }
       assert (PC <> src) as Hsrc
           by (destruct (decide (PC = src)); auto; simplify_map_eq; by destruct Hp).
-      assert ((a0 ^+ 1)%a ≠ a0) as Haeq by admit.
-      assert (withinBounds b1 e1 a1 ∧ withinBounds b1 e1 (a1 ^+ 1)%a) as Hbounds
-          by admit.
       assert (p0 = IE /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) as (-> & -> & -> & ->)
           by (by eapply reg_allows_IE_jmp_same)
       ; simplify_map_eq.
+      assert ((a1 ^+ 1)%a ≠ a1) as Haeq by (apply withinBounds_true_iff in Hwb ; solve_addr).
+      assert (withinBounds b1 e1 a1 ∧ withinBounds b1 e1 (a1 ^+ 1)%a) as Hbounds
+          by (by split ; apply Is_true_true_2).
 
       iDestruct "HJmpMem" as "(_&HJmpMem)".
       iDestruct "HJmpRes" as "(_&Hexec&HJmpRes)".
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
 
-        (* NOTE if a = a0, then it means that the futur `wpc` will be an integer,
-           which as always safe to execute.
-           It means that it should be an easy case, and that I don't need to use
-           "Hexec" to pursue *)
-
-        (* TODO extract in a lemma mem_map_recover_res ... *)
+        admit.
         (* iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')". *)
         (* iDestruct "HP2" as "#HP2". *)
         (* rewrite /allow_jmp_mask. *)
         (* case_decide ; simplify_eq. *)
         (* rewrite memMap_resource_2ne; auto. *)
-        (* iDestruct "Hmem" as  "[Ha0' Ha0]". *)
-        (* iMod ("Hcls'" with "[HP2 Ha0']") as "_"; [iNext;iExists w2;iFrame "∗ #"|iModIntro]. *)
-        (* iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists w;iFrame|iModIntro]. *)
-        (* iClear "HJmpRes". *)
         (* simplify_map_eq. *)
 
+        (* iDestruct "Hmem" as  "[Ha0' Ha0]". *)
+        (* iMod ("Hcls'" with "[HP2 Ha0']") as "_"; [iNext;iExists widc0;iFrame "∗ #"|iModIntro]. *)
+        (* iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists wpc;iFrame|iModIntro]. *)
+        (* iClear "HJmpRes". *)
+        (* iApply wp_pure_step_later; auto. *)
+        (* iNext ; iIntros "_". *)
 
-        (*   rewrite /read_reg_inr in HVsrc; simplify_map_eq. *)
-        (* TODO I would like to apply "Hexec" at this point, but *)
-        (*      I actually don't have (P1 wpc)... All I have is (interp wpc). *)
-        (*      Does it still work ? *)
-        admit.
+        (* iApply "Hexec" ; iFrame "∗ #". *)
+        (* rewrite insert_commute //=. *)
+        (* repeat (iSplit ; try done). *)
       }
 
       (* a ≠ a0 *)
       case_decide as Ha0'; simplify_eq.
       { (* a = a0+1 *)
 
+        admit.
         (* iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')". *)
         (* iDestruct "HP1" as "#HP1". *)
         (* rewrite /allow_jmp_mask. *)
@@ -513,7 +503,6 @@ Section fundamental.
         (* iApply "Hexec" ; iFrame "∗ #". *)
         (* rewrite insert_commute //=. *)
         (* repeat (iSplit ; try done). *)
-        admit.
       }
 
       (* a ≠ a0+1 *)
@@ -549,7 +538,6 @@ Section fundamental.
       iDestruct "HJmpMem" as "(_&->)". rewrite -memMap_resource_1.
       iMod ("Hcls" with "[Hmem HP]") as "_";[iExists w;iFrame|iModIntro].
       iApply wp_pure_step_later; auto.
-      iNext; iIntros "_".
 
       set (regs' := <[PC:=updatePcPerm w0]> (<[idc:=widc]> regs)).
       (* Needed because IH disallows non-capability values *)
@@ -558,6 +546,22 @@ Section fundamental.
         rewrite /updatePcPerm.
         set (pc_p' := if decide (p' = E) then RX else p').
 
+        destruct (decide (p' = E)); simplify_map_eq.
+        (* Special case if p' is E *)
+        - (* p' = E *)
+          iAssert (interp (WCap E b' e' a')) as "Hinterp".
+          {
+          assert ( src <> PC ).
+          { destruct (decide (src = PC)) ; simplify_map_eq ; destruct Hp; auto. }
+          simplify_map_eq.
+          destruct (decide (src = idc)) ; simplify_map_eq; auto.
+          iApply "Hreg"; auto.
+          }
+          rewrite (fixpoint_interp1_eq (WCap E _ _ _)) //=.
+          rewrite (insert_commute _ PC _ (WCap RX _ _ _)) //=.
+          iDestruct ("Hinterp" with "[$Hinv_idc] [$Hmap $Hown]") as "Hcont"; auto.
+        - (* p' = E *)
+        iNext ; iIntros "_".
         iApply ("IH" $! regs' pc_p' with "[%] [] [Hmap] [$Hown]"); subst regs'.
         { intro; cbn; by repeat (rewrite lookup_insert_is_Some'; right). }
         { iIntros (ri v Hri Hri' Hvs).
@@ -568,14 +572,22 @@ Section fundamental.
             insert_insert
               (insert_commute _ idc) //=
               insert_insert.
-          subst pc_p'; case_decide; simplify_eq.
-          iFrame "Hmap".
+          subst pc_p'; simplify_eq.
           by destruct p'.
         }
-        { admit. }
+        { iModIntro.
+          subst pc_p'.
+          iClear "HJmpRes IH Hread".
+          clear Hsome' HVsrc HAJmpMem HAJmpReg.
+
+          destruct (decide (src = PC)); simplify_map_eq; auto.
+          destruct (decide (src = idc)); simplify_map_eq; auto.
+          iApply "Hreg" ; auto.
+        }
         { iFrame "Hinv_idc". }
       }
 
+      all: iNext ; iIntros "_".
       all: iExtract "Hmap" PC as "HPC".
       all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
         iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
