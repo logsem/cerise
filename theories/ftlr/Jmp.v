@@ -464,24 +464,31 @@ Section fundamental.
            I can probably prove this case without further modification in the definition
            of the LR *)
 
-        admit.
-        (* iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')". *)
-        (* iDestruct "HP2" as "#HP2". *)
-        (* rewrite /allow_jmp_mask. *)
-        (* case_decide ; simplify_eq. *)
-        (* rewrite memMap_resource_2ne; auto. *)
-        (* simplify_map_eq. *)
+        iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')".
+        iDestruct "HP2" as "#HP2".
+        rewrite /allow_jmp_mask.
+        case_decide ; simplify_eq.
+        rewrite memMap_resource_2ne; auto.
+        simplify_map_eq.
 
-        (* iDestruct "Hmem" as  "[Ha0' Ha0]". *)
-        (* iMod ("Hcls'" with "[HP2 Ha0']") as "_"; [iNext;iExists widc0;iFrame "∗ #"|iModIntro]. *)
-        (* iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists wpc;iFrame|iModIntro]. *)
-        (* iClear "HJmpRes". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iNext ; iIntros "_". *)
+        iDestruct "Hmem" as  "[Ha0' Ha0]".
+        iMod ("Hcls'" with "[HP2 Ha0']") as "_"; [iNext;iExists widc0;iFrame "∗ #"|iModIntro].
+        iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists wpc;iFrame|iModIntro].
+        iClear "HJmpRes".
+        iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
+        destruct wpc; cbn in Hi; try done.
+        iExtract "Hmap" PC as "HPC".
 
-        (* iApply "Hexec" ; iFrame "∗ #". *)
-        (* rewrite insert_commute //=. *)
-        (* repeat (iSplit ; try done). *)
+        (* TODO extract as a lemma ? that if (PC = WInt z), then safe to execute.
+           It is the second time that it's used (cf. fundamental.v) *)
+        iApply (wp_bind (fill [SeqCtx])); iSimpl.
+        iApply (wp_notCorrectPC with "HPC").
+        intro Hcontra; inversion Hcontra.
+        iNext; iIntros "HPC"; iSimpl.
+        iApply wp_pure_step_later; [ exact I |].
+        iIntros "!> _".
+        iApply wp_value; iIntros "%"; done.
       }
 
       (* a ≠ a0 *)
