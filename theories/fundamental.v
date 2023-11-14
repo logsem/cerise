@@ -1,6 +1,6 @@
 (* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
    Subseg IsPtr Get Lea Seal UnSeal. *)
-From cap_machine.ftlr Require Export Restrict Get Load.
+From cap_machine.ftlr Require Export Jmp Jnz Restrict Get Load.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -62,12 +62,12 @@ Section fundamental.
       rewrite {2}/registers_mapsto.
       iExtractList "Hmreg" [PC;idc] as ["HPC";"Hidc"].
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
-      + (* Jmp *) admit.
-        (* iApply (jmp_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
-      + (* Jnz *) admit.
-        (* iApply (jnz_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
+      + (* Jmp *)
+        iApply (jmp_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* Jnz *)
+        iApply (jnz_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
       + (* Mov *) admit.
         (* iApply (mov_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
         (*   try iAssumption; eauto. *)
