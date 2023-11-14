@@ -104,7 +104,8 @@ Section logrel.
 
   Definition logN : namespace := nroot .@ "logN".
 
-  Definition interp_z : D := λne w, ⌜match w with WInt z => True | _ => False end⌝%I.
+  Definition is_int (w : Word) : Prop := match w with WInt z => True | _ => False end.
+  Definition interp_z : D := λne w, ⌜is_int w⌝%I.
 
   Definition interp_cap_O : D := λne _, True%I.
 
@@ -158,7 +159,8 @@ Section logrel.
                       ∗ inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
                       ∗ inv (logN .@ (a^+1)%a) (∃ w2, (a^+1)%a ↦ₐ w2 ∗ P2 w2)
                       ∗ ∀ w1 w2 regs,
-                         ▷ □ (P1 w1 ∗ P2 w2 -∗ (interp_expr_gen interp regs w1 w2)))
+                         ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝)
+                              -∗ (interp_expr_gen interp regs w1 w2)))
             | _ => False
             end)%I.
   Solve All Obligations with solve_proper.

@@ -105,7 +105,10 @@ Section fundamental.
       iIntros (w1 w2 regs). iNext; iModIntro.
       iIntros "[HPw1 HPw2]".
       iAssert (interp w1)%I as "#Hw1"; first (by iApply "Hconds_a").
-      iAssert (interp w2)%I as "#Hw2"; first (by iApply "Hconds_a'").
+      iAssert (interp w2)%I as "#Hw2";
+        first (iDestruct "HPw2" as "[HPw2 | %HPw2]";
+               [by iApply "Hconds_a'"
+               | destruct w2 ; try inversion HPw2; by iApply interp_int]).
       iIntros "([Hfull Hreg] & Hregs & Hna)".
 
       (* Needed because IH disallows non-capability values *)
