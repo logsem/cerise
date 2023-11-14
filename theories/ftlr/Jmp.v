@@ -72,7 +72,7 @@ Section fundamental.
 
        if decide (reg_allows_IE_jmp regs r p b e a)
        then
-         (∀ w1 w2 regs', ▷ □ (P1 w1 ∗ P2 w2
+         (∀ w1 w2 regs', ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝)
                               -∗ (interp_expr_gen interp regs' w1 w2)))
            ∗
            |={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask pc_a a}=>
@@ -495,42 +495,26 @@ Section fundamental.
       case_decide as Ha0'; simplify_eq.
       { (* a = a0+1 *)
 
-        (* NOTE he next IDC is an integer.
-           I can't go further, because the closure will expect a specific context.
-           That said though, I could change the definition of the LR to say that,
-           the continuation can either be (P2 w2) \/ (is_int w2).
+        iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')".
+        iDestruct "HP1" as "#HP1".
+        rewrite /allow_jmp_mask.
+        case_decide ; simplify_eq.
+        case_decide ; simplify_eq.
+        rewrite memMap_resource_2ne; auto.
+        simplify_map_eq.
 
-           We would lose some completeness, because it means that every closure
-           has to hold with (IDC = WInt _).
-           I expect that to be OK, although it adds some more work for the user,
-           because it needs to prove that the closure is safe to execute with the
-           context (IDC = WInt _).
+        iDestruct "Hmem" as  "[Ha0' Ha0]".
+        iMod ("Hcls'" with "[HP1 Ha0']") as "_"; [iNext;iExists wpc;iFrame "∗ #"|iModIntro].
+        iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists widc0;iFrame|iModIntro].
+        iClear "HJmpRes".
+        iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
 
-           However,
-           1. I think it's a bit unsatisfying and the condition "IDC = WInt _" is
-              very artificial.
-           2. I'm wondering how it would scale to the calling convention LR.
-         *)
+        iApply ("Hexec" $! _ widc0) ; iFrame "∗ #".
+        iRight; destruct widc0; cbn in Hi; try done.
 
-        admit.
-        (* iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')". *)
-        (* iDestruct "HP1" as "#HP1". *)
-        (* rewrite /allow_jmp_mask. *)
-        (* case_decide ; simplify_eq. *)
-        (* case_decide ; simplify_eq. *)
-        (* rewrite memMap_resource_2ne; auto. *)
-        (* simplify_map_eq. *)
-
-        (* iDestruct "Hmem" as  "[Ha0' Ha0]". *)
-        (* iMod ("Hcls'" with "[HP1 Ha0']") as "_"; [iNext;iExists wpc;iFrame "∗ #"|iModIntro]. *)
-        (* iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists widc0;iFrame|iModIntro]. *)
-        (* iClear "HJmpRes". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iNext ; iIntros "_". *)
-
-        (* iApply "Hexec" ; iFrame "∗ #". *)
-        (* rewrite insert_commute //=. *)
-        (* repeat (iSplit ; try done). *)
+        rewrite insert_commute //=.
+        repeat (iSplit ; try done).
       }
 
       (* a ≠ a0+1 *)
