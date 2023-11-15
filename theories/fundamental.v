@@ -1,6 +1,6 @@
 (* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
    Subseg IsPtr Get Lea Seal UnSeal. *)
-From cap_machine.ftlr Require Export Jmp Jnz Restrict Get Load.
+From cap_machine.ftlr Require Export Jmp Jnz Load Store AddSubLt Restrict Get.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -74,18 +74,18 @@ Section fundamental.
       + (* Load *)
         iApply (load_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
-      + (* Store *) admit.
-        (* iApply (store_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
-      + (* Lt *) admit.
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
-      + (* Add *) admit.
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
-      + (* Sub *) admit.
-        (* iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
+      + (* Store *)
+        iApply (store_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* Lt *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* Add *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* Sub *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
       + (* Lea *) admit.
         (* iApply (lea_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
         (*   try iAssumption; eauto. *)
