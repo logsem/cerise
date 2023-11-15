@@ -1,7 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Export logrel.
+From cap_machine Require Export logrel register_tactics.
 From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_Store.
 Import uPred.
@@ -20,8 +20,9 @@ Section fundamental.
 
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
   (* Since we will store a new word into a, we do not need to remember its validity *)
-  Definition region_open_resources (a pc_a : Addr) pc_w : iProp Σ :=
-    (▷ interp pc_w ∗ ((▷ ∃ w0, a ↦ₐ w0 ∗ interp w0) ={⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a,⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
+  Definition region_open_resources (a pc_a : Addr) (pc_w : Word) : iProp Σ :=
+    (▷ interp pc_w
+       ∗ ((▷ ∃ w0, a ↦ₐ w0 ∗ interp w0) ={⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a,⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
   Lemma store_inr_eq {regs r p0 b0 e0 a0 p1 b1 e1 a1}:
     reg_allows_store regs r p0 b0 e0 a0 →
@@ -35,60 +36,81 @@ Section fundamental.
   Qed.
 
   (* Description of what the resources are supposed to look like after opening the region if we need to, but before closing the region up again*)
-  Definition allow_store_res r1 (regs : Reg) pc_a a p b e :=
-    (⌜read_reg_inr regs r1 p b e a⌝ ∗
-      if decide (reg_allows_store regs r1 p b e a ∧ a ≠ pc_a) then
-          |={⊤ ∖ ↑logN.@pc_a,⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a}=> ∃ w, a ↦ₐ w ∗ region_open_resources a pc_a w
-    else True)%I.
+  Definition allow_store_res (regs : Reg) (r : RegName)
+    (pc_a : Addr) (p : Perm) (b e a : Addr) :=
+    (⌜read_reg_inr regs r p b e a⌝ ∗
+       if decide (reg_allows_store regs r p b e a ∧ a ≠ pc_a)
+       then (|={⊤ ∖ ↑logN.@pc_a,⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a}=>
+              ∃ w, a ↦ₐ w ∗ region_open_resources a pc_a w)
+       else True)%I.
 
-  Definition allow_store_mem r1 (regs : Reg) pc_a pc_w (mem : gmap Addr Word) p b e a :=
-    (⌜read_reg_inr regs r1 p b e a⌝ ∗
-    if decide (reg_allows_store regs r1 p b e a ∧ a ≠ pc_a) then
-         ∃ w, ⌜mem = <[a:=w]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources a pc_a w
+  Definition allow_store_mem (regs : Reg) (mem : Mem) (r : RegName)
+    (pc_a : Addr) (pc_w : Word) (p : Perm) (b e a : Addr) :=
+    (⌜read_reg_inr regs r p b e a⌝ ∗
+    if decide (reg_allows_store regs r p b e a ∧ a ≠ pc_a)
+    then ∃ w, ⌜mem = <[a:=w]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources a pc_a w
     else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
-
   Lemma create_store_res:
-    ∀ (r : leibnizO Reg) (p : Perm)
-      (b e a : Addr) (r1 : RegName) (p0 : Perm)
-      (b0 e0 a0 : Addr),
-      read_reg_inr (<[PC:=WCap p b e a]> r) r1 p0 b0 e0 a0
-      → (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ allow_store_res r1 (<[PC:=WCap p b e a]> r) a a0 p0 b0 e0.
+    ∀ (regs : leibnizO Reg) (r : RegName)
+      (pc_p : Perm) (pc_b pc_e pc_a : Addr)
+      (widc : Word)
+      (p : Perm) (b e a : Addr) ,
+      read_reg_inr (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs)) r p b e a
+      → (∀ (r : RegName) (w : Word), ⌜r ≠ PC⌝ → ⌜r ≠ idc⌝ →  ⌜regs !! r = Some w⌝ → (fixpoint interp1) w)
+        -∗ interp widc
+        -∗ allow_store_res
+           (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs))
+           r pc_a p b e a.
   Proof.
-    intros r p b e a r1 p0 b0 e0 a0 HVr1.
-    iIntros "#Hreg".
+    intros regs r pc_p pc_b pc_e pc_a widc p b e a HVr.
+    iIntros "#Hreg #Hwidc".
     iFrame "%".
-    case_decide as Hallows.
-    - destruct Hallows as ((Hrinr & Hra & Hwb) & Haeq).
-      apply andb_prop in Hwb as [Hle Hge].
-      revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
-      assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
-      rewrite lookup_insert_ne in Hrinr; last by congruence.
-      iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
-      iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
+    case_decide as Hallows; last done.
+    destruct Hallows as ((Hrinr & Hra & Hwb) & Haeq).
+    apply andb_prop in Hwb as [Hle Hge].
+    revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
+    assert (r ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+    rewrite lookup_insert_ne in Hrinr; last by congruence.
+    destruct (decide (r = idc)) as [|Hneq]; simplify_map_eq.
+    - (* r = idc *)
+      iDestruct (write_allowed_inv _ a with "Hwidc") as "Hinva"
+      ; auto; first (split; eauto).
+      iFrame "∗ #".
+      iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
+      iDestruct "Hinv" as (w) "[>Ha #Hinv]".
+      iExists w.
+      by iFrame "∗ #".
+    - (* r ≠ idc *)
+      iDestruct ("Hreg" $! r _ n Hneq Hrinr) as "Hvsrc".
+      iAssert (inv (logN.@a) ((interp_ref_inv a) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
       iFrame "∗ #".
       iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
-      iDestruct "Hinv" as (w) "[>Ha0 #Hinv]".
-      iExists w. iFrame. done.
-    - done.
+      iDestruct "Hinv" as (w) "[>Ha #Hinv]".
+      iExists w. by iFrame "∗ #".
   Qed.
 
+  Definition allow_store_mask (regs : Reg) (r : RegName)
+    (pc_a : Addr) (p : Perm) (b e a : Addr) : coPset :=
+    if decide (reg_allows_store regs r p b e a ∧ a ≠ pc_a)
+    then ⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a
+    else ⊤ ∖ ↑logN.@pc_a.
 
   Lemma store_res_implies_mem_map:
-    ∀ (r : leibnizO Reg)
-       (a a0 : Addr) (w : Word) (r1 : RegName) p1 b1 e1,
-      allow_store_res r1 r a a0 p1 b1 e1
-      -∗ a ↦ₐ w
-      ={⊤ ∖ ↑logN.@a, if decide (reg_allows_store r r1 p1 b1 e1 a0 ∧ a0 ≠ a) then ⊤ ∖ ↑logN.@a ∖ ↑logN.@a0
-                      else ⊤ ∖ ↑logN.@a}=∗ ∃ mem0 : gmap Addr Word,
-          allow_store_mem r1 r a w mem0 p1 b1 e1 a0
-            ∗ ▷ ([∗ map] a0↦w ∈ mem0, a0 ↦ₐ w).
+    ∀ (regs : leibnizO Reg) (r : RegName)
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a: Addr),
+      allow_store_res regs r pc_a p b e a
+      -∗ pc_a ↦ₐ pc_w
+      ={⊤ ∖ ↑logN.@pc_a, allow_store_mask regs r pc_a p b e a}=∗ ∃ mem : Mem,
+          allow_store_mem regs mem r pc_a pc_w p b e a
+            ∗ ▷ ([∗ map] a0↦w ∈ mem, a0 ↦ₐ w).
   Proof.
-    intros r a a0 w r1 p1 b1 e1.
+    intros regs r pc_a pc_w p b e a.
     iIntros "HStoreRes Ha".
     iDestruct "HStoreRes" as "(% & HStoreRes)".
+    rewrite /allow_store_mask.
 
     case_decide as Hallows.
     - iMod "HStoreRes" as (w0) "[Ha0 HStoreRest]".
@@ -109,49 +131,51 @@ Section fundamental.
 
 
   Lemma mem_map_implies_pure_conds:
-    ∀ (r : leibnizO Reg)
-      (a a0 : Addr) (w : Word) (r1 : RegName)
-      (mem0 : gmap Addr Word) p b e,
-        allow_store_mem r1 r a w mem0 p b e a0
-        -∗ ⌜mem0 !! a = Some w⌝
-          ∗ ⌜allow_store_map_or_true r1 r mem0⌝.
+    ∀ (regs : leibnizO Reg) (mem : Mem) (r : RegName)
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a : Addr),
+      allow_store_mem regs mem r pc_a pc_w p b e a
+        -∗ ⌜mem !! pc_a = Some pc_w⌝
+          ∗ ⌜allow_store_map_or_true r regs mem⌝.
   Proof.
-    iIntros (r a a0 w r1 mem0 p b e) "HStoreMem".
+    iIntros (regs mem r pc_a pc_w p b e a) "HStoreMem".
     iDestruct "HStoreMem" as "(% & HStoreRes)".
     case_decide as Hallows.
     - pose(Hallows' := Hallows).
       destruct Hallows' as ((Hrinr & Hra & Hwb) & Hne).
       iDestruct "HStoreRes" as (w0 ->) "HStoreRest".
       iSplitR. rewrite lookup_insert_ne; auto. by rewrite lookup_insert.
-      iExists p,b,e,a0. iSplit;auto.
+      iExists p,b,e,a. iSplit;auto.
       iPureIntro. case_decide;auto.
       exists w0. by simplify_map_eq.
     - iDestruct "HStoreRes" as "->".
       iSplitR. by rewrite lookup_insert.
-      iExists p,b,e,a0. repeat iSplitR; auto.
+      iExists p,b,e,a. repeat iSplitR; auto.
       case_decide as Hdec1; last by done.
       apply not_and_l in Hallows as [Hallows | Hallows]; try contradiction.
-      assert (a0 = a) as ->.
+      assert (a = pc_a) as ->.
       { apply finz_to_z_eq, Z.eq_dne. intros Hcontr. apply Hallows. by intros ->. }
       simplify_map_eq. eauto.
   Qed.
 
    Lemma mem_map_recover_res:
-    ∀ (r : leibnizO Reg)
-       (a : Addr) (w : Word) (src : RegName) p0
-       (b0 e0 a0 : Addr) (mem0 : gmap Addr Word) storev loadv,
-      reg_allows_store r src p0 b0 e0 a0
-      → mem0 !! a0 = Some loadv
-      → allow_store_mem src r a w mem0 p0 b0 e0 a0
-        -∗ ([∗ map] a1↦w ∈ (<[a0:=storev]> mem0), a1 ↦ₐ w)
+    ∀ (regs : leibnizO Reg) (mem : Mem) (r : RegName)
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a : Addr) (storev loadv : Word),
+      reg_allows_store regs r p b e a
+      → mem !! a = Some loadv
+      → allow_store_mem regs mem r pc_a pc_w p b e a
+        -∗ ([∗ map] a'↦w ∈ (<[a:=storev]> mem), a' ↦ₐ w)
         -∗ interp storev
-        ={if decide (reg_allows_store r src p0 b0 e0 a0 ∧ a0 ≠ a) then ⊤ ∖ ↑logN.@a ∖ ↑logN.@a0 else ⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a}=∗
-            if decide (reg_allows_store r src p0 b0 e0 a0 ∧ a0 = a) then a ↦ₐ storev else a ↦ₐ w.
+        ={allow_store_mask regs r pc_a p b e a, ⊤ ∖ ↑logN.@pc_a}=∗
+            if decide (reg_allows_store regs r p b e a ∧ a = pc_a)
+            then pc_a ↦ₐ storev
+            else pc_a ↦ₐ pc_w.
   Proof.
-    intros r a w src p0 b0 e0 a0 mem0 storev loadv Hrar Hloadv.
+    intros regs mem r pc_a pc_w p b e a storev loadv Hrar Hloadv.
     iIntros "HLoadMem Hmem Hvalid".
+    rewrite /allow_store_mask.
     iDestruct "HLoadMem" as "[% HLoadRes]".
-    (* destruct (load_inr_eq Hrar H0) as (<- & <- &<- &<- &<-). *)
     case_decide as Hdec. destruct Hdec as [Hallows Heq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
        iDestruct "HLoadRes" as (w0) "[-> [Hval Hcls] ]".
@@ -166,25 +190,30 @@ Section fundamental.
         rewrite -memMap_resource_1. simplify_map_eq. by iFrame.
   Qed.
 
-  Lemma store_case (r : leibnizO Reg) (p : Perm) (b e a : Addr) (w : Word) (dst : RegName) (src : Z + RegName) P :
-    ftlr_instr r p b e a w (Store dst src) P.
+  Lemma store_case (regs : leibnizO Reg) (p : Perm)
+        (b e a : Addr) (widc w : Word) (dst : RegName)
+        (src : Z + RegName) (P : D):
+    ftlr_instr regs p b e a widc w (Store dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
-    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
 
     (* To read out PC's name later, and needed when calling wp_load *)
-    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
+    assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> (<[idc:=widc]> regs) !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
       rewrite e0 lookup_insert; unfold is_Some. by eexists.
-        by rewrite lookup_insert_ne.
+      destruct (decide (x = idc)).
+      rewrite lookup_insert_ne; auto.
+      rewrite e0 lookup_insert; unfold is_Some. by eexists.
+      by rewrite! lookup_insert_ne.
     }
 
     (* Initializing the names for the values of Hsrc now, to instantiate the existentials in step 1 *)
-    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0) as [p0 [b0 [e0 [a0 HVdst] ] ] ].
+    assert (∃ p0 b0 e0 a0 , read_reg_inr (<[PC:=WCap p b e a]> (<[idc:=widc]> regs)) dst p0 b0 e0 a0)
+      as [p0 [b0 [e0 [a0 HVdst] ] ] ].
     {
       specialize Hsome' with dst as Hdst.
       destruct Hdst as [wdst Hsomedst].
@@ -193,17 +222,17 @@ Section fundamental.
       by repeat eexists.
     }
 
-     assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> r) src = Some storev) as [storev Hwoa].
+    assert (∃ storev, word_of_argument (<[PC:=WCap p b e a]> (<[idc:=widc]> regs)) src = Some storev)
+      as [storev Hwoa].
     { destruct src; cbn.
       - by exists (WInt z).
-      - specialize Hsome' with r0 as Hr0.
-        destruct Hr0 as [wsrc Hsomer0].
-        exists wsrc. by rewrite Hsomer0.
+      - specialize Hsome' with r as Hr.
+        destruct Hr as [wsrc Hsomer].
+        exists wsrc. by rewrite Hsomer.
     }
 
     (* Step 1: open the region, if necessary, and store all the resources obtained from the region in allow_load_res *)
-    iDestruct (create_store_res with "Hreg") as "HStoreRes"; eauto.
-
+    iDestruct (create_store_res with "Hreg Hinv_idc") as "HStoreRes"; eauto.
 
     (* Step2: derive the concrete map of memory we need, and any spatial predicates holding over it *)
     iMod (store_res_implies_mem_map with "HStoreRes Ha") as (mem) "[HStoreMem >HMemRes]".
@@ -214,7 +243,7 @@ Section fundamental.
     iApply (wp_store with "[Hmap HMemRes]"); eauto.
     { by rewrite lookup_insert. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
     { iSplitR "Hmap"; auto. }
     iNext. iIntros (regs' mem' retv). iDestruct 1 as (HSpec) "[Hmem Hmap]".
 
@@ -227,12 +256,15 @@ Section fundamental.
       (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
       { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
-        simplify_map_eq. destruct (<[PC:=WCap x x0 x1 x2]> r !! r0) eqn:Hsomer0;simplify_map_eq.
-        2 : { rewrite Hsomer0 in Hwoa. done. }
-        destruct (decide (r0 = PC)).
-        - subst. simplify_map_eq. iFrame "Hinv".
-        - simplify_map_eq. iSpecialize ("Hreg" $! _ _ n Hsomer0).
-           iFrame "Hreg".
+        simplify_map_eq.
+        destruct ((<[PC:=WCap x x0 x1 x2]> (<[idc:=widc]> regs)) !! r) eqn:Hsomer;simplify_map_eq.
+        2 : { rewrite Hsomer in Hwoa. done. }
+        destruct (decide (r = PC)).
+        - subst. simplify_map_eq. iFrame "Hinv_pc".
+        - simplify_map_eq.
+          destruct (decide (r = idc)) as [?|Hneq]; simplify_map_eq; auto.
+          iSpecialize ("Hreg" $! _ _ n Hneq Hsomer).
+          iFrame "Hreg".
       }
 
       (* Step 4: return all the resources we had in order to close the second location in the region, in the cases where we need to *)
@@ -252,18 +284,23 @@ Section fundamental.
           destruct Hcontr as (Hlookup & Hwa & Hwb). simplify_map_eq.
           apply andb_prop in Hwb.
           revert Hwb. rewrite Z.leb_le Z.ltb_lt. intros. eexists _.
-          split_and!; done.
+          rewrite insert_commute //=.
       }
 
       simplify_map_eq.
       rewrite insert_insert.
 
       iModIntro; iNext; iIntros "_".
-      iApply ("IH" with "[%] [] Hmap [$Hown]");auto.
+      set (widc' := if (decide (dst = idc))
+                    then storev
+                    else widc).
+      rewrite (insert_commute _ _ _ (WCap _ _ _ x3)) //= .
+      iApply ("IH" $! regs _ _ _ _ widc with "[%] [] [$Hmap] [$Hown]"); auto.
       { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->]; by iFrame "#". }
     }
-    { rewrite /allow_store_res /allow_store_mem.
-      destruct (decide (reg_allows_store (<[PC:=WCap p b e a]> r) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
+    { rewrite /allow_store_res /allow_store_mem /allow_store_mask.
+      destruct
+        (decide (reg_allows_store (<[PC:=WCap p b e a]> (<[idc:=widc]> regs)) dst p0 b0 e0 a0 ∧ a0 ≠ a)).
       - iDestruct "HStoreMem" as "(%&H)".
         iDestruct "H" as (w') "(->&[Hres Hcls'])". rewrite /region_open_resources.
         destruct a1. simplify_map_eq. rewrite memMap_resource_2ne; last auto.
@@ -279,7 +316,6 @@ Section fundamental.
         iNext ; iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
     }
-    Unshelve. all: auto.
   Qed.
 
 End fundamental.
