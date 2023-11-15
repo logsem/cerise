@@ -62,42 +62,43 @@ Section fundamental.
       (p : Perm) (b e a : Addr) ,
       read_reg_inr (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs)) src p b e a
       → (∀ (r : RegName) (w : Word), ⌜r ≠ PC⌝ → ⌜r ≠ idc⌝ → ⌜regs !! r = Some w⌝ → (fixpoint interp1) w)
-          -∗ interp widc
-          -∗ ∃ P, allow_load_res
-                    (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs))
-                    src pc_a p b e a P.
+        -∗ interp widc
+        -∗ ∃ P, allow_load_res
+                  (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs))
+                  src pc_a p b e a P.
   Proof.
     intros regs src pc_p pc_b pc_e pc_a widc p b e a HVsrc.
     iIntros "#Hreg #Hwidc". rewrite /allow_load_res.
-    (* do 5 (iApply sep_exist_r; iExists _). *) (* do 3 (iExists _). *) iFrame "%".
     case_decide as Hdec. 1: destruct Hdec as [Hallows Haeq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
-         apply andb_prop in Hwb as [Hle Hge].
+       apply andb_prop in Hwb as [Hle Hge].
 
-         (* Unlike in the old proof, we now go the other way around,
+       (* Unlike in the old proof, we now go the other way around,
             and prove that the source register could not have been the PC,
             since both addresses differ. This saves us some cases.*)
-         assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+       assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
 
-         rewrite lookup_insert_ne in Hrinr; last by congruence.
-         destruct (decide (src = idc)) as [|Hneq]; simplify_map_eq.
-         + (* src = idc *)
-           iDestruct (read_allowed_inv _ a with "Hwidc") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto;
-             first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
-           iExists P.
-           iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
-           rewrite /interp_ref_inv /=. iDestruct "Hrefinv" as (w) "[>Ha HP]".
-           iExists w.
+       rewrite lookup_insert_ne in Hrinr; last by congruence.
+       destruct (decide (src = idc)) as [|Hneq]; simplify_map_eq.
+       + (* src = idc *)
+         iDestruct (read_allowed_inv _ a with "Hwidc") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto;
+           first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
+         iExists P.
+         iSplit; auto.
+         iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
+         rewrite /interp_ref_inv /=. iDestruct "Hrefinv" as (w) "[>Ha HP]".
+         iExists w.
 
-           iAssert (▷ interp w)%I as "#Hw".
-           { iNext. iApply "Hconds". iFrame. }
-           by iFrame "∗ #".
+         iAssert (▷ interp w)%I as "#Hw".
+         { iNext. iApply "Hconds". iFrame. }
+         by iFrame "∗ #".
 
-         + (* src ≠ idc *)
+       + (* src ≠ idc *)
          iDestruct ("Hreg" $! src _ n Hneq Hrinr) as "Hvsrc".
          iDestruct (read_allowed_inv _ a with "Hvsrc") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto;
            first (split; [by apply Z.leb_le | by apply Z.ltb_lt]).
          iExists P.
+         iSplit; auto.
          iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv") as "[Hrefinv Hcls]";[solve_ndisj|].
          rewrite /interp_ref_inv /=. iDestruct "Hrefinv" as (w) "[>Ha HP]".
          iExists w.
@@ -118,7 +119,7 @@ Section fundamental.
   Lemma load_res_implies_mem_map:
     ∀ (regs : leibnizO Reg) (src : RegName)
       (pc_a : Addr) (pc_w : Word)
-      (p : Perm) (b e a: Addr)  (P:D),
+      (p : Perm) (b e a: Addr) (P:D),
       allow_load_res regs src pc_a p b e a P
       -∗ pc_a ↦ₐ pc_w
       ={⊤ ∖ ↑logN.@pc_a, allow_load_mask regs src pc_a p b e a}=∗ ∃ mem : Mem,
@@ -207,8 +208,8 @@ Section fundamental.
 
   Lemma mem_map_recover_res:
     ∀ (regs : leibnizO Reg) (mem : Mem) (src : RegName)
-       (pc_a : Addr) (pc_w : Word)
-       (p : Perm) (b e a : Addr) (loadv : Word) (P : D),
+      (pc_a : Addr) (pc_w : Word)
+      (p : Perm) (b e a : Addr) (loadv : Word) (P : D),
       mem !! a = Some loadv
       -> reg_allows_load regs src p b e a
       → allow_load_mem regs mem src pc_a pc_w p b e a P false
