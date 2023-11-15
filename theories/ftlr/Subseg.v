@@ -4,7 +4,6 @@ From stdpp Require Import base.
 From cap_machine Require Export addr_reg region logrel register_tactics.
 From cap_machine.rules Require Import rules_base rules_Subseg.
 From cap_machine.ftlr Require Import ftlr_base interp_weakening.
-From cap_machine Require Export stdpp_extra.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -54,9 +53,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
 
-      set (widc' := if (decide (dst = idc))
-                    then WCap p0 a1 a2 a0
-                    else widc).
+      set (widc' := if (decide (dst = idc)) then WCap p0 a1 a2 a0 else widc).
       iNext ; iIntros "_".
       iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
       { cbn; intros; by repeat (apply lookup_insert_is_Some'; right). }
@@ -84,8 +81,7 @@ Section fundamental.
       {
         iModIntro.
         iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
-        { destruct Hp; by subst p. }
-        { destruct Hp; by subst p. }
+        1,2: destruct Hp; by subst p.
         { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
           1,2: rewrite /isWithin in Hwi; solve_addr. }
         { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
@@ -97,9 +93,8 @@ Section fundamental.
         iClear "Hwrite".
         case_decide as Heq ; simplify_map_eq; auto.
         iApply (interp_weakening with "IH Hinv_pc Hinv_idc"); auto; try solve_addr.
-        { rewrite /isWithin in Hwi; solve_addr. }
-        { rewrite /isWithin in Hwi; solve_addr. }
-        { by rewrite PermFlowsToReflexive. }
+        1,2: rewrite /isWithin in Hwi; solve_addr.
+        by rewrite PermFlowsToReflexive.
       }
     - (* Subseg_spec_success_sr *)
       apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
@@ -113,9 +108,7 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext ; iIntros "_".
 
-      set (widc' := if (decide (dst = idc))
-                    then WSealRange p0 a1 a2 a0
-                    else widc).
+      set (widc' := if (decide (dst = idc)) then WSealRange p0 a1 a2 a0 else widc).
       iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
       { cbn; intros; by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hri' Hvs).

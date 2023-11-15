@@ -1,10 +1,9 @@
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Export weakestpre.
-(* From cap_machine.rules Require Export rules. *)
-From cap_machine Require Export cap_lang region seal_store.
 From iris.algebra Require Import gmap agree auth.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
 From cap_machine.rules Require Import rules_base.
+From cap_machine Require Export stdpp_extra cap_lang region seal_store.
 Import uPred.
 
 Ltac auto_equiv :=
