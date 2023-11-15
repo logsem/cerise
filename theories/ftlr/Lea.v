@@ -14,78 +14,120 @@ Section fundamental.
   Implicit Types w : (leibnizO Word).
   Implicit Types interp : (D).
 
-  Lemma lea_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst : RegName) (r0 : Z + RegName) (P:D):
-    ftlr_instr r p b e a w (Lea dst r0) P.
+  Lemma lea_case (regs : leibnizO Reg)
+    (p : Perm) (b e a : Addr)
+    (widc w : Word) (dst : RegName) (src : Z + RegName) (P:D):
+    ftlr_instr regs p b e a widc w (Lea dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
-    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
+
     iApply (wp_lea with "[$Ha $Hmap]"); eauto.
-    { by rewrite lookup_insert. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto.
+      right.
+      destruct (decide (rr = idc)); subst; simplify_map_eq; auto.
+    }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst ? Hz Hoffset HincrPC | * Hdst Hz Hoffset HincrPC | ].
-    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs').
+    destruct HSpec as [ * Hdst HnE HnIE Hz Hoffset HincrPC | * Hdst Hz Hoffset HincrPC | ].
+    - (* Lea_spec_success_cap *)
+      apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs').
 
       assert (p'' = p ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
       { destruct (decide (PC = dst)); simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
-      iIntros "_".
-      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
-      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
-        subst regs'.
-        rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
-          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
-          iApply interp_weakening; eauto; try solve_addr.
-          destruct p0; simpl; auto. }
-        { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto. } }
-      { subst regs'. rewrite insert_insert. iApply "Hmap". }
-      iModIntro.
-      iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
-      { by rewrite PermFlowsToReflexive. } }
-    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs').
+
+      set (widc' := if (decide (dst = idc)) then WCap p0 b0 e0 a' else widc).
+      iNext; iIntros "_".
+      iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
+      { cbn; intros; by repeat (apply lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hri' Hvs).
+        destruct (decide (ri = dst)); simplify_map_eq.
+        * unshelve iSpecialize ("Hreg" $! dst _ _ _ Hdst); eauto.
+          iApply (interp_weakening with "IH Hreg"); auto; try solve_addr.
+          by rewrite PermFlowsToReflexive.
+        * iApply "Hreg"; auto.
+      }
+
+      { iClear "Hwrite".
+        subst widc'; case_decide as Heq; simplify_map_eq.
+        + rewrite insert_insert
+            (insert_commute _ idc _) //=
+            !insert_insert
+            (insert_commute _ idc _) //=
+            insert_insert; iFrame.
+        + rewrite insert_insert
+            (insert_commute _ idc _) //=
+            (insert_commute _ idc _) //=
+            (insert_commute _ idc _) //=
+            insert_insert; iFrame.
+      }
+      {
+        iModIntro.
+        iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
+        1,2: destruct Hp; by subst p.
+        by rewrite PermFlowsToReflexive.
+      }
+      {
+        subst widc'.
+        iClear "Hwrite".
+        case_decide as Heq ; simplify_map_eq; auto.
+        iApply (interp_weakening with "IH Hinv_pc Hinv_idc"); auto; try solve_addr.
+        by rewrite PermFlowsToReflexive.
+      }
+
+    - (* Lea_spec_success_sr *)
+      apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs').
 
       assert (p'' = p ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
       { destruct (decide (PC = dst)); simplify_map_eq; auto. }
 
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext.
-      iIntros "_".
-      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
-      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
-        subst regs'.
-        rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
-          unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
+
+      set (widc' := if (decide (dst = idc)) then WSealRange p0 b0 e0 a' else widc).
+      iNext; iIntros "_".
+      iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
+      { cbn; intros; by repeat (apply lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hri' Hvs).
+        destruct (decide (ri = dst)); simplify_map_eq.
+        * unshelve iSpecialize ("Hreg" $! dst _ _ _ Hdst); eauto.
           iApply (interp_weakening_ot with "Hreg"); auto; try solve_addr.
-          apply SealPermFlowsToReflexive. }
-        { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto. } }
-      { subst regs'. rewrite insert_insert. iApply "Hmap". }
-      iModIntro.
-      iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
-      { by rewrite PermFlowsToReflexive. } }
+          by apply SealPermFlowsToReflexive.
+        * iApply "Hreg"; auto.
+      }
+      { iClear "Hwrite".
+        subst widc'; case_decide as Heq; simplify_map_eq.
+        + rewrite insert_insert
+            (insert_commute _ idc _) //=
+            !insert_insert
+            (insert_commute _ idc _) //=
+            insert_insert; iFrame.
+        + rewrite insert_insert
+            (insert_commute _ idc _) //=
+            (insert_commute _ idc _) //=
+            (insert_commute _ idc _) //=
+            insert_insert; iFrame.
+      }
+      {
+        iModIntro.
+        iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
+        1,2: destruct Hp; by subst p.
+        by rewrite PermFlowsToReflexive.
+      }
+      { iClear "Hwrite".
+        subst widc'; case_decide as Heq; simplify_map_eq; auto.
+        iApply (interp_weakening_ot with "Hinv_idc"); auto; try solve_addr.
+        by apply SealPermFlowsToReflexive.
+      }
+
+    - (* Failure *)
     { iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext; iIntros "_".

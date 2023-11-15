@@ -1,6 +1,6 @@
 (* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
    Subseg Get Lea Seal UnSeal. *)
-From cap_machine.ftlr Require Export Jmp Jnz Load Store AddSubLt Restrict Subseg Get.
+From cap_machine.ftlr Require Export Jmp Jnz Load Store AddSubLt Lea Restrict Subseg Get.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -86,9 +86,9 @@ Section fundamental.
       + (* Sub *)
         iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
-      + (* Lea *) admit.
-        (* iApply (lea_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
+      + (* Lea *)
+        iApply (lea_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
       + (* Restrict *)
         iApply (restrict_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
