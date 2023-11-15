@@ -92,9 +92,9 @@ Section fundamental.
       + (* Restrict *)
         iApply (restrict_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
-      + (* Subseg *) admit.
-        (* iApply (subseg_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
+      + (* Subseg *)
+        iApply (subseg_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
       + (* GetB *)
         iApply (get_case _ _ _ _ _ _ _ _ _ (GetB _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.

@@ -89,7 +89,7 @@ theories/ftlr/AddSubLt.v
 theories/ftlr/Restrict.v
 theories/ftlr/Jmp.v
 theories/ftlr/Jnz.v
-# theories/ftlr/Subseg.v
+theories/ftlr/Subseg.v
 # theories/ftlr/Seal.v
 # theories/ftlr/UnSeal.v
 theories/fundamental.v
