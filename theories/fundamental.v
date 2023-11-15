@@ -1,6 +1,5 @@
-(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-   Subseg Get Lea Seal UnSeal. *)
-From cap_machine.ftlr Require Export Jmp Jnz Load Store AddSubLt Lea Restrict Subseg Get.
+From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt
+  Lea Restrict Subseg Get Seal UnSeal.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -113,12 +112,12 @@ Section fundamental.
       + (* GetOType *)
         iApply (get_case _ _ _ _ _ _ _ _ _ (GetOType _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
-      + (* Seal *) admit.
-        (* iApply (seal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
-      + (* UnSeal *) admit.
-        (* iApply (unseal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]"); *)
-        (*   try iAssumption; eauto. *)
+      + (* Seal *)
+        iApply (seal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* UnSeal *)
+        iApply (unseal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
 
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
@@ -157,7 +156,7 @@ Section fundamental.
      iNext ; iIntros "_".
      iApply wp_value.
      iIntros (Hcontr); inversion Hcontr.
-  Admitted.
+  Qed.
 
   Theorem fundamental w r :
     ⊢ interp w -∗ interp_expression r w.

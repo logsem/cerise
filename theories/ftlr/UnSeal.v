@@ -35,23 +35,28 @@ Section fundamental.
     by iApply "HWcond".
   Qed.
 
-  Lemma unseal_case (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (dst r1 r2 : RegName) (P:D):
-    ftlr_instr r p b e a w (UnSeal dst r1 r2) P.
+  Lemma unseal_case (regs : leibnizO Reg)
+    (p : Perm) (b e a : Addr)
+    (widc w : Word) (dst r1 r2 : RegName) (P:D):
+    ftlr_instr regs p b e a widc w (UnSeal dst r1 r2) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
-    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+    iIntros
+      "#IH #Hinv_pc #Hinv_idc #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC HIDC Hmap".
+    iInsertList "Hmap" [idc;PC].
+
     iApply (wp_UnSeal with "[$Ha $Hmap]"); eauto.
-    { simplify_map_eq; auto. }
+    { by simplify_map_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto.
+      right.
+      destruct (decide (rr = idc)); subst; simplify_map_eq; auto.
+    }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
     destruct HSpec as [ * Hr1 Hr2 Hunseal Hwb HincrPC | ].
-    { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
+    - (* Success *)
+    apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
 
       assert (r1 ≠ PC) as Hne1.
       { destruct (decide (PC = r1)); last auto. simplify_map_eq; auto. }
@@ -60,8 +65,17 @@ Section fundamental.
       { destruct (decide (PC = r2)); last auto. simplify_map_eq; auto. }
       rewrite lookup_insert_ne in Hr2; auto.
 
-      unshelve iDestruct ("Hreg" $! r1 _ _ Hr1) as "HVsr"; eauto.
-      unshelve iDestruct ("Hreg" $! r2 _ _ Hr2) as "HVsd"; eauto.
+      iAssert (fixpoint interp1 (WSealRange p0 b0 e0 a0)) as "HVsr".
+      { destruct (decide (r1 = idc)) ; simplify_map_eq; auto.
+        by iApply ("Hreg" $! r1).
+      }
+
+      iAssert (fixpoint interp1 (WSealed a0 sb)) as "HVsd". {
+        destruct (decide (r2 = PC)); simplify_map_eq; auto.
+        destruct (decide (r2 = idc)); simplify_map_eq; auto.
+        by iApply ("Hreg" $! r2).
+      }
+
       (* Generate interp instance before step, so we get rid of the later *)
       iDestruct (unsealing_preserves_interp with "HVsd HVsr") as "HVsb"; auto.
 
@@ -69,14 +83,15 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext; iIntros "_".
 
-      (* If PC=dst and perm of unsealed cap = E -> error! *)
-      destruct (decide (PC = dst ∧ p'' = E)) as [ [Herr1 Herr2] | HNoError].
+      (* If PC=dst and perm of unsealed cap = E or IE -> error! *)
+      destruct (decide (PC = dst ∧ (p'' = E ∨ p'' = IE))) as [ [Herr1 Herr2] | HNoError].
       { (* Error case *)
         simplify_map_eq.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
         { subst. by rewrite lookup_insert. }
         iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
+        iApply (wp_notCorrectPC_perm with "[HPC]"); eauto.
+        split; auto; destruct Herr2 as [-> | ->]; auto.
         iIntros "!> _".
         iApply wp_pure_step_later; auto.
         iNext; iIntros "_".
@@ -85,29 +100,45 @@ Section fundamental.
       }
       (* Otherwise, we will be able to derive validity of the PC below*)
 
-      iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
-      { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
-      { iIntros (ri v Hri Hvs).
-        subst regs'.
-        rewrite lookup_insert_ne in Hvs; auto.
-        destruct (decide (ri = dst)).
-        { subst ri.
-          rewrite lookup_insert in Hvs; inversion Hvs. auto. }
-        { repeat (rewrite lookup_insert_ne in Hvs); auto.
-          iApply "Hreg"; auto. } }
-        { subst regs'. rewrite insert_insert. iApply "Hmap". }
-      iModIntro.
-      destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
-      - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr. (* HNoError used here *)
-        { by rewrite PermFlowsToReflexive. }
-      - iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-        { destruct Hp; by subst p''. }
-        { by rewrite PermFlowsToReflexive. }
-    }
-    { iApply wp_pure_step_later; auto.
+      set (widc' := if (decide (dst = idc)) then WSealable sb else widc).
+      iApply ("IH" $! regs' _ _ _ _ widc' with "[%] [] [Hmap] [$Hown]"); subst regs'.
+      { intro; cbn; by repeat (rewrite lookup_insert_is_Some'; right). }
+      { iIntros (ri v Hri Hri' Hvs).
+        destruct (decide (ri = dst)); simplify_map_eq; auto.
+        by iApply "Hreg".
+      }
+      { iClear "Hwrite".
+        subst widc'; case_decide as Heq; simplify_map_eq.
+        + rewrite
+            !insert_insert
+              (insert_commute _ idc _) //=
+              !insert_insert
+              (insert_commute _ idc _) //=
+              !insert_insert
+              ; iFrame.
+        + rewrite
+            !insert_insert
+              (insert_commute _ idc _) //=
+              (insert_commute _ idc _) //=
+              (insert_commute _ idc _) //=
+            !insert_insert ; iFrame.
+      }
+      { iModIntro.
+        destruct (decide (PC = dst)) as [Heq | Hne]; simplify_map_eq.
+        - apply not_and_r in HNoError.
+          destruct HNoError as [|Hp'']; first congruence.
+          apply Decidable.not_or in Hp''. destruct Hp'' as [HpE'' HpIE''].
+          destruct p''; try congruence; rewrite !fixpoint_interp1_eq //=; iFrame "HVsb".
+        - rewrite !fixpoint_interp1_eq //=; destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
+      }
+      { subst widc'; destruct (decide (dst = idc)) ; simplify_map_eq; auto.
+      }
+
+    - (* Failure *)
+      iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
-      iNext ; iIntros "_".
-      iApply wp_value; auto. iIntros; discriminate. }
+      iNext; iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate.
     Qed.
 
 End fundamental.
