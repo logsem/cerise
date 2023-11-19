@@ -403,6 +403,26 @@ Section cap_lang_rules.
       Some (map_insert_list lmem (zip lregion lv)).
   Admitted.
 
+  (* NOTE/TODO: Sum up.
+     For the case where is_unique succeed, the specification gives us that,
+    - the given word is unique in the machine (both registers and memory)
+      with the predicate =unique_in_machineL lregs lmem lwsrc src v=
+
+    - the new memory and register file has an updated version of the word/addresses
+      with the predicates
+      + update_version lmem (finz.seq_between b e) v (v + 1) = Some lmem'
+      + incrementLPC (<[ dst := LInt 1 ]> (<[ src := LCap p b e a (v+1) ]> lregs)) = Some lregs'
+
+    In particular, what is necessary is to prove that, lmem' and lreg' still hold the
+    WP invariant (link between logical and physical world). The main glue between everything
+    is the =cur_map : VMap=, which records what is the current version of an address.
+
+    One thing to do then is to update the current_view with a new version number.
+    However, when upgrading the version number, it cancels all of the others versions
+    of the addresses/words. From =unique_in_machineL=, we know that it will actually cancel
+    nothing else.
+   *)
+
 
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v pca_v
@@ -582,15 +602,98 @@ Section cap_lang_rules.
 
       * (* src <> PC *)
         (* TODO also need to destruct on (dst = src) *)
-        iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-        iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
-        ; first by simplify_map_eq.
+
+        destruct (decide (src = dst)) ; simplify_map_eq.
+        ** (* src = dst *) admit.
+        ** (* src <> dst *)
+
+
+
+          iMod ((gen_heap_update_inSepM _ _ src (LCap p b e a (v + 1))) with "Hr Hmap")
+            as "[Hr Hmap]"; eauto.
+          iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap")
+            as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
+          iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
+            as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
+
+        (* we update the version of the memory region *)
+        set (lregion := (logical_region (finz.seq_between b e) (v+1))).
+
+        assert ( exists (lv : list LWord),
+                   length lv = length lregion /\
+                     Forall (λ (kv : LAddr * LWord), lmem !! (kv.1.1, v) = Some kv.2)
+                       (zip lregion lv)
+               ) as  (lv & Hlen_lv & Hlv).
+        {  admit. }
+
+        assert (HmemMap_isSome: Forall (λ la : LAddr, is_Some (lmem !! la)) lregion).
+        {  admit. }
+
+        iMod ((gen_heap_update_list_inSepM lm _ _ lv HmemMap_isSome) with "Hm Hmem")
+          as "[Hm Hmem]".
+
         iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem".
-        (* 2: { *)
-        (*   iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto. *)
-        (*   admit. admit. admit. *)
-        (* } *)
-        admit. admit.
+        2: {
+          iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto.
+          eapply update_version_spec ; eauto.
+        }
+
+        iExists _, (map_insert_list lm (zip lregion lv)), cur_map; iFrame; auto
+        ; iPureIntro; econstructor; eauto
+        ; destruct HLinv as [[Hstrips Hcur_reg] [Hdom Hroot]]
+        ; cbn in *.
+        split; first rewrite -Hstrips /lreg_strip !fmap_insert /=.
+        replace (<[src:=WCap p b e a]> ((λ lw0, lword_get_word lw0) <$> lr))
+                  with ((λ lw0, lword_get_word lw0) <$> lr); first done.
+        { replace (WCap p b e a) with (lword_get_word (LCap p b e a v)) by auto.
+        rewrite <- fmap_insert, insert_id; auto.
+        }
+
+        apply map_Forall_insert_2.
+        2: apply map_Forall_insert_2; cbn ; auto.
+        intros a' Hbounds_a'.
+        (* eapply map_Forall_lookup_1 ; eauto. *)
+        admit.
+        (* TODO need a lemma with map_insert_list for mem_phys_log *)
+        (* TODO I think that I also need a lemma that bumps the version of the
+       addresses in cur_map, but probably before *)
+        (* TODO the kind of lemma would be:
+           IF:
+           - map_Forall (λ (_ : RegName) lw, is_cur_word lw cur_map) lr
+           - map_Forall (λ (la : LAddr) (_ : LWord), is_cur_addr la cur_map) lm
+           - map_Forall
+              (λ (a : Addr) v,
+               ∃ lw,
+                 lm !! (a, v) = Some lw
+                 ∧ mem !! a = Some (lword_get_word lw) ∧ is_cur_word lw cur_map) cur_map
+            THEN:
+            =we update the version of a word w=: update_version w cur_map
+            =the previous invariant holds with the new cur_map, modification in
+            logical memory / registers=
+
+    ---------------------- ----------------------
+
+        Example for lregs:
+
+        - lr !! src = Some (LCap p b e a v)
+        - map_Forall (λ (_ : RegName) lw, is_cur_word lw cur_map) lr
+          ->
+         map_Forall
+         (λ (_ : RegName) lw, is_cur_word lw (update_vmap (range b e) v' cur_map))
+         (<[src:=LCap p b e a v']> lr)
+
+        Similar lemmas for lmem:
+        - update one address
+        - update a whole region
+
+         *)
+        split; eauto.
+        admit.
+        admit.
+
+
+
+        admit.
 
     - (* sweep = false *)
 
