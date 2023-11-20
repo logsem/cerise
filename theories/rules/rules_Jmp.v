@@ -361,4 +361,48 @@ Section cap_lang_rules.
       destruct H7; congruence.
   Qed.
 
+  Lemma wp_jmp_success_IE_same_idc E pc_p pc_b pc_e pc_a w b e a wpc widc :
+    decodeInstrW w = Jmp idc →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    withinBounds b e a = true ->
+    withinBounds b e (a^+1)%a = true ->
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ idc ↦ᵣ WCap IE b e a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ a ↦ₐ wpc
+          ∗ ▷ (a^+1)%a ↦ₐ widc
+    }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ wpc
+            ∗ idc ↦ᵣ widc
+            ∗ pc_a ↦ₐ w
+            ∗ a ↦ₐ wpc
+            ∗ (a^+1)%a ↦ₐ widc }}}.
+  Proof.
+  Admitted.
+
+  (* TODO move jmp_rules.v *)
+  Lemma wp_jmp_fail_IE_same_idc E pc_p pc_b pc_e pc_a w b e a wpc widc :
+    decodeInstrW w = Jmp idc →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+    not (withinBounds b e a = true /\ withinBounds b e (a^+1)%a = true) ->
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ idc ↦ᵣ WCap IE b e a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ a ↦ₐ wpc
+          ∗ ▷ (a^+1)%a ↦ₐ widc
+    }}}
+      Instr Executable @ E
+      {{{ RET NextIV;
+          PC ↦ᵣ wpc
+            ∗ idc ↦ᵣ widc
+            ∗ pc_a ↦ₐ w
+            ∗ a ↦ₐ wpc
+            ∗ (a^+1)%a ↦ₐ widc }}}.
+  Proof.
+  Admitted.
+
 End cap_lang_rules.

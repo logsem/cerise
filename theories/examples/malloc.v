@@ -48,7 +48,7 @@ Section SimpleMalloc.
      Mov r_t2 0%Z;
      Mov r_t3 0%Z;
      Mov r_t4 0%Z;
-     Jmp r_t0].
+     Jmp idc].
 
   Definition malloc_subroutine_instrs_length : Z :=
     Eval cbv in (length (malloc_subroutine_instrs' 0%Z)).
@@ -64,32 +64,31 @@ Section SimpleMalloc.
      ∗ [[a_m, e]] ↦ₐ [[ region_addrs_zeroes a_m e ]]
      ∗ ⌜(b_m < a_m)%a ∧ (a_m <= e)%a⌝)%I.
 
-  Lemma simple_malloc_subroutine_spec (wsize: Word) (cont: Word) b e rmap N E φ :
-    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+  Lemma simple_malloc_subroutine_spec_main (wsize: Word) (cont: Word) b e rmap N E φ :
+    dom rmap = all_registers_s ∖ {[ PC; idc; r_t1 ]} →
     ↑N ⊆ E →
-    is_ie_cap cont = false ->
     (  na_inv logrel_nais N (malloc_inv b e)
-     ∗ na_own logrel_nais E
-     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
-     ∗ r_t0 ↦ᵣ cont
-     ∗ PC ↦ᵣ WCap RX b e b
-     ∗ r_t1 ↦ᵣ wsize
-     ∗ ▷ ((na_own logrel_nais E
-          ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
-                         (<[r_t3 := WInt 0%Z]>
-                         (<[r_t4 := WInt 0%Z]>
-                          rmap)), r ↦ᵣ w)
-          ∗ r_t0 ↦ᵣ cont
-          ∗ PC ↦ᵣ updatePcPerm cont
-          ∗ (∃ (ba ea : Addr) size,
-            ⌜wsize = WInt size⌝
-            ∗ ⌜(ba + size)%a = Some ea⌝
-            ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
-            ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
-          -∗ WP Seq (Instr Executable) {{ φ }}))
-    ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+         ∗ na_own logrel_nais E
+         ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
+         ∗ idc ↦ᵣ cont
+         ∗ PC ↦ᵣ WCap RX b e b
+         ∗ r_t1 ↦ᵣ wsize
+         ∗ ▷ (na_own logrel_nais E
+                ∗ ([∗ map] r↦w ∈
+                   <[r_t2 := WInt 0%Z]>
+                     (<[r_t3 := WInt 0%Z]>
+                        (<[r_t4 := WInt 0%Z]> rmap)), r ↦ᵣ w)
+                ∗ PC ↦ᵣ WCap RX b e (b ^+ (length malloc_subroutine_instrs - 1))%a
+                ∗ idc ↦ᵣ cont
+                ∗ (∃ (ba ea : Addr) size,
+                    ⌜wsize = WInt size⌝
+                    ∗ ⌜(ba + size)%a = Some ea⌝
+                    ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
+                    ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
+              -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}))
+      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
-    iIntros (Hrmap_dom HN Hcont) "(#Hinv & Hna & Hrmap & Hr0 & HPC & Hr1 & Hφ)".
+    iIntros (Hrmap_dom HN) "(#Hinv & Hna & Hrmap & Hr0 & HPC & Hr1 & Hφ)".
     iMod (na_inv_acc with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
     rewrite /malloc_inv.
     iDestruct "Hmalloc" as (b_m a_m) "(Hprog & %Hbm & Hmemptr & Hmem & %Hbounds)".
@@ -182,30 +181,114 @@ Section SimpleMalloc.
     do 3 iInstr "Hprog". { transitivity (Some 0%a); eauto. solve_addr. }
     do 2 iInstr "Hprog". { transitivity (Some b_m); eauto. solve_addr. }
     iInstr "Hprog". solve_pure_addr.
-    iGo "Hprog".
-    (* continuation *)
-    rewrite (region_addrs_zeroes_split _ a_m') //; [| solve_addr].
-    iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]".
-    solve_addr. by rewrite replicate_length //.
-    iDestruct ("Hinv_close" with "[Hprog Hmemptr Hmem $Hna]") as ">Hna".
-    { iNext. iExists b_m, a_m'. iFrame. iSplitR. iPureIntro.
-      by unfold malloc_subroutine_instrs_length. iPureIntro; solve_addr. }
-    iApply (wp_wand with "[-]").
-    { iApply "Hφ". iFrame.
-      iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
-      by rewrite lookup_delete. rewrite insert_delete_insert.
-      iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
-      by rewrite lookup_insert_ne // lookup_delete //.
-      rewrite insert_commute // insert_delete_insert.
-      iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
-      by rewrite !lookup_insert_ne // lookup_delete //.
-      rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //.
-      rewrite insert_delete_insert.
-      rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
-      rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
-      iExists a_m, a_m', size. iFrame. auto. }
-    { auto. }
+    do 4 iInstr "Hprog".
+
+   (* Continuation *)
+   rewrite (region_addrs_zeroes_split _ a_m') //; [| solve_addr].
+   iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]".
+   solve_addr. by rewrite replicate_length //.
+   iDestruct ("Hinv_close" with "[Hprog Hmemptr Hmem $Hna]") as ">Hna".
+   { iNext. iExists b_m, a_m'. iFrame. iSplitR. iPureIntro.
+     by unfold malloc_subroutine_instrs_length. iPureIntro; solve_addr. }
+   (* iApply (wp_wand with "[-]"). *)
+   iApply "Hφ". iFrame.
+   iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
+   by rewrite lookup_delete. rewrite insert_delete_insert.
+   iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
+   by rewrite lookup_insert_ne // lookup_delete //.
+   rewrite insert_commute // insert_delete_insert.
+   iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
+   by rewrite !lookup_insert_ne // lookup_delete //.
+   rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //.
+   rewrite insert_delete_insert.
+   rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
+   rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
+   iExists a_m, a_m', size. iFrame. auto.
   Qed.
+
+
+  Lemma simple_malloc_subroutine_spec (wsize: Word) (cont wpc widc: Word) b e rmap N E φ :
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    ↑N ⊆ E →
+    (  na_inv logrel_nais N (malloc_inv b e)
+         ∗ na_own logrel_nais E
+         ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
+         ∗ idc ↦ᵣ cont
+         ∗ continuation_resources cont wpc widc
+         ∗ PC ↦ᵣ WCap RX b e b
+         ∗ r_t1 ↦ᵣ wsize
+         ∗ ▷ (na_own logrel_nais E
+                ∗ ([∗ map] r↦w ∈
+                   <[r_t2 := WInt 0%Z]>
+                     (<[r_t3 := WInt 0%Z]>
+                        (<[r_t4 := WInt 0%Z]>
+                           rmap)), r ↦ᵣ w)
+                ∗ PC ↦ᵣ updatePcCont cont wpc
+                ∗ idc ↦ᵣ updateIdcCont cont cont widc
+                ∗ continuation_resources cont wpc widc
+                ∗ (∃ (ba ea : Addr) size,
+                    ⌜wsize = WInt size⌝
+                    ∗ ⌜(ba + size)%a = Some ea⌝
+                    ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
+                    ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
+              -∗ WP Seq (Instr Executable) {{ φ }}))
+      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+  Proof.
+    iIntros (Hrmap_dom HN) "(#Hinv & Hna & Hrmap & Hr0 & Hcont_res & HPC & Hr1 & Hφ)".
+    iApply (simple_malloc_subroutine_spec_main with "[-]"); eauto; iFrame "∗ #".
+    iNext ; iIntros "(Hna & Hrmap & HPC & Hidc & Hallocated)".
+
+    iMod (na_inv_acc with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
+    iDestruct "Hmalloc" as (b_m a_m) "(Hprog & %Hbm & Hmemptr & Hmem & %Hbounds)".
+
+    iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
+    (* replace (b ^+ (length malloc_subroutine_instrs - 1))%a with (b ^+ 25)%a *)
+    (*   by solve_addr. *)
+    cbn.
+    iApply (@wp_jmp_general_idc _ _ _ _ RX b e (b ^+ 25)%a (encodeInstrW (Jmp idc)) cont wpc widc
+             with "[-]"); try solve_pure.
+    admit.
+    iFrame.
+    iNext; iIntros "(HPC & Hidc & Hcont_res & Hi)".
+    iDestruct ("Hprog_cont" with "Hi") as "Hprog".
+
+    (* Continuation *)
+    (* rewrite (region_addrs_zeroes_split _ a_m') //; [| solve_addr]. *)
+    (* iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]". *)
+    (* solve_addr. by rewrite replicate_length //. *)
+    iDestruct ("Hinv_close" with "[Hprog Hmemptr Hmem $Hna]") as ">Hna".
+    { iNext. iExists b_m, a_m. iFrame. iSplitR. iPureIntro.
+      by unfold malloc_subroutine_instrs_length. iPureIntro; solve_addr. }
+    iApply "Hφ". iFrame.
+  Admitted.
+
+
+  (* Lemma simple_malloc_subroutine_spec_adv (wsize: Word) (cont wpc widc: Word) b e rmap N E φ : *)
+  (*   dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} → *)
+  (*   ↑N ⊆ E → *)
+  (*   interp cont ∗ *)
+  (*   (  na_inv logrel_nais N (malloc_inv b e) *)
+  (*        ∗ na_own logrel_nais E *)
+  (*        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w) *)
+  (*        ∗ idc ↦ᵣ cont *)
+  (*        ∗ PC ↦ᵣ WCap RX b e b *)
+  (*        ∗ r_t1 ↦ᵣ wsize *)
+  (*        ∗ ▷ ((na_own logrel_nais E *)
+  (*                ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]> *)
+  (*                (<[r_t3 := WInt 0%Z]> *)
+  (*                   (<[r_t4 := WInt 0%Z]> *)
+  (*                      rmap)), r ↦ᵣ w) *)
+  (*               ∗ PC ↦ᵣ updatePcCont cont wpc *)
+  (*               ∗ idc ↦ᵣ cont *)
+  (*               ∗ continuation_resources cont wpc widc *)
+  (*               ∗ (∃ (ba ea : Addr) size, *)
+  (*                   ⌜wsize = WInt size⌝ *)
+  (*                   ∗ ⌜(ba + size)%a = Some ea⌝ *)
+  (*                   ∗ r_t1 ↦ᵣ WCap RWX ba ea ba *)
+  (*                   ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]]) *)
+  (*             -∗ WP Seq (Instr Executable) {{ φ }})) *)
+  (*     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I. *)
+
 
   Lemma simple_malloc_subroutine_valid N b e :
     na_inv logrel_nais N (malloc_inv b e) -∗
@@ -213,28 +296,38 @@ Section SimpleMalloc.
   Proof.
     iIntros "#Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
-    iIntros (widc) "#Hvalid_widc (#[% Hregs_valid] & Hregs & Hown)".
+    iIntros (cont) "#Hvalid_cont (#[% Hregs_valid] & Hregs & Hown)".
     rewrite insert_commute //=.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
-    iDestruct (big_sepM_delete _ _ idc with "Hregs") as "[r_t0 Hregs]"
+    iDestruct (big_sepM_delete _ _ idc with "Hregs") as "[idc Hregs]"
     ; [rewrite lookup_delete_ne // lookup_insert_ne // lookup_insert; eauto |].
     destruct H with r_t1 as [? ?].
-    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]"
+    ;[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
+    iAssert (∃ widc, continuation_resources cont cont widc)%I as "Hcont_res".
+    { destruct_word cont ; [ | destruct c | | ]; cbn.
+      all: try (iExists (WInt 0) ; done).
+
+    }
+    admit.
+    iDestruct "Hcont_res" as (widc) "Hcont_res".
+
     iApply (wp_wand with "[-]").
-    iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|].
+    iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $idc $HPC $r_t1 $Hcont_res]");[|solve_ndisj|].
     3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
-    (* unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto. *)
-    iDestruct (jmp_to_unknown with "Hvalid_widc") as "Hcont".
-    iNext. iIntros "((Hown & Hregs) & Hr_t0 & HPC & Hres)".
+
+    (* unshelve iDestruct ("Hregs_valid" $! idc _ _ H0) as "Hr0_valid";auto. *)
+    iDestruct (jmp_to_unknown with "Hvalid_cont") as "Hcont".
+    iNext; iIntros "((Hown & Hregs) & HPC & Hidc & _ & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize) "[Hr_t1 Hbe]".
 
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
     rewrite -!(delete_insert_ne _ r_t1)//.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-    rewrite -!(delete_insert_ne _ r_t0)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
+    rewrite -!(delete_insert_ne _ idc)//.
+    iDestruct (big_sepM_insert with "[$Hregs $Hidc]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
     set regs := <[_:=_]> _.
 
     iApply ("Hcont" $! regs).
@@ -242,22 +335,10 @@ Section SimpleMalloc.
       rewrite regmap_full_dom; eauto.
       intro. apply lookup_insert_is_Some'; right; eauto.
     }
-    iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
+    iFrame.
+    iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
-    destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. }
-    destruct (decide (r' = r_t1)).
-    { subst r'. rewrite lookup_insert_ne // lookup_insert in Hr'. simplify_eq. iApply "Hbe". }
-    destruct (decide (r' = r_t2)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = r_t3)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = r_t4)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr'].
-    simplify_map_eq.
+    destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. } destruct (decide (r' = r_t1)). { subst r'. rewrite lookup_insert_ne // lookup_insert in Hr'. simplify_eq. iApply "Hbe". } destruct (decide (r' = r_t2)). { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'. simplify_eq. rewrite /interp !fixpoint_interp1_eq //. } destruct (decide (r' = r_t3)). { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'. simplify_eq. rewrite /interp !fixpoint_interp1_eq //. } destruct (decide (r' = r_t4)). { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'. simplify_eq. rewrite /interp !fixpoint_interp1_eq //. } repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr']. simplify_map_eq.
     unshelve iSpecialize ("Hregs_valid" $! r' _ _ _ Hr'); done.
   Qed.
 

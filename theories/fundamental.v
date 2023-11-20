@@ -3,7 +3,8 @@ From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
-From cap_machine Require Export logrel register_tactics.
+From cap_machine Require Export logrel.
+From cap_machine Require Import rules proofmode register_tactics.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -218,31 +219,159 @@ Section fundamental.
     { iNext. iIntros (rmap). iApply fundamental. eauto. }
   Qed.
 
-  Lemma jmp_to_unknown w :
-    ⊢ interp w -∗
-      ▷ (∀ rmap,
-          ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
-          PC ↦ᵣ updatePcPerm w
-          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
-          ∗ na_own logrel_nais ⊤
-          -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
-               ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
+
+  (* Jmp to an unknown word: need specific resources in case the target is an IE-cap *)
+  Definition continuation_resources (cont wpc widc : Word) : iProp Σ :=
+    match cont with
+    | WCap IE b_cont e_cont a_cont =>
+        a_cont ↦ₐ wpc ∗ (a_cont ^+ 1)%a ↦ₐ widc
+    | _ => emp
+    end.
+
+  Definition updatePcCont (cont wpc : Word) :=
+    match cont with
+    | WCap IE _ _ _ => wpc
+    | _ => updatePcPerm cont
+    end.
+
+  Definition updateIdcCont (cont widc widc' : Word) :=
+    match cont with
+    | WCap IE _ _ _ => widc'
+    | _ => widc
+    end.
+
+  Lemma wp_jmp_general_idc pc_p pc_b pc_e pc_a w cont wpc widc φ :
+    decodeInstrW w = Jmp idc →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+        ∗ idc ↦ᵣ cont
+        ∗ continuation_resources cont wpc widc
+        ∗ pc_a ↦ₐ w
+        ∗ ▷ (
+          PC ↦ᵣ updatePcCont cont wpc
+            ∗ idc ↦ᵣ updateIdcCont cont cont widc
+            ∗ continuation_resources cont wpc widc
+            ∗ pc_a ↦ₐ w
+          -∗ WP Seq (Instr Executable) {{ φ }}))
+      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+
   Proof.
-    iIntros "#Hw". iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
+    iIntros (Hinstr Hvpc)
+      "(HPC & Hidc & Hcont_res & Hpc_a & Hφ)".
+
+    destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont].
+    { (* case is IE *)
+      destruct_word cont ; cbn in Hcont ; try congruence.
+      destruct c ; try congruence; clear Hcont.
+      rewrite /continuation_resources.
+      iDestruct "Hcont_res" as "[Hf1 Hf2]".
+
+      destruct (decide (withinBounds f f0 f1 = true /\ withinBounds f f0 (f1^+1)%a = true))
+        as [ [Hwb Hwb'] | Hwb ].
+
+      { (* case in bounds *)
+        wp_instr.
+        iApply (@wp_jmp_success_IE_same_idc with "[-Hφ]")
+        ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame.
+        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
+        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
+        iApply "Hφ"; iFrame.
+      }
+      { (* case not in bounds *)
+        wp_instr.
+        iApply (@wp_jmp_fail_IE_same_idc with "[-Hφ]")
+        ; [| | eapply Hwb | | ]; eauto; iFrame.
+        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
+        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
+        iApply "Hφ"; iFrame.
+      }
+    }
+    { (* case is not IE *)
+      assert (is_ie_cap cont = false) as Hcont'.
+      { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. }
+      wp_instr.
+      iApply (@wp_jmp_success with "[-Hφ]") ; eauto; iFrame.
+      iNext; iIntros "(HPC & Hidc & Hpc_a)"; wp_pure.
+      iApply (wp_wand _ _ _ φ with "[-]"); last auto.
+      iApply "Hφ".
+      destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence; iFrame.
+    }
+  Qed.
+
+  Lemma jmp_to_unknown w w':
+    ⊢ interp w -∗ interp w' -∗
+      ▷ (∀ rmap,
+          ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
+          ∃ wpc widc,
+            PC ↦ᵣ updatePcCont w wpc
+              ∗ idc ↦ᵣ updateIdcCont w w' widc
+              ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
+              ∗ na_own logrel_nais ⊤
+            -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
+                                                 ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
+  Proof.
+    iIntros "#Hw #Hwidc".
+    iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
     iIntros (rmap Hrmap).
-    set rmap' := <[ PC := (WInt 0%Z: Word) ]> rmap : gmap RegName Word.
+    set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
     iSpecialize ("Hw'" $! rmap').
-    iIntros "(HPC & Hr & Hna)". unfold interp_expression, interp_expr, interp_conf. cbn.
-    iApply "Hw'". iClear "Hw'". iFrame "#". rewrite /registers_mapsto.
-    iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
-    iSplitL "HrV"; [iSplit|].
-    { unfold full_map. iIntros (r).
-      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. }
-      rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
-    { iIntros (ri v Hri Hri' Hvs).
-      rewrite lookup_insert_ne // in Hvs.
-      iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
-    rewrite insert_insert.
+
+    destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont].
+    { (* case IE*)
+
+     (*  admit. *)
+     (* iClear "Hw'". *)
+     (* destruct_word w ; [ | destruct c | | ] ; cbn in Hcont; cbn ; try congruence; iFrame. *)
+     (* rewrite fixpoint_interp1_eq //=. *)
+     (* destruct (decide (withinBounds f f0 f1 = true /\ withinBounds f f0 (f1^+1)%a = true)) *)
+     (*   as [ [Hwb Hwb'] | Hwb ]. *)
+     (* { (* case in bounds *) admit. } *)
+     (* { (* case not in bounds *) *)
+
+
+     (*   admit. } *)
+
+
+
+      admit.
+    }
+    { (* case not IE *)
+      iExists (WInt 0), (WInt 0). (* dummy words *)
+      iIntros "(HPC & Hidc & [Hr Hna])". unfold interp_expression, interp_expr, interp_conf. cbn.
+
+      iApply "Hw'". iClear "Hw'". iFrame "#". rewrite /registers_mapsto.
+      iAssert (PC ↦ᵣ updatePcPerm w)%I with "[HPC]" as "HPC".
+      { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. }
+      iAssert (idc ↦ᵣ w')%I with "[Hidc]" as "Hidc".
+      { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. }
+      iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
+      iSplitL "HrV"; [iSplit|].
+      { unfold full_map. iIntros (r).
+        destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. }
+        destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. }
+        do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
+      { iIntros (ri v Hri Hri' Hvs).
+        do 2 rewrite lookup_insert_ne // in Hvs.
+        iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
+      rewrite (insert_commute _ PC idc) //= !insert_insert //. iFrame.
+      iApply big_sepM_insert.
+      { rewrite lookup_insert_ne //=. apply not_elem_of_dom. rewrite Hrmap. set_solver. }
+      iFrame.
+      iApply big_sepM_insert.
+      { apply not_elem_of_dom. rewrite Hrmap. set_solver. }
+      iFrame.
+    }
+
+    (* iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)". *)
+    (* iSplitL "HrV"; [iSplit|]. *)
+    (* { unfold full_map. iIntros (r). *)
+    (*   destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. } *)
+    (*   rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. } *)
+    (* { iIntros (ri v Hri Hri' Hvs). *)
+    (*   rewrite lookup_insert_ne // in Hvs. *)
+    (*   iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. } *)
+    (* rewrite insert_insert. *)
     (* iApply big_sepM_insert. *)
     (* { apply not_elem_of_dom. rewrite Hrmap. set_solver. } *)
     (* iFrame. *)
