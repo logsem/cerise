@@ -46,6 +46,7 @@ Section Assert.
 
   Lemma assert_subroutine_spec b a_flag e cont n1 n2 flag N E φ :
     ↑N ⊆ E →
+    is_ie_cap cont = false ->
     (  na_inv logrel_nais N (assert_inv b a_flag e)
      ∗ na_own logrel_nais E
      ∗ PC ↦ᵣ WCap RX b e b
@@ -62,7 +63,7 @@ Section Assert.
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (HNE) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hflag & Hφ)".
+    iIntros (HNE Hie) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hflag & Hφ)".
     iMod (na_inv_acc with "Hinv Hna") as "(>Hassert & Hna & Hinv_close)"; auto.
     iDestruct "Hassert" as (cap_addr) "(Hprog & %Hcap & %Hflag & %He & Hcap)".
     rewrite /assert_subroutine_instrs. codefrag_facts "Hprog".
@@ -77,6 +78,7 @@ Section Assert.
       iApply "Hφ". iFrame. rewrite Z.eqb_refl //. }
     { (* n1 ≠ n2 *)
       iInstr "Hprog". { assert (n1 - n2 ≠ 0)%Z by lia. congruence. }
+      auto.
       iInstr "Hprog". rewrite (_: (b ^+ 13)%a = cap_addr). 2: solve_addr.
       iInstr "Hprog". solve_addr.
       iInstr "Hprog". solve_addr.
@@ -90,6 +92,7 @@ Section Assert.
   Lemma assert_success_spec b a_flag e cont n1 n2 N E φ :
     ↑N ⊆ E →
     n1 = n2 →
+    is_ie_cap cont = false ->
     (  na_inv logrel_nais N (assert_inv b a_flag e)
      ∗ na_own logrel_nais E
      ∗ PC ↦ᵣ WCap RX b e b
@@ -104,7 +107,7 @@ Section Assert.
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (HNE Heq) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
+    iIntros (HNE Heq Hie) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
     iMod (na_inv_acc with "Hinv Hna") as "(>Hassert & Hna & Hinv_close)"; auto.
     iDestruct "Hassert" as (cap_addr) "(Hprog & %Hcap & %Hflag & %He & Hcap)".
     rewrite /assert_subroutine_instrs. codefrag_facts "Hprog".

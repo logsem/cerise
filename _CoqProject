@@ -121,8 +121,8 @@ theories/proofmode/mkregion_helpers.v
 # Common Cerise (assembly) macros
 theories/examples/malloc.v
 # theories/examples/salloc.v
-# theories/examples/assert.v
-# theories/examples/macros.v
+theories/examples/assert.v
+theories/examples/macros.v
 # theories/examples/macros_new.v
 
 # Template Adequacy
