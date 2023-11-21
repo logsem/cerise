@@ -48,7 +48,7 @@ Section SimpleMalloc.
      Mov r_t2 0%Z;
      Mov r_t3 0%Z;
      Mov r_t4 0%Z;
-     Jmp idc].
+     Jmp r_t31].
 
   Definition malloc_subroutine_instrs_length : Z :=
     Eval cbv in (length (malloc_subroutine_instrs' 0%Z)).
@@ -67,7 +67,7 @@ Section SimpleMalloc.
   (* Specification of the subroutine, up-to the last jmp: it is managed separately,
      because of the possibility to jump to an IE-capability *)
   Lemma simple_malloc_subroutine_spec_main (wsize: Word) b e rmap N E φ :
-    dom rmap = all_registers_s ∖ {[ PC; idc; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; idc ; r_t1; r_t31 ]} →
     ↑N ⊆ E →
     (  na_inv logrel_nais N (malloc_inv b e)
          ∗ na_own logrel_nais E
@@ -208,24 +208,26 @@ Section SimpleMalloc.
 
   (* General specification of the routine. Up-to after performing the jmp.
      To use when dealing with a known continuation. *)
-  Lemma simple_malloc_subroutine_spec (wsize: Word) (cont wpc widc: Word) b e rmap N E φ :
-    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+  Lemma simple_malloc_subroutine_spec (wsize: Word) (w' cont wpc widc: Word) b e rmap N E φ :
+    dom rmap = all_registers_s ∖ {[ PC; idc ; r_t1; r_t31 ]} →
     ↑N ⊆ E →
     (  na_inv logrel_nais N (malloc_inv b e)
          ∗ na_own logrel_nais E
          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
-         ∗ idc ↦ᵣ cont
-         ∗ continuation_resources cont wpc widc
          ∗ PC ↦ᵣ WCap RX b e b
+         ∗ idc ↦ᵣ w'
          ∗ r_t1 ↦ᵣ wsize
+         ∗ r_t31 ↦ᵣ cont
+         ∗ continuation_resources cont wpc widc
          ∗ ▷ (na_own logrel_nais E
                 ∗ ([∗ map] r↦w ∈
-                   <[r_t2 := WInt 0%Z]>
-                     (<[r_t3 := WInt 0%Z]>
-                        (<[r_t4 := WInt 0%Z]>
-                           rmap)), r ↦ᵣ w)
+                     <[r_t2 := WInt 0%Z]>
+                        (<[r_t3 := WInt 0%Z]>
+                           (<[r_t4 := WInt 0%Z]>
+                              rmap)), r ↦ᵣ w)
                 ∗ PC ↦ᵣ updatePcCont cont wpc
-                ∗ idc ↦ᵣ updateIdcCont cont cont widc
+                ∗ idc ↦ᵣ updateIdcCont cont w' widc
+                ∗ r_t31 ↦ᵣ cont
                 ∗ continuation_resources cont wpc widc
                 ∗ (∃ (ba ea : Addr) size,
                     ⌜wsize = WInt size⌝
@@ -235,8 +237,9 @@ Section SimpleMalloc.
               -∗ WP Seq (Instr Executable) {{ φ }}))
       ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
-    iIntros (Hrmap_dom HN) "(#Hinv & Hna & Hrmap & Hr0 & Hcont_res & HPC & Hr1 & Hφ)".
-    iApply (simple_malloc_subroutine_spec_main with "[-]"); eauto; iFrame "∗ #".
+    iIntros (Hrmap_dom HN)
+      "(#Hinv & Hna & Hrmap & HPC & Hidc & Hr1 & Hr31 & Hcont_res & Hφ)".
+    iApply (simple_malloc_subroutine_spec_main with "[-]"); eauto ; iFrame "∗ #".
     iNext ; iIntros "(Hna & Hrmap & HPC & Hallocated)".
 
     iMod (na_inv_acc with "Hinv Hna") as "(>Hmalloc & Hna & Hinv_close)"; auto.
@@ -248,10 +251,8 @@ Section SimpleMalloc.
     assert (SubBounds b e b (b ^+ length malloc_subroutine_instrs)%a) by solve_addr.
 
     iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
-    iApply (@wp_jmp_general_idc _ _ _ _ RX b e (b ^+ 25)%a (encodeInstrW (Jmp idc)) cont wpc widc
-             with "[-]"); try solve_pure.
-    iFrame.
-    iNext; iIntros "(HPC & Hidc & Hcont_res & Hi)".
+    iApply (@wp_jmp_general with "[- $HPC $Hi]"); try solve_pure; iFrame.
+    iNext; iIntros "(HPC & Hidc & Hr31 & Hcont_res & Hi)".
     iDestruct ("Hprog_cont" with "Hi") as "Hprog".
 
     (* Continuation *)
@@ -268,7 +269,7 @@ Section SimpleMalloc.
   Proof.
     iIntros "#Hinv".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
-    iIntros (cont) "#Hvalid_cont (#[%Hsome Hregs_valid] & Hregs & Hown)".
+    iIntros (w') "#Hvalid_w' (#[%Hsome Hregs_valid] & Hregs & Hown)".
     (* extract the registers PC, idc and r1 *)
     rewrite insert_commute //=.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
@@ -277,6 +278,11 @@ Section SimpleMalloc.
     destruct Hsome with r_t1 as [? ?].
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]"
     ;[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
+    destruct Hsome with r_t31 as [cont ?].
+    iDestruct (big_sepM_delete _ _ r_t31 with "Hregs") as "[r_t31 Hregs]"
+    ;[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
+    iAssert (interp cont) as "Hvalid_cont".
+    iApply "Hregs_valid"; by eauto.
 
     (* We need a special treatement for the jump, if we have an IE-cap, so we stop before
      the jmp *)
@@ -302,7 +308,7 @@ Section SimpleMalloc.
       codefrag_facts "Hprog".
       iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
 
-      rewrite fixpoint_interp1_eq //=.
+      rewrite (fixpoint_interp1_eq (WCap IE _ _ _)) //=.
       destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a)) as [Hwb | Hwb].
       { (* in bounds *)
         iDestruct ("Hvalid_cont" $! Hwb)
@@ -315,9 +321,9 @@ Section SimpleMalloc.
         iInv (logN.@f1) as (w1) "[>Hf1 #HP1]" "Hcls1".
         iInv (logN.@(f1 ^+1)%a) as (w2) "[>Hf2 #HP2]" "Hcls2".
 
-        iApply (wp_jmp_success_IE_same_idc with "[$HPC $Hidc $Hi $Hf1 $Hf2]")
+        iApply (wp_jmp_success_IE with "[$HPC $r_t31 $Hidc $Hi $Hf1 $Hf2]")
         ; try solve_pure.
-        iNext; iIntros "(HPC& Hidc& Hi& Hf1& Hf2) //=".
+        iNext; iIntros "(HPC& Hidc& r_t31& Hi& Hf1& Hf2) //=".
         iMod ("Hcls2" with "[Hf2 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
         iMod ("Hcls1" with "[Hf1 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
         iApply wp_pure_step_later; auto.
@@ -337,6 +343,7 @@ Section SimpleMalloc.
         iMod (region_integers_alloc _ _ _ _ _ RWX with "Hmem") as "#Hmem"; auto.
         by apply Forall_replicate.
 
+        iInsert "Hrmap" r_t31.
         set (regs := <[_:= _]> _).
         iApply ("Hcont" $! regs); iFrame "∗ #".
         iSplit.
@@ -352,24 +359,27 @@ Section SimpleMalloc.
           destruct (decide (r' = r_t2)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
           destruct (decide (r' = r_t3)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
           destruct (decide (r' = r_t4)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+          destruct (decide (r' = r_t31)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
           iApply "Hregs_valid"; eauto.
           iPureIntro.
           by simplify_map_eq.
         }
         subst regs.
-        rewrite (insert_commute _ PC r_t1) //=
+        rewrite
+          (insert_commute _ PC r_t31) //=
+          (insert_commute _ PC r_t1) //=
           (insert_commute _ PC idc) //=
           insert_insert
+          (insert_commute _ idc r_t31) //=
           (insert_commute _ idc r_t1) //=
           insert_insert.
         iFrame.
-
         auto.
       }
       { (* not in bounds -- the jump fails *)
 
         wp_instr.
-        iApply (wp_jmp_fail_IE_same_idc with "[$HPC $Hidc $Hi]") ; try solve_pure.
+        iApply (wp_jmp_fail_IE with "[$HPC $Hidc $r_t31 $Hi]") ; try solve_pure.
         iNext ; iIntros "_".
         iApply wp_pure_step_later; auto.
         iNext ; iIntros "_".
@@ -381,8 +391,8 @@ Section SimpleMalloc.
 
       iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
       wp_instr.
-      iApply (wp_jmp_success with "[$HPC $Hidc $Hi]") ; try solve_pure.
-      iNext; iIntros "(HPC& Hi& Hidc) //=".
+      iApply (wp_jmp_success with "[$HPC $r_t31 $Hi]") ; try solve_pure.
+      iNext; iIntros "(HPC& Hi& r_t31) //=".
       iApply wp_pure_step_later; auto.
       iNext ; iIntros "_".
       iDestruct ("Hprog_cont" with "Hi") as "Hprog".
@@ -397,7 +407,7 @@ Section SimpleMalloc.
       by apply Forall_replicate.
 
 
-      iInsertList "Hrmap" [r_t1;idc].
+      iInsertList "Hrmap" [r_t1;idc;r_t31].
       set (regs := <[_:= _]> _).
       (* iApply ("Hcont" $! regs). admit. *)
       iApply ("Hcont" $! regs); iFrame "∗ #".
@@ -413,11 +423,12 @@ Section SimpleMalloc.
       iIntros (r' w'') "%Hsome'".
       subst regs.
       destruct (decide (r' = PC)). { simplify_map_eq. }
-      destruct (decide (r' = idc)). { simplify_map_eq; iApply "Hvalid_cont". }
+      destruct (decide (r' = idc)). { simplify_map_eq; iApply "Hvalid_w'". }
       destruct (decide (r' = r_t1)). { simplify_map_eq; iApply "Hmem". }
       destruct (decide (r' = r_t2)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
       destruct (decide (r' = r_t3)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
       destruct (decide (r' = r_t4)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+      destruct (decide (r' = r_t31)). { simplify_map_eq; iApply "Hvalid_cont". }
       iApply "Hregs_valid"; eauto.
       iPureIntro; by simplify_map_eq.
       auto.
