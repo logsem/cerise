@@ -100,7 +100,8 @@ Section call.
       { rewrite /finz.dist /= in Hsize. revert Hsize;clear;solve_addr. }
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast|apply Hnext|destruct p_l;auto;inversion Hwa|].
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast
+        |apply Hnext |destruct p_l;auto;inversion Hwa |destruct p_l;auto;inversion Hwa| ..].
       iEpilogue "(HPC & Hi & Hr_t1)".
       (* φ *)
       iApply "Hcont".
@@ -136,7 +137,8 @@ Section call.
       destruct a;[inversion Hlength_prog|].
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1|apply Ha_l'|destruct p_l;auto;inversion Hwa|].
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1
+        |apply Ha_l' |destruct p_l;auto;inversion Hwa |destruct p_l;auto;inversion Hwa|].
       iEpilogue "(HPC & Hi & Hr_t1)".
       iApply ("IH" $! a_l' (delete r mlocals) (w0 :: wsr) with "[] [] [] [] [] [] [] Hprog HPC Hr_t1 Hlocals [Hbl]").
       + iPureIntro. eapply isCorrectPC_range_restrict;[eauto|].
@@ -669,6 +671,8 @@ Section call.
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 14|apply Hlea'|..].
     { eapply isCorrectPC_range_perm_non_E;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
+    { eapply isCorrectPC_range_perm_non_IE;[apply Hvpc2|].
+      apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* store r_t0 r_t1 *)
@@ -689,7 +693,7 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t0]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 16|apply Hlea''|auto|..].
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 16|apply Hlea''|auto|auto|..].
     iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* restrict r_t0 E *)
     destruct rest3 as [|? rest3].
@@ -808,30 +812,35 @@ Section call.
 
     (* jmp r1 *)
     iPrologue "Hprog".
-    iApply (wp_jmp_success with "[$HPC $Hi $Hradv]");
-      [apply decode_encode_instrW_inv|iCorrectPC link4 a_last|].
-    iEpilogue "(HPC & Hi & Hradv)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
-    (* continuation *)
-    iApply "Hcont".
-    iExists b_l',e_l',b_l,e_l,a_end.
-    iSplitR.
-    { iPureIntro. revert Hlea Hlea'. clear.
-      rewrite /offset_to_cont_call. set (l := strings.length (rclear_instrs (list_difference all_registers (map_to_list mparams).*1))).
-      generalize l. clear. solve_addr. }
-    iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna".
-    iSplitL "Hgenlocals".
-    { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals").
-      rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1.
-      rewrite -Hdom2. rewrite Hrmap'eq. clear. set_solver. }
-    iSplitL "Ha1 Ha2 Ha3 Ha4 Ha5 Ha6 Ha7".
-    { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }
-    rewrite Heqapp1 Heqapp2 Heqapp3 Heqapp4.
-    rewrite /call.
-    iDestruct "Hprog_done" as "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&malloc&?&locals&malloc')".
-    iApply (big_sepL2_app with "malloc'").
-    iApply (big_sepL2_app with "locals").
-    iFrame.
-  Qed.
+
+    (* TODO the adversary can be anything, including an IE-cap. *)
+    Abort.
+
+    (* iApply (wp_jmp_success with "[$HPC $Hi $Hradv]"); *)
+    (*   [apply decode_encode_instrW_inv|iCorrectPC link4 a_last|auto|]. *)
+    (* iEpilogue "(HPC & Hi & Hradv)"; iCombine "Hi" "Hprog_done" as "Hprog_done". *)
+
+    (* (* continuation *) *)
+    (* iApply "Hcont". *)
+    (* iExists b_l',e_l',b_l,e_l,a_end. *)
+    (* iSplitR. *)
+    (* { iPureIntro. revert Hlea Hlea'. clear. *)
+    (*   rewrite /offset_to_cont_call. set (l := strings.length (rclear_instrs (list_difference all_registers (map_to_list mparams).*1))). *)
+    (*   generalize l. clear. solve_addr. } *)
+    (* iFrame "HPC Hparams Hradv Hr_t0 Hbl Hb Ha_entry Hna". *)
+    (* iSplitL "Hgenlocals". *)
+    (* { rewrite !big_sepM_dom. iApply (big_sepS_subseteq with "Hgenlocals"). *)
+    (*   rewrite - !insert_union_l !dom_insert_L !union_assoc_L dom_union_L (union_comm_L (dom rmap)) Hdom1. *)
+    (*   rewrite -Hdom2. rewrite Hrmap'eq. clear. set_solver. } *)
+    (* iSplitL "Ha1 Ha2 Ha3 Ha4 Ha5 Ha6 Ha7". *)
+    (* { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. } *)
+    (* rewrite Heqapp1 Heqapp2 Heqapp3 Heqapp4. *)
+    (* rewrite /call. *)
+    (* iDestruct "Hprog_done" as "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&malloc&?&locals&malloc')". *)
+    (* iApply (big_sepL2_app with "malloc'"). *)
+    (* iApply (big_sepL2_app with "locals"). *)
+    (* iFrame. *)
+  (* Qed. *)
 
 End call.
