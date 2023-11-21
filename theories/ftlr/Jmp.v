@@ -104,8 +104,7 @@ Section fundamental.
     - by iExists (λne _, True%I), (λne _, True%I).
     - rewrite /allow_jmp_mask.
       destruct Hallows as (Hreg & -> & Hwb & Hwb').
-      assert (a <> (a^+1)%a) by (apply andb_prop in Hwb as [_ Hge]; solve_addr).
-      apply Is_true_true_2 in Hwb, Hwb'.
+      assert (a <> (a^+1)%a) by (apply Is_true_true_1, andb_prop in Hwb as [_ Hge]; solve_addr).
       assert ( withinBounds b e a /\ withinBounds b e (a^+1)%a) as Hwbs by auto.
 
       assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
@@ -250,7 +249,7 @@ Section fundamental.
       + iModIntro. iNext. by iApply memMap_resource_1.
     }
     destruct Hdec as (Hreg & -> & Hwb & Hwb').
-    assert (a <> (a^+1)%a) as Haeq by (apply andb_prop in Hwb as [_ Hge]; solve_addr).
+    assert (a <> (a^+1)%a) as Haeq by (apply Is_true_true_1, andb_prop in Hwb as [_ Hge]; solve_addr).
     rewrite /allow_jmp_mask.
     iDestruct "HJmpRes" as "[Hexec HJmpRes]".
     iMod "HJmpRes" as "HJmpRes".
@@ -323,7 +322,7 @@ Section fundamental.
       case_decide as Hdec1; auto.
     }
     assert (a <> (a^+1)%a)
-    by (inversion Hdec as (_ & _ & Hwb%withinBounds_true_iff & _); solve_addr).
+    by (inversion Hdec as (_ & _ & Hwb%Is_true_true_1%withinBounds_true_iff & _); solve_addr).
     case_decide as Ha; simplify_eq.
     { iDestruct "HJmpRes" as (w2) "[%Hmem _]" ; subst.
       iSplitL.
@@ -444,16 +443,16 @@ Section fundamental.
         rewrite /reg_allows_IE_jmp in HallowJmp.
         rewrite /read_reg_inr in HVsrc.
         rewrite Hregs in HVsrc; simplify_eq.
-        repeat (apply not_and_r in HallowJmp as [HallowJmp|HallowJmp]; simplify_eq).
+        repeat (apply not_and_r in HallowJmp as [HallowJmp|HallowJmp] ; simplify_eq)
+        ;congruence.
       }
       assert (PC <> src) as Hsrc
           by (destruct (decide (PC = src)); auto; simplify_map_eq; by destruct Hp).
       assert (p0 = IE /\ b0 = b1 /\ e0 = e1 /\ a0 = a1) as (-> & -> & -> & ->)
           by (by eapply reg_allows_IE_jmp_same)
       ; simplify_map_eq.
-      assert ((a1 ^+ 1)%a ≠ a1) as Haeq by (apply withinBounds_true_iff in Hwb ; solve_addr).
-      assert (withinBounds b1 e1 a1 ∧ withinBounds b1 e1 (a1 ^+ 1)%a) as Hbounds
-          by (by split ; apply Is_true_true_2).
+      assert ((a1 ^+ 1)%a ≠ a1) as Haeq by (apply Is_true_true_1, withinBounds_true_iff in Hwb ; solve_addr).
+      assert (withinBounds b1 e1 a1 ∧ withinBounds b1 e1 (a1 ^+ 1)%a) as Hbounds by auto.
 
       iDestruct "HJmpMem" as "(_&HJmpMem)".
       iDestruct "HJmpRes" as "(_&Hexec&HJmpRes)".
@@ -624,7 +623,7 @@ Section fundamental.
       }
       iDestruct "HJmpMem" as "(_&H)".
       assert ((a0 ^+ 1)%a ≠ a0) as Ha0eq
-      by (destruct HallowJmp as (_ & _ & Hwb%withinBounds_true_iff & _); solve_addr).
+      by (destruct HallowJmp as (_ & _ & Hwb%Is_true_true_1%withinBounds_true_iff & _); solve_addr).
 
       (* TODO duplicated proof... could be better *)
       destruct (decide (a = a0)) as [Ha|Ha]; simplify_map_eq.
@@ -674,6 +673,6 @@ Section fundamental.
       iApply wp_pure_step_later; auto.
       iNext; iIntros "_".
       iApply wp_value; auto; iIntros; discriminate.
-    Admitted.
+    Qed.
 
 End fundamental.

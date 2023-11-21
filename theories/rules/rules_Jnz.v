@@ -27,7 +27,7 @@ Section cap_lang_rules.
     regs !! src = Some w →
     nonZero w = true →
     regs !! dst = Some (WCap IE b e a) ->
-    (withinBounds b e a = false \/ withinBounds b e (a^+1)%a = false) →
+    not (withinBounds b e a /\ withinBounds b e (a^+1)%a) →
     Jnz_failure regs dst src mem
   .
 
@@ -41,8 +41,8 @@ Section cap_lang_rules.
     regs !! src = Some wcond →
     regs !! dst = Some (WCap IE b e a) →
     nonZero wcond = true →
-    withinBounds b e a = true ->
-    withinBounds b e (a^+1)%a = true ->
+    withinBounds b e a ->
+    withinBounds b e (a^+1)%a ->
     mem !! a = Some wpc ->
     mem !! (a^+1)%a = Some widc ->
     regs' = ( <[ idc := widc ]> (<[ PC := wpc ]> regs)) ->
@@ -128,6 +128,9 @@ Section cap_lang_rules.
         destruct (decide (withinBounds b e a && withinBounds b e (a ^+ 1)%a)) as
           [Hbounds%Is_true_true | Hbounds%Is_true_false]
         ; (rewrite Hbounds /= in Hstep).
+        apply Is_true_true_2, andb_True in Hbounds.
+        destruct Hbounds as [Hbounds_a Hbounds_a'].
+
         * (* in bounds, success *)
           pose proof H'dst as H'dst'.
           apply Is_true_true_2 in Hnz.
@@ -136,9 +139,7 @@ Section cap_lang_rules.
           rewrite /read_reg_inr in Hrinr, Hrinr'.
           rewrite H'dst in Hrinr, Hrinr'; symmetry in Hrinr, Hrinr' ; simplify_eq.
           case_decide as Hdec ; last simplify_map_eq.
-          2: { exfalso; apply Hdec.
-               symmetry in Hbounds; apply andb_true_eq in Hbounds ; destruct Hbounds.
-               repeat (split ; auto). }
+          2: { exfalso; apply Hdec. repeat (split ; auto). }
           destruct Hdec as (Hreg & _ & _ & _).
           destruct HallowLoad as (wpc & widc & HaLoad & Ha'Load).
           destruct HallowLoad' as (w' & Hidc).
@@ -153,12 +154,13 @@ Section cap_lang_rules.
             "[Hr Hmp]" ; eauto.
           { apply lookup_insert_is_Some'; by right. }
           iFrame; try iApply "Hφ"; iFrame.
-          apply andb_true_iff in Hbounds ; destruct Hbounds as [Hbounds_a Hbounds_a'].
           iPureIntro; econstructor; eauto.
         * (* in bounds, failure *)
           simplify_pair_eq ; iFrame ; iApply "Hφ"; iFrame.
           iPureIntro; eapply Jnz_spec_failure ; eapply Jnz_fail_bounds ; eauto.
-          by apply andb_false_iff.
+          apply andb_false_iff in Hbounds. intro Hcontra.
+          destruct Hcontra as [Hcontra1%Is_true_true_1 Hcontra2%Is_true_true_1].
+          destruct Hbounds; congruence.
 
       - (* wdst is not an IE-cap *)
 
@@ -271,8 +273,8 @@ Section cap_lang_rules.
   Lemma wp_jnz_success_jmp_IE E r1 r2 pc_p pc_b pc_e pc_a w w' w2 b e a wpc widc :
     decodeInstrW w = Jnz r1 r2 →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    withinBounds b e a = true ->
-    withinBounds b e (a^+1)%a = true ->
+    withinBounds b e a ->
+    withinBounds b e (a^+1)%a ->
     w2 ≠ WInt 0%Z →
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
@@ -327,17 +329,17 @@ Section cap_lang_rules.
       repeat case_match; try congruence; subst. exfalso.
       apply Hne. f_equal. by apply Z.compare_eq. }
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence)
-   ; simplify_map_eq.
-    { by destruct o as [o | o] ; [rewrite o in Hbound_a | rewrite o in Hbound_a']. }
+    destruct Hspec as [ X | | | ]
+    ; [ (destruct X as [ | ? ? ? ? ? ? ? Hcontra ]) | | | ]
+    ; try (exfalso; simplify_map_eq; congruence)
+    ; simplify_map_eq.
+    { exfalso ; by apply Hcontra. }
     iApply "Hφ".
     iExtractList "Hreg" [PC; idc ; r1; r2] as ["HPC"; "HIDC" ;"Hr1"; "Hr2"]; iFrame.
-      iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
-      iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
-      iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
-      iFrame.
+    iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
+    iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
+    iFrame.
   Qed.
 
   (* TODO version fail with IE *)
@@ -386,9 +388,9 @@ Section cap_lang_rules.
       repeat case_match; try congruence; subst. exfalso.
       apply Hne. f_equal. by apply Z.compare_eq. }
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence).
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence).
     subst regs'; simplify_map_eq.
     iApply "Hφ".
     iExtractList "Hreg" [PC; r2] as ["HPC"; "Hr2"]; iFrame.
@@ -426,10 +428,10 @@ Section cap_lang_rules.
 
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence)
-   ; try (simplify_map_eq; apply isCorrectPC_not_ie_cap in Hvpc ; cbn in Hvpc ; congruence).
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence)
+    ; try (simplify_map_eq; apply isCorrectPC_not_ie_cap in Hvpc ; cbn in Hvpc ; congruence).
     subst regs'; simplify_map_eq.
     iApply "Hφ".
     iExtractList "Hreg" [PC] as ["HPC"]; iFrame.
@@ -475,10 +477,10 @@ Section cap_lang_rules.
       apply Hne. f_equal. by apply Z.compare_eq. }
 
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence)
-   ; try (simplify_map_eq; apply isCorrectPC_not_ie_cap in Hvpc ; cbn in Hvpc ; congruence).
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence)
+    ; try (simplify_map_eq; apply isCorrectPC_not_ie_cap in Hvpc ; cbn in Hvpc ; congruence).
     subst regs'; simplify_map_eq.
     iApply "Hφ".
     iExtractList "Hreg" [PC; r2] as ["HPC";"Hr2"]; iFrame.
@@ -523,9 +525,9 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence).
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence).
     subst regs'; simplify_map_eq.
     iApply "Hφ".
     iExtractList "Hreg" [PC; r1] as ["HPC";"Hr1"]; iFrame.
@@ -536,8 +538,8 @@ Section cap_lang_rules.
   Lemma wp_jnz_success_jmpPC2_IE E r1 pc_p pc_b pc_e pc_a w w' b e a wpc widc :
     decodeInstrW w = Jnz r1 PC →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    withinBounds b e a = true ->
-    withinBounds b e (a^+1)%a = true ->
+    withinBounds b e a ->
+    withinBounds b e (a^+1)%a ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ idc ↦ᵣ w'
@@ -586,10 +588,10 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as [ X | | | ]
-    ; [destruct X | | | ]
+    ; [ (destruct X as [ | ? ? ? ? ? ? ? Hcontra ]) | | | ]
     ; try (exfalso; simplify_map_eq; congruence)
     ; simplify_map_eq.
-    { by destruct o as [o | o] ; [rewrite o in Hbound_a | rewrite o in Hbound_a']. }
+    { exfalso ; by apply Hcontra. }
     iApply "Hφ".
     iExtractList "Hreg" [PC; idc ; r1] as ["HPC"; "HIDC" ;"Hr1"]; iFrame.
     iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
@@ -629,15 +631,15 @@ Section cap_lang_rules.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
-   destruct Hspec as [ X | | | ]
-   ; [destruct X | | | ]
-   ; try (exfalso; simplify_map_eq; congruence)
-   ; match goal with | H: context[incrementPC _] |- _ => unfold incrementPC in H end
-   ; simplify_map_eq.
-   iApply "Hφ".
-   iExtractList "Hreg" [PC; r1;r2] as ["HPC";"Hr1";"Hr2"]; iFrame.
-   iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
-   Unshelve. all: auto.
+    destruct Hspec as [ X | | | ]
+    ; [destruct X | | | ]
+    ; try (exfalso; simplify_map_eq; congruence)
+    ; match goal with | H: context[incrementPC _] |- _ => unfold incrementPC in H end
+    ; simplify_map_eq.
+    iApply "Hφ".
+    iExtractList "Hreg" [PC; r1;r2] as ["HPC";"Hr1";"Hr2"]; iFrame.
+    iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
+    Unshelve. all: auto.
   Qed.
 
 End cap_lang_rules.
