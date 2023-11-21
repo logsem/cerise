@@ -267,7 +267,7 @@ Section fundamental.
       rewrite /continuation_resources.
       iDestruct "Hcont_res" as "[Hf1 Hf2]".
 
-      destruct (decide (withinBounds f f0 f1 = true /\ withinBounds f f0 (f1^+1)%a = true))
+      destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a))
         as [ [Hwb Hwb'] | Hwb ].
 
       { (* case in bounds *)
@@ -283,8 +283,7 @@ Section fundamental.
         iApply (@wp_jmp_fail_IE_same_idc with "[-Hφ]")
         ; [| | eapply Hwb | | ]; eauto; iFrame.
         iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
-        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
-        iApply "Hφ"; iFrame.
+        wp_end ; by iRight.
       }
     }
     { (* case is not IE *)
@@ -301,43 +300,43 @@ Section fundamental.
 
   Lemma jmp_to_unknown w w':
     ⊢ interp w -∗ interp w' -∗
-      ▷ (∀ rmap,
+      ▷ ∃ wpc widc,
+        (∀ rmap,
           ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
-          ∃ wpc widc,
             PC ↦ᵣ updatePcCont w wpc
               ∗ idc ↦ᵣ updateIdcCont w w' widc
               ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
               ∗ na_own logrel_nais ⊤
-            -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
-                                                 ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
+            -∗ WP Seq (Instr Executable)
+               {{ λ v, ⌜v = HaltedV⌝ →
+                       ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
   Proof.
     iIntros "#Hw #Hwidc".
-    iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
-    iIntros (rmap Hrmap).
-    set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
-    iSpecialize ("Hw'" $! rmap').
-
+    iDestruct (interp_updatePcPerm with "Hw") as "Hw'".
     destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont].
     { (* case IE*)
-
-     (*  admit. *)
-     (* iClear "Hw'". *)
-     (* destruct_word w ; [ | destruct c | | ] ; cbn in Hcont; cbn ; try congruence; iFrame. *)
-     (* rewrite fixpoint_interp1_eq //=. *)
-     (* destruct (decide (withinBounds f f0 f1 = true /\ withinBounds f f0 (f1^+1)%a = true)) *)
-     (*   as [ [Hwb Hwb'] | Hwb ]. *)
-     (* { (* case in bounds *) admit. } *)
-     (* { (* case not in bounds *) *)
-
-
-     (*   admit. } *)
-
-
-
-      admit.
+      iClear "Hw'".
+      destruct_word w ; [| destruct c | | ]; cbn in Hcont ; try congruence
+      ; clear Hcont.
+      rewrite fixpoint_interp1_eq //=.
+      iNext. iExists (WInt 0), (WInt 0).
+      iIntros (rmap Hrmap).
+      set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
+      iIntros "(HPC & HIDC & Hmap & Hna)".
+      wp_instr.
+      iApply (wp_notCorrectPC with "HPC"); eauto.
+      intro Hcontra; inversion Hcontra.
+      iNext.
+      iIntros "HPC".
+      wp_pure; wp_end.
+      iIntros (Hcontra); done.
     }
     { (* case not IE *)
+      iNext.
       iExists (WInt 0), (WInt 0). (* dummy words *)
+      iIntros (rmap Hrmap).
+      set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
+      iSpecialize ("Hw'" $! rmap').
       iIntros "(HPC & Hidc & [Hr Hna])". unfold interp_expression, interp_expr, interp_conf. cbn.
 
       iApply "Hw'". iClear "Hw'". iFrame "#". rewrite /registers_mapsto.
@@ -362,20 +361,7 @@ Section fundamental.
       { apply not_elem_of_dom. rewrite Hrmap. set_solver. }
       iFrame.
     }
-
-    (* iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)". *)
-    (* iSplitL "HrV"; [iSplit|]. *)
-    (* { unfold full_map. iIntros (r). *)
-    (*   destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. } *)
-    (*   rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. } *)
-    (* { iIntros (ri v Hri Hri' Hvs). *)
-    (*   rewrite lookup_insert_ne // in Hvs. *)
-    (*   iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. } *)
-    (* rewrite insert_insert. *)
-    (* iApply big_sepM_insert. *)
-    (* { apply not_elem_of_dom. rewrite Hrmap. set_solver. } *)
-    (* iFrame. *)
-  Admitted.
+  Qed.
 
   Lemma region_integers_alloc' E (b e a: Addr) l p :
     Forall (λ w, is_z w = true) l →

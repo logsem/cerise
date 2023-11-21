@@ -298,8 +298,8 @@ Section cap_lang_rules.
   Lemma wp_jmp_success_IE E pc_p pc_b pc_e pc_a w r b e a w' wpc widc :
     decodeInstrW w = Jmp r →
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-     withinBounds b e a = true ->
-     withinBounds b e (a^+1)%a = true ->
+     withinBounds b e a ->
+     withinBounds b e (a^+1)%a ->
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ r ↦ᵣ WCap IE b e a
@@ -358,14 +358,16 @@ Section cap_lang_rules.
     - (* Failure - contradiction *)
       exfalso.
       inversion H5; simplify_map_eq.
+      apply Is_true_true_1 in Hbound_a.
+      apply Is_true_true_1 in Hbound_a'.
       destruct H7; congruence.
   Qed.
 
   Lemma wp_jmp_success_IE_same_idc E pc_p pc_b pc_e pc_a w b e a wpc widc :
     decodeInstrW w = Jmp idc →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    withinBounds b e a = true ->
-    withinBounds b e (a^+1)%a = true ->
+    withinBounds b e a ->
+    withinBounds b e (a^+1)%a ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ idc ↦ᵣ WCap IE b e a
@@ -384,24 +386,21 @@ Section cap_lang_rules.
   Admitted.
 
   (* TODO move jmp_rules.v *)
-  Lemma wp_jmp_fail_IE_same_idc E pc_p pc_b pc_e pc_a w b e a wpc widc :
+  Lemma wp_jmp_fail_IE_same_idc E pc_p pc_b pc_e pc_a w b e a :
     decodeInstrW w = Jmp idc →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-    not (withinBounds b e a = true /\ withinBounds b e (a^+1)%a = true) ->
+    not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ idc ↦ᵣ WCap IE b e a
           ∗ ▷ pc_a ↦ₐ w
-          ∗ ▷ a ↦ₐ wpc
-          ∗ ▷ (a^+1)%a ↦ₐ widc
     }}}
       Instr Executable @ E
-      {{{ RET NextIV;
-          PC ↦ᵣ wpc
-            ∗ idc ↦ᵣ widc
+      {{{ RET FailedV;
+          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+            ∗ idc ↦ᵣ WCap IE b e a
             ∗ pc_a ↦ₐ w
-            ∗ a ↦ₐ wpc
-            ∗ (a^+1)%a ↦ₐ widc }}}.
+      }}}.
   Proof.
   Admitted.
 
