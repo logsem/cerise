@@ -240,6 +240,27 @@ Section fundamental.
     | _ => widc
     end.
 
+  Lemma updatePcCont_cap_non_IE p b e a w :
+    p ≠ IE →
+    updatePcCont (WCap p b e a) w = updatePcPerm (WCap p b e a).
+  Proof.
+    intros HnE. cbn. destruct p; auto. contradiction.
+  Qed.
+
+  Lemma updateIdcCont_cap_non_IE p b e a w w' :
+    p ≠ IE →
+    updateIdcCont (WCap p b e a) w w' = w.
+  Proof.
+    intros HnE. cbn. destruct p; auto. contradiction.
+  Qed.
+
+  Lemma continuation_resources_cap_non_IE p b e a w w' :
+    p ≠ IE →
+    continuation_resources (WCap p b e a) w w' = emp%I.
+  Proof.
+    intros HnE. cbn. destruct p; auto. contradiction.
+  Qed.
+
   Lemma wp_jmp_general_idc pc_p pc_b pc_e pc_a w cont wpc widc φ :
     decodeInstrW w = Jmp idc →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -298,10 +319,54 @@ Section fundamental.
     }
   Qed.
 
-  Lemma jmp_to_unknown w w':
-    ⊢ interp w -∗ interp w' -∗
-      ▷ ∃ wpc widc,
-        (∀ rmap,
+  (* Jmp to unknown code is always safe *)
+  Lemma jmp_to_unknown w :
+    ⊢ interp w
+    -∗ ▷ (∀ rmap,
+          ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
+            PC ↦ᵣ updatePcPerm w
+              ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
+              ∗ na_own logrel_nais ⊤
+            -∗ WP Seq (Instr Executable)
+               {{ λ v, ⌜v = HaltedV⌝ →
+                       ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
+  Proof.
+    iIntros "#Hw". iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
+    iIntros (rmap Hrmap).
+    set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
+    iSpecialize ("Hw'" $! rmap').
+    iIntros "(HPC & Hr & Hna)". unfold interp_expression, interp_expr, interp_conf.
+    assert (exists w', rmap !! idc = Some w') as [w' Hw'] by (apply elem_of_dom; set_solver).
+    iDestruct (big_sepM_sep with "Hr") as "(Hr & #HrV)".
+    iAssert (interp w') as "Hvalid_w'".
+    { replace rmap with (<[idc:=w']> rmap) by (by eapply insert_id).
+     by iDestruct (big_sepM_delete _ _ idc with "HrV") as "[Hvalid _]"; first by simplify_map_eq.
+    }
+    iApply "Hw'". iClear "Hw'". iFrame "Hvalid_w'". rewrite /registers_mapsto.
+    iSplitL "HrV"; [iSplit| iFrame].
+    { unfold full_map. iIntros (r).
+      subst rmap'.
+      destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. }
+      destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. }
+      rewrite lookup_insert_ne //=. rewrite lookup_insert_ne //=.
+      iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
+    { iIntros (ri v Hri Hri' Hvs).
+      rewrite lookup_insert_ne // in Hvs.
+      rewrite lookup_insert_ne // in Hvs.
+      iDestruct (big_sepM_lookup _ _ ri with "HrV") as "?"; eauto. }
+    subst rmap'.
+    rewrite (insert_commute _ PC) //= !insert_insert.
+    rewrite (insert_commute _ idc _ w') //=.
+    iInsert "Hr" PC.
+    replace (<[idc:=w']> rmap) with rmap by (symmetry; by eapply insert_id).
+    iFrame.
+  Qed.
+
+  Lemma jmp_to_unknown' w w' wpc widc:
+    ⊢ interp w
+    -∗ interp w'
+    -∗ ienter_cond wpc widc interp
+    -∗ ▷ (∀ rmap,
           ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
             PC ↦ᵣ updatePcCont w wpc
               ∗ idc ↦ᵣ updateIdcCont w w' widc
@@ -311,7 +376,7 @@ Section fundamental.
                {{ λ v, ⌜v = HaltedV⌝ →
                        ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
   Proof.
-    iIntros "#Hw #Hwidc".
+    iIntros "#Hw #Hwidc #Hcont_ie".
     iDestruct (interp_updatePcPerm with "Hw") as "Hw'".
     destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont].
     { (* case IE*)
@@ -319,21 +384,27 @@ Section fundamental.
       destruct_word w ; [| destruct c | | ]; cbn in Hcont ; try congruence
       ; clear Hcont.
       rewrite fixpoint_interp1_eq //=.
-      iNext. iExists (WInt 0), (WInt 0).
-      iIntros (rmap Hrmap).
-      set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
+      iNext. iIntros (rmap Hrmap).
+      set rmap' := <[ idc := widc ]> (<[ PC := wpc ]> rmap) : gmap RegName Word.
       iIntros "(HPC & HIDC & Hmap & Hna)".
-      wp_instr.
-      iApply (wp_notCorrectPC with "HPC"); eauto.
-      intro Hcontra; inversion Hcontra.
-      iNext.
-      iIntros "HPC".
-      wp_pure; wp_end.
-      iIntros (Hcontra); done.
+      iApply ("Hcont_ie" $! rmap').
+      iDestruct (big_sepM_sep with "Hmap") as "(Hr & HrV)".
+      iSplit.
+      iSplit.
+      { unfold full_map. iIntros (r).
+        destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. }
+        destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. }
+        do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
+      { iIntros (ri v Hri Hri' Hvs).
+        do 2 rewrite lookup_insert_ne // in Hvs.
+        iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
+      { iInsertList "Hr" [PC;idc]. subst rmap'.
+        rewrite (insert_commute _ PC) //= !insert_insert.
+        iFrame.
+      }
     }
     { (* case not IE *)
       iNext.
-      iExists (WInt 0), (WInt 0). (* dummy words *)
       iIntros (rmap Hrmap).
       set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
       iSpecialize ("Hw'" $! rmap').
@@ -375,9 +446,30 @@ Section fundamental.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
     4: { (* IE *) rewrite fixpoint_interp1_eq /=.
-         admit. }
+         iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro.
+         iIntros "%Hbounds".
+         iDestruct (read_allowed_inv a a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { destruct Hbounds as [ Hbounds%Is_true_true_1%withinBounds_true_iff _ ]; solve_addr. }
+         iDestruct (read_allowed_inv (a^+1)%a a with "H") as (P') "[Hinv' [Hpers' [Hconds' _]] ]"; auto.
+         { destruct Hbounds as [ _ Hbounds%Is_true_true_1%withinBounds_true_iff ]; solve_addr. }
+         iExists P,P'.
+         iFrame "#".
+         iIntros (w1 w2 r).
+         iNext ; iModIntro.
+         iIntros "[Hw1 Hw2]".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
+         iAssert (interp w2) with "[Hw2]" as "#Hinterp2".
+         { iDestruct "Hw2" as "[Hw2 | Hw2]".
+           by iDestruct ("Hconds'" with "Hw2") as "#Hinterp2".
+           destruct_word w2 ; cbn; try done.
+           rewrite !fixpoint_interp1_eq //=.
+         }
+         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
     all: iApply region_integers_alloc; eauto.
-  Admitted.
+  Qed.
 
   Lemma region_valid_alloc' E (b e a: Addr) l p :
     ([∗ list] w ∈ l, interp w) -∗
@@ -391,9 +483,29 @@ Section fundamental.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
     4: { (* IE *) rewrite fixpoint_interp1_eq /=.
-         admit. }
+         iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
+         iModIntro.
+         iIntros "%Hbounds".
+         iDestruct (read_allowed_inv a a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { destruct Hbounds as [ Hbounds%Is_true_true_1%withinBounds_true_iff _ ]; solve_addr. }
+         iDestruct (read_allowed_inv (a^+1)%a a with "H") as (P') "[Hinv' [Hpers' [Hconds' _]] ]"; auto.
+         { destruct Hbounds as [ _ Hbounds%Is_true_true_1%withinBounds_true_iff ]; solve_addr. }
+         iExists P,P'.
+         iFrame "#".
+         iIntros (w1 w2 r).
+         iNext ; iModIntro.
+         iIntros "[Hw1 Hw2]".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
+         iAssert (interp w2) with "[Hw2]" as "#Hinterp2".
+         { iDestruct "Hw2" as "[Hw2 | Hw2]".
+           by iDestruct ("Hconds'" with "Hw2") as "#Hinterp2".
+           destruct_word w2 ; cbn; try done.
+           rewrite !fixpoint_interp1_eq //=.
+         }         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
     all: iApply (region_valid_alloc with "Hl"); eauto.
-  Admitted.
+  Qed.
 
   Lemma region_in_region_alloc' E (b e a: Addr) l p :
     Forall (λ a0 : Addr, ↑logN.@a0 ⊆ E) (finz.seq_between b e) ->
@@ -408,8 +520,29 @@ Section fundamental.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
     4: { (* IE *) rewrite fixpoint_interp1_eq /=.
-         admit. }
+         iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
+         iModIntro.
+         iIntros "%Hbounds".
+         iDestruct (read_allowed_inv a a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { destruct Hbounds as [ Hbounds%Is_true_true_1%withinBounds_true_iff _ ]; solve_addr. }
+         iDestruct (read_allowed_inv (a^+1)%a a with "H") as (P') "[Hinv' [Hpers' [Hconds' _]] ]"; auto.
+         { destruct Hbounds as [ _ Hbounds%Is_true_true_1%withinBounds_true_iff ]; solve_addr. }
+         iExists P,P'.
+         iFrame "#".
+         iIntros (w1 w2 r).
+         iNext ; iModIntro.
+         iIntros "[Hw1 Hw2]".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
+         iAssert (interp w2) with "[Hw2]" as "#Hinterp2".
+         { iDestruct "Hw2" as "[Hw2 | Hw2]".
+           by iDestruct ("Hconds'" with "Hw2") as "#Hinterp2".
+           destruct_word w2 ; cbn; try done.
+           rewrite !fixpoint_interp1_eq //=.
+         }
+         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
     all: iApply (region_valid_in_region with "H"); eauto.
-  Admitted.
+  Qed.
 
 End fundamental.
