@@ -261,6 +261,66 @@ Section fundamental.
     intros HnE. cbn. destruct p; auto. contradiction.
   Qed.
 
+  Lemma wp_jmp_general pc_p pc_b pc_e pc_a w cont r w' wpc widc φ :
+    decodeInstrW w = Jmp r →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+        ∗ idc ↦ᵣ w'
+        ∗ r ↦ᵣ cont
+        ∗ continuation_resources cont wpc widc
+        ∗ pc_a ↦ₐ w
+        ∗ ▷ (
+          PC ↦ᵣ updatePcCont cont wpc
+            ∗ idc ↦ᵣ updateIdcCont cont w' widc
+            ∗ r ↦ᵣ cont
+            ∗ continuation_resources cont wpc widc
+            ∗ pc_a ↦ₐ w
+          -∗ WP Seq (Instr Executable) {{ φ }}))
+      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+
+  Proof.
+    iIntros (Hinstr Hvpc)
+      "(HPC & Hidc & Hr & Hcont_res & Hpc_a & Hφ)".
+
+    destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont].
+    { (* case is IE *)
+      destruct_word cont ; cbn in Hcont ; try congruence.
+      destruct c ; try congruence; clear Hcont.
+      rewrite /continuation_resources.
+      iDestruct "Hcont_res" as "[Hf1 Hf2]".
+
+      destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a))
+        as [ [Hwb Hwb'] | Hwb ].
+
+      { (* case in bounds *)
+        wp_instr.
+        iApply (@wp_jmp_success_IE with "[-Hφ]")
+        ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame.
+        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
+        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
+        iApply "Hφ"; iFrame.
+      }
+      { (* case not in bounds *)
+        wp_instr.
+        iApply (@wp_jmp_fail_IE with "[-Hφ]")
+        ; [| | eapply Hwb | | ]; eauto; iFrame.
+        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
+        wp_end ; by iRight.
+      }
+    }
+    { (* case is not IE *)
+      assert (is_ie_cap cont = false) as Hcont'.
+      { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. }
+      wp_instr.
+      iApply (@wp_jmp_success with "[-Hφ Hidc]") ; eauto; iFrame.
+      iNext; iIntros "(HPC & Hr & Hpc_a)"; wp_pure.
+      iApply (wp_wand _ _ _ φ with "[-]"); last auto.
+      iApply "Hφ".
+      destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence ; iFrame.
+    }
+  Qed.
+
   Lemma wp_jmp_general_idc pc_p pc_b pc_e pc_a w cont wpc widc φ :
     decodeInstrW w = Jmp idc →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
