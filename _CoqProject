@@ -153,6 +153,8 @@ theories/exercises/cerise_tutorial_solutions.v
 # Heap-based Calling Convention
 # theories/examples/call.v
 # theories/examples/callback.v
+theories/examples/call_ie.v
+theories/examples/callback_ie.v
 
 # Example
 # theories/examples/lse.v
