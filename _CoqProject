@@ -140,6 +140,7 @@ theories/exercises/subseg_buffer.v
 # theories/exercises/subseg_buffer_closure.v
 # theories/exercises/subseg_buffer_malloc.v
 # theories/exercises/subseg_buffer_call.v
+theories/exercises/subseg_buffer_call_ie.v
 
 # Classic buffer example
 # theories/examples/buffer.v
