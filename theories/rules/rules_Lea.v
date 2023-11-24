@@ -465,4 +465,26 @@ Section cap_lang_rules.
      { (* Failure, done *) by iApply "Hφ". }
    Qed.
 
+  Lemma wp_Lea_fail_int_inl Ep pc_p pc_b pc_e pc_a w r1 rv z :
+    decodeInstrW w = Lea r1 (inl rv) →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ r1 ↦ᵣ WInt z }}}
+      Instr Executable @ Ep
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hvpc φ) "(>HPC & >Hpc_a & >Hsrc) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hsrc") as "[Hmap %]".
+    iApply (wp_lea with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc | * Hsucc |].
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Success (contradiction) *) simplify_map_eq. }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
+
 End cap_lang_rules.

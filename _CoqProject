@@ -126,8 +126,8 @@ theories/examples/macros.v
 # theories/examples/macros_new.v
 
 # Template Adequacy
-# theories/examples/template_adequacy.v
-# theories/examples/template_adequacy_ocpl.v
+theories/examples/template_adequacy.v
+theories/examples/template_adequacy_ocpl.v
 
 # Tutorial and Exercises for learning Cerise in Coq
 theories/exercises/cerise_tutorial.v
@@ -135,7 +135,7 @@ theories/exercises/cerise_tutorial_solutions.v
 # theories/exercises/cerise_modularity.v
 # theories/exercises/cerise_modularity_solutions.v
 
-# theories/exercises/subseg_buffer.v
+theories/exercises/subseg_buffer.v
 # theories/exercises/restrict_buffer.v
 # theories/exercises/subseg_buffer_closure.v
 # theories/exercises/subseg_buffer_malloc.v

@@ -5,7 +5,8 @@ From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
-From cap_machine.examples Require Import addr_reg_sample malloc assert macros_new.
+(* From cap_machine.examples Require Import addr_reg_sample malloc assert macros_new. *)
+From cap_machine.examples Require Import addr_reg_sample malloc assert macros.
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
 
