@@ -372,6 +372,10 @@ Section SimpleMalloc.
       }
       { (* not in bounds -- the jump fails *)
 
+        (* TODO fix iInstr [_] with _.
+           looks like it's because =iApplyCapAuto= doesn't break the resulting resources ?
+           unclear why *)
+        (* iInstr "Hprog" with wp_jmp_fail_IE. *)
 
         iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
         wp_instr.

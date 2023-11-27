@@ -570,19 +570,26 @@ Ltac iInstr_lookup0 hprog hi hcont :=
 Tactic Notation "iInstr_lookup" constr(hprog) "as" constr(hi) constr(hcont) :=
   iInstr_lookup0 hprog hi hcont.
 
-Ltac iInstr_get_rule0 hi cont :=
-  let hi := constr:(hi:ident) in
-  once (
-    (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] => idtac end
-     + (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ ?instr)%I ] =>
-           fail 1 "Next instruction is not of the form (encodeInstrW _):" instr
-         end + fail "" hi "not found"))
-  );
-  lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
-    dispatch_instr_rule instr cont
+Ltac iInstr_get_rule0 rule_opt hi cont :=
+  lazymatch rule_opt with
+  | Some ?r => cont r
+  | None =>
+      let hi := constr:(hi:ident) in
+      once (
+          (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] => idtac end
+           +
+             (lazymatch goal with
+                |- context [ Esnoc _ hi (_ ↦ₐ ?instr)%I ] =>
+                  fail 1 "Next instruction is not of the form (encodeInstrW _):" instr end
+              + fail "" hi "not found"))
+        );
+      lazymatch goal with
+        |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] => dispatch_instr_rule instr cont
+      end
   end.
 
-Tactic Notation "iInstr_get_rule" constr(hi) tactic(cont) := iInstr_get_rule0 hi cont.
+Tactic Notation "iInstr_get_rule" constr(rule_opt) constr(hi) tactic(cont) :=
+  iInstr_get_rule0 rule_opt hi cont.
 
 Ltac iInstr_close hprog :=
   (* because of iApplyCapAuto's context shuffling, [hi] and [hcont]
@@ -601,15 +608,21 @@ Ltac iInstr_close hprog :=
 (* TODO: find a way of displaying an error message if iApplyCapAuto fails,
    displaying the rule it was called on, and without silencing iApplyCapAuto's
    own error messages? *)
-Ltac iInstr hprog :=
+Ltac iInstr0 rule_opt hprog :=
   let hi := iFresh in
   let hcont := iFresh in
   iInstr_lookup hprog as hi hcont;
   try wp_instr;
-  iInstr_get_rule hi ltac:(fun rule =>
+  iInstr_get_rule rule_opt hi ltac:(fun rule =>
     iApplyCapAuto rule;
     [ .. | iInstr_close hprog; try wp_pure]
   ).
+
+Tactic Notation "iInstr" constr(hprog) :=
+  iInstr0 (None : option unit) hprog.
+
+Tactic Notation "iInstr" constr(hprog) "with" constr(wp_rule) :=
+  iInstr0 (Some wp_rule) hprog.
 
 Ltac2 rec iGo hprog :=
   let stop_if_at_least_two_goals () :=
