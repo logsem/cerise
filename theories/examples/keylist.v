@@ -780,37 +780,6 @@ Section list.
   (* ------------------------------------------------------------------------------------------------- *)
   (* -------------------------------------------- FINDB ---------------------------------------------- *)
 
-  (* TODO: move this to the rules_Get.v file. small issue with the spec of failure: it does not actually *)
-  (*    require/leave a trace on dst! It would be good if req_regs of a failing get does not include dst (if possible) *)
-  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a w zsrc wdst :
-    decodeInstrW w = get_i →
-    is_Get get_i dst src →
-    (forall dst' src', get_i <> GetOType dst' src') ->
-    (forall dst' src', get_i <> GetWType dst' src') ->
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
-
-    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-      ∗ ▷ pc_a ↦ₐ w
-      ∗ ▷ dst ↦ᵣ wdst
-      ∗ ▷ src ↦ᵣ WInt zsrc }}}
-      Instr Executable @ E
-      {{{ RET FailedV; True }}}.
-  Proof.
-    iIntros (Hdecode Hinstr Hnot_otype Hnot_wtype Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & >Hdst) Hφ".
-    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hmap (%&%&%)]".
-    iApply (wp_Get with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
-      by erewrite regs_of_is_Get; eauto; rewrite !dom_insert; set_solver+.
-    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-    destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *)
-      destruct (decodeInstrW w); simplify_map_eq
-        ; specialize (Hnot_otype dst0 r)
-        ; specialize (Hnot_wtype dst0 r)
-      ; try contradiction.
-    }
-    { (* Failure, done *) by iApply "Hφ". }
-  Qed.
-
   (* The following describes a generalized spec for one arbitrary iteration of the find loop *)
   Lemma findb_spec_middle pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
