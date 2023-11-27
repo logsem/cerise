@@ -1,4 +1,5 @@
 From cap_machine Require Import rules.
+From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics.
 From Ltac2 Require Import Ltac2 Option.
 Set Default Proof Mode "Classic".
 
@@ -87,12 +88,31 @@ Ltac dispatch_instr_rule instr cont :=
     (lazymatch instr with
      | Jnz PC _ => cont (@wp_jnz_success_jmpPC1)
      | Jnz ?r ?r => cont (@wp_jnz_success_jmp_same)
-     | Jnz _ _ => cont (@wp_jnz_success_jmp)
+     | Jnz ?r _ =>
+         lazymatch goal with
+         | |- context [ Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+             lazymatch w with
+             (* TODO would also need more rules to differentiate all kind of equalities
+             between addresses *)
+             | WCap IE _ _ _ => cont (wp_jnz_success_jmp_IE)
+             | _ => cont (@wp_jnz_success_jmp)
+             end
+         | _ => fail "No points-to register predicate" r "available for instruction" instr
+         end
      end))
   (* Jmp *)
   | Jmp PC => cont (@wp_jmp_successPC)
-  | Jmp _ => cont (@wp_jmp_success)
-            (* || cont (@wp_jmp_success_IE)) *)
+  | Jmp ?r =>
+      lazymatch goal with
+        | |- context [ Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+          lazymatch w with
+          | WCap IE _ _ _ => cont (@wp_jmp_success_IE)
+          (* TODO would also need more rules to differentiate all kind of equalities
+             between addresses *)
+          | _ => cont (@wp_jmp_success)
+          end
+      | _ => fail "No points-to register predicate" r "available for instruction" instr
+      end
   (* Subseg *)
   | Subseg PC (inr ?r) (inr ?r) => cont (@wp_subseg_success_pc_same)
   | Subseg PC (inr _) (inr _) => cont (@wp_subseg_success_pc)
