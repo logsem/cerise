@@ -556,8 +556,8 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (** In order to jump to the adversary code, we have to prove that the context is safe,
        i.e. all the registers are safe to share.
        We need to prove that all the registers contains safe-to-share words.
-       In particular the register that contains the activation code is a
-       sentry-capability, which relies on persistent proposition only.
+       In particular the register that contains the activation code is an
+       indirect sentry capability, which relies on persistent proposition only.
        Thus, we encapsulate the needed memory resources for the remaining code
        into invariants. *)
 
@@ -658,8 +658,10 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       by simplify_map_eq.
     }
 
+    (* Show that the content of all the registers are safe to share *)
     iAssert (interp (WCap RWX (b_mem ^+ (secret_off + 1))%a e_mem (b_mem ^+ secret_off)%a))%I as
       "#Hbuffer_valid"; first iFrame "#"; iClear "Hbuffer_valid".
+    (* The return pointer is safe to share *)
     iAssert (interp (WCap IE b_act e_act b_act))%I as "Hact_valid".
     { cbn beta. rewrite !fixpoint_interp1_eq.
       iIntros (r).
@@ -673,344 +675,215 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       iIntros "[%Hw1 %Hw2]" ; simplify_eq.
       (* need to consider 2 cases: w2 is context, or it is integer *)
 
-      (* TODO factor out the proof *)
-      destruct Hw2 as [ -> | Hw2].
-      { (* case P2 w2 *)
+      iIntros "([% #Hrmap_safe] & Hrmap & Hna)".
+      iHide "Hinterp_buffer" as Hinterp_buffer.
+      iHide "Hrmap_safe" as Hrmap_safe.
+      rewrite /interp_conf /registers_mapsto.
+      apply regmap_full_dom in H1 as H'.
 
-        iIntros "([% #Hrmap_safe] & Hrmap & Hna)".
-        iHide "Hinterp_buffer" as Hinterp_buffer.
-        iHide "Hrmap_safe" as Hrmap_safe.
-        rewrite /interp_conf /registers_mapsto.
-        apply regmap_full_dom in H1 as H'.
+      (* get all the registers we need for the remaining code *)
+      iExtractList "Hrmap" [PC;idc;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8] as ["HPC";"Hidc";"Hr1";"Hr2";"Hr3";"Hr4";"Hr5";"Hr8"].
 
+      (* Code after the return of the call *)
+      iMod (na_inv_acc with "Hcallback Hna") as
+        "[>[[[Hrestore Hprepa] Hassert] Hend] [Hna Hcls] ]"
+      ;[solve_ndisj|solve_ndisj|].
 
-        (* get all the registers we need for the remaining code *)
-        iExtractList "Hrmap" [PC;idc;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8] as ["HPC";"Hidc";"Hr1";"Hr2";"Hr3";"Hr4";"Hr5";"Hr8"].
+      (* 2 - restore locals *)
+      iMod (na_inv_acc with "Hlocals Hna") as "[>Hlocal [Hna Hcls'] ]"
+      ;[solve_ndisj|solve_ndisj|].
 
-        (* Code after the return of the call *)
-        iMod (na_inv_acc with "Hcallback Hna") as
-          "[>[[[Hrestore Hprepa] Hassert] Hend] [Hna Hcls] ]"
-        ;[solve_ndisj|solve_ndisj|].
+      iAssert (restore_locals restore_addrs idc [r_t8]) with "Hrestore" as "Hrestore".
+      (* the specification of restore_locals depends on whether w2 is an integer *)
 
-
-        (* 2 - restore locals *)
-        iMod (na_inv_acc with "Hlocals Hna") as "[>Hlocal [Hna Hcls'] ]"
-        ;[solve_ndisj|solve_ndisj|].
-
-        iAssert (restore_locals restore_addrs idc [r_t8]) with "Hrestore" as "Hrestore".
-        iApply (restore_locals_spec _ idc {[ r_t8 := w8]} [r_t8] [w8]
-                  restore_addrs pc_p pc_b pc_e a_restore _ RWX b_local e_locals
-                 with "[- $HPC $Hidc $Hlocal $Hrestore]")
-        ; try eauto.
-        { split ; try eauto.
-          apply contiguous_between_bounds in Hcont_end.
-          solve_addr. }
-        { simpl. by rewrite map_to_list_singleton. }
-        iSplitL "Hr8"; iNext.
-        iApply big_sepM_singleton ; iExists _ ; iAssumption.
-        iIntros "(HPC & Hidc & Hr8 & Hlocal & Hrestore)".
-        simpl.
-        iAssert (r_t8 ↦ᵣ w8)%I with "[Hr8]" as "Hr8".
-        { iApply (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t8 w8).
-          done. }
-
-        (* 3 - Preparation of the assert *)
-        iDestruct (big_sepL2_length with "Hlocal") as %Hlength_local.
-        assert ( (b_local + 1)%a = Some e_locals ) as Hsize_locals.
-        { rewrite finz_seq_between_length /= /finz.dist in Hlength_local.
-          clear -Hlength_local. solve_addr. }
-        iDestruct (region_mapsto_single with "Hlocal") as "Hlocal" ; auto.
-        iDestruct "Hlocal" as (?) "[Hlocal %Hv]".
-        inversion Hv as [Hv'] ; clear Hv Hv' v.
-        subst w8.
-        (* The specification requires the codefrag assertions *)
-        iAssert (codefrag a_prepa instrs_prepa) with "[Hprepa]" as "Hprepa".
-        { rewrite /codefrag /region_mapsto.
-          rewrite <- (region_addrs_of_contiguous_between prepa_addrs).
-          done.
-          replace (a_prepa ^+ length instrs_prepa)%a with a_assert by solve_addr.
-          done. }
-
-        iMod (na_inv_acc with "Hsecret Hna") as "[>Ha_secret [Hna Hcls_secret] ]"
-        ;[solve_ndisj|solve_ndisj|].
-
-        iApply (prepa_assert_spec
-                 with "[- $HPC $Hr8 $Hr4 $Hr5 $Ha_secret $Hprepa]")
-        ; auto.
-        { Unshelve. 2: exact prepa_addrs. cbn.
-          replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr;done.
-        }
-        cbn.
+      (* prepare the hypothesis for applying restore_local_spec *)
+      assert (isCorrectPC_range pc_p pc_b pc_e a_restore a_prepa) as HcorrectPC_restore.
+      { split ; try eauto.
         split ; try solve_addr.
-        split ; try solve_addr.
-        repeat (
-            match goal with
-            | h:contiguous_between _ _ _ |- _ => apply contiguous_between_bounds in h
-            end) ; solve_addr.
+        apply contiguous_between_bounds in Hcont_end.
         solve_addr.
-        iNext ; iIntros "(HPC & Hr8 & Hr4 & Hr5 & Ha_secret & Hprepa)".
-        simpl.
-        replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
-
-        (* + Cleaning + *)
-        iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
-          with "[Hprepa]" as "Hprepa".
-        { rewrite /codefrag /region_mapsto. simpl.
-          replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
-          rewrite <- (region_addrs_of_contiguous_between prepa_addrs); done.
-        }
-        iMod ("Hcls_secret" with "[$Ha_secret $Hna]") as "Hna".
-        iMod ("Hcls'" with "[Hlocal $Hna]") as "Hna".
-        { iNext. rewrite /region_mapsto.
-          rewrite finz_seq_between_singleton ; auto.
-          by iFrame. }
-
-        (* 4 - Assert *)
-        iMod (na_inv_acc with "Hinv_link Hna") as "[>[Hlink [Hentry_malloc Hentry_assert]] [Hna Hcls'] ]"
-        ;[solve_ndisj|solve_ndisj|].
-        iApply (assert_success with
-                 "[- $HPC $Hna $Hinv_assert $Hidc $Hr1 $Hr2 $Hr3 $Hr4 $Hr5 $Hlink $Hentry_assert]") ; eauto.
-        repeat (
-            match goal with
-            | h:contiguous_between _ _ _ |- _ => apply contiguous_between_bounds in h
-            end).
-        split ; auto ; solve_addr.
-        solve_ndisj.
-        iSplitL "Hassert" ; first (iNext ; auto).
-        iNext
-        ; iIntros
-            "(Hidc & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & HPC & Hassert & Hna & Hlink & Hentry_assert)".
-        iMod ("Hcls'" with "[$Hentry_assert $Hentry_malloc $Hlink $Hna]") as "Hna".
-
-        (* 5 - End - halts *)
-        assert (Hcont_end' := Hcont_end).
-        apply contiguous_between_cons_inv_first in Hcont_end as ->.
-        wp_instr.
-        iApply (wp_halt with "[$HPC $Hend]")
-        ; [apply decode_encode_instrW_inv|..].
-        { apply isCorrectPC_ExecPCPerm_InBounds ; auto.
-          subst.
-          assert ( Hcont_end:= Hcont_end').
-          apply region_addrs_of_contiguous_between in Hcont_end'.
-          eapply (InBounds_sub _ _ _ _ _ a_end) in Hpc_bounds.
-          split ; auto...
-          split ; auto...
-          assert ((a_end +1)%a = Some a_last).
-          { inversion Hcont_end ; subst.
-            match goal with | h: contiguous_between [] _ _ |- _ => (inversion h ; subst) end.
-            solve_addr. }
-          solve_addr.
-        }
-        iNext ; iIntros "[HPC Hi]".
-
-        (* close invariants, reassemble registers, and finish *)
-        iMod ("Hcls" with "[$Hna $Hrestore $Hi $Hprepa $Hassert]") as "Hna".
-        iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8;PC].
-        wp_pure; wp_end.
-        iIntros "_".
-        iExists _. iFrame.
-        iPureIntro.
-        intros r';simpl.
-        consider_next_reg r' PC.
-        consider_next_reg r' r_t8.
-        consider_next_reg r' r_t5.
-        consider_next_reg r' r_t4.
-        consider_next_reg r' r_t3.
-        consider_next_reg r' r_t2.
-        consider_next_reg r' r_t1.
-        consider_next_reg r' idc.
-        apply lookup_delete_is_Some ; split ; auto.
       }
+      assert (zip [r_t8] [w8] ≡ₚ map_to_list {[r_t8 := w8]}) as Hmap_locals.
+      by (by rewrite map_to_list_singleton).
 
-      { (* case is_int *)
+      destruct Hw2 as [ -> | Hw2]; cycle 1.
+      { (* is_int w2 *)
         destruct_word w2 ; cbn in Hw2 ; try contradiction ; clear Hw2.
-
-        iIntros "([% #Hrmap_safe] & Hrmap & Hna)".
-        iHide "Hinterp_buffer" as Hinterp_buffer.
-        iHide "Hrmap_safe" as Hrmap_safe.
-        rewrite /interp_conf /registers_mapsto.
-        apply regmap_full_dom in H1 as H'.
-
-
-        (* get all the registers we need for the remaining code *)
-        iExtractList "Hrmap" [PC;idc;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8] as ["HPC";"Hidc";"Hr1";"Hr2";"Hr3";"Hr4";"Hr5";"Hr8"].
-
-        (* Code after the return of the call *)
-        iMod (na_inv_acc with "Hcallback Hna") as
-          "[>[[[Hrestore Hprepa] Hassert] Hend] [Hna Hcls] ]"
-        ;[solve_ndisj|solve_ndisj|].
-
-
-        (* 2 - restore locals *)
-        iMod (na_inv_acc with "Hlocals Hna") as "[>Hlocal [Hna Hcls'] ]"
-        ;[solve_ndisj|solve_ndisj|].
-
-        iAssert (restore_locals restore_addrs idc [r_t8]) with "Hrestore" as
-          "Hrestore".
         iApply (wp_wand with "[-]").
         iApply (restore_locals_spec_int idc {[ r_t8 := w8]} [r_t8] [w8]
                   restore_addrs pc_p pc_b pc_e a_restore _ _
                  with "[- $HPC $Hidc $Hrestore]")
         ; try eauto.
-        { split ; try eauto.
-          split ; try solve_addr.
-          apply contiguous_between_bounds in Hcont_end.
-          solve_addr. }
-        { simpl. by rewrite map_to_list_singleton. }
         iIntros (v) "% %"; simplify_eq.
       }
+      (* case (P2 w2) *)
+
+      iApply (restore_locals_spec _ idc {[ r_t8 := w8]} [r_t8] [w8]
+                restore_addrs pc_p pc_b pc_e a_restore _ RWX b_local e_locals
+               with "[- $HPC $Hidc $Hlocal $Hrestore]")
+      ; try eauto.
+      clear HcorrectPC_restore Hmap_locals.
+      iSplitL "Hr8"; iNext.
+      iApply big_sepM_singleton ; iExists _ ; iAssumption.
+      iIntros "(HPC & Hidc & Hr8 & Hlocal & Hrestore)".
+      simpl.
+      iAssert (r_t8 ↦ᵣ w8)%I with "[Hr8]" as "Hr8".
+      { iApply (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t8 w8).
+        done. }
+
+      (* 3 - Preparation of the assert *)
+      iDestruct (big_sepL2_length with "Hlocal") as %Hlength_local.
+      assert ( (b_local + 1)%a = Some e_locals ) as Hsize_locals.
+      { rewrite finz_seq_between_length /= /finz.dist in Hlength_local.
+        clear -Hlength_local. solve_addr. }
+      iDestruct (region_mapsto_single with "Hlocal") as "Hlocal" ; auto.
+      iDestruct "Hlocal" as (?) "[Hlocal %Hv]".
+      inversion Hv as [Hv'] ; clear Hv Hv' v.
+      subst w8.
+      (* The specification requires the codefrag assertions *)
+      iAssert (codefrag a_prepa instrs_prepa) with "[Hprepa]" as "Hprepa".
+      { rewrite /codefrag /region_mapsto.
+        rewrite <- (region_addrs_of_contiguous_between prepa_addrs).
+        done.
+        replace (a_prepa ^+ length instrs_prepa)%a with a_assert by solve_addr.
+        done. }
+
+      iMod (na_inv_acc with "Hsecret Hna") as "[>Ha_secret [Hna Hcls_secret] ]"
+      ;[solve_ndisj|solve_ndisj|].
+
+      iApply (prepa_assert_spec
+               with "[- $HPC $Hr8 $Hr4 $Hr5 $Ha_secret $Hprepa]")
+      ; auto.
+      { Unshelve. 2: exact prepa_addrs. cbn.
+        replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr;done.
+      }
+      cbn.
+      split ; try solve_addr.
+      split ; try solve_addr.
+      repeat (
+          match goal with
+          | h:contiguous_between _ _ _ |- _ => apply contiguous_between_bounds in h
+          end) ; solve_addr.
+      solve_addr.
+      iNext ; iIntros "(HPC & Hr8 & Hr4 & Hr5 & Ha_secret & Hprepa)".
+      simpl.
+      replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
+
+      (* + Cleaning + *)
+      iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
+        with "[Hprepa]" as "Hprepa".
+      { rewrite /codefrag /region_mapsto. simpl.
+        replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
+        rewrite <- (region_addrs_of_contiguous_between prepa_addrs); done.
+      }
+      iMod ("Hcls_secret" with "[$Ha_secret $Hna]") as "Hna".
+      iMod ("Hcls'" with "[Hlocal $Hna]") as "Hna".
+      { iNext. rewrite /region_mapsto.
+        rewrite finz_seq_between_singleton ; auto.
+        by iFrame. }
+
+      (* 4 - Assert *)
+      iMod (na_inv_acc with "Hinv_link Hna") as "[>[Hlink [Hentry_malloc Hentry_assert]] [Hna Hcls'] ]"
+      ;[solve_ndisj|solve_ndisj|].
+      iApply (assert_success with
+               "[- $HPC $Hna $Hinv_assert $Hidc $Hr1 $Hr2 $Hr3 $Hr4 $Hr5 $Hlink $Hentry_assert]") ; eauto.
+      repeat (
+          match goal with
+          | h:contiguous_between _ _ _ |- _ => apply contiguous_between_bounds in h
+          end).
+      split ; auto ; solve_addr.
+      solve_ndisj.
+      iSplitL "Hassert" ; first (iNext ; auto).
+      iNext
+      ; iIntros
+          "(Hidc & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & HPC & Hassert & Hna & Hlink & Hentry_assert)".
+      iMod ("Hcls'" with "[$Hentry_assert $Hentry_malloc $Hlink $Hna]") as "Hna".
+
+      (* 5 - End - halts *)
+      assert (Hcont_end' := Hcont_end).
+      apply contiguous_between_cons_inv_first in Hcont_end as ->.
+      wp_instr.
+      iApply (wp_halt with "[$HPC $Hend]")
+      ; [apply decode_encode_instrW_inv|..].
+      { apply isCorrectPC_ExecPCPerm_InBounds ; auto.
+        subst.
+        assert ( Hcont_end:= Hcont_end').
+        apply region_addrs_of_contiguous_between in Hcont_end'.
+        eapply (InBounds_sub _ _ _ _ _ a_end) in Hpc_bounds.
+        split ; auto...
+        split ; auto...
+        assert ((a_end +1)%a = Some a_last).
+        { inversion Hcont_end ; subst.
+          match goal with | h: contiguous_between [] _ _ |- _ => (inversion h ; subst) end.
+          solve_addr. }
+        solve_addr.
+      }
+      iNext ; iIntros "[HPC Hi]".
+
+      (* close invariants, reassemble registers, and finish *)
+      iMod ("Hcls" with "[$Hna $Hrestore $Hi $Hprepa $Hassert]") as "Hna".
+      iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8;PC].
+      wp_pure; wp_end.
+      iIntros "_".
+      iExists _. iFrame.
+      iPureIntro.
+      intros r';simpl.
+      consider_next_reg r' PC.
+      consider_next_reg r' r_t8.
+      consider_next_reg r' r_t5.
+      consider_next_reg r' r_t4.
+      consider_next_reg r' r_t3.
+      consider_next_reg r' r_t2.
+      consider_next_reg r' r_t1.
+      consider_next_reg r' idc.
+      apply lookup_delete_is_Some ; split ; auto.
+    }
+
+    (* Prepare to apply jmp_unknown_safe to end the proof *)
+    iDestruct (call_main with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
+
+    assert (is_Some (rmap !! idc)) as [widc Hwidc].
+    {  clear -Hdom. apply elem_of_dom; set_solver. }
+    iDestruct ((big_sepM_delete _ _ idc (WInt 0)) with "Hrmap") as "[Hidc Hrmap]".
+    { subst rmap2.
+      simplify_map_eq.
+      apply create_gmap_default_lookup.
+      apply map_to_list_fst.
+      exists widc.
+      apply elem_of_map_to_list.
+      by simplify_map_eq.
+    }
+
+    subst rmap2; set rmap2 := (delete idc _).
+    iAssert ([∗ map] r↦w ∈ rmap2, r ↦ᵣ w ∗ interp w)%I
+      with "[Hrmap]" as "Hrmap".
+    {
+      (* -- It remains to prove that all the registers are safe to share -- *)
+      iApply big_sepM_sep. iFrame.
+      subst rmap2.
+      repeat (rewrite (delete_insert_ne _ idc); [|auto]).
+      iApply big_sepM_insert_2 ; first iFrame "#". (* interp r7 *)
+      iApply big_sepM_insert_2 ; first iFrame "#". (* interp r30 *)
+      iApply big_sepM_insert_2 ; first iFrame "#". (* interp r31 *)
+      iApply big_sepM_intro. iIntros "!>" (r ?).
+      set rmap' := delete r_t7 _ .
+      iIntros "%Hrmap".
+      destruct (decide (r = idc)); subst
+      ; [ by rewrite lookup_delete in Hrmap | rewrite lookup_delete_ne //= in Hrmap].
+      destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
+      apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->].
+      all: simplify_eq; by rewrite !fixpoint_interp1_eq.
     }
 
     (* Apply the continuation *)
-    destruct ( decide (is_ie_cap wadv = true ) ) as [Hadv|Hadv].
-    { (* JMP TO IE-CAP ADV WITH  *)
-      iClear "Cont"; clear Cont cont0.
-
-      destruct_word wadv ; [| destruct c | |] ; cbn in Hadv ; try congruence ; clear Hadv.
-      subst rmap2 Hinterp_adv.
-      (* prepare ressources for the jmp *)
-      iDestruct (call_main_end with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
-      iExtract "Hrmap" r_t30 as "Hr30".
-      assert (is_Some (rmap !! idc)) as [widc Hwidc].
-      {  clear -Hdom. apply elem_of_dom; set_solver. }
-      iDestruct ((big_sepM_delete _ _ idc (WInt 0)) with "Hrmap") as "[Hidc Hrmap]".
-      { simplify_map_eq.
-        apply create_gmap_default_lookup.
-        apply map_to_list_fst.
-        exists widc.
-        apply elem_of_map_to_list.
-        by simplify_map_eq.
-      }
-      iAssert (interp (WCap IE f f1 f2)) as "#Hadv'"; first iFrame "#".
-
-      rewrite {1}fixpoint_interp1_eq //=.
-      destruct (decide (withinBounds f f1 f2 ∧ withinBounds f f1 (f2 ^+ 1)%a))
-        as [ Hbounds | Hbounds] ; cycle 1.
-      { (* ill-formed IE, the jump fails *)
-        wp_instr.
-        iApply (wp_jmp_fail_IE with "[$HPC $Hr30 $Hidc $Hi]")
-        ; try solve_pure.
-        iNext ; iIntros "(HPC & Hr30 & _ & >Hi)".
-        wp_pure; wp_end. by iIntros "%".
-      }
-      wp_instr.
-      set (Hbounds' := Hbounds).
-      destruct Hbounds' as [Hwb Hwb'].
-      iDestruct ("Hadv" $! Hbounds)
-        as (P1 P2) "(%Hpers1 & %Hpers2 & Hinv_f1 & Hinv_f2 & Hcont)".
-
-      assert (Hf2: f2 <> (f2 ^+ 1)%a)
-        by (apply Is_true_true_1, withinBounds_true_iff in Hwb; solve_addr).
-      iInv (logN.@f2) as (w1) "[>Hf2 #HP1]" "Hcls1".
-      iInv (logN.@(f2 ^+1)%a) as (w2) "[>Hf2' #HP2]" "Hcls2".
-
-      iApply (wp_jmp_success_IE with "[$HPC $Hr30 $Hidc $Hi $Hf2 $Hf2']")
-      ; try solve_pure.
-      iNext; iIntros "(HPC& Hr30 & Hidc& Hi& Hf1& Hf2) //=".
-      iMod ("Hcls2" with "[Hf2 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-      iMod ("Hcls1" with "[Hf1 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-      iApply wp_pure_step_later; auto.
-      iNext ; iIntros "_".
-
-      iInsert "Hrmap" r_t30.
-      iDestruct (big_sepM_insert with "[Hrmap Hidc]") as "Hrmap" ; try iFrame "Hrmap Hidc".
-      { by simplify_map_eq. }
-      iDestruct (big_sepM_insert with "[Hrmap HPC]") as "Hrmap" ; try iFrame "Hrmap HPC".
-      { simplify_map_eq.
-        apply create_gmap_default_lookup_None.
-        clear -Hdom.
-        intro HPC.
-        apply map_to_list_fst in HPC.
-        destruct HPC as [wpc HPC].
-        apply elem_of_map_to_list in HPC.
-        simplify_map_eq.
-        assert (is_Some (rmap !! PC)) as Hcontra by (eexists ; eauto).
-        apply elem_of_dom in Hcontra.
-        set_solver.
-      }
-      set rmap2 := (<[PC:=w1]> ( <[idc:=w2]>  (  <[r_t30:=WCap IE f f1 f2]> _  ))).
-
-      iApply ("Hcont" $! w1 w2 rmap2); iFrame "#".
-      iSplit; cycle 1.
-      { rewrite insert_insert.
-        rewrite (insert_commute _ idc PC); [|auto].
-        rewrite insert_insert.
-        iFrame.
-      }
-      iSplit.
-      { rewrite /full_map.
-        iIntros (r) ; iPureIntro.
-        subst rmap2.
-        apply elem_of_dom.
-        rewrite !dom_insert_L !dom_delete_L !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
-        rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
-        rewrite !singleton_union_difference_L.
-        set_solver.
-      }
-      {
-        iIntros (r w Hr Hr' Hregs).
-        iClear "Hadv".
-        subst rmap2.
-        do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
-        destruct (decide (r = r_t30)); subst.
-        { rewrite lookup_insert in Hregs; simplify_eq ; iFrame "#". }
-        rewrite lookup_insert_ne in Hregs ; [|auto].
-        rewrite lookup_delete_ne in Hregs ; [|auto].
-        destruct (decide (r = r_t7)); subst.
-        { rewrite lookup_insert in Hregs; simplify_eq ; iFrame "#". }
-        rewrite lookup_insert_ne in Hregs ; [|auto].
-        destruct (decide (r = r_t31)); subst.
-        { rewrite lookup_insert in Hregs; simplify_eq ; iFrame "#". }
-        rewrite lookup_insert_ne in Hregs ; [|auto].
-        apply create_gmap_default_lookup_is_Some in Hregs.
-        destruct Hregs as [_ ->]. rewrite !fixpoint_interp1_eq; auto.
-      }
-    }
-
-
-
-    (* --------------------------------------------------------------------- *)
-
-    { (* JMP TO NORMAL ADV *)
-      apply not_true_is_false in Hadv.
-      subst rmap2.
-      iExtract "Hrmap" r_t30 as "Hr30".
-
-
-      iDestruct (call_main_end with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
-
-      (* Jmp adv *)
-      wp_instr.
-      iApply (wp_jmp_success with "[$HPC $Hr30 $Hi]")
-      ; [apply decode_encode_instrW_inv| |auto|..]
-      ; auto.
-      iNext ; iIntros "(HPC & Hi & Hr30)".
-      iInsert "Hrmap" r_t30.
-      set rmap2 := (<[r_t30:=wadv]> ( <[ r_t7 := _ ]> _)).
-      iClear "Hi".
-      wp_pure.
-
-      iSpecialize ("Cont" $! rmap2).
-      iApply "Cont" ; auto ; iFrame.
-      { iPureIntro.
-        rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
-        rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
-        rewrite !singleton_union_difference_L.
-        set_solver+. }
-
-
-      (* -- It remains to prove that all the registers are safe to share -- *)
-      iApply big_sepM_sep. iFrame.
-      iApply big_sepM_insert_2 ; first iFrame "#". (* interp w7 *)
-      iApply big_sepM_insert_2 ; first iFrame "#". (* interp wadv *)
-      iApply big_sepM_insert_2 ; first iFrame "#". (* interp wadv *)
-
-      (* The remaining registers contains WInt*)
-      { iApply big_sepM_intro. iIntros "!>" (r ?).
-        (set rmap' := delete r_t7 _ ).
-        destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
-        apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
-        iIntros (?). simplify_eq. done. iIntros (?). done. }
+    iApply jmp_unknown_safe; try iFrame; auto.
+    { by rewrite !fixpoint_interp1_eq. }
+    { subst rmap2.
+      iPureIntro.
+      rewrite !dom_delete_L !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
+      rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
+      rewrite !singleton_union_difference_L.
+      set_solver.
     }
   Qed.
 

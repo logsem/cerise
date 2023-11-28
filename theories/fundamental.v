@@ -494,6 +494,115 @@ Section fundamental.
     }
   Qed.
 
+  Lemma jmp_unknown_safe
+    (pc_p : Perm) (pc_b pc_e pc_a : Addr)
+    (widc: Word) (r : RegName) :
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
+    r <> PC -> r <> idc ->
+    ⊢ interp widc
+    -∗ ∀ rmap,
+         ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
+         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+           ∗ idc ↦ᵣ widc
+           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
+           ∗ pc_a ↦ₐ jmp r
+           ∗ na_own logrel_nais ⊤
+         -∗ interp_conf.
+  Proof.
+    iIntros "%Hpcv %Hr %Hr' #Hinterp_widc".
+    iIntros (rmap) "%Hdom".
+    iIntros "(HPC & Hidc & Hrmap & Hpc_a & Hna)".
+
+    assert (is_Some (rmap !! r)) as [wadv Hwadv].
+    {  clear -Hdom Hr Hr'. apply elem_of_dom; set_solver. }
+    iExtract "Hrmap" r as "[Hr #Hinterp_wadv]".
+
+    destruct ( decide (is_ie_cap wadv = true ) ) as [Hadv|Hadv].
+    - (* JMP TO IE-CAP  *)
+
+      destruct_word wadv ; [| destruct c | |] ; cbn in Hadv ; try congruence ; clear Hadv.
+
+      iAssert (interp (WCap IE f f0 f1)) as "Hinterp_wadv'"; first done.
+      rewrite {1}(fixpoint_interp1_eq (WCap IE _ _ _)) //=.
+      destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a))
+        as [ Hbounds | Hbounds] ; cycle 1.
+      { (* ill-formed IE, the jump fails *)
+        wp_instr.
+        iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hidc $Hpc_a]")
+        ; try solve_pure.
+        iNext ; iIntros "(HPC & >Hr & >Hidc & >Hpc_a)".
+        wp_pure; wp_end. by iIntros "%".
+      }
+      wp_instr.
+      set (Hbounds' := Hbounds).
+      destruct Hbounds' as [Hwb Hwb'].
+      iDestruct ("Hinterp_wadv" $! Hbounds)
+        as (P1 P2) "(%Hpers1 & %Hpers2 & Hinv_f0 & Hinv_f1 & Hcont)".
+
+      assert (Hf1: f1 <> (f1 ^+ 1)%a)
+        by (apply Is_true_true_1, withinBounds_true_iff in Hwb; solve_addr).
+      iInv (logN.@f1) as (w1) "[>Hf1 #HP1]" "Hcls1".
+      iInv (logN.@(f1 ^+1)%a) as (w2) "[>Hf1' #HP2]" "Hcls2".
+
+      iApply (wp_jmp_success_IE with "[$HPC $Hr $Hidc $Hpc_a $Hf1 $Hf1']")
+      ; try solve_pure.
+      iNext; iIntros "(HPC& Hr & Hidc& Hpc_a& Hf0& Hf1) //=".
+      iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+      iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+      iApply wp_pure_step_later; auto.
+      iNext ; iIntros "_".
+      iCombine "Hr" "Hinterp_wadv'"  as "Hr".
+
+      iInsert "Hrmap" r.
+      replace (<[r:=_]> rmap) with rmap by (rewrite insert_id //=).
+      iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
+      iInsertList "Hrmap" [idc;PC].
+
+      iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
+      iSplit; cycle 1.
+      { rewrite insert_insert.
+        rewrite (insert_commute _ idc PC); [|auto].
+        rewrite insert_insert.
+        iFrame.
+      }
+      iSplit.
+      { rewrite /full_map.
+        iIntros (r') ; iPureIntro.
+        apply elem_of_dom.
+        rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
+      }
+      {
+        iIntros (r0 w Hr0 Hr0' Hregs).
+        iClear "Hinterp_wadv Hcont".
+        do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
+        destruct (decide (r = r0)); simplify_eq; iExtract "Hrmap_interp" r0 as "Hr"; done.
+      }
+
+    - (* JMP TO NON IE *)
+      apply not_true_is_false in Hadv.
+      iDestruct (jmp_to_unknown with "Hinterp_wadv") as "cont".
+
+      (* Jmp adv *)
+      wp_instr.
+      iApply (wp_jmp_success with "[$HPC $Hr $Hpc_a]")
+      ; [apply decode_encode_instrW_inv| |auto|..]
+      ; auto.
+      iNext ; iIntros "(HPC & Hi & Hr)".
+      wp_pure.
+
+      iCombine "Hr" "Hinterp_wadv"  as "Hr".
+      iInsert "Hrmap" r.
+      replace (<[r:=wadv]> rmap) with rmap by (rewrite insert_id //=).
+      iCombine "Hidc" "Hinterp_widc"  as "Hidc".
+      iInsert "Hrmap" idc.
+
+      iApply ("cont" $! (<[idc:=widc]> rmap)); auto ; iFrame.
+      iPureIntro.
+      rewrite dom_insert_L Hdom !singleton_union_difference_L.
+      set_solver+.
+  Qed.
+
+
   Lemma region_integers_alloc' E (b e a: Addr) l p :
     Forall (λ w, is_z w = true) l →
     ([∗ list] a;w ∈ finz.seq_between b e;l, a ↦ₐ w) ={E}=∗

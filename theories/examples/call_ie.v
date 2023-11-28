@@ -771,10 +771,7 @@ Section call.
     iFrame.
   Qed.
 
-  (* TODO specification after the jmp ? maybe not necessary *)
-
-
-  (* Helpful lemmas to split the program *)
+  (** Helpful lemmas and definition to get the last `Jmp` instruction of the call subroutine to split the program *)
   Definition call_instrs_main f_m offset_to_cont r1 (locals params : list RegName) :=
     (* allocate and store locals *)
     malloc_instrs f_m (strings.length locals) ++
@@ -806,7 +803,7 @@ Section call.
     by rewrite -!app_assoc !app_inv_head_iff.
   Qed.
 
-  Lemma call_main' al f_m r1 locals params :
+  Lemma call_main_jmp al f_m r1 locals params :
     length al = length (call_instrs f_m (offset_to_cont_call params) r1 locals params) ->
     (call al f_m r1 locals params ⊢
     ∃ a' al',
@@ -830,7 +827,7 @@ Section call.
     iFrame. auto.
   Qed.
 
-  Lemma call_main al f_m r1 locals params :
+  Lemma call_main_aux al f_m r1 locals params :
     length al = length (call_instrs f_m (offset_to_cont_call params) r1 locals params) ->
     (call al f_m r1 locals params ⊢
     ∃ a' al',
@@ -840,7 +837,7 @@ Section call.
     )%I.
   Proof.
     iIntros (Hlen) "Hcall".
-    iDestruct (call_main' with "Hcall") as (a_end_call call_addrs') "[-> Hcall]"; auto.
+    iDestruct (call_main_jmp with "Hcall") as (a_end_call call_addrs') "[-> Hcall]"; auto.
     iExists a_end_call, call_addrs'.
     iDestruct (big_sepL2_app' with "Hcall") as "[Hcall' Hi]".
     rewrite call_instrs_main_jmp in Hlen.
@@ -851,9 +848,8 @@ Section call.
     iFrame.
   Qed.
 
-
-  (* TODO use the call_main instead of re-doing the whole proof *)
-  Lemma call_main_end al f_m r1 locals params a_call a_end_call a_restore :
+  (* Separate the points-to predicate of the last instructions of the call sub-routine *)
+  Lemma call_main al f_m r1 locals params a_call a_end_call a_restore :
     (a_end_call + 1)%a = Some a_restore ->
     contiguous_between al a_call a_restore ->
     (a_call + length al)%a = Some a_restore ->
@@ -867,7 +863,7 @@ Section call.
     )%I.
   Proof.
     iIntros (Hnext Hcont_call Ha_restore Hlen) "Hcall".
-    iDestruct (call_main' with "Hcall") as (a_end_call' call_addrs') "[-> Hcall]"; auto.
+    iDestruct (call_main_aux with "Hcall") as (a_end_call' call_addrs') "[-> Hcall]"; auto.
     iExists call_addrs'.
 
     assert (a_end_call' = a_end_call) as ->.
@@ -880,14 +876,7 @@ Section call.
       rewrite app_length cons_length nil_length in Ha_restore.
       solve_addr.
     }
-
-    iDestruct (big_sepL2_app' with "Hcall") as "[Hcall' Hi]".
-    rewrite call_instrs_main_jmp in Hlen.
-    rewrite 2!app_length in Hlen.
-    rewrite 2!cons_length 2!nil_length in Hlen; lia.
-
     iSplit; first eauto.
-    iDestruct (big_sepL2_cons with "Hi") as "[Hi _]".
     iFrame.
   Qed.
 
