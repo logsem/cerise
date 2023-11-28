@@ -376,9 +376,9 @@ Section cap_lang_rules.
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ r ↦ᵣ WCap IE b e a
-          ∗ ▷ idc ↦ᵣ w'
-          ∗ ▷ pc_a ↦ₐ w
+          ∗ r ↦ᵣ WCap IE b e a
+          ∗ idc ↦ᵣ w'
+          ∗ pc_a ↦ₐ w
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hbounds ϕ)

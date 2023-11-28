@@ -371,18 +371,7 @@ Section SimpleMalloc.
         auto.
       }
       { (* not in bounds -- the jump fails *)
-
-        (* TODO fix iInstr [_] with _.
-           looks like it's because =iApplyCapAuto= doesn't break the resulting resources ?
-           unclear why *)
-        (* iInstr "Hprog" with wp_jmp_fail_IE. *)
-
-        iInstr_lookup "Hprog" as "Hi" "Hprog_cont".
-        wp_instr.
-        iApply (wp_jmp_fail_IE with "[$HPC $Hidc $r_t31 $Hi]") ; try solve_pure.
-        iNext ; iIntros "_".
-        iApply wp_pure_step_later; auto.
-        iNext ; iIntros "_".
+        iInstr "Hprog" with wp_jmp_fail_IE.
         wp_end; by iRight.
       }
     - (* not IE-cap *)

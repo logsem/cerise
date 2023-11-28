@@ -530,7 +530,7 @@ Section fundamental.
         wp_instr.
         iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hidc $Hpc_a]")
         ; try solve_pure.
-        iNext ; iIntros "(HPC & >Hr & >Hidc & >Hpc_a)".
+        iNext ; iIntros "(HPC & Hr & Hidc & Hpc_a)".
         wp_pure; wp_end. by iIntros "%".
       }
       wp_instr.
