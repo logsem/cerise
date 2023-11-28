@@ -302,6 +302,12 @@ Section SimpleMalloc.
     unfold malloc_subroutine_instrs_length in Hbm.
     assert (SubBounds b e b (b ^+ length malloc_subroutine_instrs)%a) by solve_addr.
 
+    (* TODO can't use =jmp_unknown_safe= here, because a na_invariant is open.
+       We cannot close the invariant, because it contains the instruction.
+       Maybe we can find a way to use =jmp_unknown_safe= (or a variant) with an
+       invariant open ? It would allow us to factor out this part of the proof.
+     *)
+
     destruct (decide (is_ie_cap cont = true)) as [Hcont | Hcont].
     - (* IE-cap *)
       destruct_word cont ; [ | destruct c | | ] ; cbn in Hcont ; try congruence ; clear Hcont.

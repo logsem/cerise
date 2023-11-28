@@ -728,4 +728,23 @@ Section logrel.
     by iApply region_seal_pred_interp.
   Qed.
 
+  Lemma interp_expr_invalid_pc (w : Word) :
+    ~ isCorrectPC w ->
+    ⊢ ∀ rmap,
+        ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
+        (na_own logrel_nais ⊤
+           ∗ PC ↦ᵣ w
+           ∗ [∗ map] k↦y ∈ rmap, k ↦ᵣ y)
+        -∗ interp_conf%I.
+  Proof.
+    intros Hpc.
+    iIntros (rmap) "%Hdom (Hna & HPC & Hrmap)".
+    iApply (wp_bind (fill [SeqCtx])); iSimpl.
+    iApply (wp_notCorrectPC with "HPC"); auto.
+    iNext; iIntros "HPC"; iSimpl.
+    iApply wp_pure_step_later; [ exact I |].
+    iIntros "!> _".
+    iApply wp_value; iIntros "%"; done.
+  Qed.
+
 End logrel.

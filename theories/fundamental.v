@@ -49,9 +49,9 @@ Section fundamental.
     iLöb as "IH" forall (r p b e a widc).
     iIntros "#Hinv_pc #Hinv_idc".
     iDestruct "Hfull" as "%". iDestruct "Hreg" as "#Hreg".
-    iApply (wp_bind (fill [SeqCtx])).
     destruct (decide (isCorrectPC (WCap p b e a))).
     - (* Correct PC *)
+      iApply (wp_bind (fill [SeqCtx])).
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
@@ -150,13 +150,8 @@ Section fundamental.
    - (* Not correct PC *)
       rewrite {2}/registers_mapsto.
       iExtractList "Hmreg" [PC] as ["HPC"].
-
-     iApply (wp_notCorrectPC with "HPC"); eauto.
-     iNext. iIntros "HPC /=".
-     iApply wp_pure_step_later; auto.
-     iNext ; iIntros "_".
-     iApply wp_value.
-     iIntros (Hcontr); inversion Hcontr.
+      iApply interp_expr_invalid_pc; try iFrame; auto.
+      iPureIntro; apply regmap_full_dom in H; rewrite -H; set_solver.
   Qed.
 
   Theorem fundamental w r :
@@ -164,14 +159,12 @@ Section fundamental.
   Proof.
     iIntros "Hw". destruct w as [| [c | ] | ].
     2: { iApply fundamental_cap. done. }
-    all: iClear "Hw"; iIntros (w') "? ([? ?] & Hreg & ?)".
+    all: iClear "Hw"; iIntros (w') "? ([Hfull ?] & Hreg & ?)".
+    all: iDestruct "Hfull" as "%".
     all: iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
-    all: iApply (wp_bind (fill [SeqCtx])); cbn.
-    all: unfold registers_mapsto.
-    all: iExtract "Hreg" PC as "HPC".
-    all: iApply (wp_notCorrectPC with "HPC"); first by inversion 1.
-    all: iNext; iIntros; cbn; iApply wp_pure_step_later; auto.
-    all: iNext; iIntros "_"; iApply wp_value; iIntros (?); congruence.
+    all: unfold registers_mapsto;iExtract "Hreg" PC as "HPC".
+    all: iApply interp_expr_invalid_pc; try iFrame ; [intros Hcontra ; inversion Hcontra |].
+    all: iPureIntro; apply regmap_full_dom in H; rewrite -H; set_solver.
   Qed.
 
   (* The fundamental theorem implies the exec_cond *)
@@ -218,7 +211,6 @@ Section fundamental.
       iIntros (w') "#Hinv ([HPC ?] & Hr & ?)". iApply "Hw"; iFrame ; iFrame "#". }
     { iNext. iIntros (rmap). iApply fundamental. eauto. }
   Qed.
-
 
   (* Jmp to an unknown word: need specific resources in case the target is an IE-cap *)
   Definition continuation_resources (cont wpc widc : Word) : iProp Σ :=
@@ -438,13 +430,13 @@ Section fundamental.
   Proof.
     iIntros "#Hw #Hwidc #Hcont_ie".
     iDestruct (interp_updatePcPerm with "Hw") as "Hw'".
+    iNext; iIntros (rmap Hrmap).
     destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont].
     { (* case IE*)
       iClear "Hw'".
       destruct_word w ; [| destruct c | | ]; cbn in Hcont ; try congruence
       ; clear Hcont.
       rewrite fixpoint_interp1_eq //=.
-      iNext. iIntros (rmap Hrmap).
       set rmap' := <[ idc := widc ]> (<[ PC := wpc ]> rmap) : gmap RegName Word.
       iIntros "(HPC & HIDC & Hmap & Hna)".
       iApply ("Hcont_ie" $! rmap').
@@ -464,8 +456,6 @@ Section fundamental.
       }
     }
     { (* case not IE *)
-      iNext.
-      iIntros (rmap Hrmap).
       set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
       iSpecialize ("Hw'" $! rmap').
       iIntros "(HPC & Hidc & [Hr Hna])". unfold interp_expression, interp_expr, interp_conf. cbn.
@@ -517,6 +507,7 @@ Section fundamental.
     {  clear -Hdom Hr Hr'. apply elem_of_dom; set_solver. }
     iExtract "Hrmap" r as "[Hr #Hinterp_wadv]".
 
+    wp_instr.
     destruct ( decide (is_ie_cap wadv = true ) ) as [Hadv|Hadv].
     - (* JMP TO IE-CAP  *)
 
@@ -527,13 +518,11 @@ Section fundamental.
       destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a))
         as [ Hbounds | Hbounds] ; cycle 1.
       { (* ill-formed IE, the jump fails *)
-        wp_instr.
         iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hidc $Hpc_a]")
         ; try solve_pure.
         iNext ; iIntros "(HPC & Hr & Hidc & Hpc_a)".
         wp_pure; wp_end. by iIntros "%".
       }
-      wp_instr.
       set (Hbounds' := Hbounds).
       destruct Hbounds' as [Hwb Hwb'].
       iDestruct ("Hinterp_wadv" $! Hbounds)
@@ -583,7 +572,6 @@ Section fundamental.
       iDestruct (jmp_to_unknown with "Hinterp_wadv") as "cont".
 
       (* Jmp adv *)
-      wp_instr.
       iApply (wp_jmp_success with "[$HPC $Hr $Hpc_a]")
       ; [apply decode_encode_instrW_inv| |auto|..]
       ; auto.
@@ -597,9 +585,7 @@ Section fundamental.
       iInsert "Hrmap" idc.
 
       iApply ("cont" $! (<[idc:=widc]> rmap)); auto ; iFrame.
-      iPureIntro.
-      rewrite dom_insert_L Hdom !singleton_union_difference_L.
-      set_solver+.
+      iPureIntro; rewrite dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
   Qed.
 
 
@@ -714,7 +700,7 @@ Section fundamental.
     all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 
-  (* Common property for V(IE, -, -, -) *)
+  (* Commonly used property for V(IE, -, -, -) *)
   Program Definition cap_eq p b e a : leibnizO Word -n> iPropO Σ :=
     λne w , ⌜w = WCap p b e a⌝%I.
 

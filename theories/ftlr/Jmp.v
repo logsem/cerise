@@ -110,8 +110,7 @@ Section fundamental.
       assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
       rewrite lookup_insert_ne //= in Hreg.
 
-      (* TODO there are plenty of similar case, find a way to factor out *)
-
+      (* TODO there are plenty of similar case, is there a way to factor out *)
       case_decide as Ha; simplify_eq.
       {
         destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
@@ -459,10 +458,6 @@ Section fundamental.
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
 
-        (* NOTE he next PC is an integer. Thus, it's always safe to execute an integer.
-           I can probably prove this case without further modification in the definition
-           of the LR *)
-
         iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')".
         iDestruct "HP2" as "#HP2".
         rewrite /allow_jmp_mask.
@@ -478,16 +473,9 @@ Section fundamental.
         iNext ; iIntros "_".
         destruct wpc; cbn in Hi; try done.
         iExtract "Hmap" PC as "HPC".
-
-        (* TODO extract as a lemma ? that if (PC = WInt z), then safe to execute.
-           It is the second time that it's used (cf. fundamental.v) *)
-        iApply (wp_bind (fill [SeqCtx])); iSimpl.
-        iApply (wp_notCorrectPC with "HPC").
+        iApply interp_expr_invalid_pc; try iFrame ; eauto.
         intro Hcontra; inversion Hcontra.
-        iNext; iIntros "HPC"; iSimpl.
-        iApply wp_pure_step_later; [ exact I |].
-        iIntros "!> _".
-        iApply wp_value; iIntros "%"; done.
+        iPureIntro; apply regmap_full_dom in Hsome; rewrite -Hsome; set_solver.
       }
 
       (* a ≠ a0 *)
