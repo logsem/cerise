@@ -73,12 +73,9 @@ Section program_call.
     (prog_secret_instrs r_t7 r_t8 secret_off secret_val) ++
     call_instrs f_m (offset_to_cont_call [r_t7]) r_t30 [r_t8] [r_t7] ++
     restore_locals_instrs idc [r_t8] ++
-
-    (* TODO this is dumb because it is already loaded in r_t8 *)
     encodeInstrsW [ (* prepare the registers for the assert macro *)
-      Load r_t2 idc;      (* r_t2 -> (RWX, b_mem, (b_mem ^+ (secret_off+1))%a, b_mem) *)
-      Lea r_t2 secret_off; (* r_t2 -> (RWX, b_mem, (b_mem ^+ (secret_off+1))%a, (b_mem ^+ secret_off)%a) *)
-      Load r_t4 r_t2;      (* r_t4 -> secret_val *)
+      Lea r_t8 secret_off; (* r_t8 -> (RWX, b_mem, (b_mem ^+ (secret_off+1))%a, (b_mem ^+ secret_off)%a) *)
+      Load r_t4 r_t8;      (* r_t4 -> secret_val *)
       Mov r_t5 secret_val (* Prepare the assert *)
     ] ++ assert_instrs f_a ++ encodeInstrsW [ Halt ].
 
@@ -198,74 +195,51 @@ Section program_call.
 
   (* Specification for the preparation of the registers for the assert *)
   Lemma prepa_assert_spec
-    prepa_addrs a_prepa
-    pc_p pc_b pc_e
+    (prepa_addrs : list Addr) (a_prepa : Addr)
+    (pc_p : Perm) (pc_b pc_e : Addr)
     (secret_off secret_val : Z)
-    b_local e_locals w2 w4 w5
+    (w4 w5 : Word)
     (b_mem : Addr) EN
     φ :
 
     let instrs_prepa :=
-      [encodeInstrW (Load r_t2 idc);
-       encodeInstrW (Lea r_t2 secret_off);
-       encodeInstrW (Load r_t4 r_t2);
+      [
+       encodeInstrW (Lea r_t8 secret_off);
+       encodeInstrW (Load r_t4 r_t8);
        encodeInstrW (Mov r_t5 secret_val)] in
     let e_prepa := (a_prepa ^+ (length instrs_prepa))%a in
 
     contiguous_between prepa_addrs a_prepa e_prepa ->
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_prepa e_prepa ->
-    (b_local + 1)%a = Some (e_locals) ->
 
     b_mem ≤ (b_mem ^+secret_off)%a < (b_mem ^+ (secret_off + 1))%a ->
 
     ⊢ ( PC ↦ᵣ WCap pc_p pc_b pc_e a_prepa
-          ∗ idc ↦ᵣ WCap RWX b_local e_locals b_local
-          ∗ r_t2 ↦ᵣ w2 ∗ r_t4 ↦ᵣ w4 ∗ r_t5 ↦ᵣ w5
-          ∗ b_local ↦ₐ WCap RWX b_mem (b_mem ^+ (secret_off + 1))%a b_mem
+          ∗ r_t8 ↦ᵣ WCap RWX b_mem (b_mem ^+ (secret_off + 1))%a b_mem
+          ∗ r_t4 ↦ᵣ w4
+          ∗ r_t5 ↦ᵣ w5
           ∗ (b_mem ^+ secret_off)%a ↦ₐ WInt secret_val
           ∗ codefrag a_prepa instrs_prepa
           ∗ ▷ ( PC ↦ᵣ WCap pc_p pc_b pc_e e_prepa
-                  ∗ idc ↦ᵣ WCap RWX b_local e_locals b_local
-                  ∗ r_t2 ↦ᵣ WCap RWX b_mem (b_mem ^+ (secret_off + 1))%a (b_mem ^+ secret_off)%a
+                  ∗ r_t8 ↦ᵣ WCap RWX b_mem (b_mem ^+ (secret_off + 1))%a (b_mem ^+ secret_off)%a
                   ∗ r_t4 ↦ᵣ WInt secret_val
                   ∗ r_t5 ↦ᵣ WInt secret_val
-                  ∗ b_local ↦ₐ WCap RWX b_mem (b_mem ^+ (secret_off + 1))%a b_mem
                   ∗ (b_mem ^+ secret_off)%a ↦ₐ WInt secret_val
                   ∗ codefrag a_prepa instrs_prepa
                 -∗ WP Seq (Instr Executable) @ EN {{ φ }})%I
         -∗ WP Seq (Instr Executable) @ EN {{ φ }})%I.
   Proof.
     intros instrs_prepa e_prepa
-      Hcont_prepa Hperm Hpc_valid Hlocals Hmem.
-    iIntros "(HPC & Hidc & Hr2 & Hr4 & Hr5 & Hlocal & Hsecret & Hprog & Hcont)".
+      Hcont_prepa Hperm Hpc_valid Hmem.
+    iIntros "(HPC & Hr8 & Hr4 & Hr5 & Hsecret & Hprog & Hcont)".
     codefrag_facts "Hprog".
-    iInstr "Hprog".
-    { split;auto. apply le_addr_withinBounds ; solve_addr. }
     iInstr "Hprog".
     { transitivity (Some (b_mem ^+ secret_off)%a) ; solve_addr. }
     iInstr "Hprog".
     split ; eauto ; solve_addr.
     iInstr "Hprog".
     iApply "Hcont". iFrame.
-  Qed.
-
-  Program Definition cap_eq p b e a : leibnizO Word -n> iPropO Σ :=
-    λne w , ⌜w = WCap p b e a⌝%I.
-
-  Lemma cap_eq_persistent p b e a : ⊢ persistent_cond (cap_eq p b e a).
-  Proof.
-    iIntros (w). iPureIntro. apply bi.pure_persistent.
-  Qed.
-
-  Lemma inv_cap_eq n p b e a:
-    inv (logN.@n) (n ↦ₐ WCap p b e a) ⊣⊢
-      inv (logN.@n) (∃ w : leibnizO Word, n ↦ₐ w ∗ cap_eq p b e a w).
-  Proof.
-    iSplit; iIntros "#Hinv"; iApply (inv_iff with "Hinv")
-    ; iNext ; iModIntro ; iSplit.
-    1,4: iIntros "H" ; iExists _ ; iFrame "H" ; auto.
-    all: iIntros "H" ; iDestruct "H" as (w) "[H %cap_eq]" ; simplify_eq ; iFrame.
   Qed.
 
   (* Full spec *)
@@ -739,7 +713,6 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         iAssert (r_t8 ↦ᵣ w8)%I with "[Hr8]" as "Hr8".
         { iApply (big_sepM_singleton (fun k a => k ↦ᵣ a)%I r_t8 w8).
           done. }
-        iInsert "Hrmap" r_t8.
 
         (* 3 - Preparation of the assert *)
         iDestruct (big_sepL2_length with "Hlocal") as %Hlength_local.
@@ -762,10 +735,10 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         ;[solve_ndisj|solve_ndisj|].
 
         iApply (prepa_assert_spec
-                 with "[- $HPC $Hr2 $Hr4 $Hr5 $Hlocal $Ha_secret $Hidc $Hprepa]")
+                 with "[- $HPC $Hr8 $Hr4 $Hr5 $Ha_secret $Hprepa]")
         ; auto.
         { Unshelve. 2: exact prepa_addrs. cbn.
-          replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr;done.
+          replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr;done.
         }
         cbn.
         split ; try solve_addr.
@@ -775,15 +748,15 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
             | h:contiguous_between _ _ _ |- _ => apply contiguous_between_bounds in h
             end) ; solve_addr.
         solve_addr.
-        iNext ; iIntros "(HPC & Hidc & Hr2 & Hr4 & Hr5 & Hlocal & Ha_secret & Hprepa)".
+        iNext ; iIntros "(HPC & Hr8 & Hr4 & Hr5 & Ha_secret & Hprepa)".
         simpl.
-        replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
+        replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
 
         (* + Cleaning + *)
         iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
           with "[Hprepa]" as "Hprepa".
         { rewrite /codefrag /region_mapsto. simpl.
-          replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
+          replace (a_prepa ^+ 3%nat)%a with a_assert by solve_addr.
           rewrite <- (region_addrs_of_contiguous_between prepa_addrs); done.
         }
         iMod ("Hcls_secret" with "[$Ha_secret $Hna]") as "Hna".
@@ -832,20 +805,20 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
         (* close invariants, reassemble registers, and finish *)
         iMod ("Hcls" with "[$Hna $Hrestore $Hi $Hprepa $Hassert]") as "Hna".
-        iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;PC].
+        iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5;r_t8;PC].
         wp_pure; wp_end.
         iIntros "_".
         iExists _. iFrame.
         iPureIntro.
         intros r';simpl.
         consider_next_reg r' PC.
+        consider_next_reg r' r_t8.
         consider_next_reg r' r_t5.
         consider_next_reg r' r_t4.
         consider_next_reg r' r_t3.
         consider_next_reg r' r_t2.
         consider_next_reg r' r_t1.
         consider_next_reg r' idc.
-        consider_next_reg r' r_t8.
         apply lookup_delete_is_Some ; split ; auto.
       }
 

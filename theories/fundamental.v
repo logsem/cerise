@@ -605,4 +605,23 @@ Section fundamental.
     all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 
+  (* Common property for V(IE, -, -, -) *)
+  Program Definition cap_eq p b e a : leibnizO Word -n> iPropO Σ :=
+    λne w , ⌜w = WCap p b e a⌝%I.
+
+  Lemma cap_eq_persistent p b e a : ⊢ persistent_cond (cap_eq p b e a).
+  Proof.
+    iIntros (w). iPureIntro. apply bi.pure_persistent.
+  Qed.
+
+  Lemma inv_cap_eq n p b e a:
+    inv (logN.@n) (n ↦ₐ WCap p b e a) ⊣⊢
+      inv (logN.@n) (∃ w : leibnizO Word, n ↦ₐ w ∗ cap_eq p b e a w).
+  Proof.
+    iSplit; iIntros "#Hinv"; iApply (inv_iff with "Hinv")
+    ; iNext ; iModIntro ; iSplit.
+    1,4: iIntros "H" ; iExists _ ; iFrame "H" ; auto.
+    all: iIntros "H" ; iDestruct "H" as (w) "[H %cap_eq]" ; simplify_eq ; iFrame.
+  Qed.
+
 End fundamental.
