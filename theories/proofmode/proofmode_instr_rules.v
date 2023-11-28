@@ -1,5 +1,4 @@
 From cap_machine Require Import rules.
-From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics.
 From Ltac2 Require Import Ltac2 Option.
 Set Default Proof Mode "Classic".
 
@@ -90,7 +89,7 @@ Ltac dispatch_instr_rule instr cont :=
      | Jnz ?r ?r => cont (@wp_jnz_success_jmp_same)
      | Jnz ?r _ =>
          lazymatch goal with
-         | |- context [ Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+         | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
              lazymatch w with
              (* TODO would also need more rules to differentiate all kind of equalities
              between addresses *)
@@ -104,7 +103,7 @@ Ltac dispatch_instr_rule instr cont :=
   | Jmp PC => cont (@wp_jmp_successPC)
   | Jmp ?r =>
       lazymatch goal with
-        | |- context [ Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+        | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
           lazymatch w with
           | WCap IE _ _ _ => cont (@wp_jmp_success_IE)
           (* TODO would also need more rules to differentiate all kind of equalities
