@@ -349,11 +349,11 @@ Section SimpleMalloc.
 
           iIntros (r' w'') "%HrPC %HrIDC %Hsome'".
           subst regs.
-          destruct (decide (r' = r_t1)). { simplify_map_eq; iApply "Hmem". }
-          destruct (decide (r' = r_t2)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
-          destruct (decide (r' = r_t3)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
-          destruct (decide (r' = r_t4)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
-          destruct (decide (r' = r_t31)). { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+          destruct (decide (r' = r_t1)); subst. { simplify_map_eq; iApply "Hmem". }
+          destruct (decide (r' = r_t2)); subst. { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+          destruct (decide (r' = r_t3)); subst. { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+          destruct (decide (r' = r_t4)); subst. { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
+          destruct (decide (r' = r_t31)); subst. { simplify_map_eq ; rewrite !fixpoint_interp1_eq //. }
           iApply "Hregs_valid"; eauto.
           iPureIntro.
           by simplify_map_eq.
