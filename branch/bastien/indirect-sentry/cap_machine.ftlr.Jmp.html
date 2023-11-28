@@ -150,9 +150,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="lemma">lookup_insert_ne</span> //= <span class="id" title="tactic">in</span> <span class="id" title="var">Hreg</span>.<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO&nbsp;there&nbsp;are&nbsp;plenty&nbsp;of&nbsp;similar&nbsp;case,&nbsp;find&nbsp;a&nbsp;way&nbsp;to&nbsp;factor&nbsp;out&nbsp;*)</span><br/>
-
-<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO&nbsp;there&nbsp;are&nbsp;plenty&nbsp;of&nbsp;similar&nbsp;case,&nbsp;is&nbsp;there&nbsp;a&nbsp;way&nbsp;to&nbsp;factor&nbsp;out&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">case_decide</span> <span class="id" title="keyword">as</span> <span class="id" title="var">Ha</span>; <span class="id" title="var">simplify_eq</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="definition">decide</span> (<span class="id" title="var">r</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.addr_reg.html#idc"><span class="id" title="definition">idc</span></a>)) <span class="id" title="keyword">as</span> [|<span class="id" title="var">Hneq'</span>]; <span class="id" title="var">simplify_map_eq</span>.<br/>
@@ -517,10 +515,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">case_decide</span> <span class="id" title="keyword">as</span> <span class="id" title="var">Ha0</span>; <span class="id" title="var">simplify_eq</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="comment">(*&nbsp;a&nbsp;=&nbsp;a0&nbsp;*)</span><br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;NOTE&nbsp;he&nbsp;next&nbsp;PC&nbsp;is&nbsp;an&nbsp;integer.&nbsp;Thus,&nbsp;it's&nbsp;always&nbsp;safe&nbsp;to&nbsp;execute&nbsp;an&nbsp;integer.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I&nbsp;can&nbsp;probably&nbsp;prove&nbsp;this&nbsp;case&nbsp;without&nbsp;further&nbsp;modification&nbsp;in&nbsp;the&nbsp;definition<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;LR&nbsp;*)</span><br/>
-<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "HJmpMem" <span class="id" title="keyword">as</span> (<span class="id" title="var">w2</span>) "(-&gt;&amp; HP2&amp; %Hpers2&amp; Hcls')".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "HP2" <span class="id" title="keyword">as</span> "#HP2".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<a class="idref" href="cap_machine.ftlr.Jmp.html#allow_jmp_mask"><span class="id" title="definition">allow_jmp_mask</span></a>.<br/>
@@ -537,17 +531,9 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span> ; <span class="id" title="var">iIntros</span> "_".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">wpc</span>; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">Hi</span>; <span class="id" title="tactic">try</span> <span class="id" title="var">done</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExtract</span> "Hmap" <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <span class="id" title="keyword">as</span> "HPC".<br/>
-
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO&nbsp;extract&nbsp;as&nbsp;a&nbsp;lemma&nbsp;?&nbsp;that&nbsp;if&nbsp;(PC&nbsp;=&nbsp;WInt&nbsp;z),&nbsp;then&nbsp;safe&nbsp;to&nbsp;execute.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;It&nbsp;is&nbsp;the&nbsp;second&nbsp;time&nbsp;that&nbsp;it's&nbsp;used&nbsp;(cf.&nbsp;fundamental.v)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> (<span class="id" title="lemma">wp_bind</span> (<span class="id" title="projection">fill</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.cap_lang.html#SeqCtx"><span class="id" title="constructor">SeqCtx</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">]</span></a>)); <span class="id" title="var">iSimpl</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp_notCorrectPC"><span class="id" title="axiom">wp_notCorrectPC</span></a> <span class="id" title="notation">with</span> "HPC"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.logrel.html#interp_expr_invalid_pc"><span class="id" title="axiom">interp_expr_invalid_pc</span></a>; <span class="id" title="tactic">try</span> <span class="id" title="var">iFrame</span> ; <span class="id" title="tactic">eauto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intro</span> <span class="id" title="var">Hcontra</span>; <span class="id" title="tactic">inversion</span> <span class="id" title="var">Hcontra</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span>; <span class="id" title="var">iIntros</span> "HPC"; <span class="id" title="var">iSimpl</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; [ <span class="id" title="tactic">exact</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#I"><span class="id" title="constructor">I</span></a> |].<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "!&gt; _".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>; <span class="id" title="var">iIntros</span> "%"; <span class="id" title="var">done</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.addr_reg.html#regmap_full_dom"><span class="id" title="axiom">regmap_full_dom</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hsome</span>; <span class="id" title="tactic">rewrite</span> -<span class="id" title="var">Hsome</span>; <span class="id" title="var">set_solver</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;a&nbsp;≠&nbsp;a0&nbsp;*)</span><br/>
