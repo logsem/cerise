@@ -69,6 +69,98 @@ Section cap_lang_rules.
                    ∃ widc, regs !! idc = Some widc
                  else True.
 
+  Lemma allow_jmp_mmap_or_true_not_ie (r : RegName) (regs : Reg) (mem : Mem) (w : Word) :
+    is_ie_cap w = false ->
+    regs !! r = Some w ->
+    allow_jmp_mmap_or_true r regs mem.
+  Proof.
+    intros Hvpc.
+    destruct_word w; eauto; eexists _,_,_,_; split
+    ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+    all: case_decide as Heq ; simplify_eq ; auto.
+    all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+    all: try destruct Heq as (? & _) ; simplify_map_eq.
+    Unshelve. all: try exact O; try exact 0%a.
+  Qed.
+
+  Lemma allow_jmp_rmap_or_true_not_ie (r : RegName) (regs : Reg) (w : Word) :
+    is_ie_cap w = false ->
+    regs !! r = Some w ->
+    allow_jmp_rmap_or_true r regs.
+  Proof.
+    intros Hvpc.
+    destruct_word w; eauto; eexists _,_,_,_; split
+    ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+    all: case_decide as Heq ; simplify_eq ; auto.
+    all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
+    all: try destruct Heq as (? & _) ; simplify_map_eq.
+    Unshelve. all: try exact O; try exact 0%a.
+  Qed.
+
+
+  Lemma allow_jmp_mmap_or_true_ie
+    (r : RegName) (regs : Reg) (mem : Mem)
+    (b e a : Addr) (widc wa wa' : Word) :
+    regs !! r = Some (WCap IE b e a) ->
+    regs !! idc = Some widc ->
+    mem !! a = Some wa ->
+    mem !! (a ^+1)%a = Some wa' ->
+    allow_jmp_mmap_or_true r regs mem.
+  Proof.
+    eexists IE,b,e,a.
+    split ; auto.
+    unfold read_reg_inr; by simplify_map_eq.
+    case_decide; auto.
+    eexists _,_.
+    split ; by simplify_map_eq.
+  Qed.
+
+  Lemma allow_jmp_rmap_or_true_ie
+    (r : RegName) (regs : Reg)
+    (b e a : Addr) (widc : Word) :
+    regs !! r = Some (WCap IE b e a) ->
+    regs !! idc = Some widc ->
+    allow_jmp_rmap_or_true r regs.
+  Proof.
+    eexists IE,b,e,a.
+    split ; auto.
+    unfold read_reg_inr; by simplify_map_eq.
+    case_decide; auto.
+    eexists _; by simplify_map_eq.
+  Qed.
+
+  Lemma allow_jmp_mmap_or_true_ie_fail
+    (r : RegName) (regs : Reg) (mem : Mem)
+    (b e a : Addr) (widc wa wa' : Word) :
+    not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
+    regs !! r = Some (WCap IE b e a) ->
+    allow_jmp_mmap_or_true r regs mem.
+  Proof.
+    eexists IE,b,e,a.
+    split ; auto.
+    unfold read_reg_inr; by simplify_map_eq.
+    case_decide as Hajmp; auto.
+    rewrite /reg_allows_IE_jmp in Hajmp.
+    by destruct Hajmp as ( _ & _ & Hcontra ).
+  Qed.
+
+  Lemma allow_jmp_rmap_or_true_ie_fail
+    (r : RegName) (regs : Reg)
+    (b e a : Addr) (widc wa wa' : Word) :
+    not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
+    regs !! r = Some (WCap IE b e a) ->
+    allow_jmp_rmap_or_true r regs.
+  Proof.
+    eexists IE,b,e,a.
+    split ; auto.
+    unfold read_reg_inr; by simplify_map_eq.
+    case_decide as Hajmp; auto.
+    rewrite /reg_allows_IE_jmp in Hajmp.
+    by destruct Hajmp as ( _ & _ & Hcontra ).
+  Qed.
+
   Lemma wp_jmp Ep pc_p pc_b pc_e pc_a r w mem regs  :
     decodeInstrW w = Jmp r →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
@@ -159,22 +251,14 @@ Section cap_lang_rules.
 
     - (* rv is not an IE-capability, always success *)
       rewrite Hr0 /= in Hstep; simplify_pair_eq.
-      (* TODO better way to do thus, using match goal ?? *)
-      replace
-        (match rv with
-                | WCap IE b e a =>
-                    if withinBounds b e a && withinBounds b e (a ^+ 1)%a
-                    then
-                      m !! a
-                        ≫= (λ wpc : Word,
-                               m !! (a ^+ 1)%a
-                                 ≫= (λ widc : Word,
-                                        Some (NextI, update_reg (update_reg (r0, m) PC wpc) idc widc)))
-                    else None
-                | _ => Some (NextI, update_reg (r0, m) PC (updatePcPerm rv))
-         end)
-        with (Some (NextI, update_reg (r0, m) PC (updatePcPerm rv)))
-        in Hstep.
+      match goal with
+      | H: context
+             [ match ?x with | _ => _ end = (c, σ2) ] |- _ =>
+          replace x
+          with (Some (NextI, update_reg (r0, m) PC (updatePcPerm rv)))
+          in Hstep
+      end.
+
       2: {
         destruct rv ; cbn in Hrv; try discriminate; auto.
         destruct sb as [ p b e a |]; cbn in Hrv; try discriminate; auto.
@@ -207,22 +291,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_2 with "HPC Hr") as "[Hreg %Hr]".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    {
-      destruct_word w'; eauto; eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      all: case_decide as Heq ; simplify_eq ; auto.
-      all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-      all: try destruct Heq as (? & _) ; simplify_map_eq.
-    }
-    {
-      destruct_word w'; eauto; eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      all: case_decide as Heq ; simplify_eq ; auto.
-      all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-      all: try destruct Heq as (? & _) ; simplify_map_eq.
-    }
+    { by eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -254,27 +324,13 @@ Section cap_lang_rules.
            ∗ pc_a ↦ₐ w }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
-
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iDestruct (map_of_regs_1 with "HPC") as "Hreg".
-    iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    (* TODO better way to derive them *)
-    { apply isCorrectPC_not_ie_cap in Hvpc.
-      eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      all: case_decide as Heq ; simplify_eq ; auto.
-      all: destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-      all: try destruct Heq as (? & _) ; simplify_map_eq.
-    }
-    { apply isCorrectPC_not_ie_cap in Hvpc.
-      eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-      rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      all: case_decide as Heq ; simplify_eq ; auto.
-      all: destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-      all: try destruct Heq as (? & _) ; simplify_map_eq.
-    }
+    iApply (wp_jmp with "[$Hmem $Hreg]"); simplify_map_eq ; eauto.
+    { eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq.
+      apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
+    { eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq.
+      apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
     iNext.
     iIntros (regs retv) "(%& Hmem & Hreg)".
     inversion H2; simplify_map_eq.
@@ -330,21 +386,8 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hr Hidc") as "[Hreg %Hr']".
     destruct Hr' as (?&?&?).
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide; auto.
-      eexists _,_.
-      split ; by simplify_map_eq.
-    }
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide; auto.
-      eexists _; by simplify_map_eq.
-    }
+    { eapply (allow_jmp_mmap_or_true_ie _ _ _ _ _ a) ; simplify_map_eq ; eauto. }
+    { by eapply allow_jmp_rmap_or_true_ie ; simplify_map_eq ; auto. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -389,22 +432,8 @@ Section cap_lang_rules.
     destruct Hr' as (?&?&?).
 
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide as Hajmp; auto.
-      rewrite /reg_allows_IE_jmp in Hajmp.
-      by destruct Hajmp as ( _ & _ & Hcontra ).
-    }
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide as Hajmp; auto.
-      rewrite /reg_allows_IE_jmp in Hajmp.
-      by destruct Hajmp as ( _ & _ & Hcontra ).
-    }
+    { by eapply allow_jmp_mmap_or_true_ie_fail ; simplify_map_eq ; eauto. }
+    { by eapply allow_jmp_rmap_or_true_ie_fail ; simplify_map_eq ; eauto. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -448,21 +477,8 @@ Section cap_lang_rules.
     by simplify_map_eq.
     iDestruct (map_of_regs_2 with "HPC Hidc") as "[Hreg %Hr']".
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide; auto.
-      eexists _,_.
-      split ; by simplify_map_eq.
-    }
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide; auto.
-      eexists _; by simplify_map_eq.
-    }
+    { eapply (allow_jmp_mmap_or_true_ie _ _ _ _ _ a) ; simplify_map_eq ; eauto. }
+    { by eapply allow_jmp_rmap_or_true_ie ; simplify_map_eq ; auto. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
@@ -504,22 +520,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
 
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide as Hajmp; auto.
-      rewrite /reg_allows_IE_jmp in Hajmp.
-      by destruct Hajmp as ( _ & _ & Hcontra ).
-    }
-    {
-      eexists IE,b,e,a.
-      split ; auto.
-      unfold read_reg_inr; by simplify_map_eq.
-      case_decide as Hajmp; auto.
-      rewrite /reg_allows_IE_jmp in Hajmp.
-      by destruct Hajmp as ( _ & _ & Hcontra ).
-    }
+    { by eapply allow_jmp_mmap_or_true_ie_fail ; simplify_map_eq ; eauto. }
+    { by eapply allow_jmp_rmap_or_true_ie_fail ; simplify_map_eq ; eauto. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext.
