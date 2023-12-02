@@ -186,26 +186,26 @@ Section cap_lang_rules.
   (* TODO probably misses hypothesis to prove this*)
   Lemma mem_implies_allow_access_map:
     ∀ (lregs : LReg) (lmem : LMem) (r : RegName)
-      (pc_a : Addr) pca_v
+      (pc_a : Addr) pc_v
       (lw lw' : LWord) p b e a v,
-      (* (if ((a,v) =? (pc_a, pca_v))%la *)
-      (*  then lmem = <[(pc_a, pca_v):=lw]> ∅ *)
-      (*  else lmem = <[(pc_a, pca_v):=lw]> (<[(a, v):=lw']> ∅)) *)
+      (* (if ((a,v) =? (pc_a, pc_v))%la *)
+      (*  then lmem = <[(pc_a, pc_v):=lw]> ∅ *)
+      (*  else lmem = <[(pc_a, pc_v):=lw]> (<[(a, v):=lw']> ∅)) *)
       (* -> *)
-      Forall (λ a' : Addr, ∃ lw0, lmem !! (a', pca_v) = Some lw0) (finz.seq_between b e)
+      Forall (λ a' : Addr, ∃ lw0, lmem !! (a', pc_v) = Some lw0) (finz.seq_between b e)
       → lregs !! r = Some (LCap p b e a v)
       → allow_access_map_or_true r lregs lmem.
   Proof.
-    intros lregs lmem r pc_a pca_v lw lw' p b e a v Hcond Hr.
+    intros lregs lmem r pc_a pc_v lw lw' p b e a v Hcond Hr.
     (* apply *)
-    (* destruct ((a,v) =? (pc_a, pca_v))%la eqn:Heq; cbn in Heq. *)
+    (* destruct ((a,v) =? (pc_a, pc_v))%la eqn:Heq; cbn in Heq. *)
     (*   + apply andb_true_iff in Heq. destruct Heq as [Heq1 Heq2]. *)
     (*     apply Z.eqb_eq, finz_to_z_eq in Heq1. subst a. *)
     (*     apply Nat.eqb_eq in Heq2. subst v. *)
     (*     eapply mem_eq_implies_allow_access_map; eauto. *)
     (*   + apply andb_false_iff in Heq. destruct Heq as [Heq | Heq] *)
     (*   ; [ apply Z.eqb_neq in Heq |  apply Nat.eqb_neq in Heq ] *)
-    (*   ; eapply (mem_neq_implies_allow_access_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto. *)
+    (*   ; eapply (mem_neq_implies_allow_access_map _ _ _ pc_a pc_v _ _ _ _ _ a v) ; eauto. *)
     (*     left ; solve_addr. *)
    Admitted.
 
@@ -255,10 +255,10 @@ Section cap_lang_rules.
   Admitted.
 
   (* TODO ugly lemma, how to get a better one ? *)
-  Lemma insert_update_spec a pca_v v v' lw lregion:
+  Lemma insert_update_spec a pc_v v v' lw lregion:
     forall b e, lregion = logical_region (finz.seq_between b e) v ->
            ∀ lmem,
-             lmem !! (a, pca_v) = Some lw
+             lmem !! (a, pc_v) = Some lw
              → Forall (λ a : Addr, ∃ lw0, lmem !! (a, v) = Some lw0) (finz.seq_between b e)
              → Forall (λ la : LAddr, is_Some (lmem !! la)) lregion
              → ∀ lv : list LWord,
@@ -322,13 +322,13 @@ Section cap_lang_rules.
 
 
   Lemma wp_isunique Ep
-    pc_p pc_b pc_e pc_a pc_v pca_v
+    pc_p pc_b pc_e pc_a pc_v
     (dst src : RegName) lw lmem lregs :
     decodeInstrWL lw = IsUnique dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (IsUnique dst src) ⊆ dom lregs →
-    lmem !! (pc_a, pca_v) = Some lw →
+    lmem !! (pc_a, pc_v) = Some lw →
     allow_access_map_or_true src lregs lmem →
 
     {{{ (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
@@ -584,13 +584,11 @@ Section cap_lang_rules.
         - update a whole region
 
          *)
-        split; eauto.
+        (* split; eauto. *)
         admit.
         admit.
 
 
-
-        admit.
 
     - (* sweep = false *)
 

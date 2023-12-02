@@ -87,18 +87,18 @@ Section cap_lang_rules.
       Subseg_failure lregs dst src1 src2 lregs' →
       Subseg_spec lregs dst src1 src2 lregs' FailedV.
 
-  Lemma wp_Subseg Ep pc_p pc_b pc_e pc_a pc_v pca_v lw dst src1 src2 lregs :
+  Lemma wp_Subseg Ep pc_p pc_b pc_e pc_a pc_v lw dst src1 src2 lregs :
     decodeInstrWL lw = Subseg dst src1 src2 ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Subseg dst src1 src2) ⊆ dom lregs →
 
-    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
         ⌜ Subseg_spec lregs dst src1 src2 lregs' retv ⌝ ∗
-        (pc_a, pca_v) ↦ₐ lw ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
@@ -271,7 +271,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 r2 p b e a v n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success E pc_p pc_b pc_e pc_a pc_v lw dst r1 r2 p b e a v n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -280,14 +280,14 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
         ∗ ▷ r1 ↦ᵣ LInt n1
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ r2 ↦ᵣ LInt n2
           ∗ dst ↦ᵣ LCap p a1 a2 a v
@@ -316,7 +316,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_same E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 p b e a v n1 a1 pc_a' :
+  Lemma wp_subseg_success_same E pc_p pc_b pc_e pc_a pc_v lw dst r1 p b e a v n1 a1 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inr r1) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 →
@@ -325,13 +325,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ dst ↦ᵣ LCap p a1 a1 a v
       }}}.
@@ -359,7 +359,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_l E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r2 p b e a v n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_l E pc_p pc_b pc_e pc_a pc_v lw dst r2 p b e a v n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inl n1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -368,13 +368,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ LInt n2
           ∗ dst ↦ᵣ LCap p a1 a2 a v
       }}}.
@@ -402,7 +402,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_r E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 p b e a v n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_r E pc_p pc_b pc_e pc_a pc_v lw dst r1 p b e a v n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -411,13 +411,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ dst ↦ᵣ LCap p a1 a2 a v
       }}}.
@@ -445,7 +445,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_lr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst p b e a v n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_lr E pc_p pc_b pc_e pc_a pc_v lw dst p b e a v n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inl n1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -454,12 +454,12 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LCap p b e a v }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LCap p a1 a2 a v
       }}}.
   Proof.
@@ -485,18 +485,18 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_fail_lr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst p b e a v n1 n2 a1 a2 :
+  Lemma wp_subseg_fail_lr E pc_p pc_b pc_e pc_a pc_v lw dst p b e a v n1 n2 a1 a2 :
     decodeInstrWL lw = Subseg dst (inl n1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
     ¬ (p ≠ machine_base.E ∧ isWithin a1 a2 b e = true) →
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
           ∗ ▷ dst ↦ᵣ LCap p b e a v }}}
       Instr Executable @ E
       {{{ RET FailedV;
           ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-            ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+            ∗ ▷ (pc_a, pc_v) ↦ₐ lw
             ∗ ▷ dst ↦ᵣ LCap p b e a v }}}.
   Proof.
   (*   iIntros (? ? ? ? Hncond ?) "(>HPC & >Hpc_a & >Hdst) Hφ". *)
@@ -517,7 +517,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_pc E pc_p pc_b pc_e pc_a pc_v lw r1 r2 n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg PC (inr r1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -526,13 +526,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LInt n1
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p a1 a2 pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ r2 ↦ᵣ LInt n2
       }}}.
@@ -559,7 +559,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_pc_same E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 n1 a1 pc_a' :
+  Lemma wp_subseg_success_pc_same E pc_p pc_b pc_e pc_a pc_v lw r1 n1 a1 pc_a' :
     decodeInstrWL lw = Subseg PC (inr r1) (inr r1) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 →
@@ -568,12 +568,12 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p a1 a1 pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
       }}}.
   Proof.
@@ -599,7 +599,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_pc_l E pc_p pc_b pc_e pc_a pc_v pca_v lw r2 n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_pc_l E pc_p pc_b pc_e pc_a pc_v lw r2 n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg PC (inl n1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -608,12 +608,12 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p a1 a2 pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ LInt n2
       }}}.
   Proof.
@@ -639,7 +639,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_pc_r E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_pc_r E pc_p pc_b pc_e pc_a pc_v lw r1 n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg PC (inr r1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -648,12 +648,12 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p a1 a2 pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
       }}}.
   Proof.
@@ -679,7 +679,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_pc_lr E pc_p pc_b pc_e pc_a pc_v pca_v lw n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_pc_lr E pc_p pc_b pc_e pc_a pc_v lw n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg PC (inl n1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_addr n1 = Some a1 → z_to_addr n2 = Some a2 →
@@ -688,11 +688,11 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p a1 a2 pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
       }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc Hn1 Hn2 Hpne Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a) Hφ". *)
@@ -718,7 +718,7 @@ Section cap_lang_rules.
 
    (* Similar rules in case we have a SealRange instead of a capability, where some cases are impossible, because a SealRange is not a valid PC *)
 
-  Lemma wp_subseg_success_sr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 r2 p b e a n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_sr E pc_p pc_b pc_e pc_a pc_v lw dst r1 r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
@@ -726,14 +726,14 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LSealRange p b e a
         ∗ ▷ r1 ↦ᵣ LInt n1
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ r2 ↦ᵣ LInt n2
           ∗ dst ↦ᵣ LSealRange p a1 a2 a
@@ -761,7 +761,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_same_sr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 p b e a n1 a1 pc_a' :
+  Lemma wp_subseg_success_same_sr E pc_p pc_b pc_e pc_a pc_v lw dst r1 p b e a n1 a1 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inr r1) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_otype n1 = Some a1 →
@@ -769,13 +769,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LSealRange p b e a
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ dst ↦ᵣ LSealRange p a1 a1 a
       }}}.
@@ -802,7 +802,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_l_sr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r2 p b e a n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_l_sr E pc_p pc_b pc_e pc_a pc_v lw dst r2 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inl n1) (inr r2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
@@ -810,13 +810,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LSealRange p b e a
         ∗ ▷ r2 ↦ᵣ LInt n2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ LInt n2
           ∗ dst ↦ᵣ LSealRange p a1 a2 a
       }}}.
@@ -843,7 +843,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_r_sr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst r1 p b e a n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_r_sr E pc_p pc_b pc_e pc_a pc_v lw dst r1 p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
@@ -851,13 +851,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LSealRange p b e a
         ∗ ▷ r1 ↦ᵣ LInt n1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LInt n1
           ∗ dst ↦ᵣ LSealRange p a1 a2 a
       }}}.
@@ -884,7 +884,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_subseg_success_lr_sr E pc_p pc_b pc_e pc_a pc_v pca_v lw dst p b e a n1 n2 a1 a2 pc_a' :
+  Lemma wp_subseg_success_lr_sr E pc_p pc_b pc_e pc_a pc_v lw dst p b e a n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inl n1) (inl n2) →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     z_to_otype n1 = Some a1 → z_to_otype n2 = Some a2 →
@@ -892,12 +892,12 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ LSealRange p b e a }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LSealRange p a1 a2 a
       }}}.
   Proof.

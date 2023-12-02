@@ -629,14 +629,14 @@ Section cap_lang_rules.
 
   (* ----------------------------------- ATOMIC RULES -------------------------------- *)
 
-  Lemma wp_halt E pc_p pc_b pc_e pc_a pc_v pca_v lw :
+  Lemma wp_halt E pc_p pc_b pc_e pc_a pc_v lw :
 
     decodeInstrWL lw = Halt →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) ->
 
-    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}
+    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET HaltedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}.
+    {{{ RET HaltedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pc_v) ↦ₐ lw }}}.
 
   Proof.
     intros Hinstr Hvpc. apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
@@ -652,7 +652,7 @@ Section cap_lang_rules.
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
@@ -661,14 +661,14 @@ Section cap_lang_rules.
     iFrame; auto.
   Qed.
 
-  Lemma wp_fail E pc_p pc_b pc_e pc_a pc_v pca_v lw :
+  Lemma wp_fail E pc_p pc_b pc_e pc_a pc_v lw :
 
     decodeInstrWL lw = Fail →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
-    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}
+    {{{ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
-    {{{ RET FailedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pca_v) ↦ₐ lw }}}.
+    {{{ RET FailedV; PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v) ∗ (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
     intros Hinstr Hvpc. apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
@@ -683,7 +683,7 @@ Section cap_lang_rules.
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.

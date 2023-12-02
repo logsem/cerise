@@ -116,25 +116,29 @@ Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) :=
     ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
 
 (** The `mem_phys_log_corresponds` states that,
-    - the logical memory contains only the current version of the logical addresses
-      (i.e. dom(lm) ⊆ dom(cur_map))
+    - for each logical addresses in the logical memory,
+      + the version is less or equal the current version of the address
+      + the current version of the address also exists in the logical memory
     - for all entries in the view map,
       + it exists is a logical word `lw` in the logical memory `lm`
-      ( i.e. dom(cur_map) ⊆ dom(lm) )
+        ( i.e. dom(cur_map) ⊆ dom(lm) )
       + the logical word `lw` corresponds to the actual word in the physical memory `phm`
         for the same address
       + the logical word `lw` is the current view of the word
  *)
 Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (cur_map : VMap) :=
-  (* map_Forall (λ la _ , exists v, cur_map !! la.1 = Some v )
-     lm (* domain of `lm` is subset of `cur_map`*) *)
-  (* TODO bastien : should the logical addresses of lm always be the latest view ??
-     shouldn't it be the other way around ? *)
-    map_Forall (λ la _ , is_cur_addr la cur_map) lm
-    ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw
-                               ∧ phm !! a = Some (lword_get_word lw)
-                               ∧ is_cur_word lw cur_map)
-        cur_map (* subset in other direction, and every current address is gc root *).
+  map_Forall (λ la _ ,
+      ∃ cur_v, is_cur_addr (laddr_get_addr la, cur_v) cur_map
+               (* logical addr has version less or equal the current version *)
+               ∧ laddr_get_version la <= cur_v
+               (* current version of the address actually exists in the logical memory ? *)
+               (* TODO is this last part is not necessary ? *)
+               /\ is_Some ( lm !! (laddr_get_addr la, cur_v))
+    ) lm
+  ∧ map_Forall (λ a v, ∃ lw, lm !! (a,v) = Some lw
+                             ∧ phm !! a = Some (lword_get_word lw)
+                             ∧ is_cur_word lw cur_map)
+      cur_map (* subset in other direction, and every current address is gc root *).
 
 Definition state_phys_log_corresponds (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (cur_map : VMap):=
     reg_phys_log_corresponds phr lr cur_map ∧ mem_phys_log_corresponds phm lm cur_map.
@@ -175,19 +179,27 @@ Proof.
   intros [Hdom Hroot] Hla Hlw.
   split.
   - apply map_Forall_insert_2; auto.
-  - eapply map_Forall_impl; eauto.
-    intros a' v' Hp; cbn in *.
-    destruct la as [a v].
+    exists (laddr_get_version la). rewrite laddr_inv.
+    do 2 (split; auto). by simplify_map_eq.
+    eapply map_Forall_impl; eauto.
+    intros la' lw' H ; simpl in H.
+    destruct H as (cur_v & H1 & H2 & H3).
+    exists cur_v. do 2 (split; auto).
+    destruct (decide (la = (laddr_get_addr la', cur_v))); by simplify_map_eq.
 
-    destruct Hp as (lw' & Hla' & Hph_lw' & Hcur_lw').
-    pose proof (Hla'' := Hla').
-    eapply map_Forall_lookup_1 in Hla'; eauto ; cbn in Hla'.
+  - eapply map_Forall_lookup.
+    intros a' v' Hp ; cbn in *.
+    pose proof (Hp' := Hp).
+
+    eapply map_Forall_lookup_1 in Hp'; eauto ; cbn in Hp'.
+    destruct Hp' as (lw' & Hlw' & Hw' & Hcur_lw').
+    destruct la as [a v].
     rewrite /is_cur_addr /= in Hla.
-    rewrite /is_cur_addr /= in Hla'; cbn.
 
     destruct (decide (a' = a)) as [Heq | Hneq]; simplify_eq.
-    + exists lw ; split ; [ by simplify_map_eq|].
-      split; auto. cbn ;by simplify_map_eq.
+    + exists lw.
+      split ; [ by simplify_map_eq|].
+      split; auto; cbn ;by simplify_map_eq.
     + exists lw'.
       split; [rewrite lookup_insert_ne; auto ; intro; simplify_pair_eq|].
       split; by simplify_map_eq.
@@ -258,26 +270,26 @@ Proof.
   apply lookup_fmap_Some; eexists ; split ; eauto.
 Qed.
 
-Lemma state_phys_corresponds_mem lw (w : Word) la (a : Addr) pr pm lr lm cur_map :
+Lemma state_phys_corresponds_mem
+  (lw : LWord) (w : Word) (la : LAddr) (a : Addr)
+  (pr : Reg) (pm : Mem) (lr : LReg) (lm : LMem) (cur_map : VMap) :
   lword_get_word lw = w ->
   laddr_get_addr la = a ->
   state_phys_log_corresponds pr pm lr lm cur_map ->
   lm !! la = Some lw ->
+  is_cur_addr la cur_map ->
   pm !! a = Some w.
 Proof.
-  intros * Hlword Hladdr HLinv Hlr.
+  intros * Hlword Hladdr HLinv Hlr Hcur.
   destruct HLinv as [_ HmemInv]; simpl in *.
   destruct HmemInv as [Hdom Hroot]; simpl in *.
-  eapply (map_Forall_lookup_1 (λ (la : LAddr) (_ : LWord), is_cur_addr la cur_map)) in Hdom;
-    last eapply Hlr.
-  eapply map_Forall_lookup_1 in Hroot ; last eapply Hdom.
+  eapply (map_Forall_lookup_1 _) in Hdom; last eapply Hlr.
+  destruct Hdom as (cur_v & Hcur_addr & Hle_cur & Hsome).
+  destruct la as [a' v']; cbn in * .
+  rewrite /is_cur_addr /= in Hcur, Hcur_addr; simplify_eq.
+  eapply map_Forall_lookup_1 in Hroot ; last eauto.
   destruct Hroot as (lw' & Hlm & Hpm & Hcurword).
-  unfold is_cur_addr in Hdom; simpl in *.
-  inv Hdom.
-  rewrite (_ : la = (la.1, la.2)) in Hlr.
-  2: { apply injective_projections; auto. }
-  rewrite Hlr in Hlm ; clear Hlr; inv Hlm.
-  exact Hpm.
+  by rewrite Hlr in Hlm; simplify_map_eq.
 Qed.
 
 Lemma reg_corresponds_cap_cur_addr lcap p (b e a : Addr) la r (reg : Reg) lr cur_map :
@@ -300,6 +312,52 @@ Proof.
   by apply withinBounds_in_seq.
 Qed.
 
+Lemma state_corresponds_cap_cur_addr
+  lcap p (b e a : Addr) la r (reg : Reg) pm lr lm cur_map :
+  state_phys_log_corresponds reg pm lr lm cur_map ->
+  lword_get_word lcap = WCap p b e a ->
+  laddr_get_addr la = a ->
+  withinBounds b e a = true ->
+  lr !! r = Some lcap ->
+  lword_get_version lcap = Some (laddr_get_version la) ->
+  is_cur_addr la cur_map.
+Proof.
+  intros [HinvReg _] Hlcap Hla Hbounds Hr Hv; cbn in *.
+  eapply reg_corresponds_cap_cur_addr; eauto.
+Qed.
+
+
+Lemma reg_corresponds_cap_PC lcap p (b e a : Addr) la r (reg : Reg) lr cur_map :
+  reg_phys_log_corresponds reg lr cur_map ->
+  lword_get_word lcap = WCap p b e a ->
+  laddr_get_addr la = a ->
+  isCorrectPC (WCap p b e a) ->
+  lr !! r = Some lcap ->
+  lword_get_version lcap = Some (laddr_get_version la) ->
+  is_cur_addr la cur_map.
+Proof.
+  intros HinvReg Hlcap Hla Hvpc Hr Hv; cbn in *.
+  apply isCorrectPC_withinBounds in Hvpc.
+  eapply reg_corresponds_cap_cur_addr ; eauto.
+Qed.
+
+Lemma state_phys_corresponds_mem_PC
+  (p : Perm) (b e a : Addr) (v : Version) (r : RegName)
+  (lw : LWord) (w : Word)
+  (pr : Reg) (pm : Mem) (lr : LReg) (lm : LMem) (cur_map : VMap) :
+  lword_get_word lw = w ->
+  isCorrectPC (WCap p b e a) ->
+  state_phys_log_corresponds pr pm lr lm cur_map ->
+  lr !! r = Some (LCap p b e a v) ->
+  lm !! (a,v) = Some lw ->
+  pm !! a = Some w.
+Proof.
+  intros * Hlw Hvpc HLinv Hlr Hlm.
+  eapply state_phys_corresponds_mem; eauto. by cbn.
+  destruct HLinv as [ HinvReg _ ].
+  eapply reg_corresponds_cap_PC; eauto. by cbn.
+Qed.
+
 Lemma reg_phys_log_get_word phr lr cur_map r lw:
   reg_phys_log_corresponds phr lr cur_map  ->
   lr !! r = Some lw ->
@@ -313,25 +371,31 @@ Qed.
 Lemma mem_phys_log_get_word phm lm cur_map a v lw:
   mem_phys_log_corresponds phm lm cur_map  ->
   lm !! (a, v) = Some lw ->
+  is_cur_addr (a,v) cur_map ->
   phm !! a = Some (lword_get_word lw).
 Proof.
-  intros [Hdom Hroot] Hlm.
+  intros [Hdom Hroot] Hlm Hcur.
   eapply map_Forall_lookup_1 in Hdom; eauto. cbn in Hdom.
-  destruct Hdom as (lw' & Hlw' & Hphm & _).
-  rewrite Hlm in Hlw'. rewrite Hphm.
-  injection Hlw'; intros -> ; auto.
+  destruct Hdom as (cur_v & Hcur_addr & Hle_cur & Hsome).
+  rewrite /is_cur_addr /= in Hcur, Hcur_addr; simplify_eq.
+  eapply map_Forall_lookup_1 in Hroot; eauto.
+  destruct Hroot as (lw' & Hlm' & Hpm' & Hcurword).
+  by rewrite Hlm in Hlm'; simplify_map_eq.
 Qed.
 
 Lemma mem_phys_log_current_word phm lm cur_map a v lw:
   mem_phys_log_corresponds phm lm cur_map  ->
   lm !! (a, v) = Some lw ->
+  is_cur_addr (a,v) cur_map ->
   is_cur_word lw cur_map.
 Proof.
-  intros [Hdom Hroot] Hlm.
-  eapply map_Forall_lookup_1 in Hdom; eauto. cbn in Hdom.
-  destruct Hdom as (lw' & Hlw' & _ & Hcur).
-  rewrite Hlm in Hlw'.
-  injection Hlw'; intros -> ; auto.
+  intros [Hdom Hroot] Hlm Hcur.
+  eapply map_Forall_lookup_1 in Hdom; eauto; cbn in Hdom.
+  destruct Hdom as (cur_v & Hcur_addr & Hle_cur & Hsome).
+  rewrite /is_cur_addr /= in Hcur, Hcur_addr; simplify_eq.
+  eapply map_Forall_lookup_1 in Hroot; eauto.
+  destruct Hroot as (lw' & Hlm' & Hpm' & Hcurword).
+  by rewrite Hlm in Hlm'; simplify_map_eq.
 Qed.
 
 
@@ -346,9 +410,10 @@ Qed.
 Lemma state_phys_log_mem_get_word phr phm lr lm cur_map a v lw:
   state_phys_log_corresponds phr phm lr lm cur_map  ->
   lm !! (a, v) = Some lw ->
+  is_cur_addr (a,v) cur_map ->
   phm !! a = Some (lword_get_word lw).
 Proof.
-  intros [_ Hmem] ? ; eapply mem_phys_log_get_word ; eauto.
+  intros [_ Hmem] ? ? ; eapply mem_phys_log_get_word ; eauto.
 Qed.
 
 Definition lword_of_argument (lregs: LReg) (a: Z + RegName): option LWord :=
@@ -404,8 +469,7 @@ Definition word_access_addrL (a : Addr) (lw : LWord) : Prop :=
   word_access_addr a (lword_get_word lw).
 
 
-(* TODO move + find better name for the lemma *)
-Lemma is_cur_word_update (lw : LWord) (a : Addr) (v : Version)
+Lemma update_cur_word (lw : LWord) (a : Addr) (v : Version)
   (lm : LMem) (cur_map: VMap) :
   ¬ word_access_addrL a lw ->
   is_cur_word lw cur_map ->
@@ -425,53 +489,53 @@ Lemma lmem_update_version_address
   lm !! (a,v) = Some lw ->
   not (word_access_addrL a lw) ->
   mem_phys_log_corresponds phm lm cur_map ->
-  mem_phys_log_corresponds phm (<[ (a, v') := lw ]> (delete (a, v) lm)) (<[ a := v']> cur_map).
+  mem_phys_log_corresponds phm (<[ (a, v') := lw ]> lm) (<[ a := v']> cur_map).
 Proof.
-  intros Hla Hnaccess [Hdom Hroot].
-  split.
-  - apply map_Forall_insert_2.
-    rewrite /is_cur_addr //= ; by simplify_map_eq.
-    assert ( forall v0, (delete (a,v) lm) !! (a,v0) = None ). admit.
-    eapply map_Forall_delete; eauto.
-    eapply map_Forall_impl; eauto.
-    intros la' lw' Hroot' ; cbn in Hroot'.
+  (* intros Hla Hnaccess [Hdom Hroot]. *)
+  (* split. *)
+  (* - apply map_Forall_insert_2. *)
+  (*   rewrite /is_cur_addr //= ; by simplify_map_eq. *)
+  (*   assert ( forall v0, (delete (a,v) lm) !! (a,v0) = None ). admit. *)
+  (*   eapply map_Forall_delete; eauto. *)
+  (*   eapply map_Forall_impl; eauto. *)
+  (*   intros la' lw' Hroot' ; cbn in Hroot'. *)
 
-    rewrite /is_cur_addr //= ; simplify_map_eq.
-    rewrite /is_cur_addr //= in Hroot'; simplify_map_eq.
-    (* TODO I intuite that it's OK now *)
-    admit.
-  - apply map_Forall_insert_2.
-    + pose proof (Hla' := Hla).
-      eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *.
-      eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *.
-      destruct Hla as (lw' & Hlw' & Ha & Hcur).
-      rewrite Hla' in Hlw' ; simplify_eq.
-      exists lw'. split. by simplify_map_eq.
-      split; auto.
-      eapply is_cur_word_update; eauto.
+  (*   rewrite /is_cur_addr //= ; simplify_map_eq. *)
+  (*   rewrite /is_cur_addr //= in Hroot'; simplify_map_eq. *)
+  (*   (* TODO I intuite that it's OK now *) *)
+  (*   admit. *)
+  (* - apply map_Forall_insert_2. *)
+  (*   + pose proof (Hla' := Hla). *)
+  (*     eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *. *)
+  (*     eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *. *)
+  (*     destruct Hla as (lw' & Hlw' & Ha & Hcur). *)
+  (*     rewrite Hla' in Hlw' ; simplify_eq. *)
+  (*     exists lw'. split. by simplify_map_eq. *)
+  (*     split; auto. *)
+  (*     eapply is_cur_word_update; eauto. *)
 
-    + eapply map_Forall_impl ; eauto.
-      intros a' v'' Hroot_a. cbn in Hroot_a.
-      destruct Hroot_a as (lw' & Hlm_lw' & Hphm_lw & Hcur_lw').
-      destruct (decide (a = a')); simplify_eq.
-      * (* a = a' *)
-        (* TODO lemma: Hroot -> Hla -> Hlm_lw -> *)
-        (* TODO lemma: is_cur_addr (a,v) -> is_cur_addr (a,v') -> v = v' *)
-        assert (lw = lw' /\ v = v'') as [-> ->] by admit.
-        (* eapply map_Forall_lookup_1 in Hla; eauto. *)
-        (* eapply map_Forall_lookup_1 in Hlm_lw'; eauto ; cbn in *. *)
-        exists lw'. split.
-        destruct (decide ((a', v') = (a',v''))) ; [ by simplify_map_eq|].
-        simplify_map_eq.
-        (* rewrite /is_cur_word in Hcur_lw'. *)
-        (* apply map_Forall_lookup_1 in Hcur_lw' ; eauto. *)
-        (*   Hroot in Hcur_lw'. *)
-        (* split; auto. *)
-        (* eapply is_cur_word_update ; eauto. *) admit. admit.
-      * (* a <> a' *)
-        exists lw'. assert ( (a, v') <> (a', v'') ) by (intro ; simplify_pair_eq).
-        simplify_map_eq. do 2 (try split ; auto).
-        assert ( (a,v) <> (a', v'') ) by (intro ; simplify_eq); by simplify_map_eq.
+  (*   + eapply map_Forall_impl ; eauto. *)
+  (*     intros a' v'' Hroot_a. cbn in Hroot_a. *)
+  (*     destruct Hroot_a as (lw' & Hlm_lw' & Hphm_lw & Hcur_lw'). *)
+  (*     destruct (decide (a = a')); simplify_eq. *)
+  (*     * (* a = a' *) *)
+  (*       (* TODO lemma: Hroot -> Hla -> Hlm_lw -> *) *)
+  (*       (* TODO lemma: is_cur_addr (a,v) -> is_cur_addr (a,v') -> v = v' *) *)
+  (*       assert (lw = lw' /\ v = v'') as [-> ->] by admit. *)
+  (*       (* eapply map_Forall_lookup_1 in Hla; eauto. *) *)
+  (*       (* eapply map_Forall_lookup_1 in Hlm_lw'; eauto ; cbn in *. *) *)
+  (*       exists lw'. split. *)
+  (*       destruct (decide ((a', v') = (a',v''))) ; [ by simplify_map_eq|]. *)
+  (*       simplify_map_eq. *)
+  (*       (* rewrite /is_cur_word in Hcur_lw'. *) *)
+  (*       (* apply map_Forall_lookup_1 in Hcur_lw' ; eauto. *) *)
+  (*       (*   Hroot in Hcur_lw'. *) *)
+  (*       (* split; auto. *) *)
+  (*       (* eapply is_cur_word_update ; eauto. *) admit. admit. *)
+  (*     * (* a <> a' *) *)
+  (*       exists lw'. assert ( (a, v') <> (a', v'') ) by (intro ; simplify_pair_eq). *)
+  (*       simplify_map_eq. do 2 (try split ; auto). *)
+  (*       assert ( (a,v) <> (a', v'') ) by (intro ; simplify_eq); by simplify_map_eq. *)
 (* TODO it also misses the hypethesis stating that actually,
              no words in the whole logical memory is overlapping with [a]
  *)
@@ -483,6 +547,7 @@ Lemma name (phm : Mem) (lm : LMem) (cur_map : VMap)
   lm !! (a, v) = Some lw ->
   lm !! (a, v') = Some lw' ->
   (lw = lw' /\ v = v').
+Abort.
 
 
 

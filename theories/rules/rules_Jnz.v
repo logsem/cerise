@@ -36,18 +36,18 @@ Section cap_lang_rules.
       nonZeroL lw = true →
       Jnz_spec lregs dst src (<[PC := updatePcPermL lw' ]> lregs) NextIV.
 
-  Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a pc_v pca_v lw dst src lregs :
+  Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a pc_v lw dst src lregs :
     decodeInstrWL lw = Jnz dst src ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Jnz dst src) ⊆ dom lregs →
 
-    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
         ⌜ Jnz_spec lregs dst src lregs' retv ⌝ ∗
-        (pc_a, pca_v) ↦ₐ lw ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
@@ -91,19 +91,19 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw1 lw2 :
+  Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw1 lw2 :
     decodeInstrWL lw = Jnz r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lw2 ≠ LInt 0%Z →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ lw1
         ∗ ▷ r2 ↦ᵣ lw2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL lw1
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ lw1
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
@@ -126,18 +126,18 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_jmp2 E r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw2 :
+  Lemma wp_jnz_success_jmp2 E r2 pc_p pc_b pc_e pc_a pc_v lw lw2 :
     decodeInstrWL lw = Jnz r2 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lw2 ≠ LInt 0%Z →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r2 ↦ᵣ lw2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL lw2
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ". *)
@@ -159,16 +159,16 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_jmpPC E pc_p pc_b pc_e pc_a pc_v pca_v lw  :
+  Lemma wp_jnz_success_jmpPC E pc_p pc_b pc_e pc_a pc_v lw  :
     decodeInstrWL lw = Jnz PC PC →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL (LCap pc_p pc_b pc_e pc_a pc_v)
-          ∗ (pc_a, pca_v) ↦ₐ lw }}}.
+          ∗ (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ". *)
   (*   iDestruct (map_of_regs_1 with "HPC") as "Hmap". *)
@@ -181,18 +181,18 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_b pc_e pc_a pc_v pca_v lw lw2 :
+  Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_b pc_e pc_a pc_v lw lw2 :
     decodeInstrWL lw = Jnz PC r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lw2 ≠ LInt 0%Z →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r2 ↦ᵣ lw2 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL (LCap pc_p pc_b pc_e pc_a pc_v)
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
    (*  iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ". *)
@@ -214,17 +214,17 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a pc_v pca_v lw lw1 :
+  Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a pc_v lw lw1 :
     decodeInstrWL lw = Jnz r1 PC →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ lw1 }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL lw1
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ lw1 }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ". *)
@@ -239,19 +239,19 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw lw1 :
+  Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_v pc_a' lw lw1 :
     decodeInstrWL lw = Jnz r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ lw1
         ∗ ▷ r2 ↦ᵣ LInt 0%Z }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ lw1
           ∗ r2 ↦ᵣ LInt 0%Z }}}.
   Proof.

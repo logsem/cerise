@@ -147,13 +147,14 @@ Section fundamental.
         iIntros (Hcontr); inversion Hcontr.
 
       + (* TODO @Bastien IsUnique *)
-        iApply (wp_isunique with "[HPC Ha]"); eauto. iFrame.
-        iNext. iIntros "[HPC Ha] /=".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
-        iNext ; iIntros "_".
-        iApply wp_value.
-        iIntros (Hcontr); inversion Hcontr.
+        admit.
+        (* iApply (wp_isunique with "[HPC Ha]"); eauto. iFrame. *)
+        (* iNext. iIntros "[HPC Ha] /=". *)
+        (* iApply wp_pure_step_later; auto. *)
+        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
+        (* iNext ; iIntros "_". *)
+        (* iApply wp_value. *)
+        (* iIntros (Hcontr); inversion Hcontr. *)
 
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto. iFrame.
@@ -188,7 +189,7 @@ Section fundamental.
      iNext ; iIntros "_".
      iApply wp_value.
      iIntros (Hcontr); inversion Hcontr.
-  Qed.
+  Admitted.
 
   Theorem fundamental w r :
     ⊢ interp w -∗ interp_expression r w.

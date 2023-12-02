@@ -94,50 +94,50 @@ Section cap_lang_rules.
   Qed.
 
   Lemma mem_neq_implies_allow_store_map:
-    ∀ (lregs : LReg) (lmem : LMem) (r1 : RegName) (pc_a : Addr) (pca_v : Version)
+    ∀ (lregs : LReg) (lmem : LMem) (r1 : RegName) (pc_a : Addr) (pc_v : Version)
       (lw lw' : LWord) p b e a v,
-      (a ≠ pc_a \/ v <> pca_v)
-      → lmem = <[(pc_a, pca_v):= lw]> (<[(a, v) := lw']> ∅)
+      (a ≠ pc_a \/ v <> pc_v)
+      → lmem = <[(pc_a, pc_v):= lw]> (<[(a, v) := lw']> ∅)
       → lregs !! r1 = Some (LCap p b e a v)
       → allow_store_map_or_true r1 lregs lmem.
   Proof.
-    intros lregs lmem r1 pc_a pca_v lw lw' p b e a v H4 Hrr2 Hreg1.
+    intros lregs lmem r1 pc_a pc_v lw lw' p b e a v H4 Hrr2 Hreg1.
     exists p,b,e,a,v; split.
     - unfold read_reg_inr. by rewrite Hreg1.
     - case_decide; last done.
       exists lw'.
-      destruct H4; assert ((pc_a, pca_v) <> (a, v)) by congruence; simplify_map_eq; auto.
+      destruct H4; assert ((pc_a, pc_v) <> (a, v)) by congruence; simplify_map_eq; auto.
   Qed.
 
   Lemma mem_implies_allow_store_map:
-    ∀ (lregs : LReg) (lmem : LMem) (r1 : RegName) (pc_a : Addr) (pca_v : Version)
+    ∀ (lregs : LReg) (lmem : LMem) (r1 : RegName) (pc_a : Addr) (pc_v : Version)
       (lw lw' : LWord) p b e a v,
-      (if ((a,v) =? (pc_a, pca_v))%la
-       then lmem = <[(pc_a, pca_v):=lw]> ∅
-       else lmem = <[(pc_a, pca_v):=lw]> (<[(a, v):=lw']> ∅))
+      (if ((a,v) =? (pc_a, pc_v))%la
+       then lmem = <[(pc_a, pc_v):=lw]> ∅
+       else lmem = <[(pc_a, pc_v):=lw]> (<[(a, v):=lw']> ∅))
       → lregs !! r1 = Some (LCap p b e a v)
       → allow_store_map_or_true r1 lregs lmem.
   Proof.
-    intros lregs lmem r2 pc_a pca_v lw lw' p b e a v H4 Hrr2.
-    destruct ((a,v) =? (pc_a, pca_v))%la eqn:Heq; cbn in Heq.
+    intros lregs lmem r2 pc_a pc_v lw lw' p b e a v H4 Hrr2.
+    destruct ((a,v) =? (pc_a, pc_v))%la eqn:Heq; cbn in Heq.
       + apply andb_true_iff in Heq. destruct Heq as [Heq1 Heq2].
         apply Z.eqb_eq, finz_to_z_eq in Heq1. subst a.
         apply Nat.eqb_eq in Heq2. subst v.
         eapply mem_eq_implies_allow_store_map; eauto.
       + apply andb_false_iff in Heq. destruct Heq as [Heq | Heq]
       ; [ apply Z.eqb_neq in Heq |  apply Nat.eqb_neq in Heq ]
-      ; eapply (mem_neq_implies_allow_store_map _ _ _ pc_a pca_v _ _ _ _ _ a v) ; eauto.
+      ; eapply (mem_neq_implies_allow_store_map _ _ _ pc_a pc_v _ _ _ _ _ a v) ; eauto.
         left ; solve_addr.
   Qed.
 
   Lemma wp_store Ep
-    pc_p pc_b pc_e pc_a pc_v pca_v
+    pc_p pc_b pc_e pc_a pc_v
     r1 (r2 : Z + RegName) lw lmem lregs :
     decodeInstrWL lw = Store r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Store r1 r2) ⊆ dom lregs →
-    lmem !! (pc_a, pca_v) = Some lw →
+    lmem !! (pc_a, pc_v) = Some lw →
     allow_store_map_or_true r1 lregs lmem →
 
     {{{ (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
@@ -233,18 +233,18 @@ Section cap_lang_rules.
    (* Qed. *)
   Admitted.
 
-  Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw z :
+  Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pc_a' lw z :
      decodeInstrWL lw = Store PC (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ (LInt z) }}}.
+              ∗ (pc_a, pc_v) ↦ₐ (LInt z) }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc Hpca' Hwa φ) *)
   (*           "(>HPC & >Hi) Hφ". *)
@@ -274,19 +274,19 @@ Section cap_lang_rules.
   (*  Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_PC E src lwsrc pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw :
+   Lemma wp_store_success_reg_PC E src lwsrc pc_p pc_b pc_e pc_a pc_v pc_a' lw :
      decodeInstrWL lw = Store PC (inr src) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ src ↦ᵣ lwsrc }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lwsrc
+              ∗ (pc_a, pc_v) ↦ₐ lwsrc
               ∗ src ↦ᵣ lwsrc }}}.
    Proof.
   (*    iIntros (Hinstr Hvpc Hpca' Hwa φ) *)
@@ -318,18 +318,18 @@ Section cap_lang_rules.
   (*   Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_PC_same E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw lw' :
+   Lemma wp_store_success_reg_PC_same E pc_p pc_b pc_e pc_a pc_v pc_a' lw lw' :
      decodeInstrWL lw = Store PC (inr PC) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
      writeAllowed pc_p = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ LCap pc_p pc_b pc_e pc_a pc_v }}}.
+              ∗ (pc_a, pc_v) ↦ₐ LCap pc_p pc_b pc_e pc_a pc_v }}}.
    Proof.
   (*    iIntros (Hinstr Hvpc Hpca' Hwa φ) *)
   (*           "(>HPC & >Hi) Hφ". *)
@@ -360,7 +360,7 @@ Section cap_lang_rules.
   (*   Qed. *)
   Admitted.
 
-   Lemma wp_store_success_same E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst z lw'
+   Lemma wp_store_success_same E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst z lw'
          p b e v :
      decodeInstrWL lw = Store dst (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -368,12 +368,12 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e pc_a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e pc_a v }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ (LInt z)
+              ∗ (pc_a, pc_v) ↦ₐ (LInt z)
               ∗ dst ↦ᵣ LCap p b e pc_a v }}}.
     Proof.
   (*    iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ) *)
@@ -404,7 +404,7 @@ Section cap_lang_rules.
   (*    Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg' E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst lw'
+   Lemma wp_store_success_reg' E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst lw'
          p b e a v :
       decodeInstrWL lw = Store dst (inr PC) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -412,19 +412,19 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e a v
-           ∗ if ((a,v) =? (pc_a, pca_v))%la
+           ∗ if ((a,v) =? (pc_a, pc_v))%la
              then emp
              else ▷ (a,v) ↦ₐ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ (if (a =? pc_a)%a
+              ∗ (pc_a, pc_v) ↦ₐ (if (a =? pc_a)%a
                          then (LCap pc_p pc_b pc_e pc_a pc_v)
                          else lw)
               ∗ dst ↦ᵣ LCap p b e a v
-              ∗ if ((a,v) =? (pc_a, pca_v))%la
+              ∗ if ((a,v) =? (pc_a, pc_v))%la
                 then emp
                 else (a,v) ↦ₐ (LCap pc_p pc_b pc_e pc_a pc_v) }}}.
    Proof.
@@ -467,7 +467,7 @@ Section cap_lang_rules.
   (*  Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_frominstr_same E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst lw'
+   Lemma wp_store_success_reg_frominstr_same E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst lw'
          p b e v :
       decodeInstrWL lw = Store dst (inr PC) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -476,12 +476,12 @@ Section cap_lang_rules.
      withinBounds b e pc_a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e pc_a v }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ LCap pc_p pc_b pc_e pc_a pc_v
+              ∗ (pc_a, pc_v) ↦ₐ LCap pc_p pc_b pc_e pc_a pc_v
               ∗ dst ↦ᵣ LCap p b e pc_a v }}}.
    Proof.
   (*    intros. iIntros "(HPC & Hpc_a & Hdst) Hφ". *)
@@ -492,7 +492,7 @@ Section cap_lang_rules.
   (*  Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_frominstr E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst lw'
+   Lemma wp_store_success_reg_frominstr E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst lw'
          p b e a v :
       decodeInstrWL lw = Store dst (inr PC) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -501,13 +501,13 @@ Section cap_lang_rules.
      withinBounds b e a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e a v
            ∗ ▷ (a,v) ↦ₐ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ dst ↦ᵣ LCap p b e a v
               ∗ (a, v) ↦ₐ LCap pc_p pc_b pc_e pc_a pc_v }}}.
    Proof.
@@ -522,7 +522,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_same' E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst
+   Lemma wp_store_success_reg_same' E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst
          p b e v :
      decodeInstrWL lw = Store dst (inr dst) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -530,12 +530,12 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e pc_a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e pc_a v }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ LCap p b e pc_a v
+              ∗ (pc_a, pc_v) ↦ₐ LCap p b e pc_a v
               ∗ dst ↦ᵣ LCap p b e pc_a v }}}.
    Proof.
   (*    iIntros (Hinstr Hvpc Hpca' Hwa Hwb φ) *)
@@ -566,7 +566,7 @@ Section cap_lang_rules.
   (*  Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_same_a E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst src
+   Lemma wp_store_success_reg_same_a E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst src
          p b e a v lw'' :
       decodeInstrWL lw = Store dst (inr src) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -574,13 +574,13 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e pc_a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ src ↦ᵣ lw''
            ∗ ▷ dst ↦ᵣ LCap p b e pc_a v }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw''
+              ∗ (pc_a, pc_v) ↦ₐ lw''
               ∗ src ↦ᵣ lw''
               ∗ dst ↦ᵣ LCap p b e pc_a v}}}.
    Proof.
@@ -612,7 +612,7 @@ Section cap_lang_rules.
   (*  Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst src lw'
+   Lemma wp_store_success_reg E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst src lw'
          p b e a v lw'' :
       decodeInstrWL lw = Store dst (inr src) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -620,14 +620,14 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ src ↦ᵣ lw''
            ∗ ▷ dst ↦ᵣ LCap p b e a v
            ∗ ▷ (a,v) ↦ₐ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ src ↦ᵣ lw''
               ∗ dst ↦ᵣ LCap p b e a v
               ∗ (a,v) ↦ₐ lw'' }}}.
@@ -661,7 +661,7 @@ Section cap_lang_rules.
   (*   Qed. *)
   Admitted.
 
-   Lemma wp_store_success_reg_same E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst lw'
+   Lemma wp_store_success_reg_same E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst lw'
          p b e a v:
      decodeInstrWL lw = Store dst (inr dst) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -669,13 +669,13 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e a v
            ∗ ▷ (a,v) ↦ₐ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ dst ↦ᵣ LCap p b e a v
               ∗ (a,v) ↦ₐ LCap p b e a v }}}.
    Proof.
@@ -708,7 +708,7 @@ Section cap_lang_rules.
   (*   Qed. *)
   Admitted.
 
-   Lemma wp_store_success_z E pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw dst z lw'
+   Lemma wp_store_success_z E pc_p pc_b pc_e pc_a pc_v pc_a' lw dst z lw'
          p b e a v :
      decodeInstrWL lw = Store dst (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -716,13 +716,13 @@ Section cap_lang_rules.
      writeAllowed p = true → withinBounds b e a = true →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ dst ↦ᵣ LCap p b e a v
            ∗ ▷ (a,v) ↦ₐ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ dst ↦ᵣ LCap p b e a v
               ∗ (a,v) ↦ₐ LInt z }}}.
    Proof.

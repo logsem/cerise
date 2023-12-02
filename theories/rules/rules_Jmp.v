@@ -19,17 +19,17 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Lemma wp_jmp_success E pc_p pc_b pc_e pc_a pc_v pca_v lw r lw' :
+  Lemma wp_jmp_success E pc_p pc_b pc_e pc_a pc_v lw r lw' :
     decodeInstrWL lw = Jmp r →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-         ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+         ∗ ▷ (pc_a, pc_v) ↦ₐ lw
          ∗ ▷ r ↦ᵣ lw' }}}
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ updatePcPermL lw'
-           ∗ (pc_a, pca_v) ↦ₐ lw
+           ∗ (pc_a, pc_v) ↦ₐ lw
            ∗ r ↦ᵣ lw' }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr) Hφ".
@@ -46,8 +46,8 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_log_reg_get_word in H3; eauto.
-    2: eapply state_phys_log_mem_get_word in H2; eauto.
+    2: eapply state_phys_corresponds_reg ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
     unfold exec, exec_opt in Hstep; cbn in *.
     eapply state_phys_log_reg_get_word in Hr_r0; eauto.
     rewrite Hr_r0 /= in Hstep; simplify_pair_eq.
@@ -66,16 +66,16 @@ Section cap_lang_rules.
   Qed.
 
 
-  Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a pc_v pca_v lw :
+  Lemma wp_jmp_successPC E pc_p pc_b pc_e pc_a pc_v lw :
     decodeInstrWL lw = Jmp PC →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+          ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ updatePcPermL (LCap pc_p pc_b pc_e pc_a pc_v)
-            ∗ (pc_a, pca_v) ↦ₐ lw }}}.
+            ∗ (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
     iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
@@ -90,8 +90,8 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_log_reg_get_word in Hr_PC; eauto.
-    2: eapply state_phys_log_mem_get_word in H2; eauto.
+    2: eapply state_phys_corresponds_reg ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
     unfold exec, exec_opt in Hstep; cbn in *.
     eapply state_phys_log_reg_get_word in Hr_PC; eauto.
     rewrite Hr_PC /= in Hstep; simplify_pair_eq.

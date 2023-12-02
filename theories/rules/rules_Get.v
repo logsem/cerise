@@ -124,7 +124,7 @@ Section cap_lang_rules.
         Get_failure i regs dst src →
         Get_spec i regs dst src regs' FailedV.
 
-  Lemma wp_Get Ep pc_p pc_b pc_e pc_a pc_v pca_v lw get_i dst src regs :
+  Lemma wp_Get Ep pc_p pc_b pc_e pc_a pc_v lw get_i dst src regs :
     decodeInstrWL lw = get_i →
     is_Get get_i dst src →
 
@@ -132,12 +132,12 @@ Section cap_lang_rules.
     regs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of get_i ⊆ dom regs →
 
-    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ regs' retv, RET retv;
         ⌜ Get_spec (decodeInstrWL lw) regs dst src regs' retv ⌝ ∗
-        (pc_a, pca_v) ↦ₐ lw ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
     iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
@@ -155,7 +155,7 @@ Section cap_lang_rules.
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
 
     unfold exec in Hstep.
 
@@ -268,7 +268,7 @@ Section cap_lang_rules.
   Qed.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
-  Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a pca_v pc_v lw wdst pc_a' z :
+  Lemma wp_Get_PC_success E get_i dst pc_p pc_b pc_e pc_a pc_v lw wdst pc_a' z :
     decodeInstrWL lw = get_i →
     is_Get get_i dst PC →
 
@@ -277,12 +277,12 @@ Section cap_lang_rules.
     denote get_i (lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)) = Some z →
 
     {{{ ▷ PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a pc_v)
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ wdst }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ (LCap pc_p pc_b pc_e pc_a' pc_v)
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LInt z }}}.
   Proof.
     iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote φ) "(>HPC & >Hpc_a & >Hdst) Hφ".
@@ -302,7 +302,7 @@ Section cap_lang_rules.
       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_Get_same_success E get_i r pc_p pc_b pc_e pc_a pca_v pc_v lw lwr pc_a' z:
+  Lemma wp_Get_same_success E get_i r pc_p pc_b pc_e pc_a pc_v lw lwr pc_a' z:
     decodeInstrWL lw = get_i →
     is_Get get_i r r →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -310,12 +310,12 @@ Section cap_lang_rules.
     denote get_i (lword_get_word lwr) = Some z →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
           ∗ ▷ r ↦ᵣ lwr }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-            ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+            ∗ ▷ (pc_a, pc_v) ↦ₐ lw
             ∗ r ↦ᵣ LInt z }}}.
   Proof.
     iIntros (Hdecode Hinstr Hvpc Hpca' Hdenote φ) "(>HPC & >Hpc_a & >Hr) Hφ".
@@ -333,7 +333,7 @@ Section cap_lang_rules.
       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_Get_success E get_i dst src pc_p pc_b pc_e pc_a pca_v pc_v lw lwsrc lwdst pc_a' z :
+  Lemma wp_Get_success E get_i dst src pc_p pc_b pc_e pc_a pc_v lw lwsrc lwdst pc_a' z :
     decodeInstrWL lw = get_i →
     is_Get get_i dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -341,13 +341,13 @@ Section cap_lang_rules.
     denote get_i (lword_get_word lwsrc) = Some z →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ src ↦ᵣ lwsrc
         ∗ ▷ dst ↦ᵣ lwdst }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ src ↦ᵣ lwsrc
           ∗ dst ↦ᵣ LInt z }}}.
   Proof.
@@ -366,7 +366,7 @@ Section cap_lang_rules.
       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. congruence. }
   Qed.
 
-  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a pc_v pca_v lw zsrc lwdst :
+  Lemma wp_Get_fail E get_i dst src pc_p pc_b pc_e pc_a pc_v lw zsrc lwdst :
     decodeInstrWL lw = get_i →
     is_Get get_i dst src →
     (forall dst' src', get_i <> GetOType dst' src') ->
@@ -374,7 +374,7 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-      ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+      ∗ ▷ (pc_a, pc_v) ↦ₐ lw
       ∗ ▷ dst ↦ᵣ lwdst
       ∗ ▷ src ↦ᵣ LInt zsrc }}}
       Instr Executable @ E

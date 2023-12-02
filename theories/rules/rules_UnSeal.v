@@ -52,18 +52,18 @@ Section cap_lang_rules.
       UnSeal_failure lregs dst src1 src2 lregs' →
       UnSeal_spec lregs dst src1 src2 lregs' FailedV.
 
-  Lemma wp_UnSeal Ep pc_p pc_b pc_e pc_a pc_v pca_v lw dst src1 src2 lregs :
+  Lemma wp_UnSeal Ep pc_p pc_b pc_e pc_a pc_v lw dst src1 src2 lregs :
     decodeInstrWL lw = UnSeal dst src1 src2 ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (UnSeal dst src1 src2) ⊆ dom lregs →
 
-    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
         ⌜ UnSeal_spec lregs dst src1 src2 lregs' retv ⌝ ∗
-        (pc_a, pca_v) ↦ₐ lw ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
   (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
@@ -152,7 +152,7 @@ Section cap_lang_rules.
 
   (* after pruning impossible or impractical options, 4 wp rules remain *)
 
-  Lemma wp_unseal_success E pc_p pc_b pc_e pc_a pc_v pca_v lw lw' dst r1 r2 p b e a sb pc_a' :
+  Lemma wp_unseal_success E pc_p pc_b pc_e pc_a pc_v lw lw' dst r1 r2 p b e a sb pc_a' :
     decodeInstrWL lw = UnSeal dst r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     permit_unseal p = true →
@@ -160,14 +160,14 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ dst ↦ᵣ lw'
         ∗ ▷ r1 ↦ᵣ LSealRange p b e a
         ∗ ▷ r2 ↦ᵣ LWSealed a sb }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LWSealable sb
           ∗ r1 ↦ᵣ LSealRange p b e a
           ∗ r2 ↦ᵣ LWSealed a sb
@@ -193,7 +193,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_unseal_r1 E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 p b e a sb pc_a' :
+  Lemma wp_unseal_r1 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a sb pc_a' :
     decodeInstrWL lw = UnSeal r1 r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     permit_unseal p = true →
@@ -201,13 +201,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LSealRange p b e a
         ∗ ▷ r2 ↦ᵣ LWSealed a sb }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LWSealable sb
           ∗ r2 ↦ᵣ LWSealed a sb
       }}}.
@@ -231,7 +231,7 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_unseal_r2 E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 p b e a sb pc_a' :
+  Lemma wp_unseal_r2 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a sb pc_a' :
     decodeInstrWL lw = UnSeal r2 r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     permit_unseal p = true →
@@ -239,13 +239,13 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LSealRange p b e a
         ∗ ▷ r2 ↦ᵣ LWSealed a sb }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LSealRange p b e a
           ∗ r2 ↦ᵣ LWSealable sb
       }}}.
@@ -270,7 +270,7 @@ Section cap_lang_rules.
   Admitted.
 
   (* The below case could be useful, if what we unseal is a PC capability *)
-  Lemma wp_unseal_PC E pc_p pc_b pc_e pc_a pc_v pca_v lw lw' r1 r2 p b e a p' b' e' a' v' a'' :
+  Lemma wp_unseal_PC E pc_p pc_b pc_e pc_a pc_v lw lw' r1 r2 p b e a p' b' e' a' v' a'' :
     decodeInstrWL lw = UnSeal PC r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     permit_unseal p = true →
@@ -278,13 +278,13 @@ Section cap_lang_rules.
     (a' + 1)%a = Some a'' →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ r1 ↦ᵣ LSealRange p b e a
         ∗ ▷ r2 ↦ᵣ LWSealed a (LSCap p' b' e' a' v') }}}
       Instr Executable @ E
       {{{ RET NextIV;
           PC ↦ᵣ LCap p' b' e' a'' v'
-          ∗ (pc_a, pca_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ LSealRange p b e a
           ∗ r2 ↦ᵣ LWSealed a (LSCap p' b' e' a' v')
       }}}.
@@ -308,14 +308,14 @@ Section cap_lang_rules.
   (* Qed. *)
   Admitted.
 
-  Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a pc_v pca_v lw r1 r2 p b e a lwsealed pc_a' :
+  Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a lwsealed pc_a' :
     decodeInstrWL lw = UnSeal r2 r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
     is_sealed_with_oL lwsealed a = false →
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
           ∗ ▷ r1 ↦ᵣ LSealRange p b e a
           ∗ ▷ r2 ↦ᵣ lwsealed }}}
       Instr Executable @ E
