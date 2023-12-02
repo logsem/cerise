@@ -482,75 +482,100 @@ Proof.
   all: by simplify_map_eq.
 Qed.
 
-(* TODO this is an attempt to show the kind of lemmas I will need, in order
-   to update the current view map *)
+Lemma is_cur_addr_insert_ne
+  (a : Addr) (v : Version) (a' : Addr) (v' : Version)
+  (cur_map : VMap) :
+  is_cur_addr (a,v) cur_map ->
+  a ≠ a' ->
+  is_cur_addr (a,v) (<[a' := v']> cur_map).
+Proof.
+  intros Hcur Hneq.
+  rewrite /is_cur_addr /=.
+  rewrite /is_cur_addr /= in Hcur.
+  by simplify_map_eq.
+Qed.
+
+(* TODO @bastien misses one hypothesis, but I don't know how to express it yet *)
 Lemma lmem_update_version_address
-  (phm : Mem) (lm : LMem) (cur_map : VMap) (a : Addr) (v v' : Version) (lw : LWord):
+  (phm : Mem) (lm : LMem) (cur_map : VMap) (a : Addr) (v : Version) (lw : LWord):
+  is_cur_addr (a,v) cur_map ->
   lm !! (a,v) = Some lw ->
   not (word_access_addrL a lw) ->
   mem_phys_log_corresponds phm lm cur_map ->
-  mem_phys_log_corresponds phm (<[ (a, v') := lw ]> lm) (<[ a := v']> cur_map).
+  mem_phys_log_corresponds
+    phm
+    (<[ (a, v+1) := lw ]> lm)
+    (<[ a := v+1]> cur_map).
 Proof.
-  (* intros Hla Hnaccess [Hdom Hroot]. *)
-  (* split. *)
-  (* - apply map_Forall_insert_2. *)
-  (*   rewrite /is_cur_addr //= ; by simplify_map_eq. *)
-  (*   assert ( forall v0, (delete (a,v) lm) !! (a,v0) = None ). admit. *)
-  (*   eapply map_Forall_delete; eauto. *)
-  (*   eapply map_Forall_impl; eauto. *)
-  (*   intros la' lw' Hroot' ; cbn in Hroot'. *)
+  intros Hcur_la Hla Hnaccess [Hdom Hroot].
 
-  (*   rewrite /is_cur_addr //= ; simplify_map_eq. *)
-  (*   rewrite /is_cur_addr //= in Hroot'; simplify_map_eq. *)
-  (*   (* TODO I intuite that it's OK now *) *)
-  (*   admit. *)
-  (* - apply map_Forall_insert_2. *)
-  (*   + pose proof (Hla' := Hla). *)
-  (*     eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *. *)
-  (*     eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *. *)
-  (*     destruct Hla as (lw' & Hlw' & Ha & Hcur). *)
-  (*     rewrite Hla' in Hlw' ; simplify_eq. *)
-  (*     exists lw'. split. by simplify_map_eq. *)
-  (*     split; auto. *)
-  (*     eapply is_cur_word_update; eauto. *)
+  pose proof (Hla' := Hla).
+  eapply map_Forall_lookup_1 in Hla'; eauto; cbn in Hla'.
+  destruct Hla' as (va & Hcur_va & Hle_va & [lwa Hlwa]).
+  rewrite /is_cur_addr /= in Hcur_la, Hcur_va.
+  rewrite Hcur_la in Hcur_va ; simplify_eq.
 
-  (*   + eapply map_Forall_impl ; eauto. *)
-  (*     intros a' v'' Hroot_a. cbn in Hroot_a. *)
-  (*     destruct Hroot_a as (lw' & Hlm_lw' & Hphm_lw & Hcur_lw'). *)
-  (*     destruct (decide (a = a')); simplify_eq. *)
-  (*     * (* a = a' *) *)
-  (*       (* TODO lemma: Hroot -> Hla -> Hlm_lw -> *) *)
-  (*       (* TODO lemma: is_cur_addr (a,v) -> is_cur_addr (a,v') -> v = v' *) *)
-  (*       assert (lw = lw' /\ v = v'') as [-> ->] by admit. *)
-  (*       (* eapply map_Forall_lookup_1 in Hla; eauto. *) *)
-  (*       (* eapply map_Forall_lookup_1 in Hlm_lw'; eauto ; cbn in *. *) *)
-  (*       exists lw'. split. *)
-  (*       destruct (decide ((a', v') = (a',v''))) ; [ by simplify_map_eq|]. *)
-  (*       simplify_map_eq. *)
-  (*       (* rewrite /is_cur_word in Hcur_lw'. *) *)
-  (*       (* apply map_Forall_lookup_1 in Hcur_lw' ; eauto. *) *)
-  (*       (*   Hroot in Hcur_lw'. *) *)
-  (*       (* split; auto. *) *)
-  (*       (* eapply is_cur_word_update ; eauto. *) admit. admit. *)
-  (*     * (* a <> a' *) *)
-  (*       exists lw'. assert ( (a, v') <> (a', v'') ) by (intro ; simplify_pair_eq). *)
-  (*       simplify_map_eq. do 2 (try split ; auto). *)
-  (*       assert ( (a,v) <> (a', v'') ) by (intro ; simplify_eq); by simplify_map_eq. *)
-(* TODO it also misses the hypethesis stating that actually,
-             no words in the whole logical memory is overlapping with [a]
- *)
+  split.
+  - eapply lmem_read_iscur in Hla ; eauto.
+    2: split ; eauto.
+    eapply update_cur_word with (v := va+1) in Hla;eauto.
+
+    apply map_Forall_insert_2.
+    { eexists (va+1).
+      split.
+      rewrite /is_cur_addr //= ; by simplify_map_eq.
+      split; by simplify_map_eq.
+    }
+
+    eapply map_Forall_lookup; eauto.
+    intros la' lw' Hroot' ; cbn in Hroot'.
+    destruct la' as [a' v'] ; cbn in *.
+
+    eapply map_Forall_lookup_1 in Hroot' ; eauto ; cbn in Hroot'.
+    destruct Hroot' as (cur_v & Hcur_v & Hcur_max & [cur_lw Hcur_lw]).
+    destruct (decide (a = a')); simplify_eq.
+    + exists (va+1). split ; [|split] ; try by simplify_map_eq.
+      rewrite /is_cur_addr; by simplify_map_eq.
+      replace va with cur_v
+        by ( by rewrite /is_cur_addr /= Hcur_la in Hcur_v; simplify_eq).
+      lia.
+    + exists cur_v. split; [|split]; eauto.
+      apply is_cur_addr_insert_ne; eauto.
+      exists cur_lw. rewrite lookup_insert_ne //=; congruence.
+
+  - apply map_Forall_insert_2.
+    { pose proof (Hla' := Hla).
+      eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *.
+      destruct Hla as (cur_v & Hcur_v & Hcur_max & [cur_lw Hcur_lw]).
+
+      rewrite /is_cur_addr /= Hcur_la in Hcur_v; simplify_map_eq.
+      exists lw. split. by simplify_map_eq.
+      eapply map_Forall_lookup_1 in Hcur_la ; eauto ; cbn in Hcur_la.
+      destruct Hcur_la as (lw' & Hlw' & Hw' & Hcur_lw').
+      rewrite Hlw' in Hla' ; simplify_eq.
+
+      split; auto.
+      eapply update_cur_word ; eauto.
+    }
+
+    eapply map_Forall_lookup; eauto.
+    intros a' v' Hcur_a'.
+
+    pose proof (Hcur_a'' := Hcur_a').
+    eapply map_Forall_lookup_1 in Hcur_a'' ; eauto ; cbn in Hcur_a''.
+    destruct Hcur_a'' as (lw' & Hlw' & Hw' & Hcur_lw').
+
+    destruct (decide (a = a')); simplify_eq.
+    + eapply update_cur_word with (v := va+1) in Hcur_lw'; eauto.
+      exists lw.
+      assert ((a', va + 1) ≠ (a', va)) by (intro ; simplify_eq ; lia).
+      split ; [|split] ; by simplify_map_eq.
+    + exists lw'.
+      assert ((a, va + 1) ≠ (a', v')) by (intro ; simplify_eq).
+      split ; [|split] ; try by simplify_map_eq.
+      (* TODO it also misses the hypethesis stating that actually,
+             no words in the whole current logical memory is overlapping with [a] *)
 Abort.
-
-Lemma name (phm : Mem) (lm : LMem) (cur_map : VMap)
-  (a : Addr) (v v' : Version) (lw lw' : LWord):
-  mem_phys_log_corresponds phm lm cur_map ->
-  lm !! (a, v) = Some lw ->
-  lm !! (a, v') = Some lw' ->
-  (lw = lw' /\ v = v').
-Abort.
-
-
-
 
 
 (* CMRΑ for memory *)
