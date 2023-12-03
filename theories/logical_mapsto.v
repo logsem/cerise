@@ -495,19 +495,25 @@ Proof.
   by simplify_map_eq.
 Qed.
 
-(* TODO @bastien misses one hypothesis, but I don't know how to express it yet *)
+Definition lmem_not_access_addrL (lm : LMem) (cur_map : VMap) (a : Addr) :=
+  map_Forall
+  (λ (la : LAddr) (lw : LWord),
+    is_cur_addr la cur_map → (¬ word_access_addrL a lw)
+  ) lm.
+
 Lemma lmem_update_version_address
   (phm : Mem) (lm : LMem) (cur_map : VMap) (a : Addr) (v : Version) (lw : LWord):
   is_cur_addr (a,v) cur_map ->
   lm !! (a,v) = Some lw ->
-  not (word_access_addrL a lw) ->
+  lmem_not_access_addrL lm cur_map a →
   mem_phys_log_corresponds phm lm cur_map ->
   mem_phys_log_corresponds
     phm
     (<[ (a, v+1) := lw ]> lm)
     (<[ a := v+1]> cur_map).
 Proof.
-  intros Hcur_la Hla Hnaccess [Hdom Hroot].
+  intros Hcur_la Hla Hnacces_mem [Hdom Hroot].
+  assert (not (word_access_addrL a lw)) as Hnaccess by eauto.
 
   pose proof (Hla' := Hla).
   eapply map_Forall_lookup_1 in Hla'; eauto; cbn in Hla'.
@@ -573,9 +579,8 @@ Proof.
     + exists lw'.
       assert ((a, va + 1) ≠ (a', v')) by (intro ; simplify_eq).
       split ; [|split] ; try by simplify_map_eq.
-      (* TODO it also misses the hypethesis stating that actually,
-             no words in the whole current logical memory is overlapping with [a] *)
-Abort.
+      eapply update_cur_word;eauto.
+Qed.
 
 
 (* CMRΑ for memory *)
