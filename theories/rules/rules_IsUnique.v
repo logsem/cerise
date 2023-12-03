@@ -34,10 +34,6 @@ Section cap_lang_rules.
       (Some lmem)
       region.
 
-  (* TODO we don't need to get the max_version of an address, because *)
-  (* we already know, by construction, that we have the current view of the region *)
-  (* and that all addresses in the region also have the current version *)
-
   Inductive IsUnique_fail (lregs : LReg) (lmem : LMem) (dst src : RegName): Prop :=
   | IsUnique_fail_cap (lwsrc: LWord) :
     lregs !! src = Some lwsrc ->
@@ -157,12 +153,39 @@ Section cap_lang_rules.
   Proof.
   Admitted.
 
+
+  Lemma sweep_memory_spec_false (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+    sweep_memory mem regs src = false ->
+    regs !! src = Some wsrc ->
+    not (unique_in_memory mem wsrc).
+  Proof.
+    intros Hsweep Hsrc.
+    rewrite /unique_in_memory.
+  Admitted.
+
   Lemma sweep_false_spec reg mem lr lm cur_map r p b e a v:
     state_phys_log_corresponds reg mem lr lm cur_map ->
     sweep mem reg r = false ->
-    reg !! r = Some (WCap p b e a) ->
+    lr !! r = Some (LCap p b e a v) ->
     not (unique_in_machineL lr lm (LCap p b e a v) r v).
   Proof.
+    intros [HinvReg HinvMem] Hsweep Hlr.
+    assert (reg !! r = Some (WCap p b e a)) as Hr
+      by (eapply reg_phys_log_get_word in Hlr ; eauto).
+    intro HuniqueL.
+    rewrite /unique_in_machineL in HuniqueL.
+    apply andb_false_iff in Hsweep.
+    destruct Hsweep as [Hsweep | Hsweep].
+    - eapply sweep_memory_spec_false in Hsweep; eauto.
+      edestruct (HuniqueL lr lm) as [HuniqueL_mem HuniqueL_reg].
+      1,2:set_solver.
+      clear HuniqueL.
+      apply Hsweep ; clear Hsweep.
+      destruct HinvMem as [Hdom Hroot].
+      assert (is_cur_word (LCap p b e a v) cur_map) as Hcur_lw
+          by (eapply lreg_read_iscur; eauto).
+      rewrite /unique_in_memoryL in HuniqueL_mem.
+      rewrite /unique_in_memory.
   Admitted.
 
   (* TODO move stdpp_extra *)
@@ -183,6 +206,7 @@ Section cap_lang_rules.
     - unfold read_reg_inr. by rewrite Hr.
     - case_decide; done.
   Qed.
+
   (* TODO probably misses hypothesis to prove this*)
   Lemma mem_implies_allow_access_map:
     ∀ (lregs : LReg) (lmem : LMem) (r : RegName)
@@ -364,7 +388,7 @@ Section cap_lang_rules.
     iIntros "_".
     iSplitR; auto; eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem ; eauto; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
 
     set (srcv := lword_get_word lsrcv).
     assert ( reg !! src = Some srcv ) as Hsrc
@@ -657,8 +681,8 @@ Section cap_lang_rules.
       split; first by rewrite -Hstrips /lreg_strip !fmap_insert /=.
       apply map_Forall_insert_2 ; [|by apply map_Forall_insert_2; cbn].
       (* TODO lemma for proving this automatically *)
-      eapply lreg_read_iscur;eauto.
-      split ; eauto.
+      rewrite HPC in HPC'' ; simplify_eq.
+      eapply is_cur_word_cap_change; eauto.
   Admitted.
 
   (* TODO derive a valid version of the rule:
