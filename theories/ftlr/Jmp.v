@@ -107,11 +107,10 @@ Section fundamental.
     a <> a' ->
     withinBounds b e a /\ withinBounds b e a' ->
     r <> PC ->
-    <[idc:=widc]> regs !! r = Some (WCap IE b e a) ->
+    regs !! r = Some (WCap IE b e a) ->
         (∀ (r' : RegName) (w : Word)
-          , ⌜r' ≠ PC⌝ → ⌜r' ≠ idc⌝ → ⌜regs !! r' = Some w⌝
+          , ⌜r' ≠ PC⌝ → ⌜regs !! r' = Some w⌝
             → word_ie_cond w b e a a')
-        -∗ word_ie_cond widc b e a a'
         -∗ ∃ P1 P2 : D,
              (∀ w1 w2 (regs' : leibnizO Reg),
                  ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
@@ -119,46 +118,27 @@ Section fundamental.
                ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1)
   .
   Proof.
-    iIntros (Haddr Hwbs Hneq Hreg) "#Hreg #Hwidc".
-    destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
-    - iDestruct ("Hwidc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-      iExists P1, P2.
-      iFrame "#".
-      iSplitL.
-      + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-        iExists w2.
-        iFrame "∗ #".
-        rewrite /allow_jmp_mask.
-        case_decide; first solve_addr.
-        case_decide; solve_addr.
-      + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-        iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
-        iExists w2.
-        iFrame "∗ #".
-        rewrite /allow_jmp_mask.
-        case_decide; first solve_addr.
-        case_decide; solve_addr.
-    - iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
-      rewrite {2}/word_ie_cond /ie_cond.
-      iDestruct ("Hvsrc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-      iExists P1, P2.
-      iFrame "#".
-      iSplitL.
-      + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-        iExists w2.
-        iFrame "∗ #".
-        rewrite /allow_jmp_mask.
-        case_decide; first solve_addr.
-        case_decide; solve_addr.
-      + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-        iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
-        iExists w2.
-        iFrame "∗ #".
-        rewrite /allow_jmp_mask.
-        case_decide; first solve_addr.
-        case_decide; solve_addr.
+    iIntros (Haddr Hwbs Hneq Hreg) "#Hreg".
+    iDestruct ("Hreg" $! r _ Hneq Hreg) as "Hvsrc".
+    rewrite {2}/word_ie_cond /ie_cond.
+    iDestruct ("Hvsrc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
+    iExists P1, P2.
+    iFrame "#".
+    iSplitL.
+    + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+      iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+      iExists w2.
+      iFrame "∗ #".
+      rewrite /allow_jmp_mask.
+      case_decide; first solve_addr.
+      case_decide; solve_addr.
+    + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+      iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
+      iExists w2.
+      iFrame "∗ #".
+      rewrite /allow_jmp_mask.
+      case_decide; first solve_addr.
+      case_decide; solve_addr.
   Qed.
 
   Lemma name2 (a a' : Addr ) :
@@ -193,22 +173,19 @@ Section fundamental.
     iDestruct "H" as (P1 P2) "(H1 & H2 & H3)"; auto.
   Qed.
 
-
-
   Lemma create_jmp_res:
     ∀ (regs : leibnizO Reg) (r : RegName)
       (pc_p : Perm) (pc_b pc_e pc_a : Addr)
       (widc : Word)
       (p : Perm) (b e a : Addr),
       pc_p <> IE ->
-      read_reg_inr (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:= widc]> regs)) r p b e a
-      → (∀ (r' : RegName) (w : Word), ⌜r' ≠ PC⌝ → ⌜r' ≠ idc⌝ → ⌜regs !! r' = Some w⌝ → (fixpoint interp1) w)
-        -∗ interp widc
+      read_reg_inr (<[PC:=WCap pc_p pc_b pc_e pc_a]> regs) r p b e a
+      → (∀ (r' : RegName) (w : Word), ⌜r' ≠ PC⌝ → ⌜regs !! r' = Some w⌝ → (fixpoint interp1) w)
         -∗ ∃ (P1 P2 : D),
-             allow_jmp_res (<[PC:=WCap pc_p pc_b pc_e pc_a]> (<[idc:=widc]> regs)) r pc_a p b e a P1 P2.
+             allow_jmp_res (<[PC:=WCap pc_p pc_b pc_e pc_a]> regs) r pc_a p b e a P1 P2.
   Proof.
     intros regs r pc_p pc_b pc_e pc_a widc p b e a Hpc_p HVr.
-    iIntros "#Hreg #Hwidc".
+    iIntros "#Hreg".
     iFrame "%".
     case_decide as Hallows; cycle 1.
     - by iExists (λne _, True%I), (λne _, True%I).
@@ -220,64 +197,43 @@ Section fundamental.
       assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
       rewrite lookup_insert_ne //= in Hreg.
 
-
-
       case_decide as Ha; simplify_eq.
       { iApply name2; iApply name; eauto.
-        iIntros. all: iApply interp_ie_cond; try done. iApply "Hreg";eauto.
+        iIntros.
+        all: iApply interp_ie_cond; try done.
+        iApply "Hreg";eauto.
       }
 
       case_decide as Ha'; simplify_eq.
       { iApply name2'; iApply name; eauto.
-        iIntros. all: iApply interp_ie_cond; try done. iApply "Hreg";eauto.
+        iIntros.
+        all: iApply interp_ie_cond; try done.
+        iApply "Hreg";eauto.
       }
 
-      destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
-      + rewrite fixpoint_interp1_eq /=.
-        iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-        iExists P1, P2.
+      iDestruct ("Hreg" $! r _ Hneq Hreg) as "Hvsrc".
+      rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
+      iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
+      iExists P1, P2.
 
-        iFrame "#".
-        iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-        iMod (inv_acc (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-        iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
-        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-        iExists w1, w2.
+      iFrame "#".
+      iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+      iMod (inv_acc (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+      iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
+      iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+      iExists w1, w2.
 
-        iFrame "∗ #".
-        rewrite /region_open_resources2.
-        iModIntro.
-        iIntros "Ha".
-        iDestruct "Ha" as (w1' w2') "(Hw1' & HP1' & Hw2' & HP2')".
-        rewrite /allow_jmp_mask.
-        case_decide; simplify_eq.
-        case_decide; simplify_eq.
-        iMod ("Hcls_a'" with "[Hw2' HP2']") as "_"; first (iExists _ ; iFrame).
-        iMod ("Hcls_a" with "[Hw1' HP1']") as "_"; first (iExists _ ; iFrame).
-        done.
-      + iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
-        rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
-        iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-        iExists P1, P2.
-
-        iFrame "#".
-        iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-        iMod (inv_acc (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-        iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
-        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-        iExists w1, w2.
-
-        iFrame "∗ #".
-        rewrite /region_open_resources2.
-        iModIntro.
-        iIntros "Ha".
-        iDestruct "Ha" as (w1' w2') "(Hw1' & HP1' & Hw2' & HP2')".
-        rewrite /allow_jmp_mask.
-        case_decide; simplify_eq.
-        case_decide; simplify_eq.
-        iMod ("Hcls_a'" with "[Hw2' HP2']") as "_"; first (iExists _ ; iFrame).
-        iMod ("Hcls_a" with "[Hw1' HP1']") as "_"; first (iExists _ ; iFrame).
-        done.
+      iFrame "∗ #".
+      rewrite /region_open_resources2.
+      iModIntro.
+      iIntros "Ha".
+      iDestruct "Ha" as (w1' w2') "(Hw1' & HP1' & Hw2' & HP2')".
+      rewrite /allow_jmp_mask.
+      case_decide; simplify_eq.
+      case_decide; simplify_eq.
+      iMod ("Hcls_a'" with "[Hw2' HP2']") as "_"; first (iExists _ ; iFrame).
+      iMod ("Hcls_a" with "[Hw1' HP1']") as "_"; first (iExists _ ; iFrame).
+      done.
   Qed.
 
   Definition allow_jmp_mem
@@ -473,9 +429,18 @@ Section fundamental.
       by repeat eexists.
     }
 
+    iAssert (
+        ∀ (r' : RegName) (w : Word),
+          ⌜r' ≠ PC⌝ → ⌜<[idc:=widc]> regs  !! r' = Some w⌝ → fixpoint interp1 w
+      )%I as "Hreg'".
+    { iIntros.
+      destruct (decide (r' = idc)); simplify_map_eq; auto.
+      iApply "Hreg";eauto.
+    }
+
     (* Step 1: open the region, if necessary, and store all the resources
        obtained from the region in allow_IE_res *)
-    iDestruct (create_jmp_res with "Hreg Hinv_idc") as (P1 P2) "HJmpRes"; eauto.
+    iDestruct (create_jmp_res with "Hreg'") as (P1 P2) "HJmpRes"; eauto.
     { destruct Hp ; destruct p ; auto. }
 
     (* Step2: derive the concrete map of memory we need, and any spatial
@@ -627,8 +592,7 @@ Section fundamental.
           assert ( src <> PC ).
           { destruct (decide (src = PC)) ; simplify_map_eq ; destruct Hp; auto. }
           simplify_map_eq.
-          destruct (decide (src = idc)) ; simplify_map_eq; auto.
-          iApply "Hreg"; auto.
+          iApply "Hreg'"; auto.
           }
           rewrite (fixpoint_interp1_eq (WCap E _ _ _)) //=.
           rewrite (insert_commute _ PC _ (WCap RX _ _ _)) //=.
@@ -654,8 +618,7 @@ Section fundamental.
           clear Hsome' HVsrc HAJmpMem HAJmpReg.
 
           destruct (decide (src = PC)); simplify_map_eq; auto.
-          destruct (decide (src = idc)); simplify_map_eq; auto.
-          iApply "Hreg" ; auto.
+          iApply "Hreg'" ; auto.
         }
         { iFrame "Hinv_idc". }
       }
