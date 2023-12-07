@@ -18,52 +18,44 @@ Section fundamental.
 
   (* Mask after the jump, depending on the address of the pc and the address
    of a *)
-  Definition allow_jmp_mask (pc_a a : Addr) : coPset
+  Definition allow_jmp_mask (pc_a a a' : Addr) : coPset
     :=
     if decide (pc_a = a)
-    then (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@(a^+1)%a)
+    then (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a')
     else
-      if decide (pc_a = (a^+1)%a)
+      if decide (pc_a = a')
       then (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a)
-      else (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a ∖ ↑logN.@(a^+1)%a).
+      else (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a ∖ ↑logN.@a').
 
-  Definition allow_jmp_mask_reg (regs : Reg) (r : RegName) (pc_a : Addr) (p : Perm) (b e a : Addr)
+  Definition allow_jmp_mask_reg (regs : Reg) (r : RegName) (pc_a : Addr)
+    (p : Perm) (b e a : Addr)
     : coPset :=
     if decide (reg_allows_IE_jmp regs r p b e a)
-    then allow_jmp_mask pc_a a
+    then allow_jmp_mask pc_a a (a ^+1)%a
     else (⊤ ∖ ↑logN.@pc_a).
 
   (* The necessary resources to close the region again,
      except for the points to predicate, which we will store separately *)
   Definition region_open_resources2
-    (pc_a : Addr) (a : Addr)
+    (pc_a : Addr) (a a' : Addr)
     (w1 : Word) (w2 : Word)
     (P1 P2 : D)
     : iProp Σ :=
     ▷ P1 w1 ∗ ▷ P2 w2
        ∗ persistent_cond P1 ∗ persistent_cond P2
-       ∗ ((▷ ∃ w1 w2, a ↦ₐ w1 ∗ P1 w1 ∗ (a^+1)%a ↦ₐ w2 ∗ P2 w2)
-          ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp)%I.
+       ∗ ((▷ ∃ w1 w2, a ↦ₐ w1 ∗ P1 w1 ∗ a' ↦ₐ w2 ∗ P2 w2)
+          ={allow_jmp_mask pc_a a a', ⊤ ∖ ↑logN.@pc_a}=∗ emp)%I.
 
   Definition region_open_resources
-    (pc_a : Addr) (a : Addr) (w : Word)
+    (pc_a : Addr) (a a' : Addr) (w : Word)
     (P : D)
     : iProp Σ :=
     (▷ P w
        ∗ persistent_cond P
        ∗ ((▷ ∃ w, a ↦ₐ w ∗ P w)
-        ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
+        ={allow_jmp_mask pc_a a a', ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
-  Definition region_open_resources'
-    (pc_a : Addr) (a : Addr) (w' : Word)
-    (P : D)
-    : iProp Σ :=
-    (▷ P w'
-       ∗ persistent_cond P
-       ∗ ((▷ ∃ w', (a^+1)%a ↦ₐ w' ∗ P w')
-        ={allow_jmp_mask pc_a a, ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
-
-  (* Description of what the resources are supposed to look like after opening the
+     (* Description of what the resources are supposed to look like after opening the
      region if we need to, but before closing the region up again*)
   Definition allow_jmp_res (regs : Reg) (r : RegName)
     (pc_a : Addr) (p : Perm) (b e a : Addr)
@@ -75,15 +67,133 @@ Section fundamental.
          (∀ w1 w2 regs', ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝)
                               -∗ (interp_expr_gen interp regs' w1 w2)))
            ∗
-           |={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask pc_a a}=>
+           |={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask pc_a a (a ^+1)%a}=>
            (if decide (pc_a = a)
-            then ∃ w2, (a^+1)%a ↦ₐ w2 ∗ region_open_resources' pc_a a w2 P2
+            then ∃ w2, (a^+1)%a ↦ₐ w2 ∗ region_open_resources pc_a (a ^+1)%a a w2 P2
             else
               if decide (pc_a = (a^+1)%a)
-              then ∃ w1, a ↦ₐ w1 ∗ region_open_resources pc_a a w1 P1
-              else ∃ w1 w2, a ↦ₐ w1 ∗ (a^+1)%a ↦ₐ w2 ∗ region_open_resources2 pc_a a w1 w2 P1 P2
+              then ∃ w1, a ↦ₐ w1 ∗ region_open_resources pc_a a (a ^+1)%a w1 P1
+              else ∃ w1 w2, a ↦ₐ w1 ∗ (a^+1)%a ↦ₐ w2 ∗ region_open_resources2 pc_a a (a ^+1)%a w1 w2 P1 P2
            )
        else True)%I.
+
+  Definition ie_cond (b e a a' : Addr) : iProp Σ  :=
+    ⌜ withinBounds b e a /\ withinBounds b e a'⌝
+      -∗ ( ∃ (P1 P2 : D),
+             persistent_cond P1
+               ∗ persistent_cond P2
+               ∗ inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
+               ∗ inv (logN .@ a') (∃ w2, a' ↦ₐ w2 ∗ P2 w2)
+               ∗ ∀ w1 w2 regs,
+                 ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝)
+                      -∗ (interp_expr_gen interp regs w1 w2))).
+
+  Definition word_ie_cond (w : Word) (b e a a' : Addr) : iProp Σ  :=
+    ⌜w = (WCap IE b e a)⌝ -∗ ie_cond b e a a'.
+
+  (* Lemma  *)
+  (* TODO there are plenty of similar case, is there a way to factor out *)
+  Lemma interp_ie_cond w b e a:
+    interp w -∗ word_ie_cond w b e a (a ^+ 1)%a.
+  Proof.
+    iIntros "#HV ->".
+    rewrite /ie_cond.
+    rewrite fixpoint_interp1_eq //=.
+  Qed.
+
+  (* TODO I feel like, I'm still just moving the disjunction further up,
+     and "hiding it", but not really factoring it out *)
+  Lemma name (regs : Reg) (r : RegName) (widc : Word) (b e a a' : Addr) :
+    a <> a' ->
+    withinBounds b e a /\ withinBounds b e a' ->
+    r <> PC ->
+    <[idc:=widc]> regs !! r = Some (WCap IE b e a) ->
+        (∀ (r' : RegName) (w : Word)
+          , ⌜r' ≠ PC⌝ → ⌜r' ≠ idc⌝ → ⌜regs !! r' = Some w⌝
+            → word_ie_cond w b e a a')
+        -∗ word_ie_cond widc b e a a'
+        -∗ ∃ P1 P2 : D,
+             (∀ w1 w2 (regs' : leibnizO Reg),
+                 ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
+               (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
+               ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1)
+  .
+  Proof.
+    iIntros (Haddr Hwbs Hneq Hreg) "#Hreg #Hwidc".
+    destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
+    - iDestruct ("Hwidc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
+      iExists P1, P2.
+      iFrame "#".
+      iSplitL.
+      + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+        iExists w2.
+        iFrame "∗ #".
+        rewrite /allow_jmp_mask.
+        case_decide; first solve_addr.
+        case_decide; solve_addr.
+      + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+        iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
+        iExists w2.
+        iFrame "∗ #".
+        rewrite /allow_jmp_mask.
+        case_decide; first solve_addr.
+        case_decide; solve_addr.
+    - iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
+      rewrite {2}/word_ie_cond /ie_cond.
+      iDestruct ("Hvsrc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
+      iExists P1, P2.
+      iFrame "#".
+      iSplitL.
+      + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+        iExists w2.
+        iFrame "∗ #".
+        rewrite /allow_jmp_mask.
+        case_decide; first solve_addr.
+        case_decide; solve_addr.
+      + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+        iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
+        iExists w2.
+        iFrame "∗ #".
+        rewrite /allow_jmp_mask.
+        case_decide; first solve_addr.
+        case_decide; solve_addr.
+  Qed.
+
+  Lemma name2 (a a' : Addr ) :
+    (∃ P1 P2 : D,
+        (∀ w1 w2 (regs' : leibnizO Reg),
+            ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
+          (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
+          ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1))
+    -∗
+       (∃ P1 P2 : D,
+           (∀ w1 w2 (regs' : leibnizO Reg),
+               ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
+             (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)).
+  Proof.
+    iIntros "H".
+    iDestruct "H" as (P1 P2) "(H1 & H2 & H3)"; auto.
+  Qed.
+
+  Lemma name2' (a a' : Addr ) :
+    (∃ P1 P2 : D,
+        (∀ w1 w2 (regs' : leibnizO Reg),
+            ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
+          (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
+          ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1))
+    -∗
+       (∃ P1 P2 : D,
+           (∀ w1 w2 (regs' : leibnizO Reg),
+               ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
+             (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1)).
+  Proof.
+    iIntros "H".
+    iDestruct "H" as (P1 P2) "(H1 & H2 & H3)"; auto.
+  Qed.
+
+
 
   Lemma create_jmp_res:
     ∀ (regs : leibnizO Reg) (r : RegName)
@@ -110,53 +220,16 @@ Section fundamental.
       assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
       rewrite lookup_insert_ne //= in Hreg.
 
-      (* TODO there are plenty of similar case, is there a way to factor out *)
+
+
       case_decide as Ha; simplify_eq.
-      {
-        destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
-        + rewrite fixpoint_interp1_eq /=.
-          iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-          iExists P1, P2.
-          iFrame "#".
-          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-          iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-          iExists w2.
-          iFrame "∗ #".
-          rewrite /allow_jmp_mask. do 2 (case_decide ; solve_addr).
-        + iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
-          rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
-          iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-          iExists P1, P2.
-          iFrame "#".
-          iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-          iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-          iExists w2.
-          iFrame "∗ #".
-          rewrite /allow_jmp_mask. do 2 (case_decide ; solve_addr).
+      { iApply name2; iApply name; eauto.
+        iIntros. all: iApply interp_ie_cond; try done. iApply "Hreg";eauto.
       }
 
       case_decide as Ha'; simplify_eq.
-      {
-        destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
-        + rewrite fixpoint_interp1_eq /=.
-          iDestruct ("Hwidc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-          iExists P1, P2.
-          iFrame "#".
-          iMod (inv_acc (⊤ ∖ ↑logN.@(a ^+ 1)%a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-          iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
-          iExists w1.
-          iFrame "∗ #".
-          rewrite /allow_jmp_mask. do 2 (case_decide ; try solve_addr).
-        + iDestruct ("Hreg" $! r _ Hneq Hneq' Hreg) as "Hvsrc".
-          rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
-          iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-          iExists P1, P2.
-          iFrame "#".
-          iMod (inv_acc (⊤ ∖ ↑logN.@(a ^+ 1)%a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-          iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
-          iExists w1.
-          iFrame "∗ #".
-          rewrite /allow_jmp_mask. do 2 (case_decide ; try solve_addr).
+      { iApply name2'; iApply name; eauto.
+        iIntros. all: iApply interp_ie_cond; try done. iApply "Hreg";eauto.
       }
 
       destruct (decide (r = idc)) as [|Hneq']; simplify_map_eq.
@@ -213,13 +286,14 @@ Section fundamental.
     (⌜read_reg_inr regs r p b e a⌝ ∗
        if decide (reg_allows_IE_jmp regs r p b e a)
        then (if decide (pc_a = a)
-             then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources' pc_a a w2 P2
+             then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗
+                                                  region_open_resources pc_a (a^+1)%a a w2 P2
              else
                if decide (pc_a = (a^+1)%a)
-               then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a w1 P1
+               then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a (a^+1)%a w1 P1
                else ∃ w1 w2,
                    ⌜mem = <[(a^+1)%a:=w2]> (<[a:=w1]> (<[pc_a:=pc_w]> ∅))⌝
-                                             ∗ region_open_resources2 pc_a a w1 w2 P1 P2)
+                                             ∗ region_open_resources2 pc_a a (a^+1)%a w1 w2 P1 P2)
        else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
   Lemma jmp_res_implies_mem_map:
@@ -229,7 +303,7 @@ Section fundamental.
       (P1 P2:D),
       allow_jmp_res regs r pc_a p b e a P1 P2
       -∗ pc_a ↦ₐ pc_w
-      ={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask_reg regs r pc_a p b e a}=∗
+      ={⊤ ∖ ↑logN.@pc_a, allow_jmp_mask_reg regs r pc_a p b e a }=∗
       ∃ mem : Mem,
           allow_jmp_mem regs mem r pc_a pc_w p b e a P1 P2
             ∗ ▷ ([∗ map] a0↦w ∈ mem, a0 ↦ₐ w).
@@ -616,12 +690,13 @@ Section fundamental.
       (* TODO duplicated proof... could be better *)
       destruct (decide (a = a0)) as [Ha|Ha]; simplify_map_eq.
       { (* a = a0 *)
-        iDestruct "H" as (w2) "(->&Hres)". rewrite /region_open_resources'.
+        iDestruct "H" as (w2) "(->&Hres)". rewrite /region_open_resources.
         rewrite memMap_resource_2ne; auto.
         iDestruct "Hmem" as "(Ha0' & Ha0)".
         iDestruct "Hres" as "(HP2 & _ & Hcls')".
         rewrite /allow_jmp_mask.
         case_decide as H'; simplify_eq.
+        case_decide; simplify_eq.
         iMod ("Hcls'" with "[HP2 Ha0']") as "_"
         ; [iNext ; iExists w2; iFrame|iModIntro].
         iMod ("Hcls" with "[Ha0 HP]") as "_";[iExists w;iFrame|iModIntro].
