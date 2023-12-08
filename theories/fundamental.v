@@ -488,23 +488,22 @@ Section fundamental.
     (pc_p : Perm) (pc_b pc_e pc_a : Addr)
     (widc: Word) (r : RegName) :
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
-    r <> PC -> r <> idc ->
-    ⊢ interp widc
-    -∗ ∀ rmap,
-         ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
+    r <> PC ->
+    ⊢ ∀ rmap,
+         ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
          PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-           ∗ idc ↦ᵣ widc
            ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
            ∗ pc_a ↦ₐ jmp r
            ∗ na_own logrel_nais ⊤
          -∗ interp_conf.
   Proof.
-    iIntros "%Hpcv %Hr %Hr' #Hinterp_widc".
+    iIntros "%Hpcv %Hr".
     iIntros (rmap) "%Hdom".
-    iIntros "(HPC & Hidc & Hrmap & Hpc_a & Hna)".
+    iIntros "(HPC & Hrmap & Hpc_a & Hna)".
 
     assert (is_Some (rmap !! r)) as [wadv Hwadv].
-    {  clear -Hdom Hr Hr'. apply elem_of_dom; set_solver. }
+    {  clear -Hdom Hr. apply elem_of_dom; set_solver. }
+    (* iExtract "Hrmap" idc as "[Hidc #Hinterp_widc]". *)
     iExtract "Hrmap" r as "[Hr #Hinterp_wadv]".
 
     wp_instr.
@@ -518,9 +517,9 @@ Section fundamental.
       destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a))
         as [ Hbounds | Hbounds] ; cycle 1.
       { (* ill-formed IE, the jump fails *)
-        iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hidc $Hpc_a]")
+        iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hpc_a]")
         ; try solve_pure.
-        iNext ; iIntros "(HPC & Hr & Hidc & Hpc_a)".
+        iNext ; iIntros "(HPC & Hr & Hpc_a)".
         wp_pure; wp_end. by iIntros "%".
       }
       set (Hbounds' := Hbounds).
@@ -533,39 +532,78 @@ Section fundamental.
       iInv (logN.@f1) as (w1) "[>Hf1 #HP1]" "Hcls1".
       iInv (logN.@(f1 ^+1)%a) as (w2) "[>Hf1' #HP2]" "Hcls2".
 
-      iApply (wp_jmp_success_IE with "[$HPC $Hr $Hidc $Hpc_a $Hf1 $Hf1']")
-      ; try solve_pure.
-      iNext; iIntros "(HPC& Hr & Hidc& Hpc_a& Hf0& Hf1) //=".
-      iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-      iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-      iApply wp_pure_step_later; auto.
-      iNext ; iIntros "_".
-      iCombine "Hr" "Hinterp_wadv'"  as "Hr".
+      destruct (decide (r = idc)) ; simplify_map_eq.
+      + iApply (wp_jmp_success_IE_idc with "[$HPC $Hr $Hpc_a $Hf1 $Hf1']")
+        ; try solve_pure.
+        iNext; iIntros "(HPC& Hr & Hpc_a& Hf0& Hf1) //=".
+        iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+        iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+        iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
 
-      iInsert "Hrmap" r.
-      replace (<[r:=_]> rmap) with rmap by (rewrite insert_id //=).
-      iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
-      iInsertList "Hrmap" [idc;PC].
+        iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
+        iInsertList "Hrmap" [idc;PC].
 
-      iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
-      iSplit; cycle 1.
-      { rewrite insert_insert.
-        rewrite (insert_commute _ idc PC); [|auto].
-        rewrite insert_insert.
-        iFrame.
-      }
-      iSplit.
-      { rewrite /full_map.
-        iIntros (r') ; iPureIntro.
-        apply elem_of_dom.
-        rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
-      }
-      {
-        iIntros (r0 w Hr0 Hr0' Hregs).
-        iClear "Hinterp_wadv Hcont".
-        do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
-        destruct (decide (r = r0)); simplify_eq; iExtract "Hrmap_interp" r0 as "Hr"; done.
-      }
+        iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
+        iSplit; cycle 1.
+        { rewrite insert_insert.
+          rewrite (insert_commute _ idc PC); [|auto].
+          rewrite insert_insert.
+          iFrame.
+        }
+        iSplit.
+        { rewrite /full_map.
+          iIntros (r') ; iPureIntro.
+          apply elem_of_dom.
+          rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
+        }
+        {
+          iIntros (r0 w Hr0 Hr0' Hregs).
+          iClear "Hinterp_wadv Hcont".
+          do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
+          iExtract "Hrmap_interp" r0 as "Hr"; done.
+        }
+
+      +
+        (* extract idc *)
+        assert (∃ widc, ( (delete r rmap) !! idc ) = Some widc) as [widc0 Hidc].
+        {  clear -Hdom Hr n. apply elem_of_dom; set_solver. }
+        iDestruct (big_sepM_delete _ _ idc with "Hrmap") as "[[Hidc #HVidc] Hrmap]"; eauto.
+
+        iApply (wp_jmp_success_IE with "[$HPC $Hr $Hidc $Hpc_a $Hf1 $Hf1']")
+        ; try solve_pure.
+        iNext; iIntros "(HPC& Hr & Hidc& Hpc_a& Hf0& Hf1) //=".
+        iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+        iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
+        iApply wp_pure_step_later; auto.
+        iNext ; iIntros "_".
+        iCombine "Hr" "Hinterp_wadv'"  as "Hr".
+
+        iInsert "Hrmap" r.
+        replace (<[r:=WCap IE f f0 f1]> (delete idc rmap)) with (delete idc rmap)
+          by (rewrite -delete_insert_ne //= insert_id //=).
+        iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
+        iInsertList "Hrmap" [idc;PC].
+
+        iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
+        iSplit; cycle 1.
+        { rewrite insert_insert.
+          rewrite (insert_commute _ idc PC); [|auto].
+          rewrite insert_insert.
+          iFrame.
+        }
+        iSplit.
+        { rewrite /full_map.
+          iIntros (r') ; iPureIntro.
+          apply elem_of_dom.
+          rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
+        }
+        {
+          iIntros (r0 w Hr0 Hr0' Hregs).
+          iClear "Hinterp_wadv Hcont".
+          do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
+          destruct (decide (r = r0)); simplify_eq; iExtract "Hrmap_interp" r0 as "Hr"; done.
+        }
 
     - (* JMP TO NON IE *)
       apply not_true_is_false in Hadv.
@@ -581,11 +619,8 @@ Section fundamental.
       iCombine "Hr" "Hinterp_wadv"  as "Hr".
       iInsert "Hrmap" r.
       replace (<[r:=wadv]> rmap) with rmap by (rewrite insert_id //=).
-      iCombine "Hidc" "Hinterp_widc"  as "Hidc".
-      iInsert "Hrmap" idc.
 
-      iApply ("cont" $! (<[idc:=widc]> rmap)); auto ; iFrame.
-      iPureIntro; rewrite dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
+      iApply ("cont" $! rmap); auto ; iFrame.
   Qed.
 
 

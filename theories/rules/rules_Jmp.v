@@ -406,30 +406,77 @@ Section cap_lang_rules.
       by apply Hcontra.
   Qed.
 
-  Lemma wp_jmp_fail_IE E pc_p pc_b pc_e pc_a w r b e a w' :
+  Lemma wp_jmp_success_IE_idc E pc_p pc_b pc_e pc_a w b e a wpc widc :
+    decodeInstrW w = Jmp idc →
+     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+     withinBounds b e a ->
+     withinBounds b e (a^+1)%a ->
+
+     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+         ∗ ▷ idc ↦ᵣ WCap IE b e a
+         ∗ ▷ pc_a ↦ₐ w
+         ∗ ▷ a ↦ₐ wpc
+         ∗ ▷ (a^+1)%a ↦ₐ widc
+     }}}
+       Instr Executable @ E
+       {{{ RET NextIV;
+           PC ↦ᵣ wpc
+         ∗ idc ↦ᵣ widc
+         ∗ pc_a ↦ₐ w
+         ∗ a ↦ₐ wpc
+         ∗ (a^+1)%a ↦ₐ widc }}}.
+    Proof.
+    iIntros (Hinstr Hvpc Hbound_a Hbound_a' ϕ)
+      "(>HPC  & >Hidc & >Hpc_a & >Ha & >Ha') Hφ".
+
+    iDestruct (address_neq with "Ha' Hpc_a") as "%Ha'".
+    iDestruct (address_neq with "Ha Ha'") as "%Hneqa".
+    iDestruct (memMap_resource_2ne_apply with "Hpc_a Ha") as "[Hmem %Ha]".
+    iDestruct (big_sepM_insert with "[Ha' Hmem]") as "Hmem" ; [| iFrame |].
+    by simplify_map_eq.
+    iDestruct (map_of_regs_2 with "HPC Hidc") as "[Hreg _]".
+    iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
+    { eapply (allow_jmp_mmap_or_true_ie _ _ _ _ _ a) ; simplify_map_eq ; eauto. }
+    { by eapply allow_jmp_rmap_or_true_ie ; simplify_map_eq ; auto. }
+    { by rewrite !dom_insert; set_solver+. }
+
+    iNext.
+    iIntros (regs retv) "(%Hspec& Hmem & Hreg)".
+    inversion Hspec; simplify_map_eq.
+    - (* Success IE *)
+      iApply "Hφ".
+      iExtractList "Hreg" [PC;idc] as ["HPC"; "Hidc"].
+      iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
+      iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
+      iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
+      iFrame.
+    - (* Failure - contradiction *)
+      exfalso.
+      inversion H2 as [? ? ? ? Hcontra]; simplify_map_eq.
+      by apply Hcontra.
+  Qed.
+
+  Lemma wp_jmp_fail_IE E pc_p pc_b pc_e pc_a w r b e a :
     decodeInstrW w = Jmp r →
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
     not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ ▷ r ↦ᵣ WCap IE b e a
-          ∗ ▷ idc ↦ᵣ w'
           ∗ ▷ pc_a ↦ₐ w
     }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
           ∗ r ↦ᵣ WCap IE b e a
-          ∗ idc ↦ᵣ w'
           ∗ pc_a ↦ₐ w
       }}}.
   Proof.
     iIntros (Hinstr Hvpc Hbounds ϕ)
-      "(>HPC & >Hr & > Hidc & >Hpc_a) Hφ".
+      "(>HPC & >Hr & >Hpc_a) Hφ".
 
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
-    iDestruct (map_of_regs_3 with "HPC Hr Hidc") as "[Hreg %Hr']".
-    destruct Hr' as (?&?&?).
+    iDestruct (map_of_regs_2 with "HPC Hr") as "[Hreg %Hr']".
 
     iApply (wp_jmp with "[$Hmem $Hreg]"); eauto ; simplify_map_eq; eauto.
     { by eapply allow_jmp_mmap_or_true_ie_fail ; simplify_map_eq ; eauto. }
@@ -442,7 +489,7 @@ Section cap_lang_rules.
     (* Failure - contradiction *)
     iApply "Hφ".
     inversion Hfail as [ ? ? ? ? Hcontra ] ; simplify_map_eq.
-    iExtractList "Hreg" [PC;idc;r] as ["HPC"; "Hidc"; "Hr"].
+    iExtractList "Hreg" [PC;r] as ["HPC"; "Hr"].
     iDestruct (memMap_resource_1 with "Hmem") as "Hpc_a".
     iFrame.
   Qed.

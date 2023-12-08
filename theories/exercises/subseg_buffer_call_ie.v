@@ -841,34 +841,18 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
     (* Prepare to apply jmp_unknown_safe to end the proof *)
     iDestruct (call_main with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
 
-    assert (is_Some (rmap !! idc)) as [widc Hwidc].
-    {  clear -Hdom. apply elem_of_dom; set_solver. }
-    iDestruct ((big_sepM_delete _ _ idc (WInt 0)) with "Hrmap") as "[Hidc Hrmap]".
-    { subst rmap2.
-      simplify_map_eq.
-      apply create_gmap_default_lookup.
-      apply map_to_list_fst.
-      exists widc.
-      apply elem_of_map_to_list.
-      by simplify_map_eq.
-    }
-
-    subst rmap2; set rmap2 := (delete idc _).
     iAssert ([∗ map] r↦w ∈ rmap2, r ↦ᵣ w ∗ interp w)%I
       with "[Hrmap]" as "Hrmap".
     {
       (* -- It remains to prove that all the registers are safe to share -- *)
       iApply big_sepM_sep. iFrame.
       subst rmap2.
-      repeat (rewrite (delete_insert_ne _ idc); [|auto]).
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r7 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r30 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r31 *)
       iApply big_sepM_intro. iIntros "!>" (r ?).
       set rmap' := delete r_t7 _ .
       iIntros "%Hrmap".
-      destruct (decide (r = idc)); subst
-      ; [ by rewrite lookup_delete in Hrmap | rewrite lookup_delete_ne //= in Hrmap].
       destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->].
       all: simplify_eq; by rewrite !fixpoint_interp1_eq.
@@ -876,10 +860,9 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
 
     (* Apply the continuation *)
     iApply jmp_unknown_safe; try iFrame; auto.
-    { by rewrite !fixpoint_interp1_eq. }
     { subst rmap2.
       iPureIntro.
-      rewrite !dom_delete_L !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
+      rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
       rewrite !singleton_union_difference_L.
       set_solver.
