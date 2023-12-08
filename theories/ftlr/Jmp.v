@@ -77,101 +77,29 @@ Section fundamental.
            )
        else True)%I.
 
-  Definition ie_cond (b e a a' : Addr) : iProp Σ  :=
-    ⌜ withinBounds b e a /\ withinBounds b e a'⌝
-      -∗ ( ∃ (P1 P2 : D),
-             persistent_cond P1
-               ∗ persistent_cond P2
-               ∗ inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1)
-               ∗ inv (logN .@ a') (∃ w2, a' ↦ₐ w2 ∗ P2 w2)
-               ∗ ∀ w1 w2 regs,
-                 ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝)
-                      -∗ (interp_expr_gen interp regs w1 w2))).
+  (* Definition ie_cond (b e a a' : Addr) : iProp Σ  := *)
+  (*   ⌜ withinBounds b e a /\ withinBounds b e a'⌝ *)
+  (*     -∗ ( ∃ (P1 P2 : D), *)
+  (*            persistent_cond P1 *)
+  (*              ∗ persistent_cond P2 *)
+  (*              ∗ inv (logN .@ a) (∃ w1, a ↦ₐ w1 ∗ P1 w1) *)
+  (*              ∗ inv (logN .@ a') (∃ w2, a' ↦ₐ w2 ∗ P2 w2) *)
+  (*              ∗ ∀ w1 w2 regs, *)
+  (*                ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜ is_int w2 ⌝) *)
+  (*                     -∗ (interp_expr_gen interp regs w1 w2))). *)
 
-  Definition word_ie_cond (w : Word) (b e a a' : Addr) : iProp Σ  :=
-    ⌜w = (WCap IE b e a)⌝ -∗ ie_cond b e a a'.
+  (* Definition word_ie_cond (w : Word) (b e a a' : Addr) : iProp Σ  := *)
+  (*   ⌜w = (WCap IE b e a)⌝ -∗ ie_cond b e a a'. *)
 
-  (* Lemma  *)
-  (* TODO there are plenty of similar case, is there a way to factor out *)
-  Lemma interp_ie_cond w b e a:
-    interp w -∗ word_ie_cond w b e a (a ^+ 1)%a.
-  Proof.
-    iIntros "#HV ->".
-    rewrite /ie_cond.
-    rewrite fixpoint_interp1_eq //=.
-  Qed.
-
-  (* TODO I feel like, I'm still just moving the disjunction further up,
-     and "hiding it", but not really factoring it out *)
-  Lemma name (regs : Reg) (r : RegName) (widc : Word) (b e a a' : Addr) :
-    a <> a' ->
-    withinBounds b e a /\ withinBounds b e a' ->
-    r <> PC ->
-    regs !! r = Some (WCap IE b e a) ->
-        (∀ (r' : RegName) (w : Word)
-          , ⌜r' ≠ PC⌝ → ⌜regs !! r' = Some w⌝
-            → word_ie_cond w b e a a')
-        -∗ ∃ P1 P2 : D,
-             (∀ w1 w2 (regs' : leibnizO Reg),
-                 ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
-               (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
-               ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1)
-  .
-  Proof.
-    iIntros (Haddr Hwbs Hneq Hreg) "#Hreg".
-    iDestruct ("Hreg" $! r _ Hneq Hreg) as "Hvsrc".
-    rewrite {2}/word_ie_cond /ie_cond.
-    iDestruct ("Hvsrc" $! eq_refl Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-    iExists P1, P2.
-    iFrame "#".
-    iSplitL.
-    + iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
-      iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
-      iExists w2.
-      iFrame "∗ #".
-      rewrite /allow_jmp_mask.
-      case_decide; first solve_addr.
-      case_decide; solve_addr.
-    + iMod (inv_acc (⊤ ∖ ↑logN.@a') with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
-      iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
-      iExists w2.
-      iFrame "∗ #".
-      rewrite /allow_jmp_mask.
-      case_decide; first solve_addr.
-      case_decide; solve_addr.
-  Qed.
-
-  Lemma name2 (a a' : Addr ) :
-    (∃ P1 P2 : D,
-        (∀ w1 w2 (regs' : leibnizO Reg),
-            ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
-          (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
-          ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1))
-    -∗
-       (∃ P1 P2 : D,
-           (∀ w1 w2 (regs' : leibnizO Reg),
-               ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
-             (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)).
-  Proof.
-    iIntros "H".
-    iDestruct "H" as (P1 P2) "(H1 & H2 & H3)"; auto.
-  Qed.
-
-  Lemma name2' (a a' : Addr ) :
-    (∃ P1 P2 : D,
-        (∀ w1 w2 (regs' : leibnizO Reg),
-            ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
-          (|={⊤ ∖ ↑logN.@a,⊤ ∖ ↑logN.@a ∖ ↑logN.@a'}=> ∃ w2 , a' ↦ₐ w2 ∗ region_open_resources a a' a w2 P2)
-          ∗ (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1))
-    -∗
-       (∃ P1 P2 : D,
-           (∀ w1 w2 (regs' : leibnizO Reg),
-               ▷ □ (P1 w1 ∗ (P2 w2 ∨ ⌜is_int w2⌝) -∗ interp_expr_gen interp regs' w1 w2)) ∗
-             (|={⊤ ∖ ↑logN.@a',⊤ ∖ ↑logN.@a' ∖ ↑logN.@a}=> ∃ w1 , a ↦ₐ w1 ∗ region_open_resources a' a a' w1 P1)).
-  Proof.
-    iIntros "H".
-    iDestruct "H" as (P1 P2) "(H1 & H2 & H3)"; auto.
-  Qed.
+  (* (* Lemma  *) *)
+  (* (* TODO there are plenty of similar case, is there a way to factor out *) *)
+  (* Lemma interp_ie_cond w b e a: *)
+  (*   interp w -∗ word_ie_cond w b e a (a ^+ 1)%a. *)
+  (* Proof. *)
+  (*   iIntros "#HV ->". *)
+  (*   rewrite /ie_cond. *)
+  (*   rewrite fixpoint_interp1_eq //=. *)
+  (* Qed. *)
 
   Lemma create_jmp_res:
     ∀ (regs : leibnizO Reg) (r : RegName)
@@ -197,26 +125,32 @@ Section fundamental.
       assert (r ≠ PC) as Hneq by (destruct (decide (r = PC)) ; simplify_map_eq; auto).
       rewrite lookup_insert_ne //= in Hreg.
 
+      iDestruct ("Hreg" $! r _ Hneq Hreg) as "Hvsrc".
+      rewrite fixpoint_interp1_eq /=.
+      iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
+      iExists P1, P2.
+      iFrame "#".
+
       case_decide as Ha; simplify_eq.
-      { iApply name2; iApply name; eauto.
-        iIntros.
-        all: iApply interp_ie_cond; try done.
-        iApply "Hreg";eauto.
+      { iMod (inv_acc (⊤ ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
+        iDestruct "Hrefinv_a'" as (w2) "[>Ha' HPa']".
+        iExists w2.
+        iFrame "∗ #".
+        rewrite /allow_jmp_mask.
+        case_decide; first solve_addr.
+        case_decide; solve_addr.
       }
 
       case_decide as Ha'; simplify_eq.
-      { iApply name2'; iApply name; eauto.
-        iIntros.
-        all: iApply interp_ie_cond; try done.
-        iApply "Hreg";eauto.
+      { iMod (inv_acc (⊤ ∖ ↑logN.@(a ^+ 1)%a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
+       iDestruct "Hrefinv_a" as (w2) "[>Ha HPa]".
+       iExists w2.
+       iFrame "∗ #".
+       rewrite /allow_jmp_mask.
+       case_decide; first solve_addr.
+       case_decide; solve_addr.
       }
 
-      iDestruct ("Hreg" $! r _ Hneq Hreg) as "Hvsrc".
-      rewrite (fixpoint_interp1_eq (WCap _ _ _ _)) /=.
-      iDestruct ("Hvsrc" $! Hwbs) as (P1 P2) "(Hpers_P1 & Hpers_P2 & Hinv_a & Hinv_a' & Hexec)".
-      iExists P1, P2.
-
-      iFrame "#".
       iMod (inv_acc (⊤ ∖ ↑logN.@pc_a) with "Hinv_a") as "[Hrefinv_a Hcls_a]";[solve_ndisj|].
       iMod (inv_acc (⊤ ∖ ↑logN.@pc_a ∖ ↑logN.@a) with "Hinv_a'") as "[Hrefinv_a' Hcls_a']";[solve_ndisj|].
       iDestruct "Hrefinv_a" as (w1) "[>Ha HPa]".
@@ -252,6 +186,18 @@ Section fundamental.
                                              ∗ region_open_resources2 pc_a a (a^+1)%a w1 w2 P1 P2)
        else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
+  Lemma contra_reg_allows_IE_jmp r regs b e a :
+    regs !! r = Some (WCap IE b e a) ->
+    withinBounds b e a ->
+    withinBounds b e (a ^+ 1)%a ->
+    ¬ reg_allows_IE_jmp regs r IE b e a ->
+    False.
+  Proof.
+    intros Hreg Hwb Hwb' Hdec1.
+    apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
+    apply Hcontra ; repeat (split ; auto).
+  Qed.
+
   Lemma jmp_res_implies_mem_map:
     ∀ (regs : leibnizO Reg) (r : RegName)
       (pc_a : Addr) (pc_w : Word)
@@ -283,20 +229,16 @@ Section fundamental.
     iDestruct "HJmpRes" as "[Hexec HJmpRes]".
     iMod "HJmpRes" as "HJmpRes".
 
+    (* pc_a = a *)
     case_decide as Ha ; simplify_eq.
-    { (* pc_a = a *)
-      iDestruct "HJmpRes" as (w2) "[Ha' HJmpRest]".
-      iExists _.
+    { iDestruct "HJmpRes" as (w2) "[Ha' HJmpRest]".
+      iExists _. (* TODO any way to maybe factor out from here ? *)
       iSplitL "HJmpRest".
       + iSplitR; first auto.
-
-        case_decide as Hdec1.
-        2: {
-          apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
-          exfalso; apply Hcontra ; repeat (split ; auto).
-        }
+        case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
         case_decide; simplify_eq; auto.
-      + iModIntro. iNext.
+
+      + iModIntro; iNext.
         rewrite memMap_resource_2ne; auto; iFrame.
     }
     (* pc_a ≠ a *)
@@ -306,14 +248,9 @@ Section fundamental.
       iExists _.
       iSplitL "HJmpRest".
       + iSplitR; first auto.
-        case_decide as Hdec1.
-        2: {
-          apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
-          exfalso; apply Hcontra ; repeat (split ; auto).
-        }
-        case_decide; simplify_eq; auto.
-        case_decide; simplify_eq; auto.
-      + iModIntro. iNext.
+        case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
+        do 2 (case_decide; simplify_eq; auto).
+      + iModIntro; iNext.
         rewrite memMap_resource_2ne; auto; iFrame.
     }
     (* pc_a ≠ a+1 *)
@@ -322,16 +259,12 @@ Section fundamental.
     iExists _.
     iSplitL "HJmpRest".
     + iSplitR; first auto.
-      case_decide as Hdec1.
-      2: {
-        apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
-        exfalso; apply Hcontra ; repeat (split ; auto).
-      }
-      case_decide; simplify_eq; auto.
-      case_decide; simplify_eq; auto.
-    + iModIntro. iNext.
+      case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
+      do 2 (case_decide; simplify_eq; auto).
+    + iModIntro; iNext.
       rewrite memMap_resource_3ne; auto; iFrame.
   Qed.
+
 
   Lemma mem_map_implies_pure_conds:
     ∀ (regs : leibnizO Reg) (mem : Mem) (r : RegName)
