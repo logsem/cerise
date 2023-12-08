@@ -244,7 +244,7 @@ Section program_call.
 
   (* Full spec *)
   Lemma prog_call_full_run_spec_aux
-    (* call *) wadv w0
+    (* call *) wadv
     (* remaining registers *) (rmap : gmap RegName Word)
     (* pc *) a pc_p pc_b pc_e a_first a_last
     (* malloc *) f_m b_m e_m
@@ -280,7 +280,7 @@ Section program_call.
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
 
         ∗ na_own logrel_nais ⊤
-        ∗ interp w0 ∗ interp wadv
+        ∗  interp wadv
 
        -∗ WP Seq (Instr Executable) {{λ v,
                (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
@@ -290,7 +290,7 @@ Section program_call.
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
       "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& HPC& Hr30& Hrmap&
-Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
+Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
 
 
     (* FTLR on wadv - we do it now because of the later modality *)
@@ -597,7 +597,6 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* Cleaning *)
     iClear "Hclear Hmalloc_prog Ha_clear Ha_f0 Hprogi".
     (* iHide "Hact" as Hact. *)
-    iHide "Hw0" as Hinterp_w0.
     iHide "Hadv" as Hinterp_adv.
     iHide "Hlocals" as Hlocals.
     iHide "Hinv_link" as Hinv_link.
@@ -889,7 +888,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
   (* The post-condition actually does not matter *)
   Lemma prog_call_full_run_spec
-    (* call *) wadv w0
+    (* call *) wadv
     (* remaining registers *) (rmap : gmap RegName Word)
     (* pc *) a pc_p pc_b pc_e a_first a_last
     (* malloc *) f_m b_m e_m
@@ -925,15 +924,14 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
 
         ∗ na_own logrel_nais ⊤
-        ∗ interp w0 ∗ interp wadv
+        ∗ interp wadv
        -∗ WP Seq (Instr Executable) {{λ v, True}})%I.
     Proof.
-
       intros.
-      iIntros "(?&?&?&?&?&Hr30&?&?&?&assert_entry&?&?&Hadv)".
+      iIntros "(?&?&?&?&Hr30&?&?&?&assert_entry&?&?&Hadv)".
       iApply (wp_wand with "[-]").
       { iApply (prog_call_full_run_spec_aux
-                  wadv w0 _ _ _ _ _ _ _ f_m b_m e_m f_a)
+                  wadv _ _ _ _ _ _ _ f_m b_m e_m f_a)
         ; cycle -1
         ; [iFrame|..] ; eauto. }
       iIntros (?) "?" ; done.
