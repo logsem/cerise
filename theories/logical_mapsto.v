@@ -495,24 +495,34 @@ Proof.
   by simplify_map_eq.
 Qed.
 
-Definition lmem_not_access_addrL (lm : LMem) (cur_map : VMap) (a : Addr) :=
+Definition lmem_not_access_addrL (lm : LMem) (cur_map : VMap) (a : Addr) : Prop :=
   map_Forall
   (λ (la : LAddr) (lw : LWord),
     is_cur_addr la cur_map → (¬ word_access_addrL a lw)
   ) lm.
 
+(* Update the address version in lm. *)
+(* NOTE it does not update the word, only the address *)
+Definition update_addr_version (lm : LMem) (cur_map : VMap) (a : Addr)
+  : option (LMem * VMap) :=
+  v ← cur_map !! a ;
+  lw ← lm !! (a,v) ;
+  Some (<[ (a, v+1) := lw ]> lm, <[ a := v+1 ]> cur_map)
+.
 Lemma lmem_update_version_address
-  (phm : Mem) (lm : LMem) (cur_map : VMap) (a : Addr) (v : Version) (lw : LWord):
-  is_cur_addr (a,v) cur_map ->
-  lm !! (a,v) = Some lw ->
+  (phm : Mem) (lm lm': LMem) (cur_map cur_map' : VMap) (a : Addr) :
+  update_addr_version lm cur_map a = Some (lm',cur_map') →
+
   lmem_not_access_addrL lm cur_map a →
   mem_phys_log_corresponds phm lm cur_map ->
-  mem_phys_log_corresponds
-    phm
-    (<[ (a, v+1) := lw ]> lm)
-    (<[ a := v+1]> cur_map).
+  mem_phys_log_corresponds phm lm' cur_map'.
 Proof.
-  intros Hcur_la Hla Hnacces_mem [Hdom Hroot].
+  intros Hupd Hnaccess_mem [Hdom Hroot].
+  rewrite /update_addr_version in Hupd.
+  destruct (cur_map !! a) as [v |] eqn:Hcur_la; cbn in * ; simplify_eq.
+  destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq.
+  rewrite -/(is_cur_addr (a,v) cur_map) in Hcur_la.
+
   assert (not (word_access_addrL a lw)) as Hnaccess by eauto.
 
   pose proof (Hla' := Hla).
@@ -575,12 +585,84 @@ Proof.
     + eapply update_cur_word with (v := va+1) in Hcur_lw'; eauto.
       exists lw.
       assert ((a', va + 1) ≠ (a', va)) by (intro ; simplify_eq ; lia).
-      split ; [|split] ; by simplify_map_eq.
+      rewrite Hla in Hlwa; by simplify_map_eq.
     + exists lw'.
       assert ((a, va + 1) ≠ (a', v')) by (intro ; simplify_eq).
       split ; [|split] ; try by simplify_map_eq.
       eapply update_cur_word;eauto.
 Qed.
+
+Definition update_addr_version_region (lm : LMem) (cur_map : VMap) (la : list Addr)
+  : option (LMem * VMap) :=
+  foldr
+    ( fun a upd_opt =>
+        '(lm', cur_map') ← upd_opt;
+        update_addr_version lm' cur_map' a)
+    (Some (lm, cur_map))
+    la.
+
+(* update the version of a region in memory *)
+Lemma lmem_update_version_region :
+  ∀ (la : list Addr) (phm : Mem) (lm lm': LMem) (cur_map cur_map' : VMap),
+    NoDup la →
+    update_addr_version_region lm cur_map la = Some (lm', cur_map') →
+    Forall (fun a => lmem_not_access_addrL lm cur_map a) la →
+    mem_phys_log_corresponds phm lm cur_map ->
+    mem_phys_log_corresponds phm lm' cur_map'.
+Proof.
+  induction la as [| a la IH].
+  - by intros; cbn in * ; simplify_eq.
+  - intros * Hno_dup Hupd Hall_naccess_mem
+    rewrite /update_addr_version_region in Hupd.
+    rewrite foldr_cons in Hupd.
+    rewrite -/(update_addr_version_region lm cur_map _) in Hupd.
+    destruct (update_addr_version_region lm cur_map la) as [[lm0 cur_map0]|] eqn:Hupd'
+    ; cbn in Hupd ; try congruence.
+
+    apply Forall_cons in Hall_naccess_mem as [Hnacces_mem Hall_naccess_mem].
+    apply NoDup_cons in Hno_dup ; destruct Hno_dup as [Hnotin Hno_dup].
+
+    assert (mem_phys_log_corresponds phm lm0 cur_map0) as Hinv0
+      by (eapply IH ;eauto).
+
+    eapply lmem_update_version_address in Hupd ; eauto.
+    (* TODO need a lemma saying that, even after updating the version number,
+       there is still no logical overlap between the addresses *)
+Admitted.
+
+(* NOTE: let's write down the different steps necessary for is_unique:
+
+A -- update the logical memory (with the logical invariant)
+
+1. I can update the version of an address, if I know that no other lwords in the lmemory
+  logically overlap with the address.
+
+2. I can update the version of a list of addresses, if I know that for each addresses,
+  no lwords in the lmemory logically overlap with them. Induction using 1).
+
+3. As a corrolary, I can update the version of a sequence of addresses
+
+4. From
+  =(sweep mem reg src = true)=,
+  =(reg !! src = Some (WCap p b e a))=,
+  =mem_phys_log_inv=,
+  there is no logical overlap between the current version of [b,e), and the lmemory.
+
+  In other words, from the physical sweep and the logical invariant, i know that I can
+  safely update the version number of the addresses in memory.
+
+B -- update the logical register (with the logical invariant)
+
+TODO we also need to update the version number of the word in the register. The logical
+invariant will still hold, because we already updated the lmemory.
+Also, because we know that no other registers overlap with the word, we don't need to
+update the other registers
+
+C -- update interpretation of gen_heap
+
+because we update the logical memory, we also need to update the gen_heap
+ *)
+
 
 
 (* CMRΑ for memory *)

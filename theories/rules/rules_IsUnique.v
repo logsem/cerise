@@ -256,6 +256,9 @@ Section cap_lang_rules.
     (l : list (L*V)) : gmap L V :=
     foldl (fun mres ins => <[ ins.1 := ins.2]> mres) m l.
 
+  (* TODO instead of =map_insert_list=, maybe I should use something related with
+     update_addr_version_lmem_list and update_addr_version_vmap_list instead ?
+   *)
   (* TODO @bastien move *)
   Lemma gen_heap_update_list_inSepM :
     ∀ {L V : Type} {EqDecision0 : EqDecision L}
