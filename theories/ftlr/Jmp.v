@@ -148,19 +148,21 @@ Section fundamental.
       done.
   Qed.
 
+  Definition allow_jmp_mem_res
+    (mem : Mem) (pc_a : Addr) (pc_w : Word) (a : Addr) (P1 P2 : D) :=
+    (if decide (pc_a = a)
+    then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a (a^+1)%a a w2 P2
+    else
+      if decide (pc_a = (a^+1)%a)
+      then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a (a^+1)%a w1 P1
+      else ∃ w1 w2,
+          ⌜mem = <[(a^+1)%a:=w2]> (<[a:=w1]> (<[pc_a:=pc_w]> ∅))⌝ ∗ region_open_resources2 pc_a a (a^+1)%a w1 w2 P1 P2)%I.
+
   Definition allow_jmp_mem
     (regs : Reg) (mem : Mem) (r : RegName)
     (pc_a : Addr) (pc_w : Word) (p : Perm) (b e a : Addr) (P1 P2 : D) :=
     (if decide (reg_allows_IE_jmp regs r p b e a)
-       then (if decide (pc_a = a)
-             then ∃ w2, ⌜mem = <[(a^+1)%a:=w2]> (<[pc_a:=pc_w]> ∅)⌝ ∗
-                                                  region_open_resources pc_a (a^+1)%a a w2 P2
-             else
-               if decide (pc_a = (a^+1)%a)
-               then ∃ w1, ⌜mem = <[a:=w1]> (<[pc_a:=pc_w]> ∅)⌝ ∗ region_open_resources pc_a a (a^+1)%a w1 P1
-               else ∃ w1 w2,
-                   ⌜mem = <[(a^+1)%a:=w2]> (<[a:=w1]> (<[pc_a:=pc_w]> ∅))⌝
-                                             ∗ region_open_resources2 pc_a a (a^+1)%a w1 w2 P1 P2)
+       then allow_jmp_mem_res mem pc_a pc_w a P1 P2
        else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
   Lemma contra_reg_allows_IE_jmp r regs b e a :
@@ -197,46 +199,43 @@ Section fundamental.
     { rewrite /read_reg_inr in Hrinr.
       iExists _.
       iSplitL "HJmpRes".
-      + iModIntro. rewrite /allow_jmp_mem. (* iSplitR; auto. *)
+      + iModIntro. rewrite /allow_jmp_mem.
         case_decide; first by exfalso. auto.
       + iModIntro. iNext. by iApply memMap_resource_1.
     }
     destruct Hdec as (Hreg & -> & Hwb & Hwb').
     assert (a <> (a^+1)%a) as Haeq by (apply Is_true_true_1, andb_prop in Hwb as [_ Hge]; solve_addr).
-    rewrite /allow_jmp_mask /allow_jmp_mem.
     iDestruct "HJmpRes" as "[Hexec HJmpRes]".
     iMod "HJmpRes" as "HJmpRes".
+    rewrite /allow_jmp_mask /allow_jmp_mem /allow_jmp_mem_res.
 
     case_decide as Ha ; simplify_eq.
     { (* pc_a = a *)
       iDestruct "HJmpRes" as (w2) "[Ha' HJmpRest]".
       iExists _.
-      iSplitL "HJmpRest"; rewrite /allow_jmp_mem.
-      + case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
-        case_decide; simplify_eq; auto.
-      + iModIntro; iNext.
-        rewrite memMap_resource_2ne; auto; iFrame.
+      iModIntro.
+      rewrite decide_True; [|by rewrite /reg_allows_IE_jmp].
+      iSplitL "HJmpRest"; eauto.
+      iNext ; rewrite memMap_resource_2ne; auto; iFrame.
     }
 
     case_decide as Ha' ; simplify_eq.
     { (* pc_a = a+1 *)
       iDestruct "HJmpRes" as (w1) "[Ha HJmpRest]".
       iExists _.
-      iSplitL "HJmpRest"; rewrite /allow_jmp_mem.
-      + case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
-        do 2 (case_decide; simplify_eq; auto).
-      + iModIntro; iNext.
-        rewrite memMap_resource_2ne; auto; iFrame.
+      iModIntro.
+      rewrite decide_True; [|by rewrite /reg_allows_IE_jmp].
+      iSplitL "HJmpRest"; eauto.
+      iNext ; rewrite memMap_resource_2ne; auto; iFrame.
     }
 
     (* pc_a ≠ a ∧ pc_a ≠ a+1 *)
     iDestruct "HJmpRes" as (w1 w2) "(Ha & Ha' & HJmpRest)".
     iExists _.
-    iSplitL "HJmpRest"; rewrite /allow_jmp_mem.
-    + case_decide as Hdec1 ; [| exfalso ; eapply contra_reg_allows_IE_jmp ; eauto].
-      do 2 (case_decide; simplify_eq; auto).
-    + iModIntro; iNext.
-      rewrite memMap_resource_3ne; auto; iFrame.
+    iModIntro.
+    rewrite decide_True; [|by rewrite /reg_allows_IE_jmp].
+    iSplitL "HJmpRest"; eauto.
+    iNext ; rewrite memMap_resource_3ne; auto; iFrame.
   Qed.
 
   Lemma mem_map_implies_pure_conds:
@@ -256,6 +255,8 @@ Section fundamental.
       iSplitR; auto.
       case_decide as Hdec1; auto.
     }
+
+    rewrite /allow_jmp_mem_res.
     assert (a <> (a^+1)%a)
     by (inversion Hdec as (_ & _ & Hwb%Is_true_true_1%withinBounds_true_iff & _); solve_addr).
 
@@ -391,12 +392,18 @@ Section fundamental.
       assert ((a0 ^+ 1)%a ≠ a0) as Haeq by (apply Is_true_true_1, withinBounds_true_iff in Hwb ; solve_addr).
       assert (withinBounds b0 e0 a0 ∧ withinBounds b0 e0 (a0 ^+ 1)%a) as Hbounds by auto.
       assert (PC <> src) as Hsrc
-          by (destruct (decide (PC = src)); auto; simplify_map_eq; by destruct Hp).
-
+          by (destruct (decide (PC = src)); auto; simplify_map_eq; by
+                destruct Hp).
+      assert (reg_allows_IE_jmp
+                (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))
+                src IE b0 e0 a0) as HallowJmp
+          by (by rewrite /reg_allows_IE_jmp; auto).
 
       rewrite /allow_jmp_res /allow_jmp_mask_reg.
-      rewrite decide_True.
+      rewrite !(decide_True _ _ HallowJmp).
       iDestruct "HJmpRes" as "(Hexec&HJmpRes)".
+      rewrite /allow_jmp_mem /allow_jmp_mem_res.
+      rewrite !(decide_True _ _ HallowJmp).
 
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
@@ -468,6 +475,7 @@ Section fundamental.
 
     - (* success jmp not IE *)
       rewrite insert_insert in HincrPC; subst regs'.
+      rewrite /allow_jmp_mask_reg /allow_jmp_mem /allow_jmp_res.
       destruct (decide (reg_allows_IE_jmp
                           (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))
                           src p0 b0 e0 a0)) as [HallowJmp|_].
@@ -477,7 +485,7 @@ Section fundamental.
         simplify_eq.
       }
       iModIntro.
-      iDestruct "HJmpMem" as "(_&->)". rewrite -memMap_resource_1.
+      iDestruct "HJmpMem" as "->". rewrite -memMap_resource_1.
       iMod ("Hcls" with "[Hmem HP]") as "_";[iExists w;iFrame|iModIntro].
       iApply wp_pure_step_later; auto.
 
@@ -538,13 +546,14 @@ Section fundamental.
 
     - (* fail *)
       inversion Hfail as [? ? ? Hregs Hbounds ].
+      rewrite /allow_jmp_mask_reg /allow_jmp_mem /allow_jmp_res.
       destruct (decide (reg_allows_IE_jmp
                           (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))
                           src p0 b0 e0 a0)) as [HallowJmp|_]
       ; cycle 1.
       {
         iModIntro.
-        iDestruct "HJmpMem" as "(_&->)". rewrite -memMap_resource_1.
+        iDestruct "HJmpMem" as "->". rewrite -memMap_resource_1.
         iMod ("Hcls" with "[Hmem HP]") as "_";[iExists w;iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
         iNext; iIntros "_".
@@ -577,12 +586,12 @@ Section fundamental.
       (*        then pc_a ↦ₐ storev *)
       (*        else pc_a ↦ₐ pc_w. *)
 
-      iDestruct "HJmpMem" as "(_&H)".
-
       (* TODO duplicated proof... could be better *)
+
+      rewrite /allow_jmp_mem_res /allow_jmp_mask.
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
-        iDestruct "H" as (w2) "(->&Hres)". rewrite /region_open_resources.
+        iDestruct "HJmpMem" as (w2) "(->&Hres)". rewrite /region_open_resources.
         rewrite memMap_resource_2ne; auto.
         iDestruct "Hmem" as "(Ha0' & Ha0)".
         iDestruct "Hres" as "(HP2 & _ & Hcls')".
@@ -600,7 +609,7 @@ Section fundamental.
 
       case_decide as Ha0' ; simplify_eq.
       { (* a = a0+1 *)
-        iDestruct "H" as (w1) "(->&Hres)". rewrite /region_open_resources.
+        iDestruct "HJmpMem" as (w1) "(->&Hres)". rewrite /region_open_resources.
         rewrite memMap_resource_2ne; auto.
         iDestruct "Hmem" as "(Ha0 & Ha0')".
         iDestruct "Hres" as "(HP1 & _ & Hcls')".
@@ -617,7 +626,7 @@ Section fundamental.
       }
 
       (* a ≠ a0 ∧ a ≠ a0+1 *)
-      iDestruct "H" as (w1 w2) "(->&Hres)". rewrite /region_open_resources2.
+      iDestruct "HJmpMem" as (w1 w2) "(->&Hres)". rewrite /region_open_resources2.
       rewrite memMap_resource_3ne; auto.
       iDestruct "Hmem" as "(Ha0' & Ha0 & Ha)".
       iDestruct "Hres" as "(HP1 & HP2 & _& _ & Hcls')".
