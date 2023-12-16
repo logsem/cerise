@@ -61,7 +61,6 @@ Section fundamental.
        ∗ ((▷ ∃ w, a ↦ₐ w ∗ P w)
         ={allow_jnz_mask pc_a a a', ⊤ ∖ ↑logN.@pc_a}=∗ emp))%I.
 
-  (* TODO exactly the same as Jmp *)
   Definition allow_jnz_res_mem
     (pc_a : Addr) (a : Addr)
     (P1 P2 : D): iProp Σ :=
@@ -156,7 +155,6 @@ Section fundamental.
       done.
   Qed.
 
-  (* TODO exactly the same as Jmp *)
   Definition allow_jnz_mem_res
     (mem : Mem) (pc_a : Addr) (pc_w : Word) (a : Addr) (P1 P2 : D) :=
     (if decide (pc_a = a)
@@ -177,19 +175,6 @@ Section fundamental.
                /\ nonZero wsrc = true)
        then allow_jnz_mem_res mem pc_a pc_w a P1 P2
        else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
-
-  (* TODO move rules_jmp.v *)
-  Lemma contra_reg_allows_IE_jmp r regs b e a :
-    regs !! r = Some (WCap IE b e a) ->
-    withinBounds b e a ->
-    withinBounds b e (a ^+ 1)%a ->
-    ¬ reg_allows_IE_jmp regs r IE b e a ->
-    False.
-  Proof.
-    intros Hreg Hwb Hwb' Hdec1.
-    apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
-    apply Hcontra ; repeat (split ; auto).
-  Qed.
 
   Lemma jnz_res_implies_mem_map:
     ∀ (regs : leibnizO Reg) (dst src: RegName)
@@ -321,19 +306,6 @@ Section fundamental.
     case_decide; auto.
     exists w1, w2.
     by split ; simplify_map_eq.
-  Qed.
-
-  (* TODO move rules_jmp.v *)
-  Lemma reg_allows_IE_jmp_same
-    (regs : Reg) (r : RegName)
-    (p p' : Perm) (b b' e e' a a' : Addr):
-    reg_allows_IE_jmp regs r p b e a ->
-    regs !! r = Some (WCap p' b' e' a') ->
-    (p = p' /\ b = b' /\ e = e' /\ a = a').
-  Proof.
-    intros HallowJmp Hregs.
-    destruct HallowJmp as (Hregs'&->&_).
-    by rewrite Hregs' in Hregs; simplify_eq.
   Qed.
 
 

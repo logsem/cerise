@@ -55,6 +55,30 @@ Section cap_lang_rules.
     ∧ withinBounds b e a
     ∧ withinBounds b e (a^+1)%a.
 
+  Lemma contra_reg_allows_IE_jmp r regs b e a :
+    regs !! r = Some (WCap IE b e a) ->
+    withinBounds b e a ->
+    withinBounds b e (a ^+ 1)%a ->
+    ¬ reg_allows_IE_jmp regs r IE b e a ->
+    False.
+  Proof.
+    intros Hreg Hwb Hwb' Hdec1.
+    apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
+    apply Hcontra ; repeat (split ; auto).
+  Qed.
+
+  Lemma reg_allows_IE_jmp_same
+    (regs : Reg) (r : RegName)
+    (p p' : Perm) (b b' e e' a a' : Addr):
+    reg_allows_IE_jmp regs r p b e a ->
+    regs !! r = Some (WCap p' b' e' a') ->
+    (p = p' /\ b = b' /\ e = e' /\ a = a').
+  Proof.
+    intros HallowJmp Hregs.
+    destruct HallowJmp as (Hregs'&->&_).
+    by rewrite Hregs' in Hregs; simplify_eq.
+  Qed.
+
   Definition allow_jmp_mmap_or_true (r : RegName) (regs : Reg) (mem : Mem):=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
                  if decide (reg_allows_IE_jmp regs r p b e a) then

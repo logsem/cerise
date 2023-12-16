@@ -160,19 +160,6 @@ Section fundamental.
        then allow_jmp_mem_res mem pc_a pc_w a P1 P2
        else ⌜mem = <[pc_a:=pc_w]> ∅⌝)%I.
 
-  (* TODO move rules_jmp.v *)
-  Lemma contra_reg_allows_IE_jmp r regs b e a :
-    regs !! r = Some (WCap IE b e a) ->
-    withinBounds b e a ->
-    withinBounds b e (a ^+ 1)%a ->
-    ¬ reg_allows_IE_jmp regs r IE b e a ->
-    False.
-  Proof.
-    intros Hreg Hwb Hwb' Hdec1.
-    apply not_and_r in Hdec1 as [Hcontra|Hcontra]; simplify_eq.
-    apply Hcontra ; repeat (split ; auto).
-  Qed.
-
   Lemma jmp_res_implies_mem_map:
     ∀ (regs : leibnizO Reg) (r : RegName)
       (pc_a : Addr) (pc_w : Word)
@@ -188,15 +175,13 @@ Section fundamental.
   Proof.
     intros regs r pc_a pc_w p b e a P1 P2 Hrinr.
     iIntros "HJmpRes Hpc_a".
-    rewrite /allow_jmp_res.
-    rewrite /allow_jmp_mask /allow_jmp_mask_reg.
+    rewrite /allow_jmp_res /allow_jmp_mask /allow_jmp_mask_reg.
 
     case_decide as Hdec ; cycle 1.
     { rewrite /read_reg_inr in Hrinr.
       iExists _.
       iSplitL "HJmpRes".
-      + iModIntro. rewrite /allow_jmp_mem.
-        case_decide; first by exfalso. auto.
+      + rewrite /allow_jmp_mem decide_False //=.
       + iModIntro. iNext. by iApply memMap_resource_1.
     }
     destruct Hdec as (Hreg & -> & Hwb & Hwb').
@@ -292,18 +277,6 @@ Section fundamental.
     inversion Hdec.
     iExists w1, w2.
     by iPureIntro ; split ; simplify_map_eq.
-  Qed.
-
-  Lemma reg_allows_IE_jmp_same
-    (regs : Reg) (r : RegName)
-    (p p' : Perm) (b b' e e' a a' : Addr):
-    reg_allows_IE_jmp regs r p b e a ->
-    regs !! r = Some (WCap p' b' e' a') ->
-    (p = p' /\ b = b' /\ e = e' /\ a = a').
-  Proof.
-    intros HallowJmp Hregs.
-    destruct HallowJmp as (Hregs'&->&_).
-    by rewrite Hregs' in Hregs; simplify_eq.
   Qed.
 
   (* Close the invariants, in case of fail*)
