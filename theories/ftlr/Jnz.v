@@ -336,6 +336,104 @@ Section fundamental.
     by rewrite Hregs' in Hregs; simplify_eq.
   Qed.
 
+
+  (* Close the invariants, in case of fail*)
+  Lemma mem_map_recover_res
+    (mem : Mem) (pc_a a : Addr) (pc_w : Word) (P1 P2 : D):
+    (a ^+ 1)%a ≠ a ->
+    allow_jnz_mem_res mem pc_a pc_w a P1 P2
+    -∗ ([∗ map] a'↦w' ∈ mem, a' ↦ₐ w')
+    ={allow_jnz_mask pc_a a (a ^+1)%a, ⊤ ∖ ↑logN.@pc_a}=∗ pc_a ↦ₐ pc_w.
+  Proof.
+    iIntros (Hneq) "HJmpMem Hmem".
+
+    rewrite /allow_jnz_mem_res /allow_jnz_mask.
+    case_decide as Ha; simplify_eq.
+    { (* pc_a = a *)
+      iDestruct "HJmpMem" as (w2) "(->&Hres)". rewrite /region_open_resources.
+      rewrite memMap_resource_2ne; auto.
+      iDestruct "Hmem" as "(Ha0' & Ha0)".
+      iDestruct "Hres" as "(HP2 & _ & Hcls')".
+      rewrite /allow_jnz_mask.
+      rewrite decide_False //= decide_True //=.
+      iMod ("Hcls'" with "[HP2 Ha0']") as "_" ; [iNext ; iExists w2; iFrame|auto].
+    }
+
+    case_decide as Ha'; simplify_eq.
+    { (* pc_a = a+1 *)
+      iDestruct "HJmpMem" as (w1) "(->&Hres)". rewrite /region_open_resources.
+      rewrite memMap_resource_2ne; auto.
+      iDestruct "Hmem" as "(Ha0 & Ha0')".
+      iDestruct "Hres" as "(HP1 & _ & Hcls')".
+      rewrite /allow_jnz_mask.
+      rewrite decide_False //= decide_True //=.
+      iMod ("Hcls'" with "[HP1 Ha0]") as "_" ; [iNext ; iExists w1; iFrame|auto].
+    }
+
+    (* a ≠ a0 ∧ a ≠ a0+1 *)
+    iDestruct "HJmpMem" as (w1 w2) "(->&Hres)". rewrite /region_open_resources2.
+    rewrite memMap_resource_3ne; auto.
+    iDestruct "Hmem" as "(Ha0' & Ha0 & Ha)".
+    iDestruct "Hres" as "(HP1 & HP2 & _& _ & Hcls')".
+    rewrite /allow_jnz_mask.
+    rewrite decide_False //= decide_False //=.
+    iMod ("Hcls'" with "[HP1 HP2 Ha0 Ha0']") as "_"; [iNext ; iExists w1,w2; iFrame|auto].
+  Qed.
+
+  (* Close the invariants, in case of jump to IE *)
+  Lemma mem_map_recover_res_ie
+    (mem : Mem) (pc_a a : Addr) (pc_w wpc widc : Word) (P P1 P2 : D):
+    (a ^+ 1)%a ≠ a ->
+    mem !! a = Some wpc ->
+    mem !! (a ^+ 1)%a = Some widc ->
+
+    allow_jnz_mem_res mem pc_a pc_w a P1 P2
+    -∗ ([∗ map] a'↦w' ∈ mem, a' ↦ₐ w')
+    ={allow_jnz_mask pc_a a (a ^+1)%a, ⊤ ∖ ↑logN.@pc_a}=∗
+      if (decide (pc_a = a))
+      then pc_a ↦ₐ pc_w ∗ ⌜pc_w = wpc ⌝
+      else
+        if (decide (pc_a = (a^+1)%a))
+        then pc_a ↦ₐ widc ∗ ⌜pc_w = widc⌝ ∗ ▷ P1 wpc ∗ persistent_cond P1
+        else pc_a ↦ₐ pc_w ∗ ▷ P1 wpc ∗ ▷ P2 widc ∗ persistent_cond P1 ∗ persistent_cond P2.
+  Proof.
+    iIntros (Hneq Hmem_a Hmem_a') "HJmpMem Hmem".
+    rewrite /allow_jnz_mem_res /allow_jnz_mask.
+
+    case_decide as Ha; simplify_eq.
+    { (* a = a0 *)
+      iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')".
+      rewrite /allow_jnz_mask.
+      rewrite decide_False //= decide_True //=.
+      rewrite memMap_resource_2ne; auto.
+      simplify_map_eq.
+      iDestruct "Hmem" as  "[Ha0' Ha0]".
+      iMod ("Hcls'" with "[HP2 Ha0']") as "_" ; [iNext;iExists widc;iFrame "∗ #"|auto].
+    }
+
+    case_decide as Ha'; simplify_eq.
+    { (* a = a0+1 *)
+      iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')".
+      iDestruct "HP1" as "#HP1".
+      rewrite /allow_jnz_mask.
+      rewrite decide_False //= decide_True //=.
+      rewrite memMap_resource_2ne; auto.
+      simplify_map_eq.
+      iDestruct "Hmem" as "[Ha0' Ha0]".
+      iMod ("Hcls'" with "[HP1 Ha0']") as "_" ; [iNext;iExists wpc;iFrame "∗ #"|auto].
+    }
+
+    (* a ≠ a0 ∧ a ≠ a0+1 *)
+    iDestruct "HJmpMem" as (w1 w2) "(->& HP1& HP2& %Hpers1& %Hpers2& Hcls')".
+    rewrite /region_open_resources2.
+    iDestruct "HP1" as "#HP1"; iDestruct "HP2" as "#HP2".
+    rewrite /allow_jnz_mask; case_decide ; simplify_eq; case_decide ; simplify_eq.
+    rewrite memMap_resource_3ne; auto.
+    simplify_map_eq.
+    iDestruct "Hmem" as  "(Ha0' & Ha0 & Ha)".
+    iMod ("Hcls'" with "[HP1 HP2 Ha0' Ha0]") as "_"; [iNext;iExists wpc,widc;iFrame "∗ #"|auto].
+  Qed.
+
   Lemma jnz_case (regs : leibnizO Reg) (p : Perm)
         (b e a : Addr) (widc w : Word) (dst src : RegName) (P : D):
     ftlr_instr regs p b e a widc w (Jnz dst src) P.
@@ -439,54 +537,14 @@ Section fundamental.
           by (destruct HallowJmp as (_ & _ & Hwb%Is_true_true_1%withinBounds_true_iff & _); solve_addr).
       rewrite /allow_jnz_mem_res /allow_jnz_mask.
 
-      (* TODO duplicated proof... could be better *)
-      case_decide as Ha0; simplify_eq.
-      { (* a = a0 *)
-        iDestruct "HJmpMem" as (w2) "(->&Hres)".
-        rewrite /region_open_resources /allow_jnz_mask.
-        rewrite memMap_resource_2ne; auto.
-        iDestruct "Hmem" as "(Ha0' & Ha0)".
-        iDestruct "Hres" as "(HP2 & _ & Hcls')".
-        rewrite decide_False //= decide_True //=.
-        iMod ("Hcls'" with "[HP2 Ha0']") as "_"
-        ; [iNext ; iExists w2; iFrame|iModIntro].
-        iMod ("Hcls" with "[Ha0 HP]") as "_";[iExists w;iFrame|iModIntro].
-        iApply wp_pure_step_later; auto.
-        iNext; iIntros "_".
-        iApply wp_value; auto; iIntros; discriminate.
-      }
+      (* Step 4: return all the resources we had *)
+      iMod (mem_map_recover_res with "HJmpMem Hmem") as "Ha"; auto.
 
-      case_decide as Ha0'; simplify_eq.
-      { (* a = a0+1 *)
-        iDestruct "HJmpMem" as (w1) "(->&Hres)".
-        rewrite /region_open_resources /allow_jnz_mask.
-        rewrite memMap_resource_2ne; auto.
-        iDestruct "Hmem" as "(Ha0 & Ha0')".
-        iDestruct "Hres" as "(HP1 & _ & Hcls')".
-        rewrite /allow_jnz_mask.
-        rewrite decide_False //= decide_True //=.
-        iMod ("Hcls'" with "[HP1 Ha0]") as "_"
-        ; [iNext ; iExists w1; iFrame|iModIntro].
-        iMod ("Hcls" with "[Ha0' HP]") as "_";[iExists w;iFrame|iModIntro].
-        iApply wp_pure_step_later; auto.
-        iNext; iIntros "_".
-        iApply wp_value; auto; iIntros; discriminate.
-      }
-
-      (* a ≠ a0 ∧ a ≠ a0+1 *)
-      iDestruct "HJmpMem" as (w1 w2) "(->&Hres)".
-      rewrite /region_open_resources /allow_jnz_mask.
-      rewrite memMap_resource_3ne; auto.
-      iDestruct "Hmem" as "(Ha0' & Ha0 & Ha)".
-      iDestruct "Hres" as "(HP1 & HP2 & _& _ & Hcls')".
-      rewrite /allow_jnz_mask; case_decide ; simplify_eq; case_decide ; simplify_eq.
-      iMod ("Hcls'" with "[HP1 HP2 Ha0 Ha0']") as "_"
-      ; [iNext ; iExists w1, w2; iFrame|iModIntro].
+      iModIntro.
       iMod ("Hcls" with "[Ha HP]") as "_";[iExists w;iFrame|iModIntro].
       iApply wp_pure_step_later; auto.
       iNext; iIntros "_".
       iApply wp_value; auto; iIntros; discriminate.
-
 
     - (* Success IE true*)
       rewrite insert_insert insert_commute //= insert_insert in HincrPC; subst regs'.
@@ -506,30 +564,28 @@ Section fundamental.
           by (by eapply reg_allows_IE_jmp_same)
       ; simplify_map_eq.
       assert ((a0 ^+ 1)%a ≠ a0) as Haeq by (apply Is_true_true_1, withinBounds_true_iff in Hwb ; solve_addr).
-      assert (withinBounds b0 e0 a0 ∧ withinBounds b0 e0 (a0 ^+ 1)%a) as Hbounds by auto.
-      iDestruct "HJmpRes" as "(Hexec &HJmpRes)".
-      rewrite /allow_jnz_mem_res.
+      assert (withinBounds b0 e0 a0 ∧ withinBounds b0 e0 (a0 ^+ 1)%a) as Hbounds
+          by auto.
+
+      iDestruct "HJmpRes" as "(Hexec&HJmpRes)".
+
+      (* Step 4: return all the resources we had *)
+      iMod ((mem_map_recover_res_ie _ _ _ w wpc widc0 P P1 P2) with "HJmpMem Hmem") as "Ha"
+      ; auto; iModIntro.
+
 
       (* iDestruct "HJmpMem" as "(_& %H' & HJmpMem)"; simplify_eq. *)
       case_decide as Ha0; simplify_eq.
       { (* a = a0 *)
 
-        iDestruct "HJmpMem" as (w2) "(->& HP2& %Hpers2& Hcls')".
-        iDestruct "HP2" as "#HP2".
-        rewrite /allow_jnz_mask.
-        case_decide ; simplify_eq.
-        rewrite memMap_resource_2ne; auto.
-        simplify_map_eq.
+        iDestruct "Ha" as "[Ha0 ->]".
 
-        iDestruct "Hmem" as  "[Ha0' Ha0]".
-        iMod ("Hcls'" with "[HP2 Ha0']") as "_"; [iNext;iExists widc0;iFrame "∗ #"|iModIntro].
         iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists wpc;iFrame|iModIntro].
         iClear "HJmpRes".
         iApply wp_pure_step_later; auto.
         iNext ; iIntros "_".
         destruct wpc; cbn in Hi; try done.
         iExtract "Hmap" PC as "HPC".
-
         iApply interp_expr_invalid_pc; try iFrame ; eauto.
         intro Hcontra; inversion Hcontra.
         iPureIntro; apply regmap_full_dom in Hsome; rewrite -Hsome; set_solver.
@@ -538,43 +594,24 @@ Section fundamental.
       case_decide as Ha0'; simplify_eq.
       { (* a = a0+1 *)
 
-        iDestruct "HJmpMem" as (w1) "(->& HP1& %Hpers1& Hcls')".
+        iDestruct "Ha" as "(Ha0 & -> & HP1 & %Hpers1)".
         iDestruct "HP1" as "#HP1".
-        rewrite /allow_jnz_mask.
-        case_decide ; simplify_eq.
-        case_decide ; simplify_eq.
-        rewrite memMap_resource_2ne; auto.
-        simplify_map_eq.
 
-        iDestruct "Hmem" as  "[Ha0' Ha0]".
-        iMod ("Hcls'" with "[HP1 Ha0']") as "_"; [iNext;iExists wpc;iFrame "∗ #"|iModIntro].
         iMod ("Hcls" with "[HP Ha0]") as "_"; [iNext;iExists widc0;iFrame|iModIntro].
-        iClear "HJmpRes".
         iApply wp_pure_step_later; auto.
         iNext ; iIntros "_".
-
         iApply ("Hexec" $! _ widc0) ; iFrame "∗ #".
         iRight; destruct widc0; cbn in Hi; try done.
-
         rewrite insert_commute //=.
         repeat (iSplit ; try done).
       }
 
       (* a ≠ a0 ∧ a ≠ a0+1 *)
-      iDestruct "HJmpMem" as (w1 w2) "(->& HP1& HP2& %Hpers1& %Hpers2& Hcls')".
-      rewrite /region_open_resources2.
+      iDestruct "Ha" as "(Ha & HP1 & HP2 & %Hpers1 & %Hpers2)".
       iDestruct "HP1" as "#HP1"; iDestruct "HP2" as "#HP2".
-      rewrite /allow_jnz_mask; case_decide ; simplify_eq; case_decide ; simplify_eq.
-      rewrite memMap_resource_3ne; auto.
-      simplify_map_eq.
-
-      iDestruct "Hmem" as  "(Ha0' & Ha0 & Ha)".
-      iMod ("Hcls'" with "[HP1 HP2 Ha0' Ha0]") as "_"; [iNext;iExists wpc,widc0;iFrame "∗ #"|iModIntro].
       iMod ("Hcls" with "[HP Ha]") as "_"; [iNext;iExists w;iFrame|iModIntro].
-      iClear "HJmpRes".
       iApply wp_pure_step_later; auto.
       iNext; iIntros "_".
-
       iApply "Hexec" ; iFrame "∗ #".
       rewrite insert_commute //=.
       repeat (iSplit ; try done).
