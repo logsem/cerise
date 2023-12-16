@@ -244,7 +244,7 @@ Section program_call.
 
   (* Full spec *)
   Lemma prog_call_full_run_spec_aux
-    (* call *) wadv w0
+    (* call *) wadv
     (* remaining registers *) (rmap : gmap RegName Word)
     (* pc *) a pc_p pc_b pc_e a_first a_last
     (* malloc *) f_m b_m e_m
@@ -280,7 +280,7 @@ Section program_call.
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
 
         ∗ na_own logrel_nais ⊤
-        ∗ interp w0 ∗ interp wadv
+        ∗  interp wadv
 
        -∗ WP Seq (Instr Executable) {{λ v,
                (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
@@ -290,7 +290,7 @@ Section program_call.
     iIntros
       (Hpc_perm Hpc_bounds Hcont Hwb_malloc Hwb_assert Hlink_malloc Hlink_assert Hsize Hdom)
       "(Hprog& #Hinv_malloc& #Hinv_assert& #Hinv_flag& HPC& Hr30& Hrmap&
-Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
+Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
 
 
     (* FTLR on wadv - we do it now because of the later modality *)
@@ -597,7 +597,6 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* Cleaning *)
     iClear "Hclear Hmalloc_prog Ha_clear Ha_f0 Hprogi".
     (* iHide "Hact" as Hact. *)
-    iHide "Hw0" as Hinterp_w0.
     iHide "Hadv" as Hinterp_adv.
     iHide "Hlocals" as Hlocals.
     iHide "Hinv_link" as Hinv_link.
@@ -842,34 +841,18 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* Prepare to apply jmp_unknown_safe to end the proof *)
     iDestruct (call_main with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
 
-    assert (is_Some (rmap !! idc)) as [widc Hwidc].
-    {  clear -Hdom. apply elem_of_dom; set_solver. }
-    iDestruct ((big_sepM_delete _ _ idc (WInt 0)) with "Hrmap") as "[Hidc Hrmap]".
-    { subst rmap2.
-      simplify_map_eq.
-      apply create_gmap_default_lookup.
-      apply map_to_list_fst.
-      exists widc.
-      apply elem_of_map_to_list.
-      by simplify_map_eq.
-    }
-
-    subst rmap2; set rmap2 := (delete idc _).
     iAssert ([∗ map] r↦w ∈ rmap2, r ↦ᵣ w ∗ interp w)%I
       with "[Hrmap]" as "Hrmap".
     {
       (* -- It remains to prove that all the registers are safe to share -- *)
       iApply big_sepM_sep. iFrame.
       subst rmap2.
-      repeat (rewrite (delete_insert_ne _ idc); [|auto]).
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r7 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r30 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r31 *)
       iApply big_sepM_intro. iIntros "!>" (r ?).
       set rmap' := delete r_t7 _ .
       iIntros "%Hrmap".
-      destruct (decide (r = idc)); subst
-      ; [ by rewrite lookup_delete in Hrmap | rewrite lookup_delete_ne //= in Hrmap].
       destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
       apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->].
       all: simplify_eq; by rewrite !fixpoint_interp1_eq.
@@ -877,10 +860,9 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
     (* Apply the continuation *)
     iApply jmp_unknown_safe; try iFrame; auto.
-    { by rewrite !fixpoint_interp1_eq. }
     { subst rmap2.
       iPureIntro.
-      rewrite !dom_delete_L !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
+      rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
       rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
       rewrite !singleton_union_difference_L.
       set_solver.
@@ -889,7 +871,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
   (* The post-condition actually does not matter *)
   Lemma prog_call_full_run_spec
-    (* call *) wadv w0
+    (* call *) wadv
     (* remaining registers *) (rmap : gmap RegName Word)
     (* pc *) a pc_p pc_b pc_e a_first a_last
     (* malloc *) f_m b_m e_m
@@ -925,15 +907,14 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
         ∗ assert_entry ↦ₐ WCap E b_a e_a b_a
 
         ∗ na_own logrel_nais ⊤
-        ∗ interp w0 ∗ interp wadv
+        ∗ interp wadv
        -∗ WP Seq (Instr Executable) {{λ v, True}})%I.
     Proof.
-
       intros.
-      iIntros "(?&?&?&?&?&Hr30&?&?&?&assert_entry&?&?&Hadv)".
+      iIntros "(?&?&?&?&Hr30&?&?&?&assert_entry&?&?&Hadv)".
       iApply (wp_wand with "[-]").
       { iApply (prog_call_full_run_spec_aux
-                  wadv w0 _ _ _ _ _ _ _ f_m b_m e_m f_a)
+                  wadv _ _ _ _ _ _ _ f_m b_m e_m f_a)
         ; cycle -1
         ; [iFrame|..] ; eauto. }
       iIntros (?) "?" ; done.

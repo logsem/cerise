@@ -62,61 +62,16 @@ Section cap_lang_rules.
     incrementPC regs = Some regs' →
     Jnz_spec regs dst src regs' mem NextIV.
 
-  Definition allow_jnz_mmap_or_true (dst src : RegName) (regs : Reg) (mem : Mem) :=
-    forall wsrc,
-      regs !! src = Some wsrc ->
-      nonZero wsrc ->
-      allow_jmp_mmap_or_true dst regs mem.
+  Definition cond_jnz (regs : leibnizO Reg) (src : RegName) (wsrc : Word) :=
+    (regs !! src = Some wsrc -> nonZero wsrc = true).
 
-  Definition allow_jnz_rmap_or_true (dst src : RegName) (regs : Reg) :=
-    forall wsrc,
-      regs !! src = Some wsrc ->
-      nonZero wsrc ->
-      allow_jmp_rmap_or_true dst regs.
-
-  Lemma allow_jnz_mmap_or_true_not_ie
-    (r1 r2 : RegName) (regs : Reg) (mem : Mem) (w1 : Word) :
-    is_ie_cap w1 = false ->
-    regs !! r1 = Some w1 ->
-    allow_jnz_mmap_or_true r1 r2 regs mem.
-  Proof.
-    intros Hnie Hsome.
-    intros wsrc _ _.
-    destruct_word w1; eauto; eexists _,_,_,_; split
-    ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-    all: case_decide as Heq ; simplify_eq ; auto.
-    all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-    all: try destruct Heq as (? & _) ; simplify_map_eq.
-    Unshelve. all: try exact O; try exact 0%a.
-  Qed.
-
-  Lemma allow_jnz_rmap_or_true_not_ie
-    (r1 r2 : RegName) (regs : Reg) (w1 : Word) :
-    is_ie_cap w1 = false ->
-    regs !! r1 = Some w1 ->
-    allow_jnz_rmap_or_true r1 r2 regs.
-  Proof.
-    intros Hnie Hsome.
-    intros wsrc _ _.
-    destruct_word w1; eauto; eexists _,_,_,_; split
-    ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-    all: case_decide as Heq ; simplify_eq ; auto.
-    all: try destruct Heq as (? & -> & ? & ?) ; simplify_map_eq.
-    all: try destruct Heq as (? & _) ; simplify_map_eq.
-    Unshelve. all: try exact O; try exact 0%a.
-  Qed.
-
-
-
-  Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a w dst src regs mem :
+  Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a w dst src regs mem wsrc :
     decodeInstrW w = Jnz dst src ->
     isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
     regs !! PC = Some (WCap pc_p pc_b pc_e pc_a) →
-    allow_jnz_mmap_or_true dst src regs mem ->
-    allow_jnz_rmap_or_true dst src regs ->
+    allow_jmp_mmap_or_true (cond_jnz regs src wsrc) dst regs mem ->
+    allow_jmp_rmap_or_true (cond_jnz regs src wsrc) dst regs ->
     regs_of (Jnz dst src) ⊆ dom regs →
     mem !! pc_a = Some w →
 
@@ -136,7 +91,7 @@ Section cap_lang_rules.
     (* Derive necessary register values in dst and src *)
     pose proof (lookup_weaken _ _ _ _ HPC Hregs).
     specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    odestruct (Hri src) as [wsrc [H'src Hsrc]]; first set_solver+.
+    odestruct (Hri src) as [wsrc' [H'src Hsrc]]; first set_solver+.
     odestruct (Hri dst) as [wdst [H'dst Hdst]]; first set_solver+.
     clear Hri.
     (* Derive the PC in memory *)
@@ -151,7 +106,7 @@ Section cap_lang_rules.
     rewrite /exec /= in Hstep.
 
     (* Now we start splitting on the different cases in the Jnz spec, and prove them one at a time *)
-    destruct (nonZero wsrc) eqn:Hnz; pose proof Hnz as H'nz;
+    destruct (nonZero wsrc') eqn:Hnz; pose proof Hnz as H'nz;
       cbn in Hstep; rewrite Hsrc Hdst /= Hnz in Hstep.
     { (* wsrc is non-zero, destruct on the dst *)
       destruct (is_ie_cap wdst) eqn:Hwdst.
@@ -170,13 +125,15 @@ Section cap_lang_rules.
         * (* in bounds, success *)
           pose proof H'dst as H'dst'.
           apply Is_true_true_2 in Hnz.
-          destruct (Hmmap _ H'src Hnz) as (p'&b'&e'&a'& Hrinr & HallowLoad).
-          destruct (Hrmap _ H'src Hnz) as (p''&b''&e''&a''& Hrinr' & HallowLoad').
+          destruct Hmmap as (p'&b'&e'&a'& Hrinr & HallowLoad).
+          destruct Hrmap as (p''&b''&e''&a''& Hrinr' & HallowLoad').
           rewrite /read_reg_inr in Hrinr, Hrinr'.
           rewrite H'dst in Hrinr, Hrinr'; symmetry in Hrinr, Hrinr' ; simplify_eq.
           case_decide as Hdec ; last simplify_map_eq.
-          2: { exfalso; apply Hdec. repeat (split ; auto). }
-          destruct Hdec as (Hreg & _ & _ & _).
+          2: { exfalso; apply Hdec. repeat (split ; auto).
+               by intro Hsrc'; rewrite H'src in Hsrc' ; simplify_eq.
+          }
+          destruct Hdec as [Hreg _].
           destruct HallowLoad as (wpc & widc & HaLoad & Ha'Load).
           destruct HallowLoad' as (w' & Hidc).
 
@@ -255,8 +212,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
 
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by eapply allow_jnz_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
-    { by eapply allow_jnz_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
     { by rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
@@ -318,20 +275,22 @@ Section cap_lang_rules.
     by simplify_map_eq.
 
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { intros wsrc _ _.
-      apply isCorrectPC_not_ie_cap in Hvpc.
+    { apply isCorrectPC_not_ie_cap in Hvpc.
       eexists _,_,_,_; split
       ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
       rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      by exists wpc, widc.
+      case_decide as Hdec; auto.
+      exists wpc, widc. split; auto. by simplify_map_eq.
     }
-    { intros wsrc _ _.
-      apply isCorrectPC_not_ie_cap in Hvpc.
+
+    { apply isCorrectPC_not_ie_cap in Hvpc.
       eexists _,_,_,_; split
       ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
       rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      by exists w'.
+      case_decide as Hdec; auto.
+      exists w'.  by simplify_map_eq.
     }
+
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
@@ -350,7 +309,7 @@ Section cap_lang_rules.
     iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
     iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
-    iFrame.
+    iFrame. Unshelve. eauto.
   Qed.
 
   Lemma wp_jnz_success_jmp_same E r2 pc_p pc_b pc_e pc_a w w2 :
@@ -373,8 +332,8 @@ Section cap_lang_rules.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
 
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by eapply allow_jnz_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
-    { by eapply allow_jnz_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
     { by rewrite !dom_insert; set_solver+. }
 
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
@@ -409,9 +368,9 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_1 with "HPC") as "Hmap".
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { eapply allow_jnz_mmap_or_true_not_ie ; eauto; simplify_map_eq.
+    { eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq.
       apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
-    { eapply allow_jnz_rmap_or_true_not_ie ; eauto; simplify_map_eq.
+    { eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq.
       apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
@@ -423,6 +382,7 @@ Section cap_lang_rules.
     iApply "Hφ".
     iExtractList "Hreg" [PC] as ["HPC"]; iFrame.
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
+    Unshelve. all: eauto.
   Qed.
 
   Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_b pc_e pc_a w w2 :
@@ -443,9 +403,9 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { eapply allow_jnz_mmap_or_true_not_ie ; simplify_map_eq; [|reflexivity].
+    { eapply allow_jmp_mmap_or_true_not_ie ; simplify_map_eq; [|reflexivity].
       apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
-    { eapply allow_jnz_rmap_or_true_not_ie ; simplify_map_eq; [|reflexivity].
+    { eapply allow_jmp_rmap_or_true_not_ie ; simplify_map_eq; [|reflexivity].
       apply isCorrectPC_nonIE in Hvpc; destruct pc_p ; auto ; done. }
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
@@ -464,6 +424,7 @@ Section cap_lang_rules.
     iApply "Hφ".
     iExtractList "Hreg" [PC; r2] as ["HPC";"Hr2"]; iFrame.
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a _]"; auto.
+    Unshelve. all: eauto.
   Qed.
 
   Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a w w1 :
@@ -484,8 +445,8 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { by eapply allow_jnz_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
-    { by eapply allow_jnz_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_mmap_or_true_not_ie ; eauto; simplify_map_eq. }
+    { by eapply allow_jmp_rmap_or_true_not_ie ; eauto; simplify_map_eq. }
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
 
@@ -535,19 +496,20 @@ Section cap_lang_rules.
     by simplify_map_eq.
 
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { intros wsrc _ _.
-      apply isCorrectPC_not_ie_cap in Hvpc.
+   { apply isCorrectPC_not_ie_cap in Hvpc.
       eexists _,_,_,_; split
       ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
       rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      by exists wpc, widc.
+      case_decide as Hdec; auto.
+      exists wpc, widc. split; auto. by simplify_map_eq.
     }
-    { intros wsrc _ _.
-      apply isCorrectPC_not_ie_cap in Hvpc.
+
+    { apply isCorrectPC_not_ie_cap in Hvpc.
       eexists _,_,_,_; split
       ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
       rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
-      by exists w'.
+      case_decide as Hdec; auto.
+      exists w'.  by simplify_map_eq.
     }
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
@@ -563,6 +525,14 @@ Section cap_lang_rules.
     iDestruct (big_sepM_insert with "Hmem") as "[Hpc_a Hmem]"; auto ; [ by simplify_map_eq|].
     iDestruct (big_sepM_insert with "Hmem") as "[Ha _]"; auto.
     iFrame.
+    Unshelve. all: auto.
+  Qed.
+
+  Lemma cond_jnz_false regs r:
+    regs !! r = Some (WInt 0) -> not (cond_jnz regs r (WInt 0)).
+  Proof.
+    intros Hr Hcontra.
+    by apply Hcontra in Hr.
   Qed.
 
   Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_a' w w1 :
@@ -585,13 +555,17 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem".
     iApply (wp_Jnz with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
-    { intros wsrc Hsrc Hneq.
-      destruct_word w1; eauto; eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+    {
+      destruct_word w1; eauto ; try (rewrite /read_reg_inr ; simplify_map_eq ; auto).
+      all: eapply allow_jmp_mmap_or_true_false_cond.
+      all: try (eapply cond_jnz_false; eauto; by simplify_map_eq).
+      all: rewrite /read_reg_inr ; simplify_map_eq; auto.
     }
-    { intros wsrc Hsrc Hneq.
-      destruct_word w1; eauto; eexists _,_,_,_; split
-      ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
+    {
+      destruct_word w1; eauto ; try (rewrite /read_reg_inr ; simplify_map_eq ; auto).
+      all: eapply allow_jmp_rmap_or_true_false_cond.
+      all: try (eapply cond_jnz_false; eauto; by simplify_map_eq).
+      all: rewrite /read_reg_inr ; simplify_map_eq; auto.
     }
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hreg)". iDestruct "Hspec" as %Hspec.
