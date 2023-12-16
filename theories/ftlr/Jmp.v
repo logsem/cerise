@@ -319,9 +319,6 @@ Section fundamental.
     iMod ("Hcls'" with "[HP1 HP2 Ha0' Ha0]") as "_"; [iNext;iExists wpc,widc;iFrame "∗ #"|auto].
   Qed.
 
-
-  Local Definition cond_jmp : Prop := True.
-
   (* Derice pure conds =allow_jmp_mmap_or_true= from =cond_jmp= *)
   Lemma mem_map_implies_pure_conds:
     ∀ (regs : leibnizO Reg) (mem : Mem) (r : RegName)
@@ -329,13 +326,12 @@ Section fundamental.
       (p : Perm) (b e a : Addr) (P1 P2 : D),
       read_reg_inr regs r p b e a
       -> allow_jmp_mem cond_jmp regs mem r pc_a pc_w p b e a P1 P2
-      -∗ ⌜mem !! pc_a = Some pc_w⌝ ∗ ⌜allow_jmp_mmap_or_true r regs mem⌝.
+      -∗ ⌜mem !! pc_a = Some pc_w⌝ ∗ ⌜allow_jmp_mmap_or_true cond_jmp r regs mem⌝.
   Proof.
     iIntros (regs mem r pc_a pc_w p b e a P1 P2 Hrinr) "HJmpMem".
     rewrite /allow_jmp_mem.
     case_decide as Hdec ; cycle 1.
-    { apply not_and_r in Hdec as [Hcontra|Hcontra]; simplify_eq; [|done].
-      iDestruct "HJmpMem" as "->".
+    { iDestruct "HJmpMem" as "->".
       iSplitR. by rewrite lookup_insert.
       iExists p,b,e,a.
       iSplitR; auto.
@@ -438,13 +434,13 @@ Section fundamental.
       %(HReadPC & HAJmpMem); auto.
 
     (* Step 3.5:  derive the non-spatial conditions over the registers *)
-    iAssert (⌜allow_jmp_rmap_or_true src
-               (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))⌝)%I as "%HAJmpReg".
+    assert (allow_jmp_rmap_or_true cond_jmp src
+               (<[PC:=WCap p b e a]> (<[idc:=widc]> regs))) as HAJmpReg.
     { rewrite /allow_jmp_rmap_or_true.
-      iExists p0, b0, e0, a0.
-      iSplit; auto.
+      exists p0, b0, e0, a0.
+      split; auto.
       case_decide as Heq; auto.
-      by iExists widc; simplify_map_eq.
+      by exists widc; simplify_map_eq.
     }
 
     iApply (wp_jmp with "[Hmap HJmpRest]");eauto.
