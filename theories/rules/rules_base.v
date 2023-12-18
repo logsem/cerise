@@ -905,6 +905,19 @@ Proof.
   destruct (aa+1)%a; last by auto. congruence.
 Qed.
 
+Lemma incrementPC_overflow_antimono regs regs' :
+  incrementPC regs = None →
+  regs' ⊆ regs →
+  incrementPC regs' = None.
+Proof.
+  intros Hi Hincl. unfold incrementPC in *.
+  destruct (regs' !! PC) eqn:HrpPC; last easy.
+  rewrite (lookup_weaken _ _ _ _ HrpPC Hincl) in Hi.
+  destruct w; try easy.
+  destruct sb; try easy.
+  now destruct (f1 + 1)%a.
+Qed.
+
 (* todo: instead, define updatePC on top of incrementPC *)
 Lemma incrementPC_fail_updatePC regs m etbl ecur:
    incrementPC regs = None ->
@@ -1086,3 +1099,91 @@ Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):=
   | H : incrementLPC _ = None |- _ =>
     eapply incrementLPC_None_inv in H
   end; simplify_eq.
+
+Section cap_lang_rules_opt.
+  Context `{MachineParameters}.
+  Context `{memG Σ, regG Σ}.
+
+  Implicit Types P Q : iProp Σ.
+  Implicit Types σ : ExecConf.
+  Implicit Types c : cap_lang.expr.
+  Implicit Types r : RegName.
+  Implicit Types v : Version.
+  Implicit Types la: LAddr.
+  Implicit Types lw: LWord.
+  Implicit Types reg : Reg.
+  Implicit Types lregs : LReg.
+  Implicit Types mem : Mem.
+  Implicit Types lmem : LMem.
+
+
+  Definition wp_opt (φ : option Conf) (Φf : iProp Σ) (Φs : Conf -> iProp Σ) : iProp Σ :=
+    match φ with
+      None => Φf
+    | Some φ' => Φs φ'
+    end.
+
+  Lemma wp_opt_bind {φ : option Conf} {K : Conf -> option Conf} {Φf Φs} :
+    wp_opt φ Φf (fun φ' => wp_opt (K φ') Φf Φs) ⊢
+      wp_opt (v ← φ ; K v) Φf Φs.
+  Proof.
+    destruct φ; now cbn.
+  Qed.
+
+  Lemma wp_instr_exec_opt {s E Φ pc_a pc_v regs lw pc_p pc_b pc_e instr} :
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    regs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
+    decodeInstrWL lw = instr →
+    regs_of instr ⊆ dom regs →
+    ((▷ (pc_a, pc_v) ↦ₐ lw) ∗
+     (▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y) ∗
+      ▷ (∀ (σ1 : language.state cap_ectx_lang),
+            state_interp_logical σ1 ∗ ([∗ map] k↦y ∈ regs, k ↦ᵣ y) ∗ (pc_a, pc_v) ↦ₐ lw ={E}=∗
+              (∀ p b e a wa,
+                  ⌜ (reg σ1) !! PC = Some (WCap p b e a) /\
+                    (mem σ1) !! a = Some wa /\
+                    isCorrectPC (WCap p b e a) /\
+                    decodeInstrW wa = instr ⌝ -∗ £ 1 ={E}=∗
+                 wp_opt (exec_opt instr σ1) (state_interp_logical σ1 ∗ Φ FailedV)
+                 (fun (c2 : Conf) => state_interp_logical c2.2 ∗ from_option Φ False (language.to_val (Instr c2.1)))))
+        ⊢ wp s E (Instr Executable) Φ).
+  Proof.
+    iIntros (Hcorrpc Hregspc Hdecode Hregs_incl) "(>Hcode & >Hregs & H)".
+    apply isCorrectLPC_isCorrectPC_iff in Hcorrpc; cbn in Hcorrpc.
+    iApply wp_instr_exec.
+    iIntros (σ1) "Hσ1".
+    destruct σ1; simpl.
+    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iModIntro.
+    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregsincl".
+    have Hregs_pc := lookup_weaken _ _ _ _ Hregspc Hregsincl.
+    iDestruct (@gen_heap_valid with "Hm Hcode") as %Hlcode; auto.
+    iModIntro.
+    iIntros (e2 σ2 Hstep) "Hcred".
+    iMod ("H" $! {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} with "[Hr Hm $Hregs $Hcode]") as "H".
+    { iExists _, _, _. iFrame. iPureIntro. cbn.
+      (* TODO: allow changing cur_map? *)
+      eassumption.
+    }
+ 
+    eapply step_exec_inv in Hstep; eauto; cbn.
+    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
+    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    
+    iMod ("H" $! pc_p pc_b pc_e pc_a (lword_get_word lw) with "[%] Hcred") as "H".
+    { intuition.
+      + eapply (state_phys_corresponds_reg (LCap pc_p pc_b pc_e pc_a pc_v) _ _ _ _ _ _ _ eq_refl HLinv) .
+        now cbn.
+      + apply (state_phys_corresponds_mem lw _ (pc_a , pc_v) _ _ _ _ _ _ eq_refl eq_refl HLinv);
+        try now cbn.
+        refine (state_corresponds_cap_cur_addr _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ _ _ Hregs_pc _); try now cbn.
+        eapply (isCorrectPC_withinBounds _ _ _ _ Hcorrpc).
+    }
+    iModIntro.
+    unfold exec in Hstep.
+    destruct (exec_opt instr {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |});
+    now inversion Hstep.
+  Qed.
+
+
+End cap_lang_rules_opt.

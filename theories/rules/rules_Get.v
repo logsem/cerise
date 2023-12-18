@@ -124,6 +124,73 @@ Section cap_lang_rules.
         Get_failure i regs dst src →
         Get_spec i regs dst src regs' FailedV.
 
+  Lemma exec_opt_Get_denote {dst instr src φ} :
+    is_Get instr dst src ->
+    exec_opt instr φ =
+      w ← reg φ !! src ;
+      w2 ← denote instr w;
+      updatePC (update_reg φ dst (WInt w2)).
+  Proof.
+    intros Hinstr.
+    destruct_or! Hinstr; subst; cbn;
+      destruct (reg φ !! src); cbn; try done;
+      destruct w; try done;
+      now destruct sb.
+  Qed.
+
+
+  Lemma wp_opt_updatePC {φ Φs Φf w E}:
+    reg φ !! PC = Some w ->
+      (∀ p b e a a', ⌜ w = WCap p b e a ⌝ -∗ ⌜ (a + 1)%a = Some a' ⌝ -∗ |={E}=> Φs (NextI , update_reg φ PC (WCap p b e a'))) ∧
+        (⌜ incrementPC (reg φ) = None ⌝ -∗ Φf)
+      ⊢
+    |={E}=> wp_opt (Σ := Σ) (updatePC φ) Φf Φs.
+  Proof.
+    unfold updatePC, incrementPC.
+    iIntros (->) "Hsf".
+    destruct w eqn:Heqw; iFrame; cbn.
+    - rewrite bi.and_elim_r.
+      now iApply "Hsf".
+    - destruct sb eqn:Heqsb; iFrame; cbn.
+      + destruct (f1 + 1)%a eqn:Heqf; cbn; iFrame.
+        {rewrite bi.and_elim_l.
+         now iApply "Hsf".
+        }
+        { rewrite bi.and_elim_r. now iApply "Hsf". }
+      + rewrite bi.and_elim_r. now iApply "Hsf".
+    - rewrite bi.and_elim_r. now iApply "Hsf".
+  Qed.
+
+  Lemma lookup_insert_dec:
+    forall {K : Type} {M : forall _ : Type, Type} {H : FMap M} {H0 : forall A : Type, Lookup K A (M A)}
+      {H1 : forall A : Type, Empty (M A)} {H2 : forall A : Type, PartialAlter K A (M A)} {H3 : OMap M} 
+      {H4 : Merge M} {H5 : forall A : Type, MapFold K A (M A)} {EqDecision0 : RelDecision eq} 
+      {_ : FinMap K M} {A : Type} {m : M A} {i j : K} {x y : A},
+      m !! j = Some y ->
+      (<[ i := x ]> m) !! j =
+        Some (if (bool_decide (j = i)) then x else y).
+  Proof.
+    intros.
+    destruct (bool_decide_reflect (j = i)).
+    - subst. now rewrite lookup_insert.
+    - now rewrite lookup_insert_ne.
+  Qed.
+
+
+  Lemma state_phys_log_corresponds_update_reg {reg mem lr lm cur_map i w lw}:
+    lword_get_word lw = w ->
+    is_cur_word lw cur_map ->
+    state_phys_log_corresponds reg mem lr lm cur_map ->
+    state_phys_log_corresponds (<[i := w]> reg) mem (<[i:=lw]> lr) lm cur_map.
+  Proof.
+    intros Hlw Hcw ((HLreg & HLcurreg) & HLmem).
+    split; last easy.
+    split.
+    - unfold lreg_strip in *.
+      now rewrite fmap_insert HLreg Hlw.
+    - now apply map_Forall_insert_2.
+  Qed.
+
   Lemma wp_Get Ep pc_p pc_b pc_e pc_a pc_v lw get_i dst src regs :
     decodeInstrWL lw = get_i →
     is_Get get_i dst src →
@@ -141,24 +208,18 @@ Section cap_lang_rules.
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
     iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
-    apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
-    iApply wp_instr_exec.
-    iIntros (σ1) "Hσ1".
+    iApply (wp_instr_exec_opt Hvpc HPC Hdecode Dregs with "[$Hpc_a $Hmap Hφ]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hregs &Hpc_a)".
     destruct σ1; simpl.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
-    iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
-    iDestruct "H" as %Hregs.
-    have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
+    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
+    have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs_incl.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hlpc_a; auto.
-    do 2 iModIntro.
-    iIntros (c σ2 Hstep) "_".
-    eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    iModIntro.
+    iIntros (p b e a wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    unfold exec in Hstep.
-
-    specialize (indom_lregs_incl _ regs lr Dregs Hregs) as Hri.
+    specialize (indom_lregs_incl _ regs lr Dregs Hregs_incl) as Hri.
     erewrite regs_of_is_Get in Hri; eauto.
     destruct (Hri src) as [lwsrc [H'lsrc Hlsrc]]; first by set_solver+.
     destruct (Hri dst) as [lwdst [H'ldst Hldst]]; first by set_solver+.
@@ -169,101 +230,59 @@ Section cap_lang_rules.
     assert ( reg !! src = Some wsrc ) as Hsrc by (eapply state_phys_log_reg_get_word ; eauto).
     assert ( reg !! dst = Some wdst ) as Hdst by (eapply state_phys_log_reg_get_word ; eauto).
 
-    destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
+    rewrite (exec_opt_Get_denote Hinstr); cbn.
+    rewrite Hsrc; cbn.
+    rewrite Hdecode.
+
+    destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc; cbn.
     2 : { (* Failure: src is not of the right word type *)
-      assert
-        (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |})
-      as (-> & ->).
-      { destruct_or! Hinstr; rewrite Hinstr in Hstep; cbn in Hstep.
-        all: rewrite Hsrc /= in Hstep.
-        all : destruct wsrc as [ | [  |  ] | ]; try (inversion Hstep; auto);
-          rewrite /denote /= in Hwsrc; rewrite Hinstr in Hwsrc; congruence. }
-      rewrite Hdecode.
+      iModIntro; iFrame.
+      iSplitL "Hr Hm".
+      { iExists _, _, _; now iFrame. }
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro. constructor.
+      eapply Get_fail_src_denote; eassumption.
+    } 
 
-    (* TODO replace the iFail tactic -> modify the tactic to fit the new pattern *)
-    iSplitR "Hφ Hmap Hpc_a"
-    ; [ iExists lr, lm, cur_map; iFrame; auto
-      | iApply "Hφ" ; iFrame ; iFailCore Get_fail_src_denote
-      ].
-    }
+    iApply wp_opt_updatePC; first by eapply lookup_insert_dec.
+    iSplit; cbn.
+    - iIntros (p' b' e' a' a'' Heq Heq2).
+      assert (bool_decide (PC = dst) = false) as Hdstnpc by now destruct (bool_decide (PC = dst)).
+      rewrite Hdstnpc in Heq.
+      inversion Heq; subst.
+      iMod ((gen_heap_update_inSepM _ _ dst (LWInt z)) with "Hr Hregs") as "[Hr Hregs]"; eauto.
+      iMod ((gen_heap_update_inSepM _ _ PC (LCap p' b' e' a'' pc_v)) with "Hr Hregs") as "[Hr Hregsmap]"; eauto.
+      { now rewrite (lookup_insert_dec HPC). }
 
-    assert (exec_opt get_i {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
-            = updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}
-                          dst (WInt z))) as HH.
-    { destruct_or! Hinstr; clear Hdecode; subst get_i; cbn in Hstep |- *.
-      all: rewrite /update_reg Hsrc /= in Hstep |-*; auto.
-      all : destruct wsrc as [ | [  |  ] | ]; inversion Hwsrc; auto.
-    }
-    rewrite HH in Hstep. rewrite /update_reg /= in Hstep.
+      rewrite <-(proj1 (proj1 HLinv)) in Hppc.
+      rewrite lookup_fmap Hregs_pc in Hppc.
+      inversion Hppc; subst.
 
-    (* TODO is there a way to use incrementPC instead of incrementLPC ? *)
-    destruct (incrementLPC (<[ dst := LInt z ]> regs)) as [regs'|] eqn:Hregs'
-    ; pose proof Hregs' as H'regs'; cycle 1.
-    { (* Failure: incrementing PC overflows *)
-      cbn in Hregs'.
-
-      apply incrementLPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hregs'.
-      eapply updatePC_fail_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in Hregs'.
-      2: {
-        rewrite /lreg_strip lookup_fmap.
-        apply fmap_is_Some.
-        destruct (decide (dst = PC)) ; simplify_map_eq; auto.
-      }
-      2: by apply map_fmap_mono; apply insert_mono ; eauto.
-      simplify_pair_eq.
-      rewrite ( _ :
-         (λ lw : LWord, lword_get_word lw) <$> <[dst:=LInt z]> lr = <[dst:=WInt z]> reg
-        ) in Hregs'; cycle 1.
-      { destruct HLinv as [[Hstrips Hcurreg] _].
-        rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto.
-      }
-
-      rewrite Hregs' in Hstep. inversion Hstep.
-      iSplitR "Hφ Hmap Hpc_a"
-      ; [ iExists lr, lm, cur_map; iFrame; auto
-        | iApply "Hφ" ; iFrame ; iFailCore Get_fail_overflow_PC
-        ].
-    }
-
-
-
-    (* Success *)
-    eapply (incrementLPC_success_updatePC _ mem etable enumcur) in Hregs'
-        as (p' & b' & e' & a'' & a_pc' & v' & HPC'' & Hpc_a' & HuPC & ->).
-
-    assert ( dst <> PC ) as Hneq by (intro ; simplify_map_eq).
-    rewrite lookup_insert_ne in HPC''; auto.
-    rewrite HPC'' in HPC; simplify_eq.
-
-    eapply updatePC_success_incl with (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC.
-    2: by apply map_fmap_mono; apply insert_mono ; eauto.
-    rewrite ( _ :
-              (λ lw : LWord, lword_get_word lw) <$> <[dst:=LInt z]> lr = <[dst:=WInt z]> reg
-            ) in HuPC; cycle 1.
-    { destruct HLinv as [[Hstrips Hcurreg] _].
-      rewrite -Hstrips fmap_insert -/(lreg_strip lr); auto. }
-
-    rewrite HuPC in Hstep; simplify_pair_eq.
-
-    iMod ((gen_heap_update_inSepM _ _ dst (LInt z)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iMod ((gen_heap_update_inSepM _ _ PC (LCap pc_p pc_b pc_e a_pc' pc_v)) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    { destruct (decide (dst = PC)) ; simplify_map_eq; auto. }
-    iFrame. iModIntro.
-
-    iSplitR "Hφ Hmap Hpc_a"; cycle 1.
-    - iApply "Hφ" ; iFrame ; iPureIntro; econstructor; eauto.
-    - iExists _, lm, cur_map; iFrame; auto.
-      destruct HLinv as [[Hstrips Hcur_reg] HmemInv]; cbn in *.
-      iPureIntro; econstructor; eauto.
-      split.
-      by rewrite -Hstrips /lreg_strip 2!fmap_insert /= .
-      clear HuPC HH Hri Hwsrc Hsrc Hlsrc.
-      apply map_Forall_insert_2 ; [ | apply map_Forall_insert_2; cbn ; auto].
-
-      cbn.
-      eapply map_Forall_lookup_1 with (i := PC) in Hcur_reg; eauto.
-      rewrite /is_cur_word in Hcur_reg.
-      eapply Hcur_reg.
+      iModIntro.
+      iSplitL "Hr Hm".
+      + iExists _, _, _. iFrame. cbn. 
+        iPureIntro.
+        repeat apply state_phys_log_corresponds_update_reg; try eassumption; try now cbn.
+        pose proof (proj2 (proj1 HLinv)) as Hregcorr.
+        rewrite map_Forall_lookup in Hregcorr.
+        refine (Hregcorr PC _ Hregs_pc).
+      + iApply ("Hφ" with "[$Hpc_a $Hregsmap]").
+        iPureIntro.
+        eapply Get_spec_success; try eassumption.
+        unfold incrementLPC.
+        now rewrite (lookup_insert_dec HPC) Hdstnpc Heq2.
+    - iIntros "%Hincrf". iSplitL "Hr Hm".
+      {iExists _, _, _. now iFrame.}
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      eapply Get_spec_failure; try eassumption.
+      eapply (Get_fail_overflow_PC _ _ _ _ _ _ H'lsrc Hwsrc).
+      apply incrementLPC_incrementPC_none.
+      unfold lreg_strip.
+      rewrite fmap_insert.
+      eapply (incrementPC_overflow_antimono _ _ Hincrf).
+      rewrite <-(proj1 (proj1 HLinv)).
+      now apply insert_mono, map_fmap_mono.
   Qed.
 
   (* Note that other cases than WCap in the PC are irrelevant, as that will result in having an incorrect PC *)
