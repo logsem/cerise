@@ -612,7 +612,7 @@ Lemma lmem_update_version_region :
 Proof.
   induction la as [| a la IH].
   - by intros; cbn in * ; simplify_eq.
-  - intros * Hno_dup Hupd Hall_naccess_mem
+  - intros * Hno_dup Hupd Hall_naccess_mem.
     rewrite /update_addr_version_region in Hupd.
     rewrite foldr_cons in Hupd.
     rewrite -/(update_addr_version_region lm cur_map _) in Hupd.
