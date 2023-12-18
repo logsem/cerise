@@ -278,6 +278,62 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
+  Lemma prim_step_no_kappa {e1 σ1 κ e2 σ2 efs}:
+    prim_step e1 σ1 κ e2 σ2 efs -> κ = [].
+  Proof.
+    now induction 1.
+  Qed.
+
+  Lemma prim_step_no_efs {e1 σ1 κ e2 σ2 efs}:
+    prim_step e1 σ1 κ e2 σ2 efs -> efs = [].
+  Proof.
+    now induction 1.
+  Qed.
+
+  Lemma wp_cap_lang {s E} {Φ} : ∀ e1 : language.expr cap_ectx_lang,
+      to_val e1 = None →
+      (∀ (σ1 : language.state cap_ectx_lang),
+            state_interp_logical σ1 ={E}=∗
+              ⌜head_reducible e1 σ1⌝ ∗
+              ▷(∀ (e2 : language.expr cap_ectx_lang)
+                  (σ2 : ectx_language.state cap_ectx_lang),
+                  ⌜prim_step e1 σ1 [] e2 σ2 []⌝ -∗
+                                                   £ 1 ={E}=∗ state_interp_logical σ2 ∗ from_option Φ False (language.to_val e2)))
+        ⊢ wp s E e1 Φ.
+  Proof.
+    iIntros (? Hnoval) "H".
+    iApply wp_lift_atomic_head_step_no_fork; try assumption.
+    iIntros (σ1 ns κ κs nt) "Hσ1 /=".
+    iMod ("H" $! σ1 with "[$Hσ1]") as "[%Hred H]".
+    iModIntro. iSplitR; first by iPureIntro.
+    iModIntro. iIntros (? ? ?) "%Hstep Hcred".
+    destruct (prim_step_no_efs Hstep).
+    destruct (prim_step_no_kappa Hstep).
+    iMod ("H" $! e2 σ2 Hstep with "Hcred") as "H".
+    now iSplitR.
+  Qed.
+
+  Lemma wp_instr_exec {s E} {Φ} :
+      (∀ (σ1 : language.state cap_ectx_lang),
+            state_interp_logical σ1 ={E}=∗
+              ▷(∀ (e2 : ConfFlag)
+                  (σ2 : ExecConf),
+                  ⌜step (Executable, σ1) (e2, σ2)⌝ -∗
+                                                   £ 1 ={E}=∗ state_interp_logical σ2 ∗ from_option Φ False (language.to_val (Instr e2))))
+        ⊢ wp s E (Instr Executable) Φ.
+  Proof.
+    iIntros "H".
+    iApply wp_cap_lang; first easy.
+    iIntros (σ1) "Hσ1".
+    iMod ("H" $! _ with "Hσ1") as "H".
+    iModIntro. iSplitR.
+    { iPureIntro. apply normal_always_head_reducible. }
+    iModIntro.
+    iIntros (e2 σ2) "%Hstep".
+    destruct (prim_step_exec_inv _ _ _ _ _ Hstep) as (_ & _ & c & -> & Hstep2).
+    now iApply "H".
+  Qed.
+
   Program Definition wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
     to_val e1 = None →
     (∀ (σ1:cap_lang.state) ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
