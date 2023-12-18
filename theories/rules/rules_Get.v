@@ -142,18 +142,17 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
-    iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
+    iApply wp_instr_exec.
+    iIntros (σ1) "Hσ1".
+    destruct σ1; simpl.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hlpc_a; auto.
-    iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
-    iNext. iIntros (e2 σ2 efs Hpstep).
-    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
-    iIntros "_".
-    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
+    do 2 iModIntro.
+    iIntros (c σ2 Hstep) "_".
+    eapply step_exec_inv in Hstep; eauto.
     2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
     2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
 
