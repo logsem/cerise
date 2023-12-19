@@ -1185,5 +1185,41 @@ Section cap_lang_rules_opt.
     now inversion Hstep.
   Qed.
 
+  Lemma wp_opt_updatePC {φ Φs Φf w E}:
+    reg φ !! PC = Some w ->
+      (∀ p b e a a', ⌜ w = WCap p b e a ⌝ -∗ ⌜ (a + 1)%a = Some a' ⌝ -∗ |={E}=> Φs (NextI , update_reg φ PC (WCap p b e a'))) ∧
+        (⌜ incrementPC (reg φ) = None ⌝ -∗ Φf)
+      ⊢
+    |={E}=> wp_opt (Σ := Σ) (updatePC φ) Φf Φs.
+  Proof.
+    unfold updatePC, incrementPC.
+    iIntros (->) "Hsf".
+    destruct w eqn:Heqw; iFrame; cbn.
+    - rewrite bi.and_elim_r.
+      now iApply "Hsf".
+    - destruct sb eqn:Heqsb; iFrame; cbn.
+      + destruct (f1 + 1)%a eqn:Heqf; cbn; iFrame.
+        {rewrite bi.and_elim_l.
+         now iApply "Hsf".
+        }
+        { rewrite bi.and_elim_r. now iApply "Hsf". }
+      + rewrite bi.and_elim_r. now iApply "Hsf".
+    - rewrite bi.and_elim_r. now iApply "Hsf".
+  Qed.
+
+  Lemma state_phys_log_corresponds_update_reg {reg mem lr lm cur_map i w lw}:
+    lword_get_word lw = w ->
+    is_cur_word lw cur_map ->
+    state_phys_log_corresponds reg mem lr lm cur_map ->
+    state_phys_log_corresponds (<[i := w]> reg) mem (<[i:=lw]> lr) lm cur_map.
+  Proof.
+    intros Hlw Hcw ((HLreg & HLcurreg) & HLmem).
+    split; last easy.
+    split.
+    - unfold lreg_strip in *.
+      now rewrite fmap_insert HLreg Hlw.
+    - now apply map_Forall_insert_2.
+  Qed.
+
 
 End cap_lang_rules_opt.
