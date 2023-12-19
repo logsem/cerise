@@ -147,6 +147,8 @@ theories/exercises/subseg_buffer_call_ie.v
 
 # Counter
 # theories/examples/minimal_counter.v
+theories/examples/minimal_counter_ie.v
+
 # theories/examples/counter/counter.v
 # theories/examples/counter/counter_preamble.v
 # theories/examples/counter/counter_adequacy.v
