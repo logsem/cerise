@@ -612,6 +612,40 @@ Section cap_lang_rules.
     iApply (wp_load_success_same with "[$HPC $Hpc_a $Hr1 Ha]");eauto;rewrite Hfalse;iFrame.
   Qed.
 
+  Lemma wp_Load_fail_int Ep pc_p pc_b pc_e pc_a w rdst rsrc z wdst :
+    decodeInstrW w = Load rdst rsrc →
+    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
 
+    {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
+          ∗ ▷ pc_a ↦ₐ w
+          ∗ ▷ rsrc ↦ᵣ WInt z
+          ∗ ▷ rdst ↦ᵣ wdst
+    }}}
+      Instr Executable @ Ep
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hdecode Hvpc φ) "(>HPC & >Hpc_a & >Hsrc & > Hdst) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap %Hregs]".
+    destruct Hregs as (Hregs0 & Hregs1 & Hregs2).
+    iDestruct (memMap_resource_1 with "Hpc_a") as "Hmem"; auto.
+    iDestruct (mem_remove_dq with "Hmem") as "Hmem".
+    iApply (wp_load_general with "[$Hrmap Hmem]") ; eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { rewrite /allow_load_map_or_true.
+      eexists O,0%a,0%a,0%a. (* dummy values *)
+      split ; first (rewrite /read_reg_inr; by simplify_map_eq).
+      rewrite decide_False; eauto.
+      intro Hcontra; destruct Hcontra as [Hcontra _].
+      by simplify_map_eq.
+    }
+    { rewrite create_gmap_default_dom list_to_set_elements_L. auto. }
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as [* Hsucc | * Hfail].
+    { (* Success (contradiction) *)
+      destruct Hsucc as [Hcontra _]; simplify_map_eq.
+    }
+    { (* Failure, done *) by iApply "Hφ". }
+  Qed.
 
 End cap_lang_rules.

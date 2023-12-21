@@ -123,6 +123,9 @@ Section counter.
     replace (a_init ^+ 10)%a with (a_code ^+ -1)%a; solve_addr'.
   Qed.
 
+  (* TODO
+     - spec after jump
+   *)
   Lemma counter_code_spec (a_init a_data: Addr) wcont w1 φ :
     let a_code := (a_init ^+ code_off)%a in
     let a_end := (a_init ^+ (code_off + end_off))%a in
@@ -196,139 +199,164 @@ Section counter.
     iFrame.
   Qed.
 
+
+  Lemma counter_code_spec_int (a_init: Addr) w1 z :
+    let a_code := (a_init ^+ code_off)%a in
+    let a_end := (a_init ^+ (code_off + end_off))%a in
+
+    ContiguousRegion a_init (code_off + end_off) →
+
+  ⊢ ( na_inv logrel_nais (N.@"code") (codefrag a_code counter_code)
+     ∗ PC ↦ᵣ WCap RX a_init a_end a_code
+     ∗ idc ↦ᵣ WInt z
+     ∗ r_t1 ↦ᵣ w1
+     ∗ na_own logrel_nais ⊤
+     -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = FailedV⌝ }})%I.
+  Proof.
+    intros a_code a_end.
+    iIntros (Hcont_code)
+      "(#HIcode & HPC & Hidc & Hr1 & Hna)".
+    (* open the invariant containing the code *)
+    iMod (na_inv_acc logrel_nais with "HIcode Hna") as "(>Hcode & Hna & Hclose_code)".
+    done. done.
+    codefrag_facts "Hcode".
+
+    iInstr_lookup "Hcode" as "Hi" "Hcont".
+    wp_instr.
+    iApply (wp_Load_fail_int with "[$Hi $HPC $Hidc $Hr1]"); eauto.
+    { apply decode_encode_instrW_inv. }
+    { split; solve_addr'. }
+    iNext; iIntros (_).
+    by wp_pure; wp_end.
+  Qed.
+
   (* TODO ----------------------- *)
   (* TODO I think that it is worth waiting for HOCAP style  *)
 
-  (* Lemma counter_full_run_spec (a_init: Addr) b_adv e_adv w1 w2 wdat rmap adv : *)
-  (*   let a_code := (a_init ^+ code_off)%a in *)
-  (*   let a_data := (a_code ^+ data_off)%a in *)
-  (*   let a_end := (a_code ^+ (data_off + end_off))%a in *)
-  (*   ContiguousRegion a_init (code_off + data_off + end_off) → *)
-  (*   dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} → *)
-  (*   Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv → *)
-  (*   (b_adv + length adv)%a = Some e_adv → *)
+  Lemma counter_full_run_spec (a_init a_data: Addr) b_adv e_adv w1 wdat0 wdat1 rmap adv :
+    let a_code := (a_init ^+ code_off)%a in
+    let a_end := (a_init ^+ (code_off + end_off))%a in
+    let a_secret := (a_data ^+ secret_off)%a in
+    let a_data_end := (a_data ^+ data_end_off)%a in
 
-  (* ⊢ (   inv with_adv.invN (∃ n : Z, (a_data ^+ 1)%a ↦ₐ WInt n ∗ ⌜0 ≤ n⌝) *)
-  (*     ∗ PC ↦ᵣ WCap RWX a_init a_end a_init *)
-  (*     ∗ r_t0 ↦ᵣ WCap RWX b_adv e_adv b_adv *)
-  (*     ∗ r_t1 ↦ᵣ w1 *)
-  (*     ∗ r_t2 ↦ᵣ w2 *)
-  (*     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝) *)
-  (*     ∗ codefrag a_init (counter_init a_init) *)
-  (*     ∗ codefrag a_code (counter_code a_code) *)
-  (*     ∗ a_data ↦ₐ wdat *)
-  (*     ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w) *)
-  (*     ∗ na_own logrel_nais ⊤ *)
-  (*     -∗ WP Seq (Instr Executable) {{ λ _, True }})%I. *)
-  (* Proof. *)
-  (*   iIntros (? ? ? ? Hrdom ? ?) "(#HI & HPC & Hr0 & Hr1 & Hr2 & Hrmap & Hinit & Hcode & Hdat & Hadv & Hna)". *)
+    ContiguousRegion a_init (code_off + end_off) →
+    ContiguousRegion a_data (data_end_off) →
 
-  (*   (* The capability to the adversary is safe and we can also jmp to it *) *)
-  (*   iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done. *)
-  (*   iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto. *)
-  (*   { apply Forall_forall. intros. set_solver. } *)
-  (*   iDestruct (jmp_to_unknown with "Hadv") as "#Hcont". *)
+    ## [
+        finz.seq_between a_init a_end;
+        finz.seq_between a_data a_data_end
+    ] ->
 
-  (*   iApply (counter_init_spec a_init with "[-]"). solve_addr'. iFrame. *)
-  (*   simpl. rewrite (_: a_init ^+ (_ + _ + _) = a_end)%a. 2: solve_addr'. iFrame. *)
-  (*   rewrite (_: a_init ^+ (_ + _) = a_data)%a. 2: solve_addr'. iFrame. *)
-  (*   iNext. iIntros "(HPC & Hr0 & Hr1 & Hr2 & Hdat & _)". *)
+    dom rmap = all_registers_s ∖ {[ PC; idc; r_t1; r_t31 ]} →
+    Forall (λ w, is_z w = true \/ in_region w b_adv e_adv) adv →
+    (b_adv + length adv)%a = Some e_adv →
 
-  (*   (* Allocate an invariant for the points-to at a_data containing the capability to a_data+1 *) *)
-  (*   iMod (inv_alloc (N.@"cap") _ (a_data ↦ₐ WCap RWX a_init a_end (a_data ^+ 1)%a) *)
-  (*           with "Hdat") as "#HIcap". *)
+  ⊢ (( inv with_adv.invN (∃ n, a_secret ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
+     ∗ PC ↦ᵣ WCap RX a_init a_end a_init
+     ∗ idc ↦ᵣ WCap RW a_data a_data_end a_data
+     ∗ r_t1 ↦ᵣ w1
+     ∗ r_t31 ↦ᵣ WCap RWX b_adv e_adv b_adv
+     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+
+     ∗ codefrag a_init (counter_init a_init a_data)
+     ∗ codefrag a_code counter_code
+
+     ∗ a_data ↦ₐ wdat0
+     ∗ (a_data ^+1)%a ↦ₐ wdat1
+      ∗ ([∗ map] a↦w ∈ mkregion b_adv e_adv adv, a ↦ₐ w)
+
+     ∗ na_own logrel_nais ⊤
+
+       -∗ WP Seq (Instr Executable) {{ λ _, True }})%I).
+  Proof.
+    iIntros (? ? ? ? Hcont_code Hcont_data Hdis Hrdom Hadv_closed Headv)
+      "(#HI & HPC & Hidc & Hr1 & Hr2 & Hrmap & Hinit & Hcode & Hdata & Hdata' & Hadv & Hna)".
+
+    (* The capability to the adversary is safe and we can also jmp to it *)
+    iDestruct (mkregion_sepM_to_sepL2 with "Hadv") as "Hadv". done.
+    iDestruct (region_in_region_alloc' _ _ _ b_adv _ RWX with "Hadv") as ">#Hadv";auto.
+    { apply Forall_forall. intros. set_solver. }
+
+    iApply (counter_init_spec a_init with "[-]"); eauto. iFrame.
+    iNext. iIntros "(HPC & Hr0 & Hr1 & Hr2 & Hdat & Hdat' & Hinit)".
+    replace ((a_init ^+ code_off) ^+ -1)%a
+      with (a_init ^+ (code_off -1))%a by solve_addr'.
+    iInstr "Hinit" ; [ auto|].
+
+    rewrite (_: a_init ^+ (_ + _) = a_end)%a; [|solve_addr'].
+    rewrite (_: a_init ^+ _ = a_code)%a; [|solve_addr'].
+    rewrite (_: a_data ^+ data_end_off = a_data_end)%a; [|solve_addr'].
+    rewrite (_: a_data ^+ secret_off = a_secret)%a; [|solve_addr'].
+    (* Allocate an invariant for the points-to at a_data containing the capability to a_data+1 *)
+    iMod (inv_alloc (logN.@a_data%a) _ (a_data ↦ₐ WCap RX a_init a_end a_code)
+            with "Hdat") as "#HIcode_cap".
+    iMod (inv_alloc (logN.@(a_data ^+1)%a) _ ((a_data ^+ 1)%a ↦ₐ WCap RW a_data a_data_end a_secret)
+            with "Hdat'") as "#HIdata_cap".
 
   (*   (* Allocate a non-atomic invariant for the code of the code routine *) *)
-  (*   iMod (na_inv_alloc logrel_nais _ (N.@"code") (codefrag a_code (counter_code a_code)) *)
-  (*          with "Hcode") as "#HIcode". *)
+    iMod (na_inv_alloc logrel_nais _ (N.@"code") (codefrag a_code counter_code)
+           with "Hcode") as "#HIcode".
 
   (*   (* Show that the E-capability to the code: routine is safe *) *)
-  (*   iAssert (interp (WCap E a_code a_end a_code)) as "#Hcode_safe". *)
-  (*   { rewrite /interp /= (fixpoint_interp1_eq (WCap E _ _ _)) /=. iIntros (rr). *)
-  (*     iIntros "!> !> ([%Hrfull #Hrsafe] & Hrr & Hna)". rewrite /interp_conf. *)
+    iAssert (interp (WCap IE a_data a_data_end a_data)) as "#Hcode_safe".
+    { rewrite /interp /= (fixpoint_interp1_eq (WCap IE _ _ _)) /=.
+      iIntros (Hinbounds).
+      iExists (cap_eq RX a_init a_end a_code).
+      iExists (cap_eq RW a_data a_data_end a_secret).
+      iSplit ; first (iApply cap_eq_persistent).
+      iSplit ; first (iApply cap_eq_persistent).
+      iSplit; first (iApply inv_cap_eq; iFrame "#").
+      iSplit; first (iApply inv_cap_eq; iFrame "#").
 
-  (*     (* unpack the registers *) *)
-  (*     destruct (Hrfull r_t0) as [w0' Hr0']. *)
-  (*     destruct (Hrfull r_t1) as [w1' Hr1']. *)
-  (*     destruct (Hrfull r_t2) as [w2' Hr2']. *)
-  (*     unfold registers_mapsto. *)
-  (*     rewrite -insert_delete_insert. *)
-  (*     iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]". *)
-  (*       by rewrite lookup_delete. *)
-  (*     iDestruct (big_sepM_delete _ _ r_t0 with "Hrr") as "[Hr0 Hrr]". *)
-  (*       by rewrite lookup_delete_ne //. *)
-  (*     iDestruct (big_sepM_delete _ _ r_t1 with "Hrr") as "[Hr1 Hrr]". *)
-  (*       by rewrite !lookup_delete_ne //. *)
-  (*     iDestruct (big_sepM_delete _ _ r_t2 with "Hrr") as "[Hr2 Hrr]". *)
-  (*       by rewrite !lookup_delete_ne //. *)
+      iIntros (wcode wdata regs) ; iNext ; iModIntro.
+      iIntros "[%Hprog %Hdata] ([%Hrfull #Hr_interp] & Hrmap & Hna)".
+      simplify_eq.
 
-  (*     (* the continuation is safe, and we can jump to it *) *)
-  (*     iAssert (interp w0') as "Hv0". by iApply "Hrsafe"; eauto; done. *)
-  (*     iDestruct (jmp_to_unknown with "[$Hv0]") as "#Hcont_prog". *)
+      (* unpack the registers *)
+      destruct (Hrfull idc) as [widc' Hridc].
+      destruct (Hrfull r_t1) as [w1' Hr1'].
+      destruct (Hrfull r_t31) as [w31' Hr31'].
+      (*     unfold registers_mapsto. *)
+      iDestruct (big_sepM_delete _ _ PC with "Hrmap") as "[HPC Hrmap]".
+      by simplify_map_eq.
+      iDestruct (big_sepM_delete _ _ idc with "Hrmap") as "[Hidc Hrmap]".
+      by rewrite !lookup_delete_ne //; simplify_map_eq.
+      iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
+      by rewrite !lookup_delete_ne //; simplify_map_eq.
+      iDestruct (big_sepM_delete _ _ r_t31 with "Hrmap") as "[Hr31 Hrmap]".
+      by rewrite !lookup_delete_ne //; simplify_map_eq.
 
-  (*     (* apply the spec *) *)
-  (*     iApply (counter_code_spec a_init with "[-]"). solve_addr'. *)
-  (*     rewrite (_: (a_init ^+ _) ^+ _ = a_data)%a. 2: solve_addr'. *)
-  (*     rewrite (_: (a_init ^+ _) ^+ (_ + _) = a_end)%a. 2: solve_addr'. *)
-  (*     iFrame. iFrame "HIcap HIcode HI". *)
-  (*     iIntros "!>" (n) "(HPC & Hr0 & Hr1 & Hr2 & Hcode)". *)
-
-  (*     (* put the registers back together *) *)
-  (*     iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hrr]") as "Hrr". *)
-  (*     { iSplitL. by iApply "Hrr". iApply big_sepM_intro. iModIntro. *)
-  (*       iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH]. *)
-  (*       iApply ("Hrsafe" $! r'); auto. } *)
-  (*     iDestruct (big_sepM_insert with "[$Hrr $Hr2]") as "Hrr". by rewrite lookup_delete. *)
-  (*       by iApply interp_int. rewrite insert_delete_insert. *)
-  (*     iDestruct (big_sepM_insert with "[$Hrr $Hr1]") as "Hrr". *)
-  (*       by rewrite lookup_insert_ne // lookup_delete. *)
-  (*       by iApply interp_int. rewrite insert_commute // insert_delete_insert. *)
-  (*     iDestruct (big_sepM_insert with "[$Hrr $Hr0]") as "Hrr". *)
-  (*       by rewrite !lookup_insert_ne // lookup_delete. *)
-  (*       by iApply "Hv0". do 2 rewrite (insert_commute _ r_t0) //;[]. rewrite insert_delete_insert. *)
-
-  (*     (* jmp to continuation *) *)
-  (*     iApply "Hcont_prog". 2: iFrame. iPureIntro. *)
-  (*     rewrite !dom_insert_L dom_delete_L regmap_full_dom //. } *)
-
-  (*   (* put the registers back together *) *)
-  (*   iDestruct (big_sepM_mono _ (λ k v, k ↦ᵣ v ∗ interp v)%I with "Hrmap") as "Hrmap". *)
-  (*   { intros ? w ?. cbn. iIntros "[? %Hw]". iFrame. destruct w; try inversion Hw. *)
-  (*     iApply interp_int. } *)
-  (*   iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap". *)
-  (*     by rewrite -not_elem_of_dom Hrdom; set_solver+. *)
-  (*     by iApply interp_int. *)
-  (*   iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap". *)
-  (*     by rewrite lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+. *)
-  (*     by iApply "Hcode_safe". *)
-  (*   iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap". *)
-  (*     by rewrite !lookup_insert_ne // -not_elem_of_dom Hrdom; set_solver+. *)
-  (*     by iApply "Hadv". *)
-
-  (*   iApply (wp_wand with "[-]"). *)
-  (*   { iApply "Hcont". 2: iFrame. iPureIntro. *)
-  (*     rewrite !dom_insert_L Hrdom !singleton_union_difference_L !all_registers_union_l. set_solver+. } *)
-  (*   eauto. *)
-  (* Qed. *)
+      destruct Hdata as [-> | Hdata].
+      (* apply the spec *)
+      + (* case wdata is the expected capability *)
+      iApply (counter_code_spec a_init with "[-]"); eauto; iFrame "∗ #".
+      admit. (* should be easy *)
+      + (* case wdata is an interger *)
+        destruct wdata ; cbn in Hdata ; try contradiction.
+        iApply (wp_wand with "[-]").
+        iApply (counter_code_spec_int a_init with "[-]"); eauto; iFrame "∗ #".
+        iIntros (v) "->" ; auto ; iIntros "%Hcontra" ; congruence.
+  Admitted.
 
 End counter.
 
-(* Local Ltac solve_addr' := *)
-(*   repeat match goal with x := _ |- _ => subst x end; *)
-(*   unfold code_off, data_off, end_off in *; solve_addr. *)
+Local Ltac solve_addr' :=
+  repeat match goal with x := _ |- _ => subst x end;
+  unfold code_off, secret_off, end_off, data_end_off in *; solve_addr.
 
-(* Program Definition counter_inv (a_init: Addr) : memory_inv := *)
-(*   MkMemoryInv *)
-(*     (λ m, ∃ n, m !! (a_init ^+ (code_off + data_off + 1))%a = Some (WInt n) ∧ 0 ≤ n) *)
-(*     {[ (a_init ^+ (code_off + data_off + 1))%a ]} *)
-(*     _. *)
-(* Next Obligation. *)
-(*   intros a_init m m' H. cbn in *. *)
-(*   specialize (H (a_init ^+ (code_off + data_off + 1))%a). ospecialize H. by set_solver. *)
-(* Qed. *)
+Program Definition counter_inv (a_data: Addr) : memory_inv :=
+  MkMemoryInv
+    (λ m, ∃ n, m !! (a_data ^+ secret_off)%a = Some (WInt n) ∧ 0 ≤ n)
+    {[ (a_data ^+ secret_off)%a ]}
+    _.
+Next Obligation.
+  intros a_data m m' H. cbn in *.
+  specialize (H (a_data ^+ secret_off)%a). ospecialize H. by set_solver.
+Qed.
 
-(* Definition counterN : namespace := nroot .@ "counter". *)
+Definition counterN : namespace := nroot .@ "counter".
 
+(* TODO adequacy with prog_start and data_start.. for a compartment *)
 (* Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es: *)
 (*   prog_instrs P = *)
 (*     counter_init (prog_start P) ++ *)
