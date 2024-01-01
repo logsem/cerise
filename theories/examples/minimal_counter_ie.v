@@ -210,12 +210,10 @@ Section counter.
          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
          ∗ na_own logrel_nais ⊤
        -∗ interp_conf)%I).
-          (* WP Seq (Instr Executable) {{ λ _, True }})%I). *)
   Proof.
     intros a_code a_end a_secret a_data_end.
     iIntros (Hcont_code Hcont_data Hrmap)
       "(#Hinterp_wcont & #HIv & #HIcode & HPC & Hidc & Hr1 & Hr31 & Hrmap & Hna)".
-    (* iApply (wp_wand with "[-]"). *)
     iApply (counter_code_spec with "[-]"); eauto; iFrame "∗ #".
     iNext; iIntros (n) "(HPC & Hidc & Hr1 & Hr31 & Hna)".
     iMod (na_inv_acc logrel_nais with "HIcode Hna") as
@@ -354,7 +352,7 @@ Section counter.
   Qed.
 
   (* TODO ----------------------- *)
-  (* TODO I think that it is worth waiting for HOCAP style  *)
+  (* TODO I think that it would be great to have an HOCAP style solution *)
 
   Lemma counter_full_run_spec (a_init a_data: Addr) b_adv e_adv w1 wdat0 wdat1 rmap adv :
     let a_code := (a_init ^+ code_off)%a in
@@ -435,7 +433,6 @@ Section counter.
       destruct (Hrfull idc) as [widc' Hridc].
       destruct (Hrfull r_t1) as [w1' Hr1'].
       destruct (Hrfull r_t31) as [w31' Hr31'].
-      (*     unfold registers_mapsto. *)
       iDestruct (big_sepM_delete _ _ PC with "Hrmap") as "[HPC Hrmap]".
       by simplify_map_eq.
       iDestruct (big_sepM_delete _ _ idc with "Hrmap") as "[Hidc Hrmap]".
@@ -448,7 +445,6 @@ Section counter.
       destruct Hdata as [-> | Hdata].
       (* apply the spec *)
       + (* case wdata is the expected capability *)
-        (* iApply (wp_wand with "[-]"). *)
         clear Hrdom rmap.
         rewrite delete_insert_ne //= !delete_insert_delete.
         set (rmap := delete r_t31 _).
@@ -519,105 +515,164 @@ Qed.
 
 Definition counterN : namespace := nroot .@ "counter".
 
-(* TODO adequacy with prog_start and data_start.. for a compartment *)
-(* Lemma adequacy `{MachineParameters} (P Adv: prog) (m m': Mem) (reg reg': Reg) es: *)
-(*   prog_instrs P = *)
-(*     counter_init (prog_start P) ++ *)
-(*     counter_code (prog_start P ^+ code_off)%a ++ *)
-(*     counter_data → *)
-(*   with_adv.is_initial_memory P Adv m → *)
-(*   with_adv.is_initial_registers P Adv reg r_t0 → *)
-(*   Forall (adv_condition Adv) (prog_instrs Adv) → *)
+Lemma adequacy `{MachineParameters} (Pcode Pdata Adv: prog) (m m': Mem) (reg reg': Reg) es:
+  prog_instrs Pcode =
+    counter_init (prog_start Pcode) (prog_start Pdata) ++
+    counter_code ->
+  prog_instrs Pdata = counter_data →
+  compartment_with_adv.is_initial_memory Pcode Pdata Adv m →
+  compartment_with_adv.is_initial_registers Pcode Pdata Adv reg r_t31 →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
 
-(*   rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) → *)
-(*   ∃ n, m' !! (prog_start P ^+ (code_off + data_off + 1))%a = Some (WInt n) ∧ 0 ≤ n. *)
-(* Proof. *)
-(*   intros HP Hm Hr HAdv Hstep. *)
-(*   generalize (prog_size P). rewrite HP /=. intros. *)
+  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+  ∃ n, m' !! ((prog_start Pdata) ^+ secret_off)%a = Some (WInt n) ∧ 0 ≤ n.
+Proof.
+  intros Hcode Hdata Hm Hr HAdv Hstep.
+  generalize (prog_size Pdata). rewrite Hdata /=. intros.
+  generalize (prog_size Pcode). rewrite Hcode /=. intros.
 
-(*   (* Prove the side-conditions over the memory invariant *) *)
-(*   eapply (with_adv.template_adequacy P Adv (counter_inv (prog_start P)) r_t0 m m' reg reg' es); auto. *)
-(*   { cbn. unfold with_adv.is_initial_memory in Hm. destruct Hm as (Hm & _ & _). *)
-(*     exists 0; split; [| done]. eapply lookup_weaken; [| apply Hm]. rewrite /prog_region mkregion_lookup. *)
-(*     { exists (Z.to_nat (code_off + data_off + 1)). split. done. rewrite HP; done. } *)
-(*     { apply prog_size. } } *)
-(*   { cbn. apply elem_of_subseteq_singleton, elem_of_list_to_set, elem_of_finz_seq_between. solve_addr'. } *)
+  (* Prove the side-conditions over the memory invariant *)
+  eapply (compartment_with_adv.template_adequacy Pcode Pdata Adv
+            (counter_inv (prog_start Pdata)) r_t31 m m' reg reg' es); auto.
+  { cbn. unfold compartment_with_adv.is_initial_memory in Hm. destruct Hm as (_ & Hm & _).
+    exists 0; split; [| done]. eapply lookup_weaken; [| apply Hm]. rewrite /prog_region mkregion_lookup.
+    { exists (Z.to_nat secret_off). split. done. rewrite /secret_off.
+      rewrite Hdata; done. }
+    { apply prog_size. } }
+  { cbn.
+    apply union_subseteq_r', elem_of_subseteq_singleton,
+      elem_of_list_to_set , elem_of_finz_seq_between.
+    solve_addr'. }
 
-(*   intros * Hss * Hrdom. iIntros "(#HI & Hna & HPC & Hr0 & Hrmap & Hadv & Hprog)". *)
-(*   set (a_init := prog_start P) in *. *)
-(*   set (a_code := (a_init ^+ code_off)%a) in *. *)
-(*   set (a_data := (a_code ^+ data_off)%a) in *. *)
+  intros * Hss * Hrdom. iIntros
+    "(#HI & Hna & HPC & Hidc & Hradv & Hrmap & Hadv & Hprog & Hdata)".
+  set (a_init := prog_start Pcode) in *.
+  set (a_code := (a_init ^+ code_off)%a) in *.
+  set (a_data := prog_start Pdata) in *.
+  set (a_end := (a_init ^+ (code_off + end_off))%a).
 
-(*   (* Extract the code & data regions from the program resources *) *)
-(*   iAssert (codefrag a_init (counter_init a_init) ∗ *)
-(*            codefrag a_code (counter_code a_code) ∗ *)
-(*            (∃ w, a_data ↦ₐ w))%I *)
-(*     with "[Hprog]" as "(Hinit & Hcode & Hdat)". *)
-(*   { rewrite /codefrag /region_mapsto. *)
-(*     set M := filter _ _. *)
-(*     set Minit := mkregion a_init a_code (counter_init a_init). *)
-(*     set Mcode := mkregion a_code a_data (counter_code a_code). *)
-(*     set Mdat := mkregion a_data (a_data ^+ 1)%a [WInt 7777]. *)
+  (* Extract the code & data regions from the program resources *)
+  iAssert (
+      codefrag a_init (counter_init a_init a_data)
+        ∗ codefrag a_code counter_code)%I
+    with "[Hprog]" as "(Hinit & Hcode)".
+  { rewrite /codefrag /region_mapsto.
+    set M := filter _ _.
+    set Minit := mkregion a_init a_code (counter_init a_init a_data).
+    set Mcode := mkregion a_code a_end counter_code.
 
-(*     assert (Mcode ##ₘ Mdat). *)
-(*     { apply map_disjoint_spec. *)
-(*       intros ? ? ? [? [? ?%lookup_lt_Some] ]%mkregion_lookup [? [? ?%lookup_lt_Some] ]%mkregion_lookup. *)
-(*       all: solve_addr'. } *)
+    assert (Minit ##ₘ Mcode).
+    { apply map_disjoint_spec.
+      intros ? ? ? [? [? ?%lookup_lt_Some] ]%mkregion_lookup [? [? ?%lookup_lt_Some] ]%mkregion_lookup.
+      all: solve_addr'. }
 
-(*     assert (Minit ##ₘ (Mcode ∪ Mdat)). *)
-(*     { apply map_disjoint_spec. *)
-(*       intros ? ? ? [? [? ?%lookup_lt_Some] ]%mkregion_lookup. *)
-(*       2: solve_addr'. intros [HH|HH]%lookup_union_Some; auto. *)
-(*       all: apply mkregion_lookup in HH as [? [? ?%lookup_lt_Some] ]; solve_addr'. } *)
+    assert (Minit ∪ Mcode ⊆ M) as HM.
+    { apply map_subseteq_spec. intros a w.
+      intros [Ha|Ha]%lookup_union_Some.
+      3: assumption.
+      all: apply mkregion_lookup in Ha as [i [? HH] ]; [| solve_addr'].
+      all: apply map_lookup_filter_Some_2.
+      1,3: subst; rewrite mkregion_lookup; [| rewrite Hcode; solve_addr'].
+      { eexists. split; eauto. rewrite Hcode. by apply lookup_app_l_Some. }
+      { exists (Z.to_nat (i+code_off)). split. solve_addr'. rewrite Hcode.
+        apply lookup_app_Some. right. split. solve_addr'.
+        rewrite (_: _ - _ = i)%nat //. solve_addr'. }
+      all: cbn; apply not_elem_of_singleton; apply lookup_lt_Some in HH.
+      all: destruct Hm as (_ & _ & _ & Hm & _); apply map_disjoint_dom_1 in Hm.
+      all: assert (a ∈ dom (prog_region Pcode)).
+      1,3:
+        rewrite prog_region_dom
+      ; apply elem_of_list_to_set, elem_of_finz_seq_between
+      ; solve_addr'.
+      all: assert ((a_data ^+ secret_off)%a ∈ dom (prog_region Pdata)).
+      1,3:
+        rewrite prog_region_dom
+      ; apply elem_of_list_to_set, elem_of_finz_seq_between
+      ; solve_addr'.
+      all: intro; simplify_eq ; rewrite H9 in H7; set_solver.
+    }
 
-(*     assert (Minit ∪ (Mcode ∪ Mdat) ⊆ M) as HM. *)
-(*     { apply map_subseteq_spec. intros a w. intros [Ha| [Ha|Ha]%lookup_union_Some]%lookup_union_Some. *)
-(*       4,5: assumption. *)
-(*       all: apply mkregion_lookup in Ha as [i [? HH] ]; [| solve_addr']. *)
-(*       all: apply map_lookup_filter_Some_2; *)
-(*         [| cbn; apply not_elem_of_singleton; apply lookup_lt_Some in HH; solve_addr']. *)
-(*       all: subst; rewrite mkregion_lookup; [| rewrite HP; solve_addr']. *)
-(*       { eexists. split; eauto. rewrite HP. by apply lookup_app_l_Some. } *)
-(*       { exists (Z.to_nat (i+code_off)). split. solve_addr'. rewrite HP. *)
-(*         apply lookup_app_Some. right. split. solve_addr'. apply lookup_app_l_Some. *)
-(*         rewrite (_: _ - _ = i)%nat //. solve_addr'. } *)
-(*       { exists (Z.to_nat (code_off + data_off)). destruct i; [| by inversion HH]. split. solve_addr'. *)
-(*         rewrite HP. apply lookup_app_Some. right. split. solve_addr'. *)
-(*         apply lookup_app_Some. right. split. solve_addr'. done. } } *)
+    iDestruct (big_sepM_subseteq with "Hprog") as "Hprog". apply HM.
+    iDestruct (big_sepM_union with "Hprog") as "[Hinit Hprog]". assumption.
+    iDestruct (mkregion_sepM_to_sepL2 with "Hinit") as "Hinit". solve_addr'.
+    iDestruct (mkregion_sepM_to_sepL2 with "Hprog") as "Hprog". solve_addr'.
+    replace a_end with (a_code ^+ length counter_code)%a.
+    iFrame.
+    solve_addr'.
+    }
 
-(*     iDestruct (big_sepM_subseteq with "Hprog") as "Hprog". apply HM. *)
-(*     iDestruct (big_sepM_union with "Hprog") as "[Hinit Hprog]". assumption. *)
-(*     iDestruct (big_sepM_union with "Hprog") as "[Hcode Hdat]". assumption. *)
-(*     iDestruct (mkregion_sepM_to_sepL2 with "Hinit") as "Hinit". solve_addr'. *)
-(*     iDestruct (mkregion_sepM_to_sepL2 with "Hcode") as "Hcode". solve_addr'. *)
-(*     iDestruct (mkregion_sepM_to_sepL2 with "Hdat") as "Hdat". solve_addr'. *)
-(*     iFrame. iExists _. rewrite finz_seq_between_cons. cbn. by iDestruct "Hdat" as "[? ?]". *)
-(*     solve_addr'. } *)
-(*   iDestruct "Hdat" as (wdat) "Hdat". *)
+  iAssert (
+      (prog_start Pdata) ↦ₐ WInt 7777 ∗ ((prog_start Pdata) ^+ 1)%a ↦ₐ WInt 7777
+    )%I
+    with "[Hdata]" as "(Hdat1 & Hdat2)".
+  {
+    cbn.
+    rewrite /prog_region Hdata /counter_data.
+    replace (filter _ _) with
+     (mkregion (prog_start Pdata) (a_data ^+ secret_off)%a
+                   (map WInt [7777; 7777])).
+    iDestruct (mkregion_sepM_to_sepL2 with "Hdata") as "Hdata"
+    ; first solve_addr'.
+    rewrite finz_seq_between_cons; last solve_addr'.
+    rewrite finz_seq_between_cons; last solve_addr'.
+    simplify_map_eq.
+    iDestruct "Hdata" as "(Hdat1 & Hdat2 & _)".
+    iFrame.
+    rewrite /mkregion.
+    rewrite !(finz_seq_between_cons (prog_start Pdata)); try solve_addr'.
+    rewrite !(finz_seq_between_cons ((prog_start Pdata) ^+ 1)%a)
+    ; try solve_addr'.
+    setoid_rewrite finz_seq_between_cons at 2; last solve_addr'.
+    cbn.
+    rewrite !finz_seq_between_empty; try solve_addr'.
+    rewrite !zip_with_nil_r /=.
+    rewrite map_filter_insert_True.
+    2: {
+      subst a_data.
+      apply not_elem_of_singleton.
+      solve_addr'.
+    }
 
-(*   assert (is_Some (rmap !! r_t1)) as [w1 Hr1]. *)
-(*   { rewrite -elem_of_dom Hrdom. set_solver+. } *)
-(*   assert (is_Some (rmap !! r_t2)) as [w2 Hr2]. *)
-(*   { rewrite -elem_of_dom Hrdom. set_solver+. } *)
-(*   iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto. *)
-(*   iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[[Hr2 _] Hrmap]". *)
-(*     by rewrite lookup_delete_ne //. *)
+    rewrite map_filter_insert_True.
+    2: {
+      subst a_data.
+      apply not_elem_of_singleton.
+      solve_addr'.
+    }
 
-(*   iApply (counter_full_run_spec with "[$Hadv $Hr0 $Hr1 $Hr2 $Hinit $Hrmap $Hna $Hdat $Hcode HPC]"); auto. *)
-(*   solve_addr'. by rewrite !dom_delete_L Hrdom; set_solver+. by apply prog_size. *)
-(*   rewrite (_: _ ^+ (_ + _) = prog_end P)%a. 2: solve_addr'. iFrame. *)
+    rewrite map_filter_insert_False.
+    2: {
+      subst a_data.
+      intro Hcontra ; apply Hcontra.
+      apply elem_of_singleton.
+      solve_addr'.
+    }
 
-(*   (* Show the invariant for the counter value using the invariant from the adequacy theorem *) *)
-(*   iApply (inv_alter with "HI"). *)
-(*   iIntros "!> !> H". rewrite /minv_sep. iDestruct "H" as (mι) "(Hm & %Hmιdom & %Hι)". *)
-(*   cbn in Hι. destruct Hι as (n & Hι & Hn). *)
-(*   rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a in Hι. 2: solve_addr'. *)
-(*   iDestruct (big_sepM_delete _ _ (a_data ^+ 1)%a (WInt n) with "Hm") as "[Hn Hm]". done. *)
-(*   iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)". *)
-(*   iExists (<[ (a_data ^+ 1)%a := WInt n' ]> mι). iSplitL "Hm Hn'". *)
-(*   { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete. *)
-(*     rewrite insert_delete_insert //. } *)
-(*   iPureIntro. split. rewrite dom_insert_L Hmιdom /Hmιdom /=. 2: exists n'. *)
-(*   all: rewrite (_: a_init ^+ _ = (a_data ^+ 1))%a; [| solve_addr']. set_solver+. *)
-(*   rewrite lookup_insert //. *)
-(* Qed. *)
+    by rewrite delete_empty.
+  }
+
+  assert (is_Some (rmap !! r_t1)) as [w1 Hr1].
+  { rewrite -elem_of_dom Hrdom. set_solver+. }
+  iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[[Hr1 _] Hrmap]"; eauto.
+  iApply (counter_full_run_spec with
+           "[HPC Hidc $Hr1 $Hradv $Hrmap $Hinit $Hcode $Hadv $Hdat1 $Hdat2 $Hna]")
+  ; auto.
+  1,2: solve_addr'.
+  by rewrite !dom_delete_L Hrdom; set_solver+.
+  by apply prog_size.
+  rewrite (_: _ ^+ (_ + _) = prog_end Pcode)%a; [ iFrame | solve_addr'].
+  rewrite (_: _ ^+ data_end_off  = prog_end Pdata)%a; [ iFrame | solve_addr'].
+
+  (* Show the invariant for the counter value using the invariant from the adequacy theorem *)
+  iApply (inv_alter with "HI").
+  iIntros "!> !> H". rewrite /minv_sep. iDestruct "H" as (mι) "(Hm & %Hmιdom & %Hι)".
+  cbn in Hι. destruct Hι as (n & Hι & Hn).
+  iDestruct (big_sepM_delete _ _ (a_data ^+ secret_off)%a (WInt n) with "Hm") as "[Hn Hm]". done.
+  iSplitL "Hn". by eauto. iIntros "Hn'". iDestruct "Hn'" as (n') "(Hn' & %)".
+  iExists (<[ (a_data ^+ secret_off)%a := WInt n' ]> mι). iSplitL "Hm Hn'".
+  { iDestruct (big_sepM_insert with "[$Hm $Hn']") as "Hm". by apply lookup_delete.
+    rewrite insert_delete_insert //. }
+  iPureIntro. split.
+  rewrite dom_insert_L Hmιdom /Hmιdom /=. set_solver+.
+  exists n'. split ; simplify_map_eq; auto.
+Qed.

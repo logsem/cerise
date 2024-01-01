@@ -1613,3 +1613,253 @@ Proof.
 Qed.
 
 End with_adv_and_link_ints.
+
+(** Adequacy when the program has separate code and data regions *)
+Module compartment_with_adv.
+
+Definition is_initial_registers
+  (Pcode Pdata Adv: prog)
+  (reg: gmap RegName Word) (r_adv: RegName) :=
+  reg !! PC = Some (WCap RX (prog_start Pcode) (prog_end Pcode) (prog_start Pcode)) ∧
+  reg !! idc = Some (WCap RW (prog_start Pdata) (prog_end Pdata) (prog_start Pdata)) ∧
+  reg !! r_adv = Some (WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)) ∧
+  PC ≠ r_adv ∧
+  idc ≠ r_adv ∧
+  (∀ (r: RegName), r ∉ ({[ PC ; idc ; r_adv ]} : gset RegName) →
+     ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
+
+Lemma initial_registers_full_map (Pcode Pdata Adv: prog)
+  (reg: gmap RegName Word) (r_adv: RegName) :
+  is_initial_registers Pcode Pdata Adv reg r_adv →
+  (∀ r, is_Some (reg !! r)).
+Proof.
+  intros (HPC & Hidc & Hradv & HnePC & HneIDC & Hothers) r.
+  destruct (decide (r = PC)) as [->|]; first by eauto.
+  destruct (decide (r = idc)) as [->|]; first by eauto.
+  destruct (decide (r = r_adv)) as [->|]; first by eauto.
+  destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
+Qed.
+
+Definition is_initial_memory (Pcode Pdata Adv: prog) (m: gmap Addr Word) :=
+  prog_region Pcode ⊆ m
+  /\ prog_region Pdata ⊆ m
+  ∧ prog_region Adv ⊆ m
+  /\ prog_region Pcode ##ₘ prog_region Pdata
+  /\ prog_region Pcode ##ₘ prog_region Adv
+  /\ prog_region Pdata ##ₘ prog_region Adv.
+
+Section Adequacy.
+  Context (Σ: gFunctors).
+  Context {inv_preg: invGpreS Σ}.
+  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
+  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {seal_store_preg: sealStorePreG Σ}.
+  Context {na_invg: na_invG Σ}.
+  Context `{MP: MachineParameters}.
+
+  Context (Pcode Pdata Adv: prog).
+  Context (I : memory_inv).
+  Context (r_adv : RegName).
+
+  Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
+
+  Lemma template_adequacy' (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+    is_initial_memory Pcode Pdata Adv m →
+    is_initial_registers Pcode Pdata Adv reg r_adv →
+    Forall (adv_condition Adv) (prog_instrs Adv) →
+    minv I m →
+    minv_dom I ⊆
+      list_to_set (finz.seq_between (prog_start Pcode) (prog_end Pcode))
+      ∪ list_to_set (finz.seq_between (prog_start Pdata) (prog_end Pdata)) →
+
+    let prog_map_code := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region Pcode) in
+    let prog_map_data := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region Pdata) in
+    (∀ `{memG Σ, regG Σ, sealStoreG Σ, NA: logrel_na_invs Σ} rmap,
+     dom rmap = all_registers_s ∖ {[ PC; idc ; r_adv ]} →
+     ⊢ inv invN (minv_sep I)
+       ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
+       ∗ PC ↦ᵣ WCap RX (prog_start Pcode) (prog_end Pcode) (prog_start Pcode)
+       ∗ idc ↦ᵣ WCap RW (prog_start Pdata) (prog_end Pdata) (prog_start Pdata)
+       ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+       ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ prog_map_code, a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ prog_map_data, a ↦ₐ w)
+       -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+    rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+    minv I m'.
+  Proof.
+    intros Hm Hreg Hadv HI HIdom prog_map_code prog_map_data Hspec Hstep.
+    pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
+    pose (fun (c:ExecConf) => minv I c.2) as state_is_good.
+    specialize (WPI (Seq (Instr Executable)) (reg, m) es (reg', m') (state_is_good (reg', m'))).
+    eapply WPI. intros Hinv κs. clear WPI.
+
+    unfold is_initial_memory in Hm.
+
+    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    iMod (seal_store_init) as (seal_storeg) "Hseal_store".
+    iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
+
+    pose memg := MemG Σ Hinv mem_heapg.
+    pose regg := RegG Σ Hinv reg_heapg.
+    pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
+
+    specialize (Hspec memg regg seal_storeg logrel_na_invs).
+    destruct Hm as (HCode & HData & HAdv & Hdisj1 & Hdisj2 & Hdisj3).
+    assert (Hdisj4 : prog_region Pcode ∪ prog_region Pdata ##ₘ prog_region Adv)
+             by (eapply map_disjoint_union_l; auto).
+
+    iDestruct (big_sepM_subseteq with "Hmem") as "Hmem".
+    { transitivity (prog_region Pcode ∪ prog_region Pdata ∪ prog_region Adv); eauto.
+      rewrite map_subseteq_spec. intros * HH.
+      apply lookup_union_Some in HH; auto.
+      destruct HH as [HH|HH].
+      apply lookup_union_Some in HH; auto.
+      destruct HH as [HH|HH].
+      eapply map_subseteq_spec in HCode; eauto.
+      eapply map_subseteq_spec in HData; eauto.
+      eapply map_subseteq_spec in HAdv; eauto.
+    }
+    iDestruct (big_sepM_union with "Hmem") as "[HCmpt Hadv]";
+    [assumption|].
+    iDestruct (big_sepM_union with "HCmpt") as "[Hprog Hdata]";
+    [assumption|].
+
+    set code_in_inv :=
+      filter (λ '(a, _), a ∈ minv_dom I) (prog_region Pcode).
+    rewrite (_: prog_region Pcode = code_in_inv ∪ prog_map_code).
+    2: { symmetry. apply map_filter_union_complement. }
+    iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
+    by apply map_disjoint_filter_complement.
+
+    set data_in_inv :=
+      filter (λ '(a, _), a ∈ minv_dom I) (prog_region Pdata).
+    rewrite (_: prog_region Pdata = data_in_inv ∪ prog_map_data).
+    2: { symmetry. apply map_filter_union_complement. }
+    iDestruct (big_sepM_union with "Hdata") as "[Hdata_inv Hdata]".
+    by apply map_disjoint_filter_complement.
+
+    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv Hdata_inv]") as "#Hinv".
+    { iNext. unfold minv_sep.
+      iExists (code_in_inv ∪ data_in_inv).
+      iDestruct (big_sepM_union with "[Hprog_inv Hdata_inv]") as "Hinv".
+      2: { iSplitL "Hprog_inv"; iFrame "∗". }
+      { subst code_in_inv data_in_inv.
+        by apply map_disjoint_filter.
+      }
+      iFrame. iPureIntro.
+      assert (minv_dom I ⊆ dom ((prog_region Pcode) ∪ (prog_region Pdata))).
+      { etransitivity. eapply HIdom.
+        rewrite dom_union_L.
+        apply union_least.
+        {
+          eapply union_mono with
+            (X1 := list_to_set (finz.seq_between (prog_start Pcode) (prog_end Pcode)))
+            (Y1 := ∅)
+          ; [| eapply empty_subseteq | set_solver].
+          rewrite -prog_region_dom.
+          eapply subseteq_dom.
+          set_solver.
+        }
+        {
+          eapply union_mono
+            with
+            (X1 := ∅)
+            (Y1 := list_to_set (finz.seq_between (prog_start Pdata) (prog_end Pdata)))
+          ; [ eapply empty_subseteq | | set_solver].
+          rewrite -prog_region_dom.
+          eapply subseteq_dom.
+          set_solver.
+        }
+      }
+
+      rewrite -map_filter_union; last done.
+      split.
+      rewrite filter_dom_is_dom; auto.
+      eapply minv_sub_restrict; [ | | eapply HI].
+      rewrite filter_dom_is_dom//.
+      transitivity (prog_region Pcode ∪ prog_region Pdata); auto.
+      eapply map_filter_subseteq; typeclasses eauto.
+      eapply map_union_least; eauto.
+    }
+
+    unfold is_initial_registers in Hreg.
+    destruct Hreg as (HPC & Hidc & Hradv & HnePC & HneIDC & Hrothers).
+    iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
+    iDestruct (big_sepM_delete _ _ idc with "Hreg") as "[Hidc Hreg]".
+      by rewrite lookup_delete_ne //.
+    iDestruct (big_sepM_delete _ _ r_adv with "Hreg") as "[Hradv Hreg]".
+      rewrite lookup_delete_ne //= lookup_delete_ne //=.
+
+    set rmap := delete r_adv (delete idc (delete PC reg)).
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)%I
+               with "[Hreg]" as "Hreg".
+    { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
+      subst rmap.
+      do 3 (apply lookup_delete_Some in Hr as [? Hr]).
+      opose proof (Hrothers r _) as HH; first set_solver.
+      destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
+
+    assert (∀ r, is_Some (reg !! r)) as Hreg_full.
+    { intros r.
+      destruct (decide (r = PC)); subst; [by eauto|].
+      destruct (decide (r = idc)); subst; [by eauto|].
+      destruct (decide (r = r_adv)); subst; [by eauto|].
+      destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
+
+    iPoseProof (Hspec rmap with "[$HPC $Hidc $Hradv $Hreg $Hprog $Hdata $Hadv $Hinv $Hna]") as "Spec".
+    { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
+
+    iModIntro.
+    iExists (fun σ κs _ => ((gen_heap_interp σ.1) ∗ (gen_heap_interp σ.2)))%I.
+    iExists (fun _ => True)%I. cbn. iFrame.
+    iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
+    iInv invN as ">Hx" "_".
+    unfold minv_sep. iDestruct "Hx" as (mi) "(Hmi & Hmi_dom & %)".
+    iDestruct "Hmi_dom" as %Hmi_dom.
+    iDestruct (gen_heap_valid_inclSepM with "Hmem' Hmi") as %Hmi_incl.
+    iModIntro. iPureIntro. rewrite /state_is_good //=.
+    eapply minv_sub_extend; [| |eassumption].
+    rewrite Hmi_dom //. auto. auto.
+  Qed.
+
+End Adequacy.
+
+Theorem template_adequacy `{MachineParameters}
+    (Pcode Pdata Adv: prog) (I: memory_inv) (r_adv : RegName)
+    (m m': Mem) (reg reg': Reg) (es: list cap_lang.expr):
+  is_initial_memory Pcode Pdata Adv m →
+  is_initial_registers Pcode Pdata Adv reg r_adv →
+  Forall (adv_condition Adv) (prog_instrs Adv) →
+  minv I m →
+  minv_dom I ⊆
+    list_to_set (finz.seq_between (prog_start Pcode) (prog_end Pcode))
+    ∪ list_to_set (finz.seq_between (prog_start Pdata) (prog_end Pdata)) →
+
+  let prog_map_code := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region Pcode) in
+  let prog_map_data := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region Pdata) in
+  (∀ `{memG Σ, regG Σ, sealStoreG Σ, logrel_na_invs Σ} rmap,
+   dom rmap = all_registers_s ∖ {[ PC; idc ; r_adv ]} →
+   ⊢ inv invN (minv_sep I)
+     ∗ na_own logrel_nais ⊤
+     ∗ PC ↦ᵣ WCap RX (prog_start Pcode) (prog_end Pcode) (prog_start Pcode)
+     ∗ idc ↦ᵣ WCap RW (prog_start Pdata) (prog_end Pdata) (prog_start Pdata)
+     ∗ r_adv ↦ᵣ WCap RWX (prog_start Adv) (prog_end Adv) (prog_start Adv)
+     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
+     ∗ ([∗ map] a↦w ∈ (prog_region Adv), a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ prog_map_code, a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ prog_map_data, a ↦ₐ w)
+     -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+  rtc erased_step ([Seq (Instr Executable)], (reg, m)) (es, (reg', m')) →
+  minv I m'.
+Proof.
+  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+              na_invΣ; sealStorePreΣ]).
+  intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
+Qed.
+
+End compartment_with_adv.
