@@ -1754,26 +1754,7 @@ Section Adequacy.
       assert (minv_dom I ⊆ dom ((prog_region Pcode) ∪ (prog_region Pdata))).
       { etransitivity. eapply HIdom.
         rewrite dom_union_L.
-        apply union_least.
-        {
-          eapply union_mono with
-            (X1 := list_to_set (finz.seq_between (prog_start Pcode) (prog_end Pcode)))
-            (Y1 := ∅)
-          ; [| eapply empty_subseteq | set_solver].
-          rewrite -prog_region_dom.
-          eapply subseteq_dom.
-          set_solver.
-        }
-        {
-          eapply union_mono
-            with
-            (X1 := ∅)
-            (Y1 := list_to_set (finz.seq_between (prog_start Pdata) (prog_end Pdata)))
-          ; [ eapply empty_subseteq | | set_solver].
-          rewrite -prog_region_dom.
-          eapply subseteq_dom.
-          set_solver.
-        }
+        apply union_least; rewrite -prog_region_dom; set_solver.
       }
 
       rewrite -map_filter_union; last done.
