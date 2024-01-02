@@ -82,6 +82,17 @@ Definition is_cur_word (lw : LWord) (cur_map : gmap Addr Version) : Prop :=
   | _ => True
   end.
 
+Definition is_cur_regs (lr : LReg) (cur_map : gmap Addr Version) : Prop :=
+  map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
+
+Lemma is_cur_regs_mono {lr1 lr2 cur_map} :
+  lr1 ⊆ lr2 -> is_cur_regs lr2 cur_map -> is_cur_regs lr1 cur_map.
+Proof.
+  intros Hsubset.
+  rewrite <- (map_subseteq_union _ _ Hsubset).
+  now apply map_Forall_union_1_1.
+Qed.
+
 Definition is_log_cap (lw : LWord) : bool :=
   match lw with
   | LCap _ _ _ _ _ => true
@@ -112,8 +123,7 @@ Definition logical_region ( region : list Addr ) (v : Version) : list (Addr * Ve
       in the view map `cur_map`
  *)
 Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) :=
-    lreg_strip lr = phr
-    ∧ map_Forall (λ _ lw, is_cur_word lw cur_map) lr.
+    lreg_strip lr = phr ∧ is_cur_regs lr cur_map.
 
 (** The `mem_phys_log_corresponds` states that,
     - for each logical addresses in the logical memory,
@@ -415,12 +425,6 @@ Lemma state_phys_log_mem_get_word phr phm lr lm cur_map a v lw:
 Proof.
   intros [_ Hmem] ? ? ; eapply mem_phys_log_get_word ; eauto.
 Qed.
-
-Definition lword_of_argument (lregs: LReg) (a: Z + RegName): option LWord :=
-  match a with
-  | inl n => Some (LInt n)
-  | inr r => lregs !! r
-  end.
 
 Lemma version_addr_reg reg lr cur_map wr r p b e a la:
   reg_phys_log_corresponds reg lr cur_map ->

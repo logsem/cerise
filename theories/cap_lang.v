@@ -22,7 +22,8 @@ Inductive ConfFlag : Type :=
 Definition Conf: Type := ConfFlag * ExecConf.
 
 (* NOTE: could use TChajed's coq-record-update library if this gets much more annoying https://github.com/tchajed/coq-record-update/tree/master/src *)
-Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := MkExecConf (<[r:=w]>(reg φ)) (mem φ) (etable φ) (enumcur φ).
+Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg' (mem φ) (etable φ) (enumcur φ).
+Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
 Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
