@@ -495,24 +495,100 @@ Proof.
   by simplify_map_eq.
 Qed.
 
+(* For all the content of a logical memory `lm`,
+   no current logical address has a lword that can access the address `a`.
+
+   Put another way, the "current view" of the memory cannot access `a`.
+ *)
 Definition lmem_not_access_addrL (lm : LMem) (cur_map : VMap) (a : Addr) : Prop :=
   map_Forall
   (λ (la : LAddr) (lw : LWord),
     is_cur_addr la cur_map → (¬ word_access_addrL a lw)
   ) lm.
 
+(* TODO With the `mem_phys_log_corresponds` invariant,
+   the "current view" corresponds to the physical memory.
+   Thus, `lmem_not_access_addrL` combined with the mem_invariant,
+   says that the physical memory cannot access the address `a`.
+ *)
+
+
 (* Update the address version in lm. *)
-(* NOTE it does not update the word, only the address *)
+(* NOTE it does not update version number of the word, only the address *)
 Definition update_addr_version (lm : LMem) (cur_map : VMap) (a : Addr)
   : option (LMem * VMap) :=
   v ← cur_map !! a ;
   lw ← lm !! (a,v) ;
   Some (<[ (a, v+1) := lw ]> lm, <[ a := v+1 ]> cur_map)
 .
+
+Definition update_addr_version_region (lm : LMem) (cur_map : VMap) (la : list Addr)
+  : option (LMem * VMap) :=
+  foldr
+    ( fun a upd_opt =>
+        '(lm', cur_map') ← upd_opt;
+        update_addr_version lm' cur_map' a)
+    (Some (lm, cur_map))
+    la.
+
+(* TODO find better lemma name *)
+(* If an address `a'` is not reachable from the current view of the lmem,
+   then updating the version number of another address `a`
+   does not make it reachable *)
+Lemma update_version_no_overlap :
+  ∀ (a a' : Addr) (lm lm': LMem) (cur_map cur_map' : VMap),
+    a ≠ a' →
+    update_addr_version lm cur_map a' = Some (lm', cur_map') →
+    lmem_not_access_addrL lm cur_map a →
+    lmem_not_access_addrL lm' cur_map' a.
+Proof.
+  intros * Hneq Hupd Hno_access.
+  rewrite /update_addr_version in Hupd.
+  destruct (cur_map !! a') as [va'|] eqn:Heqn ; cbn in Hupd; [|congruence].
+  destruct (lm !! (a', va')) as [lw'|] eqn:Heqn' ; cbn in Hupd; [|congruence].
+  injection Hupd; intros ; simplify_eq.
+
+  apply map_Forall_lookup.
+  intros la lw Hsome Hcur.
+  destruct la as [a0 v0].
+  destruct (decide (a0 = a')) ; simplify_eq.
+  - assert (v0 = (va' + 1)) by (rewrite /is_cur_addr in Hcur; by simplify_map_eq).
+    simplify_map_eq.
+    apply (map_Forall_lookup_1 _ _ _ _ Hno_access) in Heqn'; auto.
+  - assert ((a', va' + 1) ≠ (a0, v0)) by (intro ; simplify_eq).
+    simplify_map_eq.
+    apply (map_Forall_lookup_1 _ _ _ _ Hno_access) in Hsome; auto.
+    rewrite /is_cur_addr /= in Hcur; simplify_map_eq.
+    auto.
+Qed.
+
+(* Same as `update_version_no_overlap`, but for a list of addresses *)
+Lemma update_version_no_overlap_region :
+  ∀ (la : list Addr) (a : Addr) (lm lm': LMem) (cur_map cur_map' : VMap),
+    a ∉ la →
+    lmem_not_access_addrL lm cur_map a →
+    update_addr_version_region lm cur_map la = Some (lm', cur_map') →
+    lmem_not_access_addrL lm' cur_map' a.
+Proof.
+  induction la as [| a la IH].
+  - by intros; cbn in * ; simplify_eq.
+  - intros * Hnot_in Hno_access Hupd.
+    apply not_elem_of_cons in Hnot_in; destruct Hnot_in as [Hneq Hnot_in].
+    cbn in *.
+    rewrite bind_Some in Hupd.
+    destruct Hupd as ([lm0 cur_map0] & Hupd_rec & Hupd).
+    rewrite -/(update_addr_version_region lm cur_map la) in Hupd_rec.
+    eapply IH in Hupd_rec; eauto.
+    eapply update_version_no_overlap ; eauto.
+Qed.
+
+(* If the address `a` is not reachable
+   from the current view of the lmem,
+   then the mem_phys_log invariant still holds
+   after updating its version number. *)
 Lemma lmem_update_version_address
   (phm : Mem) (lm lm': LMem) (cur_map cur_map' : VMap) (a : Addr) :
-  update_addr_version lm cur_map a = Some (lm',cur_map') →
-
+  update_addr_version lm cur_map a = Some (lm', cur_map') →
   lmem_not_access_addrL lm cur_map a →
   mem_phys_log_corresponds phm lm cur_map ->
   mem_phys_log_corresponds phm lm' cur_map'.
@@ -592,16 +668,7 @@ Proof.
       eapply update_cur_word;eauto.
 Qed.
 
-Definition update_addr_version_region (lm : LMem) (cur_map : VMap) (la : list Addr)
-  : option (LMem * VMap) :=
-  foldr
-    ( fun a upd_opt =>
-        '(lm', cur_map') ← upd_opt;
-        update_addr_version lm' cur_map' a)
-    (Some (lm, cur_map))
-    la.
-
-(* update the version of a region in memory *)
+(* Same as `lmem_update_version_address`, but for a list of addresses *)
 Lemma lmem_update_version_region :
   ∀ (la : list Addr) (phm : Mem) (lm lm': LMem) (cur_map cur_map' : VMap),
     NoDup la →
@@ -626,9 +693,8 @@ Proof.
       by (eapply IH ;eauto).
 
     eapply lmem_update_version_address in Hupd ; eauto.
-    (* TODO need a lemma saying that, even after updating the version number,
-       there is still no logical overlap between the addresses *)
-Admitted.
+    by eapply update_version_no_overlap_region.
+Qed.
 
 (* NOTE: let's write down the different steps necessary for is_unique:
 
