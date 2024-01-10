@@ -237,8 +237,8 @@ Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => false (* if we don't find the register src, then it cannot overlap *)
   | Some wsrc =>
-      foldl
-        (fun (uniqueb : bool) (r : RegName) =>
+      foldr
+        (fun (r : RegName) (uniqueb : bool) =>
            if decide (r = src)
            then uniqueb
            else
@@ -270,6 +270,8 @@ Proof.
   intros Hsweep Hsrc.
   rewrite /unique_in_registers.
   apply Forall_fold_right.
+  rewrite /sweep_registers in Hsweep.
+  rewrite Hsrc in Hsweep.
 Admitted.
 
 (* Returns [true] if [r] is unique. *)
@@ -277,8 +279,8 @@ Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => false (* if we don't find the register src, then it cannot overlap *)
   | Some wsrc =>
-      foldl
-        (fun (uniqueb : bool) (a : Addr) =>
+      foldr
+        (fun  (a : Addr) (uniqueb : bool) =>
            match mem !! a with
            | None => uniqueb (* if we don't find the addr, then it cannot overlap *)
            | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
