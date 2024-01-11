@@ -728,7 +728,7 @@ Proof.
   intros Hno_access Hupd Hmem_phys_log.
   rewrite /update_cur_version_word_region in Hupd.
   rewrite /lmem_not_access_wordL in Hno_access.
-  destruct (get_lcap lw) as [[] | []] ; simplify_eq ; auto.
+  destruct (get_lcap lw) as [[] |] ; simplify_eq ; auto.
   eapply update_cur_version_region_preserves_mem_phyc_cor ; eauto.
   apply finz_seq_between_NoDup.
 Qed.

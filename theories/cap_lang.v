@@ -219,8 +219,6 @@ Definition get_scap (w : Word) : option Sealable :=
 Lemma get_is_scap w sb : get_scap w = Some sb → is_scap w = true.
 Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfalso. Qed.
 
-
-
 Definition overlap_wordb (w1 w2 : Word) : bool :=
   match get_scap w1, get_scap w2 with
   | Some (SCap _ b1 e1 _), Some (SCap _ b2 e2 _) =>
@@ -230,75 +228,70 @@ Definition overlap_wordb (w1 w2 : Word) : bool :=
   | _, _ => false
   end.
 
-Definition overlap_word (w1 w2 :Word) : Prop := overlap_wordb w1 w2 = true.
+Definition overlap_word (w1 w2 : Word) : Prop :=
+  match get_scap w1, get_scap w2 with
+  | Some (SCap _ b1 e1 _), Some (SCap _ b2 e2 _) =>
+      if (b1 <? b2)%a
+      then (b2 <= (e1 ^+ (-1)))%a
+      else (b1 <= (e2 ^+ (-1)))%a
+  | _, _ => False
+  end.
+
+Local Instance overlap_word_dec (w1 w2 : Word) : Decision (overlap_word w1 w2).
+Proof.
+  rewrite /overlap_word.
+  destruct (get_scap w1); last solve_decision.
+  destruct s ; last solve_decision.
+  destruct (get_scap w2); last solve_decision.
+  destruct s ; last solve_decision.
+  destruct (f <? f2)%a; solve_decision.
+Defined.
+
+Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+  (map_Forall
+     (λ (r : RegName) (wr : Word), if decide (r = src) then True else ¬ overlap_word wsrc wr)
+     regs).
+
+Local Instance unique_in_registers_dec (regs : Reg) (src : RegName) (wsrc : Word)
+  : Decision (unique_in_registers regs src wsrc).
+Proof.
+  apply map_Forall_dec.
+  move=> r rw.
+  case_decide; solve_decision.
+Qed.
 
 (* Returns [true] if [r] is unique. *)
 Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
-  | None => false (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc =>
-      foldr
-        (fun (r : RegName) (uniqueb : bool) =>
-           if decide (r = src)
-           then uniqueb
-           else
-             match regs !! r with
-             | None => uniqueb (* if we don't find the register, then it cannot overlap *)
-             | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
-             end
-        )
-        true
-        all_registers
-  end
-.
-
-Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
-  Forall
-    (fun (r : RegName) =>
-       r <> src ->
-       match regs !! r with
-       | None => True
-       | Some w => not (overlap_word wsrc w)
-       end)
-    all_registers.
+  | None => true (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc => (bool_decide (unique_in_registers regs src wsrc))
+  end.
 
 Lemma sweep_registers_spec (regs : Reg) (src : RegName) (wsrc : Word) :
   sweep_registers regs src = true ->
   regs !! src = Some wsrc ->
   unique_in_registers regs src wsrc.
 Proof.
-  intros Hsweep Hsrc.
-  rewrite /unique_in_registers.
-  apply Forall_fold_right.
-  rewrite /sweep_registers in Hsweep.
-  rewrite Hsrc in Hsweep.
-Admitted.
+  move=> Hsweep Hsrc.
+  rewrite /sweep_registers Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
+
+Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
+  (map_Forall
+     (λ (a : Addr) (wa : Word), ¬ overlap_word wsrc wa)
+     mem).
+
+Local Instance unique_in_memory_dec (mem : Mem) (wsrc : Word)
+  : Decision (unique_in_memory mem wsrc).
+Proof. solve_decision. Qed.
 
 (* Returns [true] if [r] is unique. *)
 Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
-  | None => false (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc =>
-      foldr
-        (fun  (a : Addr) (uniqueb : bool) =>
-           match mem !! a with
-           | None => uniqueb (* if we don't find the addr, then it cannot overlap *)
-           | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
-           end
-        )
-        true
-        all_memory
-  end
-  .
-
-Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
-  Forall
-    (fun (a : Addr) =>
-       match mem !! a with
-       | None => True
-       | Some w => not (overlap_word wsrc w)
-       end)
-    all_memory.
+  | None => true (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc => (bool_decide (unique_in_memory mem wsrc))
+  end.
 
 Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
   sweep_memory mem regs src = true ->
@@ -306,30 +299,30 @@ Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
   unique_in_memory mem wsrc.
 Proof.
   intros Hsweep Hsrc.
-  rewrite /unique_in_memory.
-  apply Forall_fold_right.
-Admitted.
+  rewrite /sweep_memory Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep  (mem : Mem) (regs : Reg) (r : RegName)  : bool :=
-  let unique_mem := sweep_memory mem regs r in
-  let unique_reg := sweep_registers regs r in
+Definition sweep (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+  let unique_mem := sweep_memory mem regs src in
+  let unique_reg := sweep_registers regs src in
   unique_mem && unique_reg
 .
 
-Definition unique_in_machine
-  (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+Definition unique_in_machine (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :=
   regs !! src = Some wsrc ->
-  unique_in_memory mem wsrc /\ unique_in_registers regs src wsrc.
+  unique_in_registers regs src wsrc /\ unique_in_memory mem wsrc.
 
 Lemma sweep_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep mem regs src = true →
   regs !! src = Some wsrc ->
-  sweep mem regs src = true ->
   unique_in_machine mem regs src wsrc.
 Proof.
-  intros Hsrc [Hsweep_mem Hsweep_reg]%andb_prop _.
-  eapply sweep_memory_spec in Hsweep_mem; eauto.
-  eapply sweep_registers_spec in Hsweep_reg; eauto.
+  move=> Hsweep Hsrc.
+  rewrite /sweep andb_true_iff in Hsweep.
+  by destruct Hsweep; split
+  ; [eapply sweep_registers_spec | eapply sweep_memory_spec].
 Qed.
 
 Section opsem.
