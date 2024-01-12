@@ -156,6 +156,22 @@ Ltac destruct_lword lw :=
   let sd := fresh "sd" in
   destruct lw as [ z | [p b e a v | p b e a] | o [p b e a v | p b e a]].
 
+Global Instance is_cur_addr_dec (la : LAddr) (cur_map : VMap) :
+  Decision (is_cur_addr la cur_map).
+Proof.
+  rewrite /is_cur_addr.
+  destruct (cur_map !! la.1) eqn:Heq ; rewrite Heq; solve_decision.
+Defined.
+
+Lemma is_cur_addr_same (a : Addr) (v v' : Version) (cur_map : VMap) :
+  is_cur_addr (a, v) cur_map ->
+  is_cur_addr (a, v') cur_map ->
+  v = v'.
+Proof.
+  rewrite /is_cur_addr /=.
+  move=> Hcur_a Hcur_a'.
+  by rewrite Hcur_a in Hcur_a' ; simplify_eq.
+Qed.
 
 Lemma lreg_insert_respects_corresponds (phr : Reg) (lr : LReg) (cur_map : VMap) (r : RegName) (lw : LWord):
   reg_phys_log_corresponds phr lr cur_map →
@@ -495,6 +511,8 @@ Proof.
   by simplify_map_eq.
 Qed.
 
+
+(** Update version number of a memory region *)
 (* For all the content of a logical memory `lm`,
    no current logical address has a lword that can access the address `a`.
 
@@ -799,8 +817,6 @@ Proof.
     apply insert_mono; auto.
 Qed.
 
-
-
 Lemma update_cur_version_region_Some
   (lmem : LMem ) (cur_map : VMap) (la : list Addr) (v : Version):
   NoDup la ->
@@ -865,7 +881,7 @@ A -- update the logical memory (with the logical invariant)
 
 B -- update the logical register (with the logical invariant)
 
-TODO we also need to update the version number of the word in the register. The logical
+We also need to update the version number of the word in the register. The logical
 invariant will still hold, because we already updated the lmemory.
 Also, because we know that no other registers overlap with the word, we don't need to
 update the other registers
@@ -875,6 +891,272 @@ C -- update interpretation of gen_heap
 because we update the logical memory, we also need to update the gen_heap
  *)
 
+(** Sweep in logical memory *)
+Definition overlap_wordL (lw1 lw2 : LWord) : Prop :=
+  (overlap_word (lword_get_word lw1) (lword_get_word lw2)).
+
+Global Instance overlap_wordL_dec (lw1 lw2 : LWord) : Decision (overlap_wordL lw1 lw2).
+Proof. solve_decision. Defined.
+
+Definition unique_in_registersL (lregs : LReg) (src : RegName) (lwsrc : LWord) : Prop :=
+  (map_Forall
+     (λ (r : RegName) (lwr : LWord),
+       if decide (r = src) then True else ¬ overlap_wordL lwsrc lwr)
+     lregs).
+
+Global Instance unique_in_registersL_dec (lregs : LReg) (src : RegName) (lwsrc : LWord)
+  : Decision (unique_in_registersL lregs src lwsrc).
+Proof.
+  apply map_Forall_dec.
+  move=> r rw.
+  case_decide; solve_decision.
+Defined.
+
+Definition is_last_version_addr (lmem : LMem) (la : LAddr) : Prop :=
+  let v := laddr_get_version la in
+  map_Forall
+    ( fun (la' : LAddr) (_ : LWord) =>
+        (laddr_get_addr la' = laddr_get_addr la) -> laddr_get_version la' <=  v)
+    lmem.
+
+(* Returns [true] if [r] is unique. *)
+Definition unique_in_memoryL (lmem : LMem) (lwsrc : LWord) : Prop :=
+  (map_Forall
+     (λ (la : LAddr) (lwa : LWord),
+       is_last_version_addr lmem la -> ¬ overlap_wordL lwsrc lwa)
+     lmem).
+
+Global Instance unique_in_memoryL_dec (lmem : LMem) (lwsrc : LWord)
+  : Decision (unique_in_memoryL lmem lwsrc).
+Proof.
+  apply map_Forall_dec.
+  move=> la lwa.
+  apply impl_dec; solve_decision.
+Defined.
+
+Definition unique_in_machineL (lmem : LMem) (lregs : LReg) (src : RegName) (lwsrc : LWord) :=
+  lregs !! src = Some lwsrc ->
+  unique_in_registersL lregs src lwsrc /\ unique_in_memoryL lmem lwsrc.
+
+Definition unique_in_memoryL_aux (lmem : LMem) (lwsrc : LWord) (cur_map : VMap) : Prop :=
+  (map_Forall
+     (λ (la : LAddr) (lwa : LWord),
+       is_cur_addr la cur_map -> ¬ overlap_wordL lwsrc lwa)
+     lmem).
+
+Lemma mem_phys_log_cur_addr_last_version_1
+  (phm : Mem) (lm : LMem) (cur_map : VMap) (la : LAddr) :
+  mem_phys_log_corresponds phm lm cur_map →
+  is_cur_addr la cur_map ->
+  is_last_version_addr lm la.
+Proof.
+  move: la => [a v] [Hdom Hroot] Hcur_la.
+
+  eapply map_Forall_lookup_2.
+  move=> [a' v'] lw' Hla' /= ? ; simplify_eq.
+  eapply map_Forall_lookup in Hla'; eauto.
+  cbn in Hla'.
+  destruct Hla' as (v_la' & Hcur_la' & Hcur_v_la' & Hla').
+  by eapply is_cur_addr_same in Hcur_la'; [|eapply Hcur_la]; simplify_eq.
+Qed.
+
+Lemma mem_phys_log_cur_addr_last_version_2
+  (phm : Mem) (lm : LMem) (cur_map : VMap) (la : LAddr) :
+  mem_phys_log_corresponds phm lm cur_map →
+  is_Some (lm !! la) ->
+  is_last_version_addr lm la ->
+  is_cur_addr la cur_map.
+Proof.
+  move: la => [a v] [Hdom Hroot] [lw Hla] Hlast_la.
+  eapply map_Forall_lookup_1 in Hdom ; eauto.
+  destruct Hdom as (v_la & Hcur_v_la & Hcur_max & [lw0 Hla0]).
+  cbn in *.
+  eapply map_Forall_lookup_1 in Hla0 ; eauto.
+  cbn in Hla0.
+  specialize (Hla0 eq_refl).
+  by assert (v = v_la) by lia ; simplify_eq.
+Qed.
+
+Lemma mem_phys_log_cur_addr_last_version
+  (phm : Mem) (lm : LMem) (cur_map : VMap) (la : LAddr) :
+  mem_phys_log_corresponds phm lm cur_map →
+  is_Some (lm !! la) ->
+  (is_last_version_addr lm la <-> is_cur_addr la cur_map).
+Proof.
+  move=> HLinv Hla.
+  by split ; intro
+  ; [ eapply mem_phys_log_cur_addr_last_version_2
+    | eapply mem_phys_log_cur_addr_last_version_1 ].
+Qed.
+
+Lemma unique_in_memoryL_equiv
+  (phm : Mem) (phr : Reg) (lm : LMem) (lr : LReg)
+  (src : RegName) (lwsrc : LWord) (cur_map : VMap) :
+
+  lr !! src = Some lwsrc →
+  state_phys_log_corresponds phr phm lr lm cur_map →
+  unique_in_memory phm (lword_get_word lwsrc) ->
+  unique_in_memoryL lm lwsrc ->
+  unique_in_memoryL_aux lm lwsrc cur_map.
+Proof.
+  move=> Hsrc [_ Hmem_inv] Hsweep HsweepL.
+  rewrite /unique_in_memoryL_aux.
+  rewrite /unique_in_memory in Hsweep.
+  rewrite /unique_in_memoryL in HsweepL.
+  eapply map_Forall_impl; first eapply HsweepL.
+  move=> la lw /= His_last Hcur_la.
+  apply: His_last.
+  eapply mem_phys_log_cur_addr_last_version_1; eauto.
+Qed.
+
+Lemma unique_in_memoryL_equiv_2
+  (phm : Mem) (phr : Reg) (lm : LMem) (lr : LReg)
+  (src : RegName) (lwsrc : LWord) (cur_map : VMap) :
+
+  lr !! src = Some lwsrc →
+  state_phys_log_corresponds phr phm lr lm cur_map →
+  unique_in_memory phm (lword_get_word lwsrc) ->
+  unique_in_memoryL_aux lm lwsrc cur_map ->
+  unique_in_memoryL lm lwsrc.
+Proof.
+  move=> Hsrc [_ Hmem_inv] Hsweep HsweepL.
+  rewrite /unique_in_memoryL.
+  rewrite /unique_in_memory in Hsweep.
+  rewrite /unique_in_memoryL_aux in HsweepL.
+  eapply map_Forall_impl; first eapply HsweepL.
+  move=> la lw /= His_last Hcur_la.
+  apply: His_last.
+  eapply mem_phys_log_cur_addr_last_version_2; eauto.
+Abort.
+
+
+(* if an address is the last version in lmem, then it is also a last version in lm *)
+Definition lmem_last_version_subseteq (lmem lm : LMem) : Prop :=
+  map_Forall
+    (fun la lw => is_last_version_addr lmem la -> is_last_version_addr lm la)
+    lmem.
+
+Lemma lmem_last_version_subseteq_inv
+  (phm : Mem) (lmem lm : LMem) (cur_map : VMap) :
+  lmem ⊆ lm ->
+  mem_phys_log_corresponds phm lm cur_map ->
+  lmem_last_version_subseteq lmem lm.
+Proof.
+  intros Hlmem_incl Hmem_inv la lw Hlmem_la Hlast_la.
+  assert (Hlm_la : lm !! la = Some lw).
+  { by eapply lookup_weaken; eauto; simplify_map_eq. }
+
+  (* eapply mem_phys_log_cur_addr_last_version_1 ; eauto. *)
+  destruct Hmem_inv as [Hroot Hdom].
+
+  (* pose proof Hlm_la as Hlm_la'. *)
+  eapply map_Forall_lookup_1 in Hlm_la ; eauto.
+  cbn in Hlm_la.
+  destruct Hlm_la as (v_la & Hcur_v_la & Hmax_v_la & Hlm_v_la).
+  destruct la as [a v] ; cbn in *.
+
+  (* eapply mem_phys_log_cur_addr_last_version_2. in Hcur_v_la; [|split; eauto]. *)
+  (* eapply mem_phys_log_cur_addr_last_version_1 in Hcur_v_la; [|split; eauto]. *)
+
+
+  (* apply map_Forall_lookup. *)
+  (* intros [a' v'] lw' Hlm_la' ? ; cbn in * ; simplify_eq. *)
+  (* eapply map_Forall_lookup_1 in Hlmem_la ; eauto. *)
+  (* cbn in Hlmem_la. *)
+  (* apply map_Forall_lookup in Hlast_la. *)
+  (* destruct Hlm_v_la as (lw' & Hlm_la). *)
+  (* rewrite /is_last_version_addr /=. *)
+
+
+  (* eapply map_Forall_lookup_1 in Hlmem_la ; eauto. *)
+  (* cbn in Hlmem_la. *)
+Admitted.
+
+
+
+
+
+Lemma unique_in_memoryL_mono
+  (lm lmem : LMem) (cur_map : VMap) (lwsrc : LWord):
+  lmem ⊆ lm ->
+  lmem_last_version_subseteq lmem lm ->
+  unique_in_memoryL lm lwsrc ->
+  unique_in_memoryL lmem lwsrc.
+Proof.
+  move=> Hlmem_incl Hlast_incl Hunique_mem.
+  apply map_Forall_lookup.
+  move=> la lw Hlmem_la Hlast_lmem_la.
+  assert (Hlm_la: lm !! la = Some lw).
+  { by eapply lookup_weaken; eauto; simplify_map_eq. }
+  eapply map_Forall_lookup_1 in Hlm_la ; [|eapply Hunique_mem].
+  eapply map_Forall_lookup_1 in Hlmem_la ; [|eapply Hlast_incl].
+  cbn in *.
+  apply: Hlm_la.
+  by apply: Hlmem_la.
+Qed.
+
+Lemma unique_in_registerL_mono
+  (lr lregs : LReg) (src : RegName) (lwsrc : LWord):
+  lregs ⊆ lr ->
+  lregs !! src = Some lwsrc ->
+  unique_in_registersL lr src lwsrc ->
+  unique_in_registersL lregs src lwsrc.
+Proof.
+  move=> Hlregs_incl Hlregs_src Hunique_reg.
+  apply map_Forall_lookup.
+  move=> r lw Hlregs_r.
+  assert (Hlr_r : lr !! r = Some lw).
+  { by eapply lookup_weaken; eauto; simplify_map_eq. }
+  eapply map_Forall_lookup_1 in Hlr_r ; [|eapply Hunique_reg].
+  cbn in *.
+  destruct (decide (r = src)) ; simplify_map_eq ; done.
+Qed.
+
+Lemma unique_in_machineL_mono
+  (lm lmem : LMem) (lr lregs : LReg) (cur_map : VMap) (src : RegName) (lwsrc : LWord) :
+  lmem ⊆ lm ->
+  (* TODO is this a reasonable assumption ? *)
+  lmem_last_version_subseteq lmem lm ->
+  lregs ⊆ lr ->
+  lregs !! src = Some lwsrc ->
+  unique_in_machineL lm lr src lwsrc ->
+  unique_in_machineL lmem lregs src lwsrc.
+Proof.
+  move=> Hlmem_incl Hlmem_lastv_incl Hlregs_incl Hlregs_src Hunique_src.
+  assert (Hlr_src : lr !! src = Some lwsrc).
+  { by eapply lookup_weaken; eauto; simplify_map_eq. }
+  specialize (Hunique_src Hlr_src).
+  destruct Hunique_src as [Hunique_regs Hunique_mem].
+  split ;
+    [ eapply unique_in_registerL_mono | eapply unique_in_memoryL_mono ]
+  ; eauto.
+Qed.
+
+(* TODO link between
+   sweep of the physical machine
+   and unique_in_machine of logical memory *)
+Lemma sweep_true_specL (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem)
+  (cur_map : VMap) (src : RegName) (lwsrc : LWord):
+  lr !! src = Some lwsrc →
+  state_phys_log_corresponds phr phm lr lm cur_map →
+  sweep phm phr src = true →
+  unique_in_machineL lm lr src lwsrc.
+Proof.
+  intros Hlr_src HLinv Hsweep.
+Admitted.
+
+
+(* TODO property desired about unique_in_machineL *)
+Lemma unique_in_machine_no_accessL
+  (lm : LMem) (lr : LReg) (cur_map : VMap) (src : RegName)
+  (p : Perm) (b e a : Addr) ( v : Version ) :
+  (is_cur_word (LCap p b e a v) cur_map) ->
+  unique_in_machineL lm lr src (LCap p b e a v) ->
+  Forall
+    (λ a' : Addr, lmem_not_access_addrL lm cur_map a')
+    (finz.seq_between b e).
+Proof.
+Admitted.
 
 
 (* CMRΑ for memory *)

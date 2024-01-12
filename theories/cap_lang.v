@@ -237,7 +237,7 @@ Definition overlap_word (w1 w2 : Word) : Prop :=
   | _, _ => False
   end.
 
-Local Instance overlap_word_dec (w1 w2 : Word) : Decision (overlap_word w1 w2).
+Global Instance overlap_word_dec (w1 w2 : Word) : Decision (overlap_word w1 w2).
 Proof.
   rewrite /overlap_word.
   destruct (get_scap w1); last solve_decision.
@@ -252,13 +252,13 @@ Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop
      (λ (r : RegName) (wr : Word), if decide (r = src) then True else ¬ overlap_word wsrc wr)
      regs).
 
-Local Instance unique_in_registers_dec (regs : Reg) (src : RegName) (wsrc : Word)
+Global Instance unique_in_registers_dec (regs : Reg) (src : RegName) (wsrc : Word)
   : Decision (unique_in_registers regs src wsrc).
 Proof.
   apply map_Forall_dec.
   move=> r rw.
   case_decide; solve_decision.
-Qed.
+Defined.
 
 (* Returns [true] if [r] is unique. *)
 Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
@@ -282,9 +282,9 @@ Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
      (λ (a : Addr) (wa : Word), ¬ overlap_word wsrc wa)
      mem).
 
-Local Instance unique_in_memory_dec (mem : Mem) (wsrc : Word)
+Global Instance unique_in_memory_dec (mem : Mem) (wsrc : Word)
   : Decision (unique_in_memory mem wsrc).
-Proof. solve_decision. Qed.
+Proof. solve_decision. Defined.
 
 (* Returns [true] if [r] is unique. *)
 Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
