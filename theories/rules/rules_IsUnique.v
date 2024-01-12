@@ -199,7 +199,6 @@ Section cap_lang_rules.
         which, one might notice, only changes the version number.
    *)
 
-
   Set Nested Proofs Allowed.
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -338,8 +337,9 @@ Section cap_lang_rules.
           iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
             as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
 
-          assert (HcurMap : Forall (λ a0 : Addr, cur_map !! a0 = Some v) (finz.seq_between b e)).
-          { admit. (* should be a consequence of HLinv and HmemMap *) }
+          pose proof
+            (state_phys_log_cap_all_current _ _ _ _ _ _ _ _ _ _ _ HLinv Hlsrc)
+          as HcurMap.
 
           assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
 
@@ -377,17 +377,39 @@ Section cap_lang_rules.
 
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto].
-            rewrite /state_interp_logical.
-            iExists _, lm', cur_map'; iFrame; auto
-            ; iPureIntro; econstructor; eauto
-            ; destruct HLinv as [[Hstrips Hcur_reg] [Hdom Hroot]]
-            ; cbn in *.
-            { admit . }
+          iExists _, lm', cur_map'; iFrame; auto
+          ; iPureIntro; econstructor; eauto
+          ; destruct HLinv as [Hreg_inv Hmem_inv]
+          ; cbn in *.
+          {
+            rewrite (insert_commute _ _ src) // (insert_commute _ _ src) //.
+            eapply lookup_weaken in HPC'' ; eauto.
+            eapply update_cur_version_reg_phys_log_cor_updates_src
+              with (phm := mem) ; eauto.
+            2: by rewrite lookup_insert_ne // lookup_insert_ne //.
+            2: {
+              eapply unique_in_machineL_insert_reg; eauto ; try by simplify_map_eq.
+              eapply not_overlap_word_leaL with (a2' := a1); eauto.
+              eapply (unique_in_machineL_not_overlap_word _ _ src PC); eauto.
+
+              eapply unique_in_machineL_insert_reg; eauto
+              ; try by simplify_map_eq.
+            }
+            split; eauto.
+            eapply lreg_insert_respects_corresponds; eauto.
+            eapply lreg_insert_respects_corresponds; eauto.
+            by cbn.
+            apply is_cur_word_lea with (a := a1).
+            eapply lreg_read_iscur; eauto.
+          }
+          {
             eapply update_cur_version_region_preserves_mem_phyc_cor; eauto.
             eapply unique_in_machine_no_accessL ; eauto.
-            split ; auto.
+            eapply lreg_read_iscur; eauto.
+          }
 
         ** (* src = dst *) admit.
+
       * (* src = PC *)
         rewrite (insert_commute _ dst PC) //= insert_insert insert_commute //= in H'lregs'.
         (* we update the registers with their new value *)
