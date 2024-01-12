@@ -1252,6 +1252,61 @@ Proof.
   eapply update_cur_version_notin_is_cur_word; eauto.
 Qed.
 
+Lemma update_cur_version_addr_notin_preserves_cur:
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  update_cur_version_addr lm cur_map a' = Some (lm', cur_map')
+  → a ≠ a' → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+Proof.
+  move=> lm lm' cur_map cur_map' a a' v Hupd Hneq Hcur.
+  rewrite /update_cur_version_addr in Hupd.
+  destruct (cur_map !! a') ; cbn in * ; last done.
+  destruct (lm !! (a', n)) ; cbn in * ; simplify_eq.
+  by rewrite /is_cur_addr ; simplify_map_eq.
+Qed.
+
+Lemma update_cur_version_region_notin_preserves_cur:
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
+  update_cur_version_region lm cur_map la = Some (lm', cur_map')
+  → a ∉ la → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+Proof.
+  move=> lm lm' cur_map cur_map' la.
+  move: lm lm' cur_map cur_map'.
+  induction la as [|a la IH]; intros * ; move=> Hupd Ha_notin_la Hcur ; cbn in *.
+  - by simplify_eq.
+  - apply bind_Some in Hupd.
+    destruct Hupd as ((lm0, cur_map0) & Hupd_lm & Hupd_lm_la).
+    rewrite -/(update_cur_version_region lm cur_map la) in Hupd_lm.
+    apply not_elem_of_cons in Ha_notin_la.
+    destruct Ha_notin_la as [Ha0_neq_a Ha_notin_la].
+    eapply update_cur_version_addr_notin_preserves_cur; eauto.
+Qed.
+
+Lemma update_cur_version_region_notin_read_mem
+  (lm lm': LMem) (cur_map cur_map' : VMap)
+  (a : Addr) (la : list Addr) (lw : LWord) (v : Version):
+  a ∉ la ->
+  lm !! (a, v) = Some lw ->
+  is_cur_addr (a, v) cur_map ->
+  update_cur_version_region lm cur_map la = Some (lm', cur_map') ->
+  lm' !! (a, v) = Some lw.
+Proof.
+  move: lm lm' cur_map cur_map' a lw v.
+  induction la as [|a la IH]; intros * ; move=> Ha_notin_la Hcur Hlm_la Hupd ; cbn in *.
+  - by simplify_eq.
+  - apply bind_Some in Hupd.
+    destruct Hupd as ((lm0, cur_map0) & Hupd_lm & Hupd_lm_la).
+    rewrite -/(update_cur_version_region lm cur_map la) in Hupd_lm.
+    apply not_elem_of_cons in Ha_notin_la.
+    destruct Ha_notin_la as [Ha0_neq_a Ha_notin_la].
+
+    rewrite /update_cur_version_addr in Hupd_lm_la.
+    destruct (cur_map0 !! a) ; cbn in * ; last done.
+    destruct (lm0 !! (a, n)) ; cbn in * ; simplify_eq.
+    simplify_map_eq.
+    rewrite lookup_insert_ne //=.
+    2: intro ; simplify_eq.
+    eapply IH; eauto.
+Qed.
 
 Lemma unique_in_memoryL_mono
   (lm lmem : LMem) (cur_map : VMap) (lwsrc : LWord):
