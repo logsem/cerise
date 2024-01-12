@@ -372,7 +372,7 @@ Section cap_lang_rules.
           {
             eapply unique_in_machineL_mono; eauto.
             rewrite /lmem_last_version_subseteq.
-            admit.
+            admit. (* TODO it might not be true... *)
           }
 
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
@@ -413,9 +413,15 @@ Section cap_lang_rules.
       * (* src = PC *)
         rewrite (insert_commute _ dst PC) //= insert_insert insert_commute //= in H'lregs'.
         (* we update the registers with their new value *)
+        destruct (decide (dst = PC)) ; simplify_map_eq.
+        (* dst ≠ PC *)
         iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
         iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
         ; first by simplify_map_eq.
+
+        (* iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+        (* ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]. *)
+
         admit.
 
 
