@@ -446,7 +446,7 @@ NOTE Proof strategy:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.logical_mapsto.html#unique_in_machineL_mono"><span class="id" title="axiom">unique_in_machineL_mono</span></a>; <span class="id" title="tactic">eauto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<a class="idref" href="cap_machine.logical_mapsto.html#lmem_last_version_subseteq"><span class="id" title="definition">lmem_last_version_subseteq</span></a>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">admit</span>. <span class="comment">(*&nbsp;TODO&nbsp;it&nbsp;might&nbsp;not&nbsp;be&nbsp;true...&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>; <span class="id" title="var">iModIntro</span> ; <span class="id" title="var">iSplitR</span> "Hφ Hmap Hmem"<br/>
@@ -489,9 +489,17 @@ NOTE Proof strategy:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="comment">(*&nbsp;src&nbsp;=&nbsp;PC&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> (<span class="id" title="lemma">insert_commute</span> <span class="id" title="var">_</span> <span class="id" title="var">dst</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a>) //= <span class="id" title="lemma">insert_insert</span> <span class="id" title="lemma">insert_commute</span> //= <span class="id" title="tactic">in</span> <span class="id" title="var">H'lregs'</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;we&nbsp;update&nbsp;the&nbsp;registers&nbsp;with&nbsp;their&nbsp;new&nbsp;value&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="definition">decide</span> (<span class="id" title="var">dst</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a>)) ; <span class="id" title="var">simplify_map_eq</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;dst&nbsp;≠&nbsp;PC&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">((</span><a class="idref" href="cap_machine.rules.rules_base.html#gen_heap_update_inSepM"><span class="id" title="axiom">gen_heap_update_inSepM</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">dst</span> <span class="id" title="notation">)</span> <span class="id" title="notation">with</span> "Hr Hmap"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "[Hr Hmap]"; <span class="id" title="tactic">eauto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">((</span><a class="idref" href="cap_machine.rules.rules_base.html#gen_heap_update_inSepM"><span class="id" title="axiom">gen_heap_update_inSepM</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <span class="id" title="notation">)</span> <span class="id" title="notation">with</span> "Hr Hmap"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "[Hr Hmap]"; <span class="id" title="tactic">eauto</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="tactic">first</span> <span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iFrame;&nbsp;iModIntro&nbsp;;&nbsp;iSplitR&nbsp;"Hφ&nbsp;Hmap&nbsp;Hmem"&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;;&nbsp;<span class="inlinecode">|</span> <span class="inlinecode"><span class="id" title="var">iApply</span></span> <span class="inlinecode">&quot;<span class="id" title="var">H</span>φ&quot;</span> <span class="inlinecode">;</span> <span class="inlinecode"><span class="id" title="var">iFrame</span>;</span> <span class="inlinecode"><span class="id" title="var">iPureIntro</span>;</span> <span class="inlinecode"><span class="id" title="tactic">econstructor</span>;</span> <span class="inlinecode"><span class="id" title="tactic">eauto</span></span>.&nbsp;*)</span><br/>
+
+<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">admit</span>.<br/>
 
 <br/>
