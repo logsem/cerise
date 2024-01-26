@@ -993,6 +993,28 @@ Proof.
          destruct (m !! va); done.
 Admitted.
 
+Lemma insert_inj {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) (v : A):
+  m1 !! k = m2 !! k ->
+  <[ k := v ]> m1 = <[ k := v ]> m2 ->
+  m1 = m2.
+Proof.
+  intros Heq_k Heq_insert.
+  apply map_eq.
+  rewrite map_eq' in Heq_insert.
+  intro k'.
+  destruct (decide (k = k')) ; simplify_eq ; first done.
+  destruct (m1 !! k') eqn:Hm1.
+  - specialize (Heq_insert k' a).
+    rewrite lookup_insert_ne //= lookup_insert_ne //= in Heq_insert.
+    apply Heq_insert in Hm1. by rewrite Hm1.
+  - destruct (m2 !! k') eqn:Hm2; last done.
+    specialize (Heq_insert k' a).
+    rewrite lookup_insert_ne //= lookup_insert_ne //= in Heq_insert.
+    eapply Heq_insert in Hm2.
+    rewrite Hm1 in Hm2 ; congruence.
+Qed.
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->
