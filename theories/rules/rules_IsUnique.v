@@ -3,6 +3,8 @@ From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
+From cap_machine.proofmode Require Export region register_tactics.
+
 
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ}.
@@ -337,8 +339,8 @@ Section cap_lang_rules.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
     specialize (indom_lregs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    odestruct (Hri dst) as [ldstv [Hldst' Hldst]]. by set_solver+.
-    odestruct (Hri src) as [lsrcv [Hlsrc' Hlsrc]]. by set_solver+.
+    odestruct (Hri dst) as [ldstv [Hldst' Hldst] ]. by set_solver+.
+    odestruct (Hri src) as [lsrcv [Hlsrc' Hlsrc] ]. by set_solver+.
 
     (* Derive necessary memory *)
     iDestruct (gen_heap_valid_inclSepM with "Hm Hmem") as %Hmem.
@@ -403,7 +405,7 @@ Section cap_lang_rules.
           with (<[dst:= WInt 1]> reg)
           in Hlregs'
         ; cycle 1.
-        { destruct HLinv as [[Hstrips Hcurreg] _].
+        { destruct HLinv as [ [Hstrips Hcurreg] _].
           rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=.
           erewrite insert_cap_lreg_strip; eauto.
         }
@@ -427,7 +429,7 @@ Section cap_lang_rules.
       replace ((λ lw, lword_get_word lw) <$>
                <[dst:=LInt 1]> (<[src:=LCap p b e a (v + 1)]> lr))
         with (<[dst:=WInt 1]> reg) in HuPC.
-      2: { destruct HLinv as [[Hstrips Hcurreg] _]
+      2: { destruct HLinv as [ [Hstrips Hcurreg] _]
            ; rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=
            ; erewrite insert_cap_lreg_strip ; eauto.
       }
@@ -445,7 +447,7 @@ Section cap_lang_rules.
         as HmemMap_maxv.
 
       destruct (update_cur_version_word_region lmem cur_map (LCap p b e a v))
-        as [[lmem' cur_map']|] eqn:Hupd_lm
+        as [ [lmem' cur_map']|] eqn:Hupd_lm
       ; rewrite /update_cur_version_word_region /= in Hupd_lm
       ; cycle 1.
       {
@@ -604,7 +606,7 @@ Section cap_lang_rules.
           with (<[dst:= WInt 0]> reg)
           in Hlregs'
         ; cycle 1.
-        { destruct HLinv as [[Hstrips Hcurreg] _].
+        { destruct HLinv as [ [Hstrips Hcurreg] _].
           rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=.
         }
 
@@ -625,7 +627,7 @@ Section cap_lang_rules.
       2: apply map_fmap_mono ; apply insert_mono ; eauto.
       replace ((λ lw, lword_get_word lw) <$> <[dst:=LInt 0]> lr)
         with (<[dst:=WInt 0]> reg) in HuPC.
-      2: { destruct HLinv as [[Hstrips Hcurreg] _]
+      2: { destruct HLinv as [ [Hstrips Hcurreg] _]
            ; rewrite -Hstrips !fmap_insert -/(lreg_strip lr) //=.
       }
       rewrite HuPC in Hstep; clear HuPC.
@@ -640,7 +642,7 @@ Section cap_lang_rules.
 
       iExists _, lm, cur_map; iFrame; auto
       ; iPureIntro; econstructor; eauto
-      ; destruct HLinv as [[Hstrips Hcur_reg] [Hdom Hroot]]
+      ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
       ; cbn in *
       ; [|split;eauto]
       .
@@ -651,13 +653,99 @@ Section cap_lang_rules.
       Unshelve. all: eauto.
   Qed.
 
-  (* TODO derive a valid version of the rule:
-     Because I don't know the whole content of the memory (only a local view),
+  (* Because I don't know the whole content of the memory (only a local view),
      any sucessful IsUnique wp-rule can have 2 outcomes:
      either the sweep success or the sweep fails.
 
     Importantly, we cannot derive any sweep success rule, because we would need
     the entire footprint of the registers/memory.
    *)
+
+  Lemma wp_isunique_success
+    (Ep : coPset)
+    (pc_p : Perm) (pc_b pc_e pc_a : Addr) (pc_v : Version)
+    (lw : LWord)
+    (p : Perm) (b e a : Addr) (v : Version)
+    (lwdst : LWord) (lws : list LWord)
+    (dst src : RegName) :
+
+    decodeInstrWL lw = IsUnique dst src →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    pc_a ∉ finz.seq_between b e ->
+    (pc_a + 1)%a = Some pc_a →
+    length lws = finz.dist b e ->
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+        ∗ ▷ src ↦ᵣ LCap p b e a v
+        ∗ ▷ dst ↦ᵣ lwdst
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+        ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]]
+    }}}
+      Instr Executable @ Ep
+      {{{ retv, RET retv;
+        ( ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+        ∗ ▷ src ↦ᵣ LCap p b e a (v+1)
+        ∗ ▷ dst ↦ᵣ LInt 1
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+        ∗ ▷ [[ b , e ]] ↦ₐ{ (v+1) } [[ lws ]] )
+           ∨
+        ( ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+          ∗ ▷ src ↦ᵣ LCap p b e a v
+          ∗ ▷ dst ↦ᵣ LInt 0
+          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+          ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]] )
+        }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpca_noverolap Hpca Hlen_lws φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
+    rewrite /region_mapsto.
+    iDestruct (big_sepL2_cons (λ _ la lw, la ↦ₐ lw)%I (pc_a, pc_v) lw with "[Hpc_a Hmap]")
+      as "Hmmap"; iFrame.
+    iDestruct (big_sepL2_to_big_sepM  with "Hmmap") as "Hmmap".
+    admit. (* TODO easy *)
+    iApply (wp_isunique with "[$Hrmap Hmmap]"); eauto ; simplify_map_eq; eauto.
+    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+    { exists p, b, e, a, v.
+      rewrite /read_reg_inr.
+      split ; simplify_map_eq; eauto.
+      apply Forall_forall.
+      intros a' Ha'.
+      admit. (* TODO easy *)
+    }
+
+    iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as
+      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hincr_PC
+      | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hincr_PC Hmem'
+      | ? ? Hfail]
+    ; cycle 2.
+    - (* Fail : contradiction *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto; solve_addr.
+    - (* Success true *)
+      iApply "Hφ"; iLeft.
+      rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
+      admit. (* TODO the actual hard part, but should be OK to prove *)
+    - (* Success false *)
+      iApply "Hφ"; iRight.
+      rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
+      iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]".
+      { admit. } (* TODO easy *)
+      iFrame.
+      iApply (big_sepM_to_big_sepL2 with "Hmmap").
+      admit. (* TODO easy, modulu an additional hyp *)
+      (* apply NoDup_fmap. apply finz_seq_NoDup.*)
+      by rewrite map_length finz_seq_between_length.
+  Admitted.
+
+  (* TODO small toy program example with that uses is_unique *)
+  (* TODO extend proofmode *)
+  (* TODO merge wp_opt from Dominique's branch and use it *)
 
 End cap_lang_rules.
