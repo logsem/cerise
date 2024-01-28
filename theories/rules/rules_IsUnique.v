@@ -105,15 +105,12 @@ Section cap_lang_rules.
   | IsUnique_success_true (lwsrc: LWord) p b e a v :
     lregs !! src = Some lwsrc ->
     get_lcap lwsrc = Some (LSCap p b e a v) ->
-
     (* we update the region of memory with the new version *)
     update_version_word_region lmem lwsrc = Some lmem' →
-
     incrementLPC (<[ dst := LInt 1 ]> (<[ src := LCap p b e a (v+1) ]> lregs)) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
 
   | IsUnique_success_false (lwsrc: LWord) p b e a v :
-
     lregs !! src = Some lwsrc ->
     get_lcap lwsrc = Some (LSCap p b e a v) ->
     incrementLPC (<[ dst := LInt 0 ]> lregs) = Some lregs' ->
@@ -919,7 +916,7 @@ Section cap_lang_rules.
 
   Lemma wp_isunique_success
     (Ep : coPset)
-    (pc_p : Perm) (pc_b pc_e pc_a : Addr) (pc_v : Version)
+    (pc_p : Perm) (pc_b pc_e pc_a pc_a' : Addr) (pc_v : Version)
     (lw : LWord)
     (p : Perm) (b e a : Addr) (v : Version)
     (lwdst : LWord) (lws : list LWord)
@@ -928,32 +925,32 @@ Section cap_lang_rules.
     decodeInstrWL lw = IsUnique dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
-    (pc_a + 1)%a = Some pc_a →
+    (pc_a + 1)%a = Some pc_a' →
     length lws = finz.dist b e ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ src ↦ᵣ LCap p b e a v
         ∗ ▷ dst ↦ᵣ lwdst
+        ∗ ▷ src ↦ᵣ LCap p b e a v
         ∗ ▷ (pc_a, pc_v) ↦ₐ lw
         ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]]
     }}}
       Instr Executable @ Ep
-      {{{ retv, RET retv;
-        ( ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-        ∗ ▷ src ↦ᵣ LCap p b e a (v+1)
-        ∗ ▷ dst ↦ᵣ LInt 1
-        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
-        ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]]
-        ∗ ▷ [[ b , e ]] ↦ₐ{ (v+1) } [[ lws ]] )
+      {{{ RET NextIV;
+        ( PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+        ∗ dst ↦ᵣ LInt 1
+        ∗ src ↦ᵣ LCap p b e a (v+1)
+        ∗ (pc_a, pc_v) ↦ₐ lw
+        ∗ [[ b , e ]] ↦ₐ{ v } [[ lws ]]
+        ∗ [[ b , e ]] ↦ₐ{ (v+1) } [[ lws ]] )
            ∨
-        ( ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-          ∗ ▷ src ↦ᵣ LCap p b e a v
-          ∗ ▷ dst ↦ᵣ LInt 0
-          ∗ ▷ (pc_a, pc_v) ↦ₐ lw
-          ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]] )
+        ( PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+          ∗ dst ↦ᵣ LInt 0
+          ∗ src ↦ᵣ LCap p b e a v
+          ∗ (pc_a, pc_v) ↦ₐ lw
+          ∗ [[ b , e ]] ↦ₐ{ v } [[ lws ]] )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca_noverolap Hpca Hlen_lws φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc Hpca_notin Hpca Hlen_lws φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (big_sepL2_cons (λ _ la lw, la ↦ₐ lw)%I (pc_a, pc_v) lw with "[Hpc_a Hmap]")
@@ -989,11 +986,16 @@ Section cap_lang_rules.
     - (* Success true *)
       iApply "Hφ"; iLeft.
 
-      apply update_version_word_region_cons_no_access in Hupd ; [| solve_addr].
+      apply update_version_word_region_cons_no_access in Hupd.
+      2:{ simplify_map_eq; cbn.
+          intro Hcontra.
+          apply elem_of_finz_seq_between in Hcontra. solve_addr.
+      }
       destruct Hupd as (mem'' & Hupd & ->).
 
       eapply update_version_word_region_access_region in Hupd
       ; eauto; simplify_map_eq ; eauto; [| by rewrite finz_seq_between_length].
+
 
       rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
       iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
@@ -1041,7 +1043,6 @@ Section cap_lang_rules.
       { apply NoDup_logical_region. }
       { by rewrite map_length finz_seq_between_length. }
   Qed.
-
 
   (* TODO merge wp_opt from Dominique's branch and use it *)
   (* TODO small toy program example that uses is_unique *)
