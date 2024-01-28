@@ -23,7 +23,7 @@ Section cap_lang_rules.
   (* TODO is this definition convenient enough ?
      The details does not really matter, as soon as the following lemma
      is proven. *)
-  (* TODO move ? *)
+  (* TODO move somewhere ? *)
   Definition update_version_word_region (lmem : LMem) (lwsrc : LWord)
     : option LMem :=
     match lwsrc with
@@ -852,6 +852,71 @@ Section cap_lang_rules.
     ; apply finz_seq_between_NoDup.
   Qed.
 
+  (* TODO better name because it means nothing *)
+  Lemma logical_region_reachable
+    (la : list Addr)
+    (pc_a a : Addr) (lws : list LWord)
+    (pc_v v : Version) (lw : LWord) :
+    NoDup la ->
+    pc_a ∉ la ->
+    length lws = length la ->
+    a ∈ la ->
+    ∃ lw0,
+      (<[(pc_a, pc_v):=lw]>
+         (list_to_map (zip (map (λ a0 : Addr, (a0, v)) la) lws)) : LMem)
+        !! (a, v) = Some lw0.
+  Proof.
+    move: pc_a a lws pc_v v lw.
+    induction la as [|a la Hla]
+    ; intros * HNoDup Hpca_notin_la Hlen Ha_in_la
+    ; cbn in * ; simplify_map_eq ; first set_solver.
+
+    apply not_elem_of_cons in Hpca_notin_la.
+    destruct Hpca_notin_la as [Hpca_neq_a Hpca_notin_la].
+    destruct lws; cbn in * ; try congruence.
+    injection Hlen; clear Hlen ; intro Hlen.
+    apply NoDup_cons in HNoDup.
+    destruct HNoDup as [Ha_notin_la HNoDup].
+
+    apply elem_of_cons in Ha_in_la.
+    destruct Ha_in_la as [-> | Ha_in_la].
+    - exists l. by rewrite lookup_insert_ne; [| intro ; simplify_eq] ; simplify_map_eq.
+    - pose proof (Hla _ _ _ pc_v v lw HNoDup Hpca_notin_la Hlen Ha_in_la) as IH.
+      destruct IH as (lw0 & IH).
+      exists lw0.
+      rewrite insert_commute; [| intro ; simplify_eq].
+      rewrite lookup_insert_ne ; [|intro ; simplify_eq].
+      done.
+  Qed.
+
+  (* TODO move region.v *)
+  Lemma NoDup_logical_region (b e : Addr) (v : Version) :
+    NoDup (map (λ a0 : Addr, (a0, v)) (finz.seq_between b e)).
+  Proof.
+    apply NoDup_fmap.
+    { by intros x y Heq ; simplify_eq. }
+    { apply finz_seq_between_NoDup. }
+  Qed.
+
+  (* TODO move region.v *)
+  Lemma update_logical_memory_region_disjoint
+    (la : list Addr) (v : Version) (lws : list LWord):
+    length la = length lws ->
+    (list_to_map (zip (map (λ a : Addr, (a, v + 1)) la) lws) : LMem)
+      ##ₘ list_to_map (zip (map (λ a : Addr, (a, v)) la) lws).
+  Proof.
+    intros Hlen.
+    apply map_disjoint_list_to_map_zip_l ; [rewrite map_length; lia|].
+    apply Forall_forall.
+    intros a Ha.
+    apply not_elem_of_list_to_map.
+    rewrite fst_zip; [|rewrite map_length; lia].
+    intros Ha'.
+    apply elem_of_list_fmap_2 in Ha, Ha'.
+    destruct Ha as (? & Ha & ?).
+    destruct Ha' as (? & Ha' & ?). simplify_eq; lia.
+  Qed.
+
   Lemma wp_isunique_success
     (Ep : coPset)
     (pc_p : Perm) (pc_b pc_e pc_a : Addr) (pc_v : Version)
@@ -894,7 +959,11 @@ Section cap_lang_rules.
     iDestruct (big_sepL2_cons (λ _ la lw, la ↦ₐ lw)%I (pc_a, pc_v) lw with "[Hpc_a Hmap]")
       as "Hmmap"; iFrame.
     iDestruct (big_sepL2_to_big_sepM  with "Hmmap") as "Hmmap".
-    admit. (* TODO easy *)
+    { apply NoDup_cons ; split; [| apply NoDup_logical_region].
+      intro Hcontra.
+      apply elem_of_list_fmap in Hcontra.
+      destruct Hcontra as (? & ? & ?) ; simplify_eq.
+    }
     iApply (wp_isunique with "[$Hrmap Hmmap]"); eauto ; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     { exists p, b, e, a, v.
@@ -902,7 +971,10 @@ Section cap_lang_rules.
       split ; simplify_map_eq; eauto.
       apply Forall_forall.
       intros a' Ha'.
-      admit. (* TODO easy *)
+
+      apply logical_region_reachable; auto.
+      { apply finz_seq_between_NoDup. }
+      { by rewrite finz_seq_between_length. }
     }
 
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
@@ -928,20 +1000,28 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
       iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]".
-      { admit. } (* TODO easy, eg. using map_disjoint_list_to_map_zip_l ? *)
+      { apply not_elem_of_list_to_map.
+        rewrite fmap_app.
+        do 2 (rewrite fst_zip; [|rewrite map_length finz_seq_between_length; lia]).
+        apply not_elem_of_app.
+        split.
+        all:intros Hcontra.
+        all:apply elem_of_list_fmap_2 in Hcontra.
+        all:destruct Hcontra as (? & Ha & ?); simplify_eq.
+      }
       iFrame.
       rewrite list_to_map_app.
       iDestruct (big_sepM_union with "Hmmap") as "[Hmmap_new Hmmap_old]".
-      { admit. (* easy *) }
+      { apply update_logical_memory_region_disjoint.
+        by rewrite finz_seq_between_length.
+      }
       iSplitL "Hmmap_old".
       + iApply (big_sepM_to_big_sepL2 with "Hmmap_old").
-        admit. (* TODO easy, modulo an additional hyp ? *)
-        (* apply NoDup_fmap. apply finz_seq_NoDup. *)
-        by rewrite map_length finz_seq_between_length.
+        { apply NoDup_logical_region. }
+        { by rewrite map_length finz_seq_between_length. }
       + iApply (big_sepM_to_big_sepL2 with "Hmmap_new").
-        admit. (* TODO easy, modulo an additional hyp ? *)
-        (* apply NoDup_fmap. apply finz_seq_NoDup. *)
-        by rewrite map_length finz_seq_between_length.
+        { apply NoDup_logical_region. }
+        { by rewrite map_length finz_seq_between_length. }
 
     - (* Success false *)
       iApply "Hφ"; iRight.
@@ -950,13 +1030,17 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
       iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]".
-      { admit. } (* TODO easy *)
+      { apply not_elem_of_list_to_map.
+        rewrite fst_zip; [|rewrite map_length finz_seq_between_length; lia].
+        intros Hcontra.
+        apply elem_of_list_fmap_2 in Hcontra.
+        destruct Hcontra as (? & Ha & ?); simplify_eq.
+      }
       iFrame.
       iApply (big_sepM_to_big_sepL2 with "Hmmap").
-      admit. (* TODO easy, modulo an additional hyp ? *)
-      (* apply NoDup_fmap. apply finz_seq_NoDup.*)
-      by rewrite map_length finz_seq_between_length.
-  Admitted.
+      { apply NoDup_logical_region. }
+      { by rewrite map_length finz_seq_between_length. }
+  Qed.
 
 
   (* TODO small toy program example with that uses is_unique *)
