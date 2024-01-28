@@ -1043,8 +1043,9 @@ Section cap_lang_rules.
   Qed.
 
 
-  (* TODO small toy program example with that uses is_unique *)
-  (* TODO extend proofmode *)
   (* TODO merge wp_opt from Dominique's branch and use it *)
+  (* TODO small toy program example that uses is_unique *)
+  (* TODO extend proofmode, which means cases such as:
+     dst = PC, src = PC, dst = stc *)
 
 End cap_lang_rules.
