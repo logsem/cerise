@@ -700,9 +700,10 @@ Section cap_lang_rules.
       exists (<[(a, v' + 1):=lw0]> lm0').
       split; simplify_map_eq ; eauto.
       + rewrite /update_version_addr.
-        admit. (* very easy *)
+        rewrite lookup_insert_ne in Heq_lm0 ; [|intro ; simplify_eq].
+        by rewrite Heq_lm0; cbn.
       + rewrite insert_commute //. intro ; simplify_eq.
-  Admitted.
+  Qed.
 
   Lemma update_version_word_region_cons_no_access
     (lm lm' : LMem) (la : LAddr) (lw lwsrc : LWord) :
@@ -721,7 +722,6 @@ Section cap_lang_rules.
     all: destruct Hupd as (lm'' & Hupd & ->).
     all: exists lm''; split ; eauto.
   Qed.
-
 
   Lemma update_version_word_preserves_lword
     (lm lmem : LMem) (la : list Addr) (a : Addr) (v : Version) (lw lw' : LWord)
@@ -747,6 +747,46 @@ Section cap_lang_rules.
     intro ; simplify_eq; lia.
   Qed.
 
+  Lemma update_version_word_region_insert
+    (lm lmem : LMem) (la : list Addr) (a : Addr) (v : Version) (w : LWord) :
+    a ∉ la ->
+    foldr
+      (λ (a : Addr) (upd_opt : option LMem),
+        upd_opt ≫= (λ lmem', update_version_addr lmem' a v))
+      (Some (<[(a, v):=w]> lmem))
+      la = Some lm ->
+    exists lm',
+      foldr
+        (λ (a : Addr) (upd_opt : option LMem),
+          upd_opt ≫= (λ lmem', update_version_addr lmem' a v))
+        (Some lmem)
+        la = Some lm'
+      /\ lm = <[(a, v):=w]> lm'.
+  Proof.
+    move: lm lmem a v w.
+    induction la as [|a la Hla] ; intros * Hnot_in Hupd; cbn in *
+    ; simplify_map_eq; first set_solver.
+
+    apply not_elem_of_cons in Hnot_in; destruct Hnot_in as [Hneq Hnot_in].
+
+    apply bind_Some in Hupd.
+    destruct Hupd as ( lm' & Hupd & Hlm ).
+    rewrite /update_version_addr in Hlm.
+    destruct (lm' !! (a, v)) as [lw|] eqn:Heq_lm; cbn in * ; simplify_eq.
+    eapply Hla in Hupd; auto.
+    destruct Hupd as ( lm0 & Hupd & -> ).
+
+    exists (<[(a, v + 1):=lw]> lm0).
+    split ; cycle 1.
+    rewrite insert_commute //=; intro ; simplify_eq.
+
+    apply bind_Some.
+    exists (<[(a, v):=lw]> lm0).
+    rewrite lookup_insert_ne in Heq_lm ; [| intro ; simplify_eq ; lia].
+    rewrite /update_version_addr.
+    split; cycle 1; simplify_map_eq ; rewrite (insert_id _ (a,v)); auto.
+  Qed.
+
   Lemma update_version_word_region_access_region_gen
     (lm : LMem) (lws : list LWord) (v : Version) (la : list Addr) :
     NoDup la ->
@@ -756,7 +796,10 @@ Section cap_lang_rules.
         upd_opt ≫= (λ lmem', update_version_addr lmem' a v))
       (Some (list_to_map (zip (map (λ a : Addr, (a, v)) la) lws)))
       la = Some lm ->
-    lm = (list_to_map (zip (map (λ a : Addr, (a, v+1)) la) lws)).
+    lm = (list_to_map
+            ((zip (map (λ a : Addr, (a, v+1)) la) lws)
+               ++ (zip (map (λ a : Addr, (a, v)) la) lws))
+         ).
   Proof.
     move: lm lws v.
     induction la as [| a la Hla]; intros * HNoDup Hlen_eq Hupd
@@ -770,52 +813,24 @@ Section cap_lang_rules.
     rewrite /update_version_addr in Hlm.
     destruct (lm' !! (a, v)) as [lw|] eqn:Heq_lm; cbn in * ; simplify_eq.
 
-    Set Nested Proofs Allowed.
-
-    Lemma need_name_aaa
-      (lm lmem : LMem) (la : list Addr) (a : Addr) (v : Version) (w : LWord) :
-      a ∉ la ->
-      foldr
-        (λ (a : Addr) (upd_opt : option LMem),
-          upd_opt ≫= (λ lmem', update_version_addr lmem' a v))
-        (Some (<[(a, v):=w]> lmem))
-        la = Some lm ->
-      exists lm',
-        foldr
-          (λ (a : Addr) (upd_opt : option LMem),
-            upd_opt ≫= (λ lmem', update_version_addr lmem' a v))
-          (Some lmem)
-          la = Some lm'
-        /\ lm = <[(a, v):=w]> lm'.
-    Proof.
-      move: lm lmem a v w.
-      induction la as [|a la Hla] ; intros * Ha_in_la Hupd; cbn in *
-      ; simplify_map_eq; first set_solver.
-    Admitted.
-
     replace l with lw by (symmetry ; eapply update_version_word_preserves_lword; eauto).
-    apply need_name_aaa in Hupd; auto.
+    apply update_version_word_region_insert in Hupd; auto.
     destruct Hupd as (lm0 & Hupd & ->).
-    (* rewrite lookup_insert_ne in Heq_lm ; [| intro ; simplify_eq ; lia]. *)
     simplify_map_eq.
 
-    (* Lemma need_name_bbb *)
-    (*   (lm lmem : LMem) (la : list Addr) (a : Addr) (v : Version) (w : LWord) : *)
-    (*   foldr *)
-    (*     (λ (a : Addr) (upd_opt : option LMem), *)
-    (*       upd_opt ≫= (λ lmem', update_version_addr lmem' a v)) *)
-    (*     (Some lmem) *)
-    (*     la = Some lm -> *)
-    (*   lm !! (a, v) = Some lw -> *)
-    (*   lm !! (a, v) = Some lw. *)
-
     eapply Hla in Hupd; eauto.
-    (* rewrite insert_insert. *)
-    (* by simplify_map_eq. *)
-    (* TODO I don't know where, but somewhere around here, I'm wrong *)
-  Admitted.
+    simplify_map_eq.
+    rewrite !list_to_map_app.
+    rewrite list_to_map_cons.
+    rewrite insert_union_r; first done.
 
-
+    apply not_elem_of_list_to_map_1 ; cbn.
+    rewrite fst_zip; [|rewrite map_length; lia].
+    intro Hcontra.
+    apply elem_of_list_fmap in Hcontra.
+    destruct Hcontra as (a0 & Hcontra & _).
+    simplify_eq; lia.
+  Qed.
 
   Lemma update_version_word_region_access_region
     (lm lm' : LMem) (lwsrc : LWord) (lws : list LWord)
@@ -825,7 +840,10 @@ Section cap_lang_rules.
     update_version_word_region
       (list_to_map (zip (map (λ a : Addr, (a, v)) (finz.seq_between b e)) lws))
       lwsrc = Some lm' ->
-    lm' = (list_to_map (zip (map (λ a : Addr, (a, v+1)) (finz.seq_between b e)) lws)).
+    lm' =
+      (list_to_map
+         ((zip (map (λ a : Addr, (a, v+1)) (finz.seq_between b e)) lws)
+         ++ (zip (map (λ a : Addr, (a, v)) (finz.seq_between b e)) lws))).
   Proof.
     intros Hlen_lws Hlwsrc Hupd.
     rewrite /update_version_word_region in Hupd.
@@ -860,6 +878,7 @@ Section cap_lang_rules.
         ∗ ▷ src ↦ᵣ LCap p b e a (v+1)
         ∗ ▷ dst ↦ᵣ LInt 1
         ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+        ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ lws ]]
         ∗ ▷ [[ b , e ]] ↦ₐ{ (v+1) } [[ lws ]] )
            ∨
         ( ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
@@ -898,7 +917,6 @@ Section cap_lang_rules.
     - (* Success true *)
       iApply "Hφ"; iLeft.
 
-      Set Nested Proofs Allowed.
       apply update_version_word_region_cons_no_access in Hupd ; [| solve_addr].
       destruct Hupd as (mem'' & Hupd & ->).
 
@@ -910,12 +928,20 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
       iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]".
-      { admit. } (* TODO easy *)
+      { admit. } (* TODO easy, eg. using map_disjoint_list_to_map_zip_l ? *)
       iFrame.
-      iApply (big_sepM_to_big_sepL2 with "Hmmap").
-      admit. (* TODO easy, modulo an additional hyp ? *)
-      (* apply NoDup_fmap. apply finz_seq_NoDup. *)
-      by rewrite map_length finz_seq_between_length.
+      rewrite list_to_map_app.
+      iDestruct (big_sepM_union with "Hmmap") as "[Hmmap_new Hmmap_old]".
+      { admit. (* easy *) }
+      iSplitL "Hmmap_old".
+      + iApply (big_sepM_to_big_sepL2 with "Hmmap_old").
+        admit. (* TODO easy, modulo an additional hyp ? *)
+        (* apply NoDup_fmap. apply finz_seq_NoDup. *)
+        by rewrite map_length finz_seq_between_length.
+      + iApply (big_sepM_to_big_sepL2 with "Hmmap_new").
+        admit. (* TODO easy, modulo an additional hyp ? *)
+        (* apply NoDup_fmap. apply finz_seq_NoDup. *)
+        by rewrite map_length finz_seq_between_length.
 
     - (* Success false *)
       iApply "Hφ"; iRight.
