@@ -940,58 +940,63 @@ Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → 
 Lemma prod_merge_empty_r
   {K A B} `{Countable K} (m1 : gmap K A) :
   (@prod_merge _ _ B _ _ m1 ∅) = ∅.
-Admitted.
+Proof.
+  rewrite /prod_merge.
+  rewrite merge_empty_r.
+  rewrite /flip.
+  rewrite /prod_op.
+  induction m1 using map_ind.
+  - apply omap_empty.
+  - assert (((λ y : option A, match y with
+                         | Some _ | _ => None
+                         end) ∘ Some) x = (None : option (prod A B))) by done.
+    apply omap_insert_None with (i := i) (m := m) in H1.
+    rewrite IHm1 in H1.
+    by rewrite delete_empty in H1.
+Qed.
 
 Lemma prod_merge_empty_l
   {K A B} `{Countable K} (m2 : gmap K B) :
   (@prod_merge _ A _ _ _ ∅ m2) = ∅.
-Admitted.
+Proof.
+  rewrite /prod_merge.
+  rewrite merge_empty_l.
+  rewrite /prod_op.
+  induction m2 using map_ind.
+  - apply omap_empty.
+  - assert (((λ _ : option B, None) ∘ Some) x = (None : option (prod A B))) by done.
+    apply omap_insert_None with (i := i) (m := m) in H1.
+    rewrite IHm2 in H1.
+    by rewrite delete_empty in H1.
+Qed.
 
 Lemma prod_merge_insert
   {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) (k : K) (a : A) (b : B) :
   prod_merge (<[k:=a]> m1) (<[k:=b]> m2) =
   <[k:=(a,b)]> (prod_merge m1 m2).
-Admitted.
-
-Lemma prod_merge_snd_inv {K A B} `{Countable K}
-  (m1 : gmap K A) (m2 : gmap K B) :
-  dom m1 ≡ dom m2 ->
-  snd <$> (prod_merge m1 m2) = m2.
 Proof.
-  generalize dependent m2.
-  induction m1 using map_ind ; intros m2 Hdom.
-  - rewrite prod_merge_empty_l fmap_empty /=.
-    destruct m2 using map_ind; try done.
-    rewrite dom_empty dom_insert in Hdom; set_solver.
-  - destruct m2 using map_ind.
-    + rewrite dom_empty dom_insert in Hdom; set_solver.
-    + destruct (decide (i0 = i)); simplify_eq.
-      * (* i = i0*)
-        rewrite prod_merge_insert fmap_insert /=.
-        (* rewrite dom_insert in Hdom. *)
-        rewrite IHm1 ; last done. admit.
-      (* replace i0 with i. 2: { clear -H0 H1 Hdom. admit. } *)
-      (* rewrite -(insert_merge _ _ _ _ x0); try done. *)
-      (* rewrite IHm2. *)
-      (* rewrite <- IHm1. *)
-      (* cbn. *)
-
-Admitted.
+  rewrite /prod_merge //=.
+  erewrite insert_merge; eauto.
+Qed.
 
 Lemma lookup_prod_merge_snd {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) va vb:
   prod_merge m1 m2 !! va = Some vb ->
   m2 !! va = Some (snd vb).
 Proof.
-  generalize dependent m1.
+  move: m1.
   induction m2 using map_ind; intros m1 Hprod.
   - rewrite prod_merge_empty_r lookup_empty // in Hprod.
   - destruct (decide (va = i)); simplify_map_eq.
-    2: { rewrite lookup_merge in Hprod; simplify_map_eq.
-         destruct m1 using map_ind.
-         rewrite lookup_empty //= in Hprod.
-         destruct (m !! va); done.
-Admitted.
+    + rewrite lookup_merge in Hprod; simplify_map_eq.
+      destruct (m1 !! i) eqn:Heq ; cbn in * ; [| congruence].
+      destruct vb ; simplify_eq ; cbn in * ; done.
+    + rewrite lookup_merge in Hprod; simplify_map_eq.
+      destruct (m !! va) eqn: Heq_m
+      ; cbn in *
+      ; destruct (m1 !! va) eqn:Heq_m1
+      ; simplify_map_eq; done.
+Qed.
 
 Lemma insert_inj {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
   (m1 m2 : gmap K A) (k : K) (v : A):
