@@ -993,6 +993,56 @@ Proof.
          destruct (m !! va); done.
 Admitted.
 
+Lemma prod_merge_delete_l {K A B} `{Countable K}
+  (m1 : gmap K A) (m2 : gmap K B) (i : K) :
+  prod_merge (delete i m1) m2 = (delete i (prod_merge m1 m2)).
+Proof.
+Admitted.
+
+Lemma snd_prod_merge_subseteq {K A B} `{Countable K}
+  (m1 : gmap K A) (m2 m2' : gmap K B) :
+  dom m1 = dom m2 ->
+  snd <$> prod_merge m1 m2 ⊆ m2' ->
+  m2 ⊆ m2'.
+Proof.
+  move: m1 m2'.
+  induction m2 using map_ind; intros m2 m2' Hdom Hprod.
+  - by rewrite prod_merge_empty_r fmap_empty in Hprod.
+  - assert (is_Some (m2 !! i)) as Hm2_i.
+    { apply elem_of_dom; rewrite Hdom; set_solver. }
+    destruct Hm2_i as (x0 & Hm2_i).
+    rewrite -(insert_id m2 i x0) in Hprod; auto.
+    rewrite prod_merge_insert fmap_insert /= in Hprod.
+    assert (m2' !! i = Some x) by ( by eapply lookup_weaken; eauto; simplify_map_eq).
+    rewrite -(insert_id m2' i x) //=.
+    apply insert_delete_subseteq in Hprod.
+    2: { assert (prod_merge m2 m !! i = None).
+         rewrite /prod_merge.
+         rewrite lookup_merge.
+         rewrite H0.
+         by simplify_map_eq.
+         rewrite lookup_fmap.
+         by rewrite H2.
+    }
+    rewrite -(insert_id m2' i x) //= delete_insert_delete in Hprod.
+    apply insert_mono.
+    eapply IHm2.
+    Unshelve. 3: exact (delete i m2).
+    { rewrite dom_delete_L Hdom dom_insert_L.
+      rewrite difference_union_distr_l_L.
+      replace (dom m ∖ {[i]}) with (dom m) by
+        (rewrite -dom_delete_L delete_notin //=).
+      set_solver.
+    }
+    rewrite prod_merge_delete_l fmap_delete.
+    apply map_subseteq_spec.
+    intros k w Hk.
+    destruct (decide (i = k)) ; simplify_map_eq.
+    eapply lookup_weaken in Hprod; eauto.
+    2:{ by rewrite lookup_fmap. }
+    rewrite lookup_delete_ne in Hprod; auto.
+Qed.
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

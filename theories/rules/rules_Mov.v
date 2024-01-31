@@ -38,7 +38,7 @@ Section cap_lang_rules.
     regs_of (Mov dst src) ⊆ dom lregs →
     {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ ∅ 
+      Instr Executable @ ∅
     {{{ lregs' retv, RET retv;
         ⌜ Mov_spec lregs dst src lregs' retv ⌝ ∗
         (pc_a, pc_v) ↦ₐ lw ∗
@@ -55,7 +55,8 @@ Section cap_lang_rules.
     iApply wp_wp2.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
-    iMod (state_interp_regs_transient_intro with "[$Hmap $Hσ1]") as "Hσ".
+    iMod (state_interp_transient_intro (lm:= ∅) (df:= ∅) with "[$Hmap $Hσ1]") as "Hσ";
+      [ by rewrite prod_merge_empty_r |].
     iApply (wp2_word_of_argument (lrt := lregs) (lw := lw) with "[$Hσ Hφ Hpc_a Hcred]"); first by set_solver.
     iIntros (lw2) "Hσ %Heqlw2 %Heqw2".
 
@@ -70,15 +71,15 @@ Section cap_lang_rules.
     { intros. now eapply (word_of_argumentL_cur Heqlw2). }
     iFrame "Hσ".
     iSplit. cbn.
-    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
-      iDestruct (state_interp_regs_transient_elim_abort with "Hσ") as "($ & Hregs)".
+    - iIntros (φt' lrt' lmt' dft') "Hσ %Hlin %Hin".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
       iPureIntro.
       eapply (Mov_spec_failure _ _ _ _ _ Heqlw2 Hlin).
-    - iIntros (lrt' rs') "Hσ %Hlis %His".
+    - iIntros (lrt' lmt' dft' rs') "Hσ %Hlis %His".
       iApply wp2_val.
       cbn.
-      iMod (state_interp_regs_transient_elim_commit with "Hσ") as "($ & Hregs)".
+      iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
       iPureIntro.
       eapply (Mov_spec_success _ _ _ _ _ Heqlw2 Hlis).
