@@ -979,6 +979,44 @@ Proof.
   erewrite insert_merge; eauto.
 Qed.
 
+Lemma snd_prod_merge_inv
+  {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) :
+  dom m1 = dom m2 ->
+  snd <$> prod_merge m1 m2 = m2.
+Proof.
+  move: m1.
+  induction m2 as [| k v m2 Hm2_k IHm2 ] using map_ind
+  ; intros m1 Hdom.
+  - by rewrite prod_merge_empty_r fmap_empty.
+  - assert (k ∈ dom m1) as Hk_indom_m1 by set_solver.
+    apply elem_of_dom in Hk_indom_m1.
+    destruct Hk_indom_m1 as [v1 Hm1_k].
+    rewrite /prod_merge fmap_merge.
+    apply map_eq.
+    intros k'.
+    rewrite lookup_merge.
+    destruct (decide (k = k')) ; simplify_map_eq; first done.
+    destruct (m1 !! k') as [v'|] eqn:Hm1_k'.
+    + assert (k' ∈ dom m2) as Hk'_indom_m2.
+      { rewrite dom_insert_L in Hdom.
+        assert ( k' ∈ dom m1) as Hk'_indom_m1 by (apply elem_of_dom; eexists ; eauto).
+        rewrite Hdom in Hk'_indom_m1.
+        set_solver.
+      }
+      apply elem_of_dom in Hk'_indom_m2.
+      destruct Hk'_indom_m2 as [v2 Hm2_k'].
+      rewrite Hm2_k'.
+      by simplify_map_eq.
+    + assert (k' ∉ dom m2) as Hk'_notindom_m2.
+      { rewrite dom_insert_L in Hdom.
+        assert ( k' ∉ dom m1) as Hk'_notindom_m1 by (apply not_elem_of_dom; eauto).
+        rewrite Hdom in Hk'_notindom_m1.
+        set_solver.
+      }
+      apply not_elem_of_dom in Hk'_notindom_m2.
+      by simplify_map_eq.
+Qed.
+
 Lemma lookup_prod_merge_snd {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) va vb:
   prod_merge m1 m2 !! va = Some vb ->

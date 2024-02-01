@@ -175,6 +175,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     iDestruct (gen_heap_valid_inclSepM_general with "Hm Hmem") as %Hmem.
+    rewrite snd_prod_merge_inv in Hmem; last by rewrite Hdomeq.
 
     (* Derive necessary register values in r *)
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
@@ -304,9 +305,6 @@ Section cap_lang_rules.
       destruct Hroot as (lw' & ? & Hma'' & Hcur').
       rewrite Hma2 in Hma'' ; simplify_eq.
       destruct_lword lw'; cbn in * ; simplify_eq.
-      eapply lookup_prod_merge_snd in Hmemadq. cbn in *.
-      assert ((snd <$> prod_merge dfracs lmem) !! (a, v) = Some (LCap p0 b0 e0 a0 v1)).
-      { rewrite lookup_fmap /prod_merge lookup_merge Hdq' Hmema //=. }
       eapply lookup_weaken_inv in Hmem; eauto; cbn in * ; simplify_eq.
       auto.
     - clear Hlr'1 Hlr'2.
