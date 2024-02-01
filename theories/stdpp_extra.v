@@ -997,10 +997,34 @@ Lemma prod_merge_delete_l {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) (i : K) :
   prod_merge (delete i m1) m2 = (delete i (prod_merge m1 m2)).
 Proof.
-Admitted.
+  move: m2.
+  induction m1 as [|k v m1 Hm1_k IHm1] using map_ind; intros m2.
+  - by rewrite delete_empty !prod_merge_empty_l .
+  - apply map_eq.
+    intro k'.
+    destruct (decide (k' = i))
+    ; rewrite /prod_merge lookup_merge
+    ; simplify_map_eq.
+    destruct (m2 !! i) ; done.
+    rewrite lookup_merge.
 
-Lemma snd_prod_merge_subseteq {K A B} `{Countable K}
-  (m1 : gmap K A) (m2 m2' : gmap K B) :
+    destruct (decide (k' = k))
+    ; simplify_map_eq
+    ; by destruct (m2 !! k) as [v2|] eqn:Hk_m2; simplify_map_eq.
+Qed.
+
+Lemma prod_merge_none_l
+  {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) (k : K) :
+  m2 !! k = None ->
+  (prod_merge m1 m2) !! k = None.
+Proof.
+  intros Hm2_k.
+  rewrite /prod_merge lookup_merge Hm2_k.
+  by destruct (m1 !! k) ; simplify_map_eq.
+Qed.
+
+Lemma snd_prod_merge_subseteq
+  {K A B} `{Countable K} (m1 : gmap K A) (m2 m2' : gmap K B) :
   dom m1 = dom m2 ->
   snd <$> prod_merge m1 m2 ⊆ m2' ->
   m2 ⊆ m2'.
@@ -1016,18 +1040,13 @@ Proof.
     assert (m2' !! i = Some x) by ( by eapply lookup_weaken; eauto; simplify_map_eq).
     rewrite -(insert_id m2' i x) //=.
     apply insert_delete_subseteq in Hprod.
-    2: { assert (prod_merge m2 m !! i = None).
-         rewrite /prod_merge.
-         rewrite lookup_merge.
-         rewrite H0.
-         by simplify_map_eq.
-         rewrite lookup_fmap.
-         by rewrite H2.
+    2: { eapply prod_merge_none_l in H0; eauto.
+         by rewrite lookup_fmap H0.
+         Unshelve. exact A. exact m2.
     }
     rewrite -(insert_id m2' i x) //= delete_insert_delete in Hprod.
     apply insert_mono.
-    eapply IHm2.
-    Unshelve. 3: exact (delete i m2).
+    eapply (IHm2 (delete i m2)).
     { rewrite dom_delete_L Hdom dom_insert_L.
       rewrite difference_union_distr_l_L.
       replace (dom m ∖ {[i]}) with (dom m) by
