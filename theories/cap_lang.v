@@ -497,7 +497,12 @@ Section opsem.
   | IsUnique dst src =>
       wsrc ← (reg φ) !! src;
       match wsrc with
-      | WCap p b e a =>
+      | WCap p b e a
+      | WSealed _ (SCap p b e a)
+        (* TODO ask: does IsUnique also work with sealed cap ?
+           cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
+         *)
+        =>
           let uniqueb := sweep (mem φ) (reg φ) src in
           updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
       | _ => None

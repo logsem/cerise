@@ -148,125 +148,125 @@ Section fundamental.
   Admitted.
 
 
-  Lemma sweep_res_implies_mem_map:
-    ∀ (lregs : leibnizO LReg)
-      (a a0 : Addr) (v v0 : Version) (lw : LWord) (src : RegName) p1 b1 e1 (P:D),
-      allow_load_res lregs src a v p1 b1 e1 a0 v0 P
-      -∗ (a, v) ↦ₐ lw
-      ={⊤ ∖ ↑logN.@(a,v),
-        if decide (reg_allows_load lregs src p1 b1 e1 a0 v0 ∧ (a0,v0) ≠ (a,v))
-        then ⊤ ∖ ↑logN.@(a,v) ∖ ↑logN.@(a0,v0)
-        else ⊤ ∖ ↑logN.@(a,v)}=∗
-         ∃ lmem : LMem,
-           allow_load_mem lregs src a v lw lmem p1 b1 e1 a0 v0 P true
-             ∗ ▷ ([∗ map] la↦lw ∈ lmem, la ↦ₐ lw).
-  Proof.
-    intros lregs a a0 v v0 w src p1 b1 e1 P.
-    iIntros "HLoadRes Ha".
-    iDestruct "HLoadRes" as "[% HLoadRes]".
+  (* Lemma sweep_res_implies_mem_map: *)
+  (*   ∀ (lregs : leibnizO LReg) *)
+  (*     (a a0 : Addr) (v v0 : Version) (lw : LWord) (src : RegName) p1 b1 e1 (P:D), *)
+  (*     allow_load_res lregs src a v p1 b1 e1 a0 v0 P *)
+  (*     -∗ (a, v) ↦ₐ lw *)
+  (*     ={⊤ ∖ ↑logN.@(a,v), *)
+  (*       if decide (reg_allows_load lregs src p1 b1 e1 a0 v0 ∧ (a0,v0) ≠ (a,v)) *)
+  (*       then ⊤ ∖ ↑logN.@(a,v) ∖ ↑logN.@(a0,v0) *)
+  (*       else ⊤ ∖ ↑logN.@(a,v)}=∗ *)
+  (*        ∃ lmem : LMem, *)
+  (*          allow_load_mem lregs src a v lw lmem p1 b1 e1 a0 v0 P true *)
+  (*            ∗ ▷ ([∗ map] la↦lw ∈ lmem, la ↦ₐ lw). *)
+  (* Proof. *)
+  (*   intros lregs a a0 v v0 w src p1 b1 e1 P. *)
+  (*   iIntros "HLoadRes Ha". *)
+  (*   iDestruct "HLoadRes" as "[% HLoadRes]". *)
 
-    case_decide as Hdec. 1: destruct Hdec as [ Hallows Hlaeq ].
-    -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ].
-       iMod "HLoadRes" as (lw0) "[Ha0 [HLoadRest #Hval] ]".
-       iExists _.
-       iSplitL "HLoadRest".
-       + iSplitR; first auto.
+  (*   case_decide as Hdec. 1: destruct Hdec as [ Hallows Hlaeq ]. *)
+  (*   -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ]. *)
+  (*      iMod "HLoadRes" as (lw0) "[Ha0 [HLoadRest #Hval] ]". *)
+  (*      iExists _. *)
+  (*      iSplitL "HLoadRest". *)
+  (*      + iSplitR; first auto. *)
 
-         case_decide as Hdec1.
-         2: { apply not_and_r in Hdec1 as [| Hdec1] ; by exfalso. }
-         iExists lw0. iSplitR; auto.
-       + iModIntro. iNext.
-         rewrite memMap_resource_2ne; first iFrame.
-         intro ; simplify_eq.
-    - rewrite /read_reg_inr in H0.
-      iExists _.
-      iSplitL "HLoadRes".
-      + iModIntro. rewrite /allow_load_mem. iSplitR; auto.
-        case_decide; first by exfalso. auto.
-      + iModIntro. iNext. by iApply memMap_resource_1.
-  Qed.
+  (*        case_decide as Hdec1. *)
+  (*        2: { apply not_and_r in Hdec1 as [| Hdec1] ; by exfalso. } *)
+  (*        iExists lw0. iSplitR; auto. *)
+  (*      + iModIntro. iNext. *)
+  (*        rewrite memMap_resource_2ne; first iFrame. *)
+  (*        intro ; simplify_eq. *)
+  (*   - rewrite /read_reg_inr in H0. *)
+  (*     iExists _. *)
+  (*     iSplitL "HLoadRes". *)
+  (*     + iModIntro. rewrite /allow_load_mem. iSplitR; auto. *)
+  (*       case_decide; first by exfalso. auto. *)
+  (*     + iModIntro. iNext. by iApply memMap_resource_1. *)
+  (* Qed. *)
 
-  Lemma mem_map_implies_pure_conds:
-    ∀ (lregs : leibnizO LReg)
-       (a a0 : Addr) (v v0 : Version) (lw : LWord) (src : RegName)
-       (lmem : LMem) p b e P f,
-        allow_load_mem lregs src a v lw lmem p b e a0 v0 P f
-        -∗ ⌜lmem !! (a,v) = Some lw⌝
-          ∗ ⌜allow_load_map_or_true src lregs lmem⌝.
-  Proof.
-    iIntros (lregs a a0 v v0 lw src lmem p b e P f) "HLoadMem".
-    iDestruct "HLoadMem" as "[% HLoadRes]".
-    case_decide as Hdec. 1: destruct Hdec as [ Hallows Hlaeq ].
-    -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ].
-       (* case_decide as Haeq. *)
-       iDestruct "HLoadRes" as (lw0) "[% _]".
-       iSplitR. by simplify_map_eq.
-       iExists p,b,e,a0,v0. iSplitR; auto.
-       case_decide; last by exfalso.
-       iExists lw0. rewrite H1.
-         by rewrite lookup_insert.
-    - iDestruct "HLoadRes" as "->".
-      iSplitR. by simplify_map_eq.
-      iExists p,b,e,a0,v0. iSplitR; auto.
-      case_decide as Hdec1; last by done.
-      apply not_and_r in Hdec as [| <-%dec_stable]; first by exfalso.
-      iExists lw; by simplify_map_eq.
-  Qed.
+  (* Lemma mem_map_implies_pure_conds: *)
+  (*   ∀ (lregs : leibnizO LReg) *)
+  (*      (a a0 : Addr) (v v0 : Version) (lw : LWord) (src : RegName) *)
+  (*      (lmem : LMem) p b e P f, *)
+  (*       allow_load_mem lregs src a v lw lmem p b e a0 v0 P f *)
+  (*       -∗ ⌜lmem !! (a,v) = Some lw⌝ *)
+  (*         ∗ ⌜allow_load_map_or_true src lregs lmem⌝. *)
+  (* Proof. *)
+  (*   iIntros (lregs a a0 v v0 lw src lmem p b e P f) "HLoadMem". *)
+  (*   iDestruct "HLoadMem" as "[% HLoadRes]". *)
+  (*   case_decide as Hdec. 1: destruct Hdec as [ Hallows Hlaeq ]. *)
+  (*   -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ]. *)
+  (*      (* case_decide as Haeq. *) *)
+  (*      iDestruct "HLoadRes" as (lw0) "[% _]". *)
+  (*      iSplitR. by simplify_map_eq. *)
+  (*      iExists p,b,e,a0,v0. iSplitR; auto. *)
+  (*      case_decide; last by exfalso. *)
+  (*      iExists lw0. rewrite H1. *)
+  (*        by rewrite lookup_insert. *)
+  (*   - iDestruct "HLoadRes" as "->". *)
+  (*     iSplitR. by simplify_map_eq. *)
+  (*     iExists p,b,e,a0,v0. iSplitR; auto. *)
+  (*     case_decide as Hdec1; last by done. *)
+  (*     apply not_and_r in Hdec as [| <-%dec_stable]; first by exfalso. *)
+  (*     iExists lw; by simplify_map_eq. *)
+  (* Qed. *)
 
-  Lemma allow_sweep_mem_later:
-    ∀ (lregs : leibnizO LReg)
-      (p : Perm) (b e a a0 : Addr) (v v0 : Version)
-      (lw : LWord) (src : RegName)
-      (lmem : LMem) p0 b0 e0 P,
-      allow_sweep_mem lregs src a v lw lmem p0 b0 e0 a0 v0 P true
-      -∗ ▷ allow_sweep_mem lregs src a v lw lmem p0 b0 e0 a0 v0 P false.
-  Proof.
-    iIntros (lregs p b e a a0 v v0 lw src lmem p0 b0 e0 P) "HLoadMem".
-    iDestruct "HLoadMem" as "[% HLoadMem]".
-    rewrite !/allow_load_mem /=. iSplit;[auto|].
-    destruct (decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0,v0) ≠ (a,v))).
-    - iApply later_exist_2. iDestruct "HLoadMem" as (lw0) "(?&HP&?)".
-      iExists lw0. iNext. iDestruct "HP" as "(?&?&?)". iFrame.
-    - iNext. iFrame.
-  Qed.
+  (* Lemma allow_sweep_mem_later: *)
+  (*   ∀ (lregs : leibnizO LReg) *)
+  (*     (p : Perm) (b e a a0 : Addr) (v v0 : Version) *)
+  (*     (lw : LWord) (src : RegName) *)
+  (*     (lmem : LMem) p0 b0 e0 P, *)
+  (*     allow_sweep_mem lregs src a v lw lmem p0 b0 e0 a0 v0 P true *)
+  (*     -∗ ▷ allow_sweep_mem lregs src a v lw lmem p0 b0 e0 a0 v0 P false. *)
+  (* Proof. *)
+  (*   iIntros (lregs p b e a a0 v v0 lw src lmem p0 b0 e0 P) "HLoadMem". *)
+  (*   iDestruct "HLoadMem" as "[% HLoadMem]". *)
+  (*   rewrite !/allow_load_mem /=. iSplit;[auto|]. *)
+  (*   destruct (decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0,v0) ≠ (a,v))). *)
+  (*   - iApply later_exist_2. iDestruct "HLoadMem" as (lw0) "(?&HP&?)". *)
+  (*     iExists lw0. iNext. iDestruct "HP" as "(?&?&?)". iFrame. *)
+  (*   - iNext. iFrame. *)
+  (* Qed. *)
 
-  Instance if_Persistent p b e a v lregs src p0 b0 e0 a0 v0 loadv :
-    Persistent (if decide (reg_allows_load (<[PC:=LCap p b e a v]> lregs) src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v))
-                then interp loadv
-                else emp)%I.
-  Proof. intros. destruct (decide (reg_allows_load (<[PC:=LCap p b e a v]> lregs) src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v)));apply _. Qed.
+  (* Instance if_Persistent p b e a v lregs src p0 b0 e0 a0 v0 loadv : *)
+  (*   Persistent (if decide (reg_allows_load (<[PC:=LCap p b e a v]> lregs) src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v)) *)
+  (*               then interp loadv *)
+  (*               else emp)%I. *)
+  (* Proof. intros. destruct (decide (reg_allows_load (<[PC:=LCap p b e a v]> lregs) src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v)));apply _. Qed. *)
 
-  Lemma mem_map_recover_res:
-    ∀ (lregs : leibnizO LReg)
-       (a : Addr) (v : Version) (lw : LWord) (src : RegName) p0
-       (b0 e0 a0 : Addr) (v0 : Version) (lmem : LMem) loadv P,
-      lmem !! (a0, v0) = Some loadv
-      -> reg_allows_load lregs src p0 b0 e0 a0 v0
-      → allow_load_mem lregs src  a v lw lmem p0 b0 e0 a0 v0 P false
-        -∗ ([∗ map] la↦lw ∈ lmem, la ↦ₐ lw)
-        ={if decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v))
-          then ⊤ ∖ ↑logN.@(a,v) ∖ ↑logN.@(a0,v0)
-          else ⊤ ∖ ↑logN.@(a,v),⊤ ∖ ↑logN.@(a,v)}=∗
-           (a,v) ↦ₐ lw
-           ∗ if decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v))
-           then interp loadv
-           else emp.
-  Proof.
-    intros lregs a v lw src p0 b0 e0 a0 v0 lmem loadv P Hloadv Hrar.
-    iIntros "HLoadMem Hmem".
-    iDestruct "HLoadMem" as "[% HLoadRes]".
-    (* destruct (load_inr_eq Hrar H0) as (<- & <- &<- &<- &<-). *)
-    case_decide as Hdec. destruct Hdec as [Hallows Heq].
-    -  destruct Hallows as [Hrinr [Hra Hwb] ].
-       iDestruct "HLoadRes" as (w0) "[-> [ [HP [#Hcond Hcls] ] Hinterp] ]".
-       simplify_map_eq.
-       rewrite memMap_resource_2ne; last auto. iDestruct "Hmem" as  "[Ha1 $]".
-       iMod ("Hcls" with "[Ha1 HP]") as "_";[iNext;iExists loadv;iFrame|]. iModIntro. done.
-    - apply not_and_r in Hdec as [| <-%dec_stable].
-      * by exfalso.
-      * iDestruct "HLoadRes" as "->".
-        rewrite -memMap_resource_1. by iFrame.
-  Qed.
+  (* Lemma mem_map_recover_res: *)
+  (*   ∀ (lregs : leibnizO LReg) *)
+  (*      (a : Addr) (v : Version) (lw : LWord) (src : RegName) p0 *)
+  (*      (b0 e0 a0 : Addr) (v0 : Version) (lmem : LMem) loadv P, *)
+  (*     lmem !! (a0, v0) = Some loadv *)
+  (*     -> reg_allows_load lregs src p0 b0 e0 a0 v0 *)
+  (*     → allow_load_mem lregs src  a v lw lmem p0 b0 e0 a0 v0 P false *)
+  (*       -∗ ([∗ map] la↦lw ∈ lmem, la ↦ₐ lw) *)
+  (*       ={if decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v)) *)
+  (*         then ⊤ ∖ ↑logN.@(a,v) ∖ ↑logN.@(a0,v0) *)
+  (*         else ⊤ ∖ ↑logN.@(a,v),⊤ ∖ ↑logN.@(a,v)}=∗ *)
+  (*          (a,v) ↦ₐ lw *)
+  (*          ∗ if decide (reg_allows_load lregs src p0 b0 e0 a0 v0 ∧ (a0, v0) ≠ (a,v)) *)
+  (*          then interp loadv *)
+  (*          else emp. *)
+  (* Proof. *)
+  (*   intros lregs a v lw src p0 b0 e0 a0 v0 lmem loadv P Hloadv Hrar. *)
+  (*   iIntros "HLoadMem Hmem". *)
+  (*   iDestruct "HLoadMem" as "[% HLoadRes]". *)
+  (*   (* destruct (load_inr_eq Hrar H0) as (<- & <- &<- &<- &<-). *) *)
+  (*   case_decide as Hdec. destruct Hdec as [Hallows Heq]. *)
+  (*   -  destruct Hallows as [Hrinr [Hra Hwb] ]. *)
+  (*      iDestruct "HLoadRes" as (w0) "[-> [ [HP [#Hcond Hcls] ] Hinterp] ]". *)
+  (*      simplify_map_eq. *)
+  (*      rewrite memMap_resource_2ne; last auto. iDestruct "Hmem" as  "[Ha1 $]". *)
+  (*      iMod ("Hcls" with "[Ha1 HP]") as "_";[iNext;iExists loadv;iFrame|]. iModIntro. done. *)
+  (*   - apply not_and_r in Hdec as [| <-%dec_stable]. *)
+  (*     * by exfalso. *)
+  (*     * iDestruct "HLoadRes" as "->". *)
+  (*       rewrite -memMap_resource_1. by iFrame. *)
+  (* Qed. *)
 
 
   Lemma isunique_case (lregs : leibnizO LReg)
@@ -298,6 +298,56 @@ Section fundamental.
       destruct wsrc as [|[ p0 b0 e0 a0 v0|] | ]; try done.
       by repeat eexists.
     }
+
+    destruct (decide (PC = src)) as [?|Hsrc_neq_pc]; simplify_map_eq.
+    - rewrite /read_reg_inr in HVsrc; simplify_map_eq.
+      admit.
+    - pose proof (Hsome src) as [wsrc Hlregs_src].
+      rewrite /read_reg_inr in HVsrc; simplify_map_eq.
+      destruct (decide (is_lcap wsrc)) as [Hcap|Hcap]; cycle 1.
+      + destruct_lword wsrc ; cbn in HVsrc; try done.
+        all: rewrite memMap_resource_1.
+        all: iApply (wp_isunique with "[$Hmap $Ha]")
+        ; eauto
+        ; [ by simplify_map_eq
+          | rewrite /subseteq /map_subseteq /set_subseteq_instance
+            ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+          | by simplify_map_eq
+          | rewrite /allow_access_map_or_true
+            ; eexists _, p0, b0, e0, a0, v0;
+            split; [rewrite /read_reg_inr'|];
+            simplify_map_eq
+            ; try (
+                case_decide as Hcontra; [|done]
+                ; destruct Hcontra as [ Hcontra | Hcontra ] ; simplify_map_eq
+                ; rewrite Hlregs_src in Hcontra; by simplify_map_eq)
+          |].
+        all: try done.
+        all: iNext; iIntros (lregs' lmem' retv) "(%Hspec & Hmem & Hmap)".
+        all: inversion Hspec as [| | ? ? Hfail]; simplify_map_eq
+        ; try (rewrite H0 in Hlregs_src; simplify_eq).
+        all: rewrite -memMap_resource_1.
+        all: iMod ("Hcls" with "[Hmem HP]");[iExists lw;iFrame|iModIntro].
+        all: iApply wp_pure_step_later; auto.
+        all: iNext; iIntros "_"; iApply wp_value; auto.
+        all: iIntros; discriminate.
+
+      + destruct_lword wsrc ; cbn in HVsrc; try done ; simplify_eq.
+        * admit.
+        * admit.
+  Admitted.
+
+
+
+
+
+
+
+
+
+
+
+
 
     (* Step 1: open the region, if necessary, and store all the resources obtained from the region in allow_load_res *)
     iDestruct (create_load_res with "Hreg") as (P') "HLoadRes"; eauto.

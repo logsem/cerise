@@ -37,6 +37,7 @@ theories/proofmode/classes.v
 theories/proofmode/class_instances.v
 theories/proofmode/solve_addr_extra.v
 theories/proofmode/region.v
+theories/proofmode/register_tactics.v
 
 # Program logic: Unary WP rules
 theories/rules/rules_base.v
@@ -79,7 +80,6 @@ theories/proofmode/solve_pure.v
 theories/proofmode/NamedProp.v
 theories/proofmode/proofmode_instr_rules.v
 theories/proofmode/proofmode.v
-theories/proofmode/register_tactics.v
 
 # Unary Logical Relation
 theories/seal_store.v
