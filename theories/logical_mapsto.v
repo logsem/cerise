@@ -996,34 +996,36 @@ Proof.
 Qed.
 
 Lemma update_cur_version_addr_local_notin_preserves_cur_1:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) (opt_v : option Version),
   update_cur_version_addr_local lm cur_map a' = (lm', cur_map')
-  → a ≠ a' → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+  → a ≠ a'
+  → cur_map !! a = opt_v
+  → cur_map' !! a = opt_v.
 Proof.
   move=> lm lm' cur_map cur_map' a a' v Hupd Hneq Hcur.
   rewrite /update_cur_version_addr_local /update_lmemory_lword in Hupd.
   destruct (cur_map !! a') as [va'|]; cbn in *; last by simplify_eq.
-  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; last by simplify_eq.
-  rewrite /is_cur_addr /= lookup_insert_ne //=.
+  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
 Qed.
 
 Lemma update_cur_version_addr_local_notin_preserves_cur_2:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) (opt_v : option Version),
   update_cur_version_addr_local lm cur_map a' = (lm', cur_map')
-  → a ≠ a' → is_cur_addr (a, v) cur_map' → is_cur_addr (a, v) cur_map.
+  → a ≠ a'
+  → cur_map' !! a = opt_v
+  → cur_map !! a = opt_v.
 Proof.
   move=> lm lm' cur_map cur_map' a a' v Hupd Hneq Hcur.
   rewrite /update_cur_version_addr_local /update_lmemory_lword in Hupd.
   destruct (cur_map !! a') as [va'|]; cbn in *; last by simplify_eq.
-  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; last by simplify_eq.
-  rewrite /is_cur_addr /= lookup_insert_ne //= in Hcur.
+  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
 Qed.
 
 Lemma update_cur_version_addr_local_notin_preserves_cur:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) (opt_v : option Version),
   update_cur_version_addr_local lm cur_map a' = (lm', cur_map')
   → a ≠ a'
-  → (is_cur_addr (a, v) cur_map <-> is_cur_addr (a, v) cur_map').
+  → (cur_map !! a = opt_v <-> cur_map' !! a = opt_v).
 Proof.
   intros; split ; intros
   ; [ eapply update_cur_version_addr_local_notin_preserves_cur_1
@@ -1032,9 +1034,12 @@ Proof.
 Qed.
 
 Lemma update_cur_version_region_local_notin_preserves_cur_1:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap)
+    (la : list Addr) (a : Addr) (opt_v : option Version),
   update_cur_version_region_local lm cur_map la = (lm', cur_map')
-  → a ∉ la → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+  → a ∉ la
+  → cur_map !! a = opt_v
+  → cur_map' !! a = opt_v.
 Proof.
   move=> lm lm' cur_map cur_map' la.
   move: lm lm' cur_map cur_map'.
@@ -1051,9 +1056,12 @@ Proof.
 Qed.
 
 Lemma update_cur_version_region_local_notin_preserves_cur_2:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap)
+    (la : list Addr) (a : Addr) (opt_v : option Version),
   update_cur_version_region_local lm cur_map la = (lm', cur_map')
-  → a ∉ la → is_cur_addr (a, v) cur_map' → is_cur_addr (a, v) cur_map.
+  → a ∉ la
+  → cur_map' !! a = opt_v
+  → cur_map !! a = opt_v.
 Proof.
   move=> lm lm' cur_map cur_map' la.
   move: lm lm' cur_map cur_map'.
@@ -1071,10 +1079,11 @@ Proof.
 Qed.
 
 Lemma update_cur_version_region_local_notin_preserves_cur:
-  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
-  update_cur_version_region_local lm cur_map la = (lm', cur_map')
-  → a ∉ la
-  → (is_cur_addr (a, v) cur_map <-> is_cur_addr (a, v) cur_map').
+  ∀ (lm lm' : LMem) (cur_map cur_map' : VMap)
+    (la : list Addr) (a : Addr) (opt_v : option Version),
+    update_cur_version_region_local lm cur_map la = (lm', cur_map')
+    → a ∉ la
+    → (cur_map !! a = opt_v <-> cur_map' !! a = opt_v).
 Proof.
   intros; split ; intros
   ; [ eapply update_cur_version_region_local_notin_preserves_cur_1
@@ -1083,53 +1092,61 @@ Proof.
 Qed.
 
 Lemma update_cur_version_addr_global_notin_preserves_cur_1:
-  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) (opt_v : option Version),
   update_cur_version_addr_global lmem lm cur_map a' = (lmem', cur_map')
-  → a ≠ a' → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+  → a ≠ a'
+  → cur_map !! a = opt_v
+  → cur_map' !! a = opt_v.
 Proof.
-  move=> lmem lm lmem' cur_map cur_map' a a' v Hupd Hneq Hcur.
+  move=> lmem lm lmem' cur_map cur_map' a a' opt_v Hupd Hneq Hcur.
   rewrite /update_cur_version_addr_global /update_lmemory_lword in Hupd.
   destruct (cur_map !! a') as [va'|]; last by simplify_eq.
-  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; last by simplify_eq.
-  rewrite /is_cur_addr /= lookup_insert_ne //=.
+  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
 Qed.
 
 Lemma update_cur_version_addr_global_notin_preserves_cur_2:
-  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) v,
+  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (a a' : Addr) (opt_v : option Version),
   update_cur_version_addr_global lmem lm cur_map a' = (lmem', cur_map')
-  → a ≠ a' → is_cur_addr (a, v) cur_map' → is_cur_addr (a, v) cur_map.
+  → a ≠ a'
+  → cur_map' !! a = opt_v
+  → cur_map !! a = opt_v.
 Proof.
-  move=> lmem lm lmem' cur_map cur_map' a a' v Hupd Hneq Hcur.
+  move=> lmem lm lmem' cur_map cur_map' a a' opt_v Hupd Hneq Hcur.
   rewrite /update_cur_version_addr_global /update_lmemory_lword in Hupd.
   destruct (cur_map !! a') as [va'|]; last by simplify_eq.
-  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; last by simplify_eq.
-  rewrite /is_cur_addr /= lookup_insert_ne //= in Hcur.
+  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
 Qed.
 
 Lemma update_cur_version_region_global_notin_preserves_cur_1:
-  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
-  update_cur_version_region_global lmem lm cur_map la = (lmem', cur_map')
-  → a ∉ la → is_cur_addr (a, v) cur_map → is_cur_addr (a, v) cur_map'.
+  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap)
+    (la : list Addr) (a : Addr) (opt_v : option Version),
+    update_cur_version_region_global lmem lm cur_map la = (lmem', cur_map')
+    → a ∉ la
+    → cur_map !! a = opt_v
+    → cur_map' !! a = opt_v.
 Proof.
   move=> lmem lm lmem' cur_map cur_map' la.
   move: lmem lm lmem' cur_map cur_map'.
   induction la as [|a la IH]
   ; intros * ; move=> Hupd Ha_notin_la Hcur
-  ; first (cbn in *; by simplify_eq).
+                     ; first (cbn in *; by simplify_eq).
 
   apply not_elem_of_cons in Ha_notin_la.
   destruct Ha_notin_la as [Ha0_neq_a Ha_notin_la].
 
   apply update_cur_version_region_global_cons in Hupd
   ; destruct Hupd as (lm0 & vmap_m0 & Hupd & Hupd0).
-  assert (is_cur_addr (a0, v) vmap_m0) as Hcur0 by (eapply IH ; eauto).
+  assert (vmap_m0 !! a0 = opt_v) as Hcur0 by (eapply IH ; eauto).
   eapply update_cur_version_addr_global_notin_preserves_cur_1 in Hcur0; eauto.
 Qed.
 
 Lemma update_cur_version_region_global_notin_preserves_cur_2:
-  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap) (la : list Addr) (a : Addr) v,
-  update_cur_version_region_global lmem lm cur_map la = (lmem', cur_map')
-  → a ∉ la → is_cur_addr (a, v) cur_map' → is_cur_addr (a, v) cur_map.
+  ∀ (lmem lm lmem' : LMem) (cur_map cur_map' : VMap)
+    (la : list Addr) (a : Addr) (opt_v : option Version),
+    update_cur_version_region_global lmem lm cur_map la = (lmem', cur_map')
+    → a ∉ la
+    → cur_map' !! a = opt_v
+    → cur_map !! a = opt_v.
 Proof.
   move=> lmem lm lmem' cur_map cur_map' la.
   move: lmem lm lmem' cur_map cur_map'.
@@ -1332,8 +1349,8 @@ Proof.
       by rewrite Hlwa in Hupd0 ; simplify_map_eq.
     + (* case (a <> a' *)
       assert (a <> a') as Ha_neq_a' by set_solver.
-      eapply update_cur_version_addr_local_notin_preserves_cur_1
-      ; eauto ; cbn in *.
+      eapply update_cur_version_addr_local_notin_preserves_cur_1 ; eauto ; cbn in *.
+      eapply IH; eauto.
 Qed.
 
 Lemma reg_phys_log_corresponds_cap_is_cur
