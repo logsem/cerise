@@ -78,6 +78,7 @@ Section region.
     (*   iDestruct "AB" as "[A3 B3]". *)
     (*   rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame. *)
   (* Qed. *)
+  (* Abort. *)
   Admitted.
 
   Lemma extract_from_region' b e a v ws φ `{!∀ x, Persistent (φ x)}:
@@ -329,6 +330,31 @@ Section region.
   (*      rewrite (_: finz.dist b e - finz.dist b a = finz.dist a e)... *)
   (*  Qed. *)
 
+   Lemma NoDup_logical_region (b e : Addr) (v : Version) :
+     NoDup (map (λ a0 : Addr, (a0, v)) (finz.seq_between b e)).
+   Proof.
+     apply NoDup_fmap.
+     { by intros x y Heq ; simplify_eq. }
+     { apply finz_seq_between_NoDup. }
+   Qed.
+
+   Lemma update_logical_memory_region_disjoint
+     (la : list Addr) (v : Version) (lws : list LWord):
+     length la = length lws ->
+     (list_to_map (zip (map (λ a : Addr, (a, v + 1)) la) lws) : LMem)
+       ##ₘ list_to_map (zip (map (λ a : Addr, (a, v)) la) lws).
+   Proof.
+     intros Hlen.
+     apply map_disjoint_list_to_map_zip_l ; [rewrite map_length; lia|].
+     apply Forall_forall.
+     intros a Ha.
+     apply not_elem_of_list_to_map.
+     rewrite fst_zip; [|rewrite map_length; lia].
+     intros Ha'.
+     apply elem_of_list_fmap_2 in Ha, Ha'.
+     destruct Ha as (? & Ha & ?).
+     destruct Ha' as (? & Ha' & ?). simplify_eq; lia.
+   Qed.
 
 End region.
 

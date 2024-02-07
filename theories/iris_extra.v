@@ -491,3 +491,12 @@ Proof.
       apply Hnin. apply create_gmap_default_lookup_is_Some in Hsome' as [Hin Hsome'].
       subst. auto.
 Qed.
+
+Lemma big_sepM_insert_delete_list :
+  ∀ {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+    (Φ : K → A → PROP) (m m' : gmap K A),
+    m' ⊆ m ->
+    ([∗ map] k↦y ∈ m, Φ k y) ⊣⊢
+      ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y).
+Proof.
+Admitted.
