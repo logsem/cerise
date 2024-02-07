@@ -1058,6 +1058,43 @@ Proof.
     rewrite Hm1 in Hm2 ; congruence.
 Qed.
 
+Lemma delete_subseteq_r
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) :
+  m1 !! k = None → m1 ⊆ m2 → m1 ⊆ delete k m2.
+Proof.
+  intros.
+  eapply map_subseteq_spec.
+  intros k' v' Hk'.
+  destruct (decide (k = k')) ; simplify_map_eq.
+  by eapply lookup_weaken in Hk'.
+Qed.
+
+Lemma delete_subseteq_list_r
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 m3 : gmap K A) :
+      m1 ##ₘ m3 → m1 ⊆ m2 → m1 ⊆ (m2 ∖ m3).
+Proof.
+  move: m1 m2.
+  induction m3 as [|k v m3 Hm3_k IHm3] using map_ind
+  ; intros m1 m2 Hdisjoint Hincl.
+  - eapply map_subseteq_spec; intros k' v' Hk'.
+    rewrite map_difference_empty.
+    eapply lookup_weaken; eauto.
+  - eapply map_subseteq_spec; intros k' v' Hm1_k'.
+    assert (m2 !! k' = Some v') as Hm2_k' by (eapply lookup_weaken ; eauto).
+    apply map_disjoint_insert_r in Hdisjoint.
+    destruct Hdisjoint as [Hm1_k Hdisjoint].
+    pose proof (delete_subseteq_r m1 m2 k Hm1_k Hincl) as Hdel.
+    eapply IHm3 in Hdel; eauto.
+    assert (k ≠ k') as Hneq_k by (intro ; simplify_map_eq).
+    pose proof Hm1_k' as Hk'.
+    rewrite lookup_difference.
+    simplify_map_eq.
+    eapply map_disjoint_Some_r in Hm1_k'; eauto.
+    by rewrite Hm1_k'.
+Qed.
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

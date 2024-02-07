@@ -40,6 +40,7 @@ Section region.
       ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ y2)%I.
   Proof. intros. rewrite big_sepL2_app' //. Qed.
 
+  (* TODO fix *)
   Lemma extract_from_region b e v a ws φ :
     let n := length (finz.seq_between b a) in
     (b <= a ∧ a < e)%a →
@@ -65,7 +66,7 @@ Section region.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
-    (*   iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]". *)
+      (* iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]". *)
     (*   case_eq (drop n ws); intros. *)
     (*   + auto. *)
     (*   + iDestruct "HA2" as "[HA2 HA3]". *)
@@ -79,8 +80,9 @@ Section region.
     (*   rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame. *)
   (* Qed. *)
   (* Abort. *)
-  Admitted.
+  Abort.
 
+  (* TODO fix *)
   Lemma extract_from_region' b e a v ws φ `{!∀ x, Persistent (φ x)}:
     let n := length (finz.seq_between b a) in
     (b <= a ∧ a < e)%a →
@@ -94,15 +96,15 @@ Section region.
   Proof.
     intros. iSplit.
     - iIntros "H".
-      iDestruct (extract_from_region with "H") as (w Hws) "(?&?&?&#Hφ&?&?)"; eauto.
-      iExists _. iFrame. iSplitR. iPureIntro. by rewrite {1}Hws //.
-      rewrite {3}Hws. iFrame. iSplit; iApply "Hφ".
-    - iIntros "H". iApply (extract_from_region with "[H]"); eauto.
-      iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame.
-      iSplitR. iPureIntro. by rewrite {1}Hws //.
-      rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]".
-      cbn. iFrame.
-  Qed.
+    (*   iDestruct (extract_from_region with "H") as (w Hws) "(?&?&?&#Hφ&?&?)"; eauto. *)
+    (*   iExists _. iFrame. iSplitR. iPureIntro. by rewrite {1}Hws //. *)
+    (*   rewrite {3}Hws. iFrame. iSplit; iApply "Hφ". *)
+    (* - iIntros "H". iApply (extract_from_region with "[H]"); eauto. *)
+    (*   iDestruct "H" as (w Hws) "(?&Hl&?&#Hφ&?)". iExists _. iFrame. *)
+    (*   iSplitR. iPureIntro. by rewrite {1}Hws //. *)
+    (*   rewrite {1}Hws. iDestruct (big_sepL_app with "Hl") as "[? ?]". *)
+    (*   cbn. iFrame. *)
+  Abort.
 
   Lemma extract_from_region_inv b e a (φ : Addr → iProp Σ) `{!∀ x, Persistent (φ x)}:
     (b <= a ∧ a < e)%a →
