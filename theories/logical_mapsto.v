@@ -434,15 +434,17 @@ Qed.
 
 Lemma state_phys_log_cap_all_current
   (phr : Reg) (phm : Mem) (lm : LMem) (lr : LReg) (cur_map : VMap)
-  (src : RegName) (p : Perm) (b e a : Addr) (v : Version) :
+  (src : RegName) (lwsrc : LWord) (p : Perm) (b e a : Addr) (v : Version) :
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
   state_phys_log_corresponds phr phm lr lm cur_map ->
-  lr !! src = Some (LCap p b e a v) ->
+  lr !! src = Some lwsrc ->
   Forall (λ a0 : Addr, cur_map !! a0 = Some v) (finz.seq_between b e).
 Proof.
-  move=> [[_ Hreg_current] Hmem_inv] Hlr_src.
+  move=> Hget_lw [ [_ Hreg_current] Hmem_inv] Hlr_src.
   pose proof (map_Forall_lookup_1 _ _ _ _ Hreg_current Hlr_src) as Hcur_src.
   cbn in *.
-  by eapply Forall_forall.
+  destruct_lword lwsrc ; cbn in * ; simplify_eq.
+  all: by eapply Forall_forall.
 Qed.
 
 Definition lword_of_argument (lregs: LReg) (a: Z + RegName): option LWord :=
@@ -1237,30 +1239,52 @@ Qed.
 
 Lemma state_phys_log_last_version
   (phr : Reg) (phm : Mem) (lm : LMem) (lr : LReg) (cur_map : VMap)
-  (src : RegName) (p : Perm) (b e a : Addr) (v : Version) :
+  (src : RegName) (lwsrc : LWord) (p : Perm) (b e a : Addr) (v : Version) :
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
   state_phys_log_corresponds phr phm lr lm cur_map ->
-  lr !! src = Some (LCap p b e a v) ->
+  lr !! src = Some lwsrc ->
   Forall (λ a0 : Addr, lm !! (a0, v+1) = None) (finz.seq_between b e).
 Proof.
-  move=> [[_ Hreg_current] Hmem_inv] Hlr_src.
+  move=> Hget [ [_ Hreg_current] Hmem_inv] Hlr_src.
   pose proof (map_Forall_lookup_1 _ _ _ _ Hreg_current Hlr_src) as Hcur_src.
   cbn in *.
   apply Forall_forall.
   intros a0 Ha0_inbounds.
-  apply Hcur_src in Ha0_inbounds.
-  assert (is_cur_addr (a0, v) cur_map) as Hcur_a0 by done.
 
-  destruct (lm !! (a0, v + 1)) eqn:Hv'. 2: done.
-  destruct Hmem_inv as [Hroot Hcur].
-  eapply map_Forall_lookup_1 in Hroot; eauto.
-  destruct Hroot as (cur_v & Hcur_v & cur & Hsome & Hmaxv).
-  cbn in *.
+  destruct_lword lwsrc ; cbn in * ; simplify_eq.
+  all: apply Hcur_src in Ha0_inbounds.
+  all: assert (is_cur_addr (a0, v) cur_map) as Hcur_a0 by done.
 
-  eapply map_Forall_lookup_1 in Hcur; eauto.
-  destruct Hcur as (lw & Hlm & _) ; cbn in *.
-  eapply is_cur_addr_same in Hcur_a0; eauto; simplify_eq.
-  lia.
+  all: destruct (lm !! (a0, v + 1)) eqn:Hv' ; [|done].
+  all: destruct Hmem_inv as [Hroot Hcur].
+  all: eapply map_Forall_lookup_1 in Hroot; eauto.
+  all: destruct Hroot as (cur_v & Hcur_v & cur & Hsome & Hmaxv); cbn in *.
+
+  all: eapply map_Forall_lookup_1 in Hcur; eauto.
+  all: destruct Hcur as (lw & Hlm & _) ; cbn in *.
+  all: eapply is_cur_addr_same in Hcur_a0; eauto; simplify_eq; lia.
 Qed.
+
+Lemma state_phys_log_access_word_region
+  (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)
+  (src : RegName) (lwsrc : LWord) (p : Perm) (b e a : Addr) (v : Version) :
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
+  state_phys_log_corresponds phr phm lr lm vmap ->
+  lr !! src = Some lwsrc ->
+  (Forall (λ a' : Addr, is_Some (lm !! (a', v))) (finz.seq_between b e)).
+Proof.
+  intros Hget [ [_ ?] [? ?] ] Hlsrc.
+  eapply map_Forall_lookup_1 in Hlsrc; eauto.
+  cbn in Hlsrc.
+  eapply Forall_forall.
+  intros a' Ha'.
+  destruct_lword lwsrc ; cbn in * ; simplify_eq.
+  all: eapply Hlsrc in Ha'.
+  all: eapply map_Forall_lookup_1 in Ha'; eauto; cbn in Ha'.
+  all: destruct Ha' as (? & ? & _).
+  all: eexists ; eauto.
+Qed.
+
 
 (* Returns [true] if [r] is unique. *)
 Definition unique_in_memoryL (lmem : LMem) (lwsrc : LWord) : Prop :=
@@ -1372,43 +1396,44 @@ Proof.
 Qed.
 
 Lemma not_overlap_wordL_seq_between
-  (p p' : Perm) (b b' e e' a a' : Addr) (v v' : Version) :
-  ¬ overlap_wordL (LCap p b e a v) (LCap p' b' e' a' v') ->
-  a ∈ finz.seq_between b' e' ->
-  a ∉ finz.seq_between b e.
+  (p p' : Perm) (b b' e e' a a' : Addr) (v v' : Version) (lw lw' : LWord) :
+  get_lcap lw = Some (LSCap p b e a v) ->
+  get_lcap lw' = Some (LSCap p' b' e' a' v') ->
+  ¬ overlap_wordL lw lw' ->
+  (forall a0, a0 ∈ finz.seq_between b' e' -> a0 ∉ finz.seq_between b e).
 Proof.
-  move=> Hnot_overlap Ha_in Ha_in'.
+  move=> Hget_lw Hget_lw' Hnot_overlap a0 Ha_in Ha_in'.
   apply Hnot_overlap.
   rewrite /overlap_wordL /= /overlap_word /=.
-  apply elem_of_finz_seq_between in Ha_in, Ha_in'.
-  destruct (b <? b')%a eqn:Hb; solve_addr.
+  destruct_lword lw ; destruct_lword lw' ; cbn in * ; simplify_eq.
+  all: apply elem_of_finz_seq_between in Ha_in, Ha_in'.
+  all: destruct (b <? b')%a eqn:Hb; solve_addr.
 Qed.
 
 Lemma update_cur_version_local_notin_is_cur_word
   (lm lm' : LMem) (cur_map cur_map' : VMap)
   (p : Perm) (b e a : Addr) (v : Version)
-  (lw : LWord)
-  :
+  (lw lwsrc : LWord) :
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
   update_cur_version_region_local lm cur_map (finz.seq_between b e) = (lm', cur_map') ->
-  ¬ overlap_wordL (LCap p b e a v) lw ->
+  ¬ overlap_wordL lwsrc lw ->
   is_cur_word lw cur_map ->
   is_cur_word lw cur_map'.
 Proof.
-  move=> Hupd Hno_overlap His_cur_lw.
+  move=> Hget Hupd Hno_overlap His_cur_lw.
   destruct lw ; cbn; first done.
   - destruct sb as [ p' b' e' a' v'|] ; last done.
     move=> a'0 Ha'0.
     cbn in His_cur_lw.
     pose proof (His_cur_lw a'0 Ha'0) as Ha'0_cur.
     eapply update_cur_version_region_local_notin_preserves_cur_1 ; eauto.
-    eapply not_overlap_wordL_seq_between ; [eapply Hno_overlap| eapply Ha'0].
+    eapply not_overlap_wordL_seq_between; [ | | eapply Hno_overlap| eapply Ha'0]; eauto.
   - destruct l as [ p' b' e' a' v'|] ; last done.
     move=> a'0 Ha'0.
     cbn in His_cur_lw.
     pose proof (His_cur_lw a'0 Ha'0) as Ha'0_cur.
     eapply update_cur_version_region_local_notin_preserves_cur_1 ; eauto.
-    eapply not_overlap_wordL_seq_between ; [eapply Hno_overlap| eapply Ha'0].
-  Unshelve. all: auto.
+    eapply not_overlap_wordL_seq_between; [ | | eapply Hno_overlap| eapply Ha'0]; eauto.
 Qed.
 
 Definition update_version_lword (lw : LWord ) : LWord :=
@@ -1444,31 +1469,35 @@ Proof.
   ; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_update_lcap
+Lemma update_cur_version_region_local_update_lword
   (lm lm' : LMem) (cur_map cur_map' : VMap)
-  (p : Perm) (b e a : Addr) (v : Version) :
+  (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
+  get_lcap lw = Some (LSCap p b e a v) ->
   update_cur_version_region_local lm cur_map (finz.seq_between b e) = (lm', cur_map') ->
   Forall (fun a => is_Some (lm !! (a,v))) (finz.seq_between b e) ->
-  is_cur_word (LCap p b e a v) cur_map ->
-  is_cur_word (LCap p b e a (v + 1)) cur_map'.
+  is_cur_word lw cur_map ->
+  is_cur_word (update_version_lword lw) cur_map'.
 Proof.
-  move=> Hupd Hcur.
-  rewrite -/(update_version_lword (LCap p b e a v)).
-  eapply update_cur_version_word_region_local_update_lword; cbn ; eauto.
+  move=> Hget Hupd Hsome Hcur.
+  destruct_lword lw ; cbn in Hget ; simplify_eq.
+  all: eapply update_cur_version_word_region_local_update_lword; cbn ; eauto.
 Qed.
 
 Lemma update_cur_version_reg_phys_log_cor_updates_src
   (phr : Reg) (phm : Mem) (lr : LReg) (lm lm' : LMem) (cur_map cur_map' : VMap)
-  (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw : LWord) :
+  (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw lwsrc: LWord) :
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
   is_cur_word lw cur_map' ->
   state_phys_log_corresponds phr phm lr lm cur_map ->
-  lr !! src = Some (LCap p b e a v) ->
-  unique_in_machineL lm lr src (LCap p b e a v) ->
+  lr !! src = Some lwsrc ->
+  unique_in_machineL lm lr src lwsrc ->
   update_cur_version_region_local lm cur_map (finz.seq_between b e)
   = (lm', cur_map') ->
-  reg_phys_log_corresponds (<[src:= (lword_get_word lw)]> phr) (<[src:= lw]> lr) cur_map'.
+  reg_phys_log_corresponds
+    (<[src:= (lword_get_word lw)]> phr)
+    (<[src:= lw]> lr) cur_map'.
 Proof.
-  move=> Hcur_lw [Hreg_inv Hmem_inv] Hlr_src Hunique Hupd.
+  move=> Hget Hcur_lw [Hreg_inv Hmem_inv] Hlr_src Hunique Hupd.
   split.
   - rewrite /lreg_strip fmap_insert /= -/(lreg_strip lr).
     by replace phr with (lreg_strip lr) by (by destruct Hreg_inv as [? _]).
@@ -1532,6 +1561,7 @@ Proof.
   eapply map_Forall_lookup_1 in Hunique_reg ; eauto.
   case_decide as H; simplify_eq; clear H.
   eapply update_cur_version_local_notin_is_cur_word; eauto.
+  by cbn.
 Qed.
 
 Lemma unique_in_machineL_insert_reg
@@ -1552,14 +1582,23 @@ Proof.
 Qed.
 
 Lemma not_overlap_word_leaL
-  (p1 p2 : Perm) (b1 b2 e1 e2 a1 a2 a2' : Addr) (v1 v2 : Version) :
-  ¬ overlap_wordL (LCap p1 b1 e1 a1 v1) (LCap p2 b2 e2 a2 v2) ->
-  ¬ overlap_wordL (LCap p1 b1 e1 a1 v1) (LCap p2 b2 e2 a2' v2).
+  (p1 p2 : Perm) (b1 b2 e1 e2 a1 a1' a2 a2' : Addr) (v1 v2 : Version)
+  (lw1 lw1' lw2 lw2' : LWord) :
+  get_lcap lw1 = Some (LSCap p1 b1 e1 a1 v1) ->
+  get_lcap lw1' = Some (LSCap p1 b1 e1 a1' v1) ->
+  get_lcap lw2 = Some (LSCap p2 b2 e2 a2 v2) ->
+  get_lcap lw2' = Some (LSCap p2 b2 e2 a2' v2) ->
+  ¬ overlap_wordL lw1 lw2 ->
+  ¬ overlap_wordL lw1' lw2'.
 Proof.
-  move=> Hno_overlap Hoverlap.
+  move=> Hlw1 Hlw1' Hlw2 Hlw2' Hno_overlap Hoverlap.
   apply Hno_overlap.
-  rewrite /overlap_wordL ; rewrite /overlap_wordL in Hoverlap
-  ; cbn in *; done.
+  destruct_lword lw1
+  ; destruct_lword lw2
+  ; destruct_lword lw1'
+  ; destruct_lword lw2'
+  ; cbn in * ; simplify_eq.
+  all: rewrite /overlap_word; rewrite /overlap_wordL in Hoverlap ; cbn in *; done.
 Qed.
 
 Lemma unique_in_machineL_not_overlap_word
@@ -1664,35 +1703,45 @@ Qed.
 
 Lemma unique_in_machine_no_accessL
   (phm : Mem) (lm : LMem) (lr : LReg) (cur_map : VMap) (src : RegName)
-  (p : Perm) (b e a : Addr) ( v : Version ) :
+  (p : Perm) (b e a : Addr) ( v : Version ) (lw : LWord) :
+  get_lcap lw = Some (LSCap p b e a v) ->
   mem_phys_log_corresponds phm lm cur_map ->
-  lr !! src = Some (LCap p b e a v) ->
-  is_cur_word (LCap p b e a v) cur_map ->
-  unique_in_machineL lm lr src (LCap p b e a v) ->
+  lr !! src = Some lw ->
+  is_cur_word lw cur_map ->
+  unique_in_machineL lm lr src lw ->
   Forall
     (λ a' : Addr, lmem_not_access_addrL lm cur_map a')
     (finz.seq_between b e).
 Proof.
-  move=> Hmem_inv Hlr_src His_cur Hunique.
+  move=> Hlw Hmem_inv Hlr_src His_cur Hunique.
   apply Forall_forall.
   move=> a' Ha'.
-  pose proof (is_cur_word_lea cur_map p b e a a' v His_cur) as His_cur'.
-  assert (Hcur_a': is_cur_addr (a',v) cur_map).
+  destruct_lword lw ; cbn in Hlw ; simplify_eq.
+  all: pose proof (is_cur_word_lea cur_map p b e a a' v His_cur) as His_cur'.
+  all: assert (Hcur_a': is_cur_addr (a',v) cur_map).
+  (* TODO maybe I can extract that into a lemma ? *)
   { eapply (cur_lword_cur_addr _ _ b e) ; eauto; cycle 1.
     apply withinBounds_true_iff.
     apply elem_of_finz_seq_between in Ha'.
     solve_addr.
     rewrite /is_lword_version //=.
   }
+  2: { eapply (cur_lword_cur_addr _ _ b e) ; eauto; cycle 1.
+    apply withinBounds_true_iff.
+    apply elem_of_finz_seq_between in Ha'.
+    solve_addr.
+    rewrite /is_lword_version //=.
+  }
 
-  rewrite /unique_in_machineL in Hunique.
-  specialize (Hunique Hlr_src).
-  destruct Hunique as [Hunique_reg Hunique_mem].
-  eapply map_Forall_impl ; first eapply Hunique_mem.
-  move=> [a0 v0] lw0 Hlast_v Hcur_v0.
-  eapply no_overlap_word_no_access_addrL ; eauto.
-  eapply Hlast_v.
-  eapply mem_phys_log_cur_addr_last_version_1; eauto.
+  all: rewrite /unique_in_machineL in Hunique.
+  all: specialize (Hunique Hlr_src).
+  all: destruct Hunique as [Hunique_reg Hunique_mem].
+  all: eapply map_Forall_impl ; first eapply Hunique_mem.
+  all: move=> [a0 v0] lw0 Hlast_v Hcur_v0.
+  all: eapply no_overlap_word_no_access_addrL ; eauto.
+  all: eapply Hlast_v.
+  all: eapply mem_phys_log_cur_addr_last_version_1; eauto.
+  Unshelve. all: eauto.
 Qed.
 
 
@@ -1890,11 +1939,15 @@ Proof.
   destruct p; auto.
 Qed.
 
-Lemma is_cur_word_cap_change cur_map p p' b e a a' v :
-  is_cur_word (LCap p b e a v) cur_map ->
-  is_cur_word (LCap p' b e a' v) cur_map.
+Lemma is_cur_word_change cur_map p p' b e a a' v lw lw':
+  get_lcap lw = Some (LSCap p b e a v) ->
+  get_lcap lw' = Some (LSCap p' b e a' v) ->
+  is_cur_word lw cur_map ->
+  is_cur_word lw' cur_map.
 Proof.
-  rewrite /is_cur_word; intros Hcur; auto.
+  intros Hlw Hlw'.
+  destruct_lword lw ; destruct_lword lw' ; cbn in * ; simplify_eq
+  ; rewrite /is_cur_word; intros Hcur; auto.
 Qed.
 
 Definition z_of_argumentL (lregs: LReg) (a: Z + RegName) : option Z :=
