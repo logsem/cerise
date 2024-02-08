@@ -184,7 +184,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_instr_exec"><span class="id" title="axiom">wp_instr_exec</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (σ1) "Hσ1".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> σ1; <span class="id" title="tactic">simpl</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">cur_map</span>) "(Hr &amp; Hm &amp; %HLinv)"; <span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span>) "(Hr &amp; Hm &amp; %HLinv)"; <span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPoseProof</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#gen_heap_valid_inclSepM"><span class="id" title="axiom">gen_heap_valid_inclSepM</span></a> <span class="id" title="notation">with</span> "Hr Hmap"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "#H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "H" <span class="id" title="keyword">as</span> %<span class="id" title="var">Hregs</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">have</span> <span class="id" title="var">Hregs_pc</span> := <span class="id" title="lemma">lookup_weaken</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">HPC</span> <span class="id" title="var">Hregs</span>.<br/>
@@ -227,7 +227,7 @@
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO&nbsp;replace&nbsp;the&nbsp;iFail&nbsp;tactic&nbsp;-&gt;&nbsp;modify&nbsp;the&nbsp;tactic&nbsp;to&nbsp;fit&nbsp;the&nbsp;new&nbsp;pattern&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitR</span> "Hφ Hmap Hpc_a"<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;; [ <span class="id" title="var">iExists</span> <span class="id" title="var">lr</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">cur_map</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;; [ <span class="id" title="var">iExists</span> <span class="id" title="var">lr</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">vmap</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">iApply</span> "Hφ" ; <span class="id" title="var">iFrame</span> ; <span class="id" title="var">iFailCore</span> <a class="idref" href="cap_machine.rules.rules_Get.html#Get_fail_src_denote"><span class="id" title="constructor">Get_fail_src_denote</span></a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;].<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
@@ -267,7 +267,7 @@
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">Hregs'</span> <span class="id" title="tactic">in</span> <span class="id" title="var">Hstep</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">Hstep</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitR</span> "Hφ Hmap Hpc_a"<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; [ <span class="id" title="var">iExists</span> <span class="id" title="var">lr</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">cur_map</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; [ <span class="id" title="var">iExists</span> <span class="id" title="var">lr</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">vmap</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">iApply</span> "Hφ" ; <span class="id" title="var">iFrame</span> ; <span class="id" title="var">iFailCore</span> <a class="idref" href="cap_machine.rules.rules_Get.html#Get_fail_overflow_PC"><span class="id" title="constructor">Get_fail_overflow_PC</span></a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;].<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
@@ -303,7 +303,7 @@
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplitR</span> "Hφ Hmap Hpc_a"; <span class="id" title="var">cycle</span> 1.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iApply</span> "Hφ" ; <span class="id" title="var">iFrame</span> ; <span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">econstructor</span>; <span class="id" title="tactic">eauto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iExists</span> <span class="id" title="var">_</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">cur_map</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iExists</span> <span class="id" title="var">_</span>, <span class="id" title="var">lm</span>, <span class="id" title="var">vmap</span>; <span class="id" title="var">iFrame</span>; <span class="id" title="tactic">auto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">HLinv</span> <span class="id" title="keyword">as</span> [[<span class="id" title="var">Hstrips</span> <span class="id" title="var">Hcur_reg</span>] <span class="id" title="var">HmemInv</span>]; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> *.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>; <span class="id" title="tactic">econstructor</span>; <span class="id" title="tactic">eauto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">split</span>.<br/>
