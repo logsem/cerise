@@ -1754,7 +1754,7 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
     (pc_a + 1)%a = Some pc_a' →
-    length lws = finz.dist b e ->
+    length lws = finz.dist b e -> (* TODO change into =length (finz.seq_between b e)= *)
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ dst ↦ᵣ lwdst
@@ -1810,7 +1810,6 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
 
-      Set Nested Proofs Allowed.
       assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
       { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq. }
 
@@ -1946,10 +1945,149 @@ Section cap_lang_rules.
       { by rewrite map_length finz_seq_between_length. }
   Qed.
 
-  (* TODO wp_rule in the other extreme case, where we have no points-to
-     for the tested word *)
 
-  (* TODO factor out the general proof for lcap and lsealedcap... *)
+  Lemma Forall_is_Some_list
+    (lmem : LMem) (la : list Addr) (v : Version) :
+    NoDup la ->
+    Forall (λ a : Addr, is_Some (lmem !! (a, v))) la ->
+    ∃ lws : list LWord,
+      length lws = length la
+      ∧ list_to_map (zip (map (λ a : Addr, (a, v)) la) lws) ⊆ lmem.
+  Proof.
+    move: lmem v.
+    induction la as [|a la IHla] ; intros * HNoDup HnextMap.
+    - cbn in *. exists []. split; auto. apply map_empty_subseteq.
+    - apply NoDup_cons in HNoDup ; destruct HNoDup as [Ha_notint_la HNoDup_la].
+      rewrite Forall_cons in HnextMap ; destruct HnextMap as [ [lwa Hlwa] HnextMap].
+      eapply IHla in HnextMap; eauto.
+      destruct HnextMap as (lws & Hlen & Hincl).
+      exists (lwa::lws).
+      split ; auto.
+      cbn ; lia.
+      apply map_subseteq_spec.
+      intros [a' v'] lw' Hlw'.
+      apply elem_of_list_to_map in Hlw'.
+      2: {
+        rewrite fst_zip.
+        apply NoDup_fmap.
+        { by intros x y Heq ; simplify_eq. }
+        { by apply NoDup_cons. }
+        { rewrite map_length; cbn; lia. }
+      }
+      cbn in *.
+      rewrite elem_of_cons in Hlw'.
+      destruct Hlw' as [?|Hlw'] ; simplify_map_eq; first done.
+      eapply lookup_weaken; eauto.
+      apply elem_of_list_to_map; auto.
+
+      rewrite fst_zip;auto.
+      apply NoDup_fmap;auto.
+      { by intros x y Heq ; simplify_eq. }
+      { rewrite map_length; cbn; lia. }
+  Qed.
+
+  Lemma wp_isunique_success'
+    (Ep : coPset)
+    (pc_p : Perm) (pc_b pc_e pc_a pc_a' : Addr) (pc_v : Version)
+    (lw : LWord)
+    (p : Perm) (b e a : Addr) (v : Version)
+    (lwdst : LWord)
+    (dst src : RegName) :
+
+    decodeInstrWL lw = IsUnique dst src →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+        ∗ ▷ dst ↦ᵣ lwdst
+        ∗ ▷ src ↦ᵣ LCap p b e a v
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+    }}}
+      Instr Executable @ Ep
+      {{{ RET NextIV;
+        ( PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+        ∗ dst ↦ᵣ LInt 1
+        ∗ src ↦ᵣ LCap p b e a (v+1)
+        ∗ (pc_a, pc_v) ↦ₐ lw
+        ∗ (∃ lws , [[ b , e ]] ↦ₐ{ (v+1) } [[ lws ]] ))
+           ∨
+        ( PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+          ∗ dst ↦ᵣ LInt 0
+          ∗ src ↦ᵣ LCap p b e a v
+          ∗ (pc_a, pc_v) ↦ₐ lw )
+        }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hpca_notin Hpca φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
+    rewrite /region_mapsto.
+    iDestruct (memMap_resource_1 with "Hpc_a") as "Hmmap".
+    iApply (wp_isunique with "[$Hrmap Hmmap]"); eauto ; simplify_map_eq; eauto.
+    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+
+    iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec as
+      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hincr_PC
+      | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hincr_PC Hmem'
+      | ? ? Hfail]
+    ; cycle 2.
+    - (* Fail : contradiction *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto; solve_addr.
+    - (* Success true *)
+      iApply "Hφ"; iLeft.
+
+      (* Registers *)
+      rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
+
+      assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
+      { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq. }
+
+      assert (
+          exists lws,
+            length lws = length (finz.seq_between b0 e0) /\
+            (list_to_map (zip (map (λ a : Addr, (a, v0+1)) (finz.seq_between b0 e0)) lws))
+              ⊆ mem') as (lws & Hlen_lws & Hmem'_be_next).
+      {
+        destruct Hupd as [_ Hupd].
+        eapply Forall_is_Some_list ; auto.
+        apply finz_seq_between_NoDup.
+      }
+
+      rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
+      iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
+
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next; eauto.
+      2: {
+        clear -Hpca_notin Hlen_lws.
+        eapply not_elem_of_list_to_map_1.
+        intros Hcontra.
+        rewrite fst_zip in Hcontra.
+        2: { rewrite map_length ; lia.  }
+        apply elem_of_list_fmap in Hcontra.
+        by destruct Hcontra as (? & ? & ?); simplify_eq.
+      }
+      iExists lws.
+
+      iDestruct (big_sepM_insert_delete_list with "Hmmap") as "[Hrange Hmmap]"
+      ; first (eapply Hmem'_be_next); iClear "Hmmap".
+      iApply big_sepM_to_big_sepL2; last iFrame.
+      eapply NoDup_logical_region.
+      by rewrite map_length.
+
+    - (* Success false *)
+      iApply "Hφ"; iRight.
+      rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
+      iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]"
+      ; first by simplify_map_eq.
+      iFrame.
+  Qed.
 
   (* TODO merge wp_opt from Dominique's branch and use it *)
   (* TODO extend proofmode, which means cases such as:
