@@ -195,11 +195,12 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto; eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
 
     set (lrw2 := lword_get_word lr2v).
-    assert ( reg !! r2 = Some lrw2 ) as Hr2 by (eapply state_phys_log_reg_get_word ; eauto).
+    assert ( reg !! r2 = Some lrw2 ) as Hr2 by (eapply state_corresponds_reg_get_word ; eauto).
     rewrite /exec /= Hr2 /= in Hstep.
 
     (* Now we start splitting on the different cases in the Load spec, and prove them one at a time *)
@@ -234,9 +235,9 @@ Section cap_lang_rules.
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs lmem) lm (a, v)
                  loadv with "Hm Hmem" ) as %Hma' ; eauto.
     assert (is_cur_addr (a,v) cur_map) as Hcur_laddr_av.
-    by (eapply state_corresponds_cap_cur_addr; eauto; done).
+    by (eapply state_corresponds_cap_cur_word; eauto; done).
     assert ( mem !! a = Some (lword_get_word loadv) ) as Hma2
-        by (eapply state_phys_log_mem_get_word ; eauto).
+        by (eapply state_corresponds_mem_get_word ; eauto).
 
     rewrite Hma2 /= in Hstep.
     rewrite /update_reg /= in Hstep.
@@ -315,7 +316,7 @@ Section cap_lang_rules.
       rewrite /is_cur_word in Hcur_reg.
       eapply lookup_weaken_inv in Hregs; eauto; cbn in * ; simplify_eq.
       eapply Hcur_reg.
-      eapply mem_phys_log_current_word; eauto ; eapply lookup_weaken; eauto.
+      eapply lmem_corresponds_current_word; eauto ; eapply lookup_weaken; eauto.
   Qed.
 
   Lemma wp_load Ep

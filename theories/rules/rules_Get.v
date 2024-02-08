@@ -153,8 +153,9 @@ Section cap_lang_rules.
     do 2 iModIntro.
     iIntros (c σ2 Hstep) "_".
     eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
 
     unfold exec in Hstep.
 
@@ -166,8 +167,8 @@ Section cap_lang_rules.
     (* Extract information about physical words in src and dst *)
     set (wsrc := lword_get_word lwsrc).
     set (wdst := lword_get_word lwdst).
-    assert ( reg !! src = Some wsrc ) as Hsrc by (eapply state_phys_log_reg_get_word ; eauto).
-    assert ( reg !! dst = Some wdst ) as Hdst by (eapply state_phys_log_reg_get_word ; eauto).
+    assert ( reg !! src = Some wsrc ) as Hsrc by (eapply state_corresponds_reg_get_word ; eauto).
+    assert ( reg !! dst = Some wdst ) as Hdst by (eapply state_corresponds_reg_get_word ; eauto).
 
     destruct (denote get_i wsrc) as [z | ] eqn:Hwsrc.
     2 : { (* Failure: src is not of the right word type *)

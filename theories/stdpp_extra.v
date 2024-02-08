@@ -1116,8 +1116,6 @@ Proof.
   - by rewrite -!delete_difference IHm' delete_commute.
 Qed.
 
-
-
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->
