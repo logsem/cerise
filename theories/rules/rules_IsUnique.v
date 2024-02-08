@@ -101,28 +101,28 @@ Section cap_lang_rules.
 
     5. It is finally possible to re-establish
        'phys_log_correspondance
-        phr phm (updated lregs) (updated lmem) (updated cur_map)',
+        phr phm (updated lregs) (updated lmem) (updated vmap)',
         which, one might notice, the version number changes.
    *)
 
   (* Helper lemma to avoid proof duplication *)
   Lemma mem_phys_log_update
     (reg : Reg) (mem : Mem)
-    (lr : LReg) (lm lm' : LMem) (cur_map cur_map' : VMap)
+    (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
     (src : RegName) (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
     get_lcap lw = Some (LSCap p b e a v) ->
     (* necessary for lreg_res_iscur *)
-    reg_phys_log_corresponds reg lr cur_map ->
+    reg_phys_log_corresponds reg lr vmap ->
     (* necessary for unique_in_machine_no_accessL *)
     lr !! src = Some lw ->
     unique_in_machineL lm lr src lw ->
 
     (* necessary for update_cur_version... *)
     NoDup (finz.seq_between b e) ->
-    update_cur_version_region_local lm cur_map (finz.seq_between b e)
-    = (lm', cur_map') ->
-    mem_phys_log_corresponds mem lm cur_map ->
-    mem_phys_log_corresponds mem lm' cur_map'.
+    update_cur_version_region_local lm vmap (finz.seq_between b e)
+    = (lm', vmap') ->
+    mem_phys_log_corresponds mem lm vmap ->
+    mem_phys_log_corresponds mem lm' vmap'.
   Proof.
     intros.
     eapply update_cur_version_region_local_preserves_mem_phyc_cor; eauto.
@@ -192,7 +192,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
 
     (* Derive necessary register values in r *)
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
@@ -229,7 +229,7 @@ Section cap_lang_rules.
       destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv.
       all: simplify_map_eq.
       all: (iSplitR "Hφ Hmap Hmem"
-            ; [ iExists lr, lm, cur_map; iFrame; auto
+            ; [ iExists lr, lm, vmap; iFrame; auto
               | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_cap
            ]).
     }
@@ -277,7 +277,7 @@ Section cap_lang_rules.
         end.
         destruct_lword lsrcv ; cbn in * ; try congruence ; inversion Hstep.
         all: (iSplitR "Hφ Hmap Hmem"
-              ; [ iExists lr, lm, cur_map; iFrame; auto
+              ; [ iExists lr, lm, vmap; iFrame; auto
                 | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_invalid_PC_true
              ]).
       }
@@ -323,10 +323,10 @@ Section cap_lang_rules.
         (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv Hget_lsrcv Hlsrc)
         as HmemMap.
 
-      destruct (update_cur_version_word_region_global lmem lm cur_map lsrcv)
+      destruct (update_cur_version_word_region_global lmem lm vmap lsrcv)
         as [lmem' vmap_mem'] eqn:Hupd_lmem
       ; rewrite /update_cur_version_word_region_global Hget_lsrcv /= in Hupd_lmem.
-      destruct (update_cur_version_word_region_local lm cur_map lsrcv)
+      destruct (update_cur_version_word_region_local lm vmap lsrcv)
         as [lm' vmap_m'] eqn:Hupd_lm
       ; rewrite /update_cur_version_word_region_local Hget_lsrcv /= in Hupd_lm.
       iMod ((gen_heap_lmem_version_update lm lmem lm' lmem' ) with "Hm Hmem")
@@ -484,7 +484,7 @@ Section cap_lang_rules.
         end.
         inversion Hstep.
         iSplitR "Hφ Hmap Hmem"
-        ; [ iExists lr, lm, cur_map; iFrame; auto
+        ; [ iExists lr, lm, vmap; iFrame; auto
           | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_invalid_PC_false
           ].
       }
@@ -520,7 +520,7 @@ Section cap_lang_rules.
       iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
       ; [| iApply "Hφ" ; iFrame; iPureIntro; eapply IsUnique_success_false ; eauto].
 
-      iExists _, lm, cur_map; iFrame; auto
+      iExists _, lm, vmap; iFrame; auto
       ; iPureIntro; econstructor; eauto
       ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
       ; cbn in *

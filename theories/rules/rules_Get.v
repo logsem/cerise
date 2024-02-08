@@ -145,7 +145,7 @@ Section cap_lang_rules.
     iApply wp_instr_exec.
     iIntros (σ1) "Hσ1".
     destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hmap") as "#H".
     iDestruct "H" as %Hregs.
     have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
@@ -183,7 +183,7 @@ Section cap_lang_rules.
 
     (* TODO replace the iFail tactic -> modify the tactic to fit the new pattern *)
     iSplitR "Hφ Hmap Hpc_a"
-    ; [ iExists lr, lm, cur_map; iFrame; auto
+    ; [ iExists lr, lm, vmap; iFrame; auto
       | iApply "Hφ" ; iFrame ; iFailCore Get_fail_src_denote
       ].
     }
@@ -221,7 +221,7 @@ Section cap_lang_rules.
 
       rewrite Hregs' in Hstep. inversion Hstep.
       iSplitR "Hφ Hmap Hpc_a"
-      ; [ iExists lr, lm, cur_map; iFrame; auto
+      ; [ iExists lr, lm, vmap; iFrame; auto
         | iApply "Hφ" ; iFrame ; iFailCore Get_fail_overflow_PC
         ].
     }
@@ -253,7 +253,7 @@ Section cap_lang_rules.
 
     iSplitR "Hφ Hmap Hpc_a"; cycle 1.
     - iApply "Hφ" ; iFrame ; iPureIntro; econstructor; eauto.
-    - iExists _, lm, cur_map; iFrame; auto.
+    - iExists _, lm, vmap; iFrame; auto.
       destruct HLinv as [[Hstrips Hcur_reg] HmemInv]; cbn in *.
       iPureIntro; econstructor; eauto.
       split.

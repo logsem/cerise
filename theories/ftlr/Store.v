@@ -211,7 +211,7 @@ Section fundamental.
       by repeat eexists.
     }
 
-     assert (∃ storev, lword_of_argument (<[PC:=LCap p b e a v]> lregs) src = Some storev)
+     assert (∃ storev, word_of_argumentL (<[PC:=LCap p b e a v]> lregs) src = Some storev)
        as [storev Hwoa].
     { destruct src; cbn.
       - by exists (LInt z).

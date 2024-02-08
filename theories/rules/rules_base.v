@@ -337,12 +337,12 @@ Section cap_lang_rules.
 
       destruct (vmap_mem0 !! a) as [va |] eqn:Hvmap_mem0_a.
       2: {
-        erewrite update_cur_version_region_inter_incl_vmap' in Hvmap_mem0_a; eauto.
+        erewrite update_cur_version_region_inter_incl_vmap in Hvmap_mem0_a; eauto.
         rewrite Hvmap_mem0_a in Hupd_lm0; simplify_eq.
         iApply (IH with "Hgen"); eauto.
       }
       rewrite /is_cur_addr /= in Hcur_a_lm.
-      erewrite update_cur_version_region_local_notin_preserves_cur
+      erewrite <- update_cur_version_region_local_notin_preserves_cur
         in Hcur_a_lm; eauto.
       eapply lookup_weaken in Hvmap_mem0_a; eauto.
       rewrite -/(is_cur_addr (a,va) vmap_m0) in Hvmap_mem0_a.
@@ -355,8 +355,7 @@ Section cap_lang_rules.
                     HNoDup_la Hlmem_incl Hupd_lm Hupd_lmem).
 
       iDestruct (IH with "Hgen Hmem") as ">[Hgen Hmem]"; eauto.
-      erewrite update_cur_version_region_local_preserves_content_lmem in Hmaxv_a
-      ; eauto.
+      erewrite <- update_cur_version_region_local_notin_preserves_lmem in Hmaxv_a; eauto.
 
       iMod (((gen_heap_alloc lm0 (a, v + 1) lw) with "Hgen"))
         as "(Hgen & Ha & _)"; auto.
@@ -728,7 +727,7 @@ Section cap_lang_rules.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)".
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
     iSplit. by iPureIntro; apply normal_always_head_reducible.
@@ -740,7 +739,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hϕ HPC"; last by iApply "Hϕ".
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
   Qed.
 
@@ -786,7 +785,7 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -801,7 +800,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
   Qed.
 
@@ -818,7 +817,7 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -833,7 +832,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
    Qed.
 

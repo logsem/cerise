@@ -36,7 +36,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
     iDestruct (@gen_heap_valid with "Hr0 Hr") as %Hr_r0.
@@ -55,7 +55,7 @@ Section cap_lang_rules.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
     iSplitR "Hφ HPC Hpc_a Hr" ; [|by iApply "Hφ" ; iFrame].
-    iExists _, lm, cur_map; iFrame; eauto; cbn.
+    iExists _, lm, vmap; iFrame; eauto; cbn.
     iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
     ; destruct HLinv as [[Hstrips Hcur_reg] HmemInv]
@@ -82,7 +82,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC'.
@@ -100,7 +100,7 @@ Section cap_lang_rules.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
     iSplitR "Hφ HPC Hpc_a" ; [|by iApply "Hφ" ; iFrame].
-    iExists _, lm, cur_map; iFrame; eauto; cbn.
+    iExists _, lm, vmap; iFrame; eauto; cbn.
     iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
     ; destruct HLinv as [[Hstrips Hcur_reg] HmemInv]

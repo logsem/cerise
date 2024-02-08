@@ -31,7 +31,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -46,7 +46,7 @@ Section cap_lang_rules.
     cbn in Hstep; simplify_eq.
     iModIntro.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
    Qed.
 

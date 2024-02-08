@@ -172,7 +172,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     iDestruct (gen_heap_valid_inclSepM_general with "Hm Hmem") as %Hmem.
     rewrite snd_prod_merge_inv in Hmem; last by rewrite Hdomeq.
@@ -209,7 +209,7 @@ Section cap_lang_rules.
       destruct_lword lr2v; cbn in * ; try by simplify_pair_eq.
       all: simplify_map_eq.
       all: (iSplitR "Hφ Hmap Hmem"
-      ; [ iExists lr, lm, cur_map; iFrame; auto
+      ; [ iExists lr, lm, vmap; iFrame; auto
         | iApply "Hφ" ; iFrame ; iFailCore Load_fail_const
         ]).
     }
@@ -219,7 +219,7 @@ Section cap_lang_rules.
       symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
       apply andb_false_iff in HRA.
       iSplitR "Hφ Hmap Hmem"
-      ; [ iExists lr, lm, cur_map; iFrame; eauto
+      ; [ iExists lr, lm, vmap; iFrame; eauto
         | iApply "Hφ" ; iFrame ; iFailCore Load_fail_bounds
         ].
     }
@@ -234,7 +234,7 @@ Section cap_lang_rules.
     { rewrite lookup_merge Hmema Hdq' //. }
     iDestruct (gen_mem_valid_inSepM_general (prod_merge dfracs lmem) lm (a, v)
                  loadv with "Hm Hmem" ) as %Hma' ; eauto.
-    assert (is_cur_addr (a,v) cur_map) as Hcur_laddr_av.
+    assert (is_cur_addr (a,v) vmap) as Hcur_laddr_av.
     by (eapply state_corresponds_cap_cur_word; eauto; done).
     assert ( mem !! a = Some (lword_get_word loadv) ) as Hma2
         by (eapply state_corresponds_mem_get_word ; eauto).
@@ -264,7 +264,7 @@ Section cap_lang_rules.
       }
       rewrite Hlregs' in Hstep. inversion Hstep.
       iSplitR "Hφ Hmap Hmem"
-      ; [ iExists lr, lm, cur_map; iFrame; auto
+      ; [ iExists lr, lm, vmap; iFrame; auto
         | iApply "Hφ" ; iFrame ; iFailCore Load_fail_invalid_PC
         ].
     }
@@ -293,7 +293,7 @@ Section cap_lang_rules.
     ; iSplitR "Hφ Hmap Hmem"
     ; [|iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto
         ; rewrite /reg_allows_load; eauto ; eapply lookup_prod_merge_snd ; eauto].
-    all: iExists _, lm, cur_map; iFrame; auto
+    all: iExists _, lm, vmap; iFrame; auto
     ; iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
     ; destruct HLinv as [[Hstrips Hcur_reg] HmemInv]
