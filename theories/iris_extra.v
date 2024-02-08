@@ -492,11 +492,67 @@ Proof.
       subst. auto.
 Qed.
 
-Lemma big_sepM_insert_delete_list :
-  ∀ {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
-    (Φ : K → A → PROP) (m m' : gmap K A),
-    m' ⊆ m ->
+Lemma big_sepM_insert_difference_1
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
+    ([∗ map] k↦y ∈ m, Φ k y) ⊢
+      ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y).
+Proof.
+  move: m.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; iIntros (m Hincl) "Hm".
+  - rewrite map_difference_empty.
+    by iFrame.
+  - pose proof (insert_weaken _ _ k v Hincl) as Hm_k.
+    rewrite -(insert_id m k v); last assumption.
+    iDestruct (big_sepM_insert_delete with "Hm") as "[Hk Hm]".
+    apply delete_mono with (i:= k) in Hincl.
+    rewrite delete_insert in Hincl; last done.
+    iDestruct (IHm' with "Hm") as "[Hm Hm']"; first done.
+    iSplitL "Hk Hm".
+    + iApply (big_sepM_insert_delete with "[Hk Hm]").
+      rewrite delete_notin; last assumption.
+      iFrame.
+    + erewrite difference_insert with (x3 := v).
+      by rewrite -delete_difference delete_difference_assoc.
+Qed.
+
+Lemma big_sepM_insert_difference_2
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
+  ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y)
+    ⊢ ([∗ map] k↦y ∈ m, Φ k y).
+Proof.
+  move: m.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; iIntros (m Hincl) "[Hm Hm']".
+  - rewrite map_difference_empty.
+    by iFrame.
+  - pose proof (insert_weaken _ _ k v Hincl) as Hm_k.
+    rewrite -(insert_id m k v); last assumption.
+    iDestruct (big_sepM_insert_delete with "Hm") as "[Hk Hm]".
+    apply delete_mono with (i:= k) in Hincl.
+    rewrite delete_insert in Hincl; last done.
+    iDestruct (IHm' with "[Hm Hm']") as "Hm"; first done.
+    + iSplitL "Hm".
+      * rewrite delete_notin; last assumption; iFrame.
+      * erewrite difference_insert with (x3 := v).
+        by rewrite -delete_difference delete_difference_assoc.
+    + iApply (big_sepM_insert_delete with "[Hk Hm]"); iFrame.
+Qed.
+
+Lemma big_sepM_insert_difference
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
     ([∗ map] k↦y ∈ m, Φ k y) ⊣⊢
       ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y).
 Proof.
-Admitted.
+  iIntros (Hincl).
+  iSplit; [iIntros "Hm" | iIntros "[Hm Hm']"].
+  - by iDestruct (big_sepM_insert_difference_1 with "Hm") as "$? $?".
+  - iDestruct (big_sepM_insert_difference_2 with "[Hm Hm']") as "$?"
+    ; [eassumption|iFrame].
+Qed.

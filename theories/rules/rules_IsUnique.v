@@ -1893,7 +1893,7 @@ Section cap_lang_rules.
         by destruct Hcontra as (? & ? & ?); simplify_eq.
       }
 
-      iDestruct (big_sepM_insert_delete_list with "Hmmap") as "[Hrange Hmmap]"
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be).
       iSplitL "Hrange".
       {
@@ -1920,7 +1920,7 @@ Section cap_lang_rules.
            by rewrite finz_seq_between_length.
       }
 
-      iDestruct (big_sepM_insert_delete_list with "Hmmap") as "[Hrange Hmmap]"
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be_next); iClear "Hmmap".
       iApply big_sepM_to_big_sepL2; last iFrame.
       eapply NoDup_logical_region.
@@ -2072,7 +2072,7 @@ Section cap_lang_rules.
       }
       iExists lws.
 
-      iDestruct (big_sepM_insert_delete_list with "Hmmap") as "[Hrange Hmmap]"
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be_next); iClear "Hmmap".
       iApply big_sepM_to_big_sepL2; last iFrame.
       eapply NoDup_logical_region.

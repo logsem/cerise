@@ -1095,6 +1095,29 @@ Proof.
     by rewrite Hm1_k'.
 Qed.
 
+Lemma insert_weaken
+  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (m m' : gmap K A) (k : K) (v : A) :
+  <[k:=v]> m' ⊆ m -> m !! k = Some v.
+Proof.
+  intros Hincl.
+  by eapply lookup_weaken; eauto; simplify_map_eq.
+Qed.
+
+Lemma delete_difference_assoc
+  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (m m' : gmap K A) (k' : K) :
+  (delete k' m ∖ m') = delete k' (m ∖ m').
+Proof.
+  move: m k'.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; intros m k'.
+  - by rewrite !map_difference_empty.
+  - by rewrite -!delete_difference IHm' delete_commute.
+Qed.
+
+
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->
