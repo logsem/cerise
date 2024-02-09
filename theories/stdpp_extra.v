@@ -1116,6 +1116,45 @@ Proof.
   - by rewrite -!delete_difference IHm' delete_commute.
 Qed.
 
+(* TODO Unelegant way to create an extensible tactic,
+   cf. https://stackoverflow.com/questions/48868186/extensible-tactic-in-coq *)
+Ltac destruct_cons_hook0 := fail.
+Ltac destruct_cons_hook := destruct_cons_hook0.
+Ltac destruct_cons:= repeat destruct_cons_hook.
+Ltac destruct_cons_nodup :=
+  match goal with
+   | HNoDup : NoDup (?a :: ?la) |- _ =>
+       let Ha_notin_la := fresh "H" a "_notin_" la in
+       let HNoDup_la := fresh "HNoDup_" la in
+       apply NoDup_cons in HNoDup
+       ; destruct HNoDup as [Ha_notin_la HNoDup_la]
+   end.
+Ltac destruct_cons_notin :=
+  match goal with
+     | HnotIn : ?a' ∉ ?a :: ?la |- _ =>
+         let Hneq := fresh "H" a' "_neq_" a in
+         let HnotIn' := fresh "H" a' "_notin_" la in
+         apply not_elem_of_cons in HnotIn
+         ; destruct HnotIn as [Hneq HnotIn']
+   end.
+Ltac destruct_cons_forall :=
+  match goal with
+     | Hforall : Forall ?f (?a :: ?la)  |- _ =>
+         let Ha := fresh Hforall "_" a in
+         apply Forall_cons in Hforall ; destruct Hforall as [Ha Hforall]
+   end.
+Ltac destruct_cons_in :=
+  match goal with
+  | HIn : ?a' ∈ ?a :: ?la |- _ =>
+      apply elem_of_cons in HIn
+  end.
+Ltac destruct_cons_hook1 := destruct_cons_forall
+                            || destruct_cons_notin
+                            || destruct_cons_in
+                            || destruct_cons_nodup
+                            || destruct_cons_hook0.
+Ltac destruct_cons_hook ::= destruct_cons_hook1.
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

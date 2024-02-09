@@ -116,6 +116,6 @@ Section cap_lang_rules.
            by (destruct pc_p ; auto).
     apply lreg_corresponds_insert_respects ; [split ; auto|].
     destruct pc_p; (try by eapply lreg_corresponds_read_iscur; eauto; split ; eauto).
-    eapply is_cur_word_change with (p:= machine_base.E) (a := pc_a); eauto; by cbn.
+    eapply is_cur_lword_lea with (p:= machine_base.E) (a := pc_a); eauto; by cbn.
   Qed.
 End cap_lang_rules.
