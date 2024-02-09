@@ -497,7 +497,7 @@ Section cap_lang_rules.
     Importantly, we cannot derive any sweep success rule, because we would need
     the entire footprint of the registers/memory.
    *)
-
+  Hint Resolve finz_seq_between_NoDup NoDup_logical_region.
   Lemma wp_isunique_success
     (Ep : coPset)
     (pc_p : Perm) (pc_b pc_e pc_a pc_a' : Addr) (pc_v : Version)
@@ -510,7 +510,7 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
     (pc_a + 1)%a = Some pc_a' →
-    length lws = finz.dist b e -> (* TODO change into =length (finz.seq_between b e)= *)
+    length lws = length (finz.seq_between b e) ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ dst ↦ᵣ lwdst
@@ -566,71 +566,42 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
 
-      assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
-      { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq. }
+      assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca
+          by (eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq).
 
-      assert (
-          (list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws))
-            ⊆ mem') as Hmem'_be.
+      assert
+        ((list_to_map (zip (logical_region (finz.seq_between b0 e0) v0) lws)) ⊆ mem')
+        as Hmem'_be.
       {
-
         eapply is_valid_updated_lmemory_preserves_lmem_incl; eauto.
-        { apply finz_seq_between_NoDup. }
-        { by rewrite finz_seq_between_length. }
-        {
-          eapply is_valid_updated_lmemory_insert; eauto.
-          eapply finz_seq_between_NoDup.
-          { apply not_elem_of_list_to_map_1; cbn.
-            intro Hcontra.
-            rewrite fst_zip in Hcontra ; eauto; last (rewrite map_length finz_seq_between_length ; lia).
-            apply elem_of_list_fmap in Hcontra.
-            destruct Hcontra as (? & ? & ?); simplify_eq; lia.
-          }
-          { clear -Hlen_lws.
-            eapply Forall_forall; intros a Ha.
-            apply not_elem_of_list_to_map_1; cbn.
-            intro Hcontra.
-            rewrite fst_zip in Hcontra ; eauto; last (rewrite map_length finz_seq_between_length ; lia).
-            apply elem_of_list_fmap in Hcontra.
-            destruct Hcontra as (? & ? & ?); simplify_eq; lia.
-          }
-        }
+        eapply is_valid_updated_lmemory_insert; eauto.
+        eapply logical_region_notin; eauto.
+        eapply Forall_forall; intros a Ha.
+        eapply logical_region_version_neq; eauto; lia.
       }
-      assert (
-          (list_to_map (zip (map (λ a : Addr, (a, v0+1)) (finz.seq_between b0 e0)) lws))
-            ⊆ mem') as Hmem'_be_next
-      .
+      assert
+        ((list_to_map (zip (logical_region (finz.seq_between b0 e0) (v0+1)) lws)) ⊆ mem')
+        as Hmem'_be_next.
       {
         (* TODO extract as a lemma *)
         eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
-        assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be]; simplify_eq.
-        { eapply list_to_map_zip_inv; eauto.
-          apply finz_seq_between_NoDup.
-          by rewrite finz_seq_between_length.
-        }
+        assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be]
+            by (eapply list_to_map_zip_inv; eauto) ; simplify_eq.
 
         destruct Hupd.
         assert (
             (update_version_region_local
               (<[(pc_a, pc_v):=lw]>
-                 (list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws)))
+                 (list_to_map (zip (logical_region (finz.seq_between b0 e0) v0) lws)))
               (finz.seq_between b0 e0) v0) !! (a', v0 + 1) = Some lw'
           ).
         { rewrite update_version_region_local_preserves_lmem_next; eauto.
 
           { rewrite lookup_insert_ne //=; last (intro ; set_solver).
             erewrite list_to_map_zip_version; eauto.
-            eapply finz_seq_between_NoDup.
-            by rewrite finz_seq_between_length.
           }
-          { eapply finz_seq_between_NoDup. }
           { rewrite lookup_insert_ne //=; last (intro ; set_solver).
-            apply not_elem_of_list_to_map_1; cbn.
-            intro Hcontra.
-            rewrite fst_zip in Hcontra ; eauto; last (rewrite map_length finz_seq_between_length ; lia).
-            apply elem_of_list_fmap in Hcontra.
-            destruct Hcontra as (? & ? & ?); simplify_eq; lia.
-          }
+           eapply logical_region_version_neq; eauto; lia. }
         }
         eapply lookup_weaken ; eauto.
       }
@@ -638,49 +609,26 @@ Section cap_lang_rules.
       rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
       iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
 
-      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be; eauto.
-      2: {
-        clear -Hpca_notin Hlen_lws.
-        eapply not_elem_of_list_to_map_1.
-        intros Hcontra.
-        rewrite fst_zip in Hcontra.
-        2: { rewrite map_length finz_seq_between_length ; lia.  }
-        apply elem_of_list_fmap in Hcontra.
-        by destruct Hcontra as (? & ? & ?); simplify_eq.
-      }
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be
+      ; last (by eapply logical_region_notin; eauto).
 
       iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be).
       iSplitL "Hrange".
-      {
-        iApply big_sepM_to_big_sepL2; last iFrame.
-        eapply NoDup_logical_region.
-        by rewrite map_length finz_seq_between_length.
-      }
+      { iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length. }
 
-      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next; eauto.
-      2: {
-        clear -Hpca_notin Hlen_lws.
-        eapply not_elem_of_list_to_map_1.
-        intros Hcontra.
-        rewrite fst_zip in Hcontra.
-        2: { rewrite map_length finz_seq_between_length ; lia.  }
-        apply elem_of_list_fmap in Hcontra.
-        by destruct Hcontra as (? & ? & ?); simplify_eq.
-      }
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next
+      ; last (eapply logical_region_notin ; eauto).
 
       eapply delete_subseteq_list_r
         with (m3 := list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws))
-        in Hmem'_be_next; eauto.
-      2: { eapply update_logical_memory_region_disjoint.
-           by rewrite finz_seq_between_length.
-      }
+        in Hmem'_be_next
+      ; eauto
+      ; last by eapply update_logical_memory_region_disjoint.
 
       iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be_next); iClear "Hmmap".
-      iApply big_sepM_to_big_sepL2; last iFrame.
-      eapply NoDup_logical_region.
-      by rewrite map_length finz_seq_between_length.
+      iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length.
 
     - (* Success false *)
       iApply "Hφ"; iRight.
@@ -688,17 +636,11 @@ Section cap_lang_rules.
       iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
       iClear "Hrmap".
       iFrame.
-      iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]".
-      { apply not_elem_of_list_to_map.
-        rewrite fst_zip; [|rewrite map_length finz_seq_between_length; lia].
-        intros Hcontra.
-        apply elem_of_list_fmap_2 in Hcontra.
-        destruct Hcontra as (? & Ha & ?); simplify_eq.
-      }
+      iDestruct (big_sepM_insert with "Hmmap") as "[Hpc_a Hmmap]"
+      ; first (eapply logical_region_notin; eauto).
       iFrame.
-      iApply (big_sepM_to_big_sepL2 with "Hmmap").
-      { apply NoDup_logical_region. }
-      { by rewrite map_length finz_seq_between_length. }
+      iApply (big_sepM_to_big_sepL2 with "Hmmap"); eauto.
+      by rewrite map_length.
   Qed.
 
 
@@ -765,33 +707,24 @@ Section cap_lang_rules.
       assert (
           exists lws,
             length lws = length (finz.seq_between b0 e0) /\
-            (list_to_map (zip (map (λ a : Addr, (a, v0+1)) (finz.seq_between b0 e0)) lws))
+            (list_to_map (zip (logical_region (finz.seq_between b0 e0) (v0+1)) lws))
               ⊆ mem') as (lws & Hlen_lws & Hmem'_be_next).
       {
         destruct Hupd as [_ Hupd].
-        eapply Forall_is_Some_list ; auto.
-        apply finz_seq_between_NoDup.
+        eapply Forall_is_Some_list ; eauto.
       }
 
       rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
       iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
 
-      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next; eauto.
-      2: {
-        clear -Hpca_notin Hlen_lws.
-        eapply not_elem_of_list_to_map_1.
-        intros Hcontra.
-        rewrite fst_zip in Hcontra.
-        2: { rewrite map_length ; lia.  }
-        apply elem_of_list_fmap in Hcontra.
-        by destruct Hcontra as (? & ? & ?); simplify_eq.
-      }
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next
+      ; eauto
+      ; last (eapply logical_region_notin; eauto).
       iExists lws.
 
       iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
       ; first (eapply Hmem'_be_next); iClear "Hmmap".
-      iApply big_sepM_to_big_sepL2; last iFrame.
-      eapply NoDup_logical_region.
+      iApply big_sepM_to_big_sepL2; last iFrame; eauto.
       by rewrite map_length.
 
     - (* Success false *)
