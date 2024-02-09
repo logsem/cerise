@@ -1058,6 +1058,37 @@ Proof.
     rewrite Hm1 in Hm2 ; congruence.
 Qed.
 
+Lemma insert_subseteq_r_inv
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) (v : A) :
+  m1 !! k = None -> (<[ k := v ]> m1) ⊆ m2 → m1 ⊆ m2.
+Proof.
+  intros Hk Hincl.
+  eapply map_subseteq_spec; intros k' v' Hv'.
+  eapply lookup_weaken; last eauto.
+  rewrite lookup_insert_ne //=; intro; simplify_eq.
+Qed.
+
+Lemma insert_weaken
+  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (m m' : gmap K A) (k : K) (v : A) :
+  <[k:=v]> m' ⊆ m -> m !! k = Some v.
+Proof.
+  intros Hincl.
+  by eapply lookup_weaken; eauto; simplify_map_eq.
+Qed.
+
+Lemma map_subseteq_trans
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 m3 : gmap K A): m1 ⊆ m2 -> m2 ⊆ m3 -> m1 ⊆ m3 .
+Proof.
+  intros H12 H23.
+  rewrite map_subseteq_spec.
+  intros k v Hv.
+  eapply lookup_weaken in H12 ; eauto.
+  eapply lookup_weaken in H23 ; eauto.
+Qed.
+
 Lemma delete_subseteq_r
   {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
   (m1 m2 : gmap K A) (k : K) :
@@ -1093,15 +1124,6 @@ Proof.
     simplify_map_eq.
     eapply map_disjoint_Some_r in Hm1_k'; eauto.
     by rewrite Hm1_k'.
-Qed.
-
-Lemma insert_weaken
-  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
-  (m m' : gmap K A) (k : K) (v : A) :
-  <[k:=v]> m' ⊆ m -> m !! k = Some v.
-Proof.
-  intros Hincl.
-  by eapply lookup_weaken; eauto; simplify_map_eq.
 Qed.
 
 Lemma delete_difference_assoc

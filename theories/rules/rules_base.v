@@ -306,13 +306,7 @@ Section cap_lang_rules.
       eapply update_cur_version_inter in Hupd_lmem0 ; eauto.
 
       assert (lmem0 ⊆ lm0 /\ vmap_mem0 ⊆ vmap_m0) as [Hlmem0_incl Hvmap0_incl].
-      eapply update_cur_version_region_inter_incl; eauto.
-      { apply Forall_forall. intros a' Ha' v' Hcur_a'.
-        apply elem_of_list_lookup_1 in Ha'. destruct Ha' as [lwa' Ha'].
-        eapply Forall_lookup in Hcur_lm; eauto.
-        eapply is_cur_addr_same in Hcur_a'; eauto; simplify_eq.
-        eapply Forall_lookup in Hmaxv_lm; eauto.
-      }
+      eapply update_cur_version_region_inter_incl; eauto; first done.
 
       assert ( vmap_mem' ⊆ vmap_m' ) as Hvmap_incl
           by (eapply update_cur_version_addr_inter_incl_vmap; eauto).
