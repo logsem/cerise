@@ -1405,7 +1405,24 @@ Proof.
   all: eapply update_cur_version_word_region_local_update_lword; cbn ; eauto.
 Qed.
 
-Lemma update_cur_version_reg_phys_log_cor_updates_src
+Lemma update_cur_version_region_local_lmem_corresponds
+  (phr : Reg) (lr : LReg) (phm : Mem) (lm lm' : LMem) (vmap vmap' : VMap)
+  (src : RegName) (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
+  state_phys_log_corresponds phr phm lr lm vmap ->
+  get_lcap lw = Some (LSCap p b e a v) ->
+  lr !! src = Some lw ->
+  unique_in_machineL lm lr src lw ->
+  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
+  mem_phys_log_corresponds phm lm' vmap'.
+Proof.
+  intros [Hreg_inv Hmem_inv] Hget Hsrc Hunique Hupd.
+  eapply update_cur_version_region_local_preserves_mem_phyc_cor; eauto.
+  eapply finz_seq_between_NoDup.
+  eapply unique_in_machine_no_accessL ; eauto.
+  eapply lreg_corresponds_read_iscur; eauto.
+Qed.
+
+Lemma update_cur_version_region_local_lreg_corresponds_src
   (phr : Reg) (phm : Mem) (lr : LReg) (lmem lmem' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw lwsrc: LWord) :
   state_phys_log_corresponds phr phm lr lmem vmap ->
@@ -1441,7 +1458,7 @@ Proof.
       eapply update_cur_version_local_notin_is_cur_word ; eauto.
 Qed.
 
-Lemma update_cur_version_reg_phys_log_cor_updates_notin
+Lemma update_cur_version_region_local_lreg_corresponds_notin
   (phr : Reg) (phm : Mem) (lr : LReg) (lmem lmem' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) :
   state_phys_log_corresponds phr phm lr lmem vmap ->
