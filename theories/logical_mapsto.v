@@ -2615,90 +2615,16 @@ End machine_param.
 
 
 (** Miscellaneous about logical regions *)
-
-Lemma list_to_map_zip_inv
-  (a : Addr) ( v v' : Version )
-  (la : list Addr) (lws : list LWord) :
-  NoDup la ->
-  length lws = length la ->
-  is_Some ((list_to_map (zip (logical_region la v) lws) : gmap LAddr LWord) !! (a, v')) ->
-  (v' = v) /\ (a ∈ la).
-Proof.
-  intros HNoDup Hlen [lw Hlw].
-  apply elem_of_list_to_map in Hlw.
-  2:{
-    rewrite fst_zip ; eauto; last  (rewrite map_length; lia).
-    apply NoDup_fmap; auto.
-    by intros x y Heq ; simplify_eq.
-  }
-  apply elem_of_zip_l in Hlw.
-  apply elem_of_list_fmap in Hlw.
-  by destruct Hlw as (? & ? & ?); simplify_eq.
-Qed.
-
-Lemma list_to_map_zip_version
-  (la : list Addr) (a' : Addr) (v v' : Version) (lws : list LWord) :
-  NoDup la ->
-  a' ∈ la ->
-  length lws = length la ->
-  (list_to_map (zip (logical_region la v) lws): gmap LAddr LWord) !! (a', v)
-  = (list_to_map (zip (logical_region la v') lws): gmap LAddr LWord) !! (a', v').
-Proof.
-  move: a' v v' lws.
-  induction la as [|a la IHla]; intros * HNoDup Ha'_in_la Hlen.
-  - cbn in *; set_solver.
-  - cbn in Hlen; destruct lws as [|lw lws] ; simplify_eq.
-    injection Hlen ; clear Hlen ; intro Hlen.
-    destruct_cons.
-    destruct Ha'_in_la; simplify_map_eq; first done.
-    rewrite lookup_insert_ne /= ; last (intro ; simplify_eq; set_solver).
-    rewrite lookup_insert_ne /= ; last (intro ; simplify_eq; set_solver).
-    by apply IHla.
-Qed.
-
-Lemma Forall_is_Some_list
-  (lmem : LMem) (la : list Addr) (v : Version) :
-  NoDup la ->
-  Forall (λ a : Addr, is_Some (lmem !! (a, v))) la ->
-  ∃ lws : list LWord,
-    length lws = length la
-    ∧ list_to_map (zip (logical_region la v) lws) ⊆ lmem.
-Proof.
-  move: lmem v.
-  induction la as [|a la IHla] ; intros * HNoDup HnextMap.
-  - cbn in *. exists []. split; auto. apply map_empty_subseteq.
-  - destruct_cons; destruct HnextMap_a as [lwa Hlwa].
-    eapply IHla in HnextMap; eauto.
-    destruct HnextMap as (lws & Hlen & Hincl).
-    exists (lwa::lws).
-    split ; auto.
-    cbn ; lia.
-    apply map_subseteq_spec.
-    intros [a' v'] lw' Hlw'.
-    apply elem_of_list_to_map in Hlw'.
-    2: {
-      rewrite fst_zip.
-      apply NoDup_fmap.
-      { by intros x y Heq ; simplify_eq. }
-      { by apply NoDup_cons. }
-      { rewrite /logical_region /= map_length; cbn; lia. }
-    }
-    cbn in *.
-    rewrite elem_of_cons in Hlw'.
-    destruct Hlw' as [?|Hlw'] ; simplify_map_eq; first done.
-    eapply lookup_weaken; eauto.
-    apply elem_of_list_to_map; auto.
-    rewrite fst_zip;auto.
-    apply NoDup_fmap;auto.
-    { by intros x y Heq ; simplify_eq. }
-    { rewrite map_length; cbn; lia. }
-Qed.
+(* TODO move definition to regions.v ? *)
+Definition logical_region_map
+  (la : list Addr) (lws : list LWord) (v : Version) : gmap LAddr LWord :=
+  list_to_map (zip (logical_region la v) lws).
 
 Lemma logical_region_notin
   (la : list Addr) (a : Addr) (v v' : Version) (lws : list LWord) :
   length lws = length la
   -> a ∉ la
-  -> (list_to_map (zip (logical_region la v) lws) : gmap LAddr LWord) !! (a, v') = None.
+  -> (logical_region_map la lws v) !! (a,v') = None.
 Proof.
   intros Hlen Hnotin.
   apply not_elem_of_list_to_map_1; cbn.
@@ -2712,7 +2638,7 @@ Lemma logical_region_version_neq
   (la : list Addr) (a : Addr) (v v' : Version) (lws : list LWord) :
   length lws = length la
   -> v ≠ v'
-  -> (list_to_map (zip (logical_region la v) lws) : gmap LAddr LWord) !! (a, v') = None.
+  -> logical_region_map la lws v !! (a, v') = None.
 Proof.
   intros Hlen Hneq.
   apply not_elem_of_list_to_map_1; cbn.
@@ -2720,4 +2646,131 @@ Proof.
   rewrite fst_zip in Hcontra ; eauto; last (rewrite map_length ; lia).
   apply elem_of_list_fmap in Hcontra.
   destruct Hcontra as (? & ? & ?); simplify_eq; lia.
+Qed.
+
+Lemma logical_region_map_cons
+  (la : list Addr) (a : Addr) (v : Version) (lws : list LWord) (lw : LWord ):
+  logical_region_map (a :: la) (lw :: lws) v =
+  <[ (a,v) := lw ]> (logical_region_map la lws v).
+Proof.
+  by cbn.
+Qed.
+
+Lemma logical_region_map_some_inv
+  (a : Addr) ( v v' : Version )
+  (la : list Addr) (lws : list LWord) :
+  NoDup la ->
+  length lws = length la ->
+  is_Some (logical_region_map la lws v !! (a, v')) ->
+  (v' = v) /\ (a ∈ la).
+Proof.
+  intros HNoDup Hlen [lw Hlw].
+  apply elem_of_list_to_map in Hlw.
+  { apply elem_of_zip_l in Hlw.
+    apply elem_of_list_fmap in Hlw.
+    by destruct Hlw as (? & ? & ?); simplify_eq.
+  }
+  {
+    rewrite fst_zip ; eauto; last  (rewrite map_length; lia).
+    apply NoDup_fmap; auto.
+    by intros x y Heq ; simplify_eq.
+  }
+Qed.
+
+Lemma logical_region_map_lookup_versions
+  (la : list Addr) (a' : Addr) (v v' : Version) (lws : list LWord) :
+  NoDup la ->
+  a' ∈ la ->
+  length lws = length la ->
+  (logical_region_map la lws v) !! (a', v)
+  = (logical_region_map la lws v') !! (a', v').
+Proof.
+  move: a' v v' lws.
+  induction la as [|a la IHla]; intros * HNoDup Ha'_in_la Hlen.
+  - cbn in *; set_solver.
+  - cbn in Hlen; destruct lws as [|lw lws] ; simplify_eq.
+    injection Hlen ; clear Hlen ; intro Hlen.
+    destruct_cons.
+    destruct Ha'_in_la; cbn ; simplify_map_eq; first done.
+    rewrite lookup_insert_ne /= ; last (intro ; simplify_eq; set_solver).
+    rewrite lookup_insert_ne /= ; last (intro ; simplify_eq; set_solver).
+    by apply IHla.
+Qed.
+
+Lemma logical_region_map_inv
+  (lmem : LMem) (la : list Addr) (v : Version) :
+  NoDup la ->
+  Forall (λ a : Addr, is_Some (lmem !! (a, v))) la ->
+  ∃ lws : list LWord,
+    length lws = length la ∧ (logical_region_map la lws v) ⊆ lmem.
+Proof.
+  move: lmem v.
+  induction la as [|a la IHla] ; intros * HNoDup HnextMap.
+  - cbn in *. exists []. split; auto. apply map_empty_subseteq.
+  - destruct_cons; destruct HnextMap_a as [lwa Hlwa].
+    eapply IHla in HnextMap; eauto.
+    destruct HnextMap as (lws & Hlen & Hincl).
+    exists (lwa::lws).
+    split ; auto; first (cbn ; lia).
+    rewrite logical_region_map_cons.
+    eapply insert_subseteq_l; eauto.
+Qed.
+
+Definition logical_range_map
+  (b e : Addr) (lws : list LWord) (v : Version) : gmap LAddr LWord :=
+  list_to_map (zip (logical_region (finz.seq_between b e) v) lws).
+
+Lemma logical_range_notin
+  (b e : Addr) (a : Addr) (v v' : Version) (lws : list LWord) :
+  length lws = length (finz.seq_between b e)
+  -> a ∉ (finz.seq_between b e)
+  -> (logical_range_map b e lws v) !! (a,v') = None.
+Proof.
+  intros.
+  eapply logical_region_notin; eauto.
+Qed.
+
+Lemma logical_range_version_neq
+  (b e : Addr) (a : Addr) (v v' : Version) (lws : list LWord) :
+  length lws = length (finz.seq_between b e)
+  -> v ≠ v'
+  -> logical_range_map b e lws v !! (a, v') = None.
+Proof.
+  intros.
+  eapply logical_region_version_neq; eauto.
+Qed.
+
+Lemma logical_range_map_some_inv
+  (a : Addr) ( v v' : Version )
+  (b e : Addr) (lws : list LWord) :
+  length lws = length (finz.seq_between b e) ->
+  is_Some (logical_range_map b e lws v !! (a, v')) ->
+  (v' = v) /\ (a ∈ (finz.seq_between b e)).
+Proof.
+  intros.
+  eapply logical_region_map_some_inv; eauto.
+  eapply finz_seq_between_NoDup.
+Qed.
+
+Lemma logical_range_map_lookup_versions
+  (b e : Addr) (a' : Addr) (v v' : Version) (lws : list LWord) :
+  a' ∈ finz.seq_between b e ->
+  length lws = length (finz.seq_between b e) ->
+  (logical_range_map b e lws v) !! (a', v)
+  = (logical_range_map b e lws v') !! (a', v').
+Proof.
+  intros.
+  apply logical_region_map_lookup_versions; eauto.
+  eapply finz_seq_between_NoDup.
+Qed.
+
+Lemma logical_range_map_inv
+  (lmem : LMem) (b e : Addr) (v : Version) :
+  Forall (λ a : Addr, is_Some (lmem !! (a, v))) (finz.seq_between b e) ->
+  ∃ lws : list LWord,
+    length lws = length (finz.seq_between b e) ∧ (logical_range_map b e lws v) ⊆ lmem.
+Proof.
+  intros.
+  apply logical_region_map_inv; eauto.
+  eapply finz_seq_between_NoDup.
 Qed.
