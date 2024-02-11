@@ -1204,7 +1204,7 @@ Qed.
    from the current view of the lmem,
    then the mem_phys_log invariant still holds
    after updating its version number. *)
-Lemma update_cur_version_addr_preserves_mem_phyc_cor
+Lemma update_cur_version_addr_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) :
   update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') →
   lmem_not_access_addrL lm vmap a →
@@ -1276,9 +1276,7 @@ Proof.
       eapply update_cur_word;eauto.
 Qed.
 
-(* Same as `update_cur_version_addr_preserves_mem_phyc_cor`,
-   but for a list of addresses *)
-Lemma update_cur_version_region_preserves_mem_phyc_cor
+Lemma update_cur_version_region_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr):
   NoDup la →
   update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') →
@@ -1292,13 +1290,13 @@ Proof.
   - destruct_cons.
     assert (mem_phys_log_corresponds phm lm0 vmap0) as Hinv0
         by (eapply IH ;eauto).
-    eapply update_cur_version_addr_preserves_mem_phyc_cor in Hupd0 ; eauto.
+    eapply update_cur_version_addr_preserves_mem_corresponds in Hupd0 ; eauto.
     by eapply update_cur_version_region_preserves_no_access.
 Qed.
 
 (* update the version number of a memory region that is not reacheable,
    preserves the mem_phys_log invariant *)
-Lemma update_cur_version_word_region_preserves_mem_phyc_cor
+Lemma update_cur_version_word_region_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (lw : LWord) :
   lmem_not_access_wordL lm vmap lw →
   update_cur_version_word_region lmem lm vmap lw = (lmem', lm', vmap') →
@@ -1309,7 +1307,7 @@ Proof.
   rewrite /update_cur_version_word_region in Hupd.
   rewrite /lmem_not_access_wordL in Hno_access.
   destruct (get_lcap lw) as [[] |] ; simplify_eq ; auto.
-  eapply update_cur_version_region_preserves_mem_phyc_cor ; eauto.
+  eapply update_cur_version_region_preserves_mem_corresponds ; eauto.
   apply finz_seq_between_NoDup.
 Qed.
 
@@ -1447,7 +1445,7 @@ Lemma update_cur_version_region_lmem_corresponds
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
   intros [Hreg_inv Hmem_inv] Hget Hsrc Hunique Hupd.
-  eapply update_cur_version_region_preserves_mem_phyc_cor; eauto.
+  eapply update_cur_version_region_preserves_mem_corresponds; eauto.
   eapply finz_seq_between_NoDup.
   eapply unique_in_machine_no_accessL ; eauto.
   eapply lreg_corresponds_read_iscur; eauto.
