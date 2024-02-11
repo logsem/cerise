@@ -698,59 +698,6 @@ Proof.
   all: by simplify_map_eq.
 Qed.
 
-(** In order to update a lmemory without the current view map,
-    we can just search for the last version of the address *)
-Definition is_last_version_laddr (lmem : LMem) (la : LAddr) : Prop :=
-  let v := laddr_get_version la in
-  map_Forall
-    ( fun (la' : LAddr) (_ : LWord) =>
-        (laddr_get_addr la' = laddr_get_addr la) -> laddr_get_version la' <=  v)
-    lmem.
-
-Lemma mem_corresponds_cur_addr_last_version_1
-  (phm : Mem) (lm : LMem) (vmap : VMap) (la : LAddr) :
-  mem_phys_log_corresponds phm lm vmap →
-  is_cur_addr la vmap ->
-  is_last_version_laddr lm la.
-Proof.
-  move: la => [a v] [Hdom Hroot] Hcur_la.
-  eapply map_Forall_lookup_2.
-  move=> [a' v'] lw' Hla' /= ? ; simplify_eq.
-  eapply map_Forall_lookup in Hla'; eauto.
-  cbn in Hla'.
-  destruct Hla' as (v_la' & Hcur_la' & Hcur_v_la' & Hla').
-  by eapply is_cur_addr_same in Hcur_la'; [|eapply Hcur_la]; simplify_eq.
-Qed.
-
-Lemma mem_corresponds_cur_addr_last_version_2
-  (phm : Mem) (lm : LMem) (vmap : VMap) (la : LAddr) :
-  mem_phys_log_corresponds phm lm vmap →
-  is_Some (lm !! la) ->
-  is_last_version_laddr lm la ->
-  is_cur_addr la vmap.
-Proof.
-  move: la => [a v] [Hdom Hroot] [lw Hla] Hlast_la.
-  eapply map_Forall_lookup_1 in Hdom ; eauto.
-  destruct Hdom as (v_la & Hcur_v_la & Hcur_max & [lw0 Hla0]).
-  cbn in *.
-  eapply map_Forall_lookup_1 in Hla0 ; eauto.
-  cbn in Hla0.
-  specialize (Hla0 eq_refl).
-  by assert (v = v_la) by lia ; simplify_eq.
-Qed.
-
-Lemma mem_corresponds_cur_addr_last_version
-  (phm : Mem) (lm : LMem) (vmap : VMap) (la : LAddr) :
-  mem_phys_log_corresponds phm lm vmap →
-  is_Some (lm !! la) ->
-  (is_last_version_laddr lm la <-> is_cur_addr la vmap).
-Proof.
-  move=> HLinv Hla.
-  by split ; intro
-  ; [ eapply mem_corresponds_cur_addr_last_version_2
-    | eapply mem_corresponds_cur_addr_last_version_1 ].
-Qed.
-
 (* Update version number of a memory region *)
 
 (* For all the content of a logical memory `lm`,
@@ -829,58 +776,33 @@ Proof.
 Defined.
 
 (* Returns [true] if [r] is unique. *)
-Definition unique_in_memoryL (lmem : LMem) (lwsrc : LWord) : Prop :=
+Definition unique_in_memoryL (lmem : LMem) (vmap : VMap) (lwsrc : LWord) : Prop :=
   (map_Forall
      (λ (la : LAddr) (lwa : LWord),
-       is_last_version_laddr lmem la -> ¬ overlap_wordL lwsrc lwa)
+       is_cur_addr la vmap -> ¬ overlap_wordL lwsrc lwa)
      lmem).
 
-Global Instance unique_in_memoryL_dec (lmem : LMem) (lwsrc : LWord) :
-  Decision (unique_in_memoryL lmem lwsrc).
+Global Instance unique_in_memoryL_dec (lmem : LMem) (vmap : VMap) (lwsrc : LWord) :
+  Decision (unique_in_memoryL lmem vmap lwsrc).
 Proof.
   apply map_Forall_dec.
   move=> la lwa.
   apply impl_dec; solve_decision.
 Defined.
 
-Definition unique_in_machineL (lmem : LMem) (lregs : LReg) (src : RegName) (lwsrc : LWord) :=
+Definition unique_in_machineL
+    (lregs : LReg) (lmem : LMem) (vmap : VMap) (src : RegName) (lwsrc : LWord) :=
   lregs !! src = Some lwsrc ->
-  unique_in_registersL lregs src lwsrc /\ unique_in_memoryL lmem lwsrc.
-
-(* Alternative definition of unique_in_machineL,
-   using the vmap *)
-Definition unique_in_memoryL_aux (lmem : LMem) (vmap : VMap) (lwsrc : LWord) : Prop :=
-  (map_Forall
-     (λ (la : LAddr) (lwa : LWord),
-       is_cur_addr la vmap -> ¬ overlap_wordL lwsrc lwa)
-     lmem).
-
-Lemma unique_in_memoryL_equiv
-  (phm : Mem) (phr : Reg) (lm : LMem) (lr : LReg) (vmap : VMap)
-  (src : RegName) (lwsrc : LWord) :
-  state_phys_log_corresponds phr phm lr lm vmap →
-  lr !! src = Some lwsrc →
-  unique_in_memory phm (lword_get_word lwsrc) ->
-  unique_in_memoryL lm lwsrc ->
-  unique_in_memoryL_aux lm vmap lwsrc.
-Proof.
-  move=> [_ Hmem_inv] Hsrc Hsweep HsweepL.
-  rewrite /unique_in_memoryL_aux.
-  rewrite /unique_in_memory in Hsweep.
-  rewrite /unique_in_memoryL in HsweepL.
-  eapply map_Forall_impl; first eapply HsweepL.
-  move=> la lw /= His_last Hcur_la.
-  apply: His_last.
-  eapply mem_corresponds_cur_addr_last_version_1; eauto.
-Qed.
+  unique_in_registersL lregs src lwsrc /\ unique_in_memoryL lmem vmap lwsrc.
 
 Lemma unique_in_machineL_insert_reg
-  (lm : LMem) (lr : LReg) (src r: RegName) (lwsrc lwr : LWord) :
+  (lr : LReg) (lm : LMem)  (vmap : VMap)
+  (src r: RegName) (lwsrc lwr : LWord) :
   r <> src ->
   lr !! src = Some lwsrc ->
   ¬ overlap_wordL lwsrc lwr ->
-  unique_in_machineL lm lr src lwsrc ->
-  unique_in_machineL lm (<[r := lwr ]> lr) src lwsrc.
+  unique_in_machineL lr lm vmap src lwsrc ->
+  unique_in_machineL (<[r := lwr ]> lr) lm vmap src lwsrc.
 Proof.
   move=> Hr_neq_src Hlr_src Hlr_r Hunique.
   specialize (Hunique Hlr_src).
@@ -891,11 +813,12 @@ Proof.
 Qed.
 
 Lemma unique_in_machineL_not_overlap_word
-  (lm : LMem) (lr : LReg) (src r : RegName) (lwsrc lwr : LWord) :
+  (lr : LReg) (lm : LMem) (vmap : VMap)
+  (src r : RegName) (lwsrc lwr : LWord) :
   r ≠ src ->
   lr !! src = Some lwsrc ->
   lr !! r = Some lwr ->
-  unique_in_machineL lm lr src lwsrc ->
+  unique_in_machineL lr lm vmap src lwsrc ->
   ¬ overlap_wordL lwsrc lwr.
 Proof.
   move=> Hr_neq_src Hlr_src Hlr_r Hunique.
@@ -905,7 +828,7 @@ Proof.
   by case_decide; simplify_eq.
 Qed.
 
-Lemma phys_log_corresponds_unique_in_registers
+Lemma state_corresponds_unique_in_registers
   (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
@@ -924,18 +847,17 @@ Proof.
   by eapply state_corresponds_reg_get_word.
 Qed.
 
-Lemma phys_log_corresponds_unique_in_memory
+Lemma state_corresponds_unique_in_memory
   (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
   unique_in_memory phm (lword_get_word lwsrc) ->
-  unique_in_memoryL lm lwsrc.
+  unique_in_memoryL lm vmap lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
   eapply map_Forall_lookup_2.
   move=> [a v] lw_la Hlm_la His_cur_la.
-  eapply mem_corresponds_cur_addr_last_version_2 in His_cur_la; eauto.
   assert (Hphm_a : phm !! a = Some (lword_get_word lw_la))
     by (by eapply lmem_corresponds_get_word).
   pose proof Hphm_a as H'phm_a.
@@ -951,7 +873,7 @@ Lemma sweep_true_specL
   state_phys_log_corresponds phr phm lr lm vmap →
   lr !! src = Some lwsrc →
   sweep phm phr src = true →
-  unique_in_machineL lm lr src lwsrc.
+  unique_in_machineL lr lm vmap src lwsrc.
 Proof.
   intros HLinv Hlr_src Hsweep.
   assert (Hphr_src : phr !! src = Some (lword_get_word lwsrc))
@@ -961,8 +883,8 @@ Proof.
   destruct Hsweep as [Hunique_reg Hunique_mem].
   intros _.
   split ;
-    [ eapply phys_log_corresponds_unique_in_registers
-    | eapply phys_log_corresponds_unique_in_memory ]
+    [ eapply state_corresponds_unique_in_registers
+    | eapply state_corresponds_unique_in_memory ]
   ; eauto.
 Qed.
 
@@ -989,7 +911,7 @@ Lemma unique_in_machine_no_accessL
   get_lcap lw = Some (LSCap p b e a v) ->
   lr !! src = Some lw ->
   is_cur_word lw vmap ->
-  unique_in_machineL lm lr src lw ->
+  unique_in_machineL lr lm vmap src lw ->
   Forall (λ a' : Addr, lmem_not_access_addrL lm vmap a') (finz.seq_between b e).
 Proof.
   move=> Hmem_inv Hlw Hlr_src His_cur Hunique.
@@ -1411,7 +1333,7 @@ Lemma update_cur_version_region_local_lmem_corresponds
   state_phys_log_corresponds phr phm lr lm vmap ->
   get_lcap lw = Some (LSCap p b e a v) ->
   lr !! src = Some lw ->
-  unique_in_machineL lm lr src lw ->
+  unique_in_machineL lr lm vmap src lw ->
   update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
@@ -1423,14 +1345,14 @@ Proof.
 Qed.
 
 Lemma update_cur_version_region_local_lreg_corresponds_src
-  (phr : Reg) (phm : Mem) (lr : LReg) (lmem lmem' : LMem) (vmap vmap' : VMap)
+  (phr : Reg) (phm : Mem) (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw lwsrc: LWord) :
-  state_phys_log_corresponds phr phm lr lmem vmap ->
+  state_phys_log_corresponds phr phm lr lm vmap ->
   get_lcap lwsrc = Some (LSCap p b e a v) ->
   is_cur_word lw vmap' ->
   lr !! src = Some lwsrc ->
-  unique_in_machineL lmem lr src lwsrc ->
-  update_cur_version_region_local lmem vmap (finz.seq_between b e) = (lmem', vmap') ->
+  unique_in_machineL lr lm vmap src lwsrc ->
+  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
   reg_phys_log_corresponds
     (<[src:= (lword_get_word lw)]> phr)
     (<[src:= lw]> lr) vmap'.
@@ -1459,12 +1381,12 @@ Proof.
 Qed.
 
 Lemma update_cur_version_region_local_lreg_corresponds_notin
-  (phr : Reg) (phm : Mem) (lr : LReg) (lmem lmem' : LMem) (vmap vmap' : VMap)
+  (phr : Reg) (phm : Mem) (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) :
-  state_phys_log_corresponds phr phm lr lmem vmap ->
+  state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some (LCap p b e a v) ->
-  update_cur_version_region_local lmem vmap (finz.seq_between b e) = (lmem', vmap') ->
-  unique_in_machineL lmem lr src (LCap p b e a v) ->
+  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
+  unique_in_machineL lr lm vmap src (LCap p b e a v) ->
   src ∉ dom phr ->
   src ∉ dom lr ->
   reg_phys_log_corresponds phr lr vmap'.
@@ -1493,7 +1415,7 @@ Lemma lreg_corresponds_insert_respects_updated_vmap
   get_lcap lw' = Some (LSCap p' b e a' v) ->
   get_lcap lwsrc = Some (LSCap p_src b_src e_src a_src v_src) ->
   update_cur_version_region_local lm vmap (finz.seq_between b_src e_src) = (lm', vmap') ->
-  unique_in_machineL lm lr src lwsrc ->
+  unique_in_machineL lr lm vmap src lwsrc ->
   r ≠ src ->
   lr !! r = Some lw ->
   lr !! src = Some lwsrc ->
