@@ -56,7 +56,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2031 entries)</td>
+<td>(2032 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -440,7 +440,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(550 entries)</td>
+<td>(551 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
@@ -1086,6 +1086,7 @@
 <a href="cap_machine.cap_lang.html#HaltedV">HaltedV</a> [constructor, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidAddress_dec">hasValidAddress_dec</a> [instance, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidLAddress">hasValidLAddress</a> [definition, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#has_access_lword_range">has_access_lword_range</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_reducible_from_step">head_reducible_from_step</a> [lemma, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_ctx_step_val">head_ctx_step_val</a> [lemma, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.proofmode.tactics_helpers.html#helpers">helpers</a> [section, in <a href="cap_machine.proofmode.tactics_helpers.html">cap_machine.proofmode.tactics_helpers</a>]<br/>
@@ -1270,8 +1271,8 @@
 <a href="cap_machine.logical_mapsto.html#is_sealbL">is_sealbL</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_mutable_rangeL">is_mutable_rangeL</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_cur_updatePcPermL">is_cur_updatePcPermL</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_insert">is_valid_updated_lmemory_insert</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem_incl">is_valid_updated_lmemory_preserves_lmem_incl</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_insert">is_valid_updated_lmemory_insert</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem_next">is_valid_updated_lmemory_preserves_lmem_next</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem">is_valid_updated_lmemory_preserves_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_notin_preserves_lmem">is_valid_updated_lmemory_notin_preserves_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -2232,11 +2233,10 @@
 <a href="cap_machine.cap_lang.html#update_mem">update_mem</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#update_reg">update_reg</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.proofmode.region.html#update_logical_memory_region_disjoint">update_logical_memory_region_disjoint</a> [lemma, in <a href="cap_machine.proofmode.region.html">cap_machine.proofmode.region</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global_valid">update_cur_version_region_global_valid</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_next">update_cur_version_addr_next</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global">update_cur_version_region_global</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global_aux">update_cur_version_region_global_aux</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_global">update_cur_version_addr_global</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_valid">update_cur_version_region_valid</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_version_region">update_cur_version_region_update_version_region</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_version_region_aux">update_cur_version_region_update_version_region_aux</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_update_version_addr">update_cur_version_addr_update_version_addr</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_region_insert">update_version_region_insert</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_addr_insert">update_version_addr_insert</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_addr_updated_incl">update_version_addr_updated_incl</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -2249,19 +2249,19 @@
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lreg_corresponds_notin">update_cur_version_region_lreg_corresponds_notin</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lreg_corresponds_src">update_cur_version_region_lreg_corresponds_src</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lmem_corresponds">update_cur_version_region_lmem_corresponds</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_lword">update_cur_version_region_update_lword</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_update_lword">update_cur_version_word_region_update_lword</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_notin_is_cur_word">update_cur_version_notin_is_cur_word</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_vmap">update_cur_version_region_update_vmap</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_inter_incl_lmem">update_cur_version_region_inter_incl_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_inter_incl_lmem">update_cur_version_addr_inter_incl_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_preserves_mem_corresponds">update_cur_version_word_region_preserves_mem_corresponds</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_mem_corresponds">update_cur_version_region_preserves_mem_corresponds</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_mem_corresponds">update_cur_version_addr_preserves_mem_corresponds</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_no_access">update_cur_version_region_preserves_no_access</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_no_access">update_cur_version_addr_preserves_no_access</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_lcap_update_lword">update_cur_version_region_lcap_update_lword</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_update_lword">update_cur_version_word_region_update_lword</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_notin_is_cur_word">update_cur_version_notin_is_cur_word</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_no_access">update_cur_version_region_notin_preserves_no_access</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_no_access">update_cur_version_addr_notin_preserves_no_access</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_lmem_incl">update_cur_version_region_preserves_lmem_incl</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_lmem_incl">update_cur_version_addr_preserves_lmem_incl</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_lm_inv">update_cur_version_region_notin_preserves_lm_inv</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lm_inv">update_cur_version_addr_notin_preserves_lm_inv</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_vmap">update_cur_version_region_update_vmap</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_incl_lmem">update_cur_version_addr_incl_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_lm">update_cur_version_region_notin_preserves_lm</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lm">update_cur_version_addr_notin_preserves_lm</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -2269,6 +2269,7 @@
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lmem">update_cur_version_addr_notin_preserves_lmem</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_cur">update_cur_version_region_notin_preserves_cur</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_cur">update_cur_version_addr_notin_preserves_cur</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_next">update_cur_version_addr_next</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_cons">update_cur_version_region_cons</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_word_region">update_cur_version_word_region</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region">update_cur_version_region</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -3030,8 +3031,8 @@
 <a href="cap_machine.machine_base.html#isWithin_of_le">isWithin_of_le</a> [in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.machine_base.html#isWithin_implies">isWithin_implies</a> [in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_cur_updatePcPermL">is_cur_updatePcPermL</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_insert">is_valid_updated_lmemory_insert</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem_incl">is_valid_updated_lmemory_preserves_lmem_incl</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_insert">is_valid_updated_lmemory_insert</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem_next">is_valid_updated_lmemory_preserves_lmem_next</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_preserves_lmem">is_valid_updated_lmemory_preserves_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_valid_updated_lmemory_notin_preserves_lmem">is_valid_updated_lmemory_notin_preserves_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -3325,11 +3326,10 @@
 <a href="cap_machine.rules.rules_base.html#updatePC_fail_incl">updatePC_fail_incl</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#updatePC_success_incl">updatePC_success_incl</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.proofmode.region.html#update_logical_memory_region_disjoint">update_logical_memory_region_disjoint</a> [in <a href="cap_machine.proofmode.region.html">cap_machine.proofmode.region</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global_valid">update_cur_version_region_global_valid</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_next">update_cur_version_addr_next</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global">update_cur_version_region_global</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_global_aux">update_cur_version_region_global_aux</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_global">update_cur_version_addr_global</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_valid">update_cur_version_region_valid</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_version_region">update_cur_version_region_update_version_region</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_version_region_aux">update_cur_version_region_update_version_region_aux</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_update_version_addr">update_cur_version_addr_update_version_addr</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_region_insert">update_version_region_insert</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_addr_insert">update_version_addr_insert</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_version_addr_updated_incl">update_version_addr_updated_incl</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -3340,19 +3340,19 @@
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lreg_corresponds_notin">update_cur_version_region_lreg_corresponds_notin</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lreg_corresponds_src">update_cur_version_region_lreg_corresponds_src</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_lmem_corresponds">update_cur_version_region_lmem_corresponds</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_lword">update_cur_version_region_update_lword</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_update_lword">update_cur_version_word_region_update_lword</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_notin_is_cur_word">update_cur_version_notin_is_cur_word</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_vmap">update_cur_version_region_update_vmap</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_inter_incl_lmem">update_cur_version_region_inter_incl_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_inter_incl_lmem">update_cur_version_addr_inter_incl_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_preserves_mem_corresponds">update_cur_version_word_region_preserves_mem_corresponds</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_mem_corresponds">update_cur_version_region_preserves_mem_corresponds</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_mem_corresponds">update_cur_version_addr_preserves_mem_corresponds</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_no_access">update_cur_version_region_preserves_no_access</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_no_access">update_cur_version_addr_preserves_no_access</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_lcap_update_lword">update_cur_version_region_lcap_update_lword</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_word_region_update_lword">update_cur_version_word_region_update_lword</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_notin_is_cur_word">update_cur_version_notin_is_cur_word</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_no_access">update_cur_version_region_notin_preserves_no_access</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_no_access">update_cur_version_addr_notin_preserves_no_access</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_preserves_lmem_incl">update_cur_version_region_preserves_lmem_incl</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_preserves_lmem_incl">update_cur_version_addr_preserves_lmem_incl</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_lm_inv">update_cur_version_region_notin_preserves_lm_inv</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lm_inv">update_cur_version_addr_notin_preserves_lm_inv</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_region_update_vmap">update_cur_version_region_update_vmap</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_incl_lmem">update_cur_version_addr_incl_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_lm">update_cur_version_region_notin_preserves_lm</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lm">update_cur_version_addr_notin_preserves_lm</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -3360,6 +3360,7 @@
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_lmem">update_cur_version_addr_notin_preserves_lmem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_notin_preserves_cur">update_cur_version_region_notin_preserves_cur</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_addr_notin_preserves_cur">update_cur_version_addr_notin_preserves_cur</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#update_cur_version_addr_next">update_cur_version_addr_next</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_version_region_cons">update_cur_version_region_cons</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#update_cur_word">update_cur_word</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="lemma_V"></a><h2>V </h2>
@@ -4268,6 +4269,7 @@
 <br/><br/><a id="definition_H"></a><h2>H </h2>
 <a href="cap_machine.examples.addr_reg_sample.html#halt">halt</a> [in <a href="cap_machine.examples.addr_reg_sample.html">cap_machine.examples.addr_reg_sample</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidLAddress">hasValidLAddress</a> [in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#has_access_lword_range">has_access_lword_range</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="definition_I"></a><h2>I </h2>
 <a href="cap_machine.ftlr.interp_weakening.html#IH">IH</a> [in <a href="cap_machine.ftlr.interp_weakening.html">cap_machine.ftlr.interp_weakening</a>]<br/>
 <a href="cap_machine.linking.html#imports">imports</a> [in <a href="cap_machine.linking.html">cap_machine.linking</a>]<br/>
@@ -4781,7 +4783,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2031 entries)</td>
+<td>(2032 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -5165,7 +5167,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(550 entries)</td>
+<td>(551 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
