@@ -7,7 +7,7 @@ From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
-Ltac destruct_cons_hook ::= destruct_cons_hook3.
+Ltac destruct_cons_hook ::= destruct_cons_hook2.
 Ltac inv_head_step :=
   repeat match goal with
          | _ => progress simplify_map_eq/= (* simplify memory stuff *)
@@ -280,58 +280,45 @@ Section cap_lang_rules.
   Qed.
 
   Lemma gen_heap_lmem_version_update `{HmemG : memG Σ, HregG : regG Σ} :
-    ∀ (lm lmem lm' lmem': LMem) (vmap vmap_m' vmap_mem': VMap)
+    ∀ (lmem lm lmem' lm': LMem) (vmap vmap': VMap)
       (la : list Addr) ( v : Version ),
       NoDup la ->
       lmem ⊆ lm ->
-      update_cur_version_region_local lm vmap la = (lm', vmap_m') ->
-      update_cur_version_region_global lmem lm vmap la = (lmem', vmap_mem') ->
+      update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
       Forall (λ a : Addr, lm !! (a, v+1) = None) la ->
       Forall (λ a : Addr, is_cur_addr (a,v) vmap) la ->
       gen_heap_interp lm
       -∗ ([∗ map] k↦y ∈ lmem, mapsto k (DfracOwn 1) y)
       ==∗ gen_heap_interp lm' ∗ [∗ map] k↦y ∈ lmem', mapsto k (DfracOwn 1) y.
   Proof.
-    move=> lm lmem lm' lmem' vmap vmap_m' vmap_mem' la.
-    move: lm lmem lm' lmem' vmap vmap_m' vmap_mem'.
+    move=> lmem lm lmem' lm' vmap vmap' la.
+    move: lmem lm lmem' lm' vmap vmap'.
     induction la as [|a la IH]
     ; iIntros
-        (lm lmem lm' lmem' vmap vmap_m' vmap_mem' v
-           HNoDup_la Hlmem_incl Hupd_lm Hupd_lmem Hmaxv_lm Hcur_lm)
+        (lmem lm lmem' lm' vmap vmap' v
+           HNoDup_la Hlmem_incl Hupd Hmaxv_lm Hcur_lm)
         "Hgen Hmem".
     - (* no addresses updated *)
-      cbn in Hupd_lm, Hupd_lmem ; simplify_eq.
+      cbn in Hupd ; simplify_eq.
       iModIntro; iFrame.
-    - destruct_cons; rename vmap1 into vmap_m0, vmap0 into vmap_mem0.
-      eapply update_cur_version_inter in Hupd_lmem0 ; eauto.
-
-      assert (lmem0 ⊆ lm0 /\ vmap_mem0 ⊆ vmap_m0) as [Hlmem0_incl Hvmap0_incl].
-      eapply update_cur_version_region_inter_incl; eauto; first done.
-
-      assert ( vmap_mem' ⊆ vmap_m' ) as Hvmap_incl
-          by (eapply update_cur_version_addr_inter_incl_vmap; eauto).
-      rewrite /update_cur_version_addr_global in Hupd_lmem0.
-      rewrite /update_cur_version_addr_local in Hupd_lm0.
-
-      destruct (vmap_mem0 !! a) as [va |] eqn:Hvmap_mem0_a.
-      2: {
-        erewrite update_cur_version_region_inter_notin_preserves_vmap in Hvmap_mem0_a; eauto.
-        rewrite Hvmap_mem0_a in Hupd_lm0; simplify_eq.
-        iApply (IH with "Hgen"); eauto.
-      }
+    - destruct_cons.
+      assert (lmem0 ⊆ lm0) as Hlmem0_incl
+          by (eapply update_cur_version_region_inter_incl_lmem; eauto; done).
+      rewrite /update_cur_version_addr in Hupd0.
+      destruct (vmap0 !! a) as [va |] eqn:Hvmap0_a
+      ; last ( simplify_eq ; iApply (IH with "Hgen"); eauto).
       rewrite /is_cur_addr /= in Hcur_lm_a.
-      erewrite <- update_cur_version_region_local_notin_preserves_cur
+      erewrite <- update_cur_version_region_notin_preserves_cur
         in Hcur_lm_a; eauto.
-      eapply lookup_weaken in Hvmap_mem0_a; eauto.
-      rewrite -/(is_cur_addr (a,va) vmap_m0) in Hvmap_mem0_a.
+      eapply lookup_weaken in Hvmap0_a; eauto.
+      rewrite -/(is_cur_addr (a,va) vmap0) in Hvmap0_a.
       eapply is_cur_addr_same in Hcur_lm_a; eauto; simplify_map_eq.
       destruct (lm0 !! (a, v)) as [lw|] eqn:Hlm0_a
-      ; rewrite Hlm0_a in Hupd_lm0, Hupd_lmem0
-      ; simplify_eq .
-      2: { iApply (IH with "Hgen"); eauto. }
-
+      ; rewrite Hlm0_a in Hupd0
+      ; simplify_eq
+      ; last (iApply (IH with "Hgen"); eauto).
       iDestruct (IH with "Hgen Hmem") as ">[Hgen Hmem]"; eauto.
-      erewrite <- update_cur_version_region_local_notin_preserves_lmem in Hmaxv_lm_a; eauto.
+      erewrite <- update_cur_version_region_notin_preserves_lm in Hmaxv_lm_a; eauto.
       iMod (((gen_heap_alloc lm0 (a, v + 1) lw) with "Hgen"))
         as "(Hgen & Ha & _)"; auto.
       iModIntro ; iFrame.

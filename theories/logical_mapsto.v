@@ -941,89 +941,236 @@ Proof.
   Unshelve. all: eauto.
 Qed.
 
+(** Machinery to update the lmemory *)
+(* TODO re-organize the lemmas (because new def) and check for duplicate *)
 
-(** Machinery to update the current version in a lmemory *)
-(* By convention:
-   - `lm` is the global lmemory
-   - `vmap_m` is the view map corresponding to the global lmemory `lm`
-   - `lmem` is the local lmemory
-   - `vmap_mem` is the view map corresponding to the local lmemory `lmem`
+(* We assume that *lmem* is a local view compatible with the global view *lm*.
+   We also assume that *lm* contains the laddress *(a,v)*,
+   whereas *lmem* might not contain it.
+
+   This way, the local view *lmem* can be updated,
+   even if it does not contain the address (a,v)
  *)
-
-(** Machinery to update locally *)
-(* Update the version of the current address,
-   both in the the lmemory and in the view map.
-   If the address is not in the view map,
-   or if the lmemory doesn't contain the current address,
-   then the lmemory and view map are not updated. *)
-Definition update_cur_version_addr_local
-  (lmem : LMem) (vmap : VMap) (a : Addr) : (LMem * VMap) :=
+Definition update_cur_version_addr
+  (lmem lm : LMem) (vmap : VMap) (a : Addr) : (LMem * LMem * VMap) :=
   match vmap !! a with
   | Some v =>
-      match lmem !! (a,v) with
-      | Some lw => (<[ (a, v+1) := lw ]> lmem, <[ a := v+1 ]> vmap)
-      | None => (lmem, vmap)
+      match lm !! (a,v) with
+      | Some lw => ( <[ (a, v+1) := lw ]> lmem,
+                    <[ (a, v+1) := lw ]> lm,
+                    <[ a := v+1 ]> vmap)
+      | None => (lmem, lm, vmap)
       end
-  | None => (lmem, vmap)
+  | None => (lmem, lm, vmap)
   end.
 
-Definition update_cur_version_region_local
-  (lmem : LMem) (vmap : VMap) (la : list Addr) : (LMem * VMap) :=
+Definition update_cur_version_region
+  (lmem lm : LMem) (vmap : VMap) (la : list Addr) : (LMem * LMem * VMap) :=
   foldr
-    ( fun a (upd : LMem * VMap) =>
-        let (lmem', vmap') := upd in update_cur_version_addr_local lmem' vmap' a)
-    (lmem, vmap)
+    ( fun a (upd : LMem * LMem * VMap) =>
+        let '(lmem', lm', vmap') := upd in
+        update_cur_version_addr lmem' lm' vmap' a)
+    (lmem, lm, vmap)
     la.
 
 (* update the version number of the region pointed by a lword *)
-Definition update_cur_version_word_region_local
-  (lmem : LMem) (vmap : VMap) (lw : LWord) : (LMem * VMap) :=
+Definition update_cur_version_word_region
+  (lmem lm : LMem) (vmap : VMap) (lw : LWord) : (LMem * LMem * VMap) :=
   match get_lcap lw with
   | Some (LSCap p b e a v) =>
-      update_cur_version_region_local lmem vmap (finz.seq_between b e)
-  | Some _ | None => (lmem, vmap)
+      update_cur_version_region lmem lm vmap (finz.seq_between b e)
+  | Some _ | None => (lmem, lm, vmap)
   end.
 
-Lemma update_cur_version_region_local_cons
-  (lmem lmem' : LMem) (vmap vmap' : VMap) (a : Addr) (la : list Addr) :
-  update_cur_version_region_local lmem vmap (a :: la) = (lmem', vmap') ->
-  exists (lmem0 : LMem) (vmap0 : VMap),
-    update_cur_version_region_local lmem vmap la = (lmem0, vmap0)
-    ∧ update_cur_version_addr_local lmem0 vmap0 a = (lmem', vmap').
+Lemma update_cur_version_region_cons
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) (a : Addr) (la : list Addr) :
+  update_cur_version_region lmem lm vmap (a :: la) = (lmem', lm', vmap') ->
+  exists (lmem0 lm0 : LMem) (vmap0 : VMap),
+    update_cur_version_region lmem lm vmap la = (lmem0, lm0, vmap0)
+    ∧ update_cur_version_addr lmem0 lm0 vmap0 a = (lmem', lm', vmap').
 Proof.
   intros Hupd.
-  cbn in Hupd ; rewrite -/(update_cur_version_region_local lmem vmap la) in Hupd.
-  destruct (update_cur_version_region_local lmem vmap la) as [lmem0 vmap0] eqn:Hupd0.
-  exists lmem0, vmap0.
+  rewrite /= -/(update_cur_version_region lmem lm vmap la) in Hupd.
+  destruct (update_cur_version_region lmem lm vmap la)
+    as [ [lmem0 lm0] vmap0] eqn:Hupd0.
+  exists lmem0, lm0, vmap0.
   split ; eauto.
 Qed.
-Ltac destruct_cons_upd_local :=
+Ltac destruct_cons_upd :=
   match goal with
-     | Hupd_local : update_cur_version_region_local ?lmem ?vmap (?a :: ?la) = (?lmem', ?vmap')
+     | Hupd : update_cur_version_region ?lmem ?lm ?vmap (?a :: ?la) = (?lmem', ?lm', ?vmap')
        |- _ =>
          let lmem0 := fresh lmem "0" in
-         let vmap_mem0 := fresh vmap "0" in
-         let Hupd0 := fresh Hupd_local "0" in
-         apply update_cur_version_region_local_cons in Hupd_local
-         ; destruct Hupd_local as (lmem0 & vmap_mem0 & Hupd_local & Hupd0)
+         let lm0 := fresh lm "0" in
+         let vmap0 := fresh vmap "0" in
+         let Hupd0 := fresh Hupd "0" in
+         apply update_cur_version_region_cons in Hupd
+         ; destruct Hupd as (lmem0 & lm0 & vmap0 & Hupd & Hupd0)
    end.
-Ltac destruct_cons_hook2 := destruct_cons_upd_local || destruct_cons_hook1.
+Ltac destruct_cons_hook2 := destruct_cons_upd || destruct_cons_hook1.
 Ltac destruct_cons_hook ::= destruct_cons_hook2.
+
+
+Lemma update_cur_version_addr_notin_preserves_cur
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) (a a' : Addr) :
+  update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap')
+  → a ≠ a'
+  → vmap' !! a = vmap !! a.
+Proof.
+  move=> Hupd Hneq.
+  rewrite /update_cur_version_addr in Hupd.
+  destruct (vmap !! a') as [va'|]; last by simplify_eq.
+  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
+Qed.
+
+Lemma update_cur_version_region_notin_preserves_cur:
+  ∀ (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+    (la : list Addr) (a : Addr),
+    update_cur_version_region lmem lm vmap la = (lmem', lm', vmap')
+    → a ∉ la
+    → vmap' !! a = vmap !! a.
+Proof.
+  move=> lmem lm lmem' lm' vmap vmap' la.
+  move: lmem lm lmem' lm' vmap vmap'.
+  induction la as [|a la IH]
+  ; intros * Hupd Ha_notin_la
+  ; first (cbn in *; by simplify_eq).
+  destruct_cons.
+  assert (vmap !! a0 = vmap0 !! a0) as Hcur0 by (symmetry ; eapply IH ; eauto).
+  rewrite Hcur0.
+  erewrite update_cur_version_addr_notin_preserves_cur; cycle 1 ; eauto.
+Qed.
+
+Lemma update_cur_version_addr_notin_preserves_lmem
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (a a': Addr) (v :Version) :
+  a ≠ a' ->
+  update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap') ->
+  lmem' !! (a, v) = lmem !! (a, v).
+Proof.
+  intros Hneq Hupd.
+  rewrite /update_cur_version_addr in Hupd.
+  destruct (vmap !! a') as [va'|] eqn:Hva' ; last (simplify_eq; eauto).
+  destruct (lm !! (a',va')) as [lw'|] eqn:Hlw' ; last (simplify_eq; eauto).
+  simplify_eq.
+  rewrite lookup_insert_ne //=; intro ; simplify_eq; lia.
+Qed.
+
+Lemma update_cur_version_region_notin_preserves_lmem
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap)
+  (la : list Addr) (a : Addr) (v :Version):
+  a ∉ la ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+  lmem' !! (a, v) = lmem !! (a, v).
+Proof.
+  move: lmem lm lmem' lm' vmap vmap' a v.
+  induction la as [|a' la IHla]; intros * Ha_notin_la Hupd
+  ; first (by cbn in * ; simplify_map_eq).
+  destruct_cons.
+  assert (lmem !! (a, v) = lmem0 !! (a, v)) as Hlmem0
+      by (symmetry ; eapply IHla ; eauto).
+  eapply update_cur_version_addr_notin_preserves_lmem with (v := v)
+    in Hupd0; eauto.
+  by rewrite Hlmem0 Hupd0.
+Qed.
+
+Lemma update_cur_version_addr_notin_preserves_lm
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (a a': Addr) (v :Version) :
+  a ≠ a' ->
+  update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap') ->
+  lm' !! (a, v) = lm !! (a, v).
+Proof.
+  intros Hneq Hupd.
+  rewrite /update_cur_version_addr in Hupd.
+  destruct (vmap !! a') as [va'|] eqn:Hva' ; last (simplify_eq; eauto).
+  destruct (lm !! (a',va')) as [lw'|] eqn:Hlw' ; last (simplify_eq; eauto).
+  simplify_eq.
+  rewrite lookup_insert_ne //=; intro ; simplify_eq; lia.
+Qed.
+
+Lemma update_cur_version_region_notin_preserves_lm
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap)
+  (la : list Addr) (a : Addr) (v :Version):
+  a ∉ la ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+  lm' !! (a, v) = lm !! (a, v).
+Proof.
+  move: lmem lm lmem' lm' vmap vmap' a v.
+  induction la as [|a' la IHla]; intros * Ha_notin_la Hupd
+  ; first (by cbn in * ; simplify_map_eq).
+  destruct_cons.
+  assert (lm !! (a, v) = lm0 !! (a, v)) as Hlmem0
+      by (symmetry ; eapply IHla ; eauto).
+  eapply update_cur_version_addr_notin_preserves_lm with (v := v)
+    in Hupd0; eauto.
+  by rewrite Hlmem0 Hupd0.
+Qed.
+
+Lemma update_cur_version_addr_incl_lmem
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) (v : Version) :
+  vmap !! a = Some v ->
+  lmem !! (a, v+1) = None ->
+  update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') ->
+  lmem ⊆ lmem'.
+Proof.
+  intros Hcur Hmaxv Hupd.
+  rewrite /update_cur_version_addr in Hupd.
+  rewrite Hcur in Hupd.
+  destruct (lm !! (a,v)) as [lwa|] eqn:Hlwa ; simplify_map_eq; last set_solver.
+  eapply insert_subseteq_r; eauto.
+Qed.
+
+Lemma update_cur_version_addr_notin_preserves_lm_inv
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (a a' : Addr) (v : Version) (lw : LWord) :
+  a' ≠ a ->
+  lmem ⊆ lm ->
+  update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap') ->
+  lmem' !! (a,v) = Some lw ->
+  lm !! (a,v) = Some lw.
+Proof.
+  intros Hneq Hlmem_incl Hupd Hlw.
+  rewrite /update_cur_version_addr in Hupd.
+  destruct (vmap !! a') as [v'|] eqn:? ; cbn in * ; simplify_map_eq
+  ; last (eapply lookup_weaken ; eauto).
+  destruct (lm !! (a', v')) eqn:? ; cbn in * ; simplify_map_eq
+  ; last (eapply lookup_weaken ; eauto).
+  rewrite lookup_insert_ne /= in Hlw; eauto; [|intro ; simplify_eq].
+  eapply lookup_weaken ; eauto.
+Qed.
+
+Lemma update_cur_version_region_notin_preserves_lm_inv
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (la : list Addr) (a : Addr) (v : Version) (lw : LWord) :
+  a ∉ la ->
+  lmem ⊆ lm ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+  lmem' !! (a,v) = Some lw ->
+  lm !! (a,v) = Some lw.
+Proof.
+  move: lmem lm lmem' lm' vmap vmap' a v lw.
+  induction la as [|a' la IHla]; intros * Ha_notin_la Hlmem_incl Hupd Hlw
+  ; first (by cbn in * ; simplify_map_eq; eapply lookup_weaken ; eauto).
+  destruct_cons.
+  eapply IHla; eauto.
+  erewrite <- update_cur_version_addr_notin_preserves_lmem; eauto.
+Qed.
 
 (* If an address `a'` is not reachable from the current view of the lmem,
    then updating the version number of another address `a`
    does not make it reachable *)
-Lemma update_cur_version_addr_local_preserves_no_access
-  (lmem lmem' : LMem) (vmap vmap' : VMap) (a a' : Addr):
+Lemma update_cur_version_addr_preserves_no_access
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) (a a' : Addr):
   a ≠ a' →
-  update_cur_version_addr_local lmem vmap a' = (lmem', vmap') →
-  lmem_not_access_addrL lmem vmap a →
-  lmem_not_access_addrL lmem' vmap' a.
+  update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap') →
+  lmem_not_access_addrL lm vmap a →
+  lmem_not_access_addrL lm' vmap' a.
 Proof.
   intros Hneq Hupd Hno_access.
-  rewrite /update_cur_version_addr_local in Hupd.
+  rewrite /update_cur_version_addr in Hupd.
   destruct (vmap !! a') as [va'|] eqn:Heqn ; cbn in Hupd ; [|by simplify_eq].
-  destruct (lmem !! (a', va')) as [lw'|] eqn:Heqn'; simplify_map_eq; last done.
+  destruct (lm !! (a', va')) as [lw'|] eqn:Heqn'; simplify_map_eq; last done.
   apply map_Forall_lookup.
   intros la lw Hsome Hcur.
   destruct la as [a0 v0].
@@ -1039,36 +1186,35 @@ Proof.
 Qed.
 
 (* Same as `update_cur_version_addr_preserves_no_access`, but for a list of addresses *)
-Lemma update_cur_version_region_local_preserves_no_access
-  (lmem lmem': LMem) (vmap vmap' : VMap) (la : list Addr) (a' : Addr):
+Lemma update_cur_version_region_preserves_no_access
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr) (a' : Addr):
   a' ∉ la →
-  update_cur_version_region_local lmem vmap la = (lmem', vmap') →
-  lmem_not_access_addrL lmem vmap a' →
-  lmem_not_access_addrL lmem' vmap' a'.
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') →
+  lmem_not_access_addrL lm vmap a' →
+  lmem_not_access_addrL lm' vmap' a'.
 Proof.
-  move: lmem lmem' vmap vmap' a'.
+  move: lmem lmem' lm lm' vmap vmap' a'.
   induction la as [| a la IH]; intros * Hnot_in Hupd Hno_access.
   - by cbn in * ; simplify_eq.
   - destruct_cons.
-    eapply update_cur_version_addr_local_preserves_no_access ; eauto.
+    eapply update_cur_version_addr_preserves_no_access ; eauto.
 Qed.
-
 
 (* If the address `a` is not reachable
    from the current view of the lmem,
    then the mem_phys_log invariant still holds
    after updating its version number. *)
-Lemma update_cur_version_addr_local_preserves_mem_phyc_cor
-  (phm : Mem) (lmem lmem': LMem) (vmap vmap' : VMap) (a : Addr) :
-  update_cur_version_addr_local lmem vmap a = (lmem', vmap') →
-  lmem_not_access_addrL lmem vmap a →
-  mem_phys_log_corresponds phm lmem vmap ->
-  mem_phys_log_corresponds phm lmem' vmap'.
+Lemma update_cur_version_addr_preserves_mem_phyc_cor
+  (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) :
+  update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') →
+  lmem_not_access_addrL lm vmap a →
+  mem_phys_log_corresponds phm lm vmap ->
+  mem_phys_log_corresponds phm lm' vmap'.
 Proof.
   intros Hupd Hnaccess_mem [Hdom Hroot].
-  rewrite /update_cur_version_addr_local in Hupd.
+  rewrite /update_cur_version_addr in Hupd.
   destruct (vmap !! a) as [v |] eqn:Hcur_la; cbn in * ; simplify_eq; last done.
-  destruct (lmem !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq; last done.
+  destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq; last done.
   rewrite -/(is_cur_addr (a,v) vmap) in Hcur_la.
   assert (not (word_access_addrL a lw)) as Hnaccess by eauto.
   pose proof (Hla' := Hla).
@@ -1132,151 +1278,114 @@ Qed.
 
 (* Same as `update_cur_version_addr_preserves_mem_phyc_cor`,
    but for a list of addresses *)
-Lemma update_cur_version_region_local_preserves_mem_phyc_cor
-  (phm : Mem) (lmem lmem': LMem) (vmap vmap' : VMap) (la : list Addr):
+Lemma update_cur_version_region_preserves_mem_phyc_cor
+  (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr):
   NoDup la →
-  update_cur_version_region_local lmem vmap la = (lmem', vmap') →
-  Forall (fun a => lmem_not_access_addrL lmem vmap a) la →
-  mem_phys_log_corresponds phm lmem vmap ->
-  mem_phys_log_corresponds phm lmem' vmap'.
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') →
+  Forall (fun a => lmem_not_access_addrL lm vmap a) la →
+  mem_phys_log_corresponds phm lm vmap ->
+  mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-  move: phm lmem lmem' vmap vmap'.
+  move: phm lmem lm lmem' lm' vmap vmap'.
   induction la as [| a la IH]; intros * Hno_dup Hupd Hall_naccess_mem Hmem_corr.
   - by cbn in * ; simplify_eq.
   - destruct_cons.
-    assert (mem_phys_log_corresponds phm lmem0 vmap0) as Hinv0
+    assert (mem_phys_log_corresponds phm lm0 vmap0) as Hinv0
         by (eapply IH ;eauto).
-    eapply update_cur_version_addr_local_preserves_mem_phyc_cor in Hupd0 ; eauto.
-    by eapply update_cur_version_region_local_preserves_no_access.
+    eapply update_cur_version_addr_preserves_mem_phyc_cor in Hupd0 ; eauto.
+    by eapply update_cur_version_region_preserves_no_access.
 Qed.
 
 (* update the version number of a memory region that is not reacheable,
    preserves the mem_phys_log invariant *)
-Lemma update_cur_version_word_region_local_preserves_mem_phyc_cor
-  (phm : Mem) (lmem lmem': LMem) (vmap vmap' : VMap) (lw : LWord) :
-  lmem_not_access_wordL lmem vmap lw →
-  update_cur_version_word_region_local lmem vmap lw = (lmem', vmap') →
-  mem_phys_log_corresponds phm lmem vmap ->
-  mem_phys_log_corresponds phm lmem' vmap'.
+Lemma update_cur_version_word_region_preserves_mem_phyc_cor
+  (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (lw : LWord) :
+  lmem_not_access_wordL lm vmap lw →
+  update_cur_version_word_region lmem lm vmap lw = (lmem', lm', vmap') →
+  mem_phys_log_corresponds phm lm vmap ->
+  mem_phys_log_corresponds phm lm' vmap'.
 Proof.
   intros Hno_access Hupd Hmem_phys_log.
-  rewrite /update_cur_version_word_region_local in Hupd.
+  rewrite /update_cur_version_word_region in Hupd.
   rewrite /lmem_not_access_wordL in Hno_access.
   destruct (get_lcap lw) as [[] |] ; simplify_eq ; auto.
-  eapply update_cur_version_region_local_preserves_mem_phyc_cor ; eauto.
+  eapply update_cur_version_region_preserves_mem_phyc_cor ; eauto.
   apply finz_seq_between_NoDup.
 Qed.
 
-Lemma update_cur_version_addr_local_notin_preserves_lmem
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
-  (a a': Addr) (v :Version):
-  a ≠ a' ->
-  update_cur_version_addr_local lmem vmap a' = (lmem', vmap') ->
-  lmem' !! (a, v) = lmem !! (a, v).
-Proof.
-  intros Ha_notint_la Hupd.
-  rewrite /update_cur_version_addr_local in Hupd.
-  destruct (vmap !! a') as [va'|] eqn:Hva' ; last (simplify_eq; eauto).
-  destruct (lmem !! (a',va')) as [lw'|] eqn:Hlw' ; last (simplify_eq; eauto).
-  simplify_eq.
-  by rewrite lookup_insert_ne ; last (intro ; simplify_pair_eq).
-Qed.
+(** Machinery to link the local and global update *)
 
-Lemma update_cur_version_region_local_notin_preserves_lmem
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
-  (la : list Addr) (a : Addr) (v :Version):
-  a ∉ la ->
-  update_cur_version_region_local lmem vmap la = (lmem', vmap') ->
-  lmem' !! (a, v) = lmem !! (a, v).
-Proof.
-  move: lmem lmem' vmap vmap' a v.
-  induction la as [| a' la Hla]
-  ; intros * Ha_notin_la Hupd
-  ; first (by cbn in *; simplify_eq).
-  destruct_cons.
-  erewrite update_cur_version_addr_local_notin_preserves_lmem ; cycle 1 ; eauto.
-Qed.
-
-Lemma update_cur_version_addr_local_preserves_lmem
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
-  (a a': Addr) (v : Version):
+Lemma update_cur_version_addr_inter_incl_lmem
+  (lmem lmem' lm lm' : LMem) (vmap vmap' : VMap)
+  (a : Addr) (v : Version) :
+  lmem ⊆ lm ->
   vmap !! a = Some v ->
-  update_cur_version_addr_local lmem vmap a' = (lmem', vmap') ->
-  lmem' !! (a, v) = lmem !! (a, v).
+  lm !! (a, v + 1) = None ->
+  update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') ->
+  lmem' ⊆ lm'.
 Proof.
-  intros Hcur Hupd.
-  rewrite /update_cur_version_addr_local in Hupd.
-  destruct (decide (a = a')); simplify_eq; cycle 1.
-  - eapply update_cur_version_addr_local_notin_preserves_lmem; eauto.
-  - rewrite Hcur in Hupd.
-  destruct (lmem !! (a', v)) as [lw'|] eqn:Hlw'
-  ; rewrite Hlw' in Hupd
-  ; simplify_eq ; last done.
-  by rewrite lookup_insert_ne ; last (intro ; simplify_eq; lia).
+  intros Hlmem_incl Hcur_a Hmaxv_a Hupd.
+  rewrite /update_cur_version_addr in Hupd.
+  rewrite Hcur_a in Hupd.
+  destruct (lm !! (a,v)) as [lw|] eqn:Hlw; simplify_map_eq; auto.
+  by apply insert_mono.
 Qed.
 
-
-
-
-Lemma update_cur_version_addr_local_notin_preserves_cur
-  (lmem lmem' : LMem) (vmap vmap' : VMap) (a a' : Addr):
-  update_cur_version_addr_local lmem vmap a' = (lmem', vmap')
-  → a ≠ a'
-  → vmap' !! a = vmap !! a.
+Lemma update_cur_version_region_inter_incl_lmem
+  (lmem lmem' lm lm' : LMem) (vmap vmap' : VMap)
+  (la : list Addr) (v : Version) :
+  NoDup la ->
+  lmem ⊆ lm ->
+  Forall (λ a : Addr, vmap !! a = Some v) la ->
+  Forall (λ a : Addr, lm !! (a, v + 1) = None) la ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+  lmem' ⊆ lm'.
 Proof.
-  move=> Hupd Hneq.
-  rewrite /update_cur_version_addr_local in Hupd.
-  destruct (vmap !! a') as [va'|]; cbn in *; last by simplify_eq.
-  destruct (lmem !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
-Qed.
-
-Lemma update_cur_version_region_local_notin_preserves_cur
-  (lmem lmem' : LMem) (vmap vmap' : VMap) (la : list Addr) (a' : Addr) :
-  update_cur_version_region_local lmem vmap la = (lmem', vmap')
-  → a' ∉ la
-  → vmap' !! a' = vmap !! a'.
-Proof.
-  move: lmem lmem' vmap vmap' a'.
-  induction la as [|a la IH]
-  ; intros * ; move=> Hupd Ha_notin_la
-  ; first (cbn in *; by simplify_eq).
+  move: lmem lmem' lm lm' vmap vmap' v.
+  induction la as [|a la IHla]
+  ; intros * HNoDup Hlmem_incl HcurMap HmaxMap Hupd
+  ; first (simplify_map_eq ; set_solver).
   destruct_cons.
-  erewrite update_cur_version_addr_local_notin_preserves_cur ; cycle 1 ; eauto.
+  assert (lmem0 ⊆ lm0) as Hlmem0_incl by (eapply IHla ; eauto).
+  assert (vmap0 !! a = Some v) as HcurMap_a0
+      by (erewrite update_cur_version_region_notin_preserves_cur ; cycle 1 ; eauto).
+  eapply update_cur_version_addr_inter_incl_lmem; eauto.
+  erewrite update_cur_version_region_notin_preserves_lm; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_update_vmap
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_region_update_vmap
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (la : list Addr) ( a : Addr) (v : Version):
   NoDup la ->
-  update_cur_version_region_local lmem vmap la = (lmem', vmap') ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
   a ∈ la ->
-  is_Some (lmem !! (a,v)) ->
+  is_Some (lm !! (a,v)) ->
   is_cur_addr (a, v) vmap ->
   is_cur_addr (a, v+1) vmap'.
 Proof.
-  move: lmem lmem' vmap vmap' a v.
+  move: lmem lmem' lm lm' vmap vmap' a v.
   induction la as [|a' la' IH] ; intros * HNoDup Hupd Ha [lwa Hlwa] Hcur_a.
   - by apply elem_of_nil in Ha.
   - destruct_cons.
     destruct Ha as [? | Ha] ; simplify_eq.
     + (* case (a = a' *)
-      erewrite <- update_cur_version_region_local_notin_preserves_lmem in Hlwa; eauto.
-      eapply update_cur_version_region_local_notin_preserves_cur in Hupd; eauto.
-      rewrite /update_cur_version_addr_local Hupd Hcur_a /= Hlwa in Hupd0.
+      erewrite <- update_cur_version_region_notin_preserves_lm in Hlwa; eauto.
+      eapply update_cur_version_region_notin_preserves_cur in Hupd; eauto.
+      rewrite /update_cur_version_addr Hupd Hcur_a /= Hlwa in Hupd0.
       by rewrite /is_cur_addr //= ; simplify_map_eq.
     + (* case (a <> a' *)
       assert (a <> a') as Ha_neq_a' by set_solver.
       rewrite /is_cur_addr /=.
-      erewrite update_cur_version_addr_local_notin_preserves_cur; eauto.
+      erewrite update_cur_version_addr_notin_preserves_cur; eauto.
       eapply IH; eauto.
 Qed.
 
-Lemma update_cur_version_local_notin_is_cur_word
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_notin_is_cur_word
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (p : Perm) (b e a : Addr) (v : Version)
   (lw lwsrc : LWord) :
   get_lcap lwsrc = Some (LSCap p b e a v) ->
-  update_cur_version_region_local lmem vmap (finz.seq_between b e) = (lmem', vmap') ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   ¬ overlap_wordL lwsrc lw ->
   is_cur_word lw vmap ->
   is_cur_word lw vmap'.
@@ -1285,18 +1394,18 @@ Proof.
   destruct_lword lw ; cbn; try done
   ; intros a'0 Ha'0 ; cbn in His_cur_lw
   ; pose proof (His_cur_lw a'0 Ha'0) as Ha'0_cur
-  ; (erewrite <- update_cur_version_region_local_notin_preserves_cur in Ha'0_cur; eauto)
+  ; (erewrite <- update_cur_version_region_notin_preserves_cur in Ha'0_cur; eauto)
   ; by eapply not_overlap_wordL_seq_between; [| | eauto..].
 Qed.
 
-Lemma update_cur_version_word_region_local_update_lword
-  (lmem lmem' : LMem) (vmap vmap' : VMap) (lw : LWord) :
-  update_cur_version_word_region_local lmem vmap lw = (lmem', vmap') ->
+Lemma update_cur_version_word_region_update_lword
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) (lw : LWord) :
+  update_cur_version_word_region lmem lm vmap lw = (lmem', lm', vmap') ->
   (* TODO ugly, extract as a predicate ? *)
   ( match lw with
     | LCap _ b e a v
     | LSealedCap _ _ b e a v =>
-        Forall (fun a => is_Some (lmem !! (a,v)) ) (finz.seq_between b e)
+        Forall (fun a => is_Some (lm !! (a,v)) ) (finz.seq_between b e)
     | _ => True
     end ) ->
   is_cur_word lw vmap ->
@@ -1306,53 +1415,53 @@ Proof.
   destruct_lword lw ; try done; cbn in *.
   all: move=> a' Ha'.
   all: specialize (Hcur _ Ha').
-  all: eapply update_cur_version_region_local_update_vmap
+  all: eapply update_cur_version_region_update_vmap
   ; eauto; try apply finz_seq_between_NoDup.
   all: rewrite elem_of_list_lookup in Ha'
   ; destruct Ha' as [? Ha']; eapply Forall_lookup in Hsome
   ; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_update_lword
-  (lmem lmem' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_region_update_lword
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
   get_lcap lw = Some (LSCap p b e a v) ->
-  update_cur_version_region_local lmem vmap (finz.seq_between b e) = (lmem', vmap') ->
-  Forall (fun a => is_Some (lmem !! (a,v))) (finz.seq_between b e) ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
+  Forall (fun a => is_Some (lm !! (a,v))) (finz.seq_between b e) ->
   is_cur_word lw vmap ->
   is_cur_word (next_version_lword lw) vmap'.
 Proof.
   move=> Hget Hupd Hsome Hcur.
   destruct_lword lw ; cbn in Hget ; simplify_eq.
-  all: eapply update_cur_version_word_region_local_update_lword; cbn ; eauto.
+  all: eapply update_cur_version_word_region_update_lword; cbn ; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_lmem_corresponds
-  (phr : Reg) (lr : LReg) (phm : Mem) (lm lm' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_region_lmem_corresponds
+  (phr : Reg) (lr : LReg) (phm : Mem) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
   state_phys_log_corresponds phr phm lr lm vmap ->
   get_lcap lw = Some (LSCap p b e a v) ->
   lr !! src = Some lw ->
   unique_in_machineL lr lm vmap src lw ->
-  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
   intros [Hreg_inv Hmem_inv] Hget Hsrc Hunique Hupd.
-  eapply update_cur_version_region_local_preserves_mem_phyc_cor; eauto.
+  eapply update_cur_version_region_preserves_mem_phyc_cor; eauto.
   eapply finz_seq_between_NoDup.
   eapply unique_in_machine_no_accessL ; eauto.
   eapply lreg_corresponds_read_iscur; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_lreg_corresponds_src
-  (phr : Reg) (phm : Mem) (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_region_lreg_corresponds_src
+  (phr : Reg) (phm : Mem) (lr : LReg) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw lwsrc: LWord) :
   state_phys_log_corresponds phr phm lr lm vmap ->
   get_lcap lwsrc = Some (LSCap p b e a v) ->
   is_cur_word lw vmap' ->
   lr !! src = Some lwsrc ->
   unique_in_machineL lr lm vmap src lwsrc ->
-  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   reg_phys_log_corresponds
     (<[src:= (lword_get_word lw)]> phr)
     (<[src:= lw]> lr) vmap'.
@@ -1377,15 +1486,15 @@ Proof.
       eapply map_Forall_lookup_1 in Hunique_reg ; eauto.
       rewrite decide_False in Hunique_reg; auto.
       eapply map_Forall_lookup_1 in Hcur_reg ; eauto.
-      eapply update_cur_version_local_notin_is_cur_word ; eauto.
+      eapply update_cur_version_notin_is_cur_word ; eauto.
 Qed.
 
-Lemma update_cur_version_region_local_lreg_corresponds_notin
-  (phr : Reg) (phm : Mem) (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
+Lemma update_cur_version_region_lreg_corresponds_notin
+  (phr : Reg) (phm : Mem) (lr : LReg) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) :
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some (LCap p b e a v) ->
-  update_cur_version_region_local lm vmap (finz.seq_between b e) = (lm', vmap') ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   unique_in_machineL lr lm vmap src (LCap p b e a v) ->
   src ∉ dom phr ->
   src ∉ dom lr ->
@@ -1402,19 +1511,20 @@ Proof.
   destruct Hunique as [Hunique_reg Hunique_mem].
   eapply map_Forall_lookup_1 in Hunique_reg ; eauto.
   case_decide as H; simplify_eq; clear H.
-  eapply update_cur_version_local_notin_is_cur_word; eauto.
+  eapply update_cur_version_notin_is_cur_word; eauto.
   by cbn.
 Qed.
 
 Lemma lreg_corresponds_insert_respects_updated_vmap
-  (phr : Reg) (lr : LReg) (lm lm' : LMem) (vmap vmap' : VMap)
+  (phr : Reg) (lr : LReg) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (p p' p_src : Perm) (b e a a' b_src e_src a_src : Addr) (v v_src: Version)
   (lw lw' lwsrc : LWord) (r src : RegName) :
   reg_phys_log_corresponds phr lr vmap ->
   get_lcap lw = Some (LSCap p b e a v) ->
   get_lcap lw' = Some (LSCap p' b e a' v) ->
   get_lcap lwsrc = Some (LSCap p_src b_src e_src a_src v_src) ->
-  update_cur_version_region_local lm vmap (finz.seq_between b_src e_src) = (lm', vmap') ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b_src e_src)
+  = (lmem', lm', vmap') ->
   unique_in_machineL lr lm vmap src lwsrc ->
   r ≠ src ->
   lr !! r = Some lw ->
@@ -1423,337 +1533,11 @@ Lemma lreg_corresponds_insert_respects_updated_vmap
 Proof.
   intros.
   eapply is_cur_lword_lea with (lw := lw); eauto.
-  eapply update_cur_version_local_notin_is_cur_word; cycle 1 ; eauto.
+  eapply update_cur_version_notin_is_cur_word; cycle 1 ; eauto.
   eapply unique_in_machineL_not_overlap_word with (r := r); eauto.
   eapply lreg_corresponds_read_iscur; eauto.
 Qed.
 
-
-(** Machinery to update globally *)
-
-(* We assume that *lmem* is a local view compatible with the global view *lm*.
-   We also assume that *lm* contains the laddress *(a,v)*,
-   whereas *lmem* might not contain it.
-
-   This way, the local view *lmem* can be updated,
-   even if it does not contain the address (a,v)
- *)
-Definition update_cur_version_addr_global
-  (lmem lm : LMem) (vmap : VMap) (a : Addr) : (LMem * VMap) :=
-  match vmap !! a with
-  | Some v =>
-      match lm !! (a,v) with
-      | Some lw => (<[ (a, v+1) := lw ]> lmem, <[ a := v+1 ]> vmap)
-      | None => (lmem, vmap)
-      end
-  | None => (lmem, vmap)
-  end.
-
-Definition update_cur_version_region_global
-  (lmem lm : LMem) (vmap : VMap) (la : list Addr) : (LMem * VMap) :=
-  foldr
-    ( fun a (upd : LMem * VMap) =>
-        let (lmem', vmap') := upd in
-        update_cur_version_addr_global lmem' lm vmap' a)
-    (lmem, vmap)
-    la.
-
-(* update the version number of the region pointed by a lword *)
-Definition update_cur_version_word_region_global
-  (lmem lm : LMem) (vmap : VMap) (lw : LWord) : (LMem * VMap) :=
-  match get_lcap lw with
-  | Some (LSCap p b e a v) =>
-      update_cur_version_region_global lmem lm vmap (finz.seq_between b e)
-  | Some _ | None => (lm, vmap)
-  end.
-
-Lemma update_cur_version_region_global_cons
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap) (a : Addr) (la : list Addr) :
-  update_cur_version_region_global lmem lm vmap (a :: la) = (lmem', vmap') ->
-  exists (lmem0 : LMem) (vmap0 : VMap),
-    update_cur_version_region_global lmem lm vmap la = (lmem0, vmap0)
-    ∧ update_cur_version_addr_global lmem0 lm vmap0 a = (lmem', vmap').
-Proof.
-  intros Hupd.
-  cbn in Hupd.
-  rewrite -/(update_cur_version_region_global lmem lm vmap la) in Hupd.
-  destruct (update_cur_version_region_global lmem lm vmap la)
-    as [lmem0 vmap0] eqn:Hupd0.
-  exists lmem0, vmap0.
-  split ; eauto.
-Qed.
-Ltac destruct_cons_upd_global :=
-  match goal with
-     | Hupd_global : update_cur_version_region_global ?lmem ?lm ?vmap (?a :: ?la) = (?lmem', ?vmap')
-       |- _ =>
-         let lmem0 := fresh lmem "0" in
-         let vmap_mem0 := fresh vmap "0" in
-         let Hupd0 := fresh Hupd_global "0" in
-         apply update_cur_version_region_global_cons in Hupd_global
-         ; destruct Hupd_global as (lmem0 & vmap_mem0 & Hupd_global & Hupd0)
-   end.
-Ltac destruct_cons_hook3 := destruct_cons_upd_global || destruct_cons_hook2.
-Ltac destruct_cons_hook ::= destruct_cons_hook3.
-
-
-Lemma update_cur_version_addr_global_notin_preserves_cur
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap) (a a' : Addr) :
-  update_cur_version_addr_global lmem lm vmap a' = (lmem', vmap')
-  → a ≠ a'
-  → vmap' !! a = vmap !! a.
-Proof.
-  move=> Hupd Hneq.
-  rewrite /update_cur_version_addr_global in Hupd.
-  destruct (vmap !! a') as [va'|]; last by simplify_eq.
-  destruct (lm !! (a', va')) as [lwa' |]eqn:Heq ; simplify_map_eq; by simplify_eq.
-Qed.
-
-Lemma update_cur_version_region_global_notin_preserves_cur:
-  ∀ (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-    (la : list Addr) (a : Addr),
-    update_cur_version_region_global lmem lm vmap la = (lmem', vmap')
-    → a ∉ la
-    → vmap' !! a = vmap !! a.
-Proof.
-  move=> lmem lm lmem' vmap vmap' la.
-  move: lmem lm lmem' vmap vmap'.
-  induction la as [|a la IH]
-  ; intros * Hupd Ha_notin_la
-  ; first (cbn in *; by simplify_eq).
-  destruct_cons.
-  assert (vmap !! a0 = vmap0 !! a0) as Hcur0 by (symmetry ;eapply IH ; eauto).
-  rewrite Hcur0.
-  erewrite update_cur_version_addr_global_notin_preserves_cur; cycle 1 ; eauto.
-Qed.
-
-Lemma update_cur_version_addr_global_notin_preserves_lmem
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-  (a a': Addr) (v :Version) :
-  a ≠ a' ->
-  update_cur_version_addr_global lmem lm vmap a' = (lmem', vmap') ->
-  lmem' !! (a, v) = lmem !! (a, v).
-Proof.
-  intros Hneq Hupd.
-  rewrite /update_cur_version_addr_global in Hupd.
-  destruct (vmap !! a') as [va'|] eqn:Hva' ; last (simplify_eq; eauto).
-  destruct (lm !! (a',va')) as [lw'|] eqn:Hlw' ; last (simplify_eq; eauto).
-  simplify_eq.
-  rewrite lookup_insert_ne //=; intro ; simplify_eq; lia.
-Qed.
-
-Lemma update_cur_version_region_global_notin_preserves_lmem
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-  (la : list Addr) (a : Addr) (v :Version):
-  a ∉ la ->
-  update_cur_version_region_global lmem lm vmap la = (lmem', vmap') ->
-  lmem' !! (a, v) = lmem !! (a, v).
-Proof.
-  move: lmem lm lmem' vmap vmap' a v.
-  induction la as [|a' la IHla]; intros * Ha_notin_la Hupd
-  ; first (by cbn in * ; simplify_map_eq).
-  destruct_cons.
-  assert (lmem !! (a, v) = lmem0 !! (a, v)) as Hlmem0
-      by (symmetry ; eapply IHla ; eauto).
-  eapply update_cur_version_addr_global_notin_preserves_lmem with (v := v)
-    in Hupd0; eauto.
-  by rewrite Hlmem0 Hupd0.
-Qed.
-
-Lemma update_cur_version_addr_global_incl_lmem
-  (lmem lm lmem': LMem) (vmap vmap' : VMap) (a : Addr) (v : Version) :
-  vmap !! a = Some v ->
-  lmem !! (a, v+1) = None ->
-  update_cur_version_addr_global lmem lm vmap a = (lmem', vmap') ->
-  lmem ⊆ lmem'.
-Proof.
-  intros Hcur Hmaxv Hupd.
-  rewrite /update_cur_version_addr_global in Hupd.
-  rewrite Hcur in Hupd.
-  destruct (lm !! (a,v)) as [lwa|] eqn:Hlwa ; simplify_map_eq; last set_solver.
-  eapply insert_subseteq_r; eauto.
-Qed.
-
-Lemma update_cur_version_addr_global_notin_preserves_lm_inv
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-  (a a' : Addr) (v : Version) (lw : LWord) :
-  a' ≠ a ->
-  lmem ⊆ lm ->
-  update_cur_version_addr_global lmem lm vmap a' = (lmem', vmap') ->
-  lmem' !! (a,v) = Some lw ->
-  lm !! (a,v) = Some lw.
-Proof.
-  intros Hneq Hlmem_incl Hupd Hlw.
-  rewrite /update_cur_version_addr_global in Hupd.
-  destruct (vmap !! a') as [v'|] eqn:? ; cbn in * ; simplify_map_eq
-  ; last (eapply lookup_weaken ; eauto).
-  destruct (lm !! (a', v')) eqn:? ; cbn in * ; simplify_map_eq
-  ; last (eapply lookup_weaken ; eauto).
-  rewrite lookup_insert_ne /= in Hlw; eauto; [|intro ; simplify_eq].
-  eapply lookup_weaken ; eauto.
-Qed.
-
-Lemma update_cur_version_region_global_notin_preserves_lm_inv
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-  (la : list Addr) (a : Addr) (v : Version) (lw : LWord) :
-  a ∉ la ->
-  lmem ⊆ lm ->
-  update_cur_version_region_global lmem lm vmap la = (lmem', vmap') ->
-  lmem' !! (a,v) = Some lw ->
-  lm !! (a,v) = Some lw.
-Proof.
-  move: lmem lm lmem' vmap vmap' a v lw.
-  induction la as [|a' la IHla]; intros * Ha_notin_la Hlmem_incl Hupd Hlw
-  ; first (by cbn in * ; simplify_map_eq; eapply lookup_weaken ; eauto).
-  destruct_cons.
-  eapply IHla; eauto.
-  erewrite <- update_cur_version_addr_global_notin_preserves_lmem; eauto.
-Qed.
-
-(** Machinery to link the local and global update *)
-
-Lemma update_cur_version_inter
-  (lmem lmem0 lmem' lm lm0 : LMem)
-  (vmap_mem vmap_mem0 vmap_mem' vmap_m vmap_m0 : VMap)
-  ( a0 : Addr ) (la : list Addr) :
-  a0 ∉ la ->
-  NoDup la ->
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  update_cur_version_region_global lmem lm vmap_mem la = (lmem0, vmap_mem0) ->
-  update_cur_version_region_local lm vmap_m la = (lm0, vmap_m0) ->
-  update_cur_version_addr_global lmem0 lm vmap_mem0 a0 = (lmem', vmap_mem') ->
-  update_cur_version_addr_global lmem0 lm0 vmap_mem0 a0 = (lmem', vmap_mem').
-Proof.
-  move: lmem lmem0 lmem' lm lm0 vmap_mem vmap_mem0 vmap_mem' vmap_m vmap_m0 a0.
-  induction la as [|a la IHla]
-  ; intros * Ha0_notin_la HNoDup_la Hlmem_incl Hvmap_incl Hupd_lmem Hupd_lm Hupd_lmem0
-  ; first (by simplify_map_eq).
-  destruct_cons.
-  rewrite -Hupd_lmem0 /update_cur_version_addr_global.
-  destruct (vmap_mem0 !! a0) as [va0|] ; auto.
-  eapply update_cur_version_region_local_notin_preserves_lmem
-    with (a := a0) (v := va0) in Hupd_lm; eauto.
-  erewrite <- update_cur_version_addr_local_notin_preserves_lmem in Hupd_lm ; cycle 1 ; eauto.
-  by rewrite Hupd_lm.
-Qed.
-
-Lemma update_cur_version_addr_inter_incl_lmem
-  (lmem lmem' lm lm' : LMem) (vmap_mem vmap_mem' vmap_m vmap_m' : VMap)
-  (a : Addr) (v : Version) :
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  vmap_mem !! a = Some v ->
-  lm !! (a, v + 1) = None ->
-  update_cur_version_addr_global lmem lm vmap_mem a = (lmem', vmap_mem') ->
-  update_cur_version_addr_local lm vmap_m a = (lm', vmap_m') ->
-  lmem' ⊆ lm'.
-Proof.
-  intros Hlmem_incl Hvmap_incl Hcur_a Hmaxv_a Hupd_lmem Hupd_lm.
-  rewrite /update_cur_version_addr_global in Hupd_lmem.
-  rewrite /update_cur_version_addr_local in Hupd_lm.
-  assert ( vmap_m !! a = Some v ) as Hcur_a' by (eapply lookup_weaken ; eauto).
-  rewrite Hcur_a in Hupd_lmem; rewrite Hcur_a' in Hupd_lm.
-  destruct (lm !! (a,v)) as [lw|] eqn:Hlw; simplify_map_eq; auto.
-  by apply insert_mono.
-Qed.
-
-Lemma update_cur_version_addr_inter_incl_vmap
-  (lmem lmem' lm lm' : LMem) (vmap_mem vmap_mem' vmap_m vmap_m' : VMap) (a : Addr) :
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  update_cur_version_addr_global lmem lm vmap_mem a = (lmem', vmap_mem') ->
-  update_cur_version_addr_local lm vmap_m a = (lm', vmap_m') ->
-  vmap_mem' ⊆ vmap_m'.
-Proof.
-  intros Hlmem_incl Hvmap_incl Hupd_lmem Hupd_lm.
-  rewrite /update_cur_version_addr_global in Hupd_lmem.
-  rewrite /update_cur_version_addr_local in Hupd_lm.
-  destruct (vmap_mem !! a) as [va|] eqn:Hvmap_mem_a ; simplify_map_eq.
-  - eapply lookup_weaken in Hvmap_mem_a; eauto ; simplify_map_eq.
-    destruct (lm !! (a,va)) as [lw|]; simplify_map_eq; auto.
-    by apply insert_mono.
-  - destruct (vmap_m !! a) as [va|] eqn:Hvmap_m_a ; simplify_map_eq; auto.
-    destruct (lm !! (a,va)) as [lw|]; simplify_map_eq; auto.
-    by apply insert_subseteq_r.
-Qed.
-
-Lemma update_cur_version_addr_inter_incl
-  (lmem lmem' lm lm' : LMem) (vmap_mem vmap_mem' vmap_m vmap_m' : VMap)
-  (a : Addr) (v : Version) :
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  vmap_mem !! a = Some v ->
-  lm !! (a, v + 1) = None ->
-  update_cur_version_addr_global lmem lm vmap_mem a = (lmem', vmap_mem') ->
-  update_cur_version_addr_local lm vmap_m a = (lm', vmap_m') ->
-  lmem' ⊆ lm' /\ vmap_mem' ⊆ vmap_m'.
-Proof.
-  intros Hlmem_incl Hvmap_incl Hcur_a Hmaxv_a Hupd_lmem Hupd_lm.
-  split
-  ; [ eapply update_cur_version_addr_inter_incl_lmem; eauto
-    | eapply update_cur_version_addr_inter_incl_vmap; eauto ].
-Qed.
-
-Lemma update_cur_version_region_inter_incl
-  (lmem lmem' lm lm' : LMem) (vmap_mem vmap_mem' vmap_m vmap_m' : VMap)
-  (la : list Addr) (v : Version) :
-  NoDup la ->
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  Forall (λ a : Addr, vmap_mem !! a = Some v) la ->
-  Forall (λ a : Addr, lm !! (a, v + 1) = None) la ->
-  update_cur_version_region_global lmem lm vmap_mem la = (lmem', vmap_mem') ->
-  update_cur_version_region_local lm vmap_m la = (lm', vmap_m') ->
-  lmem' ⊆ lm' /\ vmap_mem' ⊆ vmap_m'.
-Proof.
-  move: lmem lmem' lm lm' vmap_mem vmap_mem' vmap_m vmap_m'.
-  induction la as [|a la IHla]
-  ; intros * HNoDup Hlmem_incl Hvmap_incl HcurMap HmaxMap Hupd_lmem Hupd_lm
-  ; first (simplify_map_eq ; split ; set_solver).
-  destruct_cons.
-  assert (lmem0 ⊆ lm0 /\ vmap_mem0 ⊆ vmap_m0)
-    as [Hlmem0_incl Hvmap0_incl] by (eapply IHla ; eauto).
-  eapply update_cur_version_addr_inter_incl; eauto
-  ; last ( clear Hlmem0_incl Hvmap0_incl; eapply update_cur_version_inter; eauto).
-  erewrite update_cur_version_region_global_notin_preserves_cur; cycle 2; eauto.
-  erewrite update_cur_version_region_local_notin_preserves_lmem; cycle 1; eauto.
-Qed.
-
-Lemma update_cur_version_region_inter_incl_lmem
-  (lmem lmem' lm lm' : LMem) (vmap_mem vmap_mem' vmap_m vmap_m' : VMap)
-  (la : list Addr) (v : Version) :
-  NoDup la ->
-  lmem ⊆ lm ->
-  vmap_mem ⊆ vmap_m ->
-  Forall (λ a : Addr, vmap_mem !! a = Some v) la ->
-  Forall (λ a : Addr, lm !! (a, v + 1) = None) la ->
-  update_cur_version_region_global lmem lm vmap_mem la = (lmem', vmap_mem') ->
-  update_cur_version_region_local lm vmap_m la = (lm', vmap_m') ->
-  lmem' ⊆ lm'.
-Proof.
-  intros.
-  assert ( lmem' ⊆ lm' /\ vmap_mem' ⊆ vmap_m') as [? _]; last done.
-  eapply update_cur_version_region_inter_incl; eauto.
-Qed.
-
-Lemma update_cur_version_region_inter_notin_preserves_vmap
-  (lmem lmem' lm lm' : LMem) (vmap vmap_m' vmap_mem' : VMap) (la : list Addr) ( a0 : Addr ):
-  NoDup la ->
-  a0 ∉ la ->
-  update_cur_version_region_local lm vmap la = (lm', vmap_m') ->
-  update_cur_version_region_global lmem lm vmap la = (lmem', vmap_mem') ->
-  vmap_mem' !! a0 = vmap_m' !! a0.
-Proof.
-  move: lmem lmem' lm lm' vmap vmap_m' vmap_mem' a0.
-  induction la as [|a la IHla]
-  ; intros * HNoDup Ha0_notint_la Hupd_lm Hupd_lmem ; first (by cbn in * ; simplify_eq).
-  destruct_cons.
-  eapply update_cur_version_addr_global_notin_preserves_cur in Hupd_lmem0; eauto.
-  eapply update_cur_version_region_global_notin_preserves_cur in Hupd_lmem ; eauto.
-  eapply update_cur_version_region_local_notin_preserves_cur in Hupd_lm; eauto.
-  eapply update_cur_version_addr_local_notin_preserves_cur in Hupd_lm0 ; eauto.
-  congruence.
-Qed.
 
 
 
@@ -1765,7 +1549,7 @@ Qed.
 (* Update the lmemory for the address a.
    Note that lmem might not contain (a,v),
    because lmem is only a *local* view of the actual lmemory. *)
-Definition update_version_addr_local
+Definition update_version_addr
   (lmem : LMem) (a : Addr) (v : Version) : LMem :=
   match lmem !! (a,v) with
   | Some lw => <[ (a, v+1) := lw ]>lmem
@@ -1775,233 +1559,133 @@ Definition update_version_addr_local
 (* Update the lmemory region for a given lregion.
    Note that it only updates the *local* view of the lmemory,
    which might not contain some of the addresses in la. *)
-Definition update_version_region_local
+Definition update_version_region
   (lmem : LMem) (la : list Addr) (v : Version) : LMem :=
-  foldr (fun a lmem' => update_version_addr_local lmem' a v) lmem la.
+  foldr (fun a lmem' => update_version_addr lmem' a v) lmem la.
 
-Lemma update_version_addr_local_lookup_neq
+Lemma update_version_addr_lookup_neq
   (lmem : LMem) (a a' : Addr) (v v': Version) :
   a ≠ a' ->
-  update_version_addr_local lmem a v !! (a', v') = lmem !! (a', v').
+  update_version_addr lmem a v !! (a', v') = lmem !! (a', v').
 Proof.
   intros Hneq.
-  rewrite /update_version_addr_local.
+  rewrite /update_version_addr.
   destruct (lmem !! (a,v)); auto.
   rewrite lookup_insert_ne //=; by intro ; simplify_eq.
 Qed.
 
-Lemma update_cur_version_addr_global_local
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap) (a : Addr) (v : Version) :
-  lmem ⊆ lm ->
-  lm !! (a, v + 1) = None ->
-  is_Some (lm !! (a, v)) ->
-  vmap !! a = Some v ->
-  update_cur_version_addr_global lmem lm vmap a = (lmem', vmap') ->
-  update_version_addr_local lmem a v ⊆ lmem'.
+Lemma update_version_region_preserves_lmem
+  (lmem : LMem) (la : list Addr) (a : Addr) (v : Version) :
+  update_version_region lmem la v !! (a, v) = lmem !! (a, v).
 Proof.
-  intros Hlmem_incl Hmaxv [lw Hlw_a] Hcur Hupd.
-  rewrite /update_cur_version_addr_global Hcur Hlw_a in Hupd
-  ; simplify_eq.
-  rewrite /update_version_addr_local.
-  destruct (lmem !! (a, v)) eqn:Hlmem_a.
-  by eapply lookup_weaken in Hlmem_a ; eauto ; rewrite Hlmem_a in Hlw_a ; simplify_map_eq.
-  eapply lookup_weaken_None in Hmaxv; eauto.
-  eapply insert_subseteq_r; eauto.
+  move: lmem a v.
+  induction la as [|a' la IHla] ; intros *.
+  - by cbn in *.
+  - rewrite
+      /update_version_region /=
+        -/(update_version_region lmem la v)
+        /update_version_addr.
+    destruct (update_version_region lmem la v !! (a', v))
+      as [lwa|] eqn:Hlwa.
+    + rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
+    + eapply IHla; eauto.
 Qed.
 
-Lemma update_version_region_local_notin_preserves_lmem
+Lemma update_version_region_notin_preserves_lmem
   (lmem : LMem) (la : list Addr) (a' : Addr) (v v': Version) :
   a' ∉ la ->
-  update_version_region_local lmem la v !! (a', v') = lmem !! (a', v').
+  update_version_region lmem la v !! (a', v') = lmem !! (a', v').
 Proof.
   move: lmem a' v v'.
   induction la as [|a la IHla] ; intros * Ha'_notin_la.
   - by cbn in *.
   - destruct_cons.
     rewrite
-      /update_version_region_local /=
-        -/(update_version_region_local lmem la v)
-        /update_version_addr_local.
-    assert (update_version_region_local lmem la v !! (a', v') = lmem !! (a', v'))
+      /update_version_region /=
+        -/(update_version_region lmem la v)
+        /update_version_addr.
+    assert (update_version_region lmem la v !! (a', v') = lmem !! (a', v'))
       as IH by (eapply IHla ; eauto).
-    destruct (update_version_region_local lmem la v !! (a, v))
+    destruct (update_version_region lmem la v !! (a, v))
       as [lwa|] eqn:Hlwa; eauto.
     rewrite lookup_insert_ne //=; intro ; simplify_eq ; lia.
 Qed.
 
-Lemma update_version_region_local_preserves_lmem
-  (lmem : LMem) (la : list Addr) (a : Addr) (v : Version) :
-  update_version_region_local lmem la v !! (a, v) = lmem !! (a, v).
-Proof.
-  move: lmem a v.
-  induction la as [|a' la IHla] ; intros *.
-  - by cbn in *.
-  - rewrite
-      /update_version_region_local /=
-        -/(update_version_region_local lmem la v)
-        /update_version_addr_local.
-    destruct (update_version_region_local lmem la v !! (a', v))
-      as [lwa|] eqn:Hlwa.
-    + rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
-    + eapply IHla; eauto.
-Qed.
-
-Lemma update_cur_version_region_global_local_aux
-  (lmem lm lmem0 lmem' : LMem) (vmap vmap0 vmap' : VMap)
-  (a : Addr) (la : list Addr) (v : Version) (lw : LWord) :
-  a ∉ la
-  → lmem ⊆ lm
-  → vmap !! a = Some v
-  -> lm !! (a, v) = Some lw
-  → lm !! (a, v + 1) = None
-  -> update_cur_version_region_global lmem lm vmap la = (lmem0, vmap0)
-  -> update_cur_version_addr_global lmem0 lm vmap0 a = (lmem', vmap')
-  → update_version_region_local lmem la v ⊆ lmem0
-  → update_version_region_local lmem la v ⊆ lmem'.
-Proof.
-  intros Ha_notin_la Hlmem_incl HcurMap_a Hlwa HmaxMap_a Hupd Hupd0 IH.
-  rewrite /update_version_addr_local in Hupd0.
-  assert (vmap0 !! a = Some v) as Hvmap_mem0_a
-      by (erewrite update_cur_version_region_global_notin_preserves_cur; eauto).
-  eapply map_subseteq_spec; intros a' lwa' Hlwa'0.
-  assert (lmem0 !! a' = Some lwa') as Hlmem0_a' by
-      (eapply lookup_weaken in Hlwa'0; [|eassumption] ; by eauto).
-  destruct (decide (a' = (a,v))) as [ | Ha'_neq_a ]; simplify_map_eq.
-  - assert (<[(a, v + 1):=lwa']> lmem0 !! (a,v) = Some lwa') as Hupd_lmem0_a
-      by (rewrite lookup_insert_ne //= ; intro ; simplify_eq; lia).
-    rewrite update_version_region_local_preserves_lmem in Hlwa'0 ; eauto.
-    eapply lookup_weaken in Hlwa'0; last eapply Hlmem_incl.
-    rewrite Hlwa in Hlwa'0; simplify_eq.
-    eapply lookup_weaken; eauto.
-    rewrite /update_cur_version_addr_global in Hupd0.
-    by rewrite Hvmap_mem0_a Hlwa in Hupd0; simplify_eq.
-  - eapply lookup_weaken ; eauto.
-    rewrite /update_cur_version_addr_global Hvmap_mem0_a Hlwa in Hupd0; simplify_eq.
-    eapply insert_subseteq_r; eauto.
-    erewrite update_cur_version_region_global_notin_preserves_lmem;cycle 1 ; eauto.
-    eapply lookup_weaken_None; [eapply HmaxMap_a|]; eauto.
-Qed.
-
-Lemma update_cur_version_region_global_local
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap)
-  (la : list Addr) (v : Version) :
-  NoDup la ->
-  lmem ⊆ lm ->
-  Forall (λ a0 : Addr, is_Some (lm !! (a0, v))) la ->
-  Forall (λ a0 : Addr, vmap !! a0 = Some v) la ->
-  Forall (λ a0 : Addr, (lm !! (a0, v +1) = None)) la ->
-  update_cur_version_region_global lmem lm vmap la = (lmem', vmap') ->
-  update_version_region_local lmem la v ⊆ lmem'.
-Proof.
-  move: lmem lm lmem' vmap vmap' v.
-  induction la as [|a la IHla]
-  ; intros * HNoDup Hlmem_incl HmemMap HcurMap HmaxMap Hupd
-  ; first ( cbn in * ; simplify_map_eq ; by set_solver ).
-  destruct_cons; destruct HmemMap_a as [lwa Hlwa].
-  cbn; rewrite -/(update_version_region_local lmem la v).
-  pose proof Hupd0 as Hupd0'.
-  destruct (update_cur_version_region_local lm vmap la) as [lm' vmap_m'] eqn:Hupd_lm.
-  pose proof Hupd_lm as Hupd_lm'.
-  eapply update_cur_version_inter in Hupd_lm; eauto.
-  assert (lm' !! (a, v + 1) = None) as Hlm'_max
-      by (erewrite update_cur_version_region_local_notin_preserves_lmem; cycle 1; eauto).
-  assert (lm' !! (a, v) = Some lwa) as Hlwa'
-      by (erewrite update_cur_version_region_local_notin_preserves_lmem; cycle 1; eauto).
-  eapply update_cur_version_addr_global_local in Hupd_lm; eauto; cycle 1.
-  { eapply update_cur_version_region_inter_incl_lmem;eauto. }
-  { erewrite update_cur_version_region_global_notin_preserves_cur; eauto. }
-  assert ((update_version_region_local lmem la v) ⊆ lmem0)
-    as Hlmem_incl0 by (eapply IHla ; eauto).
-  assert (update_version_region_local lmem la v ⊆ lmem')
-    as Hlmem_incl' by (eapply update_cur_version_region_global_local_aux; eauto).
-  rewrite /update_version_addr_local in Hupd0 |- *.
-  destruct (update_version_region_local lmem la v !! (a, v)) eqn:Hupd_a; auto.
-  eapply insert_subseteq_l; auto.
-  rewrite update_version_region_local_preserves_lmem in Hupd_a ; eauto.
-  eapply lookup_weaken in Hlmem_incl ; eauto.
-  rewrite Hlmem_incl in Hlwa; simplify_map_eq.
-  erewrite <- update_cur_version_region_global_notin_preserves_lmem in Hupd_a; eauto.
-  erewrite <- update_cur_version_region_global_notin_preserves_cur in HcurMap_a; eauto.
-  rewrite /update_cur_version_addr_global HcurMap_a /= Hlmem_incl /= in Hupd0'.
-  by simplify_map_eq.
-Qed.
-
-Lemma update_version_region_local_preserves_lmem_next
+Lemma update_version_region_preserves_lmem_next
   (lmem : LMem) (la : list Addr) (a' : Addr) (v : Version) :
   NoDup la ->
   a' ∈ la ->
   lmem !! (a', v+1) = None ->
-  update_version_region_local lmem la v !! (a', v + 1) = lmem !! (a', v).
+  update_version_region lmem la v !! (a', v + 1) = lmem !! (a', v).
 Proof.
   move: lmem a' v.
   induction la as [|a la IHla] ; intros * HNoDup Ha'_in_la Hlmem_next
   ; first (by set_solver).
   destruct_cons.
   rewrite
-    /update_version_region_local /=
-      -/(update_version_region_local lmem la v)
-      /update_version_addr_local.
+    /update_version_region /=
+      -/(update_version_region lmem la v)
+      /update_version_addr.
   destruct Ha'_in_la as [|Ha'_in_la] ; simplify_map_eq.
-  - destruct (update_version_region_local lmem la v !! (a, v))
-      as [lwa|] eqn:Hlwa; rewrite update_version_region_local_preserves_lmem in Hlwa.
+  - destruct (update_version_region lmem la v !! (a, v))
+      as [lwa|] eqn:Hlwa; rewrite update_version_region_preserves_lmem in Hlwa.
     + by simplify_map_eq.
-    + rewrite Hlwa update_version_region_local_notin_preserves_lmem; eauto.
+    + rewrite Hlwa update_version_region_notin_preserves_lmem; eauto.
   - assert
-      (update_version_region_local lmem la v !! (a', v + 1) = lmem !! (a', v))
+      (update_version_region lmem la v !! (a', v + 1) = lmem !! (a', v))
         as IH by (erewrite IHla; eauto).
-    destruct (update_version_region_local lmem la v !! (a, v))
+    destruct (update_version_region lmem la v !! (a, v))
       as [lwa|] eqn:Hlwa
-    ; rewrite update_version_region_local_preserves_lmem in Hlwa
+    ; rewrite update_version_region_preserves_lmem in Hlwa
     ; auto.
     by rewrite lookup_insert_ne //= ; intro ; simplify_eq ; set_solver.
 Qed.
 
-Lemma update_version_addr_local_updated_incl
+Lemma update_version_addr_updated_incl
   (lmem lmem' : LMem) (la : list Addr) (a : Addr) (v : Version) :
-  update_version_region_local lmem la v !! (a, v + 1) = None ->
-  update_version_addr_local (update_version_region_local lmem la v) a v ⊆ lmem' ->
-  update_version_region_local lmem la v ⊆ lmem'.
+  update_version_region lmem la v !! (a, v + 1) = None ->
+  update_version_addr (update_version_region lmem la v) a v ⊆ lmem' ->
+  update_version_region lmem la v ⊆ lmem'.
 Proof.
   intros Hupd_max Hupd.
-  rewrite /update_version_addr_local in Hupd.
-  destruct (update_version_region_local lmem la v !! (a, v)) eqn:Hupd_a
-  ; rewrite update_version_region_local_preserves_lmem in Hupd_a
+  rewrite /update_version_addr in Hupd.
+  destruct (update_version_region lmem la v !! (a, v)) eqn:Hupd_a
+  ; rewrite update_version_region_preserves_lmem in Hupd_a
   ; last done.
   eapply insert_subseteq_r_inv in Hupd; eauto.
 Qed.
 
-Lemma update_version_addr_local_insert
+Lemma update_version_addr_insert
   (lmem lmem' : LMem) (a a' : Addr) (v v' : Version) (la : list Addr) (lw : LWord) :
   lmem !! (a', v') = None ->
-  update_version_addr_local (update_version_region_local (<[(a', v'):=lw]> lmem) la v) a
+  update_version_addr (update_version_region (<[(a', v'):=lw]> lmem) la v) a
     v ⊆ lmem' ->
-  update_version_region_local lmem la v ⊆ lmem' ->
-  update_version_addr_local (update_version_region_local lmem la v) a v ⊆ lmem'.
+  update_version_region lmem la v ⊆ lmem' ->
+  update_version_addr (update_version_region lmem la v) a v ⊆ lmem'.
 Proof.
   intros Hlmem_None Hupd Hupd_mem_incl.
-  rewrite /update_version_addr_local in Hupd |- *.
-  destruct (update_version_region_local lmem la v !! (a, v))
+  rewrite /update_version_addr in Hupd |- *.
+  destruct (update_version_region lmem la v !! (a, v))
     eqn:Hupd_a; last done.
   eapply insert_subseteq_l; eauto.
-  rewrite update_version_region_local_preserves_lmem in Hupd_a.
-  destruct (update_version_region_local (<[(a', v'):=lw]> lmem) la v !! (a, v))
+  rewrite update_version_region_preserves_lmem in Hupd_a.
+  destruct (update_version_region (<[(a', v'):=lw]> lmem) la v !! (a, v))
     eqn:Hupd_a'
-  ; rewrite update_version_region_local_preserves_lmem in Hupd_a'
+  ; rewrite update_version_region_preserves_lmem in Hupd_a'
   ; (rewrite lookup_insert_ne in Hupd_a' ; [| intro ; simplify_eq ])
   ; rewrite Hupd_a in Hupd_a'
   ; simplify_eq.
   eapply insert_weaken in Hupd; eauto.
 Qed.
 
-
-Lemma update_version_region_local_insert
+Lemma update_version_region_insert
   (lmem lmem' : LMem) (la : list Addr) (a' : Addr) (v v' : Version) (lw : LWord):
   NoDup la ->
   a' ∉ la ->
   lmem !! (a', v') = None ->
   Forall (fun a => lmem !! (a, v+1) = None) la ->
-  update_version_region_local (<[(a', v'):=lw]> lmem) la v ⊆ lmem' ->
-  update_version_region_local lmem la v ⊆ lmem'.
+  update_version_region (<[(a', v'):=lw]> lmem) la v ⊆ lmem' ->
+  update_version_region lmem la v ⊆ lmem'.
 Proof.
   move: lmem lmem' a' v v' lw.
   induction la as [|a la IHla] ; intros * HNoDup Ha'_notin_la Hlmem_None HmaxMap Hupd.
@@ -2012,14 +1696,107 @@ Proof.
     assert ((a0, v0) ≠ (a', v')) as Hneq by (intro ; simplify_map_eq).
     rewrite lookup_delete_ne in Hlw0 ; eauto.
   - destruct_cons.
-    rewrite /= -/(update_version_region_local (<[(a', v'):=lw]> lmem) la v) in Hupd.
-    rewrite /= -/(update_version_region_local lmem la v).
-    eapply update_version_addr_local_insert ; cycle 1 ; eauto.
+    rewrite /= -/(update_version_region (<[(a', v'):=lw]> lmem) la v) in Hupd.
+    rewrite /= -/(update_version_region lmem la v).
+    eapply update_version_addr_insert ; cycle 1 ; eauto.
     eapply IHla with (a' := a') (v' := v') (lw := lw); eauto.
-    eapply update_version_addr_local_updated_incl ; eauto.
-    rewrite update_version_region_local_notin_preserves_lmem //=.
+    eapply update_version_addr_updated_incl ; eauto.
+    rewrite update_version_region_notin_preserves_lmem //=.
     rewrite lookup_insert_ne //=; intro ; simplify_eq.
 Qed.
+
+
+
+
+
+Lemma update_cur_version_addr_global
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) (v : Version) :
+  lmem ⊆ lm ->
+  lm !! (a, v + 1) = None ->
+  is_Some (lm !! (a, v)) ->
+  vmap !! a = Some v ->
+  update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') ->
+  update_version_addr lmem a v ⊆ lmem'.
+Proof.
+  intros Hlmem_incl Hmaxv [lw Hlw_a] Hcur Hupd.
+  rewrite /update_cur_version_addr Hcur Hlw_a in Hupd
+  ; simplify_eq.
+  rewrite /update_version_addr.
+  destruct (lmem !! (a, v)) eqn:Hlmem_a.
+  by eapply lookup_weaken in Hlmem_a ; eauto ; rewrite Hlmem_a in Hlw_a ; simplify_map_eq.
+  eapply lookup_weaken_None in Hmaxv; eauto.
+  eapply insert_subseteq_r; eauto.
+Qed.
+
+Lemma update_cur_version_region_global_aux
+  (lmem lm lmem0 lm0 lmem' lm' : LMem) (vmap vmap0 vmap' : VMap)
+  (a : Addr) (la : list Addr) (v : Version) (lw : LWord) :
+  a ∉ la
+  → lmem ⊆ lm
+  → vmap !! a = Some v
+  -> lm !! (a, v) = Some lw
+  → lm !! (a, v + 1) = None
+  -> update_cur_version_region lmem lm vmap la = (lmem0, lm0, vmap0)
+  -> update_cur_version_addr lmem0 lm0 vmap0 a = (lmem', lm', vmap')
+  → update_version_region lmem la v ⊆ lmem0
+  → update_version_region lmem la v ⊆ lmem'.
+Proof.
+  intros Ha_notin_la Hlmem_incl HcurMap_a Hlwa HmaxMap_a Hupd Hupd0 IH.
+  rewrite /update_version_addr in Hupd0.
+  assert (vmap0 !! a = Some v) as Hvmap_mem0_a
+      by (erewrite update_cur_version_region_notin_preserves_cur; eauto).
+  eapply map_subseteq_spec; intros a' lwa' Hlwa'0.
+  assert (lmem0 !! a' = Some lwa') as Hlmem0_a' by
+      (eapply lookup_weaken in Hlwa'0; [|eassumption] ; by eauto).
+    eapply lookup_weaken. eapply Hlmem0_a'.
+    eapply update_cur_version_addr_incl_lmem; eauto.
+    erewrite update_cur_version_region_notin_preserves_lmem;cycle 1 ; eauto.
+    eapply lookup_weaken_None; eauto.
+Qed.
+
+Lemma update_cur_version_region_global
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (la : list Addr) (v : Version) :
+  NoDup la ->
+  lmem ⊆ lm ->
+  Forall (λ a0 : Addr, is_Some (lm !! (a0, v))) la ->
+  Forall (λ a0 : Addr, vmap !! a0 = Some v) la ->
+  Forall (λ a0 : Addr, (lm !! (a0, v +1) = None)) la ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+  update_version_region lmem la v ⊆ lmem'.
+Proof.
+  move: lmem lm lmem' lm' vmap vmap' v.
+  induction la as [|a la IHla]
+  ; intros * HNoDup Hlmem_incl HmemMap HcurMap HmaxMap Hupd
+  ; first ( cbn in * ; simplify_map_eq ; by set_solver ).
+  destruct_cons; destruct HmemMap_a as [lwa Hlwa].
+  cbn; rewrite -/(update_version_region lmem la v).
+  pose proof Hupd0 as Hupd0'.
+  assert (lm0 !! (a, v + 1) = None) as Hlm0_max
+      by (erewrite update_cur_version_region_notin_preserves_lm; eauto).
+  assert (lm0 !! (a, v) = Some lwa) as Hlwa'
+      by (erewrite update_cur_version_region_notin_preserves_lm; cycle 1; eauto).
+  eapply update_cur_version_addr_global in Hupd0; eauto; cycle 1.
+  { eapply update_cur_version_region_inter_incl_lmem;eauto. }
+  { erewrite update_cur_version_region_notin_preserves_cur; eauto. }
+  assert ((update_version_region lmem la v) ⊆ lmem0)
+    as Hlmem_incl0 by (eapply IHla ; eauto).
+  assert (update_version_region lmem la v ⊆ lmem') as Hlmem_incl'
+      by (eapply update_cur_version_region_global_aux; eauto).
+  rewrite /update_version_addr in Hupd0 |- *.
+  destruct (update_version_region lmem la v !! (a, v)) eqn:Hupd_a; auto.
+  eapply insert_subseteq_l; auto.
+  rewrite update_version_region_preserves_lmem in Hupd_a ; eauto.
+  eapply lookup_weaken in Hlmem_incl ; eauto.
+  rewrite Hlmem_incl in Hlwa; simplify_map_eq.
+  erewrite <- update_cur_version_region_notin_preserves_lmem in Hupd_a; eauto.
+  erewrite <- update_cur_version_region_notin_preserves_lm in Hlmem_incl; eauto.
+  erewrite <- update_cur_version_region_notin_preserves_cur in HcurMap_a; eauto.
+  rewrite /update_cur_version_addr HcurMap_a /= Hlmem_incl /= in Hupd0'.
+  by simplify_map_eq.
+Qed.
+
+
 
 (** Machinery for valid update of the lmemory *)
 
@@ -2033,21 +1810,36 @@ Qed.
  *)
 Definition is_valid_updated_lmemory
   (lmem : LMem) (la : list Addr) (v : Version) (lmem' : LMem) : Prop :=
-  (update_version_region_local lmem la v) ⊆ lmem' /\
+  (update_version_region lmem la v) ⊆ lmem' /\
     (Forall (fun a => is_Some (lmem' !! (a, v+1))) la).
+
+
+Lemma update_cur_version_addr_next
+  (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (a : Addr) (v : Version) (lwa : LWord) :
+  update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') ->
+  vmap !! a = Some v ->
+  lm !! (a, v) = Some lwa ->
+  lmem' !! (a, v+1) = Some lwa.
+Proof.
+  intros Hupd Hcur Hlm.
+  rewrite /update_cur_version_addr in Hupd.
+  by rewrite Hcur Hlm in Hupd ; simplify_map_eq.
+Qed.
+
 
 (* TODO Maybe the induction case of this proof could be done separately *)
 Lemma update_cur_version_region_global_valid
-  (lmem lm lmem' : LMem) (vmap vmap' : VMap) (la : list Addr) (v : Version) :
+  (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr) (v : Version) :
   NoDup la ->
   lmem ⊆ lm ->
   Forall (λ a0 : Addr, vmap !! a0 = Some v) la ->
   Forall (λ a0 : Addr, is_Some (lm !! (a0, v))) la ->
   Forall (λ a0 : Addr, lm !! (a0, v + 1) = None) la ->
-  update_cur_version_region_global lmem lm vmap la = (lmem', vmap') ->
+  update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
   is_valid_updated_lmemory lmem la v lmem'.
 Proof.
-  move: lmem lm lmem' vmap vmap' v.
+  move: lmem lm lmem' lm' vmap vmap' v.
   induction la as [|a la IHla]
   ; intros * HNoDup Hlmem_incl HcurMap HmemMap HmaxMap Hupd.
   - cbn in *; simplify_map_eq.
@@ -2057,35 +1849,36 @@ Proof.
   - destruct_cons; destruct HmemMap_a as [lwa Hlwa].
     assert ( is_valid_updated_lmemory lmem la v lmem0) as Hvalid by (eapply IHla ; eauto).
     split.
-    + rewrite /= -/(update_version_region_local lmem la v).
+    + rewrite /= -/(update_version_region lmem la v).
       destruct Hvalid as [Hupd' _].
       assert (vmap0 !! a = Some v) as Hcur0
-          by (erewrite update_cur_version_region_global_notin_preserves_cur; eauto).
+          by (erewrite update_cur_version_region_notin_preserves_cur; eauto).
       assert ( lmem0 ⊆ lmem') as Hlmem_incl'.
       {
-        eapply update_cur_version_addr_global_incl_lmem; cycle 1; eauto.
-        erewrite update_cur_version_region_global_notin_preserves_lmem; cycle 1; eauto.
+        eapply update_cur_version_addr_incl_lmem; cycle 1; eauto.
+        erewrite update_cur_version_region_notin_preserves_lmem; cycle 1; eauto.
         eapply lookup_weaken_None ; eauto.
       }
-      assert (update_version_region_local lmem la v ⊆ lmem') as Hupd_incl_lmem'
+      assert (update_version_region lmem la v ⊆ lmem') as Hupd_incl_lmem'
           by (eapply map_subseteq_trans; eauto).
-      rewrite /update_version_addr_local.
-      destruct (update_version_region_local lmem la v !! (a, v)) eqn:Hupd_local_lmem
+      rewrite /update_version_addr.
+      destruct (update_version_region lmem la v !! (a, v)) as [lwa'|]eqn:Hupd_lmem
       ; auto.
       eapply insert_subseteq_l; auto.
-      assert (lmem !! (a,v) = Some l) as Hlmem_a
-          by (rewrite update_version_region_local_preserves_lmem in Hupd_local_lmem; eauto).
-      assert (lmem0 !! (a,v) = Some l) as Hlmem0_a
-        by (erewrite update_cur_version_region_global_notin_preserves_lmem; eauto).
-      eapply lookup_weaken in Hlmem_a; eauto.
-      rewrite Hlmem_a in Hlwa ; simplify_map_eq.
-      rewrite /update_cur_version_addr_global in Hupd0.
-      rewrite Hcur0 Hlmem_a in Hupd0.
-      by simplify_map_eq.
+      assert (lmem !! (a,v) = Some lwa') as Hlmem_a
+          by (rewrite update_version_region_preserves_lmem in Hupd_lmem; eauto).
+      assert (lmem0 !! (a,v) = Some lwa') as Hlmem0_a
+        by (erewrite update_cur_version_region_notin_preserves_lmem; eauto).
+      assert (lm0 !! (a,v) = Some lwa') as Hlm0_a.
+      { eapply update_cur_version_region_inter_incl_lmem in Hupd; eauto.
+        eapply lookup_weaken ; eauto.
+      }
+      eapply update_cur_version_addr_next; eauto.
     + apply Forall_cons.
       split.
-      * erewrite <- update_cur_version_region_global_notin_preserves_cur in HcurMap_a ; eauto.
-        rewrite /update_cur_version_addr_global HcurMap_a /= Hlwa in Hupd0.
+      * erewrite <- update_cur_version_region_notin_preserves_cur in HcurMap_a ; eauto.
+        erewrite <- update_cur_version_region_notin_preserves_lm in Hlwa ; eauto.
+        rewrite /update_cur_version_addr HcurMap_a Hlwa in Hupd0.
         by simplify_map_eq.
       * apply Forall_forall.
         intros a' Ha'_in_la.
@@ -2094,9 +1887,9 @@ Proof.
         eapply Forall_lookup in Hsome ; eauto ; destruct Hsome as [lwa0 Hlwa0].
         exists lwa0.
         destruct (decide (a = a')) as [| Ha'_neq_a]; simplify_map_eq
-        ; last (erewrite update_cur_version_addr_global_notin_preserves_lmem; eauto).
+        ; last (erewrite update_cur_version_addr_notin_preserves_lmem; eauto).
         exfalso.
-        erewrite update_cur_version_region_global_notin_preserves_lmem in Hlwa0; eauto.
+        erewrite update_cur_version_region_notin_preserves_lmem in Hlwa0; eauto.
         eapply lookup_weaken in Hlwa0 ; eauto.
         by rewrite Hlwa0 in HmaxMap_a.
 Qed.
@@ -2112,12 +1905,12 @@ Proof.
   induction la as [|a la IHla] ; intros * Ha'_notin_la [Hcompatibility Hupdated] Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
-  rewrite /= -/(update_version_region_local lmem la v)
-    /update_version_addr_local map_subseteq_spec in Hcompatibility.
+  rewrite /= -/(update_version_region lmem la v)
+    /update_version_addr map_subseteq_spec in Hcompatibility.
   apply Hcompatibility; clear Hcompatibility.
-  assert (update_version_region_local lmem la v !! (a', v') = Some lw)
-    as IH by (rewrite update_version_region_local_notin_preserves_lmem; eauto).
-  destruct ( update_version_region_local lmem la v !! (a, v) )
+  assert (update_version_region lmem la v !! (a', v') = Some lw)
+    as IH by (rewrite update_version_region_notin_preserves_lmem; eauto).
+  destruct ( update_version_region lmem la v !! (a, v) )
     as [lwa'|] eqn:Hlwa' ; auto.
   by rewrite lookup_insert_ne //=; intro ; simplify_eq.
 Qed.
@@ -2132,12 +1925,12 @@ Proof.
   induction la as [|a la IHla] ; intros * [Hcompatibility Hupdated] Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
-  rewrite /= -/(update_version_region_local lmem la v)
-      /update_version_addr_local map_subseteq_spec in Hcompatibility.
+  rewrite /= -/(update_version_region lmem la v)
+      /update_version_addr map_subseteq_spec in Hcompatibility.
   apply Hcompatibility ; clear Hcompatibility.
-  assert (update_version_region_local lmem la v !! (a', v) = Some lw)
-    as IH by (rewrite update_version_region_local_preserves_lmem; eauto).
-  destruct ( update_version_region_local lmem la v !! (a, v) )
+  assert (update_version_region lmem la v !! (a', v) = Some lw)
+    as IH by (rewrite update_version_region_preserves_lmem; eauto).
+  destruct ( update_version_region lmem la v !! (a, v) )
     as [lwa'|] eqn:Hlwa' ; auto.
   rewrite lookup_insert_ne //=; intro ; simplify_eq; lia.
 Qed.
@@ -2155,22 +1948,22 @@ Proof.
   induction la as [|a la IHla] ; intros * HNoDup Ha'_in_la [Hcompatibility Hupdated] Hmax_la Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto; set_solver).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
-  rewrite /= -/(update_version_region_local lmem la v)
-     /update_version_addr_local map_subseteq_spec in Hcompatibility.
+  rewrite /= -/(update_version_region lmem la v)
+     /update_version_addr map_subseteq_spec in Hcompatibility.
   apply Hcompatibility; clear Hcompatibility.
-  rewrite -(update_version_region_local_preserves_lmem _ la) in Hlmem; eauto.
-  + destruct ( update_version_region_local lmem la v !! (a, v) ) as [lwa'|] eqn:Hlwa'.
+  rewrite -(update_version_region_preserves_lmem _ la) in Hlmem; eauto.
+  + destruct ( update_version_region lmem la v !! (a, v) ) as [lwa'|] eqn:Hlwa'.
     * destruct Ha'_in_la as [? | Ha'_in_la] ; simplify_map_eq; first done.
       pose proof Ha'_in_la as Ha'_in_la'.
       apply elem_of_list_lookup in Ha'_in_la'.
       destruct Ha'_in_la' as [? Ha'_lookup].
       eapply Forall_lookup in Hmax_la ; eauto.
       rewrite lookup_insert_ne //=; last (intro ; simplify_eq; set_solver).
-      rewrite update_version_region_local_preserves_lmem_next; eauto.
-      rewrite update_version_region_local_preserves_lmem in Hlmem ; eauto.
+      rewrite update_version_region_preserves_lmem_next; eauto.
+      rewrite update_version_region_preserves_lmem in Hlmem ; eauto.
     * destruct Ha'_in_la as [? | Ha'_in_la] ; simplify_map_eq.
-      rewrite update_version_region_local_preserves_lmem in Hlmem; eauto.
-      rewrite update_version_region_local_preserves_lmem_next ; eauto.
+      rewrite update_version_region_preserves_lmem in Hlmem; eauto.
+      rewrite update_version_region_preserves_lmem_next ; eauto.
       apply elem_of_list_lookup_1 in Ha'_in_la; destruct Ha'_in_la as [? Ha'_in_la].
       eapply Forall_lookup in Hmax_la ; eauto.
 Qed.
@@ -2190,19 +1983,19 @@ Proof.
     cbn in *; injection Hlen ; clear Hlen ; intros Hlen.
     destruct Hvalid as [Hupd_incl Hnext]; destruct_cons.
     rewrite
-      /= -/(update_version_region_local
+      /= -/(update_version_region
               (<[(a, v):=lw]> (list_to_map (zip (map (λ a : Addr, (a, v)) la) lws))) la v)
-      /update_version_addr_local
-      update_version_region_local_notin_preserves_lmem
+      /update_version_addr
+      update_version_region_notin_preserves_lmem
       in Hupd_incl
     ; eauto; simplify_map_eq.
     assert
-      (update_version_region_local
+      (update_version_region
          (<[(a, v):=lw]> (list_to_map (zip (map (λ a0 : Addr, (a0, v)) la) lws)))
          la v !! (a, v + 1) = None)
       as Hupd_None.
     {
-      rewrite update_version_region_local_notin_preserves_lmem; eauto.
+      rewrite update_version_region_notin_preserves_lmem; eauto.
       rewrite lookup_insert_ne //= ; [| intro ; simplify_eq ; lia].
       apply not_elem_of_list_to_map; cbn.
       rewrite fst_zip; eauto; last (rewrite map_length; lia).
@@ -2211,7 +2004,7 @@ Proof.
       destruct Hcontra as (? & ? & Hcontra) ; simplify_eq; lia.
     }
     assert
-      ( (update_version_region_local
+      ( (update_version_region
            (<[(a, v):=lw]> (list_to_map (zip (map (λ a : Addr, (a, v)) la) lws))) la v)
           ⊆ lmem') as Hupd_incl'.
     {
@@ -2221,14 +2014,14 @@ Proof.
       by apply lookup_delete_Some in Hlwa'; destruct Hlwa'.
     }
     assert (
-        ((update_version_region_local (<[(a, v):=lw
+        ((update_version_region (<[(a, v):=lw
               ]> (list_to_map (zip (map (λ a : Addr, (a, v)) la) lws))) la v)
            !! (a,v)) = Some lw) as Hupd_incl''
-      by (rewrite update_version_region_local_preserves_lmem; by simplify_map_eq).
+      by (rewrite update_version_region_preserves_lmem; by simplify_map_eq).
     eapply insert_subseteq_l; eauto; first (eapply lookup_weaken; eauto).
     eapply IHla; eauto.
     split; eauto.
-    eapply update_version_region_local_insert; eauto.
+    eapply update_version_region_insert; eauto.
     { clear -Hlen Ha_notin_la.
       eapply not_elem_of_list_to_map.
       intro Hcontra.
@@ -2266,7 +2059,7 @@ Proof.
     rewrite Hlmem_None in Hlw0 ; done.
   - destruct Hvalid as [Hupd HnextMap].
     split; auto.
-    eapply update_version_region_local_insert; eauto.
+    eapply update_version_region_insert; eauto.
 Qed.
 
 

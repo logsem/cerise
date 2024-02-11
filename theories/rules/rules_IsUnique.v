@@ -303,13 +303,10 @@ Section cap_lang_rules.
       pose proof
         (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv Hget_lsrcv Hlsrc)
         as HmemMap.
-      destruct (update_cur_version_word_region_global lmem lm vmap lsrcv)
-        as [lmem' vmap_mem'] eqn:Hupd_lmem
-      ; rewrite /update_cur_version_word_region_global Hget_lsrcv /= in Hupd_lmem.
-      destruct (update_cur_version_word_region_local lm vmap lsrcv)
-        as [lm' vmap_m'] eqn:Hupd_lm
-      ; rewrite /update_cur_version_word_region_local Hget_lsrcv /= in Hupd_lm.
-      iMod ((gen_heap_lmem_version_update lm lmem lm' lmem' ) with "Hm Hmem")
+      destruct (update_cur_version_word_region lmem lm vmap lsrcv)
+        as [ [lmem' lm'] vmap'] eqn:Hupd
+      ; rewrite /update_cur_version_word_region Hget_lsrcv /= in Hupd.
+      iMod ((gen_heap_lmem_version_update lmem lm lmem' lm' ) with "Hm Hmem")
         as "[Hm Hmem]"; eauto.
 
       (* we destruct the cases when the registers are equals *)
@@ -326,11 +323,11 @@ Section cap_lang_rules.
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
           ; last (eapply update_cur_version_region_global_valid; eauto).
-          iExists _, lm', vmap_m'; iFrame; auto
+          iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto ; cbn in *
-          ; last (eapply update_cur_version_region_local_lmem_corresponds ; eauto)
+          ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
           ; destruct HLinv as [Hreg_inv Hmem_inv].
-          assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap_m' ).
+          assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
           { eapply lookup_weaken in HPC'' ; eauto.
             eapply lreg_corresponds_insert_respects_updated_vmap
               with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto.
@@ -339,9 +336,9 @@ Section cap_lang_rules.
           eapply lreg_corresponds_insert_respects ; last done.
           replace reg with (<[ src := lword_get_word (next_version_lword lsrcv) ]> reg)
             by (rewrite insert_id //= lword_get_word_next_version //=).
-          eapply update_cur_version_region_local_lreg_corresponds_src with
+          eapply update_cur_version_region_lreg_corresponds_src with
             (phm := mem); eauto; first done.
-          eapply update_cur_version_region_local_update_lword ; eauto.
+          eapply update_cur_version_region_update_lword ; eauto.
           eapply lreg_corresponds_read_iscur; eauto.
 
         ** (* src = dst *)
@@ -354,18 +351,18 @@ Section cap_lang_rules.
           ; cycle 1.
           { eapply update_cur_version_region_global_valid; eauto. }
           { by rewrite insert_insert in H'lregs' |- *. }
-          iExists _, lm', vmap_m'; iFrame; auto
+          iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto
           ; cbn in *
-          ; last (eapply update_cur_version_region_local_lmem_corresponds ; eauto)
+          ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
           ; destruct HLinv as [Hreg_inv Hmem_inv].
-          assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap_m' ).
+          assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
           { eapply lookup_weaken in HPC'' ; eauto.
             eapply lreg_corresponds_insert_respects_updated_vmap
               with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto.
           }
           eapply lreg_corresponds_insert_respects ; last done.
-          eapply update_cur_version_region_local_lreg_corresponds_src
+          eapply update_cur_version_region_lreg_corresponds_src
             with (phm := mem) ; eauto; done.
 
       * (* src = PC *)
@@ -379,15 +376,15 @@ Section cap_lang_rules.
         iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
         ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
         ; last ( eapply update_cur_version_region_global_valid; eauto).
-        iExists _, lm', vmap_m'; iFrame; auto
+        iExists _, lm', vmap'; iFrame; auto
         ; iPureIntro; econstructor; eauto ; cbn in *
-        ; last (eapply update_cur_version_region_local_lmem_corresponds
+        ; last (eapply update_cur_version_region_lmem_corresponds
                        with (src := PC) ; eauto ; done)
         ; destruct HLinv as [Hreg_inv Hmem_inv].
-        eapply update_cur_version_region_local_lreg_corresponds_src with
+        eapply update_cur_version_region_lreg_corresponds_src with
           (phm := mem) (lwsrc := (LCap p1 b1 e1 a1 v) ); eauto; cycle 1.
         rewrite -/((next_version_lword (LCap p1 b1 e1 a_pc1 v))).
-        eapply update_cur_version_region_local_update_lword ; eauto.
+        eapply update_cur_version_region_update_lword ; eauto.
         eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 v)); eauto.
         eapply lreg_corresponds_read_iscur; eauto.
         by rewrite lookup_insert_ne // lookup_insert_ne //.
@@ -515,7 +512,7 @@ Section cap_lang_rules.
             by (eapply logical_range_map_some_inv; eauto) ; simplify_eq.
         destruct Hupd.
         eapply lookup_weaken; last eauto.
-        rewrite update_version_region_local_preserves_lmem_next; eauto.
+        rewrite update_version_region_preserves_lmem_next; eauto.
         all: rewrite lookup_insert_ne //=; last (intro ; set_solver).
         erewrite logical_range_map_lookup_versions; eauto.
         eapply logical_range_version_neq; eauto; lia.
