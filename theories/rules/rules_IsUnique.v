@@ -322,7 +322,7 @@ Section cap_lang_rules.
             as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-          ; last (eapply update_cur_version_region_global_valid; eauto).
+          ; last (eapply update_cur_version_region_valid; eauto).
           iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto ; cbn in *
           ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
@@ -338,7 +338,7 @@ Section cap_lang_rules.
             by (rewrite insert_id //= lword_get_word_next_version //=).
           eapply update_cur_version_region_lreg_corresponds_src with
             (phm := mem); eauto; first done.
-          eapply update_cur_version_region_update_lword ; eauto.
+          eapply update_cur_version_region_lcap_update_lword ; eauto.
           eapply lreg_corresponds_read_iscur; eauto.
 
         ** (* src = dst *)
@@ -349,7 +349,7 @@ Section cap_lang_rules.
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
           ; cycle 1.
-          { eapply update_cur_version_region_global_valid; eauto. }
+          { eapply update_cur_version_region_valid; eauto. }
           { by rewrite insert_insert in H'lregs' |- *. }
           iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto
@@ -375,7 +375,7 @@ Section cap_lang_rules.
         ; first by simplify_map_eq.
         iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
         ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-        ; last ( eapply update_cur_version_region_global_valid; eauto).
+        ; last ( eapply update_cur_version_region_valid; eauto).
         iExists _, lm', vmap'; iFrame; auto
         ; iPureIntro; econstructor; eauto ; cbn in *
         ; last (eapply update_cur_version_region_lmem_corresponds
@@ -384,7 +384,7 @@ Section cap_lang_rules.
         eapply update_cur_version_region_lreg_corresponds_src with
           (phm := mem) (lwsrc := (LCap p1 b1 e1 a1 v) ); eauto; cycle 1.
         rewrite -/((next_version_lword (LCap p1 b1 e1 a_pc1 v))).
-        eapply update_cur_version_region_update_lword ; eauto.
+        eapply update_cur_version_region_lcap_update_lword ; eauto.
         eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 v)); eauto.
         eapply lreg_corresponds_read_iscur; eauto.
         by rewrite lookup_insert_ne // lookup_insert_ne //.

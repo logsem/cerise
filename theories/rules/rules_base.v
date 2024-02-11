@@ -303,7 +303,7 @@ Section cap_lang_rules.
       iModIntro; iFrame.
     - destruct_cons.
       assert (lmem0 ⊆ lm0) as Hlmem0_incl
-          by (eapply update_cur_version_region_inter_incl_lmem; eauto; done).
+          by (eapply update_cur_version_region_preserves_lmem_incl; eauto; done).
       rewrite /update_cur_version_addr in Hupd0.
       destruct (vmap0 !! a) as [va |] eqn:Hvmap0_a
       ; last ( simplify_eq ; iApply (IH with "Hgen"); eauto).
