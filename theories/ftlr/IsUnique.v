@@ -303,6 +303,7 @@ Section fundamental.
     - rewrite /read_reg_inr in HVsrc; simplify_map_eq.
       admit.
     - pose proof (Hsome src) as [wsrc Hlregs_src].
+
       rewrite /read_reg_inr in HVsrc; simplify_map_eq.
       destruct (decide (is_lcap wsrc)) as [Hcap|Hcap]; cycle 1.
       + destruct_lword wsrc ; cbn in HVsrc; try done.
@@ -313,14 +314,6 @@ Section fundamental.
           | rewrite /subseteq /map_subseteq /set_subseteq_instance
             ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
           | by simplify_map_eq
-          | rewrite /allow_access_map_or_true
-            ; eexists _, p0, b0, e0, a0, v0;
-            split; [rewrite /read_reg_inr'|];
-            simplify_map_eq
-            ; try (
-                case_decide as Hcontra; [|done]
-                ; destruct Hcontra as [ Hcontra | Hcontra ] ; simplify_map_eq
-                ; rewrite Hlregs_src in Hcontra; by simplify_map_eq)
           |].
         all: try done.
         all: iNext; iIntros (lregs' lmem' retv) "(%Hspec & Hmem & Hmap)".
@@ -332,9 +325,94 @@ Section fundamental.
         all: iNext; iIntros "_"; iApply wp_value; auto.
         all: iIntros; discriminate.
 
-      + destruct_lword wsrc ; cbn in HVsrc; try done ; simplify_eq.
+      + (* rewrite -(insert_id lregs src wsrc).  *)
+        (* iExtract "Hmap" src as "Hsrc". *)
+        (* iDestruct ("Hreg" $! src wsrc _ _) as "#Hinterp_src". *)
+        destruct_lword wsrc ; cbn in HVsrc; try done ; simplify_eq; clear Hcap.
         * admit.
-        * admit.
+        * clear HVsrc.
+          rewrite memMap_resource_1.
+          iApply (wp_isunique with "[$Hmap $Ha]")
+          ; eauto
+          ; [ by simplify_map_eq
+            | rewrite /subseteq /map_subseteq /set_subseteq_instance
+              ; intros rr _; apply elem_of_dom
+              ; rewrite lookup_insert_is_Some';
+              eauto
+            | by simplify_map_eq
+            |].
+        all: iNext; iIntros (lregs' lmem' retv) "(%Hspec & Hmem & Hmap)".
+        all: inversion Hspec as [| | ? ? Hfail]; simplify_map_eq
+        ; try (rewrite H0 in Hlregs_src; simplify_eq).
+        ** incrementLPC_inv; simplify_map_eq.
+           assert (dst ≠ PC) by (intro ; simplify_map_eq); simplify_map_eq.
+           do 2 (rewrite (insert_commute _ _ PC) //).
+           rewrite insert_insert.
+
+           assert ( lmem' !! (x2, x3) = Some lw ) as Hmem'_pca.
+           {
+             admit. (* TODO i'm not sure whether I can prove that *)
+           }
+           assert (
+               exists lws,
+                 length lws = length (finz.seq_between b2 e2) /\
+                   logical_range_map b2 e2 lws (v2 + 1) ⊆ lmem')
+             as (lws & Hlen_lws & Hmem'_be_next).
+           { destruct H2.
+             eapply logical_region_map_inv ; eauto.
+             eapply finz_seq_between_NoDup.
+           }
+
+           rewrite -(insert_id lmem' (x2, x3) lw); auto.
+           iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+
+           eapply delete_subseteq_r with (k := ((x2, x3) : LAddr)) in Hmem'_be_next
+           ; eauto ; last (eapply logical_region_notin; eauto).
+           2: admit. (* is that even true ? only in (src ≠ PC)... and that we know
+                      unique_in_machine... *)
+
+
+           iDestruct (big_sepM_insert_difference with "Hmem") as "[Hrange Hmem]"
+           ; first (eapply Hmem'_be_next). iClear "Hmem".
+
+           iMod ("Hcls" with "[Ha HP]") as "_";[iExists lw;iFrame|iModIntro].
+           iApply wp_pure_step_later; auto; iNext ; iIntros "_".
+
+           iAssert (fixpoint interp1 (LSealedCap o p2 b2 e2 a2 (v2 + 1)))
+             with "[Hrange]" as "Hinterp_src'".
+           { iClear "Hinv". rewrite fixpoint_interp1_eq /= /interp_sb.
+
+           }
+
+           iApply ("IH" $! (<[dst := _]> (<[ src := _ ]> lregs)) with "[%] [] [Hmap] [$Hown]"); eauto.
+           { intro. by repeat (rewrite lookup_insert_is_Some'; right). }
+
+          admit.
+        ** cbn in *; simplify_eq.
+           rewrite -memMap_resource_1.
+           iMod ("Hcls" with "[Hmem HP]");[iExists lw;iFrame|iModIntro].
+           iApply wp_pure_step_later; auto.
+           iNext; iIntros "_".
+           incrementLPC_inv; simplify_map_eq.
+           assert (dst ≠ PC) by (intro ; simplify_map_eq).
+           simplify_map_eq.
+           rewrite (insert_commute _ _ PC) // insert_insert.
+           iApply ("IH" $! (<[dst := _]> lregs) with "[%] [] [Hmap] [$Hown]"); eauto.
+           { intro. by repeat (rewrite lookup_insert_is_Some'; right). }
+           {
+             iIntros (ri ? Hri Hvs).
+             destruct (decide (ri = dst)); simplify_map_eq.
+             by rewrite !fixpoint_interp1_eq.
+             iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
+           }
+           iModIntro.
+           rewrite !fixpoint_interp1_eq /=; destruct Hp as [-> | ->]; iFrame "Hinv"; auto.
+        ** rewrite -memMap_resource_1.
+           iMod ("Hcls" with "[Hmem HP]");[iExists lw;iFrame|iModIntro].
+           iApply wp_pure_step_later; auto.
+           iNext; iIntros "_"; iApply wp_value; auto.
+           iIntros; discriminate.
+
   Admitted.
 
 
