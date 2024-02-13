@@ -496,7 +496,7 @@ Section cap_lang_rules.
       assert ( logical_range_map b0 e0 lws v0 ⊆ mem' )
         as Hmem'_be.
       {
-        eapply is_valid_updated_lmemory_preserves_lmem_incl; eauto.
+        eapply is_valid_updated_lmemory_lmem_incl; eauto.
         eapply is_valid_updated_lmemory_insert; eauto.
         eapply logical_range_notin; eauto.
         eapply Forall_forall; intros a Ha.
@@ -617,7 +617,7 @@ Section cap_lang_rules.
             length lws = length (finz.seq_between b0 e0) /\
               logical_range_map b0 e0 lws (v0 + 1) ⊆ mem')
         as (lws & Hlen_lws & Hmem'_be_next).
-      { destruct Hupd as [_ Hupd]; eapply logical_region_map_inv ; eauto. }
+      { destruct Hupd as (_ & _ &Hupd) ; eapply logical_region_map_inv ; eauto. }
 
       rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
       iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
