@@ -45,6 +45,8 @@ Section cap_lang_rules.
     get_lcap lwsrc = Some (LSCap p b e a v) ->
     (* we update the region of memory with the new version *)
     is_valid_updated_lmemory lmem (finz.seq_between b e) v lmem' ->
+    (* specific instance of unique_in_registers *)
+    unique_in_registersL lregs src lwsrc ->
     incrementLPC (<[ dst := LInt 1 ]> (<[ src := next_version_lword lwsrc ]> lregs)) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
 
@@ -322,7 +324,10 @@ Section cap_lang_rules.
             as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
           iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-          ; last (eapply update_cur_version_region_valid; eauto).
+          ; [| eapply update_cur_version_region_valid; eauto
+            | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
+            ].
+
           iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto ; cbn in *
           ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
@@ -350,6 +355,7 @@ Section cap_lang_rules.
           ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
           ; cycle 1.
           { eapply update_cur_version_region_valid; eauto. }
+          { by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono. }
           { by rewrite insert_insert in H'lregs' |- *. }
           iExists _, lm', vmap'; iFrame; auto
           ; iPureIntro; econstructor; eauto
@@ -375,7 +381,9 @@ Section cap_lang_rules.
         ; first by simplify_map_eq.
         iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
         ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-        ; last ( eapply update_cur_version_region_valid; eauto).
+        ; [| eapply update_cur_version_region_valid; eauto
+          | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
+          ].
         iExists _, lm', vmap'; iFrame; auto
         ; iPureIntro; econstructor; eauto ; cbn in *
         ; last (eapply update_cur_version_region_lmem_corresponds
@@ -475,7 +483,7 @@ Section cap_lang_rules.
     rewrite -/(logical_range_map b e lws v).
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as
-      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hincr_PC
+      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hunique_regs Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hincr_PC Hmem'
       | ? ? Hfail]
     ; cycle 2.
@@ -594,7 +602,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as
-      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hincr_PC
+      [ ? ? ? ? ? ? Hlwsrc Hlwsrc' Hupd Hunique_regs Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hincr_PC Hmem'
       | ? ? Hfail]
     ; cycle 2.

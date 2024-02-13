@@ -795,6 +795,23 @@ Definition unique_in_machineL
   lregs !! src = Some lwsrc ->
   unique_in_registersL lregs src lwsrc /\ unique_in_memoryL lmem vmap lwsrc.
 
+
+Lemma unique_in_registersL_mono
+  (lregs lr : LReg) (src : RegName) (lwsrc : LWord) :
+  lregs ⊆ lr ->
+  unique_in_registersL lr src lwsrc ->
+  unique_in_registersL lregs src lwsrc.
+Proof.
+  intros Hincl Hunique.
+  rewrite /unique_in_registersL in Hunique |- *.
+  eapply map_Forall_lookup.
+  intros r lw Hlregs_r.
+  case_decide as Hr ; simplify_eq; first done.
+  eapply lookup_weaken in Hlregs_r ; eauto.
+  eapply map_Forall_lookup in Hlregs_r ; eauto.
+  rewrite /= decide_False // in Hlregs_r.
+Qed.
+
 Lemma unique_in_machineL_insert_reg
   (lr : LReg) (lm : LMem)  (vmap : VMap)
   (src r: RegName) (lwsrc lwr : LWord) :
@@ -1853,6 +1870,7 @@ Qed.
 Definition is_valid_updated_lmemory
   (lmem : LMem) (la : list Addr) (v : Version) (lmem' : LMem) : Prop :=
   (update_version_region lmem la v) ⊆ lmem' /\
+    (* TODO unclear whether this is useful in the def *)
     (Forall (fun a => lmem !! (a, v+1) = None) la) /\
     (Forall (fun a => is_Some (lmem' !! (a, v+1))) la).
 
