@@ -181,22 +181,23 @@ Qed.
 
 Lemma region_addrs_exists `{Σ : gFunctors} {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
      ⊢ (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
-      (∃ (ws : list B), [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
+      (∃ (ws : list B), ⌜ length ws = length a ⌝ ∗ [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
 Proof.
   iSplit.
   - iIntros "Ha".
     iInduction (a) as [ | a0] "IHn".
-    + iExists []. done.
+    + iExists []. iSplit ; done.
     + iDestruct "Ha" as "[Ha0 Ha]".
       iDestruct "Ha0" as (w0) "Ha0".
-      iDestruct ("IHn" with "Ha") as (ws) "Ha'".
-      iExists (w0 :: ws). iFrame.
+      iDestruct ("IHn" with "Ha") as (ws) "[%Hlen Ha']".
+      iExists (w0 :: ws). iSplit; last iFrame.
+      iPureIntro; cbn ; lia.
   - iIntros "Ha".
     iInduction (a) as [ | a0] "IHn".
     + done.
-    + iDestruct "Ha" as (ws) "Ha".
+    + iDestruct "Ha" as (ws) "[%Hlen Ha']".
       destruct ws;[by iApply bi.False_elim|].
-      iDestruct "Ha" as "[Ha0 Ha]".
+      iDestruct "Ha'" as "[Ha0 Ha]".
       iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto.
       iFrame. eauto.
 Qed.

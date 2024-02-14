@@ -277,6 +277,24 @@ Section logrel.
     try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
+  Lemma read_allowed_region_inv (p : Perm) (b e a: Addr) (v : Version) :
+    readAllowed p →
+    ⊢ (interp (LCap p b e a v) →
+       [∗ list] a ∈ (finz.seq_between b e),
+        ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
+               ∗ read_cond P interp
+               ∗ (if writeAllowed p then write_cond P interp else emp))%I.
+  Proof.
+    iIntros (Ra) "Hinterp".
+    rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
+    destruct p; try contradiction;
+      try (iDestruct "Hinterp" as "[Hinterp Hinterpe]"); cbn;
+      try iFrame "Hinterp".
+    all: iApply (big_sepL_impl with "Hinterp").
+    all: iModIntro; iIntros (k x) "% H".
+    all: iDestruct "H" as (P) "(? & ?)"; iExists P; iFrame.
+  Qed.
+
   Lemma write_allowed_inv (a' a b e: Addr) v p :
     (b ≤ a' ∧ a' < e)%Z →
     writeAllowed p →
