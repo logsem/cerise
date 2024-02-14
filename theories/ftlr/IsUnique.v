@@ -268,7 +268,9 @@ Section fundamental.
   (*       rewrite -memMap_resource_1. by iFrame. *)
   (* Qed. *)
 
-  (* Lemma for opening invariants in a region *)
+
+  (* TODO move ; generalize ? *)
+  (* Lemma for opening invariants of a region *)
   Lemma open_region_inv
     (E : coPset)
     (la : list Addr)
@@ -279,37 +281,37 @@ Section fundamental.
     Forall (fun a => ↑logN.@(a, v) ⊆ E) la ->
     ⊢ ([∗ list] a ∈ zip la Ps, inv (logN.@(a.1, v)) (interp_ref_inv a.1 v a.2))
     -∗ |={E, compute_mask E (list_to_set ((λ a, (a,v)) <$> la))}=>
-       ([∗ list] a ∈ zip la Ps, (interp_ref_inv a.1 v a.2)) ∗
+       (▷ [∗ list] a ∈ zip la Ps, (interp_ref_inv a.1 v a.2)) ∗
        (▷ ([∗ list] a ∈ zip la Ps,
          (interp_ref_inv a.1 v a.2)) ={compute_mask E (list_to_set ((λ a, (a,v)) <$> la)), E}=∗ True).
   Proof.
     move: E Ps v.
     induction la as [|a la IHla]
-    ; iIntros (E Ps v HNoDup Hlen Hmask) "#H" ; cbn in *.
-    (* ; first (rewrite compute_mask_id; iModIntro ; iSplit ; done). *)
-    (* destruct Ps as [|P Ps]; cbn in * ; first lia. *)
-    (* injection Hlen ; clear Hlen ; intros Hlen. *)
-    (* destruct_cons. *)
-    (* iDestruct "H" as "[Hinv H]". *)
-    (* iNext. *)
-    (* iInv "Hinv" as "Hinv'". *)
-    (* iModIntro. *)
-    (* iSplitL "Hinv'"; first done. *)
-    (* replace *)
-    (*   ( *)
-    (*     compute_mask E ({[(a, v)]} ∪ list_to_set ((λ a0 : Addr, (a0, v)) <$> la)) *)
-    (*   ) *)
-    (*   with *)
-    (*   ( *)
-    (*     compute_mask E (list_to_set ((λ a0 : Addr, (a0, v)) <$> la)) *)
-    (*   ). *)
-    (* 2: admit. (* is it even true ? *) *)
-    (* iMod (IHla with "H") as "H'" ; eauto. *)
-    (* (* iInv "Hinv" as "Hinv'". *) *)
-    (* iModIntro. *)
-    (* iFrame. (* is it even true ? *) *)
-    (* (* TODO something is wrong somewhere *) *)
-  Admitted.
+    ; iIntros (E Ps v HNoDup Hlen Hmask) "#Hinvs" ; cbn in *.
+    - rewrite compute_mask_id; iModIntro ; iSplit ; first done.
+      iIntros "?" ; iModIntro ; done.
+    - destruct Ps as [|P Ps]; cbn in * ; first lia.
+      injection Hlen ; clear Hlen ; intros Hlen.
+      destruct_cons.
+      iDestruct "Hinvs" as "[Hinv Hinvs]".
+      assert (
+          (a, v) ∉ (@list_to_set _ _ _ _ (@gset_union LAddr _ _)((λ a0 : Addr, (a0, v)) <$> la))
+        ).
+      { intro Hcontra.
+        rewrite elem_of_list_to_set elem_of_list_fmap in Hcontra.
+        destruct Hcontra as ( ? & ? & ? ) ; simplify_eq ; set_solver. }
+      rewrite compute_mask_union; auto.
+      iDestruct (IHla with "Hinvs") as "IH"; eauto.
+      iMod "IH" as "[Hoinvs Hinvs_cls]".
+      iInv "Hinv" as "Hoinv" "Hinv_cls".
+      { apply compute_mask_elem_of; auto. }
+      iModIntro.
+      iSplitL "Hoinv Hoinvs"; first iFrame.
+      iIntros "[Hoinv Hoinvs]".
+      iMod ("Hinv_cls" with "Hoinv").
+      iMod ("Hinvs_cls" with "Hoinvs").
+      by iModIntro.
+  Qed.
 
   Lemma isunique_case (lregs : leibnizO LReg)
     (p : Perm) (b e a : Addr) (v : Version)
@@ -399,11 +401,14 @@ Section fundamental.
                  iEval (rewrite /interp_ref_inv /=) in "Hsrc".
 
                  iDestruct (region_addrs_exists with "Hsrc") as "Hsrc".
-                 iDestruct "Hsrc" as (lws) "[%Hlen_lws Hrange]".
+                 iDestruct (later_exist with "Hsrc") as "Hsrc".
+                 iDestruct "Hsrc" as (lws) "Hsrc".
+                 iDestruct (later_sep with "Hsrc") as "[>%Hlen_lws Hrange]".
+                 (* iDestruct (big_sepL2_later_1 with "Hsrc") as "Hsrc". *)
 
                  iAssert (
-                     ([∗ map] la↦lw ∈ (logical_range_map b0 e0 lws v0) , la ↦ₐ lw)
-                       ∗ ([∗ map] lw↦Pw ∈ list_to_map (zip lws Ps), Pw lw)
+                     ([∗ map] la↦lw ∈ (logical_range_map b0 e0 lws v0), la ↦ₐ lw)
+                       ∗ ▷ ([∗ map] lw↦Pw ∈ list_to_map (zip lws Ps), Pw lw)
                    )%I
                    with "[Hrange]" as "[Hrange HPrange]".
                  { iClear "#".
@@ -476,7 +481,6 @@ Section fundamental.
                      (logical_range_map b1 e1 lws (v1 + 1) ⊆ lmem')
                      as Hmem'_be_next.
                    { clear -Hupd Hlen' HNoDup_range Ha_notin_src.
-                     (* TODO extract as a lemma *)
                      eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
                      assert (v' = v1+1 /\ (a' ∈ (finz.seq_between b1 e1))) as [? Ha'_in_be]
                          by (eapply logical_range_map_some_inv; eauto); simplify_eq.

@@ -463,6 +463,38 @@ Section logrel.
   Definition compute_mask (E : coPset) (ls : gset LAddr) :=
     set_fold (λ l E, E ∖ ↑logN .@ l) E ls.
 
+  Lemma compute_mask_difference (E : coPset) (la : gset LAddr) (a : LAddr) :
+    a ∉ la ->
+    (compute_mask E la) ∖ (↑logN .@ a) = (compute_mask (E  ∖ (↑logN .@ a)) la).
+  Proof.
+    rewrite /compute_mask. revert E a.
+    induction la using set_ind_L; intros E a Ha_notin_la.
+    { by rewrite !set_fold_empty. }
+    do 2 (rewrite set_fold_disj_union_strong; [|set_solver..]).
+    do 2 (rewrite set_fold_singleton).
+    apply not_elem_of_union in Ha_notin_la; destruct_and ! Ha_notin_la.
+    rewrite IHla; eauto.
+    rewrite !difference_difference_l_L.
+    by rewrite union_comm_L.
+  Qed.
+
+  Lemma compute_mask_union (E : coPset) (la : gset LAddr) (a : LAddr) :
+    a ∉ la ->
+    compute_mask E ({[a]} ∪ la) = (compute_mask E la) ∖ (↑logN .@ a).
+  Proof.
+    rewrite /compute_mask. revert E a.
+    induction la using set_ind_L; intros E a Ha_notin_la.
+    { by rewrite union_empty_r_L set_fold_empty set_fold_singleton. }
+    rewrite IHla; eauto.
+    apply not_elem_of_union in Ha_notin_la; destruct_and ! Ha_notin_la.
+    do 2 (rewrite set_fold_disj_union_strong; [|set_solver..]).
+    do 2 (rewrite set_fold_singleton).
+    do 2 (rewrite -/(compute_mask _ X)).
+    do 2 (rewrite compute_mask_difference //).
+    rewrite !difference_difference_l_L.
+    by rewrite union_comm_L.
+  Qed.
+
   Lemma compute_mask_mono E ls :
     compute_mask E ls ⊆ E.
   Proof.
