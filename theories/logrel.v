@@ -83,6 +83,8 @@ Section logrel.
     Proper ((=) ==> (=) ==> (=) ==> dist n ==> dist n) enter_cond.
   Proof. solve_proper. Qed.
 
+  Program Definition persistent_cond (P : D) : iPropO Σ := (⌜∀ w, Persistent (P w)⌝)%I.
+
   (* interp definitions *)
   Program Definition interp_ref_inv (a : Addr) (v : Version): D -n> iPropO Σ :=
     λne P, (∃ lw, (a,v) ↦ₐ lw ∗ P lw)%I.
@@ -100,7 +102,9 @@ Section logrel.
     λne lw, (match lw with
               | LCap RO b e a v =>
                 [∗ list] a ∈ (finz.seq_between b e),
-                  ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P) ∗ read_cond P interp
+                  ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
+                         ∗ persistent_cond P
+                         ∗ read_cond P interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -109,7 +113,9 @@ Section logrel.
     λne lw, (match lw with
               | LCap RW b e a v =>
                 [∗ list] a ∈ (finz.seq_between b e),
-                  ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P) ∗ read_cond P interp ∗ write_cond P interp
+                  ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
+                         ∗ persistent_cond P
+                         ∗ read_cond P interp ∗ write_cond P interp
               | _ => False
               end)%I.
   Solve All Obligations with solve_proper.
@@ -117,7 +123,9 @@ Section logrel.
   Program Definition interp_cap_RX (interp : D) : D :=
     λne lw, (match lw with LCap RX b e a v =>
                          [∗ list] a ∈ (finz.seq_between b e),
-                             ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P) ∗ read_cond P interp
+                             ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
+                                    ∗ persistent_cond P
+                                    ∗ read_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -131,7 +139,9 @@ Section logrel.
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne lw, (match lw with LCap RWX b e a v =>
                            [∗ list] a ∈ (finz.seq_between b e),
-                             ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P) ∗ read_cond P interp ∗ write_cond P interp
+                             ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
+                                    ∗ persistent_cond P
+                                    ∗ read_cond P interp ∗ write_cond P interp
              | _ => False end)%I.
   Solve All Obligations with solve_proper.
 
@@ -274,7 +284,8 @@ Section logrel.
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction;
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
-    try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+    try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"
+         ; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
   Lemma read_allowed_region_inv (p : Perm) (b e a: Addr) (v : Version) :
@@ -283,6 +294,7 @@ Section logrel.
        [∗ list] a ∈ (finz.seq_between b e),
         ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
                ∗ read_cond P interp
+               ∗ persistent_cond P
                ∗ (if writeAllowed p then write_cond P interp else emp))%I.
   Proof.
     iIntros (Ra) "Hinterp".
@@ -292,7 +304,8 @@ Section logrel.
       try iFrame "Hinterp".
     all: iApply (big_sepL_impl with "Hinterp").
     all: iModIntro; iIntros (k x) "% H".
-    all: iDestruct "H" as (P) "(? & ?)"; iExists P; iFrame.
+    all: iDestruct "H" as (P) "(? & ? & ?)"; iExists P; iFrame.
+    all: iFrame.
   Qed.
 
   Lemma write_allowed_inv (a' a b e: Addr) v p :
@@ -304,14 +317,14 @@ Section logrel.
     iIntros (Hin Wa) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hwrite". iFrame.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #[Hread Hwrite] ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
@@ -373,19 +386,19 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
       + simplify_map_eq.
         destruct (lregs !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct_word w; try by inversion Ha. destruct Ha as (Hwba & -> & ->).
         iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct c; try contradiction; inversion Hwa;
-        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "[Hinv Hiff]" ;
+        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "(Hinv & Hpers & Hiff)" ;
              [eauto|iExists P;iSplit;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv [Hiff _] ]"; [eauto|iExists P;iSplit;eauto]);
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & [Hiff _ ] )"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
   (* Lemma for allocating invariants in a region *)
@@ -431,6 +444,7 @@ Section logrel.
     all: iApply (big_sepL_mono with "[H]"); iFrame.
     all: iIntros (k a' Hk) "H"; cbn.
     all: iExists (fixpoint interp1); iFrame.
+    all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
@@ -457,6 +471,7 @@ Section logrel.
     all: iApply (big_sepL_mono with "H").
     all: iIntros (k a' Hk) "H"; cbn.
     all: iExists (fixpoint interp1); iFrame.
+    all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
@@ -631,7 +646,9 @@ Section logrel.
       iNext. iExists _. iFrame.
       iApply fixpoint_interp1_eq. destruct p;try done.
       all: iApply big_sepL_forall; iIntros (k x Hlook); iExists interp.
-      all: iSplit;[|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
+      all: iSplit;
+        [ | iSplit; [iPureIntro ; intros; apply interp_persistent|] ]
+      ; [|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
       all: apply elem_of_list_lookup_2,elem_of_finz_seq_between,Hin,elem_of_app in Hlook.
       all: destruct Hlook as [Hl1 | [->|Hl2]%elem_of_cons];
           [iDestruct (big_sepL_elem_of with "Hl1v") as "?";eauto|iFrame "#"|
@@ -668,8 +685,8 @@ Section logrel.
     { rewrite list_to_set_nil compute_mask_id app_nil_l. iMod "HH".
       iModIntro.
       iApply fixpoint_interp1_eq. destruct p;try done.
-      all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
-        try iExists _;iFrame;try iSplit;iIntros (?);auto. }
+     all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
+        try iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. }
   Qed.
 
   Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
