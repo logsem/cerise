@@ -6,50 +6,6 @@ From cap_machine.ftlr Require Import ftlr_base.
 From cap_machine.rules Require Import rules_IsUnique.
 Import uPred.
 
-Set Nested Proofs Allowed.
-Lemma list_remove_submsteq
-  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
-  list_remove_list [a] la = Some la' ->
-  la' ⊆+ la.
-Proof.
-  induction la'; intros Hla' ; cbn.
-  - eapply submseteq_nil_l.
-  - cbn in *.
-    destruct (list_remove a la) eqn:Hremove ; cbn in * ; last done.
-    rewrite Hla' in Hremove.
-    eapply list_remove_Some in Hremove.
-    setoid_rewrite Hremove.
-    eapply submseteq_cons_l.
-    eexists (a::la'). split.
-    eapply perm_swap.
-    by apply submseteq_cons.
-Qed.
-
-Lemma list_remove_NoDup
-  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
-  NoDup la ->
-  list_remove a la = Some la' ->
-  NoDup la'.
-Proof.
-  revert la' ; induction la ; intros * HNoDup Hremove; cbn in * ; simplify_eq.
-  destruct (decide (a = a0)) as [|?] ; simplify_eq.
-  by eapply NoDup_cons_1_2.
-Admitted.
-
-Lemma list_remove_list_NoDup
-  `{A : Type} `{EqDecision A} (la1 la2 la' : list A) :
-  NoDup la2 ->
-  list_remove_list la1 la2 = Some la' ->
-  NoDup la'.
-Proof.
-  revert la2 la'.
-  induction la1; intros * HNoDup Hremove ; cbn in * ; simplify_eq
-  ; first done.
-    destruct (list_remove a la2) eqn:Hremove' ; cbn in * ; last done.
-    eapply list_remove_NoDup in Hremove'; auto.
-    eapply IHla1; eauto.
-Qed.
-
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
@@ -60,6 +16,7 @@ Section fundamental.
   Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
+  (* TODO move *)
   Definition compute_mask_range (E : coPset) (b e : Addr) (v : Version) :=
     (compute_mask E (list_to_set ((λ a, (a,v)) <$> (finz.seq_between b e)))).
 
@@ -110,6 +67,7 @@ Section fundamental.
       by iModIntro.
   Qed.
 
+  (* TODO find better names *)
   Lemma zip_zip
     (la : list Addr) (lb : list D) (lc : list LWord) (v : Version):
     length la = length lb ->
@@ -129,6 +87,8 @@ Section fundamental.
       injection Hlen_lc ; clear Hlen_lc ; intro Hlen_lc.
       cbn ; iSplit ; iIntros "[Ha Hmem]"; iFrame; iApply IHla; eauto.
   Qed.
+
+  (* TODO find better names + merge with zip_zip *)
   Lemma zip_zip_nolater
     (la : list Addr) (lb : list D) (lc : list LWord) (v : Version):
     length la = length lb ->
@@ -149,6 +109,7 @@ Section fundamental.
       cbn ; iSplit ; iIntros "[Ha Hmem]"; iFrame; iApply IHla; eauto.
   Qed.
 
+  (* TODO find better names *)
   Lemma zip_zip'
     (la : list Addr) (lb : list D) (lc : list LWord) (v : Version):
     length la = length lb ->
@@ -169,6 +130,7 @@ Section fundamental.
       cbn ; iSplit ; iIntros "[Ha Hmem]"; iFrame; iApply IHla; eauto.
   Qed.
 
+  (* TODO find better names *)
   Lemma logical_range_map_map
     (la : list Addr) (v : Version) (lws : list LWord) :
     NoDup la ->
@@ -219,6 +181,7 @@ Section fundamental.
       iApply IHla; eauto.
   Qed.
 
+  (* TODO move + find better name *)
   Lemma region_inv_destruct
     (la : list Addr) ( v : Version ) (Ps : list D) :
     NoDup la ->
@@ -254,6 +217,7 @@ Section fundamental.
     iApply logical_range_map_map; auto.
   Qed.
 
+  (* TODO move + find better name *)
   Lemma region_inv_construct
     (la : list Addr) ( v : Version ) (Ps : list D) :
     NoDup la ->
@@ -282,6 +246,7 @@ Section fundamental.
     iFrame.
   Qed.
 
+  (* TODO move + find better name *)
   Lemma interp_open_region (E : coPset) (p : Perm) (b e a : Addr) (v : Version) :
     let la := (finz.seq_between b e) in
     let E' := compute_mask E (list_to_set ((λ a, (a,v)) <$> la)) in
@@ -340,6 +305,7 @@ Section fundamental.
     }
   Qed.
 
+  (* TODO move + find better name *)
   Lemma interp_open_region_pc (E : coPset) (p : Perm) (b e a : Addr) (la : list Addr) (v : Version) :
     list_remove_list [a] (finz.seq_between b e) = Some la ->
     let E' := compute_mask E (list_to_set ((λ a, (a,v)) <$> la)) in
@@ -413,8 +379,6 @@ Section fundamental.
   Qed.
 
 
-
-
   Set Nested Proofs Allowed.
   Lemma isunique_case (lregs : leibnizO LReg)
     (p : Perm) (b e a : Addr) (v : Version)
@@ -422,7 +386,8 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (IsUnique dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    iIntros "#IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    specialize (HpersP lw).
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -458,24 +423,29 @@ Section fundamental.
         apply bind_None in Hremove.
         destruct Hremove as [Hcontra|Hcontra]
         ; last (destruct Hcontra as (? & ? & ?) ; done).
-        (* assert ( (finz.seq_between b0 e0) ≠ []) as Hseq *)
-        (*   by (intro H0; apply finz_empty_seq_between in H0; solve_addr). *)
-        (* revert Hcontra Hseq; generalize (finz.seq_between b0 e0); clear. *)
-        (* induction l; intros * Hremove Hneq ; cbn in * ; first done. *)
-        (* destruct (decide (a0 = a)) ; simplify_eq. *)
-        (* apply IHl; auto. *)
-        admit. (* TODO should be true because we know that a0 ∈ [b0, e0) *)
+        opose proof (list_remove_In a0 (finz.seq_between b0 e0) _) as Hsome_a0.
+        by apply elem_of_finz_seq_between.
+        by destruct Hsome_a0 as [? Hsome_a0] ; rewrite Hsome_a0 in Hcontra.
       }
       assert (NoDup la') as HNoDup_la'.
       { eapply list_remove_list_NoDup; eauto. apply finz_seq_between_NoDup. }
-
+      assert (a0 ∉ la') as Ha0_notin_la'.
+      { eapply not_elemof_list_remove_list ; cycle 2 ; eauto.
+        by eapply elem_of_finz_seq_between.
+        by apply finz_seq_between_NoDup.
+      }
       iMod (interp_open_region_pc with "Hinv")
         as (Ps lws) "(%Hlen_Ps & %Hlen_lws & %Hpers & Hrange & HPrange & #Hread_cond & Hcls_src)"
       ; eauto.
-      admit. (* TODO should be OK, because we removed a0 *)
+      { eapply Forall_forall. intros.
+        assert ((x,v0) ≠ (a0,v0)) by set_solver.
+        eapply namespaces.coPset_subseteq_difference_r; auto.
+        solve_ndisj.
+      }
 
-      iDestruct (big_sepM_insert with "[$Hrange $Ha]") as "Hmem"
-      ; first admit. (* TODO OK, because a0 ∉ la' *)
+      assert (logical_region_map la' lws v0 !! (a0, v0) = None) as Ha0_notin_reg_la'
+          by (eapply logical_region_notin; eauto).
+      iDestruct (big_sepM_insert with "[$Hrange $Ha]") as "Hmem"; auto.
 
 
       iApply (wp_isunique with "[$Hmap $Hmem]")
@@ -499,8 +469,7 @@ Section fundamental.
       ; try (cbn in Hlwsrc' ; simplify_eq)
       ; cycle 1.
       { (* Sweep false  *)
-        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]"
-        ; first admit. (* TODO OK, because a0 ∉ la' *)
+        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]"; auto.
         iMod ("Hcls_src" with "[Hmem HPrange]") as "_".
         {
           iNext.
@@ -527,8 +496,7 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq /=; destruct Hp as [-> | ->]; iFrame "Hinv"; auto.
       }
       { (* Sweep false  *)
-        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]"
-        ; first admit. (* TODO OK, because a0 ∉ la' *)
+        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iMod ("Hcls_src" with "[Hmem HPrange]") as "_".
         {
           iNext.
@@ -555,8 +523,7 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq /=; destruct Hp as [-> | ->]; iFrame "Hinv"; auto.
       }
       { (* Fail *)
-        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hrange]"
-        ; first admit. (* TODO OK, because a0 ∉ la' *)
+        iDestruct (big_sepM_insert with "Hmem") as "[Ha Hrange]"; auto.
         iMod ("Hcls_src" with "[Hrange HPrange]") as "_".
         {
           iNext.
@@ -585,105 +552,135 @@ Section fundamental.
          apply finz_seq_between_NoDup.
        }
 
-       (* assert ( logical_range_map b_pc' e_pc' lws v ⊆ lmem' ) *)
-       (*   as Hmem'_be. *)
-       (* { *)
-       (*   eapply is_valid_updated_lmemory_lmem_incl with (la := (finz.seq_between b_pc' e_pc')) *)
-       (*   ; eauto. *)
-       (*   apply finz_seq_between_NoDup. *)
-       (*   (* eapply is_valid_updated_lmemory_insert; eauto. *) *)
-       (*   eapply logical_range_notin; eauto. *)
-       (*   eapply Forall_forall; intros a Ha. *)
-       (*   eapply logical_range_version_neq; eauto; last lia. *)
-       (* } *)
-       (* assert *)
-       (*   (logical_range_map b0 e0 lws (v0 + 1) ⊆ lmem') *)
-       (*   as Hmem'_be_next. *)
-       (* { clear -Hupd Hlen_lws HNoDup_range Ha_notin_src. *)
-       (*   eapply map_subseteq_spec; intros [a' v'] lw' Hlw'. *)
-       (*   assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be] *)
-       (*       by (eapply logical_range_map_some_inv; eauto); simplify_eq. *)
-       (*   destruct Hupd. *)
-       (*   eapply lookup_weaken; last eauto. *)
-       (*   rewrite update_version_region_preserves_lmem_next; eauto. *)
-       (*   all: rewrite lookup_insert_ne //=; last (intro ; set_solver). *)
-       (*   erewrite logical_range_map_lookup_versions; eauto. *)
-       (*   eapply logical_range_version_neq; eauto; lia. *)
-       (* } *)
+       assert (a_pc' ∈ finz.seq_between b_pc' e_pc') as Hapc_inbounds
+           by (by eapply elem_of_finz_seq_between).
+       assert (NoDup (finz.seq_between b_pc' e_pc')) as HNoDup_pc
+           by (by apply finz_seq_between_NoDup).
 
-       (* rewrite -(insert_id lmem' (a_pc', v_pc') lw); auto. *)
-       (* iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]". *)
-       (* eapply delete_subseteq_r with (k := ((a_pc', v_pc') : LAddr)) in Hmem'_be *)
-       (* ; last (eapply logical_region_notin; eauto). *)
-       (* iDestruct (big_sepM_insert_difference with "Hmem") as "[Hrange Hmem]" *)
-       (* ; first (eapply Hmem'_be). *)
-       (* eapply delete_subseteq_r with (k := ((a_pc', v_pc') : LAddr)) in Hmem'_be_next *)
-       (* ; last (eapply logical_region_notin ; eauto). *)
-       (* eapply delete_subseteq_list_r *)
-       (*   with (m3 := list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws)) *)
-       (*   in Hmem'_be_next *)
-       (* ; eauto *)
-       (* ; last (by eapply update_logical_memory_region_disjoint). *)
-       (* iDestruct (big_sepM_insert_difference with "Hmem") as "[Hrange' Hmem]" *)
-       (* ; first (eapply Hmem'_be_next); iClear "Hmem". *)
-       (* iDestruct "HPrange" as "#HPrange". *)
+       assert ( lmem' !! (a_pc', v+1) = Some lw ) as Hmem'_pca_next.
+       { eapply is_valid_updated_lmemory_preserves_lmem_next; cycle 1
+         ; eauto
+         ; last by simplify_map_eq.
+         eapply Forall_forall; intros a Ha.
+         rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
+         eapply logical_region_version_neq; eauto ; last lia.
+       }
 
-       (* iMod (region_valid_alloc _ b0 e0 a0 (v0 +1) lws p0 *)
-       (*        with "[HPrange] [Hrange']") *)
-       (* as "#Hinterp_src_next". *)
-       (* { destruct p0 ; cbn in * ; try congruence; done. } *)
-       (* { iDestruct (big_sepL2_const_sepL_r _ lws with "[Hread_cond]") as "Hread_P0". *)
-       (*   iSplit ; last iFrame "Hread_cond". *)
-       (*   by rewrite Hlen_lws. *)
-       (*   cbn. *)
-       (*   iDestruct ( big_sepL2_sep_sepL_r with "[$Hread_cond $HPrange]") as "HPs". *)
-       (*   iClear *)
-       (*     "IH Hinv Hinva Hreg Hread Hwrite Hinterp_src Hread_P0 HPrange". *)
-       (*   iDestruct (big_sepL2_alt with "HPs") as "[_ HPs']". *)
-       (*   iAssert ( *)
-       (*       (∀ (k : nat) (x0 : leibnizO LWord * D), *)
-       (*           ⌜zip lws Ps !! k = Some x0⌝ *)
-       (*           → x0.2 x0.1 ∗ □ (∀ lw0 : LWord, x0.2 lw0 -∗ fixpoint interp1 lw0) -∗ interp x0.1) *)
-       (*     )%I as "bla". *)
-       (*   { iIntros (? ? ?) "[Ha Hpa]"; by iDestruct ("Hpa" with "Ha") as "?". } *)
-       (*   iDestruct (big_sepL_impl _ (fun _ xy => interp xy.1) with "HPs' bla" *)
-       (*             ) as "blaa". *)
-       (*   iDestruct (big_sepL2_alt (fun _ lw _ => interp lw) lws Ps with "[$blaa]") as "blaaa". *)
-       (*   by rewrite Hlen_lws. *)
-       (*   by iDestruct (big_sepL2_const_sepL_l (fun _ lw => interp lw) lws Ps with "blaaa") as "[? ?]". *)
-       (* } *)
-       (* { iClear "#". clear -Hlen_Ps Hlen_lws. *)
-       (*   iApply big_sepL2_alt. *)
-       (*   iSplit; first (iPureIntro; rewrite map_length; lia). *)
-       (*   iDestruct (big_sepM_list_to_map with "Hrange'") as "?" ; last iFrame. *)
-       (*   rewrite fst_zip; first (apply NoDup_logical_region). *)
-       (*   rewrite /logical_region map_length ; lia. *)
-       (* } *)
+       assert ( ((logical_region_map la' lws) ) v ⊆ lmem' )
+         as Hmem'_be.
+       {
+         eapply is_valid_updated_lmemory_lmem_incl with (la := (finz.seq_between b_pc' e_pc'))
+         ; eauto.
+         eapply is_valid_updated_lmemory_insert'; eauto.
+         eapply Forall_forall; intros a Ha.
+         eapply logical_region_version_neq; eauto ; last lia.
+       }
+       assert ( ((logical_region_map la' lws) ) (v+1) ⊆ lmem' )
+         as Hmem'_be_next.
+       {
+         eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
+         assert (v' = v+1 /\ (a' ∈ la')) as [? Ha'_in_be]
+             by (eapply logical_region_map_some_inv; eauto)
+         ; simplify_eq.
+         simplify_eq.
+         destruct Hupd.
+         eapply lookup_weaken; last eapply H0.
+         rewrite update_version_region_preserves_lmem_next; eauto.
+         { rewrite lookup_insert_ne ; last (intro ; simplify_eq ; set_solver).
+           erewrite logical_region_map_lookup_versions; eauto.
+         }
+         { eapply list_remove_submsteq in Hremove.
+           eapply elem_of_submseteq; eauto.
+         }
+         { rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
+           eapply logical_region_version_neq; eauto; lia.
+         }
+       }
 
-       (* iMod ("Hcls_src" with "[Hrange HPrange]") as "_". *)
-       (* { *)
-       (*   iNext. *)
-       (*   iApply region_inv_construct; first done. *)
-       (*   iExists lws; iSplit ; first done; iFrame "#∗". *)
-       (* } *)
-       (* iModIntro. *)
-       (* iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame). *)
-       (* iModIntro. *)
+       rewrite -(insert_id lmem' (a_pc', v) lw); auto.
+       iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
 
-       (* iApply wp_pure_step_later; auto. *)
-       (* iNext; iIntros "_". *)
-       (* simplify_map_eq. *)
-       (* iApply ("IH" $! (<[dst := _]> (<[ src := _ ]> lregs)) with "[%] [] [Hmap] [$Hown]") *)
-       (* ; eauto. *)
-       (* { intro; by repeat (rewrite lookup_insert_is_Some'; right). } *)
-       (* { iIntros (r1 lw1 Hr1 Hlw1). *)
-       (*   destruct (decide (r1 = dst)) as [ |Hr1_dst] *)
-       (*   ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=). *)
-       (*   destruct (decide (r1 = src)) as [ |Hr1_src] *)
-       (*   ; simplify_map_eq; first done. *)
-       (*   iApply "Hreg"; eauto. } *)
-       (* { rewrite !fixpoint_interp1_eq //= ; destruct p_pc'; destruct Hp ; done. } *)
-       admit.
+       rewrite -(insert_id (_ lmem') (a_pc', v+1) lw); auto.
+       2: { rewrite lookup_delete_ne ; first by simplify_map_eq. intro ; simplify_eq ; lia. }
+       iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha_next Hmem]".
+
+       eapply delete_subseteq_r with (k := ((a_pc', v) : LAddr)) in Hmem'_be
+       ; last (eapply logical_region_notin; eauto).
+       eapply delete_subseteq_r with (k := ((a_pc', v+1) : LAddr)) in Hmem'_be
+       ; last (eapply logical_region_notin; eauto).
+       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hrange Hmem]"
+       ; first (eapply Hmem'_be).
+
+       eapply delete_subseteq_r with (k := ((a_pc', v) : LAddr)) in Hmem'_be_next
+       ; last (eapply logical_region_notin ; eauto).
+       eapply delete_subseteq_r with (k := ((a_pc', v+1) : LAddr)) in Hmem'_be_next
+       ; last (eapply logical_region_notin ; eauto).
+       eapply delete_subseteq_list_r
+         with (m3 := list_to_map (zip (map (λ a : Addr, (a, v)) la') lws))
+         in Hmem'_be_next
+       ; eauto
+       ; last (by eapply update_logical_memory_region_disjoint).
+       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hrange' Hmem]"
+       ; first (eapply Hmem'_be_next); iClear "Hmem".
+       iDestruct "HPrange" as "#HPrange".
+       iDestruct "HP" as "#HP".
+
+       iMod ("Hcls_src" with "[Hrange HPrange]") as "_".
+       {
+         iNext.
+         iApply region_inv_construct; try done.
+         iExists lws; iSplit ; first done; iFrame "#∗".
+       }
+       iModIntro.
+       iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame "#∗").
+       iModIntro.
+
+       iMod (region_valid_alloc' _ b_pc' e_pc' a_pc' (a_pc'::la') (v +1) (lw::lws) p_pc'
+              with "[HPrange HP] [Hrange' Ha_next]")
+       as "#Hinterp_src_next".
+       { destruct p_pc' ; cbn in * ; try congruence; done. }
+       { eapply list_remove_list_region ; auto. }
+       { iDestruct (big_sepL2_const_sepL_r _ lws with "[Hread_cond]") as "Hread_P0".
+         iSplit ; last iFrame "Hread_cond".
+         by rewrite Hlen_lws.
+         cbn.
+         iDestruct ( big_sepL2_sep_sepL_r with "[$Hread_cond $HPrange]") as "HPs".
+         iDestruct (big_sepL2_alt with "HPs") as "[_ HPs']".
+         iAssert (
+             (∀ (k : nat) (x0 : leibnizO LWord * D),
+                 ⌜zip lws Ps !! k = Some x0⌝
+                 → x0.2 x0.1 ∗ □ (∀ lw0 : LWord, x0.2 lw0 -∗ fixpoint interp1 lw0) -∗ interp x0.1)
+           )%I as "bla".
+         { iIntros (? ? ?) "[Ha Hpa]"; by iDestruct ("Hpa" with "Ha") as "?". }
+         iDestruct (big_sepL_impl _ (fun _ xy => interp xy.1) with "HPs' bla"
+                   ) as "blaa".
+         iDestruct (big_sepL2_alt (fun _ lw _ => interp lw) lws Ps with "[$blaa]") as "blaaa".
+         by rewrite Hlen_lws.
+         iSplit.
+         by iApply "Hread".
+         by iDestruct (big_sepL2_const_sepL_l (fun _ lw => interp lw) lws Ps with "blaaa") as "[? ?]".
+       }
+       { iClear "#". clear -Hlen_Ps Hlen_lws Hremove HNoDup_la'.
+         iApply big_sepL2_alt.
+         iSplit; first (iPureIntro; rewrite /= map_length; lia).
+         iDestruct (big_sepM_list_to_map with "Hrange'") as "?" ; last iFrame.
+         rewrite fst_zip.
+         apply NoDup_fmap; auto.
+         { by intros x y Heq ; simplify_eq. }
+         rewrite /logical_region map_length ; lia.
+       }
+
+       iApply wp_pure_step_later; auto.
+       iNext; iIntros "_".
+       simplify_map_eq.
+       iApply ("IH" $! (<[dst := _]> lregs) with "[%] [] [Hmap] [$Hown]")
+       ; eauto.
+       { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
+       { iIntros (r1 lw1 Hr1 Hlw1).
+         destruct (decide (r1 = dst)) as [ |Hr1_dst]
+         ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=).
+         iApply "Hreg"; eauto. }
+       { rewrite !fixpoint_interp1_eq //= ; destruct p_pc'; destruct Hp ; done. }
      }
 
     - pose proof (Hsome src) as [wsrc Hlregs_src].
@@ -964,8 +961,7 @@ Section fundamental.
             iMod ("Hcls_src" with "[Hmem HPrange]") as "_".
             {
               iNext.
-              iApply region_inv_construct; first done.
-              iExists lws; iSplit ; first done; iFrame.
+              iApply region_inv_construct; auto.
             }
             iModIntro.
             iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame).
@@ -993,8 +989,7 @@ Section fundamental.
             iMod ("Hcls_src" with "[Hmem HPrange]") as "_".
             {
               iNext.
-              iApply region_inv_construct; first done.
-              iExists lws; iSplit ; first done; iFrame.
+              iApply region_inv_construct; auto.
             }
             iModIntro.
             iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame).
@@ -1022,8 +1017,7 @@ Section fundamental.
             iMod ("Hcls_src" with "[Hrange HPrange]") as "_".
             {
               iNext.
-              iApply region_inv_construct; first done.
-              iExists lws; iSplit ; first done; iFrame.
+              iApply region_inv_construct; auto.
             }
             iModIntro.
             iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame).
@@ -1123,8 +1117,7 @@ Section fundamental.
             iMod ("Hcls_src" with "[Hrange HPrange]") as "_".
             {
               iNext.
-              iApply region_inv_construct; first done.
-              iExists lws; iSplit ; first done; iFrame "#∗".
+              iApply region_inv_construct; auto.
             }
             iModIntro.
             iMod ("Hcls" with "[Ha HP]") as "_"; first (iNext ; iExists _ ; iFrame).
@@ -1144,5 +1137,5 @@ Section fundamental.
               iApply "Hreg"; eauto. }
             { rewrite !fixpoint_interp1_eq //= ; destruct p_pc'; destruct Hp ; done. }
           }
-  Admitted.
+  Qed.
 End fundamental.

@@ -98,6 +98,7 @@ theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
+theories/ftlr/IsUnique.v
 theories/fundamental.v
 
 # Binary Logical Relation

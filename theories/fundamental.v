@@ -1,5 +1,5 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg Get Lea Seal UnSeal.
+  Subseg Get Lea Seal UnSeal IsUnique.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -146,15 +146,8 @@ Section fundamental.
         iApply wp_value.
         iIntros (Hcontr); inversion Hcontr.
 
-      + (* TODO @Bastien IsUnique *)
-        admit.
-        (* iApply (wp_isunique with "[HPC Ha]"); eauto. iFrame. *)
-        (* iNext. iIntros "[HPC Ha] /=". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
-        (* iNext ; iIntros "_". *)
-        (* iApply wp_value. *)
-        (* iIntros (Hcontr); inversion Hcontr. *)
+      + iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
 
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto. iFrame.
