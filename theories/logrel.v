@@ -372,10 +372,11 @@ Section logrel.
     readAllowed p →
     ⊢ (interp_registers lregs -∗
       interp (LCap p b e a v) -∗
-      (∃ P, inv (logN .@ (a',v)) (interp_ref_inv a' v P) ∗ read_cond P interp ∗
-              if decide (writeAllowed_in_r_av (<[PC:=LCap p b e a v]> lregs) a' v)
-              then write_cond P interp
-              else emp))%I.
+      (∃ P, inv (logN .@ (a',v)) (interp_ref_inv a' v P) ∗ read_cond P interp
+              ∗ (if decide (writeAllowed_in_r_av (<[PC:=LCap p b e a v]> lregs) a' v)
+                 then write_cond P interp
+                 else emp)
+              ∗ persistent_cond P))%I.
   Proof.
     iIntros (Hin Ra) "#Hregs #Hinterp".
     rewrite /interp_registers /interp_reg /=.
@@ -386,15 +387,16 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
+          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hread & Hwrite)"
+               ; [eauto|iExists P;eauto]).
       + simplify_map_eq.
         destruct (lregs !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
         destruct_word w; try by inversion Ha. destruct Ha as (Hwba & -> & ->).
         iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct c; try contradiction; inversion Hwa;
-        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "(Hinv & Hpers & Hiff)" ;
-             [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "(Hinv & Hpers & Hread & Hwrite)";
+             [eauto|iExists P;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
         try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & [Hiff _ ] )"; [eauto|iExists P;iSplit;eauto]);

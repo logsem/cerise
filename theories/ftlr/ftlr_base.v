@@ -38,6 +38,7 @@ Section fundamental.
             ∗ (if decide (writeAllowed_in_r_av (<[PC:=LCap p b e a v]> lregs) a v)
                then ▷ □ (∀ lw : LWord, (fixpoint interp1) lw -∗ P lw)
                else emp)
+            ∗ (persistent_cond P)
     -∗ na_own logrel_nais ⊤
     -∗ (a,v) ↦ₐ lw
     -∗ ▷ P lw
