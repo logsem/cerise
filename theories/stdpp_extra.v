@@ -1138,6 +1138,24 @@ Proof.
   - by rewrite -!delete_difference IHm' delete_commute.
 Qed.
 
+Lemma list_remove_submsteq
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  list_remove_list [a] la = Some la' ->
+  la' ⊆+ la.
+Proof.
+  induction la'; intros Hla' ; cbn.
+  - eapply submseteq_nil_l.
+  - cbn in *.
+    destruct (list_remove a la) eqn:Hremove ; cbn in * ; last done.
+    rewrite Hla' in Hremove.
+    eapply list_remove_Some in Hremove.
+    setoid_rewrite Hremove.
+    eapply submseteq_cons_l.
+    eexists (a::la'). split.
+    eapply perm_swap.
+    by apply submseteq_cons.
+Qed.
+
 (* TODO Unelegant way to create an extensible tactic,
    cf. https://stackoverflow.com/questions/48868186/extensible-tactic-in-coq *)
 Ltac destruct_cons_hook0 := fail.
@@ -1176,6 +1194,134 @@ Ltac destruct_cons_hook1 := destruct_cons_forall
                             || destruct_cons_nodup
                             || destruct_cons_hook0.
 Ltac destruct_cons_hook ::= destruct_cons_hook1.
+
+Lemma list_remove_In
+  {A : Type} `{EqDecision A} (a' : A) (la : list A) :
+  a' ∈ la -> is_Some (list_remove a' la).
+Proof.
+  induction la as [|a la IHla] ; intros * Hin ; first set_solver.
+  destruct_cons.
+  destruct Hin as [|Hin] ; simplify_eq; cbn
+  ; [rewrite decide_True |] ; auto.
+  apply IHla in Hin.
+  destruct (decide (a' = a)) ; simplify_eq; auto.
+  by apply fmap_is_Some.
+Qed.
+
+Lemma list_remove_preserves_notin
+  {A : Type} `{EqDecision A} (a' a'' : A) (la la': list A) :
+  a' ∉ la ->
+  list_remove a'' la = Some la' ->
+  a' ∉ la'.
+Proof.
+  revert a' a'' la'.
+  induction la as [|a la IHla] ; intros * Hnotin Hremove ; first set_solver.
+  destruct_cons.
+  destruct (decide (a'' = a)) ; simplify_eq; cbn in *.
+  + rewrite decide_True in Hremove ; first done.
+    by simplify_eq.
+  + rewrite decide_False in Hremove ; first done.
+    destruct (list_remove a'' la) eqn:?; cbn in * ; simplify_eq.
+    eapply not_elem_of_cons ; split ; first done.
+    eapply IHla ; eauto.
+Qed.
+
+Lemma list_remove_NoDup
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  NoDup la ->
+  list_remove a la = Some la' ->
+  NoDup la'.
+Proof.
+  revert a la' ; induction la ; intros * HNoDup Hremove; cbn in * ; simplify_eq.
+  destruct_cons.
+  destruct (decide (a0 = a)) as [|?] ; simplify_eq; first done.
+  destruct (list_remove a0 la) eqn:?; cbn in * ; simplify_eq.
+  apply NoDup_cons ; split; eauto.
+  eapply list_remove_preserves_notin; eauto.
+Qed.
+
+Lemma list_remove_list_NoDup
+  `{A : Type} `{EqDecision A} (la1 la2 la' : list A) :
+  NoDup la2 ->
+  list_remove_list la1 la2 = Some la' ->
+  NoDup la'.
+Proof.
+  revert la2 la'.
+  induction la1; intros * HNoDup Hremove ; cbn in * ; simplify_eq
+  ; first done.
+  destruct (list_remove a la2) eqn:Hremove' ; cbn in * ; last done.
+  eapply list_remove_NoDup in Hremove'; auto.
+  eapply IHla1; eauto.
+Qed.
+
+Lemma not_elemof_list_remove
+  `{A : Type} `{EqDecision A} (a' : A) (la la' : list A) :
+  a' ∈ la ->
+  NoDup la ->
+  list_remove a' la = Some la' ->
+  a' ∉ la'.
+Proof.
+  revert la' a' ; induction la as [|a la IHla] ; intros * Hin HNoDup Hremove
+  ; cbn in *; first done.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto
+  ; simplify_eq ; first done.
+  destruct (list_remove a' la) eqn:? ; cbn in * ; simplify_eq.
+  apply not_elem_of_cons; split ; first set_solver.
+  apply IHla; auto.
+Qed.
+
+Lemma not_elemof_list_remove_list
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  a ∈ la ->
+  NoDup la ->
+  list_remove_list [a] la = Some la' ->
+  a ∉ la'.
+Proof.
+  revert la' ; induction la as [|a' la' IHla] ; intros * Hin HNoDup Hremove ; cbn in * ; first done.
+  eapply bind_Some in Hremove.
+  destruct Hremove as (a0 & Hremove & ?); simplify_eq.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto
+  ; simplify_eq ; first done.
+  destruct (list_remove a la') eqn:?; cbn in * ; simplify_eq.
+  apply not_elem_of_cons; split ; first set_solver.
+  eapply IHla; eauto.
+Qed.
+
+Lemma list_remove_list_region
+  `{A : Type} `{EqDecision A} (a' : A) (la la' : list A) :
+  a' ∈ la ->
+  NoDup la ->
+  list_remove_list [a'] la = Some la' ->
+  la ⊆+ a' :: la'.
+Proof.
+  revert a' la' ; induction la as [|a la IHla] ; intros * Hin HoDup Hremove
+  ; cbn in *; first done.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto ; cbn in *
+  ; simplify_eq; first set_solver.
+  assert (a' ≠ a) as Hneq by (intro ; set_solver).
+  destruct ( list_remove a' la) as [?|] eqn:Hremove' ; cbn in *; simplify_eq.
+  assert (la ⊆+ a' :: l).
+  eapply IHla; eauto. rewrite Hremove' //=.
+  eapply submseteq_trans with (l2 := (a :: a' ::l)) ; by econstructor.
+Qed.
 
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :

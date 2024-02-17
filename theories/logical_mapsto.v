@@ -1768,6 +1768,33 @@ Proof.
     rewrite lookup_insert_ne //=; intro ; simplify_eq.
 Qed.
 
+Lemma update_version_region_insert_inv
+  (lmem : LMem) (la : list Addr) (a' : Addr) (v : Version) (lw : LWord) :
+  NoDup la ->
+  lmem !! (a', v) = None ->
+  Forall (fun a => lmem !! (a, v+1) = None) la ->
+  update_version_region lmem la v ⊆
+    update_version_region (<[(a', v):=lw]> lmem) la v .
+Proof.
+  revert lmem a' v lw.
+  induction la as [|a la IHla] ; intros * HNoDup Hlmem_None HmaxMap ; cbn in *.
+  - by apply insert_subseteq.
+  - rewrite -!/(update_version_region _ _ v).
+    destruct_cons.
+    rewrite /update_version_addr.
+    rewrite !update_version_region_preserves_lmem.
+
+    destruct (decide ((a,v) = (a',v))) as [|Hneq]; simplify_map_eq.
+    + eapply insert_subseteq_r.
+      rewrite update_version_region_notin_preserves_lmem; eauto.
+      apply IHla; auto.
+    + destruct (lmem !! (a,v)) eqn:Hlmem_a; cbn in *; rewrite Hlmem_a
+      ; last (eapply IHla; eauto).
+      eapply insert_subseteq_l; first (by simplify_map_eq).
+      eapply insert_subseteq_r; last (eapply IHla; auto).
+      rewrite update_version_region_notin_preserves_lmem; eauto.
+Qed.
+
 Lemma update_cur_version_addr_update_version_addr
   (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) (v : Version) :
   lmem ⊆ lm ->
@@ -1989,6 +2016,30 @@ Proof.
   - destruct Hvalid as (Hupd & HmaxMap' & HnextMap).
     split; auto.
     eapply update_version_region_insert; eauto.
+Qed.
+
+Lemma is_valid_updated_lmemory_insert'
+  (lmem lmem' : LMem) (la : list Addr) (a' : Addr) (v : Version) (lw : LWord) :
+  NoDup la ->
+  a' ∈ la ->
+  lmem !! (a', v) = None ->
+  Forall (fun a => lmem !! (a, v+1) = None) la ->
+  is_valid_updated_lmemory (<[(a', v) := lw]> lmem) la v lmem' ->
+  is_valid_updated_lmemory lmem la v lmem'.
+Proof.
+  move: lmem lmem' a' v lw.
+  induction la as [|a la IHla] ; intros * HNoDup Ha'_in_la Hlmem_None HmaxMap Hvalid.
+  - destruct Hvalid as [Hvalid _].
+    split; cbn in *; last done.
+    eapply map_subseteq_spec ; intros [a0 v0] lw0 Hlw0.
+    eapply lookup_weaken ; last eapply Hvalid.
+    rewrite lookup_insert_ne //=; intro ; simplify_eq.
+    rewrite Hlmem_None in Hlw0 ; done.
+  - destruct Hvalid as (Hupd & HmaxMap' & HnextMap).
+    split; auto.
+    eapply map_subseteq_trans.
+    by eapply update_version_region_insert_inv; eauto.
+    eauto.
 Qed.
 
 (* TODO Maybe the induction case of this proof could be done separately *)

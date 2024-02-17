@@ -477,6 +477,37 @@ Section logrel.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
+  Lemma region_valid_alloc'
+    (E : coPset) ( b e a : Addr ) (la: list Addr)
+    (v : Version) (l : list LWord) (p : Perm) :
+    PermFlowsTo RO p →
+    finz.seq_between b e ⊆+ la ->
+    ([∗ list] w ∈ l, interp w) -∗
+    ([∗ list] a;lw ∈ (fun a => (a,v)) <$> la;l, a ↦ₐ lw) ={E}=∗
+    interp (LCap p b e a v).
+  Proof.
+    iIntros (Hp Hincl) "#Hl H".
+    iMod (region_inv_alloc with "[H]") as "H".
+    { iDestruct (big_sepL2_length with "H") as %Hlen.
+      iDestruct (big_sepL2_to_big_sepL_r with "Hl") as "Hl'";[apply Hlen|].
+      iDestruct (big_sepL2_sep with "[H]") as "H";[iSplitL;[iFrame "H"|iFrame "Hl'"]|].
+      iApply (big_sepL2_mono with "H").
+      intros k v1 v2 ? Hlk. cbn. iIntros. iFrame. }
+    iDestruct (big_sepL2_length with "H") as %?.
+    iDestruct (big_sepL2_to_big_sepL_l with "H") as "H"; auto.
+    iDestruct (big_sepL_submseteq with "H") as "H"
+    ; first (by eapply fmap_submseteq).
+
+    iModIntro. rewrite fixpoint_interp1_eq //.
+    iDestruct (big_sepL_fmap (λ x : Addr, (x, v)) with "H") as "H".
+    destruct p; cbn; eauto; try by inversion Hp.
+    all: iApply (big_sepL_mono with "H").
+    all: iIntros (k a' Hk) "H"; cbn.
+    all: iExists (fixpoint interp1); iFrame.
+    all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
+    all: try iSplit; iNext; iModIntro; eauto.
+  Qed.
+
   Definition compute_mask (E : coPset) (ls : gset LAddr) :=
     set_fold (λ l E, E ∖ ↑logN .@ l) E ls.
 
