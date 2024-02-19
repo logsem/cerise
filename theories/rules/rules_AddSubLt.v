@@ -76,7 +76,7 @@ Section cap_lang_rules.
   (*   cbn; iFrame; iApply Hcont; iFrame; iPureIntro; *)
   (*   econstructor; eapply get_fail_case; eauto. *)
 
-  Lemma wp_AddSubLt i pc_p pc_b pc_e pc_a pc_v lw dst arg1 arg2 lregs :
+  Lemma wp_AddSubLt Ep i pc_p pc_b pc_e pc_a pc_v lw dst arg1 arg2 lregs :
     decodeInstrWL lw = i →
     is_AddSubLt i dst arg1 arg2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -84,7 +84,7 @@ Section cap_lang_rules.
     regs_of i ⊆ dom lregs →
     {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ ∅
+      Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
         ⌜ AddSubLt_spec (decodeInstrWL lw) lregs dst arg1 arg2 lregs' retv ⌝ ∗
           (pc_a, pc_v) ↦ₐ lw ∗

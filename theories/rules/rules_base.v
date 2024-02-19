@@ -1182,13 +1182,13 @@ Ltac incrementLPC_inv :=
     eapply incrementLPC_None_inv in H
   end; simplify_eq.
 
-(* Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):= *)
-(*   match goal with *)
-(*   | H : incrementLPC _ = Some _ |- _ => *)
-(*     apply incrementLPC_Some_inv in H as pat *)
-(*   | H : incrementLPC _ = None |- _ => *)
-(*     eapply incrementLPC_None_inv in H *)
-(*   end; simplify_eq. *)
+Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):=
+  match goal with
+  | H : incrementLPC _ = Some _ |- _ =>
+    apply incrementLPC_Some_inv in H as pat
+  | H : incrementLPC _ = None |- _ =>
+    eapply incrementLPC_None_inv in H
+  end; simplify_eq.
 
 Section cap_lang_rules_opt.
   Context `{MachineParameters}.
