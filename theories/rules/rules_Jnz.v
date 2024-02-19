@@ -107,24 +107,23 @@ Section cap_lang_rules.
           ∗ r1 ↦ᵣ lw1
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   assert (nonZero w2 = true). *)
-  (*   { unfold nonZero, Zneq_bool in *. *)
-  (*     repeat case_match; try congruence; subst. exfalso. *)
-  (*     apply Hne. f_equal. by apply Z.compare_eq. } *)
+    assert (nonZeroL lw2 = true).
+    { unfold nonZeroL, Zneq_bool in *.
+      repeat case_match; try congruence; subst. exfalso.
+      apply Hne. f_equal. by apply Z.compare_eq. }
 
-  (*  destruct Hspec as [ | | ]. *)
-  (*  { exfalso. simplify_map_eq. congruence. } *)
-  (*  { exfalso. simplify_map_eq. congruence. } *)
-  (*  { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert. *)
-  (*    iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | | ].
+    { exfalso. simplify_map_eq. congruence. }
+    { exfalso. simplify_map_eq. congruence. }
+    { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
+  Qed.
 
   Lemma wp_jnz_success_jmp2 E r2 pc_p pc_b pc_e pc_a pc_v lw lw2 :
     decodeInstrWL lw = Jnz r2 r2 →
@@ -140,24 +139,23 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]". *)
-  (*   iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   assert (nonZero w2 = true). *)
-  (*   { unfold nonZero, Zneq_bool in *. *)
-  (*     repeat case_match; try congruence; subst. exfalso. *)
-  (*     apply Hne. f_equal. by apply Z.compare_eq. } *)
+    assert (nonZeroL lw2 = true).
+    { unfold nonZeroL, Zneq_bool in *.
+      repeat case_match; try congruence; subst. exfalso.
+      apply Hne. f_equal. by apply Z.compare_eq. }
 
-  (*  destruct Hspec as [ | | ]. *)
-  (*  { exfalso. simplify_map_eq. congruence. } *)
-  (*  { exfalso. simplify_map_eq. congruence. } *)
-  (*  { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert. *)
-  (*    iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | | ].
+    { exfalso. simplify_map_eq. congruence. }
+    { exfalso. simplify_map_eq. congruence. }
+    { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
+  Qed.
 
   Lemma wp_jnz_success_jmpPC E pc_p pc_b pc_e pc_a pc_v lw  :
     decodeInstrWL lw = Jnz PC PC →
@@ -170,16 +168,15 @@ Section cap_lang_rules.
           PC ↦ᵣ updatePcPermL (LCap pc_p pc_b pc_e pc_a pc_v)
           ∗ (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ". *)
-  (*   iDestruct (map_of_regs_1 with "HPC") as "Hmap". *)
-  (*   iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a) Hφ".
+    iDestruct (map_of_regs_1 with "HPC") as "Hmap".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*  destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ]. *)
-  (*  { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert. *)
-  (*    iDestruct (regs_of_map_1 with "Hmap") as "?"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+   destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ].
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+     iDestruct (regs_of_map_1 with "Hmap") as "?"; eauto; iFrame. }
+  Qed.
 
   Lemma wp_jnz_success_jmpPC1 E r2 pc_p pc_b pc_e pc_a pc_v lw lw2 :
     decodeInstrWL lw = Jnz PC r2 →
@@ -195,24 +192,23 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r2 ↦ᵣ lw2 }}}.
   Proof.
-   (*  iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ". *)
-   (*  iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]". *)
-   (*  iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-   (*  by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-   (*  iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hne ϕ) "(>HPC & >Hpc_a & >Hr2) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-   (*  assert (nonZero w2 = true). *)
-   (*  { unfold nonZero, Zneq_bool in *. *)
-   (*    repeat case_match; try congruence; subst. exfalso. *)
-   (*    apply Hne. f_equal. by apply Z.compare_eq. } *)
+    assert (nonZeroL lw2 = true).
+    { unfold nonZeroL, Zneq_bool in *.
+      repeat case_match; try congruence; subst. exfalso.
+      apply Hne. f_equal. by apply Z.compare_eq. }
 
-   (* destruct Hspec as [ | | ]. *)
-   (* { exfalso. simplify_map_eq. congruence. } *)
-   (* { exfalso. simplify_map_eq. congruence. } *)
-   (* { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert. *)
-   (*   iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | | ].
+    { exfalso. simplify_map_eq. congruence. }
+    { exfalso. simplify_map_eq. congruence. }
+    { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
+  Qed.
 
   Lemma wp_jnz_success_jmpPC2 E r1 pc_p pc_b pc_e pc_a pc_v lw lw1 :
     decodeInstrWL lw = Jnz r1 PC →
@@ -227,17 +223,16 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ r1 ↦ᵣ lw1 }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]". *)
-  (*   iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*  destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ]. *)
-  (*  { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert. *)
-  (*    iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ].
+    { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
+  Qed.
 
   Lemma wp_jnz_success_next E r1 r2 pc_p pc_b pc_e pc_a pc_v pc_a' lw lw1 :
     decodeInstrWL lw = Jnz r1 r2 →
@@ -255,17 +250,16 @@ Section cap_lang_rules.
           ∗ r1 ↦ᵣ lw1
           ∗ r2 ↦ᵣ LInt 0%Z }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_Jnz with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*  destruct Hspec as [ | | ]; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*  { congruence. } *)
-  (*  { iApply "Hφ". iFrame. rewrite insert_insert. *)
-  (*    iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | | ]; try incrementLPC_inv; simplify_map_eq; eauto.
+    { congruence. }
+    { iApply "Hφ". iFrame. rewrite insert_insert.
+      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
+  Qed.
 
 End cap_lang_rules.

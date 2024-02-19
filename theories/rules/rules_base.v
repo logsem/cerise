@@ -59,6 +59,14 @@ Section cap_lang_rules.
     iIntros "H1 H2" (?). subst r1. iApply (regname_dupl_false with "H1 H2").
   Qed.
 
+  Lemma map_of_regs_1 (r1: RegName) (lw1: LWord) :
+    r1 ↦ᵣ lw1 -∗
+    ([∗ map] k↦y ∈ <[r1:=lw1]> ∅, k ↦ᵣ y).
+  Proof.
+    iIntros "H1".
+    rewrite !big_sepM_insert ?big_sepM_empty; eauto.
+  Qed.
+
   Lemma regs_of_map_1 (r1: RegName) (lw1: LWord) :
     ([∗ map] k↦y ∈ {[r1 := lw1]}, k ↦ᵣ y) -∗
     r1 ↦ᵣ lw1.

@@ -173,25 +173,24 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ LWSealed a sb
       }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_4 with "HPC Hr1 Hr2 Hdst") as "[Hmap (%&%&%&%&%&%)]". *)
-  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hdst & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_4 with "HPC Hr1 Hr2 Hdst") as "[Hmap (%&%&%&%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail]. *)
-  (*   { (* Success *) *)
-  (*     iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq. *)
-  (*     rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) // *)
-  (*             (insert_commute _ r1 dst) // (insert_commute _ PC dst) // insert_insert. *)
-  (*     iDestruct (regs_of_map_4 with "Hmap") as "(?&?&?&?)"; eauto; iFrame. } *)
-  (*   { (* Failure (contradiction) *) *)
-  (*     destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*     match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end. *)
-  (*     all: congruence. } *)
-  (*   Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | * Hfail].
+    { (* Success *)
+      iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
+      rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
+              (insert_commute _ r1 dst) // (insert_commute _ PC dst) // insert_insert.
+      iDestruct (regs_of_map_4 with "Hmap") as "(?&?&?&?)"; eauto; iFrame. }
+    { (* Failure (contradiction) *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+      match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end.
+      all: congruence. }
+    Unshelve. all: auto.
+  Qed.
 
   Lemma wp_unseal_r1 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a sb pc_a' :
     decodeInstrWL lw = UnSeal r1 r1 r2 →
@@ -212,24 +211,23 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ LWSealed a sb
       }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail]. *)
-  (*   { (* Success *) *)
-  (*     iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq. *)
-  (*     rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert. *)
-  (*      iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. } *)
-  (*   { (* Failure (contradiction) *) *)
-  (*     destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*     match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end. *)
-  (*     all: congruence. } *)
-  (*   Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | * Hfail].
+    { (* Success *)
+      iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
+      rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. }
+    { (* Failure (contradiction) *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+      match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end.
+      all: congruence. }
+    Unshelve. all: auto.
+  Qed.
 
   Lemma wp_unseal_r2 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a sb pc_a' :
     decodeInstrWL lw = UnSeal r2 r1 r2 →
@@ -250,24 +248,23 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ LWSealable sb
       }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail]. *)
-  (*   { (* Success *) *)
-  (*     iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq. *)
-  (*     rewrite (insert_commute _ r2 PC) // insert_insert (insert_commute _ r1 r2) // insert_insert. *)
-  (*      iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. } *)
-  (*   { (* Failure (contradiction) *) *)
-  (*     destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*     match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end. *)
-  (*     all: congruence. } *)
-  (*   Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | * Hfail].
+    { (* Success *)
+      iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
+      rewrite (insert_commute _ r2 PC) // insert_insert (insert_commute _ r1 r2) // insert_insert.
+       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. }
+    { (* Failure (contradiction) *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+      match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end.
+      all: congruence. }
+    Unshelve. all: auto.
+  Qed.
 
   (* The below case could be useful, if what we unseal is a PC capability *)
   Lemma wp_unseal_PC E pc_p pc_b pc_e pc_a pc_v lw lw' r1 r2 p b e a p' b' e' a' v' a'' :
@@ -289,24 +286,23 @@ Section cap_lang_rules.
           ∗ r2 ↦ᵣ LWSealed a (LSCap p' b' e' a' v')
       }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iIntros (Hinstr Hvpc Hps Hwb Hpc_a' ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail]. *)
-  (*   { (* Success *) *)
-  (*     iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq. *)
-  (*     rewrite !insert_insert. *)
-  (*      iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. } *)
-  (*   { (* Failure (contradiction) *) *)
-  (*     destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. *)
-  (*     match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end. *)
-  (*     all: congruence. } *)
-  (*   Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | * Hfail].
+    { (* Success *)
+      iApply "Hφ". iFrame. incrementLPC_inv; simplify_map_eq.
+      rewrite !insert_insert.
+       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame. }
+    { (* Failure (contradiction) *)
+      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+      match goal with H: _ ∨ _ ∨ _ |- _ => destruct H as [ | [ | ] ] end.
+      all: congruence. }
+    Unshelve. all: auto.
+  Qed.
 
   Lemma wp_unseal_nomatch_r2 E pc_p pc_b pc_e pc_a pc_v lw r1 r2 p b e a lwsealed pc_a' :
     decodeInstrWL lw = UnSeal r2 r1 r2 →
@@ -321,19 +317,18 @@ Section cap_lang_rules.
       Instr Executable @ E
       {{{ RET FailedV; True }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ". *)
+    iIntros (Hinstr Hvpc Hpc_a' Hfalse ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hr2) Hφ".
 
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
-  (*   iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto. *)
-  (*   by unfold regs_of; rewrite !dom_insert; set_solver+. *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec. *)
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
+    iApply (wp_UnSeal with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
+    by unfold regs_of; rewrite !dom_insert; set_solver+.
+    iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | ]; last by iApply "Hφ". *)
-  (*   { destruct wsealed as [| | o' sb']; try by simplify_map_eq. *)
-  (*     exfalso. *)
-  (*     rewrite /is_sealed_with_o //= in Hfalse. *)
-  (*     destruct (decide (o' = a)) as [->| Hne]; [solve_addr | simplify_map_eq]. } *)
-  (* Qed. *)
-  Admitted.
+    destruct Hspec as [ | ]; last by iApply "Hφ".
+    { destruct lwsealed as [| | o' sb']; try by simplify_map_eq.
+      exfalso.
+      rewrite /is_sealed_with_o //= in Hfalse.
+      destruct (decide (o' = a)) as [->| Hne]; [solve_addr | simplify_map_eq]. }
+  Qed.
 
 End cap_lang_rules.
