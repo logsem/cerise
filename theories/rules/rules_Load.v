@@ -204,21 +204,18 @@ Section cap_lang_rules.
     iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame.
     rewrite insert_id; auto.
     iMod (state_interp_transient_intro (lm := lmem) (df := dfracs)
-           with "[$Hregs $Hσ Hmem]") as "Hσ"; iFrame ; first done.
+           with "[$Hregs $Hσ $Hmem]") as "Hσ"; first done.
 
-    iApply wp2_reg_lookup ; first by set_solver.
-
-    iModIntro.
-    iFrame "Hσ".
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
     iIntros (lw2) "Hσ %Hlrs %Hrs".
+
     destruct (is_log_cap lw2) eqn:Hlw2; cycle 1.
     {
       destruct_lword lw2 ; cbn in * ; simplify_eq.
       all: iModIntro.
-      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hσ & Hregs & Hmem)".
-      all: iFrame.
+      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       all: iApply ("Hφ" with "[$Hmem $Hregs]").
-      all: iPureIntro; constructor; eapply Load_fail_const; eauto.
+      all: iPureIntro; constructor; by eapply Load_fail_const.
     }
 
     destruct_lword lw2 ; cbn in * ; simplify_eq.
@@ -227,20 +224,16 @@ Section cap_lang_rules.
     {
       apply andb_false_iff in Hread.
       iModIntro.
-      iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hσ & Hregs & Hmem)".
-      iFrame.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hmem $Hregs]").
-      iPureIntro; constructor; eapply Load_fail_bounds; eauto.
+      iPureIntro; constructor; by eapply Load_fail_bounds.
     }
 
     apply andb_true_iff in Hread; destruct Hread as [ Hread Hinbounds ].
     iApply wp_opt2_bind.
 
-    pose proof (allow_load_implies_loadv _ _ _ _ _ _ _ _ HaLoad Hlrs Hread Hinbounds)
-      as Hmem_a; destruct Hmem_a as [lwa Hmem_a].
-
-    iApply wp2_mem_lookup ; eauto.
-    iFrame.
+    destruct (allow_load_implies_loadv _ _ _ _ _ _ _ _ HaLoad Hlrs Hread Hinbounds) as [lwa Hmem_a].
+    iApply (wp2_mem_lookup with "[$Hσ Hcred Hφ]"); eauto.
     iIntros "Hσ".
 
     iDestruct (update_state_interp_transient_from_cap_mod (dst := r1) (lw2 := lwa) with "Hσ")
@@ -254,19 +247,18 @@ Section cap_lang_rules.
     { rewrite dom_insert. apply elem_of_union_r. now rewrite elem_of_dom HPC. }
     iSplit.
     - iIntros (φt' lrt') "Hσ %Hlin %Hin".
-      iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hσ & Hregs & Hmem)".
-      iFrame.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hmem $Hregs]").
       iPureIntro.
       constructor.
-      eapply Load_fail_invalid_PC; eassumption.
+      by eapply Load_fail_invalid_PC.
     - iIntros (regs' φt') "Hσ %Hlis %His".
       iApply wp2_val.
       cbn.
       iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hmem $Hregs]").
       iPureIntro.
-      eapply Load_spec_success; try eassumption; split; eauto.
+      by eapply Load_spec_success.
   Qed.
 
   Lemma wp_load Ep
