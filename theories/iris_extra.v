@@ -557,3 +557,74 @@ Proof.
   - iDestruct (big_sepM_insert_difference_2 with "[Hm Hm']") as "$?"
     ; [eassumption|iFrame].
 Qed.
+
+(* TODO is there a way to make it even more general ? *)
+Definition equiv_zip_fnt
+  {PROP : bi} {A B C : Type}
+  (ϕ : nat -> (A * B * C) -> PROP )
+  (ψ : nat -> (A * (C * B)) -> PROP )
+  :=
+  (∀ (k : nat)
+     (ab_c : (A * B * C))
+     (a_cb : (A * (C * B))),
+      ab_c.1.1 = a_cb.1 ->
+      ab_c.2 = a_cb.2.1 ->
+      ab_c.1.2 = a_cb.2.2 ->
+      (ϕ k ab_c ∗-∗ ψ k a_cb)).
+
+Lemma big_sepL_zip_zip_equiv
+  {PROP : bi} {A B C : Type}
+  (la : list A) (lb : list B) (lc : list C)
+  (ϕ : nat -> (A * B * C) -> PROP )
+  (ψ : nat -> (A * (C * B)) -> PROP ) :
+  length la = length lb ->
+  length lb = length lc ->
+  equiv_zip_fnt ϕ ψ ->
+  (([∗ list] k↦ab_c ∈ zip (zip la lb) lc, ϕ k ab_c)
+     ∗-∗ ([∗ list] k↦a_cb ∈ (zip la (zip lc lb)), ψ k a_cb)).
+  revert lb lc ϕ ψ.
+  induction la as [|a la IHla]; intros * Hlen_lb Hlen_lc Hequiv.
+  - cbn in * ; simplify_eq. iSplit ; iIntros "?" ; done.
+  - destruct lb as [|b lb] ; first (cbn in * ; lia).
+    destruct lc as [|c lc] ; first (cbn in * ; lia).
+    cbn in Hlen_lb, Hlen_lc.
+    injection Hlen_lb ; clear Hlen_lb ; intro Hlen_lb.
+    injection Hlen_lc ; clear Hlen_lc ; intro Hlen_lc.
+    cbn ; iSplit ; iIntros "[Ha Hmem]"
+    ; iDestruct ((Hequiv 0 (a,b,c) (a,(c,b))) with "Ha") as "H"; eauto; cbn
+    ; iFrame; iApply IHla; eauto
+    ; rewrite /equiv_zip_fnt; intros; cbn in *; by eapply Hequiv.
+Qed.
+
+Definition equiv_zip_fnt'
+  {PROP : bi} {A B C : Type}
+  (ψ : nat -> A -> (C * B) -> PROP )
+  (ϕ : nat -> A -> C -> PROP ) :=
+  (∀ (k : nat) (a : A) (b : B) (c : C), (ψ k a (c,b) ∗-∗ ϕ k a c)).
+
+Lemma big_sepL2_zip_r_equiv
+  {PROP : bi} {A B C : Type}
+  (la : list A) (lb : list B) (lc : list C)
+  (ψ : nat -> A -> (C * B) -> PROP )
+  (ϕ : nat -> A -> C -> PROP ) :
+  length la = length lb ->
+  length lb = length lc ->
+  equiv_zip_fnt' ψ ϕ ->
+  (([∗ list] k↦a;cb ∈ la;zip lc lb, ψ k a cb)
+     ∗-∗ ([∗ list] k↦a;c ∈ la;lc, ϕ k a c)).
+Proof.
+  revert lb lc ψ ϕ.
+  induction la as [|a la IHla]; intros * Hlen_lb Hlen_lc Hequiv.
+  - iSplit ; iIntros "?".
+    all: rewrite -Hlen_lb in Hlen_lc; destruct lc as [|] ; last (cbn in * ; lia).
+    all: done.
+  - destruct lb as [|b lb] ; first (cbn in * ; lia).
+    destruct lc as [|c lc] ; first (cbn in * ; lia).
+    cbn in Hlen_lb, Hlen_lc.
+    injection Hlen_lb ; clear Hlen_lb ; intro Hlen_lb.
+    injection Hlen_lc ; clear Hlen_lc ; intro Hlen_lc.
+    cbn ; iSplit ; iIntros "[Ha Hmem]"
+    ; iDestruct (Hequiv 0 a b c with "Ha") as "H"; eauto; cbn
+    ; iFrame; iApply IHla ; eauto
+    ; rewrite /equiv_zip_fnt' ; intros; cbn in *; by eapply Hequiv.
+Qed.

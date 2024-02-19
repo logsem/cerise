@@ -764,4 +764,310 @@ Section logrel.
     by iApply region_seal_pred_interp.
   Qed.
 
+  Definition logical_region_set (la : list Addr) (v : Version) : gset LAddr :=
+    (list_to_set ((λ a, (a,v)) <$> la)).
+
+  Definition logical_range_set (b e : Addr) (v : Version) : gset LAddr :=
+    logical_region_set (finz.seq_between b e) v.
+
+  Definition compute_mask_region (E : coPset) (la : list Addr) (v : Version) : coPset :=
+    (compute_mask E (logical_region_set la v)).
+
+  Definition compute_mask_range (E : coPset) (b e : Addr) (v : Version) : coPset :=
+    (compute_mask E (logical_range_set b e v)).
+
+  (* TODO @Bastien is there a way to generalize the opening of the list of invariant ? *)
+  (* Lemma for opening invariants of a region *)
+  Lemma open_region_inv
+    (E : coPset)
+    (la : list Addr)
+    (Ps : list D)
+    (v : Version) :
+    NoDup la ->
+    length la = length Ps  ->
+    Forall (fun a => ↑logN.@(a, v) ⊆ E) la ->
+    ⊢ ([∗ list] a_Pa ∈ zip la Ps, inv (logN.@(a_Pa.1, v)) (interp_ref_inv a_Pa.1 v a_Pa.2))
+    -∗ |={E, compute_mask_region E la v}=>
+       ([∗ list] a_Pa ∈ zip la Ps, (∃ lw, (a_Pa.1, v) ↦ₐ lw ∗ ▷ (a_Pa.2 : D) lw)) ∗
+       (▷ ([∗ list] a_Pa ∈ zip la Ps,
+         (interp_ref_inv a_Pa.1 v a_Pa.2)) ={compute_mask_region E la v, E}=∗ True).
+  Proof.
+    move: E Ps v.
+    induction la as [|a la IHla]
+    ; iIntros (E Ps v HNoDup Hlen Hmask) "#Hinvs" ; cbn in *.
+    - rewrite /compute_mask_region compute_mask_id; iModIntro ; iSplit ; first done.
+      iIntros "?" ; iModIntro ; done.
+    - destruct Ps as [|P Ps]; cbn in * ; first lia.
+      injection Hlen ; clear Hlen ; intros Hlen.
+      destruct_cons.
+      iDestruct "Hinvs" as "[Hinv Hinvs]".
+      assert ((a, v) ∉ (logical_region_set la v)).
+      { intro Hcontra.
+        rewrite elem_of_list_to_set elem_of_list_fmap in Hcontra.
+        destruct Hcontra as ( ? & ? & ? ) ; simplify_eq ; set_solver. }
+      rewrite /compute_mask_region compute_mask_union; auto.
+      iDestruct (IHla with "Hinvs") as "IH"; eauto.
+      iMod "IH" as "[Hoinvs Hinvs_cls]".
+      iInv "Hinv" as "Hoinv" "Hinv_cls".
+      { apply compute_mask_elem_of; auto. }
+      iEval (rewrite later_exist; setoid_rewrite later_sep) in "Hoinv".
+      iDestruct "Hoinv" as (lwa) "[>Ha HPa]".
+      iModIntro.
+      iSplitL "Ha HPa Hoinvs"; first iFrame.
+      iExists _ ; iFrame.
+      iIntros "[Hoinv Hoinvs]".
+      iMod ("Hinv_cls" with "Hoinv").
+      iMod ("Hinvs_cls" with "Hoinvs").
+      by iModIntro.
+  Qed.
+
+  Lemma logical_region_map_list_to_map
+    (la : list Addr) (v : Version) (lws : list LWord) :
+    NoDup la ->
+    length lws = length la ->
+    ([∗ map] a↦lw ∈ list_to_map (zip la lws), (a,v) ↦ₐ lw)
+    ∗-∗ ([∗ map] a↦lw ∈ logical_region_map la lws v, a ↦ₐ lw).
+  Proof.
+    revert v lws.
+    induction la as [|a la IHla] ; intros * HNoDup Hlen
+    ; first (iSplit ; iIntros "H" ; cbn in * ; try done).
+    destruct lws as [|lw lws] ; first (cbn in * ; lia) ; cbn.
+    injection Hlen ; clear Hlen ; intro Hlen.
+    destruct_cons.
+    iSplit; iIntros "H".
+    - iDestruct (big_sepM_insert with "H") as "[Ha H]"; eauto.
+      {
+        apply not_elem_of_list_to_map.
+        intro Hcontra.
+        rewrite fst_zip in Hcontra; first done.
+        rewrite Hlen; lia.
+      }
+      iApply big_sepM_insert; eauto.
+      {
+        apply not_elem_of_list_to_map.
+        intro Hcontra.
+        rewrite fst_zip in Hcontra; last (rewrite map_length ; lia).
+        eapply elem_of_list_fmap in Hcontra.
+        destruct Hcontra as (? & ? & ?) ; simplify_eq ; done.
+      }
+      iFrame.
+      iApply IHla; eauto.
+    - iDestruct (big_sepM_insert with "H") as "[Ha H]"; eauto.
+      {
+        apply not_elem_of_list_to_map.
+        intro Hcontra.
+        rewrite fst_zip in Hcontra; last (rewrite map_length Hlen ; lia).
+        eapply elem_of_list_fmap in Hcontra.
+        destruct Hcontra as (? & ? & ?) ; simplify_eq ; done.
+      }
+      iApply big_sepM_insert; eauto.
+      {
+        apply not_elem_of_list_to_map.
+        intro Hcontra.
+        rewrite fst_zip in Hcontra; first done.
+        rewrite Hlen; lia.
+      }
+      iFrame.
+      iApply IHla; eauto.
+  Qed.
+
+  Lemma region_inv_destruct
+    (la : list Addr) ( v : Version ) (Ps : list D) :
+    NoDup la ->
+    length Ps = length la ->
+    ([∗ list] a_Pa ∈ zip la Ps, ∃ lw, (a_Pa.1, v) ↦ₐ lw ∗ ▷ (a_Pa.2 : D) lw)
+    -∗ (∃ lws, ⌜ length lws = length la ⌝
+               ∧ (([∗ map] a↦lw ∈ (logical_region_map la lws v), a ↦ₐ lw)
+                    ∗ ([∗ list] lw;Pw ∈ lws;Ps, ▷ (Pw : D) lw))).
+  Proof.
+    iIntros (HNoDup Hlen) "Hrange".
+    iDestruct (region_addrs_exists with "Hrange") as (lws) "[%Hlen_lws Hrange]".
+    assert (length lws = length la) as Hlen'
+        by (rewrite length_zip_l in Hlen_lws; lia).
+    assert (length lws = length Ps) as Hlen'' by (by rewrite -Hlen in Hlen').
+    iExists lws ; iSplit ; first done.
+    iAssert (
+        [∗ list] a;lwa_Pa ∈ la;(zip lws Ps),
+          (a, v) ↦ₐ lwa_Pa.1 ∗ ▷ (lwa_Pa.2 : D) lwa_Pa.1)%I
+      with "[Hrange]"
+      as "Hrange".
+    {
+      iDestruct (big_sepL2_alt with "Hrange") as "[ _ Hrange]".
+      iApply big_sepL2_alt.
+      iSplit; first (iPureIntro; by (rewrite length_zip_l; lia)).
+      iApply (big_sepL_zip_zip_equiv with "Hrange"); eauto.
+      rewrite /equiv_zip_fnt; intros k ab_c a_cb eq1 eq2 eq3 ; cbn in *.
+      iSplit; iIntros "H"; rewrite eq1 eq2 eq3 ; done.
+    }
+    iDestruct (big_sepL2_sep_sepL_r with "Hrange") as "[Hrange HrangeP]".
+    iSplitR "HrangeP"; cycle 1.
+    iApply big_sepL2_alt ; iFrame; auto.
+    iDestruct (big_sepL2_zip_r_equiv la Ps lws with "Hrange") as "Hrange"; eauto.
+    { intros k a b c; cbn in *; iSplit; iIntros "H"; done. }
+    iDestruct (big_sepL2_to_big_sepM  with "Hrange") as "Hrange"; auto.
+    iApply logical_region_map_list_to_map; auto; iFrame.
+  Qed.
+
+  Lemma region_inv_construct
+    (la : list Addr) ( v : Version ) (Ps : list D) :
+    NoDup la ->
+    length Ps = length la ->
+    (∃ lws, ⌜ length lws = length la ⌝ ∧
+              (([∗ map] a↦lw ∈ (logical_region_map la lws v), a ↦ₐ lw)
+                 ∗ ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw)))
+  -∗ ([∗ list] a_Pa ∈ zip la Ps, ∃ lw, (a_Pa.1, v) ↦ₐ lw ∗ (a_Pa.2 : D) lw).
+  Proof.
+    iIntros (HNoDup Hlen) "Hrange".
+    iDestruct "Hrange" as (lws) "(%Hlen' & Hrange & HPrange)".
+    iApply region_addrs_exists; iExists lws; iSplit
+    ; first (iPureIntro ; rewrite length_zip_l; auto; lia).
+    assert (length lws = length Ps) as Hlen'' by (by rewrite -Hlen in Hlen').
+    iDestruct (logical_region_map_list_to_map with "Hrange") as "Hrange"; auto; auto.
+    iDestruct (big_sepM_to_big_sepL2  with "Hrange") as "Hrange"; auto.
+    iDestruct (big_sepL2_zip_r_equiv
+                 la Ps lws (fun _ a cb => (a, v) ↦ₐ cb.1)%I
+                with "Hrange") as "Hrange" ; eauto.
+    { intros k a b c; cbn in *; iSplit; iIntros "H"; done. }
+    iApply big_sepL2_alt ; iFrame; auto.
+    iSplit; first (rewrite length_zip_l; [done|lia]).
+    iDestruct (big_sepL2_sep_sepL_r with "[$Hrange HPrange]") as "Hrange".
+    iDestruct (big_sepL2_alt with "HPrange") as "[? ?]"; iFrame.
+    cbn.
+    iApply big_sepL_zip_zip_equiv; eauto.
+    rewrite /equiv_zip_fnt; intros k ab_c a_cb eq1 eq2 eq3 ; cbn in *.
+    iSplit; iIntros "H"; rewrite eq1 eq2 eq3 ; done.
+    iDestruct (big_sepL2_alt with "Hrange") as "[ _ Hrange]".
+    iFrame.
+  Qed.
+
+  Lemma interp_open_region_notin (E : coPset) (p : Perm) (b e a : Addr) (v : Version) :
+    let la := (finz.seq_between b e) in
+    let E' := compute_mask_region E la v in
+    Forall (fun a => ↑logN.@(a, v) ⊆ E) la ->
+    readAllowed p = true ->
+    ⊢ interp (LCap p b e a v)
+    -∗ |={E, E'}=>
+          (∃ (Ps : list D) (lws : list LWord),
+              (⌜ length la = length Ps ⌝)
+                ∗ ( ⌜ length lws = length la ⌝)
+                ∗ ( ⌜ Persistent ([∗ list] y1;y2 ∈ lws;Ps, (y2 : D) y1) ⌝ )
+                ∗ ([∗ map] la↦lw ∈ (logical_range_map b e lws v), la ↦ₐ lw)
+                ∗ ([∗ list] lw;Pw ∈ lws;Ps, ▷ (Pw : D) lw)
+                ∗ ([∗ list] Pa ∈ Ps, read_cond Pa interp)
+                ∗ (▷ ([∗ list] a ∈ zip la Ps, (interp_ref_inv a.1 v a.2)) ={E', E}=∗ True)).
+  Proof.
+    intros * Hforall Hread.
+    iIntros "#Hinterp".
+
+    iDestruct (read_allowed_region_inv with "Hinterp") as "Hread" ;eauto.
+    iDestruct (region_addrs_exists with "Hread") as "Hread'".
+    iDestruct "Hread'" as (Ps) "[%Hlen Hread']".
+    iDestruct (big_sepL2_alt with "Hread'") as "[_ Hread'']".
+    iDestruct (big_sepL_sep with "Hread''") as "[Hsrc_pointsto Hread_P]".
+    iDestruct (big_sepL_sep with "Hread_P") as "[Hread_P' Hwrite_P']".
+
+    iMod (open_region_inv with "Hsrc_pointsto") as "[Hsrc Hcls_src]"; eauto.
+    apply finz_seq_between_NoDup.
+    iDestruct (region_inv_destruct with "Hsrc")
+      as (lws) "(%Hlen_lws & Hrange & HPrange)"; auto.
+    apply finz_seq_between_NoDup.
+    iModIntro.
+    iExists Ps, lws.
+    do 2 (iSplit ; first done).
+    iFrame.
+    iSplit.
+    {
+      iDestruct (big_sepL_sep with "Hwrite_P'") as "[Hpers _]" ; iClear "Hwrite_P'".
+      iDestruct (big_sepL2_alt (fun _ _ Pa => persistent_cond Pa) _ Ps with "[$Hpers]")
+        as "blaaa"; auto.
+      iDestruct (big_sepL2_const_sepL_r _ _ Ps with "blaaa") as "[_ Hp]".
+      iDestruct (big_sepL_forall with "Hp") as "%Hpers".
+      iPureIntro.
+      apply big_sepL2_persistent.
+      intros; eapply Hpers ; eauto.
+    }
+    {
+      iClear "Hinterp Hread Hread' Hread'' Hsrc_pointsto Hwrite_P' Hread_P".
+      iDestruct (big_sepL2_alt
+                   (fun _ _ Pa => read_cond (Pa : D) interp)%I
+                   (finz.seq_between b e) Ps with "[$Hread_P']") as "Hread_P''"
+      ; first done.
+      iDestruct (big_sepL2_const_sepL_r with "Hread_P''") as "[_ Hread_P''']".
+      iFrame "Hread_P'''".
+    }
+  Qed.
+
+  (* TODO can we merge this theorem with the previous one ? *)
+  Lemma interp_open_region_in
+    (E : coPset) (p : Perm) (b e a : Addr)
+    (la : list Addr) (v : Version) :
+    list_remove_list [a] (finz.seq_between b e) = Some la ->
+    let E' := compute_mask_region E la v in
+    Forall (fun a => ↑logN.@(a, v) ⊆ E) la ->
+    readAllowed p ->
+    ⊢ interp (LCap p b e a v)
+    -∗ |={E, E'}=>
+          (∃ (Ps : list D) (lws : list LWord),
+              (⌜ length la = length Ps ⌝)
+                ∗ ( ⌜ length lws = length la ⌝)
+                ∗ ( ⌜ Persistent ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw) ⌝ )
+                ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v), la ↦ₐ lw)
+                ∗ ([∗ list] lw;Pw ∈ lws;Ps, ▷ (Pw : D) lw)
+                ∗ ([∗ list] Pa ∈ Ps, read_cond Pa interp)
+                ∗ (▷ ([∗ list] a_Pa ∈ zip la Ps, (interp_ref_inv a_Pa.1 v a_Pa.2)) ={E', E}=∗ True)).
+  Proof.
+    intros * Hla ? HForall Hread.
+    iIntros "#Hinterp".
+    iDestruct (read_allowed_region_inv with "Hinterp") as "Hread" ;eauto.
+    assert ( la ⊆+ finz.seq_between b e ) by (by eapply list_remove_submsteq).
+    iAssert (
+        [∗ list] a0 ∈ la, ∃ P : D,
+          inv (logN.@(a0, v)) (interp_ref_inv a0 v P) ∗
+            read_cond P interp ∗
+            persistent_cond P ∗
+            (if writeAllowed p
+             then write_cond P interp
+             else emp)
+      )%I as "Hread_la"
+    ; first (iApply big_sepL_submseteq; eauto).
+    iClear "Hread" ; iRename "Hread_la" into "Hread".
+    iDestruct (region_addrs_exists with "Hread") as "Hread'".
+    iDestruct "Hread'" as (Ps) "[%Hlen Hread']".
+    iDestruct (big_sepL2_alt with "Hread'") as "[_ Hread'']".
+    iDestruct (big_sepL_sep with "Hread''") as "[Hsrc_pointsto Hread_P]".
+    iDestruct (big_sepL_sep with "Hread_P") as "[Hread_P' Hwrite_P']".
+
+    assert (NoDup la) as HNoDup.
+    { eapply list_remove_list_NoDup; eauto. apply finz_seq_between_NoDup. }
+
+    iMod (open_region_inv with "Hsrc_pointsto") as "[Hsrc Hcls_src]"; eauto.
+    iDestruct (region_inv_destruct with "Hsrc")
+      as (lws) "(%Hlen_lws & Hrange & HPrange)"
+    ; auto.
+    iModIntro.
+    iExists Ps, lws.
+    do 2 (iSplit ; first done).
+    iFrame.
+    iSplit.
+    {
+      iDestruct (big_sepL_sep with "Hwrite_P'") as "[Hpers _]" ; iClear "Hwrite_P'".
+      iDestruct (big_sepL2_alt (fun _ _ Pa => persistent_cond Pa) _ Ps with "[$Hpers]")
+        as "blaaa"; auto.
+      iDestruct (big_sepL2_const_sepL_r _ _ Ps with "blaaa") as "[_ Hp]".
+      iDestruct (big_sepL_forall with "Hp") as "%Hpers".
+      iPureIntro.
+      apply big_sepL2_persistent.
+      intros; eapply Hpers ; eauto.
+    }
+    {
+      iClear "Hinterp Hread Hread' Hread'' Hsrc_pointsto Hwrite_P' Hread_P".
+      iDestruct (big_sepL2_alt
+                   (fun _ _ Pa => read_cond (Pa : D) interp)%I
+                   with "[$Hread_P']") as "Hread_P''"
+      ; first done.
+      iDestruct (big_sepL2_const_sepL_r with "Hread_P''") as "[_ Hread_P''']".
+      iFrame "Hread_P'''".
+    }
+  Qed.
+
 End logrel.
