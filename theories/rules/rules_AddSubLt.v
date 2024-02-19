@@ -32,6 +32,16 @@ Section cap_lang_rules.
     i = Sub r arg1 arg2 ∨
     i = Lt r arg1 arg2.
 
+  Lemma exec_AddSubLt_eq {i r arg1 arg2 φ} :
+    is_AddSubLt i r arg1 arg2 ->
+    exec_opt i φ = z1 ← z_of_argument (reg φ) arg1 ;
+                   z2 ← z_of_argument (reg φ) arg2 ;
+                   updatePC (update_reg φ r (WInt (denote i z1 z2))).
+  Proof.
+    destruct 1 as [-> | [-> | ->]]; done.
+  Qed.
+
+
   Lemma regs_of_is_AddSubLt i r arg1 arg2 :
     is_AddSubLt i r arg1 arg2 →
     regs_of i = {[ r ]} ∪ regs_of_argument arg1 ∪ regs_of_argument arg2.
@@ -66,93 +76,77 @@ Section cap_lang_rules.
   (*   cbn; iFrame; iApply Hcont; iFrame; iPureIntro; *)
   (*   econstructor; eapply get_fail_case; eauto. *)
 
-  Lemma wp_AddSubLt Ep i pc_p pc_b pc_e pc_a pc_v pca_v lw dst arg1 arg2 lregs :
+  Lemma wp_AddSubLt i pc_p pc_b pc_e pc_a pc_v lw dst arg1 arg2 lregs :
     decodeInstrWL lw = i →
     is_AddSubLt i dst arg1 arg2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of i ⊆ dom lregs →
-    {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ Ep
+      Instr Executable @ ∅
     {{{ lregs' retv, RET retv;
         ⌜ AddSubLt_spec (decodeInstrWL lw) lregs dst arg1 arg2 lregs' retv ⌝ ∗
-          (pc_a, pca_v) ↦ₐ lw ∗
+          (pc_a, pc_v) ↦ₐ lw ∗
           [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-  (*   iIntros (Hdecode Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
-  (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
-  (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
-  (*   iDestruct "Hσ1" as "[Hr Hm]". *)
-  (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
-  (*   have ? := lookup_weaken _ _ _ _ HPC Hregs. *)
-  (*   iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto. *)
-  (*   iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-  (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
-  (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-  (*   iIntros "_". *)
-  (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
-  (*   unfold exec in Hstep. *)
+    iIntros (HdecodeLW Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    iApply (wp_instr_exec_opt Hvpc HPC HdecodeLW Dregs).
+    iFrame.
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrectpc & %HdecodeW) Hcred".
 
-  (*   specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. *)
-  (*   erewrite regs_of_is_AddSubLt in Hri, Dregs; eauto. *)
-  (*   destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. *)
+    (* case split on i *)
+    rewrite (exec_AddSubLt_eq Hinstr).
+    rewrite (regs_of_is_AddSubLt _ _ _ _ Hinstr) in Dregs.
 
-  (*   destruct (z_of_argument regs arg1) as [n1|] eqn:Hn1; *)
-  (*     pose proof Hn1 as Hn1'; cycle 1. *)
-  (*   (* Failure: arg1 is not an integer *) *)
-  (*   { unfold z_of_argument in Hn1. destruct arg1 as [| r0]; [ congruence |]. *)
-  (*     destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+. *)
-  (*     assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*     { rewrite Hr'0 in Hn1. *)
-  (*       destruct_word r0v; try congruence. *)
-  (*       all: destruct_or! Hinstr; rewrite Hinstr /= in Hstep. *)
-  (*       all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. } *)
-  (*     iFail "Hφ" AddSubLt_fail_nonconst1. } *)
-  (*   apply (z_of_arg_mono _ reg) in Hn1; auto. *)
+    (* Starting the transaction *)
+    iApply wp_wp2.
+    (* Copying the initial state as the transient state *)
+    iMod (state_interp_regs_transient_intro with "[$Hmap $Hσ1]") as "Hσ".
 
-  (*   destruct (z_of_argument regs arg2) as [n2|] eqn:Hn2; *)
-  (*     pose proof Hn2 as Hn2'; cycle 1. *)
-  (*   (* Failure: arg2 is not an integer *) *)
-  (*   { unfold z_of_argument in Hn2. destruct arg2 as [| r0]; [ congruence |]. *)
-  (*     destruct (Hri r0) as [r0v [Hr'0 Hr0]]. by unfold regs_of_argument; set_solver+. *)
-  (*     assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*     { *)
-  (*       rewrite Hr'0 in Hn2. destruct_word r0v; try congruence. *)
-  (*       all: destruct_or! Hinstr; rewrite Hinstr /= Hn1 in Hstep; cbn in Hstep. *)
-  (*       all: rewrite Hr0 in Hstep. all: repeat case_match; simplify_eq; eauto. } *)
-  (*     iFail "Hφ" AddSubLt_fail_nonconst2. } *)
-  (*   apply (z_of_arg_mono _ reg) in Hn2; auto. *)
+    (* both executions use a bind *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    (* We give Hσ to get a z1 *)
+    iApply (wp2_z_of_argument with "[Hφ Hpc_a Hcred $Hσ]"). { set_solver. }
+    (* wp2_z_of_argument introduces an existential (see shelved goals) *)
+    (* and get back a new Hσ *)
+    iIntros ( z1 ) "Hσ %Harg1L %Harg1".
 
-  (*   assert (exec_opt i {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |} = *)
-  (*             updatePC (update_reg {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |} dst (WInt (denote i n1 n2)))) as HH. *)
-  (*   { all: destruct_or! Hinstr; rewrite Hinstr /= /update_reg /= in Hstep |- *; auto. *)
-  (*     all: by rewrite Hn1 Hn2; cbn. } *)
-  (*   rewrite HH in Hstep. rewrite /update_reg /= in Hstep. *)
+    (* Same trick again *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_z_of_argument with "[Hφ Hpc_a Hcred $Hσ]"). { set_solver. }
+    iIntros ( z2 ) "Hσ %Harg2L %Harg2".
 
-  (*   destruct (incrementPC (<[ dst := WInt (denote i n1 n2) ]> regs)) *)
-  (*     as [regs'|] eqn:Hregs'; pose proof Hregs' as H'regs'; cycle 1. *)
-  (*   (* Failure: Cannot increment PC *) *)
-  (*   { eapply incrementPC_fail_updatePC with (m:=mem) in Hregs'. *)
-  (*     eapply updatePC_fail_incl with (m':=mem) in Hregs'. *)
-  (*     2: by apply lookup_insert_is_Some'; eauto. *)
-  (*     2: by apply insert_mono; eauto. *)
-  (*     simplify_pair_eq. *)
-  (*     rewrite Hregs' in Hstep. inversion Hstep. *)
-  (*     iFail "Hφ" AddSubLt_fail_incrPC. } *)
+    rewrite updatePC_incrementPC.
+    iApply (wp_opt2_bind (k1 := fun x => Some x)).
+    iApply wp_opt2_eqn_both.
 
+    iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LWInt (denote i z1 z2)) with "Hσ") as "Hσ".
+    { set_solver. }
+    { by cbn. }
 
-  (*   (* Success *) *)
+    iApply (wp2_opt_incrementPC with "[$Hσ Hcred Hpc_a Hφ]").
+    { now rewrite elem_of_dom (lookup_insert_dec HPC). }
 
-  (*   eapply (incrementPC_success_updatePC _ mem) in Hregs' *)
-  (*     as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-  (*   eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep. *)
-  (*   simplify_pair_eq. iFrame. *)
-  (*   iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*   iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*   iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto. *)
-  (*   Unshelve. all: auto. *)
-  (* Qed. *)
+    rewrite HdecodeLW. iSplit; cbn.
+    - iIntros (φt' lrt') "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_regs_transient_elim_abort with "Hσ") as "($ & Hregs)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      eapply AddSubLt_spec_failure.
+      by constructor 3 with z1 z2.
+      (* Interestingly, failure constructors 1 and 2 do not appear to be reachable *)
+      (* Suggesting we can simplify some cases? *)
+    - iIntros (lrt' rs') "Hσ %Hlis %His".
+      iMod (state_interp_regs_transient_elim_commit with "Hσ") as "($ & Hregs)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      by constructor 1 with z1 z2.
   Admitted.
 
   (* Derived specifications *)

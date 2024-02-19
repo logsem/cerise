@@ -1498,6 +1498,14 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
+  Lemma wp2_z_of_argument {src lw Φf Φs φ φt lr lrt} :
+    regs_of_argument src ⊆ dom lrt ->
+    state_interp_regs_transient φ φt lr lrt ∗
+      (∀ z, state_interp_regs_transient φ φt lr lrt -∗ Φs z z)
+      ⊢ wp_opt2 (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
+  Proof.
+  Admitted.
+
   Lemma update_state_interp_from_regs_mod {σ dst lw2 Ep lregs}:
     dst ∈ dom lregs ->
     (forall cur_map, is_cur_regs lregs cur_map -> is_cur_word lw2 cur_map) ->
